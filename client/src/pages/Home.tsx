@@ -1,24 +1,23 @@
 import { useState, useCallback } from "react";
-import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, ChevronDown, Info } from "lucide-react";
+import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useTheme } from "@/contexts/ThemeContext";
-import { LED_CATALOG, PROFILE_OPTIONS, ModuleType } from "@/lib/ledCatalog";
+import { LED_CATALOG, PROFILE_OPTIONS } from "@/lib/ledCatalog";
 import {
   calculateComposition,
-  selectDrivers,
   CompositionResult,
   ConfigInput,
   Power,
   Application,
   CCT,
-  SectionResult,
+  Voltage,
   DriverSpec,
+  MODULE_TYPE_LABELS,
 } from "@/lib/ledEngine";
 
 // ─── Constantes ────────────────────────────────────────────────────────────────
@@ -35,15 +34,9 @@ const CCT_OPTIONS: { value: CCT; label: string }[] = [
 ];
 
 const APPLICATION_OPTIONS: { value: Application; label: string }[] = [
-  { value: "D1", label: "D1 (Simples)" },
-  { value: "D2", label: "D2 (Simples)" },
-  { value: "D1+D2", label: "D1 + D2 (Duplo)" },
-];
-
-const MODULE_TYPE_OPTIONS: { value: ModuleType; label: string; desc: string }[] = [
-  { value: "IN", label: "IN", desc: "Instalação Normal" },
-  { value: "IF", label: "IF", desc: "Instalação Final" },
-  { value: "ML", label: "ML", desc: "Módulo Longo" },
+  { value: "D1", label: "D1" },
+  { value: "D2", label: "D2" },
+  { value: "D1+D2", label: "D1+D2" },
 ];
 
 // ─── Componentes Auxiliares ────────────────────────────────────────────────────
@@ -52,9 +45,7 @@ function FieldLabel({ children, hint }: { children: React.ReactNode; hint?: stri
   return (
     <div className="flex items-center gap-1.5 mb-1.5">
       <span className="text-sm font-medium text-foreground">{children}</span>
-      {hint && (
-        <span className="text-xs text-muted-foreground">({hint})</span>
-      )}
+      {hint && <span className="text-xs text-muted-foreground">({hint})</span>}
     </div>
   );
 }
@@ -65,14 +56,14 @@ function PowerBadge({ power }: { power: Power }) {
     26: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300",
     36: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
   };
-  const currentLabel: Record<Power, string> = {
-    18: "· Fileira Simples · 350mA",
-    26: "· Fileira Simples · 500mA",
-    36: "· Barra Dupla · 350mA",
+  const labels: Record<Power, string> = {
+    18: "Fileira Simples · 350mA",
+    26: "Fileira Simples · 500mA",
+    36: "Barra Dupla · 350mA",
   };
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${colors[power]}`}>
-      {power}W {currentLabel[power]}
+      {power}W · {labels[power]}
     </span>
   );
 }
@@ -93,91 +84,206 @@ function DriverList({ drivers }: { drivers: DriverSpec[] }) {
   );
 }
 
-function SectionCard({ section, label, voltage }: { section: SectionResult; label: string; voltage: import('@/lib/ledEngine').Voltage }) {
-  const efficiency = section.requestedLength > 0
-    ? Math.round((section.realizedLength / section.requestedLength) * 100)
+function ResultBlock({ result }: { result: CompositionResult }) {
+  const efficiency = result.requestedLength > 0
+    ? Math.round((result.realizedLength / result.requestedLength) * 100)
     : 0;
 
+  const isDual = result.application === "D1+D2";
+
   return (
-    <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-foreground font-display">{label}</span>
-        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-          efficiency === 100
-            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-            : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-        }`}>
-          {efficiency}% aproveitamento
-        </span>
-      </div>
+    <div className="space-y-4">
 
-      {/* Comprimentos */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-md bg-background p-3 border border-border">
-          <p className="text-xs text-muted-foreground mb-0.5">Solicitado</p>
-          <p className="text-lg font-bold text-foreground font-display">{section.requestedLength}<span className="text-xs font-normal ml-1">mm</span></p>
-        </div>
-        <div className="rounded-md bg-background p-3 border border-border">
-          <p className="text-xs text-muted-foreground mb-0.5">Realizado</p>
-          <p className={`text-lg font-bold font-display ${
-            section.realizedLength === section.requestedLength
-              ? "text-green-600 dark:text-green-400"
-              : "text-yellow-600 dark:text-yellow-400"
-          }`}>
-            {section.realizedLength}<span className="text-xs font-normal ml-1">mm</span>
-          </p>
-        </div>
-      </div>
-
-      {/* Tabela de Itens */}
-      {section.composition.length > 0 && (
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Composição de Módulos</p>
-          <div className="rounded-md border border-border overflow-hidden">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="bg-muted/50">
-                  <th className="text-left px-3 py-2 font-semibold text-muted-foreground">SKU</th>
-                  <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Compr.</th>
-                  <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Barras</th>
-                  <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Drivers</th>
-                </tr>
-              </thead>
-              <tbody>
-                {section.composition.map((item, idx) => {
-                  const itemDrivers = selectDrivers(item.barsTotal, section.power, voltage);
-                  const driverQty = itemDrivers.reduce((sum, d) => sum + d.quantity, 0);
-                  return (
-                    <tr key={idx} className="border-t border-border hover:bg-muted/20 transition-colors">
-                      <td className="px-3 py-2 font-mono text-primary font-medium">{item.sku}</td>
-                      <td className="px-3 py-2 text-right text-foreground">{item.length}mm</td>
-                      <td className="px-3 py-2 text-right text-foreground">{item.barsTotal}</td>
-                      <td className="px-3 py-2 text-right text-foreground">{driverQty}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-border bg-muted/30">
-                  <td className="px-3 py-2 font-semibold text-foreground">Total</td>
-                  <td className="px-3 py-2 text-right font-semibold text-foreground">{section.realizedLength}mm</td>
-                  <td className="px-3 py-2 text-right font-semibold text-foreground">{section.totalBars}</td>
-                  <td className="px-3 py-2 text-right font-semibold text-foreground">
-                    {section.drivers.reduce((sum, d) => sum + d.quantity, 0)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
+      {/* Alerta EASY H PLUS */}
+      {result.hasAlert && (
+        <div className="flex items-start gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/30">
+          <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold text-destructive">Driver Remoto Obrigatório</p>
+            <p className="text-xs text-destructive/80 mt-0.5">
+              O perfil EASY H PLUS com múltiplos drivers exige instalação de driver remoto (externo ao perfil).
+            </p>
           </div>
         </div>
       )}
 
-      {/* Drivers */}
-      <div>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Drivers</p>
-        <DriverList drivers={section.drivers} />
-      </div>
+      {/* Resumo Geral */}
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-green-500" />
+            Resumo da Configuração
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Métricas */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="rounded-lg bg-muted/40 p-3 border border-border">
+              <p className="text-xs text-muted-foreground mb-1">Perfil</p>
+              <p className="text-sm font-bold text-foreground font-display">{result.profileName}</p>
+              <p className="text-xs text-muted-foreground font-mono">{result.profileCode}</p>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-3 border border-border">
+              <p className="text-xs text-muted-foreground mb-1">Aplicação</p>
+              <p className="text-sm font-bold text-foreground font-display">{result.application}</p>
+              <p className="text-xs text-muted-foreground">
+                {isDual && result.independentLighting
+                  ? result.forcedIndependent ? "Independente (forçado)" : "Independente"
+                  : isDual ? "Conjunto" : "—"}
+              </p>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-3 border border-border">
+              <p className="text-xs text-muted-foreground mb-1">
+                {isDual ? "Potência D1 / D2" : "Potência"}
+              </p>
+              <p className="text-sm font-bold text-foreground font-display">
+                {isDual ? `${result.powerD1}W / ${result.powerD2}W` : `${result.powerD1}W`}
+              </p>
+              <p className="text-xs text-muted-foreground">{result.cct} · {result.voltage}</p>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-3 border border-border">
+              <p className="text-xs text-muted-foreground mb-1">Comprimento</p>
+              <p className={`text-sm font-bold font-display ${
+                efficiency === 100 ? "text-green-600 dark:text-green-400" : "text-yellow-600 dark:text-yellow-400"
+              }`}>
+                {result.realizedLength}mm
+              </p>
+              <p className="text-xs text-muted-foreground">
+                de {result.requestedLength}mm · {efficiency}%
+              </p>
+            </div>
+          </div>
+
+          {/* Drivers Combinados (quando acendimento conjunto) */}
+          {result.combinedDrivers && result.combinedDrivers.length > 0 && (
+            <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
+              <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
+                Drivers — Acendimento Conjunto (D1+D2)
+              </p>
+              <DriverList drivers={result.combinedDrivers} />
+            </div>
+          )}
+
+          {/* Drivers Independentes */}
+          {isDual && result.independentLighting && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {result.driversD1.length > 0 && (
+                <div className="rounded-lg bg-muted/30 border border-border p-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    Drivers D1 · {result.powerD1}W
+                  </p>
+                  <DriverList drivers={result.driversD1} />
+                </div>
+              )}
+              {result.driversD2.length > 0 && (
+                <div className="rounded-lg bg-muted/30 border border-border p-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    Drivers D2 · {result.powerD2}W
+                  </p>
+                  <DriverList drivers={result.driversD2} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Drivers D1 simples */}
+          {!isDual && result.driversD1.length > 0 && (
+            <div className="rounded-lg bg-muted/30 border border-border p-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Drivers
+              </p>
+              <DriverList drivers={result.driversD1} />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Composição de Módulos — bloco unificado */}
+      {result.composition.length > 0 && (
+        <Card className="shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              Composição de Módulos
+              {isDual && (
+                <span className="text-xs font-normal text-muted-foreground ml-1">
+                  (D1 e D2 — mesmo perfil físico)
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border border-border overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-muted/50">
+                    <th className="text-left px-3 py-2 font-semibold text-muted-foreground">SKU</th>
+                    <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Tipo</th>
+                    <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Compr.</th>
+                    <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Qtd</th>
+                    <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Barras *</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.composition.map((item, idx) => (
+                    <tr key={idx} className="border-t border-border hover:bg-muted/20 transition-colors">
+                      <td className="px-3 py-2 font-mono text-primary font-medium">{item.sku}</td>
+                      <td className="px-3 py-2 text-foreground">
+                        <span className="inline-flex items-center gap-1">
+                          <span className="font-semibold">{item.moduleType}</span>
+                          <span className="text-muted-foreground hidden sm:inline">
+                            — {MODULE_TYPE_LABELS[item.moduleType]}
+                          </span>
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-right text-foreground">{item.length}mm</td>
+                      <td className="px-3 py-2 text-right text-foreground font-semibold">{item.quantity}</td>
+                      <td className="px-3 py-2 text-right text-foreground">{Number.isInteger(item.barsTotal) ? item.barsTotal : item.barsTotal.toFixed(1)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-border bg-muted/30">
+                    <td className="px-3 py-2 font-semibold text-foreground" colSpan={2}>Total</td>
+                    <td className="px-3 py-2 text-right font-semibold text-foreground">{result.realizedLength}mm</td>
+                    <td className="px-3 py-2 text-right font-semibold text-foreground">
+                      {result.composition.reduce((s, i) => s + i.quantity, 0)}
+                    </td>
+                    <td className="px-3 py-2 text-right font-semibold text-foreground">
+                      {(() => { const t = result.composition.reduce((s, i) => s + i.barsTotal, 0); return Number.isInteger(t) ? t : t.toFixed(1); })()}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            * Barras Stripflex (562,5mm cada). Valores fracionados indicam aproveitamento parcial da barra.
+          </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Notas de Engenharia */}
+      {result.engineeringNotes.length > 0 && (
+        <Card className="shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+              <Info className="w-4 h-4" />
+              Notas de Engenharia
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {result.engineeringNotes.map((note, idx) => (
+                <li key={idx} className="flex items-start gap-2 text-sm text-foreground">
+                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                  {note}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
@@ -193,12 +299,10 @@ export default function Home() {
   const [powerD1, setPowerD1] = useState<Power>(18);
   const [powerD2, setPowerD2] = useState<Power>(18);
   const [cct, setCct] = useState<CCT>("4000K");
-  const [lengthD1, setLengthD1] = useState<string>("2000");
-  const [lengthD2, setLengthD2] = useState<string>("2000");
-  const [moduleType, setModuleType] = useState<ModuleType>("IN");
+  const [totalLength, setTotalLength] = useState<string>("2000");
   const [allowLongModules, setAllowLongModules] = useState(false);
   const [independentLighting, setIndependentLighting] = useState(false);
-  const [voltage, setVoltage] = useState<import('@/lib/ledEngine').Voltage>("220Vac");
+  const [voltage, setVoltage] = useState<Voltage>("220Vac");
 
   // Result state
   const [result, setResult] = useState<CompositionResult | null>(null);
@@ -208,6 +312,10 @@ export default function Home() {
   const profileNoD1D2 = selectedProfile?.noD1D2 ?? false;
   const isDual = application === "D1+D2";
 
+  // Acendimento independente é forçado quando D1 ≠ D2 em potência
+  const forcedIndependent = isDual && powerD1 !== powerD2;
+  const effectiveIndependent = forcedIndependent || independentLighting;
+
   const handleCalculate = useCallback(() => {
     setError(null);
 
@@ -216,16 +324,9 @@ export default function Home() {
       return;
     }
 
-    const len1 = parseInt(lengthD1);
-    const len2 = parseInt(lengthD2);
-
-    if (isNaN(len1) || len1 <= 0) {
-      setError("Informe um comprimento válido para D1.");
-      return;
-    }
-
-    if (isDual && (isNaN(len2) || len2 <= 0)) {
-      setError("Informe um comprimento válido para D2.");
+    const len = parseInt(totalLength);
+    if (isNaN(len) || len <= 0) {
+      setError("Informe um comprimento total válido.");
       return;
     }
 
@@ -236,20 +337,19 @@ export default function Home() {
       powerD2: isDual ? powerD2 : undefined,
       cct,
       voltage,
-      lengthD1: len1,
-      lengthD2: isDual ? len2 : undefined,
-      moduleType,
+      totalLength: len,
       allowLongModules,
-      independentLighting,
+      independentLighting: effectiveIndependent,
     };
 
     try {
       const res = calculateComposition(input);
       setResult(res);
-    } catch (e) {
-      setError("Erro ao calcular composição. Verifique os parâmetros.");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Erro ao calcular composição.";
+      setError(msg);
     }
-  }, [profileCode, application, powerD1, powerD2, cct, voltage, lengthD1, lengthD2, moduleType, allowLongModules, independentLighting, isDual]);
+  }, [profileCode, application, powerD1, powerD2, cct, voltage, totalLength, allowLongModules, effectiveIndependent, isDual]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -269,10 +369,9 @@ export default function Home() {
               </p>
             </div>
           </div>
-
           <div className="flex items-center gap-3">
             <span className="hidden sm:block text-xs text-sidebar-foreground/50 font-mono">
-              v2.0 · {Object.keys(LED_CATALOG).length} perfis
+              v2.1 · {Object.keys(LED_CATALOG).length} perfis
             </span>
             <Button
               variant="ghost"
@@ -311,7 +410,7 @@ export default function Home() {
                 {/* Perfil */}
                 <div>
                   <FieldLabel>Perfil</FieldLabel>
-                  <Select value={profileCode} onValueChange={setProfileCode}>
+                  <Select value={profileCode} onValueChange={(v) => { setProfileCode(v); setResult(null); }}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Selecione o perfil..." />
                     </SelectTrigger>
@@ -383,9 +482,7 @@ export default function Home() {
                       </button>
                     ))}
                   </div>
-                  <div className="mt-2">
-                    <PowerBadge power={powerD1} />
-                  </div>
+                  <div className="mt-2"><PowerBadge power={powerD1} /></div>
                 </div>
 
                 {/* Potência D2 (apenas D1+D2) */}
@@ -407,10 +504,8 @@ export default function Home() {
                         </button>
                       ))}
                     </div>
-                    <div className="mt-2">
-                      <PowerBadge power={powerD2} />
-                    </div>
-                    {powerD1 !== powerD2 && (
+                    <div className="mt-2"><PowerBadge power={powerD2} /></div>
+                    {forcedIndependent && (
                       <p className="mt-2 text-xs text-yellow-600 dark:text-yellow-400 flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" />
                         Potências diferentes forçam Acendimento Independente
@@ -456,39 +551,24 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Tipo de Módulo */}
-                <div>
-                  <FieldLabel>Tipo de Módulo</FieldLabel>
-                  <div className="grid grid-cols-3 gap-2">
-                    {MODULE_TYPE_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.value}
-                        onClick={() => setModuleType(opt.value)}
-                        className={`px-3 py-2 rounded-md text-sm font-medium border transition-all text-center ${
-                          moduleType === opt.value
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                            : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
-                        }`}
-                      >
-                        <div className="font-bold">{opt.label}</div>
-                        <div className="text-[10px] opacity-70">{opt.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
                 <Separator />
 
-                {/* Comprimento D1 */}
+                {/* Comprimento Total — único campo */}
                 <div>
-                  <FieldLabel hint={isDual ? "D1" : undefined}>Comprimento Total</FieldLabel>
+                  <FieldLabel>Comprimento Total</FieldLabel>
+                  {isDual && (
+                    <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                      <Info className="w-3 h-3" />
+                      D1 e D2 são instalados no mesmo perfil com o mesmo comprimento
+                    </p>
+                  )}
                   <div className="relative">
                     <input
                       type="number"
-                      value={lengthD1}
-                      onChange={(e) => setLengthD1(e.target.value)}
+                      value={totalLength}
+                      onChange={(e) => setTotalLength(e.target.value)}
                       min={100}
-                      max={10000}
+                      max={20000}
                       step={1}
                       className="w-full h-10 px-3 pr-12 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
                       placeholder="ex: 2000"
@@ -499,49 +579,34 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Comprimento D2 */}
-                {isDual && (
-                  <div>
-                    <FieldLabel hint="D2">Comprimento Total</FieldLabel>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        value={lengthD2}
-                        onChange={(e) => setLengthD2(e.target.value)}
-                        min={100}
-                        max={10000}
-                        step={1}
-                        className="w-full h-10 px-3 pr-12 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
-                        placeholder="ex: 2000"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">
-                        mm
-                      </span>
-                    </div>
-                  </div>
-                )}
-
                 <Separator />
 
                 {/* Toggles */}
                 <div className="space-y-3">
+                  {/* Acendimento Independente */}
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="independent" className="text-sm font-medium cursor-pointer">
+                      <Label
+                        htmlFor="independent"
+                        className={`text-sm font-medium ${forcedIndependent ? "text-muted-foreground" : "cursor-pointer"}`}
+                      >
                         Acendimento Independente
                       </Label>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        D1 e D2 com drivers separados
+                        {forcedIndependent
+                          ? "Forçado — D1 e D2 com potências diferentes"
+                          : "D1 e D2 com drivers separados"}
                       </p>
                     </div>
                     <Switch
                       id="independent"
-                      checked={independentLighting || (isDual && powerD1 !== powerD2)}
-                      disabled={isDual && powerD1 !== powerD2}
+                      checked={effectiveIndependent}
+                      disabled={forcedIndependent || !isDual}
                       onCheckedChange={setIndependentLighting}
                     />
                   </div>
 
+                  {/* Módulos Longos */}
                   <div className="flex items-center justify-between">
                     <div>
                       <Label htmlFor="longmodules" className="text-sm font-medium cursor-pointer">
@@ -604,102 +669,7 @@ export default function Home() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-4">
-
-                {/* Alerta EASY H PLUS */}
-                {result.hasAlert && (
-                  <div className="flex items-start gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/30">
-                    <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-bold text-destructive">Driver Remoto Obrigatório</p>
-                      <p className="text-xs text-destructive/80 mt-0.5">
-                        O perfil EASY H PLUS com múltiplos drivers exige instalação de driver remoto (externo ao perfil).
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Resumo Geral */}
-                <Card className="shadow-sm">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-green-500" />
-                      Resumo da Configuração
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                      <div className="rounded-lg bg-muted/40 p-3 border border-border">
-                        <p className="text-xs text-muted-foreground mb-1">Perfil</p>
-                        <p className="text-sm font-bold text-foreground font-display">{result.profileName}</p>
-                        <p className="text-xs text-muted-foreground font-mono">{result.profileCode}</p>
-                      </div>
-                      <div className="rounded-lg bg-muted/40 p-3 border border-border">
-                        <p className="text-xs text-muted-foreground mb-1">Aplicação</p>
-                        <p className="text-sm font-bold text-foreground font-display">{result.application}</p>
-                        <p className="text-xs text-muted-foreground">Módulo {result.moduleType}</p>
-                      </div>
-                      <div className="rounded-lg bg-muted/40 p-3 border border-border">
-                        <p className="text-xs text-muted-foreground mb-1">Potência</p>
-                        <p className="text-sm font-bold text-foreground font-display">{result.power}W</p>
-                        <p className="text-xs text-muted-foreground">{result.cct} · {result.voltage}</p>
-                      </div>
-                      <div className="rounded-lg bg-muted/40 p-3 border border-border">
-                        <p className="text-xs text-muted-foreground mb-1">Acendimento</p>
-                        <p className="text-sm font-bold text-foreground font-display">
-                          {result.independentLighting ? "Independente" : "Conjunto"}
-                        </p>
-                        {result.forcedIndependent && (
-                          <p className="text-xs text-yellow-600 dark:text-yellow-400">Forçado</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Drivers Combinados (quando conjunto) */}
-                    {result.combinedDrivers && (
-                      <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
-                        <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-                          Drivers Otimizados (Acendimento Conjunto)
-                        </p>
-                        <DriverList drivers={result.combinedDrivers} />
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Seções */}
-                {result.sections.map((section, idx) => (
-                  <SectionCard
-                    key={idx}
-                    section={section}
-                    label={`Seção ${section.application}`}
-                    voltage={result.voltage}
-                  />
-                ))}
-
-                {/* Notas de Engenharia */}
-                {result.engineeringNotes.length > 0 && (
-                  <Card className="shadow-sm">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                        <Info className="w-4 h-4" />
-                        Notas de Engenharia
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ul className="space-y-2">
-                        {result.engineeringNotes.map((note, idx) => (
-                          <li key={idx} className="flex items-start gap-2 text-sm text-foreground">
-                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                            {note}
-                          </li>
-                        ))}
-                      </ul>
-                    </CardContent>
-                  </Card>
-                )}
-
-              </div>
+              <ResultBlock result={result} />
             )}
           </div>
         </div>

@@ -26,3 +26,12 @@
 - [x] Adicionar seleção de tensão: 220Vac ou Bivolt
 - [x] Quando Bivolt: usar LIFUD 20W 350mA, LIFUD 40W 350mA ou LIFUD 60W 350mA para 18W
 - [x] Atualizar testes unitários para refletir as novas regras de drivers
+
+## Ajustes v1.2 (solicitados pelo usuário)
+
+- [x] Remover seletor de tipo de módulo da UI — engine escolhe automaticamente IN/IF/ML ideal
+- [x] Engine: algoritmo de seleção automática de módulos misturando IN, IF e ML para melhor composição
+- [x] Unificar D1+D2 em bloco único de resultado — um único campo de comprimento total
+- [x] Toggle "Acendimento Independente" forçado e bloqueado quando D1 ≠ D2 em potência
+- [x] Corrigir nomenclatura: IN = Módulo Inteiro, IF = Início ou Final de Linha, ML = Meio de Linha
+- [x] Atualizar testes para refletir nova lógica de seleção automática de módulos
