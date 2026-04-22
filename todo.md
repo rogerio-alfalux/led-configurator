@@ -63,3 +63,7 @@
 - [x] EASY G: remover da UI (não disponível para venda)
 - [x] Filtros dinâmicos: ao selecionar perfil, mostrar apenas instalações disponíveis; ao selecionar instalação, mostrar apenas aplicações válidas
 - [x] Atualizar testes unitários para cobrir as novas restrições
+
+## Correção v1.5
+
+- [x] Adicionar BLAZE Embutir (LLE-2810) ao catálogo com módulos extraídos do Excel
