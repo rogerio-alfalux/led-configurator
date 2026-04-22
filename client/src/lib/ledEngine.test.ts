@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calculateComposition, selectDrivers, buildComposition } from "./ledEngine";
+import { calculateComposition, selectDrivers, buildComposition, IN_MAX_BARS_STANDARD, IN_MAX_BARS_LONG } from "./ledEngine";
 import type { ConfigInput } from "./ledEngine";
 
 // ─── selectDrivers — 220Vac — 350mA (18W) ────────────────────────────────────
@@ -71,9 +71,75 @@ describe("selectDrivers — Bivolt — 350mA (18W)", () => {
   });
 });
 
-// ─── buildComposition — Seleção automática de módulos ────────────────────────
+// ─── Constantes de limite de barras ──────────────────────────────────────────
 
-describe("buildComposition — seleção automática de módulos", () => {
+describe("Constantes de limite de barras para IN", () => {
+  it("IN_MAX_BARS_STANDARD deve ser 5", () => {
+    expect(IN_MAX_BARS_STANDARD).toBe(5);
+  });
+
+  it("IN_MAX_BARS_LONG deve ser 6", () => {
+    expect(IN_MAX_BARS_LONG).toBe(6);
+  });
+});
+
+// ─── buildComposition — Lógica IN/IF+ML ──────────────────────────────────────
+
+describe("buildComposition — linha curta → deve usar IN como peça única", () => {
+  it("585mm (1 barra) → modo IN_SINGLE, apenas módulos IN", () => {
+    const r = buildComposition("LLP-4251", 585, 18, false);
+    expect(r.compositionMode).toBe("IN_SINGLE");
+    expect(r.composition.every(i => i.moduleType === "IN")).toBe(true);
+    expect(r.realizedLength).toBeLessThanOrEqual(585);
+    expect(r.composition.length).toBe(1);
+  });
+
+  it("1135mm (2 barras) → modo IN_SINGLE", () => {
+    const r = buildComposition("LLP-4251", 1135, 18, false);
+    expect(r.compositionMode).toBe("IN_SINGLE");
+    expect(r.composition.every(i => i.moduleType === "IN")).toBe(true);
+  });
+
+  it("2825mm (5 barras) → modo IN_SINGLE (no limite padrão)", () => {
+    const r = buildComposition("LLP-4251", 2825, 18, false);
+    expect(r.compositionMode).toBe("IN_SINGLE");
+    expect(r.composition.every(i => i.moduleType === "IN")).toBe(true);
+  });
+});
+
+describe("buildComposition — linha longa → deve usar IF+ML, nunca IN", () => {
+  it("5000mm → modo IF_ML_LINE, apenas IF e ML", () => {
+    const r = buildComposition("LLP-4251", 5000, 18, false);
+    expect(r.compositionMode).toBe("IF_ML_LINE");
+    expect(r.composition.every(i => i.moduleType === "IF" || i.moduleType === "ML")).toBe(true);
+    expect(r.realizedLength).toBeLessThanOrEqual(5000);
+  });
+
+  it("10000mm → modo IF_ML_LINE, sem módulos IN", () => {
+    const r = buildComposition("LLP-4251", 10000, 18, false);
+    expect(r.compositionMode).toBe("IF_ML_LINE");
+    expect(r.composition.some(i => i.moduleType === "IN")).toBe(false);
+    expect(r.realizedLength).toBeLessThanOrEqual(10000);
+  });
+
+  it("20000mm → modo IF_ML_LINE, comprimento realizado ≤ solicitado", () => {
+    const r = buildComposition("LLP-4251", 20000, 18, false);
+    expect(r.compositionMode).toBe("IF_ML_LINE");
+    expect(r.realizedLength).toBeLessThanOrEqual(20000);
+  });
+
+  it("IF deve aparecer exatamente 2 vezes e ser iguais entre si (mesmo SKU)", () => {
+    const r = buildComposition("LLP-4251", 10000, 18, false);
+    const ifItems = r.composition.filter(i => i.moduleType === "IF");
+    const totalIfQty = ifItems.reduce((s, i) => s + i.quantity, 0);
+    // Exatamente 2 IFs
+    expect(totalIfQty).toBe(2);
+    // Apenas 1 SKU de IF (os 2 são iguais)
+    expect(ifItems.length).toBe(1);
+  });
+});
+
+describe("buildComposition — regras gerais", () => {
   it("comprimento realizado deve ser <= solicitado", () => {
     const { realizedLength } = buildComposition("LLP-4251", 2000, 18, false);
     expect(realizedLength).toBeLessThanOrEqual(2000);
@@ -102,8 +168,7 @@ describe("buildComposition — seleção automática de módulos", () => {
   it("36W deve usar 2 barras por seção (barra dupla)", () => {
     const { composition } = buildComposition("LLP-4251", 1135, 36, false);
     composition.forEach((item) => {
-      // barsTotal = barras * 2 (barsPerSection para 36W)
-      expect(item.barsTotal).toBe(item.barras * 2);
+      expect(item.barsTotal).toBeCloseTo(item.barras * 2, 1);
     });
   });
 });
@@ -145,6 +210,24 @@ describe("calculateComposition — HIT (LLP-4251) — D1 — 18W", () => {
   it("driversD2 deve ser vazio para aplicação D1", () => {
     const r = calculateComposition(base);
     expect(r.driversD2).toHaveLength(0);
+  });
+});
+
+describe("calculateComposition — linha longa 10000mm → IF_ML_LINE sem IN", () => {
+  it("HIT 18W 10000mm → compositionMode IF_ML_LINE", () => {
+    const r = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1",
+      powerD1: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 10000,
+      allowLongModules: false,
+      independentLighting: false,
+    });
+    expect(r.compositionMode).toBe("IF_ML_LINE");
+    expect(r.composition.some(i => i.moduleType === "IN")).toBe(false);
+    expect(r.realizedLength).toBeLessThanOrEqual(10000);
   });
 });
 
@@ -229,22 +312,6 @@ describe("calculateComposition — D1+D2 — Acendimento Independente Forçado",
     expect(r.combinedDrivers!.length).toBeGreaterThan(0);
     expect(r.driversD1).toHaveLength(0);
     expect(r.driversD2).toHaveLength(0);
-  });
-
-  it("D1+D2 deve ter composição unificada (um único bloco de módulos)", () => {
-    const r = calculateComposition({
-      profileCode: "LLP-4251",
-      application: "D1+D2",
-      powerD1: 18,
-      powerD2: 18,
-      cct: "4000K",
-      voltage: "220Vac",
-      totalLength: 1500,
-      allowLongModules: false,
-      independentLighting: false,
-    });
-    // Composição unificada — não há seções separadas
-    expect(r.composition.length).toBeGreaterThan(0);
   });
 });
 

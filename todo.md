@@ -35,3 +35,11 @@
 - [x] Toggle "Acendimento Independente" forçado e bloqueado quando D1 ≠ D2 em potência
 - [x] Corrigir nomenclatura: IN = Módulo Inteiro, IF = Início ou Final de Linha, ML = Meio de Linha
 - [x] Atualizar testes para refletir nova lógica de seleção automática de módulos
+
+## Correção v1.3 - Lógica correta de módulos IN/IF/ML
+
+- [x] IN só usado como peça única (comprimento total ≤ 5 barras; ≤ 6 com módulos longos habilitados)
+- [x] Linhas longas (> limite de barras) devem usar APENAS IF + ML (2 IFs nas pontas + MLs no meio)
+- [x] Os 2 IFs devem ser sempre iguais entre si
+- [x] Algoritmo IF+ML: testar todas combinações, priorizar menor quantidade de módulos, depois melhor equilíbrio, depois mais próximo sem ultrapassar
+- [x] Atualizar testes unitários para cobrir a nova lógica

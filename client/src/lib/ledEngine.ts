@@ -1,5 +1,7 @@
-// LED Configurator Engine v1.2
-// Seleção automática de tipo de módulo (IN/IF/ML), resultado unificado D1+D2
+// LED Configurator Engine v1.3
+// Lógica correta de módulos:
+//   IN (Módulo Inteiro): apenas quando a composição é uma peça única (≤ 5 barras; ≤ 6 com módulos longos)
+//   IF + ML: para linhas longas — sempre 2 IFs iguais nas pontas + MLs no meio
 
 import { LED_CATALOG } from "./ledCatalog";
 
@@ -32,7 +34,7 @@ export interface CompositionItem {
   length: number;
   barras: number;
   barsTotal: number;
-  quantity: number; // quantas vezes este SKU aparece
+  quantity: number;
 }
 
 export interface CompositionResult {
@@ -49,14 +51,15 @@ export interface CompositionResult {
   requestedLength: number;
   realizedLength: number;
   remainingLength: number;
-  composition: CompositionItem[];   // composição unificada (D1 e D2 usam o mesmo perfil)
-  totalBars: number;                // total de barras (D1+D2 juntos se independente, senão igual)
-  driversD1: DriverSpec[];          // drivers para D1 (ou único driver se conjunto)
-  driversD2: DriverSpec[];          // drivers para D2 (vazio se não independente ou D1 only)
-  combinedDrivers?: DriverSpec[];   // drivers otimizados quando acendimento conjunto
+  composition: CompositionItem[];
+  totalBars: number;
+  driversD1: DriverSpec[];
+  driversD2: DriverSpec[];
+  combinedDrivers?: DriverSpec[];
   engineeringNotes: string[];
   hasAlert: boolean;
   alertMessage?: string;
+  compositionMode: "IN_SINGLE" | "IF_ML_LINE"; // modo de composição usado
 }
 
 export interface ConfigInput {
@@ -66,7 +69,7 @@ export interface ConfigInput {
   powerD2?: Power;
   cct: CCT;
   voltage: Voltage;
-  totalLength: number;    // comprimento total único (mesmo para D1+D2)
+  totalLength: number;
   allowLongModules: boolean;
   independentLighting: boolean;
 }
@@ -84,6 +87,14 @@ const CURRENT_TYPE: Record<Power, "350mA" | "500mA"> = {
   26: "500mA",
   36: "350mA",
 };
+
+/**
+ * Limite máximo de barras para uso de IN como peça única.
+ * Se o comprimento total cabe em ≤ 5 barras (ou ≤ 6 com módulos longos),
+ * pode-se usar um único módulo IN. Caso contrário, usar IF + ML.
+ */
+export const IN_MAX_BARS_STANDARD = 5;
+export const IN_MAX_BARS_LONG = 6;
 
 // ─── Seleção de Drivers ───────────────────────────────────────────────────────
 
@@ -125,65 +136,35 @@ export function optimizeDrivers(totalBars: number, power: Power, voltage: Voltag
   return selectDrivers(totalBars, power, voltage);
 }
 
-// ─── Seleção Automática de Módulos ───────────────────────────────────────────
+// ─── Helpers de módulos ───────────────────────────────────────────────────────
 
-/**
- * Algoritmo guloso com seleção automática de tipo de módulo.
- *
- * Estratégia:
- * 1. Combina todos os módulos disponíveis (IN, IF, ML) respeitando allowLongModules.
- * 2. Ordena por comprimento decrescente (maior primeiro).
- * 3. Aplica algoritmo guloso: usa o maior módulo que cabe no restante.
- * 4. Consolida itens iguais (mesmo SKU) somando quantidades.
- *
- * Retorna a composição como lista de CompositionItem consolidados.
- */
-export function buildComposition(
-  profileCode: string,
-  requestedLength: number,
-  power: Power,
-  allowLongModules: boolean
-): { composition: CompositionItem[]; realizedLength: number; remainingLength: number } {
+interface RawModule {
+  type: ModuleType;
+  barras: number;
+  length: number;
+  sku: string;
+}
+
+function getModules(profileCode: string, type: ModuleType, allowLongModules: boolean): RawModule[] {
   const profile = LED_CATALOG[profileCode];
-  if (!profile) {
-    return { composition: [], realizedLength: 0, remainingLength: requestedLength };
-  }
+  if (!profile) return [];
+  const mods = profile.modules[type];
+  if (!mods) return [];
+  return Object.entries(mods)
+    .filter(([, data]) => data.sku && data.sku !== "")
+    .filter(([, data]) => allowLongModules || data.length <= 2825)
+    .map(([barrasKey, data]) => ({
+      type,
+      barras: parseFloat(barrasKey),
+      length: data.length,
+      sku: data.sku,
+    }));
+}
 
-  const barsPerSection = BARS_PER_SECTION[power];
-  const moduleTypes: ModuleType[] = ["IN", "IF", "ML"];
-
-  // Montar lista plana de todos os módulos disponíveis
-  const allModules: { type: ModuleType; barras: number; length: number; sku: string }[] = [];
-  for (const mt of moduleTypes) {
-    const mods = profile.modules[mt];
-    if (!mods) continue;
-    for (const [barrasKey, data] of Object.entries(mods)) {
-      if (!data.sku || data.sku === "") continue; // Regra de Ouro
-      if (!allowLongModules && data.length > 2825) continue;
-      allModules.push({
-        type: mt,
-        barras: parseFloat(barrasKey),
-        length: data.length,
-        sku: data.sku,
-      });
-    }
-  }
-
-  // Ordenar por comprimento decrescente
-  allModules.sort((a, b) => b.length - a.length);
-
-  const rawItems: { type: ModuleType; barras: number; length: number; sku: string }[] = [];
-  let remaining = requestedLength;
-
-  // Algoritmo guloso
-  for (const mod of allModules) {
-    while (remaining >= mod.length) {
-      rawItems.push(mod);
-      remaining -= mod.length;
-    }
-  }
-
-  // Consolidar por SKU
+function toCompositionItems(
+  rawItems: RawModule[],
+  barsPerSection: number
+): CompositionItem[] {
   const skuMap = new Map<string, CompositionItem>();
   for (const item of rawItems) {
     const existing = skuMap.get(item.sku);
@@ -202,23 +183,207 @@ export function buildComposition(
       });
     }
   }
+  return Array.from(skuMap.values());
+}
 
-  const composition = Array.from(skuMap.values());
+// ─── Estratégia 1: IN como peça única ────────────────────────────────────────
+
+/**
+ * Tenta encontrar um único módulo IN que caiba no comprimento solicitado.
+ * Retorna o melhor (maior sem ultrapassar) ou null se não existir.
+ */
+function tryInSingle(
+  profileCode: string,
+  requestedLength: number,
+  power: Power,
+  allowLongModules: boolean
+): { composition: CompositionItem[]; realizedLength: number; remainingLength: number } | null {
+  const inModules = getModules(profileCode, "IN", allowLongModules)
+    .filter(m => m.length <= requestedLength)
+    .sort((a, b) => b.length - a.length); // maior primeiro
+
+  if (inModules.length === 0) return null;
+
+  const best = inModules[0];
+  const barsPerSection = BARS_PER_SECTION[power];
+
+  const composition = toCompositionItems([best], barsPerSection);
+  const realizedLength = best.length;
+  const remainingLength = requestedLength - best.length;
+
+  return { composition, realizedLength, remainingLength };
+}
+
+// ─── Estratégia 2: IF + ML para linhas longas ─────────────────────────────────
+
+/**
+ * Composição de linha longa com 2 IFs iguais nas pontas + MLs no meio.
+ *
+ * Hierarquia de decisão (conforme histórico do projeto):
+ * 1. Comprimento total ≤ comprimento solicitado (nunca ultrapassar)
+ * 2. Menor quantidade de módulos
+ * 3. Melhor equilíbrio (módulos de comprimentos próximos)
+ * 4. Mais próximo do comprimento solicitado
+ *
+ * Os 2 IFs devem ser sempre iguais entre si.
+ */
+function buildIfMlComposition(
+  profileCode: string,
+  requestedLength: number,
+  power: Power,
+  allowLongModules: boolean
+): { composition: CompositionItem[]; realizedLength: number; remainingLength: number } | null {
+  const ifModules = getModules(profileCode, "IF", allowLongModules)
+    .sort((a, b) => b.length - a.length);
+  const mlModules = getModules(profileCode, "ML", allowLongModules)
+    .sort((a, b) => b.length - a.length);
+
+  if (ifModules.length === 0) return null;
+
+  const barsPerSection = BARS_PER_SECTION[power];
+
+  interface Candidate {
+    ifMod: RawModule;
+    mlItems: RawModule[];
+    realizedLength: number;
+    moduleCount: number;
+    balance: number; // desvio padrão dos comprimentos (menor = mais equilibrado)
+  }
+
+  const candidates: Candidate[] = [];
+
+  for (const ifMod of ifModules) {
+    const twoIfLength = 2 * ifMod.length;
+    if (twoIfLength > requestedLength) continue; // 2 IFs já ultrapassam
+
+    const remaining = requestedLength - twoIfLength;
+
+    // Algoritmo guloso para os MLs: preencher o restante com MLs
+    const mlItems: RawModule[] = [];
+    let rem = remaining;
+    for (const ml of mlModules) {
+      while (rem >= ml.length) {
+        mlItems.push(ml);
+        rem -= ml.length;
+      }
+    }
+
+    const realizedLength = requestedLength - rem;
+    const moduleCount = 2 + mlItems.length;
+
+    // Calcular equilíbrio: desvio padrão dos comprimentos de todos os módulos
+    const allLengths = [ifMod.length, ifMod.length, ...mlItems.map(m => m.length)];
+    const mean = allLengths.reduce((s, v) => s + v, 0) / allLengths.length;
+    const balance = Math.sqrt(allLengths.reduce((s, v) => s + (v - mean) ** 2, 0) / allLengths.length);
+
+    candidates.push({ ifMod, mlItems, realizedLength, moduleCount, balance });
+  }
+
+  if (candidates.length === 0) return null;
+
+  // Ranquear candidatos: 1) menor módulos, 2) melhor equilíbrio, 3) mais próximo
+  candidates.sort((a, b) => {
+    if (a.moduleCount !== b.moduleCount) return a.moduleCount - b.moduleCount;
+    if (Math.abs(a.balance - b.balance) > 1) return a.balance - b.balance;
+    return b.realizedLength - a.realizedLength;
+  });
+
+  const best = candidates[0];
+  const rawItems: RawModule[] = [best.ifMod, best.ifMod, ...best.mlItems];
+  const composition = toCompositionItems(rawItems, barsPerSection);
+  const remainingLength = requestedLength - best.realizedLength;
+
+  return { composition, realizedLength: best.realizedLength, remainingLength };
+}
+
+// ─── buildComposition: orquestrador das duas estratégias ─────────────────────
+
+/**
+ * Decide qual estratégia usar:
+ *
+ * - Se o comprimento total cabe em um único módulo IN (≤ maxBars barras):
+ *     → Usa IN como peça única
+ * - Caso contrário:
+ *     → Usa IF + ML (2 IFs iguais nas pontas + MLs no meio)
+ *
+ * maxBars = 5 (padrão) ou 6 (com módulos longos habilitados)
+ */
+export function buildComposition(
+  profileCode: string,
+  requestedLength: number,
+  power: Power,
+  allowLongModules: boolean
+): {
+  composition: CompositionItem[];
+  realizedLength: number;
+  remainingLength: number;
+  compositionMode: "IN_SINGLE" | "IF_ML_LINE";
+} {
+  const profile = LED_CATALOG[profileCode];
+  if (!profile) {
+    return { composition: [], realizedLength: 0, remainingLength: requestedLength, compositionMode: "IF_ML_LINE" };
+  }
+
+  const barsPerSection = BARS_PER_SECTION[power];
+  const maxBars = allowLongModules ? IN_MAX_BARS_LONG : IN_MAX_BARS_STANDARD;
+
+  // Usar IN como peça única SOMENTE quando:
+  // 1. Existe um módulo IN com comprimento >= requestedLength * 0.5 (cobre pelo menos metade)
+  //    E com barras <= maxBars
+  // 2. O comprimento solicitado pode ser coberto por um único módulo IN (sem ultrapassar)
+  //
+  // Em outras palavras: o comprimento total da linha deve ser pequeno o suficiente
+  // para ser resolvido com UMA única peça IN dentro do limite de barras.
+  // Se o comprimento solicitado é maior que o maior IN disponível dentro do limite,
+  // é uma linha longa e deve usar IF+ML.
+  const inModulesAll = getModules(profileCode, "IN", allowLongModules);
+  // O maior módulo IN dentro do limite de barras
+  const largestInWithinLimit = inModulesAll
+    .filter(m => m.barras <= maxBars)
+    .sort((a, b) => b.length - a.length)[0];
+
+  // É linha curta se o comprimento solicitado cabe em um único IN (dentro do limite)
+  const isShortLine = largestInWithinLimit !== undefined && requestedLength <= largestInWithinLimit.length;
+
+  if (isShortLine) {
+    // Tentar IN como peça única
+    const inResult = tryInSingle(profileCode, requestedLength, power, allowLongModules);
+    if (inResult) {
+      return { ...inResult, compositionMode: "IN_SINGLE" };
+    }
+  }
+
+  // Linha longa: usar IF + ML
+  const ifMlResult = buildIfMlComposition(profileCode, requestedLength, power, allowLongModules);
+  if (ifMlResult) {
+    return { ...ifMlResult, compositionMode: "IF_ML_LINE" };
+  }
+
+  // Fallback: se não houver IF/ML disponíveis (perfil sem esses módulos),
+  // usar qualquer módulo disponível (algoritmo guloso genérico)
+  const allModules: RawModule[] = [
+    ...getModules(profileCode, "IN", allowLongModules),
+    ...getModules(profileCode, "IF", allowLongModules),
+    ...getModules(profileCode, "ML", allowLongModules),
+  ].sort((a, b) => b.length - a.length);
+
+  const rawItems: RawModule[] = [];
+  let remaining = requestedLength;
+  for (const mod of allModules) {
+    while (remaining >= mod.length) {
+      rawItems.push(mod);
+      remaining -= mod.length;
+    }
+  }
+
+  const composition = toCompositionItems(rawItems, barsPerSection);
   const realizedLength = requestedLength - remaining;
 
-  return { composition, realizedLength, remainingLength: remaining };
+  return { composition, realizedLength, remainingLength: remaining, compositionMode: "IF_ML_LINE" };
 }
 
 // ─── Engine Principal ─────────────────────────────────────────────────────────
 
-/**
- * Função principal de cálculo da composição.
- *
- * D1+D2 compartilham o mesmo perfil e o mesmo comprimento total.
- * A composição de módulos é única (mesma lista de SKUs para ambos).
- * Drivers são calculados por circuito (D1 e D2 separados se independente,
- * ou otimizados juntos se acendimento conjunto).
- */
 export function calculateComposition(input: ConfigInput): CompositionResult {
   const {
     profileCode,
@@ -256,30 +421,30 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     );
   }
 
-  // ── Composição de módulos (única para o perfil, independente de D1/D2) ──
-  // Usa a potência de D1 para definir barras por seção na tabela de itens.
-  // Quando D1+D2 com potências iguais, as barras são as mesmas.
-  // Quando D1+D2 com potências diferentes, exibimos a composição física (módulos)
-  // e calculamos os drivers separadamente por circuito.
-  const { composition, realizedLength, remainingLength } = buildComposition(
+  // ── Composição de módulos ──
+  const { composition, realizedLength, remainingLength, compositionMode } = buildComposition(
     profileCode,
     totalLength,
     powerD1,
     allowLongModules
   );
 
+  // Nota sobre o modo de composição
+  if (compositionMode === "IN_SINGLE") {
+    engineeringNotes.push("Composição: Módulo Inteiro (IN) — peça única dentro do limite de barras.");
+  } else {
+    engineeringNotes.push("Composição: Linha longa — 2× IF (Início/Final) + ML (Meio de Linha).");
+  }
+
   // Total de barras para D1
   const totalBarsD1 = composition.reduce((sum, item) => sum + item.barsTotal, 0);
 
-  // Para D2 com potência diferente, recalcular barras (barsPerSection pode diferir)
+  // Para D2 com potência diferente, recalcular barras
   let totalBarsD2 = totalBarsD1;
   if (application === "D1+D2" && powerD1 !== effectivePowerD2) {
     const barsD2 = BARS_PER_SECTION[effectivePowerD2];
     const barsD1 = BARS_PER_SECTION[powerD1];
-    // Reescalar: mesmos módulos físicos, mas barras por seção diferem
     totalBarsD2 = composition.reduce((sum, item) => sum + item.barras * barsD2, 0);
-    // Atualizar composição para refletir barras de D1 (padrão de exibição)
-    // A tabela mostra barras de D1; nota de engenharia explica D2
     if (barsD1 !== barsD2) {
       engineeringNotes.push(
         `D2 (${effectivePowerD2}W) utiliza ${barsD2} barra(s) por seção (${CURRENT_TYPE[effectivePowerD2]}), totalizando ${totalBarsD2} barras.`
@@ -297,12 +462,10 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
   } else if (application === "D2") {
     driversD1 = selectDrivers(totalBarsD1, effectivePowerD2, voltage);
   } else {
-    // D1+D2
     if (isIndependent) {
       driversD1 = selectDrivers(totalBarsD1, powerD1, voltage);
       driversD2 = selectDrivers(totalBarsD2, effectivePowerD2, voltage);
     } else {
-      // Acendimento conjunto: otimizar drivers somando barras
       const totalBarsCombined = totalBarsD1 + totalBarsD2;
       combinedDrivers = optimizeDrivers(totalBarsCombined, powerD1, voltage);
       engineeringNotes.push(
@@ -370,5 +533,6 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     engineeringNotes,
     hasAlert,
     alertMessage,
+    compositionMode,
   };
 }
