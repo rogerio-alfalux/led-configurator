@@ -556,3 +556,86 @@ describe("Drivers por SKU — sem compartilhamento entre módulos", () => {
     });
   });
 });
+
+// ─── Testes de integração com drivers da planilha (código EQ) ────────────────
+import { selectDriverFromSheet } from "./driverSelector";
+import type { SheetDriver } from "./driverSelector";
+
+describe("selectDriverFromSheet — código EQ e descrição completa", () => {
+  const mockDrivers: SheetDriver[] = [
+    {
+      code: "EQ00347",
+      model: "PHILIPS XITANIUM 44W 0.35A I 220-240V S10",
+      currents: [350],
+      outputRanges: [{ current: 350, vMin: 54, vMax: 165 }],
+      inputVoltage: "220V",
+      priority: 1,
+      available: true,
+    },
+    {
+      code: "EQ00346",
+      model: "PHILIPS XITANIUM 19W 0.35A I 220-240V S10",
+      currents: [350],
+      outputRanges: [{ current: 350, vMin: 20, vMax: 54 }],
+      inputVoltage: "220V",
+      priority: 1,
+      available: true,
+    },
+    {
+      code: "EQ00580",
+      model: "LIFUD LF-FMR020YS0350U(S) 20W 350mA BIVOLT",
+      currents: [350],
+      outputRanges: [{ current: 350, vMin: 10, vMax: 57 }],
+      inputVoltage: "BIVOLT",
+      priority: 1,
+      available: true,
+    },
+  ];
+
+  it("retorna código EQ correto para 18W/350mA/220Vac com 3.4 barras", () => {
+    const result = selectDriverFromSheet(mockDrivers, 3.4, 18, "220Vac", "STRIPFLEX");
+    expect(result).not.toBeNull();
+    expect(result!.code).toBe("EQ00347");
+    expect(result!.model).toBe("PHILIPS XITANIUM 44W 0.35A I 220-240V S10");
+    expect(result!.current).toBe("350mA");
+  });
+
+  it("retorna código EQ correto para 18W/350mA/220Vac com 1.4 barras (driver menor)", () => {
+    const result = selectDriverFromSheet(mockDrivers, 1.4, 18, "220Vac", "STRIPFLEX");
+    expect(result).not.toBeNull();
+    expect(result!.code).toBe("EQ00346");
+    expect(result!.model).toBe("PHILIPS XITANIUM 19W 0.35A I 220-240V S10");
+  });
+
+  it("retorna código EQ correto para Bivolt com 1.4 barras", () => {
+    const result = selectDriverFromSheet(mockDrivers, 1.4, 18, "Bivolt", "STRIPFLEX");
+    expect(result).not.toBeNull();
+    expect(result!.code).toBe("EQ00580");
+    expect(result!.model).toContain("LIFUD");
+  });
+
+  it("retorna null quando nenhum driver atende os critérios", () => {
+    const result = selectDriverFromSheet(mockDrivers, 100, 18, "220Vac", "STRIPFLEX");
+    expect(result).toBeNull();
+  });
+
+  it("calculateComposition com sheetDrivers usa código EQ da planilha", () => {
+    const r = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1",
+      powerD1: 18,
+      powerD2: 18,
+      cct: "3000K",
+      voltage: "220Vac",
+      totalLength: 2000,
+      allowLongModules: false,
+      independentLighting: false,
+      sheetDrivers: mockDrivers,
+    });
+    expect(r.driversD1.length).toBeGreaterThan(0);
+    const firstEntry = r.driversD1[0];
+    // Quando sheetDrivers fornecido, o driver deve ter código EQ
+    expect(firstEntry.driver.code).toBeTruthy();
+    expect(firstEntry.driver.model).toContain("PHILIPS XITANIUM");
+  });
+});
