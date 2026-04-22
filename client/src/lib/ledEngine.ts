@@ -1,13 +1,13 @@
-// Engine de Cálculo para Configuração de Perfis LED Lineares
+// LED Configurator Engine
 // Implementa calculateComposition(), seleção de drivers e lógica de acendimento
 
-import { LED_CATALOG, ModuleType, ProfileData } from "./ledCatalog";
+import { LED_CATALOG, ModuleType } from "./ledCatalog";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 export type Power = 18 | 26 | 36;
 export type CCT = "3000K" | "4000K";
-export type Voltage = "220V";
+export type Voltage = "220Vac" | "Bivolt";
 export type Application = "D1" | "D2" | "D1+D2";
 
 export interface DriverSpec {
@@ -70,14 +70,25 @@ export interface ConfigInput {
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
+/**
+ * Número de barras Stripflex por seção conforme potência.
+ * 18W: 1 barra (fileira simples, 350mA)
+ * 26W: 1 barra (fileira simples, 500mA)
+ * 36W: 2 barras (fileira dupla, 350mA) — Método Barra Dupla
+ */
 const BARS_PER_SECTION: Record<Power, number> = {
   18: 1,
   26: 1,
   36: 2, // Barra Dupla
 };
 
+/**
+ * Corrente de operação por potência.
+ * 18W e 36W: 350mA (Stripflex)
+ * 26W: 500mA (Stripflex)
+ */
 const CURRENT_TYPE: Record<Power, "350mA" | "500mA"> = {
-  18: "500mA",
+  18: "350mA", // CORRIGIDO: 18W usa 350mA (não 500mA)
   26: "500mA",
   36: "350mA",
 };
@@ -85,22 +96,25 @@ const CURRENT_TYPE: Record<Power, "350mA" | "500mA"> = {
 // ─── Seleção de Drivers ───────────────────────────────────────────────────────
 
 /**
- * Seleciona os drivers otimizados para um número de barras e potência.
- * 
- * 350mA (36W):
- *   1–5 barras → Philips 44W 350mA (1 driver)
- *   6 barras   → Philips 65W 350mA (1 driver)
- *   >6 barras  → múltiplos drivers Philips 65W 350mA
- * 
- * 500mA (18W / 26W):
- *   1 barra    → Philips 21W 500mA
- *   >1 barra   → Element 75W 500mA
+ * Seleciona os drivers para 220Vac.
+ *
+ * 350mA (18W e 36W):
+ *   1 barra        → Philips 19W 350mA
+ *   2–5 barras     → Philips 44W 350mA (1 driver)
+ *   6 barras       → Philips 65W 350mA (1 driver)
+ *   >6 barras      → múltiplos drivers Philips 65W 350mA
+ *
+ * 500mA (26W):
+ *   1 barra        → Philips 21W 500mA
+ *   >1 barra       → Element 75W 500mA
  */
-export function selectDrivers(totalBars: number, power: Power): DriverSpec[] {
+function selectDrivers220V(totalBars: number, power: Power): DriverSpec[] {
   const current = CURRENT_TYPE[power];
 
   if (current === "350mA") {
-    if (totalBars <= 5) {
+    if (totalBars <= 1) {
+      return [{ model: "Philips 19W 350mA", power: 19, current: "350mA", quantity: 1 }];
+    } else if (totalBars <= 5) {
       return [{ model: "Philips 44W 350mA", power: 44, current: "350mA", quantity: 1 }];
     } else if (totalBars <= 6) {
       return [{ model: "Philips 65W 350mA", power: 65, current: "350mA", quantity: 1 }];
@@ -110,7 +124,7 @@ export function selectDrivers(totalBars: number, power: Power): DriverSpec[] {
       return [{ model: "Philips 65W 350mA", power: 65, current: "350mA", quantity: numDrivers }];
     }
   } else {
-    // 500mA
+    // 500mA (26W)
     if (totalBars <= 1) {
       return [{ model: "Philips 21W 500mA", power: 21, current: "500mA", quantity: 1 }];
     } else {
@@ -120,10 +134,57 @@ export function selectDrivers(totalBars: number, power: Power): DriverSpec[] {
 }
 
 /**
+ * Seleciona os drivers para Bivolt.
+ *
+ * 350mA (18W e 36W):
+ *   1 barra        → LIFUD 20W 350mA (LF-FMR020YS0350U(S))
+ *   2–4 barras     → LIFUD 40W 350mA (LF-FMR040YS0350U(S))
+ *   5–6 barras     → LIFUD 60W 350mA (LF-FMR060YS0350U(S))
+ *   >6 barras      → múltiplos LIFUD 60W 350mA
+ *
+ * 500mA (26W):
+ *   1 barra        → Philips 21W 500mA
+ *   >1 barra       → Element 75W 500mA
+ */
+function selectDriversBivolt(totalBars: number, power: Power): DriverSpec[] {
+  const current = CURRENT_TYPE[power];
+
+  if (current === "350mA") {
+    if (totalBars <= 1) {
+      return [{ model: "LIFUD 20W 350mA (LF-FMR020YS0350U(S))", power: 20, current: "350mA", quantity: 1 }];
+    } else if (totalBars <= 4) {
+      return [{ model: "LIFUD 40W 350mA (LF-FMR040YS0350U(S))", power: 40, current: "350mA", quantity: 1 }];
+    } else if (totalBars <= 6) {
+      return [{ model: "LIFUD 60W 350mA (LF-FMR060YS0350U(S))", power: 60, current: "350mA", quantity: 1 }];
+    } else {
+      const numDrivers = Math.ceil(totalBars / 6);
+      return [{ model: "LIFUD 60W 350mA (LF-FMR060YS0350U(S))", power: 60, current: "350mA", quantity: numDrivers }];
+    }
+  } else {
+    // 500mA (26W) — mesmos drivers para bivolt
+    if (totalBars <= 1) {
+      return [{ model: "Philips 21W 500mA", power: 21, current: "500mA", quantity: 1 }];
+    } else {
+      return [{ model: "Element 75W 500mA", power: 75, current: "500mA", quantity: 1 }];
+    }
+  }
+}
+
+/**
+ * Seleciona os drivers conforme tensão de alimentação.
+ */
+export function selectDrivers(totalBars: number, power: Power, voltage: Voltage = "220Vac"): DriverSpec[] {
+  if (voltage === "Bivolt") {
+    return selectDriversBivolt(totalBars, power);
+  }
+  return selectDrivers220V(totalBars, power);
+}
+
+/**
  * Otimiza drivers quando acendimento é conjunto (Independente = Não).
  * Soma a carga total e recalcula com o menor número de drivers possível.
  */
-export function optimizeDrivers(sections: SectionResult[], powers: Power[]): DriverSpec[] {
+export function optimizeDrivers(sections: SectionResult[], powers: Power[], voltage: Voltage = "220Vac"): DriverSpec[] {
   // Verificar se todas as potências são iguais
   const uniquePowers = powers.filter((v, i, arr) => arr.indexOf(v) === i);
   if (uniquePowers.length > 1) {
@@ -132,15 +193,16 @@ export function optimizeDrivers(sections: SectionResult[], powers: Power[]): Dri
   }
 
   const power = uniquePowers[0];
+  if (!power) return [];
   const totalBars = sections.reduce((sum, s) => sum + s.totalBars, 0);
-  return selectDrivers(totalBars, power);
+  return selectDrivers(totalBars, power, voltage);
 }
 
 // ─── Engine Principal ─────────────────────────────────────────────────────────
 
 /**
  * Calcula a composição de módulos para um comprimento solicitado.
- * 
+ *
  * Algoritmo Guloso: Prioriza o maior módulo disponível sem ultrapassar o comprimento.
  * Regra de Ouro: Apenas módulos com SKU válido existem no catálogo.
  */
@@ -149,7 +211,8 @@ export function calculateSection(
   requestedLength: number,
   power: Power,
   moduleType: ModuleType,
-  allowLongModules: boolean
+  allowLongModules: boolean,
+  voltage: Voltage = "220Vac"
 ): SectionResult {
   const profile = LED_CATALOG[profileCode];
   if (!profile) {
@@ -197,7 +260,7 @@ export function calculateSection(
 
   const realizedLength = requestedLength - remaining;
   const totalBars = composition.reduce((sum, item) => sum + item.barsTotal, 0);
-  const drivers = selectDrivers(totalBars, power);
+  const drivers = selectDrivers(totalBars, power, voltage);
 
   const notes: string[] = [];
   if (remaining > 0) {
@@ -241,6 +304,11 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
   const profile = LED_CATALOG[profileCode];
   const profileName = profile?.name ?? profileCode;
 
+  // Validação: perfis com noD1D2 não suportam aplicação D1+D2
+  if (application === "D1+D2" && profile?.noD1D2) {
+    throw new Error(`O perfil ${profileName} não suporta aplicação D1+D2. Use apenas D1 ou D2.`);
+  }
+
   const engineeringNotes: string[] = [];
   let hasAlert = false;
   let alertMessage: string | undefined;
@@ -262,14 +330,14 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
   const sections: SectionResult[] = [];
 
   if (application === "D1" || application === "D1+D2") {
-    const sectionD1 = calculateSection(profileCode, lengthD1, powerD1, moduleType, allowLongModules);
+    const sectionD1 = calculateSection(profileCode, lengthD1, powerD1, moduleType, allowLongModules, voltage);
     sectionD1.application = "D1";
     sections.push(sectionD1);
   }
 
   if (application === "D2" || application === "D1+D2") {
     const len2 = lengthD2 ?? lengthD1;
-    const sectionD2 = calculateSection(profileCode, len2, effectivePowerD2, moduleType, allowLongModules);
+    const sectionD2 = calculateSection(profileCode, len2, effectivePowerD2, moduleType, allowLongModules, voltage);
     sectionD2.application = "D2";
     sections.push(sectionD2);
   }
@@ -278,7 +346,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
   let combinedDrivers: DriverSpec[] | undefined;
   if (!isIndependent && sections.length > 1) {
     const powers = sections.map((_, i) => (i === 0 ? powerD1 : effectivePowerD2));
-    combinedDrivers = optimizeDrivers(sections, powers);
+    combinedDrivers = optimizeDrivers(sections, powers, voltage);
     engineeringNotes.push(
       `Acendimento conjunto: drivers otimizados para ${combinedDrivers.map((d) => `${d.quantity}x ${d.model}`).join(", ")}.`
     );

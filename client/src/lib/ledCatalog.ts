@@ -18,6 +18,7 @@ export interface ProfileData {
   code: string;
   installType: string;
   sheet?: string;
+  noD1D2?: boolean; // Perfis que não permitem aplicação D1+D2
   modules: ProfileModules;
 }
 
@@ -504,6 +505,7 @@ export const LED_CATALOG: Record<string, ProfileData> = {
     "name": "BLAZE",
     "code": "LLP-4945",
     "sheet": "BLAZE",
+    "noD1D2": true,
     "installType": "PENDENTE",
     "modules": {
       "IN": {
@@ -859,7 +861,7 @@ export const LED_CATALOG: Record<string, ProfileData> = {
     }
   },
   "LLP-6060": {
-    "name": "BLAZE",
+    "name": "BLAZE H",
     "code": "LLP-6060",
     "sheet": "BLAZE H",
     "installType": "PENDENTE",

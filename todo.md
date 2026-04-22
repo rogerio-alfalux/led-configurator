@@ -16,3 +16,13 @@
 - [x] Modo dark/light com alternância
 - [x] Interface responsiva e profissional
 - [x] Testes vitest (15 testes passando)
+
+## Ajustes v1.1 (solicitados pelo usuário)
+
+- [x] Renomear título da ferramenta para "Configurador de Perfis" (manter subtítulo "Alfalux Iluminação")
+- [x] Renomear LLP-6060 de "BLAZE" para "BLAZE H" no catálogo e UI
+- [x] Garantir que o perfil BLAZE (sem H) não permita aplicação D1+D2 (apenas D1 ou D2)
+- [x] Corrigir 18W: usar 350mA (não 500mA) com drivers Philips 19W/44W/65W 350mA em 220Vac
+- [x] Adicionar seleção de tensão: 220Vac ou Bivolt
+- [x] Quando Bivolt: usar LIFUD 20W 350mA, LIFUD 40W 350mA ou LIFUD 60W 350mA para 18W
+- [x] Atualizar testes unitários para refletir as novas regras de drivers

@@ -65,9 +65,14 @@ function PowerBadge({ power }: { power: Power }) {
     26: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300",
     36: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
   };
+  const currentLabel: Record<Power, string> = {
+    18: "· Fileira Simples · 350mA",
+    26: "· Fileira Simples · 500mA",
+    36: "· Barra Dupla · 350mA",
+  };
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${colors[power]}`}>
-      {power}W {power === 36 ? "· Barra Dupla · 350mA" : "· 500mA"}
+      {power}W {currentLabel[power]}
     </span>
   );
 }
@@ -88,7 +93,7 @@ function DriverList({ drivers }: { drivers: DriverSpec[] }) {
   );
 }
 
-function SectionCard({ section, label }: { section: SectionResult; label: string }) {
+function SectionCard({ section, label, voltage }: { section: SectionResult; label: string; voltage: import('@/lib/ledEngine').Voltage }) {
   const efficiency = section.requestedLength > 0
     ? Math.round((section.realizedLength / section.requestedLength) * 100)
     : 0;
@@ -141,7 +146,7 @@ function SectionCard({ section, label }: { section: SectionResult; label: string
               </thead>
               <tbody>
                 {section.composition.map((item, idx) => {
-                  const itemDrivers = selectDrivers(item.barsTotal, section.power);
+                  const itemDrivers = selectDrivers(item.barsTotal, section.power, voltage);
                   const driverQty = itemDrivers.reduce((sum, d) => sum + d.quantity, 0);
                   return (
                     <tr key={idx} className="border-t border-border hover:bg-muted/20 transition-colors">
@@ -193,11 +198,14 @@ export default function Home() {
   const [moduleType, setModuleType] = useState<ModuleType>("IN");
   const [allowLongModules, setAllowLongModules] = useState(false);
   const [independentLighting, setIndependentLighting] = useState(false);
+  const [voltage, setVoltage] = useState<import('@/lib/ledEngine').Voltage>("220Vac");
 
   // Result state
   const [result, setResult] = useState<CompositionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const selectedProfile = profileCode ? LED_CATALOG[profileCode] : null;
+  const profileNoD1D2 = selectedProfile?.noD1D2 ?? false;
   const isDual = application === "D1+D2";
 
   const handleCalculate = useCallback(() => {
@@ -227,7 +235,7 @@ export default function Home() {
       powerD1,
       powerD2: isDual ? powerD2 : undefined,
       cct,
-      voltage: "220V",
+      voltage,
       lengthD1: len1,
       lengthD2: isDual ? len2 : undefined,
       moduleType,
@@ -241,7 +249,7 @@ export default function Home() {
     } catch (e) {
       setError("Erro ao calcular composição. Verifique os parâmetros.");
     }
-  }, [profileCode, application, powerD1, powerD2, cct, lengthD1, lengthD2, moduleType, allowLongModules, independentLighting, isDual]);
+  }, [profileCode, application, powerD1, powerD2, cct, voltage, lengthD1, lengthD2, moduleType, allowLongModules, independentLighting, isDual]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -254,7 +262,7 @@ export default function Home() {
             </div>
             <div>
               <h1 className="text-base font-bold font-display text-sidebar-foreground leading-none">
-                LED Configurator
+                Configurador de Perfis
               </h1>
               <p className="text-xs text-sidebar-foreground/60 leading-none mt-0.5">
                 Alfalux Iluminação
@@ -324,20 +332,37 @@ export default function Home() {
                 <div>
                   <FieldLabel>Aplicação</FieldLabel>
                   <div className="grid grid-cols-3 gap-2">
-                    {APPLICATION_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.value}
-                        onClick={() => setApplication(opt.value)}
-                        className={`px-3 py-2 rounded-md text-sm font-medium border transition-all ${
-                          application === opt.value
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                            : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
-                        }`}
-                      >
-                        {opt.value}
-                      </button>
-                    ))}
+                    {APPLICATION_OPTIONS.map((opt) => {
+                      const disabled = profileNoD1D2 && opt.value === "D1+D2";
+                      return (
+                        <button
+                          key={opt.value}
+                          onClick={() => {
+                            if (!disabled) {
+                              setApplication(opt.value);
+                              if (opt.value !== "D1+D2") setIndependentLighting(false);
+                            }
+                          }}
+                          disabled={disabled}
+                          className={`px-3 py-2 rounded-md text-sm font-medium border transition-all ${
+                            disabled
+                              ? "opacity-30 cursor-not-allowed bg-muted text-muted-foreground border-border"
+                              : application === opt.value
+                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                              : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                          }`}
+                        >
+                          {opt.value}
+                        </button>
+                      );
+                    })}
                   </div>
+                  {profileNoD1D2 && (
+                    <p className="mt-1.5 text-xs text-muted-foreground flex items-center gap-1">
+                      <Info className="w-3 h-3" />
+                      BLAZE não suporta D1+D2 simultâneos
+                    </p>
+                  )}
                 </div>
 
                 {/* Potência D1 */}
@@ -413,8 +438,20 @@ export default function Home() {
                   </div>
                   <div>
                     <FieldLabel>Tensão</FieldLabel>
-                    <div className="h-10 px-3 rounded-md border border-border bg-muted/50 flex items-center text-sm text-muted-foreground">
-                      220V
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {(["220Vac", "Bivolt"] as const).map((v) => (
+                        <button
+                          key={v}
+                          onClick={() => setVoltage(v)}
+                          className={`px-2 py-2 rounded-md text-xs font-semibold border transition-all ${
+                            voltage === v
+                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                              : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                          }`}
+                        >
+                          {v}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -636,6 +673,7 @@ export default function Home() {
                     key={idx}
                     section={section}
                     label={`Seção ${section.application}`}
+                    voltage={result.voltage}
                   />
                 ))}
 
@@ -670,7 +708,7 @@ export default function Home() {
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
       <footer className="border-t border-border mt-16 py-6">
         <div className="container flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span>© 2025 Alfalux Iluminação · LED Configurator</span>
+          <span>© 2025 Alfalux Iluminação · Configurador de Perfis</span>
           <span className="font-mono">
             {Object.keys(LED_CATALOG).length} perfis · Regra de Ouro aplicada
           </span>
