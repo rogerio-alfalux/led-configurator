@@ -13,6 +13,8 @@
 
 import { LED_CATALOG, MODULE_TYPE_LABELS } from "./ledCatalog";
 import type { InstallType } from "./ledCatalog";
+import type { SheetDriver } from "./driverSelector";
+import { selectDriverFromSheet, selectDriverFallback, calcVOut } from "./driverSelector";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -27,10 +29,12 @@ export type StripMethod = "STRIPFLEX" | "STRIPLINE";
 export type { InstallType };
 
 export interface DriverSpec {
+  code?: string;       // EQ00346 (do Google Sheets)
   model: string;
   power: number;
   current: string;
   quantity: number;
+  vOut?: number;       // tensão de saída calculada
 }
 
 /** Driver associado a um SKU específico */
@@ -99,6 +103,8 @@ export interface ConfigInput {
   independentLighting: boolean;
   diffuserD1?: DiffuserType;
   diffuserD2?: DiffuserType;
+  /** Lista de drivers do Google Sheets (opcional — usa fallback se ausente) */
+  sheetDrivers?: SheetDriver[];
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -192,7 +198,32 @@ export function getStriplineName(cct: CCT): string {
  *   - Usamos drivers 250mA compatíveis com 75V de saída
  *   - Philips Xitanium 25W 250mA (até 1 barra), 50W 250mA (até 3), 75W 250mA (até 5)
  */
-function selectDriverForBars(totalBars: number, power: Power, voltage: Voltage, stripMethod: StripMethod): DriverSpec {
+function selectDriverForBars(totalBars: number, power: Power, voltage: Voltage, stripMethod: StripMethod, sheetDrivers?: SheetDriver[]): DriverSpec {
+  // Usar drivers da planilha se disponíveis
+  if (sheetDrivers && sheetDrivers.length > 0) {
+    const selected = selectDriverFromSheet(sheetDrivers, totalBars, power, voltage, stripMethod);
+    if (selected) {
+      return {
+        code: selected.code,
+        model: selected.model,
+        power: parseInt(selected.model.match(/(\d+)W/i)?.[1] ?? "0"),
+        current: selected.current,
+        quantity: 1,
+        vOut: selected.vOut,
+      };
+    }
+    // Fallback se nenhum driver da planilha for compatível
+    const fallback = selectDriverFallback(totalBars, power, voltage, stripMethod);
+    return {
+      code: fallback.code,
+      model: fallback.model,
+      power: parseInt(fallback.model.match(/(\d+)W/i)?.[1] ?? "0"),
+      current: fallback.current,
+      quantity: 1,
+      vOut: fallback.vOut,
+    };
+  }
+  // Sem planilha: usar lógica hardcoded original
   // Stripline 36W/250mA/75V
   if (power === 36 && stripMethod === "STRIPLINE") {
     if (voltage === "Bivolt") {
@@ -237,12 +268,13 @@ function buildSkuDriverList(
   composition: CompositionItem[],
   power: Power,
   voltage: Voltage,
-  stripMethod: StripMethod
+  stripMethod: StripMethod,
+  sheetDrivers?: SheetDriver[]
 ): SkuDriverEntry[] {
   return composition.map(item => ({
     sku: item.sku,
     quantity: item.quantity,
-    driver: selectDriverForBars(item.barsTotal, power, voltage, stripMethod),
+    driver: selectDriverForBars(item.barsTotal, power, voltage, stripMethod, sheetDrivers),
   }));
 }
 
@@ -284,7 +316,8 @@ function toCompositionItems(
   barsPerSection: number,
   power: Power,
   voltage: Voltage,
-  stripMethod: StripMethod
+  stripMethod: StripMethod,
+  sheetDrivers?: SheetDriver[]
 ): CompositionItem[] {
   const skuMap = new Map<string, CompositionItem>();
   for (const item of rawItems) {
@@ -302,7 +335,7 @@ function toCompositionItems(
         barras: item.barras,
         barsTotal,
         quantity: 1,
-        driverPerSku: selectDriverForBars(barsTotal, power, voltage, stripMethod),
+        driverPerSku: selectDriverForBars(barsTotal, power, voltage, stripMethod, sheetDrivers),
       });
     }
   }
@@ -317,7 +350,8 @@ function tryInSingle(
   power: Power,
   voltage: Voltage,
   allowLongModules: boolean,
-  stripMethod: StripMethod
+  stripMethod: StripMethod,
+  sheetDrivers?: SheetDriver[]
 ): { composition: CompositionItem[]; realizedLength: number; remainingLength: number } | null {
   const inModules = getModules(profileCode, "IN", allowLongModules, stripMethod)
     .filter(m => m.length <= requestedLength)
@@ -328,7 +362,7 @@ function tryInSingle(
   const best = inModules[0];
   const barsPerSection = stripMethod === "STRIPLINE" ? 1 : BARS_PER_SECTION_STRIPFLEX[power];
 
-  const composition = toCompositionItems([best], barsPerSection, power, voltage, stripMethod);
+  const composition = toCompositionItems([best], barsPerSection, power, voltage, stripMethod, sheetDrivers);
   const realizedLength = best.length;
   const remainingLength = requestedLength - best.length;
 
@@ -343,7 +377,8 @@ function buildIfMlComposition(
   power: Power,
   voltage: Voltage,
   allowLongModules: boolean,
-  stripMethod: StripMethod
+  stripMethod: StripMethod,
+  sheetDrivers?: SheetDriver[]
 ): { composition: CompositionItem[]; realizedLength: number; remainingLength: number } | null {
   const ifModules = getModules(profileCode, "IF", allowLongModules, stripMethod)
     .sort((a, b) => b.length - a.length);
@@ -399,7 +434,7 @@ function buildIfMlComposition(
 
   const best = candidates[0];
   const rawItems: RawModule[] = [best.ifMod, best.ifMod, ...best.mlItems];
-  const composition = toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod);
+  const composition = toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod, sheetDrivers);
   const remainingLength = requestedLength - best.realizedLength;
 
   return { composition, realizedLength: best.realizedLength, remainingLength };
@@ -413,7 +448,8 @@ export function buildComposition(
   power: Power,
   voltage: Voltage,
   allowLongModules: boolean,
-  stripMethod: StripMethod = "STRIPFLEX"
+  stripMethod: StripMethod = "STRIPFLEX",
+  sheetDrivers?: SheetDriver[]
 ): {
   composition: CompositionItem[];
   realizedLength: number;
@@ -435,13 +471,13 @@ export function buildComposition(
   const isShortLine = largestInWithinLimit !== undefined && requestedLength <= largestInWithinLimit.length;
 
   if (isShortLine) {
-    const inResult = tryInSingle(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod);
+    const inResult = tryInSingle(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, sheetDrivers);
     if (inResult) {
       return { ...inResult, compositionMode: "IN_SINGLE" };
     }
   }
 
-  const ifMlResult = buildIfMlComposition(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod);
+  const ifMlResult = buildIfMlComposition(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, sheetDrivers);
   if (ifMlResult) {
     return { ...ifMlResult, compositionMode: "IF_ML_LINE" };
   }
@@ -463,7 +499,7 @@ export function buildComposition(
     }
   }
 
-  const composition = toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod);
+  const composition = toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod, sheetDrivers);
   const realizedLength = requestedLength - remaining;
 
   return { composition, realizedLength, remainingLength: remaining, compositionMode: "IF_ML_LINE" };
@@ -581,13 +617,13 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
   }
 
   // ── Drivers por SKU (D1) ──
-  const driversD1: SkuDriverEntry[] = buildSkuDriverList(composition, powerD1, voltage, stripMethod);
+  const driversD1: SkuDriverEntry[] = buildSkuDriverList(composition, powerD1, voltage, stripMethod, input.sheetDrivers);
 
   // ── Drivers por SKU (D2) — apenas D1+D2 independente ──
   let driversD2: SkuDriverEntry[] = [];
   if (effectiveApplication === "D1+D2" && isIndependent) {
     // D2 usa a mesma composição de módulos mas com potência D2
-    driversD2 = buildSkuDriverList(composition, effectivePowerD2, voltage, stripMethod);
+    driversD2 = buildSkuDriverList(composition, effectivePowerD2, voltage, stripMethod, input.sheetDrivers);
   }
 
   // ── Nota de acendimento conjunto (D1+D2 não independente) ──
@@ -636,7 +672,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
   // Drivers combinados para D1+D2 conjunto
   const combinedDrivers: SkuDriverEntry[] | undefined =
     effectiveApplication === "D1+D2" && !isIndependent
-      ? buildSkuDriverList(composition, powerD1, voltage, stripMethod)
+      ? buildSkuDriverList(composition, powerD1, voltage, stripMethod, input.sheetDrivers)
       : undefined;
 
   return {

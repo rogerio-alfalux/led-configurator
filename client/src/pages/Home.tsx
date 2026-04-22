@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { trpc } from "@/lib/trpc";
 import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -105,6 +106,7 @@ function SkuDriverList({ entries, label }: { entries: SkuDriverEntry[]; label?: 
             <th className="text-left px-3 py-2 font-semibold text-muted-foreground">SKU do Módulo</th>
             <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Qtd</th>
             <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Driver por Peça</th>
+            <th className="text-left px-3 py-2 font-semibold text-muted-foreground hidden sm:table-cell">Cód. EQ</th>
           </tr>
         </thead>
         <tbody>
@@ -117,6 +119,15 @@ function SkuDriverList({ entries, label }: { entries: SkuDriverEntry[]; label?: 
                   <Zap className="w-3 h-3 text-primary shrink-0" />
                   {entry.driver.model}
                 </span>
+              </td>
+              <td className="px-3 py-2 hidden sm:table-cell">
+                {entry.driver.code ? (
+                  <span className="font-mono text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                    {entry.driver.code}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground text-xs">—</span>
+                )}
               </td>
             </tr>
           ))}
@@ -435,6 +446,11 @@ function ResultBlock({ result }: { result: CompositionResult }) {
 
 export default function Home() {
   const { theme, toggleTheme } = useTheme();
+  // Buscar drivers do Google Sheets (cache de 1h via React Query)
+  const { data: sheetDrivers } = trpc.led.drivers.useQuery(undefined, {
+    staleTime: 60 * 60 * 1000, // 1 hora
+    refetchOnWindowFocus: false,
+  });
 
   // Step 1: Perfil
   const [profileName, setProfileName] = useState<string>("");
@@ -553,6 +569,7 @@ export default function Home() {
       independentLighting: effectiveIndependent,
       diffuserD1: hasDiffuser ? diffuserD1 : undefined,
       diffuserD2: hasDiffuser && isDual ? diffuserD2 : undefined,
+      sheetDrivers: sheetDrivers ?? [],
     };
 
     try {

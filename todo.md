@@ -78,3 +78,12 @@
 - [x] Regras de driver remoto: embutir, BLAZE H D1+D2, SKYLINE Pendente, MINI BLAZE, SHARP, SOFT (EASY H PLUS nunca remoto)
 - [x] 36W: nova opção Stripline 562,5 x 15mm 105L [CCT] a 250mA/75V (apenas barras inteiras 1-5)
 - [x] 36W: toggle Stripflex dupla vs Stripline única quando potência = 36W
+
+## Ajustes v1.7 - Banco de Dados de Drivers (Google Sheets)
+
+- [ ] Criar endpoint tRPC no servidor para buscar drivers do Google Sheets (CSV export)
+- [ ] Implementar cache com TTL de 1 hora para evitar requisições excessivas
+- [ ] Refatorar engine: seleção de driver por tensão de saída calculada, corrente e prioridade
+- [ ] Exibir código EQ e descrição completa do driver na tabela de resultado
+- [ ] Suportar BIVOLT com drivers LIFUD (EQ00580/581/582) e 220V com Philips/OSRAM/LIFUD
+- [ ] Atualizar testes para usar estrutura de driver com código EQ
