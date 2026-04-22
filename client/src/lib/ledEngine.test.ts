@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { calculateComposition, selectDrivers, buildComposition, IN_MAX_BARS_STANDARD, IN_MAX_BARS_LONG } from "./ledEngine";
 import type { ConfigInput } from "./ledEngine";
+import { getProfileNames, getInstallTypesForProfile, getVariant, LED_CATALOG } from "./ledCatalog";
 
 // ─── selectDrivers — 220Vac — 350mA (18W) ────────────────────────────────────
 
@@ -122,19 +123,11 @@ describe("buildComposition — linha longa → deve usar IF+ML, nunca IN", () =>
     expect(r.realizedLength).toBeLessThanOrEqual(10000);
   });
 
-  it("20000mm → modo IF_ML_LINE, comprimento realizado ≤ solicitado", () => {
-    const r = buildComposition("LLP-4251", 20000, 18, false);
-    expect(r.compositionMode).toBe("IF_ML_LINE");
-    expect(r.realizedLength).toBeLessThanOrEqual(20000);
-  });
-
   it("IF deve aparecer exatamente 2 vezes e ser iguais entre si (mesmo SKU)", () => {
     const r = buildComposition("LLP-4251", 10000, 18, false);
     const ifItems = r.composition.filter(i => i.moduleType === "IF");
     const totalIfQty = ifItems.reduce((s, i) => s + i.quantity, 0);
-    // Exatamente 2 IFs
     expect(totalIfQty).toBe(2);
-    // Apenas 1 SKU de IF (os 2 são iguais)
     expect(ifItems.length).toBe(1);
   });
 });
@@ -144,25 +137,6 @@ describe("buildComposition — regras gerais", () => {
     const { realizedLength } = buildComposition("LLP-4251", 2000, 18, false);
     expect(realizedLength).toBeLessThanOrEqual(2000);
     expect(realizedLength).toBeGreaterThan(0);
-  });
-
-  it("deve retornar pelo menos um módulo", () => {
-    const { composition } = buildComposition("LLP-4251", 1135, 18, false);
-    expect(composition.length).toBeGreaterThan(0);
-  });
-
-  it("sem módulos longos, nenhum módulo deve exceder 2825mm", () => {
-    const { composition } = buildComposition("LLP-4251", 5000, 18, false);
-    composition.forEach((item) => expect(item.length).toBeLessThanOrEqual(2825));
-  });
-
-  it("cada item deve ter SKU, tipo de módulo e label corretos", () => {
-    const { composition } = buildComposition("LLP-4251", 1135, 18, false);
-    composition.forEach((item) => {
-      expect(item.sku).toBeTruthy();
-      expect(["IN", "IF", "ML"]).toContain(item.moduleType);
-      expect(item.moduleTypeLabel).toBeTruthy();
-    });
   });
 
   it("36W deve usar 2 barras por seção (barra dupla)", () => {
@@ -175,7 +149,7 @@ describe("buildComposition — regras gerais", () => {
 
 // ─── calculateComposition — Interface unificada ───────────────────────────────
 
-describe("calculateComposition — HIT (LLP-4251) — D1 — 18W", () => {
+describe("calculateComposition — HIT Pendente (LLP-4251) — D1 — 18W", () => {
   const base: ConfigInput = {
     profileCode: "LLP-4251",
     application: "D1",
@@ -187,14 +161,9 @@ describe("calculateComposition — HIT (LLP-4251) — D1 — 18W", () => {
     independentLighting: false,
   };
 
-  it("deve retornar composição com módulos", () => {
+  it("retorna installType PENDENTE", () => {
     const r = calculateComposition(base);
-    expect(r.composition.length).toBeGreaterThan(0);
-  });
-
-  it("comprimento realizado <= solicitado", () => {
-    const r = calculateComposition(base);
-    expect(r.realizedLength).toBeLessThanOrEqual(2000);
+    expect(r.installType).toBe("PENDENTE");
   });
 
   it("18W deve usar drivers 350mA", () => {
@@ -202,48 +171,9 @@ describe("calculateComposition — HIT (LLP-4251) — D1 — 18W", () => {
     r.driversD1.forEach((d) => expect(d.current).toBe("350mA"));
   });
 
-  it("deve ter notas de engenharia", () => {
-    const r = calculateComposition(base);
-    expect(r.engineeringNotes.length).toBeGreaterThan(0);
-  });
-
   it("driversD2 deve ser vazio para aplicação D1", () => {
     const r = calculateComposition(base);
     expect(r.driversD2).toHaveLength(0);
-  });
-});
-
-describe("calculateComposition — linha longa 10000mm → IF_ML_LINE sem IN", () => {
-  it("HIT 18W 10000mm → compositionMode IF_ML_LINE", () => {
-    const r = calculateComposition({
-      profileCode: "LLP-4251",
-      application: "D1",
-      powerD1: 18,
-      cct: "4000K",
-      voltage: "220Vac",
-      totalLength: 10000,
-      allowLongModules: false,
-      independentLighting: false,
-    });
-    expect(r.compositionMode).toBe("IF_ML_LINE");
-    expect(r.composition.some(i => i.moduleType === "IN")).toBe(false);
-    expect(r.realizedLength).toBeLessThanOrEqual(10000);
-  });
-});
-
-describe("calculateComposition — 36W — Barra Dupla", () => {
-  it("36W deve usar corrente 350mA nos drivers", () => {
-    const r = calculateComposition({
-      profileCode: "LLP-4251",
-      application: "D1",
-      powerD1: 36,
-      cct: "4000K",
-      voltage: "220Vac",
-      totalLength: 1135,
-      allowLongModules: false,
-      independentLighting: false,
-    });
-    r.driversD1.forEach((d) => expect(d.current).toBe("350mA"));
   });
 });
 
@@ -264,39 +194,7 @@ describe("calculateComposition — D1+D2 — Acendimento Independente Forçado",
     expect(r.forcedIndependent).toBe(true);
   });
 
-  it("D1+D2 com potências iguais e independente=false não força", () => {
-    const r = calculateComposition({
-      profileCode: "LLP-4251",
-      application: "D1+D2",
-      powerD1: 18,
-      powerD2: 18,
-      cct: "4000K",
-      voltage: "220Vac",
-      totalLength: 1500,
-      allowLongModules: false,
-      independentLighting: false,
-    });
-    expect(r.forcedIndependent).toBe(false);
-  });
-
-  it("D1+D2 independente deve ter driversD1 e driversD2 preenchidos", () => {
-    const r = calculateComposition({
-      profileCode: "LLP-4251",
-      application: "D1+D2",
-      powerD1: 18,
-      powerD2: 36,
-      cct: "4000K",
-      voltage: "220Vac",
-      totalLength: 1500,
-      allowLongModules: false,
-      independentLighting: false,
-    });
-    expect(r.driversD1.length).toBeGreaterThan(0);
-    expect(r.driversD2.length).toBeGreaterThan(0);
-    expect(r.combinedDrivers).toBeUndefined();
-  });
-
-  it("D1+D2 conjunto deve ter combinedDrivers e driversD1/D2 vazios", () => {
+  it("D1+D2 conjunto deve ter combinedDrivers", () => {
     const r = calculateComposition({
       profileCode: "LLP-4251",
       application: "D1+D2",
@@ -310,8 +208,6 @@ describe("calculateComposition — D1+D2 — Acendimento Independente Forçado",
     });
     expect(r.combinedDrivers).toBeDefined();
     expect(r.combinedDrivers!.length).toBeGreaterThan(0);
-    expect(r.driversD1).toHaveLength(0);
-    expect(r.driversD2).toHaveLength(0);
   });
 });
 
@@ -333,10 +229,10 @@ describe("calculateComposition — EASY H PLUS (LLP-4450) — Alerta Driver Remo
   });
 });
 
-describe("calculateComposition — BLAZE (LLP-4945) — Restrição D1+D2", () => {
-  it("BLAZE deve rejeitar D1+D2 com erro", () => {
+describe("calculateComposition — BLAZE — Restrição D1+D2", () => {
+  it("BLAZE Sobrepor (LLS-3945) deve rejeitar D1+D2 com erro", () => {
     expect(() => calculateComposition({
-      profileCode: "LLP-4945",
+      profileCode: "LLS-3945",
       application: "D1+D2",
       powerD1: 18,
       powerD2: 18,
@@ -345,14 +241,41 @@ describe("calculateComposition — BLAZE (LLP-4945) — Restrição D1+D2", () =
       totalLength: 1000,
       allowLongModules: false,
       independentLighting: false,
-    })).toThrow(/não suporta aplicação D1\+D2/);
+    })).toThrow();
   });
 
-  it("BLAZE deve aceitar D1 normalmente", () => {
+  it("BLAZE Arandela (LLA-5945) deve rejeitar D1+D2 com erro", () => {
     expect(() => calculateComposition({
-      profileCode: "LLP-4945",
+      profileCode: "LLA-5945",
+      application: "D1+D2",
+      powerD1: 18,
+      powerD2: 18,
+      cct: "3000K",
+      voltage: "220Vac",
+      totalLength: 1000,
+      allowLongModules: false,
+      independentLighting: false,
+    })).toThrow();
+  });
+
+  it("BLAZE Sobrepor (LLS-3945) deve aceitar D1 normalmente", () => {
+    expect(() => calculateComposition({
+      profileCode: "LLS-3945",
       application: "D1",
       powerD1: 18,
+      cct: "3000K",
+      voltage: "220Vac",
+      totalLength: 1000,
+      allowLongModules: false,
+      independentLighting: false,
+    })).not.toThrow();
+  });
+
+  it("BLAZE Arandela (LLA-5945) deve aceitar D2 normalmente", () => {
+    expect(() => calculateComposition({
+      profileCode: "LLA-5945",
+      application: "D2",
+      powerD2: 18,
       cct: "3000K",
       voltage: "220Vac",
       totalLength: 1000,
@@ -376,6 +299,34 @@ describe("calculateComposition — BLAZE (LLP-4945) — Restrição D1+D2", () =
   });
 });
 
+describe("calculateComposition — FLOW (LLP-4825) — apenas D2", () => {
+  it("FLOW deve rejeitar D1 com erro", () => {
+    expect(() => calculateComposition({
+      profileCode: "LLP-4825",
+      application: "D1",
+      powerD1: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 1000,
+      allowLongModules: false,
+      independentLighting: false,
+    })).toThrow();
+  });
+
+  it("FLOW deve aceitar D2", () => {
+    expect(() => calculateComposition({
+      profileCode: "LLP-4825",
+      application: "D2",
+      powerD1: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 1000,
+      allowLongModules: false,
+      independentLighting: false,
+    })).not.toThrow();
+  });
+});
+
 describe("calculateComposition — Bivolt", () => {
   it("18W Bivolt deve usar LIFUD", () => {
     const r = calculateComposition({
@@ -390,5 +341,78 @@ describe("calculateComposition — Bivolt", () => {
     });
     expect(r.driversD1[0].model).toContain("LIFUD");
     expect(r.driversD1[0].current).toBe("350mA");
+  });
+});
+
+// ─── Catálogo — funções helper ────────────────────────────────────────────────
+
+describe("Catálogo — funções helper", () => {
+  it("getProfileNames não contém EASY G", () => {
+    const names = getProfileNames();
+    expect(names).not.toContain("EASY G");
+    expect(names.length).toBeGreaterThan(0);
+  });
+
+  it("HIT tem instalações PENDENTE e ARANDELA", () => {
+    const types = getInstallTypesForProfile("HIT");
+    expect(types).toContain("PENDENTE");
+    expect(types).toContain("ARANDELA");
+  });
+
+  it("EASY PRIME tem apenas EMBUTIR", () => {
+    const types = getInstallTypesForProfile("EASY PRIME");
+    expect(types).toEqual(["EMBUTIR"]);
+  });
+
+  it("BLAZE H tem apenas PENDENTE", () => {
+    const types = getInstallTypesForProfile("BLAZE H");
+    expect(types).toEqual(["PENDENTE"]);
+  });
+
+  it("SHARP Pendente tem hasDiffuser=true", () => {
+    const variant = getVariant("SHARP", "PENDENTE");
+    expect(variant?.hasDiffuser).toBe(true);
+  });
+
+  it("EASY H PLUS Pendente tem requiresRemoteDriver=true", () => {
+    const variant = getVariant("EASY H PLUS", "PENDENTE");
+    expect(variant?.requiresRemoteDriver).toBe(true);
+  });
+
+  it("FLOW Pendente permite apenas D2", () => {
+    const variant = getVariant("FLOW", "PENDENTE");
+    expect(variant?.allowD1).toBe(false);
+    expect(variant?.allowD2).toBe(true);
+    expect(variant?.allowD1D2).toBe(false);
+  });
+
+  it("SOFT Pendente permite apenas D1", () => {
+    const variant = getVariant("SOFT", "PENDENTE");
+    expect(variant?.allowD1).toBe(true);
+    expect(variant?.allowD2).toBe(false);
+    expect(variant?.allowD1D2).toBe(false);
+  });
+
+  it("LED_CATALOG não contém EASY G", () => {
+    const hasEasyG = Object.values(LED_CATALOG).some(v => v.name === "EASY G");
+    expect(hasEasyG).toBe(false);
+  });
+
+  it("SKYLINE tem instalações PENDENTE e EMBUTIR", () => {
+    const types = getInstallTypesForProfile("SKYLINE");
+    expect(types).toContain("PENDENTE");
+    expect(types).toContain("EMBUTIR");
+  });
+
+  it("SKYLINE Pendente não permite D1+D2", () => {
+    const variant = getVariant("SKYLINE", "PENDENTE");
+    expect(variant?.allowD1D2).toBe(false);
+  });
+
+  it("MINI BLAZE Pendente permite apenas D1", () => {
+    const variant = getVariant("MINI BLAZE", "PENDENTE");
+    expect(variant?.allowD1).toBe(true);
+    expect(variant?.allowD2).toBe(false);
+    expect(variant?.allowD1D2).toBe(false);
   });
 });

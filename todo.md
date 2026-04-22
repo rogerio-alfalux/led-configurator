@@ -43,3 +43,23 @@
 - [x] Os 2 IFs devem ser sempre iguais entre si
 - [x] Algoritmo IF+ML: testar todas combinações, priorizar menor quantidade de módulos, depois melhor equilíbrio, depois mais próximo sem ultrapassar
 - [x] Atualizar testes unitários para cobrir a nova lógica
+
+## Ajustes v1.4 - Campo Instalação e reestruturação de perfis
+
+- [x] Adicionar campo "Instalação" como primeiro parâmetro (Pendente, Sobrepor, Embutir, Arandela)
+- [x] Reestruturar catálogo: cada perfil tem variantes por tipo de instalação com SKU/código correto
+- [x] EASY PRIME: apenas Embutir
+- [x] SKYLINE: Embutir (LLE-2052) ou Pendente D1/D2 nunca D1+D2 (LLP-4536)
+- [x] BLAZE: Sobrepor (LLS-3945) só D1, ou Arandela (LLA-5945) D1 ou D2 nunca D1+D2
+- [x] BLAZE H: apenas Pendente (LLP-6060)
+- [x] MINI BLAZE: Pendente (LLP-3336) ou Sobrepor (LLS-3336), ambas só D1
+- [x] HIT: Pendente (LLP-4251) D1/D2/D1+D2, ou Arandela (LLA-3395) D1/D2/D1+D2
+- [x] EASY H PLUS: Pendente (LLP-4450) D1/D2/D1+D2, ou Arandela (LLA-4450) D1/D2/D1+D2
+- [x] SHARP: Pendente (LLP-4451) D1/D2/D1+D2, ou Arandela (LLA-4451) D1/D2/D1+D2
+- [x] SHARP: seletor de difusor por lado (DA/DB/DC) para D1 e D2 independentemente
+- [x] FLOW: apenas Pendente (LLP-4825), só D2, sem D1 nem D1+D2
+- [x] SOFT: apenas Pendente (LLP-4452), só D1
+- [x] SMART MINI: Pendente (LLP-3435) D1/D2 nunca D1+D2, Sobrepor (LLS-3400) só D1, Arandela (LLA-5010) D1/D2 nunca D1+D2
+- [x] EASY G: remover da UI (não disponível para venda)
+- [x] Filtros dinâmicos: ao selecionar perfil, mostrar apenas instalações disponíveis; ao selecionar instalação, mostrar apenas aplicações válidas
+- [x] Atualizar testes unitários para cobrir as novas restrições

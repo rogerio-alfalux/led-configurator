@@ -7,9 +7,18 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useTheme } from "@/contexts/ThemeContext";
-import { LED_CATALOG, PROFILE_OPTIONS } from "@/lib/ledCatalog";
+import {
+  LED_CATALOG,
+  getProfileNames,
+  getInstallTypesForProfile,
+  getVariant,
+} from "@/lib/ledCatalog";
+import type { InstallType } from "@/lib/ledCatalog";
 import {
   calculateComposition,
+  selectDrivers,
+} from "@/lib/ledEngine";
+import type {
   CompositionResult,
   ConfigInput,
   Power,
@@ -17,8 +26,9 @@ import {
   CCT,
   Voltage,
   DriverSpec,
-  MODULE_TYPE_LABELS,
+  DiffuserType,
 } from "@/lib/ledEngine";
+import { MODULE_TYPE_LABELS } from "@/lib/ledCatalog";
 
 // ─── Constantes ────────────────────────────────────────────────────────────────
 
@@ -33,10 +43,17 @@ const CCT_OPTIONS: { value: CCT; label: string }[] = [
   { value: "4000K", label: "4000K (Branco Neutro)" },
 ];
 
-const APPLICATION_OPTIONS: { value: Application; label: string }[] = [
-  { value: "D1", label: "D1" },
-  { value: "D2", label: "D2" },
-  { value: "D1+D2", label: "D1+D2" },
+const INSTALL_LABELS: Record<InstallType, string> = {
+  PENDENTE: "Pendente",
+  SOBREPOR: "Sobrepor",
+  EMBUTIR: "Embutir",
+  ARANDELA: "Arandela",
+};
+
+const DIFFUSER_OPTIONS: { value: DiffuserType; label: string; desc: string }[] = [
+  { value: "DA", label: "DA", desc: "Difusor Alto" },
+  { value: "DB", label: "DB", desc: "Difusor Baixo" },
+  { value: "DC", label: "DC", desc: "Difusor Curvo" },
 ];
 
 // ─── Componentes Auxiliares ────────────────────────────────────────────────────
@@ -84,6 +101,40 @@ function DriverList({ drivers }: { drivers: DriverSpec[] }) {
   );
 }
 
+function DiffuserSelector({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: DiffuserType | undefined;
+  onChange: (v: DiffuserType) => void;
+}) {
+  return (
+    <div>
+      <FieldLabel hint={label}>Difusor</FieldLabel>
+      <div className="grid grid-cols-3 gap-2">
+        {DIFFUSER_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => onChange(opt.value)}
+            className={`px-2 py-2 rounded-md text-xs font-semibold border transition-all flex flex-col items-center gap-0.5 ${
+              value === opt.value
+                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+            }`}
+          >
+            <span className="font-bold">{opt.label}</span>
+            <span className={`text-[10px] ${value === opt.value ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+              {opt.desc}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ResultBlock({ result }: { result: CompositionResult }) {
   const efficiency = result.requestedLength > 0
     ? Math.round((result.realizedLength / result.requestedLength) * 100)
@@ -94,14 +145,14 @@ function ResultBlock({ result }: { result: CompositionResult }) {
   return (
     <div className="space-y-4">
 
-      {/* Alerta EASY H PLUS */}
+      {/* Alerta Driver Remoto */}
       {result.hasAlert && (
         <div className="flex items-start gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/30">
           <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-bold text-destructive">Driver Remoto Obrigatório</p>
             <p className="text-xs text-destructive/80 mt-0.5">
-              O perfil EASY H PLUS com múltiplos drivers exige instalação de driver remoto (externo ao perfil).
+              {result.profileName} com múltiplos drivers exige instalação de driver remoto (externo ao perfil).
             </p>
           </div>
         </div>
@@ -124,8 +175,10 @@ function ResultBlock({ result }: { result: CompositionResult }) {
               <p className="text-xs text-muted-foreground font-mono">{result.profileCode}</p>
             </div>
             <div className="rounded-lg bg-muted/40 p-3 border border-border">
-              <p className="text-xs text-muted-foreground mb-1">Aplicação</p>
-              <p className="text-sm font-bold text-foreground font-display">{result.application}</p>
+              <p className="text-xs text-muted-foreground mb-1">Instalação / Aplicação</p>
+              <p className="text-sm font-bold text-foreground font-display">
+                {INSTALL_LABELS[result.installType]} · {result.application}
+              </p>
               <p className="text-xs text-muted-foreground">
                 {isDual && result.independentLighting
                   ? result.forcedIndependent ? "Independente (forçado)" : "Independente"
@@ -153,6 +206,27 @@ function ResultBlock({ result }: { result: CompositionResult }) {
               </p>
             </div>
           </div>
+
+          {/* Difusor SHARP */}
+          {(result.diffuserD1 || result.diffuserD2) && (
+            <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 p-3">
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-2">
+                Difusor SHARP
+              </p>
+              <div className="flex gap-4">
+                {result.diffuserD1 && (
+                  <span className="text-sm text-foreground">
+                    <span className="font-semibold">D1:</span> {result.diffuserD1} — {DIFFUSER_OPTIONS.find(d => d.value === result.diffuserD1)?.desc}
+                  </span>
+                )}
+                {result.diffuserD2 && (
+                  <span className="text-sm text-foreground">
+                    <span className="font-semibold">D2:</span> {result.diffuserD2} — {DIFFUSER_OPTIONS.find(d => d.value === result.diffuserD2)?.desc}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Drivers Combinados (quando acendimento conjunto) */}
           {result.combinedDrivers && result.combinedDrivers.length > 0 && (
@@ -238,7 +312,9 @@ function ResultBlock({ result }: { result: CompositionResult }) {
                       </td>
                       <td className="px-3 py-2 text-right text-foreground">{item.length}mm</td>
                       <td className="px-3 py-2 text-right text-foreground font-semibold">{item.quantity}</td>
-                      <td className="px-3 py-2 text-right text-foreground">{Number.isInteger(item.barsTotal) ? item.barsTotal : item.barsTotal.toFixed(1)}</td>
+                      <td className="px-3 py-2 text-right text-foreground">
+                        {Number.isInteger(item.barsTotal) ? item.barsTotal : item.barsTotal.toFixed(1)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -250,15 +326,18 @@ function ResultBlock({ result }: { result: CompositionResult }) {
                       {result.composition.reduce((s, i) => s + i.quantity, 0)}
                     </td>
                     <td className="px-3 py-2 text-right font-semibold text-foreground">
-                      {(() => { const t = result.composition.reduce((s, i) => s + i.barsTotal, 0); return Number.isInteger(t) ? t : t.toFixed(1); })()}
+                      {(() => {
+                        const t = result.composition.reduce((s, i) => s + i.barsTotal, 0);
+                        return Number.isInteger(t) ? t : t.toFixed(1);
+                      })()}
                     </td>
                   </tr>
                 </tfoot>
               </table>
             </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            * Barras Stripflex (562,5mm cada). Valores fracionados indicam aproveitamento parcial da barra.
-          </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              * Barras Stripflex (562,5mm cada). Valores fracionados indicam aproveitamento parcial da barra.
+            </p>
           </CardContent>
         </Card>
       )}
@@ -293,34 +372,84 @@ function ResultBlock({ result }: { result: CompositionResult }) {
 export default function Home() {
   const { theme, toggleTheme } = useTheme();
 
-  // Form state
-  const [profileCode, setProfileCode] = useState<string>("");
+  // Step 1: Perfil
+  const [profileName, setProfileName] = useState<string>("");
+  // Step 2: Instalação
+  const [installType, setInstallType] = useState<InstallType | "">("");
+  // Step 3: Aplicação
   const [application, setApplication] = useState<Application>("D1");
+  // Step 4: Potências
   const [powerD1, setPowerD1] = useState<Power>(18);
   const [powerD2, setPowerD2] = useState<Power>(18);
+  // Step 5: CCT, Tensão, Comprimento
   const [cct, setCct] = useState<CCT>("4000K");
   const [totalLength, setTotalLength] = useState<string>("2000");
+  const [voltage, setVoltage] = useState<Voltage>("220Vac");
+  // Toggles
   const [allowLongModules, setAllowLongModules] = useState(false);
   const [independentLighting, setIndependentLighting] = useState(false);
-  const [voltage, setVoltage] = useState<Voltage>("220Vac");
+  // SHARP difusor
+  const [diffuserD1, setDiffuserD1] = useState<DiffuserType | undefined>(undefined);
+  const [diffuserD2, setDiffuserD2] = useState<DiffuserType | undefined>(undefined);
 
   // Result state
   const [result, setResult] = useState<CompositionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const selectedProfile = profileCode ? LED_CATALOG[profileCode] : null;
-  const profileNoD1D2 = selectedProfile?.noD1D2 ?? false;
-  const isDual = application === "D1+D2";
+  // ── Dados derivados ──────────────────────────────────────────────────────────
 
-  // Acendimento independente é forçado quando D1 ≠ D2 em potência
+  const profileNames = getProfileNames();
+
+  // Tipos de instalação disponíveis para o perfil selecionado
+  const availableInstallTypes = profileName ? getInstallTypesForProfile(profileName) : [];
+
+  // Variante selecionada
+  const selectedVariant = (profileName && installType)
+    ? getVariant(profileName, installType as InstallType)
+    : null;
+
+  const profileCode = selectedVariant?.code ?? "";
+
+  // Aplicações permitidas para esta variante
+  const allowD1 = selectedVariant?.allowD1 ?? true;
+  const allowD2 = selectedVariant?.allowD2 ?? true;
+  const allowD1D2 = selectedVariant?.allowD1D2 ?? false;
+  const hasDiffuser = selectedVariant?.hasDiffuser ?? false;
+
+  const isDual = application === "D1+D2";
   const forcedIndependent = isDual && powerD1 !== powerD2;
   const effectiveIndependent = forcedIndependent || independentLighting;
+
+  // Reset ao trocar perfil
+  const handleProfileChange = (name: string) => {
+    setProfileName(name);
+    setInstallType("");
+    setApplication("D1");
+    setResult(null);
+    setError(null);
+  };
+
+  // Reset ao trocar instalação
+  const handleInstallChange = (type: InstallType) => {
+    setInstallType(type);
+    setApplication("D1");
+    setResult(null);
+    setError(null);
+  };
+
+  // Reset ao trocar aplicação
+  const handleApplicationChange = (app: Application) => {
+    setApplication(app);
+    if (app !== "D1+D2") setIndependentLighting(false);
+    setResult(null);
+    setError(null);
+  };
 
   const handleCalculate = useCallback(() => {
     setError(null);
 
     if (!profileCode) {
-      setError("Selecione um perfil para continuar.");
+      setError("Selecione o perfil e o tipo de instalação para continuar.");
       return;
     }
 
@@ -328,6 +457,17 @@ export default function Home() {
     if (isNaN(len) || len <= 0) {
       setError("Informe um comprimento total válido.");
       return;
+    }
+
+    if (hasDiffuser) {
+      if ((application === "D1" || application === "D1+D2") && !diffuserD1) {
+        setError("Selecione o tipo de difusor para D1 (SHARP).");
+        return;
+      }
+      if ((application === "D2" || application === "D1+D2") && !diffuserD2) {
+        setError("Selecione o tipo de difusor para D2 (SHARP).");
+        return;
+      }
     }
 
     const input: ConfigInput = {
@@ -340,6 +480,8 @@ export default function Home() {
       totalLength: len,
       allowLongModules,
       independentLighting: effectiveIndependent,
+      diffuserD1: hasDiffuser ? diffuserD1 : undefined,
+      diffuserD2: hasDiffuser && isDual ? diffuserD2 : undefined,
     };
 
     try {
@@ -349,7 +491,7 @@ export default function Home() {
       const msg = e instanceof Error ? e.message : "Erro ao calcular composição.";
       setError(msg);
     }
-  }, [profileCode, application, powerD1, powerD2, cct, voltage, totalLength, allowLongModules, effectiveIndependent, isDual]);
+  }, [profileCode, application, powerD1, powerD2, cct, voltage, totalLength, allowLongModules, effectiveIndependent, isDual, hasDiffuser, diffuserD1, diffuserD2]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -371,7 +513,7 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden sm:block text-xs text-sidebar-foreground/50 font-mono">
-              v2.1 · {Object.keys(LED_CATALOG).length} perfis
+              v2.2 · {Object.keys(LED_CATALOG).length} variantes
             </span>
             <Button
               variant="ghost"
@@ -387,7 +529,7 @@ export default function Home() {
 
       {/* ── Main Content ───────────────────────────────────────────────────── */}
       <main className="container py-8">
-        <div className="grid grid-cols-1 xl:grid-cols-[420px_1fr] gap-8 items-start">
+        <div className="grid grid-cols-1 xl:grid-cols-[440px_1fr] gap-8 items-start">
 
           {/* ── Painel de Configuração ──────────────────────────────────────── */}
           <div className="space-y-4">
@@ -407,86 +549,112 @@ export default function Home() {
               </CardHeader>
               <CardContent className="space-y-5">
 
-                {/* Perfil */}
+                {/* 1. Perfil */}
                 <div>
                   <FieldLabel>Perfil</FieldLabel>
-                  <Select value={profileCode} onValueChange={(v) => { setProfileCode(v); setResult(null); }}>
+                  <Select value={profileName} onValueChange={handleProfileChange}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Selecione o perfil..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {PROFILE_OPTIONS.map((p) => (
-                        <SelectItem key={p.value} value={p.value}>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{p.name}</span>
-                            <span className="text-xs text-muted-foreground font-mono">{p.value}</span>
-                          </div>
+                      {profileNames.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          <span className="font-medium">{name}</span>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
 
-                {/* Aplicação */}
-                <div>
-                  <FieldLabel>Aplicação</FieldLabel>
-                  <div className="grid grid-cols-3 gap-2">
-                    {APPLICATION_OPTIONS.map((opt) => {
-                      const disabled = profileNoD1D2 && opt.value === "D1+D2";
-                      return (
+                {/* 2. Instalação (aparece após perfil selecionado) */}
+                {profileName && availableInstallTypes.length > 0 && (
+                  <div>
+                    <FieldLabel>Instalação</FieldLabel>
+                    <div className={`grid gap-2 ${availableInstallTypes.length <= 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4"}`}>
+                      {availableInstallTypes.map((type) => (
                         <button
-                          key={opt.value}
-                          onClick={() => {
-                            if (!disabled) {
-                              setApplication(opt.value);
-                              if (opt.value !== "D1+D2") setIndependentLighting(false);
-                            }
-                          }}
-                          disabled={disabled}
-                          className={`px-3 py-2 rounded-md text-sm font-medium border transition-all ${
-                            disabled
-                              ? "opacity-30 cursor-not-allowed bg-muted text-muted-foreground border-border"
-                              : application === opt.value
+                          key={type}
+                          onClick={() => handleInstallChange(type)}
+                          className={`px-3 py-2.5 rounded-md text-sm font-medium border transition-all ${
+                            installType === type
                               ? "bg-primary text-primary-foreground border-primary shadow-sm"
                               : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
                           }`}
                         >
-                          {opt.value}
+                          {INSTALL_LABELS[type]}
                         </button>
-                      );
-                    })}
+                      ))}
+                    </div>
+                    {selectedVariant && (
+                      <p className="mt-1.5 text-xs text-muted-foreground font-mono">
+                        {selectedVariant.code}
+                      </p>
+                    )}
                   </div>
-                  {profileNoD1D2 && (
-                    <p className="mt-1.5 text-xs text-muted-foreground flex items-center gap-1">
-                      <Info className="w-3 h-3" />
-                      BLAZE não suporta D1+D2 simultâneos
-                    </p>
-                  )}
-                </div>
+                )}
 
-                {/* Potência D1 */}
-                <div>
-                  <FieldLabel hint={isDual ? "D1" : undefined}>Potência</FieldLabel>
-                  <div className="grid grid-cols-3 gap-2">
-                    {POWER_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.value}
-                        onClick={() => setPowerD1(opt.value)}
-                        className={`px-3 py-2.5 rounded-md text-sm font-semibold border transition-all ${
-                          powerD1 === opt.value
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                            : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
+                {/* 3. Aplicação (aparece após instalação selecionada) */}
+                {selectedVariant && (
+                  <div>
+                    <FieldLabel>Aplicação</FieldLabel>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(["D1", "D2", "D1+D2"] as Application[]).map((app) => {
+                        const disabled =
+                          (app === "D1" && !allowD1) ||
+                          (app === "D2" && !allowD2) ||
+                          (app === "D1+D2" && !allowD1D2);
+                        return (
+                          <button
+                            key={app}
+                            onClick={() => { if (!disabled) handleApplicationChange(app); }}
+                            disabled={disabled}
+                            className={`px-3 py-2 rounded-md text-sm font-medium border transition-all ${
+                              disabled
+                                ? "opacity-30 cursor-not-allowed bg-muted text-muted-foreground border-border"
+                                : application === app
+                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                            }`}
+                          >
+                            {app}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {!allowD1D2 && (
+                      <p className="mt-1.5 text-xs text-muted-foreground flex items-center gap-1">
+                        <Info className="w-3 h-3" />
+                        {profileName} não suporta D1+D2 simultâneos
+                      </p>
+                    )}
                   </div>
-                  <div className="mt-2"><PowerBadge power={powerD1} /></div>
-                </div>
+                )}
 
-                {/* Potência D2 (apenas D1+D2) */}
-                {isDual && (
+                {/* 4. Potência D1 */}
+                {selectedVariant && (
+                  <div>
+                    <FieldLabel hint={isDual ? "D1" : undefined}>Potência</FieldLabel>
+                    <div className="grid grid-cols-3 gap-2">
+                      {POWER_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setPowerD1(opt.value)}
+                          className={`px-3 py-2.5 rounded-md text-sm font-semibold border transition-all ${
+                            powerD1 === opt.value
+                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                              : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-2"><PowerBadge power={powerD1} /></div>
+                  </div>
+                )}
+
+                {/* 4b. Potência D2 (apenas D1+D2) */}
+                {selectedVariant && isDual && (
                   <div>
                     <FieldLabel hint="D2">Potência</FieldLabel>
                     <div className="grid grid-cols-3 gap-2">
@@ -514,128 +682,163 @@ export default function Home() {
                   </div>
                 )}
 
-                <Separator />
+                {/* 5. Difusor SHARP */}
+                {selectedVariant && hasDiffuser && (
+                  <>
+                    <Separator />
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-1 h-4 rounded-full bg-amber-500" />
+                        <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+                          Tipo de Difusor — SHARP
+                        </p>
+                      </div>
+                      {(application === "D1" || application === "D1+D2") && (
+                        <DiffuserSelector
+                          label={isDual ? "D1" : undefined as unknown as string}
+                          value={diffuserD1}
+                          onChange={setDiffuserD1}
+                        />
+                      )}
+                      {(application === "D2" || application === "D1+D2") && (
+                        <DiffuserSelector
+                          label="D2"
+                          value={diffuserD2}
+                          onChange={setDiffuserD2}
+                        />
+                      )}
+                    </div>
+                  </>
+                )}
 
-                {/* CCT e Tensão */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <FieldLabel>CCT</FieldLabel>
-                    <Select value={cct} onValueChange={(v) => setCct(v as CCT)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CCT_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                {selectedVariant && <Separator />}
+
+                {/* 6. CCT e Tensão */}
+                {selectedVariant && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <FieldLabel>CCT</FieldLabel>
+                      <Select value={cct} onValueChange={(v) => setCct(v as CCT)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CCT_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <FieldLabel>Tensão</FieldLabel>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {(["220Vac", "Bivolt"] as const).map((v) => (
+                          <button
+                            key={v}
+                            onClick={() => setVoltage(v)}
+                            className={`px-2 py-2 rounded-md text-xs font-semibold border transition-all ${
+                              voltage === v
+                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                            }`}
+                          >
+                            {v}
+                          </button>
                         ))}
-                      </SelectContent>
-                    </Select>
+                      </div>
+                    </div>
                   </div>
+                )}
+
+                {/* 7. Comprimento Total */}
+                {selectedVariant && (
                   <div>
-                    <FieldLabel>Tensão</FieldLabel>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {(["220Vac", "Bivolt"] as const).map((v) => (
-                        <button
-                          key={v}
-                          onClick={() => setVoltage(v)}
-                          className={`px-2 py-2 rounded-md text-xs font-semibold border transition-all ${
-                            voltage === v
-                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                              : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
-                          }`}
+                    <FieldLabel>Comprimento Total</FieldLabel>
+                    {isDual && (
+                      <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                        <Info className="w-3 h-3" />
+                        D1 e D2 são instalados no mesmo perfil com o mesmo comprimento
+                      </p>
+                    )}
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={totalLength}
+                        onChange={(e) => setTotalLength(e.target.value)}
+                        min={100}
+                        max={20000}
+                        step={1}
+                        className="w-full h-10 px-3 pr-12 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
+                        placeholder="ex: 2000"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">
+                        mm
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {selectedVariant && <Separator />}
+
+                {/* 8. Toggles */}
+                {selectedVariant && (
+                  <div className="space-y-3">
+                    {/* Acendimento Independente */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label
+                          htmlFor="independent"
+                          className={`text-sm font-medium ${forcedIndependent ? "text-muted-foreground" : "cursor-pointer"}`}
                         >
-                          {v}
-                        </button>
-                      ))}
+                          Acendimento Independente
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {forcedIndependent
+                            ? "Forçado — D1 e D2 com potências diferentes"
+                            : "D1 e D2 com drivers separados"}
+                        </p>
+                      </div>
+                      <Switch
+                        id="independent"
+                        checked={effectiveIndependent}
+                        disabled={forcedIndependent || !isDual}
+                        onCheckedChange={setIndependentLighting}
+                      />
+                    </div>
+
+                    {/* Módulos Longos */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="longmodules" className="text-sm font-medium cursor-pointer">
+                          Permitir Módulos Longos
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Habilitar módulos &gt;2825mm
+                        </p>
+                      </div>
+                      <Switch
+                        id="longmodules"
+                        checked={allowLongModules}
+                        onCheckedChange={setAllowLongModules}
+                      />
                     </div>
                   </div>
-                </div>
-
-                <Separator />
-
-                {/* Comprimento Total — único campo */}
-                <div>
-                  <FieldLabel>Comprimento Total</FieldLabel>
-                  {isDual && (
-                    <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                      <Info className="w-3 h-3" />
-                      D1 e D2 são instalados no mesmo perfil com o mesmo comprimento
-                    </p>
-                  )}
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={totalLength}
-                      onChange={(e) => setTotalLength(e.target.value)}
-                      min={100}
-                      max={20000}
-                      step={1}
-                      className="w-full h-10 px-3 pr-12 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
-                      placeholder="ex: 2000"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">
-                      mm
-                    </span>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Toggles */}
-                <div className="space-y-3">
-                  {/* Acendimento Independente */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label
-                        htmlFor="independent"
-                        className={`text-sm font-medium ${forcedIndependent ? "text-muted-foreground" : "cursor-pointer"}`}
-                      >
-                        Acendimento Independente
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {forcedIndependent
-                          ? "Forçado — D1 e D2 com potências diferentes"
-                          : "D1 e D2 com drivers separados"}
-                      </p>
-                    </div>
-                    <Switch
-                      id="independent"
-                      checked={effectiveIndependent}
-                      disabled={forcedIndependent || !isDual}
-                      onCheckedChange={setIndependentLighting}
-                    />
-                  </div>
-
-                  {/* Módulos Longos */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="longmodules" className="text-sm font-medium cursor-pointer">
-                        Permitir Módulos Longos
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Habilitar módulos &gt;2825mm
-                      </p>
-                    </div>
-                    <Switch
-                      id="longmodules"
-                      checked={allowLongModules}
-                      onCheckedChange={setAllowLongModules}
-                    />
-                  </div>
-                </div>
+                )}
 
               </CardContent>
             </Card>
 
             {/* Botão Calcular */}
-            <Button
-              onClick={handleCalculate}
-              className="w-full h-12 text-base font-semibold font-display"
-              size="lg"
-            >
-              <Zap className="w-5 h-5 mr-2" />
-              Calcular Composição
-            </Button>
+            {selectedVariant && (
+              <Button
+                onClick={handleCalculate}
+                className="w-full h-12 text-base font-semibold font-display"
+                size="lg"
+              >
+                <Zap className="w-5 h-5 mr-2" />
+                Calcular Composição
+              </Button>
+            )}
 
             {error && (
               <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
@@ -680,7 +883,7 @@ export default function Home() {
         <div className="container flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
           <span>© 2025 Alfalux Iluminação · Configurador de Perfis</span>
           <span className="font-mono">
-            {Object.keys(LED_CATALOG).length} perfis · Regra de Ouro aplicada
+            {Object.keys(LED_CATALOG).length} variantes · Regra de Ouro aplicada
           </span>
         </div>
       </footer>
