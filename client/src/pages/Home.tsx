@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,12 +12,10 @@ import {
   getProfileNames,
   getInstallTypesForProfile,
   getVariant,
+  MODULE_TYPE_LABELS,
 } from "@/lib/ledCatalog";
 import type { InstallType } from "@/lib/ledCatalog";
-import {
-  calculateComposition,
-  selectDrivers,
-} from "@/lib/ledEngine";
+import { calculateComposition } from "@/lib/ledEngine";
 import type {
   CompositionResult,
   ConfigInput,
@@ -25,10 +23,10 @@ import type {
   Application,
   CCT,
   Voltage,
-  DriverSpec,
   DiffuserType,
+  StripMethod,
+  SkuDriverEntry,
 } from "@/lib/ledEngine";
-import { MODULE_TYPE_LABELS } from "@/lib/ledCatalog";
 
 // ─── Constantes ────────────────────────────────────────────────────────────────
 
@@ -39,8 +37,10 @@ const POWER_OPTIONS: { value: Power; label: string }[] = [
 ];
 
 const CCT_OPTIONS: { value: CCT; label: string }[] = [
+  { value: "2700K", label: "2700K (Branco Extra Quente)" },
   { value: "3000K", label: "3000K (Branco Quente)" },
   { value: "4000K", label: "4000K (Branco Neutro)" },
+  { value: "5000K", label: "5000K (Branco Frio)" },
 ];
 
 const INSTALL_LABELS: Record<InstallType, string> = {
@@ -67,36 +67,61 @@ function FieldLabel({ children, hint }: { children: React.ReactNode; hint?: stri
   );
 }
 
-function PowerBadge({ power }: { power: Power }) {
+function PowerBadge({ power, stripMethod }: { power: Power; stripMethod?: StripMethod }) {
   const colors: Record<Power, string> = {
     18: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
     26: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300",
     36: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
   };
-  const labels: Record<Power, string> = {
-    18: "Fileira Simples · 350mA",
-    26: "Fileira Simples · 500mA",
-    36: "Barra Dupla · 350mA",
+  const getLabel = (p: Power): string => {
+    if (p === 18) return "Fileira Simples · 350mA";
+    if (p === 26) return "Fileira Simples · 500mA";
+    if (p === 36) {
+      return stripMethod === "STRIPLINE"
+        ? "Stripline Única · 250mA · 75V"
+        : "Barra Dupla · 350mA · 25V";
+    }
+    return "";
   };
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${colors[power]}`}>
-      {power}W · {labels[power]}
+      {power}W · {getLabel(power)}
     </span>
   );
 }
 
-function DriverList({ drivers }: { drivers: DriverSpec[] }) {
+function SkuDriverList({ entries, label }: { entries: SkuDriverEntry[]; label?: string }) {
+  if (entries.length === 0) return null;
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {drivers.map((d, i) => (
-        <span
-          key={i}
-          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-primary/10 text-primary border border-primary/20"
-        >
-          <Zap className="w-3 h-3" />
-          {d.quantity > 1 ? `${d.quantity}× ` : ""}{d.model}
-        </span>
-      ))}
+    <div className="rounded-md border border-border overflow-hidden">
+      {label && (
+        <div className="px-3 py-1.5 bg-muted/50 border-b border-border">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
+        </div>
+      )}
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="bg-muted/30">
+            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">SKU do Módulo</th>
+            <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Qtd</th>
+            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Driver por Peça</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((entry, idx) => (
+            <tr key={idx} className="border-t border-border hover:bg-muted/20 transition-colors">
+              <td className="px-3 py-2 font-mono text-primary font-medium">{entry.sku}</td>
+              <td className="px-3 py-2 text-right text-foreground font-semibold">{entry.quantity}</td>
+              <td className="px-3 py-2 text-foreground">
+                <span className="inline-flex items-center gap-1">
+                  <Zap className="w-3 h-3 text-primary shrink-0" />
+                  {entry.driver.model}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -146,13 +171,13 @@ function ResultBlock({ result }: { result: CompositionResult }) {
     <div className="space-y-4">
 
       {/* Alerta Driver Remoto */}
-      {result.hasAlert && (
-        <div className="flex items-start gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/30">
-          <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+      {result.isRemoteDriver && (
+        <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700/50">
+          <MapPin className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-bold text-destructive">Driver Remoto Obrigatório</p>
-            <p className="text-xs text-destructive/80 mt-0.5">
-              {result.profileName} com múltiplos drivers exige instalação de driver remoto (externo ao perfil).
+            <p className="text-sm font-bold text-amber-700 dark:text-amber-400">Driver Remoto Obrigatório</p>
+            <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-0.5">
+              {result.profileName} ({INSTALL_LABELS[result.installType]}) exige instalação do driver em ponto remoto — externo ao perfil.
             </p>
           </div>
         </div>
@@ -207,6 +232,14 @@ function ResultBlock({ result }: { result: CompositionResult }) {
             </div>
           </div>
 
+          {/* Barra Stripflex/Stripline */}
+          <div className="rounded-lg bg-muted/30 border border-border p-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+              {result.stripMethod === "STRIPLINE" ? "Barra Stripline" : "Barra Stripflex"}
+            </p>
+            <p className="text-sm font-medium text-foreground font-mono">{result.stripflexName}</p>
+          </div>
+
           {/* Difusor SHARP */}
           {(result.diffuserD1 || result.diffuserD2) && (
             <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 p-3">
@@ -225,48 +258,6 @@ function ResultBlock({ result }: { result: CompositionResult }) {
                   </span>
                 )}
               </div>
-            </div>
-          )}
-
-          {/* Drivers Combinados (quando acendimento conjunto) */}
-          {result.combinedDrivers && result.combinedDrivers.length > 0 && (
-            <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
-              <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-                Drivers — Acendimento Conjunto (D1+D2)
-              </p>
-              <DriverList drivers={result.combinedDrivers} />
-            </div>
-          )}
-
-          {/* Drivers Independentes */}
-          {isDual && result.independentLighting && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {result.driversD1.length > 0 && (
-                <div className="rounded-lg bg-muted/30 border border-border p-3">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                    Drivers D1 · {result.powerD1}W
-                  </p>
-                  <DriverList drivers={result.driversD1} />
-                </div>
-              )}
-              {result.driversD2.length > 0 && (
-                <div className="rounded-lg bg-muted/30 border border-border p-3">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                    Drivers D2 · {result.powerD2}W
-                  </p>
-                  <DriverList drivers={result.driversD2} />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Drivers D1 simples */}
-          {!isDual && result.driversD1.length > 0 && (
-            <div className="rounded-lg bg-muted/30 border border-border p-3">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                Drivers
-              </p>
-              <DriverList drivers={result.driversD1} />
             </div>
           )}
         </CardContent>
@@ -336,8 +327,81 @@ function ResultBlock({ result }: { result: CompositionResult }) {
               </table>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              * Barras Stripflex (562,5mm cada). Valores fracionados indicam aproveitamento parcial da barra.
+              * Barras {result.stripMethod === "STRIPLINE" ? "Stripline (562,5mm cada, 75V)" : "Stripflex (562,5mm cada, 25V)"}.
             </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Drivers por SKU */}
+      {(result.driversD1.length > 0 || result.driversD2.length > 0) && (
+        <Card className="shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+              <Zap className="w-4 h-4" />
+              Drivers por SKU
+              <span className="text-xs font-normal text-muted-foreground ml-1">
+                (1 driver por módulo — nunca compartilhado)
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isDual && result.independentLighting ? (
+              <div className="space-y-4">
+                <SkuDriverList
+                  entries={result.driversD1}
+                  label={`D1 · ${result.powerD1}W · ${result.voltage}`}
+                />
+                <SkuDriverList
+                  entries={result.driversD2}
+                  label={`D2 · ${result.powerD2}W · ${result.voltage}`}
+                />
+              </div>
+            ) : isDual && !result.independentLighting ? (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="w-3 h-3" />
+                  Acendimento Conjunto — os mesmos drivers atendem D1 e D2 por SKU
+                </p>
+                <SkuDriverList
+                  entries={result.driversD1}
+                  label={`D1+D2 · ${result.powerD1}W · ${result.voltage}`}
+                />
+              </div>
+            ) : (
+              <SkuDriverList
+                entries={result.driversD1}
+                label={`${result.application} · ${result.powerD1}W · ${result.voltage}`}
+              />
+            )}
+
+            {/* Resumo total de drivers */}
+            <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
+              <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
+                Resumo de Drivers
+              </p>
+              {(() => {
+                const allEntries = [...result.driversD1, ...result.driversD2];
+                const driverMap = new Map<string, number>();
+                for (const e of allEntries) {
+                  const key = e.driver.model;
+                  driverMap.set(key, (driverMap.get(key) ?? 0) + e.quantity);
+                }
+                return (
+                  <div className="flex flex-wrap gap-2">
+                    {Array.from(driverMap.entries()).map(([model, qty], idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-primary/10 text-primary border border-primary/20"
+                      >
+                        <Zap className="w-3 h-3" />
+                        {qty}× {model}
+                      </span>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -376,13 +440,15 @@ export default function Home() {
   const [profileName, setProfileName] = useState<string>("");
   // Step 2: Instalação
   const [installType, setInstallType] = useState<InstallType | "">("");
-  // Step 3: Aplicação
+  // Step 3: Aplicação (oculto para embutir)
   const [application, setApplication] = useState<Application>("D1");
   // Step 4: Potências
   const [powerD1, setPowerD1] = useState<Power>(18);
   const [powerD2, setPowerD2] = useState<Power>(18);
+  // Step 4b: Método de barra para 36W
+  const [stripMethod, setStripMethod] = useState<StripMethod>("STRIPFLEX");
   // Step 5: CCT, Tensão, Comprimento
-  const [cct, setCct] = useState<CCT>("4000K");
+  const [cct, setCct] = useState<CCT>("3000K");
   const [totalLength, setTotalLength] = useState<string>("2000");
   const [voltage, setVoltage] = useState<Voltage>("220Vac");
   // Toggles
@@ -410,15 +476,19 @@ export default function Home() {
 
   const profileCode = selectedVariant?.code ?? "";
 
+  // Embutir: sempre D1, sem aplicação visível, sem acendimento independente
+  const isEmbutir = installType === "EMBUTIR";
+
   // Aplicações permitidas para esta variante
   const allowD1 = selectedVariant?.allowD1 ?? true;
   const allowD2 = selectedVariant?.allowD2 ?? true;
   const allowD1D2 = selectedVariant?.allowD1D2 ?? false;
   const hasDiffuser = selectedVariant?.hasDiffuser ?? false;
 
-  const isDual = application === "D1+D2";
+  const effectiveApplication: Application = isEmbutir ? "D1" : application;
+  const isDual = effectiveApplication === "D1+D2";
   const forcedIndependent = isDual && powerD1 !== powerD2;
-  const effectiveIndependent = forcedIndependent || independentLighting;
+  const effectiveIndependent = !isEmbutir && (forcedIndependent || (isDual && independentLighting));
 
   // Reset ao trocar perfil
   const handleProfileChange = (name: string) => {
@@ -460,11 +530,11 @@ export default function Home() {
     }
 
     if (hasDiffuser) {
-      if ((application === "D1" || application === "D1+D2") && !diffuserD1) {
+      if ((effectiveApplication === "D1" || effectiveApplication === "D1+D2") && !diffuserD1) {
         setError("Selecione o tipo de difusor para D1 (SHARP).");
         return;
       }
-      if ((application === "D2" || application === "D1+D2") && !diffuserD2) {
+      if ((effectiveApplication === "D2" || effectiveApplication === "D1+D2") && !diffuserD2) {
         setError("Selecione o tipo de difusor para D2 (SHARP).");
         return;
       }
@@ -472,11 +542,12 @@ export default function Home() {
 
     const input: ConfigInput = {
       profileCode,
-      application,
+      application: effectiveApplication,
       powerD1,
       powerD2: isDual ? powerD2 : undefined,
       cct,
       voltage,
+      stripMethod: powerD1 === 36 ? stripMethod : "STRIPFLEX",
       totalLength: len,
       allowLongModules,
       independentLighting: effectiveIndependent,
@@ -491,7 +562,7 @@ export default function Home() {
       const msg = e instanceof Error ? e.message : "Erro ao calcular composição.";
       setError(msg);
     }
-  }, [profileCode, application, powerD1, powerD2, cct, voltage, totalLength, allowLongModules, effectiveIndependent, isDual, hasDiffuser, diffuserD1, diffuserD2]);
+  }, [profileCode, effectiveApplication, powerD1, powerD2, cct, voltage, stripMethod, totalLength, allowLongModules, effectiveIndependent, isDual, hasDiffuser, diffuserD1, diffuserD2]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -513,7 +584,7 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden sm:block text-xs text-sidebar-foreground/50 font-mono">
-              v2.2 · {Object.keys(LED_CATALOG).length} variantes
+              v2.3 · {Object.keys(LED_CATALOG).length} variantes
             </span>
             <Button
               variant="ghost"
@@ -536,65 +607,68 @@ export default function Home() {
             <div>
               <h2 className="text-xl font-bold font-display text-foreground">Configuração</h2>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Defina os parâmetros do perfil LED para calcular a composição.
+                Preencha os parâmetros para calcular a composição ideal.
               </p>
             </div>
 
             <Card className="shadow-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                  <Settings className="w-4 h-4" />
-                  Parâmetros do Perfil
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-5">
+              <CardContent className="pt-6 space-y-5">
 
                 {/* 1. Perfil */}
                 <div>
                   <FieldLabel>Perfil</FieldLabel>
                   <Select value={profileName} onValueChange={handleProfileChange}>
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger>
                       <SelectValue placeholder="Selecione o perfil..." />
                     </SelectTrigger>
                     <SelectContent>
                       {profileNames.map((name) => (
-                        <SelectItem key={name} value={name}>
-                          <span className="font-medium">{name}</span>
-                        </SelectItem>
+                        <SelectItem key={name} value={name}>{name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
 
-                {/* 2. Instalação (aparece após perfil selecionado) */}
+                {/* 2. Instalação */}
                 {profileName && availableInstallTypes.length > 0 && (
                   <div>
                     <FieldLabel>Instalação</FieldLabel>
-                    <div className={`grid gap-2 ${availableInstallTypes.length <= 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4"}`}>
-                      {availableInstallTypes.map((type) => (
-                        <button
-                          key={type}
-                          onClick={() => handleInstallChange(type)}
-                          className={`px-3 py-2.5 rounded-md text-sm font-medium border transition-all ${
-                            installType === type
-                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                              : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
-                          }`}
-                        >
-                          {INSTALL_LABELS[type]}
-                        </button>
-                      ))}
+                    <div className="grid grid-cols-2 gap-2">
+                      {availableInstallTypes.map((type) => {
+                        const variant = getVariant(profileName, type);
+                        return (
+                          <button
+                            key={type}
+                            onClick={() => handleInstallChange(type)}
+                            className={`px-3 py-2.5 rounded-md text-sm font-medium border transition-all text-left ${
+                              installType === type
+                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                            }`}
+                          >
+                            <span className="block font-semibold">{INSTALL_LABELS[type]}</span>
+                            {variant && (
+                              <span className={`text-[10px] font-mono mt-0.5 block ${
+                                installType === type ? "text-primary-foreground/70" : "text-muted-foreground"
+                              }`}>
+                                {variant.code}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
-                    {selectedVariant && (
-                      <p className="mt-1.5 text-xs text-muted-foreground font-mono">
-                        {selectedVariant.code}
+                    {isEmbutir && (
+                      <p className="mt-1.5 text-xs text-muted-foreground flex items-center gap-1">
+                        <Info className="w-3 h-3" />
+                        Embutir: sempre D1 · driver remoto obrigatório
                       </p>
                     )}
                   </div>
                 )}
 
-                {/* 3. Aplicação (aparece após instalação selecionada) */}
-                {selectedVariant && (
+                {/* 3. Aplicação (oculto para embutir) */}
+                {selectedVariant && !isEmbutir && (
                   <div>
                     <FieldLabel>Aplicação</FieldLabel>
                     <div className="grid grid-cols-3 gap-2">
@@ -649,7 +723,42 @@ export default function Home() {
                         </button>
                       ))}
                     </div>
-                    <div className="mt-2"><PowerBadge power={powerD1} /></div>
+                    <div className="mt-2">
+                      <PowerBadge power={powerD1} stripMethod={powerD1 === 36 ? stripMethod : undefined} />
+                    </div>
+
+                    {/* Toggle Stripflex/Stripline para 36W */}
+                    {powerD1 === 36 && (
+                      <div className="mt-3 rounded-lg border border-orange-200 dark:border-orange-700/40 bg-orange-50 dark:bg-orange-900/20 p-3 space-y-2">
+                        <p className="text-xs font-semibold text-orange-700 dark:text-orange-400 uppercase tracking-wider">
+                          Método de Barra — 36W
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {(["STRIPFLEX", "STRIPLINE"] as StripMethod[]).map((method) => (
+                            <button
+                              key={method}
+                              onClick={() => setStripMethod(method)}
+                              className={`px-2 py-2 rounded-md text-xs font-semibold border transition-all flex flex-col items-center gap-0.5 ${
+                                stripMethod === method
+                                  ? "bg-orange-600 text-white border-orange-600 shadow-sm"
+                                  : "bg-background text-foreground border-border hover:border-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/30"
+                              }`}
+                            >
+                              <span className="font-bold">{method === "STRIPFLEX" ? "Stripflex Dupla" : "Stripline Única"}</span>
+                              <span className={`text-[10px] ${stripMethod === method ? "text-white/70" : "text-muted-foreground"}`}>
+                                {method === "STRIPFLEX" ? "2× barras · 350mA · 25V" : "1× barra · 250mA · 75V"}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                        {stripMethod === "STRIPLINE" && (
+                          <p className="text-xs text-orange-700/80 dark:text-orange-400/80 flex items-start gap-1">
+                            <Info className="w-3 h-3 mt-0.5 shrink-0" />
+                            Stripline: apenas barras inteiras (1, 2, 3, 4 ou 5). Medidas fracionadas serão ignoradas.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -693,14 +802,14 @@ export default function Home() {
                           Tipo de Difusor — SHARP
                         </p>
                       </div>
-                      {(application === "D1" || application === "D1+D2") && (
+                      {(effectiveApplication === "D1" || effectiveApplication === "D1+D2") && (
                         <DiffuserSelector
-                          label={isDual ? "D1" : undefined as unknown as string}
+                          label={isDual ? "D1" : ""}
                           value={diffuserD1}
                           onChange={setDiffuserD1}
                         />
                       )}
-                      {(application === "D2" || application === "D1+D2") && (
+                      {(effectiveApplication === "D2" || effectiveApplication === "D1+D2") && (
                         <DiffuserSelector
                           label="D2"
                           value={diffuserD2}
@@ -780,31 +889,33 @@ export default function Home() {
 
                 {selectedVariant && <Separator />}
 
-                {/* 8. Toggles */}
+                {/* 8. Toggles (acendimento independente oculto para embutir) */}
                 {selectedVariant && (
                   <div className="space-y-3">
-                    {/* Acendimento Independente */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label
-                          htmlFor="independent"
-                          className={`text-sm font-medium ${forcedIndependent ? "text-muted-foreground" : "cursor-pointer"}`}
-                        >
-                          Acendimento Independente
-                        </Label>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {forcedIndependent
-                            ? "Forçado — D1 e D2 com potências diferentes"
-                            : "D1 e D2 com drivers separados"}
-                        </p>
+                    {/* Acendimento Independente — oculto para embutir */}
+                    {!isEmbutir && (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label
+                            htmlFor="independent"
+                            className={`text-sm font-medium ${forcedIndependent ? "text-muted-foreground" : "cursor-pointer"}`}
+                          >
+                            Acendimento Independente
+                          </Label>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {forcedIndependent
+                              ? "Forçado — D1 e D2 com potências diferentes"
+                              : "D1 e D2 com drivers separados"}
+                          </p>
+                        </div>
+                        <Switch
+                          id="independent"
+                          checked={effectiveIndependent}
+                          disabled={forcedIndependent || !isDual}
+                          onCheckedChange={setIndependentLighting}
+                        />
                       </div>
-                      <Switch
-                        id="independent"
-                        checked={effectiveIndependent}
-                        disabled={forcedIndependent || !isDual}
-                        onCheckedChange={setIndependentLighting}
-                      />
-                    </div>
+                    )}
 
                     {/* Módulos Longos */}
                     <div className="flex items-center justify-between">
@@ -813,7 +924,7 @@ export default function Home() {
                           Permitir Módulos Longos
                         </Label>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          Habilitar módulos &gt;2825mm
+                          Habilitar módulos &gt;2825mm (até 6 barras)
                         </p>
                       </div>
                       <Switch

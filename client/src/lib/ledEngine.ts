@@ -1,7 +1,15 @@
-// LED Engine v1.4
-// Lógica correta de módulos:
+// LED Engine v1.6
+// Regras de módulos:
 //   IN (Módulo Inteiro): apenas quando a composição é uma peça única (≤ 5 barras; ≤ 6 com módulos longos)
 //   IF + ML: para linhas longas — sempre 2 IFs iguais nas pontas + MLs no meio
+//
+// Regras de driver remoto:
+//   Sempre remoto: todos os de embutir, BLAZE H D1+D2, SKYLINE Pendente, MINI BLAZE, SHARP, SOFT
+//   EASY H PLUS: driver sempre integrado ao perfil (nunca remoto)
+//   Demais: integrado ao perfil ou remoto conforme projeto
+//
+// 36W: Stripflex dupla (25V, 350mA) OU Stripline única (75V, 250mA)
+//   Stripline: apenas barras inteiras (1, 2, 3, 4, 5) — sem medidas fracionadas
 
 import { LED_CATALOG, MODULE_TYPE_LABELS } from "./ledCatalog";
 import type { InstallType } from "./ledCatalog";
@@ -9,11 +17,12 @@ import type { InstallType } from "./ledCatalog";
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 export type Power = 18 | 26 | 36;
-export type CCT = "3000K" | "4000K";
+export type CCT = "2700K" | "3000K" | "4000K" | "5000K";
 export type Voltage = "220Vac" | "Bivolt";
 export type Application = "D1" | "D2" | "D1+D2";
 export type ModuleType = "IN" | "IF" | "ML";
 export type DiffuserType = "DA" | "DB" | "DC";
+export type StripMethod = "STRIPFLEX" | "STRIPLINE";
 
 export type { InstallType };
 
@@ -24,6 +33,13 @@ export interface DriverSpec {
   quantity: number;
 }
 
+/** Driver associado a um SKU específico */
+export interface SkuDriverEntry {
+  sku: string;
+  quantity: number;
+  driver: DriverSpec;
+}
+
 export interface CompositionItem {
   sku: string;
   moduleType: ModuleType;
@@ -32,9 +48,13 @@ export interface CompositionItem {
   barras: number;
   barsTotal: number;
   quantity: number;
+  /** Driver associado a este SKU (1 driver por SKU, nunca compartilhado) */
+  driverPerSku: DriverSpec;
 }
 
 export interface CompositionResult {
+  /** Drivers combinados para D1+D2 conjunto (não independente) */
+  combinedDrivers?: SkuDriverEntry[];
   profileCode: string;
   profileName: string;
   installType: InstallType;
@@ -43,17 +63,21 @@ export interface CompositionResult {
   powerD2: Power;
   cct: CCT;
   voltage: Voltage;
+  stripMethod: StripMethod;
   allowLongModules: boolean;
   independentLighting: boolean;
   forcedIndependent: boolean;
+  isRemoteDriver: boolean;
   requestedLength: number;
   realizedLength: number;
   remainingLength: number;
   composition: CompositionItem[];
   totalBars: number;
-  driversD1: DriverSpec[];
-  driversD2: DriverSpec[];
-  combinedDrivers?: DriverSpec[];
+  /** Lista consolidada de drivers D1 (por SKU) */
+  driversD1: SkuDriverEntry[];
+  /** Lista consolidada de drivers D2 (por SKU) — apenas D1+D2 independente */
+  driversD2: SkuDriverEntry[];
+  stripflexName: string;
   engineeringNotes: string[];
   hasAlert: boolean;
   alertMessage?: string;
@@ -69,6 +93,7 @@ export interface ConfigInput {
   powerD2?: Power;
   cct: CCT;
   voltage: Voltage;
+  stripMethod?: StripMethod;
   totalLength: number;
   allowLongModules: boolean;
   independentLighting: boolean;
@@ -78,64 +103,147 @@ export interface ConfigInput {
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
-const BARS_PER_SECTION: Record<Power, number> = {
-  18: 1,  // Fileira Simples · 350mA
-  26: 1,  // Fileira Simples · 500mA
-  36: 2,  // Fileira Dupla   · 350mA — Método Barra Dupla
+const BARS_PER_SECTION_STRIPFLEX: Record<Power, number> = {
+  18: 1,  // Fileira Simples · 350mA · 25V
+  26: 1,  // Fileira Simples · 500mA · 25V
+  36: 2,  // Fileira Dupla   · 350mA · 25V — Método Barra Dupla
 };
 
-const CURRENT_TYPE: Record<Power, "350mA" | "500mA"> = {
+const CURRENT_TYPE: Record<Power, "350mA" | "500mA" | "250mA"> = {
   18: "350mA",
   26: "500mA",
-  36: "350mA",
+  36: "350mA", // padrão Stripflex; Stripline usa 250mA
 };
 
 /**
  * Limite máximo de barras para uso de IN como peça única.
- * Se o comprimento total cabe em ≤ 5 barras (ou ≤ 6 com módulos longos),
- * pode-se usar um único módulo IN. Caso contrário, usar IF + ML.
  */
 export const IN_MAX_BARS_STANDARD = 5;
 export const IN_MAX_BARS_LONG = 6;
 
-// ─── Seleção de Drivers ───────────────────────────────────────────────────────
+/** Barras inteiras válidas para Stripline (75V) */
+const STRIPLINE_VALID_BARS = [1, 2, 3, 4, 5];
 
-function selectDrivers220V(totalBars: number, power: Power): DriverSpec[] {
-  const current = CURRENT_TYPE[power];
-  if (current === "350mA") {
-    if (totalBars <= 1)  return [{ model: "Philips 19W 350mA",  power: 19, current: "350mA", quantity: 1 }];
-    if (totalBars <= 5)  return [{ model: "Philips 44W 350mA",  power: 44, current: "350mA", quantity: 1 }];
-    if (totalBars <= 6)  return [{ model: "Philips 65W 350mA",  power: 65, current: "350mA", quantity: 1 }];
-    const n = Math.ceil(totalBars / 6);
-    return [{ model: "Philips 65W 350mA", power: 65, current: "350mA", quantity: n }];
+// ─── Regras de Driver Remoto ──────────────────────────────────────────────────
+
+/**
+ * Determina se o driver deve ser instalado em ponto remoto.
+ * Regras:
+ * - Embutir: sempre remoto
+ * - BLAZE H (LLP-6060): remoto quando D1+D2
+ * - SKYLINE Pendente (LLP-4536): sempre remoto
+ * - MINI BLAZE (LLP-3336, LLS-3336): sempre remoto
+ * - SHARP (LLP-4451, LLA-4451): sempre remoto
+ * - SOFT (LLP-4452): sempre remoto
+ * - EASY H PLUS (LLP-4450, LLA-4450): NUNCA remoto (sempre integrado)
+ */
+export function isRemoteDriverRequired(
+  profileCode: string,
+  installType: InstallType,
+  application: Application
+): boolean {
+  // Embutir: sempre remoto
+  if (installType === "EMBUTIR") return true;
+
+  // EASY H PLUS: nunca remoto
+  if (profileCode === "LLP-4450" || profileCode === "LLA-4450") return false;
+
+  // BLAZE H: remoto apenas quando D1+D2
+  if (profileCode === "LLP-6060" && application === "D1+D2") return true;
+
+  // SKYLINE Pendente: sempre remoto
+  if (profileCode === "LLP-4536") return true;
+
+  // MINI BLAZE: sempre remoto
+  if (profileCode === "LLP-3336" || profileCode === "LLS-3336") return true;
+
+  // SHARP: sempre remoto
+  if (profileCode === "LLP-4451" || profileCode === "LLA-4451") return true;
+
+  // SOFT: sempre remoto
+  if (profileCode === "LLP-4452") return true;
+
+  return false;
+}
+
+// ─── Nome da barra Stripflex ──────────────────────────────────────────────────
+
+export function getStripflexName(cct: CCT): string {
+  return `Stripflex 562,5 x 10mm 36L ${cct}`;
+}
+
+export function getStriplineName(cct: CCT): string {
+  return `Stripline 562,5 x 15mm 105L ${cct}`;
+}
+
+// ─── Seleção de Drivers por SKU ───────────────────────────────────────────────
+
+/**
+ * Seleciona o driver para um único SKU (1 barra ou conjunto de barras de um módulo).
+ * Cada SKU recebe seu próprio driver — nunca compartilhado entre SKUs.
+ *
+ * Para Stripflex:
+ *   - 18W/350mA: Philips 19W (≤1 barra), Philips 44W (≤5), Philips 65W (≤6+)
+ *   - 26W/500mA: Philips 21W (≤1 barra), Element 75W (>1)
+ *   - 36W/350mA Stripflex dupla: mesma lógica do 18W mas com 2 barras por seção
+ *
+ * Para Stripline (36W/250mA/75V):
+ *   - 1 barra: Philips 19W 350mA → mas Stripline usa corrente diferente
+ *   - Usamos drivers 250mA compatíveis com 75V de saída
+ *   - Philips Xitanium 25W 250mA (até 1 barra), 50W 250mA (até 3), 75W 250mA (até 5)
+ */
+function selectDriverForBars(totalBars: number, power: Power, voltage: Voltage, stripMethod: StripMethod): DriverSpec {
+  // Stripline 36W/250mA/75V
+  if (power === 36 && stripMethod === "STRIPLINE") {
+    if (voltage === "Bivolt") {
+      if (totalBars <= 1) return { model: "LIFUD 20W 250mA (LF-FMR020YS0250U(S))", power: 20, current: "250mA", quantity: 1 };
+      if (totalBars <= 3) return { model: "LIFUD 40W 250mA (LF-FMR040YS0250U(S))", power: 40, current: "250mA", quantity: 1 };
+      return { model: "LIFUD 60W 250mA (LF-FMR060YS0250U(S))", power: 60, current: "250mA", quantity: 1 };
+    } else {
+      if (totalBars <= 1) return { model: "Philips Xitanium 25W 250mA 220V", power: 25, current: "250mA", quantity: 1 };
+      if (totalBars <= 3) return { model: "Philips Xitanium 50W 250mA 220V", power: 50, current: "250mA", quantity: 1 };
+      return { model: "Philips Xitanium 75W 250mA 220V", power: 75, current: "250mA", quantity: 1 };
+    }
+  }
+
+  // Stripflex 350mA (18W e 36W barra dupla)
+  if (CURRENT_TYPE[power] === "350mA") {
+    if (voltage === "Bivolt") {
+      if (totalBars <= 1) return { model: "LIFUD 20W 350mA (LF-FMR020YS0350U(S))", power: 20, current: "350mA", quantity: 1 };
+      if (totalBars <= 4) return { model: "LIFUD 40W 350mA (LF-FMR040YS0350U(S))", power: 40, current: "350mA", quantity: 1 };
+      return { model: "LIFUD 60W 350mA (LF-FMR060YS0350U(S))", power: 60, current: "350mA", quantity: 1 };
+    } else {
+      if (totalBars <= 1) return { model: "DRIVER PHILIPS 19W 350mA 220V", power: 19, current: "350mA", quantity: 1 };
+      if (totalBars <= 5) return { model: "DRIVER PHILIPS 44W 350mA 220V", power: 44, current: "350mA", quantity: 1 };
+      return { model: "DRIVER PHILIPS 65W 350mA 220V", power: 65, current: "350mA", quantity: 1 };
+    }
+  }
+
+  // Stripflex 500mA (26W)
+  if (voltage === "Bivolt") {
+    if (totalBars <= 1) return { model: "Philips 21W 500mA", power: 21, current: "500mA", quantity: 1 };
+    return { model: "Element 75W 500mA", power: 75, current: "500mA", quantity: 1 };
   } else {
-    if (totalBars <= 1)  return [{ model: "Philips 21W 500mA",  power: 21, current: "500mA", quantity: 1 }];
-    return [{ model: "Element 75W 500mA", power: 75, current: "500mA", quantity: 1 }];
+    if (totalBars <= 1) return { model: "Philips 21W 500mA 220V", power: 21, current: "500mA", quantity: 1 };
+    return { model: "Element 75W 500mA 220V", power: 75, current: "500mA", quantity: 1 };
   }
 }
 
-function selectDriversBivolt(totalBars: number, power: Power): DriverSpec[] {
-  const current = CURRENT_TYPE[power];
-  if (current === "350mA") {
-    if (totalBars <= 1)  return [{ model: "LIFUD 20W 350mA (LF-FMR020YS0350U(S))", power: 20, current: "350mA", quantity: 1 }];
-    if (totalBars <= 4)  return [{ model: "LIFUD 40W 350mA (LF-FMR040YS0350U(S))", power: 40, current: "350mA", quantity: 1 }];
-    if (totalBars <= 6)  return [{ model: "LIFUD 60W 350mA (LF-FMR060YS0350U(S))", power: 60, current: "350mA", quantity: 1 }];
-    const n = Math.ceil(totalBars / 6);
-    return [{ model: "LIFUD 60W 350mA (LF-FMR060YS0350U(S))", power: 60, current: "350mA", quantity: n }];
-  } else {
-    if (totalBars <= 1)  return [{ model: "Philips 21W 500mA",  power: 21, current: "500mA", quantity: 1 }];
-    return [{ model: "Element 75W 500mA", power: 75, current: "500mA", quantity: 1 }];
-  }
-}
-
-export function selectDrivers(totalBars: number, power: Power, voltage: Voltage = "220Vac"): DriverSpec[] {
-  return voltage === "Bivolt"
-    ? selectDriversBivolt(totalBars, power)
-    : selectDrivers220V(totalBars, power);
-}
-
-export function optimizeDrivers(totalBars: number, power: Power, voltage: Voltage): DriverSpec[] {
-  return selectDrivers(totalBars, power, voltage);
+/**
+ * Gera a lista de SkuDriverEntry para uma composição.
+ * Cada SKU recebe seu próprio driver — nunca otimizado entre SKUs.
+ */
+function buildSkuDriverList(
+  composition: CompositionItem[],
+  power: Power,
+  voltage: Voltage,
+  stripMethod: StripMethod
+): SkuDriverEntry[] {
+  return composition.map(item => ({
+    sku: item.sku,
+    quantity: item.quantity,
+    driver: selectDriverForBars(item.barsTotal, power, voltage, stripMethod),
+  }));
 }
 
 // ─── Helpers de módulos ───────────────────────────────────────────────────────
@@ -147,7 +255,7 @@ interface RawModule {
   sku: string;
 }
 
-function getModules(profileCode: string, type: ModuleType, allowLongModules: boolean): RawModule[] {
+function getModules(profileCode: string, type: ModuleType, allowLongModules: boolean, stripMethod?: StripMethod): RawModule[] {
   const profile = LED_CATALOG[profileCode];
   if (!profile) return [];
   const mods = profile.modules[type];
@@ -155,6 +263,14 @@ function getModules(profileCode: string, type: ModuleType, allowLongModules: boo
   return Object.entries(mods)
     .filter(([, data]) => data.sku && data.sku !== "")
     .filter(([, data]) => allowLongModules || data.length <= 2825)
+    .filter(([barrasKey]) => {
+      // Stripline: apenas barras inteiras (1, 2, 3, 4, 5)
+      if (stripMethod === "STRIPLINE") {
+        const b = parseFloat(barrasKey);
+        return STRIPLINE_VALID_BARS.includes(b);
+      }
+      return true;
+    })
     .map(([barrasKey, data]) => ({
       type,
       barras: parseFloat(barrasKey),
@@ -165,7 +281,10 @@ function getModules(profileCode: string, type: ModuleType, allowLongModules: boo
 
 function toCompositionItems(
   rawItems: RawModule[],
-  barsPerSection: number
+  barsPerSection: number,
+  power: Power,
+  voltage: Voltage,
+  stripMethod: StripMethod
 ): CompositionItem[] {
   const skuMap = new Map<string, CompositionItem>();
   for (const item of rawItems) {
@@ -174,14 +293,16 @@ function toCompositionItems(
       existing.quantity += 1;
       existing.barsTotal += item.barras * barsPerSection;
     } else {
+      const barsTotal = item.barras * barsPerSection;
       skuMap.set(item.sku, {
         sku: item.sku,
         moduleType: item.type,
         moduleTypeLabel: MODULE_TYPE_LABELS[item.type],
         length: item.length,
         barras: item.barras,
-        barsTotal: item.barras * barsPerSection,
+        barsTotal,
         quantity: 1,
+        driverPerSku: selectDriverForBars(barsTotal, power, voltage, stripMethod),
       });
     }
   }
@@ -194,18 +315,20 @@ function tryInSingle(
   profileCode: string,
   requestedLength: number,
   power: Power,
-  allowLongModules: boolean
+  voltage: Voltage,
+  allowLongModules: boolean,
+  stripMethod: StripMethod
 ): { composition: CompositionItem[]; realizedLength: number; remainingLength: number } | null {
-  const inModules = getModules(profileCode, "IN", allowLongModules)
+  const inModules = getModules(profileCode, "IN", allowLongModules, stripMethod)
     .filter(m => m.length <= requestedLength)
     .sort((a, b) => b.length - a.length);
 
   if (inModules.length === 0) return null;
 
   const best = inModules[0];
-  const barsPerSection = BARS_PER_SECTION[power];
+  const barsPerSection = stripMethod === "STRIPLINE" ? 1 : BARS_PER_SECTION_STRIPFLEX[power];
 
-  const composition = toCompositionItems([best], barsPerSection);
+  const composition = toCompositionItems([best], barsPerSection, power, voltage, stripMethod);
   const realizedLength = best.length;
   const remainingLength = requestedLength - best.length;
 
@@ -218,16 +341,18 @@ function buildIfMlComposition(
   profileCode: string,
   requestedLength: number,
   power: Power,
-  allowLongModules: boolean
+  voltage: Voltage,
+  allowLongModules: boolean,
+  stripMethod: StripMethod
 ): { composition: CompositionItem[]; realizedLength: number; remainingLength: number } | null {
-  const ifModules = getModules(profileCode, "IF", allowLongModules)
+  const ifModules = getModules(profileCode, "IF", allowLongModules, stripMethod)
     .sort((a, b) => b.length - a.length);
-  const mlModules = getModules(profileCode, "ML", allowLongModules)
+  const mlModules = getModules(profileCode, "ML", allowLongModules, stripMethod)
     .sort((a, b) => b.length - a.length);
 
   if (ifModules.length === 0) return null;
 
-  const barsPerSection = BARS_PER_SECTION[power];
+  const barsPerSection = stripMethod === "STRIPLINE" ? 1 : BARS_PER_SECTION_STRIPFLEX[power];
 
   interface Candidate {
     ifMod: RawModule;
@@ -274,7 +399,7 @@ function buildIfMlComposition(
 
   const best = candidates[0];
   const rawItems: RawModule[] = [best.ifMod, best.ifMod, ...best.mlItems];
-  const composition = toCompositionItems(rawItems, barsPerSection);
+  const composition = toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod);
   const remainingLength = requestedLength - best.realizedLength;
 
   return { composition, realizedLength: best.realizedLength, remainingLength };
@@ -286,7 +411,9 @@ export function buildComposition(
   profileCode: string,
   requestedLength: number,
   power: Power,
-  allowLongModules: boolean
+  voltage: Voltage,
+  allowLongModules: boolean,
+  stripMethod: StripMethod = "STRIPFLEX"
 ): {
   composition: CompositionItem[];
   realizedLength: number;
@@ -298,10 +425,9 @@ export function buildComposition(
     return { composition: [], realizedLength: 0, remainingLength: requestedLength, compositionMode: "IF_ML_LINE" };
   }
 
-  const barsPerSection = BARS_PER_SECTION[power];
   const maxBars = allowLongModules ? IN_MAX_BARS_LONG : IN_MAX_BARS_STANDARD;
 
-  const inModulesAll = getModules(profileCode, "IN", allowLongModules);
+  const inModulesAll = getModules(profileCode, "IN", allowLongModules, stripMethod);
   const largestInWithinLimit = inModulesAll
     .filter(m => m.barras <= maxBars)
     .sort((a, b) => b.length - a.length)[0];
@@ -309,24 +435,25 @@ export function buildComposition(
   const isShortLine = largestInWithinLimit !== undefined && requestedLength <= largestInWithinLimit.length;
 
   if (isShortLine) {
-    const inResult = tryInSingle(profileCode, requestedLength, power, allowLongModules);
+    const inResult = tryInSingle(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod);
     if (inResult) {
       return { ...inResult, compositionMode: "IN_SINGLE" };
     }
   }
 
-  const ifMlResult = buildIfMlComposition(profileCode, requestedLength, power, allowLongModules);
+  const ifMlResult = buildIfMlComposition(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod);
   if (ifMlResult) {
     return { ...ifMlResult, compositionMode: "IF_ML_LINE" };
   }
 
   // Fallback: algoritmo guloso genérico
   const allModules: RawModule[] = [
-    ...getModules(profileCode, "IN", allowLongModules),
-    ...getModules(profileCode, "IF", allowLongModules),
-    ...getModules(profileCode, "ML", allowLongModules),
+    ...getModules(profileCode, "IN", allowLongModules, stripMethod),
+    ...getModules(profileCode, "IF", allowLongModules, stripMethod),
+    ...getModules(profileCode, "ML", allowLongModules, stripMethod),
   ].sort((a, b) => b.length - a.length);
 
+  const barsPerSection = stripMethod === "STRIPLINE" ? 1 : BARS_PER_SECTION_STRIPFLEX[power];
   const rawItems: RawModule[] = [];
   let remaining = requestedLength;
   for (const mod of allModules) {
@@ -336,10 +463,23 @@ export function buildComposition(
     }
   }
 
-  const composition = toCompositionItems(rawItems, barsPerSection);
+  const composition = toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod);
   const realizedLength = requestedLength - remaining;
 
   return { composition, realizedLength, remainingLength: remaining, compositionMode: "IF_ML_LINE" };
+}
+
+/**
+ * Exporta selectDrivers como wrapper público para uso em testes.
+ * Seleciona o driver para um número de barras, potência e tensão.
+ */
+export function selectDrivers(
+  totalBars: number,
+  power: Power,
+  voltage: Voltage,
+  stripMethod: StripMethod = "STRIPFLEX"
+): DriverSpec[] {
+  return [selectDriverForBars(totalBars, power, voltage, stripMethod)];
 }
 
 // ─── Engine Principal ─────────────────────────────────────────────────────────
@@ -352,6 +492,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     powerD2,
     cct,
     voltage,
+    stripMethod = "STRIPFLEX",
     totalLength,
     allowLongModules,
     independentLighting,
@@ -374,11 +515,18 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     throw new Error(`O perfil ${profileName} (${installType}) não suporta aplicação D2.`);
   }
 
-  const effectivePowerD2: Power = (application === "D1+D2" ? (powerD2 ?? powerD1) : powerD1);
+  // Embutir: sempre D1
+  const effectiveApplication: Application = installType === "EMBUTIR" ? "D1" : application;
+
+  const effectivePowerD2: Power = (effectiveApplication === "D1+D2" ? (powerD2 ?? powerD1) : powerD1);
 
   // Acendimento independente forçado quando potências diferentes
-  const forcedIndependent = application === "D1+D2" && powerD1 !== effectivePowerD2;
-  const isIndependent = forcedIndependent || (application === "D1+D2" && independentLighting);
+  const forcedIndependent = effectiveApplication === "D1+D2" && powerD1 !== effectivePowerD2;
+  // Embutir: sem acendimento independente
+  const isIndependent = installType !== "EMBUTIR" && (forcedIndependent || (effectiveApplication === "D1+D2" && independentLighting));
+
+  // Regra de driver remoto
+  const isRemoteDriver = isRemoteDriverRequired(profileCode, installType, effectiveApplication);
 
   const engineeringNotes: string[] = [];
   let hasAlert = false;
@@ -395,7 +543,9 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     profileCode,
     totalLength,
     powerD1,
-    allowLongModules
+    voltage,
+    allowLongModules,
+    stripMethod
   );
 
   if (compositionMode === "IN_SINGLE") {
@@ -408,76 +558,57 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
   if (profile?.hasDiffuser) {
     const d1Label = diffuserD1 ?? "—";
     const d2Label = diffuserD2 ?? "—";
-    if (application === "D1+D2") {
+    if (effectiveApplication === "D1+D2") {
       engineeringNotes.push(`Difusor SHARP: D1 = ${d1Label} | D2 = ${d2Label}`);
-    } else if (application === "D1") {
+    } else if (effectiveApplication === "D1") {
       engineeringNotes.push(`Difusor SHARP: D1 = ${d1Label}`);
     } else {
       engineeringNotes.push(`Difusor SHARP: D2 = ${d2Label}`);
     }
   }
 
-  const totalBarsD1 = composition.reduce((sum, item) => sum + item.barsTotal, 0);
-
-  let totalBarsD2 = totalBarsD1;
-  if (application === "D1+D2" && powerD1 !== effectivePowerD2) {
-    const barsD2 = BARS_PER_SECTION[effectivePowerD2];
-    const barsD1 = BARS_PER_SECTION[powerD1];
-    totalBarsD2 = composition.reduce((sum, item) => sum + item.barras * barsD2, 0);
-    if (barsD1 !== barsD2) {
+  // Nota de método de barra para 36W
+  if (powerD1 === 36) {
+    if (stripMethod === "STRIPLINE") {
       engineeringNotes.push(
-        `D2 (${effectivePowerD2}W) utiliza ${barsD2} barra(s) por seção (${CURRENT_TYPE[effectivePowerD2]}), totalizando ${totalBarsD2} barras.`
+        `36W com Stripline única (75V, 250mA) — apenas barras inteiras utilizadas.`
       );
-    }
-  }
-
-  // ── Seleção de Drivers ──
-  let driversD1: DriverSpec[] = [];
-  let driversD2: DriverSpec[] = [];
-  let combinedDrivers: DriverSpec[] | undefined;
-
-  if (application === "D1") {
-    driversD1 = selectDrivers(totalBarsD1, powerD1, voltage);
-  } else if (application === "D2") {
-    driversD1 = selectDrivers(totalBarsD1, effectivePowerD2, voltage);
-  } else {
-    if (isIndependent) {
-      driversD1 = selectDrivers(totalBarsD1, powerD1, voltage);
-      driversD2 = selectDrivers(totalBarsD2, effectivePowerD2, voltage);
     } else {
-      const totalBarsCombined = totalBarsD1 + totalBarsD2;
-      combinedDrivers = optimizeDrivers(totalBarsCombined, powerD1, voltage);
       engineeringNotes.push(
-        `Acendimento conjunto: drivers otimizados → ${combinedDrivers.map((d) => `${d.quantity}x ${d.model}`).join(", ")}.`
+        `36W com Stripflex dupla (25V, 350mA) — 2 barras por seção.`
       );
     }
   }
 
-  // ── Alerta Driver Remoto (EASY H PLUS e outros com requiresRemoteDriver) ──
-  const requiresRemote = profile?.requiresRemoteDriver === true;
-  const totalDriverCount = combinedDrivers
-    ? combinedDrivers.reduce((s, d) => s + d.quantity, 0)
-    : [...driversD1, ...driversD2].reduce((s, d) => s + d.quantity, 0);
+  // ── Drivers por SKU (D1) ──
+  const driversD1: SkuDriverEntry[] = buildSkuDriverList(composition, powerD1, voltage, stripMethod);
 
-  if (requiresRemote && totalDriverCount > 1) {
+  // ── Drivers por SKU (D2) — apenas D1+D2 independente ──
+  let driversD2: SkuDriverEntry[] = [];
+  if (effectiveApplication === "D1+D2" && isIndependent) {
+    // D2 usa a mesma composição de módulos mas com potência D2
+    driversD2 = buildSkuDriverList(composition, effectivePowerD2, voltage, stripMethod);
+  }
+
+  // ── Nota de acendimento conjunto (D1+D2 não independente) ──
+  if (effectiveApplication === "D1+D2" && !isIndependent) {
+    engineeringNotes.push(
+      "Tipo de ligação: Acendimento Conjunto — D1 e D2 compartilham os mesmos drivers."
+    );
+  } else if (effectiveApplication === "D1+D2" && isIndependent) {
+    engineeringNotes.push(
+      "Tipo de ligação: Acendimento Independente — D1 e D2 com drivers separados por SKU."
+    );
+  }
+
+  // ── Nota de driver remoto ──
+  if (isRemoteDriver) {
     hasAlert = true;
-    alertMessage = `⚠️ DRIVER REMOTO OBRIGATÓRIO: O perfil ${profileName} com múltiplos drivers exige instalação de driver remoto.`;
+    alertMessage = `⚠️ DRIVER REMOTO OBRIGATÓRIO: O perfil ${profileName} (${installType}) exige instalação de driver em ponto remoto.`;
     engineeringNotes.push(alertMessage);
-  }
-
-  // ── Notas de instalação ──
-  if (application === "D1+D2") {
-    if (isIndependent) {
-      engineeringNotes.push("Tipo de ligação: Acendimento Independente — D1 e D2 com drivers separados.");
-    } else {
-      engineeringNotes.push("Tipo de ligação: Acendimento Conjunto — D1 e D2 compartilham o mesmo driver.");
-    }
-  }
-
-  if (requiresRemote) {
-    engineeringNotes.push(`Local do driver: Remoto (externo ao perfil) — obrigatório para ${profileName}.`);
+    engineeringNotes.push("Local do driver: Remoto — externo ao perfil, instalado em caixa de passagem ou teto.");
   } else {
-    engineeringNotes.push("Local do driver: Interno ao perfil ou remoto conforme projeto.");
+    engineeringNotes.push("Local do driver: Integrado ao perfil.");
   }
 
   if (remainingLength > 0) {
@@ -486,22 +617,42 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     );
   }
 
-  const totalBars = application === "D1+D2"
+  const barsPerSection = stripMethod === "STRIPLINE" ? 1 : BARS_PER_SECTION_STRIPFLEX[powerD1];
+  const totalBarsD1 = composition.reduce((sum, item) => sum + item.barsTotal, 0);
+  let totalBarsD2 = totalBarsD1;
+  if (effectiveApplication === "D1+D2" && powerD1 !== effectivePowerD2) {
+    const barsD2 = BARS_PER_SECTION_STRIPFLEX[effectivePowerD2];
+    totalBarsD2 = composition.reduce((sum, item) => sum + item.barras * barsD2, 0);
+  }
+
+  const totalBars = effectiveApplication === "D1+D2"
     ? totalBarsD1 + totalBarsD2
     : totalBarsD1;
+
+  const stripflexName = stripMethod === "STRIPLINE"
+    ? getStriplineName(cct)
+    : getStripflexName(cct);
+
+  // Drivers combinados para D1+D2 conjunto
+  const combinedDrivers: SkuDriverEntry[] | undefined =
+    effectiveApplication === "D1+D2" && !isIndependent
+      ? buildSkuDriverList(composition, powerD1, voltage, stripMethod)
+      : undefined;
 
   return {
     profileCode,
     profileName,
     installType,
-    application,
+    application: effectiveApplication,
     powerD1,
     powerD2: effectivePowerD2,
     cct,
     voltage,
+    stripMethod,
     allowLongModules,
     independentLighting: isIndependent,
     forcedIndependent,
+    isRemoteDriver,
     requestedLength: totalLength,
     realizedLength,
     remainingLength,
@@ -510,6 +661,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     driversD1,
     driversD2,
     combinedDrivers,
+    stripflexName,
     engineeringNotes,
     hasAlert,
     alertMessage,

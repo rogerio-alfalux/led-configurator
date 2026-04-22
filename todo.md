@@ -67,3 +67,14 @@
 ## Correção v1.5
 
 - [x] Adicionar BLAZE Embutir (LLE-2810) ao catálogo com módulos extraídos do Excel
+
+## Ajustes v1.6
+
+- [x] Embutir: ocultar seleção de aplicação (sempre D1) e ocultar toggle acendimento independente
+- [x] Embutir: driver sempre em ponto remoto
+- [x] Tabela: cada SKU com seu próprio driver discriminado (nunca otimizar entre SKUs)
+- [x] Nome completo da barra: "Stripflex 562,5 x 10mm 36L [CCT]" variando CCT
+- [x] CCT: adicionar 2700K e 5000K, default 3000K
+- [x] Regras de driver remoto: embutir, BLAZE H D1+D2, SKYLINE Pendente, MINI BLAZE, SHARP, SOFT (EASY H PLUS nunca remoto)
+- [x] 36W: nova opção Stripline 562,5 x 15mm 105L [CCT] a 250mA/75V (apenas barras inteiras 1-5)
+- [x] 36W: toggle Stripflex dupla vs Stripline única quando potência = 36W

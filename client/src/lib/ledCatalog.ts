@@ -864,7 +864,6 @@ export const LED_CATALOG: Record<string, ProfileVariant> = {
     "allowD1": true,
     "allowD2": true,
     "allowD1D2": true,
-    "requiresRemoteDriver": true,
     "modules": {
       "IN": {
         "1": { "length": 575, "sku": "LLP-4450.1IN.48F" },
@@ -942,7 +941,6 @@ export const LED_CATALOG: Record<string, ProfileVariant> = {
     "allowD1": true,
     "allowD2": true,
     "allowD1D2": true,
-    "requiresRemoteDriver": true,
     "modules": {
       "IN": {
         "1": { "length": 575, "sku": "LLA-4450.1IN.58F" },
