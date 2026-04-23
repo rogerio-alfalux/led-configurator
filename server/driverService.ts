@@ -50,6 +50,12 @@ interface CacheEntry {
 
 let cache: CacheEntry | null = null;
 
+/** Invalida o cache forçando recarregamento na próxima requisição */
+export function invalidateDriverCache(): void {
+  cache = null;
+  console.log("[DriverService] Cache invalidado manualmente");
+}
+
 /** Parseia a string de tensão de saída que pode ter múltiplas linhas por corrente */
 function parseOutputRanges(rawVout: string, rawCurrents: string): OutputRange[] {
   const ranges: OutputRange[] = [];

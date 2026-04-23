@@ -993,3 +993,95 @@ describe("selectDrivers — fallback hardcoded respeita allowLongModules", () =>
     expect(r.model).toContain("100W");
   });
 });
+
+// ─── Testes v2.1 — Filtro obrigatório de faixa de barras ─────────────────────
+
+describe("selectDriverFromSheet — preferredMinBars/MaxBars como filtro obrigatório", () => {
+  // Mock com todos os drivers Philips com faixas de barras definidas
+  const mockAllPhilips: SheetDriver[] = [
+    {
+      code: "EQ00346",
+      model: "PHILIPS XITANIUM 19W",
+      currents: [350],
+      outputRanges: [{ current: 350, vMin: 30, vMax: 54 }],
+      inputVoltage: "220V",
+      priority: 1,
+      available: true,
+      restrictions: { onlyPowerW: 18, preferredMinBars: 1, preferredMaxBars: 2 },
+    },
+    {
+      code: "EQ00347",
+      model: "PHILIPS XITANIUM 44W",
+      currents: [350],
+      outputRanges: [{ current: 350, vMin: 70, vMax: 125 }],
+      inputVoltage: "220V",
+      priority: 1,
+      available: true,
+      restrictions: { onlyPowerW: 18, preferredMinBars: 3, preferredMaxBars: 5 },
+    },
+    {
+      code: "EQ00393",
+      model: "PHILIPS XITANIUM 65W",
+      currents: [350],
+      outputRanges: [{ current: 350, vMin: 120, vMax: 185 }],
+      inputVoltage: "220V",
+      priority: 1,
+      available: true,
+      restrictions: { onlyPowerW: 18, preferredMinBars: 6, preferredMaxBars: 7 },
+    },
+    {
+      code: "EQ00349",
+      model: "PHILIPS XITANIUM 100W",
+      currents: [350],
+      outputRanges: [{ current: 350, vMin: 100, vMax: 200 }],
+      inputVoltage: "220V",
+      priority: 2,
+      available: true,
+      restrictions: { onlyPowerW: 18, preferredMinBars: 4, preferredMaxBars: 8 },
+    },
+  ];
+
+  it("4 barras (100V) → EQ00347 Philips 44W (não 65W, não 100W)", () => {
+    // 4 barras × 25V = 100V
+    // EQ00347 (44W, prioridade 1, faixa 3-5): cobre 100V e está na faixa → selecionado
+    // EQ00393 (65W, prioridade 1, faixa 6-7): fora da faixa de barras → bloqueado
+    // EQ00349 (100W, prioridade 2, faixa 4-8): cobre 100V mas prioridade inferior → não selecionado
+    const r = selectDriverFromSheet(mockAllPhilips, 4, 18, "220Vac", "STRIPFLEX");
+    expect(r?.code).toBe("EQ00347");
+    expect(r?.model).toContain("44W");
+  });
+
+  it("6 barras (150V) → EQ00393 Philips 65W (não 44W)", () => {
+    // 6 barras × 25V = 150V
+    // EQ00347 (44W, faixa 3-5): fora da faixa de barras → bloqueado
+    // EQ00393 (65W, faixa 6-7): cobre 150V e está na faixa → selecionado
+    const r = selectDriverFromSheet(mockAllPhilips, 6, 18, "220Vac", "STRIPFLEX");
+    expect(r?.code).toBe("EQ00393");
+    expect(r?.model).toContain("65W");
+  });
+
+  it("5 barras (125V) → EQ00347 Philips 44W (faixa 3-5, não 65W)", () => {
+    // 5 barras × 25V = 125V
+    // EQ00347 (44W, faixa 3-5): cobre 125V e está na faixa → selecionado
+    // EQ00393 (65W, faixa 6-7): fora da faixa de barras → bloqueado
+    const r = selectDriverFromSheet(mockAllPhilips, 5, 18, "220Vac", "STRIPFLEX");
+    expect(r?.code).toBe("EQ00347");
+    expect(r?.model).toContain("44W");
+  });
+
+  it("8 barras (200V) → EQ00349 Philips 100W (único que cobre, faixa 4-8)", () => {
+    // 8 barras × 25V = 200V
+    // EQ00393 (65W, faixa 6-7): fora da faixa de barras → bloqueado
+    // EQ00349 (100W, faixa 4-8): cobre 200V e está na faixa → selecionado (único candidato)
+    const r = selectDriverFromSheet(mockAllPhilips, 8, 18, "220Vac", "STRIPFLEX");
+    expect(r?.code).toBe("EQ00349");
+    expect(r?.model).toContain("100W");
+  });
+
+  it("Philips 65W NUNCA é selecionado para 4 barras mesmo com Vout compatível", () => {
+    // Garantia explícita: 65W não pode aparecer para 4 barras
+    const r = selectDriverFromSheet(mockAllPhilips, 4, 18, "220Vac", "STRIPFLEX");
+    expect(r?.code).not.toBe("EQ00393");
+    expect(r?.model).not.toContain("65W");
+  });
+});

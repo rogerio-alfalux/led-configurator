@@ -140,6 +140,14 @@ function meetsRestrictions(
   // Philips 100W e 150W só podem ser usados quando allowLongModules=true
   if (r.onlyLongModules && !ctx.allowLongModules) return false;
 
+  // Restrição de faixa de barras preferencial como filtro obrigatório
+  // Se o driver tem preferredMinBars/MaxBars definidos, ele só é elegivel dentro dessa faixa.
+  // Isso garante que o Philips 65W (faixa 6-7) nunca seja selecionado para 4 barras,
+  // mesmo que a faixa de Vout se sobreponha.
+  if (r.preferredMinBars !== undefined && r.preferredMaxBars !== undefined) {
+    if (ctx.totalBars < r.preferredMinBars || ctx.totalBars > r.preferredMaxBars) return false;
+  }
+
   return true;
 }
 

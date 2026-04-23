@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
-import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin } from "lucide-react";
+import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -106,7 +106,7 @@ function SkuDriverList({ entries, label }: { entries: SkuDriverEntry[]; label?: 
             <th className="text-left px-3 py-2 font-semibold text-muted-foreground">SKU do Módulo</th>
             <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Qtd</th>
             <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Driver por Peça</th>
-            <th className="text-left px-3 py-2 font-semibold text-muted-foreground hidden sm:table-cell">Cód. EQ</th>
+            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Cód. EQ</th>
           </tr>
         </thead>
         <tbody>
@@ -120,7 +120,7 @@ function SkuDriverList({ entries, label }: { entries: SkuDriverEntry[]; label?: 
                   {entry.driver.model}
                 </span>
               </td>
-              <td className="px-3 py-2 hidden sm:table-cell">
+              <td className="px-3 py-2">
                 {entry.driver.code ? (
                   <span className="font-mono text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
                     {entry.driver.code}
@@ -447,9 +447,18 @@ function ResultBlock({ result }: { result: CompositionResult }) {
 export default function Home() {
   const { theme, toggleTheme } = useTheme();
   // Buscar drivers do Google Sheets (cache de 1h via React Query)
+  const utils = trpc.useUtils();
   const { data: sheetDrivers } = trpc.led.drivers.useQuery(undefined, {
     staleTime: 60 * 60 * 1000, // 1 hora
     refetchOnWindowFocus: false,
+  });
+
+  // Mutation para forçar atualização do cache de drivers no servidor
+  const refreshDriversMutation = trpc.led.refreshDrivers.useMutation({
+    onSuccess: (data) => {
+      utils.led.drivers.invalidate();
+      console.log(`[Drivers] Atualizado: ${data.available} disponíveis de ${data.count} total`);
+    },
   });
 
   // Step 1: Perfil
@@ -601,8 +610,18 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden sm:block text-xs text-sidebar-foreground/50 font-mono">
-              v2.3 · {Object.keys(LED_CATALOG).length} variantes
+              v2.1 · {Object.keys(LED_CATALOG).length} variantes
             </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              title="Atualizar banco de drivers"
+              onClick={() => refreshDriversMutation.mutate()}
+              disabled={refreshDriversMutation.isPending}
+              className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshDriversMutation.isPending ? 'animate-spin' : ''}`} />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
