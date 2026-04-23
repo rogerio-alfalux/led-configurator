@@ -24,6 +24,13 @@ export interface DriverRestrictions {
   notBlazeH?: boolean;
   /** Se true, apenas para Embutir ou driver remoto */
   onlyEmbutirOrRemote?: boolean;
+  /**
+   * Se true, o driver só pode ser usado quando o botão de Módulos Longos
+   * estiver habilitado (allowLongModules = true).
+   * Aplica-se ao Philips 100W e 150W conforme observação da planilha:
+   * "USAR SOMENTE EM CASO DE HABILITADO O BOTÃO DE MÓDULOS LONGOS"
+   */
+  onlyLongModules?: boolean;
 }
 
 /**
@@ -31,6 +38,8 @@ export interface DriverRestrictions {
  *
  * Padrões reconhecidos:
  *   "PRIORIDADE 18W DE N ATÉ M BARRAS" → onlyPowerW=18, preferredMinBars=N, preferredMaxBars=M
+ *   "PERFIS COM 18W DE N ATÉ M BARRAS - USAR SOMENTE EM CASO DE HABILITADO O BOTÃO DE MÓDULOS LONGOS"
+ *     → onlyPowerW=18, preferredMinBars=N, preferredMaxBars=M, onlyLongModules=true
  *   "SÓ USAR EM CASOS DE 26W" → onlyPowerW=26
  *   "LIGA APENAS 1 BARRA 26W" → maxBars=1
  *   "NÃO USAR NO BLAZE H" → notBlazeH=true
@@ -44,12 +53,26 @@ export function parseObservations(obs: string): DriverRestrictions {
   const upper = obs.toUpperCase();
   const restrictions: DriverRestrictions = {};
 
-  // "PRIORIDADE 18W DE N ATÉ M BARRAS"
+  // "PERFIS COM 18W DE N ATÉ M BARRAS - USAR SOMENTE EM CASO DE HABILITADO O BOTÃO DE MÓDULOS LONGOS"
+  // Formato: "PERFIS COM 18W DE 4 ATÉ 8 BARRAS - USAR SOMENTE EM CASO DE HABILITADO O BOTÃO DE MÓDULOS LONGOS"
+  const longModulesMatch = upper.match(/PERFIS\s+COM\s+(\d+)W\s+DE\s+(\d+)\s+AT[EÉ]\s+(\d+)\s+BARRAS/);
+  if (longModulesMatch) {
+    restrictions.onlyPowerW = parseInt(longModulesMatch[1]);
+    restrictions.preferredMinBars = parseInt(longModulesMatch[2]);
+    restrictions.preferredMaxBars = parseInt(longModulesMatch[3]);
+    // Se menciona "MÓDULOS LONGOS", marcar como restrição
+    if (upper.includes("M\u00d3DULOS LONGOS") || upper.includes("MODULOS LONGOS")) {
+      restrictions.onlyLongModules = true;
+    }
+  }
+
+  // "PRIORIDADE 18W DE N ATÉ M BARRAS" (drivers de prioridade 1, sem restrição de módulos longos)
   const priorityMatch = upper.match(/PRIORIDADE\s+(\d+)W\s+DE\s+(\d+)\s+AT[EÉ]\s+(\d+)\s+BARRAS/);
   if (priorityMatch) {
     restrictions.onlyPowerW = parseInt(priorityMatch[1]);
     restrictions.preferredMinBars = parseInt(priorityMatch[2]);
     restrictions.preferredMaxBars = parseInt(priorityMatch[3]);
+    // Estes drivers NÃO têm restrição de módulos longos — são prioridade 1
   }
 
   // "SÓ USAR EM CASOS DE 26W" ou "SÓ USAR EM CASO DE 26W"

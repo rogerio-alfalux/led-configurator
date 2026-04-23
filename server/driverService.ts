@@ -299,7 +299,8 @@ function getFallbackDrivers(): DriverEntry[] {
       currents: [350, 400, 450, 500],
       available: true,
       priority: 2,
-      restrictions: { onlyPowerW: 18, preferredMinBars: 4, preferredMaxBars: 8 },
+      // Só usar quando botão de Módulos Longos estiver habilitado
+      restrictions: { onlyPowerW: 18, preferredMinBars: 4, preferredMaxBars: 8, onlyLongModules: true },
     },
     {
       code: "EQ00350",
@@ -314,7 +315,8 @@ function getFallbackDrivers(): DriverEntry[] {
       currents: [400, 500, 600, 700],
       available: true,
       priority: 2,
-      restrictions: { onlyPowerW: 18, preferredMinBars: 6, preferredMaxBars: 8 },
+      // Só usar quando botão de Módulos Longos estiver habilitado
+      restrictions: { onlyPowerW: 18, preferredMinBars: 6, preferredMaxBars: 8, onlyLongModules: true },
     },
     {
       code: "EQ00349",
@@ -329,7 +331,8 @@ function getFallbackDrivers(): DriverEntry[] {
       currents: [350, 400, 450, 500],
       available: true,
       priority: 2,
-      restrictions: { onlyPowerW: 18, preferredMinBars: 4, preferredMaxBars: 8 },
+      // Só usar quando botão de Módulos Longos estiver habilitado
+      restrictions: { onlyPowerW: 18, preferredMinBars: 4, preferredMaxBars: 8, onlyLongModules: true },
     },
     {
       code: "EQ00350",
@@ -344,7 +347,8 @@ function getFallbackDrivers(): DriverEntry[] {
       currents: [400, 500, 600, 700],
       available: true,
       priority: 2,
-      restrictions: { onlyPowerW: 18, preferredMinBars: 6, preferredMaxBars: 8 },
+      // Só usar quando botão de Módulos Longos estiver habilitado
+      restrictions: { onlyPowerW: 18, preferredMinBars: 6, preferredMaxBars: 8, onlyLongModules: true },
     },
     {
       code: "EQ00220",

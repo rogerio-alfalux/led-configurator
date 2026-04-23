@@ -52,6 +52,11 @@ export interface DriverSelectionContext {
   profileCode?: string;
   isRemoteDriver?: boolean;
   installType?: string;
+  /**
+   * Se true, o botão de Módulos Longos está habilitado.
+   * Necessário para usar Philips 100W e 150W (onlyLongModules=true).
+   */
+  allowLongModules?: boolean;
 }
 
 /** Tensão por barra em volts */
@@ -131,6 +136,10 @@ function meetsRestrictions(
     if (!isEmbutir && !isRemote) return false;
   }
 
+  // Restrição de Módulos Longos
+  // Philips 100W e 150W só podem ser usados quando allowLongModules=true
+  if (r.onlyLongModules && !ctx.allowLongModules) return false;
+
   return true;
 }
 
@@ -178,6 +187,7 @@ export function selectDriverFromSheet(
     profileCode: context?.profileCode,
     isRemoteDriver: context?.isRemoteDriver,
     installType: context?.installType,
+    allowLongModules: context?.allowLongModules,
   };
 
   const candidates = drivers.filter(d => {
@@ -233,12 +243,14 @@ export function selectDriverFromSheet(
 /**
  * Fallback quando a planilha não está disponível.
  * Usa os drivers conhecidos hardcoded para não travar o cálculo.
+ * @param allowLongModules - se true, permite uso de Philips 100W/150W (módulos longos)
  */
 export function selectDriverFallback(
   totalBars: number,
   power: Power,
   voltage: Voltage,
-  stripMethod: StripMethod
+  stripMethod: StripMethod,
+  allowLongModules?: boolean
 ): SelectedDriver {
   const currentMA = getCurrentMA(power, stripMethod);
   const vOut = calcVOut(totalBars, power, stripMethod);
@@ -274,8 +286,12 @@ export function selectDriverFallback(
       if (vOut <= 54) return { code: "EQ00346", model: "PHILIPS XITANIUM 19W", current: "350mA", quantity: 1, vOut };
       if (vOut <= 125) return { code: "EQ00347", model: "PHILIPS XITANIUM 44W", current: "350mA", quantity: 1, vOut };
       if (vOut <= 185) return { code: "EQ00393", model: "PHILIPS XITANIUM 65W", current: "350mA", quantity: 1, vOut };
-      // 8+ barras (200V+): Philips 100W (prioridade 2, faixa 4-8 barras, suporta 350mA até 200V)
-      return { code: "EQ00349", model: "PHILIPS XITANIUM 100W", current: "350mA", quantity: 1, vOut };
+      // 8+ barras (200V+): Philips 100W só quando módulos longos habilitados
+      // Sem módulos longos: usar Philips 65W como melhor opção disponível
+      if (allowLongModules) {
+        return { code: "EQ00349", model: "PHILIPS XITANIUM 100W", current: "350mA", quantity: 1, vOut };
+      }
+      return { code: "EQ00393", model: "PHILIPS XITANIUM 65W", current: "350mA", quantity: 1, vOut };
     }
   }
 

@@ -189,12 +189,11 @@ export function getStriplineName(cct: CCT): string {
  * Cada SKU recebe seu próprio driver — nunca compartilhado entre SKUs.
  *
  * Para Stripflex:
- *   - 18W/350mA: Philips 19W (≤1 barra), Philips 44W (≤5), Philips 65W (≤6+)
- *   - 26W/500mA: Philips 21W (≤1 barra), Element 75W (>1)
+ *   - 18W/350mA: Philips 19W (1-2 barras), Philips 44W (3-5), Philips 65W (6-7), Philips 100W (8+, só com módulos longos)
+ *   - 26W/500mA: OSRAM IT FIT 75W (driver principal)
  *   - 36W/350mA Stripflex dupla: mesma lógica do 18W mas com 2 barras por seção
  *
  * Para Stripline (36W/250mA/75V):
- *   - 1 barra: Philips 19W 350mA → mas Stripline usa corrente diferente
  *   - Usamos drivers 250mA compatíveis com 75V de saída
  *   - Philips Xitanium 25W 250mA (até 1 barra), 50W 250mA (até 3), 75W 250mA (até 5)
  */
@@ -206,6 +205,8 @@ function selectDriverForBars(
   sheetDrivers?: SheetDriver[],
   driverContext?: Partial<DriverSelectionContext>
 ): DriverSpec {
+  // Extrair allowLongModules do contexto para uso no fallback hardcoded
+  const allowLongModules = driverContext?.allowLongModules ?? false;
   // Usar drivers da planilha se disponíveis
   if (sheetDrivers && sheetDrivers.length > 0) {
     const selected = selectDriverFromSheet(sheetDrivers, totalBars, power, voltage, stripMethod, driverContext);
@@ -220,7 +221,7 @@ function selectDriverForBars(
       };
     }
     // Fallback se nenhum driver da planilha for compatível
-    const fallback = selectDriverFallback(totalBars, power, voltage, stripMethod);
+    const fallback = selectDriverFallback(totalBars, power, voltage, stripMethod, driverContext?.allowLongModules);
     return {
       code: fallback.code,
       model: fallback.model,
@@ -262,8 +263,12 @@ function selectDriverForBars(
       if (barsForRange <= 5) return { model: "PHILIPS XITANIUM 44W", power: 44, current: "350mA", quantity: 1 };
       // 6-7 barras série (150-175V): Philips 65W (120-185V)
       if (barsForRange <= 7) return { model: "PHILIPS XITANIUM 65W", power: 65, current: "350mA", quantity: 1 };
-      // 8+ barras série (200V+): Philips 100W (100-200V, prioridade 2)
-      return { model: "PHILIPS XITANIUM 100W", power: 100, current: "350mA", quantity: 1 };
+      // 8+ barras série (200V+): Philips 100W só com módulos longos habilitados
+      if (allowLongModules) {
+        return { model: "PHILIPS XITANIUM 100W", power: 100, current: "350mA", quantity: 1 };
+      }
+      // Sem módulos longos: usar Philips 65W como melhor opção
+      return { model: "PHILIPS XITANIUM 65W", power: 65, current: "350mA", quantity: 1 };
     }
   }
 
@@ -642,6 +647,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     profileCode,
     isRemoteDriver,
     installType,
+    allowLongModules,
   };
 
   // ── Drivers por SKU (D1) ──

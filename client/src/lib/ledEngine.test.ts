@@ -38,11 +38,14 @@ describe("selectDrivers — 220Vac — 350mA (18W)", () => {
     expect(drivers[0].current).toBe("350mA");
   });
 
-  it("8 barras → Philips 100W 350mA (faixa 8+, nunca OSRAM)", () => {
+  it("8 barras → Philips 65W 350mA (sem módulos longos, nunca OSRAM nem 100W)", () => {
+    // selectDrivers não passa allowLongModules, então o fallback usa false por padrão
+    // Resultado esperado: Philips 65W (melhor opção sem módulos longos)
     const drivers = selectDrivers(8, 18, "220Vac");
-    expect(drivers[0].model).toContain("100W");
+    expect(drivers[0].model).toContain("65W");
     expect(drivers[0].current).toBe("350mA");
     expect(drivers[0].model).not.toContain("OSRAM");
+    expect(drivers[0].model).not.toContain("100W");
   });
 
   it("OSRAM não deve aparecer para 18W em nenhuma quantidade de barras", () => {
@@ -580,7 +583,7 @@ describe("Drivers por SKU — sem compartilhamento entre módulos", () => {
 });
 
 // ─── Testes de integração com drivers da planilha (código EQ) ────────────────
-import { selectDriverFromSheet } from "./driverSelector";
+import { selectDriverFromSheet, selectDriverFallback } from "./driverSelector";
 import type { SheetDriver } from "./driverSelector";
 
 describe("selectDriverFromSheet — código EQ e descrição completa", () => {
@@ -888,5 +891,105 @@ describe("selectDriverFromSheet — restrições v1.8", () => {
     const r = selectDriverFromSheet(driversWithUnavailable, 1, 18, "Bivolt", "STRIPFLEX");
     expect(r?.code).toBe("EQ00580");
     expect(r?.code).not.toBe("EQ00236");
+  });
+});
+
+// ─── Testes v1.9 — Restrição de Módulos Longos (Philips 100W e 150W) ──────────
+
+describe("parseObservations — restrição onlyLongModules", () => {
+  it("parseia 'PERFIS COM 18W DE 4 ATÉ 8 BARRAS - USAR SOMENTE EM CASO DE HABILITADO O BOTÃO DE MÓDULOS LONGOS'", () => {
+    const obs = "PERFIS COM 18W DE 4 ATÉ 8 BARRAS - USAR SOMENTE EM CASO DE HABILITADO O BOTÃO DE MÓDULOS LONGOS";
+    const r = parseObservations(obs);
+    expect(r.onlyPowerW).toBe(18);
+    expect(r.preferredMinBars).toBe(4);
+    expect(r.preferredMaxBars).toBe(8);
+    expect(r.onlyLongModules).toBe(true);
+  });
+
+  it("parseia 'PERFIS COM 18W DE 6 ATÉ 8 BARRAS - USAR SOMENTE EM CASO DE HABILITADO O BOTÃO DE MÓDULOS LONGOS'", () => {
+    const obs = "PERFIS COM 18W DE 6 ATÉ 8 BARRAS - USAR SOMENTE EM CASO DE HABILITADO O BOTÃO DE MÓDULOS LONGOS";
+    const r = parseObservations(obs);
+    expect(r.onlyPowerW).toBe(18);
+    expect(r.preferredMinBars).toBe(6);
+    expect(r.preferredMaxBars).toBe(8);
+    expect(r.onlyLongModules).toBe(true);
+  });
+
+  it("drivers de prioridade 1 (Philips 19W/44W/65W) NÃO têm onlyLongModules", () => {
+    const obs1 = "PRIORIDADE 18W DE 1 ATÉ 2 BARRAS";
+    const obs2 = "PRIORIDADE 18W DE 3 ATÉ 5 BARRAS";
+    const obs3 = "PRIORIDADE 18W DE 6 ATÉ 7 BARRAS";
+    expect(parseObservations(obs1).onlyLongModules).toBeUndefined();
+    expect(parseObservations(obs2).onlyLongModules).toBeUndefined();
+    expect(parseObservations(obs3).onlyLongModules).toBeUndefined();
+  });
+});
+
+describe("selectDriverFromSheet — restrição onlyLongModules", () => {
+  // Mock com Philips 65W (prioridade 1, sem restrição) e Philips 100W (prioridade 2, onlyLongModules)
+  const mockDriversLong: SheetDriver[] = [
+    {
+      code: "EQ00393",
+      model: "PHILIPS XITANIUM 65W",
+      currents: [350],
+      outputRanges: [{ current: 350, vMin: 120, vMax: 185 }],
+      inputVoltage: "220V",
+      priority: 1,
+      available: true,
+      restrictions: { onlyPowerW: 18, preferredMinBars: 6, preferredMaxBars: 7 },
+    },
+    {
+      code: "EQ00349",
+      model: "PHILIPS XITANIUM 100W",
+      currents: [350],
+      outputRanges: [{ current: 350, vMin: 100, vMax: 200 }],
+      inputVoltage: "220V",
+      priority: 2,
+      available: true,
+      restrictions: { onlyPowerW: 18, preferredMinBars: 4, preferredMaxBars: 8, onlyLongModules: true },
+    },
+  ];
+
+  it("Philips 100W NÃO é selecionado quando allowLongModules=false (8 barras, 200V)", () => {
+    // 8 barras × 25V = 200V → dentro da faixa do 100W (100-200V)
+    // Mas onlyLongModules=true e allowLongModules=false → deve ser bloqueado
+    const r = selectDriverFromSheet(mockDriversLong, 8, 18, "220Vac", "STRIPFLEX", {
+      allowLongModules: false,
+    });
+    // Sem módulos longos, o 100W é bloqueado; o 65W cobre 120-185V mas 200V está fora
+    // Portanto nenhum driver deve ser retornado
+    expect(r?.code).not.toBe("EQ00349");
+  });
+
+  it("Philips 100W É selecionado quando allowLongModules=true (8 barras, 200V)", () => {
+    // 8 barras × 25V = 200V → dentro da faixa do 100W (100-200V)
+    // Com allowLongModules=true → deve ser selecionado
+    const r = selectDriverFromSheet(mockDriversLong, 8, 18, "220Vac", "STRIPFLEX", {
+      allowLongModules: true,
+    });
+    expect(r?.code).toBe("EQ00349");
+  });
+
+  it("Philips 65W é selecionado normalmente sem restrição de módulos longos (6 barras, 150V)", () => {
+    // 6 barras × 25V = 150V → dentro da faixa do 65W (120-185V)
+    // Sem restrição onlyLongModules → deve ser selecionado independente do flag
+    const r = selectDriverFromSheet(mockDriversLong, 6, 18, "220Vac", "STRIPFLEX", {
+      allowLongModules: false,
+    });
+    expect(r?.code).toBe("EQ00393");
+  });
+});
+
+describe("selectDrivers — fallback hardcoded respeita allowLongModules", () => {
+  it("8 barras 18W 220V sem módulos longos → Philips 65W (não 100W)", () => {
+    // O fallback hardcoded deve retornar 65W quando allowLongModules=false
+    const r = selectDriverFallback(8, 18, "220Vac", "STRIPFLEX", false);
+    expect(r.model).toContain("65W");
+    expect(r.model).not.toContain("100W");
+  });
+
+  it("8 barras 18W 220V com módulos longos → Philips 100W", () => {
+    const r = selectDriverFallback(8, 18, "220Vac", "STRIPFLEX", true);
+    expect(r.model).toContain("100W");
   });
 });
