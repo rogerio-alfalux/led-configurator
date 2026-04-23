@@ -639,3 +639,232 @@ describe("selectDriverFromSheet — código EQ e descrição completa", () => {
     expect(firstEntry.driver.model).toContain("PHILIPS XITANIUM");
   });
 });
+
+// ─── Testes v1.8 — Restrições da coluna OBSERVAÇÕES ────────────────────────────────────────────────
+import { parseObservations } from "@shared/driverRestrictions";
+
+describe("parseObservations — extração de restrições da coluna OBSERVAÇÕES", () => {
+  it("parseia 'PRIORIDADE 18W DE 1 ATÉ 2 BARRAS'", () => {
+    const r = parseObservations("PRIORIDADE 18W DE 1 ATÉ 2 BARRAS");
+    expect(r.onlyPowerW).toBe(18);
+    expect(r.preferredMinBars).toBe(1);
+    expect(r.preferredMaxBars).toBe(2);
+  });
+
+  it("parseia 'PRIORIDADE 18W DE 3 ATÉ 5 BARRAS'", () => {
+    const r = parseObservations("PRIORIDADE 18W DE 3 ATÉ 5 BARRAS");
+    expect(r.onlyPowerW).toBe(18);
+    expect(r.preferredMinBars).toBe(3);
+    expect(r.preferredMaxBars).toBe(5);
+  });
+
+  it("parseia 'SÓ USAR EM CASOS DE 26W, QUE NECESSITA USO DE 500MA'", () => {
+    const r = parseObservations("SÓ USAR EM CASOS DE 26W, QUE NECESSITA USO DE 500MA");
+    expect(r.onlyPowerW).toBe(26);
+  });
+
+  it("parseia restrições do CERTADRIVE: 26W, 1 barra, não BLAZE H, embutir/remoto", () => {
+    const obs = "SÓ USAR EM CASOS DE 26W, QUE NECESSITA USO DE 500MA - LIGA APENAS 1 BARRA 26W - USAR EM PERFIS DE EMBUTIR OU CASOS DE PONTO REMOTO, NÃO USAR NO BLAZE H";
+    const r = parseObservations(obs);
+    expect(r.onlyPowerW).toBe(26);
+    expect(r.maxBars).toBe(1);
+    expect(r.notBlazeH).toBe(true);
+    expect(r.onlyEmbutirOrRemote).toBe(true);
+  });
+
+  it("parseia 'SÓ USAR EM CASO DE BIVOLT, COM 18W BFILEIRA SIMPLES OU 36W BARRA DUPLA'", () => {
+    const r = parseObservations("SÓ USAR EM CASO DE BIVOLT, COM 18W BFILEIRA SIMPLES OU 36W BARRA DUPLA");
+    expect(r.onlyVoltage).toBe("BIVOLT");
+    expect(r.onlyStripMethod).toBe("STRIPFLEX");
+  });
+
+  it("retorna objeto vazio para observação vazia", () => {
+    const r = parseObservations("");
+    expect(Object.keys(r).length).toBe(0);
+  });
+});
+
+describe("selectDriverFromSheet — restrições v1.8", () => {
+  // Nota: 1 barra 18W STRIPFLEX = 25V, 2 barras = 50V, 3 barras = 75V, 4 barras = 100V, 5 barras = 125V, 6 barras = 150V
+  // Os drivers Philips têm faixas: 19W (30-54V), 44W (70-125V), 65W (120-185V)
+  // Para testar a seleção por faixa de barras, usamos faixas de Vout que cobrem as tensões reais
+  const mockDrivers18W: SheetDriver[] = [
+    {
+      code: "EQ00346",
+      model: "PHILIPS XITANIUM 19W",
+      currents: [350],
+      outputRanges: [{ current: 350, vMin: 20, vMax: 54 }], // cobre 1-2 barras (25V-50V)
+      inputVoltage: "220V",
+      priority: 1,
+      available: true,
+      restrictions: { onlyPowerW: 18, preferredMinBars: 1, preferredMaxBars: 2 },
+    },
+    {
+      code: "EQ00347",
+      model: "PHILIPS XITANIUM 44W",
+      currents: [350],
+      outputRanges: [{ current: 350, vMin: 55, vMax: 125 }], // cobre 3-5 barras (75V-125V)
+      inputVoltage: "220V",
+      priority: 1,
+      available: true,
+      restrictions: { onlyPowerW: 18, preferredMinBars: 3, preferredMaxBars: 5 },
+    },
+    {
+      code: "EQ00393",
+      model: "PHILIPS XITANIUM 65W",
+      currents: [350],
+      outputRanges: [{ current: 350, vMin: 126, vMax: 185 }], // cobre 6-7 barras (150V-175V)
+      inputVoltage: "220V",
+      priority: 1,
+      available: true,
+      restrictions: { onlyPowerW: 18, preferredMinBars: 6, preferredMaxBars: 7 },
+    },
+  ];
+
+  it("18W/2 barras → EQ00346 (Philips 19W, faixa 1-2, Vout=50V)", () => {
+    // 2 barras × 25V = 50V, dentro da faixa 20-54V do EQ00346
+    const r = selectDriverFromSheet(mockDrivers18W, 2, 18, "220Vac", "STRIPFLEX");
+    expect(r?.code).toBe("EQ00346");
+  });
+
+  it("18W/4 barras → EQ00347 (Philips 44W, faixa 3-5, Vout=100V)", () => {
+    // 4 barras × 25V = 100V, dentro da faixa 55-125V do EQ00347
+    const r = selectDriverFromSheet(mockDrivers18W, 4, 18, "220Vac", "STRIPFLEX");
+    expect(r?.code).toBe("EQ00347");
+  });
+
+  it("18W/6 barras → EQ00393 (Philips 65W, faixa 6-7, Vout=150V)", () => {
+    // 6 barras × 25V = 150V, dentro da faixa 126-185V do EQ00393
+    const r = selectDriverFromSheet(mockDrivers18W, 6, 18, "220Vac", "STRIPFLEX");
+    expect(r?.code).toBe("EQ00393");
+  });
+
+  it("driver com onlyPowerW=26 não é selecionado para 18W", () => {
+    const driversWithOsram: SheetDriver[] = [
+      ...mockDrivers18W,
+      {
+        code: "EQ00220",
+        model: "OSRAM IT FIT 75W",
+        currents: [350, 500],
+        outputRanges: [
+          { current: 350, vMin: 90, vMax: 216 },
+          { current: 500, vMin: 90, vMax: 150 },
+        ],
+        inputVoltage: "220V",
+        priority: 1,
+        available: true,
+        restrictions: { onlyPowerW: 26 },
+      },
+    ];
+    // Para 18W, OSRAM não deve ser selecionado mesmo que Vout seja compatível
+    const r = selectDriverFromSheet(driversWithOsram, 6, 18, "220Vac", "STRIPFLEX");
+    expect(r?.code).not.toBe("EQ00220");
+  });
+
+  it("CERTADRIVE não é selecionado para BLAZE H (LLP-6060)", () => {
+    const driversCertadrive: SheetDriver[] = [
+      {
+        code: "EQ00353",
+        model: "PHILIPS CERTADRIVE 20W",
+        currents: [500],
+        outputRanges: [{ current: 500, vMin: 30, vMax: 42 }],
+        inputVoltage: "220V",
+        priority: 2,
+        available: true,
+        restrictions: { onlyPowerW: 26, maxBars: 1, notBlazeH: true, onlyEmbutirOrRemote: true },
+      },
+      {
+        code: "EQ00220",
+        model: "OSRAM IT FIT 75W",
+        currents: [500],
+        outputRanges: [{ current: 500, vMin: 90, vMax: 150 }],
+        inputVoltage: "220V",
+        priority: 1,
+        available: true,
+        restrictions: { onlyPowerW: 26 },
+      },
+    ];
+    // CERTADRIVE não deve ser selecionado para BLAZE H
+    const r = selectDriverFromSheet(driversCertadrive, 1, 26, "220Vac", "STRIPFLEX", {
+      profileCode: "LLP-6060",
+      isRemoteDriver: true,
+    });
+    expect(r?.code).not.toBe("EQ00353");
+  });
+
+  it("CERTADRIVE é selecionado para Embutir com 1 barra 26W (não BLAZE H)", () => {
+    // 26W STRIPFLEX: 1 barra = 25V. CERTADRIVE tem faixa 30-42V.
+    // Para cobrir 1 barra (25V), usamos uma faixa mais ampla no mock.
+    const driversCertadrive: SheetDriver[] = [
+      {
+        code: "EQ00353",
+        model: "PHILIPS CERTADRIVE 20W",
+        currents: [500],
+        outputRanges: [{ current: 500, vMin: 20, vMax: 42 }], // faixa ampliada para cobrir 1 barra (25V)
+        inputVoltage: "220V",
+        priority: 2,
+        available: true,
+        restrictions: { onlyPowerW: 26, maxBars: 1, notBlazeH: true, onlyEmbutirOrRemote: true },
+      },
+    ];
+    // CERTADRIVE deve ser selecionado para Embutir com 1 barra 26W
+    const r = selectDriverFromSheet(driversCertadrive, 1, 26, "220Vac", "STRIPFLEX", {
+      profileCode: "LLE-2052",
+      isRemoteDriver: true,
+      installType: "EMBUTIR",
+    });
+    expect(r?.code).toBe("EQ00353");
+  });
+
+  it("LIFUD Bivolt não é selecionado para 26W (500mA)", () => {
+    const driversLifud: SheetDriver[] = [
+      {
+        code: "EQ00580",
+        model: "LIFUD 20W LF-FMR020YS0350U(S)",
+        currents: [200, 250, 300, 350],
+        outputRanges: [
+          { current: 200, vMin: 25, vMax: 75 },
+          { current: 250, vMin: 25, vMax: 75 },
+          { current: 300, vMin: 25, vMax: 57 },
+          { current: 350, vMin: 25, vMax: 57 },
+        ],
+        inputVoltage: "BIVOLT",
+        priority: 1,
+        available: true,
+        restrictions: { onlyVoltage: "BIVOLT", onlyStripMethod: "STRIPFLEX" },
+      },
+    ];
+    // LIFUD não deve ser selecionado para 26W (500mA) mesmo sendo Bivolt
+    const r = selectDriverFromSheet(driversLifud, 1, 26, "Bivolt", "STRIPFLEX");
+    expect(r).toBeNull();
+  });
+
+  it("driver indisponível (available=false) não é selecionado", () => {
+    const driversWithUnavailable: SheetDriver[] = [
+      {
+        code: "EQ00236",
+        model: "LIFUD 13W LF/GIR013YS0350BU",
+        currents: [350],
+        outputRanges: [{ current: 350, vMin: 25, vMax: 38 }],
+        inputVoltage: "BIVOLT",
+        priority: 2,
+        available: false, // INDISPONÍVEL
+        restrictions: {},
+      },
+      {
+        code: "EQ00580",
+        model: "LIFUD 20W LF-FMR020YS0350U(S)",
+        currents: [350],
+        outputRanges: [{ current: 350, vMin: 25, vMax: 57 }],
+        inputVoltage: "BIVOLT",
+        priority: 1,
+        available: true,
+        restrictions: { onlyVoltage: "BIVOLT", onlyStripMethod: "STRIPFLEX" },
+      },
+    ];
+    // EQ00236 indisponível não deve ser selecionado; EQ00580 deve ser
+    const r = selectDriverFromSheet(driversWithUnavailable, 1, 18, "Bivolt", "STRIPFLEX");
+    expect(r?.code).toBe("EQ00580");
+    expect(r?.code).not.toBe("EQ00236");
+  });
+});

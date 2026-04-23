@@ -1,7 +1,22 @@
 /**
  * Driver Service — busca e faz cache dos drivers do Google Sheets
  * Atualiza automaticamente a cada 1 hora
+ *
+ * Colunas da planilha:
+ *   A: CÓDIGO
+ *   B: MODELO
+ *   C: TENSÃO DE ENTRADA
+ *   D: TENSÃO DE SAÍDA
+ *   E: CORRENTES DE SAÍDA
+ *   F: DISPONÍVEL (SIM/NÃO)
+ *   G: PRIORIDADE
+ *   H: OBSERVAÇÕES (regras de seleção)
  */
+
+import { parseObservations } from "../shared/driverRestrictions";
+import type { DriverRestrictions } from "../shared/driverRestrictions";
+export { parseObservations } from "../shared/driverRestrictions";
+export type { DriverRestrictions } from "../shared/driverRestrictions";
 
 const SHEET_CSV_URL =
   "https://docs.google.com/spreadsheets/d/1DhnImBwkwBDBB6sCTAXVSoIFIuUIqL5ZPJ26bJU0PE4/export?format=csv&gid=0";
@@ -18,6 +33,8 @@ export interface DriverEntry {
   currents: number[];
   available: boolean;
   priority: number;
+  /** Restrições extraídas da coluna OBSERVAÇÕES */
+  restrictions: DriverRestrictions;
 }
 
 export interface OutputRange {
@@ -76,6 +93,8 @@ function parseOutputRanges(rawVout: string, rawCurrents: string): OutputRange[] 
   return ranges;
 }
 
+// parseObservations importado de shared/driverRestrictions.ts e re-exportado acima
+
 function parseCSV(csv: string): DriverEntry[] {
   const lines = csv.split("\n");
   const drivers: DriverEntry[] = [];
@@ -113,7 +132,7 @@ function parseCSV(csv: string): DriverEntry[] {
 
     if (fields.length < 7) continue;
 
-    const [code, model, inputVoltage, rawVout, rawCurrents, available, priorityStr] = fields;
+    const [code, model, inputVoltage, rawVout, rawCurrents, available, priorityStr, observations = ""] = fields;
 
     if (!code || !code.startsWith("EQ")) continue;
 
@@ -127,6 +146,7 @@ function parseCSV(csv: string): DriverEntry[] {
       .filter(n => !isNaN(n) && n > 0);
 
     const outputRanges = parseOutputRanges(rawVout, rawCurrents);
+    const restrictions = parseObservations(observations);
 
     drivers.push({
       code: code.trim(),
@@ -136,6 +156,7 @@ function parseCSV(csv: string): DriverEntry[] {
       currents,
       available: isAvailable,
       priority,
+      restrictions,
     });
   }
 
@@ -157,7 +178,9 @@ export async function fetchDrivers(): Promise<DriverEntry[]> {
 
     if (drivers.length > 0) {
       cache = { data: drivers, fetchedAt: now };
-      console.log(`[DriverService] Carregados ${drivers.length} drivers do Google Sheets`);
+      const available = drivers.filter(d => d.available).length;
+      const unavailable = drivers.filter(d => !d.available).length;
+      console.log(`[DriverService] Carregados ${drivers.length} drivers do Google Sheets (${available} disponíveis, ${unavailable} indisponíveis)`);
     }
 
     return drivers;
@@ -231,6 +254,7 @@ function getFallbackDrivers(): DriverEntry[] {
       currents: [200, 250, 300, 350],
       available: true,
       priority: 1,
+      restrictions: { onlyPowerW: 18, preferredMinBars: 1, preferredMaxBars: 2 },
     },
     {
       code: "EQ00347",
@@ -245,6 +269,7 @@ function getFallbackDrivers(): DriverEntry[] {
       currents: [200, 250, 300, 350],
       available: true,
       priority: 1,
+      restrictions: { onlyPowerW: 18, preferredMinBars: 3, preferredMaxBars: 5 },
     },
     {
       code: "EQ00393",
@@ -259,6 +284,37 @@ function getFallbackDrivers(): DriverEntry[] {
       currents: [200, 250, 300, 350],
       available: true,
       priority: 1,
+      restrictions: { onlyPowerW: 18, preferredMinBars: 6, preferredMaxBars: 7 },
+    },
+    {
+      code: "EQ00349",
+      model: "PHILIPS XITANIUM 100W",
+      inputVoltage: "220V",
+      outputRanges: [
+        { current: 350, vMin: 100, vMax: 200 },
+        { current: 400, vMin: 100, vMax: 200 },
+        { current: 450, vMin: 100, vMax: 200 },
+        { current: 500, vMin: 100, vMax: 200 },
+      ],
+      currents: [350, 400, 450, 500],
+      available: true,
+      priority: 2,
+      restrictions: { onlyPowerW: 18, preferredMinBars: 4, preferredMaxBars: 8 },
+    },
+    {
+      code: "EQ00350",
+      model: "PHILIPS XITANIUM 150W",
+      inputVoltage: "220V",
+      outputRanges: [
+        { current: 400, vMin: 140, vMax: 215 },
+        { current: 500, vMin: 140, vMax: 215 },
+        { current: 600, vMin: 140, vMax: 215 },
+        { current: 700, vMin: 140, vMax: 215 },
+      ],
+      currents: [400, 500, 600, 700],
+      available: true,
+      priority: 2,
+      restrictions: { onlyPowerW: 18, preferredMinBars: 6, preferredMaxBars: 8 },
     },
     {
       code: "EQ00220",
@@ -273,6 +329,19 @@ function getFallbackDrivers(): DriverEntry[] {
       currents: [350, 400, 500, 550],
       available: true,
       priority: 1,
+      restrictions: { onlyPowerW: 26 },
+    },
+    {
+      code: "EQ00353",
+      model: "PHILIPS CERTADRIVE 20W",
+      inputVoltage: "220V",
+      outputRanges: [
+        { current: 500, vMin: 30, vMax: 42 },
+      ],
+      currents: [500],
+      available: true,
+      priority: 2,
+      restrictions: { onlyPowerW: 26, maxBars: 1, notBlazeH: true, onlyEmbutirOrRemote: true },
     },
     {
       code: "EQ00580",
@@ -287,6 +356,7 @@ function getFallbackDrivers(): DriverEntry[] {
       currents: [200, 250, 300, 350],
       available: true,
       priority: 1,
+      restrictions: { onlyVoltage: "BIVOLT", onlyStripMethod: "STRIPFLEX" },
     },
     {
       code: "EQ00581",
@@ -301,6 +371,7 @@ function getFallbackDrivers(): DriverEntry[] {
       currents: [200, 250, 300, 350],
       available: true,
       priority: 1,
+      restrictions: { onlyVoltage: "BIVOLT", onlyStripMethod: "STRIPFLEX" },
     },
     {
       code: "EQ00582",
@@ -315,6 +386,7 @@ function getFallbackDrivers(): DriverEntry[] {
       currents: [200, 250, 300, 350],
       available: true,
       priority: 1,
+      restrictions: { onlyVoltage: "BIVOLT", onlyStripMethod: "STRIPFLEX" },
     },
   ];
 }

@@ -13,7 +13,7 @@
 
 import { LED_CATALOG, MODULE_TYPE_LABELS } from "./ledCatalog";
 import type { InstallType } from "./ledCatalog";
-import type { SheetDriver } from "./driverSelector";
+import type { SheetDriver, DriverSelectionContext } from "./driverSelector";
 import { selectDriverFromSheet, selectDriverFallback, calcVOut } from "./driverSelector";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -198,10 +198,17 @@ export function getStriplineName(cct: CCT): string {
  *   - Usamos drivers 250mA compatíveis com 75V de saída
  *   - Philips Xitanium 25W 250mA (até 1 barra), 50W 250mA (até 3), 75W 250mA (até 5)
  */
-function selectDriverForBars(totalBars: number, power: Power, voltage: Voltage, stripMethod: StripMethod, sheetDrivers?: SheetDriver[]): DriverSpec {
+function selectDriverForBars(
+  totalBars: number,
+  power: Power,
+  voltage: Voltage,
+  stripMethod: StripMethod,
+  sheetDrivers?: SheetDriver[],
+  driverContext?: Partial<DriverSelectionContext>
+): DriverSpec {
   // Usar drivers da planilha se disponíveis
   if (sheetDrivers && sheetDrivers.length > 0) {
-    const selected = selectDriverFromSheet(sheetDrivers, totalBars, power, voltage, stripMethod);
+    const selected = selectDriverFromSheet(sheetDrivers, totalBars, power, voltage, stripMethod, driverContext);
     if (selected) {
       return {
         code: selected.code,
@@ -269,12 +276,13 @@ function buildSkuDriverList(
   power: Power,
   voltage: Voltage,
   stripMethod: StripMethod,
-  sheetDrivers?: SheetDriver[]
+  sheetDrivers?: SheetDriver[],
+  driverContext?: Partial<DriverSelectionContext>
 ): SkuDriverEntry[] {
   return composition.map(item => ({
     sku: item.sku,
     quantity: item.quantity,
-    driver: selectDriverForBars(item.barsTotal, power, voltage, stripMethod, sheetDrivers),
+    driver: selectDriverForBars(item.barsTotal, power, voltage, stripMethod, sheetDrivers, driverContext),
   }));
 }
 
@@ -616,14 +624,21 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     }
   }
 
+  // ── Contexto para seleção de drivers (aplica restrições da planilha) ──
+  const driverCtx: Partial<DriverSelectionContext> = {
+    profileCode,
+    isRemoteDriver,
+    installType,
+  };
+
   // ── Drivers por SKU (D1) ──
-  const driversD1: SkuDriverEntry[] = buildSkuDriverList(composition, powerD1, voltage, stripMethod, input.sheetDrivers);
+  const driversD1: SkuDriverEntry[] = buildSkuDriverList(composition, powerD1, voltage, stripMethod, input.sheetDrivers, driverCtx);
 
   // ── Drivers por SKU (D2) — apenas D1+D2 independente ──
   let driversD2: SkuDriverEntry[] = [];
   if (effectiveApplication === "D1+D2" && isIndependent) {
     // D2 usa a mesma composição de módulos mas com potência D2
-    driversD2 = buildSkuDriverList(composition, effectivePowerD2, voltage, stripMethod, input.sheetDrivers);
+    driversD2 = buildSkuDriverList(composition, effectivePowerD2, voltage, stripMethod, input.sheetDrivers, driverCtx);
   }
 
   // ── Nota de acendimento conjunto (D1+D2 não independente) ──
@@ -672,7 +687,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
   // Drivers combinados para D1+D2 conjunto
   const combinedDrivers: SkuDriverEntry[] | undefined =
     effectiveApplication === "D1+D2" && !isIndependent
-      ? buildSkuDriverList(composition, powerD1, voltage, stripMethod, input.sheetDrivers)
+      ? buildSkuDriverList(composition, powerD1, voltage, stripMethod, input.sheetDrivers, driverCtx)
       : undefined;
 
   return {

@@ -87,3 +87,15 @@
 - [x] Exibir código EQ e descrição completa do driver na tabela de resultado
 - [x] Suportar BIVOLT com drivers LIFUD (EQ00580/581/582) e 220V com Philips/OSRAM/LIFUD
 - [x] Atualizar testes para usar estrutura de driver com código EQ
+
+## Ajustes v1.8 — Atualização Planilha de Drivers
+
+- [x] Filtrar drivers com DISPONÍVEL = NÃO (EQ00236, EQ00232, EQ00494, EQ00104, EQ00459)
+- [x] Parsear coluna OBSERVAÇÕES da planilha para extrair regras de seleção
+- [x] Implementar regras de faixa de barras para Philips 18W (EQ00346: 1-2 barras, EQ00347: 3-5, EQ00393: 6-7)
+- [x] OSRAM IT FIT 75W (EQ00220): restrito a 26W/500mA apenas
+- [x] Philips CERTADRIVE 20W (EQ00353): restrito a 26W/500mA, 1 barra, Embutir/remoto, não BLAZE H
+- [x] LIFUD Bivolt (EQ00580/581/582): apenas Bivolt, apenas 18W fileira simples ou 36W Stripflex
+- [x] Atualizar driverService.ts para parsear coluna DISPONÍVEL e OBSERVAÇÕES
+- [x] Atualizar selectDriverFromSheet() para aplicar novas restrições
+- [x] Atualizar testes para cobrir novas regras
