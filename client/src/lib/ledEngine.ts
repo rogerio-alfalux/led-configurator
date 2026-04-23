@@ -245,25 +245,38 @@ function selectDriverForBars(
   }
 
   // Stripflex 350mA (18W e 36W barra dupla)
+  // Prioridade: Philips 19W (1-2 barras) → 44W (3-5 barras) → 65W (6-7 barras) → 100W (8+ barras)
+  // OSRAM IT FIT 75W NUNCA é usado para 18W/350mA — apenas para 26W/500mA
+  // Para 36W Stripflex dupla: barras físicas / 2 = barras em série (Vout real)
   if (CURRENT_TYPE[power] === "350mA") {
+    // Normalizar para barras em série (para 36W dupla, cada seção tem 2 barras em paralelo)
+    const barsForRange = (power === 36 && stripMethod === "STRIPFLEX") ? totalBars / 2 : totalBars;
     if (voltage === "Bivolt") {
-      if (totalBars <= 1) return { model: "LIFUD 20W 350mA (LF-FMR020YS0350U(S))", power: 20, current: "350mA", quantity: 1 };
-      if (totalBars <= 4) return { model: "LIFUD 40W 350mA (LF-FMR040YS0350U(S))", power: 40, current: "350mA", quantity: 1 };
+      if (barsForRange <= 2) return { model: "LIFUD 20W 350mA (LF-FMR020YS0350U(S))", power: 20, current: "350mA", quantity: 1 };
+      if (barsForRange <= 4) return { model: "LIFUD 40W 350mA (LF-FMR040YS0350U(S))", power: 40, current: "350mA", quantity: 1 };
       return { model: "LIFUD 60W 350mA (LF-FMR060YS0350U(S))", power: 60, current: "350mA", quantity: 1 };
     } else {
-      if (totalBars <= 1) return { model: "DRIVER PHILIPS 19W 350mA 220V", power: 19, current: "350mA", quantity: 1 };
-      if (totalBars <= 5) return { model: "DRIVER PHILIPS 44W 350mA 220V", power: 44, current: "350mA", quantity: 1 };
-      return { model: "DRIVER PHILIPS 65W 350mA 220V", power: 65, current: "350mA", quantity: 1 };
+      // 1-2 barras série (25-50V): Philips 19W (30-54V)
+      if (barsForRange <= 2) return { model: "PHILIPS XITANIUM 19W", power: 19, current: "350mA", quantity: 1 };
+      // 3-5 barras série (75-125V): Philips 44W (70-125V)
+      if (barsForRange <= 5) return { model: "PHILIPS XITANIUM 44W", power: 44, current: "350mA", quantity: 1 };
+      // 6-7 barras série (150-175V): Philips 65W (120-185V)
+      if (barsForRange <= 7) return { model: "PHILIPS XITANIUM 65W", power: 65, current: "350mA", quantity: 1 };
+      // 8+ barras série (200V+): Philips 100W (100-200V, prioridade 2)
+      return { model: "PHILIPS XITANIUM 100W", power: 100, current: "350mA", quantity: 1 };
     }
   }
 
   // Stripflex 500mA (26W)
+  // OSRAM IT FIT 75W é o driver principal para 26W/500mA 220V
+  // CERTADRIVE 20W é alternativa para 1 barra em perfis de embutir/remoto (não BLAZE H)
   if (voltage === "Bivolt") {
-    if (totalBars <= 1) return { model: "Philips 21W 500mA", power: 21, current: "500mA", quantity: 1 };
-    return { model: "Element 75W 500mA", power: 75, current: "500mA", quantity: 1 };
+    // Bivolt 26W: sem driver Bivolt 500mA na planilha — usar LIFUD (mas só para 18W/36W)
+    // Para 26W Bivolt não há driver na planilha atual; usar OSRAM como único 220V disponível
+    return { model: "OSRAM IT FIT 75W", power: 75, current: "500mA", quantity: 1 };
   } else {
-    if (totalBars <= 1) return { model: "Philips 21W 500mA 220V", power: 21, current: "500mA", quantity: 1 };
-    return { model: "Element 75W 500mA 220V", power: 75, current: "500mA", quantity: 1 };
+    // 220V 26W/500mA: OSRAM IT FIT 75W (prioridade 1, 90-150V @ 500mA)
+    return { model: "OSRAM IT FIT 75W", power: 75, current: "500mA", quantity: 1 };
   }
 }
 

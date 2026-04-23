@@ -6,14 +6,22 @@ import { getProfileNames, getInstallTypesForProfile, getVariant, LED_CATALOG } f
 // ─── selectDrivers — 220Vac — 350mA (18W) ────────────────────────────────────
 
 describe("selectDrivers — 220Vac — 350mA (18W)", () => {
+  // Faixas: 1-2 barras → Philips 19W | 3-5 barras → Philips 44W | 6-7 barras → Philips 65W | 8+ → Philips 100W
+  // OSRAM IT FIT 75W NUNCA deve aparecer para 18W
   it("1 barra → Philips 19W 350mA", () => {
     const drivers = selectDrivers(1, 18, "220Vac");
     expect(drivers[0].model).toContain("19W");
     expect(drivers[0].current).toBe("350mA");
   });
 
-  it("2 barras → Philips 44W 350mA", () => {
+  it("2 barras → Philips 19W 350mA (faixa 1-2)", () => {
     const drivers = selectDrivers(2, 18, "220Vac");
+    expect(drivers[0].model).toContain("19W");
+    expect(drivers[0].current).toBe("350mA");
+  });
+
+  it("3 barras → Philips 44W 350mA (faixa 3-5)", () => {
+    const drivers = selectDrivers(3, 18, "220Vac");
     expect(drivers[0].model).toContain("44W");
     expect(drivers[0].current).toBe("350mA");
   });
@@ -24,10 +32,24 @@ describe("selectDrivers — 220Vac — 350mA (18W)", () => {
     expect(drivers[0].quantity).toBe(1);
   });
 
-  it("6 barras → Philips 65W 350mA", () => {
+  it("6 barras → Philips 65W 350mA (faixa 6-7)", () => {
     const drivers = selectDrivers(6, 18, "220Vac");
     expect(drivers[0].model).toContain("65W");
     expect(drivers[0].current).toBe("350mA");
+  });
+
+  it("8 barras → Philips 100W 350mA (faixa 8+, nunca OSRAM)", () => {
+    const drivers = selectDrivers(8, 18, "220Vac");
+    expect(drivers[0].model).toContain("100W");
+    expect(drivers[0].current).toBe("350mA");
+    expect(drivers[0].model).not.toContain("OSRAM");
+  });
+
+  it("OSRAM não deve aparecer para 18W em nenhuma quantidade de barras", () => {
+    for (const bars of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const drivers = selectDrivers(bars, 18, "220Vac");
+      expect(drivers[0].model).not.toContain("OSRAM");
+    }
   });
 });
 
@@ -40,15 +62,15 @@ describe("selectDrivers — 220Vac — 350mA (36W)", () => {
 });
 
 describe("selectDrivers — 220Vac — 500mA (26W)", () => {
-  it("1 barra → Philips 21W 500mA", () => {
+  it("1 barra → OSRAM IT FIT 75W 500mA (driver principal 26W)", () => {
     const drivers = selectDrivers(1, 26, "220Vac");
-    expect(drivers[0].model).toContain("21W");
+    expect(drivers[0].model).toContain("OSRAM");
     expect(drivers[0].current).toBe("500mA");
   });
 
-  it("3 barras → Element 75W 500mA", () => {
+  it("3 barras → OSRAM IT FIT 75W 500mA", () => {
     const drivers = selectDrivers(3, 26, "220Vac");
-    expect(drivers[0].model).toContain("75W");
+    expect(drivers[0].model).toContain("OSRAM");
     expect(drivers[0].current).toBe("500mA");
   });
 });

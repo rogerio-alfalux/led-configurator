@@ -258,16 +258,24 @@ export function selectDriverFallback(
   }
 
   // Stripflex 350mA (18W e 36W dupla)
+  // Prioridade: Philips 19W (1-2 barras) → 44W (3-5 barras) → 65W (6-7 barras) → 100W (fallback 8+ barras)
+  // OSRAM IT FIT 75W NUNCA é usado para 18W/350mA — apenas para 26W/500mA
   if (currentMA === 350) {
     if (isBivolt) {
       if (vOut <= 57) return { code: "EQ00580", model: "LIFUD 20W LF-FMR020YS0350U(S)", current: "350mA", quantity: 1, vOut };
       if (vOut <= 115) return { code: "EQ00581", model: "LIFUD 40W LF-FMR040YS0350U(S)", current: "350mA", quantity: 1, vOut };
       return { code: "EQ00582", model: "LIFUD 60W LF-FMR060YS0350U(S)", current: "350mA", quantity: 1, vOut };
     } else {
+      // 220V: Philips Xitanium por faixa de barras
+      // 1-2 barras: 25-50V → EQ00346 19W (30-54V)
+      // 3-5 barras: 75-125V → EQ00347 44W (70-125V)
+      // 6-7 barras: 150-175V → EQ00393 65W (120-185V)
+      // 8+ barras: 200V+ → EQ00349 100W (100-200V) como fallback
       if (vOut <= 54) return { code: "EQ00346", model: "PHILIPS XITANIUM 19W", current: "350mA", quantity: 1, vOut };
       if (vOut <= 125) return { code: "EQ00347", model: "PHILIPS XITANIUM 44W", current: "350mA", quantity: 1, vOut };
       if (vOut <= 185) return { code: "EQ00393", model: "PHILIPS XITANIUM 65W", current: "350mA", quantity: 1, vOut };
-      return { code: "EQ00220", model: "OSRAM IT FIT 75W", current: "350mA", quantity: 1, vOut };
+      // 8+ barras (200V+): Philips 100W (prioridade 2, faixa 4-8 barras, suporta 350mA até 200V)
+      return { code: "EQ00349", model: "PHILIPS XITANIUM 100W", current: "350mA", quantity: 1, vOut };
     }
   }
 
