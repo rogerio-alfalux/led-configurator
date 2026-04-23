@@ -185,104 +185,28 @@ export function getStriplineName(cct: CCT): string {
 // ─── Seleção de Drivers por SKU ───────────────────────────────────────────────
 
 /**
- * Seleciona o driver para um único SKU (1 barra ou conjunto de barras de um módulo).
+ * Seleciona o driver para um único SKU usando a lógica definitiva v00 (23/04/2026).
+ * A planilha Google Sheets está desabilitada por enquanto — toda seleção usa selectDriverFallback.
  * Cada SKU recebe seu próprio driver — nunca compartilhado entre SKUs.
- *
- * Para Stripflex:
- *   - 18W/350mA: Philips 19W (1-2 barras), Philips 44W (3-5), Philips 65W (6-7), Philips 100W (8+, só com módulos longos)
- *   - 26W/500mA: OSRAM IT FIT 75W (driver principal)
- *   - 36W/350mA Stripflex dupla: mesma lógica do 18W mas com 2 barras por seção
- *
- * Para Stripline (36W/250mA/75V):
- *   - Usamos drivers 250mA compatíveis com 75V de saída
- *   - Philips Xitanium 25W 250mA (até 1 barra), 50W 250mA (até 3), 75W 250mA (até 5)
  */
 function selectDriverForBars(
   totalBars: number,
   power: Power,
   voltage: Voltage,
   stripMethod: StripMethod,
-  sheetDrivers?: SheetDriver[],
+  _sheetDrivers?: SheetDriver[],
   driverContext?: Partial<DriverSelectionContext>
 ): DriverSpec {
-  // Extrair allowLongModules do contexto para uso no fallback hardcoded
-  const allowLongModules = driverContext?.allowLongModules ?? false;
-  // Usar drivers da planilha se disponíveis
-  if (sheetDrivers && sheetDrivers.length > 0) {
-    const selected = selectDriverFromSheet(sheetDrivers, totalBars, power, voltage, stripMethod, driverContext);
-    if (selected) {
-      return {
-        code: selected.code,
-        model: selected.model,
-        power: parseInt(selected.model.match(/(\d+)W/i)?.[1] ?? "0"),
-        current: selected.current,
-        quantity: 1,
-        vOut: selected.vOut,
-      };
-    }
-    // Fallback se nenhum driver da planilha for compatível
-    const fallback = selectDriverFallback(totalBars, power, voltage, stripMethod, driverContext?.allowLongModules);
-    return {
-      code: fallback.code,
-      model: fallback.model,
-      power: parseInt(fallback.model.match(/(\d+)W/i)?.[1] ?? "0"),
-      current: fallback.current,
-      quantity: 1,
-      vOut: fallback.vOut,
-    };
-  }
-  // Sem planilha: usar lógica hardcoded original
-  // Stripline 36W/250mA/75V
-  if (power === 36 && stripMethod === "STRIPLINE") {
-    if (voltage === "Bivolt") {
-      if (totalBars <= 1) return { model: "LIFUD 20W 250mA (LF-FMR020YS0250U(S))", power: 20, current: "250mA", quantity: 1 };
-      if (totalBars <= 3) return { model: "LIFUD 40W 250mA (LF-FMR040YS0250U(S))", power: 40, current: "250mA", quantity: 1 };
-      return { model: "LIFUD 60W 250mA (LF-FMR060YS0250U(S))", power: 60, current: "250mA", quantity: 1 };
-    } else {
-      if (totalBars <= 1) return { model: "Philips Xitanium 25W 250mA 220V", power: 25, current: "250mA", quantity: 1 };
-      if (totalBars <= 3) return { model: "Philips Xitanium 50W 250mA 220V", power: 50, current: "250mA", quantity: 1 };
-      return { model: "Philips Xitanium 75W 250mA 220V", power: 75, current: "250mA", quantity: 1 };
-    }
-  }
-
-  // Stripflex 350mA (18W e 36W barra dupla)
-  // Prioridade: Philips 19W (1-2 barras) → 44W (3-5 barras) → 65W (6-7 barras) → 100W (8+ barras)
-  // OSRAM IT FIT 75W NUNCA é usado para 18W/350mA — apenas para 26W/500mA
-  // Para 36W Stripflex dupla: barras físicas / 2 = barras em série (Vout real)
-  if (CURRENT_TYPE[power] === "350mA") {
-    // Normalizar para barras em série (para 36W dupla, cada seção tem 2 barras em paralelo)
-    const barsForRange = (power === 36 && stripMethod === "STRIPFLEX") ? totalBars / 2 : totalBars;
-    if (voltage === "Bivolt") {
-      if (barsForRange <= 2) return { model: "LIFUD 20W 350mA (LF-FMR020YS0350U(S))", power: 20, current: "350mA", quantity: 1 };
-      if (barsForRange <= 4) return { model: "LIFUD 40W 350mA (LF-FMR040YS0350U(S))", power: 40, current: "350mA", quantity: 1 };
-      return { model: "LIFUD 60W 350mA (LF-FMR060YS0350U(S))", power: 60, current: "350mA", quantity: 1 };
-    } else {
-      // 1-2 barras série (25-50V): Philips 19W (30-54V)
-      if (barsForRange <= 2) return { model: "PHILIPS XITANIUM 19W", power: 19, current: "350mA", quantity: 1 };
-      // 3-5 barras série (75-125V): Philips 44W (70-125V)
-      if (barsForRange <= 5) return { model: "PHILIPS XITANIUM 44W", power: 44, current: "350mA", quantity: 1 };
-      // 6-7 barras série (150-175V): Philips 65W (120-185V)
-      if (barsForRange <= 7) return { model: "PHILIPS XITANIUM 65W", power: 65, current: "350mA", quantity: 1 };
-      // 8+ barras série (200V+): Philips 100W só com módulos longos habilitados
-      if (allowLongModules) {
-        return { model: "PHILIPS XITANIUM 100W", power: 100, current: "350mA", quantity: 1 };
-      }
-      // Sem módulos longos: usar Philips 65W como melhor opção
-      return { model: "PHILIPS XITANIUM 65W", power: 65, current: "350mA", quantity: 1 };
-    }
-  }
-
-  // Stripflex 500mA (26W)
-  // OSRAM IT FIT 75W é o driver principal para 26W/500mA 220V
-  // CERTADRIVE 20W é alternativa para 1 barra em perfis de embutir/remoto (não BLAZE H)
-  if (voltage === "Bivolt") {
-    // Bivolt 26W: sem driver Bivolt 500mA na planilha — usar LIFUD (mas só para 18W/36W)
-    // Para 26W Bivolt não há driver na planilha atual; usar OSRAM como único 220V disponível
-    return { model: "OSRAM IT FIT 75W", power: 75, current: "500mA", quantity: 1 };
-  } else {
-    // 220V 26W/500mA: OSRAM IT FIT 75W (prioridade 1, 90-150V @ 500mA)
-    return { model: "OSRAM IT FIT 75W", power: 75, current: "500mA", quantity: 1 };
-  }
+  // Lógica v00: sempre usar o fallback determinístico (planilha desabilitada)
+  const d = selectDriverFallback(totalBars, power, voltage, stripMethod, driverContext?.allowLongModules);
+  return {
+    code: d.code,
+    model: d.model,
+    power: parseInt(d.model.match(/(\d+)W/i)?.[1] ?? "0"),
+    current: d.current,
+    quantity: 1,
+    vOut: d.vOut,
+  };
 }
 
 /**

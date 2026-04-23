@@ -65,9 +65,10 @@ describe("selectDrivers — 220Vac — 350mA (36W)", () => {
 });
 
 describe("selectDrivers — 220Vac — 500mA (26W)", () => {
-  it("1 barra → OSRAM IT FIT 75W 500mA (driver principal 26W)", () => {
+  it("1 barra → CERTADRIVE 20W 500mA (1 barra = 25V, dentro da faixa do CERTADRIVE ≤42V)", () => {
+    // Lógica v00: 1 barra 26W = 25V ≤ 42V → CERTADRIVE 20W
     const drivers = selectDrivers(1, 26, "220Vac");
-    expect(drivers[0].model).toContain("OSRAM");
+    expect(drivers[0].model).toContain("CERTADRIVE");
     expect(drivers[0].current).toBe("500mA");
   });
 
@@ -988,9 +989,10 @@ describe("selectDrivers — fallback hardcoded respeita allowLongModules", () =>
     expect(r.model).not.toContain("100W");
   });
 
-  it("8 barras 18W 220V com módulos longos → Philips 100W", () => {
+  it("8 barras 18W 220V com módulos longos → Philips 65W (lógica v00 máximo 7 barras, sem 100W)", () => {
+    // Lógica v00: máximo definido é 6-7 barras → 65W. Acima de 7 também retorna 65W.
     const r = selectDriverFallback(8, 18, "220Vac", "STRIPFLEX", true);
-    expect(r.model).toContain("100W");
+    expect(r.model).toContain("65W");
   });
 });
 
@@ -1083,5 +1085,120 @@ describe("selectDriverFromSheet — preferredMinBars/MaxBars como filtro obrigat
     const r = selectDriverFromSheet(mockAllPhilips, 4, 18, "220Vac", "STRIPFLEX");
     expect(r?.code).not.toBe("EQ00393");
     expect(r?.model).not.toContain("65W");
+  });
+});
+
+// ─── Testes v2.2 — Lógica definitiva v00 (23/04/2026) ────────────────────────
+
+describe("Lógica v00 — 18W 220V STRIPFLEX", () => {
+  it("1 barra → EQ00346 PHILIPS XITANIUM 19W 350mA", () => {
+    const r = selectDriverFallback(1, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00346");
+    expect(r.model).toContain("19W");
+    expect(r.current).toBe("350mA");
+  });
+  it("2 barras → EQ00346 PHILIPS XITANIUM 19W 350mA", () => {
+    const r = selectDriverFallback(2, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00346");
+    expect(r.model).toContain("19W");
+  });
+  it("3 barras → EQ00347 PHILIPS XITANIUM 44W 350mA", () => {
+    const r = selectDriverFallback(3, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00347");
+    expect(r.model).toContain("44W");
+  });
+  it("5 barras → EQ00347 PHILIPS XITANIUM 44W 350mA", () => {
+    const r = selectDriverFallback(5, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00347");
+    expect(r.model).toContain("44W");
+  });
+  it("6 barras → EQ00393 PHILIPS XITANIUM 65W 350mA", () => {
+    const r = selectDriverFallback(6, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00393");
+    expect(r.model).toContain("65W");
+  });
+  it("7 barras → EQ00393 PHILIPS XITANIUM 65W 350mA", () => {
+    const r = selectDriverFallback(7, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00393");
+    expect(r.model).toContain("65W");
+  });
+});
+
+describe("Lógica v00 — 18W Bivolt STRIPFLEX", () => {
+  it("1 barra → EQ00580 LIFUD 20W 350mA", () => {
+    const r = selectDriverFallback(1, 18, "Bivolt", "STRIPFLEX");
+    expect(r.code).toBe("EQ00580");
+    expect(r.model).toContain("20W");
+    expect(r.current).toBe("350mA");
+  });
+  it("2 barras → EQ00580 LIFUD 20W 350mA", () => {
+    const r = selectDriverFallback(2, 18, "Bivolt", "STRIPFLEX");
+    expect(r.code).toBe("EQ00580");
+  });
+  it("3 barras → EQ00581 LIFUD 40W 350mA", () => {
+    const r = selectDriverFallback(3, 18, "Bivolt", "STRIPFLEX");
+    expect(r.code).toBe("EQ00581");
+    expect(r.model).toContain("40W");
+  });
+  it("4 barras → EQ00581 LIFUD 40W 350mA", () => {
+    const r = selectDriverFallback(4, 18, "Bivolt", "STRIPFLEX");
+    expect(r.code).toBe("EQ00581");
+  });
+  it("5 barras → EQ00582 LIFUD 60W 350mA", () => {
+    const r = selectDriverFallback(5, 18, "Bivolt", "STRIPFLEX");
+    expect(r.code).toBe("EQ00582");
+    expect(r.model).toContain("60W");
+  });
+  it("6 barras → EQ00582 LIFUD 60W 350mA", () => {
+    const r = selectDriverFallback(6, 18, "Bivolt", "STRIPFLEX");
+    expect(r.code).toBe("EQ00582");
+  });
+});
+
+describe("Lógica v00 — 36W 220V STRIPFLEX dupla (mesma lógica do 18W 220V)", () => {
+  it("1 barra → EQ00346 PHILIPS XITANIUM 19W (mesma lógica do 18W)", () => {
+    const r = selectDriverFallback(1, 36, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00346");
+    expect(r.model).toContain("19W");
+  });
+  it("3 barras → EQ00347 PHILIPS XITANIUM 44W", () => {
+    const r = selectDriverFallback(3, 36, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00347");
+    expect(r.model).toContain("44W");
+  });
+  it("6 barras → EQ00393 PHILIPS XITANIUM 65W", () => {
+    const r = selectDriverFallback(6, 36, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00393");
+    expect(r.model).toContain("65W");
+  });
+});
+
+describe("Lógica v00 — 36W 220V STRIPLINE (barras inteiras)", () => {
+  it("1 barra → EQ00347 PHILIPS XITANIUM 44W 350mA", () => {
+    const r = selectDriverFallback(1, 36, "220Vac", "STRIPLINE");
+    expect(r.code).toBe("EQ00347");
+    expect(r.model).toContain("44W");
+    expect(r.current).toBe("350mA");
+  });
+  it("2 barras → EQ00393 PHILIPS XITANIUM 65W 350mA", () => {
+    const r = selectDriverFallback(2, 36, "220Vac", "STRIPLINE");
+    expect(r.code).toBe("EQ00393");
+    expect(r.model).toContain("65W");
+    expect(r.current).toBe("350mA");
+  });
+});
+
+describe("Lógica v00 — 36W Bivolt STRIPLINE (barras inteiras)", () => {
+  it("1 barra → EQ00581 LIFUD 40W 250mA", () => {
+    const r = selectDriverFallback(1, 36, "Bivolt", "STRIPLINE");
+    expect(r.code).toBe("EQ00581");
+    expect(r.model).toContain("40W");
+    expect(r.current).toBe("250mA");
+  });
+  it("2 barras → EQ00582 LIFUD 60W 250mA", () => {
+    const r = selectDriverFallback(2, 36, "Bivolt", "STRIPLINE");
+    expect(r.code).toBe("EQ00582");
+    expect(r.model).toContain("60W");
+    expect(r.current).toBe("250mA");
   });
 });

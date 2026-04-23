@@ -99,3 +99,13 @@
 - [x] Atualizar driverService.ts para parsear coluna DISPONÍVEL e OBSERVAÇÕES
 - [x] Atualizar selectDriverFromSheet() para aplicar novas restrições
 - [x] Atualizar testes para cobrir novas regras
+
+## v2.2 — Lógica definitiva de drivers v00 (23/04/2026)
+- [x] Reescrever selectDriverFallback com lógica v00 por potência/tensão/método
+- [x] 18W 220V: 1-2 barras=EQ00346, 3-5=EQ00347, 6-7=EQ00393
+- [x] 18W Bivolt: 1-2=EQ00580, 3-4=EQ00581, 5-6=EQ00582
+- [x] 36W 220V STRIPFLEX dupla: mesma lógica do 18W 220V (barras físicas, lado a lado)
+- [x] 36W 220V STRIPLINE: 0-1=EQ00347, 1-2=EQ00393 (barras inteiras apenas)
+- [x] 36W Bivolt STRIPLINE: 0-1=EQ00581, 1-2=EQ00582 (barras inteiras apenas)
+- [x] Garantir STRIPLINE só aceita barras inteiras
+- [x] Atualizar testes para cobrir todos os casos v00

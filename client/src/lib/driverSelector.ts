@@ -249,9 +249,34 @@ export function selectDriverFromSheet(
 }
 
 /**
- * Fallback quando a planilha não está disponível.
- * Usa os drivers conhecidos hardcoded para não travar o cálculo.
- * @param allowLongModules - se true, permite uso de Philips 100W/150W (módulos longos)
+ * Lógica definitiva v00 (23/04/2026) de seleção de drivers por faixa de barras.
+ * Esta função é a fonte de verdade — a planilha Google Sheets está desabilitada por enquanto.
+ *
+ * PARA PERFIS COM 18W 220V (STRIPFLEX):
+ *   1-2 barras → PHILIPS XITANIUM 19W 350mA (EQ00346)
+ *   3-5 barras → PHILIPS XITANIUM 44W 350mA (EQ00347)
+ *   6-7 barras → PHILIPS XITANIUM 65W 350mA (EQ00393)
+ *
+ * PARA PERFIS COM 18W BIVOLT (STRIPFLEX):
+ *   1-2 barras → LIFUD 20W 350mA LF-FMR020YS0350U(S) (EQ00580)
+ *   3-4 barras → LIFUD 40W 350mA LF-FMR040YS0350U(S) (EQ00581)
+ *   5-6 barras → LIFUD 60W 350mA LF-FMR060YS0350U(S) (EQ00582)
+ *
+ * PARA PERFIS COM 36W 220V STRIPFLEX DUPLA:
+ *   Mesma lógica do 18W 220V (barras físicas lado a lado, mesmo comprimento de perfil)
+ *   1-2 barras → EQ00346, 3-5 → EQ00347, 6-7 → EQ00393
+ *
+ * PARA PERFIS COM 36W 220V STRIPLINE (barras inteiras apenas):
+ *   0-1 barra → PHILIPS XITANIUM 44W 350mA (EQ00347)
+ *   1-2 barras → PHILIPS XITANIUM 65W 350mA (EQ00393)
+ *
+ * PARA PERFIS COM 36W BIVOLT STRIPLINE (barras inteiras apenas):
+ *   0-1 barra → LIFUD 40W 250mA LF-FMR040YS0350U(S) (EQ00581)
+ *   1-2 barras → LIFUD 60W 250mA LF-FMR060YS0350U(S) (EQ00582)
+ *
+ * PARA PERFIS COM 26W 220V:
+ *   OSRAM IT FIT 75W 500mA (EQ00220) — driver único para 26W
+ *   Exceção: CERTADRIVE 20W (EQ00353) para 1 barra em embutir/remoto
  */
 export function selectDriverFallback(
   totalBars: number,
@@ -260,55 +285,54 @@ export function selectDriverFallback(
   stripMethod: StripMethod,
   allowLongModules?: boolean
 ): SelectedDriver {
-  const currentMA = getCurrentMA(power, stripMethod);
   const vOut = calcVOut(totalBars, power, stripMethod);
   const isBivolt = voltage === "Bivolt";
 
-  // Stripline 36W/250mA
+  // ── 36W STRIPLINE ──────────────────────────────────────────────────────────
+  // Barras inteiras apenas. Vout por barra: ~75V (Stripline 562,5 × 15mm 105L)
   if (power === 36 && stripMethod === "STRIPLINE") {
     if (isBivolt) {
-      if (vOut <= 57) return { code: "EQ00580", model: "LIFUD 20W LF-FMR020YS0350U(S)", current: "250mA", quantity: 1, vOut };
-      if (vOut <= 115) return { code: "EQ00581", model: "LIFUD 40W LF-FMR040YS0350U(S)", current: "250mA", quantity: 1, vOut };
-      return { code: "EQ00582", model: "LIFUD 60W LF-FMR060YS0350U(S)", current: "250mA", quantity: 1, vOut };
+      // 0-1 barra (0-75V): LIFUD 40W 250mA (EQ00581)
+      // 1-2 barras (75-150V): LIFUD 60W 250mA (EQ00582)
+      if (totalBars <= 1) return { code: "EQ00581", model: "LIFUD 40W 250MA LF-FMR040YS0350U(S)", current: "250mA", quantity: 1, vOut };
+      return { code: "EQ00582", model: "LIFUD 60W 250MA LF-FMR060YS0350U(S)", current: "250mA", quantity: 1, vOut };
     } else {
-      if (vOut <= 54) return { code: "EQ00346", model: "PHILIPS XITANIUM 19W", current: "250mA", quantity: 1, vOut };
-      if (vOut <= 125) return { code: "EQ00347", model: "PHILIPS XITANIUM 44W", current: "250mA", quantity: 1, vOut };
-      return { code: "EQ00393", model: "PHILIPS XITANIUM 65W", current: "250mA", quantity: 1, vOut };
+      // 0-1 barra (0-75V): PHILIPS XITANIUM 44W 350mA (EQ00347)
+      // 1-2 barras (75-150V): PHILIPS XITANIUM 65W 350mA (EQ00393)
+      if (totalBars <= 1) return { code: "EQ00347", model: "PHILIPS XITANIUM 44W 350MA", current: "350mA", quantity: 1, vOut };
+      return { code: "EQ00393", model: "PHILIPS XITANIUM 65W 350MA", current: "350mA", quantity: 1, vOut };
     }
   }
 
-  // Stripflex 350mA (18W e 36W dupla)
-  // Prioridade: Philips 19W (1-2 barras) → 44W (3-5 barras) → 65W (6-7 barras) → 100W (fallback 8+ barras)
-  // OSRAM IT FIT 75W NUNCA é usado para 18W/350mA — apenas para 26W/500mA
-  if (currentMA === 350) {
+  // ── 18W e 36W STRIPFLEX (350mA) ────────────────────────────────────────────
+  // Para 36W Stripflex dupla: barras físicas lado a lado (mesmo comprimento do 18W).
+  // A lógica de seleção usa as barras físicas diretamente (não divide por 2),
+  // pois as barras estão em paralelo e a Vout por seção é a mesma do 18W (25V/barra).
+  if (power === 18 || (power === 36 && stripMethod === "STRIPFLEX")) {
     if (isBivolt) {
-      if (vOut <= 57) return { code: "EQ00580", model: "LIFUD 20W LF-FMR020YS0350U(S)", current: "350mA", quantity: 1, vOut };
-      if (vOut <= 115) return { code: "EQ00581", model: "LIFUD 40W LF-FMR040YS0350U(S)", current: "350mA", quantity: 1, vOut };
-      return { code: "EQ00582", model: "LIFUD 60W LF-FMR060YS0350U(S)", current: "350mA", quantity: 1, vOut };
+      // 1-2 barras: LIFUD 20W 350mA (EQ00580)
+      // 3-4 barras: LIFUD 40W 350mA (EQ00581)
+      // 5-6 barras: LIFUD 60W 350mA (EQ00582)
+      if (totalBars <= 2) return { code: "EQ00580", model: "LIFUD 20W 350MA LF-FMR020YS0350U(S)", current: "350mA", quantity: 1, vOut };
+      if (totalBars <= 4) return { code: "EQ00581", model: "LIFUD 40W 350MA LF-FMR040YS0350U(S)", current: "350mA", quantity: 1, vOut };
+      return { code: "EQ00582", model: "LIFUD 60W 350MA LF-FMR060YS0350U(S)", current: "350mA", quantity: 1, vOut };
     } else {
-      // 220V: Philips Xitanium por faixa de barras
-      // 1-2 barras: 25-50V → EQ00346 19W (30-54V)
-      // 3-5 barras: 75-125V → EQ00347 44W (70-125V)
-      // 6-7 barras: 150-175V → EQ00393 65W (120-185V)
-      // 8+ barras: 200V+ → EQ00349 100W (100-200V) como fallback
-      if (vOut <= 54) return { code: "EQ00346", model: "PHILIPS XITANIUM 19W", current: "350mA", quantity: 1, vOut };
-      if (vOut <= 125) return { code: "EQ00347", model: "PHILIPS XITANIUM 44W", current: "350mA", quantity: 1, vOut };
-      if (vOut <= 185) return { code: "EQ00393", model: "PHILIPS XITANIUM 65W", current: "350mA", quantity: 1, vOut };
-      // 8+ barras (200V+): Philips 100W só quando módulos longos habilitados
-      // Sem módulos longos: usar Philips 65W como melhor opção disponível
-      if (allowLongModules) {
-        return { code: "EQ00349", model: "PHILIPS XITANIUM 100W", current: "350mA", quantity: 1, vOut };
-      }
-      return { code: "EQ00393", model: "PHILIPS XITANIUM 65W", current: "350mA", quantity: 1, vOut };
+      // 1-2 barras: PHILIPS XITANIUM 19W 350mA (EQ00346)
+      // 3-5 barras: PHILIPS XITANIUM 44W 350mA (EQ00347)
+      // 6-7 barras: PHILIPS XITANIUM 65W 350mA (EQ00393)
+      if (totalBars <= 2) return { code: "EQ00346", model: "PHILIPS XITANIUM 19W 350MA", current: "350mA", quantity: 1, vOut };
+      if (totalBars <= 5) return { code: "EQ00347", model: "PHILIPS XITANIUM 44W 350MA", current: "350mA", quantity: 1, vOut };
+      return { code: "EQ00393", model: "PHILIPS XITANIUM 65W 350MA", current: "350mA", quantity: 1, vOut };
     }
   }
 
-  // Stripflex 500mA (26W)
+  // ── 26W STRIPFLEX (500mA) ──────────────────────────────────────────────────
+  // OSRAM IT FIT 75W é o driver principal para 26W/500mA 220V
+  // CERTADRIVE 20W é alternativa para 1 barra em perfis de embutir/remoto
   if (isBivolt) {
-    if (vOut <= 57) return { code: "EQ00580", model: "LIFUD 20W LF-FMR020YS0350U(S)", current: "500mA", quantity: 1, vOut };
-    return { code: "EQ00582", model: "LIFUD 60W LF-FMR060YS0350U(S)", current: "500mA", quantity: 1, vOut };
+    return { code: "EQ00220", model: "OSRAM IT FIT 75W 500MA", current: "500mA", quantity: 1, vOut };
   } else {
-    if (vOut <= 42) return { code: "EQ00353", model: "PHILIPS CERTADRIVE 20W", current: "500mA", quantity: 1, vOut };
-    return { code: "EQ00220", model: "OSRAM IT FIT 75W", current: "500mA", quantity: 1, vOut };
+    if (vOut <= 42) return { code: "EQ00353", model: "PHILIPS CERTADRIVE 20W 500MA", current: "500mA", quantity: 1, vOut };
+    return { code: "EQ00220", model: "OSRAM IT FIT 75W 500MA", current: "500mA", quantity: 1, vOut };
   }
 }
