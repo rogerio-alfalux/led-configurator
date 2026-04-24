@@ -331,18 +331,26 @@ function tryInSingle(
 // ─── Estratégia 2: IF + ML para linhas longas ────────────────────────────────
 
 /**
- * Regra de otimização de módulos (Prompt Definitivo v3.1):
- * Ordem de prioridade absoluta:
- *   1. Não ultrapassar o comprimento solicitado
- *   2. Minimizar a quantidade total de módulos (SKU) — prioridade absoluta
- *   3. Entre as soluções com menor número de módulos, escolher a mais próxima da medida
- *   4. Minimizar variedade de SKUs
- *   5. Manter IF iguais nas pontas
+ * Regra de otimização de módulos (v3.2 — Tolerância 250mm):
  *
- * Para linhas até 6000mm: SEMPRE testar primeiro 2x IF sem ML.
- * Somente usar ML se não existir solução válida com 2x IF.
- * Uma solução com menos módulos SEMPRE vence, mesmo com maior diferença de comprimento.
+ * Para comprimentos até 5650mm:
+ *   1. Testar primeiro 2x IF iguais (sem ML)
+ *   2. Se a diferença (solicitado - realizado) <= 250mm → manter 2 módulos
+ *   3. Se a diferença > 250mm → permitir mais módulos para aproximar melhor a medida
+ *
+ * Para comprimentos > 5650mm:
+ *   - Comportamento padrão: minimizar módulos, depois mais próximo
+ *
+ * Regras gerais:
+ *   - Nunca ultrapassar o comprimento solicitado
+ *   - Entre candidatos com mesmo moduleCount, escolher o mais próximo
+ *   - Minimizar variedade de SKUs
+ *   - Manter IF iguais nas pontas
  */
+
+const SHORT_LINE_THRESHOLD = 5650;  // mm — limite para aplicar regra de tolerância
+const TWO_MODULE_TOLERANCE = 250;   // mm — tolerância máxima para aceitar 2 módulos
+
 function buildIfMlComposition(
   profileCode: string,
   requestedLength: number,
@@ -378,7 +386,7 @@ function buildIfMlComposition(
 
     const remaining = requestedLength - twoIfLength;
 
-    // --- Candidato A: 2x IF sem ML (sempre testar primeiro para linhas ≤ 6000mm) ---
+    // --- Candidato A: 2x IF sem ML ---
     {
       const realizedLength = twoIfLength;
       const moduleCount = 2;
@@ -412,15 +420,46 @@ function buildIfMlComposition(
 
   if (candidates.length === 0) return null;
 
-  // Ordenação com prioridade absoluta:
-  // 1. Menor número de módulos (prioridade absoluta — regra definitiva v3.1)
-  // 2. Mais próximo do comprimento solicitado (entre candidatos com mesmo moduleCount)
-  // 3. Menor variedade de SKUs
-  // 4. Menor desvio de equilíbrio
+  // ── Lógica de seleção v3.2 ──────────────────────────────────────────────────
+  //
+  // Para linhas curtas (≤ 5650mm), aplicar regra de tolerância:
+  //   - Encontrar a melhor solução de 2 módulos (mais próxima sem ultrapassar)
+  //   - Se diferença <= 250mm → usar 2 módulos (aceitar)
+  //   - Se diferença > 250mm → permitir mais módulos para aproximar melhor
+  //
+  // Para linhas longas (> 5650mm):
+  //   - Ordenar por: menor módulos → mais próximo → menos SKUs → menor desvio
+
+  if (requestedLength <= SHORT_LINE_THRESHOLD) {
+    // Encontrar a melhor solução de 2 módulos
+    const twoModuleCandidates = candidates
+      .filter(c => c.moduleCount === 2)
+      .sort((a, b) => b.realizedLength - a.realizedLength); // mais próximo primeiro
+
+    if (twoModuleCandidates.length > 0) {
+      const best2 = twoModuleCandidates[0];
+      const diff2 = requestedLength - best2.realizedLength;
+
+      if (diff2 <= TWO_MODULE_TOLERANCE) {
+        // Diferença aceitável: usar 2 módulos
+        const rawItems: RawModule[] = [best2.ifMod, best2.ifMod, ...best2.mlItems];
+        const composition = toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod, sheetDrivers);
+        return { composition, realizedLength: best2.realizedLength, remainingLength: diff2 };
+      }
+      // Diferença > 250mm: cair no ordenamento geral abaixo (permite mais módulos)
+    }
+  }
+
+  // Ordenação geral: mais próximo primeiro (independente de número de módulos)
+  // Para linhas longas OU quando 2 módulos ficou muito abaixo da tolerância
   candidates.sort((a, b) => {
-    if (a.moduleCount !== b.moduleCount) return a.moduleCount - b.moduleCount;
+    // Mais próximo do comprimento solicitado (prioridade principal)
     if (b.realizedLength !== a.realizedLength) return b.realizedLength - a.realizedLength;
+    // Menor número de módulos (desempate)
+    if (a.moduleCount !== b.moduleCount) return a.moduleCount - b.moduleCount;
+    // Menor variedade de SKUs
     if (a.skuVariety !== b.skuVariety) return a.skuVariety - b.skuVariety;
+    // Menor desvio de equilíbrio
     return a.balance - b.balance;
   });
 

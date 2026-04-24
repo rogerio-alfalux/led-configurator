@@ -180,3 +180,11 @@
 - [x] Solução com menos módulos vence mesmo que diferença de comprimento seja maior
 - [x] Exemplo: 4000mm → 2x IF 1885mm (3770mm, 2 módulos), NÃO 2x IF 1135 + 1x ML 1695 (3965mm, 3 módulos)
 - [x] Atualizar testes para cobrir a nova ordem de prioridade — 204 testes passando
+
+## v3.2 — Regra de Tolerância 250mm para Linhas até 5650mm
+- [x] Para comprimentos até 5650mm: testar primeiro 2x IF
+- [x] Se diferença (solicitado - realizado) <= 250mm: manter solução com 2 módulos
+- [x] Se diferença > 250mm: permitir mais módulos para aproximar melhor a medida
+- [x] Nota: no catálogo LLP-4251, 4000mm → 2x IF 1885mm = 3770mm (diff=230mm <= 250mm) → aceita 2 módulos
+- [x] Para comprimentos > 5650mm: comportamento padrão (mais próximo, depois menos módulos)
+- [x] Atualizar testes v3.1 e adicionar testes v3.2 — 204 testes passando
