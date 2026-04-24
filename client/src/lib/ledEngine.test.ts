@@ -1906,3 +1906,106 @@ describe("v3.2 --- Comprimentos > 5650mm: comportamento padrao (mais proximo)", 
     expect(result.realizedLength).toBeGreaterThan(6700);
   });
 });
+
+describe("v3.3 --- Validacao por perfil: LLP-6060 (BLAZE H) e LLP-4251 com regra 250mm", () => {
+  // LLP-6060 (BLAZE H): maior IF que cabe em 5000mm/2=2500mm e IF 3.8b (2200mm)
+  // 2x IF 2200 = 4400mm, diff=600mm > 250mm -> deve usar mais modulos
+  it("LLP-6060 5000mm -> diff > 250mm com 2x IF, usa 3 modulos (2x IF 2200 + 1x ML)", () => {
+    const result = calculateComposition({
+      profileCode: "LLP-6060",
+      application: "D1",
+      powerD1: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 5000,
+      allowLongModules: false,
+      stripMethod: "STRIPFLEX",
+      independentLighting: false,
+    });
+    // 2x IF 2200 = 4400mm (diff=600mm > 250mm) -> deve usar mais modulos
+    const totalModules = result.composition.reduce((sum, item) => sum + item.quantity, 0);
+    expect(totalModules).toBeGreaterThan(2);
+    // Comprimento deve ser maior que 4400mm (melhor 2x IF)
+    expect(result.realizedLength).toBeGreaterThan(4400);
+    expect(result.realizedLength).toBeLessThanOrEqual(5000);
+  });
+
+  // LLP-6060 (BLAZE H) com 4000mm: maior IF que cabe em 2000mm e IF 3b (1700mm)
+  // 2x IF 1700 = 3400mm, diff=600mm > 250mm -> deve usar mais modulos
+  it("LLP-6060 4000mm -> diff > 250mm com 2x IF, usa 3 modulos para aproximar", () => {
+    const result = calculateComposition({
+      profileCode: "LLP-6060",
+      application: "D1",
+      powerD1: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 4000,
+      allowLongModules: false,
+      stripMethod: "STRIPFLEX",
+      independentLighting: false,
+    });
+    // 2x IF 1700 = 3400mm (diff=600mm > 250mm) -> deve usar mais modulos
+    const totalModules = result.composition.reduce((sum, item) => sum + item.quantity, 0);
+    expect(totalModules).toBeGreaterThan(2);
+    expect(result.realizedLength).toBeGreaterThan(3400);
+    expect(result.realizedLength).toBeLessThanOrEqual(4000);
+  });
+
+  // LLP-6060 (BLAZE H) com 4500mm: maior IF que cabe em 2250mm e IF 3.8b (2200mm)
+  // 2x IF 2200 = 4400mm, diff=100mm <= 250mm -> aceitar 2 modulos
+  it("LLP-6060 4500mm -> diff=100mm <= 250mm, aceitar 2 modulos (2x IF 2200mm)", () => {
+    const result = calculateComposition({
+      profileCode: "LLP-6060",
+      application: "D1",
+      powerD1: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 4500,
+      allowLongModules: false,
+      stripMethod: "STRIPFLEX",
+      independentLighting: false,
+    });
+    // 2x IF 2200 = 4400mm (diff=100mm <= 250mm) -> aceitar 2 modulos
+    const totalModules = result.composition.reduce((sum, item) => sum + item.quantity, 0);
+    expect(totalModules).toBe(2);
+    expect(result.realizedLength).toBe(4400);
+  });
+
+  // LLP-4251 (HIT) com 5000mm: maior IF que cabe em 2500mm e IF 4.2b (2385mm)
+  // 2x IF 2385 = 4770mm, diff=230mm <= 250mm -> aceitar 2 modulos
+  it("LLP-4251 5000mm -> diff=230mm <= 250mm, aceitar 2 modulos (2x IF 2385mm)", () => {
+    const result = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1",
+      powerD1: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 5000,
+      allowLongModules: false,
+      stripMethod: "STRIPFLEX",
+      independentLighting: false,
+    });
+    // 2x IF 2385 = 4770mm (diff=230mm <= 250mm) -> aceitar 2 modulos
+    const totalModules = result.composition.reduce((sum, item) => sum + item.quantity, 0);
+    expect(totalModules).toBe(2);
+    expect(result.realizedLength).toBe(4770);
+  });
+
+  it("Nao ultrapassar comprimento solicitado para LLP-6060 em varios comprimentos", () => {
+    const testLengths = [3000, 4000, 4500, 5000, 5500, 5650, 6000];
+    for (const length of testLengths) {
+      const result = calculateComposition({
+        profileCode: "LLP-6060",
+        application: "D1",
+        powerD1: 18,
+        cct: "4000K",
+        voltage: "220Vac",
+        totalLength: length,
+        allowLongModules: false,
+        stripMethod: "STRIPFLEX",
+        independentLighting: false,
+      });
+      expect(result.realizedLength).toBeLessThanOrEqual(length);
+    }
+  });
+});

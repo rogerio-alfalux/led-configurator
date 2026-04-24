@@ -188,3 +188,10 @@
 - [x] Nota: no catálogo LLP-4251, 4000mm → 2x IF 1885mm = 3770mm (diff=230mm <= 250mm) → aceita 2 módulos
 - [x] Para comprimentos > 5650mm: comportamento padrão (mais próximo, depois menos módulos)
 - [x] Atualizar testes v3.1 e adicionar testes v3.2 — 204 testes passando
+
+## v3.3 — Validação da Regra de Tolerância 250mm (exemplo 5000mm)
+- [x] Análise: o exemplo do documento refere-se ao BLAZE H (LLP-6060), não ao HIT (LLP-4251)
+- [x] Para LLP-6060 com 5000mm: maior IF que cabe é IF 3.8b (2200mm), 2x=4400mm, diff=600mm > 250mm → usa 3 módulos ✅
+- [x] Para LLP-4251 com 5000mm: maior IF que cabe é IF 4.2b (2385mm), 2x=4770mm, diff=230mm ≤ 250mm → aceita 2 módulos ✅
+- [x] Algoritmo já está correto para ambos os perfis (usa catálogo específico de cada perfil)
+- [x] Adicionar testes específicos para LLP-6060 (BLAZE H) cobrindo 4000mm, 4500mm e 5000mm — 214 testes passando
