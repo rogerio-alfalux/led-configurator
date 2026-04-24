@@ -21,18 +21,21 @@ function formatBars(
   power: number,
   stripMethod: string,
   stripflexName: string,
-  cct: string
+  _cct: string // CCT já aparece no cabeçalho — não duplicar aqui
 ): string {
   const isStripline = stripMethod === "STRIPLINE";
-  const barName = isStripline
+  // Remover CCT do nome da barra se ele já estiver incluso (ex: "Stripflex 562,5mm 36L 4000K")
+  const rawName = isStripline
     ? "Stripline 562,5mm 105L"
     : stripflexName || "Stripflex 562,5mm 36L";
+  // Limpar qualquer CCT que venha no nome da barra (ex: "4000K", "3000K", "TW")
+  const barName = rawName.replace(/\s*(\d{4}K|TW|CCT|\[CCT\])\s*/gi, " ").trim();
 
   if (power === 36 && !isStripline) {
     // Fileira Dupla: barsTotal = barras × 2
-    return `${barsTotal}x ${barName} ${cct} (${barras} seções × 2 fileiras)`;
+    return `${barsTotal}x ${barName} (${barras} seções × 2 fileiras)`;
   }
-  return `${barsTotal}x ${barName} ${cct}`;
+  return `${barsTotal}x ${barName}`;
 }
 
 function buildMountingNotes(result: CompositionResult): string[] {

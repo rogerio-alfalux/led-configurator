@@ -150,3 +150,11 @@
 - [x] Template inclui: dados da luminária, composição técnica por módulo, notas de montagem
 - [x] Exibir quantidade de barras considerando 36W fileira dupla (barras × 2)
 - [x] Exibir divisão de drivers por módulo com código EQ
+
+## v2.8 — Lógica oficial de barras e drivers
+- [ ] Corrigir CCT duplicado no campo "Barras" do template de produção
+- [ ] Medidas quebradas 26W: 1.1-1.6 → Certadrive ×1; 1.7-1.8 → erro inválido; 2.0-3.2 → Certadrive ×2
+- [ ] Restrição HIT: 26W abaixo de 4 barras → erro/aviso
+- [ ] Observação BLAZE H: driver 26W deve ser desencapado
+- [ ] Medidas quebradas 18W: 1.x → 19W; 2.x/3.x/4.x → 44W; 5.x → 65W
+- [ ] Medidas quebradas Bivolt: 1.x → 20W; 2.x/3.x → 40W; 4.x/5.x → 60W

@@ -63,8 +63,9 @@ describe("generateProductionTemplate — estrutura básica", () => {
 
 describe("generateProductionTemplate — 26W CERTADRIVE quantidade", () => {
   it("2 barras 26W → deve mostrar CERTADRIVE", () => {
+    // 2250mm = 4 barras 26W → 3.3-4.0 → CERTADRIVE ×3
     const result = calculateComposition(
-      makeInput({ powerD1: 26, totalLength: 1125 }) // ~2 barras
+      makeInput({ powerD1: 26, totalLength: 2250 })
     );
     const template = generateProductionTemplate(result);
     // Deve conter CERTADRIVE com código EQ

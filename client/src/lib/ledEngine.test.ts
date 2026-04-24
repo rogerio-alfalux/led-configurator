@@ -79,11 +79,11 @@ describe("selectDrivers — 220Vac — 500mA (26W)", () => {
     expect(drivers[0].quantity).toBe(3); // 3 barras = 3x CERTADRIVE
   });
 
-  it("4 barras → OSRAM IT FIT 75W 500mA (lógica v01: 4-6 barras = OSRAM, qty=1)", () => {
+  it("4 barras → CERTADRIVE qty=3 (nova lógica: 3.3-4.0 = ×3 Certadrive)", () => {
     const drivers = selectDrivers(4, 26, "220Vac");
-    expect(drivers[0].model).toContain("OSRAM");
+    expect(drivers[0].model).toContain("CERTADRIVE");
     expect(drivers[0].current).toBe("500mA");
-    expect(drivers[0].quantity).toBe(1);
+    expect(drivers[0].quantity).toBe(3);
   });
 });
 
@@ -1415,10 +1415,10 @@ describe("v01 — 26W 220V: CERTADRIVE 1-3 barras, OSRAM 4-6 barras", () => {
     expect(r.code).toBe("EQ00353");
     expect(r.quantity).toBe(3);
   });
-  it("4 barras → OSRAM qty=1", () => {
+  it("4 barras → CERTADRIVE qty=3 (3.3-4.0 = ×3 Certadrive)", () => {
     const r = selectDriverFallback(4, 26, "220Vac", "STRIPFLEX");
-    expect(r.code).toBe("EQ00220");
-    expect(r.quantity).toBe(1);
+    expect(r.code).toBe("EQ00353");
+    expect(r.quantity).toBe(3);
   });
   it("5 barras → OSRAM qty=1", () => {
     const r = selectDriverFallback(5, 26, "220Vac", "STRIPFLEX");
@@ -1432,21 +1432,45 @@ describe("v01 — 26W 220V: CERTADRIVE 1-3 barras, OSRAM 4-6 barras", () => {
   });
 });
 
-describe("v01 — 26W: medidas quebradas (Math.ceil para faixa)", () => {
-  it("1.1 barras → ceil=2 → CERTADRIVE qty=2", () => {
+describe("v2.8 — 26W: medidas quebradas (lógica oficial)", () => {
+  it("1.1 barras → 1.1 ≤ 1.6 → CERTADRIVE qty=1", () => {
     const r = selectDriverFallback(1.1, 26, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00353");
+    expect(r.quantity).toBe(1);
+  });
+  it("1.6 barras → 1.6 ≤ 1.6 → CERTADRIVE qty=1", () => {
+    const r = selectDriverFallback(1.6, 26, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00353");
+    expect(r.quantity).toBe(1);
+  });
+  it("1.7 barras → NÃO EXISTE → OSRAM (fallback segurança)", () => {
+    const r = selectDriverFallback(1.7, 26, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00220"); // placeholder de segurança
+  });
+  it("1.9 barras → 1.9 < 3.0 → CERTADRIVE qty=2", () => {
+    const r = selectDriverFallback(1.9, 26, "220Vac", "STRIPFLEX");
     expect(r.code).toBe("EQ00353");
     expect(r.quantity).toBe(2);
   });
-  it("2.5 barras → ceil=3 → CERTADRIVE qty=3", () => {
+  it("2.5 barras → 2.5 < 3.0 → CERTADRIVE qty=2", () => {
     const r = selectDriverFallback(2.5, 26, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00353");
+    expect(r.quantity).toBe(2);
+  });
+  it("3.0 barras → 3.0 ≤ 3.2 → CERTADRIVE qty=3", () => {
+    const r = selectDriverFallback(3.0, 26, "220Vac", "STRIPFLEX");
     expect(r.code).toBe("EQ00353");
     expect(r.quantity).toBe(3);
   });
-  it("3.1 barras → ceil=4 → OSRAM qty=1", () => {
+  it("3.1 barras → 3.1 ≤ 3.2 → CERTADRIVE qty=3", () => {
     const r = selectDriverFallback(3.1, 26, "220Vac", "STRIPFLEX");
-    expect(r.code).toBe("EQ00220");
-    expect(r.quantity).toBe(1);
+    expect(r.code).toBe("EQ00353");
+    expect(r.quantity).toBe(3);
+  });
+  it("3.5 barras → 3.5 ≤ 4.0 → CERTADRIVE qty=3", () => {
+    const r = selectDriverFallback(3.5, 26, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00353");
+    expect(r.quantity).toBe(3);
   });
   it("4.9 barras → ceil=5 → OSRAM qty=1", () => {
     const r = selectDriverFallback(4.9, 26, "220Vac", "STRIPFLEX");

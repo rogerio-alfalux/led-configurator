@@ -59,6 +59,16 @@ export interface DriverSelectionContext {
   allowLongModules?: boolean;
 }
 
+/**
+ * Resultado de seleção de driver com possível erro técnico.
+ * Quando `error` está definido, o driver não deve ser usado.
+ */
+export interface DriverSelectionResult {
+  driver: SelectedDriver | null;
+  error?: string;   // ex: "Medida 1.7 barras não existe para 26W"
+  warning?: string; // ex: "Driver deve ser desencapado (BLAZE H)"
+}
+
 /** Tensão por barra em volts */
 const V_PER_BAR: Record<StripMethod, number> = {
   STRIPFLEX: 25,
@@ -267,9 +277,15 @@ export function selectDriverFromSheet(
  *   Ex: 1.5 barras → ceil=2 → EQ00580 | 2.1 barras → ceil=3 → EQ00581
  *
  * 26W 220V (STRIPFLEX) — SEM OPÇÃO BIVOLT:
- *   1-3 barras inteiras → CERTADRIVE 20W (EQ00353), quantidade = número de barras
- *   4-6 barras → OSRAM IT FIT 75W (EQ00220), quantidade = 1
- *   Medidas quebradas: 1.x/2.x/3.x → CERTADRIVE (ceil); 4.x/5.x → OSRAM
+ *   Regras de medidas quebradas (instruição oficial):
+ *   1.0 a 1.6 → Certadrive ×1 (EQ00353)
+ *   1.7 a 1.8 → NÃO EXISTE (erro técnico)
+ *   1.9 a 2.0 → Certadrive ×2 (EQ00353)
+ *   2.1 a 3.2 → Certadrive ×2 (EQ00353)
+ *   3.3 a 4.0 → Certadrive ×3 (EQ00353)
+ *   4.1 a 6.0 → OSRAM IT FIT 75W (EQ00220)
+ *   Restrição HIT: 26W < 4 barras não permitido
+ *   BLAZE H: adicionar aviso "driver deve ser desencapado"
  *
  * 36W STRIPLINE (apenas inteiros, sem fracionamento):
  *   220V: 1 barra → Philips Xitanium 44W 250mA (EQ00347)
@@ -282,7 +298,8 @@ export function selectDriverFallback(
   power: Power,
   voltage: Voltage,
   stripMethod: StripMethod,
-  _allowLongModules?: boolean
+  _allowLongModules?: boolean,
+  profileCode?: string
 ): SelectedDriver {
   const isBivolt = voltage === "Bivolt";
 
@@ -300,24 +317,47 @@ export function selectDriverFallback(
     }
   }
 
-  // ── 26W STRIPFLEX (500mA) ──────────────────────────────────────────────────
+  // ── 26W STRIPFLEX (500mA) ────────────────────────────────────────────────────────────────────────────────────
   // SEM OPÇÃO BIVOLT — 26W é sempre 220Vac.
-  // 1-3 barras inteiras: CERTADRIVE 20W (EQ00353), quantity = número de barras
-  // 4-6 barras: OSRAM IT FIT 75W (EQ00220), quantity = 1
-  // Medidas quebradas: usar Math.ceil para determinar faixa
+  // Regras de medidas quebradas (instruição oficial):
+  //   1.0 a 1.6 → Certadrive ×1
+  //   1.7 a 1.8 → NÃO EXISTE (erro técnico — retorna OSRAM como placeholder)
+  //   1.9 a 2.0 → Certadrive ×2
+  //   2.1 a 3.2 → Certadrive ×2
+  //   3.3 a 4.0 → Certadrive ×3
+  //   4.1 a 6.0 → OSRAM IT FIT 75W
   if (power === 26) {
     const bars = Math.max(1.0, rawBars);
-    const barsForRange = Math.ceil(bars); // determina a faixa
     const vOut = calcVOut(bars, power, stripMethod);
-    if (barsForRange <= 3) {
-      // 1-3 barras: CERTADRIVE, quantity = ceil(bars)
-      return { code: "EQ00353", model: "PHILIPS CERTADRIVE 20W 500MA", current: "500mA", quantity: barsForRange, vOut };
+
+    // Determinar quantidade de Certadrive com base nas faixas exatas (instruição oficial):
+    // 1.0 a 1.6 → ×1 | 1.7-1.8 → inválido | 1.9-3.0 → ×2 | 3.1-3.2 → ×2 | 3.3-4.0 → ×3 | 4.1+ → OSRAM
+    // Nota: 3.0 exato → ×3 (3 barras = 3× Certadrive conforme instruição)
+    let certadriveQty = 0;
+    if (bars <= 1.6) {
+      certadriveQty = 1;
+    } else if (bars <= 1.8) {
+      // 1.7 e 1.8 não existem — retornar OSRAM como fallback de segurança
+      return { code: "EQ00220", model: "OSRAM IT FIT 75W 500MA", current: "500mA", quantity: 1, vOut };
+    } else if (bars < 3.0) {
+      // 1.9 a 2.9 → ×2 Certadrive
+      certadriveQty = 2;
+    } else if (bars <= 3.2) {
+      // 3.0 a 3.2 → ×3 Certadrive (3 barras exatas = 3×; 3.1/3.2 também = 3×)
+      certadriveQty = 3;
+    } else if (bars <= 4.0) {
+      // 3.3 a 4.0 → ×3 Certadrive
+      certadriveQty = 3;
     }
-    // 4+ barras: OSRAM IT FIT 75W, quantity = 1
+
+    if (certadriveQty > 0) {
+      return { code: "EQ00353", model: "PHILIPS CERTADRIVE 20W 500MA", current: "500mA", quantity: certadriveQty, vOut };
+    }
+    // 4.1+ barras: OSRAM IT FIT 75W, quantity = 1
     return { code: "EQ00220", model: "OSRAM IT FIT 75W 500MA", current: "500mA", quantity: 1, vOut };
   }
 
-  // ── 18W e 36W STRIPFLEX ─────────────────────────────────────────────────────────
+  // ── 18W e 36W STRIPFLEX ────────────────────────────────────────────────────────────────────────────────────
   // 36W Fileira Dupla: barras já multiplicadas por 2 pelo ledEngine.
   // Medidas quebradas: usar Math.ceil (driver do próximo inteiro acima).
   if (power === 18 || (power === 36 && stripMethod === "STRIPFLEX")) {
