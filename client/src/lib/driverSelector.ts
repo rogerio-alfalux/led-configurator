@@ -249,90 +249,91 @@ export function selectDriverFromSheet(
 }
 
 /**
- * Lógica definitiva v00 (23/04/2026) de seleção de drivers por faixa de barras.
- * Esta função é a fonte de verdade — a planilha Google Sheets está desabilitada por enquanto.
+ * INSTRUÇÃO TÉCNICA DE CONFIGURAÇÃO: LOGÍSTICA DE DRIVERS ALFALUX (V.01)
  *
- * PARA PERFIS COM 18W 220V (STRIPFLEX):
- *   1-2 barras → PHILIPS XITANIUM 19W 350mA (EQ00346)
- *   3-5 barras → PHILIPS XITANIUM 44W 350mA (EQ00347)
- *   6-7 barras → PHILIPS XITANIUM 65W 350mA (EQ00393)
+ * CENÁRIO 01 — REDE 220V (Philips Xitanium) para 18W e 36W Fileira Dupla:
+ *   01-02 barras → Philips Xitanium 19W 350mA (EQ00346)
+ *   03-05 barras → Philips Xitanium 44W 350mA (EQ00347)
+ *   06-07 barras → Philips Xitanium 65W 350mA (EQ00393)
+ *   TRAVA: 65W (EQ00393) NUNCA para 5 barras ou menos.
  *
- * PARA PERFIS COM 18W BIVOLT (STRIPFLEX):
- *   1-2 barras → LIFUD 20W 350mA LF-FMR020YS0350U(S) (EQ00580)
- *   3-4 barras → LIFUD 40W 350mA LF-FMR040YS0350U(S) (EQ00581)
- *   5-6 barras → LIFUD 60W 350mA LF-FMR060YS0350U(S) (EQ00582)
+ * CENÁRIO 02 — REDE BIVOLT (Lifud) para 18W:
+ *   01-02 barras → Lifud 20W 350mA (EQ00580)
+ *   03-04 barras → Lifud 40W 350mA (EQ00581)
+ *   05-06 barras → Lifud 60W 350mA (EQ00582)
  *
- * PARA PERFIS COM 36W 220V STRIPFLEX DUPLA:
- *   Mesma lógica do 18W 220V (barras físicas lado a lado, mesmo comprimento de perfil)
- *   1-2 barras → EQ00346, 3-5 → EQ00347, 6-7 → EQ00393
+ * CENÁRIO 03 — BARRA STRIPLINE (36W), barras inteiras (arredondar para inteiro superior):
+ *   220V: 0.5-1 barra → Philips Xitanium 44W 250mA (EQ00347)
+ *         1.1-2 barras → Philips Xitanium 65W 250mA (EQ00393)
+ *   BIVOLT: 0.5-1 barra → Lifud 40W 250mA (EQ00581)
+ *           1.1-2 barras → Lifud 60W 250mA (EQ00582)
  *
- * PARA PERFIS COM 36W 220V STRIPLINE (barras inteiras apenas):
- *   0-1 barra → PHILIPS XITANIUM 44W 350mA (EQ00347)
- *   1-2 barras → PHILIPS XITANIUM 65W 350mA (EQ00393)
- *
- * PARA PERFIS COM 36W BIVOLT STRIPLINE (barras inteiras apenas):
- *   0-1 barra → LIFUD 40W 250mA LF-FMR040YS0350U(S) (EQ00581)
- *   1-2 barras → LIFUD 60W 250mA LF-FMR060YS0350U(S) (EQ00582)
- *
- * PARA PERFIS COM 26W 220V:
- *   OSRAM IT FIT 75W 500mA (EQ00220) — driver único para 26W
- *   Exceção: CERTADRIVE 20W (EQ00353) para 1 barra em embutir/remoto
+ * PROTOCOLO DE CÁLCULO:
+ *   36W Fileira Dupla: conta barras do perfil 18W × 2
+ *   Stripline: arredonda para inteiro superior (Math.ceil)
  */
 export function selectDriverFallback(
   totalBars: number,
   power: Power,
   voltage: Voltage,
   stripMethod: StripMethod,
-  allowLongModules?: boolean
+  _allowLongModules?: boolean
 ): SelectedDriver {
-  const vOut = calcVOut(totalBars, power, stripMethod);
   const isBivolt = voltage === "Bivolt";
 
-  // ── 36W STRIPLINE ──────────────────────────────────────────────────────────
-  // Barras inteiras apenas. Vout por barra: ~75V (Stripline 562,5 × 15mm 105L)
+  // ── CENÁRIO 03: 36W STRIPLINE ──────────────────────────────────────────────
+  // RESTRÇÃO: apenas números INTEIROS de barras (arredondamento para inteiro superior).
+  // Vout por barra Stripline: ~75V (562,5 × 15mm 105L)
   if (power === 36 && stripMethod === "STRIPLINE") {
+    // Arredondar para inteiro superior (proibido fracionamento)
+    const bars = Math.ceil(totalBars);
+    const vOut = calcVOut(bars, power, stripMethod);
     if (isBivolt) {
-      // 0-1 barra (0-75V): LIFUD 40W 250mA (EQ00581)
-      // 1-2 barras (75-150V): LIFUD 60W 250mA (EQ00582)
-      if (totalBars <= 1) return { code: "EQ00581", model: "LIFUD 40W 250MA LF-FMR040YS0350U(S)", current: "250mA", quantity: 1, vOut };
+      // 0.5-1 barra (ceil=1): Lifud 40W 250mA (EQ00581)
+      // 1.1-2 barras (ceil=2): Lifud 60W 250mA (EQ00582)
+      if (bars <= 1) return { code: "EQ00581", model: "LIFUD 40W 250MA LF-FMR040YS0350U(S)", current: "250mA", quantity: 1, vOut };
       return { code: "EQ00582", model: "LIFUD 60W 250MA LF-FMR060YS0350U(S)", current: "250mA", quantity: 1, vOut };
     } else {
-      // 0-1 barra (0-75V): PHILIPS XITANIUM 44W 350mA (EQ00347)
-      // 1-2 barras (75-150V): PHILIPS XITANIUM 65W 350mA (EQ00393)
-      if (totalBars <= 1) return { code: "EQ00347", model: "PHILIPS XITANIUM 44W 350MA", current: "350mA", quantity: 1, vOut };
-      return { code: "EQ00393", model: "PHILIPS XITANIUM 65W 350MA", current: "350mA", quantity: 1, vOut };
+      // 0.5-1 barra (ceil=1): Philips Xitanium 44W 250mA (EQ00347)
+      // 1.1-2 barras (ceil=2): Philips Xitanium 65W 250mA (EQ00393)
+      if (bars <= 1) return { code: "EQ00347", model: "PHILIPS XITANIUM 44W 250MA", current: "250mA", quantity: 1, vOut };
+      return { code: "EQ00393", model: "PHILIPS XITANIUM 65W 250MA", current: "250mA", quantity: 1, vOut };
     }
   }
 
-  // ── 18W e 36W STRIPFLEX (350mA) ────────────────────────────────────────────
-  // Para 36W Stripflex dupla: barras físicas lado a lado (mesmo comprimento do 18W).
-  // A lógica de seleção usa as barras físicas diretamente (não divide por 2),
-  // pois as barras estão em paralelo e a Vout por seção é a mesma do 18W (25V/barra).
+  // ── CENÁRIO 01 e 02: 18W e 36W STRIPFLEX ─────────────────────────────────────
+  // 36W Fileira Dupla: barras físicas lado a lado (mesmo comprimento do 18W).
+  // A contagem de barras já vem multiplicada por 2 pelo ledEngine (protocolo v.01).
   if (power === 18 || (power === 36 && stripMethod === "STRIPFLEX")) {
+    const vOut = calcVOut(totalBars, power, stripMethod);
     if (isBivolt) {
-      // 1-2 barras: LIFUD 20W 350mA (EQ00580)
-      // 3-4 barras: LIFUD 40W 350mA (EQ00581)
-      // 5-6 barras: LIFUD 60W 350mA (EQ00582)
+      // CENÁRIO 02 — Bivolt Lifud:
+      // 01-02 barras → Lifud 20W 350mA (EQ00580)
+      // 03-04 barras → Lifud 40W 350mA (EQ00581)
+      // 05-06 barras → Lifud 60W 350mA (EQ00582)
       if (totalBars <= 2) return { code: "EQ00580", model: "LIFUD 20W 350MA LF-FMR020YS0350U(S)", current: "350mA", quantity: 1, vOut };
       if (totalBars <= 4) return { code: "EQ00581", model: "LIFUD 40W 350MA LF-FMR040YS0350U(S)", current: "350mA", quantity: 1, vOut };
       return { code: "EQ00582", model: "LIFUD 60W 350MA LF-FMR060YS0350U(S)", current: "350mA", quantity: 1, vOut };
     } else {
-      // 1-2 barras: PHILIPS XITANIUM 19W 350mA (EQ00346)
-      // 3-5 barras: PHILIPS XITANIUM 44W 350mA (EQ00347)
-      // 6-7 barras: PHILIPS XITANIUM 65W 350mA (EQ00393)
+      // CENÁRIO 01 — 220V Philips Xitanium:
+      // 01-02 barras → Philips Xitanium 19W 350mA (EQ00346)
+      // 03-05 barras → Philips Xitanium 44W 350mA (EQ00347)
+      // 06-07 barras → Philips Xitanium 65W 350mA (EQ00393)
+      // TRAVA DE SEGURANÇA: 65W (EQ00393) NUNCA para 5 barras ou menos.
       if (totalBars <= 2) return { code: "EQ00346", model: "PHILIPS XITANIUM 19W 350MA", current: "350mA", quantity: 1, vOut };
-      if (totalBars <= 5) return { code: "EQ00347", model: "PHILIPS XITANIUM 44W 350MA", current: "350mA", quantity: 1, vOut };
+      if (totalBars <= 5) return { code: "EQ00347", model: "PHILIPS XITANIUM 44W 350MA", current: "350mA", quantity: 1, vOut }; // TRAVA: nunca 65W para ≤5 barras
       return { code: "EQ00393", model: "PHILIPS XITANIUM 65W 350MA", current: "350mA", quantity: 1, vOut };
     }
   }
 
   // ── 26W STRIPFLEX (500mA) ──────────────────────────────────────────────────
   // OSRAM IT FIT 75W é o driver principal para 26W/500mA 220V
-  // CERTADRIVE 20W é alternativa para 1 barra em perfis de embutir/remoto
+  // CERTADRIVE 20W é alternativa para 1 barra (25V ≤ 42V)
+  const vOut26 = calcVOut(totalBars, power, stripMethod);
   if (isBivolt) {
-    return { code: "EQ00220", model: "OSRAM IT FIT 75W 500MA", current: "500mA", quantity: 1, vOut };
+    return { code: "EQ00220", model: "OSRAM IT FIT 75W 500MA", current: "500mA", quantity: 1, vOut: vOut26 };
   } else {
-    if (vOut <= 42) return { code: "EQ00353", model: "PHILIPS CERTADRIVE 20W 500MA", current: "500mA", quantity: 1, vOut };
-    return { code: "EQ00220", model: "OSRAM IT FIT 75W 500MA", current: "500mA", quantity: 1, vOut };
+    if (vOut26 <= 42) return { code: "EQ00353", model: "PHILIPS CERTADRIVE 20W 500MA", current: "500mA", quantity: 1, vOut: vOut26 };
+    return { code: "EQ00220", model: "OSRAM IT FIT 75W 500MA", current: "500mA", quantity: 1, vOut: vOut26 };
   }
 }

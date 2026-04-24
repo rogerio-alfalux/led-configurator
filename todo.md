@@ -109,3 +109,11 @@
 - [x] 36W Bivolt STRIPLINE: 0-1=EQ00581, 1-2=EQ00582 (barras inteiras apenas)
 - [x] Garantir STRIPLINE só aceita barras inteiras
 - [x] Atualizar testes para cobrir todos os casos v00
+
+## v2.3 — Instrução Técnica Alfalux v.01
+- [x] Atualizar selectDriverFallback: 18W/36W Dupla 220V: 1-2→EQ00346, 3-5→EQ00347, 6-7→EQ00393 (trava: 65W nunca para ≤5 barras)
+- [x] Atualizar selectDriverFallback: 18W Bivolt: 1-2→EQ00580, 3-4→EQ00581, 5-6→EQ00582
+- [x] Atualizar selectDriverFallback: Stripline 220V: ≤1→EQ00347 250mA, >1→EQ00393 250mA (inteiro superior)
+- [x] Atualizar selectDriverFallback: Stripline Bivolt: ≤1→EQ00581 250mA, >1→EQ00582 250mA (inteiro superior)
+- [x] Garantir arredondamento para inteiro superior em Stripline
+- [x] Atualizar testes para cobrir todos os cenários v.01

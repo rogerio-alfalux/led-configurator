@@ -1173,18 +1173,18 @@ describe("Lógica v00 — 36W 220V STRIPFLEX dupla (mesma lógica do 18W 220V)",
   });
 });
 
-describe("Lógica v00 — 36W 220V STRIPLINE (barras inteiras)", () => {
-  it("1 barra → EQ00347 PHILIPS XITANIUM 44W 350mA", () => {
+describe("Lógica v.01 — 36W 220V STRIPLINE (barras inteiras, 250mA)", () => {
+  it("1 barra → EQ00347 PHILIPS XITANIUM 44W 250mA (Cenário 03)", () => {
     const r = selectDriverFallback(1, 36, "220Vac", "STRIPLINE");
     expect(r.code).toBe("EQ00347");
     expect(r.model).toContain("44W");
-    expect(r.current).toBe("350mA");
+    expect(r.current).toBe("250mA"); // Stripline usa 250mA (v.01)
   });
-  it("2 barras → EQ00393 PHILIPS XITANIUM 65W 350mA", () => {
+  it("2 barras → EQ00393 PHILIPS XITANIUM 65W 250mA (Cenário 03)", () => {
     const r = selectDriverFallback(2, 36, "220Vac", "STRIPLINE");
     expect(r.code).toBe("EQ00393");
     expect(r.model).toContain("65W");
-    expect(r.current).toBe("350mA");
+    expect(r.current).toBe("250mA"); // Stripline usa 250mA (v.01)
   });
 });
 
@@ -1200,5 +1200,105 @@ describe("Lógica v00 — 36W Bivolt STRIPLINE (barras inteiras)", () => {
     expect(r.code).toBe("EQ00582");
     expect(r.model).toContain("60W");
     expect(r.current).toBe("250mA");
+  });
+});
+
+// ─── Testes v2.3 — Instrução Técnica Alfalux v.01 ────────────────────────────
+
+describe("v.01 — TRAVA DE SEGURANÇA: 65W nunca para ≤5 barras (Cenário 01)", () => {
+  it("5 barras 18W 220V → EQ00347 44W (TRAVA: 65W proibido para ≤5)", () => {
+    const r = selectDriverFallback(5, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00347");
+    expect(r.model).not.toContain("65W");
+    expect(r.model).toContain("44W");
+  });
+  it("5 barras 36W 220V STRIPFLEX → EQ00347 44W (TRAVA: 65W proibido para ≤5)", () => {
+    const r = selectDriverFallback(5, 36, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00347");
+    expect(r.model).not.toContain("65W");
+  });
+  it("6 barras 18W 220V → EQ00393 65W (primeiro caso válido para 65W)", () => {
+    const r = selectDriverFallback(6, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00393");
+    expect(r.model).toContain("65W");
+  });
+  it("4 barras 18W 220V → EQ00347 44W (TRAVA: 65W proibido para ≤5)", () => {
+    const r = selectDriverFallback(4, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00347");
+    expect(r.model).not.toContain("65W");
+  });
+});
+
+describe("v.01 — Stripline: arredondamento para inteiro superior (Cenário 03)", () => {
+  it("1.5 barras Stripline 220V → ceil(1.5)=2 → EQ00393 65W 250mA", () => {
+    const r = selectDriverFallback(1.5, 36, "220Vac", "STRIPLINE");
+    expect(r.code).toBe("EQ00393");
+    expect(r.model).toContain("65W");
+    expect(r.current).toBe("250mA");
+  });
+  it("0.5 barras Stripline 220V → ceil(0.5)=1 → EQ00347 44W 250mA", () => {
+    const r = selectDriverFallback(0.5, 36, "220Vac", "STRIPLINE");
+    expect(r.code).toBe("EQ00347");
+    expect(r.model).toContain("44W");
+    expect(r.current).toBe("250mA");
+  });
+  it("1.1 barras Stripline 220V → ceil(1.1)=2 → EQ00393 65W 250mA", () => {
+    const r = selectDriverFallback(1.1, 36, "220Vac", "STRIPLINE");
+    expect(r.code).toBe("EQ00393");
+    expect(r.current).toBe("250mA");
+  });
+  it("1.5 barras Stripline Bivolt → ceil(1.5)=2 → EQ00582 LIFUD 60W 250mA", () => {
+    const r = selectDriverFallback(1.5, 36, "Bivolt", "STRIPLINE");
+    expect(r.code).toBe("EQ00582");
+    expect(r.model).toContain("60W");
+    expect(r.current).toBe("250mA");
+  });
+  it("0.5 barras Stripline Bivolt → ceil(0.5)=1 → EQ00581 LIFUD 40W 250mA", () => {
+    const r = selectDriverFallback(0.5, 36, "Bivolt", "STRIPLINE");
+    expect(r.code).toBe("EQ00581");
+    expect(r.model).toContain("40W");
+    expect(r.current).toBe("250mA");
+  });
+});
+
+describe("v.01 — Cenário 01: matriz completa 220V STRIPFLEX", () => {
+  it("1 barra → EQ00346 19W (limite inferior)", () => {
+    expect(selectDriverFallback(1, 18, "220Vac", "STRIPFLEX").code).toBe("EQ00346");
+  });
+  it("2 barras → EQ00346 19W (limite superior do 19W)", () => {
+    expect(selectDriverFallback(2, 18, "220Vac", "STRIPFLEX").code).toBe("EQ00346");
+  });
+  it("3 barras → EQ00347 44W (início da faixa 44W)", () => {
+    expect(selectDriverFallback(3, 18, "220Vac", "STRIPFLEX").code).toBe("EQ00347");
+  });
+  it("5 barras → EQ00347 44W (limite superior do 44W, trava 65W)", () => {
+    expect(selectDriverFallback(5, 18, "220Vac", "STRIPFLEX").code).toBe("EQ00347");
+  });
+  it("6 barras → EQ00393 65W (início da faixa 65W)", () => {
+    expect(selectDriverFallback(6, 18, "220Vac", "STRIPFLEX").code).toBe("EQ00393");
+  });
+  it("7 barras → EQ00393 65W (limite superior do 65W)", () => {
+    expect(selectDriverFallback(7, 18, "220Vac", "STRIPFLEX").code).toBe("EQ00393");
+  });
+});
+
+describe("v.01 — Cenário 02: matriz completa Bivolt STRIPFLEX", () => {
+  it("1 barra → EQ00580 LIFUD 20W", () => {
+    expect(selectDriverFallback(1, 18, "Bivolt", "STRIPFLEX").code).toBe("EQ00580");
+  });
+  it("2 barras → EQ00580 LIFUD 20W (limite superior)", () => {
+    expect(selectDriverFallback(2, 18, "Bivolt", "STRIPFLEX").code).toBe("EQ00580");
+  });
+  it("3 barras → EQ00581 LIFUD 40W", () => {
+    expect(selectDriverFallback(3, 18, "Bivolt", "STRIPFLEX").code).toBe("EQ00581");
+  });
+  it("4 barras → EQ00581 LIFUD 40W (limite superior)", () => {
+    expect(selectDriverFallback(4, 18, "Bivolt", "STRIPFLEX").code).toBe("EQ00581");
+  });
+  it("5 barras → EQ00582 LIFUD 60W", () => {
+    expect(selectDriverFallback(5, 18, "Bivolt", "STRIPFLEX").code).toBe("EQ00582");
+  });
+  it("6 barras → EQ00582 LIFUD 60W (limite superior)", () => {
+    expect(selectDriverFallback(6, 18, "Bivolt", "STRIPFLEX").code).toBe("EQ00582");
   });
 });
