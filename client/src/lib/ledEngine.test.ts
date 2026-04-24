@@ -1657,3 +1657,141 @@ describe("v3.0 --- Driver por peca/SKU individual (regra definitiva)", () => {
     });
   });
 });
+
+// --- Testes v3.1 --- Regra de Otimizacao de Modulos (Prioridade Absoluta) ---
+
+describe("v3.1 --- Regra de Otimizacao de Modulos: menor quantidade vence sempre", () => {
+  // Regra fundamental: solucao com MENOS modulos SEMPRE vence,
+  // mesmo que a diferenca de comprimento seja maior.
+  //
+  // Para LLP-4251 com 4000mm:
+  //   - 2x IF 1885mm = 3770mm (2 modulos) <- VENCEDOR (mais proximo com 2 modulos)
+  //   - 2x IF 1700mm = 3400mm (2 modulos) <- tambem valido mas menos proximo
+  //   - 2x IF 1135mm + 1x ML 1695mm = 3965mm (3 modulos) <- DESCARTADO (mais modulos)
+  it("4000mm LLP-4251 18W -> 2 modulos (2x IF), NAO 3 modulos (2x IF + 1x ML)", () => {
+    const result = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1",
+      powerD1: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 4000,
+      allowLongModules: false,
+      stripMethod: "STRIPFLEX",
+      independentLighting: false,
+    });
+    // Deve ter exatamente 2 modulos (2x IF) - nao 3 modulos
+    const totalModules = result.composition.reduce((sum, item) => sum + item.quantity, 0);
+    expect(totalModules).toBe(2);
+    // Comprimento realizado deve ser 3770mm (2x IF 1885mm - o maior IF que cabe em 4000mm/2)
+    expect(result.realizedLength).toBe(3770);
+    // Todos os modulos devem ser IF
+    result.composition.forEach(item => {
+      expect(item.moduleType).toBe("IF");
+    });
+  });
+
+  it("Solucao com 2 modulos vence mesmo com diferenca de comprimento maior", () => {
+    // 4000mm: 2x IF 1885 = 3770mm (diferenca 230mm, 2 modulos) <- VENCE
+    // vs 2x IF 1135 + 1x ML 1695 = 3965mm (diferenca 35mm, 3 modulos) <- PERDE
+    // A solucao com 2 modulos DEVE vencer independente da diferenca de comprimento
+    const result = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1",
+      powerD1: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 4000,
+      allowLongModules: false,
+      stripMethod: "STRIPFLEX",
+      independentLighting: false,
+    });
+    const totalModules = result.composition.reduce((sum, item) => sum + item.quantity, 0);
+    // Deve usar no maximo 2 modulos (nunca 3 quando existe solucao de 2)
+    expect(totalModules).toBeLessThanOrEqual(2);
+  });
+
+  it("Nao ultrapassar comprimento solicitado e minimizar modulos", () => {
+    // Para qualquer comprimento, a composicao nao pode ultrapassar o solicitado
+    const testLengths = [2000, 3000, 4000, 5000, 6000];
+    for (const length of testLengths) {
+      const result = calculateComposition({
+        profileCode: "LLP-4251",
+        application: "D1",
+        powerD1: 18,
+        cct: "4000K",
+        voltage: "220Vac",
+        totalLength: length,
+        allowLongModules: false,
+        stripMethod: "STRIPFLEX",
+        independentLighting: false,
+      });
+      expect(result.realizedLength).toBeLessThanOrEqual(length);
+    }
+  });
+
+  it("IF iguais nas pontas quando usa IF+ML", () => {
+    // Quando usa IF+ML, os 2 IFs das pontas devem ser iguais (mesmo SKU)
+    const result = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1",
+      powerD1: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 7000,
+      allowLongModules: false,
+      stripMethod: "STRIPFLEX",
+      independentLighting: false,
+    });
+    // Filtrar apenas modulos IF
+    const ifItems = result.composition.filter(item => item.moduleType === "IF");
+    if (ifItems.length > 0) {
+      // Todos os IFs devem ter o mesmo SKU (IFs iguais nas pontas)
+      const ifSkus = ifItems.map(item => item.sku);
+      expect(new Set(ifSkus).size).toBe(1);
+    }
+  });
+
+  it("2x IF sem ML quando 2x IF cabe exato no comprimento", () => {
+    // 3770mm: 2x IF 1885mm = 3770mm exato -> deve usar 2x IF sem ML (2 modulos)
+    const result = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1",
+      powerD1: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 3770,
+      allowLongModules: false,
+      stripMethod: "STRIPFLEX",
+      independentLighting: false,
+    });
+    const totalModules = result.composition.reduce((sum, item) => sum + item.quantity, 0);
+    expect(totalModules).toBe(2);
+    expect(result.realizedLength).toBe(3770);
+  });
+
+  it("Prioridade absoluta: 2 modulos sempre vence sobre 3 modulos mais proximos", () => {
+    // Para varios comprimentos, verificar que nunca usa 3 modulos quando 2 sao possiveis
+    const testCases = [
+      { length: 3500, maxModules: 2 },  // 2x IF 1760 = 3520 > 3500, entao 2x IF 1700 = 3400 (2 mod)
+      { length: 4000, maxModules: 2 },  // 2x IF 1885 = 3770 (2 mod)
+      { length: 4500, maxModules: 2 },  // 2x IF 2200 = 4400 (2 mod)
+    ];
+    for (const tc of testCases) {
+      const result = calculateComposition({
+        profileCode: "LLP-4251",
+        application: "D1",
+        powerD1: 18,
+        cct: "4000K",
+        voltage: "220Vac",
+        totalLength: tc.length,
+        allowLongModules: false,
+        stripMethod: "STRIPFLEX",
+        independentLighting: false,
+      });
+      const totalModules = result.composition.reduce((sum, item) => sum + item.quantity, 0);
+      expect(totalModules).toBeLessThanOrEqual(tc.maxModules);
+      expect(result.realizedLength).toBeLessThanOrEqual(tc.length);
+    }
+  });
+});

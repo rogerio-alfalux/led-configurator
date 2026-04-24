@@ -328,8 +328,21 @@ function tryInSingle(
   return { composition, realizedLength, remainingLength };
 }
 
-// ─── Estratégia 2: IF + ML para linhas longas ─────────────────────────────────
+// ─── Estratégia 2: IF + ML para linhas longas ────────────────────────────────
 
+/**
+ * Regra de otimização de módulos (Prompt Definitivo v3.1):
+ * Ordem de prioridade absoluta:
+ *   1. Não ultrapassar o comprimento solicitado
+ *   2. Minimizar a quantidade total de módulos (SKU) — prioridade absoluta
+ *   3. Entre as soluções com menor número de módulos, escolher a mais próxima da medida
+ *   4. Minimizar variedade de SKUs
+ *   5. Manter IF iguais nas pontas
+ *
+ * Para linhas até 6000mm: SEMPRE testar primeiro 2x IF sem ML.
+ * Somente usar ML se não existir solução válida com 2x IF.
+ * Uma solução com menos módulos SEMPRE vence, mesmo com maior diferença de comprimento.
+ */
 function buildIfMlComposition(
   profileCode: string,
   requestedLength: number,
@@ -353,6 +366,7 @@ function buildIfMlComposition(
     mlItems: RawModule[];
     realizedLength: number;
     moduleCount: number;
+    skuVariety: number;
     balance: number;
   }
 
@@ -364,31 +378,50 @@ function buildIfMlComposition(
 
     const remaining = requestedLength - twoIfLength;
 
-    const mlItems: RawModule[] = [];
-    let rem = remaining;
-    for (const ml of mlModules) {
-      while (rem >= ml.length) {
-        mlItems.push(ml);
-        rem -= ml.length;
-      }
+    // --- Candidato A: 2x IF sem ML (sempre testar primeiro para linhas ≤ 6000mm) ---
+    {
+      const realizedLength = twoIfLength;
+      const moduleCount = 2;
+      const balance = 0; // IFs iguais = desvio zero
+      const skuVariety = 1; // apenas 1 tipo de SKU (IF)
+      candidates.push({ ifMod, mlItems: [], realizedLength, moduleCount, skuVariety, balance });
     }
 
-    const realizedLength = requestedLength - rem;
-    const moduleCount = 2 + mlItems.length;
+    // --- Candidato B: 2x IF + ML (somente se sobrar comprimento) ---
+    if (mlModules.length > 0 && remaining > 0) {
+      const mlItems: RawModule[] = [];
+      let rem = remaining;
+      for (const ml of mlModules) {
+        while (rem >= ml.length) {
+          mlItems.push(ml);
+          rem -= ml.length;
+        }
+      }
 
-    const allLengths = [ifMod.length, ifMod.length, ...mlItems.map(m => m.length)];
-    const mean = allLengths.reduce((s, v) => s + v, 0) / allLengths.length;
-    const balance = Math.sqrt(allLengths.reduce((s, v) => s + (v - mean) ** 2, 0) / allLengths.length);
-
-    candidates.push({ ifMod, mlItems, realizedLength, moduleCount, balance });
+      if (mlItems.length > 0) {
+        const realizedLength = requestedLength - rem;
+        const moduleCount = 2 + mlItems.length;
+        const allLengths = [ifMod.length, ifMod.length, ...mlItems.map(m => m.length)];
+        const mean = allLengths.reduce((s, v) => s + v, 0) / allLengths.length;
+        const balance = Math.sqrt(allLengths.reduce((s, v) => s + (v - mean) ** 2, 0) / allLengths.length);
+        const skuVariety = new Set([ifMod.sku, ...mlItems.map(m => m.sku)]).size;
+        candidates.push({ ifMod, mlItems, realizedLength, moduleCount, skuVariety, balance });
+      }
+    }
   }
 
   if (candidates.length === 0) return null;
 
+  // Ordenação com prioridade absoluta:
+  // 1. Menor número de módulos (prioridade absoluta — regra definitiva v3.1)
+  // 2. Mais próximo do comprimento solicitado (entre candidatos com mesmo moduleCount)
+  // 3. Menor variedade de SKUs
+  // 4. Menor desvio de equilíbrio
   candidates.sort((a, b) => {
     if (a.moduleCount !== b.moduleCount) return a.moduleCount - b.moduleCount;
-    if (Math.abs(a.balance - b.balance) > 1) return a.balance - b.balance;
-    return b.realizedLength - a.realizedLength;
+    if (b.realizedLength !== a.realizedLength) return b.realizedLength - a.realizedLength;
+    if (a.skuVariety !== b.skuVariety) return a.skuVariety - b.skuVariety;
+    return a.balance - b.balance;
   });
 
   const best = candidates[0];

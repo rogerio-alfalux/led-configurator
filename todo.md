@@ -173,3 +173,10 @@
 - [x] Atualizar template de produção: campos "Barras por peça" e "Barras totais"
 - [x] Validação: quantidade de drivers = quantidade de peças × driver por peça
 - [x] Substituir testes v2.9 (circuitos) por testes v3.0 (driver por peça) — 198 testes passando
+
+## v3.1 — Regra de Otimização de Módulos (Prioridade Absoluta)
+- [x] Ordem de decisão: (1) não ultrapassar, (2) minimizar módulos, (3) mais próximo, (4) menos variedade de SKUs, (5) IFs iguais
+- [x] Para linhas até 6000mm: testar SEMPRE 2x IF antes de usar ML
+- [x] Solução com menos módulos vence mesmo que diferença de comprimento seja maior
+- [x] Exemplo: 4000mm → 2x IF 1885mm (3770mm, 2 módulos), NÃO 2x IF 1135 + 1x ML 1695 (3965mm, 3 módulos)
+- [x] Atualizar testes para cobrir a nova ordem de prioridade — 204 testes passando
