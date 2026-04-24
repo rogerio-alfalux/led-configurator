@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
-import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw } from "lucide-react";
+import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,6 +17,7 @@ import {
 } from "@/lib/ledCatalog";
 import type { InstallType } from "@/lib/ledCatalog";
 import { calculateComposition } from "@/lib/ledEngine";
+import { generateProductionTemplate } from "@/lib/productionTemplate";
 import type {
   CompositionResult,
   ConfigInput,
@@ -441,7 +442,72 @@ function ResultBlock({ result }: { result: CompositionResult }) {
           </CardContent>
         </Card>
       )}
+
+      {/* Pedido de Produção — Template para cópia */}
+      <ProductionTemplateCard result={result} />
     </div>
+  );
+}
+
+// ─── Template de Produção ───────────────────────────────────────────────────────
+
+function ProductionTemplateCard({ result }: { result: CompositionResult }) {
+  const [copied, setCopied] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const template = generateProductionTemplate(result);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(template);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // Fallback para browsers sem clipboard API
+      if (textareaRef.current) {
+        textareaRef.current.select();
+        document.execCommand("copy");
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      }
+    }
+  };
+
+  return (
+    <Card className="shadow-sm border-primary/30">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+            <Settings className="w-4 h-4" />
+            Pedido de Produção
+          </CardTitle>
+          <Button
+            size="sm"
+            variant={copied ? "default" : "outline"}
+            onClick={handleCopy}
+            className="gap-1.5 text-xs h-7"
+          >
+            {copied ? (
+              <><ClipboardCheck className="w-3.5 h-3.5" /> Copiado!</>
+            ) : (
+              <><Copy className="w-3.5 h-3.5" /> Copiar Tudo</>
+            )}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <textarea
+          ref={textareaRef}
+          readOnly
+          value={template}
+          className="w-full font-mono text-xs bg-muted/40 border border-border rounded-md p-3 resize-none focus:outline-none focus:ring-1 focus:ring-primary/50 text-foreground leading-relaxed"
+          rows={Math.min(template.split('\n').length + 1, 30)}
+          onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+        />
+        <p className="text-xs text-muted-foreground mt-2">
+          Clique no texto para selecionar ou use o botão “Copiar Tudo” para copiar diretamente para a área de transferência.
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 

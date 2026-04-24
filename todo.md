@@ -143,3 +143,10 @@
 - [x] 18W/36W: medidas quebradas usam driver do proximo inteiro acima (floor+1)
 - [x] Bivolt 18W: medidas quebradas 1.x -> EQ00580, 2.x/3.x -> EQ00581, 4.x/5.x -> EQ00582
 - [x] Atualizar testes para cobrir todos os novos cenarios
+
+## v2.7 — Template de Produção Alfalux v.03
+- [x] Função generateProductionTemplate que gera o bloco de texto formatado
+- [x] Seção "Pedido de Produção" no resultado com textarea e botão copiar
+- [x] Template inclui: dados da luminária, composição técnica por módulo, notas de montagem
+- [x] Exibir quantidade de barras considerando 36W fileira dupla (barras × 2)
+- [x] Exibir divisão de drivers por módulo com código EQ
