@@ -117,7 +117,9 @@ function SkuDriverList({ entries, label }: { entries: SkuDriverEntry[]; label?: 
               <td className="px-3 py-2 text-foreground">
                 <span className="inline-flex items-center gap-1">
                   <Zap className="w-3 h-3 text-primary shrink-0" />
-                  {entry.driver.model}
+                  {entry.driver.quantity > 1 ? (
+                    <><span className="font-bold text-primary">{entry.driver.quantity}×</span> {entry.driver.model}</>
+                  ) : entry.driver.model}
                 </span>
               </td>
               <td className="px-3 py-2">
@@ -396,7 +398,8 @@ function ResultBlock({ result }: { result: CompositionResult }) {
                 const driverMap = new Map<string, number>();
                 for (const e of allEntries) {
                   const key = e.driver.model;
-                  driverMap.set(key, (driverMap.get(key) ?? 0) + e.quantity);
+                  // Multiplica qty de SKUs pela qty de drivers por SKU (ex: 26W CERTADRIVE pode ser 2x ou 3x)
+                  driverMap.set(key, (driverMap.get(key) ?? 0) + e.quantity * (e.driver.quantity ?? 1));
                 }
                 return (
                   <div className="flex flex-wrap gap-2">
