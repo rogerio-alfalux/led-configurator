@@ -160,8 +160,8 @@
 - [x] Medidas quebradas Bivolt: 1.x → 20W; 2.x/3.x → 40W; 4.x/5.x → 60W
 
 ## v2.9 — Divisão obrigatória de circuitos
-- [ ] Implementar regra de divisão: 18W máximo 3 barras por circuito elétrico
-- [ ] Driver dimensionado por circuito (não pelo total bruto de barras)
-- [ ] Exibir circuitos no resultado (ex: "Circuito 1: 3 barras, Circuito 2: 3 barras")
-- [ ] Restaurar CCT no campo Barras do template de produção
-- [ ] Atualizar template de produção para listar circuitos e drivers por circuito
+- [x] Implementar regra de divisão: 18W máximo 3 barras por circuito elétrico
+- [x] Driver dimensionado por circuito (não pelo total bruto de barras)
+- [x] Exibir circuitos no resultado (ex: "Circuito 1: 3 barras, Circuito 2: 3 barras")
+- [x] Restaurar CCT no campo Barras do template de produção
+- [x] Atualizar template de produção para listar circuitos e drivers por circuito

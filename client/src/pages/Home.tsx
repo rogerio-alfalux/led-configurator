@@ -112,24 +112,50 @@ function SkuDriverList({ entries, label }: { entries: SkuDriverEntry[]; label?: 
         </thead>
         <tbody>
           {entries.map((entry, idx) => (
-            <tr key={idx} className="border-t border-border hover:bg-muted/20 transition-colors">
+            <tr key={idx} className="border-t border-border hover:bg-muted/20 transition-colors align-top">
               <td className="px-3 py-2 font-mono text-primary font-medium">{entry.sku}</td>
               <td className="px-3 py-2 text-right text-foreground font-semibold">{entry.quantity}</td>
               <td className="px-3 py-2 text-foreground">
-                <span className="inline-flex items-center gap-1">
-                  <Zap className="w-3 h-3 text-primary shrink-0" />
-                  {entry.driver.quantity > 1 ? (
-                    <><span className="font-bold text-primary">{entry.driver.quantity}×</span> {entry.driver.model}</>
-                  ) : entry.driver.model}
-                </span>
+                {entry.circuits && entry.circuits.length > 1 ? (
+                  <div className="space-y-1">
+                    {entry.circuits.map((c, ci) => (
+                      <div key={ci} className="inline-flex items-center gap-1">
+                        <span className="text-muted-foreground text-[10px] font-mono w-16 shrink-0">Circ. {c.index}:</span>
+                        <Zap className="w-3 h-3 text-primary shrink-0" />
+                        <span className="text-xs">{c.bars} barra{c.bars !== 1 ? 's' : ''} → {c.driver.model}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="inline-flex items-center gap-1">
+                    <Zap className="w-3 h-3 text-primary shrink-0" />
+                    {entry.driver.quantity > 1 ? (
+                      <><span className="font-bold text-primary">{entry.driver.quantity}×</span> {entry.driver.model}</>
+                    ) : entry.driver.model}
+                  </span>
+                )}
               </td>
               <td className="px-3 py-2">
-                {entry.driver.code ? (
-                  <span className="font-mono text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                    {entry.driver.code}
-                  </span>
+                {entry.circuits && entry.circuits.length > 1 ? (
+                  <div className="space-y-1">
+                    {entry.circuits.map((c, ci) => (
+                      <div key={ci}>
+                        {c.driver.code ? (
+                          <span className="font-mono text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                            {c.driver.code}
+                          </span>
+                        ) : <span className="text-muted-foreground text-xs">—</span>}
+                      </div>
+                    ))}
+                  </div>
                 ) : (
-                  <span className="text-muted-foreground text-xs">—</span>
+                  entry.driver.code ? (
+                    <span className="font-mono text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                      {entry.driver.code}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground text-xs">—</span>
+                  )
                 )}
               </td>
             </tr>
