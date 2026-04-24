@@ -135,3 +135,11 @@
 - [x] Piso minimo: se barras < 1.0 assumir 1.0
 - [x] Stripline: apenas inteiros (bloquear decimais na logica)
 - [x] Atualizar testes para cobrir gatilhos de faixa (2.0 vs 2.1, 5.0 vs 5.1)
+
+## v2.5 - Logica v01 (24/04/2026)
+- [x] 26W: 1-3 barras -> CERTADRIVE (EQ00353) com quantidade multipla; 4-6 barras -> OSRAM (EQ00220)
+- [x] 26W: medidas quebradas 1.x -> CERTADRIVE, 2.x/3.x -> CERTADRIVE, 4.x/5.x -> OSRAM
+- [x] 26W: bloquear opcao Bivolt na UI (somente 220Vac disponivel)
+- [x] 18W/36W: medidas quebradas usam driver do proximo inteiro acima (floor+1)
+- [x] Bivolt 18W: medidas quebradas 1.x -> EQ00580, 2.x/3.x -> EQ00581, 4.x/5.x -> EQ00582
+- [x] Atualizar testes para cobrir todos os novos cenarios

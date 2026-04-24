@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -532,6 +532,13 @@ export default function Home() {
     setError(null);
   };
 
+  // Forcar 220Vac quando 26W selecionado (sem opcao Bivolt para 26W - logica v01)
+  useEffect(() => {
+    if (powerD1 === 26 && voltage === "Bivolt") {
+      setVoltage("220Vac");
+    }
+  }, [powerD1, voltage]);
+
   // Reset ao trocar aplicação
   const handleApplicationChange = (app: Application) => {
     setApplication(app);
@@ -876,21 +883,28 @@ export default function Home() {
                     </div>
                     <div>
                       <FieldLabel>Tensão</FieldLabel>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {(["220Vac", "Bivolt"] as const).map((v) => (
-                          <button
-                            key={v}
-                            onClick={() => setVoltage(v)}
-                            className={`px-2 py-2 rounded-md text-xs font-semibold border transition-all ${
-                              voltage === v
-                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                                : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
-                            }`}
-                          >
-                            {v}
-                          </button>
-                        ))}
-                      </div>
+                      {/* 26W não tem opção Bivolt — lógica v01 */}
+                      {powerD1 === 26 ? (
+                        <div className="px-3 py-2 rounded-md text-xs font-semibold border bg-primary text-primary-foreground border-primary shadow-sm text-center">
+                          220Vac <span className="opacity-70 font-normal">(único para 26W)</span>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {(["220Vac", "Bivolt"] as const).map((v) => (
+                            <button
+                              key={v}
+                              onClick={() => setVoltage(v)}
+                              className={`px-2 py-2 rounded-md text-xs font-semibold border transition-all ${
+                                voltage === v
+                                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                  : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                              }`}
+                            >
+                              {v}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

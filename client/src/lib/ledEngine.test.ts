@@ -72,10 +72,18 @@ describe("selectDrivers — 220Vac — 500mA (26W)", () => {
     expect(drivers[0].current).toBe("500mA");
   });
 
-  it("3 barras → OSRAM IT FIT 75W 500mA", () => {
+  it("3 barras → CERTADRIVE 20W 500mA x3 (lógica v01: 1-3 barras = CERTADRIVE, qty=barras)", () => {
     const drivers = selectDrivers(3, 26, "220Vac");
+    expect(drivers[0].model).toContain("CERTADRIVE");
+    expect(drivers[0].current).toBe("500mA");
+    expect(drivers[0].quantity).toBe(3); // 3 barras = 3x CERTADRIVE
+  });
+
+  it("4 barras → OSRAM IT FIT 75W 500mA (lógica v01: 4-6 barras = OSRAM, qty=1)", () => {
+    const drivers = selectDrivers(4, 26, "220Vac");
     expect(drivers[0].model).toContain("OSRAM");
     expect(drivers[0].current).toBe("500mA");
+    expect(drivers[0].quantity).toBe(1);
   });
 });
 
@@ -1386,5 +1394,109 @@ describe("v.02 — Stripline: apenas inteiros via Math.round", () => {
   it("1.6 barras Stripline Bivolt → round=2 → EQ00582 LIFUD 60W", () => {
     const r = selectDriverFallback(1.6, 36, "Bivolt", "STRIPLINE");
     expect(r.code).toBe("EQ00582");
+  });
+});
+
+// ─── Testes v2.5 — Lógica v01 (24/04/2026) ────────────────────────────────────
+
+describe("v01 — 26W 220V: CERTADRIVE 1-3 barras, OSRAM 4-6 barras", () => {
+  it("1 barra → CERTADRIVE qty=1", () => {
+    const r = selectDriverFallback(1, 26, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00353");
+    expect(r.quantity).toBe(1);
+  });
+  it("2 barras → CERTADRIVE qty=2", () => {
+    const r = selectDriverFallback(2, 26, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00353");
+    expect(r.quantity).toBe(2);
+  });
+  it("3 barras → CERTADRIVE qty=3", () => {
+    const r = selectDriverFallback(3, 26, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00353");
+    expect(r.quantity).toBe(3);
+  });
+  it("4 barras → OSRAM qty=1", () => {
+    const r = selectDriverFallback(4, 26, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00220");
+    expect(r.quantity).toBe(1);
+  });
+  it("5 barras → OSRAM qty=1", () => {
+    const r = selectDriverFallback(5, 26, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00220");
+    expect(r.quantity).toBe(1);
+  });
+  it("6 barras → OSRAM qty=1", () => {
+    const r = selectDriverFallback(6, 26, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00220");
+    expect(r.quantity).toBe(1);
+  });
+});
+
+describe("v01 — 26W: medidas quebradas (Math.ceil para faixa)", () => {
+  it("1.1 barras → ceil=2 → CERTADRIVE qty=2", () => {
+    const r = selectDriverFallback(1.1, 26, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00353");
+    expect(r.quantity).toBe(2);
+  });
+  it("2.5 barras → ceil=3 → CERTADRIVE qty=3", () => {
+    const r = selectDriverFallback(2.5, 26, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00353");
+    expect(r.quantity).toBe(3);
+  });
+  it("3.1 barras → ceil=4 → OSRAM qty=1", () => {
+    const r = selectDriverFallback(3.1, 26, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00220");
+    expect(r.quantity).toBe(1);
+  });
+  it("4.9 barras → ceil=5 → OSRAM qty=1", () => {
+    const r = selectDriverFallback(4.9, 26, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00220");
+    expect(r.quantity).toBe(1);
+  });
+});
+
+describe("v01 — 18W 220V: medidas quebradas (Math.ceil para faixa)", () => {
+  it("1.3 barras → ceil=2 → EQ00346 19W", () => {
+    const r = selectDriverFallback(1.3, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00346");
+  });
+  it("2.1 barras → ceil=3 → EQ00347 44W", () => {
+    const r = selectDriverFallback(2.1, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00347");
+  });
+  it("5.1 barras → ceil=6 → EQ00393 65W", () => {
+    const r = selectDriverFallback(5.1, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00393");
+  });
+  it("5.0 barras → ceil=5 → EQ00347 44W (limite exato)", () => {
+    const r = selectDriverFallback(5.0, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00347");
+  });
+  it("2.0 barras → ceil=2 → EQ00346 19W (limite exato)", () => {
+    const r = selectDriverFallback(2.0, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00346");
+  });
+});
+
+describe("v01 — 18W Bivolt: medidas quebradas (Math.ceil para faixa)", () => {
+  it("1.5 barras → ceil=2 → EQ00580 LIFUD 20W", () => {
+    const r = selectDriverFallback(1.5, 18, "Bivolt", "STRIPFLEX");
+    expect(r.code).toBe("EQ00580");
+  });
+  it("2.1 barras → ceil=3 → EQ00581 LIFUD 40W", () => {
+    const r = selectDriverFallback(2.1, 18, "Bivolt", "STRIPFLEX");
+    expect(r.code).toBe("EQ00581");
+  });
+  it("4.1 barras → ceil=5 → EQ00582 LIFUD 60W", () => {
+    const r = selectDriverFallback(4.1, 18, "Bivolt", "STRIPFLEX");
+    expect(r.code).toBe("EQ00582");
+  });
+  it("4.0 barras → ceil=4 → EQ00581 LIFUD 40W (limite exato)", () => {
+    const r = selectDriverFallback(4.0, 18, "Bivolt", "STRIPFLEX");
+    expect(r.code).toBe("EQ00581");
+  });
+  it("2.0 barras → ceil=2 → EQ00580 LIFUD 20W (limite exato)", () => {
+    const r = selectDriverFallback(2.0, 18, "Bivolt", "STRIPFLEX");
+    expect(r.code).toBe("EQ00580");
   });
 });

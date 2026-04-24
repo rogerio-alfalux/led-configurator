@@ -197,14 +197,14 @@ function selectDriverForBars(
   _sheetDrivers?: SheetDriver[],
   driverContext?: Partial<DriverSelectionContext>
 ): DriverSpec {
-  // Lógica v00: sempre usar o fallback determinístico (planilha desabilitada)
+  // Lógica v01: sempre usar o fallback determinístico (planilha desabilitada)
   const d = selectDriverFallback(totalBars, power, voltage, stripMethod, driverContext?.allowLongModules);
   return {
     code: d.code,
     model: d.model,
     power: parseInt(d.model.match(/(\d+)W/i)?.[1] ?? "0"),
     current: d.current,
-    quantity: 1,
+    quantity: d.quantity, // preserva a quantidade retornada pelo fallback (ex: 26W CERTADRIVE = qty de barras)
     vOut: d.vOut,
   };
 }
