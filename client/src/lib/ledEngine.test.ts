@@ -2009,3 +2009,87 @@ describe("v3.3 --- Validacao por perfil: LLP-6060 (BLAZE H) e LLP-4251 com regra
     }
   });
 });
+
+describe("v3.4 --- Regra Absoluta de Drivers: fronteiras exatas sem arredondamento", () => {
+  // Regra absoluta v3.4:
+  //   1.0 ate 2.0 barras -> EQ00346 (19W)
+  //   acima de 2.0 ate 5.0 barras -> EQ00347 (44W)
+  //   acima de 5.0 ate 7.0 barras -> EQ00393 (65W)
+  //
+  // PROIBIDO: 3.8, 4.8, 5.0 barras com EQ00393
+  // PROIBIDO: Math.ceil, arredondamento para cima
+
+  // Exemplos obrigatorios do documento:
+  it("1.8 barras -> EQ00346 (19W) [exemplo obrigatorio]", () => {
+    const drivers = selectDrivers(1.8, 18, "220Vac");
+    expect(drivers[0].code).toBe("EQ00346");
+    expect(drivers[0].model).toContain("19W");
+  });
+
+  it("2.0 barras -> EQ00346 (19W) [exemplo obrigatorio: fronteira inclusiva]", () => {
+    const drivers = selectDrivers(2.0, 18, "220Vac");
+    expect(drivers[0].code).toBe("EQ00346");
+    expect(drivers[0].model).toContain("19W");
+  });
+
+  it("2.1 barras -> EQ00347 (44W) [exemplo obrigatorio: acima de 2.0]", () => {
+    const drivers = selectDrivers(2.1, 18, "220Vac");
+    expect(drivers[0].code).toBe("EQ00347");
+    expect(drivers[0].model).toContain("44W");
+  });
+
+  it("3.0 barras -> EQ00347 (44W) [exemplo obrigatorio]", () => {
+    const drivers = selectDrivers(3.0, 18, "220Vac");
+    expect(drivers[0].code).toBe("EQ00347");
+    expect(drivers[0].model).toContain("44W");
+  });
+
+  it("3.8 barras -> EQ00347 (44W) [exemplo obrigatorio: NUNCA EQ00393]", () => {
+    const drivers = selectDrivers(3.8, 18, "220Vac");
+    expect(drivers[0].code).toBe("EQ00347");
+    expect(drivers[0].model).toContain("44W");
+    expect(drivers[0].code).not.toBe("EQ00393");
+  });
+
+  it("4.8 barras -> EQ00347 (44W) [exemplo obrigatorio: NUNCA EQ00393]", () => {
+    const drivers = selectDrivers(4.8, 18, "220Vac");
+    expect(drivers[0].code).toBe("EQ00347");
+    expect(drivers[0].model).toContain("44W");
+    expect(drivers[0].code).not.toBe("EQ00393");
+  });
+
+  it("5.0 barras -> EQ00347 (44W) [exemplo obrigatorio: fronteira inclusiva, NUNCA EQ00393]", () => {
+    const drivers = selectDrivers(5.0, 18, "220Vac");
+    expect(drivers[0].code).toBe("EQ00347");
+    expect(drivers[0].model).toContain("44W");
+    expect(drivers[0].code).not.toBe("EQ00393");
+  });
+
+  it("5.1 barras -> EQ00393 (65W) [exemplo obrigatorio: acima de 5.0]", () => {
+    const drivers = selectDrivers(5.1, 18, "220Vac");
+    expect(drivers[0].code).toBe("EQ00393");
+    expect(drivers[0].model).toContain("65W");
+  });
+
+  it("6.0 barras -> EQ00393 (65W) [exemplo obrigatorio]", () => {
+    const drivers = selectDrivers(6.0, 18, "220Vac");
+    expect(drivers[0].code).toBe("EQ00393");
+    expect(drivers[0].model).toContain("65W");
+  });
+
+  it("Varredura completa: nenhum valor <= 5.0 barras deve usar EQ00393", () => {
+    const testBars = [1.0, 1.1, 1.5, 1.8, 2.0, 2.1, 2.5, 3.0, 3.3, 3.8, 4.0, 4.2, 4.8, 5.0];
+    for (const bars of testBars) {
+      const drivers = selectDrivers(bars, 18, "220Vac");
+      expect(drivers[0].code).not.toBe("EQ00393");
+    }
+  });
+
+  it("Varredura completa: valores > 5.0 barras devem usar EQ00393", () => {
+    const testBars = [5.1, 5.5, 5.8, 5.9, 6.0, 6.5, 7.0];
+    for (const bars of testBars) {
+      const drivers = selectDrivers(bars, 18, "220Vac");
+      expect(drivers[0].code).toBe("EQ00393");
+    }
+  });
+});

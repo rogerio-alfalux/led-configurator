@@ -259,22 +259,23 @@ export function selectDriverFromSheet(
 }
 
 /**
- * LÓGICA DE DRIVERS ALFALUX — VERSÃO 01 (24/04/2026)
+ * LÓGICA DE DRIVERS ALFALUX — VERSÃO 02 (24/04/2026) — REGRA ABSOLUTA
  *
  * 18W 220V e 36W FILEIRA DUPLA (STRIPFLEX):
- *   Medidas quebradas: usar driver do próximo inteiro acima (Math.ceil).
- *   1-2 barras > Philips Xitanium 19W 350mA (EQ00346)
- *   3-5 barras > Philips Xitanium 44W 350mA (EQ00347)
- *   6-7 barras > Philips Xitanium 65W 350mA (EQ00393)
- *   Ex: 1.3 barras > ceil=2 > EQ00346 | 2.1 barras > ceil=3 > EQ00347
- *       5.1 barras > ceil=6 > EQ00393
+ *   Fronteiras exatas sobre o valor real de barras (SEM arredondamento, SEM Math.ceil).
+ *   1.0 até 2.0 barras → Philips Xitanium 19W 350mA (EQ00346)
+ *   acima de 2.0 até 5.0 barras → Philips Xitanium 44W 350mA (EQ00347)
+ *   acima de 5.0 até 7.0 barras → Philips Xitanium 65W 350mA (EQ00393)
+ *   Exemplos obrigatórios: 1.8 → EQ00346 | 2.0 → EQ00346 | 2.1 → EQ00347
+ *     3.8 → EQ00347 | 4.8 → EQ00347 | 5.0 → EQ00347 | 5.1 → EQ00393
+ *   PROIBIDO: 3.8, 4.8 ou 5.0 barras com EQ00393.
  *
  * 18W BIVOLT (STRIPFLEX):
- *   Medidas quebradas: usar driver do próximo inteiro acima (Math.ceil).
- *   1-2 barras > Lifud 20W 350mA (EQ00580)
- *   3-4 barras > Lifud 40W 350mA (EQ00581)
- *   5-6 barras > Lifud 60W 350mA (EQ00582)
- *   Ex: 1.5 barras > ceil=2 > EQ00580 | 2.1 barras > ceil=3 > EQ00581
+ *   Fronteiras exatas sobre o valor real de barras (SEM arredondamento, SEM Math.ceil).
+ *   1.0 até 2.0 barras → Lifud 20W 350mA (EQ00580)
+ *   acima de 2.0 até 4.0 barras → Lifud 40W 350mA (EQ00581)
+ *   acima de 4.0 até 6.0 barras → Lifud 60W 350mA (EQ00582)
+ *   Ex: 1.5 barras → EQ00580 | 2.1 barras → EQ00581 | 4.1 barras → EQ00582
  *
  * 26W 220V (STRIPFLEX) — SEM OPÇÃO BIVOLT:
  *   Regras de medidas quebradas (instruição oficial):
@@ -359,24 +360,25 @@ export function selectDriverFallback(
 
   // --- 18W e 36W STRIPFLEX ------
   // 36W Fileira Dupla: barras já multiplicadas por 2 pelo ledEngine.
-  // Medidas quebradas: usar Math.ceil (driver do próximo inteiro acima).
+  // REGRA ABSOLUTA v3.4: comparar diretamente o valor real de barras, SEM Math.ceil.
+  // Proibido arredondar: 3.8 ≠ 4, 4.8 ≠ 5, 5.0 ≠ 6.
   if (power === 18 || (power === 36 && stripMethod === "STRIPFLEX")) {
     const bars = Math.max(1.0, rawBars);
-    const barsForRange = Math.ceil(bars); // determina a faixa
     const vOut = calcVOut(bars, power, stripMethod);
     if (isBivolt) {
-      // 1-2 barras > Lifud 20W 350mA (EQ00580)
-      // 3-4 barras > Lifud 40W 350mA (EQ00581)
-      // 5-6 barras > Lifud 60W 350mA (EQ00582)
-      if (barsForRange <= 2) return { code: "EQ00580", model: "LIFUD 20W 350MA LF-FMR020YS0350U(S)", current: "350mA", quantity: 1, vOut };
-      if (barsForRange <= 4) return { code: "EQ00581", model: "LIFUD 40W 350MA LF-FMR040YS0350U(S)", current: "350mA", quantity: 1, vOut };
+      // 1.0 até 2.0 barras → Lifud 20W 350mA (EQ00580)
+      // acima de 2.0 até 4.0 barras → Lifud 40W 350mA (EQ00581)
+      // acima de 4.0 até 6.0 barras → Lifud 60W 350mA (EQ00582)
+      if (bars <= 2.0) return { code: "EQ00580", model: "LIFUD 20W 350MA LF-FMR020YS0350U(S)", current: "350mA", quantity: 1, vOut };
+      if (bars <= 4.0) return { code: "EQ00581", model: "LIFUD 40W 350MA LF-FMR040YS0350U(S)", current: "350mA", quantity: 1, vOut };
       return { code: "EQ00582", model: "LIFUD 60W 350MA LF-FMR060YS0350U(S)", current: "350mA", quantity: 1, vOut };
     } else {
-      // 1-2 barras > Philips Xitanium 19W 350mA (EQ00346)
-      // 3-5 barras > Philips Xitanium 44W 350mA (EQ00347)
-      // 6-7 barras > Philips Xitanium 65W 350mA (EQ00393)
-      if (barsForRange <= 2) return { code: "EQ00346", model: "PHILIPS XITANIUM 19W 350MA", current: "350mA", quantity: 1, vOut };
-      if (barsForRange <= 5) return { code: "EQ00347", model: "PHILIPS XITANIUM 44W 350MA", current: "350mA", quantity: 1, vOut };
+      // 1.0 até 2.0 barras → Philips Xitanium 19W 350mA (EQ00346)
+      // acima de 2.0 até 5.0 barras → Philips Xitanium 44W 350mA (EQ00347)
+      // acima de 5.0 até 7.0 barras → Philips Xitanium 65W 350mA (EQ00393)
+      // PROIBIDO: 3.8, 4.8, 5.0 barras com EQ00393
+      if (bars <= 2.0) return { code: "EQ00346", model: "PHILIPS XITANIUM 19W 350MA", current: "350mA", quantity: 1, vOut };
+      if (bars <= 5.0) return { code: "EQ00347", model: "PHILIPS XITANIUM 44W 350MA", current: "350mA", quantity: 1, vOut };
       return { code: "EQ00393", model: "PHILIPS XITANIUM 65W 350MA", current: "350mA", quantity: 1, vOut };
     }
   }

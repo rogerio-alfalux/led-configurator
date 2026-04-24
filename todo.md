@@ -195,3 +195,11 @@
 - [x] Para LLP-4251 com 5000mm: maior IF que cabe é IF 4.2b (2385mm), 2x=4770mm, diff=230mm ≤ 250mm → aceita 2 módulos ✅
 - [x] Algoritmo já está correto para ambos os perfis (usa catálogo específico de cada perfil)
 - [x] Adicionar testes específicos para LLP-6060 (BLAZE H) cobrindo 4000mm, 4500mm e 5000mm — 214 testes passando
+
+## v3.4 — Correção das Fronteiras de Driver (Regra Absoluta)
+- [x] Verificar se o código usa CEIL ou arredondamento para calcular barras
+- [x] Reescrever com comparações diretas: bars <= 2.0 → EQ00346; bars <= 5.0 → EQ00347; else → EQ00393
+- [x] 5.0 barras usa EQ00347 (44W), nunca EQ00393
+- [x] 5.1 barras usa EQ00393 (65W)
+- [x] Proibido: 3.8, 4.8, 5.0 barras com EQ00393 — verificado por varredura completa
+- [x] Atualizar testes com todos os exemplos obrigatórios do documento — 225 testes passando
