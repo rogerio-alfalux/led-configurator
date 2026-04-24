@@ -37,11 +37,23 @@ export interface DriverSpec {
   vOut?: number;       // tensão de saída calculada
 }
 
+/** Um circuito elétrico individual dentro de um SKU */
+export interface Circuit {
+  /** Número do circuito (1, 2, 3...) */
+  index: number;
+  /** Quantidade de barras neste circuito */
+  bars: number;
+  /** Driver selecionado para este circuito */
+  driver: DriverSpec;
+}
+
 /** Driver associado a um SKU específico */
 export interface SkuDriverEntry {
   sku: string;
   quantity: number;
   driver: DriverSpec;
+  /** Circuitos elétricos deste SKU (máx. 3 barras por circuito para 18W/36W Stripflex) */
+  circuits: Circuit[];
 }
 
 export interface CompositionItem {
@@ -210,8 +222,58 @@ function selectDriverForBars(
 }
 
 /**
+ * Máximo de barras por circuito elétrico para 18W e 36W Stripflex.
+ * Cada circuito recebe seu próprio driver.
+ */
+const MAX_BARS_PER_CIRCUIT: Partial<Record<Power, number>> = {
+  18: 3,
+  36: 3, // Stripflex dupla: máx. 3 barras por circuito
+};
+
+/**
+ * Divide o total de barras de um SKU em circuitos elétricos.
+ * Regra: máximo 3 barras por circuito para 18W/36W Stripflex.
+ * Exemplo: 6 barras → [3, 3]; 5 barras → [3, 2]; 7 barras → [3, 3, 1].
+ * Stripline e 26W: sempre 1 circuito (sem divisão).
+ */
+function splitIntoCircuits(
+  barsTotal: number,
+  power: Power,
+  voltage: Voltage,
+  stripMethod: StripMethod,
+  sheetDrivers?: SheetDriver[],
+  driverContext?: Partial<DriverSelectionContext>
+): Circuit[] {
+  const maxBars = stripMethod === "STRIPFLEX" ? (MAX_BARS_PER_CIRCUIT[power] ?? null) : null;
+
+  // Normalizar barsTotal: arredondar para cima para garantir barras inteiras nos circuitos
+  // (barsTotal pode ser fracionário quando o comprimento do módulo não é múltiplo exato de 562.5mm)
+  const normalizedBars = Math.ceil(barsTotal * 10) / 10; // preservar 1 decimal para medidas quebradas
+
+  // Stripline e 26W: sem divisão de circuitos
+  if (!maxBars || power === 26) {
+    const driver = selectDriverForBars(normalizedBars, power, voltage, stripMethod, sheetDrivers, driverContext);
+    return [{ index: 1, bars: normalizedBars, driver }];
+  }
+
+  // Dividir em blocos de no máximo maxBars barras (valores inteiros)
+  const totalInt = Math.ceil(normalizedBars); // total inteiro de barras
+  const circuits: Circuit[] = [];
+  let remaining = totalInt;
+  let idx = 1;
+  while (remaining > 0) {
+    const circuitBars = Math.min(remaining, maxBars);
+    const driver = selectDriverForBars(circuitBars, power, voltage, stripMethod, sheetDrivers, driverContext);
+    circuits.push({ index: idx++, bars: circuitBars, driver });
+    remaining -= circuitBars;
+  }
+  return circuits;
+}
+
+/**
  * Gera a lista de SkuDriverEntry para uma composição.
- * Cada SKU recebe seu próprio driver — nunca otimizado entre SKUs.
+ * Cada SKU recebe seus próprios circuitos — nunca otimizado entre SKUs.
+ * O campo `driver` representa o driver do primeiro circuito (para compatibilidade).
  */
 function buildSkuDriverList(
   composition: CompositionItem[],
@@ -221,11 +283,17 @@ function buildSkuDriverList(
   sheetDrivers?: SheetDriver[],
   driverContext?: Partial<DriverSelectionContext>
 ): SkuDriverEntry[] {
-  return composition.map(item => ({
-    sku: item.sku,
-    quantity: item.quantity,
-    driver: selectDriverForBars(item.barsTotal, power, voltage, stripMethod, sheetDrivers, driverContext),
-  }));
+  return composition.map(item => {
+    const circuits = splitIntoCircuits(item.barsTotal, power, voltage, stripMethod, sheetDrivers, driverContext);
+    // driver principal = primeiro circuito (para compatibilidade com UI existente)
+    const primaryDriver = circuits[0]?.driver ?? selectDriverForBars(item.barsTotal, power, voltage, stripMethod, sheetDrivers, driverContext);
+    return {
+      sku: item.sku,
+      quantity: item.quantity,
+      driver: primaryDriver,
+      circuits,
+    };
+  });
 }
 
 // ─── Helpers de módulos ───────────────────────────────────────────────────────

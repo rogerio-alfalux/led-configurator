@@ -7,35 +7,75 @@ import type { CompositionResult, SkuDriverEntry } from "./ledEngine";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatDriver(entry: SkuDriverEntry): string {
-  const driverQty = entry.driver.quantity ?? 1;
-  const skuQty = entry.quantity;
-  const total = driverQty * skuQty;
-  const code = entry.driver.code ? ` (${entry.driver.code})` : "";
-  return `${total}x ${entry.driver.model}${code}`;
-}
-
 function formatBars(
   barras: number,
   barsTotal: number,
   power: number,
   stripMethod: string,
-  stripflexName: string,
-  _cct: string // CCT já aparece no cabeçalho — não duplicar aqui
+  cct: string,
+  stripflexName: string
 ): string {
   const isStripline = stripMethod === "STRIPLINE";
-  // Remover CCT do nome da barra se ele já estiver incluso (ex: "Stripflex 562,5mm 36L 4000K")
-  const rawName = isStripline
-    ? "Stripline 562,5mm 105L"
-    : stripflexName || "Stripflex 562,5mm 36L";
-  // Limpar qualquer CCT que venha no nome da barra (ex: "4000K", "3000K", "TW")
-  const barName = rawName.replace(/\s*(\d{4}K|TW|CCT|\[CCT\])\s*/gi, " ").trim();
+
+  // Nome completo da barra com CCT obrigatório
+  const barName = isStripline
+    ? `Stripline 562,5 x 15mm 105L ${cct}`
+    : stripflexName || `Stripflex 562,5 x 10mm 36L ${cct}`;
 
   if (power === 36 && !isStripline) {
     // Fileira Dupla: barsTotal = barras × 2
     return `${barsTotal}x ${barName} (${barras} seções × 2 fileiras)`;
   }
   return `${barsTotal}x ${barName}`;
+}
+
+function formatCircuits(entry: SkuDriverEntry, qty: number): string {
+  const { circuits } = entry;
+
+  if (!circuits || circuits.length <= 1) {
+    // Sem divisão de circuitos: exibir driver único
+    const driverQty = (entry.driver.quantity ?? 1) * qty;
+    const code = entry.driver.code ? ` (${entry.driver.code})` : "";
+    return `${driverQty}x ${entry.driver.model}${code}`;
+  }
+
+  // Múltiplos circuitos: agrupar por modelo de driver
+  const driverMap = new Map<string, { model: string; code?: string; count: number; barsPerCircuit: number[] }>();
+  for (const c of circuits) {
+    const key = c.driver.model;
+    const existing = driverMap.get(key);
+    if (existing) {
+      existing.count += qty;
+      existing.barsPerCircuit.push(c.bars);
+    } else {
+      driverMap.set(key, {
+        model: c.driver.model,
+        code: c.driver.code,
+        count: qty,
+        barsPerCircuit: [c.bars],
+      });
+    }
+  }
+
+  return Array.from(driverMap.values())
+    .map((d) => {
+      const code = d.code ? ` (${d.code})` : "";
+      return `${d.count}x ${d.model}${code}`;
+    })
+    .join("\n    ");
+}
+
+function buildCircuitLines(entry: SkuDriverEntry, qty: number): string[] {
+  const { circuits } = entry;
+  if (!circuits || circuits.length <= 1) return [];
+
+  const lines: string[] = [];
+  lines.push(`Circuitos: ${circuits.length} circuito${circuits.length > 1 ? "s" : ""} elétrico${circuits.length > 1 ? "s" : ""}`);
+  for (const c of circuits) {
+    const code = c.driver.code ? ` (${c.driver.code})` : "";
+    lines.push(`  Circuito ${c.index}: ${c.bars} barra${c.bars !== 1 ? "s" : ""} → ${c.driver.model}${code}`);
+  }
+  return lines;
 }
 
 function buildMountingNotes(result: CompositionResult): string[] {
@@ -73,6 +113,7 @@ function buildModuleBlock(
   barras: number,
   barsTotal: number,
   drivers: SkuDriverEntry[],
+  moduleQty: number,
   label?: string
 ): string {
   const lines: string[] = [];
@@ -85,22 +126,44 @@ function buildModuleBlock(
       barsTotal,
       result.powerD1,
       result.stripMethod,
-      result.stripflexName,
-      result.cct
+      result.cct,
+      result.stripflexName
     )}`
   );
+
+  // Exibir circuitos elétricos (se houver divisão)
+  for (const e of drivers) {
+    const circuitLines = buildCircuitLines(e, moduleQty);
+    for (const cl of circuitLines) {
+      lines.push(cl);
+    }
+  }
 
   // Consolidar drivers por modelo para este módulo
   const driverMap = new Map<string, { model: string; code?: string; total: number }>();
   for (const e of drivers) {
-    const key = e.driver.model;
-    const existing = driverMap.get(key);
-    const driverQty = e.driver.quantity ?? 1;
-    const total = driverQty * e.quantity;
-    if (existing) {
-      existing.total += total;
+    if (e.circuits && e.circuits.length > 1) {
+      // Múltiplos circuitos: contar um driver por circuito × quantidade de módulos
+      for (const c of e.circuits) {
+        const key = c.driver.model;
+        const existing = driverMap.get(key);
+        if (existing) {
+          existing.total += moduleQty;
+        } else {
+          driverMap.set(key, { model: c.driver.model, code: c.driver.code, total: moduleQty });
+        }
+      }
     } else {
-      driverMap.set(key, { model: e.driver.model, code: e.driver.code, total });
+      // Driver único: quantidade = driverQty × moduleQty
+      const key = e.driver.model;
+      const existing = driverMap.get(key);
+      const driverQty = e.driver.quantity ?? 1;
+      const total = driverQty * moduleQty;
+      if (existing) {
+        existing.total += total;
+      } else {
+        driverMap.set(key, { model: e.driver.model, code: e.driver.code, total });
+      }
     }
   }
 
@@ -191,13 +254,13 @@ export function generateProductionTemplate(result: CompositionResult): string {
   });
 
   // Calcular quantidade de cada módulo na composição
-  const moduleQty = new Map<string, number>();
+  const moduleQtyMap = new Map<string, number>();
   for (const item of result.composition) {
-    moduleQty.set(item.sku, (moduleQty.get(item.sku) ?? 0) + item.quantity);
+    moduleQtyMap.set(item.sku, (moduleQtyMap.get(item.sku) ?? 0) + item.quantity);
   }
 
   for (const mod of sortedModules) {
-    const qty = moduleQty.get(mod.sku) ?? 1;
+    const qty = moduleQtyMap.get(mod.sku) ?? 1;
     const hasD2 = mod.driversD2.length > 0;
 
     if (qty > 1) {
@@ -214,6 +277,7 @@ export function generateProductionTemplate(result: CompositionResult): string {
       mod.barras,
       mod.barsTotal,
       mod.driversD1,
+      qty,
       hasD2 ? "D1" : undefined
     );
     lines.push(d1Block);
@@ -227,6 +291,7 @@ export function generateProductionTemplate(result: CompositionResult): string {
         mod.barras,
         mod.barsTotal,
         mod.driversD2,
+        qty,
         "D2"
       );
       lines.push(d2Block);

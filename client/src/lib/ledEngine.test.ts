@@ -1524,3 +1524,129 @@ describe("v01 — 18W Bivolt: medidas quebradas (Math.ceil para faixa)", () => {
     expect(r.code).toBe("EQ00580");
   });
 });
+
+// ─── Testes v2.9 — Divisão de Circuitos Elétricos ────────────────────────────
+
+import { buildComposition } from "./ledEngine";
+
+describe("v2.9 — Divisão de circuitos elétricos (máx. 3 barras/circuito)", () => {
+  // Para testar splitIntoCircuits indiretamente via calculateComposition
+  it("3375mm 18W 220V → 2 circuitos de 3 barras → 2× EQ00347 44W", () => {
+    // 3375mm → realized=3270mm → 2 módulos de 3 barras cada
+    const result = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1",
+      powerD1: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 3375,
+      allowLongModules: false,
+      stripMethod: "STRIPFLEX",
+      independentLighting: false,
+    });
+    const allCircuits = result.driversD1.flatMap(e => e.circuits ?? []);
+    // Todos os circuitos devem ter no máximo 3 barras
+    allCircuits.forEach(c => expect(c.bars).toBeLessThanOrEqual(3));
+    // Todos os circuitos de 3 barras devem usar 44W
+    allCircuits.filter(c => c.bars === 3).forEach(c => expect(c.driver.code).toBe("EQ00347"));
+    // Nenhum circuito deve usar 65W (superdimensionamento proibido)
+    allCircuits.forEach(c => expect(c.driver.code).not.toBe("EQ00393"));
+  });
+
+  it("2700mm 18W 220V → circuitos [3, 2] → 44W + 19W", () => {
+    // 2700mm → realized=2510mm → circuitos [3, 2]
+    const result = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1",
+      powerD1: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 2700,
+      allowLongModules: false,
+      stripMethod: "STRIPFLEX",
+      independentLighting: false,
+    });
+    const allCircuits = result.driversD1.flatMap(e => e.circuits ?? []);
+    // Pelo menos um circuito com 3 barras (44W) e um com 2 barras (19W)
+    const has3bar = allCircuits.some(c => c.bars === 3 && c.driver.code === "EQ00347");
+    const has2bar = allCircuits.some(c => c.bars === 2 && c.driver.code === "EQ00346");
+    expect(has3bar).toBe(true);
+    expect(has2bar).toBe(true);
+  });
+
+  it("600mm 18W 220V → 1 circuito de 1 barra → 19W", () => {
+    // 600mm → realized=575mm → 1 barra
+    const result = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1",
+      powerD1: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 600,
+      allowLongModules: false,
+      stripMethod: "STRIPFLEX",
+      independentLighting: false,
+    });
+    const allCircuits = result.driversD1.flatMap(e => e.circuits ?? []);
+    expect(allCircuits.length).toBeGreaterThan(0);
+    // Todos os circuitos devem ter 1 barra → 19W
+    allCircuits.forEach(c => {
+      expect(c.bars).toBe(1);
+      expect(c.driver.code).toBe("EQ00346");
+    });
+  });
+
+  it("26W → sem divisão de circuitos (1 circuito por módulo)", () => {
+    const result = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1",
+      powerD1: 26,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 1000,
+      allowLongModules: false,
+      stripMethod: "STRIPFLEX",
+      independentLighting: false,
+    });
+    // 26W nunca divide circuitos — cada módulo tem exatamente 1 circuito
+    result.driversD1.forEach(e => {
+      expect(e.circuits?.length).toBe(1);
+    });
+  });
+
+  it("Stripline 36W → sem divisão de circuitos (1 circuito por módulo)", () => {
+    const result = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1",
+      powerD1: 36,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 1125, // 1125mm → realized=575mm → 1 barra Stripline
+      allowLongModules: false,
+      stripMethod: "STRIPLINE",
+      independentLighting: false,
+    });
+    // Stripline nunca divide circuitos
+    result.driversD1.forEach(e => {
+      expect(e.circuits?.length).toBe(1);
+    });
+  });
+
+  it("Máximo 3 barras por circuito — regra absoluta", () => {
+    // Comprimento longo → múltiplos módulos com muitas barras
+    const result = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1",
+      powerD1: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 5000,
+      allowLongModules: false,
+      stripMethod: "STRIPFLEX",
+      independentLighting: false,
+    });
+    const allCircuits = result.driversD1.flatMap(e => e.circuits ?? []);
+    // Nenhum circuito pode ter mais de 3 barras
+    allCircuits.forEach(c => expect(c.bars).toBeLessThanOrEqual(3));
+  });
+});

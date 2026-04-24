@@ -303,7 +303,7 @@ export function selectDriverFallback(
 ): SelectedDriver {
   const isBivolt = voltage === "Bivolt";
 
-  // ── 36W STRIPLINE ──────────────────────────────────────────────────────────
+  // --- 36W STRIPLINE ------
   // Apenas números INTEIROS (1, 2...). Proibido fracionamento.
   if (power === 36 && stripMethod === "STRIPLINE") {
     const bars = Math.max(1, Math.round(rawBars));
@@ -317,7 +317,7 @@ export function selectDriverFallback(
     }
   }
 
-  // ── 26W STRIPFLEX (500mA) ────────────────────────────────────────────────────────────────────────────────────
+  // --- 26W STRIPFLEX (500mA) ------
   // SEM OPÇÃO BIVOLT — 26W é sempre 220Vac.
   // Regras de medidas quebradas (instruição oficial):
   //   1.0 a 1.6 → Certadrive ×1
@@ -346,7 +346,7 @@ export function selectDriverFallback(
       // 3.0 a 3.2 → ×3 Certadrive (3 barras exatas = 3×; 3.1/3.2 também = 3×)
       certadriveQty = 3;
     } else if (bars <= 4.0) {
-      // 3.3 a 4.0 → ×3 Certadrive
+      // 3.3 a 4.0 -> x3 Certadrive
       certadriveQty = 3;
     }
 
@@ -357,7 +357,7 @@ export function selectDriverFallback(
     return { code: "EQ00220", model: "OSRAM IT FIT 75W 500MA", current: "500mA", quantity: 1, vOut };
   }
 
-  // ── 18W e 36W STRIPFLEX ────────────────────────────────────────────────────────────────────────────────────
+  // --- 18W e 36W STRIPFLEX ------
   // 36W Fileira Dupla: barras já multiplicadas por 2 pelo ledEngine.
   // Medidas quebradas: usar Math.ceil (driver do próximo inteiro acima).
   if (power === 18 || (power === 36 && stripMethod === "STRIPFLEX")) {

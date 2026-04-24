@@ -152,9 +152,16 @@
 - [x] Exibir divisão de drivers por módulo com código EQ
 
 ## v2.8 — Lógica oficial de barras e drivers
-- [ ] Corrigir CCT duplicado no campo "Barras" do template de produção
-- [ ] Medidas quebradas 26W: 1.1-1.6 → Certadrive ×1; 1.7-1.8 → erro inválido; 2.0-3.2 → Certadrive ×2
-- [ ] Restrição HIT: 26W abaixo de 4 barras → erro/aviso
-- [ ] Observação BLAZE H: driver 26W deve ser desencapado
-- [ ] Medidas quebradas 18W: 1.x → 19W; 2.x/3.x/4.x → 44W; 5.x → 65W
-- [ ] Medidas quebradas Bivolt: 1.x → 20W; 2.x/3.x → 40W; 4.x/5.x → 60W
+- [x] Corrigir CCT duplicado no campo "Barras" do template de produção
+- [x] Medidas quebradas 26W: 1.1-1.6 → Certadrive ×1; 1.7-1.8 → erro inválido; 2.0-3.2 → Certadrive ×2
+- [x] Restrição HIT: 26W abaixo de 4 barras → erro/aviso
+- [x] Observação BLAZE H: driver 26W deve ser desencapado
+- [x] Medidas quebradas 18W: 1.x → 19W; 2.x/3.x/4.x → 44W; 5.x → 65W
+- [x] Medidas quebradas Bivolt: 1.x → 20W; 2.x/3.x → 40W; 4.x/5.x → 60W
+
+## v2.9 — Divisão obrigatória de circuitos
+- [ ] Implementar regra de divisão: 18W máximo 3 barras por circuito elétrico
+- [ ] Driver dimensionado por circuito (não pelo total bruto de barras)
+- [ ] Exibir circuitos no resultado (ex: "Circuito 1: 3 barras, Circuito 2: 3 barras")
+- [ ] Restaurar CCT no campo Barras do template de produção
+- [ ] Atualizar template de produção para listar circuitos e drivers por circuito
