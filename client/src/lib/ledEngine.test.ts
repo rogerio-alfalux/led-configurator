@@ -1242,14 +1242,14 @@ describe("v.01 — Stripline: arredondamento para inteiro superior (Cenário 03)
     expect(r.model).toContain("44W");
     expect(r.current).toBe("250mA");
   });
-  it("1.1 barras Stripline 220V → ceil(1.1)=2 → EQ00393 65W 250mA", () => {
+  it("1.1 barras Stripline 220V → round(1.1)=1 → EQ00347 44W 250mA (Versão Final 02: inteiro mais próximo)", () => {
     const r = selectDriverFallback(1.1, 36, "220Vac", "STRIPLINE");
-    expect(r.code).toBe("EQ00393");
+    expect(r.code).toBe("EQ00347"); // round(1.1)=1 → 1 barra → 44W
     expect(r.current).toBe("250mA");
   });
-  it("1.5 barras Stripline Bivolt → ceil(1.5)=2 → EQ00582 LIFUD 60W 250mA", () => {
+  it("1.5 barras Stripline Bivolt → round(1.5)=2 → EQ00582 LIFUD 60W 250mA", () => {
     const r = selectDriverFallback(1.5, 36, "Bivolt", "STRIPLINE");
-    expect(r.code).toBe("EQ00582");
+    expect(r.code).toBe("EQ00582"); // round(1.5)=2 → 2 barras → 60W
     expect(r.model).toContain("60W");
     expect(r.current).toBe("250mA");
   });
@@ -1300,5 +1300,91 @@ describe("v.01 — Cenário 02: matriz completa Bivolt STRIPFLEX", () => {
   });
   it("6 barras → EQ00582 LIFUD 60W (limite superior)", () => {
     expect(selectDriverFallback(6, 18, "Bivolt", "STRIPFLEX").code).toBe("EQ00582");
+  });
+});
+
+// ─── Testes v2.4 — Lógica de Drivers Alfalux Versão Final 02 (24/04/2026) ────
+
+describe("v.02 — Gatilhos de faixa precisos: 220V STRIPFLEX (Cenário A)", () => {
+  it("2.0 barras → EQ00346 19W (limite superior do 19W)", () => {
+    const r = selectDriverFallback(2.0, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00346");
+    expect(r.model).toContain("19W");
+  });
+  it("2.01 barras → EQ00347 44W (gatilho imediato acima de 2.0)", () => {
+    const r = selectDriverFallback(2.01, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00347");
+    expect(r.model).toContain("44W");
+  });
+  it("2.1 barras → EQ00347 44W (confirmação do gatilho 2.1)", () => {
+    const r = selectDriverFallback(2.1, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00347");
+  });
+  it("5.0 barras → EQ00347 44W (limite superior do 44W)", () => {
+    const r = selectDriverFallback(5.0, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00347");
+    expect(r.model).toContain("44W");
+  });
+  it("5.01 barras → EQ00393 65W (gatilho imediato acima de 5.0)", () => {
+    const r = selectDriverFallback(5.01, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00393");
+    expect(r.model).toContain("65W");
+  });
+  it("5.1 barras → EQ00393 65W (confirmação do gatilho 5.1)", () => {
+    const r = selectDriverFallback(5.1, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00393");
+  });
+});
+
+describe("v.02 — Gatilhos de faixa precisos: Bivolt STRIPFLEX (Cenário B)", () => {
+  it("2.0 barras → EQ00580 LIFUD 20W (limite superior)", () => {
+    const r = selectDriverFallback(2.0, 18, "Bivolt", "STRIPFLEX");
+    expect(r.code).toBe("EQ00580");
+  });
+  it("2.1 barras → EQ00581 LIFUD 40W (gatilho imediato)", () => {
+    const r = selectDriverFallback(2.1, 18, "Bivolt", "STRIPFLEX");
+    expect(r.code).toBe("EQ00581");
+  });
+  it("4.0 barras → EQ00581 LIFUD 40W (limite superior)", () => {
+    const r = selectDriverFallback(4.0, 18, "Bivolt", "STRIPFLEX");
+    expect(r.code).toBe("EQ00581");
+  });
+  it("4.1 barras → EQ00582 LIFUD 60W (gatilho imediato)", () => {
+    const r = selectDriverFallback(4.1, 18, "Bivolt", "STRIPFLEX");
+    expect(r.code).toBe("EQ00582");
+  });
+});
+
+describe("v.02 — Piso mínimo de 1.0 barra", () => {
+  it("0.5 barras 18W 220V → piso 1.0 → EQ00346 19W", () => {
+    const r = selectDriverFallback(0.5, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00346");
+  });
+  it("0.1 barras 18W Bivolt → piso 1.0 → EQ00580 LIFUD 20W", () => {
+    const r = selectDriverFallback(0.1, 18, "Bivolt", "STRIPFLEX");
+    expect(r.code).toBe("EQ00580");
+  });
+  it("0 barras 18W 220V → piso 1.0 → EQ00346 19W", () => {
+    const r = selectDriverFallback(0, 18, "220Vac", "STRIPFLEX");
+    expect(r.code).toBe("EQ00346");
+  });
+});
+
+describe("v.02 — Stripline: apenas inteiros via Math.round", () => {
+  it("1.4 barras Stripline 220V → round=1 → EQ00347 44W", () => {
+    const r = selectDriverFallback(1.4, 36, "220Vac", "STRIPLINE");
+    expect(r.code).toBe("EQ00347");
+  });
+  it("1.6 barras Stripline 220V → round=2 → EQ00393 65W", () => {
+    const r = selectDriverFallback(1.6, 36, "220Vac", "STRIPLINE");
+    expect(r.code).toBe("EQ00393");
+  });
+  it("1.4 barras Stripline Bivolt → round=1 → EQ00581 LIFUD 40W", () => {
+    const r = selectDriverFallback(1.4, 36, "Bivolt", "STRIPLINE");
+    expect(r.code).toBe("EQ00581");
+  });
+  it("1.6 barras Stripline Bivolt → round=2 → EQ00582 LIFUD 60W", () => {
+    const r = selectDriverFallback(1.6, 36, "Bivolt", "STRIPLINE");
+    expect(r.code).toBe("EQ00582");
   });
 });

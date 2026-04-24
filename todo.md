@@ -117,3 +117,21 @@
 - [x] Atualizar selectDriverFallback: Stripline Bivolt: ≤1→EQ00581 250mA, >1→EQ00582 250mA (inteiro superior)
 - [x] Garantir arredondamento para inteiro superior em Stripline
 - [x] Atualizar testes para cobrir todos os cenários v.01
+
+## v2.4 — Lógica de Drivers Alfalux Versão Final 02 (24/04/2026)
+- [ ] Cenário A 220V: 1.0-2.0→EQ00346, 2.1-5.0→EQ00347, 5.1-7.0→EQ00393
+- [ ] Cenário B Bivolt: 1.0-2.0→EQ00580, 2.1-4.0→EQ00581, 4.1-6.0→EQ00582
+- [ ] Cenário C Stripline 220V: exatamente 1→EQ00347 250mA, exatamente 2→EQ00393 250mA
+- [ ] Cenário D Stripline Bivolt: exatamente 1→EQ00581 250mA, exatamente 2→EQ00582 250mA
+- [ ] Piso mínimo: se barras < 1.0 assumir 1.0
+- [x] Stripline: apenas inteiros (bloquear decimais na lógica)
+- [x] Atualizar testes para cobrir gatilhos de faixa (2.0 vs 2.1, 5.0 vs 5.1)
+
+## v2.4 — Logica de Drivers Alfalux Versao Final 02 (24/04/2026)
+- [x] Cenario A 220V: 1.0-2.0->EQ00346, 2.1-5.0->EQ00347, 5.1-7.0->EQ00393
+- [x] Cenario B Bivolt: 1.0-2.0->EQ00580, 2.1-4.0->EQ00581, 4.1-6.0->EQ00582
+- [x] Cenario C Stripline 220V: exatamente 1->EQ00347 250mA, exatamente 2->EQ00393 250mA
+- [x] Cenario D Stripline Bivolt: exatamente 1->EQ00581 250mA, exatamente 2->EQ00582 250mA
+- [x] Piso minimo: se barras < 1.0 assumir 1.0
+- [x] Stripline: apenas inteiros (bloquear decimais na logica)
+- [x] Atualizar testes para cobrir gatilhos de faixa (2.0 vs 2.1, 5.0 vs 5.1)
