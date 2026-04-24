@@ -165,3 +165,11 @@
 - [x] Exibir circuitos no resultado (ex: "Circuito 1: 3 barras, Circuito 2: 3 barras")
 - [x] Restaurar CCT no campo Barras do template de produção
 - [x] Atualizar template de produção para listar circuitos e drivers por circuito
+
+## v3.0 — Driver por peça/SKU individual (sem divisão de circuitos)
+- [x] Reverter splitIntoCircuits: driver calculado por barra/peça individual (não total bruto)
+- [x] Medidas quebradas: 1.x→19W, 2.x/3.x/4.x→44W, 5.x/6.x→65W (por peça)
+- [x] Remover exibição de circuitos da tabela de drivers na UI
+- [x] Atualizar template de produção: campos "Barras por peça" e "Barras totais"
+- [x] Validação: quantidade de drivers = quantidade de peças × driver por peça
+- [x] Substituir testes v2.9 (circuitos) por testes v3.0 (driver por peça) — 198 testes passando

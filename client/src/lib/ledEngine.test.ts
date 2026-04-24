@@ -1525,14 +1525,12 @@ describe("v01 — 18W Bivolt: medidas quebradas (Math.ceil para faixa)", () => {
   });
 });
 
-// ─── Testes v2.9 — Divisão de Circuitos Elétricos ────────────────────────────
+// --- Testes v3.0 --- Driver por peca/SKU individual (sem circuitos) ---
 
 import { buildComposition } from "./ledEngine";
 
-describe("v2.9 — Divisão de circuitos elétricos (máx. 3 barras/circuito)", () => {
-  // Para testar splitIntoCircuits indiretamente via calculateComposition
-  it("3375mm 18W 220V → 2 circuitos de 3 barras → 2× EQ00347 44W", () => {
-    // 3375mm → realized=3270mm → 2 módulos de 3 barras cada
+describe("v3.0 --- Driver por peca/SKU individual (regra definitiva)", () => {
+  it("3375mm 18W 220V cada modulo tem 1 driver calculado por suas barras", () => {
     const result = calculateComposition({
       profileCode: "LLP-4251",
       application: "D1",
@@ -1544,17 +1542,21 @@ describe("v2.9 — Divisão de circuitos elétricos (máx. 3 barras/circuito)", 
       stripMethod: "STRIPFLEX",
       independentLighting: false,
     });
-    const allCircuits = result.driversD1.flatMap(e => e.circuits ?? []);
-    // Todos os circuitos devem ter no máximo 3 barras
-    allCircuits.forEach(c => expect(c.bars).toBeLessThanOrEqual(3));
-    // Todos os circuitos de 3 barras devem usar 44W
-    allCircuits.filter(c => c.bars === 3).forEach(c => expect(c.driver.code).toBe("EQ00347"));
-    // Nenhum circuito deve usar 65W (superdimensionamento proibido)
-    allCircuits.forEach(c => expect(c.driver.code).not.toBe("EQ00393"));
+    // Cada SkuDriverEntry tem exatamente 1 driver (sem circuitos)
+    result.driversD1.forEach(e => {
+      expect(e.driver).toBeDefined();
+      // barsPerPiece deve estar definido
+      expect(e.barsPerPiece).toBeGreaterThan(0);
+    });
+    // Nao deve usar 65W para modulos com 3 barras (superdimensionamento proibido)
+    result.driversD1.forEach(e => {
+      if (e.barsPerPiece <= 5) {
+        expect(e.driver.code).not.toBe("EQ00393");
+      }
+    });
   });
 
-  it("2700mm 18W 220V → circuitos [3, 2] → 44W + 19W", () => {
-    // 2700mm → realized=2510mm → circuitos [3, 2]
+  it("2700mm 18W 220V modulos com 3 barras usam 44W, modulos com 2 barras usam 19W", () => {
     const result = calculateComposition({
       profileCode: "LLP-4251",
       application: "D1",
@@ -1566,16 +1568,17 @@ describe("v2.9 — Divisão de circuitos elétricos (máx. 3 barras/circuito)", 
       stripMethod: "STRIPFLEX",
       independentLighting: false,
     });
-    const allCircuits = result.driversD1.flatMap(e => e.circuits ?? []);
-    // Pelo menos um circuito com 3 barras (44W) e um com 2 barras (19W)
-    const has3bar = allCircuits.some(c => c.bars === 3 && c.driver.code === "EQ00347");
-    const has2bar = allCircuits.some(c => c.bars === 2 && c.driver.code === "EQ00346");
-    expect(has3bar).toBe(true);
-    expect(has2bar).toBe(true);
+    // Verificar que drivers sao corretos por peca
+    result.driversD1.forEach(e => {
+      if (e.barsPerPiece <= 2) {
+        expect(e.driver.code).toBe("EQ00346"); // 19W para 1-2 barras
+      } else if (e.barsPerPiece <= 5) {
+        expect(e.driver.code).toBe("EQ00347"); // 44W para 3-5 barras
+      }
+    });
   });
 
-  it("600mm 18W 220V → 1 circuito de 1 barra → 19W", () => {
-    // 600mm → realized=575mm → 1 barra
+  it("600mm 18W 220V 1 barra por peca usa 19W (EQ00346)", () => {
     const result = calculateComposition({
       profileCode: "LLP-4251",
       application: "D1",
@@ -1587,16 +1590,12 @@ describe("v2.9 — Divisão de circuitos elétricos (máx. 3 barras/circuito)", 
       stripMethod: "STRIPFLEX",
       independentLighting: false,
     });
-    const allCircuits = result.driversD1.flatMap(e => e.circuits ?? []);
-    expect(allCircuits.length).toBeGreaterThan(0);
-    // Todos os circuitos devem ter 1 barra → 19W
-    allCircuits.forEach(c => {
-      expect(c.bars).toBe(1);
-      expect(c.driver.code).toBe("EQ00346");
+    result.driversD1.forEach(e => {
+      expect(e.driver.code).toBe("EQ00346"); // 1 barra usa 19W
     });
   });
 
-  it("26W → sem divisão de circuitos (1 circuito por módulo)", () => {
+  it("26W 220V 1 driver por modulo, sem circuitos", () => {
     const result = calculateComposition({
       profileCode: "LLP-4251",
       application: "D1",
@@ -1608,32 +1607,32 @@ describe("v2.9 — Divisão de circuitos elétricos (máx. 3 barras/circuito)", 
       stripMethod: "STRIPFLEX",
       independentLighting: false,
     });
-    // 26W nunca divide circuitos — cada módulo tem exatamente 1 circuito
+    // 26W: 1 driver por peca, barsPerPiece definido
     result.driversD1.forEach(e => {
-      expect(e.circuits?.length).toBe(1);
+      expect(e.driver).toBeDefined();
+      expect(e.barsPerPiece).toBeGreaterThan(0);
     });
   });
 
-  it("Stripline 36W → sem divisão de circuitos (1 circuito por módulo)", () => {
+  it("Stripline 36W 1 driver por modulo, sem circuitos", () => {
     const result = calculateComposition({
       profileCode: "LLP-4251",
       application: "D1",
       powerD1: 36,
       cct: "4000K",
       voltage: "220Vac",
-      totalLength: 1125, // 1125mm → realized=575mm → 1 barra Stripline
+      totalLength: 1125,
       allowLongModules: false,
       stripMethod: "STRIPLINE",
       independentLighting: false,
     });
-    // Stripline nunca divide circuitos
     result.driversD1.forEach(e => {
-      expect(e.circuits?.length).toBe(1);
+      expect(e.driver).toBeDefined();
+      expect(e.barsPerPiece).toBeGreaterThan(0);
     });
   });
 
-  it("Máximo 3 barras por circuito — regra absoluta", () => {
-    // Comprimento longo → múltiplos módulos com muitas barras
+  it("5000mm 18W 220V modulos com 6 barras usam 65W (por peca)", () => {
     const result = calculateComposition({
       profileCode: "LLP-4251",
       application: "D1",
@@ -1645,8 +1644,16 @@ describe("v2.9 — Divisão de circuitos elétricos (máx. 3 barras/circuito)", 
       stripMethod: "STRIPFLEX",
       independentLighting: false,
     });
-    const allCircuits = result.driversD1.flatMap(e => e.circuits ?? []);
-    // Nenhum circuito pode ter mais de 3 barras
-    allCircuits.forEach(c => expect(c.bars).toBeLessThanOrEqual(3));
+    // Cada modulo tem seu proprio driver calculado por suas barras
+    result.driversD1.forEach(e => {
+      expect(e.driver).toBeDefined();
+      if (e.barsPerPiece >= 6) {
+        expect(e.driver.code).toBe("EQ00393"); // 65W para 6-7 barras
+      } else if (e.barsPerPiece >= 3) {
+        expect(e.driver.code).toBe("EQ00347"); // 44W para 3-5 barras
+      } else {
+        expect(e.driver.code).toBe("EQ00346"); // 19W para 1-2 barras
+      }
+    });
   });
 });

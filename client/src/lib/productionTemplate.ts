@@ -1,81 +1,19 @@
 /**
  * Gerador de Pedido de Produção Alfalux v.03
- * Gera um bloco de texto estruturado pronto para cópia no sistema de produção.
+ * Regra definitiva: 1 driver por peça/SKU individual.
+ * Exibe "Barras por peça" e "Barras totais" separadamente.
+ * NÃO exibe circuitos elétricos.
  */
 
 import type { CompositionResult, SkuDriverEntry } from "./ledEngine";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatBars(
-  barras: number,
-  barsTotal: number,
-  power: number,
-  stripMethod: string,
-  cct: string,
-  stripflexName: string
-): string {
-  const isStripline = stripMethod === "STRIPLINE";
-
-  // Nome completo da barra com CCT obrigatório
-  const barName = isStripline
-    ? `Stripline 562,5 x 15mm 105L ${cct}`
-    : stripflexName || `Stripflex 562,5 x 10mm 36L ${cct}`;
-
-  if (power === 36 && !isStripline) {
-    // Fileira Dupla: barsTotal = barras × 2
-    return `${barsTotal}x ${barName} (${barras} seções × 2 fileiras)`;
+function getBarName(stripMethod: string, cct: string, stripflexName?: string): string {
+  if (stripMethod === "STRIPLINE") {
+    return `Stripline 562,5 x 15mm 105L ${cct}`;
   }
-  return `${barsTotal}x ${barName}`;
-}
-
-function formatCircuits(entry: SkuDriverEntry, qty: number): string {
-  const { circuits } = entry;
-
-  if (!circuits || circuits.length <= 1) {
-    // Sem divisão de circuitos: exibir driver único
-    const driverQty = (entry.driver.quantity ?? 1) * qty;
-    const code = entry.driver.code ? ` (${entry.driver.code})` : "";
-    return `${driverQty}x ${entry.driver.model}${code}`;
-  }
-
-  // Múltiplos circuitos: agrupar por modelo de driver
-  const driverMap = new Map<string, { model: string; code?: string; count: number; barsPerCircuit: number[] }>();
-  for (const c of circuits) {
-    const key = c.driver.model;
-    const existing = driverMap.get(key);
-    if (existing) {
-      existing.count += qty;
-      existing.barsPerCircuit.push(c.bars);
-    } else {
-      driverMap.set(key, {
-        model: c.driver.model,
-        code: c.driver.code,
-        count: qty,
-        barsPerCircuit: [c.bars],
-      });
-    }
-  }
-
-  return Array.from(driverMap.values())
-    .map((d) => {
-      const code = d.code ? ` (${d.code})` : "";
-      return `${d.count}x ${d.model}${code}`;
-    })
-    .join("\n    ");
-}
-
-function buildCircuitLines(entry: SkuDriverEntry, qty: number): string[] {
-  const { circuits } = entry;
-  if (!circuits || circuits.length <= 1) return [];
-
-  const lines: string[] = [];
-  lines.push(`Circuitos: ${circuits.length} circuito${circuits.length > 1 ? "s" : ""} elétrico${circuits.length > 1 ? "s" : ""}`);
-  for (const c of circuits) {
-    const code = c.driver.code ? ` (${c.driver.code})` : "";
-    lines.push(`  Circuito ${c.index}: ${c.bars} barra${c.bars !== 1 ? "s" : ""} → ${c.driver.model}${code}`);
-  }
-  return lines;
+  return stripflexName || `Stripflex 562,5 x 10mm 36L ${cct}`;
 }
 
 function buildMountingNotes(result: CompositionResult): string[] {
@@ -117,53 +55,32 @@ function buildModuleBlock(
   label?: string
 ): string {
   const lines: string[] = [];
+  const barName = getBarName(result.stripMethod, result.cct, result.stripflexName);
 
   lines.push(`Módulo: ${sku}${label ? ` [${label}]` : ""}`);
   lines.push(`Comprimento: ${length}mm`);
-  lines.push(
-    `Barras: ${formatBars(
-      barras,
-      barsTotal,
-      result.powerD1,
-      result.stripMethod,
-      result.cct,
-      result.stripflexName
-    )}`
-  );
 
-  // Exibir circuitos elétricos (se houver divisão)
-  for (const e of drivers) {
-    const circuitLines = buildCircuitLines(e, moduleQty);
-    for (const cl of circuitLines) {
-      lines.push(cl);
-    }
+  // Barras por peça (barsTotal = barras da peça individual)
+  if (result.powerD1 === 36 && result.stripMethod === "STRIPFLEX") {
+    // Fileira dupla: barsTotal = barras × 2 (lado a lado)
+    lines.push(`Barras por peça: ${barsTotal}x ${barName} (${barras} seções × 2 fileiras)`);
+    lines.push(`Barras totais: ${barsTotal * moduleQty}x ${barName}`);
+  } else {
+    lines.push(`Barras por peça: ${barsTotal}x ${barName}`);
+    lines.push(`Barras totais: ${barsTotal * moduleQty}x ${barName}`);
   }
 
-  // Consolidar drivers por modelo para este módulo
+  // Consolidar drivers: 1 driver por peça × quantidade de módulos
   const driverMap = new Map<string, { model: string; code?: string; total: number }>();
   for (const e of drivers) {
-    if (e.circuits && e.circuits.length > 1) {
-      // Múltiplos circuitos: contar um driver por circuito × quantidade de módulos
-      for (const c of e.circuits) {
-        const key = c.driver.model;
-        const existing = driverMap.get(key);
-        if (existing) {
-          existing.total += moduleQty;
-        } else {
-          driverMap.set(key, { model: c.driver.model, code: c.driver.code, total: moduleQty });
-        }
-      }
+    const key = e.driver.model;
+    const existing = driverMap.get(key);
+    // driver.quantity = multiplicador interno (ex: 26W CERTADRIVE = qty de barras)
+    const driverQty = (e.driver.quantity ?? 1) * moduleQty;
+    if (existing) {
+      existing.total += driverQty;
     } else {
-      // Driver único: quantidade = driverQty × moduleQty
-      const key = e.driver.model;
-      const existing = driverMap.get(key);
-      const driverQty = e.driver.quantity ?? 1;
-      const total = driverQty * moduleQty;
-      if (existing) {
-        existing.total += total;
-      } else {
-        driverMap.set(key, { model: e.driver.model, code: e.driver.code, total });
-      }
+      driverMap.set(key, { model: e.driver.model, code: e.driver.code, total: driverQty });
     }
   }
 
