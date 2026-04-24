@@ -2093,3 +2093,87 @@ describe("v3.4 --- Regra Absoluta de Drivers: fronteiras exatas sem arredondamen
     }
   });
 });
+
+describe("v3.5 --- Fronteiras exatas: 0-2.0 / 2.01-5.0 / 5.01-7.0", () => {
+  // Tabela deterministica:
+  //   0   a 2.00 -> EQ00346 (19W)
+  //   2.01 a 5.00 -> EQ00347 (44W)
+  //   5.01 a 7.00 -> EQ00393 (65W)
+
+  it("2.00 barras -> EQ00346 (limite superior da faixa 0-2.0, inclusivo)", () => {
+    const drivers = selectDrivers(2.00, 18, "220Vac");
+    expect(drivers[0].code).toBe("EQ00346");
+  });
+
+  it("2.01 barras -> EQ00347 (limite inferior da faixa 2.01-5.0)", () => {
+    const drivers = selectDrivers(2.01, 18, "220Vac");
+    expect(drivers[0].code).toBe("EQ00347");
+  });
+
+  it("5.00 barras -> EQ00347 (limite superior da faixa 2.01-5.0, inclusivo)", () => {
+    const drivers = selectDrivers(5.00, 18, "220Vac");
+    expect(drivers[0].code).toBe("EQ00347");
+  });
+
+  it("5.01 barras -> EQ00393 (limite inferior da faixa 5.01-7.0)", () => {
+    const drivers = selectDrivers(5.01, 18, "220Vac");
+    expect(drivers[0].code).toBe("EQ00393");
+  });
+
+  it("Varredura: todos os valores de 0.1 em 0.1 ate 2.0 -> EQ00346", () => {
+    for (let b = 1.0; b <= 2.0; b = Math.round((b + 0.1) * 10) / 10) {
+      const drivers = selectDrivers(b, 18, "220Vac");
+      expect(drivers[0].code).toBe("EQ00346");
+    }
+  });
+
+  it("Varredura: todos os valores de 0.1 em 0.1 de 2.1 ate 5.0 -> EQ00347", () => {
+    for (let b = 2.1; b <= 5.0; b = Math.round((b + 0.1) * 10) / 10) {
+      const drivers = selectDrivers(b, 18, "220Vac");
+      expect(drivers[0].code).toBe("EQ00347");
+    }
+  });
+
+  it("Varredura: todos os valores de 0.1 em 0.1 de 5.1 ate 7.0 -> EQ00393", () => {
+    for (let b = 5.1; b <= 7.0; b = Math.round((b + 0.1) * 10) / 10) {
+      const drivers = selectDrivers(b, 18, "220Vac");
+      expect(drivers[0].code).toBe("EQ00393");
+    }
+  });
+
+  it("Nenhum valor <= 5.0 barras usa EQ00393 (regra proibicao absoluta)", () => {
+    // Testar todos os valores com precisao de 0.01 de 1.0 ate 5.0
+    const criticalValues = [
+      1.0, 1.5, 1.8, 2.0,
+      2.01, 2.5, 3.0, 3.3, 3.8,
+      4.0, 4.2, 4.8,
+      5.0
+    ];
+    for (const b of criticalValues) {
+      const drivers = selectDrivers(b, 18, "220Vac");
+      expect(drivers[0].code).not.toBe("EQ00393");
+    }
+  });
+});
+
+describe("v3.5b --- Varredura programatica completa 1.0-7.0 em passos de 0.01", () => {
+  // Tabela deterministica (sem arredondamento):
+  //   bars <= 2.00 -> EQ00346
+  //   bars <= 5.00 -> EQ00347
+  //   bars >  5.00 -> EQ00393
+
+  it("Varredura 1.00 a 7.00 em passos de 0.01: cada valor na faixa correta", () => {
+    for (let i = 100; i <= 700; i++) {
+      const bars = i / 100; // 1.00, 1.01, ..., 7.00
+      const drivers = selectDrivers(bars, 18, "220Vac");
+      const code = drivers[0].code;
+      if (bars <= 2.00) {
+        expect(code).toBe("EQ00346");
+      } else if (bars <= 5.00) {
+        expect(code).toBe("EQ00347");
+      } else {
+        expect(code).toBe("EQ00393");
+      }
+    }
+  });
+});

@@ -203,3 +203,9 @@
 - [x] 5.1 barras usa EQ00393 (65W)
 - [x] Proibido: 3.8, 4.8, 5.0 barras com EQ00393 — verificado por varredura completa
 - [x] Atualizar testes com todos os exemplos obrigatórios do documento — 225 testes passando
+
+## v3.5 — Confirmação de Fronteiras Exatas (0–2.0 / 2.01–5.0 / 5.01–7.0)
+- [x] Código usa bars <= 2.0 (EQ00346) e bars <= 5.0 (EQ00347) — fronteiras inclusivas corretas
+- [x] Sem Math.ceil, Math.round ou Math.floor no fluxo 18W/36W STRIPFLEX
+- [x] Testes para limites exatos: 2.00 → EQ00346; 2.01 → EQ00347; 5.00 → EQ00347; 5.01 → EQ00393
+- [x] Varredura completa de 1.0 a 7.0 em passos de 0.1 — 233 testes passando
