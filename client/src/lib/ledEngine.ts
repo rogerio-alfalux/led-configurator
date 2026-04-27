@@ -246,7 +246,13 @@ interface RawModule {
   sku: string;
 }
 
-function getModules(profileCode: string, type: ModuleType, allowLongModules: boolean, stripMethod?: StripMethod): RawModule[] {
+/**
+ * Retorna os módulos disponíveis para um perfil, tipo e configuração.
+ * Para 26W: exclui módulos nos gaps inválidos da tabela DRIVER_LOOKUP
+ *   Gap 1: 1.61–1.99 (sem driver entre 1x e 2x Certadrive)
+ *   Gap 2: 3.21–3.99 (sem driver entre 3x Certadrive e OSRAM)
+ */
+function getModules(profileCode: string, type: ModuleType, allowLongModules: boolean, stripMethod?: StripMethod, power?: Power): RawModule[] {
   const profile = LED_CATALOG[profileCode];
   if (!profile) return [];
   const mods = profile.modules[type];
@@ -259,6 +265,14 @@ function getModules(profileCode: string, type: ModuleType, allowLongModules: boo
       if (stripMethod === "STRIPLINE") {
         const b = parseFloat(barrasKey);
         return STRIPLINE_VALID_BARS.includes(b);
+      }
+      // 26W: excluir módulos nos gaps inválidos da tabela DRIVER_LOOKUP
+      // Gap 1: 1.61–1.99 (sem driver entre 1x e 2x Certadrive)
+      // Gap 2: 3.21–3.99 (sem driver entre 3x Certadrive e OSRAM)
+      if (power === 26) {
+        const b = parseFloat(barrasKey);
+        if (b > 1.6 && b < 2.0) return false; // gap 1.61–1.99
+        if (b > 3.2 && b < 4.0) return false; // gap 3.21–3.99
       }
       return true;
     })
@@ -312,7 +326,7 @@ function tryInSingle(
   stripMethod: StripMethod,
   sheetDrivers?: SheetDriver[]
 ): { composition: CompositionItem[]; realizedLength: number; remainingLength: number } | null {
-  const inModules = getModules(profileCode, "IN", allowLongModules, stripMethod)
+  const inModules = getModules(profileCode, "IN", allowLongModules, stripMethod, power)
     .filter(m => m.length <= requestedLength)
     .sort((a, b) => b.length - a.length);
 
@@ -360,9 +374,9 @@ function buildIfMlComposition(
   stripMethod: StripMethod,
   sheetDrivers?: SheetDriver[]
 ): { composition: CompositionItem[]; realizedLength: number; remainingLength: number } | null {
-  const ifModules = getModules(profileCode, "IF", allowLongModules, stripMethod)
+  const ifModules = getModules(profileCode, "IF", allowLongModules, stripMethod, power)
     .sort((a, b) => b.length - a.length);
-  const mlModules = getModules(profileCode, "ML", allowLongModules, stripMethod)
+  const mlModules = getModules(profileCode, "ML", allowLongModules, stripMethod, power)
     .sort((a, b) => b.length - a.length);
 
   if (ifModules.length === 0) return null;
@@ -494,7 +508,7 @@ export function buildComposition(
 
   const maxBars = allowLongModules ? IN_MAX_BARS_LONG : IN_MAX_BARS_STANDARD;
 
-  const inModulesAll = getModules(profileCode, "IN", allowLongModules, stripMethod);
+  const inModulesAll = getModules(profileCode, "IN", allowLongModules, stripMethod, power);
   const largestInWithinLimit = inModulesAll
     .filter(m => m.barras <= maxBars)
     .sort((a, b) => b.length - a.length)[0];
@@ -515,9 +529,9 @@ export function buildComposition(
 
   // Fallback: algoritmo guloso genérico
   const allModules: RawModule[] = [
-    ...getModules(profileCode, "IN", allowLongModules, stripMethod),
-    ...getModules(profileCode, "IF", allowLongModules, stripMethod),
-    ...getModules(profileCode, "ML", allowLongModules, stripMethod),
+    ...getModules(profileCode, "IN", allowLongModules, stripMethod, power),
+    ...getModules(profileCode, "IF", allowLongModules, stripMethod, power),
+    ...getModules(profileCode, "ML", allowLongModules, stripMethod, power),
   ].sort((a, b) => b.length - a.length);
 
   const barsPerSection = stripMethod === "STRIPLINE" ? 1 : BARS_PER_SECTION_STRIPFLEX[power];

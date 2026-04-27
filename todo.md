@@ -209,3 +209,23 @@
 - [x] Sem Math.ceil, Math.round ou Math.floor no fluxo 18W/36W STRIPFLEX
 - [x] Testes para limites exatos: 2.00 → EQ00346; 2.01 → EQ00347; 5.00 → EQ00347; 5.01 → EQ00393
 - [x] Varredura completa de 1.0 a 7.0 em passos de 0.1 — 233 testes passando
+
+## v3.6 — DRIVER_LOOKUP como fonte única de verdade
+- [x] Incorporar tabela DRIVER_LOOKUP_ALFALUX como constante TypeScript em driverLookup.ts
+- [x] Reescrever selectDriverFallback: lookup por (Potencia, Tensao, Tipo_Barra, Barras_Min <= barras <= Barras_Max)
+- [x] Retornar ERRO para combinações inválidas (ex: 26W com 1.7-1.99 barras)
+- [x] Remover toda lógica hardcoded de if/else para seleção de drivers
+- [x] Atualizar testes para validar lookup e cobrir caso de ERRO — 238 testes passando
+
+## v3.6b — Correções da tabela DRIVER_LOOKUP (respostas confirmadas)
+- [x] 26W: dividir faixa 2–3.2 em 2.0–2.99 (2x Certadrive) e 3.0–3.2 (3x Certadrive)
+- [x] 26W: faixa 4.0–6.0 = OSRAM IT FIT 75W (EQ00220) — sem Certadrive acima de 3.2
+- [x] 36W Stripflex: adicionar linhas para 7.01–14 barras (fileira dupla, mesmos drivers)
+- [x] 18W: máximo 7 barras — acima disso retorna ERRO
+- [x] Stripline: apenas inteiros 1 e 2 — valores quebrados retornam ERRO
+- [x] Atualizar testes para refletir o novo comportamento
+
+## v3.6c — Restrição de módulos inválidos para 26W
+- [x] Filtrar módulos com barras no gap 3.21–3.99 para 26W (sem driver válido na tabela DRIVER_LOOKUP)
+- [x] Filtrar módulos com barras no gap 1.61–1.99 para 26W
+- [x] Atualizar testes para cobrir o comportamento de filtragem — 238 testes passando

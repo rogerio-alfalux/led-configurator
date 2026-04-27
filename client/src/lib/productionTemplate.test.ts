@@ -62,15 +62,26 @@ describe("generateProductionTemplate — estrutura básica", () => {
 });
 
 describe("generateProductionTemplate — 26W CERTADRIVE quantidade", () => {
-  it("2 barras 26W → deve mostrar CERTADRIVE", () => {
-    // 2250mm = 4 barras 26W → 3.3-4.0 → CERTADRIVE ×3
+  it("3 barras 26W → deve mostrar CERTADRIVE ×3 (tabela DRIVER_LOOKUP: 3.0-3.2 = 3x Certadrive)", () => {
+    // 1687mm ≈ 3 barras 26W (3 × 562.5 = 1687.5mm) → faixa 3.0-3.2 → 3x CERTADRIVE
     const result = calculateComposition(
-      makeInput({ powerD1: 26, totalLength: 2250 })
+      makeInput({ powerD1: 26, totalLength: 1687 })
     );
     const template = generateProductionTemplate(result);
     // Deve conter CERTADRIVE com código EQ
     expect(template).toContain("CERTADRIVE");
     expect(template).toContain("EQ00353");
+  });
+  it("4 barras 26W → deve mostrar OSRAM (tabela DRIVER_LOOKUP: 4-6 barras = OSRAM)", () => {
+    // 2300mm → módulo IN 4 barras (2260mm) cabe → faixa 4-6 → OSRAM IT FIT 75W
+    // Nota: 2250mm não funciona porque o módulo de 4 barras tem 2260mm (> 2250mm)
+    const result = calculateComposition(
+      makeInput({ powerD1: 26, totalLength: 2300 })
+    );
+    const template = generateProductionTemplate(result);
+    // Deve conter OSRAM com código EQ00220
+    expect(template).toContain("OSRAM");
+    expect(template).toContain("EQ00220");
   });
 });
 

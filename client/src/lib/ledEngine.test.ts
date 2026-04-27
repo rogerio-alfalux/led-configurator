@@ -38,18 +38,16 @@ describe("selectDrivers — 220Vac — 350mA (18W)", () => {
     expect(drivers[0].current).toBe("350mA");
   });
 
-  it("8 barras → Philips 65W 350mA (sem módulos longos, nunca OSRAM nem 100W)", () => {
-    // selectDrivers não passa allowLongModules, então o fallback usa false por padrão
-    // Resultado esperado: Philips 65W (melhor opção sem módulos longos)
+  it("8 barras → ERRO (18W máximo 7 barras na tabela DRIVER_LOOKUP)", () => {
+    // Tabela DRIVER_LOOKUP: 18W Stripflex vai até 7 barras máximo
+    // Acima de 7 barras → ERRO: combinação inválida
     const drivers = selectDrivers(8, 18, "220Vac");
-    expect(drivers[0].model).toContain("65W");
-    expect(drivers[0].current).toBe("350mA");
-    expect(drivers[0].model).not.toContain("OSRAM");
-    expect(drivers[0].model).not.toContain("100W");
+    expect(drivers[0].code).toBe("ERRO");
   });
 
-  it("OSRAM não deve aparecer para 18W em nenhuma quantidade de barras", () => {
-    for (const bars of [1, 2, 3, 4, 5, 6, 7, 8]) {
+  it("OSRAM não deve aparecer para 18W em nenhuma quantidade de barras (1-7)", () => {
+    // Tabela DRIVER_LOOKUP: 18W Stripflex vai até 7 barras. Acima de 7 → ERRO.
+    for (const bars of [1, 2, 3, 4, 5, 6, 7]) {
       const drivers = selectDrivers(bars, 18, "220Vac");
       expect(drivers[0].model).not.toContain("OSRAM");
     }
@@ -57,8 +55,10 @@ describe("selectDrivers — 220Vac — 350mA (18W)", () => {
 });
 
 describe("selectDrivers — 220Vac — 350mA (36W)", () => {
-  it("12 barras → Philips 65W 350mA (1 driver por SKU)", () => {
+  it("12 barras → Philips 65W 350mA (1 driver por SKU — 36W Stripflex vai até 14 barras)", () => {
+    // Tabela DRIVER_LOOKUP: 36W Stripflex faixa 5.01-14 → EQ00393 (Fileira dupla)
     const drivers = selectDrivers(12, 36, "220Vac");
+    expect(drivers[0].code).toBe("EQ00393");
     expect(drivers[0].model).toContain("65W");
     expect(drivers[0].current).toBe("350mA");
   });
@@ -79,11 +79,12 @@ describe("selectDrivers — 220Vac — 500mA (26W)", () => {
     expect(drivers[0].quantity).toBe(3); // 3 barras = 3x CERTADRIVE
   });
 
-  it("4 barras → CERTADRIVE qty=3 (nova lógica: 3.3-4.0 = ×3 Certadrive)", () => {
+  it("4 barras → OSRAM IT FIT 75W (tabela DRIVER_LOOKUP: 4-6 barras = OSRAM)", () => {
+    // Tabela DRIVER_LOOKUP: 26W faixa 4-6 → OSRAM IT FIT 75W (EQ00220)
     const drivers = selectDrivers(4, 26, "220Vac");
-    expect(drivers[0].model).toContain("CERTADRIVE");
+    expect(drivers[0].code).toBe("EQ00220");
+    expect(drivers[0].model).toContain("OSRAM");
     expect(drivers[0].current).toBe("500mA");
-    expect(drivers[0].quantity).toBe(3);
   });
 });
 
@@ -990,16 +991,16 @@ describe("selectDriverFromSheet — restrição onlyLongModules", () => {
 });
 
 describe("selectDrivers — fallback hardcoded respeita allowLongModules", () => {
-  it("8 barras 18W 220V sem módulos longos → Philips 65W (não 100W)", () => {
-    // O fallback hardcoded deve retornar 65W quando allowLongModules=false
+  it("8 barras 18W 220V → ERRO (tabela DRIVER_LOOKUP: 18W máximo 7 barras)", () => {
+    // Tabela DRIVER_LOOKUP: 18W Stripflex vai até 7 barras máximo
     const r = selectDriverFallback(8, 18, "220Vac", "STRIPFLEX", false);
-    expect(r.model).toContain("65W");
-    expect(r.model).not.toContain("100W");
+    expect(r.code).toBe("ERRO");
   });
 
-  it("8 barras 18W 220V com módulos longos → Philips 65W (lógica v00 máximo 7 barras, sem 100W)", () => {
-    // Lógica v00: máximo definido é 6-7 barras → 65W. Acima de 7 também retorna 65W.
-    const r = selectDriverFallback(8, 18, "220Vac", "STRIPFLEX", true);
+  it("7 barras 18W 220V → EQ00393 65W (limite máximo da tabela)", () => {
+    // Tabela DRIVER_LOOKUP: 18W Stripflex faixa 5.01-7 → EQ00393
+    const r = selectDriverFallback(7, 18, "220Vac", "STRIPFLEX", true);
+    expect(r.code).toBe("EQ00393");
     expect(r.model).toContain("65W");
   });
 });
@@ -1237,35 +1238,44 @@ describe("v.01 — TRAVA DE SEGURANÇA: 65W nunca para ≤5 barras (Cenário 01)
   });
 });
 
-describe("v.01 — Stripline: arredondamento para inteiro superior (Cenário 03)", () => {
-  it("1.5 barras Stripline 220V → ceil(1.5)=2 → EQ00393 65W 250mA", () => {
-    const r = selectDriverFallback(1.5, 36, "220Vac", "STRIPLINE");
-    expect(r.code).toBe("EQ00393");
-    expect(r.model).toContain("65W");
-    expect(r.current).toBe("250mA");
-  });
-  it("0.5 barras Stripline 220V → ceil(0.5)=1 → EQ00347 44W 250mA", () => {
-    const r = selectDriverFallback(0.5, 36, "220Vac", "STRIPLINE");
+describe("v.01 — Stripline: apenas inteiros válidos (Cenário 03)", () => {
+  // Tabela DRIVER_LOOKUP: Stripline só tem linhas para inteiros exatos 1 e 2.
+  // Valores quebrados (1.5, 1.1, 0.5) não têm linha na tabela → ERRO.
+  it("1 barra Stripline 220V → EQ00347 44W 250mA (inteiro válido)", () => {
+    const r = selectDriverFallback(1, 36, "220Vac", "STRIPLINE");
     expect(r.code).toBe("EQ00347");
     expect(r.model).toContain("44W");
     expect(r.current).toBe("250mA");
   });
-  it("1.1 barras Stripline 220V → round(1.1)=1 → EQ00347 44W 250mA (Versão Final 02: inteiro mais próximo)", () => {
+  it("2 barras Stripline 220V → EQ00393 65W 250mA (inteiro válido)", () => {
+    const r = selectDriverFallback(2, 36, "220Vac", "STRIPLINE");
+    expect(r.code).toBe("EQ00393");
+    expect(r.model).toContain("65W");
+    expect(r.current).toBe("250mA");
+  });
+  it("1.5 barras Stripline 220V → ERRO (Stripline só aceita inteiros)", () => {
+    const r = selectDriverFallback(1.5, 36, "220Vac", "STRIPLINE");
+    expect(r.code).toBe("ERRO");
+  });
+  it("1.1 barras Stripline 220V → ERRO (Stripline só aceita inteiros)", () => {
     const r = selectDriverFallback(1.1, 36, "220Vac", "STRIPLINE");
-    expect(r.code).toBe("EQ00347"); // round(1.1)=1 → 1 barra → 44W
-    expect(r.current).toBe("250mA");
+    expect(r.code).toBe("ERRO");
   });
-  it("1.5 barras Stripline Bivolt → round(1.5)=2 → EQ00582 LIFUD 60W 250mA", () => {
-    const r = selectDriverFallback(1.5, 36, "Bivolt", "STRIPLINE");
-    expect(r.code).toBe("EQ00582"); // round(1.5)=2 → 2 barras → 60W
-    expect(r.model).toContain("60W");
-    expect(r.current).toBe("250mA");
-  });
-  it("0.5 barras Stripline Bivolt → ceil(0.5)=1 → EQ00581 LIFUD 40W 250mA", () => {
-    const r = selectDriverFallback(0.5, 36, "Bivolt", "STRIPLINE");
+  it("1 barra Stripline Bivolt → EQ00581 LIFUD 40W 250mA (inteiro válido)", () => {
+    const r = selectDriverFallback(1, 36, "Bivolt", "STRIPLINE");
     expect(r.code).toBe("EQ00581");
     expect(r.model).toContain("40W");
     expect(r.current).toBe("250mA");
+  });
+  it("2 barras Stripline Bivolt → EQ00582 LIFUD 60W 250mA (inteiro válido)", () => {
+    const r = selectDriverFallback(2, 36, "Bivolt", "STRIPLINE");
+    expect(r.code).toBe("EQ00582");
+    expect(r.model).toContain("60W");
+    expect(r.current).toBe("250mA");
+  });
+  it("1.5 barras Stripline Bivolt → ERRO (Stripline só aceita inteiros)", () => {
+    const r = selectDriverFallback(1.5, 36, "Bivolt", "STRIPLINE");
+    expect(r.code).toBe("ERRO");
   });
 });
 
@@ -1378,22 +1388,24 @@ describe("v.02 — Piso mínimo de 1.0 barra", () => {
   });
 });
 
-describe("v.02 — Stripline: apenas inteiros via Math.round", () => {
-  it("1.4 barras Stripline 220V → round=1 → EQ00347 44W", () => {
+describe("v.02 — Stripline: valores quebrados retornam ERRO (tabela DRIVER_LOOKUP)", () => {
+  // Tabela DRIVER_LOOKUP: Stripline só tem linhas para inteiros 1 e 2.
+  // Não há arredondamento — valores quebrados são inválidos.
+  it("1.4 barras Stripline 220V → ERRO (não é inteiro)", () => {
     const r = selectDriverFallback(1.4, 36, "220Vac", "STRIPLINE");
-    expect(r.code).toBe("EQ00347");
+    expect(r.code).toBe("ERRO");
   });
-  it("1.6 barras Stripline 220V → round=2 → EQ00393 65W", () => {
+  it("1.6 barras Stripline 220V → ERRO (não é inteiro)", () => {
     const r = selectDriverFallback(1.6, 36, "220Vac", "STRIPLINE");
-    expect(r.code).toBe("EQ00393");
+    expect(r.code).toBe("ERRO");
   });
-  it("1.4 barras Stripline Bivolt → round=1 → EQ00581 LIFUD 40W", () => {
+  it("1.4 barras Stripline Bivolt → ERRO (não é inteiro)", () => {
     const r = selectDriverFallback(1.4, 36, "Bivolt", "STRIPLINE");
-    expect(r.code).toBe("EQ00581");
+    expect(r.code).toBe("ERRO");
   });
-  it("1.6 barras Stripline Bivolt → round=2 → EQ00582 LIFUD 60W", () => {
+  it("1.6 barras Stripline Bivolt → ERRO (não é inteiro)", () => {
     const r = selectDriverFallback(1.6, 36, "Bivolt", "STRIPLINE");
-    expect(r.code).toBe("EQ00582");
+    expect(r.code).toBe("ERRO");
   });
 });
 
@@ -1415,10 +1427,12 @@ describe("v01 — 26W 220V: CERTADRIVE 1-3 barras, OSRAM 4-6 barras", () => {
     expect(r.code).toBe("EQ00353");
     expect(r.quantity).toBe(3);
   });
-  it("4 barras → CERTADRIVE qty=3 (3.3-4.0 = ×3 Certadrive)", () => {
+  it("4 barras → OSRAM IT FIT 75W (tabela DRIVER_LOOKUP: 4-6 barras = OSRAM)", () => {
+    // Tabela DRIVER_LOOKUP: 26W faixa 4-6 → OSRAM IT FIT 75W (EQ00220)
     const r = selectDriverFallback(4, 26, "220Vac", "STRIPFLEX");
-    expect(r.code).toBe("EQ00353");
-    expect(r.quantity).toBe(3);
+    expect(r.code).toBe("EQ00220");
+    expect(r.model).toContain("OSRAM");
+    expect(r.quantity).toBe(1);
   });
   it("5 barras → OSRAM qty=1", () => {
     const r = selectDriverFallback(5, 26, "220Vac", "STRIPFLEX");
@@ -1443,14 +1457,15 @@ describe("v2.8 — 26W: medidas quebradas (lógica oficial)", () => {
     expect(r.code).toBe("EQ00353");
     expect(r.quantity).toBe(1);
   });
-  it("1.7 barras → NÃO EXISTE → OSRAM (fallback segurança)", () => {
+  it("1.7 barras → ERRO (gap 1.61-1.99 na tabela DRIVER_LOOKUP)", () => {
+    // Tabela DRIVER_LOOKUP: não há linha para 1.61-1.99 em 26W → ERRO
     const r = selectDriverFallback(1.7, 26, "220Vac", "STRIPFLEX");
-    expect(r.code).toBe("EQ00220"); // placeholder de segurança
+    expect(r.code).toBe("ERRO");
   });
-  it("1.9 barras → 1.9 < 3.0 → CERTADRIVE qty=2", () => {
+  it("1.9 barras → ERRO (gap 1.61-1.99 na tabela DRIVER_LOOKUP)", () => {
+    // Tabela DRIVER_LOOKUP: não há linha para 1.61-1.99 em 26W → ERRO
     const r = selectDriverFallback(1.9, 26, "220Vac", "STRIPFLEX");
-    expect(r.code).toBe("EQ00353");
-    expect(r.quantity).toBe(2);
+    expect(r.code).toBe("ERRO");
   });
   it("2.5 barras → 2.5 < 3.0 → CERTADRIVE qty=2", () => {
     const r = selectDriverFallback(2.5, 26, "220Vac", "STRIPFLEX");
@@ -1467,10 +1482,10 @@ describe("v2.8 — 26W: medidas quebradas (lógica oficial)", () => {
     expect(r.code).toBe("EQ00353");
     expect(r.quantity).toBe(3);
   });
-  it("3.5 barras → 3.5 ≤ 4.0 → CERTADRIVE qty=3", () => {
+  it("3.5 barras → ERRO (gap 3.21-3.99 na tabela DRIVER_LOOKUP)", () => {
+    // Tabela DRIVER_LOOKUP: não há linha para 3.21-3.99 em 26W → ERRO
     const r = selectDriverFallback(3.5, 26, "220Vac", "STRIPFLEX");
-    expect(r.code).toBe("EQ00353");
-    expect(r.quantity).toBe(3);
+    expect(r.code).toBe("ERRO");
   });
   it("4.9 barras → ceil=5 → OSRAM qty=1", () => {
     const r = selectDriverFallback(4.9, 26, "220Vac", "STRIPFLEX");
@@ -1632,7 +1647,9 @@ describe("v3.0 --- Driver por peca/SKU individual (regra definitiva)", () => {
     });
   });
 
-  it("5000mm 18W 220V modulos com 6 barras usam 65W (por peca)", () => {
+  it("5000mm 18W 220V: driver calculado por barras reais de cada modulo (por peca)", () => {
+    // Para 5000mm LLP-4251 18W, o algoritmo gera 2x IF 2385mm = 4770mm
+    // Cada modulo IF 2385mm tem 4.2 barras → EQ00347 (44W, faixa 2.01-5)
     const result = calculateComposition({
       profileCode: "LLP-4251",
       application: "D1",
@@ -1647,12 +1664,16 @@ describe("v3.0 --- Driver por peca/SKU individual (regra definitiva)", () => {
     // Cada modulo tem seu proprio driver calculado por suas barras
     result.driversD1.forEach(e => {
       expect(e.driver).toBeDefined();
-      if (e.barsPerPiece >= 6) {
-        expect(e.driver.code).toBe("EQ00393"); // 65W para 6-7 barras
-      } else if (e.barsPerPiece >= 3) {
-        expect(e.driver.code).toBe("EQ00347"); // 44W para 3-5 barras
-      } else {
+      // Regra: barras <= 2.0 → EQ00346; barras <= 5.0 → EQ00347; barras <= 7.0 → EQ00393; acima → ERRO
+      if (e.barsPerPiece <= 2.0) {
         expect(e.driver.code).toBe("EQ00346"); // 19W para 1-2 barras
+      } else if (e.barsPerPiece <= 5.0) {
+        expect(e.driver.code).toBe("EQ00347"); // 44W para 2.01-5 barras
+      } else if (e.barsPerPiece <= 7.0) {
+        expect(e.driver.code).toBe("EQ00393"); // 65W para 5.01-7 barras
+      } else {
+        // Acima de 7 barras: ERRO (18W máximo 7 barras na tabela)
+        expect(e.driver.code).toBe("ERRO");
       }
     });
   });

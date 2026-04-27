@@ -259,131 +259,68 @@ export function selectDriverFromSheet(
 }
 
 /**
- * LÓGICA DE DRIVERS ALFALUX — VERSÃO 02 (24/04/2026) — REGRA ABSOLUTA
+ * SISTEMA DETERMINÍSTICO DE SELEÇÃO DE DRIVERS — VERSÃO 03 (27/04/2026)
  *
- * 18W 220V e 36W FILEIRA DUPLA (STRIPFLEX):
- *   Fronteiras exatas sobre o valor real de barras (SEM arredondamento, SEM Math.ceil).
- *   1.0 até 2.0 barras → Philips Xitanium 19W 350mA (EQ00346)
- *   acima de 2.0 até 5.0 barras → Philips Xitanium 44W 350mA (EQ00347)
- *   acima de 5.0 até 7.0 barras → Philips Xitanium 65W 350mA (EQ00393)
- *   Exemplos obrigatórios: 1.8 → EQ00346 | 2.0 → EQ00346 | 2.1 → EQ00347
- *     3.8 → EQ00347 | 4.8 → EQ00347 | 5.0 → EQ00347 | 5.1 → EQ00393
- *   PROIBIDO: 3.8, 4.8 ou 5.0 barras com EQ00393.
+ * A seleção de driver É UMA CONSULTA OBRIGATÓRIA na tabela DRIVER_LOOKUP_ALFALUX.
+ * NÃO é uma decisão de lógica, aproximação ou interpretação.
  *
- * 18W BIVOLT (STRIPFLEX):
- *   Fronteiras exatas sobre o valor real de barras (SEM arredondamento, SEM Math.ceil).
- *   1.0 até 2.0 barras → Lifud 20W 350mA (EQ00580)
- *   acima de 2.0 até 4.0 barras → Lifud 40W 350mA (EQ00581)
- *   acima de 4.0 até 6.0 barras → Lifud 60W 350mA (EQ00582)
- *   Ex: 1.5 barras → EQ00580 | 2.1 barras → EQ00581 | 4.1 barras → EQ00582
+ * Fluxo:
+ *   1. Receber barras_por_peca (valor real, SEM arredondar)
+ *   2. Consultar DRIVER_LOOKUP_TABLE (driverLookup.ts)
+ *   3. Filtrar por Potencia + Tensao + Tipo_Barra
+ *   4. Encontrar linha onde Barras_Min <= barras <= Barras_Max
+ *   5. Retornar Driver_Modelo + Driver_Codigo
+ *   6. Se não encontrar: ERRO
  *
- * 26W 220V (STRIPFLEX) — SEM OPÇÃO BIVOLT:
- *   Regras de medidas quebradas (instruição oficial):
- *   1.0 a 1.6 > Certadrive x1 (EQ00353)
- *   1.7 a 1.8 > NÃO EXISTE (erro técnico)
- *   1.9 a 2.0 > Certadrive x2 (EQ00353)
- *   2.1 a 3.2 > Certadrive x2 (EQ00353)
- *   3.3 a 4.0 > Certadrive x3 (EQ00353)
- *   4.1 a 6.0 > OSRAM IT FIT 75W (EQ00220)
- *   Restrição HIT: 26W < 4 barras não permitido
- *   BLAZE H: adicionar aviso "driver deve ser desencapado"
- *
- * 36W STRIPLINE (apenas inteiros, sem fracionamento):
- *   220V: 1 barra > Philips Xitanium 44W 250mA (EQ00347)
- *         2 barras > Philips Xitanium 65W 250mA (EQ00393)
- *   BIVOLT: 1 barra > Lifud 40W 250mA (EQ00581)
- *           2 barras > Lifud 60W 250mA (EQ00582)
+ * PROIBIDO: arredondar barras, usar CEIL/FLOOR, usar driver fora do intervalo.
  */
+import { lookupDriver } from "./driverLookup";
+
 export function selectDriverFallback(
   rawBars: number,
   power: Power,
   voltage: Voltage,
   stripMethod: StripMethod,
   _allowLongModules?: boolean,
-  profileCode?: string
+  _profileCode?: string
 ): SelectedDriver {
-  const isBivolt = voltage === "Bivolt";
+  const bars = Math.max(1.0, rawBars);
+  const potencia = `${power}W`;
+  const tensao = voltage === "Bivolt" ? "Bivolt" : "220V";
+  const tipoBarra = stripMethod === "STRIPFLEX" ? "Stripflex" : "Stripline";
+  const vOut = calcVOut(bars, power, stripMethod);
+  const currentMA = getCurrentMA(power, stripMethod);
 
-  // --- 36W STRIPLINE ------
-  // Apenas números INTEIROS (1, 2...). Proibido fracionamento.
-  if (power === 36 && stripMethod === "STRIPLINE") {
-    const bars = Math.max(1, Math.round(rawBars));
-    const vOut = calcVOut(bars, power, stripMethod);
-    if (isBivolt) {
-      if (bars <= 1) return { code: "EQ00581", model: "LIFUD 40W 250MA LF-FMR040YS0350U(S)", current: "250mA", quantity: 1, vOut };
-      return { code: "EQ00582", model: "LIFUD 60W 250MA LF-FMR060YS0350U(S)", current: "250mA", quantity: 1, vOut };
+  const result = lookupDriver(bars, potencia, tensao, tipoBarra);
+
+  if (result.error) {
+    // Retornar um driver de erro com o código especial ERRO
+    return {
+      code: "ERRO",
+      model: result.error,
+      current: `${currentMA}mA`,
+      quantity: 0,
+      vOut,
+    };
+  }
+
+  // Determinar quantity para Certadrive (26W pode ter 1x, 2x ou 3x)
+  // O modelo na tabela usa prefixo: "PHILIPS CERTADRIVE 20W" (1x), "2x PHILIPS..." (2x), "3x PHILIPS..." (3x)
+  let quantity = 1;
+  if (result.driverCodigo === "EQ00353") {
+    const match = result.driverModelo.match(/^(\d+)x\s/i);
+    if (match) {
+      quantity = parseInt(match[1], 10);
     } else {
-      if (bars <= 1) return { code: "EQ00347", model: "PHILIPS XITANIUM 44W 250MA", current: "250mA", quantity: 1, vOut };
-      return { code: "EQ00393", model: "PHILIPS XITANIUM 65W 250MA", current: "250mA", quantity: 1, vOut };
+      quantity = 1;
     }
   }
 
-  // --- 26W STRIPFLEX (500mA) ------
-  // SEM OPÇÃO BIVOLT — 26W é sempre 220Vac.
-  // Regras de medidas quebradas (instruição oficial):
-  //   1.0 a 1.6 > Certadrive x1
-  //   1.7 a 1.8 > NÃO EXISTE (erro técnico — retorna OSRAM como placeholder)
-  //   1.9 a 2.0 > Certadrive x2
-  //   2.1 a 3.2 > Certadrive x2
-  //   3.3 a 4.0 > Certadrive x3
-  //   4.1 a 6.0 > OSRAM IT FIT 75W
-  if (power === 26) {
-    const bars = Math.max(1.0, rawBars);
-    const vOut = calcVOut(bars, power, stripMethod);
-
-    // Determinar quantidade de Certadrive com base nas faixas exatas (instruição oficial):
-    // 1.0 a 1.6 > x1 | 1.7-1.8 > inválido | 1.9-3.0 > x2 | 3.1-3.2 > x2 | 3.3-4.0 > x3 | 4.1+ > OSRAM
-    // Nota: 3.0 exato > x3 (3 barras = 3x Certadrive conforme instruição)
-    let certadriveQty = 0;
-    if (bars <= 1.6) {
-      certadriveQty = 1;
-    } else if (bars <= 1.8) {
-      // 1.7 e 1.8 não existem — retornar OSRAM como fallback de segurança
-      return { code: "EQ00220", model: "OSRAM IT FIT 75W 500MA", current: "500mA", quantity: 1, vOut };
-    } else if (bars < 3.0) {
-      // 1.9 a 2.9 > x2 Certadrive
-      certadriveQty = 2;
-    } else if (bars <= 3.2) {
-      // 3.0 a 3.2 > x3 Certadrive (3 barras exatas = 3x; 3.1/3.2 também = 3x)
-      certadriveQty = 3;
-    } else if (bars <= 4.0) {
-      // 3.3 a 4.0 -> x3 Certadrive
-      certadriveQty = 3;
-    }
-
-    if (certadriveQty > 0) {
-      return { code: "EQ00353", model: "PHILIPS CERTADRIVE 20W 500MA", current: "500mA", quantity: certadriveQty, vOut };
-    }
-    // 4.1+ barras: OSRAM IT FIT 75W, quantity = 1
-    return { code: "EQ00220", model: "OSRAM IT FIT 75W 500MA", current: "500mA", quantity: 1, vOut };
-  }
-
-  // --- 18W e 36W STRIPFLEX ------
-  // 36W Fileira Dupla: barras já multiplicadas por 2 pelo ledEngine.
-  // REGRA ABSOLUTA v3.4: comparar diretamente o valor real de barras, SEM Math.ceil.
-  // Proibido arredondar: 3.8 ≠ 4, 4.8 ≠ 5, 5.0 ≠ 6.
-  if (power === 18 || (power === 36 && stripMethod === "STRIPFLEX")) {
-    const bars = Math.max(1.0, rawBars);
-    const vOut = calcVOut(bars, power, stripMethod);
-    if (isBivolt) {
-      // 1.0 até 2.0 barras → Lifud 20W 350mA (EQ00580)
-      // acima de 2.0 até 4.0 barras → Lifud 40W 350mA (EQ00581)
-      // acima de 4.0 até 6.0 barras → Lifud 60W 350mA (EQ00582)
-      if (bars <= 2.0) return { code: "EQ00580", model: "LIFUD 20W 350MA LF-FMR020YS0350U(S)", current: "350mA", quantity: 1, vOut };
-      if (bars <= 4.0) return { code: "EQ00581", model: "LIFUD 40W 350MA LF-FMR040YS0350U(S)", current: "350mA", quantity: 1, vOut };
-      return { code: "EQ00582", model: "LIFUD 60W 350MA LF-FMR060YS0350U(S)", current: "350mA", quantity: 1, vOut };
-    } else {
-      // 1.0 até 2.0 barras → Philips Xitanium 19W 350mA (EQ00346)
-      // acima de 2.0 até 5.0 barras → Philips Xitanium 44W 350mA (EQ00347)
-      // acima de 5.0 até 7.0 barras → Philips Xitanium 65W 350mA (EQ00393)
-      // PROIBIDO: 3.8, 4.8, 5.0 barras com EQ00393
-      if (bars <= 2.0) return { code: "EQ00346", model: "PHILIPS XITANIUM 19W 350MA", current: "350mA", quantity: 1, vOut };
-      if (bars <= 5.0) return { code: "EQ00347", model: "PHILIPS XITANIUM 44W 350MA", current: "350mA", quantity: 1, vOut };
-      return { code: "EQ00393", model: "PHILIPS XITANIUM 65W 350MA", current: "350mA", quantity: 1, vOut };
-    }
-  }
-
-  // Fallback genérico (não deve ser atingido)
-  const vOutFallback = calcVOut(Math.max(1.0, rawBars), power, stripMethod);
-  return { code: "EQ00220", model: "OSRAM IT FIT 75W 500MA", current: "500mA", quantity: 1, vOut: vOutFallback };
+  return {
+    code: result.driverCodigo,
+    model: result.driverModelo,
+    current: `${currentMA}mA`,
+    quantity,
+    vOut,
+  };
 }
