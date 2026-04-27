@@ -677,7 +677,7 @@ export default function Home() {
             </div>
             <div>
               <h1 className="text-base font-bold font-display text-sidebar-foreground leading-none">
-                Configurador de Perfis
+                Configurador de Produtos
               </h1>
               <p className="text-xs text-sidebar-foreground/60 leading-none mt-0.5">
                 Alfalux Iluminação
@@ -1111,7 +1111,7 @@ export default function Home() {
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
       <footer className="border-t border-border mt-16 py-6">
         <div className="container flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span>© 2025 Alfalux Iluminação · Configurador de Perfis</span>
+          <span>© 2025 Alfalux Iluminação · Configurador de Produtos</span>
           <span className="font-mono">
             {Object.keys(LED_CATALOG).length} variantes · Regra de Ouro aplicada
           </span>
