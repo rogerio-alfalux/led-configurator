@@ -258,3 +258,14 @@
 - [x] Módulos < 2 barras permitidos apenas para IN (módulo único inteiro, forComposition=false)
 - [x] Constante MIN_BARS_FOR_COMPOSITION = 2 adicionada ao ledEngine.ts
 - [x] Atualizar testes para cobrir o novo comportamento — 257 testes passando
+
+## v4.1 — Seletor de Categoria de Produto
+- [x] Adicionar type ProductCategory e constante PRODUCT_CATEGORIES com 8 categorias
+- [x] Estado productCategory com useState<ProductCategory>("Perfis") como padrão
+- [x] Grid 4 colunas com botões de categoria (ícones lucide-react: Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles)
+- [x] Categoria "Perfis" ativa — exibe todos os campos de configuração normalmente
+- [x] Categorias "em breve" (Downlights, Painéis, Spots, Arandelas, Área Externa, Balizadores, Decorativas): exibem badge "em breve" e toast ao clicar
+- [x] Campos de perfil (Perfil, Instalação, Potência, CCT, Tensão, Comprimento, etc.) exibidos apenas quando productCategory === "Perfis"
+- [x] Título do header corrigido para "Configurador de Produtos" (h1 no sidebar)
+- [x] Rodapé já atualizado para "Configurador de Produtos"
+- [x] 257 testes passando (sem regressão)

@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
-import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck } from "lucide-react";
+import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useTheme } from "@/contexts/ThemeContext";
+import { toast } from "sonner";
 import {
   LED_CATALOG,
   getProfileNames,
@@ -56,6 +57,29 @@ const DIFFUSER_OPTIONS: { value: DiffuserType; label: string; desc: string }[] =
   { value: "DA", label: "DA", desc: "Difusor Alto" },
   { value: "DB", label: "DB", desc: "Difusor Baixo" },
   { value: "DC", label: "DC", desc: "Difusor Curvo" },
+];
+
+// ─── Categorias de Produto ────────────────────────────────────────────────────
+
+type ProductCategory =
+  | "Perfis"
+  | "Downlights"
+  | "Painéis"
+  | "Spots"
+  | "Arandelas"
+  | "Área Externa"
+  | "Balizadores"
+  | "Decorativas";
+
+const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.ElementType; available: boolean }[] = [
+  { value: "Perfis",       label: "Perfis",        icon: Layers,      available: true  },
+  { value: "Downlights",   label: "Downlights",    icon: Lightbulb,   available: false },
+  { value: "Painéis",      label: "Painéis",       icon: Grid2X2,     available: false },
+  { value: "Spots",        label: "Spots",         icon: Focus,       available: false },
+  { value: "Arandelas",    label: "Arandelas",     icon: Lamp,        available: false },
+  { value: "Área Externa", label: "Área Externa",  icon: TreePine,    available: false },
+  { value: "Balizadores",  label: "Balizadores",   icon: Navigation,  available: false },
+  { value: "Decorativas",  label: "Decorativas",   icon: Sparkles,    available: false },
 ];
 
 // ─── Componentes Auxiliares ────────────────────────────────────────────────────
@@ -530,6 +554,9 @@ export default function Home() {
     },
   });
 
+  // Categoria de produto
+  const [productCategory, setProductCategory] = useState<ProductCategory>("Perfis");
+
   // Step 1: Perfil
   const [profileName, setProfileName] = useState<string>("");
   // Step 2: Instalação
@@ -677,7 +704,7 @@ export default function Home() {
             </div>
             <div>
               <h1 className="text-base font-bold font-display text-sidebar-foreground leading-none">
-                Configurador de Perfis
+                Configurador de Produtos
               </h1>
               <p className="text-xs text-sidebar-foreground/60 leading-none mt-0.5">
                 Alfalux Iluminação
@@ -725,6 +752,50 @@ export default function Home() {
 
             <Card className="shadow-sm">
               <CardContent className="pt-6 space-y-5">
+
+                {/* 0. Categoria de Produto */}
+                <div>
+                  <FieldLabel>Categoria de Produto</FieldLabel>
+                  <div className="grid grid-cols-4 gap-2">
+                    {PRODUCT_CATEGORIES.map(({ value, label, icon: Icon, available }) => (
+                      <button
+                        key={value}
+                        onClick={() => {
+                          if (!available) {
+                            toast.info(`${label} em breve`, {
+                              description: "Esta categoria ainda não possui produtos cadastrados.",
+                              duration: 3000,
+                            });
+                            return;
+                          }
+                          setProductCategory(value);
+                          setProfileName("");
+                          setInstallType("");
+                          setResult(null);
+                          setError(null);
+                        }}
+                        className={`relative flex flex-col items-center gap-1.5 px-2 py-3 rounded-lg border text-xs font-medium transition-all ${
+                          productCategory === value
+                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                            : available
+                              ? "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                              : "bg-muted/30 text-muted-foreground border-border/50 cursor-not-allowed opacity-60"
+                        }`}
+                      >
+                        <Icon className="w-4 h-4 shrink-0" />
+                        <span className="leading-tight text-center">{label}</span>
+                        {!available && (
+                          <span className="absolute -top-1.5 -right-1.5 text-[9px] font-bold bg-muted text-muted-foreground border border-border rounded px-1 leading-tight">
+                            em breve
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {productCategory === "Perfis" && (
+                <React.Fragment>
 
                 {/* 1. Perfil */}
                 <div>
@@ -1055,6 +1126,10 @@ export default function Home() {
                   </div>
                 )}
 
+
+                </React.Fragment>
+                )} {/* fim productCategory === Perfis */}
+
               </CardContent>
             </Card>
 
@@ -1111,7 +1186,7 @@ export default function Home() {
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
       <footer className="border-t border-border mt-16 py-6">
         <div className="container flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span>© 2025 Alfalux Iluminação · Configurador de Perfis</span>
+          <span>© 2025 Alfalux Iluminação · Configurador de Produtos</span>
           <span className="font-mono">
             {Object.keys(LED_CATALOG).length} variantes · Regra de Ouro aplicada
           </span>
