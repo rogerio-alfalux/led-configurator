@@ -252,3 +252,9 @@
 - [x] 18W Bivolt Stripflex duplicata na planilha: mantida apenas uma entrada (sem observação) — a segunda entrada com "Fileira dupla" foi ignorada (18W já cobre fileira dupla com as mesmas linhas)
 - [x] 26W faixa 3.0-3.2 (3x Certadrive) mantida na tabela (confirmada pelo usuário em versão anterior)
 - [x] Testes para 36W Bivolt Stripflex (1, 2, 2.01, 4, 4.01, 6, 7 barras) — 257 testes passando
+
+## v4.0 — Mínimo de 2 barras para módulos IF e ML
+- [x] Filtrar módulos com barras < 2 nas composições IF e ML (getModules com parâmetro forComposition=true)
+- [x] Módulos < 2 barras permitidos apenas para IN (módulo único inteiro, forComposition=false)
+- [x] Constante MIN_BARS_FOR_COMPOSITION = 2 adicionada ao ledEngine.ts
+- [x] Atualizar testes para cobrir o novo comportamento — 257 testes passando

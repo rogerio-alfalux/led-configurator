@@ -259,7 +259,10 @@ interface RawModule {
  *   Gap 1: 1.61–1.99 (sem driver entre 1x e 2x Certadrive)
  *   Gap 2: 3.21–3.99 (sem driver entre 3x Certadrive e OSRAM)
  */
-function getModules(profileCode: string, type: ModuleType, allowLongModules: boolean, stripMethod?: StripMethod, power?: Power): RawModule[] {
+// Mínimo de barras para módulos usados em composição IF/ML (evitar emendas muito próximas)
+const MIN_BARS_FOR_COMPOSITION = 2;
+
+function getModules(profileCode: string, type: ModuleType, allowLongModules: boolean, stripMethod?: StripMethod, power?: Power, forComposition = false): RawModule[] {
   const profile = LED_CATALOG[profileCode];
   if (!profile) return [];
   const mods = profile.modules[type];
@@ -280,6 +283,12 @@ function getModules(profileCode: string, type: ModuleType, allowLongModules: boo
         const b = parseFloat(barrasKey);
         if (b > 1.6 && b < 2.0) return false; // gap 1.61–1.99
         if (b > 3.2 && b < 4.0) return false; // gap 3.21–3.99
+      }
+      // Composições IF/ML: excluir módulos com menos de 2 barras (evitar emendas muito próximas)
+      // Módulos < 2 barras só são permitidos para IN (módulo único inteiro)
+      if (forComposition && type !== "IN") {
+        const b = parseFloat(barrasKey);
+        if (b < MIN_BARS_FOR_COMPOSITION) return false;
       }
       return true;
     })
@@ -384,9 +393,9 @@ function buildIfMlComposition(
   stripMethod: StripMethod,
   sheetDrivers?: SheetDriver[]
 ): { composition: CompositionItem[]; realizedLength: number; remainingLength: number } | null {
-  const ifModules = getModules(profileCode, "IF", allowLongModules, stripMethod, power)
+  const ifModules = getModules(profileCode, "IF", allowLongModules, stripMethod, power, true)
     .sort((a, b) => b.length - a.length);
-  const mlModules = getModules(profileCode, "ML", allowLongModules, stripMethod, power)
+  const mlModules = getModules(profileCode, "ML", allowLongModules, stripMethod, power, true)
     .sort((a, b) => b.length - a.length);
 
   if (ifModules.length === 0) return null;
@@ -538,10 +547,11 @@ export function buildComposition(
   }
 
   // Fallback: algoritmo guloso genérico
+  // IF e ML com forComposition=true: excluir módulos < 2 barras (evitar emendas muito próximas)
   const allModules: RawModule[] = [
     ...getModules(profileCode, "IN", allowLongModules, stripMethod, power),
-    ...getModules(profileCode, "IF", allowLongModules, stripMethod, power),
-    ...getModules(profileCode, "ML", allowLongModules, stripMethod, power),
+    ...getModules(profileCode, "IF", allowLongModules, stripMethod, power, true),
+    ...getModules(profileCode, "ML", allowLongModules, stripMethod, power, true),
   ].sort((a, b) => b.length - a.length);
 
   const barsPerSection = stripMethod === "STRIPLINE" ? 1 : BARS_PER_SECTION_STRIPFLEX[power];

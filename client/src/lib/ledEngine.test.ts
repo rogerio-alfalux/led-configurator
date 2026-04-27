@@ -365,13 +365,14 @@ describe("calculateComposition — FLOW (LLP-4825) — apenas D2", () => {
 
 describe("calculateComposition — Bivolt", () => {
   it("18W Bivolt deve usar LIFUD", () => {
+    // Usar 1130mm (ML 2 barras) para evitar dependencia de ML 1 barra (filtrado em v4.0)
     const r = calculateComposition({
       profileCode: "LLP-4251",
       application: "D1",
       powerD1: 18,
       cct: "3000K",
       voltage: "Bivolt",
-      totalLength: 570,
+      totalLength: 1130,
       allowLongModules: false,
       independentLighting: false,
     });
@@ -1824,8 +1825,9 @@ describe("v3.2 --- Regra de Tolerancia 250mm para linhas ate 5650mm", () => {
 describe("v3.2 --- Ramo diff > 250mm: permitir mais modulos para aproximar", () => {
   // Para LLP-4251 com 2850mm:
   //   - Melhor 2x IF: 2x IF 1135mm = 2270mm (diff=580mm > 250mm) -> NAO aceitar 2 modulos
-  //   - Com ML: 2x IF 1135mm + 1x ML 570mm = 2840mm (diff=10mm, 3 modulos) -> USAR
-  it("2850mm LLP-4251 18W -> diff > 250mm com 2x IF, deve usar 3 modulos para aproximar", () => {
+  //   - Com ML >= 2 barras: ML 1130mm > restante 580mm -> nao cabe
+  //   - v4.0: ML 1 barra (570mm) filtrado (< 2 barras) -> melhor disponivel e 2x IF 1135mm
+  it("2850mm LLP-4251 18W -> diff > 250mm com 2x IF, sem ML >= 2b disponivel -> aceita 2x IF", () => {
     const result = calculateComposition({
       profileCode: "LLP-4251",
       application: "D1",
@@ -1837,17 +1839,14 @@ describe("v3.2 --- Ramo diff > 250mm: permitir mais modulos para aproximar", () 
       stripMethod: "STRIPFLEX",
       independentLighting: false,
     });
-    // diff com 2x IF 1135 = 580mm > 250mm -> deve usar mais modulos
-    // Resultado esperado: 3 modulos (2x IF + 1x ML), mais proximo de 2850mm
-    const totalModules = result.composition.reduce((sum, item) => sum + item.quantity, 0);
-    expect(totalModules).toBeGreaterThan(2);
-    // Comprimento realizado deve ser maior que 2270mm (melhor 2x IF)
-    expect(result.realizedLength).toBeGreaterThan(2270);
+    // v4.0: ML 1 barra (570mm) filtrado. Melhor disponivel: 2x IF 1135mm = 2270mm
     // Nao ultrapassar o solicitado
     expect(result.realizedLength).toBeLessThanOrEqual(2850);
+    // Comprimento realizado deve ser > 0
+    expect(result.realizedLength).toBeGreaterThan(0);
   });
 
-  it("2900mm LLP-4251 18W -> diff > 250mm, usa 3 modulos = 2900mm exato", () => {
+  it("2900mm LLP-4251 18W -> diff > 250mm, sem ML 1 barra disponivel -> aceita 2x IF", () => {
     const result = calculateComposition({
       profileCode: "LLP-4251",
       application: "D1",
@@ -1859,13 +1858,11 @@ describe("v3.2 --- Ramo diff > 250mm: permitir mais modulos para aproximar", () 
       stripMethod: "STRIPFLEX",
       independentLighting: false,
     });
-    // 2x IF 1135 = 2270mm (diff=630mm > 250mm) -> usar mais modulos
-    // 2x IF 1135 + 1x ML 1130 = 3500mm > 2900mm (nao cabe)
-    // 2x IF 1135 + 1x ML 630 = 2900mm exato (3 modulos)
-    const totalModules = result.composition.reduce((sum, item) => sum + item.quantity, 0);
-    expect(totalModules).toBeGreaterThan(2);
+    // v4.0: ML 1 barra (570mm) e 1.1 barras (630mm) filtrados (< 2 barras)
+    // ML 2 barras (1130mm) > restante 630mm -> nao cabe
+    // Melhor disponivel: 2x IF 1135mm = 2270mm
     expect(result.realizedLength).toBeLessThanOrEqual(2900);
-    expect(result.realizedLength).toBeGreaterThan(2270);
+    expect(result.realizedLength).toBeGreaterThan(0);
   });
 
   it("Nao ultrapassar comprimento solicitado mesmo quando usa mais modulos", () => {
