@@ -229,3 +229,11 @@
 - [x] Filtrar módulos com barras no gap 3.21–3.99 para 26W (sem driver válido na tabela DRIVER_LOOKUP)
 - [x] Filtrar módulos com barras no gap 1.61–1.99 para 26W
 - [x] Atualizar testes para cobrir o comportamento de filtragem — 238 testes passando
+
+## v3.7 — Driver por módulo individual (não por total acumulado)
+- [x] Corrigir toCompositionItems: driver calculado por barras do módulo individual (barsPerModule = item.barras × barsPerSection)
+- [x] Adicionar campo barsPerModule ao CompositionItem (barras de UMA peça, nunca acumulado)
+- [x] barsTotal continua acumulando apenas para exibição
+- [x] driverPerSku usa barsPerModule, não barsTotal
+- [x] buildSkuDriverList usa item.barsPerModule, não item.barsTotal
+- [x] Testes v3.7: barsPerPiece nunca excede 7 para 18W, múltiplos módulos têm driver individual — 240 testes passando

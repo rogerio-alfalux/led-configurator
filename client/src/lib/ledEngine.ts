@@ -52,9 +52,12 @@ export interface CompositionItem {
   moduleTypeLabel: string;
   length: number;
   barras: number;
+  /** Barras de UMA peça individual (barras × barsPerSection) — usado para calcular o driver */
+  barsPerModule: number;
+  /** Barras totais acumuladas (barsPerModule × quantity) — apenas para exibição */
   barsTotal: number;
   quantity: number;
-  /** Driver associado a este SKU (1 driver por SKU, nunca compartilhado) */
+  /** Driver associado a este SKU — calculado pelas barras de UMA peça individual */
   driverPerSku: DriverSpec;
 }
 
@@ -226,13 +229,13 @@ function buildSkuDriverList(
   driverContext?: Partial<DriverSelectionContext>
 ): SkuDriverEntry[] {
   return composition.map(item => {
-    // barsTotal = barras desta peça individual (nunca multiplicado pela quantidade)
-    const driver = selectDriverForBars(item.barsTotal, power, voltage, stripMethod, sheetDrivers, driverContext);
+    // barsPerModule = barras de UMA peça individual (nunca acumulado)
+    const driver = selectDriverForBars(item.barsPerModule, power, voltage, stripMethod, sheetDrivers, driverContext);
     return {
       sku: item.sku,
       quantity: item.quantity,
       driver,
-      barsPerPiece: item.barsTotal,
+      barsPerPiece: item.barsPerModule, // barras de UMA peça
     };
   });
 }
@@ -297,18 +300,21 @@ function toCompositionItems(
     const existing = skuMap.get(item.sku);
     if (existing) {
       existing.quantity += 1;
-      existing.barsTotal += item.barras * barsPerSection;
+      existing.barsTotal += item.barras * barsPerSection; // acumula apenas para exibição
     } else {
-      const barsTotal = item.barras * barsPerSection;
+      const barsPerModule = item.barras * barsPerSection; // barras de UMA peça
+      const barsTotal = barsPerModule; // inicia com 1 peça
       skuMap.set(item.sku, {
         sku: item.sku,
         moduleType: item.type,
         moduleTypeLabel: MODULE_TYPE_LABELS[item.type],
         length: item.length,
         barras: item.barras,
+        barsPerModule, // barras de UMA peça — nunca muda
         barsTotal,
         quantity: 1,
-        driverPerSku: selectDriverForBars(barsTotal, power, voltage, stripMethod, sheetDrivers),
+        // driver calculado pelas barras de UMA peça individual
+        driverPerSku: selectDriverForBars(barsPerModule, power, voltage, stripMethod, sheetDrivers),
       });
     }
   }

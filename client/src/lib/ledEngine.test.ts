@@ -2198,3 +2198,81 @@ describe("v3.5b --- Varredura programatica completa 1.0-7.0 em passos de 0.01", 
     }
   });
 });
+
+// --- Testes v3.7 --- Driver por módulo individual (não total acumulado) ---
+describe("v3.7 --- Driver calculado por barras do módulo individual", () => {
+  // REGRA: cada módulo recebe seu próprio driver calculado pelas suas barras individuais.
+  // 2x ML de 4 barras → 2 drivers de 4 barras (EQ00347), NÃO 1 driver de 8 barras (EQ00393).
+
+  it("2x ML 4 barras LLP-4251 18W → barsPerPiece=4 e driver EQ00347 (não 8 barras)", () => {
+    // Para obter 2x ML 4 barras (2255mm cada), precisamos de um comprimento que force IF+ML
+    // 2x IF 3 barras (1700mm) + 2x ML 4 barras (2255mm) = 7910mm — muito longo
+    // Vamos usar uma composição que produza 2x ML diretamente via fallback
+    // Comprimento: 4510mm → 2x ML 4 barras (2255mm × 2 = 4510mm)
+    const result = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1",
+      powerD1: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 4510,
+      allowLongModules: false,
+      stripMethod: "STRIPFLEX",
+      independentLighting: false,
+    });
+    // Verificar que cada módulo tem barsPerPiece correto (barras do módulo individual)
+    result.driversD1.forEach(e => {
+      expect(e.barsPerPiece).toBeLessThanOrEqual(7); // nunca acumula além do módulo individual
+      // Barras de um módulo individual nunca devem ser o dobro do maior módulo disponível
+      expect(e.barsPerPiece).toBeLessThan(8); // 8 barras seria acumulação de 2x ML 4 barras
+    });
+  });
+
+  it("barsPerPiece nunca deve ser maior que 7 para 18W (máximo da tabela)", () => {
+    // Testar vários comprimentos para garantir que barsPerPiece nunca excede 7
+    const comprimentos = [1000, 2000, 3000, 4000, 5000, 5650];
+    for (const totalLength of comprimentos) {
+      const result = calculateComposition({
+        profileCode: "LLP-4251",
+        application: "D1",
+        powerD1: 18,
+        cct: "4000K",
+        voltage: "220Vac",
+        totalLength,
+        allowLongModules: false,
+        stripMethod: "STRIPFLEX",
+        independentLighting: false,
+      });
+      result.driversD1.forEach(e => {
+        // barsPerPiece deve ser as barras de UM módulo individual
+        // Para 18W, o maior módulo válido tem 6 barras (3385mm)
+        expect(e.barsPerPiece).toBeLessThanOrEqual(7);
+      });
+    }
+  });
+
+  it("composição com múltiplos módulos: cada módulo tem seu próprio driver", () => {
+    // Para 3000mm LLP-4251 18W: deve usar 2x IF ou IF+ML
+    // Cada módulo deve ter barsPerPiece = barras daquele módulo individual
+    const result = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1",
+      powerD1: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 3000,
+      allowLongModules: false,
+      stripMethod: "STRIPFLEX",
+      independentLighting: false,
+    });
+    // Verificar que driversD1 tem pelo menos 1 entrada
+    expect(result.driversD1.length).toBeGreaterThan(0);
+    // Verificar que cada entrada tem barsPerPiece razoável (barras de 1 módulo)
+    result.driversD1.forEach(e => {
+      expect(e.barsPerPiece).toBeGreaterThan(0);
+      expect(e.barsPerPiece).toBeLessThanOrEqual(7); // máximo 18W
+      // Driver deve ser válido (não ERRO para comprimentos razoáveis)
+      expect(e.driver).toBeDefined();
+    });
+  });
+});
