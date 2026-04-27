@@ -246,3 +246,9 @@
 - [x] Atualizar selectDriverFallback para retornar combo quando driverCodigo contém " + "
 - [x] Propagar combo de SelectedDriver → DriverSpec → SkuDriverEntry → CompositionResult (campo combo preservado no pipeline completo)
 - [x] Testes para todos os casos de Stripline 1–5 barras (220V e Bivolt) — 250 testes passando
+
+## v3.9 — 36W Bivolt Stripflex (fileira dupla)
+- [x] Adicionar 36W Bivolt Stripflex: 1-2b=LIFUD 20W (EQ00580), 2.01-4b=LIFUD 40W (EQ00581), 4.01-6b=LIFUD 60W (EQ00582)
+- [x] 18W Bivolt Stripflex duplicata na planilha: mantida apenas uma entrada (sem observação) — a segunda entrada com "Fileira dupla" foi ignorada (18W já cobre fileira dupla com as mesmas linhas)
+- [x] 26W faixa 3.0-3.2 (3x Certadrive) mantida na tabela (confirmada pelo usuário em versão anterior)
+- [x] Testes para 36W Bivolt Stripflex (1, 2, 2.01, 4, 4.01, 6, 7 barras) — 257 testes passando

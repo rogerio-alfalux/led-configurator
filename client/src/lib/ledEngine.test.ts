@@ -2379,3 +2379,43 @@ describe("v3.8 --- 36W Stripline: drivers por barras (220V e Bivolt)", () => {
     expect(codes).toContain("EQ00581");
   });
 });
+
+// --- Testes v3.9 --- 36W Bivolt Stripflex (fileira dupla) ---
+describe("v3.9 --- 36W Bivolt Stripflex: drivers por barras (fileira dupla)", () => {
+  it("36W Bivolt Stripflex 1 barra → EQ00580 (LIFUD 20W 350MA)", () => {
+    const d = selectDriverFallback(1, 36, "Bivolt", "STRIPFLEX");
+    expect(d.code).toBe("EQ00580");
+    expect(d.combo).toBeUndefined();
+  });
+
+  it("36W Bivolt Stripflex 2 barras → EQ00580 (LIFUD 20W 350MA)", () => {
+    const d = selectDriverFallback(2, 36, "Bivolt", "STRIPFLEX");
+    expect(d.code).toBe("EQ00580");
+    expect(d.combo).toBeUndefined();
+  });
+
+  it("36W Bivolt Stripflex 2.01 barras → EQ00581 (LIFUD 40W 350MA)", () => {
+    const d = selectDriverFallback(2.01, 36, "Bivolt", "STRIPFLEX");
+    expect(d.code).toBe("EQ00581");
+  });
+
+  it("36W Bivolt Stripflex 4 barras → EQ00581 (LIFUD 40W 350MA)", () => {
+    const d = selectDriverFallback(4, 36, "Bivolt", "STRIPFLEX");
+    expect(d.code).toBe("EQ00581");
+  });
+
+  it("36W Bivolt Stripflex 4.01 barras → EQ00582 (LIFUD 60W 350MA)", () => {
+    const d = selectDriverFallback(4.01, 36, "Bivolt", "STRIPFLEX");
+    expect(d.code).toBe("EQ00582");
+  });
+
+  it("36W Bivolt Stripflex 6 barras → EQ00582 (LIFUD 60W 350MA)", () => {
+    const d = selectDriverFallback(6, 36, "Bivolt", "STRIPFLEX");
+    expect(d.code).toBe("EQ00582");
+  });
+
+  it("36W Bivolt Stripflex 7 barras → ERRO (acima do máximo)", () => {
+    const d = selectDriverFallback(7, 36, "Bivolt", "STRIPFLEX");
+    expect(d.code).toBe("ERRO");
+  });
+});
