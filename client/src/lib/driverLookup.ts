@@ -62,12 +62,18 @@ export const DRIVER_LOOKUP_TABLE: DriverLookupRow[] = [
   { potencia: "36W", tensao: "220V", tipoBarra: "Stripflex", barrasMin: 5.01, barrasMax: 14,   driverModelo: "PHILIPS XITANIUM 65W 350MA", driverCodigo: "EQ00393", observacao: "Fileira dupla" },
 
   // 36W 220V Stripline
-  { potencia: "36W", tensao: "220V", tipoBarra: "Stripline", barrasMin: 1,    barrasMax: 1,    driverModelo: "PHILIPS XITANIUM 44W 250MA", driverCodigo: "EQ00347" },
-  { potencia: "36W", tensao: "220V", tipoBarra: "Stripline", barrasMin: 2,    barrasMax: 2,    driverModelo: "PHILIPS XITANIUM 65W 250MA", driverCodigo: "EQ00393" },
+  { potencia: "36W", tensao: "220V", tipoBarra: "Stripline", barrasMin: 1, barrasMax: 1, driverModelo: "PHILIPS XITANIUM 44W 250MA",                                                         driverCodigo: "EQ00347" },
+  { potencia: "36W", tensao: "220V", tipoBarra: "Stripline", barrasMin: 2, barrasMax: 2, driverModelo: "PHILIPS XITANIUM 65W 250MA",                                                         driverCodigo: "EQ00393" },
+  { potencia: "36W", tensao: "220V", tipoBarra: "Stripline", barrasMin: 3, barrasMax: 3, driverModelo: "1x PHILIPS XITANIUM 44W 250MA + 1x PHILIPS XITANIUM 65W 250MA",                     driverCodigo: "EQ00347 + EQ00393" },
+  { potencia: "36W", tensao: "220V", tipoBarra: "Stripline", barrasMin: 4, barrasMax: 4, driverModelo: "2x PHILIPS XITANIUM 65W 250MA",                                                     driverCodigo: "EQ00393" },
+  { potencia: "36W", tensao: "220V", tipoBarra: "Stripline", barrasMin: 5, barrasMax: 5, driverModelo: "2x PHILIPS XITANIUM 65W 250MA + 1x PHILIPS XITANIUM 44W 250MA",                     driverCodigo: "EQ00393 + EQ00347" },
 
   // 36W Bivolt Stripline
-  { potencia: "36W", tensao: "Bivolt", tipoBarra: "Stripline", barrasMin: 1,  barrasMax: 1,    driverModelo: "LIFUD 40W 250MA", driverCodigo: "EQ00581" },
-  { potencia: "36W", tensao: "Bivolt", tipoBarra: "Stripline", barrasMin: 2,  barrasMax: 2,    driverModelo: "LIFUD 60W 250MA", driverCodigo: "EQ00582" },
+  { potencia: "36W", tensao: "Bivolt", tipoBarra: "Stripline", barrasMin: 1, barrasMax: 1, driverModelo: "LIFUD 40W 250MA",                                                                  driverCodigo: "EQ00581" },
+  { potencia: "36W", tensao: "Bivolt", tipoBarra: "Stripline", barrasMin: 2, barrasMax: 2, driverModelo: "LIFUD 60W 250MA",                                                                  driverCodigo: "EQ00582" },
+  { potencia: "36W", tensao: "Bivolt", tipoBarra: "Stripline", barrasMin: 3, barrasMax: 3, driverModelo: "1x LIFUD 40W 250MA + 1x LIFUD 60W 250MA",                                          driverCodigo: "EQ00581 + EQ00582" },
+  { potencia: "36W", tensao: "Bivolt", tipoBarra: "Stripline", barrasMin: 4, barrasMax: 4, driverModelo: "2x LIFUD 60W 250MA",                                                               driverCodigo: "EQ00582" },
+  { potencia: "36W", tensao: "Bivolt", tipoBarra: "Stripline", barrasMin: 5, barrasMax: 5, driverModelo: "2x LIFUD 60W 250MA + 1x LIFUD 40W 250MA",                                          driverCodigo: "EQ00582 + EQ00581" },
 ];
 
 /**

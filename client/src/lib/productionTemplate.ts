@@ -71,16 +71,29 @@ function buildModuleBlock(
   }
 
   // Consolidar drivers: 1 driver por peça × quantidade de módulos
+  // Suporte a combos (ex: Stripline 3 barras = 44W + 65W)
   const driverMap = new Map<string, { model: string; code?: string; total: number }>();
-  for (const e of drivers) {
-    const key = e.driver.model;
+
+  const addToDriverMap = (model: string, code: string | undefined, qty: number) => {
+    const key = `${code ?? model}`;
     const existing = driverMap.get(key);
-    // driver.quantity = multiplicador interno (ex: 26W CERTADRIVE = qty de barras)
-    const driverQty = (e.driver.quantity ?? 1) * moduleQty;
     if (existing) {
-      existing.total += driverQty;
+      existing.total += qty;
     } else {
-      driverMap.set(key, { model: e.driver.model, code: e.driver.code, total: driverQty });
+      driverMap.set(key, { model, code, total: qty });
+    }
+  };
+
+  for (const e of drivers) {
+    if (e.driver.combo && e.driver.combo.length > 0) {
+      // Driver composto: cada item do combo é adicionado separadamente
+      for (const item of e.driver.combo) {
+        addToDriverMap(item.model, item.code, item.quantity * moduleQty);
+      }
+    } else {
+      // Driver simples: driver.quantity = multiplicador interno (ex: 26W CERTADRIVE = qty de barras)
+      const driverQty = (e.driver.quantity ?? 1) * moduleQty;
+      addToDriverMap(e.driver.model, e.driver.code, driverQty);
     }
   }
 

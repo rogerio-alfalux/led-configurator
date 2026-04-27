@@ -35,6 +35,8 @@ export interface DriverSpec {
   current: string;
   quantity: number;
   vOut?: number;       // tensão de saída calculada
+  /** Drivers adicionais para combos (ex: Stripline 3 barras = 44W + 65W) */
+  combo?: Array<{ code: string; model: string; quantity: number }>;
 }
 
 /** Driver associado a um SKU específico — 1 driver por peça/SKU individual */
@@ -211,6 +213,8 @@ function selectDriverForBars(
     current: d.current,
     quantity: d.quantity, // preserva a quantidade retornada pelo fallback (ex: 26W CERTADRIVE = qty de barras)
     vOut: d.vOut,
+    // Propagar combo para drivers compostos (ex: Stripline 3 barras = 44W + 65W)
+    ...(d.combo ? { combo: d.combo } : {}),
   };
 }
 

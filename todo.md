@@ -237,3 +237,12 @@
 - [x] driverPerSku usa barsPerModule, não barsTotal
 - [x] buildSkuDriverList usa item.barsPerModule, não item.barsTotal
 - [x] Testes v3.7: barsPerPiece nunca excede 7 para 18W, múltiplos módulos têm driver individual — 240 testes passando
+
+## v3.8 — 36W Stripline: regras completas (220V e Bivolt)
+- [x] 36W Stripline 220V: 1b=EQ00347, 2b=EQ00393, 3b=EQ00347+EQ00393 (combo), 4b=2×EQ00393, 5b=2×EQ00393+EQ00347
+- [x] 36W Stripline Bivolt: 1b=EQ00581, 2b=EQ00582, 3b=EQ00581+EQ00582 (combo), 4b=2×EQ00582, 5b=2×EQ00582+EQ00581
+- [x] Suporte a drivers compostos (combo): campo combo?: Array<{code, model, quantity}> adicionado ao SelectedDriver
+- [x] Atualizar driverLookup.ts com todas as novas linhas (3, 4 e 5 barras Stripline)
+- [x] Atualizar selectDriverFallback para retornar combo quando driverCodigo contém " + "
+- [x] Propagar combo de SelectedDriver → DriverSpec → SkuDriverEntry → CompositionResult (campo combo preservado no pipeline completo)
+- [x] Testes para todos os casos de Stripline 1–5 barras (220V e Bivolt) — 250 testes passando

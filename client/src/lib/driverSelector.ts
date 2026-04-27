@@ -41,6 +41,8 @@ export interface SelectedDriver {
   current: string;     // "350mA"
   quantity: number;    // sempre 1 por SKU
   vOut: number;        // tensão de saída calculada
+  /** Drivers adicionais para casos de combo (ex: Stripline 3 barras = 44W + 65W) */
+  combo?: Array<{ code: string; model: string; quantity: number }>;
 }
 
 /** Contexto de seleção para aplicar restrições contextuais */
@@ -304,6 +306,33 @@ export function selectDriverFallback(
     };
   }
 
+  // Verificar se é um driver composto (combo) — driverCodigo contém " + "
+  // Ex: "EQ00347 + EQ00393" = 1x 44W + 1x 65W (Stripline 3 barras)
+  if (result.driverCodigo.includes(" + ")) {
+    // Parsear os códigos e modelos do combo
+    const codigos = result.driverCodigo.split(" + ").map(s => s.trim());
+    const modelos = result.driverModelo.split(" + ").map(s => s.trim());
+
+    // Parsear quantity de cada parte (prefixo "Nx ")
+    const comboItems = codigos.map((code, i) => {
+      const modelStr = modelos[i] ?? code;
+      const qMatch = modelStr.match(/^(\d+)x\s+/i);
+      const qty = qMatch ? parseInt(qMatch[1], 10) : 1;
+      const cleanModel = modelStr.replace(/^\d+x\s+/i, "");
+      return { code, model: cleanModel, quantity: qty };
+    });
+
+    // O driver principal é o primeiro do combo
+    return {
+      code: comboItems[0].code,
+      model: comboItems[0].model,
+      current: `${currentMA}mA`,
+      quantity: comboItems[0].quantity,
+      vOut,
+      combo: comboItems, // todos os itens do combo (incluindo o primeiro)
+    };
+  }
+
   // Determinar quantity para Certadrive (26W pode ter 1x, 2x ou 3x)
   // O modelo na tabela usa prefixo: "PHILIPS CERTADRIVE 20W" (1x), "2x PHILIPS..." (2x), "3x PHILIPS..." (3x)
   let quantity = 1;
@@ -315,10 +344,17 @@ export function selectDriverFallback(
       quantity = 1;
     }
   }
+  // Detectar quantity para outros drivers com prefixo "Nx " (ex: "2x PHILIPS XITANIUM 65W")
+  if (quantity === 1) {
+    const qMatch = result.driverModelo.match(/^(\d+)x\s/i);
+    if (qMatch) {
+      quantity = parseInt(qMatch[1], 10);
+    }
+  }
 
   return {
     code: result.driverCodigo,
-    model: result.driverModelo,
+    model: result.driverModelo.replace(/^\d+x\s+/i, ""), // remover prefixo "Nx " do modelo
     current: `${currentMA}mA`,
     quantity,
     vOut,

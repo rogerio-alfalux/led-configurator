@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { calculateComposition, selectDrivers, buildComposition, isRemoteDriverRequired, IN_MAX_BARS_STANDARD, IN_MAX_BARS_LONG } from "./ledEngine";
 import type { ConfigInput } from "./ledEngine";
 import { getProfileNames, getInstallTypesForProfile, getVariant, LED_CATALOG } from "./ledCatalog";
+import { selectDriverFallback } from "./driverSelector";
 
 // ─── selectDrivers — 220Vac — 350mA (18W) ────────────────────────────────────
 
@@ -2274,5 +2275,107 @@ describe("v3.7 --- Driver calculado por barras do módulo individual", () => {
       // Driver deve ser válido (não ERRO para comprimentos razoáveis)
       expect(e.driver).toBeDefined();
     });
+  });
+});
+
+// --- Testes v3.8 --- 36W Stripline: regras completas (220V e Bivolt) ---
+describe("v3.8 --- 36W Stripline: drivers por barras (220V e Bivolt)", () => {
+  // Importar selectDriverFallback diretamente para testar o lookup
+  // Usamos a função selectDriverForBars via calculateComposition com Stripline
+
+  const makeStriplineInput = (bars: number, voltage: "220Vac" | "Bivolt" = "220Vac") => {
+    // LLP-4251 Stripline: cada barra = 562.5mm
+    // Para obter N barras exatas, usamos comprimento = N × 562.5mm
+    // Mas Stripline só aceita inteiros, então usamos comprimentos exatos
+    const comprimentos: Record<number, number> = {
+      1: 562,
+      2: 1125,
+      3: 1687,
+      4: 2250,
+      5: 2812,
+    };
+    return {
+      profileCode: "LLP-4251",
+      application: "D1" as const,
+      powerD1: 36 as const,
+      cct: "4000K" as const,
+      voltage,
+      totalLength: comprimentos[bars] ?? bars * 562,
+      allowLongModules: false,
+      stripMethod: "STRIPLINE" as const,
+      independentLighting: false,
+    };
+  };
+
+  // 36W 220V Stripline
+  it("36W Stripline 220V 1 barra → EQ00347 (PHILIPS XITANIUM 44W 250MA)", () => {
+    const d = selectDriverFallback(1, 36, "220Vac", "STRIPLINE");
+    expect(d.code).toBe("EQ00347");
+    expect(d.combo).toBeUndefined();
+  });
+
+  it("36W Stripline 220V 2 barras → EQ00393 (PHILIPS XITANIUM 65W 250MA)", () => {
+    const d = selectDriverFallback(2, 36, "220Vac", "STRIPLINE");
+    expect(d.code).toBe("EQ00393");
+    expect(d.combo).toBeUndefined();
+  });
+
+  it("36W Stripline 220V 3 barras → combo EQ00347 + EQ00393", () => {
+    const d = selectDriverFallback(3, 36, "220Vac", "STRIPLINE");
+    expect(d.combo).toBeDefined();
+    expect(d.combo!.length).toBe(2);
+    expect(d.combo!.map((c: { code: string }) => c.code)).toContain("EQ00347");
+    expect(d.combo!.map((c: { code: string }) => c.code)).toContain("EQ00393");
+  });
+
+  it("36W Stripline 220V 4 barras → EQ00393 quantity=2 (2x PHILIPS XITANIUM 65W)", () => {
+    const d = selectDriverFallback(4, 36, "220Vac", "STRIPLINE");
+    expect(d.code).toBe("EQ00393");
+    expect(d.quantity).toBe(2);
+  });
+
+  it("36W Stripline 220V 5 barras → combo EQ00393 (qty=2) + EQ00347 (qty=1)", () => {
+    const d = selectDriverFallback(5, 36, "220Vac", "STRIPLINE");
+    expect(d.combo).toBeDefined();
+    expect(d.combo!.length).toBe(2);
+    const codes = d.combo!.map((c: { code: string }) => c.code);
+    expect(codes).toContain("EQ00393");
+    expect(codes).toContain("EQ00347");
+  });
+
+  // 36W Bivolt Stripline
+  it("36W Stripline Bivolt 1 barra → EQ00581 (LIFUD 40W 250MA)", () => {
+    const d = selectDriverFallback(1, 36, "Bivolt", "STRIPLINE");
+    expect(d.code).toBe("EQ00581");
+    expect(d.combo).toBeUndefined();
+  });
+
+  it("36W Stripline Bivolt 2 barras → EQ00582 (LIFUD 60W 250MA)", () => {
+    const d = selectDriverFallback(2, 36, "Bivolt", "STRIPLINE");
+    expect(d.code).toBe("EQ00582");
+    expect(d.combo).toBeUndefined();
+  });
+
+  it("36W Stripline Bivolt 3 barras → combo EQ00581 + EQ00582", () => {
+    const d = selectDriverFallback(3, 36, "Bivolt", "STRIPLINE");
+    expect(d.combo).toBeDefined();
+    expect(d.combo!.length).toBe(2);
+    expect(d.combo!.map((c: { code: string }) => c.code)).toContain("EQ00581");
+    expect(d.combo!.map((c: { code: string }) => c.code)).toContain("EQ00582");
+  });
+
+  it("36W Stripline Bivolt 4 barras → EQ00582 quantity=2 (2x LIFUD 60W)", () => {
+    const d = selectDriverFallback(4, 36, "Bivolt", "STRIPLINE");
+    expect(d.code).toBe("EQ00582");
+    expect(d.quantity).toBe(2);
+  });
+
+  it("36W Stripline Bivolt 5 barras → combo EQ00582 (qty=2) + EQ00581 (qty=1)", () => {
+    const d = selectDriverFallback(5, 36, "Bivolt", "STRIPLINE");
+    expect(d.combo).toBeDefined();
+    expect(d.combo!.length).toBe(2);
+    const codes = d.combo!.map((c: { code: string }) => c.code);
+    expect(codes).toContain("EQ00582");
+    expect(codes).toContain("EQ00581");
   });
 });
