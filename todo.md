@@ -269,3 +269,9 @@
 - [x] Título do header corrigido para "Configurador de Produtos" (h1 no sidebar)
 - [x] Rodapé já atualizado para "Configurador de Produtos"
 - [x] 257 testes passando (sem regressão)
+
+## Correção — Barras D1+D2 na tabela de composição
+- [x] Quando aplicação = D1+D2, o campo "Barras" na tabela de módulos deve exibir barras × 2 (D1 e D2 têm sempre a mesma quantidade de barras)
+- [x] Exemplo: 3.4 barras por módulo em D1+D2 → exibir 6.8 barras totais
+- [x] Aplicar também no template de produção (campo "Barras por peça" e "Barras totais") — template já trata D1 e D2 como blocos separados (correto)
+- [x] Testes: 257 passando, sem regressão (correção é puramente de exibição na UI)

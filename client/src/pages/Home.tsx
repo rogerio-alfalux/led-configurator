@@ -342,7 +342,7 @@ function ResultBlock({ result }: { result: CompositionResult }) {
                       <td className="px-3 py-2 text-right text-foreground">{item.length}mm</td>
                       <td className="px-3 py-2 text-right text-foreground font-semibold">{item.quantity}</td>
                       <td className="px-3 py-2 text-right text-foreground">
-                        {Number.isInteger(item.barsTotal) ? item.barsTotal : item.barsTotal.toFixed(1)}
+                        {(() => { const b = isDual ? item.barsTotal * 2 : item.barsTotal; return Number.isInteger(b) ? b : b.toFixed(1); })()}
                       </td>
                     </tr>
                   ))}
@@ -356,7 +356,7 @@ function ResultBlock({ result }: { result: CompositionResult }) {
                     </td>
                     <td className="px-3 py-2 text-right font-semibold text-foreground">
                       {(() => {
-                        const t = result.composition.reduce((s, i) => s + i.barsTotal, 0);
+                        const t = result.composition.reduce((s, i) => s + i.barsTotal, 0) * (isDual ? 2 : 1);
                         return Number.isInteger(t) ? t : t.toFixed(1);
                       })()}
                     </td>
