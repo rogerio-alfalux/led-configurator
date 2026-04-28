@@ -314,3 +314,9 @@
 
 ## Melhoria — Resumo: indicar acendimento independente/simultâneo para D1+D2
 - [x] Quando D1+D2 em Pendente ou Arandela, adicionar " - Acendimento Independente" ou " - Acendimento Simultâneo" ao final da linha de montagem
+
+## Correção — Resumo D1+D2 Independente: bloco único com dados somados
+- [x] Para D1+D2 independente, gerar um único bloco (não dois separados)
+- [x] Barras = barsPerPiece D1 + barsPerPiece D2 (soma das duas fileiras)
+- [x] Drivers = drivers D1 + drivers D2 somados (ex: 1X D1 + 1X D2 = 2X mesmo modelo)
+- [x] Nome: "D1 + D2" no produto; sufixo: "- Acendimento Independente"

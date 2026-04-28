@@ -154,22 +154,45 @@ export function generateOrderSummary(result: CompositionResult): string {
       const line2 = `MONTADO COM ${fmtBR(barsPerPiece)} ${barTypeName} ${cct} + ${driverSummary}${acendimentoSuffix}`;
       blocks.push(`${itemLabel}\n${line1}\n${line2}`);
     } else {
-      // ── D1+D2 Independente ──
+      // ── D1+D2 Independente: bloco único com barras e drivers somados (D1 + D2) ──
       const d2Entry = result.driversD2.find((e) => e.sku === sku);
       const barsPerPieceD2 = d2Entry ? d2Entry.barsPerPiece : info.barsPerPiece;
+      const totalBars = barsPerPiece + barsPerPieceD2;
 
-      const driverSummaryD1 = buildDriverSummaryPerPiece(result.driversD1, sku);
-      const driverSummaryD2 = buildDriverSummaryPerPiece(result.driversD2, sku);
+      // Somar drivers D1 e D2 por modelo/código
+      const combinedDriverMap = new Map<string, { model: string; code: string; total: number }>();
+      const addDriversToMap = (entries: typeof result.driversD1) => {
+        const entry = entries.find((e) => e.sku === sku);
+        if (!entry) return;
+        if (entry.driver.combo && entry.driver.combo.length > 0) {
+          for (const item of entry.driver.combo) {
+            const key = item.code || item.model.toUpperCase();
+            const existing = combinedDriverMap.get(key);
+            if (existing) existing.total += item.quantity;
+            else combinedDriverMap.set(key, { model: item.model.toUpperCase(), code: item.code || "", total: item.quantity });
+          }
+        } else {
+          const qty = entry.driver.quantity ?? 1;
+          const key = entry.driver.code || entry.driver.model.toUpperCase();
+          const existing = combinedDriverMap.get(key);
+          if (existing) existing.total += qty;
+          else combinedDriverMap.set(key, { model: entry.driver.model.toUpperCase(), code: entry.driver.code || "", total: qty });
+        }
+      };
+      addDriversToMap(result.driversD1);
+      addDriversToMap(result.driversD2);
 
-      // Para independente, applicationLabel já é vazio (não isDual) ou "D1 + D2" (mas aqui é independente)
-      // Neste caso exibimos D1 e D2 explicitamente na linha, sem applicationLabel extra
-      const lineD1_1 = `${qtyPrefix}${productName} D1 ${installLabel} COM ${info.length}MM ${result.powerD1}W/M (${sku})`;
-      const lineD1_2 = `MONTADO COM ${fmtBR(barsPerPiece)} ${barTypeName} ${cct} + ${driverSummaryD1}${acendimentoSuffix}`;
+      const combinedDriverSummary = Array.from(combinedDriverMap.values())
+        .map((d) => {
+          const eqSuffix = d.code && d.code !== "ERRO" ? ` (${d.code})` : "";
+          return `${d.total}X ${d.model}${eqSuffix}`;
+        })
+        .join(" + ");
 
-      const lineD2_1 = `${qtyPrefix}${productName} D2 ${installLabel} COM ${info.length}MM ${result.powerD2}W/M (${sku})`;
-      const lineD2_2 = `MONTADO COM ${fmtBR(barsPerPieceD2)} ${barTypeName} ${cct} + ${driverSummaryD2}${acendimentoSuffix}`;
-
-      blocks.push(`${itemLabel}\n${lineD1_1}\n${lineD1_2}\n${lineD2_1}\n${lineD2_2}`);
+      const powerLabel = `${result.powerD1}W/M + ${result.powerD2}W/M`;
+      const line1 = `${qtyPrefix}${productName} D1 + D2 ${installLabel} COM ${info.length}MM ${powerLabel} (${sku})`;
+      const line2 = `MONTADO COM ${fmtBR(totalBars)} ${barTypeName} ${cct} + ${combinedDriverSummary}${acendimentoSuffix}`;
+      blocks.push(`${itemLabel}\n${line1}\n${line2}`);
     }
   });
 
