@@ -294,3 +294,7 @@
 - [x] Gerar texto resumo no formato da ficha de pedido Alfalux para a assistente comercial copiar- [x] Formato: "[PRODUTO] [APLICAÇÃO] COM APROXIMADAMENTE [COMPRIMENTO]MM [POTÊNCIA/M] (CONFORME PROJETO). MONTADO COM APROXIMADAMENTE [BARRAS TOTAIS] BARRAS [TIPO BARRA] [CC- [x] Exibir como campo de texto copiável (botão de copiar) no painel de resultado
 - [x] Cobrir casos: D1 simples, D1+D2 independente (2 linhas), D1+D2 conjunto (1 linha com barras×2)
 - [x] Cobrir drivers com combo (ex: 2× EQ00347) e drivers split (ex: 2× PHILIPS XITANIUM 44W)
+
+## Correção — Resumo para Pedido: barras e drivers por módulo
+- [x] Barras e drivers no resumo devem ser por módulo (por peça), não o total da linha
+- [x] Exemplo: módulo com 3.4 barras e 1 driver → exibir "3,4 BARRAS ... + 1X DRIVER", não "20,4 BARRAS ... + 6X DRIVER"

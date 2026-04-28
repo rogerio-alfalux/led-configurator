@@ -2,16 +2,13 @@
  * orderSummary.ts
  * Gera o texto resumo técnico no formato da ficha de pedido Alfalux.
  *
- * Formato:
- *   [PRODUTO] [APLICAÇÃO] COM APROXIMADAMENTE [COMPRIMENTO]MM [POTÊNCIA/M] (CONFORME PROJETO).
- *   MONTADO COM APROXIMADAMENTE [BARRAS TOTAIS] BARRAS [TIPO BARRA] [CCT] + [DRIVER(S)]
+ * Formato (por módulo/peça):
+ *   [PRODUTO] [APLICAÇÃO] COM [COMPRIMENTO]MM [POTÊNCIA/M] ([SKU])
+ *   MONTADO COM [BARRAS POR PEÇA] BARRAS [TIPO BARRA] [CCT] + [NX DRIVER (EQ)]
  *
- * Exemplos:
- *   BLAZE DE EMBUTIR COM APROXIMADAMENTE 1950MM 18W/M (CONFORME PROJETO).
- *   MONTADO COM APROXIMADAMENTE 3,4 BARRAS STRIPFLEX 562,5 10MM 3000K + APROXIMADAMENTE 1X PHILIPS XITANIUM 65W 350MA
- *
- *   HIT DE EMBUTIR COM APROXIMADAMENTE 2362MM 18W/M (CONFORME PROJETO).
- *   MONTADO COM APROXIMADAMENTE 8,4 BARRAS STRIPFLEX 562,5 10MM 4000K + APROXIMADAMENTE 2X PHILIPS XITANIUM 44W 350MA
+ * Exemplo:
+ *   BLAZE H D1 PENDENTE COM 4520MM 18W/M (LLP-6060.4IF.48F)
+ *   MONTADO COM 8 BARRAS STRIPFLEX 562,5 10MM 3000K + 2X PHILIPS XITANIUM 44W 350MA (EQ00347)
  */
 
 import type { CompositionResult, SkuDriverEntry } from "./ledEngine";
@@ -24,39 +21,49 @@ const INSTALL_LABELS_PT: Record<string, string> = {
 
 /** Formata número com vírgula decimal no estilo BR, sem zeros desnecessários */
 function fmtBR(n: number): string {
-  // Arredondar para 1 casa decimal
   const rounded = Math.round(n * 10) / 10;
   return rounded.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 1 });
 }
 
 /**
- * Constrói a lista de drivers consolidada para exibição no resumo.
- * Agrupa por modelo+código e soma quantidades, respeitando combos e splits.
+ * Constrói a lista de drivers POR PEÇA para exibição no resumo.
+ * Usa driver.quantity e combo[i].quantity — que já são por peça individual.
+ * NÃO multiplica por e.quantity (que é o número de módulos na linha).
  * Formato: "NX MODELO (EQ00XXX)"
  */
-function buildDriverSummary(entries: SkuDriverEntry[]): string {
+function buildDriverSummaryPerPiece(entries: SkuDriverEntry[]): string {
   const driverMap = new Map<string, { model: string; code: string; total: number }>();
 
   for (const e of entries) {
-    const moduleQty = e.quantity;
+    // e.quantity = número de módulos na linha — NÃO usar para o resumo por peça
     if (e.driver.combo && e.driver.combo.length > 0) {
       for (const item of e.driver.combo) {
+        // item.quantity já é por peça
         const key = item.code || item.model.toUpperCase();
         const existing = driverMap.get(key);
         if (existing) {
-          existing.total += item.quantity * moduleQty;
+          existing.total += item.quantity;
         } else {
-          driverMap.set(key, { model: item.model.toUpperCase(), code: item.code || "", total: item.quantity * moduleQty });
+          driverMap.set(key, {
+            model: item.model.toUpperCase(),
+            code: item.code || "",
+            total: item.quantity,
+          });
         }
       }
     } else {
-      const driverQty = (e.driver.quantity ?? 1) * moduleQty;
+      // driver.quantity = multiplicador interno por peça (ex: split D1+D2 = 2)
+      const driverQtyPerPiece = e.driver.quantity ?? 1;
       const key = e.driver.code || e.driver.model.toUpperCase();
       const existing = driverMap.get(key);
       if (existing) {
-        existing.total += driverQty;
+        existing.total += driverQtyPerPiece;
       } else {
-        driverMap.set(key, { model: e.driver.model.toUpperCase(), code: e.driver.code || "", total: driverQty });
+        driverMap.set(key, {
+          model: e.driver.model.toUpperCase(),
+          code: e.driver.code || "",
+          total: driverQtyPerPiece,
+        });
       }
     }
   }
@@ -71,6 +78,7 @@ function buildDriverSummary(entries: SkuDriverEntry[]): string {
 
 /**
  * Gera o texto resumo para uma linha de pedido no formato da ficha Alfalux.
+ * Barras e drivers são POR MÓDULO (por peça), não totais da linha.
  * Para D1+D2 independente, retorna duas linhas (uma para D1, outra para D2).
  */
 export function generateOrderSummary(result: CompositionResult): string {
@@ -88,7 +96,7 @@ export function generateOrderSummary(result: CompositionResult): string {
   const isDual = result.application === "D1+D2";
   const isIndependent = isDual && (result.independentLighting || result.forcedIndependent);
 
-  // Pegar o SKU principal da composição (primeiro item)
+  // SKU principal da composição (primeiro item)
   const mainSku = result.composition.length > 0 ? result.composition[0].sku : "";
   const skuSuffix = mainSku ? ` (${mainSku})` : "";
 
@@ -98,19 +106,19 @@ export function generateOrderSummary(result: CompositionResult): string {
       ? `${result.powerD1}W/M + ${result.powerD2}W/M`
       : `${result.powerD1}W/M`;
 
-    // Barras totais: para D1+D2 conjunto, já estão dobradas em totalBars
-    const totalBars = result.totalBars;
-
-    // Drivers: usar combinedDrivers se D1+D2 conjunto, senão driversD1
+    // Barras por peça: usar barsPerPiece do primeiro entry de drivers
     const driverEntries =
       isDual && !isIndependent && result.combinedDrivers
         ? result.combinedDrivers
         : result.driversD1;
 
-    const driverSummary = buildDriverSummary(driverEntries);
+    // barsPerPiece já está em SkuDriverEntry — pegar do primeiro entry
+    const barsPerPiece = driverEntries.length > 0 ? driverEntries[0].barsPerPiece : 0;
+
+    const driverSummary = buildDriverSummaryPerPiece(driverEntries);
 
     const line1 = `${productName} ${installLabel} COM ${lengthMM}MM ${powerLabel}${skuSuffix}`;
-    const line2 = `MONTADO COM ${fmtBR(totalBars)} ${barTypeName} ${cct} + ${driverSummary}`;
+    const line2 = `MONTADO COM ${fmtBR(barsPerPiece)} ${barTypeName} ${cct} + ${driverSummary}`;
     return `${line1}\n${line2}`;
   }
 
@@ -118,17 +126,17 @@ export function generateOrderSummary(result: CompositionResult): string {
   const powerD1 = result.powerD1;
   const powerD2 = result.powerD2;
 
-  // Barras por fileira (totalBars é de uma fileira apenas no modo independente)
-  const barsPerSide = result.totalBars;
+  const barsPerPieceD1 = result.driversD1.length > 0 ? result.driversD1[0].barsPerPiece : 0;
+  const barsPerPieceD2 = result.driversD2.length > 0 ? result.driversD2[0].barsPerPiece : 0;
 
-  const driverSummaryD1 = buildDriverSummary(result.driversD1);
-  const driverSummaryD2 = buildDriverSummary(result.driversD2);
+  const driverSummaryD1 = buildDriverSummaryPerPiece(result.driversD1);
+  const driverSummaryD2 = buildDriverSummaryPerPiece(result.driversD2);
 
   const lineD1_1 = `${productName} ${installLabel} D1 COM ${lengthMM}MM ${powerD1}W/M${skuSuffix}`;
-  const lineD1_2 = `MONTADO COM ${fmtBR(barsPerSide)} ${barTypeName} ${cct} + ${driverSummaryD1}`;
+  const lineD1_2 = `MONTADO COM ${fmtBR(barsPerPieceD1)} ${barTypeName} ${cct} + ${driverSummaryD1}`;
 
   const lineD2_1 = `${productName} ${installLabel} D2 COM ${lengthMM}MM ${powerD2}W/M${skuSuffix}`;
-  const lineD2_2 = `MONTADO COM ${fmtBR(barsPerSide)} ${barTypeName} ${cct} + ${driverSummaryD2}`;
+  const lineD2_2 = `MONTADO COM ${fmtBR(barsPerPieceD2)} ${barTypeName} ${cct} + ${driverSummaryD2}`;
 
   return `${lineD1_1}\n${lineD1_2}\n\n${lineD2_1}\n${lineD2_2}`;
 }
