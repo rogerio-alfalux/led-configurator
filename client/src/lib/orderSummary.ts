@@ -84,7 +84,8 @@ function buildDriverSummaryPerPiece(entries: SkuDriverEntry[]): string {
 export function generateOrderSummary(result: CompositionResult): string {
   const installLabel = INSTALL_LABELS_PT[result.installType] ?? result.installType;
   const productName = result.profileName.toUpperCase();
-  const lengthMM = result.realizedLength;
+  // Comprimento por módulo (por peça) — usar o comprimento do primeiro item da composição
+  const lengthMM = result.composition.length > 0 ? result.composition[0].length : result.realizedLength;
   const cct = result.cct;
 
   // Nome da barra (tipo + dimensões)

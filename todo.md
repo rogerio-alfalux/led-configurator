@@ -298,3 +298,6 @@
 ## Correção — Resumo para Pedido: barras e drivers por módulo
 - [x] Barras e drivers no resumo devem ser por módulo (por peça), não o total da linha
 - [x] Exemplo: módulo com 3.4 barras e 1 driver → exibir "3,4 BARRAS ... + 1X DRIVER", não "20,4 BARRAS ... + 6X DRIVER"
+
+## Correção — Resumo para Pedido: comprimento por módulo
+- [x] O comprimento na linha 1 do resumo deve ser o comprimento do módulo (por peça), não o total da linha
