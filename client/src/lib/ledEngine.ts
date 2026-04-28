@@ -230,16 +230,19 @@ function buildSkuDriverList(
   voltage: Voltage,
   stripMethod: StripMethod,
   sheetDrivers?: SheetDriver[],
-  driverContext?: Partial<DriverSelectionContext>
+  driverContext?: Partial<DriverSelectionContext>,
+  dualSimultaneous = false  // D1+D2 sem acendimento independente: dobrar barras para dimensionar o driver
 ): SkuDriverEntry[] {
   return composition.map(item => {
-    // barsPerModule = barras de UMA peça individual (nunca acumulado)
-    const driver = selectDriverForBars(item.barsPerModule, power, voltage, stripMethod, sheetDrivers, driverContext);
+    // Quando D1+D2 simultâneo, as duas fileiras compartilham o mesmo driver
+    // → usar barsPerModule × 2 para dimensionar corretamente
+    const effectiveBars = dualSimultaneous ? item.barsPerModule * 2 : item.barsPerModule;
+    const driver = selectDriverForBars(effectiveBars, power, voltage, stripMethod, sheetDrivers, driverContext);
     return {
       sku: item.sku,
       quantity: item.quantity,
       driver,
-      barsPerPiece: item.barsPerModule, // barras de UMA peça
+      barsPerPiece: effectiveBars, // barras efetivas usadas para dimensionar o driver
     };
   });
 }
@@ -743,9 +746,10 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     : getStripflexName(cct);
 
   // Drivers combinados para D1+D2 conjunto
+  // Quando D1+D2 simultâneo: barras × 2 para dimensionar o driver (as duas fileiras compartilham o mesmo driver)
   const combinedDrivers: SkuDriverEntry[] | undefined =
     effectiveApplication === "D1+D2" && !isIndependent
-      ? buildSkuDriverList(composition, powerD1, voltage, stripMethod, input.sheetDrivers, driverCtx)
+      ? buildSkuDriverList(composition, powerD1, voltage, stripMethod, input.sheetDrivers, driverCtx, true)
       : undefined;
 
   return {

@@ -2416,3 +2416,88 @@ describe("v3.9 --- 36W Bivolt Stripflex: drivers por barras (fileira dupla)", ()
     expect(d.code).toBe("ERRO");
   });
 });
+
+// ─── D1+D2 Simultâneo — Driver dimensionado com barras × 2 ───────────────────
+
+describe("D1+D2 simultâneo — driver dimensionado com barras × 2", () => {
+  // Perfil HIT (LLP-4251), 18W, 220Vac
+  // barsPerSection para 18W = 1.0 barra por seção de 562,5mm
+  // Módulo IN de 1950mm = 3.4 barras (1950 / 562.5 ≈ 3.466...)
+  // D1+D2 simultâneo → 3.4 × 2 = 6.8 barras → deve usar EQ00393 (65W), não EQ00347 (44W)
+
+  it("HIT 18W 220Vac D1+D2 simultâneo 1950mm → combinedDrivers usa EQ00393 (6.8 barras)", () => {
+    const r = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1+D2",
+      powerD1: 18,
+      powerD2: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 1950,
+      allowLongModules: false,
+      independentLighting: false,
+    });
+    expect(r.combinedDrivers).toBeDefined();
+    expect(r.combinedDrivers!.length).toBeGreaterThan(0);
+    // 3.4 barras × 2 = 6.8 → faixa 5.01–7 → EQ00393 (65W)
+    expect(r.combinedDrivers![0].driver.code).toBe("EQ00393");
+    // driversD2 deve estar vazio (não independente)
+    expect(r.driversD2).toHaveLength(0);
+  });
+
+  it("HIT 18W 220Vac D1+D2 simultâneo 1125mm → combinedDrivers usa EQ00347 (4 barras)", () => {
+    // Módulo de 1125mm = 2 barras. D1+D2 → 2 × 2 = 4 barras → faixa 2.01–5 → EQ00347 (44W)
+    const r = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1+D2",
+      powerD1: 18,
+      powerD2: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 1125,
+      allowLongModules: false,
+      independentLighting: false,
+    });
+    expect(r.combinedDrivers).toBeDefined();
+    // 2 barras × 2 = 4 → faixa 2.01–5 → EQ00347 (44W)
+    expect(r.combinedDrivers![0].driver.code).toBe("EQ00347");
+  });
+
+  it("HIT 18W 220Vac D1+D2 simultâneo 575mm (1 barra) → combinedDrivers usa EQ00346 (2 barras)", () => {
+    // Módulo de 575mm = 1 barra. D1+D2 → 1 × 2 = 2 barras → faixa 1–2 → EQ00346 (19W)
+    const r = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1+D2",
+      powerD1: 18,
+      powerD2: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 575,
+      allowLongModules: false,
+      independentLighting: false,
+    });
+    expect(r.combinedDrivers).toBeDefined();
+    expect(r.combinedDrivers!.length).toBeGreaterThan(0);
+    // 1 barra × 2 = 2 → faixa 1–2 → EQ00346 (19W)
+    expect(r.combinedDrivers![0].driver.code).toBe("EQ00346");
+  });
+
+  it("HIT 18W 220Vac D1+D2 INDEPENDENTE 1950mm → driversD1 usa EQ00347 (3.4 barras individuais)", () => {
+    // Quando independente, cada fileira tem seu próprio driver com barras individuais (não dobradas)
+    const r = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1+D2",
+      powerD1: 18,
+      powerD2: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 1950,
+      allowLongModules: false,
+      independentLighting: true,
+    });
+    // 3.4 barras individuais → faixa 2.01–5 → EQ00347 (44W)
+    expect(r.driversD1[0].driver.code).toBe("EQ00347");
+    expect(r.driversD2[0].driver.code).toBe("EQ00347");
+    expect(r.combinedDrivers).toBeUndefined();
+  });
+});

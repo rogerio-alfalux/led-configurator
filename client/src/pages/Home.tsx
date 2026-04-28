@@ -402,7 +402,7 @@ function ResultBlock({ result }: { result: CompositionResult }) {
                   Acendimento Conjunto — os mesmos drivers atendem D1 e D2 por SKU
                 </p>
                 <SkuDriverList
-                  entries={result.driversD1}
+                  entries={result.combinedDrivers ?? result.driversD1}
                   label={`D1+D2 · ${result.powerD1}W · ${result.voltage}`}
                 />
               </div>
@@ -419,7 +419,10 @@ function ResultBlock({ result }: { result: CompositionResult }) {
                 Resumo de Drivers
               </p>
               {(() => {
-                const allEntries = [...result.driversD1, ...result.driversD2];
+                // Para D1+D2 conjunto, usar combinedDrivers (barras × 2); caso contrário driversD1 + driversD2
+                const allEntries = (isDual && !result.independentLighting && result.combinedDrivers)
+                  ? result.combinedDrivers
+                  : [...result.driversD1, ...result.driversD2];
                 const driverMap = new Map<string, number>();
                 for (const e of allEntries) {
                   const key = e.driver.model;

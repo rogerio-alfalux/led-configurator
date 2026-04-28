@@ -275,3 +275,10 @@
 - [x] Exemplo: 3.4 barras por módulo em D1+D2 → exibir 6.8 barras totais
 - [x] Aplicar também no template de produção (campo "Barras por peça" e "Barras totais") — template já trata D1 e D2 como blocos separados (correto)
 - [x] Testes: 257 passando, sem regressão (correção é puramente de exibição na UI)
+
+## Correção — Driver D1+D2 sem Acendimento Independente
+- [x] Quando D1+D2 e acendimento NÃO independente: usar barsPerModule × 2 para dimensionar o driver (as duas fileiras compartilham o mesmo driver)
+- [x] Quando D1+D2 e acendimento independente: manter lógica atual (cada fileira tem seu próprio driver, barras individuais)
+- [x] Exemplo: módulo de 3.4 barras em D1+D2 simultâneo → dimensionar driver para 6.8 barras → EQ00393 (65W)
+- [x] Exemplo: módulo de 2 barras em D1+D2 simultâneo → dimensionar para 4 barras → EQ00347 (44W)
+- [x] Atualizar testes para cobrir D1+D2 simultâneo vs independente (261 testes passando)
