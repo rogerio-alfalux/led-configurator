@@ -2,13 +2,15 @@
  * orderSummary.ts
  * Gera o texto resumo técnico no formato da ficha de pedido Alfalux.
  *
- * Formato (por módulo/peça):
- *   [PRODUTO] [APLICAÇÃO] COM [COMPRIMENTO]MM [POTÊNCIA/M] ([SKU])
- *   MONTADO COM [BARRAS POR PEÇA] BARRAS [TIPO BARRA] [CCT] + [NX DRIVER (EQ)]
+ * Um bloco por tipo de módulo (SKU), com quantidade na frente:
  *
- * Exemplo:
- *   BLAZE H D1 PENDENTE COM 4520MM 18W/M (LLP-6060.4IF.48F)
- *   MONTADO COM 8 BARRAS STRIPFLEX 562,5 10MM 3000K + 2X PHILIPS XITANIUM 44W 350MA (EQ00347)
+ *   Item 1
+ *   2 x BLAZE H PENDENTE COM 2260MM 18W/M (LLP-6060.4IF.48F)
+ *   MONTADO COM 4 BARRAS STRIPFLEX 562,5 10MM 3000K + 1X PHILIPS XITANIUM 44W 350MA (EQ00347)
+ *
+ *   Item 2
+ *   1 x BLAZE H PENDENTE COM 1950MM 18W/M (LLP-6060.1IN.48F)
+ *   MONTADO COM 3,4 BARRAS STRIPFLEX 562,5 10MM 3000K + 1X PHILIPS XITANIUM 65W 350MA (EQ00393)
  */
 
 import type { CompositionResult, SkuDriverEntry } from "./ledEngine";
@@ -29,43 +31,36 @@ function fmtBR(n: number): string {
  * Constrói a lista de drivers POR PEÇA para exibição no resumo.
  * Usa driver.quantity e combo[i].quantity — que já são por peça individual.
  * NÃO multiplica por e.quantity (que é o número de módulos na linha).
- * Formato: "NX MODELO (EQ00XXX)"
  */
-function buildDriverSummaryPerPiece(entries: SkuDriverEntry[]): string {
+function buildDriverSummaryPerPiece(entries: SkuDriverEntry[], sku: string): string {
+  // Filtrar apenas o entry do SKU específico
+  const entry = entries.find((e) => e.sku === sku);
+  if (!entry) return "";
+
   const driverMap = new Map<string, { model: string; code: string; total: number }>();
 
-  for (const e of entries) {
-    // e.quantity = número de módulos na linha — NÃO usar para o resumo por peça
-    if (e.driver.combo && e.driver.combo.length > 0) {
-      for (const item of e.driver.combo) {
-        // item.quantity já é por peça
-        const key = item.code || item.model.toUpperCase();
-        const existing = driverMap.get(key);
-        if (existing) {
-          existing.total += item.quantity;
-        } else {
-          driverMap.set(key, {
-            model: item.model.toUpperCase(),
-            code: item.code || "",
-            total: item.quantity,
-          });
-        }
-      }
-    } else {
-      // driver.quantity = multiplicador interno por peça (ex: split D1+D2 = 2)
-      const driverQtyPerPiece = e.driver.quantity ?? 1;
-      const key = e.driver.code || e.driver.model.toUpperCase();
+  if (entry.driver.combo && entry.driver.combo.length > 0) {
+    for (const item of entry.driver.combo) {
+      const key = item.code || item.model.toUpperCase();
       const existing = driverMap.get(key);
       if (existing) {
-        existing.total += driverQtyPerPiece;
+        existing.total += item.quantity;
       } else {
         driverMap.set(key, {
-          model: e.driver.model.toUpperCase(),
-          code: e.driver.code || "",
-          total: driverQtyPerPiece,
+          model: item.model.toUpperCase(),
+          code: item.code || "",
+          total: item.quantity,
         });
       }
     }
+  } else {
+    const driverQtyPerPiece = entry.driver.quantity ?? 1;
+    const key = entry.driver.code || entry.driver.model.toUpperCase();
+    driverMap.set(key, {
+      model: entry.driver.model.toUpperCase(),
+      code: entry.driver.code || "",
+      total: driverQtyPerPiece,
+    });
   }
 
   return Array.from(driverMap.values())
@@ -77,18 +72,14 @@ function buildDriverSummaryPerPiece(entries: SkuDriverEntry[]): string {
 }
 
 /**
- * Gera o texto resumo para uma linha de pedido no formato da ficha Alfalux.
- * Barras e drivers são POR MÓDULO (por peça), não totais da linha.
- * Para D1+D2 independente, retorna duas linhas (uma para D1, outra para D2).
+ * Gera o texto resumo para todos os módulos da composição, um bloco por SKU.
+ * Para D1+D2 independente, cada bloco tem duas sub-linhas (D1 e D2).
  */
 export function generateOrderSummary(result: CompositionResult): string {
   const installLabel = INSTALL_LABELS_PT[result.installType] ?? result.installType;
   const productName = result.profileName.toUpperCase();
-  // Comprimento por módulo (por peça) — usar o comprimento do primeiro item da composição
-  const lengthMM = result.composition.length > 0 ? result.composition[0].length : result.realizedLength;
   const cct = result.cct;
 
-  // Nome da barra (tipo + dimensões)
   const barTypeName =
     result.stripMethod === "STRIPFLEX"
       ? "BARRAS STRIPFLEX 562,5 10MM"
@@ -97,47 +88,69 @@ export function generateOrderSummary(result: CompositionResult): string {
   const isDual = result.application === "D1+D2";
   const isIndependent = isDual && (result.independentLighting || result.forcedIndependent);
 
-  // SKU principal da composição (primeiro item)
-  const mainSku = result.composition.length > 0 ? result.composition[0].sku : "";
-  const skuSuffix = mainSku ? ` (${mainSku})` : "";
+  // Construir mapa de SKUs únicos preservando a ordem da composição
+  const skuOrder: string[] = [];
+  const skuMap = new Map<string, { length: number; quantity: number; barsPerPiece: number }>();
 
-  if (!isDual || !isIndependent) {
-    // ── Caso simples: D1, D2 ou D1+D2 conjunto ──
-    const powerLabel = isDual
-      ? `${result.powerD1}W/M + ${result.powerD2}W/M`
-      : `${result.powerD1}W/M`;
-
-    // Barras por peça: usar barsPerPiece do primeiro entry de drivers
-    const driverEntries =
-      isDual && !isIndependent && result.combinedDrivers
-        ? result.combinedDrivers
-        : result.driversD1;
-
-    // barsPerPiece já está em SkuDriverEntry — pegar do primeiro entry
-    const barsPerPiece = driverEntries.length > 0 ? driverEntries[0].barsPerPiece : 0;
-
-    const driverSummary = buildDriverSummaryPerPiece(driverEntries);
-
-    const line1 = `${productName} ${installLabel} COM ${lengthMM}MM ${powerLabel}${skuSuffix}`;
-    const line2 = `MONTADO COM ${fmtBR(barsPerPiece)} ${barTypeName} ${cct} + ${driverSummary}`;
-    return `${line1}\n${line2}`;
+  for (const item of result.composition) {
+    if (!skuMap.has(item.sku)) {
+      skuOrder.push(item.sku);
+      skuMap.set(item.sku, {
+        length: item.length,
+        quantity: item.quantity,
+        barsPerPiece: item.barsPerModule,
+      });
+    }
   }
 
-  // ── D1+D2 Independente: duas linhas ──
-  const powerD1 = result.powerD1;
-  const powerD2 = result.powerD2;
+  // Para D1+D2 simultâneo, barsPerPiece deve ser dobrado (já está em barsPerPiece do SkuDriverEntry)
+  // Usar barsPerPiece do SkuDriverEntry quando disponível (mais preciso)
+  const driverEntriesD1 =
+    isDual && !isIndependent && result.combinedDrivers
+      ? result.combinedDrivers
+      : result.driversD1;
 
-  const barsPerPieceD1 = result.driversD1.length > 0 ? result.driversD1[0].barsPerPiece : 0;
-  const barsPerPieceD2 = result.driversD2.length > 0 ? result.driversD2[0].barsPerPiece : 0;
+  const blocks: string[] = [];
 
-  const driverSummaryD1 = buildDriverSummaryPerPiece(result.driversD1);
-  const driverSummaryD2 = buildDriverSummaryPerPiece(result.driversD2);
+  skuOrder.forEach((sku, index) => {
+    const info = skuMap.get(sku)!;
+    const itemLabel = `Item ${index + 1}`;
 
-  const lineD1_1 = `${productName} ${installLabel} D1 COM ${lengthMM}MM ${powerD1}W/M${skuSuffix}`;
-  const lineD1_2 = `MONTADO COM ${fmtBR(barsPerPieceD1)} ${barTypeName} ${cct} + ${driverSummaryD1}`;
+    // barsPerPiece: preferir o valor do SkuDriverEntry (já considera D1+D2 simultâneo)
+    const d1Entry = driverEntriesD1.find((e) => e.sku === sku);
+    const barsPerPiece = d1Entry ? d1Entry.barsPerPiece : info.barsPerPiece;
 
-  const lineD2_1 = `${productName} ${installLabel} D2 COM ${lengthMM}MM ${powerD2}W/M${skuSuffix}`;
-  const lineD2_2 = `MONTADO COM ${fmtBR(barsPerPieceD2)} ${barTypeName} ${cct} + ${driverSummaryD2}`;
+    const qty = info.quantity;
+    const qtyPrefix = qty > 1 ? `${qty} x ` : `1 x `;
 
-  return `${lineD1_1}\n${lineD1_2}\n\n${lineD2_1}\n${lineD2_2}`;
+    if (!isIndependent) {
+      // ── D1 simples ou D1+D2 conjunto ──
+      const powerLabel = isDual
+        ? `${result.powerD1}W/M + ${result.powerD2}W/M`
+        : `${result.powerD1}W/M`;
+
+      const driverSummary = buildDriverSummaryPerPiece(driverEntriesD1, sku);
+
+      const line1 = `${qtyPrefix}${productName} ${installLabel} COM ${info.length}MM ${powerLabel} (${sku})`;
+      const line2 = `MONTADO COM ${fmtBR(barsPerPiece)} ${barTypeName} ${cct} + ${driverSummary}`;
+      blocks.push(`${itemLabel}\n${line1}\n${line2}`);
+    } else {
+      // ── D1+D2 Independente ──
+      const d2Entry = result.driversD2.find((e) => e.sku === sku);
+      const barsPerPieceD2 = d2Entry ? d2Entry.barsPerPiece : info.barsPerPiece;
+
+      const driverSummaryD1 = buildDriverSummaryPerPiece(result.driversD1, sku);
+      const driverSummaryD2 = buildDriverSummaryPerPiece(result.driversD2, sku);
+
+      const lineD1_1 = `${qtyPrefix}${productName} ${installLabel} D1 COM ${info.length}MM ${result.powerD1}W/M (${sku})`;
+      const lineD1_2 = `MONTADO COM ${fmtBR(barsPerPiece)} ${barTypeName} ${cct} + ${driverSummaryD1}`;
+
+      const lineD2_1 = `${qtyPrefix}${productName} ${installLabel} D2 COM ${info.length}MM ${result.powerD2}W/M (${sku})`;
+      const lineD2_2 = `MONTADO COM ${fmtBR(barsPerPieceD2)} ${barTypeName} ${cct} + ${driverSummaryD2}`;
+
+      blocks.push(`${itemLabel}\n${lineD1_1}\n${lineD1_2}\n${lineD2_1}\n${lineD2_2}`);
+    }
+  });
+
+  return blocks.join("\n\n");
 }

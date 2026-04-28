@@ -301,3 +301,8 @@
 
 ## Correção — Resumo para Pedido: comprimento por módulo
 - [x] O comprimento na linha 1 do resumo deve ser o comprimento do módulo (por peça), não o total da linha
+
+## Melhoria — Resumo para Pedido: um bloco por módulo com quantidade
+- [x] Gerar um bloco "Item N" para cada SKU distinto da composição
+- [x] Exibir quantidade de peças na frente: "2 x BLAZE H PENDENTE COM 2260MM 18W/M (LLP-6060.4IF.48F)"
+- [x] Cada bloco tem sua própria linha 2 com barras e driver por peça
