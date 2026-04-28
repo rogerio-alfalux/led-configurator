@@ -306,3 +306,8 @@
 - [x] Gerar um bloco "Item N" para cada SKU distinto da composição
 - [x] Exibir quantidade de peças na frente: "2 x BLAZE H PENDENTE COM 2260MM 18W/M (LLP-6060.4IF.48F)"
 - [x] Cada bloco tem sua própria linha 2 com barras e driver por peça
+
+## Melhoria — Resumo: aplicação (D1/D2/D1+D2) no nome do produto
+- [x] Inserir a aplicação (D1, D2 ou D1 + D2) no nome do produto no resumo
+- [x] Somente quando installType for PENDENTE ou ARANDELA (não para EMBUTIR/SOBREPOR)
+- [x] Exemplo: "2 x BLAZE H D1 + D2 PENDENTE COM 2075MM 18W/M + 18W/M (LLP-6060.35F.48F)"

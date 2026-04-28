@@ -88,6 +88,16 @@ export function generateOrderSummary(result: CompositionResult): string {
   const isDual = result.application === "D1+D2";
   const isIndependent = isDual && (result.independentLighting || result.forcedIndependent);
 
+  // Rótulo de aplicação — exibir apenas para PENDENTE e ARANDELA
+  const showApplication = result.installType === "PENDENTE" || result.installType === "ARANDELA";
+  const applicationLabel = showApplication
+    ? isDual
+      ? "D1 + D2"
+      : result.application === "D2"
+      ? "D2"
+      : "D1"
+    : "";
+
   // Construir mapa de SKUs únicos preservando a ordem da composição
   const skuOrder: string[] = [];
   const skuMap = new Map<string, { length: number; quantity: number; barsPerPiece: number }>();
@@ -131,7 +141,8 @@ export function generateOrderSummary(result: CompositionResult): string {
 
       const driverSummary = buildDriverSummaryPerPiece(driverEntriesD1, sku);
 
-      const line1 = `${qtyPrefix}${productName} ${installLabel} COM ${info.length}MM ${powerLabel} (${sku})`;
+      const appPart = applicationLabel ? ` ${applicationLabel}` : "";
+      const line1 = `${qtyPrefix}${productName}${appPart} ${installLabel} COM ${info.length}MM ${powerLabel} (${sku})`;
       const line2 = `MONTADO COM ${fmtBR(barsPerPiece)} ${barTypeName} ${cct} + ${driverSummary}`;
       blocks.push(`${itemLabel}\n${line1}\n${line2}`);
     } else {
@@ -142,10 +153,12 @@ export function generateOrderSummary(result: CompositionResult): string {
       const driverSummaryD1 = buildDriverSummaryPerPiece(result.driversD1, sku);
       const driverSummaryD2 = buildDriverSummaryPerPiece(result.driversD2, sku);
 
-      const lineD1_1 = `${qtyPrefix}${productName} ${installLabel} D1 COM ${info.length}MM ${result.powerD1}W/M (${sku})`;
+      // Para independente, applicationLabel já é vazio (não isDual) ou "D1 + D2" (mas aqui é independente)
+      // Neste caso exibimos D1 e D2 explicitamente na linha, sem applicationLabel extra
+      const lineD1_1 = `${qtyPrefix}${productName} D1 ${installLabel} COM ${info.length}MM ${result.powerD1}W/M (${sku})`;
       const lineD1_2 = `MONTADO COM ${fmtBR(barsPerPiece)} ${barTypeName} ${cct} + ${driverSummaryD1}`;
 
-      const lineD2_1 = `${qtyPrefix}${productName} ${installLabel} D2 COM ${info.length}MM ${result.powerD2}W/M (${sku})`;
+      const lineD2_1 = `${qtyPrefix}${productName} D2 ${installLabel} COM ${info.length}MM ${result.powerD2}W/M (${sku})`;
       const lineD2_2 = `MONTADO COM ${fmtBR(barsPerPieceD2)} ${barTypeName} ${cct} + ${driverSummaryD2}`;
 
       blocks.push(`${itemLabel}\n${lineD1_1}\n${lineD1_2}\n${lineD2_1}\n${lineD2_2}`);
