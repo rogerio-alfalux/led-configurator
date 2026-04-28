@@ -302,6 +302,8 @@ function ResultBlock({ result }: { result: CompositionResult }) {
         </CardContent>
       </Card>
 
+      {/* Resumo para Pedido — Ficha Comercial */}
+      <OrderSummaryCard result={result} />
       {/* Composição de Módulos — bloco unificado */}
       {result.composition.length > 0 && (
         <Card className="shadow-sm">
@@ -471,8 +473,6 @@ function ResultBlock({ result }: { result: CompositionResult }) {
         </Card>
       )}
 
-      {/* Resumo para Pedido — Ficha Comercial */}
-      <OrderSummaryCard result={result} />
       {/* Pedido de Produção — Template para cópia */}
       <ProductionTemplateCard result={result} />
     </div>
