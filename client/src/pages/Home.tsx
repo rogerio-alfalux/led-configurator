@@ -704,7 +704,7 @@ export default function Home() {
             </div>
             <div>
               <h1 className="text-base font-bold font-display text-sidebar-foreground leading-none">
-                Configurador de Produtos
+                Configurador de Produtos (versão beta)
               </h1>
               <p className="text-xs text-sidebar-foreground/60 leading-none mt-0.5">
                 Alfalux Iluminação
