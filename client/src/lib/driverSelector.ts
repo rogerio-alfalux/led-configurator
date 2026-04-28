@@ -276,7 +276,73 @@ export function selectDriverFromSheet(
  *
  * PROIBIDO: arredondar barras, usar CEIL/FLOOR, usar driver fora do intervalo.
  */
-import { lookupDriver } from "./driverLookup";
+import { lookupDriver, DRIVER_LOOKUP_TABLE, type DriverLookupRow } from "./driverLookup";
+
+/**
+ * Retorna o máximo de barras suportado por um único driver para uma dada combinação.
+ * Usado para calcular o split quando D1+D2 simultâneo excede o limite.
+ */
+function getMaxBarsForConfig(
+  potencia: string,
+  tensao: string,
+  tipoBarra: string
+): number {
+  const rows = DRIVER_LOOKUP_TABLE.filter(
+    (r: DriverLookupRow) => r.potencia === potencia && r.tensao === tensao && r.tipoBarra === tipoBarra
+  );
+  if (rows.length === 0) return 7; // fallback conservador
+  return Math.max(...rows.map((r: DriverLookupRow) => r.barrasMax));
+}
+
+/**
+ * Quando D1+D2 simultâneo e as barras efetivas (barsPerModule × 2) excedem o limite da tabela,
+ * divide em N drivers iguais do maior modelo disponível.
+ *
+ * Estratégia:
+ *   1. Calcular N mínimo de drivers para cobrir as barras efetivas
+ *   2. Dividir barras_efetivas / N — cada driver recebe barras_efetivas/N
+ *   3. Retornar um combo com N itens iguais
+ *
+ * Exemplo 18W 220Vac:
+ *   - 8.4 barras efetivas → máximo = 7 → N = ceil(8.4/7) = 2 → cada driver: 4.2 barras → EQ00347 (44W)
+ *   - 10 barras efetivas → N = ceil(10/7) = 2 → cada driver: 5 barras → EQ00347 (44W)
+ *   - 14.2 barras efetivas → N = ceil(14.2/7) = 3 → cada driver: ~4.73 barras → EQ00347 (44W)
+ */
+export function splitDriverForDualSimultaneous(
+  effectiveBars: number,
+  power: Power,
+  voltage: Voltage,
+  stripMethod: StripMethod
+): SelectedDriver | null {
+  const potencia = `${power}W`;
+  const tensao = voltage === "Bivolt" ? "Bivolt" : "220V";
+  const tipoBarra = stripMethod === "STRIPFLEX" ? "Stripflex" : "Stripline";
+  const currentMA = getCurrentMA(power, stripMethod);
+  const maxBars = getMaxBarsForConfig(potencia, tensao, tipoBarra);
+
+  if (effectiveBars <= maxBars) return null; // não precisa de split
+
+  // Calcular N mínimo de drivers
+  const n = Math.ceil(effectiveBars / maxBars);
+  const barsPerDriver = effectiveBars / n;
+
+  // Selecionar o driver para barsPerDriver barras
+  const result = lookupDriver(barsPerDriver, potencia, tensao, tipoBarra);
+  if (result.error) return null; // não foi possível dividir
+
+  const vOut = calcVOut(effectiveBars, power, stripMethod);
+
+  // Retornar como combo com N itens iguais
+  const comboItem = { code: result.driverCodigo, model: result.driverModelo, quantity: n };
+  return {
+    code: result.driverCodigo,
+    model: result.driverModelo,
+    current: `${currentMA}mA`,
+    quantity: n,
+    vOut,
+    combo: [comboItem],
+  };
+}
 
 export function selectDriverFallback(
   rawBars: number,

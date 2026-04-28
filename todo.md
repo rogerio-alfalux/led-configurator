@@ -282,3 +282,10 @@
 - [x] Exemplo: módulo de 3.4 barras em D1+D2 simultâneo → dimensionar driver para 6.8 barras → EQ00393 (65W)
 - [x] Exemplo: módulo de 2 barras em D1+D2 simultâneo → dimensionar para 4 barras → EQ00347 (44W)
 - [x] Atualizar testes para cobrir D1+D2 simultâneo vs independente (261 testes passando)
+
+## Correção — Split de drivers para D1+D2 simultâneo acima do limite
+- [x] Quando D1+D2 simultâneo e barras efetivas > limite máximo de 1 driver: dividir em múltiplos drivers do maior modelo disponível
+- [x] Exemplo 18W 220Vac: 8.4 barras → 2× EQ00347 (44W, 4.2 barras cada); 10 barras → 2× EQ00347 (44W, 5 barras cada)
+- [x] A divisão deve ser pelo maior driver que cabe (44W para 18W, pois é o maior antes de ERRO)
+- [x] Resultado deve ser um combo com N drivers iguais (ex: combo: [{model, code, quantity: 2}])
+- [x] Atualizar testes para cobrir os casos de split (266 testes passando, +5 novos)

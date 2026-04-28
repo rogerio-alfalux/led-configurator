@@ -14,7 +14,7 @@
 import { LED_CATALOG, MODULE_TYPE_LABELS } from "./ledCatalog";
 import type { InstallType } from "./ledCatalog";
 import type { SheetDriver, DriverSelectionContext } from "./driverSelector";
-import { selectDriverFromSheet, selectDriverFallback, calcVOut } from "./driverSelector";
+import { selectDriverFromSheet, selectDriverFallback, calcVOut, splitDriverForDualSimultaneous } from "./driverSelector";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -237,7 +237,29 @@ function buildSkuDriverList(
     // Quando D1+D2 simultâneo, as duas fileiras compartilham o mesmo driver
     // → usar barsPerModule × 2 para dimensionar corretamente
     const effectiveBars = dualSimultaneous ? item.barsPerModule * 2 : item.barsPerModule;
-    const driver = selectDriverForBars(effectiveBars, power, voltage, stripMethod, sheetDrivers, driverContext);
+
+    // Verificar se precisa de split (barras efetivas acima do limite da tabela)
+    let driver: DriverSpec;
+    if (dualSimultaneous) {
+      const splitResult = splitDriverForDualSimultaneous(effectiveBars, power, voltage, stripMethod);
+      if (splitResult) {
+        // Converter SelectedDriver para DriverSpec
+        driver = {
+          code: splitResult.code,
+          model: splitResult.model,
+          power: power,
+          current: splitResult.current,
+          quantity: splitResult.quantity,
+          vOut: splitResult.vOut,
+          ...(splitResult.combo ? { combo: splitResult.combo } : {}),
+        };
+      } else {
+        driver = selectDriverForBars(effectiveBars, power, voltage, stripMethod, sheetDrivers, driverContext);
+      }
+    } else {
+      driver = selectDriverForBars(effectiveBars, power, voltage, stripMethod, sheetDrivers, driverContext);
+    }
+
     return {
       sku: item.sku,
       quantity: item.quantity,

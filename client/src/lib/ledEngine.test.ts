@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { calculateComposition, selectDrivers, buildComposition, isRemoteDriverRequired, IN_MAX_BARS_STANDARD, IN_MAX_BARS_LONG } from "./ledEngine";
 import type { ConfigInput } from "./ledEngine";
 import { getProfileNames, getInstallTypesForProfile, getVariant, LED_CATALOG } from "./ledCatalog";
-import { selectDriverFallback } from "./driverSelector";
+import { selectDriverFallback, splitDriverForDualSimultaneous } from "./driverSelector";
 
 // ─── selectDrivers — 220Vac — 350mA (18W) ────────────────────────────────────
 
@@ -2417,7 +2417,7 @@ describe("v3.9 --- 36W Bivolt Stripflex: drivers por barras (fileira dupla)", ()
   });
 });
 
-// ─── D1+D2 Simultâneo — Driver dimensionado com barras × 2 ───────────────────
+// ─── D1+D2 Simultâneo — Driver dimensionado com barras × 2 + split acima do limite ──────────
 
 describe("D1+D2 simultâneo — driver dimensionado com barras × 2", () => {
   // Perfil HIT (LLP-4251), 18W, 220Vac
@@ -2499,5 +2499,75 @@ describe("D1+D2 simultâneo — driver dimensionado com barras × 2", () => {
     expect(r.driversD1[0].driver.code).toBe("EQ00347");
     expect(r.driversD2[0].driver.code).toBe("EQ00347");
     expect(r.combinedDrivers).toBeUndefined();
+  });
+});
+
+// ─── D1+D2 Simultâneo — Split de drivers acima do limite da tabela ────────────
+
+describe("D1+D2 simultâneo — split de drivers quando barras efetivas > limite", () => {
+  // 18W 220Vac: limite máximo = 7 barras
+  // Módulo de 4.2 barras → D1+D2 → 8.4 barras efetivas → acima de 7 → split em 2 drivers
+  // N = ceil(8.4/7) = 2 → cada driver: 4.2 barras → EQ00347 (44W)
+
+  it("splitDriverForDualSimultaneous: 8.4 barras 18W 220Vac → 2× EQ00347 (44W)", () => {
+    const result = splitDriverForDualSimultaneous(8.4, 18, "220Vac", "STRIPFLEX");
+    expect(result).not.toBeNull();
+    expect(result!.combo).toBeDefined();
+    expect(result!.combo![0].code).toBe("EQ00347");
+    expect(result!.combo![0].quantity).toBe(2);
+  });
+
+  it("splitDriverForDualSimultaneous: 10 barras 18W 220Vac → 2× EQ00347 (44W)", () => {
+    const result = splitDriverForDualSimultaneous(10, 18, "220Vac", "STRIPFLEX");
+    expect(result).not.toBeNull();
+    expect(result!.combo![0].code).toBe("EQ00347");
+    expect(result!.combo![0].quantity).toBe(2);
+  });
+
+  it("splitDriverForDualSimultaneous: 6.8 barras 18W 220Vac → null (dentro do limite, sem split)", () => {
+    const result = splitDriverForDualSimultaneous(6.8, 18, "220Vac", "STRIPFLEX");
+    expect(result).toBeNull(); // 6.8 ≤ 7 → sem split
+  });
+
+  it("HIT 18W 220Vac D1+D2 simultâneo 2362mm (4.2 barras) → combinedDrivers: 2× EQ00347", () => {
+    // 4.2 barras × 2 = 8.4 barras efetivas → split em 2× EQ00347 (44W, 4.2 barras cada)
+    const r = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1+D2",
+      powerD1: 18,
+      powerD2: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 2362,
+      allowLongModules: false,
+      independentLighting: false,
+    });
+    expect(r.combinedDrivers).toBeDefined();
+    expect(r.combinedDrivers!.length).toBeGreaterThan(0);
+    // Deve ter combo com 2× EQ00347
+    const firstDriver = r.combinedDrivers![0].driver;
+    expect(firstDriver.combo).toBeDefined();
+    expect(firstDriver.combo![0].code).toBe("EQ00347");
+    expect(firstDriver.combo![0].quantity).toBe(2);
+  });
+
+  it("HIT 18W 220Vac D1+D2 simultâneo 2825mm (5 barras) → combinedDrivers: 2× EQ00347 (10 barras)", () => {
+    // 5 barras × 2 = 10 barras efetivas → split em 2× EQ00347 (44W, 5 barras cada)
+    const r = calculateComposition({
+      profileCode: "LLP-4251",
+      application: "D1+D2",
+      powerD1: 18,
+      powerD2: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 2825,
+      allowLongModules: false,
+      independentLighting: false,
+    });
+    expect(r.combinedDrivers).toBeDefined();
+    const firstDriver = r.combinedDrivers![0].driver;
+    expect(firstDriver.combo).toBeDefined();
+    expect(firstDriver.combo![0].code).toBe("EQ00347");
+    expect(firstDriver.combo![0].quantity).toBe(2);
   });
 });
