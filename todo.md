@@ -311,3 +311,6 @@
 - [x] Inserir a aplicação (D1, D2 ou D1 + D2) no nome do produto no resumo
 - [x] Somente quando installType for PENDENTE ou ARANDELA (não para EMBUTIR/SOBREPOR)
 - [x] Exemplo: "2 x BLAZE H D1 + D2 PENDENTE COM 2075MM 18W/M + 18W/M (LLP-6060.35F.48F)"
+
+## Melhoria — Resumo: indicar acendimento independente/simultâneo para D1+D2
+- [x] Quando D1+D2 em Pendente ou Arandela, adicionar " - Acendimento Independente" ou " - Acendimento Simultâneo" ao final da linha de montagem

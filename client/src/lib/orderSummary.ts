@@ -98,6 +98,14 @@ export function generateOrderSummary(result: CompositionResult): string {
       : "D1"
     : "";
 
+  // Sufixo de acendimento — apenas quando D1+D2 em Pendente ou Arandela
+  const acendimentoSuffix =
+    isDual && showApplication
+      ? isIndependent
+        ? " - Acendimento Independente"
+        : " - Acendimento Simultâneo"
+      : "";
+
   // Construir mapa de SKUs únicos preservando a ordem da composição
   const skuOrder: string[] = [];
   const skuMap = new Map<string, { length: number; quantity: number; barsPerPiece: number }>();
@@ -143,7 +151,7 @@ export function generateOrderSummary(result: CompositionResult): string {
 
       const appPart = applicationLabel ? ` ${applicationLabel}` : "";
       const line1 = `${qtyPrefix}${productName}${appPart} ${installLabel} COM ${info.length}MM ${powerLabel} (${sku})`;
-      const line2 = `MONTADO COM ${fmtBR(barsPerPiece)} ${barTypeName} ${cct} + ${driverSummary}`;
+      const line2 = `MONTADO COM ${fmtBR(barsPerPiece)} ${barTypeName} ${cct} + ${driverSummary}${acendimentoSuffix}`;
       blocks.push(`${itemLabel}\n${line1}\n${line2}`);
     } else {
       // ── D1+D2 Independente ──
@@ -156,10 +164,10 @@ export function generateOrderSummary(result: CompositionResult): string {
       // Para independente, applicationLabel já é vazio (não isDual) ou "D1 + D2" (mas aqui é independente)
       // Neste caso exibimos D1 e D2 explicitamente na linha, sem applicationLabel extra
       const lineD1_1 = `${qtyPrefix}${productName} D1 ${installLabel} COM ${info.length}MM ${result.powerD1}W/M (${sku})`;
-      const lineD1_2 = `MONTADO COM ${fmtBR(barsPerPiece)} ${barTypeName} ${cct} + ${driverSummaryD1}`;
+      const lineD1_2 = `MONTADO COM ${fmtBR(barsPerPiece)} ${barTypeName} ${cct} + ${driverSummaryD1}${acendimentoSuffix}`;
 
       const lineD2_1 = `${qtyPrefix}${productName} D2 ${installLabel} COM ${info.length}MM ${result.powerD2}W/M (${sku})`;
-      const lineD2_2 = `MONTADO COM ${fmtBR(barsPerPieceD2)} ${barTypeName} ${cct} + ${driverSummaryD2}`;
+      const lineD2_2 = `MONTADO COM ${fmtBR(barsPerPieceD2)} ${barTypeName} ${cct} + ${driverSummaryD2}${acendimentoSuffix}`;
 
       blocks.push(`${itemLabel}\n${lineD1_1}\n${lineD1_2}\n${lineD2_1}\n${lineD2_2}`);
     }
