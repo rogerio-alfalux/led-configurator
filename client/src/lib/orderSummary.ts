@@ -31,37 +31,41 @@ function fmtBR(n: number): string {
 
 /**
  * Constrói a lista de drivers consolidada para exibição no resumo.
- * Agrupa por modelo e soma quantidades, respeitando combos e splits.
+ * Agrupa por modelo+código e soma quantidades, respeitando combos e splits.
+ * Formato: "NX MODELO (EQ00XXX)"
  */
 function buildDriverSummary(entries: SkuDriverEntry[]): string {
-  const driverMap = new Map<string, { model: string; total: number }>();
+  const driverMap = new Map<string, { model: string; code: string; total: number }>();
 
   for (const e of entries) {
     const moduleQty = e.quantity;
     if (e.driver.combo && e.driver.combo.length > 0) {
       for (const item of e.driver.combo) {
-        const key = item.model.toUpperCase();
+        const key = item.code || item.model.toUpperCase();
         const existing = driverMap.get(key);
         if (existing) {
           existing.total += item.quantity * moduleQty;
         } else {
-          driverMap.set(key, { model: item.model.toUpperCase(), total: item.quantity * moduleQty });
+          driverMap.set(key, { model: item.model.toUpperCase(), code: item.code || "", total: item.quantity * moduleQty });
         }
       }
     } else {
       const driverQty = (e.driver.quantity ?? 1) * moduleQty;
-      const key = e.driver.model.toUpperCase();
+      const key = e.driver.code || e.driver.model.toUpperCase();
       const existing = driverMap.get(key);
       if (existing) {
         existing.total += driverQty;
       } else {
-        driverMap.set(key, { model: e.driver.model.toUpperCase(), total: driverQty });
+        driverMap.set(key, { model: e.driver.model.toUpperCase(), code: e.driver.code || "", total: driverQty });
       }
     }
   }
 
   return Array.from(driverMap.values())
-    .map((d) => `APROXIMADAMENTE ${d.total}X ${d.model}`)
+    .map((d) => {
+      const eqSuffix = d.code && d.code !== "ERRO" ? ` (${d.code})` : "";
+      return `${d.total}X ${d.model}${eqSuffix}`;
+    })
     .join(" + ");
 }
 
@@ -84,6 +88,10 @@ export function generateOrderSummary(result: CompositionResult): string {
   const isDual = result.application === "D1+D2";
   const isIndependent = isDual && (result.independentLighting || result.forcedIndependent);
 
+  // Pegar o SKU principal da composição (primeiro item)
+  const mainSku = result.composition.length > 0 ? result.composition[0].sku : "";
+  const skuSuffix = mainSku ? ` (${mainSku})` : "";
+
   if (!isDual || !isIndependent) {
     // ── Caso simples: D1, D2 ou D1+D2 conjunto ──
     const powerLabel = isDual
@@ -101,8 +109,8 @@ export function generateOrderSummary(result: CompositionResult): string {
 
     const driverSummary = buildDriverSummary(driverEntries);
 
-    const line1 = `${productName} ${installLabel} COM APROXIMADAMENTE ${lengthMM}MM ${powerLabel} (CONFORME PROJETO).`;
-    const line2 = `MONTADO COM APROXIMADAMENTE ${fmtBR(totalBars)} ${barTypeName} ${cct} + ${driverSummary}`;
+    const line1 = `${productName} ${installLabel} COM ${lengthMM}MM ${powerLabel}${skuSuffix}`;
+    const line2 = `MONTADO COM ${fmtBR(totalBars)} ${barTypeName} ${cct} + ${driverSummary}`;
     return `${line1}\n${line2}`;
   }
 
@@ -116,11 +124,11 @@ export function generateOrderSummary(result: CompositionResult): string {
   const driverSummaryD1 = buildDriverSummary(result.driversD1);
   const driverSummaryD2 = buildDriverSummary(result.driversD2);
 
-  const lineD1_1 = `${productName} ${installLabel} COM APROXIMADAMENTE ${lengthMM}MM ${powerD1}W/M (D1 — CONFORME PROJETO).`;
-  const lineD1_2 = `MONTADO COM APROXIMADAMENTE ${fmtBR(barsPerSide)} ${barTypeName} ${cct} + ${driverSummaryD1}`;
+  const lineD1_1 = `${productName} ${installLabel} D1 COM ${lengthMM}MM ${powerD1}W/M${skuSuffix}`;
+  const lineD1_2 = `MONTADO COM ${fmtBR(barsPerSide)} ${barTypeName} ${cct} + ${driverSummaryD1}`;
 
-  const lineD2_1 = `${productName} ${installLabel} COM APROXIMADAMENTE ${lengthMM}MM ${powerD2}W/M (D2 — CONFORME PROJETO).`;
-  const lineD2_2 = `MONTADO COM APROXIMADAMENTE ${fmtBR(barsPerSide)} ${barTypeName} ${cct} + ${driverSummaryD2}`;
+  const lineD2_1 = `${productName} ${installLabel} D2 COM ${lengthMM}MM ${powerD2}W/M${skuSuffix}`;
+  const lineD2_2 = `MONTADO COM ${fmtBR(barsPerSide)} ${barTypeName} ${cct} + ${driverSummaryD2}`;
 
   return `${lineD1_1}\n${lineD1_2}\n\n${lineD2_1}\n${lineD2_2}`;
 }
