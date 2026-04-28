@@ -1186,7 +1186,7 @@ export default function Home() {
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
       <footer className="border-t border-border mt-16 py-6">
         <div className="container flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span>© 2025 Alfalux Iluminação · Configurador de Produtos</span>
+          <span>© 2026 Alfalux Iluminação · Configurador de Produtos</span>
           <span className="font-mono">
             {Object.keys(LED_CATALOG).length} variantes · Regra de Ouro aplicada
           </span>
