@@ -337,3 +337,11 @@
 - [x] Quando desativado (padrão): usar apenas módulos com 1, 2, 3, 4, 5 barras (inteiros)
 - [x] Quando ativado: usar todos os módulos (incluindo decimais como 1.1, 1.4, 3.4 etc)
 - [x] Atualizar testes para cobrir os dois modos (266 passando)
+
+## Funcionalidade — Resumo Para Orçamento (29/04/2026)
+- [x] Criar função generateQuoteSummary em novo arquivo quoteSummary.ts
+- [x] Formato: "[NOME] [SUFIXO] [POTÊNCIA]W - Medida Total: [TOTAL]mm - Item 1: [QTD] x [NOME] [SUFIXO] [POTÊNCIA]W - [COMP]mm [TIPO], ..."
+- [x] Sufixo de instalação: Embutir=E, Sobrepor=S, Pendente=P, Arandela=A
+- [x] Tipo do módulo: IF, ML ou IN (sem barras, sem driver, sem CCT)
+- [x] Exibir como card "Resumo Para Orçamento" logo acima do "Resumo para Pedido"
+- [x] Botão de copiar no card

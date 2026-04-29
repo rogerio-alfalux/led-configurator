@@ -1,0 +1,72 @@
+/**
+ * quoteSummary.ts
+ * Gera o texto resumo para orçamento (voltado ao cliente).
+ *
+ * Formato:
+ *   BLAZE H P 18W - Medida Total: 5675mm
+ *   Item 1: 2 x BLAZE H P 18W - 1710mm IF
+ *   Item 2: 1 x BLAZE H P 18W - 2255mm ML
+ *
+ * Sufixo de instalação: E=Embutir, S=Sobrepor, P=Pendente, A=Arandela
+ */
+
+import type { CompositionResult } from "./ledEngine";
+
+/** Mapa de tipo de instalação → sufixo de 1 letra */
+const INSTALL_SUFFIX: Record<string, string> = {
+  EMBUTIR: "E",
+  SOBREPOR: "S",
+  PENDENTE: "P",
+  ARANDELA: "A",
+};
+
+/** Extrai o tipo de módulo (IF, ML, IN) do SKU.
+ *  Ex: LLP-6060.4IF.48F → IF
+ *      LLP-6060.2ML.48F → ML
+ *      LLP-4251.1IN.48F → IN
+ */
+function moduleTypeFromSku(sku: string): string {
+  const match = sku.match(/\d+(IF|ML|IN)\./i);
+  if (match) return match[1].toUpperCase();
+  return "";
+}
+
+/**
+ * Gera o texto resumo para orçamento.
+ * Uma linha de cabeçalho + uma linha por tipo de módulo (SKU distinto).
+ */
+export function generateQuoteSummary(result: CompositionResult): string {
+  const suffix = INSTALL_SUFFIX[result.installType] ?? result.installType.charAt(0);
+  const productName = result.profileName.toUpperCase();
+  const power = result.powerD1;
+
+  // Nome base do produto para o orçamento: "BLAZE H P 18W"
+  const productLabel = `${productName} ${suffix} ${power}W`;
+
+  // Medida total realizada
+  const totalMm = result.realizedLength;
+
+  // Construir mapa de SKUs únicos preservando a ordem
+  const skuOrder: string[] = [];
+  const skuMap = new Map<string, { length: number; quantity: number }>();
+  for (const item of result.composition) {
+    if (!skuMap.has(item.sku)) {
+      skuOrder.push(item.sku);
+      skuMap.set(item.sku, { length: item.length, quantity: item.quantity });
+    }
+  }
+
+  // Linha de cabeçalho
+  const header = `${productLabel} - Medida Total: ${totalMm}mm`;
+
+  // Linhas de itens
+  const items = skuOrder.map((sku, index) => {
+    const info = skuMap.get(sku)!;
+    const modType = moduleTypeFromSku(sku);
+    const modTypeSuffix = modType ? ` ${modType}` : "";
+    const qtyStr = info.quantity === 1 ? "1 x" : `${info.quantity} x`;
+    return `Item ${index + 1}: ${qtyStr} ${productLabel} - ${info.length}mm${modTypeSuffix}`;
+  });
+
+  return [header, ...items].join("\n");
+}

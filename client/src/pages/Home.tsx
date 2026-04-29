@@ -20,6 +20,7 @@ import type { InstallType } from "@/lib/ledCatalog";
 import { calculateComposition } from "@/lib/ledEngine";
 import { generateProductionTemplate } from "@/lib/productionTemplate";
 import { generateOrderSummary } from "@/lib/orderSummary";
+import { generateQuoteSummary } from "@/lib/quoteSummary";
 import type {
   CompositionResult,
   ConfigInput,
@@ -302,6 +303,8 @@ function ResultBlock({ result }: { result: CompositionResult }) {
         </CardContent>
       </Card>
 
+      {/* Resumo Para Orçamento — Resumo para o cliente */}
+      <QuoteSummaryCard result={result} />
       {/* Resumo para Pedido — Ficha Comercial */}
       <OrderSummaryCard result={result} />
       {/* Composição de Módulos — bloco unificado */}
@@ -476,6 +479,64 @@ function ResultBlock({ result }: { result: CompositionResult }) {
       {/* Pedido de Produção — Template para cópia */}
       <ProductionTemplateCard result={result} />
     </div>
+  );
+}
+
+//// ─── Resumo Para Orçamento (Resumo para o cliente) ──────────────────────────
+function QuoteSummaryCard({ result }: { result: CompositionResult }) {
+  const [copied, setCopied] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const summary = generateQuoteSummary(result);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(summary);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      if (textareaRef.current) {
+        textareaRef.current.select();
+        document.execCommand("copy");
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      }
+    }
+  };
+  return (
+    <Card className="shadow-sm border-blue-500/30">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+            <ClipboardCheck className="w-4 h-4 text-blue-500" />
+            Resumo Para Orçamento
+          </CardTitle>
+          <Button
+            size="sm"
+            variant={copied ? "default" : "outline"}
+            onClick={handleCopy}
+            className="gap-1.5 text-xs h-7"
+          >
+            {copied ? (
+              <><ClipboardCheck className="w-3.5 h-3.5" /> Copiado!</>
+            ) : (
+              <><Copy className="w-3.5 h-3.5" /> Copiar Resumo</>
+            )}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <textarea
+          ref={textareaRef}
+          readOnly
+          value={summary}
+          className="w-full font-mono text-xs bg-muted/40 border border-border rounded-md p-3 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/50 text-foreground leading-relaxed"
+          rows={Math.max(summary.split('\n').length + 1, 3)}
+          onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+        />
+        <p className="text-xs text-muted-foreground mt-2">
+          Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
