@@ -639,6 +639,7 @@ export default function Home() {
   const [voltage, setVoltage] = useState<Voltage>("220Vac");
   // Toggles
   const [allowLongModules, setAllowLongModules] = useState(false);
+  const [allowFractional, setAllowFractional] = useState(false);
   const [independentLighting, setIndependentLighting] = useState(false);
   // SHARP difusor
   const [diffuserD1, setDiffuserD1] = useState<DiffuserType | undefined>(undefined);
@@ -743,6 +744,7 @@ export default function Home() {
       stripMethod: powerD1 === 36 ? stripMethod : "STRIPFLEX",
       totalLength: len,
       allowLongModules,
+      allowFractional,
       independentLighting: effectiveIndependent,
       diffuserD1: hasDiffuser ? diffuserD1 : undefined,
       diffuserD2: hasDiffuser && isDual ? diffuserD2 : undefined,
@@ -756,7 +758,7 @@ export default function Home() {
       const msg = e instanceof Error ? e.message : "Erro ao calcular composição.";
       setError(msg);
     }
-  }, [profileCode, effectiveApplication, powerD1, powerD2, cct, voltage, stripMethod, totalLength, allowLongModules, effectiveIndependent, isDual, hasDiffuser, diffuserD1, diffuserD2]);
+  }, [profileCode, effectiveApplication, powerD1, powerD2, cct, voltage, stripMethod, totalLength, allowLongModules, allowFractional, effectiveIndependent, isDual, hasDiffuser, diffuserD1, diffuserD2]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -1186,6 +1188,22 @@ export default function Home() {
                         id="longmodules"
                         checked={allowLongModules}
                         onCheckedChange={setAllowLongModules}
+                      />
+                    </div>
+                    {/* Medidas Quebradas */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="allowfractional" className="text-sm font-medium cursor-pointer">
+                          Considerar Medidas Quebradas
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Incluir módulos com barras decimais (ex: 1,1 · 3,4 · 4,2)
+                        </p>
+                      </div>
+                      <Switch
+                        id="allowfractional"
+                        checked={allowFractional}
+                        onCheckedChange={setAllowFractional}
                       />
                     </div>
                   </div>

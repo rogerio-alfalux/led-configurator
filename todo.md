@@ -320,3 +320,20 @@
 - [x] Barras = barsPerPiece D1 + barsPerPiece D2 (soma das duas fileiras)
 - [x] Drivers = drivers D1 + drivers D2 somados (ex: 1X D1 + 1X D2 = 2X mesmo modelo)
 - [x] Nome: "D1 + D2" no produto; sufixo: "- Acendimento Independente"
+
+## Funcionalidade — Modo "Somente Barras Inteiras" (padrão)
+- [ ] Por padrão, o motor deve usar apenas módulos com barras inteiras (barsPerModule === inteiro: 1, 2, 3, 4, 5...)
+- [ ] Botão toggle "Considerar Medidas Quebradas" logo abaixo do campo "Comprimento Total"
+- [ ] Quando ativado, libera módulos com barras decimais (1.1, 1.2, 3.4, 4.2 etc)
+- [ ] Quando desativado (padrão), filtra o catálogo para usar apenas módulos com barsPerModule inteiro
+- [ ] Adicionar parâmetro allowFractional: boolean na interface de entrada do ledEngine
+- [ ] Atualizar testes para cobrir ambos os modos
+
+## Funcionalidade — Modo "Somente Barras Inteiras" + botão "Considerar Medidas Quebradas" (29/04/2026)
+- [x] Adicionar parâmetro allowFractional na interface ConfigInput (padrão false)
+- [x] Filtrar módulos com barras decimais quando allowFractional=false (getModules)
+- [x] Propagar allowFractional corretamente em toda a cadeia: calculateComposition → buildComposition → tryInSingle → buildIfMlComposition → getModules
+- [x] Adicionar botão toggle "Considerar Medidas Quebradas" na UI, logo abaixo do campo Comprimento Total
+- [x] Quando desativado (padrão): usar apenas módulos com 1, 2, 3, 4, 5 barras (inteiros)
+- [x] Quando ativado: usar todos os módulos (incluindo decimais como 1.1, 1.4, 3.4 etc)
+- [x] Atualizar testes para cobrir os dois modos (266 passando)

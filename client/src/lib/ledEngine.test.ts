@@ -1707,6 +1707,7 @@ describe("v3.2 --- Regra de Tolerancia 250mm para linhas ate 5650mm", () => {
       voltage: "220Vac",
       totalLength: 4000,
       allowLongModules: false,
+      allowFractional: true,
       stripMethod: "STRIPFLEX",
       independentLighting: false,
     });
@@ -1726,6 +1727,7 @@ describe("v3.2 --- Regra de Tolerancia 250mm para linhas ate 5650mm", () => {
       voltage: "220Vac",
       totalLength: 3400,
       allowLongModules: false,
+      allowFractional: true,
       stripMethod: "STRIPFLEX",
       independentLighting: false,
     });
@@ -1744,6 +1746,7 @@ describe("v3.2 --- Regra de Tolerancia 250mm para linhas ate 5650mm", () => {
       voltage: "220Vac",
       totalLength: 5650,
       allowLongModules: false,
+      allowFractional: true,
       stripMethod: "STRIPFLEX",
       independentLighting: false,
     });
@@ -1780,6 +1783,7 @@ describe("v3.2 --- Regra de Tolerancia 250mm para linhas ate 5650mm", () => {
       voltage: "220Vac",
       totalLength: 7000,
       allowLongModules: false,
+      allowFractional: true,
       stripMethod: "STRIPFLEX",
       independentLighting: false,
     });
@@ -1812,6 +1816,7 @@ describe("v3.2 --- Regra de Tolerancia 250mm para linhas ate 5650mm", () => {
         voltage: "220Vac",
         totalLength: tc.length,
         allowLongModules: false,
+        allowFractional: true,
         stripMethod: "STRIPFLEX",
         independentLighting: false,
       });
@@ -1836,6 +1841,7 @@ describe("v3.2 --- Ramo diff > 250mm: permitir mais modulos para aproximar", () 
       voltage: "220Vac",
       totalLength: 2850,
       allowLongModules: false,
+      allowFractional: true,
       stripMethod: "STRIPFLEX",
       independentLighting: false,
     });
@@ -1855,6 +1861,7 @@ describe("v3.2 --- Ramo diff > 250mm: permitir mais modulos para aproximar", () 
       voltage: "220Vac",
       totalLength: 2900,
       allowLongModules: false,
+      allowFractional: true,
       stripMethod: "STRIPFLEX",
       independentLighting: false,
     });
@@ -1895,6 +1902,7 @@ describe("v3.2 --- Comprimentos > 5650mm: comportamento padrao (mais proximo)", 
       voltage: "220Vac",
       totalLength: 6000,
       allowLongModules: false,
+      allowFractional: true,
       stripMethod: "STRIPFLEX",
       independentLighting: false,
     });
@@ -1917,6 +1925,7 @@ describe("v3.2 --- Comprimentos > 5650mm: comportamento padrao (mais proximo)", 
       voltage: "220Vac",
       totalLength: 7000,
       allowLongModules: false,
+      allowFractional: true,
       stripMethod: "STRIPFLEX",
       independentLighting: false,
     });
@@ -1938,6 +1947,7 @@ describe("v3.3 --- Validacao por perfil: LLP-6060 (BLAZE H) e LLP-4251 com regra
       voltage: "220Vac",
       totalLength: 5000,
       allowLongModules: false,
+      allowFractional: true,
       stripMethod: "STRIPFLEX",
       independentLighting: false,
     });
@@ -1960,6 +1970,7 @@ describe("v3.3 --- Validacao por perfil: LLP-6060 (BLAZE H) e LLP-4251 com regra
       voltage: "220Vac",
       totalLength: 4000,
       allowLongModules: false,
+      allowFractional: true,
       stripMethod: "STRIPFLEX",
       independentLighting: false,
     });
@@ -1981,6 +1992,7 @@ describe("v3.3 --- Validacao por perfil: LLP-6060 (BLAZE H) e LLP-4251 com regra
       voltage: "220Vac",
       totalLength: 4500,
       allowLongModules: false,
+      allowFractional: true,
       stripMethod: "STRIPFLEX",
       independentLighting: false,
     });
@@ -2001,6 +2013,7 @@ describe("v3.3 --- Validacao por perfil: LLP-6060 (BLAZE H) e LLP-4251 com regra
       voltage: "220Vac",
       totalLength: 5000,
       allowLongModules: false,
+      allowFractional: true,
       stripMethod: "STRIPFLEX",
       independentLighting: false,
     });
@@ -2445,8 +2458,8 @@ describe("D1+D2 simultâneo — driver dimensionado com barras × 2", () => {
     expect(r.driversD2).toHaveLength(0);
   });
 
-  it("HIT 18W 220Vac D1+D2 simultâneo 1125mm → combinedDrivers usa EQ00347 (4 barras)", () => {
-    // Módulo de 1125mm = 2 barras. D1+D2 → 2 × 2 = 4 barras → faixa 2.01–5 → EQ00347 (44W)
+  it("HIT 18W 220Vac D1+D2 simultâneo 1135mm → combinedDrivers usa EQ00347 (4 barras)", () => {
+    // Módulo IN 2 barras = 1135mm. D1+D2 → 2 × 2 = 4 barras → faixa 2.01–5 → EQ00347 (44W)
     const r = calculateComposition({
       profileCode: "LLP-4251",
       application: "D1+D2",
@@ -2454,7 +2467,7 @@ describe("D1+D2 simultâneo — driver dimensionado com barras × 2", () => {
       powerD2: 18,
       cct: "4000K",
       voltage: "220Vac",
-      totalLength: 1125,
+      totalLength: 1135,
       allowLongModules: false,
       independentLighting: false,
     });
