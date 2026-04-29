@@ -689,7 +689,7 @@ export default function Home() {
    // Categoria de produto
   const [productCategory, setProductCategory] = useState<ProductCategory>("Perfis");
   // Estados de Downlights
-  const [dlProductIndex, setDlProductIndex] = useState<number>(0);
+  const [dlProductIndex, setDlProductIndex] = useState<number | null>(null);
   const [dlVoltage, setDlVoltage] = useState<DownlightVoltage | null>(null);
   const [dlCCT, setDlCCT] = useState<DownlightCCT>("3000K");
   const [dlResult, setDlResult] = useState<DownlightResult | null>(null);
@@ -1291,7 +1291,7 @@ export default function Home() {
                     <div className="space-y-1.5">
                       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Produto</Label>
                       <Select
-                        value={String(dlProductIndex)}
+                        value={dlProductIndex !== null ? String(dlProductIndex) : ""}
                         onValueChange={(v) => { setDlProductIndex(Number(v)); setDlResult(null); }}
                       >
                         <SelectTrigger className="h-10">
@@ -1310,7 +1310,7 @@ export default function Home() {
                       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
                       <div className="flex gap-2">
                         {(["220V", "Bivolt"] as DownlightVoltage[]).map((v) => {
-                          const hasBivolt = DOWNLIGHT_CATALOG[dlProductIndex]?.driverBivolt !== null;
+                          const hasBivolt = dlProductIndex !== null && DOWNLIGHT_CATALOG[dlProductIndex]?.driverBivolt !== null;
                           const disabled = v === "Bivolt" && !hasBivolt;
                           return (
                             <button
@@ -1330,7 +1330,7 @@ export default function Home() {
                           );
                         })}
                       </div>
-                      {dlVoltage === "Bivolt" && DOWNLIGHT_CATALOG[dlProductIndex]?.driverBivolt === null && (
+                      {dlVoltage === "Bivolt" && dlProductIndex !== null && DOWNLIGHT_CATALOG[dlProductIndex]?.driverBivolt === null && (
                         <p className="text-xs text-destructive flex items-center gap-1">
                           <AlertTriangle className="w-3 h-3" /> Este produto não possui opção Bivolt.
                         </p>
@@ -1367,15 +1367,20 @@ export default function Home() {
             {/* Botão Calcular — Downlights */}
             {productCategory === "Downlights" && (
               <div className="space-y-2">
-                {!dlVoltage && (
+                {dlProductIndex === null && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione o produto antes de calcular.
+                  </p>
+                )}
+                {dlProductIndex !== null && !dlVoltage && (
                   <p className="text-xs text-amber-500 flex items-center gap-1.5">
                     <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
                   </p>
                 )}
                 <Button
-                  disabled={!dlVoltage}
+                  disabled={dlProductIndex === null || !dlVoltage}
                   onClick={() => {
-                    if (!dlVoltage) return;
+                    if (dlProductIndex === null || !dlVoltage) return;
                     const cfg: DownlightConfig = { productIndex: dlProductIndex, voltage: dlVoltage, cct: dlCCT, quantity: 1 };
                     setDlResult(calculateDownlight(cfg));
                   }}
@@ -1448,7 +1453,11 @@ export default function Home() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
+                        <p className="text-sm font-mono font-semibold text-primary">{dlResult.product.sku}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted/50">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
                         <p className="text-sm font-semibold">{dlResult.product.name}</p>
                       </div>
@@ -1521,7 +1530,7 @@ export default function Home() {
                       size="sm"
                       className="h-7 text-xs gap-1.5"
                       onClick={() => {
-                        const txt = `${dlResult.product.name.toUpperCase()} MONTADA COM MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()} + 1x DRIVER ${dlResult.driver.model.toUpperCase()} (${dlResult.driver.code})`;
+                        const txt = `CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} MONTADA COM MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()} + 1x DRIVER ${dlResult.driver.model.toUpperCase()} (${dlResult.driver.code})`;
                         navigator.clipboard.writeText(txt);
                         toast.success("Copiado!");
                       }}
@@ -1540,7 +1549,7 @@ export default function Home() {
                         sel?.addRange(range);
                       }}
                     >
-                      {`${dlResult.product.name.toUpperCase()} MONTADA COM MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()} + 1x DRIVER ${dlResult.driver.model.toUpperCase()} (${dlResult.driver.code})`}
+                      {`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} MONTADA COM MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()} + 1x DRIVER ${dlResult.driver.model.toUpperCase()} (${dlResult.driver.code})`}
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Pedido" para copiar diretamente.</p>
                   </CardContent>

@@ -372,3 +372,11 @@
 - [x] LUNA P LED 13W RE: driver220 → PHILIPS XITANIUM 19W 350MA (EQ00346); driverBivolt → LIFUD 13W 350MA BIVOLT (EQ00236)
 - [x] Módulo LED: "[CCT]" removido do campo ledModule (CCT já concatenado em ledModuleWithCCT)
 - [x] Testes atualizados — 17 testes de Downlights, 283 total passando
+
+## Ajustes Downlights v1.3 (29/04/2026)
+
+- [x] Adicionar campo SKU em DownlightProduct e popular no catálogo (7 produtos)
+- [x] Estado inicial dlProductIndex: null (sem produto selecionado por padrão)
+- [x] Bloquear cálculo se produto não selecionado (aviso âmbar + botão desabilitado)
+- [x] Resumo Para Pedido: "CÓDIGO: [SKU]\n[PRODUTO] [CCT] MONTADA COM MÓDULO LED [MÓDULO] [CCT] + 1x DRIVER [DRIVER] ([EQ])"
+- [x] Testes atualizados — 22 testes de Downlights, 288 total passando

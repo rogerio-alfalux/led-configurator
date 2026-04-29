@@ -10,6 +10,8 @@ export interface DownlightDriver {
 }
 
 export interface DownlightProduct {
+  /** SKU do produto */
+  sku: string;
   /** Nome comercial do produto */
   name: string;
   /** Módulo LED (nome técnico — sem CCT, que é concatenado em ledModuleWithCCT) */
@@ -37,42 +39,49 @@ function driver(text: string): DownlightDriver {
 
 export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
   {
+    sku: "LDE 1400.120.19B",
     name: "LUNA PP LED 6,5W RE ABS",
     ledModule: "TRACE CIRCULAR 6 LEDS Ø50MM",
     driver220: driver("LIFUD 13W 350MA BIVOLT (EQ00236)"),
     driverBivolt: driver("LIFUD 13W 350MA BIVOLT (EQ00236)"),
   },
   {
+    sku: "LDE 1400.120.19B",
     name: "LUNA PP LED 13W RE ABS",
     ledModule: "TRACE CIRCULAR 12 LEDS Ø67MM",
     driver220: driver("LIFUD 13W 350MA BIVOLT (EQ00236)"),
     driverBivolt: driver("LIFUD 13W 350MA BIVOLT (EQ00236)"),
   },
   {
+    sku: "LDE-6250.1T5.28F",
     name: "LUNA P LED 13W RE",
     ledModule: "LUX ROUND Ø80MM 36L",
     driver220: driver("PHILIPS XITANIUM 19W 350MA (EQ00346)"),
     driverBivolt: driver("LIFUD 13W 350MA BIVOLT (EQ00236)"),
   },
   {
+    sku: "LDE 6450.140.18B",
     name: "LUNA G LED 17W RE",
     ledModule: "LUX ROUND Ø120MM 54L",
     driver220: driver("PHILIPS XITANIUM 19W 350MA (EQ00346)"),
     driverBivolt: driver("LIFUD 20W 350MA SLIM BIVOLT (EQ00580)"),
   },
   {
+    sku: "LDE 6450.140.18B",
     name: "LUNA G LED 26W RE",
     ledModule: "LUX ROUND Ø120MM 120L",
     driver220: driver("PHILIPS XITANIUM 44W 350MA (EQ00347)"),
     driverBivolt: driver("LIFUD 40W 350MA SLIM BIVOLT (EQ00581)"),
   },
   {
+    sku: "LDE 6455.1A4.18B",
     name: "LUNA GG LED 26W RE",
     ledModule: "LUX ROUND Ø120MM 120L",
     driver220: driver("PHILIPS XITANIUM 44W 350MA (EQ00347)"),
     driverBivolt: driver("LIFUD 40W 350MA SLIM BIVOLT (EQ00581)"),
   },
   {
+    sku: "LDE 6455.1A4.18B",
     name: "LUNA GG LED 36W RE",
     ledModule: "LUX ROUND Ø120MM 120L",
     driver220: driver("OSRAM IT FIT 75W (EQ00220)"),
