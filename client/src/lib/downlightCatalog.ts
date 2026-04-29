@@ -95,6 +95,7 @@ export interface DownlightConfig {
 
 export interface DownlightResult {
   product: DownlightProduct;
+  /** Módulo LED com CCT, sem colchetes: "LUX ROUND Ø120MM 120L 3000K" */
   ledModuleWithCCT: string;
   driver: DownlightDriver;
   voltage: DownlightVoltage;
@@ -110,15 +111,15 @@ export interface DownlightResult {
 export function calculateDownlight(config: DownlightConfig): DownlightResult {
   const product = DOWNLIGHT_CATALOG[config.productIndex];
   const bivoltUnavailable = config.voltage === "Bivolt" && product.driverBivolt === null;
-  const driver =
+  const selectedDriver =
     config.voltage === "Bivolt" && product.driverBivolt
       ? product.driverBivolt
       : product.driver220;
 
   return {
     product,
-    ledModuleWithCCT: `${product.ledModule} [${config.cct}]`,
-    driver,
+    ledModuleWithCCT: `${product.ledModule} ${config.cct}`,
+    driver: selectedDriver,
     voltage: config.voltage,
     cct: config.cct,
     quantity: config.quantity,

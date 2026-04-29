@@ -1521,7 +1521,7 @@ export default function Home() {
                       size="sm"
                       className="h-7 text-xs gap-1.5"
                       onClick={() => {
-                        const txt = `${dlResult.product.name} montada com MÓDULO LED ${dlResult.ledModuleWithCCT} + DRIVER: ${dlResult.driver.model} (${dlResult.driver.code})`;
+                        const txt = `${dlResult.product.name.toUpperCase()} MONTADA COM MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()} + 1x DRIVER ${dlResult.driver.model.toUpperCase()} (${dlResult.driver.code})`;
                         navigator.clipboard.writeText(txt);
                         toast.success("Copiado!");
                       }}
@@ -1540,7 +1540,7 @@ export default function Home() {
                         sel?.addRange(range);
                       }}
                     >
-                      {`${dlResult.product.name} montada com MÓDULO LED ${dlResult.ledModuleWithCCT} + DRIVER: ${dlResult.driver.model} (${dlResult.driver.code})`}
+                      {`${dlResult.product.name.toUpperCase()} MONTADA COM MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()} + 1x DRIVER ${dlResult.driver.model.toUpperCase()} (${dlResult.driver.code})`}
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Pedido" para copiar diretamente.</p>
                   </CardContent>
