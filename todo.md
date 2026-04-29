@@ -345,3 +345,16 @@
 - [x] Tipo do módulo: IF, ML ou IN (sem barras, sem driver, sem CCT)
 - [x] Exibir como card "Resumo Para Orçamento" logo acima do "Resumo para Pedido"
 - [x] Botão de copiar no card
+
+## Categoria Downlights (29/04/2026)
+
+- [x] Criar catálogo downlightCatalog.ts com os 7 produtos da planilha (LUNA PP 6,5W, LUNA PP 13W, LUNA P 13W, LUNA G 17W, LUNA G 26W, LUNA GG 26W, LUNA GG 36W)
+- [x] Função calculateDownlight() integrada no próprio downlightCatalog.ts (engine simples: seleção de driver por tensão)
+- [x] Habilitar botão "Downlights" na grade de categorias (available: true, sem badge "em breve")
+- [x] Criar UI de configuração para Downlights: produto, tensão (220V/Bivolt), CCT, quantidade
+- [x] Criar UI de resultado para Downlights: produto, módulo LED, driver, cód. EQ, tensão, CCT, quantidade
+- [x] Card "Resumo Para Orçamento" para Downlights com botão de copiar
+- [x] Card "Resumo Para Pedido" para Downlights com botão de copiar
+- [x] Estado vazio de Downlights (antes do cálculo)
+- [x] Painel de Perfis ocultado quando categoria = Downlights (e vice-versa)
+- [x] Escrever testes unitários para calculateDownlight() (11 testes — 277 total passando)

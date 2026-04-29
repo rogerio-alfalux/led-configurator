@@ -21,6 +21,12 @@ import { calculateComposition } from "@/lib/ledEngine";
 import { generateProductionTemplate } from "@/lib/productionTemplate";
 import { generateOrderSummary } from "@/lib/orderSummary";
 import { generateQuoteSummary } from "@/lib/quoteSummary";
+import {
+  DOWNLIGHT_CATALOG,
+  DOWNLIGHT_CCTS,
+  calculateDownlight,
+} from "@/lib/downlightCatalog";
+import type { DownlightConfig, DownlightResult, DownlightCCT, DownlightVoltage } from "@/lib/downlightCatalog";
 import type {
   CompositionResult,
   ConfigInput,
@@ -75,7 +81,7 @@ type ProductCategory =
 
 const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.ElementType; available: boolean }[] = [
   { value: "Perfis",       label: "Perfis",        icon: Layers,      available: true  },
-  { value: "Downlights",   label: "Downlights",    icon: Lightbulb,   available: false },
+  { value: "Downlights",   label: "Downlights",    icon: Lightbulb,   available: true  },
   { value: "Painéis",      label: "Painéis",       icon: Grid2X2,     available: false },
   { value: "Spots",        label: "Spots",         icon: Focus,       available: false },
   { value: "Arandelas",    label: "Arandelas",     icon: Lamp,        available: false },
@@ -680,9 +686,14 @@ export default function Home() {
     },
   });
 
-  // Categoria de produto
+   // Categoria de produto
   const [productCategory, setProductCategory] = useState<ProductCategory>("Perfis");
-
+  // Estados de Downlights
+  const [dlProductIndex, setDlProductIndex] = useState<number>(0);
+  const [dlVoltage, setDlVoltage] = useState<DownlightVoltage>("220V");
+  const [dlCCT, setDlCCT] = useState<DownlightCCT>("3000K");
+  const [dlQuantity, setDlQuantity] = useState<number>(1);
+  const [dlResult, setDlResult] = useState<DownlightResult | null>(null);
   // Step 1: Perfil
   const [profileName, setProfileName] = useState<string>("");
   // Step 2: Instalação
@@ -1272,13 +1283,119 @@ export default function Home() {
 
 
                 </React.Fragment>
-                )} {/* fim productCategory === Perfis */}
+                  )} {/* fim productCategory === Perfis */}
 
+                {/* ── Downlights ─────────────────────────────────────────── */}
+                {productCategory === "Downlights" && (
+                  <div className="space-y-4">
+                    {/* Produto */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Produto</Label>
+                      <Select
+                        value={String(dlProductIndex)}
+                        onValueChange={(v) => { setDlProductIndex(Number(v)); setDlResult(null); }}
+                      >
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Selecione o produto..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DOWNLIGHT_CATALOG.map((p, i) => (
+                            <SelectItem key={i} value={String(i)}>{p.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Tensão */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
+                      <div className="flex gap-2">
+                        {(["220V", "Bivolt"] as DownlightVoltage[]).map((v) => {
+                          const hasBivolt = DOWNLIGHT_CATALOG[dlProductIndex]?.driverBivolt !== null;
+                          const disabled = v === "Bivolt" && !hasBivolt;
+                          return (
+                            <button
+                              key={v}
+                              disabled={disabled}
+                              onClick={() => { setDlVoltage(v); setDlResult(null); }}
+                              className={[
+                                "flex-1 py-2 rounded-lg text-sm font-medium border transition-all",
+                                dlVoltage === v && !disabled
+                                  ? "bg-primary text-primary-foreground border-primary"
+                                  : "bg-background text-foreground border-border hover:border-primary/50",
+                                disabled ? "opacity-40 cursor-not-allowed" : "",
+                              ].join(" ")}
+                            >
+                              {v}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {dlVoltage === "Bivolt" && DOWNLIGHT_CATALOG[dlProductIndex]?.driverBivolt === null && (
+                        <p className="text-xs text-destructive flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" /> Este produto não possui opção Bivolt.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* CCT */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
+                      <div className="flex gap-2 flex-wrap">
+                        {DOWNLIGHT_CCTS.map((c) => (
+                          <button
+                            key={c}
+                            onClick={() => { setDlCCT(c); setDlResult(null); }}
+                            className={[
+                              "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
+                              dlCCT === c
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background text-foreground border-border hover:border-primary/50",
+                            ].join(" ")}
+                          >
+                            {c}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Quantidade */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quantidade</Label>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => setDlQuantity(q => Math.max(1, q - 1))}
+                          className="w-9 h-9 rounded-lg border border-border flex items-center justify-center text-lg font-bold hover:bg-muted transition-colors"
+                        >−</button>
+                        <span className="text-lg font-semibold w-10 text-center">{dlQuantity}</span>
+                        <button
+                          onClick={() => setDlQuantity(q => q + 1)}
+                          className="w-9 h-9 rounded-lg border border-border flex items-center justify-center text-lg font-bold hover:bg-muted transition-colors"
+                        >+</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
-            {/* Botão Calcular */}
-            {selectedVariant && (
+            {/* Botão Calcular — Downlights */}
+            {productCategory === "Downlights" && (
+              <Button
+                onClick={() => {
+                  const cfg: DownlightConfig = { productIndex: dlProductIndex, voltage: dlVoltage, cct: dlCCT, quantity: dlQuantity };
+                  setDlResult(calculateDownlight(cfg));
+                }}
+                className="w-full h-12 text-base font-semibold font-display"
+                size="lg"
+              >
+                <Zap className="w-5 h-5 mr-2" />
+                Calcular Downlight
+              </Button>
+            )}
+
+            {/* Botão Calcular — Perfis */}
+            {selectedVariant && productCategory === "Perfis" && (
               <Button
                 onClick={handleCalculate}
                 className="w-full h-12 text-base font-semibold font-display"
@@ -1306,7 +1423,7 @@ export default function Home() {
               </p>
             </div>
 
-            {!result ? (
+            {productCategory === "Perfis" && (!result ? (
               <Card className="shadow-sm">
                 <CardContent className="flex flex-col items-center justify-center py-20 text-center">
                   <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
@@ -1322,6 +1439,140 @@ export default function Home() {
               </Card>
             ) : (
               <ResultBlock result={result} />
+            ))}
+
+            {/* Resultado Downlights */}
+            {productCategory === "Downlights" && dlResult && (
+              <div className="space-y-4">
+                {/* Card principal */}
+                <Card className="shadow-sm border-amber-500/30">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <Lightbulb className="w-4 h-4 text-amber-500" />
+                      Resultado — Downlight
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
+                        <p className="text-sm font-semibold">{dlResult.product.name}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Quantidade</p>
+                        <p className="text-sm font-semibold">{dlResult.quantity} un.</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
+                        <p className="text-sm font-semibold">{dlResult.ledModuleWithCCT}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
+                        <p className="text-sm font-semibold">{dlResult.driver.model}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Cód. EQ</p>
+                        <p className="text-sm font-mono font-semibold text-primary">{dlResult.driver.code}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                        <p className="text-sm font-semibold">{dlResult.voltage}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                        <p className="text-sm font-semibold">{dlResult.cct}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Resumo para Orçamento */}
+                <Card className="shadow-sm border-blue-500/30">
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                      Resumo Para Orçamento
+                    </CardTitle>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1.5"
+                      onClick={() => {
+                        const txt = `${dlResult.quantity} x ${dlResult.product.name} ${dlResult.cct}`;
+                        navigator.clipboard.writeText(txt);
+                        toast.success("Copiado!");
+                      }}
+                    >
+                      <Copy className="w-3 h-3" /> Copiar Resumo
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div
+                      className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
+                      onClick={(e) => {
+                        const sel = window.getSelection();
+                        const range = document.createRange();
+                        range.selectNodeContents(e.currentTarget);
+                        sel?.removeAllRanges();
+                        sel?.addRange(range);
+                      }}
+                    >
+                      {`${dlResult.quantity} x ${dlResult.product.name} ${dlResult.cct}`}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.</p>
+                  </CardContent>
+                </Card>
+
+                {/* Resumo para Pedido */}
+                <Card className="shadow-sm border-green-500/30">
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <ClipboardCheck className="w-4 h-4 text-green-500" />
+                      Resumo Para Pedido
+                    </CardTitle>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1.5"
+                      onClick={() => {
+                        const txt = `${dlResult.quantity} x ${dlResult.product.name}\nMÓDULO LED: ${dlResult.ledModuleWithCCT}\nDRIVER: ${dlResult.driver.model} (${dlResult.driver.code})\nTENSÃO: ${dlResult.voltage}`;
+                        navigator.clipboard.writeText(txt);
+                        toast.success("Copiado!");
+                      }}
+                    >
+                      <Copy className="w-3 h-3" /> Copiar Pedido
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div
+                      className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
+                      onClick={(e) => {
+                        const sel = window.getSelection();
+                        const range = document.createRange();
+                        range.selectNodeContents(e.currentTarget);
+                        sel?.removeAllRanges();
+                        sel?.addRange(range);
+                      }}
+                    >
+                      {`${dlResult.quantity} x ${dlResult.product.name}\nMÓDULO LED: ${dlResult.ledModuleWithCCT}\nDRIVER: ${dlResult.driver.model} (${dlResult.driver.code})\nTENSÃO: ${dlResult.voltage}`}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Pedido" para copiar diretamente.</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Estado vazio Downlights */}
+            {productCategory === "Downlights" && !dlResult && (
+              <Card className="shadow-sm">
+                <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                    <Lightbulb className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione o produto, tensão, CCT e quantidade, depois clique em "Calcular Downlight".</p>
+                </CardContent>
+              </Card>
             )}
           </div>
         </div>
