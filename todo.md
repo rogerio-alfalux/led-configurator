@@ -364,3 +364,11 @@
 - [x] Tensão obrigatória: bloquear botão "Calcular Downlight" se tensão não foi selecionada (estado inicial sem seleção)
 - [x] Remover campo "Quantidade" do painel de configuração de Downlights
 - [x] Reformatar Resumo Para Pedido: "[PRODUTO] montada com MÓDULO LED [MÓDULO] [CCT] + DRIVER: [DRIVER] ([EQ])"
+
+## Atualização Drivers Downlights v1.2 (29/04/2026)
+
+- [x] LUNA PP LED 6,5W RE ABS: driver220 → LIFUD 13W 350MA BIVOLT (EQ00236)
+- [x] LUNA PP LED 13W RE ABS: driver220 → LIFUD 13W 350MA BIVOLT (EQ00236)
+- [x] LUNA P LED 13W RE: driver220 → PHILIPS XITANIUM 19W 350MA (EQ00346); driverBivolt → LIFUD 13W 350MA BIVOLT (EQ00236)
+- [x] Módulo LED: "[CCT]" removido do campo ledModule (CCT já concatenado em ledModuleWithCCT)
+- [x] Testes atualizados — 17 testes de Downlights, 283 total passando

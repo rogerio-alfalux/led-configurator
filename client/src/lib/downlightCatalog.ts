@@ -1,6 +1,7 @@
 /**
  * Catálogo de Downlights Alfalux
  * Fonte: DRIVER_LOOKUP_ALFALUX_LUMINARIAS_R00_(29-04-2026).xlsx
+ * Revisão: 29/04/2026
  */
 
 export interface DownlightDriver {
@@ -11,7 +12,7 @@ export interface DownlightDriver {
 export interface DownlightProduct {
   /** Nome comercial do produto */
   name: string;
-  /** Módulo LED (nome técnico da barra/módulo) */
+  /** Módulo LED (nome técnico — sem CCT, que é concatenado em ledModuleWithCCT) */
   ledModule: string;
   /** Driver para 220Vac */
   driver220: DownlightDriver;
@@ -38,20 +39,20 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
   {
     name: "LUNA PP LED 6,5W RE ABS",
     ledModule: "TRACE CIRCULAR 6 LEDS Ø50MM",
-    driver220: driver("LED DRIVER 13W 350MA 25-38VDC BIV (EQ00236)"),
-    driverBivolt: driver("LED DRIVER 13W 350MA 25-38VDC BIV (EQ00236)"),
+    driver220: driver("LIFUD 13W 350MA BIVOLT (EQ00236)"),
+    driverBivolt: driver("LIFUD 13W 350MA BIVOLT (EQ00236)"),
   },
   {
     name: "LUNA PP LED 13W RE ABS",
     ledModule: "TRACE CIRCULAR 12 LEDS Ø67MM",
-    driver220: driver("LED DRIVER 13W 350MA 25-38VDC BIV (EQ00236)"),
-    driverBivolt: driver("LED DRIVER 13W 350MA 25-38VDC BIV (EQ00236)"),
+    driver220: driver("LIFUD 13W 350MA BIVOLT (EQ00236)"),
+    driverBivolt: driver("LIFUD 13W 350MA BIVOLT (EQ00236)"),
   },
   {
     name: "LUNA P LED 13W RE",
     ledModule: "LUX ROUND Ø80MM 36L",
-    driver220: driver("LED DRIVER 13W 350MA 25-38VDC BIV (EQ00236)"),
-    driverBivolt: driver("LED DRIVER 13W 350MA 25-38VDC BIV (EQ00236)"),
+    driver220: driver("PHILIPS XITANIUM 19W 350MA (EQ00346)"),
+    driverBivolt: driver("LIFUD 13W 350MA BIVOLT (EQ00236)"),
   },
   {
     name: "LUNA G LED 17W RE",
@@ -95,7 +96,7 @@ export interface DownlightConfig {
 
 export interface DownlightResult {
   product: DownlightProduct;
-  /** Módulo LED com CCT, sem colchetes: "LUX ROUND Ø120MM 120L 3000K" */
+  /** Módulo LED com CCT concatenado: "LUX ROUND Ø120MM 120L 3000K" */
   ledModuleWithCCT: string;
   driver: DownlightDriver;
   voltage: DownlightVoltage;

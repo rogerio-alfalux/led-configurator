@@ -31,6 +31,42 @@ describe("DOWNLIGHT_CATALOG", () => {
       expect(p.driverBivolt).not.toBeNull();
     }
   });
+
+  // Verificações específicas dos drivers conforme planilha R00 (29-04-2026)
+  it("LUNA PP LED 6,5W RE ABS deve usar LIFUD 13W 350MA BIVOLT (EQ00236) para 220V", () => {
+    const p = DOWNLIGHT_CATALOG.find((x) => x.name === "LUNA PP LED 6,5W RE ABS")!;
+    expect(p.driver220.code).toBe("EQ00236");
+    expect(p.driver220.model).toBe("LIFUD 13W 350MA BIVOLT");
+  });
+
+  it("LUNA PP LED 13W RE ABS deve usar LIFUD 13W 350MA BIVOLT (EQ00236) para 220V", () => {
+    const p = DOWNLIGHT_CATALOG.find((x) => x.name === "LUNA PP LED 13W RE ABS")!;
+    expect(p.driver220.code).toBe("EQ00236");
+    expect(p.driver220.model).toBe("LIFUD 13W 350MA BIVOLT");
+  });
+
+  it("LUNA P LED 13W RE deve usar PHILIPS XITANIUM 19W 350MA (EQ00346) para 220V", () => {
+    const p = DOWNLIGHT_CATALOG.find((x) => x.name === "LUNA P LED 13W RE")!;
+    expect(p.driver220.code).toBe("EQ00346");
+    expect(p.driver220.model).toBe("PHILIPS XITANIUM 19W 350MA");
+  });
+
+  it("LUNA P LED 13W RE deve usar LIFUD 13W 350MA BIVOLT (EQ00236) para Bivolt", () => {
+    const p = DOWNLIGHT_CATALOG.find((x) => x.name === "LUNA P LED 13W RE")!;
+    expect(p.driverBivolt!.code).toBe("EQ00236");
+    expect(p.driverBivolt!.model).toBe("LIFUD 13W 350MA BIVOLT");
+  });
+
+  it("LUNA G LED 17W RE deve usar PHILIPS XITANIUM 19W 350MA (EQ00346) para 220V", () => {
+    const p = DOWNLIGHT_CATALOG.find((x) => x.name === "LUNA G LED 17W RE")!;
+    expect(p.driver220.code).toBe("EQ00346");
+  });
+
+  it("LUNA GG LED 36W RE deve usar OSRAM IT FIT 75W (EQ00220) para 220V", () => {
+    const p = DOWNLIGHT_CATALOG.find((x) => x.name === "LUNA GG LED 36W RE")!;
+    expect(p.driver220.code).toBe("EQ00220");
+    expect(p.driver220.model).toBe("OSRAM IT FIT 75W");
+  });
 });
 
 describe("calculateDownlight", () => {
@@ -71,7 +107,7 @@ describe("calculateDownlight", () => {
     expect(result.bivoltUnavailable).toBe(true);
   });
 
-  it("deve incluir CCT no campo ledModuleWithCCT", () => {
+  it("deve incluir CCT no campo ledModuleWithCCT sem colchetes", () => {
     const cfg: DownlightConfig = {
       productIndex: 1,
       voltage: "220V",
@@ -81,6 +117,8 @@ describe("calculateDownlight", () => {
     const result = calculateDownlight(cfg);
     expect(result.ledModuleWithCCT).toContain("5000K");
     expect(result.ledModuleWithCCT).toContain(DOWNLIGHT_CATALOG[1].ledModule);
+    expect(result.ledModuleWithCCT).not.toContain("[");
+    expect(result.ledModuleWithCCT).not.toContain("]");
   });
 
   it("deve preservar quantidade no resultado", () => {
