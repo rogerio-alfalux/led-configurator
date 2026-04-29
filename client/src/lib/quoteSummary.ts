@@ -39,9 +39,21 @@ export function generateQuoteSummary(result: CompositionResult): string {
   const suffix = INSTALL_SUFFIX[result.installType] ?? result.installType.charAt(0);
   const productName = result.profileName.toUpperCase();
   const power = result.powerD1;
+  const cct = result.cct;
 
-  // Nome base do produto para o orçamento: "BLAZE H P 18W"
-  const productLabel = `${productName} ${suffix} ${power}W`;
+  // Aplicação (D1/D2/D1+D2) — apenas para Pendente e Arandela
+  const showApplication = result.installType === "PENDENTE" || result.installType === "ARANDELA";
+  const applicationLabel = showApplication
+    ? result.application === "D1+D2"
+      ? "D1 + D2"
+      : result.application === "D2"
+      ? "D2"
+      : "D1"
+    : "";
+
+  // Nome base do produto para o orçamento: "BLAZE H P D1 18W 3000K"
+  const appPart = applicationLabel ? ` ${applicationLabel}` : "";
+  const productLabel = `${productName} ${suffix}${appPart} ${power}W ${cct}`;
 
   // Medida total realizada
   const totalMm = result.realizedLength;
