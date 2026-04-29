@@ -690,9 +690,8 @@ export default function Home() {
   const [productCategory, setProductCategory] = useState<ProductCategory>("Perfis");
   // Estados de Downlights
   const [dlProductIndex, setDlProductIndex] = useState<number>(0);
-  const [dlVoltage, setDlVoltage] = useState<DownlightVoltage>("220V");
+  const [dlVoltage, setDlVoltage] = useState<DownlightVoltage | null>(null);
   const [dlCCT, setDlCCT] = useState<DownlightCCT>("3000K");
-  const [dlQuantity, setDlQuantity] = useState<number>(1);
   const [dlResult, setDlResult] = useState<DownlightResult | null>(null);
   // Step 1: Perfil
   const [profileName, setProfileName] = useState<string>("");
@@ -1359,21 +1358,7 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* Quantidade */}
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quantidade</Label>
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => setDlQuantity(q => Math.max(1, q - 1))}
-                          className="w-9 h-9 rounded-lg border border-border flex items-center justify-center text-lg font-bold hover:bg-muted transition-colors"
-                        >−</button>
-                        <span className="text-lg font-semibold w-10 text-center">{dlQuantity}</span>
-                        <button
-                          onClick={() => setDlQuantity(q => q + 1)}
-                          className="w-9 h-9 rounded-lg border border-border flex items-center justify-center text-lg font-bold hover:bg-muted transition-colors"
-                        >+</button>
-                      </div>
-                    </div>
+
                   </div>
                 )}
               </CardContent>
@@ -1381,17 +1366,26 @@ export default function Home() {
 
             {/* Botão Calcular — Downlights */}
             {productCategory === "Downlights" && (
-              <Button
-                onClick={() => {
-                  const cfg: DownlightConfig = { productIndex: dlProductIndex, voltage: dlVoltage, cct: dlCCT, quantity: dlQuantity };
-                  setDlResult(calculateDownlight(cfg));
-                }}
-                className="w-full h-12 text-base font-semibold font-display"
-                size="lg"
-              >
-                <Zap className="w-5 h-5 mr-2" />
-                Calcular Downlight
-              </Button>
+              <div className="space-y-2">
+                {!dlVoltage && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
+                  </p>
+                )}
+                <Button
+                  disabled={!dlVoltage}
+                  onClick={() => {
+                    if (!dlVoltage) return;
+                    const cfg: DownlightConfig = { productIndex: dlProductIndex, voltage: dlVoltage, cct: dlCCT, quantity: 1 };
+                    setDlResult(calculateDownlight(cfg));
+                  }}
+                  className="w-full h-12 text-base font-semibold font-display"
+                  size="lg"
+                >
+                  <Zap className="w-5 h-5 mr-2" />
+                  Calcular Downlight
+                </Button>
+              </div>
             )}
 
             {/* Botão Calcular — Perfis */}
@@ -1454,25 +1448,17 @@ export default function Home() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="p-3 rounded-lg bg-muted/50">
+                      <div className="p-3 rounded-lg bg-muted/50 col-span-2">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
                         <p className="text-sm font-semibold">{dlResult.product.name}</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Quantidade</p>
-                        <p className="text-sm font-semibold">{dlResult.quantity} un.</p>
                       </div>
                       <div className="p-3 rounded-lg bg-muted/50 col-span-2">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
                         <p className="text-sm font-semibold">{dlResult.ledModuleWithCCT}</p>
                       </div>
-                      <div className="p-3 rounded-lg bg-muted/50">
+                      <div className="p-3 rounded-lg bg-muted/50 col-span-2">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
-                        <p className="text-sm font-semibold">{dlResult.driver.model}</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Cód. EQ</p>
-                        <p className="text-sm font-mono font-semibold text-primary">{dlResult.driver.code}</p>
+                        <p className="text-sm font-semibold">{dlResult.driver.model} <span className="font-mono text-primary">({dlResult.driver.code})</span></p>
                       </div>
                       <div className="p-3 rounded-lg bg-muted/50">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
@@ -1498,7 +1484,7 @@ export default function Home() {
                       size="sm"
                       className="h-7 text-xs gap-1.5"
                       onClick={() => {
-                        const txt = `${dlResult.quantity} x ${dlResult.product.name} ${dlResult.cct}`;
+                        const txt = `${dlResult.product.name} ${dlResult.cct}`;
                         navigator.clipboard.writeText(txt);
                         toast.success("Copiado!");
                       }}
@@ -1517,7 +1503,7 @@ export default function Home() {
                         sel?.addRange(range);
                       }}
                     >
-                      {`${dlResult.quantity} x ${dlResult.product.name} ${dlResult.cct}`}
+                      {`${dlResult.product.name} ${dlResult.cct}`}
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.</p>
                   </CardContent>
@@ -1535,7 +1521,7 @@ export default function Home() {
                       size="sm"
                       className="h-7 text-xs gap-1.5"
                       onClick={() => {
-                        const txt = `${dlResult.quantity} x ${dlResult.product.name}\nMÓDULO LED: ${dlResult.ledModuleWithCCT}\nDRIVER: ${dlResult.driver.model} (${dlResult.driver.code})\nTENSÃO: ${dlResult.voltage}`;
+                        const txt = `${dlResult.product.name} montada com MÓDULO LED ${dlResult.ledModuleWithCCT} + DRIVER: ${dlResult.driver.model} (${dlResult.driver.code})`;
                         navigator.clipboard.writeText(txt);
                         toast.success("Copiado!");
                       }}
@@ -1554,7 +1540,7 @@ export default function Home() {
                         sel?.addRange(range);
                       }}
                     >
-                      {`${dlResult.quantity} x ${dlResult.product.name}\nMÓDULO LED: ${dlResult.ledModuleWithCCT}\nDRIVER: ${dlResult.driver.model} (${dlResult.driver.code})\nTENSÃO: ${dlResult.voltage}`}
+                      {`${dlResult.product.name} montada com MÓDULO LED ${dlResult.ledModuleWithCCT} + DRIVER: ${dlResult.driver.model} (${dlResult.driver.code})`}
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Pedido" para copiar diretamente.</p>
                   </CardContent>
@@ -1570,7 +1556,7 @@ export default function Home() {
                     <Lightbulb className="w-8 h-8 text-muted-foreground" />
                   </div>
                   <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
-                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione o produto, tensão, CCT e quantidade, depois clique em "Calcular Downlight".</p>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione o produto, tensão e CCT, depois clique em "Calcular Downlight".</p>
                 </CardContent>
               </Card>
             )}

@@ -322,12 +322,12 @@
 - [x] Nome: "D1 + D2" no produto; sufixo: "- Acendimento Independente"
 
 ## Funcionalidade — Modo "Somente Barras Inteiras" (padrão)
-- [ ] Por padrão, o motor deve usar apenas módulos com barras inteiras (barsPerModule === inteiro: 1, 2, 3, 4, 5...)
-- [ ] Botão toggle "Considerar Medidas Quebradas" logo abaixo do campo "Comprimento Total"
-- [ ] Quando ativado, libera módulos com barras decimais (1.1, 1.2, 3.4, 4.2 etc)
-- [ ] Quando desativado (padrão), filtra o catálogo para usar apenas módulos com barsPerModule inteiro
-- [ ] Adicionar parâmetro allowFractional: boolean na interface de entrada do ledEngine
-- [ ] Atualizar testes para cobrir ambos os modos
+- [x] Por padrão, o motor deve usar apenas módulos com barras inteiras (barsPerModule === inteiro: 1, 2, 3, 4, 5...)
+- [x] Botão toggle "Considerar Medidas Quebradas" logo abaixo do campo "Comprimento Total"
+- [x] Quando ativado, libera módulos com barras decimais (1.1, 1.2, 3.4, 4.2 etc)
+- [x] Quando desativado (padrão), filtra o catálogo para usar apenas módulos com barsPerModule inteiro
+- [x] Adicionar parâmetro allowFractional: boolean na interface de entrada do ledEngine
+- [x] Atualizar testes para cobrir ambos os modos
 
 ## Funcionalidade — Modo "Somente Barras Inteiras" + botão "Considerar Medidas Quebradas" (29/04/2026)
 - [x] Adicionar parâmetro allowFractional na interface ConfigInput (padrão false)
@@ -358,3 +358,9 @@
 - [x] Estado vazio de Downlights (antes do cálculo)
 - [x] Painel de Perfis ocultado quando categoria = Downlights (e vice-versa)
 - [x] Escrever testes unitários para calculateDownlight() (11 testes — 277 total passando)
+
+## Ajustes Downlights v1.1 (29/04/2026)
+
+- [x] Tensão obrigatória: bloquear botão "Calcular Downlight" se tensão não foi selecionada (estado inicial sem seleção)
+- [x] Remover campo "Quantidade" do painel de configuração de Downlights
+- [x] Reformatar Resumo Para Pedido: "[PRODUTO] montada com MÓDULO LED [MÓDULO] [CCT] + DRIVER: [DRIVER] ([EQ])"
