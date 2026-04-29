@@ -21,13 +21,21 @@ const INSTALL_SUFFIX: Record<string, string> = {
 };
 
 /** Extrai o tipo de módulo (IF, ML, IN) do SKU.
- *  Ex: LLP-6060.4IF.48F → IF
- *      LLP-6060.2ML.48F → ML
- *      LLP-4251.1IN.48F → IN
+ *  Barras inteiras: LLP-6060.4IF.48F → IF | LLP-6060.2ML.48F → ML | LLP-4251.1IN.48F → IN
+ *  Barras decimais: LLP-4536.34I.48F → IN | LLP-4536.34F.48F → IF | LLP-4536.34M.48F → ML
  */
 function moduleTypeFromSku(sku: string): string {
-  const match = sku.match(/\d+(IF|ML|IN)\./i);
-  if (match) return match[1].toUpperCase();
+  // Primeiro tenta o padrão completo (barras inteiras): IF, ML, IN
+  const fullMatch = sku.match(/\.(\d+)(IF|ML|IN)\./i);
+  if (fullMatch) return fullMatch[2].toUpperCase();
+  // Depois tenta o padrão abreviado (barras decimais): F→IF, M→ML, I→IN
+  const shortMatch = sku.match(/\.(\d+)(F|M|I)\./i);
+  if (shortMatch) {
+    const t = shortMatch[2].toUpperCase();
+    if (t === "F") return "IF";
+    if (t === "M") return "ML";
+    if (t === "I") return "IN";
+  }
   return "";
 }
 
