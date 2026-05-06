@@ -380,3 +380,12 @@
 - [x] Bloquear cálculo se produto não selecionado (aviso âmbar + botão desabilitado)
 - [x] Resumo Para Pedido: "CÓDIGO: [SKU]\n[PRODUTO] [CCT] MONTADA COM MÓDULO LED [MÓDULO] [CCT] + 1x DRIVER [DRIVER] ([EQ])"
 - [x] Testes atualizados — 22 testes de Downlights, 288 total passando
+
+## Reestruturação Downlights v2.0 (06/05/2026)
+
+- [x] Gerar downlightCatalog.ts com 156 produtos, campos: instalacao, familia, sku, produto, holder, otica, dissipador, modulo, driver220, driverBivolt
+- [x] Fluxo de seleção: Instalação → Família → Produto (cada seleção filtra a próxima)
+- [x] Resetar família e produto ao trocar instalação; resetar produto ao trocar família
+- [x] Resumo Para Pedido: CÓDIGO + PRODUTO CCT TENSÃO MONTADA COM MÓDULO + ÓTICA + HOLDER + DISSIPADOR + DRIVER (omitir campos null/NÃO APLICÁVEL)
+- [x] Resumo Para Orçamento Downlights: PRODUTO CCT TENSÃO (em maiúsculas)
+- [x] Testes atualizados — 19 testes de Downlights, 285 total passando

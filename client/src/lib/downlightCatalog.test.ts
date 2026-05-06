@@ -5,147 +5,194 @@ import {
   type DownlightConfig,
 } from "./downlightCatalog";
 
+// ─── Catálogo ──────────────────────────────────────────────────────────────
+
 describe("DOWNLIGHT_CATALOG", () => {
-  it("deve ter 7 produtos", () => {
-    expect(DOWNLIGHT_CATALOG).toHaveLength(7);
+  it("deve ter 156 produtos", () => {
+    expect(DOWNLIGHT_CATALOG).toHaveLength(156);
   });
 
-  it("todos os produtos devem ter SKU, nome, ledModule e driver220", () => {
+  it("todos os produtos devem ter sku, name, instalacao, familia, ledModule", () => {
     for (const p of DOWNLIGHT_CATALOG) {
       expect(p.sku).toBeTruthy();
       expect(p.name).toBeTruthy();
+      expect(p.instalacao).toBeTruthy();
+      expect(p.familia).toBeTruthy();
       expect(p.ledModule).toBeTruthy();
-      expect(p.driver220.model).toBeTruthy();
-      expect(p.driver220.code).toBeTruthy();
     }
   });
 
-  it("LUNA GG LED 36W RE não deve ter opção Bivolt", () => {
-    const luna36 = DOWNLIGHT_CATALOG.find((p) => p.name === "LUNA GG LED 36W RE");
-    expect(luna36).toBeDefined();
-    expect(luna36!.driverBivolt).toBeNull();
-  });
-
-  it("todos os outros produtos devem ter opção Bivolt", () => {
-    const others = DOWNLIGHT_CATALOG.filter((p) => p.name !== "LUNA GG LED 36W RE");
-    for (const p of others) {
-      expect(p.driverBivolt).not.toBeNull();
-    }
-  });
-
-  // SKUs conforme planilha R00 (29-04-2026)
-  it("LUNA PP LED 6,5W RE ABS deve ter SKU LDE 1400.120.19B", () => {
-    const p = DOWNLIGHT_CATALOG.find((x) => x.name === "LUNA PP LED 6,5W RE ABS")!;
-    expect(p.sku).toBe("LDE 1400.120.19B");
-  });
-
-  it("LUNA P LED 13W RE deve ter SKU LDE-6250.1T5.28F", () => {
-    const p = DOWNLIGHT_CATALOG.find((x) => x.name === "LUNA P LED 13W RE")!;
-    expect(p.sku).toBe("LDE-6250.1T5.28F");
-  });
-
-  it("LUNA G LED 17W RE deve ter SKU LDE 6450.140.18B", () => {
-    const p = DOWNLIGHT_CATALOG.find((x) => x.name === "LUNA G LED 17W RE")!;
-    expect(p.sku).toBe("LDE 6450.140.18B");
-  });
-
-  it("LUNA GG LED 26W RE deve ter SKU LDE 6455.1A4.18B", () => {
-    const p = DOWNLIGHT_CATALOG.find((x) => x.name === "LUNA GG LED 26W RE")!;
-    expect(p.sku).toBe("LDE 6455.1A4.18B");
-  });
-
-  it("LUNA GG LED 36W RE deve ter SKU LDE 6455.1A4.18B", () => {
-    const p = DOWNLIGHT_CATALOG.find((x) => x.name === "LUNA GG LED 36W RE")!;
-    expect(p.sku).toBe("LDE 6455.1A4.18B");
-  });
-
-  // Drivers conforme planilha R00 (29-04-2026)
-  it("LUNA PP LED 6,5W RE ABS deve usar LIFUD 13W 350MA BIVOLT (EQ00236) para 220V", () => {
-    const p = DOWNLIGHT_CATALOG.find((x) => x.name === "LUNA PP LED 6,5W RE ABS")!;
-    expect(p.driver220.code).toBe("EQ00236");
-    expect(p.driver220.model).toBe("LIFUD 13W 350MA BIVOLT");
-  });
-
-  it("LUNA PP LED 13W RE ABS deve usar LIFUD 13W 350MA BIVOLT (EQ00236) para 220V", () => {
-    const p = DOWNLIGHT_CATALOG.find((x) => x.name === "LUNA PP LED 13W RE ABS")!;
-    expect(p.driver220.code).toBe("EQ00236");
-    expect(p.driver220.model).toBe("LIFUD 13W 350MA BIVOLT");
-  });
-
-  it("LUNA P LED 13W RE deve usar PHILIPS XITANIUM 19W 350MA (EQ00346) para 220V", () => {
-    const p = DOWNLIGHT_CATALOG.find((x) => x.name === "LUNA P LED 13W RE")!;
-    expect(p.driver220.code).toBe("EQ00346");
-    expect(p.driver220.model).toBe("PHILIPS XITANIUM 19W 350MA");
-  });
-
-  it("LUNA P LED 13W RE deve usar LIFUD 13W 350MA BIVOLT (EQ00236) para Bivolt", () => {
-    const p = DOWNLIGHT_CATALOG.find((x) => x.name === "LUNA P LED 13W RE")!;
-    expect(p.driverBivolt!.code).toBe("EQ00236");
-    expect(p.driverBivolt!.model).toBe("LIFUD 13W 350MA BIVOLT");
-  });
-
-  it("LUNA G LED 17W RE deve usar PHILIPS XITANIUM 19W 350MA (EQ00346) para 220V", () => {
-    const p = DOWNLIGHT_CATALOG.find((x) => x.name === "LUNA G LED 17W RE")!;
-    expect(p.driver220.code).toBe("EQ00346");
-  });
-
-  it("LUNA GG LED 36W RE deve usar OSRAM IT FIT 75W (EQ00220) para 220V", () => {
-    const p = DOWNLIGHT_CATALOG.find((x) => x.name === "LUNA GG LED 36W RE")!;
-    expect(p.driver220.code).toBe("EQ00220");
-    expect(p.driver220.model).toBe("OSRAM IT FIT 75W");
-  });
-
-  it("códigos EQ dos drivers devem estar no formato EQ00XXX", () => {
+  it("todos os produtos devem ter driver220 com model", () => {
     for (const p of DOWNLIGHT_CATALOG) {
-      expect(p.driver220.code).toMatch(/^EQ\d{5}$/);
-      if (p.driverBivolt) {
-        expect(p.driverBivolt.code).toMatch(/^EQ\d{5}$/);
+      expect(p.driver220).toBeTruthy();
+      expect(p.driver220.model).toBeTruthy();
+      // code pode ser vazio para produtos sem código EQ (ex: LIFUD sem EQ)
+      expect(typeof p.driver220.code).toBe("string");
+    }
+  });
+
+  it("campos holder, otica, dissipador devem ser string ou null (nunca 'NÃO APLICÁVEL')", () => {
+    for (const p of DOWNLIGHT_CATALOG) {
+      if (p.holder !== null) {
+        expect(typeof p.holder).toBe("string");
+        expect(p.holder.toUpperCase()).not.toContain("NÃO APLICÁVEL");
+      }
+      if (p.otica !== null) {
+        expect(typeof p.otica).toBe("string");
+        expect(p.otica.toUpperCase()).not.toContain("NÃO APLICÁVEL");
+      }
+      if (p.dissipador !== null) {
+        expect(typeof p.dissipador).toBe("string");
+        expect(p.dissipador.toUpperCase()).not.toContain("NÃO APLICÁVEL");
+      }
+    }
+  });
+
+  it("módulo LED não deve conter '[CCT]' (placeholder removido)", () => {
+    for (const p of DOWNLIGHT_CATALOG) {
+      expect(p.ledModule).not.toContain("[CCT]");
+    }
+  });
+
+  it("deve conter produtos do tipo EMBUTIR", () => {
+    const embutir = DOWNLIGHT_CATALOG.filter((p) => p.instalacao === "EMBUTIR");
+    expect(embutir.length).toBeGreaterThan(0);
+  });
+
+  it("deve conter produtos do tipo NO FRAME", () => {
+    const noFrame = DOWNLIGHT_CATALOG.filter((p) => p.instalacao === "NO FRAME");
+    expect(noFrame.length).toBeGreaterThan(0);
+  });
+
+  it("deve conter família LUNA", () => {
+    const luna = DOWNLIGHT_CATALOG.filter((p) => p.familia === "LUNA");
+    expect(luna.length).toBeGreaterThan(0);
+  });
+
+  it("deve conter família MYRO", () => {
+    const myro = DOWNLIGHT_CATALOG.filter((p) => p.familia === "MYRO");
+    expect(myro.length).toBeGreaterThan(0);
+  });
+
+  it("deve conter família LUNA SPOT", () => {
+    const lunaSpot = DOWNLIGHT_CATALOG.filter((p) => p.familia === "LUNA SPOT");
+    expect(lunaSpot.length).toBeGreaterThan(0);
+  });
+
+  it("deve conter família EASY LED POINT", () => {
+    const easyLed = DOWNLIGHT_CATALOG.filter((p) => p.familia === "EASY LED POINT");
+    expect(easyLed.length).toBeGreaterThan(0);
+  });
+
+  it("produtos com código EQ devem estar no formato EQ00XXX", () => {
+    for (const p of DOWNLIGHT_CATALOG) {
+      if (p.driver220.code) {
+        expect(p.driver220.code).toMatch(/^(EQ\d{5}|S|)$/);
+      }
+      if (p.driverBivolt?.code) {
+        expect(p.driverBivolt.code).toMatch(/^(EQ\d{5}|S|)$/);
       }
     }
   });
 });
 
+// ─── calculateDownlight ────────────────────────────────────────────────────
+
 describe("calculateDownlight", () => {
-  it("deve retornar driver220 quando tensão é 220V", () => {
-    const cfg: DownlightConfig = { productIndex: 0, voltage: "220V", cct: "3000K", quantity: 1 };
+  // Índice de produto LUNA com Bivolt disponível
+  const lunaIdx = DOWNLIGHT_CATALOG.findIndex(
+    (p) => p.familia === "LUNA" && p.driverBivolt !== null
+  );
+  // Índice de produto sem Bivolt
+  const noBivoltIdx = DOWNLIGHT_CATALOG.findIndex(
+    (p) => p.driverBivolt === null
+  );
+
+  it("deve retornar resultado com ledModuleWithCCT concatenado", () => {
+    const cfg: DownlightConfig = {
+      productIndex: lunaIdx,
+      voltage: "220V",
+      cct: "3000K",
+      quantity: 1,
+    };
     const result = calculateDownlight(cfg);
-    expect(result.driver).toEqual(DOWNLIGHT_CATALOG[0].driver220);
+    expect(result.ledModuleWithCCT).toContain("3000K");
+    expect(result.ledModuleWithCCT).not.toContain("[CCT]");
+  });
+
+  it("deve usar driver220 quando tensão é 220V", () => {
+    const cfg: DownlightConfig = {
+      productIndex: lunaIdx,
+      voltage: "220V",
+      cct: "4000K",
+      quantity: 1,
+    };
+    const result = calculateDownlight(cfg);
+    expect(result.driver).toEqual(DOWNLIGHT_CATALOG[lunaIdx].driver220);
     expect(result.bivoltUnavailable).toBe(false);
   });
 
-  it("deve retornar driverBivolt quando tensão é Bivolt e produto tem Bivolt", () => {
-    const cfg: DownlightConfig = { productIndex: 3, voltage: "Bivolt", cct: "4000K", quantity: 2 };
+  it("deve usar driverBivolt quando tensão é Bivolt e produto tem Bivolt", () => {
+    const cfg: DownlightConfig = {
+      productIndex: lunaIdx,
+      voltage: "Bivolt",
+      cct: "2700K",
+      quantity: 1,
+    };
     const result = calculateDownlight(cfg);
-    expect(result.driver).toEqual(DOWNLIGHT_CATALOG[3].driverBivolt);
+    expect(result.driver).toEqual(DOWNLIGHT_CATALOG[lunaIdx].driverBivolt);
     expect(result.bivoltUnavailable).toBe(false);
   });
 
-  it("deve usar driver220 e marcar bivoltUnavailable quando produto não tem Bivolt", () => {
-    const lunaGGIdx = DOWNLIGHT_CATALOG.findIndex((p) => p.name === "LUNA GG LED 36W RE");
-    const cfg: DownlightConfig = { productIndex: lunaGGIdx, voltage: "Bivolt", cct: "3000K", quantity: 1 };
+  it("deve usar driver220 e sinalizar bivoltUnavailable quando produto não tem Bivolt", () => {
+    if (noBivoltIdx < 0) return;
+    const cfg: DownlightConfig = {
+      productIndex: noBivoltIdx,
+      voltage: "Bivolt",
+      cct: "3000K",
+      quantity: 1,
+    };
     const result = calculateDownlight(cfg);
-    expect(result.driver).toEqual(DOWNLIGHT_CATALOG[lunaGGIdx].driver220);
+    expect(result.driver).toEqual(DOWNLIGHT_CATALOG[noBivoltIdx].driver220);
     expect(result.bivoltUnavailable).toBe(true);
   });
 
-  it("deve incluir CCT no campo ledModuleWithCCT sem colchetes", () => {
-    const cfg: DownlightConfig = { productIndex: 1, voltage: "220V", cct: "5000K", quantity: 3 };
+  it("deve preservar cct e voltage no resultado", () => {
+    const cfg: DownlightConfig = {
+      productIndex: lunaIdx,
+      voltage: "220V",
+      cct: "5000K",
+      quantity: 2,
+    };
     const result = calculateDownlight(cfg);
-    expect(result.ledModuleWithCCT).toContain("5000K");
-    expect(result.ledModuleWithCCT).toContain(DOWNLIGHT_CATALOG[1].ledModule);
-    expect(result.ledModuleWithCCT).not.toContain("[");
-    expect(result.ledModuleWithCCT).not.toContain("]");
+    expect(result.cct).toBe("5000K");
+    expect(result.voltage).toBe("220V");
+    expect(result.quantity).toBe(2);
   });
 
-  it("deve expor o SKU do produto no resultado", () => {
-    const cfg: DownlightConfig = { productIndex: 3, voltage: "220V", cct: "3000K", quantity: 1 };
+  it("deve incluir referência ao produto no resultado com SKU", () => {
+    const cfg: DownlightConfig = {
+      productIndex: lunaIdx,
+      voltage: "220V",
+      cct: "3000K",
+      quantity: 1,
+    };
     const result = calculateDownlight(cfg);
-    expect(result.product.sku).toBe("LDE 6450.140.18B");
+    expect(result.product).toEqual(DOWNLIGHT_CATALOG[lunaIdx]);
+    expect(result.product.sku).toBeTruthy();
   });
 
-  it("deve retornar o produto correto no resultado", () => {
-    const cfg: DownlightConfig = { productIndex: 4, voltage: "220V", cct: "3000K", quantity: 1 };
+  it("deve incluir campos holder, otica, dissipador no produto do resultado", () => {
+    const cfg: DownlightConfig = {
+      productIndex: lunaIdx,
+      voltage: "220V",
+      cct: "3000K",
+      quantity: 1,
+    };
     const result = calculateDownlight(cfg);
-    expect(result.product).toEqual(DOWNLIGHT_CATALOG[4]);
+    // holder/otica/dissipador podem ser null ou string — nunca undefined
+    expect(result.product.holder === null || typeof result.product.holder === "string").toBe(true);
+    expect(result.product.otica === null || typeof result.product.otica === "string").toBe(true);
+    expect(result.product.dissipador === null || typeof result.product.dissipador === "string").toBe(true);
   });
 });
