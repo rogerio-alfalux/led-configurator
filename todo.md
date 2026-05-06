@@ -389,3 +389,8 @@
 - [x] Resumo Para Pedido: CÓDIGO + PRODUTO CCT TENSÃO MONTADA COM MÓDULO + ÓTICA + HOLDER + DISSIPADOR + DRIVER (omitir campos null/NÃO APLICÁVEL)
 - [x] Resumo Para Orçamento Downlights: PRODUTO CCT TENSÃO (em maiúsculas)
 - [x] Testes atualizados — 19 testes de Downlights, 285 total passando
+
+## Correção Resumo Para Pedido (06/05/2026)
+
+- [x] Remover "MÓDULO LED" duplicado: prefixo inteligente (startsWith) evita duplicação para MYRO e LUNA SPOT COB
+- [x] Remover traço final " - " no Resumo Para Pedido (regex trim no final da string)

@@ -1612,13 +1612,13 @@ export default function Home() {
                       className="h-7 text-xs gap-1.5"
                       onClick={() => {
                         const parts: string[] = [
-                            `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`,
+                            (dlResult.ledModuleWithCCT.toUpperCase().startsWith("MÓDULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`),
                           ];
                           if (dlResult.product.otica) parts.push(dlResult.product.otica.toUpperCase());
                           if (dlResult.product.holder) parts.push(dlResult.product.holder.toUpperCase());
                           if (dlResult.product.dissipador) parts.push(dlResult.product.dissipador.toUpperCase());
                           parts.push(`1x DRIVER ${dlResult.driver.model.toUpperCase()} (${dlResult.driver.code})`);
-                          const txt = `CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.voltage} MONTADA COM ${parts.join(" + ")}`;
+                          const txt = (`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.voltage} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim();
                         navigator.clipboard.writeText(txt);
                         toast.success("Copiado!");
                       }}
@@ -1639,13 +1639,13 @@ export default function Home() {
                     >
                       {(() => {
                           const parts: string[] = [
-                            `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`,
+                            (dlResult.ledModuleWithCCT.toUpperCase().startsWith("MÓDULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`),
                           ];
                           if (dlResult.product.otica) parts.push(dlResult.product.otica.toUpperCase());
                           if (dlResult.product.holder) parts.push(dlResult.product.holder.toUpperCase());
                           if (dlResult.product.dissipador) parts.push(dlResult.product.dissipador.toUpperCase());
                           parts.push(`1x DRIVER ${dlResult.driver.model.toUpperCase()} (${dlResult.driver.code})`);
-                          return `CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.voltage} MONTADA COM ${parts.join(" + ")}`;
+                          return (`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.voltage} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim();
                         })()}
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Pedido" para copiar diretamente.</p>
