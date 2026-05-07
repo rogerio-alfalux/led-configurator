@@ -394,3 +394,10 @@
 
 - [x] Remover "MÓDULO LED" duplicado: prefixo inteligente (startsWith) evita duplicação para MYRO e LUNA SPOT COB
 - [x] Remover traço final " - " no Resumo Para Pedido (regex trim no final da string)
+
+## Otimização ledEngine v3.3 — Maximizar Módulos Maiores (07/05/2026)
+
+- [x] Algoritmo v3.3: preferência por limpeza em linhas longas (tolerância proporcional 0,2% do comprimento, mín 30mm, máx 100mm)
+- [x] Caso BLAZE 42330mm: resultado agora é 2x LLE-2810.5IF.18F + 13x LLE-2810.5ML.18F (2 SKUs, 15 módulos)
+- [x] Limite de módulos padrão ajustado de 2825mm para 2840mm (inclui IF-5 do BLAZE embutir 2835mm)
+- [x] Novo teste v3.3 para o caso BLAZE 42330mm — 286 testes passando

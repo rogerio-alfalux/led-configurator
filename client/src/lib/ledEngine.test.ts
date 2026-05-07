@@ -1935,6 +1935,34 @@ describe("v3.2 --- Comprimentos > 5650mm: comportamento padrao (mais proximo)", 
   });
 });
 
+describe("v3.3 --- Preferencia por limpeza em linhas longas (tolerancia proporcional)", () => {
+  it("BLAZE embutir 42330mm 18W -> prefere 2x IF-5 + 13x ML-5 (limpo) sobre 2x IF-4 + 13x ML-5 + 1x ML-2 (exato)", () => {
+    // Caso reportado: 42330mm deve retornar 2x LLE-2810.5IF.18F + 13x LLE-2810.5ML.18F
+    // em vez de 2x LLE-2810.4IF.18F + 13x LLE-2810.5ML.18F + 1x LLE-2810.2ML.18F
+    const result = calculateComposition({
+      profileCode: "LLE-2810",
+      application: "D1",
+      powerD1: 18,
+      cct: "4000K",
+      voltage: "220Vac",
+      totalLength: 42330,
+      allowLongModules: false,
+      allowFractional: false,
+      stripMethod: "STRIPFLEX",
+      independentLighting: false,
+    });
+    // Deve usar no maximo 2 SKUs (IF-5 e ML-5)
+    const skus = new Set(result.composition.map(item => item.sku));
+    expect(skus.size).toBeLessThanOrEqual(2);
+    // Comprimento deve ser proximo de 42330mm (dentro de 100mm)
+    expect(result.realizedLength).toBeGreaterThan(42230);
+    expect(result.realizedLength).toBeLessThanOrEqual(42330);
+    // Nao deve ter modulos de 2 barras do tipo ML na composicao
+    const hasSmallMlModule = result.composition.some(item => item.barras <= 2 && item.moduleType === 'ML');
+    expect(hasSmallMlModule).toBe(false);
+  });
+});
+
 describe("v3.3 --- Validacao por perfil: LLP-6060 (BLAZE H) e LLP-4251 com regra 250mm", () => {
   // LLP-6060 (BLAZE H): maior IF que cabe em 5000mm/2=2500mm e IF 3.8b (2200mm)
   // 2x IF 2200 = 4400mm, diff=600mm > 250mm -> deve usar mais modulos

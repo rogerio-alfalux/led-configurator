@@ -299,7 +299,7 @@ function getModules(profileCode: string, type: ModuleType, allowLongModules: boo
   if (!mods) return [];
   return Object.entries(mods)
     .filter(([, data]) => data.sku && data.sku !== "")
-    .filter(([, data]) => allowLongModules || data.length <= 2825)
+    .filter(([, data]) => allowLongModules || data.length <= 2840) // 2840mm inclui IF-5 do BLAZE embutir (2835mm)
     .filter(([barrasKey]) => {
       // Modo padrão: apenas barras inteiras; modo quebrado: libera decimais
       if (!allowFractional) {
@@ -400,15 +400,18 @@ function tryInSingle(
 // ─── Estratégia 2: IF + ML para linhas longas ────────────────────────────────
 
 /**
- * Regra de otimização de módulos (v3.2 — Tolerância 250mm):
+ * Regra de otimização de módulos (v3.3 — Tolerância 250mm + Preferência por Limpeza):
  *
  * Para comprimentos até 5650mm:
  *   1. Testar primeiro 2x IF iguais (sem ML)
  *   2. Se a diferença (solicitado - realizado) <= 250mm → manter 2 módulos
  *   3. Se a diferença > 250mm → permitir mais módulos para aproximar melhor a medida
  *
- * Para comprimentos > 5650mm:
- *   - Comportamento padrão: minimizar módulos, depois mais próximo
+ * Para comprimentos > 5650mm (v3.3):
+ *   1. Encontrar o candidato "mais limpo": menos SKUs → menos módulos → mais próximo
+ *   2. Encontrar o candidato "mais exato": mais próximo do comprimento solicitado
+ *   3. Se diferença entre eles <= ONE_BAR_TOLERANCE (565mm) → preferir o mais limpo
+ *   4. Caso contrário → usar o mais exato (diferença seria muito grande para ignorar)
  *
  * Regras gerais:
  *   - Nunca ultrapassar o comprimento solicitado
@@ -419,6 +422,7 @@ function tryInSingle(
 
 const SHORT_LINE_THRESHOLD = 5650;  // mm — limite para aplicar regra de tolerância
 const TWO_MODULE_TOLERANCE = 250;   // mm — tolerância máxima para aceitar 2 módulos
+const ONE_BAR_TOLERANCE = 565;      // mm — tolerância de 1 barra para preferir solução mais limpa em linhas longas
 
 function buildIfMlComposition(
   profileCode: string,
@@ -520,7 +524,7 @@ function buildIfMlComposition(
     }
   }
 
-  // Ordenação geral: mais próximo primeiro (independente de número de módulos)
+   // Ordenação geral: mais próximo primeiro (independente de número de módulos)
   // Para linhas longas OU quando 2 módulos ficou muito abaixo da tolerância
   candidates.sort((a, b) => {
     // Mais próximo do comprimento solicitado (prioridade principal)
@@ -532,8 +536,25 @@ function buildIfMlComposition(
     // Menor desvio de equilíbrio
     return a.balance - b.balance;
   });
-
-  const best = candidates[0];
+  // v3.3: Para linhas longas, verificar se o candidato "mais limpo" está suficientemente
+  // próximo do "mais exato" — se sim, preferir o mais limpo (menos SKUs/módulos).
+  // Tolerância proporcional: 0,2% do comprimento solicitado, mínimo 30mm, máximo 100mm.
+  // Isso captura diferenças mínimas (ex: 30mm em 42330mm) sem sacrificar precisão em linhas curtas.
+  let best = candidates[0];
+  if (requestedLength > SHORT_LINE_THRESHOLD && candidates.length > 1) {
+    const mostExact = candidates[0]; // já ordenado por realizedLength desc
+    // Candidato mais limpo: menos SKUs → menos módulos → mais próximo
+    const cleanest = [...candidates].sort((a, b) => {
+      if (a.skuVariety !== b.skuVariety) return a.skuVariety - b.skuVariety;
+      if (a.moduleCount !== b.moduleCount) return a.moduleCount - b.moduleCount;
+      return b.realizedLength - a.realizedLength;
+    })[0];
+    const lengthDiff = mostExact.realizedLength - cleanest.realizedLength;
+    const cleanTolerance = Math.min(100, Math.max(30, requestedLength * 0.002));
+    if (lengthDiff <= cleanTolerance) {
+      best = cleanest;
+    }
+  }
   const rawItems: RawModule[] = [best.ifMod, best.ifMod, ...best.mlItems];
   const composition = toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod, sheetDrivers);
   const remainingLength = requestedLength - best.realizedLength;
