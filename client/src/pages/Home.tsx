@@ -21,7 +21,7 @@ import { calculateComposition } from "@/lib/ledEngine";
 import { generateProductionTemplate } from "@/lib/productionTemplate";
 import { generateOrderSummary } from "@/lib/orderSummary";
 import { generateQuoteSummary } from "@/lib/quoteSummary";
-import { getProfilePhoto } from "@/lib/profilePhotos";
+import { getProfilePhoto, getDownlightPhoto } from "@/lib/profilePhotos";
 import {
   DOWNLIGHT_CATALOG,
   DOWNLIGHT_CCTS,
@@ -212,7 +212,7 @@ function ResultBlock({ result }: { result: CompositionResult }) {
     ? Math.round((result.realizedLength / result.requestedLength) * 100)
     : 0;
   const isDual = result.application === "D1+D2";
-  const profilePhoto = getProfilePhoto(result.profileCode);
+  const profilePhoto = getProfilePhoto(result.profileCode, result.diffuserD1, result.diffuserD2);
   return (
     <div className="space-y-4">
 
@@ -1569,23 +1569,67 @@ export default function Home() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {/* Foto do produto Downlight */}
+                    {(() => {
+                      const dlPhoto = dlFamilia && dlResult ? getDownlightPhoto(dlFamilia, dlResult.product.name) : null;
+                      return dlPhoto ? (
+                        <div className="flex gap-3 items-stretch">
+                          <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-36 flex items-center justify-center">
+                            <img src={dlPhoto} alt={dlResult.product.name} className="w-full h-full object-contain p-2" loading="lazy" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 flex-1">
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
+                              <p className="text-sm font-mono font-semibold text-primary">{dlResult.product.sku}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
+                              <p className="text-sm font-semibold">{dlResult.product.name}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                              <p className="text-sm font-semibold">{dlResult.voltage}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                              <p className="text-sm font-semibold">{dlResult.cct}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
-                        <p className="text-sm font-mono font-semibold text-primary">{dlResult.product.sku}</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
-                        <p className="text-sm font-semibold">{dlResult.product.name}</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
-                        <p className="text-sm font-semibold">{dlResult.voltage}</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
-                        <p className="text-sm font-semibold">{dlResult.cct}</p>
-                      </div>
+                      {!dlFamilia || !getDownlightPhoto(dlFamilia, dlResult.product.name) ? (
+                        <>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
+                            <p className="text-sm font-mono font-semibold text-primary">{dlResult.product.sku}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
+                            <p className="text-sm font-semibold">{dlResult.product.name}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                            <p className="text-sm font-semibold">{dlResult.voltage}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                            <p className="text-sm font-semibold">{dlResult.cct}</p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                            <p className="text-sm font-semibold">{dlResult.voltage}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                            <p className="text-sm font-semibold">{dlResult.cct}</p>
+                          </div>
+                        </>
+                      )}
                       <div className="p-3 rounded-lg bg-muted/50 col-span-2">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
                         <p className="text-sm font-semibold">{dlResult.ledModuleWithCCT}</p>

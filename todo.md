@@ -413,3 +413,12 @@
 
 - [x] Quando há foto: layout horizontal — foto quadrada à esquerda (w-40) + grid 2×2 de métricas à direita (mesma altura)
 - [x] Quando não há foto: manter grid 2×4 original sem alteração
+
+## Fotos de Produtos — Leva 1 (08/05/2026)
+
+- [x] Upload de 33 imagens de perfis (BLAZE E/A/S, BLAZE H P, MINI BLAZE P/S, HIT P/A, EASY H PLUS P, EASY PRIME E, SKYLINE E/P, SHARP A/P com todas as combinações de difusor)
+- [x] Upload de 7 imagens de Downlights (EASY LED POINT 1X1, 1X3, 1X6, 2X6, 3X3, 3X6, 4X6)
+- [x] profilePhotos.ts atualizado: mapeamento simples por código (12 perfis) + SHARP por código+D1+D2 (22 variantes) + Downlights por família+produto (7 variantes)
+- [x] getDownlightPhoto() adicionada ao profilePhotos.ts
+- [x] Foto exibida no card de resultado de Downlights (layout horizontal: foto + grid 2x2 quando há foto)
+- [x] getProfilePhoto() atualizada para aceitar diffuserD1/D2 e selecionar foto correta do SHARP
