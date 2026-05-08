@@ -422,3 +422,9 @@
 - [x] getDownlightPhoto() adicionada ao profilePhotos.ts
 - [x] Foto exibida no card de resultado de Downlights (layout horizontal: foto + grid 2x2 quando há foto)
 - [x] getProfilePhoto() atualizada para aceitar diffuserD1/D2 e selecionar foto correta do SHARP
+
+## Correção Fotos AURA e EASY LED POINT (08/05/2026)
+
+- [x] Corrigir chave AURA: "AURA P QE 5W" → "AURA P QE 5W IP54" e "AURA P RE 5W" → "AURA P RE 5W IP54"
+- [x] Corrigir chave EASY LED POINT 1X1: potência 2W (não 3W) e º unicode (\u00ba)
+- [x] Corrigir todas as chaves EASY LED POINT: substituir ° por º (\u00ba) e ORIENTÁVEL por ORIENTÁVEL (\u00c1)
