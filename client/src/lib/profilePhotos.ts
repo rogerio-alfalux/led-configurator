@@ -7,80 +7,252 @@
  * 2. Adicione a entrada abaixo com a URL retornada.
  */
 
+const CDN = "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542";
+
 // ─── Perfis: mapeamento simples por código ────────────────────────────────────
 const PROFILE_PHOTOS_SIMPLE: Record<string, string> = {
   // BLAZE
-  "LLE-2810": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/vmGSTNLHjVCoVILp.png", // BLAZE Embutir
-  "LLS-3945": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/bIRMniTCBfhRaGac.png", // BLAZE Sobrepor
-  "LLA-5945": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/LJnUryUdBKQEmGLC.png", // BLAZE Arandela
-  "LLP-6060": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/pdTGCQYrZGJilKKe.png", // BLAZE H Pendente
+  "LLE-2810": `${CDN}/vmGSTNLHjVCoVILp.png`, // BLAZE Embutir
+  "LLS-3945": `${CDN}/bIRMniTCBfhRaGac.png`, // BLAZE Sobrepor
+  "LLA-5945": `${CDN}/LJnUryUdBKQEmGLC.png`, // BLAZE Arandela
+  "LLP-6060": `${CDN}/pdTGCQYrZGJilKKe.png`, // BLAZE H Pendente
   // MINI BLAZE
-  "LLP-3336": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/lihiQeClDNRvoGxC.png", // MINI BLAZE Pendente
-  "LLS-3336": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/DSqdioYWejvYDEeD.png", // MINI BLAZE Sobrepor
+  "LLP-3336": `${CDN}/lihiQeClDNRvoGxC.png`, // MINI BLAZE Pendente
+  "LLS-3336": `${CDN}/DSqdioYWejvYDEeD.png`, // MINI BLAZE Sobrepor
   // HIT
-  "LLP-4251": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/DcUAlMSZOeuYoyEP.png", // HIT Pendente
-  "LLA-3395": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/wCZvbpprpyHYWvxc.png", // HIT Arandela
+  "LLP-4251": `${CDN}/DcUAlMSZOeuYoyEP.png`, // HIT Pendente
+  "LLA-3395": `${CDN}/wCZvbpprpyHYWvxc.png`, // HIT Arandela
   // EASY H PLUS
-  "LLP-4450": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/TtwikAuQTlPNptHP.png", // EASY H PLUS Pendente
+  "LLP-4450": `${CDN}/TtwikAuQTlPNptHP.png`, // EASY H PLUS Pendente
   // EASY PRIME
-  "LLE-2580": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/kqvDoVsaaZDHYCwT.png", // EASY PRIME Embutir
+  "LLE-2580": `${CDN}/kqvDoVsaaZDHYCwT.png`, // EASY PRIME Embutir
   // SKYLINE
-  "LLE-2052": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/TVPsMQrEflnFoCgH.png", // SKYLINE Embutir
-  "LLP-4536": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/jwQfZJCnOHMYPobB.png", // SKYLINE Pendente
+  "LLE-2052": `${CDN}/TVPsMQrEflnFoCgH.png`, // SKYLINE Embutir
+  "LLP-4536": `${CDN}/jwQfZJCnOHMYPobB.png`, // SKYLINE Pendente
 };
 
 // ─── SHARP: mapeamento por código + difusor D1 + difusor D2 ──────────────────
-// Chave: "CÓDIGO|D1|D2"  (D2 vazio para aplicação simples)
 const SHARP_PHOTOS: Record<string, string> = {
   // SHARP ARANDELA (LLA-4451) — D1 simples
-  "LLA-4451|DA|":  "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/uXWUvgNAVmhugXlN.png", // SHARPADA1
-  "LLA-4451|DB|":  "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/nfTTqmpSXPpAPvtM.png", // SHARPADB1
-  "LLA-4451|DC|":  "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/ZtOaAkdKcKfVyBlz.png", // SHARPADC1
+  "LLA-4451|DA|":  `${CDN}/uXWUvgNAVmhugXlN.png`,
+  "LLA-4451|DB|":  `${CDN}/nfTTqmpSXPpAPvtM.png`,
+  "LLA-4451|DC|":  `${CDN}/ZtOaAkdKcKfVyBlz.png`,
   // SHARP ARANDELA — D2 simples
-  "LLA-4451||DA":  "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/YNsSutJnWbFKnJij.png", // SHARPADA2
-  "LLA-4451||DB":  "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/YNsSutJnWbFKnJij.png", // SHARPADA2 (fallback)
-  "LLA-4451||DC":  "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/kyJXDDhOyFozxDAX.png", // SHARPADC2DB1
+  "LLA-4451||DA":  `${CDN}/YNsSutJnWbFKnJij.png`,
+  "LLA-4451||DB":  `${CDN}/YNsSutJnWbFKnJij.png`,
+  "LLA-4451||DC":  `${CDN}/kyJXDDhOyFozxDAX.png`,
   // SHARP ARANDELA — D1+D2
-  "LLA-4451|DA|DA": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/XMqBMWzdOlGvhWmk.png", // SHARPADA1+DA2
-  "LLA-4451|DA|DB": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/vLTrArXVuyJgdlKd.png", // SHARPADA1+DB2
-  "LLA-4451|DA|DC": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/XMqBMWzdOlGvhWmk.png", // SHARPADA1+DA2 (fallback)
-  "LLA-4451|DB|DA": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/BKmcVTVxbyEUIgiZ.png", // SHARPADB1+DA2
-  "LLA-4451|DB|DB": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/sbyQUzISEpzjExSQ.png", // SHARPADB1+DB2
-  "LLA-4451|DB|DC": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/BKmcVTVxbyEUIgiZ.png", // SHARPADB1+DA2 (fallback)
-  "LLA-4451|DC|DA": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/kyJXDDhOyFozxDAX.png", // SHARPADC2DB1
-  "LLA-4451|DC|DB": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/AiIaYVLnzEocudzC.png", // SHARPADC1DC2
-  "LLA-4451|DC|DC": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/AiIaYVLnzEocudzC.png", // SHARPADC1DC2
+  "LLA-4451|DA|DA": `${CDN}/XMqBMWzdOlGvhWmk.png`,
+  "LLA-4451|DA|DB": `${CDN}/vLTrArXVuyJgdlKd.png`,
+  "LLA-4451|DA|DC": `${CDN}/XMqBMWzdOlGvhWmk.png`,
+  "LLA-4451|DB|DA": `${CDN}/BKmcVTVxbyEUIgiZ.png`,
+  "LLA-4451|DB|DB": `${CDN}/sbyQUzISEpzjExSQ.png`,
+  "LLA-4451|DB|DC": `${CDN}/BKmcVTVxbyEUIgiZ.png`,
+  "LLA-4451|DC|DA": `${CDN}/kyJXDDhOyFozxDAX.png`,
+  "LLA-4451|DC|DB": `${CDN}/AiIaYVLnzEocudzC.png`,
+  "LLA-4451|DC|DC": `${CDN}/AiIaYVLnzEocudzC.png`,
   // SHARP PENDENTE (LLP-4451) — D1 simples
-  "LLP-4451|DA|":  "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/mfDtKryMIKArMYTK.png", // SHARPPDA1
-  "LLP-4451|DB|":  "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/MhKVbBwOTJWOdSGY.png", // SHARPPDB1
-  "LLP-4451|DC|":  "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/wxGnzTxpUbbklchT.png", // SHARPPDC1
+  "LLP-4451|DA|":  `${CDN}/mfDtKryMIKArMYTK.png`,
+  "LLP-4451|DB|":  `${CDN}/MhKVbBwOTJWOdSGY.png`,
+  "LLP-4451|DC|":  `${CDN}/wxGnzTxpUbbklchT.png`,
   // SHARP PENDENTE — D2 simples
-  "LLP-4451||DA":  "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/qpFkpEUKoXovCeWC.png", // SHARPPDA2
-  "LLP-4451||DB":  "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/xDRcqBCELxePbzbV.png", // SHARPPDB2
-  "LLP-4451||DC":  "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/nrdxumeouhfCUNeE.png", // SHARPPDC2DB1
+  "LLP-4451||DA":  `${CDN}/qpFkpEUKoXovCeWC.png`,
+  "LLP-4451||DB":  `${CDN}/xDRcqBCELxePbzbZ.png`,
+  "LLP-4451||DC":  `${CDN}/nrdxumeouhfCUNeE.png`,
   // SHARP PENDENTE — D1+D2
-  "LLP-4451|DA|DA": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/TINSeKcqdADwVHPi.png", // SHARPPDA1+DA2
-  "LLP-4451|DA|DB": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/RQJiahzdXjVGLQFz.png", // SHARPPDA1+DB2
-  "LLP-4451|DA|DC": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/TINSeKcqdADwVHPi.png", // SHARPPDA1+DA2 (fallback)
-  "LLP-4451|DB|DA": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/RbPEZWhQifMxCLQa.png", // SHARPPDB1+DA2
-  "LLP-4451|DB|DB": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/RVseQCPYwNcmPBFt.png", // SHARPPDB1+DB2
-  "LLP-4451|DB|DC": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/RbPEZWhQifMxCLQa.png", // SHARPPDB1+DA2 (fallback)
-  "LLP-4451|DC|DA": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/nrdxumeouhfCUNeE.png", // SHARPPDC2DB1
-  "LLP-4451|DC|DB": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/zoziTfTcLxPSkZQh.png", // SHARPPDC1DC2
-  "LLP-4451|DC|DC": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/zoziTfTcLxPSkZQh.png", // SHARPPDC1DC2
+  "LLP-4451|DA|DA": `${CDN}/TINSeKcqdADwVHPi.png`,
+  "LLP-4451|DA|DB": `${CDN}/RQJiahzdXjVGLQFz.png`,
+  "LLP-4451|DA|DC": `${CDN}/TINSeKcqdADwVHPi.png`,
+  "LLP-4451|DB|DA": `${CDN}/RbPEZWhQifMxCLQa.png`,
+  "LLP-4451|DB|DB": `${CDN}/RVseQCPYwNcmPBFt.png`,
+  "LLP-4451|DB|DC": `${CDN}/RbPEZWhQifMxCLQa.png`,
+  "LLP-4451|DC|DA": `${CDN}/nrdxumeouhfCUNeE.png`,
+  "LLP-4451|DC|DB": `${CDN}/zoziTfTcLxPSkZQh.png`,
+  "LLP-4451|DC|DC": `${CDN}/zoziTfTcLxPSkZQh.png`,
 };
 
-// ─── Downlights: mapeamento por família e por produto ────────────────────────
-// Chave: "FAMÍLIA|PRODUTO" — produto é o nome exato do produto no catálogo
+// ─── Downlights: mapeamento por "FAMÍLIA|NOME DO PRODUTO" ────────────────────
+// A chave usa o nome exato do produto conforme consta no catálogo.
+// Quando vários produtos compartilham a mesma foto, todos são listados.
 export const DOWNLIGHT_PRODUCT_PHOTOS: Record<string, string> = {
-  // EASY LED POINT
-  "EASY LED POINT|EASY LED POINT 1X1": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/JGVmddYRFwcgIByN.png",
-  "EASY LED POINT|EASY LED POINT 1X3": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/LioBSEgyHECreJNX.png",
-  "EASY LED POINT|EASY LED POINT 1X6": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/bTaGnQXMomGWsIWJ.png",
-  "EASY LED POINT|EASY LED POINT 2X6": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/xKlDzZjlgQpUFzDB.png",
-  "EASY LED POINT|EASY LED POINT 3X3": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/PjeRDIrLePZkOGFH.png",
-  "EASY LED POINT|EASY LED POINT 3X6": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/szTcSyDGixJKfWgG.png",
-  "EASY LED POINT|EASY LED POINT 4X6": "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/CbixYsjnPtcNiBMP.png",
+
+  // ── AURA ──────────────────────────────────────────────────────────────────
+  "AURA|AURA P RE 5W":           `${CDN}/wzKuNNocWgXwkcqK.png`, // AURAPRE5W
+  "AURA|AURA P QE 5W":           `${CDN}/tqqfRNDanSLIPaih.png`, // AURAPQE5W
+
+  // ── EASY LED POINT ────────────────────────────────────────────────────────
+  "EASY LED POINT|EASY LED POINT 1X1 3W 10°":          `${CDN}/LMwGpdQxLKpaBRPf.png`,
+  "EASY LED POINT|EASY LED POINT 1X1 3W 10° NO FRAME": `${CDN}/LMwGpdQxLKpaBRPf.png`,
+  "EASY LED POINT|EASY LED POINT 1X1 3W 10° ORIENTÁVEL":`${CDN}/LMwGpdQxLKpaBRPf.png`,
+  "EASY LED POINT|EASY LED POINT 1X1 3W 48°":          `${CDN}/LMwGpdQxLKpaBRPf.png`,
+  "EASY LED POINT|EASY LED POINT 1X1 3W 48° NO FRAME": `${CDN}/LMwGpdQxLKpaBRPf.png`,
+  "EASY LED POINT|EASY LED POINT 1X1 3W 48° ORIENTÁVEL":`${CDN}/LMwGpdQxLKpaBRPf.png`,
+  "EASY LED POINT|EASY LED POINT 1X3 6W 10°":          `${CDN}/erFoWMwqVPCGjMut.png`,
+  "EASY LED POINT|EASY LED POINT 1X3 6W 10° NO FRAME": `${CDN}/erFoWMwqVPCGjMut.png`,
+  "EASY LED POINT|EASY LED POINT 1X3 6W 10° ORIENTÁVEL":`${CDN}/erFoWMwqVPCGjMut.png`,
+  "EASY LED POINT|EASY LED POINT 1X3 6W 48°":          `${CDN}/erFoWMwqVPCGjMut.png`,
+  "EASY LED POINT|EASY LED POINT 1X3 6W 48° NO FRAME": `${CDN}/erFoWMwqVPCGjMut.png`,
+  "EASY LED POINT|EASY LED POINT 1X3 6W 48° ORIENTÁVEL":`${CDN}/erFoWMwqVPCGjMut.png`,
+  "EASY LED POINT|EASY LED POINT 1X6 6,5W 10°":        `${CDN}/KEFYWzseGMMaNQRf.png`,
+  "EASY LED POINT|EASY LED POINT 1X6 6,5W 10° NO FRAME":`${CDN}/KEFYWzseGMMaNQRf.png`,
+  "EASY LED POINT|EASY LED POINT 1X6 6,5W 10° ORIENTÁVEL":`${CDN}/KEFYWzseGMMaNQRf.png`,
+  "EASY LED POINT|EASY LED POINT 1X6 6,5W 48°":        `${CDN}/KEFYWzseGMMaNQRf.png`,
+  "EASY LED POINT|EASY LED POINT 1X6 6,5W 48° NO FRAME":`${CDN}/KEFYWzseGMMaNQRf.png`,
+  "EASY LED POINT|EASY LED POINT 1X6 6,5W 48° ORIENTÁVEL":`${CDN}/KEFYWzseGMMaNQRf.png`,
+  "EASY LED POINT|EASY LED POINT 1X6 13W 10°":         `${CDN}/KEFYWzseGMMaNQRf.png`,
+  "EASY LED POINT|EASY LED POINT 1X6 13W 10° NO FRAME":`${CDN}/KEFYWzseGMMaNQRf.png`,
+  "EASY LED POINT|EASY LED POINT 1X6 13W 10° ORIENTÁVEL":`${CDN}/KEFYWzseGMMaNQRf.png`,
+  "EASY LED POINT|EASY LED POINT 1X6 13W 48°":         `${CDN}/KEFYWzseGMMaNQRf.png`,
+  "EASY LED POINT|EASY LED POINT 1X6 13W 48° NO FRAME":`${CDN}/KEFYWzseGMMaNQRf.png`,
+  "EASY LED POINT|EASY LED POINT 1X6 13W 48° ORIENTÁVEL":`${CDN}/KEFYWzseGMMaNQRf.png`,
+  "EASY LED POINT|EASY LED POINT 2X6 13W 10°":         `${CDN}/DprlAtOWmfLXwDXM.png`,
+  "EASY LED POINT|EASY LED POINT 2X6 13W 48°":         `${CDN}/DprlAtOWmfLXwDXM.png`,
+  "EASY LED POINT|EASY LED POINT 2X6 26W 10°":         `${CDN}/DprlAtOWmfLXwDXM.png`,
+  "EASY LED POINT|EASY LED POINT 2X6 26W 48°":         `${CDN}/DprlAtOWmfLXwDXM.png`,
+  "EASY LED POINT|EASY LED POINT 3X3 18W 10°":         `${CDN}/eSWPvJLzwKMzilCT.png`,
+  "EASY LED POINT|EASY LED POINT 3X3 18W 48°":         `${CDN}/eSWPvJLzwKMzilCT.png`,
+  "EASY LED POINT|EASY LED POINT 3X6 19,5W 10°":       `${CDN}/TAMsBPRHjPlcccwe.png`,
+  "EASY LED POINT|EASY LED POINT 3X6 19,5W 48°":       `${CDN}/TAMsBPRHjPlcccwe.png`,
+  "EASY LED POINT|EASY LED POINT 3X6 39W 10°":         `${CDN}/TAMsBPRHjPlcccwe.png`,
+  "EASY LED POINT|EASY LED POINT 3X6 39W 48°":         `${CDN}/TAMsBPRHjPlcccwe.png`,
+  "EASY LED POINT|EASY LED POINT 4X6 26W 10°":         `${CDN}/CjlCaLhTVwRXVOJY.png`,
+  "EASY LED POINT|EASY LED POINT 4X6 26W 48°":         `${CDN}/CjlCaLhTVwRXVOJY.png`,
+  "EASY LED POINT|EASY LED POINT 4X6 52W 10°":         `${CDN}/CjlCaLhTVwRXVOJY.png`,
+  "EASY LED POINT|EASY LED POINT 4X6 52W 48°":         `${CDN}/CjlCaLhTVwRXVOJY.png`,
+
+  // ── FOCO ──────────────────────────────────────────────────────────────────
+  "FOCO|FOCO G RE 13W":           `${CDN}/CmIQfaBdVFoNhpzX.jpg`, // FOCOG
+  "FOCO|FOCO G 70L RE 13W 15°":   `${CDN}/TwWYEWNNicaEpsZd.png`, // FOCOG70L
+  "FOCO|FOCO G 70L RE 13W 24°":   `${CDN}/TwWYEWNNicaEpsZd.png`,
+  "FOCO|FOCO G 70L RE 13W 36°":   `${CDN}/TwWYEWNNicaEpsZd.png`,
+  "FOCO|FOCO G 70L RE 13W 60°":   `${CDN}/TwWYEWNNicaEpsZd.png`,
+  "FOCO|FOCO G COB 70 RE 13W 15°":`${CDN}/dRuZcAXdpFUVrIhs.jpg`, // FOCOGCOB70
+  "FOCO|FOCO G COB 70 RE 13W 24°":`${CDN}/dRuZcAXdpFUVrIhs.jpg`,
+  "FOCO|FOCO G COB 70 RE 13W 60°":`${CDN}/dRuZcAXdpFUVrIhs.jpg`,
+  "FOCO|FOCO G COB 70 RE 18W 15°":`${CDN}/dRuZcAXdpFUVrIhs.jpg`,
+  "FOCO|FOCO G COB 70 RE 18W 24°":`${CDN}/dRuZcAXdpFUVrIhs.jpg`,
+  "FOCO|FOCO G COB 70 RE 18W 60°":`${CDN}/dRuZcAXdpFUVrIhs.jpg`,
+  "FOCO|FOCO M RE 6.5W":          `${CDN}/nxirrIhbBnWUhFRq.jpg`, // FOCOM
+  "FOCO|FOCO M 50L RE 6.5W 24°":  `${CDN}/RzbFfenEhxLnNXkZ.png`, // FOCOM50
+  "FOCO|FOCO M 50L RE 6.5W 36°":  `${CDN}/RzbFfenEhxLnNXkZ.png`,
+  "FOCO|FOCO P RE 4.5W":          `${CDN}/DsEqoZfIzQnCXIVm.jpg`, // FOCOP
+  "FOCO|FOCO P 35L RE 4.5W 24°":  `${CDN}/xjnxcYydJqRbYQkW.jpg`, // FOCOP35L
+  "FOCO|FOCO P 35L RE 4.5W 36°":  `${CDN}/xjnxcYydJqRbYQkW.jpg`,
+
+  // ── LUNA ──────────────────────────────────────────────────────────────────
+  "LUNA|LUNA PP LED 6,5W RE ABS":  `${CDN}/DClMmmGzfMXRiBGI.png`, // LUNAPP
+  "LUNA|LUNA PP LED 13W RE ABS":   `${CDN}/DClMmmGzfMXRiBGI.png`,
+  "LUNA|LUNA PP SM 4,5W RE":       `${CDN}/IgmkrvHjvMEjfeHF.png`, // LUNAPPSM
+  "LUNA|LUNA PP WW 4,5W RE":       `${CDN}/pHfxLpQvJNrHeopD.png`, // LUNAPPWW
+  "LUNA|LUNA P LED 13W RE":        `${CDN}/cSbFZDnehTHsyMRg.png`, // LUNAPRE
+  "LUNA|LUNA P SM 6,5W RE":        `${CDN}/WsRVyAQhPXvOZcfL.png`, // LUNAPSM
+  "LUNA|LUNA P WW 6,5W RE":        `${CDN}/fKgpExvohjQmJdNI.png`, // LUNAPWW
+  "LUNA|LUNA P LED 13W QE":        `${CDN}/EbZegTXDpgaMgIJF.png`, // LUNAPQE
+  "LUNA|LUNA G LED 17W RE":        `${CDN}/TvtqljFUSjkhTnRY.png`, // LUNAGRE
+  "LUNA|LUNA G LED 26W RE":        `${CDN}/TvtqljFUSjkhTnRY.png`,
+  "LUNA|LUNA G LED 22W QE":        `${CDN}/JWzBenSeYZoggcAy.png`, // LUNAGQE
+  "LUNA|LUNA GG LED 26W RE":       `${CDN}/pBdzZOCkmVEyXBKS.png`, // LUNAGGRE
+  "LUNA|LUNA GG LED 36W RE":       `${CDN}/pBdzZOCkmVEyXBKS.png`,
+
+  // ── LUNA SPOT ─────────────────────────────────────────────────────────────
+  "LUNA SPOT|LUNA SPOT 35L 4.5W RE 36°":      `${CDN}/GHpVAmrESsBXpSaE.png`, // LUNASPOT50L (fallback)
+  "LUNA SPOT|LUNA SPOT 50L 6.5W RE 24°":      `${CDN}/GHpVAmrESsBXpSaE.png`, // LUNASPOT50L
+  "LUNA SPOT|LUNA SPOT 50L 6.5W RE 36°":      `${CDN}/GHpVAmrESsBXpSaE.png`,
+  "LUNA SPOT|LUNA SPOT 70L 13W RE 24°":       `${CDN}/FQrJBSyuQXFODpgQ.png`, // LUNASPOT70L
+  "LUNA SPOT|LUNA SPOT 70L 13W RE 36°":       `${CDN}/FQrJBSyuQXFODpgQ.png`,
+  "LUNA SPOT|LUNA SPOT 70L 13W RE 60°":       `${CDN}/FQrJBSyuQXFODpgQ.png`,
+  "LUNA SPOT|LUNA SPOT COB 70 13W RE 10°":    `${CDN}/RvNuIPXCiFjAiUjh.png`, // LUNASPOTCOB70
+  "LUNA SPOT|LUNA SPOT COB 70 13W RE 40°":    `${CDN}/RvNuIPXCiFjAiUjh.png`,
+  "LUNA SPOT|LUNA SPOT COB 70 18W RE 10°":    `${CDN}/RvNuIPXCiFjAiUjh.png`,
+  "LUNA SPOT|LUNA SPOT COB 70 18W RE 40°":    `${CDN}/RvNuIPXCiFjAiUjh.png`,
+  "LUNA SPOT|LUNA SPOT COB 70 26W RE 15° ABS":`${CDN}/RvNuIPXCiFjAiUjh.png`,
+  "LUNA SPOT|LUNA SPOT COB 70 26W RE 36° ABS":`${CDN}/RvNuIPXCiFjAiUjh.png`,
+  "LUNA SPOT|LUNA SPOT COB 70 26W RE 60° ABS":`${CDN}/RvNuIPXCiFjAiUjh.png`,
+  "LUNA SPOT|LUNA SPOT COB 111 26W RE 24°":   `${CDN}/PqcuvjMyCQEIIQVJ.png`, // LUNASPOTCOB111
+  "LUNA SPOT|LUNA SPOT COB 111 26W RE 36°":   `${CDN}/PqcuvjMyCQEIIQVJ.png`,
+  "LUNA SPOT|LUNA SPOT COB 111 26W RE 60°":   `${CDN}/PqcuvjMyCQEIIQVJ.png`,
+  "LUNA SPOT|LUNA SPOT COB 111 38W RE 24°":   `${CDN}/PqcuvjMyCQEIIQVJ.png`,
+  "LUNA SPOT|LUNA SPOT COB 111 38W RE 36°":   `${CDN}/PqcuvjMyCQEIIQVJ.png`,
+  "LUNA SPOT|LUNA SPOT COB 111 38W RE 60°":   `${CDN}/PqcuvjMyCQEIIQVJ.png`,
+
+  // ── MYCRO ─────────────────────────────────────────────────────────────────
+  "MYCRO|MYCRO LED 8W RE 20°":    `${CDN}/GmhCckJLRVUkxDKt.png`, // MYCROLED8WRE
+  "MYCRO|MYCRO LED 8W RE 60°":    `${CDN}/GmhCckJLRVUkxDKt.png`,
+
+  // ── MYRO ──────────────────────────────────────────────────────────────────
+  "MYRO|MYRO G LED 22W RE":       `${CDN}/uvVDUfZORwltqZwJ.png`, // MYROGLED22WRE
+  "MYRO|MYRO G LED 22W RNF":      `${CDN}/QOZtcnajUGMMMQYE.png`, // MYROGLED22WRNF
+  "MYRO|MYRO G LED 22W QE":       `${CDN}/ZSjGHOpmIDlyfWZv.png`, // MYROGLED22WQE
+  "MYRO|MYRO G LED 22W QNF":      `${CDN}/iNVkredwuMZqAedY.png`, // MYROGLED22WQNF
+  "MYRO|MYRO P LED 12W RE":       `${CDN}/jtwuciTDtLHdkiBz.png`, // MYROPLED12WRE
+  "MYRO|MYRO P LED 12W RNF":      `${CDN}/YUQynTxJviYNEiFK.png`, // MYROPLED12WRNF
+  "MYRO|MYRO P LED 12W QE":       `${CDN}/zDfrnkaoMZgMRTHY.png`, // MYROPLED12WQE
+  "MYRO|MYRO P LED 12W QNF":      `${CDN}/UKQRmmFCcuNwPLGW.png`, // MYROPLED12WQNF
+
+  // ── ORBITAL ───────────────────────────────────────────────────────────────
+  "ORBITAL|ORBITAL RE LED 50L 6.5W 15°":    `${CDN}/ufuDuePUIuShOisf.png`, // ORBITALRELED50L
+  "ORBITAL|ORBITAL RE LED 50L 6.5W 24°":    `${CDN}/ufuDuePUIuShOisf.png`,
+  "ORBITAL|ORBITAL RE LED 50L 6.5W 36°":    `${CDN}/ufuDuePUIuShOisf.png`,
+  "ORBITAL|ORBITAL RE LED 70L 13W 15°":     `${CDN}/JQFdxrrGuDnXdOkT.png`, // ORBITALRELED70L13W
+  "ORBITAL|ORBITAL RE LED 70L 13W 24°":     `${CDN}/JQFdxrrGuDnXdOkT.png`,
+  "ORBITAL|ORBITAL RE LED 70L 13W 36°":     `${CDN}/JQFdxrrGuDnXdOkT.png`,
+  "ORBITAL|ORBITAL RE LED 70L 13W 60°":     `${CDN}/JQFdxrrGuDnXdOkT.png`,
+  "ORBITAL|ORBITAL RE LED COB 70 13W 10°":  `${CDN}/zasJEZYSQIiGhQsR.png`, // ORBITALRELEDCOB7013W
+  "ORBITAL|ORBITAL RE LED COB 70 13W 40°":  `${CDN}/zasJEZYSQIiGhQsR.png`,
+  "ORBITAL|ORBITAL RE LED COB 70 18W 10°":  `${CDN}/zasJEZYSQIiGhQsR.png`,
+  "ORBITAL|ORBITAL RE LED COB 70 18W 40°":  `${CDN}/zasJEZYSQIiGhQsR.png`,
+  "ORBITAL|ORBITAL RE LED COB 111 26W 60°": `${CDN}/BzwIdEuCUtjIqOcp.png`, // ORBITALRELEDCOB111
+  "ORBITAL|ORBITAL QE LED 50L 6.5W 15°":    `${CDN}/pmZVqHaUXoqryKeG.png`, // ORBITALQELED50L
+  "ORBITAL|ORBITAL QE LED 50L 6.5W 24°":    `${CDN}/pmZVqHaUXoqryKeG.png`,
+  "ORBITAL|ORBITAL QE LED 50L 6.5W 36°":    `${CDN}/pmZVqHaUXoqryKeG.png`,
+  "ORBITAL|ORBITAL QE LED 70L 13W 15°":     `${CDN}/IclWFvpREdElbZKS.png`, // ORBITALQELED70L
+  "ORBITAL|ORBITAL QE LED 70L 13W 24°":     `${CDN}/IclWFvpREdElbZKS.png`,
+  "ORBITAL|ORBITAL QE LED 70L 13W 36°":     `${CDN}/IclWFvpREdElbZKS.png`,
+  "ORBITAL|ORBITAL QE LED 70L 13W 60°":     `${CDN}/IclWFvpREdElbZKS.png`,
+  "ORBITAL|ORBITAL QE LED COB 70 13W 10°":  `${CDN}/TyNsLcCZwBPGdbZN.png`, // ORBITALQELEDCOB70
+  "ORBITAL|ORBITAL QE LED COB 70 13W 40°":  `${CDN}/TyNsLcCZwBPGdbZN.png`,
+  "ORBITAL|ORBITAL QE LED COB 70 18W 10°":  `${CDN}/TyNsLcCZwBPGdbZN.png`,
+  "ORBITAL|ORBITAL QE LED COB 70 18W 40°":  `${CDN}/TyNsLcCZwBPGdbZN.png`,
+  "ORBITAL|ORBITAL QE LED COB 111 26W 60°": `${CDN}/kEBMieYbhgaVVKko.png`, // ORBITALQELEDCOB111
+
+  // ── ROYAL ─────────────────────────────────────────────────────────────────
+  "ROYAL|ROYAL LED 8W RE 15°":    `${CDN}/vjrvwDESMoFbQBbZ.png`, // ROYALLED8WRE
+  "ROYAL|ROYAL LED 8W RE 24°":    `${CDN}/vjrvwDESMoFbQBbZ.png`,
+  "ROYAL|ROYAL LED 8W RE 36°":    `${CDN}/vjrvwDESMoFbQBbZ.png`,
+  "ROYAL|ROYAL LED 8W RE 45°":    `${CDN}/vjrvwDESMoFbQBbZ.png`,
+  "ROYAL|ROYAL LED 8W RNF 15°":   `${CDN}/XSHsvMvKaRibwHYn.png`, // ROYALLED8WRNF
+  "ROYAL|ROYAL LED 8W RNF 24°":   `${CDN}/XSHsvMvKaRibwHYn.png`,
+  "ROYAL|ROYAL LED 8W RNF 36°":   `${CDN}/XSHsvMvKaRibwHYn.png`,
+  "ROYAL|ROYAL LED 8W RNF 45°":   `${CDN}/XSHsvMvKaRibwHYn.png`,
+  "ROYAL|ROYAL LED 8W QE 15°":    `${CDN}/KjSOfxwoVNnORiLO.png`, // ROYALLED8WQE
+  "ROYAL|ROYAL LED 8W QE 24°":    `${CDN}/KjSOfxwoVNnORiLO.png`,
+  "ROYAL|ROYAL LED 8W QE 36°":    `${CDN}/KjSOfxwoVNnORiLO.png`,
+  "ROYAL|ROYAL LED 8W QE 45°":    `${CDN}/KjSOfxwoVNnORiLO.png`,
+  "ROYAL|ROYAL LED 8W QNF 15°":   `${CDN}/bvAgRyJctQPVuMvc.png`, // ROYALLED8WQNF
+  "ROYAL|ROYAL LED 8W QNF 24°":   `${CDN}/bvAgRyJctQPVuMvc.png`,
+  "ROYAL|ROYAL LED 8W QNF 36°":   `${CDN}/bvAgRyJctQPVuMvc.png`,
+  "ROYAL|ROYAL LED 8W QNF 45°":   `${CDN}/bvAgRyJctQPVuMvc.png`,
+  "ROYAL|ROYAL LED WW 8W RE":     `${CDN}/tlLwRkRSrFsmmwip.png`, // ROYALLEDWW8WRE
+
+  // ── TORETTO ───────────────────────────────────────────────────────────────
+  "TORETTO|TORETTO RE LED COB 70 13W":  `${CDN}/VUYYWvpTHoLSEpnh.png`,
+  "TORETTO|TORETTO RE LED COB 70 18W":  `${CDN}/VUYYWvpTHoLSEpnh.png`,
+  "TORETTO|TORETTO RE LED COB 111 26W": `${CDN}/VUYYWvpTHoLSEpnh.png`,
+
+  // ── VENUS ─────────────────────────────────────────────────────────────────
+  "VENUS|VENUS P 6,5W 36°":  `${CDN}/XySOMPotYWiSRtzT.jpeg`, // VENUSE
+  "VENUS|VENUS M 13W 36°":   `${CDN}/XySOMPotYWiSRtzT.jpeg`,
+  "VENUS|VENUS G 18W 36°":   `${CDN}/XySOMPotYWiSRtzT.jpeg`,
+
+  // ── VIRGO ─────────────────────────────────────────────────────────────────
+  "VIRGO|VIRGO LED 8W RE 15°":     `${CDN}/dDAJVTaQRCoZKxSS.png`, // VIRGO
+  "VIRGO|VIRGO LED 8W RE 24°":     `${CDN}/dDAJVTaQRCoZKxSS.png`,
+  "VIRGO|VIRGO LED 8W RE 36°":     `${CDN}/dDAJVTaQRCoZKxSS.png`,
+  "VIRGO|VIRGO LED 8W RE 45°":     `${CDN}/dDAJVTaQRCoZKxSS.png`,
+  "VIRGO|VIRGO + LED 13W RE 15°":  `${CDN}/XbCuEMBjZfelSbuN.png`, // VIRGO+
+  "VIRGO|VIRGO + LED 13W RE 24°":  `${CDN}/XbCuEMBjZfelSbuN.png`,
+  "VIRGO|VIRGO + LED 13W RE 36°":  `${CDN}/XbCuEMBjZfelSbuN.png`,
+  "VIRGO|VIRGO + LED 13W RE 45°":  `${CDN}/XbCuEMBjZfelSbuN.png`,
 };
 
 // ─── Funções públicas ─────────────────────────────────────────────────────────
@@ -102,7 +274,7 @@ export function getProfilePhoto(
 }
 
 /**
- * Retorna a URL da foto do Downlight pelo produto selecionado.
+ * Retorna a URL da foto do Downlight pela família e nome do produto.
  * Tenta primeiro por família+produto, depois retorna null.
  */
 export function getDownlightPhoto(
