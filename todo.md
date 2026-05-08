@@ -401,3 +401,10 @@
 - [x] Caso BLAZE 42330mm: resultado agora é 2x LLE-2810.5IF.18F + 13x LLE-2810.5ML.18F (2 SKUs, 15 módulos)
 - [x] Limite de módulos padrão ajustado de 2825mm para 2840mm (inclui IF-5 do BLAZE embutir 2835mm)
 - [x] Novo teste v3.3 para o caso BLAZE 42330mm — 286 testes passando
+
+## Foto do Produto no Resultado (07/05/2026)
+
+- [x] Upload da imagem BLAZE embutir para storage do projeto (/manus-storage/BLAZEE_58697a4b.png)
+- [x] Criar mapeamento profileCode → URL da foto em profilePhotos.ts (preparado para todos os perfis)
+- [x] Exibir foto do produto no card "Resumo da Configuração" quando disponível (h-48, object-contain)
+- [x] Fallback elegante: quando não há foto, o card não exibe o bloco de imagem (sem espaço vazio)

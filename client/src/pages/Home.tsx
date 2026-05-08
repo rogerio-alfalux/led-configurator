@@ -21,6 +21,7 @@ import { calculateComposition } from "@/lib/ledEngine";
 import { generateProductionTemplate } from "@/lib/productionTemplate";
 import { generateOrderSummary } from "@/lib/orderSummary";
 import { generateQuoteSummary } from "@/lib/quoteSummary";
+import { getProfilePhoto } from "@/lib/profilePhotos";
 import {
   DOWNLIGHT_CATALOG,
   DOWNLIGHT_CCTS,
@@ -210,9 +211,8 @@ function ResultBlock({ result }: { result: CompositionResult }) {
   const efficiency = result.requestedLength > 0
     ? Math.round((result.realizedLength / result.requestedLength) * 100)
     : 0;
-
   const isDual = result.application === "D1+D2";
-
+  const profilePhoto = getProfilePhoto(result.profileCode);
   return (
     <div className="space-y-4">
 
@@ -238,6 +238,17 @@ function ResultBlock({ result }: { result: CompositionResult }) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Foto do Produto */}
+          {profilePhoto && (
+            <div className="rounded-lg overflow-hidden border border-border bg-muted/20">
+              <img
+                src={profilePhoto}
+                alt={result.profileName}
+                className="w-full h-48 object-contain p-2"
+                loading="lazy"
+              />
+            </div>
+          )}
           {/* Métricas */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="rounded-lg bg-muted/40 p-3 border border-border">
