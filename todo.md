@@ -408,3 +408,8 @@
 - [x] Criar mapeamento profileCode → URL da foto em profilePhotos.ts (preparado para todos os perfis)
 - [x] Exibir foto do produto no card "Resumo da Configuração" quando disponível (h-48, object-contain)
 - [x] Fallback elegante: quando não há foto, o card não exibe o bloco de imagem (sem espaço vazio)
+
+## Layout Foto no Resumo (08/05/2026)
+
+- [x] Quando há foto: layout horizontal — foto quadrada à esquerda (w-40) + grid 2×2 de métricas à direita (mesma altura)
+- [x] Quando não há foto: manter grid 2×4 original sem alteração

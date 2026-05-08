@@ -238,56 +238,99 @@ function ResultBlock({ result }: { result: CompositionResult }) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Foto do Produto */}
-          {profilePhoto && (
-            <div className="rounded-lg overflow-hidden border border-border bg-muted/20">
-              <img
-                src={profilePhoto}
-                alt={result.profileName}
-                className="w-full h-48 object-contain p-2"
-                loading="lazy"
-              />
+          {/* Layout com foto: imagem à esquerda + métricas 2×2 à direita */}
+          {profilePhoto ? (
+            <div className="flex gap-3 items-stretch">
+              {/* Foto */}
+              <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-40 flex items-center justify-center">
+                <img
+                  src={profilePhoto}
+                  alt={result.profileName}
+                  className="w-full h-full object-contain p-2"
+                  loading="lazy"
+                />
+              </div>
+              {/* Métricas 2×2 */}
+              <div className="grid grid-cols-2 gap-2 flex-1">
+                <div className="rounded-lg bg-muted/40 p-3 border border-border">
+                  <p className="text-xs text-muted-foreground mb-1">Perfil</p>
+                  <p className="text-sm font-bold text-foreground font-display">{result.profileName}</p>
+                  <p className="text-xs text-muted-foreground font-mono">{result.profileCode}</p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-3 border border-border">
+                  <p className="text-xs text-muted-foreground mb-1">Instalação / Aplicação</p>
+                  <p className="text-sm font-bold text-foreground font-display">
+                    {INSTALL_LABELS[result.installType]} · {result.application}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {isDual && result.independentLighting
+                      ? result.forcedIndependent ? "Independente (forçado)" : "Independente"
+                      : isDual ? "Conjunto" : "—"}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-3 border border-border">
+                  <p className="text-xs text-muted-foreground mb-1">
+                    {isDual ? "Potência D1 / D2" : "Potência"}
+                  </p>
+                  <p className="text-sm font-bold text-foreground font-display">
+                    {isDual ? `${result.powerD1}W / ${result.powerD2}W` : `${result.powerD1}W`}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{result.cct} · {result.voltage}</p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-3 border border-border">
+                  <p className="text-xs text-muted-foreground mb-1">Comprimento</p>
+                  <p className={`text-sm font-bold font-display ${
+                    efficiency === 100 ? "text-green-600 dark:text-green-400" : "text-yellow-600 dark:text-yellow-400"
+                  }`}>
+                    {result.realizedLength}mm
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    de {result.requestedLength}mm · {efficiency}%
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Layout sem foto: grid 2×4 original */
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-lg bg-muted/40 p-3 border border-border">
+                <p className="text-xs text-muted-foreground mb-1">Perfil</p>
+                <p className="text-sm font-bold text-foreground font-display">{result.profileName}</p>
+                <p className="text-xs text-muted-foreground font-mono">{result.profileCode}</p>
+              </div>
+              <div className="rounded-lg bg-muted/40 p-3 border border-border">
+                <p className="text-xs text-muted-foreground mb-1">Instalação / Aplicação</p>
+                <p className="text-sm font-bold text-foreground font-display">
+                  {INSTALL_LABELS[result.installType]} · {result.application}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isDual && result.independentLighting
+                    ? result.forcedIndependent ? "Independente (forçado)" : "Independente"
+                    : isDual ? "Conjunto" : "—"}
+                </p>
+              </div>
+              <div className="rounded-lg bg-muted/40 p-3 border border-border">
+                <p className="text-xs text-muted-foreground mb-1">
+                  {isDual ? "Potência D1 / D2" : "Potência"}
+                </p>
+                <p className="text-sm font-bold text-foreground font-display">
+                  {isDual ? `${result.powerD1}W / ${result.powerD2}W` : `${result.powerD1}W`}
+                </p>
+                <p className="text-xs text-muted-foreground">{result.cct} · {result.voltage}</p>
+              </div>
+              <div className="rounded-lg bg-muted/40 p-3 border border-border">
+                <p className="text-xs text-muted-foreground mb-1">Comprimento</p>
+                <p className={`text-sm font-bold font-display ${
+                  efficiency === 100 ? "text-green-600 dark:text-green-400" : "text-yellow-600 dark:text-yellow-400"
+                }`}>
+                  {result.realizedLength}mm
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  de {result.requestedLength}mm · {efficiency}%
+                </p>
+              </div>
             </div>
           )}
-          {/* Métricas */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="rounded-lg bg-muted/40 p-3 border border-border">
-              <p className="text-xs text-muted-foreground mb-1">Perfil</p>
-              <p className="text-sm font-bold text-foreground font-display">{result.profileName}</p>
-              <p className="text-xs text-muted-foreground font-mono">{result.profileCode}</p>
-            </div>
-            <div className="rounded-lg bg-muted/40 p-3 border border-border">
-              <p className="text-xs text-muted-foreground mb-1">Instalação / Aplicação</p>
-              <p className="text-sm font-bold text-foreground font-display">
-                {INSTALL_LABELS[result.installType]} · {result.application}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {isDual && result.independentLighting
-                  ? result.forcedIndependent ? "Independente (forçado)" : "Independente"
-                  : isDual ? "Conjunto" : "—"}
-              </p>
-            </div>
-            <div className="rounded-lg bg-muted/40 p-3 border border-border">
-              <p className="text-xs text-muted-foreground mb-1">
-                {isDual ? "Potência D1 / D2" : "Potência"}
-              </p>
-              <p className="text-sm font-bold text-foreground font-display">
-                {isDual ? `${result.powerD1}W / ${result.powerD2}W` : `${result.powerD1}W`}
-              </p>
-              <p className="text-xs text-muted-foreground">{result.cct} · {result.voltage}</p>
-            </div>
-            <div className="rounded-lg bg-muted/40 p-3 border border-border">
-              <p className="text-xs text-muted-foreground mb-1">Comprimento</p>
-              <p className={`text-sm font-bold font-display ${
-                efficiency === 100 ? "text-green-600 dark:text-green-400" : "text-yellow-600 dark:text-yellow-400"
-              }`}>
-                {result.realizedLength}mm
-              </p>
-              <p className="text-xs text-muted-foreground">
-                de {result.requestedLength}mm · {efficiency}%
-              </p>
-            </div>
-          </div>
 
           {/* Barra Stripflex/Stripline */}
           <div className="rounded-lg bg-muted/30 border border-border p-3">
