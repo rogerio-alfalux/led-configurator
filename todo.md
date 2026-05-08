@@ -428,3 +428,12 @@
 - [x] Corrigir chave AURA: "AURA P QE 5W" → "AURA P QE 5W IP54" e "AURA P RE 5W" → "AURA P RE 5W IP54"
 - [x] Corrigir chave EASY LED POINT 1X1: potência 2W (não 3W) e º unicode (\u00ba)
 - [x] Corrigir todas as chaves EASY LED POINT: substituir ° por º (\u00ba) e ORIENTÁVEL por ORIENTÁVEL (\u00c1)
+
+## Preço por Metro no Resumo Para Orçamento (08/05/2026)
+
+- [x] Criar tabela PRICE_PER_METER em quoteSummary.ts mapeando profileCode → preço/m (começando com LLE-2810 = R$ 340,00)
+- [x] Função getPricePerMeter(profileCode) retorna número ou null se não cadastrado
+- [x] generateQuoteSummary: calcular preço total = (realizedLength / 1000) × pricePerMeter quando disponível
+- [x] Adicionar linha "Preço Total: R$ X.XXX,XX" ao final do texto do resumo quando há preço cadastrado
+- [x] Formatar valor em pt-BR (ex: R$ 3.400,00) usando Intl.NumberFormat
+- [x] Testes unitários para o cálculo de preço (com e sem preço cadastrado)
