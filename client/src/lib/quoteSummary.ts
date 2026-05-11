@@ -119,14 +119,5 @@ export function generateQuoteSummary(result: CompositionResult): string {
     return `Item ${index + 1}: ${qtyStr} ${productLabel} - ${info.length}mm${modTypeSuffix}`;
   });
 
-  // Linha de preço total (apenas quando há preço cadastrado)
-  const pricePerMeter = getPricePerMeter(result.profileCode);
-  const priceLines: string[] = [];
-  if (pricePerMeter !== null) {
-    const totalMeters = totalMm / 1000;
-    const totalPrice = totalMeters * pricePerMeter;
-    priceLines.push(`Preço Total: ${formatBRL(totalPrice)} (${formatBRL(pricePerMeter)}/m)`);
-  }
-
-  return [header, ...items, ...priceLines].join("\n");
+  return [header, ...items].join("\n");
 }

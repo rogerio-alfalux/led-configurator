@@ -240,7 +240,19 @@ export const DOWNLIGHT_PRODUCT_PHOTOS: Record<string, string> = {
   "VENUS|VENUS M 13W 36°":   `${CDN}/XySOMPotYWiSRtzT.jpeg`,
   "VENUS|VENUS G 18W 36°":   `${CDN}/XySOMPotYWiSRtzT.jpeg`,
 
-  // ── VIRGO ─────────────────────────────────────────────────────────────────
+  // ── ORIENTE ─────────────────────────────────────────────────────────────────────────────────────────
+  "ORIENTE|ORIENTE CL1 COB 70 18W QNF 15°": "/manus-storage/ORIENTECL1COB7018WQNF_f0011052.png",
+  "ORIENTE|ORIENTE CL2 COB 70 18W QNF 15°": "/manus-storage/ORIENTECL2COB7018WQNF_7f897ea9.png",
+  "ORIENTE|ORIENTE COB 50 13W QNF 15°":     "/manus-storage/ORIENTECOB5013WRNF_aff18eae.png",
+  "ORIENTE|ORIENTE COB 50 13W RE 15°":      "/manus-storage/ORIENTECOB5013WRE_dba86f78.png",
+  "ORIENTE|ORIENTE COB 50 13W RNF 15°":     "/manus-storage/ORIENTECOB5013WRNF_aff18eae.png",
+  "ORIENTE|ORIENTE WW COB 50 13W RE 15°":   "/manus-storage/ORIENTEWWCOB5013WRE_c0799217.png",
+
+  // ── POLAR ──────────────────────────────────────────────────────────────────────────────────────
+  "POLAR|POLAR 13W RE 15°":  "/manus-storage/POLAR13WRE_2094a5f4.png",
+  "POLAR|POLAR 13W RNF 15°": "/manus-storage/POLAR13WRNF_fe253844.png",
+
+  // ── VIRGO ──────────────────────────────────────────────────────────────────────────────────────
   "VIRGO|VIRGO LED 8W RE 15°":     `${CDN}/dDAJVTaQRCoZKxSS.png`, // VIRGO
   "VIRGO|VIRGO LED 8W RE 24°":     `${CDN}/dDAJVTaQRCoZKxSS.png`,
   "VIRGO|VIRGO LED 8W RE 36°":     `${CDN}/dDAJVTaQRCoZKxSS.png`,

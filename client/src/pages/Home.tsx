@@ -80,15 +80,15 @@ type ProductCategory =
   | "Balizadores"
   | "Decorativas";
 
-const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.ElementType; available: boolean }[] = [
-  { value: "Perfis",       label: "Perfis",        icon: Layers,      available: true  },
-  { value: "Downlights",   label: "Downlights",    icon: Lightbulb,   available: true  },
-  { value: "Painéis",      label: "Painéis",       icon: Grid2X2,     available: false },
-  { value: "Spots",        label: "Spots",         icon: Focus,       available: false },
-  { value: "Arandelas",    label: "Arandelas",     icon: Lamp,        available: false },
-  { value: "Área Externa", label: "Área Externa",  icon: TreePine,    available: false },
-  { value: "Balizadores",  label: "Balizadores",   icon: Navigation,  available: false },
-  { value: "Decorativas",  label: "Decorativas",   icon: Sparkles,    available: false },
+const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.ElementType; image?: string; available: boolean }[] = [
+  { value: "Perfis",       label: "Perfis",        icon: Layers,      image: "/manus-storage/PERFIS_e65318d1.png",      available: true  },
+  { value: "Downlights",   label: "Downlights",    icon: Lightbulb,   image: "/manus-storage/DOWNLIGHTS_938e9ef2.png",  available: true  },
+  { value: "Painéis",      label: "Painéis",       icon: Grid2X2,     image: "/manus-storage/PAINEIS_34c70c2f.png",     available: false },
+  { value: "Spots",        label: "Spots",         icon: Focus,       image: "/manus-storage/SPOTS_dfc5ecee.jpg",       available: false },
+  { value: "Arandelas",    label: "Arandelas",     icon: Lamp,        image: "/manus-storage/ARANDELAS_2553a7b7.webp",  available: false },
+  { value: "Área Externa", label: "Área Externa",  icon: TreePine,    image: "/manus-storage/AREAEXTERNA_5811f7cb.png", available: false },
+  { value: "Balizadores",  label: "Balizadores",   icon: Navigation,  image: "/manus-storage/BALIZADORES_482d54f1.png", available: false },
+  { value: "Decorativas",  label: "Decorativas",   icon: Sparkles,    image: "/manus-storage/DECORATIVAS_4ee44c0e.png", available: false },
 ];
 
 // ─── Componentes Auxiliares ────────────────────────────────────────────────────
@@ -964,7 +964,7 @@ export default function Home() {
                 <div>
                   <FieldLabel>Categoria de Produto</FieldLabel>
                   <div className="grid grid-cols-4 gap-2">
-                    {PRODUCT_CATEGORIES.map(({ value, label, icon: Icon, available }) => (
+                    {PRODUCT_CATEGORIES.map(({ value, label, icon: Icon, image, available }) => (
                       <button
                         key={value}
                         onClick={() => {
@@ -981,15 +981,26 @@ export default function Home() {
                           setResult(null);
                           setError(null);
                         }}
-                        className={`relative flex flex-col items-center gap-1.5 px-2 py-3 rounded-lg border text-xs font-medium transition-all ${
+                        className={`relative flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-lg border text-xs font-medium transition-all ${
                           productCategory === value
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                            ? "bg-primary/10 text-primary border-primary shadow-sm ring-1 ring-primary/30"
                             : available
                               ? "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
                               : "bg-muted/30 text-muted-foreground border-border/50 cursor-not-allowed opacity-60"
                         }`}
                       >
-                        <Icon className="w-4 h-4 shrink-0" />
+                        <div className="w-full aspect-[4/3] rounded overflow-hidden flex items-center justify-center bg-muted/20">
+                          {image ? (
+                            <img
+                              src={image}
+                              alt={label}
+                              className="w-full h-full object-contain"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <Icon className="w-5 h-5 shrink-0 text-muted-foreground" />
+                          )}
+                        </div>
                         <span className="leading-tight text-center">{label}</span>
                         {!available && (
                           <span className="absolute -top-1.5 -right-1.5 text-[9px] font-bold bg-muted text-muted-foreground border border-border rounded px-1 leading-tight">
@@ -1618,18 +1629,7 @@ export default function Home() {
                             <p className="text-sm font-semibold">{dlResult.cct}</p>
                           </div>
                         </>
-                      ) : (
-                        <>
-                          <div className="p-3 rounded-lg bg-muted/50">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
-                            <p className="text-sm font-semibold">{dlResult.voltage}</p>
-                          </div>
-                          <div className="p-3 rounded-lg bg-muted/50">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
-                            <p className="text-sm font-semibold">{dlResult.cct}</p>
-                          </div>
-                        </>
-                      )}
+                      ) : null}
                       <div className="p-3 rounded-lg bg-muted/50 col-span-2">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
                         <p className="text-sm font-semibold">{dlResult.ledModuleWithCCT}</p>

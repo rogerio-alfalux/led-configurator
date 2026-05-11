@@ -437,3 +437,11 @@
 - [x] Adicionar linha "Preço Total: R$ X.XXX,XX" ao final do texto do resumo quando há preço cadastrado
 - [x] Formatar valor em pt-BR (ex: R$ 3.400,00) usando Intl.NumberFormat
 - [x] Testes unitários para o cálculo de preço (com e sem preço cadastrado)
+
+## Correções UI e Imagens (11/05/2026)
+
+- [x] Remover duplicação de CCT/Tensão no resultado do Downlight (aparecem no grid 2x2 com foto E no bloco abaixo)
+- [x] Remover preço calculado do BLAZE E do Resumo Para Orçamento (temporário)
+- [x] Substituir ícones do grid 2x4 de categorias por imagens reais fornecidas pelo usuário
+- [x] Adicionar fotos ORIENTE (6 produtos) ao profilePhotos.ts
+- [x] Adicionar fotos POLAR (2 produtos) ao profilePhotos.ts
