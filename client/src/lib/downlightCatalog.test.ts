@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   DOWNLIGHT_CATALOG,
   calculateDownlight,
-  type DownlightConfig,
 } from "./downlightCatalog";
 
 // ─── Catálogo ──────────────────────────────────────────────────────────────
@@ -26,7 +25,6 @@ describe("DOWNLIGHT_CATALOG", () => {
     for (const p of DOWNLIGHT_CATALOG) {
       expect(p.driver220).toBeTruthy();
       expect(p.driver220.model).toBeTruthy();
-      // code pode ser vazio para produtos sem código EQ (ex: LIFUD sem EQ)
       expect(typeof p.driver220.code).toBe("string");
     }
   });
@@ -109,90 +107,96 @@ describe("calculateDownlight", () => {
   );
 
   it("deve retornar resultado com ledModuleWithCCT concatenado", () => {
-    const cfg: DownlightConfig = {
+    const result = calculateDownlight({
       productIndex: lunaIdx,
-      voltage: "220V",
+      tensao: "220V",
       cct: "3000K",
-      quantity: 1,
-    };
-    const result = calculateDownlight(cfg);
-    expect(result.ledModuleWithCCT).toContain("3000K");
-    expect(result.ledModuleWithCCT).not.toContain("[CCT]");
+      controle: "ON/OFF",
+    });
+    expect(result).not.toBeNull();
+    expect(result!.ledModuleWithCCT).toContain("3000K");
+    expect(result!.ledModuleWithCCT).not.toContain("[CCT]");
   });
 
   it("deve usar driver220 quando tensão é 220V", () => {
-    const cfg: DownlightConfig = {
+    const result = calculateDownlight({
       productIndex: lunaIdx,
-      voltage: "220V",
+      tensao: "220V",
       cct: "4000K",
-      quantity: 1,
-    };
-    const result = calculateDownlight(cfg);
-    expect(result.driver).toEqual(DOWNLIGHT_CATALOG[lunaIdx].driver220);
-    expect(result.bivoltUnavailable).toBe(false);
+      controle: "ON/OFF",
+    });
+    expect(result).not.toBeNull();
+    expect(result!.driver).toEqual(DOWNLIGHT_CATALOG[lunaIdx].driver220);
   });
 
   it("deve usar driverBivolt quando tensão é Bivolt e produto tem Bivolt", () => {
-    const cfg: DownlightConfig = {
+    const result = calculateDownlight({
       productIndex: lunaIdx,
-      voltage: "Bivolt",
+      tensao: "Bivolt",
       cct: "2700K",
-      quantity: 1,
-    };
-    const result = calculateDownlight(cfg);
-    expect(result.driver).toEqual(DOWNLIGHT_CATALOG[lunaIdx].driverBivolt);
-    expect(result.bivoltUnavailable).toBe(false);
+      controle: "ON/OFF",
+    });
+    expect(result).not.toBeNull();
+    expect(result!.driver).toEqual(DOWNLIGHT_CATALOG[lunaIdx].driverBivolt);
   });
 
-  it("deve usar driver220 e sinalizar bivoltUnavailable quando produto não tem Bivolt", () => {
+  it("deve usar driver220 quando produto não tem Bivolt", () => {
     if (noBivoltIdx < 0) return;
-    const cfg: DownlightConfig = {
+    const result = calculateDownlight({
       productIndex: noBivoltIdx,
-      voltage: "Bivolt",
+      tensao: "Bivolt",
       cct: "3000K",
-      quantity: 1,
-    };
-    const result = calculateDownlight(cfg);
-    expect(result.driver).toEqual(DOWNLIGHT_CATALOG[noBivoltIdx].driver220);
-    expect(result.bivoltUnavailable).toBe(true);
+      controle: "ON/OFF",
+    });
+    expect(result).not.toBeNull();
+    expect(result!.driver).toEqual(DOWNLIGHT_CATALOG[noBivoltIdx].driver220);
   });
 
-  it("deve preservar cct e voltage no resultado", () => {
-    const cfg: DownlightConfig = {
+  it("deve preservar cct, tensao e controle no resultado", () => {
+    const result = calculateDownlight({
       productIndex: lunaIdx,
-      voltage: "220V",
+      tensao: "220V",
       cct: "5000K",
-      quantity: 2,
-    };
-    const result = calculateDownlight(cfg);
-    expect(result.cct).toBe("5000K");
-    expect(result.voltage).toBe("220V");
-    expect(result.quantity).toBe(2);
+      controle: "ON/OFF",
+    });
+    expect(result).not.toBeNull();
+    expect(result!.cct).toBe("5000K");
+    expect(result!.tensao).toBe("220V");
+    expect(result!.controle).toBe("ON/OFF");
   });
 
   it("deve incluir referência ao produto no resultado com SKU", () => {
-    const cfg: DownlightConfig = {
+    const result = calculateDownlight({
       productIndex: lunaIdx,
-      voltage: "220V",
+      tensao: "220V",
       cct: "3000K",
-      quantity: 1,
-    };
-    const result = calculateDownlight(cfg);
-    expect(result.product).toEqual(DOWNLIGHT_CATALOG[lunaIdx]);
-    expect(result.product.sku).toBeTruthy();
+      controle: "ON/OFF",
+    });
+    expect(result).not.toBeNull();
+    expect(result!.product).toEqual(DOWNLIGHT_CATALOG[lunaIdx]);
+    expect(result!.product.sku).toBeTruthy();
   });
 
   it("deve incluir campos holder, otica, dissipador no produto do resultado", () => {
-    const cfg: DownlightConfig = {
+    const result = calculateDownlight({
       productIndex: lunaIdx,
-      voltage: "220V",
+      tensao: "220V",
       cct: "3000K",
-      quantity: 1,
-    };
-    const result = calculateDownlight(cfg);
-    // holder/otica/dissipador podem ser null ou string — nunca undefined
-    expect(result.product.holder === null || typeof result.product.holder === "string").toBe(true);
-    expect(result.product.otica === null || typeof result.product.otica === "string").toBe(true);
-    expect(result.product.dissipador === null || typeof result.product.dissipador === "string").toBe(true);
+      controle: "ON/OFF",
+    });
+    expect(result).not.toBeNull();
+    expect(result!.product.holder === null || typeof result!.product.holder === "string").toBe(true);
+    expect(result!.product.otica === null || typeof result!.product.otica === "string").toBe(true);
+    expect(result!.product.dissipador === null || typeof result!.product.dissipador === "string").toBe(true);
+  });
+
+  it("deve retornar null para índice inválido", () => {
+    const result = calculateDownlight({
+      productIndex: 9999,
+      tensao: "220V",
+      cct: "3000K",
+      controle: "ON/OFF",
+    });
+    expect(result).toBeNull();
   });
 });

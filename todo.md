@@ -453,3 +453,15 @@
 - [x] Adicionar checkbox/toggle "Ajustar para medida maior" abaixo de "Considerar medidas quebradas" na UI (desativado por padrão)
 - [x] Exibir aviso no resultado quando `adjustToLarger=true` e o ajuste foi aplicado: "Atenção: a medida foi ajustada para mais. Verifique no projeto se o espaço comporta esse ajuste e se não há risco de colisão com paredes ou outros elementos."
 - [x] Testes unitários para a lógica de ajuste para cima no ledEngine
+
+## Planilha LOOKUP R01 + Campo Controle (14/05/2026)
+
+- [x] Atualizar downlightCatalog.ts com dados da planilha R01 (156 produtos, drivers ON/OFF 220V e Bivolt atualizados)
+- [x] Criar painelCatalog.ts com 50 produtos da aba PAINÉIS (famílias: ALE-2462, ALS-3462, BOX LED E, LUMIGRID E/S, ORBIT E/S/P, ALE-2750, ALS-3750, ALE-2420, ALS-3420, ALE-2103, ALE-2118, ALE-2140, ALE-2430, ALE-2142, OFFICE COMFORT, PRISMA)
+- [x] Adicionar campo `controle` (tipo ControleType = "ON/OFF" | "DIM 1-10V" | "DIM DALI") ao tipo DownlightProduct e PainelProduct
+- [x] Adicionar caixa de seleção "Controle" na UI de Downlights e Painéis, logo acima do campo "Tensão"
+- [x] Apenas "ON/OFF" habilitado por enquanto; "DIM 1-10V" e "DIM DALI" desabilitados (colunas ainda vazias na planilha)
+- [x] Habilitar categoria "Painéis" no grid de categorias (remover badge "em breve")
+- [x] Criar UI de configuração para Painéis: Instalação → Família → Produto (mesmo padrão dos Downlights)
+- [x] Criar UI de resultado para Painéis: módulo LED, driver, resumo para orçamento e pedido
+- [x] Atualizar testes unitários para cobrir Painéis e o novo campo Controle

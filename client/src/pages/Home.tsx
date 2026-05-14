@@ -24,10 +24,14 @@ import { generateQuoteSummary } from "@/lib/quoteSummary";
 import { getProfilePhoto, getDownlightPhoto } from "@/lib/profilePhotos";
 import {
   DOWNLIGHT_CATALOG,
-  DOWNLIGHT_CCTS,
   calculateDownlight,
 } from "@/lib/downlightCatalog";
-import type { DownlightConfig, DownlightResult, DownlightCCT, DownlightVoltage } from "@/lib/downlightCatalog";
+import type { DownlightResult, ControleType } from "@/lib/downlightCatalog";
+import {
+  PAINEL_CATALOG,
+  calculatePainel,
+} from "@/lib/painelCatalog";
+import type { PainelResult } from "@/lib/painelCatalog";
 import type {
   CompositionResult,
   ConfigInput,
@@ -83,7 +87,7 @@ type ProductCategory =
 const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.ElementType; image?: string; available: boolean }[] = [
   { value: "Perfis",       label: "Perfis",        icon: Layers,      image: "/manus-storage/PERFIS_e65318d1.png",      available: true  },
   { value: "Downlights",   label: "Downlights",    icon: Lightbulb,   image: "/manus-storage/DOWNLIGHTS_938e9ef2.png",  available: true  },
-  { value: "Painéis",      label: "Painéis",       icon: Grid2X2,     image: "/manus-storage/PAINEIS_34c70c2f.png",     available: false },
+  { value: "Painéis",      label: "Painéis",       icon: Grid2X2,     image: "/manus-storage/PAINEIS_34c70c2f.png",     available: true },
   { value: "Spots",        label: "Spots",         icon: Focus,       image: "/manus-storage/SPOTS_dfc5ecee.jpg",       available: false },
   { value: "Arandelas",    label: "Arandelas",     icon: Lamp,        image: "/manus-storage/ARANDELAS_2553a7b7.webp",  available: false },
   { value: "Área Externa", label: "Área Externa",  icon: TreePine,    image: "/manus-storage/AREAEXTERNA_5811f7cb.png", available: false },
@@ -760,9 +764,18 @@ export default function Home() {
   const [dlInstalacao, setDlInstalacao] = useState<string | null>(null);
   const [dlFamilia, setDlFamilia] = useState<string | null>(null);
   const [dlProductIndex, setDlProductIndex] = useState<number | null>(null);
-  const [dlVoltage, setDlVoltage] = useState<DownlightVoltage | null>(null);
-  const [dlCCT, setDlCCT] = useState<DownlightCCT>("3000K");
+  const [dlVoltage, setDlVoltage] = useState<"220V" | "Bivolt" | null>(null);
+  const [dlCCT, setDlCCT] = useState<string>("3000K");
+  const [dlControle, setDlControle] = useState<ControleType>("ON/OFF");
   const [dlResult, setDlResult] = useState<DownlightResult | null>(null);
+  // Estados de Painéis
+  const [panelInstalacao, setPanelInstalacao] = useState<string | null>(null);
+  const [panelFamilia, setPanelFamilia] = useState<string | null>(null);
+  const [panelProductIndex, setPanelProductIndex] = useState<number | null>(null);
+  const [panelVoltage, setPanelVoltage] = useState<"220V" | "Bivolt" | null>(null);
+  const [panelCCT, setPanelCCT] = useState<string>("3000K");
+  const [panelControle, setPanelControle] = useState<ControleType>("ON/OFF");
+  const [panelResult, setPanelResult] = useState<PainelResult | null>(null);
 
   // Listas derivadas para filtros de Downlights
   const dlInstalacoes = useMemo(() => Array.from(new Set(DOWNLIGHT_CATALOG.map(p => p.instalacao))).sort(), []);
@@ -1452,12 +1465,41 @@ export default function Home() {
                         </Select>
                       </div>
                     )}
+                    {/* Controle */}
+                    {dlProductIndex !== null && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Controle</Label>
+                        <div className="flex gap-2">
+                          {(["ON/OFF", "DIM 1-10V", "DIM DALI"] as ControleType[]).map((ctrl) => {
+                            const isAvailable = ctrl === "ON/OFF";
+                            return (
+                              <button
+                                key={ctrl}
+                                disabled={!isAvailable}
+                                onClick={() => { if (isAvailable) { setDlControle(ctrl); setDlResult(null); } }}
+                                title={!isAvailable ? "Opção ainda não disponível" : undefined}
+                                className={[
+                                  "flex-1 py-2 rounded-lg text-xs font-medium border transition-all",
+                                  dlControle === ctrl && isAvailable
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-background text-foreground border-border hover:border-primary/50",
+                                  !isAvailable ? "opacity-40 cursor-not-allowed" : "",
+                                ].join(" ")}
+                              >
+                                {ctrl}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-xs text-muted-foreground">DIM 1-10V e DIM DALI serão habilitados quando os dados estiverem disponíveis.</p>
+                      </div>
+                    )}
                     {/* Tensão */}
                     {dlProductIndex !== null && (
                       <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
                         <div className="flex gap-2">
-                          {(["220V", "Bivolt"] as DownlightVoltage[]).map((v) => {
+                          {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
                             const hasBivolt = DOWNLIGHT_CATALOG[dlProductIndex]?.driverBivolt !== null;
                             const disabled = v === "Bivolt" && !hasBivolt;
                             return (
@@ -1490,7 +1532,7 @@ export default function Home() {
                       <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
                         <div className="flex gap-2 flex-wrap">
-                          {DOWNLIGHT_CCTS.map((c) => (
+                          {(["2700K", "3000K", "4000K", "5000K"] as const).map((c) => (
                             <button
                               key={c}
                               onClick={() => { setDlCCT(c); setDlResult(null); }}
@@ -1510,9 +1552,194 @@ export default function Home() {
                   </div>
                 )}
 
+                {/* ── Painéis ───────────────────────────────────────────────────────────────────────────────────── */}
+                {productCategory === "Painéis" && (() => {
+                  const panelInstalacoes = Array.from(new Set(PAINEL_CATALOG.map(p => p.instalacao))).sort();
+                  const panelFamilias = panelInstalacao
+                    ? Array.from(new Set(PAINEL_CATALOG.filter(p => p.instalacao === panelInstalacao).map(p => p.familia))).sort()
+                    : [];
+                  const panelProdutos = panelInstalacao && panelFamilia
+                    ? PAINEL_CATALOG.map((p, i) => ({ p, i })).filter(({ p }) => p.instalacao === panelInstalacao && p.familia === panelFamilia)
+                    : [];
+                  return (
+                    <div className="space-y-4">
+                      {/* Tipo de Instalação */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tipo de Instalação</Label>
+                        <Select
+                          value={panelInstalacao ?? ""}
+                          onValueChange={(v) => { setPanelInstalacao(v); setPanelFamilia(null); setPanelProductIndex(null); setPanelVoltage(null); setPanelResult(null); }}
+                        >
+                          <SelectTrigger className="h-10"><SelectValue placeholder="Selecione o tipo de instalação..." /></SelectTrigger>
+                          <SelectContent>
+                            {panelInstalacoes.map((inst) => (
+                              <SelectItem key={inst} value={inst}>{inst}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {/* Família */}
+                      {panelInstalacao && (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Família</Label>
+                          <Select
+                            value={panelFamilia ?? ""}
+                            onValueChange={(v) => { setPanelFamilia(v); setPanelProductIndex(null); setPanelVoltage(null); setPanelResult(null); }}
+                          >
+                            <SelectTrigger className="h-10"><SelectValue placeholder="Selecione a família..." /></SelectTrigger>
+                            <SelectContent>
+                              {panelFamilias.map((fam) => (
+                                <SelectItem key={fam} value={fam}>{fam}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                      {/* Produto */}
+                      {panelFamilia && (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Produto</Label>
+                          <Select
+                            value={panelProductIndex !== null ? String(panelProductIndex) : ""}
+                            onValueChange={(v) => { setPanelProductIndex(Number(v)); setPanelVoltage(null); setPanelResult(null); }}
+                          >
+                            <SelectTrigger className="h-10"><SelectValue placeholder="Selecione o produto..." /></SelectTrigger>
+                            <SelectContent>
+                              {panelProdutos.map(({ p, i }) => (
+                                <SelectItem key={i} value={String(i)}>{p.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                      {/* Controle */}
+                      {panelProductIndex !== null && (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Controle</Label>
+                          <div className="flex gap-2">
+                            {(["ON/OFF", "DIM 1-10V", "DIM DALI"] as ControleType[]).map((ctrl) => {
+                              const isAvailable = ctrl === "ON/OFF";
+                              return (
+                                <button
+                                  key={ctrl}
+                                  disabled={!isAvailable}
+                                  onClick={() => { if (isAvailable) { setPanelControle(ctrl); setPanelResult(null); } }}
+                                  title={!isAvailable ? "Opção ainda não disponível" : undefined}
+                                  className={[
+                                    "flex-1 py-2 rounded-lg text-xs font-medium border transition-all",
+                                    panelControle === ctrl && isAvailable
+                                      ? "bg-primary text-primary-foreground border-primary"
+                                      : "bg-background text-foreground border-border hover:border-primary/50",
+                                    !isAvailable ? "opacity-40 cursor-not-allowed" : "",
+                                  ].join(" ")}
+                                >
+                                  {ctrl}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <p className="text-xs text-muted-foreground">DIM 1-10V e DIM DALI serão habilitados quando os dados estiverem disponíveis.</p>
+                        </div>
+                      )}
+                      {/* Tensão */}
+                      {panelProductIndex !== null && (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
+                          <div className="flex gap-2">
+                            {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
+                              const hasBivolt = PAINEL_CATALOG[panelProductIndex]?.driverBivolt !== null;
+                              const disabled = v === "Bivolt" && !hasBivolt;
+                              return (
+                                <button
+                                  key={v}
+                                  disabled={disabled}
+                                  onClick={() => { setPanelVoltage(v); setPanelResult(null); }}
+                                  className={[
+                                    "flex-1 py-2 rounded-lg text-sm font-medium border transition-all",
+                                    panelVoltage === v && !disabled
+                                      ? "bg-primary text-primary-foreground border-primary"
+                                      : "bg-background text-foreground border-border hover:border-primary/50",
+                                    disabled ? "opacity-40 cursor-not-allowed" : "",
+                                  ].join(" ")}
+                                >
+                                  {v}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {panelVoltage === "Bivolt" && PAINEL_CATALOG[panelProductIndex]?.driverBivolt === null && (
+                            <p className="text-xs text-destructive flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3" /> Este produto não possui opção Bivolt.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {/* CCT */}
+                      {panelProductIndex !== null && (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
+                          <div className="flex gap-2 flex-wrap">
+                            {(["2700K", "3000K", "4000K", "5000K"] as const).map((c) => (
+                              <button
+                                key={c}
+                                onClick={() => { setPanelCCT(c); setPanelResult(null); }}
+                                className={[
+                                  "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
+                                  panelCCT === c
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-background text-foreground border-border hover:border-primary/50",
+                                ].join(" ")}
+                              >
+                                {c}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
               </CardContent>
             </Card>
+
+            {/* Botão Calcular — Painéis */}
+            {productCategory === "Painéis" && (
+              <div className="space-y-2">
+                {!panelInstalacao && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione o tipo de instalação antes de calcular.
+                  </p>
+                )}
+                {panelInstalacao && !panelFamilia && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione a família antes de calcular.
+                  </p>
+                )}
+                {panelFamilia && panelProductIndex === null && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione o produto antes de calcular.
+                  </p>
+                )}
+                {panelProductIndex !== null && !panelVoltage && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
+                  </p>
+                )}
+                <Button
+                  disabled={panelProductIndex === null || !panelVoltage}
+                  onClick={() => {
+                    if (panelProductIndex === null || !panelVoltage) return;
+                    setPanelResult(calculatePainel({ productIndex: panelProductIndex, tensao: panelVoltage, cct: panelCCT, controle: panelControle }));
+                  }}
+                  className="w-full h-12 text-base font-semibold font-display"
+                  size="lg"
+                >
+                  <Zap className="w-5 h-5 mr-2" />
+                  Calcular Painél
+                </Button>
+              </div>
+            )}
 
             {/* Botão Calcular — Downlights */}
             {productCategory === "Downlights" && (
@@ -1541,8 +1768,7 @@ export default function Home() {
                   disabled={dlProductIndex === null || !dlVoltage}
                   onClick={() => {
                     if (dlProductIndex === null || !dlVoltage) return;
-                    const cfg: DownlightConfig = { productIndex: dlProductIndex, voltage: dlVoltage, cct: dlCCT, quantity: 1 };
-                    setDlResult(calculateDownlight(cfg));
+                    setDlResult(calculateDownlight({ productIndex: dlProductIndex, tensao: dlVoltage, cct: dlCCT, controle: dlControle }));
                   }}
                   className="w-full h-12 text-base font-semibold font-display"
                   size="lg"
@@ -1631,7 +1857,7 @@ export default function Home() {
                             </div>
                             <div className="p-3 rounded-lg bg-muted/50">
                               <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
-                              <p className="text-sm font-semibold">{dlResult.voltage}</p>
+                              <p className="text-sm font-semibold">{dlResult.tensao}</p>
                             </div>
                             <div className="p-3 rounded-lg bg-muted/50">
                               <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
@@ -1640,7 +1866,8 @@ export default function Home() {
                           </div>
                         </div>
                       ) : null;
-                    })()}
+                    })()
+                    }
                     <div className="grid grid-cols-2 gap-3">
                       {!dlFamilia || !getDownlightPhoto(dlFamilia, dlResult.product.name) ? (
                         <>
@@ -1654,8 +1881,7 @@ export default function Home() {
                           </div>
                           <div className="p-3 rounded-lg bg-muted/50">
                             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
-                            <p className="text-sm font-semibold">{dlResult.voltage}</p>
-                          </div>
+                            <p className="text-sm font-semibold">{dlResult.tensao}</p>                 </div>
                           <div className="p-3 rounded-lg bg-muted/50">
                             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
                             <p className="text-sm font-semibold">{dlResult.cct}</p>
@@ -1704,7 +1930,7 @@ export default function Home() {
                       size="sm"
                       className="h-7 text-xs gap-1.5"
                       onClick={() => {
-                        const txt = `${dlResult.product.name} ${dlResult.cct} ${dlResult.voltage}`.toUpperCase();
+                        const txt = `${dlResult.product.name} ${dlResult.cct} ${dlResult.tensao}`.toUpperCase();
                         navigator.clipboard.writeText(txt);
                         toast.success("Copiado!");
                       }}
@@ -1723,7 +1949,7 @@ export default function Home() {
                         sel?.addRange(range);
                       }}
                     >
-                      {`${dlResult.product.name} ${dlResult.cct} ${dlResult.voltage}`.toUpperCase()}
+                      {`${dlResult.product.name} ${dlResult.cct} ${dlResult.tensao}`.toUpperCase()}
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.</p>
                   </CardContent>
@@ -1748,7 +1974,7 @@ export default function Home() {
                           if (dlResult.product.holder) parts.push(dlResult.product.holder.toUpperCase());
                           if (dlResult.product.dissipador) parts.push(dlResult.product.dissipador.toUpperCase());
                           parts.push(`1x DRIVER ${dlResult.driver.model.toUpperCase()} (${dlResult.driver.code})`);
-                          const txt = (`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.voltage} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim();
+                          const txt = (`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim();
                         navigator.clipboard.writeText(txt);
                         toast.success("Copiado!");
                       }}
@@ -1775,7 +2001,7 @@ export default function Home() {
                           if (dlResult.product.holder) parts.push(dlResult.product.holder.toUpperCase());
                           if (dlResult.product.dissipador) parts.push(dlResult.product.dissipador.toUpperCase());
                           parts.push(`1x DRIVER ${dlResult.driver.model.toUpperCase()} (${dlResult.driver.code})`);
-                          return (`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.voltage} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim();
+                          return (`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim();
                         })()}
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Pedido" para copiar diretamente.</p>
@@ -1793,6 +2019,137 @@ export default function Home() {
                   </div>
                   <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
                   <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione o tipo de instalação, família, produto, tensão e CCT, depois clique em "Calcular Downlight".</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Resultado Painéis */}
+            {productCategory === "Painéis" && panelResult && (
+              <div className="space-y-4">
+                <Card className="shadow-sm border-teal-500/30">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <Grid2X2 className="w-4 h-4 text-teal-500" />
+                      Resultado — Painél
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      {panelResult.product.sku && (
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
+                          <p className="text-sm font-mono font-semibold text-primary">{panelResult.product.sku}</p>
+                        </div>
+                      )}
+                      <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
+                        <p className="text-sm font-semibold">{panelResult.product.name}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                        <p className="text-sm font-semibold">{panelResult.tensao}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                        <p className="text-sm font-semibold">{panelResult.cct}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Controle</p>
+                        <p className="text-sm font-semibold">{panelResult.controle}</p>
+                      </div>
+                      {panelResult.ledModuleWithCCT && (
+                        <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
+                          <p className="text-sm font-semibold">{panelResult.ledModuleWithCCT}</p>
+                        </div>
+                      )}
+                      <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
+                        <p className="text-sm font-semibold">{panelResult.driver.model} <span className="font-mono text-primary">({panelResult.driver.code})</span></p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Resumo para Orçamento */}
+                <Card className="shadow-sm border-blue-500/30">
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                      Resumo Para Orçamento
+                    </CardTitle>
+                    <Button
+                      variant="outline" size="sm" className="h-7 text-xs gap-1.5"
+                      onClick={() => {
+                        const txt = `${panelResult.product.name} ${panelResult.cct} ${panelResult.tensao}`.toUpperCase();
+                        navigator.clipboard.writeText(txt);
+                        toast.success("Copiado!");
+                      }}
+                    >
+                      <Copy className="w-3 h-3" /> Copiar Resumo
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div
+                      className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
+                      onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
+                    >
+                      {`${panelResult.product.name} ${panelResult.cct} ${panelResult.tensao}`.toUpperCase()}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
+                  </CardContent>
+                </Card>
+
+                {/* Resumo para Pedido */}
+                <Card className="shadow-sm border-green-500/30">
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <ClipboardCheck className="w-4 h-4 text-green-500" />
+                      Resumo Para Pedido
+                    </CardTitle>
+                    <Button
+                      variant="outline" size="sm" className="h-7 text-xs gap-1.5"
+                      onClick={() => {
+                        const parts: string[] = [];
+                        if (panelResult.ledModuleWithCCT) parts.push(panelResult.ledModuleWithCCT.toUpperCase());
+                        parts.push(`1x DRIVER ${panelResult.driver.model.toUpperCase()} (${panelResult.driver.code})`);
+                        const skuLine = panelResult.product.sku ? `CÓDIGO: ${panelResult.product.sku}\n` : "";
+                        const txt = `${skuLine}${panelResult.product.name.toUpperCase()} ${panelResult.cct} ${panelResult.tensao} MONTADA COM ${parts.join(" + ")}`;
+                        navigator.clipboard.writeText(txt);
+                        toast.success("Copiado!");
+                      }}
+                    >
+                      <Copy className="w-3 h-3" /> Copiar Pedido
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div
+                      className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
+                      onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
+                    >
+                      {(() => {
+                        const parts: string[] = [];
+                        if (panelResult.ledModuleWithCCT) parts.push(panelResult.ledModuleWithCCT.toUpperCase());
+                        parts.push(`1x DRIVER ${panelResult.driver.model.toUpperCase()} (${panelResult.driver.code})`);
+                        const skuLine = panelResult.product.sku ? `CÓDIGO: ${panelResult.product.sku}\n` : "";
+                        return `${skuLine}${panelResult.product.name.toUpperCase()} ${panelResult.cct} ${panelResult.tensao} MONTADA COM ${parts.join(" + ")}`;
+                      })()}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Estado vazio Painéis */}
+            {productCategory === "Painéis" && !panelResult && (
+              <Card className="shadow-sm">
+                <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                    <Grid2X2 className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione a instalação, família, produto, tensão e CCT, depois clique em "Calcular Painél".</p>
                 </CardContent>
               </Card>
             )}
