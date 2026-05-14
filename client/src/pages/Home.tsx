@@ -21,7 +21,7 @@ import { calculateComposition } from "@/lib/ledEngine";
 import { generateProductionTemplate } from "@/lib/productionTemplate";
 import { generateOrderSummary } from "@/lib/orderSummary";
 import { generateQuoteSummary } from "@/lib/quoteSummary";
-import { getProfilePhoto, getDownlightPhoto } from "@/lib/profilePhotos";
+import { getProfilePhoto, getDownlightPhoto, getPainelPhoto } from "@/lib/profilePhotos";
 import {
   DOWNLIGHT_CATALOG,
   calculateDownlight,
@@ -2034,25 +2034,56 @@ export default function Home() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      {panelResult.product.sku && (
-                        <div className="p-3 rounded-lg bg-muted/50">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
-                          <p className="text-sm font-mono font-semibold text-primary">{panelResult.product.sku}</p>
+                    {/* Foto do produto Painél */}
+                    {(() => {
+                      const pPhoto = panelFamilia && panelResult ? getPainelPhoto(panelFamilia, panelResult.product.name) : null;
+                      return pPhoto ? (
+                        <div className="flex gap-3 items-stretch">
+                          <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-36 flex items-center justify-center">
+                            <img src={pPhoto} alt={panelResult.product.name} className="w-full h-full object-contain p-2" loading="lazy" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 flex-1">
+                            {panelResult.product.sku && (
+                              <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
+                                <p className="text-sm font-mono font-semibold text-primary">{panelResult.product.sku}</p>
+                              </div>
+                            )}
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                              <p className="text-sm font-semibold">{panelResult.tensao}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                              <p className="text-sm font-semibold">{panelResult.cct}</p>
+                            </div>
+                          </div>
                         </div>
+                      ) : null;
+                    })()}
+                    <div className="grid grid-cols-2 gap-3">
+                      {(!panelFamilia || !getPainelPhoto(panelFamilia, panelResult.product.name)) && (
+                        <>
+                          {panelResult.product.sku && (
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
+                              <p className="text-sm font-mono font-semibold text-primary">{panelResult.product.sku}</p>
+                            </div>
+                          )}
+                          <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
+                            <p className="text-sm font-semibold">{panelResult.product.name}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                            <p className="text-sm font-semibold">{panelResult.tensao}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                            <p className="text-sm font-semibold">{panelResult.cct}</p>
+                          </div>
+                        </>
                       )}
-                      <div className="p-3 rounded-lg bg-muted/50 col-span-2">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
-                        <p className="text-sm font-semibold">{panelResult.product.name}</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
-                        <p className="text-sm font-semibold">{panelResult.tensao}</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
-                        <p className="text-sm font-semibold">{panelResult.cct}</p>
-                      </div>
                       <div className="p-3 rounded-lg bg-muted/50">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Controle</p>
                         <p className="text-sm font-semibold">{panelResult.controle}</p>

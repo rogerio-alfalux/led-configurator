@@ -263,6 +263,56 @@ export const DOWNLIGHT_PRODUCT_PHOTOS: Record<string, string> = {
   "VIRGO|VIRGO + LED 13W RE 45°":  `${CDN}/XbCuEMBjZfelSbuN.png`,
 };
 
+// --- Painéis: mapeamento por família ----------------------------------------
+const PAINEL_PHOTOS: Record<string, string> = {
+  // ALE-2462 / ALS-3462
+  "ALE-2462":       "/manus-storage/ALE-2462_d6d9664b.png",
+  "ALS-3462":       "/manus-storage/ALS-3462_f3f3d475.png",
+  // BOX LED E / BOX LED S
+  "BOX LED E":      "/manus-storage/BOXLEDE_4b16fa22.png",
+  "BOX LED S":      "/manus-storage/BOXLEDS_cc78fede.png",
+  // ORBIT
+  "ORBIT E":        "/manus-storage/ORBITE_1ff3b0b6.png",
+  "ORBIT S":        "/manus-storage/ORBITS_9d32802a.png",
+  "ORBIT P":        "/manus-storage/ORBITP_689057a6.png",
+  // ALE-2750 / ALS-3750
+  "ALE-2750":       "/manus-storage/ALE-2750_5439f635.png",
+  "ALS-3750":       "/manus-storage/ALS-3750_a38243df.png",
+  // ALE-2420 / ALS-3420
+  "ALE-2420":       "/manus-storage/ALE-2420_d1bc931c.jpg",
+  "ALS-3420":       "/manus-storage/ALS-3420_26152857.jpg",
+  // ALE-2103
+  "ALE-2103":       "/manus-storage/ALE-2103_084008ed.jpg",
+  // ALE-2118 (várias variações mapeadas por nome do produto)
+  "ALE-2118":       "/manus-storage/ALE-2118.2_546216fe.jpg",  // fallback genérico
+  // ALE-2140
+  "ALE-2140":       "/manus-storage/ALE-2140_a47e62c0.jpg",
+  // ALE-2430
+  "ALE-2430":       "/manus-storage/ALE-2430_fe793b80.jpg",
+  // ALE-2142
+  "ALE-2142":       "/manus-storage/ALE-2142_403600ec.jpg",
+  // OFFICE COMFORT (mapeado por nome do produto)
+  "OFFICE COMFORT": "/manus-storage/OFFICECOMFORT2x332W(618x618mm)_093d2766.png", // fallback genérico
+  // PRISMA
+  "PRISMA":         "/manus-storage/PRISMA_baa3f305.jpg",
+};
+
+// Mapeamento por nome exato do produto (para variações de ALE-2118, ALE-2103 e OFFICE COMFORT)
+const PAINEL_PRODUCT_PHOTOS: Record<string, string> = {
+  // ALE-2103 RTG tem foto diferente
+  "ALE-2103|ALE-2103 36W RTG":                            "/manus-storage/ALE-2103RTG_69d4d79b.jpg",
+  // ALE-2118 variações
+  "ALE-2118|ALE-2118.2 18W":                              "/manus-storage/ALE-2118.2_546216fe.jpg",
+  "ALE-2118|ALE-2118.2 36W":                              "/manus-storage/ALE-2118.2_546216fe.jpg",
+  "ALE-2118|ALE-2118.3 26W":                              "/manus-storage/ALE-2118.3_7ff54740.jpg",
+  "ALE-2118|ALE-2118.3 36W":                              "/manus-storage/ALE-2118.3_7ff54740.jpg",
+  "ALE-2118|ALE-2118.4 36W":                              "/manus-storage/ALE-2118.4_e4c4a8a0.jpg",
+  // OFFICE COMFORT variações
+  "OFFICE COMFORT|OFFICE COMFORT 2x3 32W (618 x 618mm)": "/manus-storage/OFFICECOMFORT2x332W(618x618mm)_093d2766.png",
+  "OFFICE COMFORT|OFFICE COMFORT 2x3 32W (618 x 155mm)": "/manus-storage/OFFICECOMFORT2x332W(618x155mm)_de240468.png",
+  "OFFICE COMFORT|OFFICE COMFORT 1x6 32W (1243 x 155mm)": "/manus-storage/OFFICECOMFORT1x632W(1243x155mm)_24d92dab.png",
+};
+
 // --- Funções públicas ---------------------------------------------------------
 
 /**
@@ -291,4 +341,16 @@ export function getDownlightPhoto(
 ): string | null {
   const key = `${familia}|${produto}`;
   return DOWNLIGHT_PRODUCT_PHOTOS[key] ?? null;
+}
+
+/**
+ * Retorna a URL da foto do Painél pela família e nome do produto.
+ * Tenta primeiro por família+produto (para variações), depois por família genérica.
+ */
+export function getPainelPhoto(
+  familia: string,
+  produto: string,
+): string | null {
+  const productKey = `${familia}|${produto}`;
+  return PAINEL_PRODUCT_PHOTOS[productKey] ?? PAINEL_PHOTOS[familia] ?? null;
 }

@@ -465,3 +465,11 @@
 - [x] Criar UI de configuração para Painéis: Instalação → Família → Produto (mesmo padrão dos Downlights)
 - [x] Criar UI de resultado para Painéis: módulo LED, driver, resumo para orçamento e pedido
 - [x] Atualizar testes unitários para cobrir Painéis e o novo campo Controle
+
+## Novos Produtos Painéis + Fotos (14/05/2026)
+
+- [x] Extrair BOX LED S 36W e BOX LED S 36W RTG da planilha R01 e adicionar ao painelCatalog.ts
+- [x] Fazer upload das 23 fotos de Painéis para o storage do projeto
+- [x] Criar função getPainelPhoto() em profilePhotos.ts com mapeamento familia→URL
+- [x] Exibir foto do produto no card de resultado de Painéis (mesmo padrão dos Downlights)
+- [x] Atualizar testes de painelCatalog.ts para 52 produtos

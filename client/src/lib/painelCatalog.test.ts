@@ -7,8 +7,8 @@ import {
 // ─── Catálogo ──────────────────────────────────────────────────────────────
 
 describe("PAINEL_CATALOG", () => {
-  it("deve ter 50 produtos", () => {
-    expect(PAINEL_CATALOG).toHaveLength(50);
+  it("deve ter 52 produtos", () => {
+    expect(PAINEL_CATALOG).toHaveLength(52);
   });
 
   it("todos os produtos devem ter name, instalacao e familia", () => {
@@ -48,6 +48,22 @@ describe("PAINEL_CATALOG", () => {
   it("deve conter família ALE-2462", () => {
     const fam = PAINEL_CATALOG.filter((p) => p.familia === "ALE-2462");
     expect(fam.length).toBeGreaterThan(0);
+  });
+
+  it("deve conter família BOX LED S com 2 produtos", () => {
+    const fam = PAINEL_CATALOG.filter((p) => p.familia === "BOX LED S");
+    expect(fam).toHaveLength(2);
+    expect(fam[0].name).toBe("BOX LED S 36W");
+    expect(fam[0].sku).toBe("LLS-2660.597.18F");
+    expect(fam[1].name).toBe("BOX LED S 36W RTG");
+    expect(fam[1].sku).toBe("LLS-2660.120.18F");
+  });
+
+  it("BOX LED S deve ter instalação SOBREPOR", () => {
+    const fam = PAINEL_CATALOG.filter((p) => p.familia === "BOX LED S");
+    for (const p of fam) {
+      expect(p.instalacao).toBe("SOBREPOR");
+    }
   });
 });
 
