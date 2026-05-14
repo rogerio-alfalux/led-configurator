@@ -1,20 +1,13 @@
 /**
  * quoteSummary.test.ts
- * Testes para a lógica de preço por metro no Resumo Para Orçamento.
+ * Testes para a geração do Resumo Para Orçamento.
  */
-
 import { describe, it, expect } from "vitest";
-import {
-  getPricePerMeter,
-  formatBRL,
-  generateQuoteSummary,
-  PRICE_PER_METER,
-} from "./quoteSummary";
+import { formatBRL, generateQuoteSummary } from "./quoteSummary";
 import type { CompositionResult } from "./ledEngine";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-/** Cria um CompositionResult mínimo para testes */
 function makeResult(overrides: Partial<CompositionResult>): CompositionResult {
   return {
     profileCode: "LLP-4251",
@@ -24,7 +17,7 @@ function makeResult(overrides: Partial<CompositionResult>): CompositionResult {
     powerD1: 18,
     powerD2: null,
     cct: "3000K",
-    voltage: "220V",
+    voltage: "220Vac",
     requestedLength: 3000,
     realizedLength: 2940,
     diffuserD1: null,
@@ -49,21 +42,51 @@ function makeResult(overrides: Partial<CompositionResult>): CompositionResult {
   } as CompositionResult;
 }
 
-// ─── getPricePerMeter ────────────────────────────────────────────────────────
+// ─── generateQuoteSummary (preço total) ──────────────────────────────────────
 
-describe("getPricePerMeter", () => {
-  it("retorna 340 para LLE-2810 (BLAZE E)", () => {
-    expect(getPricePerMeter("LLE-2810")).toBe(340);
+describe("generateQuoteSummary (preço total)", () => {
+  it("inclui preço total para BLAZE E 18W 220Vac 5000mm", () => {
+    const result = makeResult({
+      profileCode: "LLE-2810",
+      profileName: "BLAZE",
+      installType: "EMBUTIR",
+      application: "D1",
+      powerD1: 18,
+      voltage: "220Vac",
+      realizedLength: 5000,
+      composition: [{
+        sku: "LLE-2810.5IF.18F", length: 5000, quantity: 1,
+        barras: 5, barsPerModule: 5, barsTotal: 5, drivers: [], driverPerSku: null,
+      }],
+    });
+    // 5m × R$330/m = R$1.650,00
+    expect(generateQuoteSummary(result)).toContain("Preço Total: R$\u00a01.650,00");
   });
 
-  it("retorna null para profileCode sem preço cadastrado", () => {
-    expect(getPricePerMeter("LLP-4251")).toBeNull();
-    expect(getPricePerMeter("LLP-6060")).toBeNull();
-    expect(getPricePerMeter("INEXISTENTE")).toBeNull();
+  it("NÃO inclui preço total para Bivolt", () => {
+    const result = makeResult({
+      profileCode: "LLE-2810",
+      profileName: "BLAZE",
+      installType: "EMBUTIR",
+      application: "D1",
+      powerD1: 18,
+      voltage: "Bivolt",
+      realizedLength: 5000,
+    });
+    expect(generateQuoteSummary(result)).not.toContain("Preço Total");
   });
 
-  it("PRICE_PER_METER contém LLE-2810", () => {
-    expect(PRICE_PER_METER["LLE-2810"]).toBe(340);
+  it("NÃO inclui preço total para perfil sem preço (LLP-6060)", () => {
+    const result = makeResult({
+      profileCode: "LLP-6060",
+      profileName: "BLAZE H",
+      installType: "PENDENTE",
+      application: "D1",
+      powerD1: 18,
+      voltage: "220Vac",
+      realizedLength: 3000,
+    });
+    expect(generateQuoteSummary(result)).not.toContain("Preço Total");
   });
 });
 
@@ -73,15 +96,12 @@ describe("formatBRL", () => {
   it("formata 3400 como R$ 3.400,00", () => {
     expect(formatBRL(3400)).toBe("R$\u00a03.400,00");
   });
-
   it("formata 340 como R$ 340,00", () => {
     expect(formatBRL(340)).toBe("R$\u00a0340,00");
   });
-
   it("formata 1700 como R$ 1.700,00", () => {
     expect(formatBRL(1700)).toBe("R$\u00a01.700,00");
   });
-
   it("formata valor com centavos", () => {
     expect(formatBRL(510)).toBe("R$\u00a0510,00");
   });

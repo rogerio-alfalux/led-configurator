@@ -473,3 +473,11 @@
 - [x] Criar função getPainelPhoto() em profilePhotos.ts com mapeamento familia→URL
 - [x] Exibir foto do produto no card de resultado de Painéis (mesmo padrão dos Downlights)
 - [x] Atualizar testes de painelCatalog.ts para 52 produtos
+
+## Preços por Metro Linear (09/05/2026)
+
+- [x] Criar priceCatalog.ts com tabela de preços ON/OFF 220V por perfil e potência
+- [x] Calcular preço total (metros × preço/m) na função de resultado do perfil linear
+- [x] Exibir preço total no card Resumo para Orçamento (somente quando ON/OFF e 220V)
+- [x] Não exibir preço/m, somente o valor total calculado
+- [x] Testes unitários para o cálculo de preço

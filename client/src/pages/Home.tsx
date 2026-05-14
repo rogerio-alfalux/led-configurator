@@ -20,7 +20,8 @@ import type { InstallType } from "@/lib/ledCatalog";
 import { calculateComposition } from "@/lib/ledEngine";
 import { generateProductionTemplate } from "@/lib/productionTemplate";
 import { generateOrderSummary } from "@/lib/orderSummary";
-import { generateQuoteSummary } from "@/lib/quoteSummary";
+import { generateQuoteSummary, formatBRL } from "@/lib/quoteSummary";
+import { calculateTotalPrice } from "@/lib/priceCatalog";
 import { getProfilePhoto, getDownlightPhoto, getPainelPhoto } from "@/lib/profilePhotos";
 import {
   DOWNLIGHT_CATALOG,
@@ -565,6 +566,16 @@ function QuoteSummaryCard({ result }: { result: CompositionResult }) {
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const summary = generateQuoteSummary(result);
+
+  // Calcula preço total para exibição visual (somente ON/OFF 220V)
+  const totalPrice = calculateTotalPrice(
+    result.profileCode,
+    result.powerD1,
+    result.voltage,
+    result.application,
+    result.realizedLength,
+  );
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(summary);
@@ -601,7 +612,7 @@ function QuoteSummaryCard({ result }: { result: CompositionResult }) {
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-3">
         <textarea
           ref={textareaRef}
           readOnly
@@ -610,7 +621,13 @@ function QuoteSummaryCard({ result }: { result: CompositionResult }) {
           rows={Math.max(summary.split('\n').length + 1, 3)}
           onClick={(e) => (e.target as HTMLTextAreaElement).select()}
         />
-        <p className="text-xs text-muted-foreground mt-2">
+        {totalPrice !== null && (
+          <div className="flex items-center justify-between rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-3">
+            <span className="text-sm font-semibold text-blue-400 uppercase tracking-wide">Preço Total</span>
+            <span className="text-lg font-bold text-blue-300">{formatBRL(totalPrice)}</span>
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground">
           Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.
         </p>
       </CardContent>

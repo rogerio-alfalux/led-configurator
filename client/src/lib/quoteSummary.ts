@@ -6,12 +6,16 @@
  *   BLAZE H P 18W - Medida Total: 5675mm
  *   Item 1: 2 x BLAZE H P 18W - 1710mm IF
  *   Item 2: 1 x BLAZE H P 18W - 2255mm ML
- *   Preço Total: R$ 3.400,00  ← apenas quando há preço cadastrado
+ *   Preço Total: R$ 3.400,00  ← apenas quando há preço cadastrado (ON/OFF 220V)
  *
  * Sufixo de instalação: E=Embutir, S=Sobrepor, P=Pendente, A=Arandela
  */
 
 import type { CompositionResult } from "./ledEngine";
+import { calculateTotalPrice, formatBRL } from "./priceCatalog";
+
+// Re-exporta formatBRL para compatibilidade com código existente
+export { formatBRL };
 
 /** Mapa de tipo de instalação → sufixo de 1 letra */
 const INSTALL_SUFFIX: Record<string, string> = {
@@ -20,35 +24,6 @@ const INSTALL_SUFFIX: Record<string, string> = {
   PENDENTE: "P",
   ARANDELA: "A",
 };
-
-/**
- * Tabela de preços por metro (R$/m) por profileCode.
- * Adicionar novos produtos aqui quando necessário.
- */
-export const PRICE_PER_METER: Record<string, number> = {
-  "LLE-2810": 340.00, // BLAZE E (Embutir)
-};
-
-/**
- * Retorna o preço por metro (R$/m) para o profileCode informado,
- * ou null se não houver preço cadastrado.
- */
-export function getPricePerMeter(profileCode: string): number | null {
-  return PRICE_PER_METER[profileCode] ?? null;
-}
-
-/**
- * Formata um valor monetário em Real brasileiro.
- * Ex: 3400 → "R$ 3.400,00"
- */
-export function formatBRL(value: number): string {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
 
 /** Extrai o tipo de módulo (IF, ML, IN) do SKU.
  *  Barras inteiras: LLP-6060.4IF.48F → IF | LLP-6060.2ML.48F → ML | LLP-4251.1IN.48F → IN
@@ -72,7 +47,7 @@ function moduleTypeFromSku(sku: string): string {
 /**
  * Gera o texto resumo para orçamento.
  * Uma linha de cabeçalho + uma linha por tipo de módulo (SKU distinto)
- * + linha de preço total quando o produto tem preço cadastrado.
+ * + linha de preço total quando o produto tem preço cadastrado (ON/OFF 220V).
  */
 export function generateQuoteSummary(result: CompositionResult): string {
   const suffix = INSTALL_SUFFIX[result.installType] ?? result.installType.charAt(0);
@@ -119,5 +94,15 @@ export function generateQuoteSummary(result: CompositionResult): string {
     return `Item ${index + 1}: ${qtyStr} ${productLabel} - ${info.length}mm${modTypeSuffix}`;
   });
 
-  return [header, ...items].join("\n");
+  // Linha de preço total — apenas quando ON/OFF 220V e há preço cadastrado
+  const totalPrice = calculateTotalPrice(
+    result.profileCode,
+    result.powerD1,
+    result.voltage,
+    result.application,
+    result.realizedLength,
+  );
+  const priceLine = totalPrice !== null ? `Preço Total: ${formatBRL(totalPrice)}` : null;
+
+  return [header, ...items, ...(priceLine ? [priceLine] : [])].join("\n");
 }
