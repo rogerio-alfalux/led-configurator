@@ -445,3 +445,11 @@
 - [x] Substituir ícones do grid 2x4 de categorias por imagens reais fornecidas pelo usuário
 - [x] Adicionar fotos ORIENTE (6 produtos) ao profilePhotos.ts
 - [x] Adicionar fotos POLAR (2 produtos) ao profilePhotos.ts
+
+## Botão "Ajustar para medida maior" (14/05/2026)
+
+- [x] Adicionar flag `adjustToLarger` ao tipo ConfigInput do motor de cálculo (ledEngine)
+- [x] Implementar lógica no ledEngine: quando `adjustToLarger=true` e a medida desejada não cabe em nenhuma combinação de módulos inteiros, forçar para o próximo módulo acima (ex: 1120mm → 1155mm IN)
+- [x] Adicionar checkbox/toggle "Ajustar para medida maior" abaixo de "Considerar medidas quebradas" na UI (desativado por padrão)
+- [x] Exibir aviso no resultado quando `adjustToLarger=true` e o ajuste foi aplicado: "Atenção: a medida foi ajustada para mais. Verifique no projeto se o espaço comporta esse ajuste e se não há risco de colisão com paredes ou outros elementos."
+- [x] Testes unitários para a lógica de ajuste para cima no ledEngine

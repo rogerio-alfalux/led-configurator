@@ -9,7 +9,7 @@
 
 const CDN = "https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542";
 
-// ─── Perfis: mapeamento simples por código ────────────────────────────────────
+// --- Perfis: mapeamento simples por código ------------------------------------
 const PROFILE_PHOTOS_SIMPLE: Record<string, string> = {
   // BLAZE
   "LLE-2810": `${CDN}/vmGSTNLHjVCoVILp.png`, // BLAZE Embutir
@@ -31,17 +31,17 @@ const PROFILE_PHOTOS_SIMPLE: Record<string, string> = {
   "LLP-4536": `${CDN}/jwQfZJCnOHMYPobB.png`, // SKYLINE Pendente
 };
 
-// ─── SHARP: mapeamento por código + difusor D1 + difusor D2 ──────────────────
+// --- SHARP: mapeamento por código + difusor D1 + difusor D2 ------------------
 const SHARP_PHOTOS: Record<string, string> = {
-  // SHARP ARANDELA (LLA-4451) — D1 simples
+  // SHARP ARANDELA (LLA-4451) - D1 simples
   "LLA-4451|DA|":  `${CDN}/uXWUvgNAVmhugXlN.png`,
   "LLA-4451|DB|":  `${CDN}/nfTTqmpSXPpAPvtM.png`,
   "LLA-4451|DC|":  `${CDN}/ZtOaAkdKcKfVyBlz.png`,
-  // SHARP ARANDELA — D2 simples
+  // SHARP ARANDELA - D2 simples
   "LLA-4451||DA":  `${CDN}/YNsSutJnWbFKnJij.png`,
   "LLA-4451||DB":  `${CDN}/YNsSutJnWbFKnJij.png`,
   "LLA-4451||DC":  `${CDN}/kyJXDDhOyFozxDAX.png`,
-  // SHARP ARANDELA — D1+D2
+  // SHARP ARANDELA - D1+D2
   "LLA-4451|DA|DA": `${CDN}/XMqBMWzdOlGvhWmk.png`,
   "LLA-4451|DA|DB": `${CDN}/vLTrArXVuyJgdlKd.png`,
   "LLA-4451|DA|DC": `${CDN}/XMqBMWzdOlGvhWmk.png`,
@@ -51,15 +51,15 @@ const SHARP_PHOTOS: Record<string, string> = {
   "LLA-4451|DC|DA": `${CDN}/kyJXDDhOyFozxDAX.png`,
   "LLA-4451|DC|DB": `${CDN}/AiIaYVLnzEocudzC.png`,
   "LLA-4451|DC|DC": `${CDN}/AiIaYVLnzEocudzC.png`,
-  // SHARP PENDENTE (LLP-4451) — D1 simples
+  // SHARP PENDENTE (LLP-4451) - D1 simples
   "LLP-4451|DA|":  `${CDN}/mfDtKryMIKArMYTK.png`,
   "LLP-4451|DB|":  `${CDN}/MhKVbBwOTJWOdSGY.png`,
   "LLP-4451|DC|":  `${CDN}/wxGnzTxpUbbklchT.png`,
-  // SHARP PENDENTE — D2 simples
+  // SHARP PENDENTE - D2 simples
   "LLP-4451||DA":  `${CDN}/qpFkpEUKoXovCeWC.png`,
   "LLP-4451||DB":  `${CDN}/xDRcqBCELxePbzbZ.png`,
   "LLP-4451||DC":  `${CDN}/nrdxumeouhfCUNeE.png`,
-  // SHARP PENDENTE — D1+D2
+  // SHARP PENDENTE - D1+D2
   "LLP-4451|DA|DA": `${CDN}/TINSeKcqdADwVHPi.png`,
   "LLP-4451|DA|DB": `${CDN}/RQJiahzdXjVGLQFz.png`,
   "LLP-4451|DA|DC": `${CDN}/TINSeKcqdADwVHPi.png`,
@@ -71,16 +71,16 @@ const SHARP_PHOTOS: Record<string, string> = {
   "LLP-4451|DC|DC": `${CDN}/zoziTfTcLxPSkZQh.png`,
 };
 
-// ─── Downlights: mapeamento por "FAMÍLIA|NOME DO PRODUTO" ────────────────────
+// --- Downlights: mapeamento por "FAMÍLIA|NOME DO PRODUTO" --------------------
 // A chave usa o nome exato do produto conforme consta no catálogo.
 // Quando vários produtos compartilham a mesma foto, todos são listados.
 export const DOWNLIGHT_PRODUCT_PHOTOS: Record<string, string> = {
 
-  // ── AURA ──────────────────────────────────────────────────────────────────
+  // -- AURA ------------------------------------------------------------------
   "AURA|AURA P RE 5W IP54":      `${CDN}/wzKuNNocWgXwkcqK.png`, // AURAPRE5W
   "AURA|AURA P QE 5W IP54":      `${CDN}/tqqfRNDanSLIPaih.png`, // AURAPQE5W
 
-  // ── EASY LED POINT ────────────────────────────────────────────────────────
+  // -- EASY LED POINT --------------------------------------------------------
   "EASY LED POINT|EASY LED POINT 1X1 2W 10º":          `${CDN}/LMwGpdQxLKpaBRPf.png`,
   "EASY LED POINT|EASY LED POINT 1X1 2W 48º":          `${CDN}/LMwGpdQxLKpaBRPf.png`,
   "EASY LED POINT|EASY LED POINT 1X3 6W 10º":          `${CDN}/erFoWMwqVPCGjMut.png`,
@@ -116,7 +116,7 @@ export const DOWNLIGHT_PRODUCT_PHOTOS: Record<string, string> = {
   "EASY LED POINT|EASY LED POINT 4X6 52W 10º":         `${CDN}/CjlCaLhTVwRXVOJY.png`,
   "EASY LED POINT|EASY LED POINT 4X6 52W 48º":         `${CDN}/CjlCaLhTVwRXVOJY.png`,
 
-  // ── FOCO ──────────────────────────────────────────────────────────────────
+  // -- FOCO ------------------------------------------------------------------
   "FOCO|FOCO G RE 13W":           `${CDN}/CmIQfaBdVFoNhpzX.jpg`, // FOCOG
   "FOCO|FOCO G 70L RE 13W 15°":   `${CDN}/TwWYEWNNicaEpsZd.png`, // FOCOG70L
   "FOCO|FOCO G 70L RE 13W 24°":   `${CDN}/TwWYEWNNicaEpsZd.png`,
@@ -135,7 +135,7 @@ export const DOWNLIGHT_PRODUCT_PHOTOS: Record<string, string> = {
   "FOCO|FOCO P 35L RE 4.5W 24°":  `${CDN}/xjnxcYydJqRbYQkW.jpg`, // FOCOP35L
   "FOCO|FOCO P 35L RE 4.5W 36°":  `${CDN}/xjnxcYydJqRbYQkW.jpg`,
 
-  // ── LUNA ──────────────────────────────────────────────────────────────────
+  // -- LUNA ------------------------------------------------------------------
   "LUNA|LUNA PP LED 6,5W RE ABS":  `${CDN}/DClMmmGzfMXRiBGI.png`, // LUNAPP
   "LUNA|LUNA PP LED 13W RE ABS":   `${CDN}/DClMmmGzfMXRiBGI.png`,
   "LUNA|LUNA PP SM 4,5W RE":       `${CDN}/IgmkrvHjvMEjfeHF.png`, // LUNAPPSM
@@ -150,7 +150,7 @@ export const DOWNLIGHT_PRODUCT_PHOTOS: Record<string, string> = {
   "LUNA|LUNA GG LED 26W RE":       `${CDN}/pBdzZOCkmVEyXBKS.png`, // LUNAGGRE
   "LUNA|LUNA GG LED 36W RE":       `${CDN}/pBdzZOCkmVEyXBKS.png`,
 
-  // ── LUNA SPOT ─────────────────────────────────────────────────────────────
+  // -- LUNA SPOT -------------------------------------------------------------
   "LUNA SPOT|LUNA SPOT 35L 4.5W RE 36°":      `${CDN}/GHpVAmrESsBXpSaE.png`, // LUNASPOT50L (fallback)
   "LUNA SPOT|LUNA SPOT 50L 6.5W RE 24°":      `${CDN}/GHpVAmrESsBXpSaE.png`, // LUNASPOT50L
   "LUNA SPOT|LUNA SPOT 50L 6.5W RE 36°":      `${CDN}/GHpVAmrESsBXpSaE.png`,
@@ -171,11 +171,11 @@ export const DOWNLIGHT_PRODUCT_PHOTOS: Record<string, string> = {
   "LUNA SPOT|LUNA SPOT COB 111 38W RE 36°":   `${CDN}/PqcuvjMyCQEIIQVJ.png`,
   "LUNA SPOT|LUNA SPOT COB 111 38W RE 60°":   `${CDN}/PqcuvjMyCQEIIQVJ.png`,
 
-  // ── MYCRO ─────────────────────────────────────────────────────────────────
+  // -- MYCRO -----------------------------------------------------------------
   "MYCRO|MYCRO LED 8W RE 20°":    `${CDN}/GmhCckJLRVUkxDKt.png`, // MYCROLED8WRE
   "MYCRO|MYCRO LED 8W RE 60°":    `${CDN}/GmhCckJLRVUkxDKt.png`,
 
-  // ── MYRO ──────────────────────────────────────────────────────────────────
+  // -- MYRO ------------------------------------------------------------------
   "MYRO|MYRO G LED 22W RE":       `${CDN}/uvVDUfZORwltqZwJ.png`, // MYROGLED22WRE
   "MYRO|MYRO G LED 22W RNF":      `${CDN}/QOZtcnajUGMMMQYE.png`, // MYROGLED22WRNF
   "MYRO|MYRO G LED 22W QE":       `${CDN}/ZSjGHOpmIDlyfWZv.png`, // MYROGLED22WQE
@@ -185,7 +185,7 @@ export const DOWNLIGHT_PRODUCT_PHOTOS: Record<string, string> = {
   "MYRO|MYRO P LED 12W QE":       `${CDN}/zDfrnkaoMZgMRTHY.png`, // MYROPLED12WQE
   "MYRO|MYRO P LED 12W QNF":      `${CDN}/UKQRmmFCcuNwPLGW.png`, // MYROPLED12WQNF
 
-  // ── ORBITAL ───────────────────────────────────────────────────────────────
+  // -- ORBITAL ---------------------------------------------------------------
   "ORBITAL|ORBITAL RE LED 50L 6.5W 15°":    `${CDN}/ufuDuePUIuShOisf.png`, // ORBITALRELED50L
   "ORBITAL|ORBITAL RE LED 50L 6.5W 24°":    `${CDN}/ufuDuePUIuShOisf.png`,
   "ORBITAL|ORBITAL RE LED 50L 6.5W 36°":    `${CDN}/ufuDuePUIuShOisf.png`,
@@ -211,7 +211,7 @@ export const DOWNLIGHT_PRODUCT_PHOTOS: Record<string, string> = {
   "ORBITAL|ORBITAL QE LED COB 70 18W 40°":  `${CDN}/TyNsLcCZwBPGdbZN.png`,
   "ORBITAL|ORBITAL QE LED COB 111 26W 60°": `${CDN}/kEBMieYbhgaVVKko.png`, // ORBITALQELEDCOB111
 
-  // ── ROYAL ─────────────────────────────────────────────────────────────────
+  // -- ROYAL -----------------------------------------------------------------
   "ROYAL|ROYAL LED 8W RE 15°":    `${CDN}/vjrvwDESMoFbQBbZ.png`, // ROYALLED8WRE
   "ROYAL|ROYAL LED 8W RE 24°":    `${CDN}/vjrvwDESMoFbQBbZ.png`,
   "ROYAL|ROYAL LED 8W RE 36°":    `${CDN}/vjrvwDESMoFbQBbZ.png`,
@@ -230,17 +230,17 @@ export const DOWNLIGHT_PRODUCT_PHOTOS: Record<string, string> = {
   "ROYAL|ROYAL LED 8W QNF 45°":   `${CDN}/bvAgRyJctQPVuMvc.png`,
   "ROYAL|ROYAL LED WW 8W RE":     `${CDN}/tlLwRkRSrFsmmwip.png`, // ROYALLEDWW8WRE
 
-  // ── TORETTO ───────────────────────────────────────────────────────────────
+  // -- TORETTO ---------------------------------------------------------------
   "TORETTO|TORETTO RE LED COB 70 13W":  `${CDN}/VUYYWvpTHoLSEpnh.png`,
   "TORETTO|TORETTO RE LED COB 70 18W":  `${CDN}/VUYYWvpTHoLSEpnh.png`,
   "TORETTO|TORETTO RE LED COB 111 26W": `${CDN}/VUYYWvpTHoLSEpnh.png`,
 
-  // ── VENUS ─────────────────────────────────────────────────────────────────
+  // -- VENUS -----------------------------------------------------------------
   "VENUS|VENUS P 6,5W 36°":  `${CDN}/XySOMPotYWiSRtzT.jpeg`, // VENUSE
   "VENUS|VENUS M 13W 36°":   `${CDN}/XySOMPotYWiSRtzT.jpeg`,
   "VENUS|VENUS G 18W 36°":   `${CDN}/XySOMPotYWiSRtzT.jpeg`,
 
-  // ── ORIENTE ─────────────────────────────────────────────────────────────────────────────────────────
+  // -- ORIENTE -----------------------------------------------------------------------------------------
   "ORIENTE|ORIENTE CL1 COB 70 18W QNF 15°": "/manus-storage/ORIENTECL1COB7018WQNF_f0011052.png",
   "ORIENTE|ORIENTE CL2 COB 70 18W QNF 15°": "/manus-storage/ORIENTECL2COB7018WQNF_7f897ea9.png",
   "ORIENTE|ORIENTE COB 50 13W QNF 15°":     "/manus-storage/ORIENTECOB5013WRNF_aff18eae.png",
@@ -248,11 +248,11 @@ export const DOWNLIGHT_PRODUCT_PHOTOS: Record<string, string> = {
   "ORIENTE|ORIENTE COB 50 13W RNF 15°":     "/manus-storage/ORIENTECOB5013WRNF_aff18eae.png",
   "ORIENTE|ORIENTE WW COB 50 13W RE 15°":   "/manus-storage/ORIENTEWWCOB5013WRE_c0799217.png",
 
-  // ── POLAR ──────────────────────────────────────────────────────────────────────────────────────
+  // -- POLAR --------------------------------------------------------------------------------------
   "POLAR|POLAR 13W RE 15°":  "/manus-storage/POLAR13WRE_2094a5f4.png",
   "POLAR|POLAR 13W RNF 15°": "/manus-storage/POLAR13WRNF_fe253844.png",
 
-  // ── VIRGO ──────────────────────────────────────────────────────────────────────────────────────
+  // -- VIRGO --------------------------------------------------------------------------------------
   "VIRGO|VIRGO LED 8W RE 15°":     `${CDN}/dDAJVTaQRCoZKxSS.png`, // VIRGO
   "VIRGO|VIRGO LED 8W RE 24°":     `${CDN}/dDAJVTaQRCoZKxSS.png`,
   "VIRGO|VIRGO LED 8W RE 36°":     `${CDN}/dDAJVTaQRCoZKxSS.png`,
@@ -263,7 +263,7 @@ export const DOWNLIGHT_PRODUCT_PHOTOS: Record<string, string> = {
   "VIRGO|VIRGO + LED 13W RE 45°":  `${CDN}/XbCuEMBjZfelSbuN.png`,
 };
 
-// ─── Funções públicas ─────────────────────────────────────────────────────────
+// --- Funções públicas ---------------------------------------------------------
 
 /**
  * Retorna a URL da foto do perfil, ou null se não houver foto cadastrada.

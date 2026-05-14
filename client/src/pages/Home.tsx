@@ -216,6 +216,20 @@ function ResultBlock({ result }: { result: CompositionResult }) {
   return (
     <div className="space-y-4">
 
+      {/* Aviso: Medida Ajustada para Maior */}
+      {result.adjustedToLarger && (
+        <div className="flex items-start gap-3 p-4 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-300 dark:border-orange-700/50">
+          <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold text-orange-700 dark:text-orange-400">Medida Ajustada para Maior</p>
+            <p className="text-xs text-orange-700/80 dark:text-orange-400/80 mt-0.5">
+              A medida solicitada ({result.originalRequestedLength}mm) foi ajustada para {result.realizedLength}mm — o menor módulo disponível acima da medida desejada.
+              Verifique no projeto se o espaço comporta esse ajuste e se não há risco de colisão com paredes ou outros elementos.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Alerta Driver Remoto */}
       {result.isRemoteDriver && (
         <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700/50">
@@ -780,6 +794,7 @@ export default function Home() {
   // Toggles
   const [allowLongModules, setAllowLongModules] = useState(false);
   const [allowFractional, setAllowFractional] = useState(false);
+  const [adjustToLarger, setAdjustToLarger] = useState(false);
   const [independentLighting, setIndependentLighting] = useState(false);
   // SHARP difusor
   const [diffuserD1, setDiffuserD1] = useState<DiffuserType | undefined>(undefined);
@@ -885,6 +900,7 @@ export default function Home() {
       totalLength: len,
       allowLongModules,
       allowFractional,
+      adjustToLarger,
       independentLighting: effectiveIndependent,
       diffuserD1: hasDiffuser ? diffuserD1 : undefined,
       diffuserD2: hasDiffuser && isDual ? diffuserD2 : undefined,
@@ -898,7 +914,7 @@ export default function Home() {
       const msg = e instanceof Error ? e.message : "Erro ao calcular composição.";
       setError(msg);
     }
-  }, [profileCode, effectiveApplication, powerD1, powerD2, cct, voltage, stripMethod, totalLength, allowLongModules, allowFractional, effectiveIndependent, isDual, hasDiffuser, diffuserD1, diffuserD2]);
+  }, [profileCode, effectiveApplication, powerD1, powerD2, cct, voltage, stripMethod, totalLength, allowLongModules, allowFractional, adjustToLarger, effectiveIndependent, isDual, hasDiffuser, diffuserD1, diffuserD2]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -1355,6 +1371,22 @@ export default function Home() {
                         id="allowfractional"
                         checked={allowFractional}
                         onCheckedChange={setAllowFractional}
+                      />
+                    </div>
+                    {/* Ajustar para Medida Maior */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="adjusttolarger" className="text-sm font-medium cursor-pointer">
+                          Ajustar para Medida Maior
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Se não couber na medida exata, ajusta para o próximo módulo acima
+                        </p>
+                      </div>
+                      <Switch
+                        id="adjusttolarger"
+                        checked={adjustToLarger}
+                        onCheckedChange={setAdjustToLarger}
                       />
                     </div>
                   </div>

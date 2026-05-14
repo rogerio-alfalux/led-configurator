@@ -95,6 +95,10 @@ export interface CompositionResult {
   compositionMode: "IN_SINGLE" | "IF_ML_LINE";
   diffuserD1?: DiffuserType;
   diffuserD2?: DiffuserType;
+  /** true quando o comprimento foi ajustado para cima (adjustToLarger) */
+  adjustedToLarger?: boolean;
+  /** comprimento original solicitado antes do ajuste para cima */
+  originalRequestedLength?: number;
 }
 
 export interface ConfigInput {
@@ -117,6 +121,12 @@ export interface ConfigInput {
    * Quando true, libera módulos com barras decimais (1.1, 1.2, 3.4, 4.2 etc).
    */
   allowFractional?: boolean;
+  /**
+   * Quando true, se a medida solicitada não couber em nenhum módulo disponível,
+   * ajusta para o menor módulo IN acima da medida solicitada.
+   * Por padrão false — o usuário deve ativar manualmente.
+   */
+  adjustToLarger?: boolean;
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -659,6 +669,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     diffuserD1,
     diffuserD2,
     allowFractional = false,
+    adjustToLarger = false,
   } = input;
 
   const profile = LED_CATALOG[profileCode];
@@ -700,7 +711,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
   }
 
   // ── Composição de módulos ──
-  const { composition, realizedLength, remainingLength, compositionMode } = buildComposition(
+  let buildResult = buildComposition(
     profileCode,
     totalLength,
     powerD1,
@@ -710,6 +721,36 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     undefined,
     allowFractional
   );
+
+  // ── Ajuste para medida maior ──
+  // Quando adjustToLarger=true e a medida realizada ficou menor que a solicitada,
+  // busca o menor módulo IN acima do comprimento solicitado e recalcula.
+  let adjustedToLarger = false;
+  const originalRequestedLength = totalLength;
+  if (adjustToLarger && buildResult.realizedLength < totalLength) {
+    const inModulesAbove = getModules(profileCode, "IN", allowLongModules, stripMethod, powerD1, false, allowFractional)
+      .filter(m => m.length > totalLength)
+      .sort((a, b) => a.length - b.length); // crescente: menor acima primeiro
+    if (inModulesAbove.length > 0) {
+      const targetLength = inModulesAbove[0].length;
+      const adjustedResult = buildComposition(
+        profileCode,
+        targetLength,
+        powerD1,
+        voltage,
+        allowLongModules,
+        stripMethod,
+        undefined,
+        allowFractional
+      );
+      if (adjustedResult.realizedLength >= totalLength) {
+        buildResult = adjustedResult;
+        adjustedToLarger = true;
+      }
+    }
+  }
+
+  const { composition, realizedLength, remainingLength, compositionMode } = buildResult;
 
   if (compositionMode === "IN_SINGLE") {
     engineeringNotes.push("Composição: Módulo Inteiro (IN) — peça única dentro do limite de barras.");
@@ -840,5 +881,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     compositionMode,
     diffuserD1,
     diffuserD2,
+    adjustedToLarger: adjustedToLarger || undefined,
+    originalRequestedLength: adjustedToLarger ? originalRequestedLength : undefined,
   };
 }

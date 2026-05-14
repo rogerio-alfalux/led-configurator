@@ -2612,3 +2612,63 @@ describe("D1+D2 simultâneo — split de drivers quando barras efetivas > limite
     expect(firstDriver.combo![0].quantity).toBe(2);
   });
 });
+
+// ─── adjustToLarger — Ajuste para Medida Maior ───────────────────────────────
+
+describe("adjustToLarger — BLAZE E (LLE-2810)", () => {
+  // Módulos IN inteiros do BLAZE E (sem fractional): 595, 1155, 1720, ...
+  // Para 1120mm: sem ajuste → 595mm (único módulo que cabe); com ajuste → 1155mm
+
+  const base: ConfigInput = {
+    profileCode: "LLE-2810",
+    application: "D1",
+    powerD1: 18,
+    cct: "3000K",
+    voltage: "220Vac",
+    allowLongModules: false,
+    allowFractional: false,
+    independentLighting: false,
+  };
+
+  it("sem adjustToLarger: 1120mm → realizedLength 595mm (menor módulo IN que cabe)", () => {
+    const r = calculateComposition({ ...base, totalLength: 1120, adjustToLarger: false });
+    expect(r.realizedLength).toBe(595);
+    expect(r.adjustedToLarger).toBeUndefined();
+    expect(r.originalRequestedLength).toBeUndefined();
+  });
+
+  it("com adjustToLarger: 1120mm → realizedLength 1155mm (menor módulo IN acima)", () => {
+    const r = calculateComposition({ ...base, totalLength: 1120, adjustToLarger: true });
+    expect(r.realizedLength).toBe(1155);
+    expect(r.adjustedToLarger).toBe(true);
+    expect(r.originalRequestedLength).toBe(1120);
+  });
+
+  it("com adjustToLarger: medida exata 1155mm → sem ajuste (realizedLength = requestedLength)", () => {
+    const r = calculateComposition({ ...base, totalLength: 1155, adjustToLarger: true });
+    expect(r.realizedLength).toBe(1155);
+    // Não deve marcar como ajustado pois a medida já é exata
+    expect(r.adjustedToLarger).toBeUndefined();
+  });
+
+  it("com adjustToLarger: 1700mm → realizedLength 1720mm (próximo módulo IN acima)", () => {
+    const r = calculateComposition({ ...base, totalLength: 1700, adjustToLarger: true });
+    expect(r.realizedLength).toBe(1720);
+    expect(r.adjustedToLarger).toBe(true);
+    expect(r.originalRequestedLength).toBe(1700);
+  });
+
+  it("com adjustToLarger: 600mm → realizedLength 655mm (próximo módulo IN acima de 595)", () => {
+    // 595mm é o menor módulo inteiro. 600mm > 595mm → próximo acima é 655mm (1.1 barras, fracionado)
+    // Mas como allowFractional=false, o próximo inteiro acima de 600mm é 1155mm
+    const r = calculateComposition({ ...base, totalLength: 600, adjustToLarger: true });
+    expect(r.realizedLength).toBe(1155);
+    expect(r.adjustedToLarger).toBe(true);
+  });
+
+  it("sem adjustToLarger (default): comportamento inalterado para 1120mm", () => {
+    const r = calculateComposition({ ...base, totalLength: 1120 });
+    expect(r.realizedLength).toBe(595);
+    expect(r.adjustedToLarger).toBeUndefined();
+  });
+});
