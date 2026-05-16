@@ -180,11 +180,15 @@ export interface AdaptedCatalogs {
 
 const ALFALUX_API_BASE = "https://alfaluxprod-c8zmg2fn.manus.space";
 
-/** Normaliza fotoUrl: se for caminho relativo, prefixa com o domínio da API Alfalux */
+/** Normaliza fotoUrl: usa proxy interno para evitar bloqueios CORS/referrer do CloudFront */
 function normalizeFotoUrl(fotoUrl: string | null): string | null {
   if (!fotoUrl) return null;
-  if (fotoUrl.startsWith("http://") || fotoUrl.startsWith("https://")) return fotoUrl;
-  return `${ALFALUX_API_BASE}${fotoUrl}`;
+  // Montar URL absoluta do servidor Alfalux
+  const absoluteUrl = fotoUrl.startsWith("http://") || fotoUrl.startsWith("https://")
+    ? fotoUrl
+    : `${ALFALUX_API_BASE}${fotoUrl}`;
+  // Rotear pelo proxy interno para evitar bloqueios CORS/referrer
+  return `/api/image-proxy?url=${encodeURIComponent(absoluteUrl)}`;
 }
 
 /** Converte o array completo de produtos da API nos catálogos internos */

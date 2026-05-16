@@ -508,3 +508,8 @@
 - [x] Verificar fotoUrl dos produtos ZEUS na API (caminho relativo /manus-storage/...)
 - [x] Corrigir normalizeFotoUrl no adaptador: prefixar com https://alfaluxprod-c8zmg2fn.manus.space quando for caminho relativo
 - [x] Aplicado para downlightFotos, painelFotos e spotFotos
+
+## Proxy de Imagem (15/05/2026)
+
+- [x] Criar endpoint GET /api/image-proxy?url=... no servidor Express (segue redirects CloudFront, retorna imagem diretamente)
+- [x] Atualizar normalizeFotoUrl para usar /api/image-proxy?url=... em vez de URL direta
