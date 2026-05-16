@@ -94,15 +94,15 @@ export function generateQuoteSummary(result: CompositionResult): string {
     return `Item ${index + 1}: ${qtyStr} ${productLabel} - ${info.length}mm${modTypeSuffix}`;
   });
 
-  // Linha de preço total — apenas quando ON/OFF 220V e há preço cadastrado
-  const totalPrice = calculateTotalPrice(
-    result.profileCode,
-    result.powerD1,
-    result.voltage,
-    result.application,
-    result.realizedLength,
-  );
-  const priceLine = totalPrice !== null ? `Preço Total: ${formatBRL(totalPrice)}` : null;
+  // Preço temporariamente oculto — reativar quando necessário
+  // const totalPrice = calculateTotalPrice(
+  //   result.profileCode,
+  //   result.powerD1,
+  //   result.voltage,
+  //   result.application,
+  //   result.realizedLength,
+  // );
+  // const priceLine = totalPrice !== null ? `Preço Total: ${formatBRL(totalPrice)}` : null;
 
-  return [header, ...items, ...(priceLine ? [priceLine] : [])].join("\n");
+  return [header, ...items].join("\n");
 }
