@@ -19,6 +19,7 @@
 
 import type { DownlightProduct } from "./downlightCatalog";
 import type { PainelProduct } from "./painelCatalog";
+import type { SpotProduct } from "./spotCatalog";
 
 /** Formato retornado pela API Alfalux (espelhado de AlfaluxProduct no servidor) */
 export interface ApiProduct {
@@ -93,6 +94,37 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
   };
 }
 
+/** Converte um produto da API para SpotProduct */
+function toSpotProduct(p: ApiProduct): SpotProduct {
+  const driver220Text = p.driverOnoff220 || "";
+  const driverBivoltText = p.driverOnoffBivolt || "";
+  const hasBivolt = !p.driverOnoffBivoltNaoAplicavel && driverBivoltText.length > 0;
+  const ccts = parseCCTs(p.temperaturasCor);
+
+  return {
+    instalacao: p.instalacao,
+    familia: p.familia,
+    sku: p.sku || null,
+    name: p.produto,
+    ledModule: p.moduloLed ? p.moduloLed.replace(/\[CCT\]/gi, "").trim() : null,
+    otica: p.oticaNaoAplicavel ? null : (p.otica || null),
+    holder: p.holderNaoAplicavel ? null : (p.holder || null),
+    dissipador: p.dissipadorNaoAplicavel ? null : (p.dissipador || null),
+    driver220: {
+      model: normalizeDriverModel(driver220Text),
+      code: extractEqCode(driver220Text),
+    },
+    driverBivolt: hasBivolt
+      ? {
+          model: normalizeDriverModel(driverBivoltText),
+          code: extractEqCode(driverBivoltText),
+        }
+      : null,
+    ccts,
+    fotoUrl: p.fotoUrl || null,
+  };
+}
+
 /** Converte um produto da API para PainelProduct */
 function toPainelProduct(p: ApiProduct): PainelProduct {
   const driver220Text = p.driverOnoff220 || "";
@@ -131,24 +163,32 @@ export function parseCCTs(temperaturasCor: string): string[] {
 export interface AdaptedCatalogs {
   downlights: DownlightProduct[];
   paineis: PainelProduct[];
+  spots: SpotProduct[];
   /** Mapa familia → CCTs disponíveis para Downlights */
   downlightCCTs: Record<string, string[]>;
   /** Mapa familia → CCTs disponíveis para Painéis */
   painelCCTs: Record<string, string[]>;
+  /** Mapa familia → CCTs disponíveis para Spots */
+  spotCCTs: Record<string, string[]>;
   /** Mapa sku → fotoUrl para Downlights */
   downlightFotos: Record<string, string>;
   /** Mapa familia → fotoUrl para Painéis */
   painelFotos: Record<string, string>;
+  /** Mapa familia → fotoUrl para Spots */
+  spotFotos: Record<string, string>;
 }
 
 /** Converte o array completo de produtos da API nos catálogos internos */
 export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
   const downlights: DownlightProduct[] = [];
   const paineis: PainelProduct[] = [];
+  const spots: SpotProduct[] = [];
   const downlightCCTs: Record<string, string[]> = {};
   const painelCCTs: Record<string, string[]> = {};
+  const spotCCTs: Record<string, string[]> = {};
   const downlightFotos: Record<string, string> = {};
   const painelFotos: Record<string, string> = {};
+  const spotFotos: Record<string, string> = {};
 
   for (const p of products) {
     const ccts = parseCCTs(p.temperaturasCor);
@@ -156,16 +196,18 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
 
     if (cat === "DOWNLIGHTS") {
       downlights.push(toDownlightProduct(p));
-      // CCTs por familia (usar a primeira ocorrência de cada familia)
       if (!downlightCCTs[p.familia]) downlightCCTs[p.familia] = ccts;
-      // Foto por SKU
       if (p.fotoUrl && p.sku) downlightFotos[p.sku] = p.fotoUrl;
     } else if (cat === "PAINÉIS" || cat === "PAINEIS") {
       paineis.push(toPainelProduct(p));
       if (!painelCCTs[p.familia]) painelCCTs[p.familia] = ccts;
       if (p.fotoUrl && p.familia) painelFotos[p.familia] = p.fotoUrl;
+    } else if (cat === "SPOTS") {
+      spots.push(toSpotProduct(p));
+      if (!spotCCTs[p.familia]) spotCCTs[p.familia] = ccts;
+      if (p.fotoUrl && p.familia) spotFotos[p.familia] = p.fotoUrl;
     }
   }
 
-  return { downlights, paineis, downlightCCTs, painelCCTs, downlightFotos, painelFotos };
+  return { downlights, paineis, spots, downlightCCTs, painelCCTs, spotCCTs, downlightFotos, painelFotos, spotFotos };
 }

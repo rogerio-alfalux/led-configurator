@@ -490,3 +490,15 @@
 - [x] Atualizar UI de Downlights para usar dados dinâmicos da API (badge verde "Dados ao vivo" + contagem)
 - [x] Atualizar UI de Painéis para usar dados dinâmicos da API (badge verde "Dados ao vivo" + contagem)
 - [x] Testes unitários para o adaptador de API (17 testes)
+
+## Categoria Spots (15/05/2026)
+
+- [x] Inspecionar dados de Spots na API (3 produtos ZEUS: 10°, 24°, 36°)
+- [x] Criar spotCatalog.ts com tipos SpotProduct, SpotInput, SpotResult e função calculateSpot
+- [x] Atualizar alfaluxApiAdapter.ts para mapear categoria SPOTS → SpotProduct
+- [x] Habilitar categoria "Spots" no grid (available: true)
+- [x] Implementar UI de Spots: Instalação → Família → Produto → Controle → Tensão → CCT → Calcular
+- [x] Implementar card de resultado de Spots: módulo LED, ótica, holder, driver, foto
+- [x] Implementar Resumo para Orçamento e Resumo para Pedido de Spots
+- [x] Badge "Dados ao vivo" na UI de Spots
+- [x] Testes unitários para spotCatalog.ts (13 testes)

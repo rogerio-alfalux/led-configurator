@@ -33,6 +33,8 @@ import {
   calculatePainel,
 } from "@/lib/painelCatalog";
 import type { PainelResult } from "@/lib/painelCatalog";
+import { SPOT_CATALOG, calculateSpot } from "@/lib/spotCatalog";
+import type { SpotProduct, SpotResult } from "@/lib/spotCatalog";
 import { adaptAlfaluxProducts } from "@/lib/alfaluxApiAdapter";
 import type {
   CompositionResult,
@@ -90,7 +92,7 @@ const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.E
   { value: "Perfis",       label: "Perfis",        icon: Layers,      image: "/manus-storage/PERFIS_e65318d1.png",      available: true  },
   { value: "Downlights",   label: "Downlights",    icon: Lightbulb,   image: "/manus-storage/DOWNLIGHTS_938e9ef2.png",  available: true  },
   { value: "Painéis",      label: "Painéis",       icon: Grid2X2,     image: "/manus-storage/PAINEIS_34c70c2f.png",     available: true },
-  { value: "Spots",        label: "Spots",         icon: Focus,       image: "/manus-storage/SPOTS_dfc5ecee.jpg",       available: false },
+  { value: "Spots",        label: "Spots",         icon: Focus,       image: "/manus-storage/SPOTS_dfc5ecee.jpg",       available: true },
   { value: "Arandelas",    label: "Arandelas",     icon: Lamp,        image: "/manus-storage/ARANDELAS_2553a7b7.webp",  available: false },
   { value: "Área Externa", label: "Área Externa",  icon: TreePine,    image: "/manus-storage/AREAEXTERNA_5811f7cb.png", available: false },
   { value: "Balizadores",  label: "Balizadores",   icon: Navigation,  image: "/manus-storage/BALIZADORES_482d54f1.png", available: false },
@@ -788,8 +790,9 @@ export default function Home() {
     }
     return null;
   }, [alfaluxApiProducts]);
-  const activeDlCatalog = adaptedCatalogs?.downlights ?? DOWNLIGHT_CATALOG;
+   const activeDlCatalog = adaptedCatalogs?.downlights ?? DOWNLIGHT_CATALOG;
   const activePanelCatalog = adaptedCatalogs?.paineis ?? PAINEL_CATALOG;
+  const activeSpotCatalog = adaptedCatalogs?.spots ?? SPOT_CATALOG;
 
    // Categoria de produto
   const [productCategory, setProductCategory] = useState<ProductCategory>("Perfis");
@@ -809,6 +812,14 @@ export default function Home() {
   const [panelCCT, setPanelCCT] = useState<string>("3000K");
   const [panelControle, setPanelControle] = useState<ControleType>("ON/OFF");
   const [panelResult, setPanelResult] = useState<PainelResult | null>(null);
+  // Estados de Spots
+  const [spotInstalacao, setSpotInstalacao] = useState<string | null>(null);
+  const [spotFamilia, setSpotFamilia] = useState<string | null>(null);
+  const [spotProductIndex, setSpotProductIndex] = useState<number | null>(null);
+  const [spotVoltage, setSpotVoltage] = useState<"220V" | "Bivolt" | null>(null);
+  const [spotCCT, setSpotCCT] = useState<string>("3000K");
+  const [spotControle, setSpotControle] = useState<ControleType>("ON/OFF");
+  const [spotResult, setSpotResult] = useState<SpotResult | null>(null);
 
   // Listas derivadas para filtros de Downlights (usando catálogo dinâmico da API ou fallback estático)
   const dlInstalacoes = useMemo(() => Array.from(new Set(activeDlCatalog.map(p => p.instalacao))).sort(), [activeDlCatalog]);
@@ -1774,6 +1785,211 @@ export default function Home() {
               </CardContent>
             </Card>
 
+            {/* Bloco de seleção — Spots */}
+            {productCategory === "Spots" && (() => {
+              const spotInstalacoes = Array.from(new Set(activeSpotCatalog.map(p => p.instalacao))).sort();
+              const spotFamilias = spotInstalacao
+                ? Array.from(new Set(activeSpotCatalog.filter(p => p.instalacao === spotInstalacao).map(p => p.familia))).sort()
+                : [];
+              const spotProdutos = spotInstalacao && spotFamilia
+                ? activeSpotCatalog.map((p, i) => ({ p, i })).filter(({ p }) => p.instalacao === spotInstalacao && p.familia === spotFamilia)
+                : [];
+              return (
+                <div className="space-y-4">
+                  {/* Badge de status da API */}
+                  <div className="flex items-center gap-2">
+                    {alfaluxLoading ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span className="inline-block w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                        Carregando catálogo...
+                      </span>
+                    ) : adaptedCatalogs ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500">
+                        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+                        {activeSpotCatalog.length} produtos • Dados ao vivo
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span className="inline-block w-2 h-2 rounded-full bg-muted-foreground" />
+                        Catálogo local
+                      </span>
+                    )}
+                  </div>
+                  {/* Tipo de Instalação */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tipo de Instalação</Label>
+                    <Select
+                      value={spotInstalacao ?? ""}
+                      onValueChange={(v) => { setSpotInstalacao(v); setSpotFamilia(null); setSpotProductIndex(null); setSpotVoltage(null); setSpotResult(null); }}
+                    >
+                      <SelectTrigger className="h-10"><SelectValue placeholder="Selecione o tipo de instalação..." /></SelectTrigger>
+                      <SelectContent>
+                        {spotInstalacoes.map((inst) => (
+                          <SelectItem key={inst} value={inst}>{inst}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Família */}
+                  {spotInstalacao && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Família</Label>
+                      <Select
+                        value={spotFamilia ?? ""}
+                        onValueChange={(v) => { setSpotFamilia(v); setSpotProductIndex(null); setSpotVoltage(null); setSpotResult(null); }}
+                      >
+                        <SelectTrigger className="h-10"><SelectValue placeholder="Selecione a família..." /></SelectTrigger>
+                        <SelectContent>
+                          {spotFamilias.map((fam) => (
+                            <SelectItem key={fam} value={fam}>{fam}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {/* Produto */}
+                  {spotFamilia && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Produto</Label>
+                      <Select
+                        value={spotProductIndex !== null ? String(spotProductIndex) : ""}
+                        onValueChange={(v) => { setSpotProductIndex(Number(v)); setSpotVoltage(null); setSpotResult(null); }}
+                      >
+                        <SelectTrigger className="h-10"><SelectValue placeholder="Selecione o produto..." /></SelectTrigger>
+                        <SelectContent>
+                          {spotProdutos.map(({ p, i }) => (
+                            <SelectItem key={i} value={String(i)}>{p.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {/* Controle */}
+                  {spotProductIndex !== null && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Controle</Label>
+                      <div className="flex gap-2">
+                        {(["ON/OFF", "DIM 1-10V", "DIM DALI"] as ControleType[]).map((ctrl) => {
+                          const isAvailable = ctrl === "ON/OFF";
+                          return (
+                            <button
+                              key={ctrl}
+                              disabled={!isAvailable}
+                              onClick={() => { if (isAvailable) { setSpotControle(ctrl); setSpotResult(null); } }}
+                              title={!isAvailable ? "Opção ainda não disponível" : undefined}
+                              className={[
+                                "flex-1 py-2 rounded-lg text-xs font-medium border transition-all",
+                                spotControle === ctrl && isAvailable
+                                  ? "bg-primary text-primary-foreground border-primary"
+                                  : "bg-background text-foreground border-border hover:border-primary/50",
+                                !isAvailable ? "opacity-40 cursor-not-allowed" : "",
+                              ].join(" ")}
+                            >
+                              {ctrl}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-muted-foreground">DIM 1-10V e DIM DALI serão habilitados quando os dados estiverem disponíveis.</p>
+                    </div>
+                  )}
+                  {/* Tensão */}
+                  {spotProductIndex !== null && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
+                      <div className="flex gap-2">
+                        {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
+                          const hasBivolt = activeSpotCatalog[spotProductIndex]?.driverBivolt !== null;
+                          const disabled = v === "Bivolt" && !hasBivolt;
+                          return (
+                            <button
+                              key={v}
+                              disabled={disabled}
+                              onClick={() => { setSpotVoltage(v); setSpotResult(null); }}
+                              className={[
+                                "flex-1 py-2 rounded-lg text-sm font-medium border transition-all",
+                                spotVoltage === v && !disabled
+                                  ? "bg-primary text-primary-foreground border-primary"
+                                  : "bg-background text-foreground border-border hover:border-primary/50",
+                                disabled ? "opacity-40 cursor-not-allowed" : "",
+                              ].join(" ")}
+                            >
+                              {v}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {spotVoltage === "Bivolt" && activeSpotCatalog[spotProductIndex]?.driverBivolt === null && (
+                        <p className="text-xs text-destructive flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" /> Este produto não possui opção Bivolt.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {/* CCT */}
+                  {spotProductIndex !== null && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
+                      <div className="flex gap-2 flex-wrap">
+                        {(activeSpotCatalog[spotProductIndex]?.ccts ?? ["2700K", "3000K", "4000K", "5000K"]).map((c) => (
+                          <button
+                            key={c}
+                            onClick={() => { setSpotCCT(c); setSpotResult(null); }}
+                            className={[
+                              "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
+                              spotCCT === c
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background text-foreground border-border hover:border-primary/50",
+                            ].join(" ")}
+                          >
+                            {c}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Botão Calcular — Spots */}
+            {productCategory === "Spots" && (
+              <div className="space-y-2">
+                {!spotInstalacao && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione o tipo de instalação antes de calcular.
+                  </p>
+                )}
+                {spotInstalacao && !spotFamilia && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione a família antes de calcular.
+                  </p>
+                )}
+                {spotFamilia && spotProductIndex === null && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione o produto antes de calcular.
+                  </p>
+                )}
+                {spotProductIndex !== null && !spotVoltage && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
+                  </p>
+                )}
+                <Button
+                  disabled={spotProductIndex === null || !spotVoltage}
+                  onClick={() => {
+                    if (spotProductIndex === null || !spotVoltage) return;
+                    setSpotResult(calculateSpot(activeSpotCatalog, { productIndex: spotProductIndex, tensao: spotVoltage, cct: spotCCT, controle: spotControle }));
+                  }}
+                  className="w-full h-12 text-base font-semibold font-display"
+                  size="lg"
+                >
+                  <Zap className="w-5 h-5 mr-2" />
+                  Calcular Spot
+                </Button>
+              </div>
+            )}
+
             {/* Botão Calcular — Painéis */}
             {productCategory === "Painéis" && (
               <div className="space-y-2">
@@ -2241,6 +2457,174 @@ export default function Home() {
                   </CardContent>
                 </Card>
               </div>
+            )}
+
+            {/* Resultado — Spots */}
+            {productCategory === "Spots" && spotResult && (
+              <div className="space-y-4">
+                <Card className="shadow-sm border-orange-500/30">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <Focus className="w-4 h-4 text-orange-500" />
+                      Resultado — Spot
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {/* Foto do produto Spot */}
+                    {(() => {
+                      const sPhoto = spotResult.product.fotoUrl;
+                      return sPhoto ? (
+                        <div className="flex gap-3 items-stretch">
+                          <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-36 flex items-center justify-center">
+                            <img src={sPhoto} alt={spotResult.product.name} className="w-full h-full object-contain p-2" loading="lazy" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 flex-1">
+                            {spotResult.product.sku && (
+                              <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
+                                <p className="text-sm font-mono font-semibold text-primary">{spotResult.product.sku}</p>
+                              </div>
+                            )}
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                              <p className="text-sm font-semibold">{spotResult.tensao}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                              <p className="text-sm font-semibold">{spotResult.cct}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          {spotResult.product.sku && (
+                            <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
+                              <p className="text-sm font-mono font-semibold text-primary">{spotResult.product.sku}</p>
+                            </div>
+                          )}
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                            <p className="text-sm font-semibold">{spotResult.tensao}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                            <p className="text-sm font-semibold">{spotResult.cct}</p>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    {/* Módulo LED */}
+                    {spotResult.ledModuleWithCCT && (
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
+                        <p className="text-sm font-semibold">{spotResult.ledModuleWithCCT}</p>
+                      </div>
+                    )}
+                    {/* Ótica */}
+                    {spotResult.product.otica && (
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ótica</p>
+                        <p className="text-sm font-semibold">{spotResult.product.otica}</p>
+                      </div>
+                    )}
+                    {/* Holder */}
+                    {spotResult.product.holder && (
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Holder</p>
+                        <p className="text-sm font-semibold">{spotResult.product.holder}</p>
+                      </div>
+                    )}
+                    {/* Driver */}
+                    <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
+                      <p className="text-sm font-bold">{spotResult.driver.model} <span className="font-mono text-primary">({spotResult.driver.code})</span></p>
+                    </div>
+                  </CardContent>
+                </Card>
+                {/* Resumo para Orçamento */}
+                <Card className="shadow-sm border-blue-500/30">
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                      Resumo Para Orçamento
+                    </CardTitle>
+                    <Button
+                      variant="outline" size="sm" className="h-7 text-xs gap-1.5"
+                      onClick={() => {
+                        const txt = `${spotResult.product.name} ${spotResult.cct} ${spotResult.tensao}`.toUpperCase();
+                        navigator.clipboard.writeText(txt);
+                        toast.success("Copiado!");
+                      }}
+                    >
+                      <Copy className="w-3 h-3" /> Copiar Resumo
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div
+                      className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
+                      onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
+                    >
+                      {`${spotResult.product.name} ${spotResult.cct} ${spotResult.tensao}`.toUpperCase()}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
+                  </CardContent>
+                </Card>
+                {/* Resumo para Pedido */}
+                <Card className="shadow-sm border-green-500/30">
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <ClipboardCheck className="w-4 h-4 text-green-500" />
+                      Resumo Para Pedido
+                    </CardTitle>
+                    <Button
+                      variant="outline" size="sm" className="h-7 text-xs gap-1.5"
+                      onClick={() => {
+                        const parts: string[] = [];
+                        if (spotResult.ledModuleWithCCT) parts.push(spotResult.ledModuleWithCCT.toUpperCase());
+                        if (spotResult.product.otica) parts.push(spotResult.product.otica.toUpperCase());
+                        if (spotResult.product.holder) parts.push(spotResult.product.holder.toUpperCase());
+                        parts.push(`1x DRIVER ${spotResult.driver.model.toUpperCase()} (${spotResult.driver.code})`);
+                        const skuLine = spotResult.product.sku ? `CÓDIGO: ${spotResult.product.sku}\n` : "";
+                        const txt = `${skuLine}${spotResult.product.name.toUpperCase()} ${spotResult.cct} ${spotResult.tensao} MONTADA COM ${parts.join(" + ")}`;
+                        navigator.clipboard.writeText(txt);
+                        toast.success("Copiado!");
+                      }}
+                    >
+                      <Copy className="w-3 h-3" /> Copiar Pedido
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div
+                      className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
+                      onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
+                    >
+                      {(() => {
+                        const parts: string[] = [];
+                        if (spotResult.ledModuleWithCCT) parts.push(spotResult.ledModuleWithCCT.toUpperCase());
+                        if (spotResult.product.otica) parts.push(spotResult.product.otica.toUpperCase());
+                        if (spotResult.product.holder) parts.push(spotResult.product.holder.toUpperCase());
+                        parts.push(`1x DRIVER ${spotResult.driver.model.toUpperCase()} (${spotResult.driver.code})`);
+                        const skuLine = spotResult.product.sku ? `CÓDIGO: ${spotResult.product.sku}\n` : "";
+                        return `${skuLine}${spotResult.product.name.toUpperCase()} ${spotResult.cct} ${spotResult.tensao} MONTADA COM ${parts.join(" + ")}`;
+                      })()}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+            {/* Estado vazio Spots */}
+            {productCategory === "Spots" && !spotResult && (
+              <Card className="shadow-sm">
+                <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                    <Focus className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione a instalação, família, produto, tensão e CCT, depois clique em "Calcular Spot".</p>
+                </CardContent>
+              </Card>
             )}
 
             {/* Estado vazio Painéis */}
