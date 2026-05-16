@@ -1122,7 +1122,25 @@ export default function Home() {
 
                 {productCategory === "Perfis" && (
                 <React.Fragment>
-
+                {/* Status do catálogo de perfis */}
+                <div>
+                  {alfaluxLoading ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span className="inline-block w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                      Carregando catálogo...
+                    </span>
+                  ) : profileCatalogIsFromApi ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500">
+                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+                      {Object.keys(activeProfileCatalog).length} variantes • Dados ao vivo
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span className="inline-block w-2 h-2 rounded-full bg-muted-foreground" />
+                      {Object.keys(activeProfileCatalog).length} variantes • Catálogo local
+                    </span>
+                  )}
+                </div>
                 {/* 1. Perfil */}
                 <div>
                   <FieldLabel>Perfil</FieldLabel>

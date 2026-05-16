@@ -533,3 +533,6 @@
 - [x] Testar fallback: API retorna null/vazio → LED_CATALOG estático é usado automaticamente
 - [x] Badge "ao vivo" no header e footer quando perfis vierem da API; "(local)" quando fallback
 - [x] 15 testes unitários para profileApiAdapter.ts (381 total passando)
+
+## Badge de status nos Perfis (16/05/2026)
+- [x] Adicionar badge "X variantes • Dados ao vivo" (verde) / "Catálogo local" (cinza) no bloco de Perfis, igual ao padrão das outras categorias
