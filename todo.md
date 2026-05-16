@@ -515,5 +515,5 @@
 - [x] Atualizar normalizeFotoUrl para usar /api/image-proxy?url=... em vez de URL direta
 
 ## Ocultar Preço Perfis + Planilha Importação (15/05/2026)
-- [ ] Ocultar exibição do preço total no card Resumo para Orçamento dos perfis lineares (manter lógica, só esconder UI)
-- [ ] Gerar planilha Excel de perfis no padrão da API Alfalux para importação futura
+- [x] Ocultar exibição do preço total no card Resumo para Orçamento dos perfis lineares (manter lógica, só esconder UI)
+- [x] Gerar planilha Excel de perfis no padrão da API Alfalux para importação futura
