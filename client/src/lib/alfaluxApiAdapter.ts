@@ -1,0 +1,171 @@
+/**
+ * alfaluxApiAdapter.ts
+ * Converte o formato da API de produtos da Alfalux para os tipos internos
+ * DownlightProduct e PainelProduct usados pelo configurador.
+ *
+ * Mapeamento de campos:
+ *   API.produto          → name
+ *   API.sku              → sku
+ *   API.familia          → familia
+ *   API.instalacao       → instalacao
+ *   API.moduloLed        → ledModule (sem [CCT])
+ *   API.otica            → otica (null se oticaNaoAplicavel)
+ *   API.holder           → holder (null se holderNaoAplicavel)
+ *   API.dissipador       → dissipador (null se dissipadorNaoAplicavel)
+ *   API.driverOnoff220   → driver220 (código EQ extraído do texto)
+ *   API.driverOnoffBivolt→ driverBivolt (null se bivoltNaoAplicavel ou vazio)
+ *   API.temperaturasCor  → CCTs disponíveis (JSON array string)
+ */
+
+import type { DownlightProduct } from "./downlightCatalog";
+import type { PainelProduct } from "./painelCatalog";
+
+/** Formato retornado pela API Alfalux (espelhado de AlfaluxProduct no servidor) */
+export interface ApiProduct {
+  id: number;
+  categoria: string;
+  instalacao: string;
+  familia: string;
+  sku: string;
+  produto: string;
+  moduloLed: string;
+  otica: string;
+  oticaNaoAplicavel: boolean;
+  holder: string;
+  holderNaoAplicavel: boolean;
+  dissipador: string;
+  dissipadorNaoAplicavel: boolean;
+  driverOnoff220: string;
+  driverOnoffBivolt: string;
+  driverOnoffBivoltNaoAplicavel: boolean;
+  driverDim110v: string | null;
+  driverDim110vNaoAplicavel: boolean;
+  driverDimDali: string | null;
+  driverDimDaliNaoAplicavel: boolean;
+  temperaturasCor: string;
+  fotoUrl: string | null;
+  fotoKey: string | null;
+  custoLuminaria: number | null;
+  custoDriverOnoff220: number | null;
+  custoDriverOnoffBivolt: number | null;
+  custoDriverDim110v: number | null;
+  custoDriverDimDali: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Extrai o código EQ de uma string de driver, ex: "PHILIPS 44W 350MA (EQ00347)" → "EQ00347" */
+function extractEqCode(text: string): string {
+  const match = text.match(/\(?(EQ\d{5})\)?/);
+  return match ? match[1] : "";
+}
+
+/** Normaliza o texto do driver removendo o código EQ do final */
+function normalizeDriverModel(text: string): string {
+  return text.replace(/\s*\(EQ\d{5}\)\s*$/, "").trim();
+}
+
+/** Converte um produto da API para DownlightProduct */
+function toDownlightProduct(p: ApiProduct): DownlightProduct {
+  const driver220Text = p.driverOnoff220 || "";
+  const driverBivoltText = p.driverOnoffBivolt || "";
+  const hasBivolt = !p.driverOnoffBivoltNaoAplicavel && driverBivoltText.length > 0;
+
+  return {
+    instalacao: p.instalacao,
+    familia: p.familia,
+    sku: p.sku,
+    name: p.produto,
+    holder: p.holderNaoAplicavel ? null : (p.holder || null),
+    otica: p.oticaNaoAplicavel ? null : (p.otica || null),
+    dissipador: p.dissipadorNaoAplicavel ? null : (p.dissipador || null),
+    ledModule: p.moduloLed || "",
+    driver220: {
+      model: normalizeDriverModel(driver220Text),
+      code: extractEqCode(driver220Text),
+    },
+    driverBivolt: hasBivolt
+      ? {
+          model: normalizeDriverModel(driverBivoltText),
+          code: extractEqCode(driverBivoltText),
+        }
+      : null,
+  };
+}
+
+/** Converte um produto da API para PainelProduct */
+function toPainelProduct(p: ApiProduct): PainelProduct {
+  const driver220Text = p.driverOnoff220 || "";
+  const driverBivoltText = p.driverOnoffBivolt || "";
+  const hasBivolt = !p.driverOnoffBivoltNaoAplicavel && driverBivoltText.length > 0;
+
+  return {
+    instalacao: p.instalacao,
+    familia: p.familia,
+    sku: p.sku || null,
+    name: p.produto,
+    ledModule: p.moduloLed || null,
+    driver220: {
+      model: normalizeDriverModel(driver220Text),
+      code: extractEqCode(driver220Text),
+    },
+    driverBivolt: hasBivolt
+      ? {
+          model: normalizeDriverModel(driverBivoltText),
+          code: extractEqCode(driverBivoltText),
+        }
+      : null,
+  };
+}
+
+/** Extrai CCTs disponíveis do campo temperaturasCor (JSON array string) */
+export function parseCCTs(temperaturasCor: string): string[] {
+  try {
+    const arr = JSON.parse(temperaturasCor) as string[];
+    return arr.map((k) => (k.endsWith("K") ? k : `${k}K`));
+  } catch {
+    return ["3000K"];
+  }
+}
+
+export interface AdaptedCatalogs {
+  downlights: DownlightProduct[];
+  paineis: PainelProduct[];
+  /** Mapa familia → CCTs disponíveis para Downlights */
+  downlightCCTs: Record<string, string[]>;
+  /** Mapa familia → CCTs disponíveis para Painéis */
+  painelCCTs: Record<string, string[]>;
+  /** Mapa sku → fotoUrl para Downlights */
+  downlightFotos: Record<string, string>;
+  /** Mapa familia → fotoUrl para Painéis */
+  painelFotos: Record<string, string>;
+}
+
+/** Converte o array completo de produtos da API nos catálogos internos */
+export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
+  const downlights: DownlightProduct[] = [];
+  const paineis: PainelProduct[] = [];
+  const downlightCCTs: Record<string, string[]> = {};
+  const painelCCTs: Record<string, string[]> = {};
+  const downlightFotos: Record<string, string> = {};
+  const painelFotos: Record<string, string> = {};
+
+  for (const p of products) {
+    const ccts = parseCCTs(p.temperaturasCor);
+    const cat = (p.categoria || "").toUpperCase();
+
+    if (cat === "DOWNLIGHTS") {
+      downlights.push(toDownlightProduct(p));
+      // CCTs por familia (usar a primeira ocorrência de cada familia)
+      if (!downlightCCTs[p.familia]) downlightCCTs[p.familia] = ccts;
+      // Foto por SKU
+      if (p.fotoUrl && p.sku) downlightFotos[p.sku] = p.fotoUrl;
+    } else if (cat === "PAINÉIS" || cat === "PAINEIS") {
+      paineis.push(toPainelProduct(p));
+      if (!painelCCTs[p.familia]) painelCCTs[p.familia] = ccts;
+      if (p.fotoUrl && p.familia) painelFotos[p.familia] = p.fotoUrl;
+    }
+  }
+
+  return { downlights, paineis, downlightCCTs, painelCCTs, downlightFotos, painelFotos };
+}

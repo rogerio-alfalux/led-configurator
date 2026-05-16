@@ -33,6 +33,7 @@ import {
   calculatePainel,
 } from "@/lib/painelCatalog";
 import type { PainelResult } from "@/lib/painelCatalog";
+import { adaptAlfaluxProducts } from "@/lib/alfaluxApiAdapter";
 import type {
   CompositionResult,
   ConfigInput,
@@ -775,6 +776,21 @@ export default function Home() {
     },
   });
 
+  // Buscar produtos da API Alfalux (cache de 5 min via React Query)
+  const { data: alfaluxApiProducts, isLoading: alfaluxLoading } = trpc.alfalux.products.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    refetchOnWindowFocus: false,
+  });
+  // Adaptar produtos da API para os tipos internos (fallback para catálogos estáticos)
+  const adaptedCatalogs = useMemo(() => {
+    if (alfaluxApiProducts && alfaluxApiProducts.length > 0) {
+      return adaptAlfaluxProducts(alfaluxApiProducts);
+    }
+    return null;
+  }, [alfaluxApiProducts]);
+  const activeDlCatalog = adaptedCatalogs?.downlights ?? DOWNLIGHT_CATALOG;
+  const activePanelCatalog = adaptedCatalogs?.paineis ?? PAINEL_CATALOG;
+
    // Categoria de produto
   const [productCategory, setProductCategory] = useState<ProductCategory>("Perfis");
   // Estados de Downlights
@@ -794,17 +810,17 @@ export default function Home() {
   const [panelControle, setPanelControle] = useState<ControleType>("ON/OFF");
   const [panelResult, setPanelResult] = useState<PainelResult | null>(null);
 
-  // Listas derivadas para filtros de Downlights
-  const dlInstalacoes = useMemo(() => Array.from(new Set(DOWNLIGHT_CATALOG.map(p => p.instalacao))).sort(), []);
+  // Listas derivadas para filtros de Downlights (usando catálogo dinâmico da API ou fallback estático)
+  const dlInstalacoes = useMemo(() => Array.from(new Set(activeDlCatalog.map(p => p.instalacao))).sort(), [activeDlCatalog]);
   const dlFamilias = useMemo(() =>
-    dlInstalacao ? Array.from(new Set(DOWNLIGHT_CATALOG.filter(p => p.instalacao === dlInstalacao).map(p => p.familia))).sort() : [],
-    [dlInstalacao]
+    dlInstalacao ? Array.from(new Set(activeDlCatalog.filter(p => p.instalacao === dlInstalacao).map(p => p.familia))).sort() : [],
+    [dlInstalacao, activeDlCatalog]
   );
   const dlProdutosFiltrados = useMemo(() =>
     dlInstalacao && dlFamilia
-      ? DOWNLIGHT_CATALOG.map((p, i) => ({ p, i })).filter(({ p }) => p.instalacao === dlInstalacao && p.familia === dlFamilia)
+      ? activeDlCatalog.map((p, i) => ({ p, i })).filter(({ p }) => p.instalacao === dlInstalacao && p.familia === dlFamilia)
       : [],
-    [dlInstalacao, dlFamilia]
+    [dlInstalacao, dlFamilia, activeDlCatalog]
   );
   // Step 1: Perfil
   const [profileName, setProfileName] = useState<string>("");
@@ -1427,6 +1443,25 @@ export default function Home() {
                   )} {/* fim productCategory === Perfis */}                {/* ── Downlights ─────────────────────────────────────────── */}
                 {productCategory === "Downlights" && (
                   <div className="space-y-4">
+                    {/* Badge de status da API */}
+                    <div className="flex items-center gap-2">
+                      {alfaluxLoading ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <span className="inline-block w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                          Carregando catálogo...
+                        </span>
+                      ) : adaptedCatalogs ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500">
+                          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+                          {activeDlCatalog.length} produtos • Dados ao vivo
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <span className="inline-block w-2 h-2 rounded-full bg-muted-foreground" />
+                          Catálogo local
+                        </span>
+                      )}
+                    </div>
                     {/* Tipo de Instalação */}
                     <div className="space-y-1.5">
                       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tipo de Instalação</Label>
@@ -1517,7 +1552,7 @@ export default function Home() {
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
                         <div className="flex gap-2">
                           {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
-                            const hasBivolt = DOWNLIGHT_CATALOG[dlProductIndex]?.driverBivolt !== null;
+                            const hasBivolt = activeDlCatalog[dlProductIndex]?.driverBivolt !== null;
                             const disabled = v === "Bivolt" && !hasBivolt;
                             return (
                               <button
@@ -1537,7 +1572,7 @@ export default function Home() {
                             );
                           })}
                         </div>
-                        {dlVoltage === "Bivolt" && DOWNLIGHT_CATALOG[dlProductIndex]?.driverBivolt === null && (
+                        {dlVoltage === "Bivolt" && activeDlCatalog[dlProductIndex]?.driverBivolt === null && (
                           <p className="text-xs text-destructive flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" /> Este produto não possui opção Bivolt.
                           </p>
@@ -1571,15 +1606,34 @@ export default function Home() {
 
                 {/* ── Painéis ───────────────────────────────────────────────────────────────────────────────────── */}
                 {productCategory === "Painéis" && (() => {
-                  const panelInstalacoes = Array.from(new Set(PAINEL_CATALOG.map(p => p.instalacao))).sort();
+                  const panelInstalacoes = Array.from(new Set(activePanelCatalog.map(p => p.instalacao))).sort();
                   const panelFamilias = panelInstalacao
-                    ? Array.from(new Set(PAINEL_CATALOG.filter(p => p.instalacao === panelInstalacao).map(p => p.familia))).sort()
+                    ? Array.from(new Set(activePanelCatalog.filter(p => p.instalacao === panelInstalacao).map(p => p.familia))).sort()
                     : [];
                   const panelProdutos = panelInstalacao && panelFamilia
-                    ? PAINEL_CATALOG.map((p, i) => ({ p, i })).filter(({ p }) => p.instalacao === panelInstalacao && p.familia === panelFamilia)
+                    ? activePanelCatalog.map((p, i) => ({ p, i })).filter(({ p }) => p.instalacao === panelInstalacao && p.familia === panelFamilia)
                     : [];
                   return (
                     <div className="space-y-4">
+                      {/* Badge de status da API */}
+                      <div className="flex items-center gap-2">
+                        {alfaluxLoading ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <span className="inline-block w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                            Carregando catálogo...
+                          </span>
+                        ) : adaptedCatalogs ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500">
+                            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+                            {activePanelCatalog.length} produtos • Dados ao vivo
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <span className="inline-block w-2 h-2 rounded-full bg-muted-foreground" />
+                            Catálogo local
+                          </span>
+                        )}
+                      </div>
                       {/* Tipo de Instalação */}
                       <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tipo de Instalação</Label>
@@ -1664,7 +1718,7 @@ export default function Home() {
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
                           <div className="flex gap-2">
                             {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
-                              const hasBivolt = PAINEL_CATALOG[panelProductIndex]?.driverBivolt !== null;
+                              const hasBivolt = activePanelCatalog[panelProductIndex]?.driverBivolt !== null;
                               const disabled = v === "Bivolt" && !hasBivolt;
                               return (
                                 <button
@@ -1684,7 +1738,7 @@ export default function Home() {
                               );
                             })}
                           </div>
-                          {panelVoltage === "Bivolt" && PAINEL_CATALOG[panelProductIndex]?.driverBivolt === null && (
+                          {panelVoltage === "Bivolt" && activePanelCatalog[panelProductIndex]?.driverBivolt === null && (
                             <p className="text-xs text-destructive flex items-center gap-1">
                               <AlertTriangle className="w-3 h-3" /> Este produto não possui opção Bivolt.
                             </p>

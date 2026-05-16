@@ -481,3 +481,12 @@
 - [x] Exibir preço total no card Resumo para Orçamento (somente quando ON/OFF e 220V)
 - [x] Não exibir preço/m, somente o valor total calculado
 - [x] Testes unitários para o cálculo de preço
+
+## Integração com API Alfalux (15/05/2026)
+
+- [x] Criar procedure tRPC `alfalux.products` no servidor que faz proxy para a API Alfalux (paginação automática: 2 páginas de 200)
+- [x] Criar adaptador `alfaluxApiAdapter.ts` que converte o formato da API para os tipos internos (DownlightProduct, PainelProduct)
+- [x] Usar `trpc.alfalux.products.useQuery` com cache de 5 minutos e fallback para catálogos estáticos
+- [x] Atualizar UI de Downlights para usar dados dinâmicos da API (badge verde "Dados ao vivo" + contagem)
+- [x] Atualizar UI de Painéis para usar dados dinâmicos da API (badge verde "Dados ao vivo" + contagem)
+- [x] Testes unitários para o adaptador de API (17 testes)
