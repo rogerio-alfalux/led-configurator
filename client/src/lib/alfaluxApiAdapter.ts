@@ -120,11 +120,10 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
           code: extractEqCode(driverBivoltText),
         }
       : null,
-    ccts,
-    fotoUrl: p.fotoUrl || null,
+     ccts,
+    fotoUrl: normalizeFotoUrl(p.fotoUrl),
   };
 }
-
 /** Converte um produto da API para PainelProduct */
 function toPainelProduct(p: ApiProduct): PainelProduct {
   const driver220Text = p.driverOnoff220 || "";
