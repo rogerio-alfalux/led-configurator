@@ -517,3 +517,10 @@
 ## Ocultar Preço Perfis + Planilha Importação (15/05/2026)
 - [x] Ocultar exibição do preço total no card Resumo para Orçamento dos perfis lineares (manter lógica, só esconder UI)
 - [x] Gerar planilha Excel de perfis no padrão da API Alfalux para importação futura
+
+## Spots — Correção paginação API + verificação fluxo (16/05/2026)
+- [x] Corrigir alfaluxApiService.ts: loop de paginação completo (busca todas as páginas até esgotar, antes só buscava 3 páginas = 600 produtos, SPOTS estão no offset 800)
+- [x] Confirmar que Spots já está available: true na lista de categorias
+- [x] Confirmar que activeSpotCatalog já usa dados da API (adaptedCatalogs?.spots)
+- [x] Confirmar que o adaptador já filtra categoria === "SPOTS"
+- [x] Confirmar que a UI de seleção e resultado de Spots já está implementada

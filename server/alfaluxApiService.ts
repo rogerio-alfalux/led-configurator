@@ -73,18 +73,16 @@ export async function fetchAllAlfaluxProducts(): Promise<AlfaluxProduct[]> {
   }
 
   console.log("[AlfaluxAPI] Buscando produtos...");
-  const page1 = await fetchPage(0, 200);
-  let all = [...page1];
+  const all: AlfaluxProduct[] = [];
+  let offset = 0;
+  const limit = 200;
+  const MAX_PAGES = 20; // Segurança contra loop infinito
 
-  // Se retornou 200 itens, pode haver mais
-  if (page1.length === 200) {
-    const page2 = await fetchPage(200, 200);
-    all = [...all, ...page2];
-    // Se ainda houver mais (improvável com 211 produtos)
-    if (page2.length === 200) {
-      const page3 = await fetchPage(400, 200);
-      all = [...all, ...page3];
-    }
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const items = await fetchPage(offset, limit);
+    all.push(...items);
+    if (items.length < limit) break; // Última página
+    offset += limit;
   }
 
   console.log(`[AlfaluxAPI] ${all.length} produtos carregados.`);
