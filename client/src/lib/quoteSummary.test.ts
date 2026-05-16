@@ -45,7 +45,7 @@ function makeResult(overrides: Partial<CompositionResult>): CompositionResult {
 // ─── generateQuoteSummary (preço total) ──────────────────────────────────────
 
 describe("generateQuoteSummary (preço total)", () => {
-  it("inclui preço total para BLAZE E 18W 220Vac 5000mm", () => {
+  it("não inclui preço total (preço ocultado temporariamente)", () => {
     const result = makeResult({
       profileCode: "LLE-2810",
       profileName: "BLAZE",
@@ -59,8 +59,8 @@ describe("generateQuoteSummary (preço total)", () => {
         barras: 5, barsPerModule: 5, barsTotal: 5, drivers: [], driverPerSku: null,
       }],
     });
-    // 5m × R$330/m = R$1.650,00
-    expect(generateQuoteSummary(result)).toContain("Preço Total: R$\u00a01.650,00");
+    // Preço ocultado temporariamente — o resumo não deve conter a linha de preço
+    expect(generateQuoteSummary(result)).not.toContain("Preço Total:");
   });
 
   it("NÃO inclui preço total para Bivolt", () => {

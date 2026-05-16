@@ -524,3 +524,12 @@
 - [x] Confirmar que activeSpotCatalog já usa dados da API (adaptedCatalogs?.spots)
 - [x] Confirmar que o adaptador já filtra categoria === "SPOTS"
 - [x] Confirmar que a UI de seleção e resultado de Spots já está implementada
+
+## Perfis via API com fallback estático (16/05/2026)
+- [x] Inspecionar estrutura dos perfis PERFIS na API e mapear campos para ledCatalog
+- [x] Criar profileApiAdapter.ts: converte AlfaluxProduct (categoria=PERFIS) para estrutura do ledCatalog
+- [x] Adicionar activeProfileCatalog no Home.tsx: usa API quando disponível, fallback para LED_CATALOG estático
+- [x] Garantir que toda a lógica de cálculo (ledEngine, driverSelector, quoteSummary) continue funcionando
+- [x] Testar fallback: API retorna null/vazio → LED_CATALOG estático é usado automaticamente
+- [x] Badge "ao vivo" no header e footer quando perfis vierem da API; "(local)" quando fallback
+- [x] 15 testes unitários para profileApiAdapter.ts (381 total passando)

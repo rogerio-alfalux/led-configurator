@@ -11,11 +11,9 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { toast } from "sonner";
 import {
   LED_CATALOG,
-  getProfileNames,
-  getInstallTypesForProfile,
-  getVariant,
   MODULE_TYPE_LABELS,
 } from "@/lib/ledCatalog";
+import { adaptProfileProducts } from "@/lib/profileApiAdapter";
 import type { InstallType } from "@/lib/ledCatalog";
 import { calculateComposition } from "@/lib/ledEngine";
 import { generateProductionTemplate } from "@/lib/productionTemplate";
@@ -786,9 +784,46 @@ export default function Home() {
     }
     return null;
   }, [alfaluxApiProducts]);
-   const activeDlCatalog = adaptedCatalogs?.downlights ?? DOWNLIGHT_CATALOG;
+  const activeDlCatalog = adaptedCatalogs?.downlights ?? DOWNLIGHT_CATALOG;
   const activePanelCatalog = adaptedCatalogs?.paineis ?? PAINEL_CATALOG;
   const activeSpotCatalog = adaptedCatalogs?.spots ?? SPOT_CATALOG;
+
+  // ── Catálogo de perfis via API (com fallback para LED_CATALOG estático) ──────
+  const activeProfileCatalog = useMemo(() => {
+    if (!alfaluxApiProducts || alfaluxApiProducts.length === 0) return LED_CATALOG;
+    const apiCatalog = adaptProfileProducts(alfaluxApiProducts);
+    return apiCatalog ?? LED_CATALOG;
+  }, [alfaluxApiProducts]);
+
+  const profileCatalogIsFromApi = useMemo(() => {
+    if (!alfaluxApiProducts || alfaluxApiProducts.length === 0) return false;
+    const apiCatalog = adaptProfileProducts(alfaluxApiProducts);
+    return apiCatalog !== null && Object.keys(apiCatalog).length > 0;
+  }, [alfaluxApiProducts]);
+
+  // Funções de acesso ao catálogo ativo de perfis
+  const activeGetProfileNames = useCallback(() => {
+    const names = new Set(Object.values(activeProfileCatalog).map((v) => v.name));
+    return Array.from(names);
+  }, [activeProfileCatalog]);
+
+  const activeGetInstallTypesForProfile = useCallback(
+    (profileName: string) => {
+      const variants = Object.values(activeProfileCatalog).filter((v) => v.name === profileName);
+      const types = new Set(variants.map((v) => v.installType));
+      return Array.from(types);
+    },
+    [activeProfileCatalog]
+  );
+
+  const activeGetVariant = useCallback(
+    (profileName: string, installType: InstallType) => {
+      return Object.values(activeProfileCatalog).find(
+        (v) => v.name === profileName && v.installType === installType
+      );
+    },
+    [activeProfileCatalog]
+  );
 
    // Categoria de produto
   const [productCategory, setProductCategory] = useState<ProductCategory>("Perfis");
@@ -857,16 +892,14 @@ export default function Home() {
   const [result, setResult] = useState<CompositionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // ── Dados derivados ──────────────────────────────────────────────────────────
-
-  const profileNames = getProfileNames();
-
+  // ── Dados derivados ─────────────────────────────────────────────
+  // Usa funções do catálogo ativo (API ou estático)
+  const profileNames = activeGetProfileNames();
   // Tipos de instalação disponíveis para o perfil selecionado
-  const availableInstallTypes = profileName ? getInstallTypesForProfile(profileName) : [];
-
+  const availableInstallTypes = profileName ? activeGetInstallTypesForProfile(profileName) : [];
   // Variante selecionada
   const selectedVariant = (profileName && installType)
-    ? getVariant(profileName, installType as InstallType)
+    ? activeGetVariant(profileName, installType as InstallType) ?? null
     : null;
 
   const profileCode = selectedVariant?.code ?? "";
@@ -989,7 +1022,13 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden sm:block text-xs text-sidebar-foreground/50 font-mono">
-              v2.1 · {Object.keys(LED_CATALOG).length} variantes
+              v2.1 · {Object.keys(activeProfileCatalog).length} variantes
+              {profileCatalogIsFromApi && (
+                <span className="ml-1.5 inline-flex items-center gap-0.5 text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
+                  ao vivo
+                </span>
+              )}
             </span>
             <Button
               variant="ghost"
@@ -1105,7 +1144,7 @@ export default function Home() {
                     <FieldLabel>Instalação</FieldLabel>
                     <div className="grid grid-cols-2 gap-2">
                       {availableInstallTypes.map((type) => {
-                        const variant = getVariant(profileName, type);
+                        const variant = activeGetVariant(profileName, type);
                         return (
                           <button
                             key={type}
@@ -2644,7 +2683,7 @@ export default function Home() {
         <div className="container flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
           <span>© 2026 Alfalux Iluminação · Configurador de Produtos</span>
           <span className="font-mono">
-            {Object.keys(LED_CATALOG).length} variantes · Regra de Ouro aplicada
+            {Object.keys(activeProfileCatalog).length} variantes{profileCatalogIsFromApi ? " (API)" : " (local)"} · Regra de Ouro aplicada
           </span>
         </div>
       </footer>
