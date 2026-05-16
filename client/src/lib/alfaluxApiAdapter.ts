@@ -178,6 +178,15 @@ export interface AdaptedCatalogs {
   spotFotos: Record<string, string>;
 }
 
+const ALFALUX_API_BASE = "https://alfaluxprod-c8zmg2fn.manus.space";
+
+/** Normaliza fotoUrl: se for caminho relativo, prefixa com o domínio da API Alfalux */
+function normalizeFotoUrl(fotoUrl: string | null): string | null {
+  if (!fotoUrl) return null;
+  if (fotoUrl.startsWith("http://") || fotoUrl.startsWith("https://")) return fotoUrl;
+  return `${ALFALUX_API_BASE}${fotoUrl}`;
+}
+
 /** Converte o array completo de produtos da API nos catálogos internos */
 export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
   const downlights: DownlightProduct[] = [];
@@ -197,15 +206,15 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
     if (cat === "DOWNLIGHTS") {
       downlights.push(toDownlightProduct(p));
       if (!downlightCCTs[p.familia]) downlightCCTs[p.familia] = ccts;
-      if (p.fotoUrl && p.sku) downlightFotos[p.sku] = p.fotoUrl;
+      if (p.fotoUrl && p.sku) downlightFotos[p.sku] = normalizeFotoUrl(p.fotoUrl)!
     } else if (cat === "PAINÉIS" || cat === "PAINEIS") {
       paineis.push(toPainelProduct(p));
       if (!painelCCTs[p.familia]) painelCCTs[p.familia] = ccts;
-      if (p.fotoUrl && p.familia) painelFotos[p.familia] = p.fotoUrl;
+      if (p.fotoUrl && p.familia) painelFotos[p.familia] = normalizeFotoUrl(p.fotoUrl)!
     } else if (cat === "SPOTS") {
       spots.push(toSpotProduct(p));
       if (!spotCCTs[p.familia]) spotCCTs[p.familia] = ccts;
-      if (p.fotoUrl && p.familia) spotFotos[p.familia] = p.fotoUrl;
+      if (p.fotoUrl && p.familia) spotFotos[p.familia] = normalizeFotoUrl(p.fotoUrl)!
     }
   }
 

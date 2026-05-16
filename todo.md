@@ -502,3 +502,9 @@
 - [x] Implementar Resumo para Orçamento e Resumo para Pedido de Spots
 - [x] Badge "Dados ao vivo" na UI de Spots
 - [x] Testes unitários para spotCatalog.ts (13 testes)
+
+## Correção Foto Spots (15/05/2026)
+
+- [x] Verificar fotoUrl dos produtos ZEUS na API (caminho relativo /manus-storage/...)
+- [x] Corrigir normalizeFotoUrl no adaptador: prefixar com https://alfaluxprod-c8zmg2fn.manus.space quando for caminho relativo
+- [x] Aplicado para downlightFotos, painelFotos e spotFotos
