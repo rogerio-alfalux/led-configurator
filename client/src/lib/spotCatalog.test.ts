@@ -50,12 +50,15 @@ describe("SPOT_CATALOG", () => {
 });
 
 describe("calculateSpot", () => {
-  it("deve retornar null para índice inválido", () => {
-    expect(calculateSpot(SPOT_CATALOG, { productIndex: 99, tensao: "220V", cct: "3000K", controle: "ON/OFF" })).toBeNull();
+  const zeusProduct = SPOT_CATALOG.find(p => p.name === "ZEUS 17W 10° TRL")!;
+  const secondProduct = SPOT_CATALOG[1];
+
+  it("deve retornar null para SKU inválido", () => {
+    expect(calculateSpot(SPOT_CATALOG, { productSku: "SKU-INEXISTENTE-9999", tensao: "220V", cct: "3000K", controle: "ON/OFF" })).toBeNull();
   });
 
   it("deve calcular corretamente para ZEUS 17W 10° TRL em 220V 3000K", () => {
-    const result = calculateSpot(SPOT_CATALOG, { productIndex: 0, tensao: "220V", cct: "3000K", controle: "ON/OFF" });
+    const result = calculateSpot(SPOT_CATALOG, { productSku: zeusProduct.sku!, tensao: "220V", cct: "3000K", controle: "ON/OFF" });
     expect(result).not.toBeNull();
     expect(result!.product.name).toBe("ZEUS 17W 10° TRL");
     expect(result!.tensao).toBe("220V");
@@ -64,30 +67,29 @@ describe("calculateSpot", () => {
   });
 
   it("deve usar driver 220V quando Bivolt não está disponível", () => {
-    const result = calculateSpot(SPOT_CATALOG, { productIndex: 1, tensao: "Bivolt", cct: "4000K", controle: "ON/OFF" });
+    const result = calculateSpot(SPOT_CATALOG, { productSku: secondProduct.sku!, tensao: "Bivolt", cct: "4000K", controle: "ON/OFF" });
     expect(result).not.toBeNull();
     // Bivolt não disponível → usa driver 220V
     expect(result!.driver.code).toBe("EQ00353");
   });
 
   it("deve substituir [CCT] no módulo LED pelo valor selecionado", () => {
-    // O módulo no catálogo de fallback não tem [CCT], mas o adaptador da API remove [CCT]
-    // Verificamos que ledModuleWithCCT não é null quando ledModule está definido
-    const result = calculateSpot(SPOT_CATALOG, { productIndex: 0, tensao: "220V", cct: "2700K", controle: "ON/OFF" });
+    const result = calculateSpot(SPOT_CATALOG, { productSku: zeusProduct.sku!, tensao: "220V", cct: "2700K", controle: "ON/OFF" });
     expect(result).not.toBeNull();
     expect(result!.ledModuleWithCCT).not.toBeNull();
   });
 
   it("deve preservar ótica e holder no resultado", () => {
-    const result = calculateSpot(SPOT_CATALOG, { productIndex: 0, tensao: "220V", cct: "3000K", controle: "ON/OFF" });
+    const result = calculateSpot(SPOT_CATALOG, { productSku: zeusProduct.sku!, tensao: "220V", cct: "3000K", controle: "ON/OFF" });
     expect(result).not.toBeNull();
     expect(result!.product.otica).toContain("REFLETOR");
     expect(result!.product.holder).toContain("HOLDER");
   });
 
-  it("deve calcular para todos os 3 produtos sem erros", () => {
-    for (let i = 0; i < SPOT_CATALOG.length; i++) {
-      const result = calculateSpot(SPOT_CATALOG, { productIndex: i, tensao: "220V", cct: "3000K", controle: "ON/OFF" });
+  it("deve calcular para todos os produtos sem erros", () => {
+    for (const p of SPOT_CATALOG) {
+      if (!p.sku) continue;
+      const result = calculateSpot(SPOT_CATALOG, { productSku: p.sku, tensao: "220V", cct: "3000K", controle: "ON/OFF" });
       expect(result).not.toBeNull();
     }
   });

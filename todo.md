@@ -544,3 +544,9 @@
 - [x] Atualizar Home.tsx: estados dlProductIndex→dlProductSku, panelProductIndex→panelProductSku, spotProductIndex→spotProductSku
 - [x] Cache local: servidor não persiste cache entre reinicializações (997 produtos recarregados a cada start)
 - [x] Atualizar testes unitários para usar sku em vez de productIndex (381 testes passando)
+
+## Bug: Driver ausente no resultado de Painéis (17/05/2026)
+- [x] Diagnosticar: todos os 38 Painéis na API têm driverOnoff220 vazio; adaptador agora usa fallback do catálogo estático quando driver da API está vazio
+- [x] Corrigir toPainelProduct no alfaluxApiAdapter.ts: busca driver por SKU no PAINEL_CATALOG estático quando API retorna string vazia
+- [x] Verificado no browser: OFFICE COMFORT 1X6 32W exibe driver PHILIPS XITANIUM 44W 350MA (EQ00347)
+- [x] Atualizar testes unitários (381 testes passando)

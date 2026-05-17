@@ -97,18 +97,18 @@ describe("DOWNLIGHT_CATALOG", () => {
 // ─── calculateDownlight ────────────────────────────────────────────────────
 
 describe("calculateDownlight", () => {
-  // Índice de produto LUNA com Bivolt disponível
-  const lunaIdx = DOWNLIGHT_CATALOG.findIndex(
+  // Produto LUNA com Bivolt disponível
+  const lunaProduct = DOWNLIGHT_CATALOG.find(
     (p) => p.familia === "LUNA" && p.driverBivolt !== null
-  );
-  // Índice de produto sem Bivolt
-  const noBivoltIdx = DOWNLIGHT_CATALOG.findIndex(
-    (p) => p.driverBivolt === null
+  )!;
+  // Produto sem Bivolt — SKU único no catálogo (LDE-6250.1T5.14F aparece 1x com driverBivolt: null)
+  const noBivoltProduct = DOWNLIGHT_CATALOG.find(
+    (p) => p.sku === "LDE-6250.1T5.14F" && p.driverBivolt === null
   );
 
   it("deve retornar resultado com ledModuleWithCCT concatenado", () => {
     const result = calculateDownlight({
-      productIndex: lunaIdx,
+      productSku: lunaProduct.sku,
       tensao: "220V",
       cct: "3000K",
       controle: "ON/OFF",
@@ -120,41 +120,43 @@ describe("calculateDownlight", () => {
 
   it("deve usar driver220 quando tensão é 220V", () => {
     const result = calculateDownlight({
-      productIndex: lunaIdx,
+      productSku: lunaProduct.sku,
       tensao: "220V",
       cct: "4000K",
       controle: "ON/OFF",
     });
     expect(result).not.toBeNull();
-    expect(result!.driver).toEqual(DOWNLIGHT_CATALOG[lunaIdx].driver220);
+    expect(result!.driver).toEqual(lunaProduct.driver220);
   });
 
   it("deve usar driverBivolt quando tensão é Bivolt e produto tem Bivolt", () => {
     const result = calculateDownlight({
-      productIndex: lunaIdx,
+      productSku: lunaProduct.sku,
       tensao: "Bivolt",
       cct: "2700K",
       controle: "ON/OFF",
     });
     expect(result).not.toBeNull();
-    expect(result!.driver).toEqual(DOWNLIGHT_CATALOG[lunaIdx].driverBivolt);
+    expect(result!.driver).toEqual(lunaProduct.driverBivolt);
   });
 
   it("deve usar driver220 quando produto não tem Bivolt", () => {
-    if (noBivoltIdx < 0) return;
+    if (!noBivoltProduct) return;
     const result = calculateDownlight({
-      productIndex: noBivoltIdx,
+      productSku: noBivoltProduct.sku,
       tensao: "Bivolt",
       cct: "3000K",
       controle: "ON/OFF",
     });
     expect(result).not.toBeNull();
-    expect(result!.driver).toEqual(DOWNLIGHT_CATALOG[noBivoltIdx].driver220);
+    // O produto LDE-6250.1T5.14F é único no catálogo e tem driverBivolt: null
+    // Portanto deve usar driver220 como fallback
+    expect(result!.driver).toEqual(noBivoltProduct.driver220);
   });
 
   it("deve preservar cct, tensao e controle no resultado", () => {
     const result = calculateDownlight({
-      productIndex: lunaIdx,
+      productSku: lunaProduct.sku,
       tensao: "220V",
       cct: "5000K",
       controle: "ON/OFF",
@@ -167,19 +169,19 @@ describe("calculateDownlight", () => {
 
   it("deve incluir referência ao produto no resultado com SKU", () => {
     const result = calculateDownlight({
-      productIndex: lunaIdx,
+      productSku: lunaProduct.sku,
       tensao: "220V",
       cct: "3000K",
       controle: "ON/OFF",
     });
     expect(result).not.toBeNull();
-    expect(result!.product).toEqual(DOWNLIGHT_CATALOG[lunaIdx]);
+    expect(result!.product).toEqual(lunaProduct);
     expect(result!.product.sku).toBeTruthy();
   });
 
   it("deve incluir campos holder, otica, dissipador no produto do resultado", () => {
     const result = calculateDownlight({
-      productIndex: lunaIdx,
+      productSku: lunaProduct.sku,
       tensao: "220V",
       cct: "3000K",
       controle: "ON/OFF",
@@ -190,9 +192,9 @@ describe("calculateDownlight", () => {
     expect(result!.product.dissipador === null || typeof result!.product.dissipador === "string").toBe(true);
   });
 
-  it("deve retornar null para índice inválido", () => {
+  it("deve retornar null para SKU inválido", () => {
     const result = calculateDownlight({
-      productIndex: 9999,
+      productSku: "SKU-INEXISTENTE-9999",
       tensao: "220V",
       cct: "3000K",
       controle: "ON/OFF",

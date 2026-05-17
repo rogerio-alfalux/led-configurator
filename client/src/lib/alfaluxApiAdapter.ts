@@ -19,6 +19,7 @@
 
 import type { DownlightProduct } from "./downlightCatalog";
 import type { PainelProduct } from "./painelCatalog";
+import { PAINEL_CATALOG } from "./painelCatalog";
 import type { SpotProduct } from "./spotCatalog";
 
 /** Formato retornado pela API Alfalux (espelhado de AlfaluxProduct no servidor) */
@@ -130,22 +131,25 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
   const driverBivoltText = p.driverOnoffBivolt || "";
   const hasBivolt = !p.driverOnoffBivoltNaoAplicavel && driverBivoltText.length > 0;
 
+  // Fallback: quando os drivers não estão cadastrados na API, usa o catálogo estático pelo SKU
+  const staticFallback = p.sku ? PAINEL_CATALOG.find(s => s.sku === p.sku) : undefined;
+
+  const driver220: PainelProduct["driver220"] = driver220Text
+    ? { model: normalizeDriverModel(driver220Text), code: extractEqCode(driver220Text) }
+    : staticFallback?.driver220 ?? { model: "", code: "" };
+
+  const driverBivolt: PainelProduct["driverBivolt"] = hasBivolt
+    ? { model: normalizeDriverModel(driverBivoltText), code: extractEqCode(driverBivoltText) }
+    : (driver220Text ? null : staticFallback?.driverBivolt ?? null);
+
   return {
     instalacao: p.instalacao,
     familia: p.familia,
     sku: p.sku || null,
     name: p.produto,
     ledModule: p.moduloLed || null,
-    driver220: {
-      model: normalizeDriverModel(driver220Text),
-      code: extractEqCode(driver220Text),
-    },
-    driverBivolt: hasBivolt
-      ? {
-          model: normalizeDriverModel(driverBivoltText),
-          code: extractEqCode(driverBivoltText),
-        }
-      : null,
+    driver220,
+    driverBivolt,
   };
 }
 
