@@ -38,7 +38,8 @@ export interface SpotProduct {
 }
 
 export interface SpotInput {
-  productIndex: number;
+  /** SKU do produto (campo `sku` no catálogo) */
+  productSku: string;
   tensao: "220V" | "Bivolt";
   cct: string;
   controle: ControleType;
@@ -103,7 +104,7 @@ export const SPOT_CATALOG: SpotProduct[] = [
  * Calcula o resultado de configuração de um Spot.
  */
 export function calculateSpot(catalog: SpotProduct[], input: SpotInput): SpotResult | null {
-  const product = catalog[input.productIndex];
+  const product = catalog.find(p => p.sku === input.productSku);
   if (!product) return null;
 
   const driver = input.tensao === "Bivolt" && product.driverBivolt

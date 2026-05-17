@@ -35,7 +35,8 @@ export interface DownlightProduct {
 }
 
 export interface DownlightInput {
-  productIndex: number;
+  /** SKU do produto (campo `sku` no catálogo) */
+  productSku: string;
   tensao: "220V" | "Bivolt";
   cct: string;
   controle: ControleType;
@@ -1925,8 +1926,9 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
   },
 ];
 
-export function calculateDownlight(input: DownlightInput): DownlightResult | null {
-  const product = DOWNLIGHT_CATALOG[input.productIndex];
+export function calculateDownlight(input: DownlightInput, catalog?: DownlightProduct[]): DownlightResult | null {
+  const source = catalog ?? DOWNLIGHT_CATALOG;
+  const product = source.find(p => p.sku === input.productSku);
   if (!product) return null;
 
   const driver =

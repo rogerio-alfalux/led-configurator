@@ -536,3 +536,11 @@
 
 ## Badge de status nos Perfis (16/05/2026)
 - [x] Adicionar badge "X variantes • Dados ao vivo" (verde) / "Catálogo local" (cinza) no bloco de Perfis, igual ao padrão das outras categorias
+
+## Correção: usar SKU como chave única na seleção de produtos (17/05/2026)
+- [x] Substituir productIndex por productSku em PainelInput/calculatePainel (painelCatalog.ts)
+- [x] Substituir productIndex por productSku em DownlightInput/calculateDownlight (downlightCatalog.ts)
+- [x] Substituir productIndex por productSku em SpotInput/calculateSpot (spotCatalog.ts)
+- [x] Atualizar Home.tsx: estados dlProductIndex→dlProductSku, panelProductIndex→panelProductSku, spotProductIndex→spotProductSku
+- [x] Cache local: servidor não persiste cache entre reinicializações (997 produtos recarregados a cada start)
+- [x] Atualizar testes unitários para usar sku em vez de productIndex (381 testes passando)

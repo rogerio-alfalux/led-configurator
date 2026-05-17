@@ -29,7 +29,8 @@ export interface PainelProduct {
 }
 
 export interface PainelInput {
-  productIndex: number;
+  /** SKU do produto (campo `sku` no catálogo) */
+  productSku: string;
   tensao: "220V" | "Bivolt";
   cct: string;
   controle: ControleType;
@@ -515,8 +516,9 @@ export const PAINEL_CATALOG: PainelProduct[] = [
   },
 ];
 
-export function calculatePainel(input: PainelInput): PainelResult | null {
-  const product = PAINEL_CATALOG[input.productIndex];
+export function calculatePainel(input: PainelInput, catalog?: PainelProduct[]): PainelResult | null {
+  const source = catalog ?? PAINEL_CATALOG;
+  const product = source.find(p => p.sku === input.productSku);
   if (!product) return null;
 
   const driver =
