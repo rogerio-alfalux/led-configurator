@@ -19,6 +19,7 @@
 
 import type { DownlightProduct } from "./downlightCatalog";
 import type { PainelProduct } from "./painelCatalog";
+import { PAINEL_CATALOG } from "./painelCatalog";
 import type { SpotProduct } from "./spotCatalog";
 
 /** Formato retornado pela API Alfalux (espelhado de AlfaluxProduct no servidor) */
@@ -66,11 +67,6 @@ function normalizeDriverModel(text: string): string {
   return text.replace(/\s*\(EQ\d{5}\)\s*$/, "").trim();
 }
 
-/** Remove o marcador [CCT] do texto do módulo LED */
-function stripCctMarker(text: string): string {
-  return text.replace(/\s*\[CCT\]\s*/gi, "").trim();
-}
-
 /** Converte um produto da API para DownlightProduct */
 function toDownlightProduct(p: ApiProduct): DownlightProduct {
   const driver220Text = p.driverOnoff220 || "";
@@ -85,8 +81,7 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
     holder: p.holderNaoAplicavel ? null : (p.holder || null),
     otica: p.oticaNaoAplicavel ? null : (p.otica || null),
     dissipador: p.dissipadorNaoAplicavel ? null : (p.dissipador || null),
-    // Remove [CCT] do moduloLed — o CCT será concatenado pelo calculateDownlight
-    ledModule: p.moduloLed ? stripCctMarker(p.moduloLed) : "",
+    ledModule: p.moduloLed || "",
     driver220: {
       model: normalizeDriverModel(driver220Text),
       code: extractEqCode(driver220Text),
@@ -112,8 +107,7 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
     familia: p.familia,
     sku: p.sku || null,
     name: p.produto,
-    // Remove [CCT] do moduloLed — o CCT será concatenado pelo calculateSpot
-    ledModule: p.moduloLed ? stripCctMarker(p.moduloLed) : null,
+    ledModule: p.moduloLed ? p.moduloLed.replace(/\[CCT\]/gi, "").trim() : null,
     otica: p.oticaNaoAplicavel ? null : (p.otica || null),
     holder: p.holderNaoAplicavel ? null : (p.holder || null),
     dissipador: p.dissipadorNaoAplicavel ? null : (p.dissipador || null),
@@ -127,7 +121,7 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
           code: extractEqCode(driverBivoltText),
         }
       : null,
-    ccts,
+     ccts,
     fotoUrl: normalizeFotoUrl(p.fotoUrl),
   };
 }
@@ -136,20 +130,24 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
   const driver220Text = p.driverOnoff220 || "";
   const driverBivoltText = p.driverOnoffBivolt || "";
   const hasBivolt = !p.driverOnoffBivoltNaoAplicavel && driverBivoltText.length > 0;
-  const normalizedSku = (p.sku && p.sku !== 'NÃO APLICÁVEL' && p.sku !== 'N/A') ? p.sku : null;
+
+  // Fallback: quando os drivers não estão cadastrados na API, usa o catálogo estático pelo SKU
+  const staticFallback = p.sku ? PAINEL_CATALOG.find(s => s.sku === p.sku) : undefined;
+
   const driver220: PainelProduct["driver220"] = driver220Text
     ? { model: normalizeDriverModel(driver220Text), code: extractEqCode(driver220Text) }
-    : { model: "", code: "" };
+    : staticFallback?.driver220 ?? { model: "", code: "" };
+
   const driverBivolt: PainelProduct["driverBivolt"] = hasBivolt
     ? { model: normalizeDriverModel(driverBivoltText), code: extractEqCode(driverBivoltText) }
-    : null;
+    : (driver220Text ? null : staticFallback?.driverBivolt ?? null);
+
   return {
     instalacao: p.instalacao,
     familia: p.familia,
-    sku: normalizedSku,
-    name: p.produto || p.familia,
-    // Remove [CCT] do moduloLed — o CCT será concatenado pelo calculatePainel
-    ledModule: p.moduloLed ? stripCctMarker(p.moduloLed) : null,
+    sku: p.sku || null,
+    name: p.produto,
+    ledModule: p.moduloLed || null,
     driver220,
     driverBivolt,
   };

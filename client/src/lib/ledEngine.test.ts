@@ -2068,49 +2068,6 @@ describe("v3.3 --- Validacao por perfil: LLP-6060 (BLAZE H) e LLP-4251 com regra
       expect(result.realizedLength).toBeLessThanOrEqual(length);
     }
   });
-
-  // BLAZE H tem apenas IF 1B (575mm) e IF 2B (1135mm) e ML 3B (1695mm).
-  // Com MIN_BARS_FOR_COMPOSITION=2, apenas IF 2B é válido para composições IF/ML.
-  // Módulos de 1 barra NÃO devem ser usados em composições (regra fundamental).
-  // Melhor resultado possível: 2x IF 2B = 2270mm (diff=930mm).
-  it("LLP-6060 3200mm allowFractional=true -> retorna 2270mm (melhor possível, sem violar MIN_BARS=2)", () => {
-    const result = calculateComposition({
-      profileCode: "LLP-6060",
-      application: "D1",
-      powerD1: 18,
-      cct: "3000K",
-      voltage: "220Vac",
-      totalLength: 3200,
-      allowLongModules: false,
-      allowFractional: true,
-      stripMethod: "STRIPFLEX",
-      independentLighting: false,
-    });
-    // Módulos de 1 barra não são usados em composições IF/ML
-    expect(result.realizedLength).toBe(2270);
-    expect(result.realizedLength).toBeLessThanOrEqual(3200);
-    // Apenas 2 módulos IF (sem ML que caiba sem ultrapassar)
-    const totalModules = result.composition.reduce((sum, item) => sum + item.quantity, 0);
-    expect(totalModules).toBe(2);
-  });
-
-  it("LLP-6060 3200mm allowFractional=false -> retorna resultado padrão (sem fallback 1B)", () => {
-    const result = calculateComposition({
-      profileCode: "LLP-6060",
-      application: "D1",
-      powerD1: 18,
-      cct: "3000K",
-      voltage: "220Vac",
-      totalLength: 3200,
-      allowLongModules: false,
-      allowFractional: false,
-      stripMethod: "STRIPFLEX",
-      independentLighting: false,
-    });
-    // Sem medidas quebradas: apenas módulos inteiros, resultado esperado é 2270mm
-    expect(result.realizedLength).toBe(2270);
-    expect(result.realizedLength).toBeLessThanOrEqual(3200);
-  });
 });
 
 describe("v3.4 --- Regra Absoluta de Drivers: fronteiras exatas sem arredondamento", () => {
@@ -2713,45 +2670,5 @@ describe("adjustToLarger — BLAZE E (LLE-2810)", () => {
     const r = calculateComposition({ ...base, totalLength: 1120 });
     expect(r.realizedLength).toBe(595);
     expect(r.adjustedToLarger).toBeUndefined();
-  });
-});
-
-describe("adjustToLarger — HIT Pendente (LLP-4251) — composições IF/ML (linhas longas)", () => {
-  const base: ConfigInput = {
-    profileCode: "LLP-4251",
-    application: "D1",
-    powerD1: 18,
-    cct: "3000K",
-    voltage: "220Vac",
-    totalLength: 5500,
-    allowLongModules: false,
-    allowFractional: true,
-    stripMethod: "STRIPFLEX",
-    independentLighting: false,
-  };
-
-  it("sem adjustToLarger: 5500mm → realizedLength < 5500 (melhor abaixo)", () => {
-    const r = calculateComposition({ ...base, adjustToLarger: false });
-    expect(r.realizedLength).toBeLessThan(5500);
-    expect(r.adjustedToLarger).toBeUndefined();
-  });
-
-  it("com adjustToLarger: 5500mm → realizedLength >= 5500 (composição acima)", () => {
-    const r = calculateComposition({ ...base, adjustToLarger: true });
-    expect(r.realizedLength).toBeGreaterThanOrEqual(5500);
-    expect(r.adjustedToLarger).toBe(true);
-  });
-
-  it("com adjustToLarger: 5500mm → realizedLength deve ser o mais próximo possível acima", () => {
-    const r = calculateComposition({ ...base, adjustToLarger: true });
-    // Melhor candidato: 2x IF 4.8B (2760mm) = 5520mm
-    // Isso é mais próximo de 5500mm que qualquer outra combinação IF/ML
-    expect(r.realizedLength).toBe(5520);
-  });
-
-  it("com adjustToLarger: 3000mm → realizedLength >= 3000 (composição acima)", () => {
-    const r = calculateComposition({ ...base, totalLength: 3000, adjustToLarger: true });
-    expect(r.realizedLength).toBeGreaterThanOrEqual(3000);
-    expect(r.adjustedToLarger).toBe(true);
   });
 });

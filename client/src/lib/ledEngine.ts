@@ -12,7 +12,7 @@
 //   Stripline: apenas barras inteiras (1, 2, 3, 4, 5) — sem medidas fracionadas
 
 import { LED_CATALOG, MODULE_TYPE_LABELS } from "./ledCatalog";
-import type { InstallType, ProfileVariant } from "./ledCatalog";
+import type { InstallType } from "./ledCatalog";
 import type { SheetDriver, DriverSelectionContext } from "./driverSelector";
 import { selectDriverFromSheet, selectDriverFallback, calcVOut, splitDriverForDualSimultaneous } from "./driverSelector";
 
@@ -25,6 +25,7 @@ export type Application = "D1" | "D2" | "D1+D2";
 export type ModuleType = "IN" | "IF" | "ML";
 export type DiffuserType = "DA" | "DB" | "DC";
 export type StripMethod = "STRIPFLEX" | "STRIPLINE";
+export type ControlType = "onoff" | "dimDali" | "dim110v";
 
 export type { InstallType };
 
@@ -99,6 +100,10 @@ export interface CompositionResult {
   adjustedToLarger?: boolean;
   /** comprimento original solicitado antes do ajuste para cima */
   originalRequestedLength?: number;
+  /** Tipo de controle selecionado (onoff, dimDali, dim110v) */
+  controlType: ControlType;
+  /** Driver DIM selecionado quando controlType != onoff */
+  driverDimSelected?: string | null;
 }
 
 export interface ConfigInput {
@@ -128,11 +133,14 @@ export interface ConfigInput {
    */
   adjustToLarger?: boolean;
   /**
-   * Catálogo de perfis a ser usado no cálculo.
-   * Quando fornecido, substitui o LED_CATALOG estático — use para injetar dados da API.
-   * Quando ausente, usa LED_CATALOG como fallback (compatibilidade com testes existentes).
+   * Tipo de controle/dimming selecionado pelo usuário.
+   * "onoff" = padrão (driver On/Off), "dimDali" = DIM DALI, "dim110v" = DIM 1-10V.
    */
-  catalog?: Record<string, ProfileVariant>;
+  controlType?: ControlType;
+  /** Driver DIM DALI disponível para este perfil (da API) */
+  driverDimDali?: string | null;
+  /** Driver DIM 1-10V disponível para este perfil (da API) */
+  driverDim110v?: string | null;
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -308,8 +316,8 @@ interface RawModule {
 // Mínimo de barras para módulos usados em composição IF/ML (evitar emendas muito próximas)
 const MIN_BARS_FOR_COMPOSITION = 2;
 
-function getModules(profileCode: string, type: ModuleType, allowLongModules: boolean, stripMethod?: StripMethod, power?: Power, forComposition = false, allowFractional = false, catalog: Record<string, ProfileVariant> = LED_CATALOG): RawModule[] {
-  const profile = catalog[profileCode];
+function getModules(profileCode: string, type: ModuleType, allowLongModules: boolean, stripMethod?: StripMethod, power?: Power, forComposition = false, allowFractional = false): RawModule[] {
+  const profile = LED_CATALOG[profileCode];
   if (!profile) return [];
   const mods = profile.modules[type];
   if (!mods) return [];
@@ -395,10 +403,9 @@ function tryInSingle(
   allowLongModules: boolean,
   stripMethod: StripMethod,
   sheetDrivers?: SheetDriver[],
-  allowFractional = false,
-  catalog: Record<string, ProfileVariant> = LED_CATALOG
+  allowFractional = false
 ): { composition: CompositionItem[]; realizedLength: number; remainingLength: number } | null {
-  const inModules = getModules(profileCode, "IN", allowLongModules, stripMethod, power, false, allowFractional, catalog)
+  const inModules = getModules(profileCode, "IN", allowLongModules, stripMethod, power, false, allowFractional)
     .filter(m => m.length <= requestedLength)
     .sort((a, b) => b.length - a.length);
 
@@ -449,12 +456,11 @@ function buildIfMlComposition(
   allowLongModules: boolean,
   stripMethod: StripMethod,
   sheetDrivers?: SheetDriver[],
-  allowFractional = false,
-  catalog: Record<string, ProfileVariant> = LED_CATALOG
+  allowFractional = false
 ): { composition: CompositionItem[]; realizedLength: number; remainingLength: number } | null {
-  const ifModules = getModules(profileCode, "IF", allowLongModules, stripMethod, power, true, allowFractional, catalog)
+  const ifModules = getModules(profileCode, "IF", allowLongModules, stripMethod, power, true, allowFractional)
     .sort((a, b) => b.length - a.length);
-  const mlModules = getModules(profileCode, "ML", allowLongModules, stripMethod, power, true, allowFractional, catalog)
+  const mlModules = getModules(profileCode, "ML", allowLongModules, stripMethod, power, true, allowFractional)
     .sort((a, b) => b.length - a.length);
 
   if (ifModules.length === 0) return null;
@@ -470,49 +476,45 @@ function buildIfMlComposition(
     balance: number;
   }
 
-  function buildCandidates(ifMods: RawModule[], mlMods: RawModule[]): Candidate[] {
-    const result: Candidate[] = [];
-    for (const ifMod of ifMods) {
-      const twoIfLength = 2 * ifMod.length;
-      if (twoIfLength > requestedLength) continue;
+  const candidates: Candidate[] = [];
 
-      const remaining = requestedLength - twoIfLength;
+  for (const ifMod of ifModules) {
+    const twoIfLength = 2 * ifMod.length;
+    if (twoIfLength > requestedLength) continue;
 
-      // --- Candidato A: 2x IF sem ML ---
-      {
-        const realizedLength = twoIfLength;
-        const moduleCount = 2;
-        const balance = 0;
-        const skuVariety = 1;
-        result.push({ ifMod, mlItems: [], realizedLength, moduleCount, skuVariety, balance });
+    const remaining = requestedLength - twoIfLength;
+
+    // --- Candidato A: 2x IF sem ML ---
+    {
+      const realizedLength = twoIfLength;
+      const moduleCount = 2;
+      const balance = 0; // IFs iguais = desvio zero
+      const skuVariety = 1; // apenas 1 tipo de SKU (IF)
+      candidates.push({ ifMod, mlItems: [], realizedLength, moduleCount, skuVariety, balance });
+    }
+
+    // --- Candidato B: 2x IF + ML (somente se sobrar comprimento) ---
+    if (mlModules.length > 0 && remaining > 0) {
+      const mlItems: RawModule[] = [];
+      let rem = remaining;
+      for (const ml of mlModules) {
+        while (rem >= ml.length) {
+          mlItems.push(ml);
+          rem -= ml.length;
+        }
       }
 
-      // --- Candidato B: 2x IF + ML (somente se sobrar comprimento) ---
-      if (mlMods.length > 0 && remaining > 0) {
-        const mlItems: RawModule[] = [];
-        let rem = remaining;
-        for (const ml of mlMods) {
-          while (rem >= ml.length) {
-            mlItems.push(ml);
-            rem -= ml.length;
-          }
-        }
-
-        if (mlItems.length > 0) {
-          const realizedLength = requestedLength - rem;
-          const moduleCount = 2 + mlItems.length;
-          const allLengths = [ifMod.length, ifMod.length, ...mlItems.map(m => m.length)];
-          const mean = allLengths.reduce((s, v) => s + v, 0) / allLengths.length;
-          const balance = Math.sqrt(allLengths.reduce((s, v) => s + (v - mean) ** 2, 0) / allLengths.length);
-          const skuVariety = new Set([ifMod.sku, ...mlItems.map(m => m.sku)]).size;
-          result.push({ ifMod, mlItems, realizedLength, moduleCount, skuVariety, balance });
-        }
+      if (mlItems.length > 0) {
+        const realizedLength = requestedLength - rem;
+        const moduleCount = 2 + mlItems.length;
+        const allLengths = [ifMod.length, ifMod.length, ...mlItems.map(m => m.length)];
+        const mean = allLengths.reduce((s, v) => s + v, 0) / allLengths.length;
+        const balance = Math.sqrt(allLengths.reduce((s, v) => s + (v - mean) ** 2, 0) / allLengths.length);
+        const skuVariety = new Set([ifMod.sku, ...mlItems.map(m => m.sku)]).size;
+        candidates.push({ ifMod, mlItems, realizedLength, moduleCount, skuVariety, balance });
       }
     }
-    return result;
   }
-
-  const candidates: Candidate[] = buildCandidates(ifModules, mlModules);
 
   if (candidates.length === 0) return null;
 
@@ -548,27 +550,22 @@ function buildIfMlComposition(
 
    // Ordenação geral: mais próximo primeiro (independente de número de módulos)
   // Para linhas longas OU quando 2 módulos ficou muito abaixo da tolerância
-  function sortCandidates(list: Candidate[]): void {
-    list.sort((a, b) => {
-      // Mais próximo do comprimento solicitado (prioridade principal)
-      if (b.realizedLength !== a.realizedLength) return b.realizedLength - a.realizedLength;
-      // Menor número de módulos (desempate)
-      if (a.moduleCount !== b.moduleCount) return a.moduleCount - b.moduleCount;
-      // Menor variedade de SKUs
-      if (a.skuVariety !== b.skuVariety) return a.skuVariety - b.skuVariety;
-      // Menor desvio de equilíbrio
-      return a.balance - b.balance;
-    });
-  }
-
-  sortCandidates(candidates);
-
+  candidates.sort((a, b) => {
+    // Mais próximo do comprimento solicitado (prioridade principal)
+    if (b.realizedLength !== a.realizedLength) return b.realizedLength - a.realizedLength;
+    // Menor número de módulos (desempate)
+    if (a.moduleCount !== b.moduleCount) return a.moduleCount - b.moduleCount;
+    // Menor variedade de SKUs
+    if (a.skuVariety !== b.skuVariety) return a.skuVariety - b.skuVariety;
+    // Menor desvio de equilíbrio
+    return a.balance - b.balance;
+  });
   // v3.3: Para linhas longas, verificar se o candidato "mais limpo" está suficientemente
   // próximo do "mais exato" — se sim, preferir o mais limpo (menos SKUs/módulos).
   // Tolerância proporcional: 0,2% do comprimento solicitado, mínimo 30mm, máximo 100mm.
   // Isso captura diferenças mínimas (ex: 30mm em 42330mm) sem sacrificar precisão em linhas curtas.
-  let best = candidates.length > 0 ? candidates[0] : null;
-  if (best && requestedLength > SHORT_LINE_THRESHOLD && candidates.length > 1) {
+  let best = candidates[0];
+  if (requestedLength > SHORT_LINE_THRESHOLD && candidates.length > 1) {
     const mostExact = candidates[0]; // já ordenado por realizedLength desc
     // Candidato mais limpo: menos SKUs → menos módulos → mais próximo
     const cleanest = [...candidates].sort((a, b) => {
@@ -582,110 +579,11 @@ function buildIfMlComposition(
       best = cleanest;
     }
   }
-
-  if (!best) return null;
-
   const rawItems: RawModule[] = [best.ifMod, best.ifMod, ...best.mlItems];
   const composition = toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod, sheetDrivers);
   const remainingLength = requestedLength - best.realizedLength;
 
   return { composition, realizedLength: best.realizedLength, remainingLength };
-}
-
-// ─── buildCompositionAbove: busca a composição imediatamente ACIMA do comprimento ────────────────
-//
-// Usada quando adjustToLarger=true: retorna a composição mais próxima que seja >= requestedLength.
-// Para IN: menor módulo IN com length > requestedLength.
-// Para IF/ML: menor combinação 2×IF(+ML) com realizedLength >= requestedLength.
-
-function buildCompositionAbove(
-  profileCode: string,
-  requestedLength: number,
-  power: Power,
-  voltage: Voltage,
-  allowLongModules: boolean,
-  stripMethod: StripMethod,
-  sheetDrivers?: SheetDriver[],
-  allowFractional = false,
-  catalog: Record<string, ProfileVariant> = LED_CATALOG
-): {
-  composition: CompositionItem[];
-  realizedLength: number;
-  remainingLength: number;
-  compositionMode: "IN_SINGLE" | "IF_ML_LINE";
-} | null {
-  const barsPerSection = stripMethod === "STRIPLINE" ? 1 : BARS_PER_SECTION_STRIPFLEX[power];
-
-  // ── Candidatos IN acima do alvo ──────────────────────────────────────────────
-  const inModulesAbove = getModules(profileCode, "IN", allowLongModules, stripMethod, power, false, allowFractional, catalog)
-    .filter(m => m.length > requestedLength)
-    .sort((a, b) => a.length - b.length); // crescente: menor acima primeiro
-
-  // ── Candidatos IF/ML acima do alvo ───────────────────────────────────────────
-  const ifModules = getModules(profileCode, "IF", allowLongModules, stripMethod, power, true, allowFractional, catalog)
-    .sort((a, b) => a.length - b.length); // crescente
-  const mlModules = getModules(profileCode, "ML", allowLongModules, stripMethod, power, true, allowFractional, catalog)
-    .sort((a, b) => a.length - b.length); // crescente
-
-  interface AboveCandidate {
-    mode: "IN_SINGLE" | "IF_ML_LINE";
-    rawItems: RawModule[];
-    realizedLength: number;
-  }
-
-  const aboveCandidates: AboveCandidate[] = [];
-
-  // Candidatos IN
-  for (const m of inModulesAbove) {
-    aboveCandidates.push({ mode: "IN_SINGLE", rawItems: [m], realizedLength: m.length });
-  }
-
-  // Candidatos IF/ML: 2×IF (sem ML) acima do alvo
-  for (const ifMod of ifModules) {
-    const twoIfLength = 2 * ifMod.length;
-    if (twoIfLength >= requestedLength) {
-      aboveCandidates.push({ mode: "IF_ML_LINE", rawItems: [ifMod, ifMod], realizedLength: twoIfLength });
-    }
-  }
-
-  // Candidatos IF/ML: 2×IF + ML(s) acima do alvo
-  // Para cada combinação de IF, adicionar o menor número de ML que ultrapasse o alvo
-  for (const ifMod of ifModules) {
-    const twoIfLength = 2 * ifMod.length;
-    if (twoIfLength >= requestedLength) continue; // já coberto acima sem ML
-
-    // Tentar adicionar MLs até ultrapassar o alvo
-    // Estratégia: greedy com MLs em ordem crescente para minimizar o excesso
-    for (const mlMod of mlModules) {
-      let accumulated = twoIfLength;
-      const mlItems: RawModule[] = [];
-      // Adicionar MLs até ultrapassar
-      while (accumulated < requestedLength) {
-        mlItems.push(mlMod);
-        accumulated += mlMod.length;
-      }
-      if (accumulated >= requestedLength) {
-        aboveCandidates.push({
-          mode: "IF_ML_LINE",
-          rawItems: [ifMod, ifMod, ...mlItems],
-          realizedLength: accumulated,
-        });
-        break; // um candidato por combinação IF+ML é suficiente
-      }
-    }
-  }
-
-  if (aboveCandidates.length === 0) return null;
-
-  // Selecionar o candidato com menor comprimento acima do alvo (mais próximo por cima)
-  aboveCandidates.sort((a, b) => a.realizedLength - b.realizedLength);
-  const best = aboveCandidates[0];
-
-  const composition = toCompositionItems(best.rawItems, barsPerSection, power, voltage, stripMethod, sheetDrivers);
-  // remainingLength negativo indica que ultrapassou o alvo
-  const remainingLength = requestedLength - best.realizedLength;
-
-  return { composition, realizedLength: best.realizedLength, remainingLength, compositionMode: best.mode };
 }
 
 // ─── buildComposition: orquestrador das duas estratégias ─────────────────────
@@ -698,22 +596,21 @@ export function buildComposition(
   allowLongModules: boolean,
   stripMethod: StripMethod = "STRIPFLEX",
   sheetDrivers?: SheetDriver[],
-  allowFractional = false,
-  catalog: Record<string, ProfileVariant> = LED_CATALOG
+  allowFractional = false
 ): {
   composition: CompositionItem[];
   realizedLength: number;
   remainingLength: number;
   compositionMode: "IN_SINGLE" | "IF_ML_LINE";
 } {
-  const profile = catalog[profileCode];
+  const profile = LED_CATALOG[profileCode];
   if (!profile) {
     return { composition: [], realizedLength: 0, remainingLength: requestedLength, compositionMode: "IF_ML_LINE" };
   }
 
   const maxBars = allowLongModules ? IN_MAX_BARS_LONG : IN_MAX_BARS_STANDARD;
 
-  const inModulesAll = getModules(profileCode, "IN", allowLongModules, stripMethod, power, false, allowFractional, catalog);
+  const inModulesAll = getModules(profileCode, "IN", allowLongModules, stripMethod, power, false, allowFractional);
   const largestInWithinLimit = inModulesAll
     .filter(m => m.barras <= maxBars)
     .sort((a, b) => b.length - a.length)[0];
@@ -721,13 +618,13 @@ export function buildComposition(
   const isShortLine = largestInWithinLimit !== undefined && requestedLength <= largestInWithinLimit.length;
 
   if (isShortLine) {
-    const inResult = tryInSingle(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, sheetDrivers, allowFractional, catalog);
+    const inResult = tryInSingle(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, sheetDrivers, allowFractional);
     if (inResult) {
       return { ...inResult, compositionMode: "IN_SINGLE" };
     }
   }
 
-  const ifMlResult = buildIfMlComposition(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, sheetDrivers, allowFractional, catalog);
+  const ifMlResult = buildIfMlComposition(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, sheetDrivers, allowFractional);
   if (ifMlResult) {
     return { ...ifMlResult, compositionMode: "IF_ML_LINE" };
   }
@@ -735,9 +632,9 @@ export function buildComposition(
   // Fallback: algoritmo guloso genérico
   // IF e ML com forComposition=true: excluir módulos < 2 barras (evitar emendas muito próximas)
   const allModules: RawModule[] = [
-    ...getModules(profileCode, "IN", allowLongModules, stripMethod, power, false, allowFractional, catalog),
-    ...getModules(profileCode, "IF", allowLongModules, stripMethod, power, true, allowFractional, catalog),
-    ...getModules(profileCode, "ML", allowLongModules, stripMethod, power, true, allowFractional, catalog),
+    ...getModules(profileCode, "IN", allowLongModules, stripMethod, power, false, allowFractional),
+    ...getModules(profileCode, "IF", allowLongModules, stripMethod, power, true, allowFractional),
+    ...getModules(profileCode, "ML", allowLongModules, stripMethod, power, true, allowFractional),
   ].sort((a, b) => b.length - a.length);
 
   const barsPerSection = stripMethod === "STRIPLINE" ? 1 : BARS_PER_SECTION_STRIPFLEX[power];
@@ -787,13 +684,9 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     diffuserD2,
     allowFractional = false,
     adjustToLarger = false,
-    catalog: inputCatalog,
   } = input;
 
-  // Usa o catálogo injetado (API) se disponível, caso contrário usa o estático como fallback
-  const catalog = inputCatalog ?? LED_CATALOG;
-
-  const profile = catalog[profileCode];
+  const profile = LED_CATALOG[profileCode];
   const profileName = profile?.name ?? profileCode;
   const installType: InstallType = profile?.installType ?? "PENDENTE";
 
@@ -840,30 +733,34 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     allowLongModules,
     stripMethod,
     undefined,
-    allowFractional,
-    catalog
+    allowFractional
   );
 
   // ── Ajuste para medida maior ──
-  // Quando adjustToLarger=true, busca a composição imediatamente ACIMA do comprimento solicitado.
-  // Permite ultrapassar a medida desejada, retornando a mais próxima possível acima.
+  // Quando adjustToLarger=true e a medida realizada ficou menor que a solicitada,
+  // busca o menor módulo IN acima do comprimento solicitado e recalcula.
   let adjustedToLarger = false;
   const originalRequestedLength = totalLength;
   if (adjustToLarger && buildResult.realizedLength < totalLength) {
-    const aboveResult = buildCompositionAbove(
-      profileCode,
-      totalLength,
-      powerD1,
-      voltage,
-      allowLongModules,
-      stripMethod,
-      undefined,
-      allowFractional,
-      catalog
-    );
-    if (aboveResult && aboveResult.realizedLength >= totalLength) {
-      buildResult = aboveResult;
-      adjustedToLarger = true;
+    const inModulesAbove = getModules(profileCode, "IN", allowLongModules, stripMethod, powerD1, false, allowFractional)
+      .filter(m => m.length > totalLength)
+      .sort((a, b) => a.length - b.length); // crescente: menor acima primeiro
+    if (inModulesAbove.length > 0) {
+      const targetLength = inModulesAbove[0].length;
+      const adjustedResult = buildComposition(
+        profileCode,
+        targetLength,
+        powerD1,
+        voltage,
+        allowLongModules,
+        stripMethod,
+        undefined,
+        allowFractional
+      );
+      if (adjustedResult.realizedLength >= totalLength) {
+        buildResult = adjustedResult;
+        adjustedToLarger = true;
+      }
     }
   }
 
@@ -1000,5 +897,11 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     diffuserD2,
     adjustedToLarger: adjustedToLarger || undefined,
     originalRequestedLength: adjustedToLarger ? originalRequestedLength : undefined,
+    controlType: input.controlType ?? "onoff",
+    driverDimSelected: input.controlType === "dimDali"
+      ? (input.driverDimDali ?? null)
+      : input.controlType === "dim110v"
+        ? (input.driverDim110v ?? null)
+        : null,
   };
 }

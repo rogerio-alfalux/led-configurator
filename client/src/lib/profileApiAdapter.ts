@@ -119,7 +119,7 @@ export function adaptProfileProducts(
   // Acumula módulos por código de perfil
   const variantMap: Record<
     string,
-    { rule: ProfileRule; installType: InstallType; modules: ProfileModules }
+    { rule: ProfileRule; installType: InstallType; modules: ProfileModules; driverDimDali: string | null; driverDim110v: string | null }
   > = {};
 
   for (const p of perfisProducts) {
@@ -140,7 +140,17 @@ export function adaptProfileProducts(
         rule,
         installType,
         modules: { IN: {}, IF: {}, ML: {} },
+        driverDimDali: p.driverDimDali ?? null,
+        driverDim110v: p.driverDim110v ?? null,
       };
+    } else {
+      // Atualizar drivers DIM se ainda não preenchidos (usar o primeiro produto que tiver)
+      if (!variantMap[profileCode].driverDimDali && p.driverDimDali) {
+        variantMap[profileCode].driverDimDali = p.driverDimDali;
+      }
+      if (!variantMap[profileCode].driverDim110v && p.driverDim110v) {
+        variantMap[profileCode].driverDim110v = p.driverDim110v;
+      }
     }
 
     const entry = variantMap[profileCode];
@@ -154,7 +164,7 @@ export function adaptProfileProducts(
 
   // Monta o Record<string, ProfileVariant> final
   const catalog: Record<string, ProfileVariant> = {};
-  for (const [code, { rule, installType, modules }] of Object.entries(variantMap)) {
+  for (const [code, { rule, installType, modules, driverDimDali, driverDim110v }] of Object.entries(variantMap)) {
     catalog[code] = {
       name: rule.name,
       code,
@@ -164,6 +174,8 @@ export function adaptProfileProducts(
       allowD1D2: rule.allowD1D2,
       ...(rule.hasDiffuser !== undefined ? { hasDiffuser: rule.hasDiffuser } : {}),
       ...(rule.requiresRemoteDriver ? { requiresRemoteDriver: true } : {}),
+      driverDimDali: driverDimDali ?? null,
+      driverDim110v: driverDim110v ?? null,
       modules,
     };
   }

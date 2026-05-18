@@ -551,54 +551,11 @@
 - [x] Verificado no browser: OFFICE COMFORT 1X6 32W exibe driver PHILIPS XITANIUM 44W 350MA (EQ00347)
 - [x] Atualizar testes unitários (381 testes passando)
 
-## Bug: Lógica de medidas quebradas perdida nos perfis (17/05/2026)
-- [x] Diagnosticar o que mudou na lógica de considerarMedidasQuebradas após migração para API
-- [x] Restaurar a lógica de cálculo que aproxima ao módulo mais próximo da medida desejada
-- [x] Testar e validar no browser
-
-## Refatoração: Motor de cálculo 100% dados da API (18/05/2026)
-- [x] Refatorar ledEngine.ts para aceitar catálogo como parâmetro (ConfigInput.catalog)
-- [x] Propagar catálogo para getModules, tryInSingle, buildIfMlComposition, buildComposition
-- [x] Home.tsx passa activeProfileCatalog (API) para calculateComposition
-- [x] Fallback para LED_CATALOG estático quando catalog não fornecido (compatibilidade com testes)
-- [x] 383 testes passando após refatoração
-
-## Bug: Fallback 1B viola regra de composições IF/ML (18/05/2026)
-- [x] Remover fallback com módulos IF/ML de 1 barra em buildIfMlComposition (viola MIN_BARS_FOR_COMPOSITION=2)
-- [x] Garantir que módulos de 1 barra só sejam usados em composições IN (módulo único)
-- [x] Revisar BLAZE H 3200mm: melhor resultado possível com MIN_BARS=2 é 2270mm (regra respeitada)
-- [x] Rodar testes e validar (383 testes passando)
-
-## Correção adjustToLarger: buscar composição imediatamente acima da medida desejada (18/05/2026)
-- [x] Corrigir lógica de adjustToLarger para permitir ultrapassar a medida solicitada
-- [x] Retornar o módulo IN imediatamente acima do comprimento solicitado (mais próximo possível)
-- [x] Para composições IF/ML: nova função buildCompositionAbove busca menor combinação >= alvo
-- [x] Rodar testes e validar (387 testes passando)
-
-## Bug: Identificação de produto por SKU único (18/05/2026)
-- [x] Mapear todos os pontos onde SKU é usado como chave única para identificar produtos
-- [x] Corrigir para usar productName (nome único) em DownlightInput, PainelInput, SpotInput
-- [x] Atualizar SelectItem.value e estados no Home.tsx para usar p.name
-- [x] Atualizar testes unitários para usar productName em vez de productSku
-- [x] 387 testes passando após correção
-
-## Bug: ALE-2118 sem módulo LED e LUMIGRID sem driver (18/05/2026)
-- [x] Investigado ALE-2118 e LUMIGRID: campos produto/moduloLed/driverOnoff220 são null na API
-- [x] Adaptador removido fallback estático — campos nulos da API ficam nulos no resultado
-- [x] Prompt gerado para correção no sistema de cadastro da API
-- [x] 387 testes passando
-
-## Remover fallbacks estáticos — usar 100% API (18/05/2026)
-- [x] alfaluxApiAdapter.ts: removido PAINEL_CATALOG staticFallback — campos nulos da API ficam nulos
-- [x] Home.tsx: activePanelCatalog usa [] quando API não retornar dados (sem fallback estático)
-- [x] Home.tsx: activeSpotCatalog usa [] quando API não retornar dados (sem fallback estático)
-- [x] alfaluxApiAdapter.ts: toSpotProduct já existia e adapta Spots da API (categoria SPOTS)
-- [x] Removidos imports de PAINEL_CATALOG e SPOT_CATALOG do Home.tsx
-- [x] 387 testes passando após remoção dos fallbacks
-
-## Bug: Office Comfort sem driver/módulo e CCT não aplicado ao módulo LED (18/05/2026)
-- [x] Verificado Office Comfort na API: dados estão corretos no servidor (produto, moduloLed, driverOnoff220 preenchidos)
-- [x] Causa raiz: adaptador usava campos antigos (driverOnoff220 como string) mas API retornava corretamente
-- [x] Corrigido: stripCctMarker() remove [CCT] do moduloLed antes de armazenar no catálogo
-- [x] CCT é concatenado pelo calculateDownlight/calculatePainel/calculateSpot após seleção do usuário
-- [x] 387 testes passando após correção
+## Feature: DIM DALI e DIM 1-10V via API para Perfis (18/05/2026)
+- [x] Verificado: API retorna driverDimDali preenchido para 260 produtos de PERFIS
+- [x] profileApiAdapter.ts: popula driverDimDali e driverDim110v por perfil (primeiro valor não nulo)
+- [x] ledCatalog.ts: adicionados campos driverDimDali e driverDim110v na interface ProfileVariant
+- [x] ledEngine.ts: adicionado ControlType, controlType no ConfigInput e CompositionResult
+- [x] Home.tsx: seletor Tipo de Controle exibido apenas quando API retornar driver DIM disponível
+- [x] Home.tsx: driver DIM exibido no resumo do resultado com destaque âmbar
+- [x] 381 testes passando após implementação
