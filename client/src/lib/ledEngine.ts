@@ -12,7 +12,7 @@
 //   Stripline: apenas barras inteiras (1, 2, 3, 4, 5) — sem medidas fracionadas
 
 import { LED_CATALOG, MODULE_TYPE_LABELS } from "./ledCatalog";
-import type { InstallType } from "./ledCatalog";
+import type { InstallType, ProfileVariant } from "./ledCatalog";
 import type { SheetDriver, DriverSelectionContext } from "./driverSelector";
 import { selectDriverFromSheet, selectDriverFallback, calcVOut, splitDriverForDualSimultaneous } from "./driverSelector";
 
@@ -127,6 +127,12 @@ export interface ConfigInput {
    * Por padrão false — o usuário deve ativar manualmente.
    */
   adjustToLarger?: boolean;
+  /**
+   * Catálogo de perfis a ser usado no cálculo.
+   * Quando fornecido, substitui o LED_CATALOG estático — use para injetar dados da API.
+   * Quando ausente, usa LED_CATALOG como fallback (compatibilidade com testes existentes).
+   */
+  catalog?: Record<string, ProfileVariant>;
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -302,8 +308,8 @@ interface RawModule {
 // Mínimo de barras para módulos usados em composição IF/ML (evitar emendas muito próximas)
 const MIN_BARS_FOR_COMPOSITION = 2;
 
-function getModules(profileCode: string, type: ModuleType, allowLongModules: boolean, stripMethod?: StripMethod, power?: Power, forComposition = false, allowFractional = false): RawModule[] {
-  const profile = LED_CATALOG[profileCode];
+function getModules(profileCode: string, type: ModuleType, allowLongModules: boolean, stripMethod?: StripMethod, power?: Power, forComposition = false, allowFractional = false, catalog: Record<string, ProfileVariant> = LED_CATALOG): RawModule[] {
+  const profile = catalog[profileCode];
   if (!profile) return [];
   const mods = profile.modules[type];
   if (!mods) return [];
@@ -389,9 +395,10 @@ function tryInSingle(
   allowLongModules: boolean,
   stripMethod: StripMethod,
   sheetDrivers?: SheetDriver[],
-  allowFractional = false
+  allowFractional = false,
+  catalog: Record<string, ProfileVariant> = LED_CATALOG
 ): { composition: CompositionItem[]; realizedLength: number; remainingLength: number } | null {
-  const inModules = getModules(profileCode, "IN", allowLongModules, stripMethod, power, false, allowFractional)
+  const inModules = getModules(profileCode, "IN", allowLongModules, stripMethod, power, false, allowFractional, catalog)
     .filter(m => m.length <= requestedLength)
     .sort((a, b) => b.length - a.length);
 
@@ -442,19 +449,20 @@ function buildIfMlComposition(
   allowLongModules: boolean,
   stripMethod: StripMethod,
   sheetDrivers?: SheetDriver[],
-  allowFractional = false
+  allowFractional = false,
+  catalog: Record<string, ProfileVariant> = LED_CATALOG
 ): { composition: CompositionItem[]; realizedLength: number; remainingLength: number } | null {
-  const ifModules = getModules(profileCode, "IF", allowLongModules, stripMethod, power, true, allowFractional)
+  const ifModules = getModules(profileCode, "IF", allowLongModules, stripMethod, power, true, allowFractional, catalog)
     .sort((a, b) => b.length - a.length);
-  const mlModules = getModules(profileCode, "ML", allowLongModules, stripMethod, power, true, allowFractional)
+  const mlModules = getModules(profileCode, "ML", allowLongModules, stripMethod, power, true, allowFractional, catalog)
     .sort((a, b) => b.length - a.length);
 
   // Fallback: módulos IF de 1 barra (normalmente excluídos por MIN_BARS_FOR_COMPOSITION)
   // Usados quando o perfil tem poucos módulos e o resultado padrão fica muito abaixo do alvo.
-  const ifModules1B = getModules(profileCode, "IF", allowLongModules, stripMethod, power, false, allowFractional)
+  const ifModules1B = getModules(profileCode, "IF", allowLongModules, stripMethod, power, false, allowFractional, catalog)
     .filter(m => m.barras < MIN_BARS_FOR_COMPOSITION)
     .sort((a, b) => b.length - a.length);
-  const mlModules1B = getModules(profileCode, "ML", allowLongModules, stripMethod, power, false, allowFractional)
+  const mlModules1B = getModules(profileCode, "ML", allowLongModules, stripMethod, power, false, allowFractional, catalog)
     .filter(m => m.barras < MIN_BARS_FOR_COMPOSITION)
     .sort((a, b) => b.length - a.length);
 
@@ -626,21 +634,22 @@ export function buildComposition(
   allowLongModules: boolean,
   stripMethod: StripMethod = "STRIPFLEX",
   sheetDrivers?: SheetDriver[],
-  allowFractional = false
+  allowFractional = false,
+  catalog: Record<string, ProfileVariant> = LED_CATALOG
 ): {
   composition: CompositionItem[];
   realizedLength: number;
   remainingLength: number;
   compositionMode: "IN_SINGLE" | "IF_ML_LINE";
 } {
-  const profile = LED_CATALOG[profileCode];
+  const profile = catalog[profileCode];
   if (!profile) {
     return { composition: [], realizedLength: 0, remainingLength: requestedLength, compositionMode: "IF_ML_LINE" };
   }
 
   const maxBars = allowLongModules ? IN_MAX_BARS_LONG : IN_MAX_BARS_STANDARD;
 
-  const inModulesAll = getModules(profileCode, "IN", allowLongModules, stripMethod, power, false, allowFractional);
+  const inModulesAll = getModules(profileCode, "IN", allowLongModules, stripMethod, power, false, allowFractional, catalog);
   const largestInWithinLimit = inModulesAll
     .filter(m => m.barras <= maxBars)
     .sort((a, b) => b.length - a.length)[0];
@@ -648,13 +657,13 @@ export function buildComposition(
   const isShortLine = largestInWithinLimit !== undefined && requestedLength <= largestInWithinLimit.length;
 
   if (isShortLine) {
-    const inResult = tryInSingle(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, sheetDrivers, allowFractional);
+    const inResult = tryInSingle(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, sheetDrivers, allowFractional, catalog);
     if (inResult) {
       return { ...inResult, compositionMode: "IN_SINGLE" };
     }
   }
 
-  const ifMlResult = buildIfMlComposition(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, sheetDrivers, allowFractional);
+  const ifMlResult = buildIfMlComposition(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, sheetDrivers, allowFractional, catalog);
   if (ifMlResult) {
     return { ...ifMlResult, compositionMode: "IF_ML_LINE" };
   }
@@ -662,9 +671,9 @@ export function buildComposition(
   // Fallback: algoritmo guloso genérico
   // IF e ML com forComposition=true: excluir módulos < 2 barras (evitar emendas muito próximas)
   const allModules: RawModule[] = [
-    ...getModules(profileCode, "IN", allowLongModules, stripMethod, power, false, allowFractional),
-    ...getModules(profileCode, "IF", allowLongModules, stripMethod, power, true, allowFractional),
-    ...getModules(profileCode, "ML", allowLongModules, stripMethod, power, true, allowFractional),
+    ...getModules(profileCode, "IN", allowLongModules, stripMethod, power, false, allowFractional, catalog),
+    ...getModules(profileCode, "IF", allowLongModules, stripMethod, power, true, allowFractional, catalog),
+    ...getModules(profileCode, "ML", allowLongModules, stripMethod, power, true, allowFractional, catalog),
   ].sort((a, b) => b.length - a.length);
 
   const barsPerSection = stripMethod === "STRIPLINE" ? 1 : BARS_PER_SECTION_STRIPFLEX[power];
@@ -714,9 +723,13 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     diffuserD2,
     allowFractional = false,
     adjustToLarger = false,
+    catalog: inputCatalog,
   } = input;
 
-  const profile = LED_CATALOG[profileCode];
+  // Usa o catálogo injetado (API) se disponível, caso contrário usa o estático como fallback
+  const catalog = inputCatalog ?? LED_CATALOG;
+
+  const profile = catalog[profileCode];
   const profileName = profile?.name ?? profileCode;
   const installType: InstallType = profile?.installType ?? "PENDENTE";
 
@@ -763,7 +776,8 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     allowLongModules,
     stripMethod,
     undefined,
-    allowFractional
+    allowFractional,
+    catalog
   );
 
   // ── Ajuste para medida maior ──
@@ -772,7 +786,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
   let adjustedToLarger = false;
   const originalRequestedLength = totalLength;
   if (adjustToLarger && buildResult.realizedLength < totalLength) {
-    const inModulesAbove = getModules(profileCode, "IN", allowLongModules, stripMethod, powerD1, false, allowFractional)
+    const inModulesAbove = getModules(profileCode, "IN", allowLongModules, stripMethod, powerD1, false, allowFractional, catalog)
       .filter(m => m.length > totalLength)
       .sort((a, b) => a.length - b.length); // crescente: menor acima primeiro
     if (inModulesAbove.length > 0) {
@@ -785,7 +799,8 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
         allowLongModules,
         stripMethod,
         undefined,
-        allowFractional
+        allowFractional,
+        catalog
       );
       if (adjustedResult.realizedLength >= totalLength) {
         buildResult = adjustedResult;

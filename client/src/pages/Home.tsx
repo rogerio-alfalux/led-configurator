@@ -990,9 +990,9 @@ export default function Home() {
       independentLighting: effectiveIndependent,
       diffuserD1: hasDiffuser ? diffuserD1 : undefined,
       diffuserD2: hasDiffuser && isDual ? diffuserD2 : undefined,
-      sheetDrivers: sheetDrivers ?? [],
+       sheetDrivers: sheetDrivers ?? [],
+      catalog: activeProfileCatalog,
     };
-
     try {
       const res = calculateComposition(input);
       setResult(res);
@@ -1000,7 +1000,7 @@ export default function Home() {
       const msg = e instanceof Error ? e.message : "Erro ao calcular composição.";
       setError(msg);
     }
-  }, [profileCode, effectiveApplication, powerD1, powerD2, cct, voltage, stripMethod, totalLength, allowLongModules, allowFractional, adjustToLarger, effectiveIndependent, isDual, hasDiffuser, diffuserD1, diffuserD2]);
+  }, [profileCode, effectiveApplication, powerD1, powerD2, cct, voltage, stripMethod, totalLength, allowLongModules, allowFractional, adjustToLarger, effectiveIndependent, isDual, hasDiffuser, diffuserD1, diffuserD2, activeProfileCatalog, sheetDrivers]);
 
   return (
     <div className="min-h-screen bg-background">
