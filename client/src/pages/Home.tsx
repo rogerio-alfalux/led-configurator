@@ -1606,8 +1606,8 @@ export default function Home() {
                             <SelectValue placeholder="Selecione o produto..." />
                           </SelectTrigger>
                           <SelectContent>
-                            {dlProdutosFiltrados.map(({ p }) => (
-                              <SelectItem key={p.sku} value={p.sku ?? p.name}>{p.name}</SelectItem>
+                            {dlProdutosFiltrados.map(({ p }, idx) => (
+                              <SelectItem key={`${p.sku}-${idx}`} value={p.sku ?? p.name}>{p.name}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -1772,8 +1772,8 @@ export default function Home() {
                           >
                             <SelectTrigger className="h-10"><SelectValue placeholder="Selecione o produto..." /></SelectTrigger>
                             <SelectContent>
-                              {panelProdutos.map(({ p }) => (
-                                <SelectItem key={p.sku} value={p.sku ?? p.name}>{p.name}</SelectItem>
+                              {panelProdutos.map(({ p }, idx) => (
+                                <SelectItem key={`${p.sku}-${idx}`} value={p.sku ?? p.name}>{p.name}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -1942,8 +1942,8 @@ export default function Home() {
                       >
                         <SelectTrigger className="h-10"><SelectValue placeholder="Selecione o produto..." /></SelectTrigger>
                         <SelectContent>
-                          {spotProdutos.map(({ p }) => (
-                            <SelectItem key={p.sku} value={p.sku ?? p.name}>{p.name}</SelectItem>
+                          {spotProdutos.map(({ p }, idx) => (
+                            <SelectItem key={`${p.sku}-${idx}`} value={p.sku ?? p.name}>{p.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
