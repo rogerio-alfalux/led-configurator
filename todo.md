@@ -568,3 +568,9 @@
 - [x] Garantir que módulos de 1 barra só sejam usados em composições IN (módulo único)
 - [x] Revisar BLAZE H 3200mm: melhor resultado possível com MIN_BARS=2 é 2270mm (regra respeitada)
 - [x] Rodar testes e validar (383 testes passando)
+
+## Correção adjustToLarger: buscar composição imediatamente acima da medida desejada (18/05/2026)
+- [x] Corrigir lógica de adjustToLarger para permitir ultrapassar a medida solicitada
+- [x] Retornar o módulo IN imediatamente acima do comprimento solicitado (mais próximo possível)
+- [x] Para composições IF/ML: nova função buildCompositionAbove busca menor combinação >= alvo
+- [x] Rodar testes e validar (387 testes passando)

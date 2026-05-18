@@ -2715,3 +2715,43 @@ describe("adjustToLarger — BLAZE E (LLE-2810)", () => {
     expect(r.adjustedToLarger).toBeUndefined();
   });
 });
+
+describe("adjustToLarger — HIT Pendente (LLP-4251) — composições IF/ML (linhas longas)", () => {
+  const base: ConfigInput = {
+    profileCode: "LLP-4251",
+    application: "D1",
+    powerD1: 18,
+    cct: "3000K",
+    voltage: "220Vac",
+    totalLength: 5500,
+    allowLongModules: false,
+    allowFractional: true,
+    stripMethod: "STRIPFLEX",
+    independentLighting: false,
+  };
+
+  it("sem adjustToLarger: 5500mm → realizedLength < 5500 (melhor abaixo)", () => {
+    const r = calculateComposition({ ...base, adjustToLarger: false });
+    expect(r.realizedLength).toBeLessThan(5500);
+    expect(r.adjustedToLarger).toBeUndefined();
+  });
+
+  it("com adjustToLarger: 5500mm → realizedLength >= 5500 (composição acima)", () => {
+    const r = calculateComposition({ ...base, adjustToLarger: true });
+    expect(r.realizedLength).toBeGreaterThanOrEqual(5500);
+    expect(r.adjustedToLarger).toBe(true);
+  });
+
+  it("com adjustToLarger: 5500mm → realizedLength deve ser o mais próximo possível acima", () => {
+    const r = calculateComposition({ ...base, adjustToLarger: true });
+    // Melhor candidato: 2x IF 4.8B (2760mm) = 5520mm
+    // Isso é mais próximo de 5500mm que qualquer outra combinação IF/ML
+    expect(r.realizedLength).toBe(5520);
+  });
+
+  it("com adjustToLarger: 3000mm → realizedLength >= 3000 (composição acima)", () => {
+    const r = calculateComposition({ ...base, totalLength: 3000, adjustToLarger: true });
+    expect(r.realizedLength).toBeGreaterThanOrEqual(3000);
+    expect(r.adjustedToLarger).toBe(true);
+  });
+});

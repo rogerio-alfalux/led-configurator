@@ -592,6 +592,102 @@ function buildIfMlComposition(
   return { composition, realizedLength: best.realizedLength, remainingLength };
 }
 
+// ─── buildCompositionAbove: busca a composição imediatamente ACIMA do comprimento ────────────────
+//
+// Usada quando adjustToLarger=true: retorna a composição mais próxima que seja >= requestedLength.
+// Para IN: menor módulo IN com length > requestedLength.
+// Para IF/ML: menor combinação 2×IF(+ML) com realizedLength >= requestedLength.
+
+function buildCompositionAbove(
+  profileCode: string,
+  requestedLength: number,
+  power: Power,
+  voltage: Voltage,
+  allowLongModules: boolean,
+  stripMethod: StripMethod,
+  sheetDrivers?: SheetDriver[],
+  allowFractional = false,
+  catalog: Record<string, ProfileVariant> = LED_CATALOG
+): {
+  composition: CompositionItem[];
+  realizedLength: number;
+  remainingLength: number;
+  compositionMode: "IN_SINGLE" | "IF_ML_LINE";
+} | null {
+  const barsPerSection = stripMethod === "STRIPLINE" ? 1 : BARS_PER_SECTION_STRIPFLEX[power];
+
+  // ── Candidatos IN acima do alvo ──────────────────────────────────────────────
+  const inModulesAbove = getModules(profileCode, "IN", allowLongModules, stripMethod, power, false, allowFractional, catalog)
+    .filter(m => m.length > requestedLength)
+    .sort((a, b) => a.length - b.length); // crescente: menor acima primeiro
+
+  // ── Candidatos IF/ML acima do alvo ───────────────────────────────────────────
+  const ifModules = getModules(profileCode, "IF", allowLongModules, stripMethod, power, true, allowFractional, catalog)
+    .sort((a, b) => a.length - b.length); // crescente
+  const mlModules = getModules(profileCode, "ML", allowLongModules, stripMethod, power, true, allowFractional, catalog)
+    .sort((a, b) => a.length - b.length); // crescente
+
+  interface AboveCandidate {
+    mode: "IN_SINGLE" | "IF_ML_LINE";
+    rawItems: RawModule[];
+    realizedLength: number;
+  }
+
+  const aboveCandidates: AboveCandidate[] = [];
+
+  // Candidatos IN
+  for (const m of inModulesAbove) {
+    aboveCandidates.push({ mode: "IN_SINGLE", rawItems: [m], realizedLength: m.length });
+  }
+
+  // Candidatos IF/ML: 2×IF (sem ML) acima do alvo
+  for (const ifMod of ifModules) {
+    const twoIfLength = 2 * ifMod.length;
+    if (twoIfLength >= requestedLength) {
+      aboveCandidates.push({ mode: "IF_ML_LINE", rawItems: [ifMod, ifMod], realizedLength: twoIfLength });
+    }
+  }
+
+  // Candidatos IF/ML: 2×IF + ML(s) acima do alvo
+  // Para cada combinação de IF, adicionar o menor número de ML que ultrapasse o alvo
+  for (const ifMod of ifModules) {
+    const twoIfLength = 2 * ifMod.length;
+    if (twoIfLength >= requestedLength) continue; // já coberto acima sem ML
+
+    // Tentar adicionar MLs até ultrapassar o alvo
+    // Estratégia: greedy com MLs em ordem crescente para minimizar o excesso
+    for (const mlMod of mlModules) {
+      let accumulated = twoIfLength;
+      const mlItems: RawModule[] = [];
+      // Adicionar MLs até ultrapassar
+      while (accumulated < requestedLength) {
+        mlItems.push(mlMod);
+        accumulated += mlMod.length;
+      }
+      if (accumulated >= requestedLength) {
+        aboveCandidates.push({
+          mode: "IF_ML_LINE",
+          rawItems: [ifMod, ifMod, ...mlItems],
+          realizedLength: accumulated,
+        });
+        break; // um candidato por combinação IF+ML é suficiente
+      }
+    }
+  }
+
+  if (aboveCandidates.length === 0) return null;
+
+  // Selecionar o candidato com menor comprimento acima do alvo (mais próximo por cima)
+  aboveCandidates.sort((a, b) => a.realizedLength - b.realizedLength);
+  const best = aboveCandidates[0];
+
+  const composition = toCompositionItems(best.rawItems, barsPerSection, power, voltage, stripMethod, sheetDrivers);
+  // remainingLength negativo indica que ultrapassou o alvo
+  const remainingLength = requestedLength - best.realizedLength;
+
+  return { composition, realizedLength: best.realizedLength, remainingLength, compositionMode: best.mode };
+}
+
 // ─── buildComposition: orquestrador das duas estratégias ─────────────────────
 
 export function buildComposition(
@@ -749,31 +845,25 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
   );
 
   // ── Ajuste para medida maior ──
-  // Quando adjustToLarger=true e a medida realizada ficou menor que a solicitada,
-  // busca o menor módulo IN acima do comprimento solicitado e recalcula.
+  // Quando adjustToLarger=true, busca a composição imediatamente ACIMA do comprimento solicitado.
+  // Permite ultrapassar a medida desejada, retornando a mais próxima possível acima.
   let adjustedToLarger = false;
   const originalRequestedLength = totalLength;
   if (adjustToLarger && buildResult.realizedLength < totalLength) {
-    const inModulesAbove = getModules(profileCode, "IN", allowLongModules, stripMethod, powerD1, false, allowFractional, catalog)
-      .filter(m => m.length > totalLength)
-      .sort((a, b) => a.length - b.length); // crescente: menor acima primeiro
-    if (inModulesAbove.length > 0) {
-      const targetLength = inModulesAbove[0].length;
-      const adjustedResult = buildComposition(
-        profileCode,
-        targetLength,
-        powerD1,
-        voltage,
-        allowLongModules,
-        stripMethod,
-        undefined,
-        allowFractional,
-        catalog
-      );
-      if (adjustedResult.realizedLength >= totalLength) {
-        buildResult = adjustedResult;
-        adjustedToLarger = true;
-      }
+    const aboveResult = buildCompositionAbove(
+      profileCode,
+      totalLength,
+      powerD1,
+      voltage,
+      allowLongModules,
+      stripMethod,
+      undefined,
+      allowFractional,
+      catalog
+    );
+    if (aboveResult && aboveResult.realizedLength >= totalLength) {
+      buildResult = aboveResult;
+      adjustedToLarger = true;
     }
   }
 
