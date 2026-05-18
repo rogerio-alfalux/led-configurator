@@ -128,14 +128,6 @@ export function generateOrderSummary(result: CompositionResult): string {
       ? result.combinedDrivers
       : result.driversD1;
 
-  // Driver DIM DALI / DIM 1-10V: substitui o driver ON/OFF no texto do pedido
-  const isDimControl = result.controlType !== "onoff" && result.driverDimSelected;
-  const dimDriverLabel = isDimControl
-    ? `1X ${result.driverDimSelected!.model.toUpperCase()}${
-        result.driverDimSelected!.code ? ` (${result.driverDimSelected!.code})` : ""
-      }`
-    : null;
-
   const blocks: string[] = [];
 
   skuOrder.forEach((sku, index) => {
@@ -155,8 +147,7 @@ export function generateOrderSummary(result: CompositionResult): string {
         ? `${result.powerD1}W/M + ${result.powerD2}W/M`
         : `${result.powerD1}W/M`;
 
-      // Usar driver DIM quando selecionado, senão usar driver ON/OFF dimensional
-      const driverSummary = dimDriverLabel ?? buildDriverSummaryPerPiece(driverEntriesD1, sku);
+      const driverSummary = buildDriverSummaryPerPiece(driverEntriesD1, sku);
 
       const appPart = applicationLabel ? ` ${applicationLabel}` : "";
       const line1 = `${qtyPrefix}${productName}${appPart} ${installLabel} COM ${info.length}MM ${powerLabel} (${sku})`;

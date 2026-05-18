@@ -871,6 +871,31 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
       ? buildSkuDriverList(composition, powerD1, voltage, stripMethod, input.sheetDrivers, driverCtx, true)
       : undefined;
 
+  // ── Driver DIM: substitui o driver ON/OFF em cada SKU (1 driver DIM por módulo) ──
+  const dimDriverInfo = input.controlType === "dimDali"
+    ? (input.driverDimDali ?? null)
+    : input.controlType === "dim110v"
+      ? (input.driverDim110v ?? null)
+      : null;
+
+  function applyDimDriver(entries: SkuDriverEntry[]): SkuDriverEntry[] {
+    if (!dimDriverInfo) return entries;
+    return entries.map(e => ({
+      ...e,
+      driver: {
+        code: dimDriverInfo.code ?? undefined,
+        model: dimDriverInfo.model,
+        power: 0,
+        current: "",
+        quantity: 1,
+      },
+    }));
+  }
+
+  const finalDriversD1 = applyDimDriver(driversD1);
+  const finalDriversD2 = applyDimDriver(driversD2);
+  const finalCombinedDrivers = combinedDrivers ? applyDimDriver(combinedDrivers) : undefined;
+
   return {
     profileCode,
     profileName,
@@ -890,9 +915,9 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     remainingLength,
     composition,
     totalBars,
-    driversD1,
-    driversD2,
-    combinedDrivers,
+    driversD1: finalDriversD1,
+    driversD2: finalDriversD2,
+    combinedDrivers: finalCombinedDrivers,
     stripflexName,
     engineeringNotes,
     hasAlert,
@@ -903,10 +928,6 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     adjustedToLarger: adjustedToLarger || undefined,
     originalRequestedLength: adjustedToLarger ? originalRequestedLength : undefined,
     controlType: input.controlType ?? "onoff",
-    driverDimSelected: input.controlType === "dimDali"
-      ? (input.driverDimDali ?? null)
-      : input.controlType === "dim110v"
-        ? (input.driverDim110v ?? null)
-        : null,
+    driverDimSelected: dimDriverInfo,
   };
 }
