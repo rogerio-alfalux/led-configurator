@@ -568,13 +568,13 @@
 - [x] 381 testes passando, 0 erros TypeScript
 
 ## Correção: driverDimDali como objeto { model, code } (18/05/2026)
-- [ ] Corrigir alfaluxApiService.ts: interface AlfaluxProduct deve ter driverDimDali e driverDim110v como `{ model: string; code: string | null } | null` em vez de `string | null`
-- [ ] Corrigir alfaluxApiService.ts: mesma correção para driverOnoff220 e driverOnoffBivolt (também são objetos na API externa)
-- [ ] Corrigir ApiProduct em alfaluxApiAdapter.ts: mesma mudança de tipo para driverDimDali e driverDim110v
-- [ ] Corrigir profileApiAdapter.ts: ler `p.driverDimDali?.model` em vez de `p.driverDimDali`
-- [ ] Corrigir alfaluxApiAdapter.ts: ler `p.driverOnoff220?.model` para downlights/painéis/spots
-- [ ] Atualizar testes do profileApiAdapter para usar o formato de objeto
-- [ ] Atualizar testes do alfaluxApiAdapter para usar o formato de objeto
+- [x] Corrigir alfaluxApiService.ts: interface AlfaluxProduct deve ter driverDimDali e driverDim110v como `{ model: string; code: string | null } | null` em vez de `string | null`
+- [x] Corrigir alfaluxApiService.ts: mesma correção para driverOnoff220 e driverOnoffBivolt (também são objetos na API externa)
+- [x] Corrigir ApiProduct em alfaluxApiAdapter.ts: mesma mudança de tipo para driverDimDali e driverDim110v
+- [x] Corrigir profileApiAdapter.ts: ler `p.driverDimDali?.model` em vez de `p.driverDimDali`
+- [x] Corrigir alfaluxApiAdapter.ts: ler `p.driverOnoff220?.model` para downlights/painéis/spots
+- [x] Atualizar testes do profileApiAdapter para usar o formato de objeto
+- [x] Atualizar testes do alfaluxApiAdapter para usar o formato de objeto
 
 ## Migração para /api/products/all com DriverInfo (18/05/2026)
 - [x] alfaluxApiService.ts: migrado para /api/products/all, interface AlfaluxProduct com DriverInfo { model, code } | null

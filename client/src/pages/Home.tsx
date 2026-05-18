@@ -463,84 +463,95 @@ function ResultBlock({ result }: { result: CompositionResult }) {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
               <Zap className="w-4 h-4" />
-              Drivers por SKU
-              <span className="text-xs font-normal text-muted-foreground ml-1">
-                (1 driver por módulo — nunca compartilhado)
-              </span>
+              {result.controlType !== "onoff" ? "Driver de Dimming" : "Drivers por SKU"}
+              {result.controlType === "onoff" && (
+                <span className="text-xs font-normal text-muted-foreground ml-1">
+                  (1 driver por módulo — nunca compartilhado)
+                </span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {isDual && result.independentLighting ? (
-              <div className="space-y-4">
-                <SkuDriverList
-                  entries={result.driversD1}
-                  label={`D1 · ${result.powerD1}W · ${result.voltage}`}
-                />
-                <SkuDriverList
-                  entries={result.driversD2}
-                  label={`D2 · ${result.powerD2}W · ${result.voltage}`}
-                />
-              </div>
-            ) : isDual && !result.independentLighting ? (
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Info className="w-3 h-3" />
-                  Acendimento Conjunto — os mesmos drivers atendem D1 e D2 por SKU
-                </p>
-                <SkuDriverList
-                  entries={result.combinedDrivers ?? result.driversD1}
-                  label={`D1+D2 · ${result.powerD1}W · ${result.voltage}`}
-                />
+            {/* Quando DIM DALI ou DIM 1-10V: exibir apenas o driver DIM selecionado */}
+            {result.controlType !== "onoff" && result.driverDimSelected ? (
+              <div className="space-y-3">
+                <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3">
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-2">
+                    {result.controlType === "dimDali" ? "DIM DALI" : "DIM 1-10V"}
+                  </p>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                    <Zap className="w-3 h-3" />
+                    {result.driverDimSelected.model}
+                    {result.driverDimSelected.code && (
+                      <span className="ml-1 font-mono text-[10px] bg-amber-500/20 px-1 rounded">{result.driverDimSelected.code}</span>
+                    )}
+                  </span>
+                  <p className="text-xs text-amber-700/70 dark:text-amber-400/70 mt-2">
+                    O driver de dimming é único para toda a instalação — não é dimensionado por módulo.
+                  </p>
+                </div>
               </div>
             ) : (
-              <SkuDriverList
-                entries={result.driversD1}
-                label={`${result.application} · ${result.powerD1}W · ${result.voltage}`}
-              />
-            )}
-
-            {/* Resumo total de drivers */}
-            <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
-              <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-                Resumo de Drivers
-              </p>
-              {(() => {
-                // Para D1+D2 conjunto, usar combinedDrivers (barras × 2); caso contrário driversD1 + driversD2
-                const allEntries = (isDual && !result.independentLighting && result.combinedDrivers)
-                  ? result.combinedDrivers
-                  : [...result.driversD1, ...result.driversD2];
-                const driverMap = new Map<string, number>();
-                for (const e of allEntries) {
-                  const key = e.driver.model;
-                  // Multiplica qty de SKUs pela qty de drivers por SKU (ex: 26W CERTADRIVE pode ser 2x ou 3x)
-                  driverMap.set(key, (driverMap.get(key) ?? 0) + e.quantity * (e.driver.quantity ?? 1));
-                }
-                return (
-                  <div className="flex flex-wrap gap-2">
-                    {Array.from(driverMap.entries()).map(([model, qty], idx) => (
-                      <span
-                        key={idx}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-primary/10 text-primary border border-primary/20"
-                      >
-                        <Zap className="w-3 h-3" />
-                        {qty}× {model}
-                      </span>
-                    ))}
+              /* ON/OFF: exibir lista de drivers por SKU normalmente */
+              <>
+                {isDual && result.independentLighting ? (
+                  <div className="space-y-4">
+                    <SkuDriverList
+                      entries={result.driversD1}
+                      label={`D1 · ${result.powerD1}W · ${result.voltage}`}
+                    />
+                    <SkuDriverList
+                      entries={result.driversD2}
+                      label={`D2 · ${result.powerD2}W · ${result.voltage}`}
+                    />
                   </div>
-                );
-              })()}
-             </div>
-            {/* Driver DIM DALI / DIM 1-10V */}
-            {result.controlType !== "onoff" && result.driverDimSelected && (
-              <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3">
-                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-2">
-                  Driver de Dimming
-                </p>
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
-                  <Zap className="w-3 h-3" />
-                  {result.controlType === "dimDali" ? "DIM DALI" : "DIM 1-10V"}: {typeof result.driverDimSelected === "object" && result.driverDimSelected !== null ? result.driverDimSelected.model : result.driverDimSelected}
-                </span>
-              </div>
+                ) : isDual && !result.independentLighting ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Info className="w-3 h-3" />
+                      Acendimento Conjunto — os mesmos drivers atendem D1 e D2 por SKU
+                    </p>
+                    <SkuDriverList
+                      entries={result.combinedDrivers ?? result.driversD1}
+                      label={`D1+D2 · ${result.powerD1}W · ${result.voltage}`}
+                    />
+                  </div>
+                ) : (
+                  <SkuDriverList
+                    entries={result.driversD1}
+                    label={`${result.application} · ${result.powerD1}W · ${result.voltage}`}
+                  />
+                )}
+                {/* Resumo total de drivers */}
+                <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
+                  <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
+                    Resumo de Drivers
+                  </p>
+                  {(() => {
+                    const allEntries = (isDual && !result.independentLighting && result.combinedDrivers)
+                      ? result.combinedDrivers
+                      : [...result.driversD1, ...result.driversD2];
+                    const driverMap = new Map<string, number>();
+                    for (const e of allEntries) {
+                      const key = e.driver.model;
+                      driverMap.set(key, (driverMap.get(key) ?? 0) + e.quantity * (e.driver.quantity ?? 1));
+                    }
+                    return (
+                      <div className="flex flex-wrap gap-2">
+                        {Array.from(driverMap.entries()).map(([model, qty], idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-primary/10 text-primary border border-primary/20"
+                          >
+                            <Zap className="w-3 h-3" />
+                            {qty}× {model}
+                          </span>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
