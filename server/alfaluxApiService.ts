@@ -78,7 +78,20 @@ export async function fetchAllAlfaluxProducts(): Promise<AlfaluxProduct[]> {
   if (!res.ok) throw new Error(`Alfalux API error: ${res.status}`);
 
   const body = await res.json() as ApiResponse;
-  const all = body.products ?? [];
+  const raw = body.products ?? [];
+
+  // Deduplicar por SKU — a API pode retornar o mesmo SKU mais de uma vez
+  const seenSkus = new Set<string>();
+  const all = raw.filter(p => {
+    if (seenSkus.has(p.sku)) return false;
+    seenSkus.add(p.sku);
+    return true;
+  });
+
+  const dupsRemoved = raw.length - all.length;
+  if (dupsRemoved > 0) {
+    console.warn(`[AlfaluxAPI] ${dupsRemoved} SKUs duplicados removidos (${raw.length} → ${all.length}).`);
+  }
 
   console.log(`[AlfaluxAPI] ${all.length} produtos carregados.`);
   cache = { data: all, fetchedAt: now };
