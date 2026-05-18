@@ -779,10 +779,12 @@ export default function Home() {
     },
   });
 
-  // Buscar produtos da API Alfalux (cache de 1 min via React Query)
-  const { data: alfaluxApiProducts, isLoading: alfaluxLoading } = trpc.alfalux.products.useQuery(undefined, {
-    staleTime: 60 * 1000, // 1 minuto
+  // Buscar produtos da API Alfalux (sem cache para garantir dados sempre frescos)
+  const { data: alfaluxApiProducts, isLoading: alfaluxLoading, refetch: refetchAlfaluxProducts } = trpc.alfalux.products.useQuery(undefined, {
+    staleTime: 0, // Sempre considerar dados como obsoletos
+    gcTime: 0,    // Não reter em memória
     refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
   // Adaptar produtos da API para os tipos internos (fallback para catálogos estáticos)
   const adaptedCatalogs = useMemo(() => {
@@ -1730,6 +1732,14 @@ export default function Home() {
                             Catálogo local
                           </span>
                         )}
+                        <button
+                          onClick={() => refetchAlfaluxProducts()}
+                          disabled={alfaluxLoading}
+                          title="Atualizar dados da API"
+                          className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+                        >
+                          <RefreshCw className={`w-3 h-3 ${alfaluxLoading ? 'animate-spin' : ''}`} />
+                        </button>
                       </div>
                       {/* Tipo de Instalação */}
                       <div className="space-y-1.5">
