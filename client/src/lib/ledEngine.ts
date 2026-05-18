@@ -449,7 +449,16 @@ function buildIfMlComposition(
   const mlModules = getModules(profileCode, "ML", allowLongModules, stripMethod, power, true, allowFractional)
     .sort((a, b) => b.length - a.length);
 
-  if (ifModules.length === 0) return null;
+  // Fallback: módulos IF de 1 barra (normalmente excluídos por MIN_BARS_FOR_COMPOSITION)
+  // Usados quando o perfil tem poucos módulos e o resultado padrão fica muito abaixo do alvo.
+  const ifModules1B = getModules(profileCode, "IF", allowLongModules, stripMethod, power, false, allowFractional)
+    .filter(m => m.barras < MIN_BARS_FOR_COMPOSITION)
+    .sort((a, b) => b.length - a.length);
+  const mlModules1B = getModules(profileCode, "ML", allowLongModules, stripMethod, power, false, allowFractional)
+    .filter(m => m.barras < MIN_BARS_FOR_COMPOSITION)
+    .sort((a, b) => b.length - a.length);
+
+  if (ifModules.length === 0 && ifModules1B.length === 0) return null;
 
   const barsPerSection = stripMethod === "STRIPLINE" ? 1 : BARS_PER_SECTION_STRIPFLEX[power];
 
@@ -462,47 +471,51 @@ function buildIfMlComposition(
     balance: number;
   }
 
-  const candidates: Candidate[] = [];
+  function buildCandidates(ifMods: RawModule[], mlMods: RawModule[]): Candidate[] {
+    const result: Candidate[] = [];
+    for (const ifMod of ifMods) {
+      const twoIfLength = 2 * ifMod.length;
+      if (twoIfLength > requestedLength) continue;
 
-  for (const ifMod of ifModules) {
-    const twoIfLength = 2 * ifMod.length;
-    if (twoIfLength > requestedLength) continue;
+      const remaining = requestedLength - twoIfLength;
 
-    const remaining = requestedLength - twoIfLength;
+      // --- Candidato A: 2x IF sem ML ---
+      {
+        const realizedLength = twoIfLength;
+        const moduleCount = 2;
+        const balance = 0;
+        const skuVariety = 1;
+        result.push({ ifMod, mlItems: [], realizedLength, moduleCount, skuVariety, balance });
+      }
 
-    // --- Candidato A: 2x IF sem ML ---
-    {
-      const realizedLength = twoIfLength;
-      const moduleCount = 2;
-      const balance = 0; // IFs iguais = desvio zero
-      const skuVariety = 1; // apenas 1 tipo de SKU (IF)
-      candidates.push({ ifMod, mlItems: [], realizedLength, moduleCount, skuVariety, balance });
-    }
+      // --- Candidato B: 2x IF + ML (somente se sobrar comprimento) ---
+      if (mlMods.length > 0 && remaining > 0) {
+        const mlItems: RawModule[] = [];
+        let rem = remaining;
+        for (const ml of mlMods) {
+          while (rem >= ml.length) {
+            mlItems.push(ml);
+            rem -= ml.length;
+          }
+        }
 
-    // --- Candidato B: 2x IF + ML (somente se sobrar comprimento) ---
-    if (mlModules.length > 0 && remaining > 0) {
-      const mlItems: RawModule[] = [];
-      let rem = remaining;
-      for (const ml of mlModules) {
-        while (rem >= ml.length) {
-          mlItems.push(ml);
-          rem -= ml.length;
+        if (mlItems.length > 0) {
+          const realizedLength = requestedLength - rem;
+          const moduleCount = 2 + mlItems.length;
+          const allLengths = [ifMod.length, ifMod.length, ...mlItems.map(m => m.length)];
+          const mean = allLengths.reduce((s, v) => s + v, 0) / allLengths.length;
+          const balance = Math.sqrt(allLengths.reduce((s, v) => s + (v - mean) ** 2, 0) / allLengths.length);
+          const skuVariety = new Set([ifMod.sku, ...mlItems.map(m => m.sku)]).size;
+          result.push({ ifMod, mlItems, realizedLength, moduleCount, skuVariety, balance });
         }
       }
-
-      if (mlItems.length > 0) {
-        const realizedLength = requestedLength - rem;
-        const moduleCount = 2 + mlItems.length;
-        const allLengths = [ifMod.length, ifMod.length, ...mlItems.map(m => m.length)];
-        const mean = allLengths.reduce((s, v) => s + v, 0) / allLengths.length;
-        const balance = Math.sqrt(allLengths.reduce((s, v) => s + (v - mean) ** 2, 0) / allLengths.length);
-        const skuVariety = new Set([ifMod.sku, ...mlItems.map(m => m.sku)]).size;
-        candidates.push({ ifMod, mlItems, realizedLength, moduleCount, skuVariety, balance });
-      }
     }
+    return result;
   }
 
-  if (candidates.length === 0) return null;
+  const candidates: Candidate[] = buildCandidates(ifModules, mlModules);
+
+  if (candidates.length === 0 && ifModules1B.length === 0) return null;
 
   // ── Lógica de seleção v3.2 ──────────────────────────────────────────────────
   //
@@ -536,22 +549,27 @@ function buildIfMlComposition(
 
    // Ordenação geral: mais próximo primeiro (independente de número de módulos)
   // Para linhas longas OU quando 2 módulos ficou muito abaixo da tolerância
-  candidates.sort((a, b) => {
-    // Mais próximo do comprimento solicitado (prioridade principal)
-    if (b.realizedLength !== a.realizedLength) return b.realizedLength - a.realizedLength;
-    // Menor número de módulos (desempate)
-    if (a.moduleCount !== b.moduleCount) return a.moduleCount - b.moduleCount;
-    // Menor variedade de SKUs
-    if (a.skuVariety !== b.skuVariety) return a.skuVariety - b.skuVariety;
-    // Menor desvio de equilíbrio
-    return a.balance - b.balance;
-  });
+  function sortCandidates(list: Candidate[]): void {
+    list.sort((a, b) => {
+      // Mais próximo do comprimento solicitado (prioridade principal)
+      if (b.realizedLength !== a.realizedLength) return b.realizedLength - a.realizedLength;
+      // Menor número de módulos (desempate)
+      if (a.moduleCount !== b.moduleCount) return a.moduleCount - b.moduleCount;
+      // Menor variedade de SKUs
+      if (a.skuVariety !== b.skuVariety) return a.skuVariety - b.skuVariety;
+      // Menor desvio de equilíbrio
+      return a.balance - b.balance;
+    });
+  }
+
+  sortCandidates(candidates);
+
   // v3.3: Para linhas longas, verificar se o candidato "mais limpo" está suficientemente
   // próximo do "mais exato" — se sim, preferir o mais limpo (menos SKUs/módulos).
   // Tolerância proporcional: 0,2% do comprimento solicitado, mínimo 30mm, máximo 100mm.
   // Isso captura diferenças mínimas (ex: 30mm em 42330mm) sem sacrificar precisão em linhas curtas.
-  let best = candidates[0];
-  if (requestedLength > SHORT_LINE_THRESHOLD && candidates.length > 1) {
+  let best = candidates.length > 0 ? candidates[0] : null;
+  if (best && requestedLength > SHORT_LINE_THRESHOLD && candidates.length > 1) {
     const mostExact = candidates[0]; // já ordenado por realizedLength desc
     // Candidato mais limpo: menos SKUs → menos módulos → mais próximo
     const cleanest = [...candidates].sort((a, b) => {
@@ -565,6 +583,32 @@ function buildIfMlComposition(
       best = cleanest;
     }
   }
+
+  // v3.4: Fallback com módulos IF de 1 barra
+  // Quando o melhor resultado padrão (MIN_BARS >= 2) fica muito abaixo do alvo (diff > 250mm),
+  // tentar novamente incluindo módulos IF/ML de 1 barra (normalmente excluídos para evitar
+  // emendas muito próximas). Usar o fallback apenas se produzir resultado melhor.
+  // IMPORTANTE: só ativar quando allowFractional=true, pois IF 1B é uma barra inteira
+  // mas sua inclusão em composições é uma flexibilização que só deve ocorrer no modo quebrado.
+  const bestDiff = best ? requestedLength - best.realizedLength : requestedLength;
+  if (allowFractional && bestDiff > TWO_MODULE_TOLERANCE && ifModules1B.length > 0) {
+    // Combinar módulos padrão + módulos 1B para o fallback
+    const allIfForFallback = [...ifModules, ...ifModules1B];
+    const allMlForFallback = [...mlModules, ...mlModules1B];
+    const fallbackCandidates = buildCandidates(allIfForFallback, allMlForFallback);
+    sortCandidates(fallbackCandidates);
+    if (fallbackCandidates.length > 0) {
+      const bestFallback = fallbackCandidates[0];
+      const fallbackDiff = requestedLength - bestFallback.realizedLength;
+      // Usar fallback somente se for estritamente melhor que o resultado padrão
+      if (fallbackDiff < bestDiff) {
+        best = bestFallback;
+      }
+    }
+  }
+
+  if (!best) return null;
+
   const rawItems: RawModule[] = [best.ifMod, best.ifMod, ...best.mlItems];
   const composition = toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod, sheetDrivers);
   const remainingLength = requestedLength - best.realizedLength;

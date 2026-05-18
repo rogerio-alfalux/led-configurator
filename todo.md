@@ -550,3 +550,8 @@
 - [x] Corrigir toPainelProduct no alfaluxApiAdapter.ts: busca driver por SKU no PAINEL_CATALOG estático quando API retorna string vazia
 - [x] Verificado no browser: OFFICE COMFORT 1X6 32W exibe driver PHILIPS XITANIUM 44W 350MA (EQ00347)
 - [x] Atualizar testes unitários (381 testes passando)
+
+## Bug: Lógica de medidas quebradas perdida nos perfis (17/05/2026)
+- [ ] Diagnosticar o que mudou na lógica de considerarMedidasQuebradas após migração para API
+- [ ] Restaurar a lógica de cálculo que aproxima ao módulo mais próximo da medida desejada
+- [ ] Testar e validar no browser

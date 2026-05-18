@@ -2068,6 +2068,51 @@ describe("v3.3 --- Validacao por perfil: LLP-6060 (BLAZE H) e LLP-4251 com regra
       expect(result.realizedLength).toBeLessThanOrEqual(length);
     }
   });
+
+  // v3.4 fallback: BLAZE H 3200mm com medidas quebradas
+  // O perfil BLAZE H tem poucos módulos IF (sem fracionários entre 2B e 3B).
+  // Com allowFractional=true, o motor deve usar o fallback com IF 1B para se aproximar melhor.
+  // Resultado esperado: 2x IF 1B (575mm) + ML 3B (1695mm) = 2845mm (diff=355mm)
+  // Isso é melhor que o resultado padrão sem fallback: 2x IF 2B = 2270mm (diff=930mm).
+  it("LLP-6060 3200mm allowFractional=true -> usa fallback IF 1B para melhor aproximação (> 2270mm)", () => {
+    const result = calculateComposition({
+      profileCode: "LLP-6060",
+      application: "D1",
+      powerD1: 18,
+      cct: "3000K",
+      voltage: "220Vac",
+      totalLength: 3200,
+      allowLongModules: false,
+      allowFractional: true,
+      stripMethod: "STRIPFLEX",
+      independentLighting: false,
+    });
+    // Deve ser melhor que 2270mm (resultado sem fallback)
+    expect(result.realizedLength).toBeGreaterThan(2270);
+    // Não deve ultrapassar o comprimento solicitado
+    expect(result.realizedLength).toBeLessThanOrEqual(3200);
+    // Deve usar mais de 2 módulos (o fallback adiciona ML)
+    const totalModules = result.composition.reduce((sum, item) => sum + item.quantity, 0);
+    expect(totalModules).toBeGreaterThan(2);
+  });
+
+  it("LLP-6060 3200mm allowFractional=false -> retorna resultado padrão (sem fallback 1B)", () => {
+    const result = calculateComposition({
+      profileCode: "LLP-6060",
+      application: "D1",
+      powerD1: 18,
+      cct: "3000K",
+      voltage: "220Vac",
+      totalLength: 3200,
+      allowLongModules: false,
+      allowFractional: false,
+      stripMethod: "STRIPFLEX",
+      independentLighting: false,
+    });
+    // Sem medidas quebradas: apenas módulos inteiros, resultado esperado é 2270mm
+    expect(result.realizedLength).toBe(2270);
+    expect(result.realizedLength).toBeLessThanOrEqual(3200);
+  });
 });
 
 describe("v3.4 --- Regra Absoluta de Drivers: fronteiras exatas sem arredondamento", () => {
