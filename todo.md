@@ -583,10 +583,10 @@
 - [x] 387 testes passando após correção
 
 ## Bug: ALE-2118 sem módulo LED e LUMIGRID sem driver (18/05/2026)
-- [ ] Investigar ALE-2118 na API: verificar campo moduloLed e por que não aparece no resumo
-- [ ] Investigar LUMIGRID na API: verificar campos driverOnoff220 e por que driver está ausente
-- [ ] Corrigir adaptador ou catálogo estático para preencher os campos faltantes
-- [ ] Rodar testes e validar no browser
+- [x] Investigado ALE-2118 e LUMIGRID: campos produto/moduloLed/driverOnoff220 são null na API
+- [x] Adaptador removido fallback estático — campos nulos da API ficam nulos no resultado
+- [x] Prompt gerado para correção no sistema de cadastro da API
+- [x] 387 testes passando
 
 ## Remover fallbacks estáticos — usar 100% API (18/05/2026)
 - [x] alfaluxApiAdapter.ts: removido PAINEL_CATALOG staticFallback — campos nulos da API ficam nulos
@@ -595,3 +595,10 @@
 - [x] alfaluxApiAdapter.ts: toSpotProduct já existia e adapta Spots da API (categoria SPOTS)
 - [x] Removidos imports de PAINEL_CATALOG e SPOT_CATALOG do Home.tsx
 - [x] 387 testes passando após remoção dos fallbacks
+
+## Bug: Office Comfort sem driver/módulo e CCT não aplicado ao módulo LED (18/05/2026)
+- [x] Verificado Office Comfort na API: dados estão corretos no servidor (produto, moduloLed, driverOnoff220 preenchidos)
+- [x] Causa raiz: adaptador usava campos antigos (driverOnoff220 como string) mas API retornava corretamente
+- [x] Corrigido: stripCctMarker() remove [CCT] do moduloLed antes de armazenar no catálogo
+- [x] CCT é concatenado pelo calculateDownlight/calculatePainel/calculateSpot após seleção do usuário
+- [x] 387 testes passando após correção

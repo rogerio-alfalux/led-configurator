@@ -66,6 +66,11 @@ function normalizeDriverModel(text: string): string {
   return text.replace(/\s*\(EQ\d{5}\)\s*$/, "").trim();
 }
 
+/** Remove o marcador [CCT] do texto do módulo LED */
+function stripCctMarker(text: string): string {
+  return text.replace(/\s*\[CCT\]\s*/gi, "").trim();
+}
+
 /** Converte um produto da API para DownlightProduct */
 function toDownlightProduct(p: ApiProduct): DownlightProduct {
   const driver220Text = p.driverOnoff220 || "";
@@ -80,7 +85,8 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
     holder: p.holderNaoAplicavel ? null : (p.holder || null),
     otica: p.oticaNaoAplicavel ? null : (p.otica || null),
     dissipador: p.dissipadorNaoAplicavel ? null : (p.dissipador || null),
-    ledModule: p.moduloLed || "",
+    // Remove [CCT] do moduloLed — o CCT será concatenado pelo calculateDownlight
+    ledModule: p.moduloLed ? stripCctMarker(p.moduloLed) : "",
     driver220: {
       model: normalizeDriverModel(driver220Text),
       code: extractEqCode(driver220Text),
@@ -106,7 +112,8 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
     familia: p.familia,
     sku: p.sku || null,
     name: p.produto,
-    ledModule: p.moduloLed ? p.moduloLed.replace(/\[CCT\]/gi, "").trim() : null,
+    // Remove [CCT] do moduloLed — o CCT será concatenado pelo calculateSpot
+    ledModule: p.moduloLed ? stripCctMarker(p.moduloLed) : null,
     otica: p.oticaNaoAplicavel ? null : (p.otica || null),
     holder: p.holderNaoAplicavel ? null : (p.holder || null),
     dissipador: p.dissipadorNaoAplicavel ? null : (p.dissipador || null),
@@ -120,7 +127,7 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
           code: extractEqCode(driverBivoltText),
         }
       : null,
-     ccts,
+    ccts,
     fotoUrl: normalizeFotoUrl(p.fotoUrl),
   };
 }
@@ -141,7 +148,8 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
     familia: p.familia,
     sku: normalizedSku,
     name: p.produto || p.familia,
-    ledModule: p.moduloLed || null,
+    // Remove [CCT] do moduloLed — o CCT será concatenado pelo calculatePainel
+    ledModule: p.moduloLed ? stripCctMarker(p.moduloLed) : null,
     driver220,
     driverBivolt,
   };
