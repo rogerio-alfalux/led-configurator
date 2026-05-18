@@ -72,7 +72,7 @@ describe("calculatePainel", () => {
 
   it("deve retornar resultado para produto válido", () => {
     const result = calculatePainel({
-      productSku: firstProduct.sku!,
+      productName: firstProduct.name,
       tensao: "220V",
       cct: "3000K",
       controle: "ON/OFF",
@@ -83,7 +83,7 @@ describe("calculatePainel", () => {
 
   it("deve usar driver220 quando tensão é 220V", () => {
     const result = calculatePainel({
-      productSku: firstProduct.sku!,
+      productName: firstProduct.name,
       tensao: "220V",
       cct: "3000K",
       controle: "ON/OFF",
@@ -95,7 +95,7 @@ describe("calculatePainel", () => {
   it("deve usar driverBivolt quando tensão é Bivolt e produto tem Bivolt", () => {
     if (!bivoltProduct) return;
     const result = calculatePainel({
-      productSku: bivoltProduct.sku!,
+      productName: bivoltProduct.name,
       tensao: "Bivolt",
       cct: "3000K",
       controle: "ON/OFF",
@@ -115,7 +115,7 @@ describe("calculatePainel", () => {
     }
     // Verifica que o produto encontrado pelo SKU tem o mesmo driverBivolt
     const result = calculatePainel({
-      productSku: noBivoltProduct.sku!,
+      productName: noBivoltProduct.name,
       tensao: "220V",
       cct: "3000K",
       controle: "ON/OFF",
@@ -127,7 +127,7 @@ describe("calculatePainel", () => {
 
   it("deve preservar cct, tensao e controle no resultado", () => {
     const result = calculatePainel({
-      productSku: firstProduct.sku!,
+      productName: firstProduct.name,
       tensao: "220V",
       cct: "4000K",
       controle: "ON/OFF",
@@ -142,7 +142,7 @@ describe("calculatePainel", () => {
     const withModule = PAINEL_CATALOG.find((p) => p.ledModule !== null);
     if (!withModule) return;
     const result = calculatePainel({
-      productSku: withModule.sku!,
+      productName: withModule.name,
       tensao: "220V",
       cct: "3000K",
       controle: "ON/OFF",
@@ -153,7 +153,7 @@ describe("calculatePainel", () => {
 
   it("deve retornar null para SKU inválido", () => {
     const result = calculatePainel({
-      productSku: "SKU-INEXISTENTE-9999",
+      productName: "NOME-INEXISTENTE-9999",
       tensao: "220V",
       cct: "3000K",
       controle: "ON/OFF",

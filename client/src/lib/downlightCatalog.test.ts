@@ -108,7 +108,7 @@ describe("calculateDownlight", () => {
 
   it("deve retornar resultado com ledModuleWithCCT concatenado", () => {
     const result = calculateDownlight({
-      productSku: lunaProduct.sku,
+      productName: lunaProduct.name,
       tensao: "220V",
       cct: "3000K",
       controle: "ON/OFF",
@@ -120,7 +120,7 @@ describe("calculateDownlight", () => {
 
   it("deve usar driver220 quando tensão é 220V", () => {
     const result = calculateDownlight({
-      productSku: lunaProduct.sku,
+      productName: lunaProduct.name,
       tensao: "220V",
       cct: "4000K",
       controle: "ON/OFF",
@@ -131,7 +131,7 @@ describe("calculateDownlight", () => {
 
   it("deve usar driverBivolt quando tensão é Bivolt e produto tem Bivolt", () => {
     const result = calculateDownlight({
-      productSku: lunaProduct.sku,
+      productName: lunaProduct.name,
       tensao: "Bivolt",
       cct: "2700K",
       controle: "ON/OFF",
@@ -143,7 +143,7 @@ describe("calculateDownlight", () => {
   it("deve usar driver220 quando produto não tem Bivolt", () => {
     if (!noBivoltProduct) return;
     const result = calculateDownlight({
-      productSku: noBivoltProduct.sku,
+      productName: noBivoltProduct.name,
       tensao: "Bivolt",
       cct: "3000K",
       controle: "ON/OFF",
@@ -156,7 +156,7 @@ describe("calculateDownlight", () => {
 
   it("deve preservar cct, tensao e controle no resultado", () => {
     const result = calculateDownlight({
-      productSku: lunaProduct.sku,
+      productName: lunaProduct.name,
       tensao: "220V",
       cct: "5000K",
       controle: "ON/OFF",
@@ -169,7 +169,7 @@ describe("calculateDownlight", () => {
 
   it("deve incluir referência ao produto no resultado com SKU", () => {
     const result = calculateDownlight({
-      productSku: lunaProduct.sku,
+      productName: lunaProduct.name,
       tensao: "220V",
       cct: "3000K",
       controle: "ON/OFF",
@@ -181,7 +181,7 @@ describe("calculateDownlight", () => {
 
   it("deve incluir campos holder, otica, dissipador no produto do resultado", () => {
     const result = calculateDownlight({
-      productSku: lunaProduct.sku,
+      productName: lunaProduct.name,
       tensao: "220V",
       cct: "3000K",
       controle: "ON/OFF",
@@ -194,7 +194,7 @@ describe("calculateDownlight", () => {
 
   it("deve retornar null para SKU inválido", () => {
     const result = calculateDownlight({
-      productSku: "SKU-INEXISTENTE-9999",
+      productName: "NOME-INEXISTENTE-9999",
       tensao: "220V",
       cct: "3000K",
       controle: "ON/OFF",

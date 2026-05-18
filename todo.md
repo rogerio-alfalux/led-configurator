@@ -574,3 +574,10 @@
 - [x] Retornar o módulo IN imediatamente acima do comprimento solicitado (mais próximo possível)
 - [x] Para composições IF/ML: nova função buildCompositionAbove busca menor combinação >= alvo
 - [x] Rodar testes e validar (387 testes passando)
+
+## Bug: Identificação de produto por SKU único (18/05/2026)
+- [x] Mapear todos os pontos onde SKU é usado como chave única para identificar produtos
+- [x] Corrigir para usar productName (nome único) em DownlightInput, PainelInput, SpotInput
+- [x] Atualizar SelectItem.value e estados no Home.tsx para usar p.name
+- [x] Atualizar testes unitários para usar productName em vez de productSku
+- [x] 387 testes passando após correção
