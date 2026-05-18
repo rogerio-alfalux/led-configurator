@@ -588,12 +588,12 @@
 - [x] 385 testes passando, 0 erros TypeScript
 
 ## Correções Painéis DIM DALI + ledModule CCT + SKU duplicado (18/05/2026)
-- [ ] painelCatalog.ts: adicionar driverDimDali e driverDim110v na interface PainelProduct
-- [ ] alfaluxApiAdapter.ts: mapear driverDimDali e driverDim110v em toPainelProduct
-- [ ] painelCatalog.ts: calculatePainel deve substituir [CCT] no ledModule pelo valor real
-- [ ] Home.tsx: seletor de controle de Painéis — isAvailable deve verificar driverDimDali/driverDim110v do produto selecionado
-- [ ] Home.tsx: seletor de produto de Painéis/Downlights/Spots — usar índice global como parte do value para distinguir produtos com SKU duplicado
-- [ ] Home.tsx: calculatePainel deve buscar produto pelo índice quando há SKUs duplicados
+- [x] painelCatalog.ts: adicionar driverDimDali e driverDim110v na interface PainelProduct
+- [x] alfaluxApiAdapter.ts: mapear driverDimDali e driverDim110v em toPainelProduct
+- [x] painelCatalog.ts: calculatePainel concatena CCT ao ledModule (ex: "4x Stripflex ... 3000K")
+- [x] Home.tsx: seletor de controle de Painéis — isAvailable verifica driverDimDali/driverDim110v do produto selecionado
+- [x] Home.tsx: seletor de produto de Painéis usa índice global como value para distinguir produtos com SKU duplicado
+- [x] Home.tsx: calculatePainel busca produto pelo índice quando há SKUs duplicados
 
 ## Correções Painéis: DIM DALI + SKU duplicado + ledModule CCT (18/05/2026)
 - [x] painelCatalog.ts: adicionados campos driverDim110v e driverDimDali (PainelDriver | null) na interface PainelProduct
@@ -606,4 +606,14 @@
 - [x] Home.tsx: SelectItem de Painéis exibe "Nome — SKU" e usa índice global como value
 - [x] Home.tsx: botões de controle DIM DALI/1-10V habilitados quando produto selecionado tem driver disponível
 - [x] Home.tsx: panelControle resetado para ON/OFF ao trocar de produto
+- [x] 388 testes passando, 0 erros TypeScript
+
+## Identificação por SKU+Nome em todas as categorias (18/05/2026)
+- [x] Definir chave composta `sku::name` como identificador único de produto em Painéis, Downlights e Spots
+- [x] Home.tsx: Painéis — substituir panelProductIdx por panelProductKey (string "sku::name"); atualizar SelectItem, verificações de driver e chamada de calculatePainel
+- [x] Home.tsx: Downlights — substituir identificação por SKU puro por "sku::name"
+- [x] Home.tsx: Spots — substituir identificação por SKU puro por "sku::name"
+- [x] painelCatalog.ts: calculatePainel busca produto por sku+name quando productName fornecido
+- [x] downlightCatalog.ts: calculateDownlight busca produto por sku+name quando productName fornecido
+- [x] spotCatalog.ts: calculateSpot busca produto por sku+name quando productName fornecido
 - [x] 388 testes passando, 0 erros TypeScript

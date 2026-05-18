@@ -37,6 +37,8 @@ export interface DownlightProduct {
 export interface DownlightInput {
   /** SKU do produto (campo `sku` no catálogo) */
   productSku: string;
+  /** Nome do produto -- combinado com productSku para identificar unicamente produtos com SKU duplicado */
+  productName?: string;
   tensao: "220V" | "Bivolt";
   cct: string;
   controle: ControleType;
@@ -1928,7 +1930,10 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
 
 export function calculateDownlight(input: DownlightInput, catalog?: DownlightProduct[]): DownlightResult | null {
   const source = catalog ?? DOWNLIGHT_CATALOG;
-  const product = source.find(p => p.sku === input.productSku);
+  // Busca por SKU+Nome quando productName estiver definido (evita ambiguidade com SKUs duplicados)
+  const product = input.productName !== undefined
+    ? source.find(p => p.sku === input.productSku && p.name === input.productName)
+    : source.find(p => p.sku === input.productSku);
   if (!product) return null;
 
   const driver =

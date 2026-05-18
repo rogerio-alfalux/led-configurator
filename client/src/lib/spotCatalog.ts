@@ -40,6 +40,8 @@ export interface SpotProduct {
 export interface SpotInput {
   /** SKU do produto (campo `sku` no catálogo) */
   productSku: string;
+  /** Nome do produto -- combinado com productSku para identificar unicamente produtos com SKU duplicado */
+  productName?: string;
   tensao: "220V" | "Bivolt";
   cct: string;
   controle: ControleType;
@@ -104,7 +106,10 @@ export const SPOT_CATALOG: SpotProduct[] = [
  * Calcula o resultado de configuração de um Spot.
  */
 export function calculateSpot(catalog: SpotProduct[], input: SpotInput): SpotResult | null {
-  const product = catalog.find(p => p.sku === input.productSku);
+  // Busca por SKU+Nome quando productName estiver definido (evita ambiguidade com SKUs duplicados)
+  const product = input.productName !== undefined
+    ? catalog.find(p => p.sku === input.productSku && p.name === input.productName)
+    : catalog.find(p => p.sku === input.productSku);
   if (!product) return null;
 
   const driver = input.tensao === "Bivolt" && product.driverBivolt

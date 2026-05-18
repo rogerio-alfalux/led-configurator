@@ -35,8 +35,8 @@ export interface PainelProduct {
 export interface PainelInput {
   /** SKU do produto (campo `sku` no catálogo) */
   productSku: string;
-  /** Índice global no catálogo -- usado para distinguir produtos com SKU duplicado */
-  productIdx?: number;
+  /** Nome do produto -- combinado com productSku para identificar unicamente produtos com SKU duplicado */
+  productName?: string;
   tensao: "220V" | "Bivolt";
   cct: string;
   controle: ControleType;
@@ -628,9 +628,9 @@ export const PAINEL_CATALOG: PainelProduct[] = [
 
 export function calculatePainel(input: PainelInput, catalog?: PainelProduct[]): PainelResult | null {
   const source = catalog ?? PAINEL_CATALOG;
-  // Se productIdx estiver definido, usa o índice para buscar o produto exato (evita ambiguidade com SKUs duplicados)
-  const product = input.productIdx !== undefined
-    ? source[input.productIdx]
+  // Busca por SKU+Nome quando productName estiver definido (evita ambiguidade com SKUs duplicados)
+  const product = input.productName !== undefined
+    ? source.find(p => p.sku === input.productSku && p.name === input.productName)
     : source.find(p => p.sku === input.productSku);
   if (!product) return null;
 
