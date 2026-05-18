@@ -141,6 +141,10 @@ export interface ConfigInput {
   driverDimDali?: string | null;
   /** Driver DIM 1-10V disponível para este perfil (da API) */
   driverDim110v?: string | null;
+  /**
+   * Catálogo de perfis dinâmico (da API). Quando fornecido, substitui o LED_CATALOG estático.
+   */
+  catalog?: Record<string, import("./ledCatalog").ProfileVariant>;
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -686,7 +690,8 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     adjustToLarger = false,
   } = input;
 
-  const profile = LED_CATALOG[profileCode];
+  const activeCatalog = input.catalog ?? LED_CATALOG;
+  const profile = activeCatalog[profileCode];
   const profileName = profile?.name ?? profileCode;
   const installType: InstallType = profile?.installType ?? "PENDENTE";
 

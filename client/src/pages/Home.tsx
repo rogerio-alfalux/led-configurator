@@ -1414,13 +1414,14 @@ export default function Home() {
                             <button
                               key={ct}
                               onClick={() => setControlType(ct)}
-                              className={`px-2 py-2 rounded-md text-xs font-semibold border transition-all ${
+                              className={[
+                                "px-2 py-2 rounded-md text-xs font-semibold border transition-all",
                                 controlType === ct
                                   ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                                  : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
-                              }`}
+                                  : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50",
+                              ].join(" ")}
                             >
-                              {ct === "onoff" ? "On/Off" : ct === "dimDali" ? "DIM DALI" : "DIM 1-10V"}
+                              {ct === "onoff" ? "ON/OFF" : ct === "dimDali" ? "DIM DALI" : "DIM 1-10V"}
                             </button>
                           ))}
                         </div>

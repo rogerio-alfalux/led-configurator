@@ -559,3 +559,10 @@
 - [x] Home.tsx: seletor Tipo de Controle exibido apenas quando API retornar driver DIM disponível
 - [x] Home.tsx: driver DIM exibido no resumo do resultado com destaque âmbar
 - [x] 381 testes passando após implementação
+
+## Correções DIM DALI + JSX (18/05/2026)
+- [x] ledEngine.ts: adicionado campo `catalog?: Record<string, ProfileVariant>` na interface ConfigInput (estava faltando, causava TS2339)
+- [x] ledEngine.ts: calculateComposition usa `activeCatalog = input.catalog ?? LED_CATALOG` para ler driverDimDali da API
+- [x] Home.tsx: botão ON/OFF agora exibido em maiúsculas (ON/OFF)
+- [x] Home.tsx: corrigido erro JSX causado por `hover:bg-muted/50` em template literal — substituído por array de classes com `.join(" ")`
+- [x] 381 testes passando, 0 erros TypeScript
