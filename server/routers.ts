@@ -33,13 +33,23 @@ export const appRouter = router({
 
   alfalux: router({
     products: publicProcedure.query(async () => {
-      const products = await fetchAllAlfaluxProducts();
-      return products;
+      try {
+        const products = await fetchAllAlfaluxProducts();
+        return products;
+      } catch (err) {
+        console.error("[AlfaluxAPI] Falha ao buscar produtos — usando catálogo estático como fallback:", err);
+        return []; // UI usa catálogo estático quando array vazio
+      }
     }),
     refreshProducts: publicProcedure.mutation(async () => {
-      invalidateAlfaluxCache();
-      const products = await fetchAllAlfaluxProducts();
-      return { count: products.length };
+      try {
+        invalidateAlfaluxCache();
+        const products = await fetchAllAlfaluxProducts();
+        return { count: products.length, error: null };
+      } catch (err) {
+        console.error("[AlfaluxAPI] Falha ao atualizar produtos:", err);
+        return { count: 0, error: "Falha ao conectar com a API Alfalux" };
+      }
     }),
   }),
 });

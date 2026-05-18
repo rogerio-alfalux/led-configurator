@@ -785,6 +785,8 @@ export default function Home() {
     gcTime: 0,    // Não reter em memória
     refetchOnWindowFocus: true,
     refetchOnMount: true,
+    retry: 1, // Tentar apenas 1 vez antes de usar fallback
+    retryDelay: 2000,
   });
   // Adaptar produtos da API para os tipos internos (fallback para catálogos estáticos)
   const adaptedCatalogs = useMemo(() => {
