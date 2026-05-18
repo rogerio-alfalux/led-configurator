@@ -34,6 +34,7 @@ import type { PainelResult } from "@/lib/painelCatalog";
 import { SPOT_CATALOG, calculateSpot } from "@/lib/spotCatalog";
 import type { SpotProduct, SpotResult } from "@/lib/spotCatalog";
 import { adaptAlfaluxProducts } from "@/lib/alfaluxApiAdapter";
+import { useAlfaluxProducts } from "@/hooks/useAlfaluxProducts";
 import type {
   CompositionResult,
   ConfigInput,
@@ -779,15 +780,9 @@ export default function Home() {
     },
   });
 
-  // Buscar produtos da API Alfalux (sem cache para garantir dados sempre frescos)
-  const { data: alfaluxApiProducts, isLoading: alfaluxLoading, refetch: refetchAlfaluxProducts } = trpc.alfalux.products.useQuery(undefined, {
-    staleTime: 0, // Sempre considerar dados como obsoletos
-    gcTime: 0,    // Não reter em memória
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    retry: 1, // Tentar apenas 1 vez antes de usar fallback
-    retryDelay: 2000,
-  });
+  // Buscar produtos da API Alfalux diretamente no browser (client-side)
+  // Isso evita restrições de rede do servidor sandbox e garante dados sempre frescos
+  const { products: alfaluxApiProducts, isLoading: alfaluxLoading, refetch: refetchAlfaluxProducts } = useAlfaluxProducts();
   // Adaptar produtos da API para os tipos internos (fallback para catálogos estáticos)
   const adaptedCatalogs = useMemo(() => {
     if (alfaluxApiProducts && alfaluxApiProducts.length > 0) {
