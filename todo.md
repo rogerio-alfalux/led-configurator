@@ -552,6 +552,19 @@
 - [x] Atualizar testes unitários (381 testes passando)
 
 ## Bug: Lógica de medidas quebradas perdida nos perfis (17/05/2026)
-- [ ] Diagnosticar o que mudou na lógica de considerarMedidasQuebradas após migração para API
-- [ ] Restaurar a lógica de cálculo que aproxima ao módulo mais próximo da medida desejada
-- [ ] Testar e validar no browser
+- [x] Diagnosticar o que mudou na lógica de considerarMedidasQuebradas após migração para API
+- [x] Restaurar a lógica de cálculo que aproxima ao módulo mais próximo da medida desejada
+- [x] Testar e validar no browser
+
+## Refatoração: Motor de cálculo 100% dados da API (18/05/2026)
+- [x] Refatorar ledEngine.ts para aceitar catálogo como parâmetro (ConfigInput.catalog)
+- [x] Propagar catálogo para getModules, tryInSingle, buildIfMlComposition, buildComposition
+- [x] Home.tsx passa activeProfileCatalog (API) para calculateComposition
+- [x] Fallback para LED_CATALOG estático quando catalog não fornecido (compatibilidade com testes)
+- [x] 383 testes passando após refatoração
+
+## Bug: Fallback 1B viola regra de composições IF/ML (18/05/2026)
+- [x] Remover fallback com módulos IF/ML de 1 barra em buildIfMlComposition (viola MIN_BARS_FOR_COMPOSITION=2)
+- [x] Garantir que módulos de 1 barra só sejam usados em composições IN (módulo único)
+- [x] Revisar BLAZE H 3200mm: melhor resultado possível com MIN_BARS=2 é 2270mm (regra respeitada)
+- [x] Rodar testes e validar (383 testes passando)

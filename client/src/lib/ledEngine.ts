@@ -457,16 +457,7 @@ function buildIfMlComposition(
   const mlModules = getModules(profileCode, "ML", allowLongModules, stripMethod, power, true, allowFractional, catalog)
     .sort((a, b) => b.length - a.length);
 
-  // Fallback: módulos IF de 1 barra (normalmente excluídos por MIN_BARS_FOR_COMPOSITION)
-  // Usados quando o perfil tem poucos módulos e o resultado padrão fica muito abaixo do alvo.
-  const ifModules1B = getModules(profileCode, "IF", allowLongModules, stripMethod, power, false, allowFractional, catalog)
-    .filter(m => m.barras < MIN_BARS_FOR_COMPOSITION)
-    .sort((a, b) => b.length - a.length);
-  const mlModules1B = getModules(profileCode, "ML", allowLongModules, stripMethod, power, false, allowFractional, catalog)
-    .filter(m => m.barras < MIN_BARS_FOR_COMPOSITION)
-    .sort((a, b) => b.length - a.length);
-
-  if (ifModules.length === 0 && ifModules1B.length === 0) return null;
+  if (ifModules.length === 0) return null;
 
   const barsPerSection = stripMethod === "STRIPLINE" ? 1 : BARS_PER_SECTION_STRIPFLEX[power];
 
@@ -523,7 +514,7 @@ function buildIfMlComposition(
 
   const candidates: Candidate[] = buildCandidates(ifModules, mlModules);
 
-  if (candidates.length === 0 && ifModules1B.length === 0) return null;
+  if (candidates.length === 0) return null;
 
   // ── Lógica de seleção v3.2 ──────────────────────────────────────────────────
   //
@@ -589,29 +580,6 @@ function buildIfMlComposition(
     const cleanTolerance = Math.min(100, Math.max(30, requestedLength * 0.002));
     if (lengthDiff <= cleanTolerance) {
       best = cleanest;
-    }
-  }
-
-  // v3.4: Fallback com módulos IF de 1 barra
-  // Quando o melhor resultado padrão (MIN_BARS >= 2) fica muito abaixo do alvo (diff > 250mm),
-  // tentar novamente incluindo módulos IF/ML de 1 barra (normalmente excluídos para evitar
-  // emendas muito próximas). Usar o fallback apenas se produzir resultado melhor.
-  // IMPORTANTE: só ativar quando allowFractional=true, pois IF 1B é uma barra inteira
-  // mas sua inclusão em composições é uma flexibilização que só deve ocorrer no modo quebrado.
-  const bestDiff = best ? requestedLength - best.realizedLength : requestedLength;
-  if (allowFractional && bestDiff > TWO_MODULE_TOLERANCE && ifModules1B.length > 0) {
-    // Combinar módulos padrão + módulos 1B para o fallback
-    const allIfForFallback = [...ifModules, ...ifModules1B];
-    const allMlForFallback = [...mlModules, ...mlModules1B];
-    const fallbackCandidates = buildCandidates(allIfForFallback, allMlForFallback);
-    sortCandidates(fallbackCandidates);
-    if (fallbackCandidates.length > 0) {
-      const bestFallback = fallbackCandidates[0];
-      const fallbackDiff = requestedLength - bestFallback.realizedLength;
-      // Usar fallback somente se for estritamente melhor que o resultado padrão
-      if (fallbackDiff < bestDiff) {
-        best = bestFallback;
-      }
     }
   }
 

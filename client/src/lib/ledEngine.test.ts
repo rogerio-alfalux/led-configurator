@@ -2069,12 +2069,11 @@ describe("v3.3 --- Validacao por perfil: LLP-6060 (BLAZE H) e LLP-4251 com regra
     }
   });
 
-  // v3.4 fallback: BLAZE H 3200mm com medidas quebradas
-  // O perfil BLAZE H tem poucos módulos IF (sem fracionários entre 2B e 3B).
-  // Com allowFractional=true, o motor deve usar o fallback com IF 1B para se aproximar melhor.
-  // Resultado esperado: 2x IF 1B (575mm) + ML 3B (1695mm) = 2845mm (diff=355mm)
-  // Isso é melhor que o resultado padrão sem fallback: 2x IF 2B = 2270mm (diff=930mm).
-  it("LLP-6060 3200mm allowFractional=true -> usa fallback IF 1B para melhor aproximação (> 2270mm)", () => {
+  // BLAZE H tem apenas IF 1B (575mm) e IF 2B (1135mm) e ML 3B (1695mm).
+  // Com MIN_BARS_FOR_COMPOSITION=2, apenas IF 2B é válido para composições IF/ML.
+  // Módulos de 1 barra NÃO devem ser usados em composições (regra fundamental).
+  // Melhor resultado possível: 2x IF 2B = 2270mm (diff=930mm).
+  it("LLP-6060 3200mm allowFractional=true -> retorna 2270mm (melhor possível, sem violar MIN_BARS=2)", () => {
     const result = calculateComposition({
       profileCode: "LLP-6060",
       application: "D1",
@@ -2087,13 +2086,12 @@ describe("v3.3 --- Validacao por perfil: LLP-6060 (BLAZE H) e LLP-4251 com regra
       stripMethod: "STRIPFLEX",
       independentLighting: false,
     });
-    // Deve ser melhor que 2270mm (resultado sem fallback)
-    expect(result.realizedLength).toBeGreaterThan(2270);
-    // Não deve ultrapassar o comprimento solicitado
+    // Módulos de 1 barra não são usados em composições IF/ML
+    expect(result.realizedLength).toBe(2270);
     expect(result.realizedLength).toBeLessThanOrEqual(3200);
-    // Deve usar mais de 2 módulos (o fallback adiciona ML)
+    // Apenas 2 módulos IF (sem ML que caiba sem ultrapassar)
     const totalModules = result.composition.reduce((sum, item) => sum + item.quantity, 0);
-    expect(totalModules).toBeGreaterThan(2);
+    expect(totalModules).toBe(2);
   });
 
   it("LLP-6060 3200mm allowFractional=false -> retorna resultado padrão (sem fallback 1B)", () => {
