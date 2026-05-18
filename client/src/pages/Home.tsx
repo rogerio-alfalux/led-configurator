@@ -1806,7 +1806,18 @@ export default function Home() {
                                 <button
                                   key={ctrl}
                                   disabled={!isAvailable}
-                                  onClick={() => { if (isAvailable) { setPanelControle(ctrl); setPanelResult(null); } }}
+                                  onClick={() => {
+                                    if (isAvailable) {
+                                      setPanelControle(ctrl);
+                                      setPanelResult(null);
+                                      // Se o novo controle for DIM e o driver não suportar bivolt, forçar 220V
+                                      if (ctrl !== 'ON/OFF') {
+                                        const dimDrv = ctrl === 'DIM DALI' ? selProd?.driverDimDali : selProd?.driverDim110v;
+                                        const dimBivolt = dimDrv != null && /bivolt/i.test(dimDrv.model);
+                                        if (!dimBivolt) setPanelVoltage('220V');
+                                      }
+                                    }
+                                  }}
                                   title={!isAvailable ? "Não disponível para este produto" : undefined}
                                   className={[
                                     "flex-1 py-2 rounded-lg text-xs font-medium border transition-all",
@@ -1824,38 +1835,54 @@ export default function Home() {
                         </div>
                       )}
                       {/* Tensão */}
-                      {panelProductKey !== null && (
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
-                          <div className="flex gap-2">
-                            {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
-                              const hasBivolt = panelProductKey !== null ? activePanelCatalog.find(p => { const [s, ...np] = (panelProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); })?.driverBivolt !== null : false;
-                              const disabled = v === "Bivolt" && !hasBivolt;
-                              return (
-                                <button
-                                  key={v}
-                                  disabled={disabled}
-                                  onClick={() => { setPanelVoltage(v); setPanelResult(null); }}
-                                  className={[
-                                    "flex-1 py-2 rounded-lg text-sm font-medium border transition-all",
-                                    panelVoltage === v && !disabled
-                                      ? "bg-primary text-primary-foreground border-primary"
-                                      : "bg-background text-foreground border-border hover:border-primary/50",
-                                    disabled ? "opacity-40 cursor-not-allowed" : "",
-                                  ].join(" ")}
-                                >
-                                  {v}
-                                </button>
-                              );
-                            })}
+                      {panelProductKey !== null && (() => {
+                        const [_vSku, ..._vNameParts] = (panelProductKey ?? '::').split('::');
+                        const _vName = _vNameParts.join('::');
+                        const selProdV = activePanelCatalog.find(p => p.sku === _vSku && p.name === _vName);
+                        // Driver DIM selecionado (DALI ou 1-10V)
+                        const dimDriver = panelControle === 'DIM DALI' ? selProdV?.driverDimDali
+                          : panelControle === 'DIM 1-10V' ? selProdV?.driverDim110v
+                          : null;
+                        // Bivolt permitido no modo DIM apenas se o modelo do driver contiver "bivolt" (case-insensitive)
+                        const dimSupportsBivolt = dimDriver != null && /bivolt/i.test(dimDriver.model);
+                        // Bivolt permitido no modo ON/OFF se o produto tiver driverBivolt
+                        const hasBivoltOnOff = selProdV?.driverBivolt != null;
+                        const bivoltAllowed = panelControle === 'ON/OFF' ? hasBivoltOnOff : dimSupportsBivolt;
+                        return (
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
+                            <div className="flex gap-2">
+                              {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
+                                const disabled = v === "Bivolt" && !bivoltAllowed;
+                                return (
+                                  <button
+                                    key={v}
+                                    disabled={disabled}
+                                    onClick={() => { if (!disabled) { setPanelVoltage(v); setPanelResult(null); } }}
+                                    className={[
+                                      "flex-1 py-2 rounded-lg text-sm font-medium border transition-all",
+                                      panelVoltage === v && !disabled
+                                        ? "bg-primary text-primary-foreground border-primary"
+                                        : "bg-background text-foreground border-border hover:border-primary/50",
+                                      disabled ? "opacity-40 cursor-not-allowed" : "",
+                                    ].join(" ")}
+                                  >
+                                    {v}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {panelVoltage === "Bivolt" && !bivoltAllowed && (
+                              <p className="text-xs text-destructive flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3" />
+                                {panelControle !== 'ON/OFF'
+                                  ? 'Driver DIM selecionado é somente 220V.'
+                                  : 'Este produto não possui opção Bivolt.'}
+                              </p>
+                            )}
                           </div>
-                          {panelVoltage === "Bivolt" && (panelProductKey !== null ? activePanelCatalog.find(p => { const [s, ...np] = (panelProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); })?.driverBivolt === null : false) && (
-                            <p className="text-xs text-destructive flex items-center gap-1">
-                              <AlertTriangle className="w-3 h-3" /> Este produto não possui opção Bivolt.
-                            </p>
-                          )}
-                        </div>
-                      )}
+                        );
+                      })()}
                       {/* CCT */}
                       {panelProductKey !== null && (
                         <div className="space-y-1.5">

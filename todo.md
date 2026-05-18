@@ -629,3 +629,9 @@
 - [x] Home.tsx: cache do cliente reduzido para 1 minuto + refetchOnWindowFocus habilitado para dados frescos
 - [x] alfaluxApiAdapter.test.ts: 3 novos testes para remoção de [CCT] e mapeamento de driverDimDali em Painéis
 - [x] 391 testes passando, 0 erros TypeScript
+
+## Tensão bloqueada para DIM DALI/1-10V (18/05/2026)
+- [x] Home.tsx: Bivolt desabilitado quando controle DIM DALI ou DIM 1-10V está selecionado e o driver não contém "bivolt" na descrição
+- [x] Home.tsx: ao clicar em DIM DALI/1-10V, tensão é automaticamente revertida para 220V se o driver DIM não suportar bivolt
+- [x] Mensagem de aviso "Driver DIM selecionado é somente 220V." exibida quando usuário tenta selecionar Bivolt com controle DIM
+- [x] 391 testes passando, 0 erros TypeScript
