@@ -1602,7 +1602,16 @@ export default function Home() {
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Produto</Label>
                         <Select
                           value={dlProductKey ?? ""}
-                          onValueChange={(v) => { setDlProductKey(v); setDlVoltage(null); setDlResult(null); }}
+                          onValueChange={(v) => {
+                            setDlProductKey(v);
+                            setDlVoltage(null);
+                            setDlResult(null);
+                            // Reset CCT para primeiro valor disponível do produto
+                            const [s, ...np] = v.split('::');
+                            const newProd = activeDlCatalog.find(p => p.sku === s && p.name === np.join('::'));
+                            const availCCTs = newProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+                            if (!availCCTs.includes(dlCCT)) setDlCCT(availCCTs[0] ?? "3000K");
+                          }}
                         >
                           <SelectTrigger className="h-10">
                             <SelectValue placeholder="Selecione o produto..." />
@@ -1679,27 +1688,31 @@ export default function Home() {
                       </div>
                     )}
                     {/* CCT */}
-                    {dlProductKey !== null && (
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
-                        <div className="flex gap-2 flex-wrap">
-                          {(["2700K", "3000K", "4000K", "5000K"] as const).map((c) => (
-                            <button
-                              key={c}
-                              onClick={() => { setDlCCT(c); setDlResult(null); }}
-                              className={[
-                                "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
-                                dlCCT === c
-                                  ? "bg-primary text-primary-foreground border-primary"
-                                  : "bg-background text-foreground border-border hover:border-primary/50",
-                              ].join(" ")}
-                            >
-                              {c}
-                            </button>
-                          ))}
+                    {dlProductKey !== null && (() => {
+                      const dlSelProd = activeDlCatalog.find(p => { const [s, ...np] = (dlProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
+                      const dlAvailCCTs = dlSelProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+                      return (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
+                          <div className="flex gap-2 flex-wrap">
+                            {dlAvailCCTs.map((c) => (
+                              <button
+                                key={c}
+                                onClick={() => { setDlCCT(c); setDlResult(null); }}
+                                className={[
+                                  "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
+                                  dlCCT === c
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-background text-foreground border-border hover:border-primary/50",
+                                ].join(" ")}
+                              >
+                                {c}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -1779,7 +1792,17 @@ export default function Home() {
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Produto</Label>
                           <Select
                             value={panelProductKey ?? ""}
-                            onValueChange={(v) => { setPanelProductKey(v); setPanelVoltage(null); setPanelControle("ON/OFF"); setPanelResult(null); }}
+                            onValueChange={(v) => {
+                              setPanelProductKey(v);
+                              setPanelVoltage(null);
+                              setPanelControle("ON/OFF");
+                              setPanelResult(null);
+                              // Reset CCT para primeiro valor disponível do produto
+                              const [s, ...np] = v.split('::');
+                              const newProd = activePanelCatalog.find(p => p.sku === s && p.name === np.join('::'));
+                              const availCCTs = newProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+                              if (!availCCTs.includes(panelCCT)) setPanelCCT(availCCTs[0] ?? "3000K");
+                            }}
                           >
                             <SelectTrigger className="h-10"><SelectValue placeholder="Selecione o produto..." /></SelectTrigger>
                             <SelectContent>
@@ -1884,27 +1907,31 @@ export default function Home() {
                         );
                       })()}
                       {/* CCT */}
-                      {panelProductKey !== null && (
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
-                          <div className="flex gap-2 flex-wrap">
-                            {(["2700K", "3000K", "4000K", "5000K"] as const).map((c) => (
-                              <button
-                                key={c}
-                                onClick={() => { setPanelCCT(c); setPanelResult(null); }}
-                                className={[
-                                  "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
-                                  panelCCT === c
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-background text-foreground border-border hover:border-primary/50",
-                                ].join(" ")}
-                              >
-                                {c}
-                              </button>
-                            ))}
+                      {panelProductKey !== null && (() => {
+                        const panelSelProd = activePanelCatalog.find(p => { const [s, ...np] = (panelProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
+                        const panelAvailCCTs = panelSelProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+                        return (
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
+                            <div className="flex gap-2 flex-wrap">
+                              {panelAvailCCTs.map((c) => (
+                                <button
+                                  key={c}
+                                  onClick={() => { setPanelCCT(c); setPanelResult(null); }}
+                                  className={[
+                                    "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
+                                    panelCCT === c
+                                      ? "bg-primary text-primary-foreground border-primary"
+                                      : "bg-background text-foreground border-border hover:border-primary/50",
+                                  ].join(" ")}
+                                >
+                                  {c}
+                                </button>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   );
                 })()}
@@ -1980,7 +2007,16 @@ export default function Home() {
                       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Produto</Label>
                       <Select
                         value={spotProductKey ?? ""}
-                        onValueChange={(v) => { setSpotProductKey(v); setSpotVoltage(null); setSpotResult(null); }}
+                        onValueChange={(v) => {
+                          setSpotProductKey(v);
+                          setSpotVoltage(null);
+                          setSpotResult(null);
+                          // Reset CCT para primeiro valor disponível do produto
+                          const [s, ...np] = v.split('::');
+                          const newProd = activeSpotCatalog.find(p => p.sku === s && p.name === np.join('::'));
+                          const availCCTs = newProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+                          if (!availCCTs.includes(spotCCT)) setSpotCCT(availCCTs[0] ?? "3000K");
+                        }}
                       >
                         <SelectTrigger className="h-10"><SelectValue placeholder="Selecione o produto..." /></SelectTrigger>
                         <SelectContent>

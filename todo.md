@@ -635,3 +635,11 @@
 - [x] Home.tsx: ao clicar em DIM DALI/1-10V, tensão é automaticamente revertida para 220V se o driver DIM não suportar bivolt
 - [x] Mensagem de aviso "Driver DIM selecionado é somente 220V." exibida quando usuário tenta selecionar Bivolt com controle DIM
 - [x] 391 testes passando, 0 erros TypeScript
+
+## CCT por produto (18/05/2026)
+- [x] DownlightProduct: campo ccts adicionado ao tipo e a todos os 156 itens do catálogo estático
+- [x] PainelProduct: campo ccts adicionado ao tipo e a todos os 52 itens do catálogo estático
+- [x] alfaluxApiAdapter.ts: toDownlightProduct e toPainelProduct mapeiam temperaturasCor para ccts
+- [x] Home.tsx: Downlights e Painéis exibem apenas os botões de CCT disponíveis para o produto selecionado
+- [x] Home.tsx: ao trocar produto em Downlights, Painéis e Spots, CCT é resetado para o primeiro valor disponível se o CCT atual não for suportado
+- [x] 391 testes passando, 0 erros TypeScript reais
