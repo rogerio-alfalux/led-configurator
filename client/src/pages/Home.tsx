@@ -779,10 +779,10 @@ export default function Home() {
     },
   });
 
-  // Buscar produtos da API Alfalux (cache de 5 min via React Query)
+  // Buscar produtos da API Alfalux (cache de 1 min via React Query)
   const { data: alfaluxApiProducts, isLoading: alfaluxLoading } = trpc.alfalux.products.useQuery(undefined, {
-    staleTime: 5 * 60 * 1000, // 5 minutos
-    refetchOnWindowFocus: false,
+    staleTime: 60 * 1000, // 1 minuto
+    refetchOnWindowFocus: true,
   });
   // Adaptar produtos da API para os tipos internos (fallback para catálogos estáticos)
   const adaptedCatalogs = useMemo(() => {

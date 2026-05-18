@@ -166,7 +166,7 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
     familia: p.familia,
     sku: p.sku || null,
     name: p.name,
-    ledModule: p.ledModule ?? null,
+    ledModule: p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : null,
     driver220,
     driverBivolt,
     driverDim110v,

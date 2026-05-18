@@ -622,4 +622,10 @@
 - [x] Home.tsx: SelectItem de Downlights, Painéis e Spots exibe apenas o nome (SKU removido da UI, mantido internamente como sku::name)
 - [x] Home.tsx: Painéis — seletor corrigido para usar sku::name como value (era índice numérico, causava falha no cálculo e no DIM DALI)
 - [x] Botão Calcular Painél: corrigido — o find por sku+name agora funciona corretamente
-- [ ] DIM DALI para Painéis: API retorna driverDimDali: null para todos os 52 painéis — aguardando preenchimento na plataforma Alfalux
+- [x] DIM DALI para Painéis: API agora retorna driverDimDali para 33 dos 52 painéis — botão DIM DALI habilitado corretamente
+
+## Correções [CCT] + DIM DALI Painéis (18/05/2026)
+- [x] alfaluxApiAdapter.ts: toPainelProduct remove [CCT] do ledModule (igual ao toSpotProduct)
+- [x] Home.tsx: cache do cliente reduzido para 1 minuto + refetchOnWindowFocus habilitado para dados frescos
+- [x] alfaluxApiAdapter.test.ts: 3 novos testes para remoção de [CCT] e mapeamento de driverDimDali em Painéis
+- [x] 391 testes passando, 0 erros TypeScript

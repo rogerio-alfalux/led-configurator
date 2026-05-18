@@ -133,6 +133,30 @@ describe("adaptAlfaluxProducts - Painéis", () => {
     const result = adaptAlfaluxProducts(products);
     expect(result.painelFotos["ALE-2103"]).toBe("/api/image-proxy?url=https%3A%2F%2Fexample.com%2Fpainel.jpg");
   });
+
+  it("remove [CCT] do ledModule em Painéis", () => {
+    const products = [makeProduct({ categoria: "PAINÉIS", ledModule: "2.1x Stripflex 562,5 x 10mm 36L [CCT]" })];
+    const result = adaptAlfaluxProducts(products);
+    expect(result.paineis[0].ledModule).toBe("2.1x Stripflex 562,5 x 10mm 36L");
+  });
+
+  it("mapeia driverDimDali de Painéis corretamente", () => {
+    const products = [makeProduct({
+      categoria: "PAINÉIS",
+      driverDimDali: makeDriver("OSRAM ETI 75W DALI (EQ00221)", null),
+    })];
+    const result = adaptAlfaluxProducts(products);
+    const p = result.paineis[0];
+    expect(p.driverDimDali).not.toBeNull();
+    expect(p.driverDimDali!.model).toBe("OSRAM ETI 75W DALI");
+    expect(p.driverDimDali!.code).toBe("EQ00221");
+  });
+
+  it("mantém driverDimDali null quando API retorna null", () => {
+    const products = [makeProduct({ categoria: "PAINÉIS", driverDimDali: null })];
+    const result = adaptAlfaluxProducts(products);
+    expect(result.paineis[0].driverDimDali).toBeNull();
+  });
 });
 
 describe("adaptAlfaluxProducts - separação de categorias", () => {
