@@ -27,11 +27,10 @@ import {
 } from "@/lib/downlightCatalog";
 import type { DownlightResult, ControleType } from "@/lib/downlightCatalog";
 import {
-  PAINEL_CATALOG,
   calculatePainel,
 } from "@/lib/painelCatalog";
 import type { PainelResult } from "@/lib/painelCatalog";
-import { SPOT_CATALOG, calculateSpot } from "@/lib/spotCatalog";
+import { calculateSpot } from "@/lib/spotCatalog";
 import type { SpotProduct, SpotResult } from "@/lib/spotCatalog";
 import { adaptAlfaluxProducts } from "@/lib/alfaluxApiAdapter";
 import type {
@@ -785,8 +784,8 @@ export default function Home() {
     return null;
   }, [alfaluxApiProducts]);
   const activeDlCatalog = adaptedCatalogs?.downlights ?? DOWNLIGHT_CATALOG;
-  const activePanelCatalog = adaptedCatalogs?.paineis ?? PAINEL_CATALOG;
-  const activeSpotCatalog = adaptedCatalogs?.spots ?? SPOT_CATALOG;
+  const activePanelCatalog = adaptedCatalogs?.paineis ?? [];
+  const activeSpotCatalog = adaptedCatalogs?.spots ?? [];
 
   // ── Catálogo de perfis via API (com fallback para LED_CATALOG estático) ──────
   const activeProfileCatalog = useMemo(() => {

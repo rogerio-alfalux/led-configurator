@@ -581,3 +581,17 @@
 - [x] Atualizar SelectItem.value e estados no Home.tsx para usar p.name
 - [x] Atualizar testes unitários para usar productName em vez de productSku
 - [x] 387 testes passando após correção
+
+## Bug: ALE-2118 sem módulo LED e LUMIGRID sem driver (18/05/2026)
+- [ ] Investigar ALE-2118 na API: verificar campo moduloLed e por que não aparece no resumo
+- [ ] Investigar LUMIGRID na API: verificar campos driverOnoff220 e por que driver está ausente
+- [ ] Corrigir adaptador ou catálogo estático para preencher os campos faltantes
+- [ ] Rodar testes e validar no browser
+
+## Remover fallbacks estáticos — usar 100% API (18/05/2026)
+- [x] alfaluxApiAdapter.ts: removido PAINEL_CATALOG staticFallback — campos nulos da API ficam nulos
+- [x] Home.tsx: activePanelCatalog usa [] quando API não retornar dados (sem fallback estático)
+- [x] Home.tsx: activeSpotCatalog usa [] quando API não retornar dados (sem fallback estático)
+- [x] alfaluxApiAdapter.ts: toSpotProduct já existia e adapta Spots da API (categoria SPOTS)
+- [x] Removidos imports de PAINEL_CATALOG e SPOT_CATALOG do Home.tsx
+- [x] 387 testes passando após remoção dos fallbacks
