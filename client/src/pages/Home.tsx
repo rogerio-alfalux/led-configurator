@@ -1623,67 +1623,97 @@ export default function Home() {
                       </div>
                     )}
                     {/* Controle */}
-                    {dlProductKey !== null && (
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Controle</Label>
-                        <div className="flex gap-2">
-                          {(["ON/OFF", "DIM 1-10V", "DIM DALI"] as ControleType[]).map((ctrl) => {
-                            const isAvailable = ctrl === "ON/OFF";
-                            return (
-                              <button
-                                key={ctrl}
-                                disabled={!isAvailable}
-                                onClick={() => { if (isAvailable) { setDlControle(ctrl); setDlResult(null); } }}
-                                title={!isAvailable ? "Opção ainda não disponível" : undefined}
-                                className={[
-                                  "flex-1 py-2 rounded-lg text-xs font-medium border transition-all",
-                                  dlControle === ctrl && isAvailable
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-background text-foreground border-border hover:border-primary/50",
-                                  !isAvailable ? "opacity-40 cursor-not-allowed" : "",
-                                ].join(" ")}
-                              >
-                                {ctrl}
-                              </button>
-                            );
-                          })}
+                    {dlProductKey !== null && (() => {
+                      const [_dlCtrlSku, ..._dlCtrlNameParts] = (dlProductKey ?? '::').split('::');
+                      const _dlCtrlName = _dlCtrlNameParts.join('::');
+                      const dlSelProdCtrl = activeDlCatalog.find(p => p.sku === _dlCtrlSku && p.name === _dlCtrlName);
+                      const hasDim110v = dlSelProdCtrl?.driverDim110v != null;
+                      const hasDimDali = dlSelProdCtrl?.driverDimDali != null;
+                      return (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Controle</Label>
+                          <div className="flex gap-2">
+                            {(["ON/OFF", "DIM 1-10V", "DIM DALI"] as ControleType[]).map((ctrl) => {
+                              const isAvailable = ctrl === "ON/OFF" || (ctrl === "DIM 1-10V" && hasDim110v) || (ctrl === "DIM DALI" && hasDimDali);
+                              return (
+                                <button
+                                  key={ctrl}
+                                  disabled={!isAvailable}
+                                  onClick={() => {
+                                    if (!isAvailable) return;
+                                    setDlControle(ctrl);
+                                    setDlResult(null);
+                                    // Se DIM selecionado e driver não suporta bivolt, resetar para 220V
+                                    if (ctrl !== 'ON/OFF') {
+                                      const dimDrv = ctrl === 'DIM DALI' ? dlSelProdCtrl?.driverDimDali : dlSelProdCtrl?.driverDim110v;
+                                      const dimBivolt = dimDrv != null && /bivolt/i.test(dimDrv.model);
+                                      if (!dimBivolt && dlVoltage === 'Bivolt') setDlVoltage('220V');
+                                    }
+                                  }}
+                                  title={!isAvailable ? "Driver não cadastrado para este produto" : undefined}
+                                  className={[
+                                    "flex-1 py-2 rounded-lg text-xs font-medium border transition-all",
+                                    dlControle === ctrl && isAvailable
+                                      ? "bg-primary text-primary-foreground border-primary"
+                                      : "bg-background text-foreground border-border hover:border-primary/50",
+                                    !isAvailable ? "opacity-40 cursor-not-allowed" : "",
+                                  ].join(" ")}
+                                >
+                                  {ctrl}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {!hasDim110v && !hasDimDali && (
+                            <p className="text-xs text-muted-foreground">DIM 1-10V e DIM DALI serão habilitados quando os dados estiverem disponíveis.</p>
+                          )}
                         </div>
-                        <p className="text-xs text-muted-foreground">DIM 1-10V e DIM DALI serão habilitados quando os dados estiverem disponíveis.</p>
-                      </div>
-                    )}
+                      );
+                    })()}
                     {/* Tensão */}
-                    {dlProductKey !== null && (
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
-                        <div className="flex gap-2">
-                          {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
-                            const [_dlSku, ..._dlNameParts] = (dlProductKey ?? '::').split('::'); const _dlName = _dlNameParts.join('::'); const hasBivolt = activeDlCatalog.find(p => p.sku === _dlSku && p.name === _dlName)?.driverBivolt !== null;
-                            const disabled = v === "Bivolt" && !hasBivolt;
-                            return (
-                              <button
-                                key={v}
-                                disabled={disabled}
-                                onClick={() => { setDlVoltage(v); setDlResult(null); }}
-                                className={[
-                                  "flex-1 py-2 rounded-lg text-sm font-medium border transition-all",
-                                  dlVoltage === v && !disabled
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-background text-foreground border-border hover:border-primary/50",
-                                  disabled ? "opacity-40 cursor-not-allowed" : "",
-                                ].join(" ")}
-                              >
-                                {v}
-                              </button>
-                            );
-                          })}
+                    {dlProductKey !== null && (() => {
+                      const [_dlVSku, ..._dlVNameParts] = (dlProductKey ?? '::').split('::');
+                      const _dlVName = _dlVNameParts.join('::');
+                      const dlSelProdV = activeDlCatalog.find(p => p.sku === _dlVSku && p.name === _dlVName);
+                      // Verificar se o driver DIM selecionado suporta bivolt
+                      const dlDimDrv = dlControle === 'DIM DALI' ? dlSelProdV?.driverDimDali : dlControle === 'DIM 1-10V' ? dlSelProdV?.driverDim110v : null;
+                      const dlDimBivolt = dlDimDrv != null && /bivolt/i.test(dlDimDrv.model);
+                      const hasBivoltDl = dlControle !== 'ON/OFF' ? dlDimBivolt : (dlSelProdV?.driverBivolt != null);
+                      return (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
+                          <div className="flex gap-2">
+                            {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
+                              const disabled = v === "Bivolt" && !hasBivoltDl;
+                              return (
+                                <button
+                                  key={v}
+                                  disabled={disabled}
+                                  onClick={() => { setDlVoltage(v); setDlResult(null); }}
+                                  className={[
+                                    "flex-1 py-2 rounded-lg text-sm font-medium border transition-all",
+                                    dlVoltage === v && !disabled
+                                      ? "bg-primary text-primary-foreground border-primary"
+                                      : "bg-background text-foreground border-border hover:border-primary/50",
+                                    disabled ? "opacity-40 cursor-not-allowed" : "",
+                                  ].join(" ")}
+                                >
+                                  {v}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {dlControle !== 'ON/OFF' && !dlDimBivolt && (
+                            <p className="text-xs text-muted-foreground">Driver DIM selecionado é somente 220V.</p>
+                          )}
+                          {dlControle === 'ON/OFF' && dlVoltage === "Bivolt" && !dlSelProdV?.driverBivolt && (
+                            <p className="text-xs text-destructive flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3" /> Este produto não possui opção Bivolt.
+                            </p>
+                          )}
                         </div>
-                        {dlVoltage === "Bivolt" && activeDlCatalog.find(p => { const [s, ...np] = (dlProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); })?.driverBivolt === null && (
-                          <p className="text-xs text-destructive flex items-center gap-1">
-                            <AlertTriangle className="w-3 h-3" /> Este produto não possui opção Bivolt.
-                          </p>
-                        )}
-                      </div>
-                    )}
+                      );
+                    })()}
                     {/* CCT */}
                     {dlProductKey !== null && (() => {
                       const dlSelProd = activeDlCatalog.find(p => { const [s, ...np] = (dlProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });

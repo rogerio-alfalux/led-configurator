@@ -34,6 +34,10 @@ export interface DownlightProduct {
   driver220: DownlightDriver;
   /** Driver para Bivolt -- null se nao houver opcao */
   driverBivolt: DownlightDriver | null;
+  /** Driver DIM 1-10V -- null se nao disponivel */
+  driverDim110v: DownlightDriver | null;
+  /** Driver DIM DALI -- null se nao disponivel */
+  driverDimDali: DownlightDriver | null;
 }
 
 export interface DownlightInput {
@@ -68,6 +72,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -81,6 +87,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -94,6 +102,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS XITANIUM 19W 350MA", code: "EQ00346" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -107,6 +117,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS XITANIUM 19W 350MA", code: "EQ00346" },
     driverBivolt: { model: "LIFUD 20W 350MA SLIM BIVOLT", code: "EQ00580" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -120,6 +132,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W 350MA SLIM BIVOLT", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -133,6 +147,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W 350MA SLIM BIVOLT", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -146,6 +162,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "OSRAM IT FIT 75W 500MA", code: "EQ00220" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -159,6 +177,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -172,6 +192,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -185,6 +207,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "TRACE AT3C700 700MA BIVOLT", code: "EQ00073" },
     driverBivolt: { model: "TRACE AT3C700 700MA BIVOLT", code: "EQ00073" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -198,6 +222,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "TRACE AT3C700 700MA BIVOLT", code: "EQ00073" },
     driverBivolt: { model: "TRACE AT3C700 700MA BIVOLT", code: "EQ00073" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -211,6 +237,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "TRACE AT9C700 700MA BIVOLT", code: "EQ00241" },
     driverBivolt: { model: "TRACE AT9C700 700MA BIVOLT", code: "EQ00241" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "NO FRAME",
@@ -224,6 +252,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "TRACE AT9C700 700MA BIVOLT", code: "EQ00241" },
     driverBivolt: { model: "TRACE AT9C700 700MA BIVOLT", code: "EQ00241" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -237,6 +267,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "TRACE AT9C700 700MA BIVOLT", code: "EQ00241" },
     driverBivolt: { model: "TRACE AT9C700 700MA BIVOLT", code: "EQ00241" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -250,6 +282,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "TRACE AT9C700 700MA BIVOLT", code: "EQ00241" },
     driverBivolt: { model: "TRACE AT9C700 700MA BIVOLT", code: "EQ00241" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "NO FRAME",
@@ -263,6 +297,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "TRACE AT9C700 700MA BIVOLT", code: "EQ00241" },
     driverBivolt: { model: "TRACE AT9C700 700MA BIVOLT", code: "EQ00241" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -276,6 +312,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "TRACE AT9C700 700MA BIVOLT", code: "EQ00241" },
     driverBivolt: { model: "TRACE AT9C700 700MA BIVOLT", code: "EQ00241" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -289,6 +327,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 30W 700MA LF/GIF030ES0700H 220V", code: "" },
     driverBivolt: { model: "LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "NO FRAME",
@@ -302,6 +342,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 30W 700MA LF/GIF030ES0700H 220V", code: "" },
     driverBivolt: { model: "LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -315,6 +357,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 30W 700MA LF/GIF030ES0700H 220V", code: "" },
     driverBivolt: { model: "LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -328,6 +372,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 30W 700MA LF/GIF030ES0700H 220V", code: "" },
     driverBivolt: { model: "LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "NO FRAME",
@@ -341,6 +387,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 30W 700MA LF/GIF030ES0700H 220V", code: "" },
     driverBivolt: { model: "LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -354,6 +402,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 30W 700MA LF/GIF030ES0700H 220V", code: "" },
     driverBivolt: { model: "LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -367,6 +417,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "NO FRAME",
@@ -380,6 +432,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -393,6 +447,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -406,6 +462,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "NO FRAME",
@@ -419,6 +477,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -432,6 +492,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -445,6 +507,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -458,6 +522,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -471,6 +537,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 30W 700MA LF/GIF030ES0700H 220V", code: "" },
     driverBivolt: { model: "LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -484,6 +552,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 30W 700MA LF/GIF030ES0700H 220V", code: "" },
     driverBivolt: { model: "LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -497,6 +567,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 30W 700MA LF/GIF030ES0700H 220V", code: "" },
     driverBivolt: { model: "LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -510,6 +582,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 30W 700MA LF/GIF030ES0700H 220V", code: "" },
     driverBivolt: { model: "LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -523,6 +597,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS XITANIUM 19W 350MA", code: "EQ00346" },
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S)", code: "EQ00580" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -536,6 +612,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS XITANIUM 19W 350MA", code: "EQ00346" },
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S)", code: "EQ00580" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -549,6 +627,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "2x LIFUD 30W 700MA LF/GIF030ES0700H 220V", code: "" },
     driverBivolt: { model: "2x LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -562,6 +642,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "2x LIFUD 30W 700MA LF/GIF030ES0700H 220V", code: "" },
     driverBivolt: { model: "2x LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -575,6 +657,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S)", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -588,6 +672,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S)", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -601,6 +687,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "2x LIFUD 30W 700MA LF/GIF030ES0700H 220V", code: "" },
     driverBivolt: { model: "2x LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -614,6 +702,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "2x LIFUD 30W 700MA LF/GIF030ES0700H 220V", code: "" },
     driverBivolt: { model: "2x LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -627,6 +717,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -640,6 +732,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -653,6 +747,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -666,6 +762,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -679,6 +777,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -692,6 +792,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -705,6 +807,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -718,6 +822,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 20W 500MA", code: "EQ00353" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -731,6 +837,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 20W 500MA", code: "EQ00353" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -744,6 +852,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 20W 500MA", code: "EQ00353" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -757,6 +867,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -770,6 +882,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -783,6 +897,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -796,6 +912,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -809,6 +927,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 8.4W 200MA LF/GIR013YS0200BU", code: "EQ00045" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -822,6 +942,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 8.4W 200MA LF/GIR013YS0200BU", code: "EQ00045" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -835,6 +957,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 8.4W 200MA LF/GIR013YS0200BU", code: "EQ00045" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -848,6 +972,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -861,6 +987,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -874,6 +1002,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 8.4W 200MA LF/GIR013YS0200BU", code: "EQ00045" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -887,6 +1017,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 8.4W 200MA LF/GIR013YS0200BU", code: "EQ00045" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -900,6 +1032,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 8.4W 200MA LF/GIR013YS0200BU", code: "EQ00045" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -913,6 +1047,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -926,6 +1062,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -939,6 +1077,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -952,6 +1092,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -965,6 +1107,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -978,6 +1122,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 28W 700MA", code: "EQ00352" },
     driverBivolt: { model: "LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -991,6 +1137,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 28W 700MA", code: "EQ00352" },
     driverBivolt: { model: "LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1004,6 +1152,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 28W 700MA", code: "EQ00352" },
     driverBivolt: { model: "LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1017,6 +1167,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 42W 1050MA", code: "EQ00351" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1030,6 +1182,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 42W 1050MA", code: "EQ00351" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1043,6 +1197,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 42W 1050MA", code: "EQ00351" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1056,6 +1212,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1069,6 +1227,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1082,6 +1242,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 20W 500MA", code: "EQ00353" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1095,6 +1257,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 20W 500MA", code: "EQ00353" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1108,6 +1272,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 28W 700MA", code: "EQ00352" },
     driverBivolt: { model: "LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1121,6 +1287,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 28W 700MA", code: "EQ00352" },
     driverBivolt: { model: "LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1134,6 +1302,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 28W 700MA", code: "EQ00352" },
     driverBivolt: { model: "LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1147,6 +1317,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1160,6 +1332,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1173,6 +1347,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W 350MA SLIM BIVOLT", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "NO FRAME",
@@ -1186,6 +1362,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W 350MA SLIM BIVOLT", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1199,6 +1377,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W 350MA SLIM BIVOLT", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "NO FRAME",
@@ -1212,6 +1392,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W 350MA SLIM BIVOLT", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1225,6 +1407,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "NO FRAME",
@@ -1238,6 +1422,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1251,6 +1437,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "NO FRAME",
@@ -1264,6 +1452,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1277,6 +1467,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1290,6 +1482,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1303,6 +1497,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1316,6 +1512,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1329,6 +1527,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1342,6 +1542,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1355,6 +1557,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1368,6 +1572,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1381,6 +1587,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1394,6 +1602,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1407,6 +1617,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 20W 500MA", code: "EQ00353" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1420,6 +1632,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 20W 500MA", code: "EQ00353" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1433,6 +1647,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1446,6 +1662,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1459,6 +1677,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1472,6 +1692,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1485,6 +1707,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1498,6 +1722,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1511,6 +1737,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1524,6 +1752,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 28W 700MA", code: "EQ00352" },
     driverBivolt: { model: "LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1537,6 +1767,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1550,6 +1782,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1563,6 +1797,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 20W 500MA", code: "EQ00353" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1576,6 +1812,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 20W 500MA", code: "EQ00353" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1589,6 +1827,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 20W 500MA", code: "EQ00353" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1602,6 +1842,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 20W 500MA", code: "EQ00353" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1615,6 +1857,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1628,6 +1872,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1641,6 +1887,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1654,6 +1902,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1667,6 +1917,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1680,6 +1932,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1693,6 +1947,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1706,6 +1962,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1719,6 +1977,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1732,6 +1992,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "NO FRAME",
@@ -1745,6 +2007,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "NO FRAME",
@@ -1758,6 +2022,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "NO FRAME",
@@ -1771,6 +2037,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "NO FRAME",
@@ -1784,6 +2052,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1797,6 +2067,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1810,6 +2082,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1823,6 +2097,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1836,6 +2112,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "NO FRAME",
@@ -1849,6 +2127,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "NO FRAME",
@@ -1862,6 +2142,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "NO FRAME",
@@ -1875,6 +2157,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "NO FRAME",
@@ -1888,6 +2172,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1901,6 +2187,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1914,6 +2202,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 28W 700MA", code: "EQ00352" },
     driverBivolt: { model: "LIFUD 30W 700MA LF/GIF030YCII0700U BIVOLT", code: "EQ00610" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1927,6 +2217,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1940,6 +2232,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "PHILIPS CERTADRIVE 20W 500MA", code: "EQ00353" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1953,6 +2247,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "FONTE LUCCHI 24V 36W BIVOLT (EQ00493) PONTO REMOTO + REGULADOR DE VOLTAGEM 20X20MM ALUMINIO PCB", code: "EQ00493" },
     driverBivolt: { model: "FONTE LUCCHI 24V 36W BIVOLT (EQ00493) PONTO REMOTO + REGULADOR DE VOLTAGEM 20X20MM ALUMINIO PCB", code: "EQ00493" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1966,6 +2262,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "FONTE LUCCHI 24V 36W BIVOLT (EQ00493) PONTO REMOTO + REGULADOR DE VOLTAGEM 20X20MM ALUMINIO PCB", code: "EQ00493" },
     driverBivolt: { model: "FONTE LUCCHI 24V 36W BIVOLT (EQ00493) PONTO REMOTO + REGULADOR DE VOLTAGEM 20X20MM ALUMINIO PCB", code: "EQ00493" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1979,6 +2277,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "FONTE LUCCHI 24V 36W BIVOLT (EQ00493) PONTO REMOTO + REGULADOR DE VOLTAGEM 20X20MM ALUMINIO PCB", code: "EQ00493" },
     driverBivolt: { model: "FONTE LUCCHI 24V 36W BIVOLT (EQ00493) PONTO REMOTO + REGULADOR DE VOLTAGEM 20X20MM ALUMINIO PCB", code: "EQ00493" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -1992,6 +2292,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 30W 700MA LF/GIF030ES0700H 220V", code: "" },
     driverBivolt: { model: "TRACE AT15C700 700MA BIVOLT", code: "EQ00235" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -2005,6 +2307,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 30W 700MA LF/GIF030ES0700H 220V", code: "" },
     driverBivolt: { model: "TRACE AT15C700 700MA BIVOLT", code: "EQ00235" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -2018,6 +2322,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 30W 700MA LF/GIF030ES0700H 220V", code: "" },
     driverBivolt: { model: "TRACE AT15C700 700MA BIVOLT", code: "EQ00235" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -2031,6 +2337,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 30W 700MA LF/GIF030ES0700H 220V", code: "" },
     driverBivolt: { model: "TRACE AT15C700 700MA BIVOLT", code: "EQ00235" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -2044,6 +2352,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -2057,6 +2367,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -2070,6 +2382,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -2083,6 +2397,8 @@ export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     driver220: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
     driverBivolt: { model: "LIFUD 13W 350MA BIVOLT", code: "EQ00236" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
 ];
 
@@ -2094,10 +2410,17 @@ export function calculateDownlight(input: DownlightInput, catalog?: DownlightPro
     : source.find(p => p.sku === input.productSku);
   if (!product) return null;
 
-  const driver =
-    input.tensao === "Bivolt" && product.driverBivolt
-      ? product.driverBivolt
-      : product.driver220;
+  // Selecionar driver de acordo com o controle e a tensão
+  let driver: DownlightDriver;
+  if (input.controle === 'DIM DALI' && product.driverDimDali) {
+    driver = product.driverDimDali;
+  } else if (input.controle === 'DIM 1-10V' && product.driverDim110v) {
+    driver = product.driverDim110v;
+  } else if (input.tensao === 'Bivolt' && product.driverBivolt) {
+    driver = product.driverBivolt;
+  } else {
+    driver = product.driver220;
+  }
 
   const ledModuleWithCCT = product.ledModule + " " + input.cct;
 

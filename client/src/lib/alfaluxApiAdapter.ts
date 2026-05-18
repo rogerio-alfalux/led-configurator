@@ -88,6 +88,8 @@ function driverModel(d: DriverInfo): string {
 function toDownlightProduct(p: ApiProduct): DownlightProduct {
   const d220 = p.driver220;
   const dBivolt = p.driverBivolt;
+  const dDim110v = p.driverDim110v;
+  const dDimDali = p.driverDimDali;
   const ccts = normalizeCCTs(p.temperaturasCor);
 
   return {
@@ -98,13 +100,20 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
     holder: p.holder ?? null,
     otica: p.otica ?? null,
     dissipador: p.dissipador ?? null,
-    ledModule: p.ledModule ?? "",
+    // Remover [CCT] do ledModule (igual a Spots e Painéis)
+    ledModule: p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : "",
     ccts,
     driver220: d220
       ? { model: driverModel(d220), code: driverCode(d220) }
       : { model: "", code: "" },
     driverBivolt: dBivolt
       ? { model: driverModel(dBivolt), code: driverCode(dBivolt) }
+      : null,
+    driverDim110v: dDim110v
+      ? { model: driverModel(dDim110v), code: driverCode(dDim110v) }
+      : null,
+    driverDimDali: dDimDali
+      ? { model: driverModel(dDimDali), code: driverCode(dDimDali) }
       : null,
   };
 }
