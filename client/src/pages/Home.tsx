@@ -1608,7 +1608,7 @@ export default function Home() {
                           <SelectContent>
                             {dlProdutosFiltrados.map(({ p }, idx) => {
                               const key = `${p.sku ?? ""}::${p.name}`;
-                              return <SelectItem key={`${key}-${idx}`} value={key}>{p.name} — {p.sku}</SelectItem>;
+                              return <SelectItem key={`${key}-${idx}`} value={key}>{p.name}</SelectItem>;
                             })}
                           </SelectContent>
                         </Select>
@@ -1773,9 +1773,10 @@ export default function Home() {
                           >
                             <SelectTrigger className="h-10"><SelectValue placeholder="Selecione o produto..." /></SelectTrigger>
                             <SelectContent>
-                              {panelProdutos.map(({ p, i }) => (
-                                <SelectItem key={i} value={String(i)}>{p.sku ? `${p.name} — ${p.sku}` : p.name}</SelectItem>
-                              ))}
+                              {panelProdutos.map(({ p, i }) => {
+                                const key = `${p.sku ?? ''}::${p.name}`;
+                                return <SelectItem key={`${key}-${i}`} value={key}>{p.name}</SelectItem>;
+                              })}
                             </SelectContent>
                           </Select>
                         </div>
@@ -1948,7 +1949,7 @@ export default function Home() {
                         <SelectContent>
                           {spotProdutos.map(({ p }, idx) => {
                             const key = `${p.sku ?? ""}::${p.name}`;
-                            return <SelectItem key={`${key}-${idx}`} value={key}>{p.name} — {p.sku}</SelectItem>;
+                            return <SelectItem key={`${key}-${idx}`} value={key}>{p.name}</SelectItem>;
                           })}
                         </SelectContent>
                       </Select>

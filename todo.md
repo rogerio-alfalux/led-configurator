@@ -617,3 +617,9 @@
 - [x] downlightCatalog.ts: calculateDownlight busca produto por sku+name quando productName fornecido
 - [x] spotCatalog.ts: calculateSpot busca produto por sku+name quando productName fornecido
 - [x] 388 testes passando, 0 erros TypeScript
+
+## Correções Seletor + DIM DALI Painéis (18/05/2026)
+- [x] Home.tsx: SelectItem de Downlights, Painéis e Spots exibe apenas o nome (SKU removido da UI, mantido internamente como sku::name)
+- [x] Home.tsx: Painéis — seletor corrigido para usar sku::name como value (era índice numérico, causava falha no cálculo e no DIM DALI)
+- [x] Botão Calcular Painél: corrigido — o find por sku+name agora funciona corretamente
+- [ ] DIM DALI para Painéis: API retorna driverDimDali: null para todos os 52 painéis — aguardando preenchimento na plataforma Alfalux
