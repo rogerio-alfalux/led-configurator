@@ -137,6 +137,8 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
 function toPainelProduct(p: ApiProduct): PainelProduct {
   const d220 = p.driver220;
   const dBivolt = p.driverBivolt;
+  const dDim110v = p.driverDim110v;
+  const dDimDali = p.driverDimDali;
 
   // Fallback: quando os drivers não estão cadastrados na API, usa o catálogo estático pelo SKU
   const staticFallback = p.sku ? PAINEL_CATALOG.find((s) => s.sku === p.sku) : undefined;
@@ -151,6 +153,14 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
     ? null
     : staticFallback?.driverBivolt ?? null;
 
+  const driverDim110v: PainelProduct["driverDim110v"] = dDim110v
+    ? { model: driverModel(dDim110v), code: driverCode(dDim110v) }
+    : null;
+
+  const driverDimDali: PainelProduct["driverDimDali"] = dDimDali
+    ? { model: driverModel(dDimDali), code: driverCode(dDimDali) }
+    : null;
+
   return {
     instalacao: p.instalacao,
     familia: p.familia,
@@ -159,6 +169,8 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
     ledModule: p.ledModule ?? null,
     driver220,
     driverBivolt,
+    driverDim110v,
+    driverDimDali,
   };
 }
 

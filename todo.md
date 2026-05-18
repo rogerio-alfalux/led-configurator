@@ -586,3 +586,24 @@
 - [x] alfaluxApiAdapter.test.ts: reescrito para o novo formato ApiProduct
 - [x] profileApiAdapter.test.ts: reescrito para o novo formato ApiProduct (name, DriverInfo)
 - [x] 385 testes passando, 0 erros TypeScript
+
+## Correções Painéis DIM DALI + ledModule CCT + SKU duplicado (18/05/2026)
+- [ ] painelCatalog.ts: adicionar driverDimDali e driverDim110v na interface PainelProduct
+- [ ] alfaluxApiAdapter.ts: mapear driverDimDali e driverDim110v em toPainelProduct
+- [ ] painelCatalog.ts: calculatePainel deve substituir [CCT] no ledModule pelo valor real
+- [ ] Home.tsx: seletor de controle de Painéis — isAvailable deve verificar driverDimDali/driverDim110v do produto selecionado
+- [ ] Home.tsx: seletor de produto de Painéis/Downlights/Spots — usar índice global como parte do value para distinguir produtos com SKU duplicado
+- [ ] Home.tsx: calculatePainel deve buscar produto pelo índice quando há SKUs duplicados
+
+## Correções Painéis: DIM DALI + SKU duplicado + ledModule CCT (18/05/2026)
+- [x] painelCatalog.ts: adicionados campos driverDim110v e driverDimDali (PainelDriver | null) na interface PainelProduct
+- [x] painelCatalog.ts: adicionados driverDim110v: null, driverDimDali: null em todas as 52 entradas do catálogo estático
+- [x] painelCatalog.ts: calculatePainel seleciona driver DIM DALI/1-10V quando controle !== ON/OFF
+- [x] painelCatalog.ts: ledModuleWithCCT concatena CCT ao ledModule (ex: "4x Stripflex ... 3000K")
+- [x] painelCatalog.ts: PainelInput aceita productIdx opcional para distinguir produtos com SKU duplicado
+- [x] alfaluxApiAdapter.ts: toPainelProduct mapeia driverDim110v e driverDimDali da API
+- [x] Home.tsx: seletor de Painéis usa panelProductIdx (índice global) em vez de panelProductSku para evitar ambiguidade com SKUs duplicados
+- [x] Home.tsx: SelectItem de Painéis exibe "Nome — SKU" e usa índice global como value
+- [x] Home.tsx: botões de controle DIM DALI/1-10V habilitados quando produto selecionado tem driver disponível
+- [x] Home.tsx: panelControle resetado para ON/OFF ao trocar de produto
+- [x] 388 testes passando, 0 erros TypeScript

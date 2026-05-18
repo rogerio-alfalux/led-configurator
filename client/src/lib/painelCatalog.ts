@@ -26,11 +26,17 @@ export interface PainelProduct {
   driver220: PainelDriver;
   /** Driver para Bivolt -- null se nao houver opcao */
   driverBivolt: PainelDriver | null;
+  /** Driver DIM 1-10V -- null se nao disponivel */
+  driverDim110v: PainelDriver | null;
+  /** Driver DIM DALI -- null se nao disponivel */
+  driverDimDali: PainelDriver | null;
 }
 
 export interface PainelInput {
   /** SKU do produto (campo `sku` no catálogo) */
   productSku: string;
+  /** Índice global no catálogo -- usado para distinguir produtos com SKU duplicado */
+  productIdx?: number;
   tensao: "220V" | "Bivolt";
   cct: string;
   controle: ControleType;
@@ -54,6 +60,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "4x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -63,6 +71,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "4x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -72,6 +82,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "6x MÓDULO LED LUCCHI 6W C/ LENTES LCR1ML4808X08LE",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -81,6 +93,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "6x MÓDULO LED LUCCHI 6W C/ LENTES LCR1ML4808X08LE",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -90,6 +104,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "6x MÓDULO LED LUCCHI 6W C/ LENTES LCR1ML4808X08LE",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -99,6 +115,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "6x MÓDULO LED LUCCHI 6W C/ LENTES LCR1ML4808X08LE",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -108,6 +126,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: null,
     driver220: { model: "1x LIFUD 40W 1000mA BIVOLT (LF-GIF040YCII1000U)", code: "EQ00496" },
     driverBivolt: { model: "1x LIFUD 40W 1000mA BIVOLT (LF-GIF040YCII1000U)", code: "EQ00496" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -117,6 +137,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: null,
     driver220: { model: "1x LIFUD 40W 1000mA BIVOLT (LF-GIF040YCII1000U)", code: "EQ00496" },
     driverBivolt: { model: "1x LIFUD 40W 1000mA BIVOLT (LF-GIF040YCII1000U)", code: "EQ00496" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -126,6 +148,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "23.1x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "3x PHILIPS XITANIUM 65W 200MA", code: "EQ00393" },
     driverBivolt: { model: "3x LIFUD 60W LF-FMR060YS0350U(S) 200MA", code: "EQ00582" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -135,6 +159,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "15.5x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "2x PHILIPS XITANIUM 65W 200MA", code: "EQ00393" },
     driverBivolt: { model: "2x LIFUD 60W LF-FMR060YS0350U(S) 200MA", code: "EQ00582" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -144,6 +170,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "10x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "2x PHILIPS XITANIUM 44W 200MA", code: "EQ00347" },
     driverBivolt: { model: "2x LIFUD 40W LF-FMR040YS0350U(S) 200MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -153,6 +181,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "5.5x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 65W 200MA", code: "EQ00393" },
     driverBivolt: { model: "LIFUD 60W LF-FMR060YS0350U(S) 200MA", code: "EQ00582" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -162,6 +192,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "2.4x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 44W 200MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 200MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -171,6 +203,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "23.1x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "3x PHILIPS XITANIUM 65W 200MA", code: "EQ00393" },
     driverBivolt: { model: "3x LIFUD 60W LF-FMR060YS0350U(S) 200MA", code: "EQ00582" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -180,6 +214,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "15.5x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "2x PHILIPS XITANIUM 65W 200MA", code: "EQ00393" },
     driverBivolt: { model: "2x LIFUD 60W LF-FMR060YS0350U(S) 200MA", code: "EQ00582" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -189,6 +225,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "10x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "2x PHILIPS XITANIUM 44W 200MA", code: "EQ00347" },
     driverBivolt: { model: "2x LIFUD 40W LF-FMR040YS0350U(S) 200MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -198,6 +236,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "5.5x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 65W 200MA", code: "EQ00393" },
     driverBivolt: { model: "LIFUD 60W LF-FMR060YS0350U(S) 200MA", code: "EQ00582" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -207,6 +247,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "2.4x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 44W 200MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 200MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "PENDENTE",
@@ -216,6 +258,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "23.1x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "3x PHILIPS XITANIUM 65W 200MA", code: "EQ00393" },
     driverBivolt: { model: "3x LIFUD 60W LF-FMR060YS0350U(S) 200MA", code: "EQ00582" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "PENDENTE",
@@ -225,6 +269,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "15.5x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "2x PHILIPS XITANIUM 65W 200MA", code: "EQ00393" },
     driverBivolt: { model: "2x LIFUD 60W LF-FMR060YS0350U(S) 200MA", code: "EQ00582" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "PENDENTE",
@@ -234,6 +280,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "10x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "2x PHILIPS XITANIUM 44W 200MA", code: "EQ00347" },
     driverBivolt: { model: "2x LIFUD 40W LF-FMR040YS0350U(S) 200MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "PENDENTE",
@@ -243,6 +291,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "5.5x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 65W 200MA", code: "EQ00393" },
     driverBivolt: { model: "LIFUD 60W LF-FMR060YS0350U(S) 200MA", code: "EQ00582" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "PENDENTE",
@@ -252,6 +302,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "2.4x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 44W 200MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 200MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -261,6 +313,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 19W 350MA", code: "EQ00346" },
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -270,6 +324,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "2.1x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 19W 350MA", code: "EQ00346" },
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -279,6 +335,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "4.2x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -288,6 +346,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 19W 350MA", code: "EQ00346" },
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -297,6 +357,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "2x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 19W 350MA", code: "EQ00346" },
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -306,6 +368,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "4x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -315,6 +379,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "2x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 19W 350MA", code: "EQ00346" },
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -324,6 +390,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "4x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -333,6 +401,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "2x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 19W 350MA", code: "EQ00346" },
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -342,6 +412,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "4x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -351,6 +423,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "4x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -360,6 +434,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "4x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -369,6 +445,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "2x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 19W 350MA", code: "EQ00346" },
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -378,6 +456,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "4x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -387,6 +467,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "3x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -396,6 +478,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "3x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "OSRAM IT FIT 75W 500MA", code: "EQ00220" },
     driverBivolt: null,
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -405,6 +489,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "4x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -414,6 +500,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 19W 350MA", code: "EQ00346" },
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -423,6 +511,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "2x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 19W 350MA", code: "EQ00346" },
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -432,6 +522,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "2x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 19W 350MA", code: "EQ00346" },
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -441,6 +533,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "4x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -450,6 +544,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "2.2x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 19W 350MA", code: "EQ00346" },
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -459,6 +555,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "4.4x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -468,6 +566,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "2x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 19W 350MA", code: "EQ00346" },
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -477,6 +577,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "4x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -486,6 +588,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "6x TRACE 150x30 20L 800LM 5W",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -495,6 +599,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "6x TRACE 150x30 20L 800LM 5W",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -504,6 +610,8 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "6x TRACE 150x30 20L 800LM 5W",
     driver220: { model: "PHILIPS XITANIUM 44W 350MA", code: "EQ00347" },
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -513,21 +621,34 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     ledModule: "2.2x Stripflex 562,5 x 10mm 36L",
     driver220: { model: "PHILIPS XITANIUM 19W 350MA", code: "EQ00346" },
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
+    driverDim110v: null,
+    driverDimDali: null,
   },
 ];
 
 export function calculatePainel(input: PainelInput, catalog?: PainelProduct[]): PainelResult | null {
   const source = catalog ?? PAINEL_CATALOG;
-  const product = source.find(p => p.sku === input.productSku);
+  // Se productIdx estiver definido, usa o índice para buscar o produto exato (evita ambiguidade com SKUs duplicados)
+  const product = input.productIdx !== undefined
+    ? source[input.productIdx]
+    : source.find(p => p.sku === input.productSku);
   if (!product) return null;
 
-  const driver =
-    input.tensao === "Bivolt" && product.driverBivolt
-      ? product.driverBivolt
-      : product.driver220;
+  // Selecionar driver conforme controle e tensão
+  let driver: PainelDriver;
+  if (input.controle === "DIM DALI" && product.driverDimDali) {
+    driver = product.driverDimDali;
+  } else if (input.controle === "DIM 1-10V" && product.driverDim110v) {
+    driver = product.driverDim110v;
+  } else if (input.tensao === "Bivolt" && product.driverBivolt) {
+    driver = product.driverBivolt;
+  } else {
+    driver = product.driver220;
+  }
 
+  // Concatenar CCT ao ledModule (ex: "4x Stripflex 562,5 x 10mm 36L 3000K")
   const ledModuleWithCCT = product.ledModule
-    ? product.ledModule + " " + input.cct
+    ? `${product.ledModule} ${input.cct}`
     : null;
 
   return {

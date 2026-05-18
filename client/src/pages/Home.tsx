@@ -845,7 +845,7 @@ export default function Home() {
   // Estados de Painéis
   const [panelInstalacao, setPanelInstalacao] = useState<string | null>(null);
   const [panelFamilia, setPanelFamilia] = useState<string | null>(null);
-  const [panelProductSku, setPanelProductSku] = useState<string | null>(null);
+  const [panelProductIdx, setPanelProductIdx] = useState<number | null>(null);
   const [panelVoltage, setPanelVoltage] = useState<"220V" | "Bivolt" | null>(null);
   const [panelCCT, setPanelCCT] = useState<string>("3000K");
   const [panelControle, setPanelControle] = useState<ControleType>("ON/OFF");
@@ -1735,7 +1735,7 @@ export default function Home() {
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tipo de Instalação</Label>
                         <Select
                           value={panelInstalacao ?? ""}
-                          onValueChange={(v) => { setPanelInstalacao(v); setPanelFamilia(null); setPanelProductSku(null); setPanelVoltage(null); setPanelResult(null); }}
+                          onValueChange={(v) => { setPanelInstalacao(v); setPanelFamilia(null); setPanelProductIdx(null); setPanelVoltage(null); setPanelResult(null); }}
                         >
                           <SelectTrigger className="h-10"><SelectValue placeholder="Selecione o tipo de instalação..." /></SelectTrigger>
                           <SelectContent>
@@ -1751,7 +1751,7 @@ export default function Home() {
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Família</Label>
                           <Select
                             value={panelFamilia ?? ""}
-                            onValueChange={(v) => { setPanelFamilia(v); setPanelProductSku(null); setPanelVoltage(null); setPanelResult(null); }}
+                            onValueChange={(v) => { setPanelFamilia(v); setPanelProductIdx(null); setPanelVoltage(null); setPanelResult(null); }}
                           >
                             <SelectTrigger className="h-10"><SelectValue placeholder="Selecione a família..." /></SelectTrigger>
                             <SelectContent>
@@ -1767,31 +1767,35 @@ export default function Home() {
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Produto</Label>
                           <Select
-                            value={panelProductSku ?? ""}
-                            onValueChange={(v) => { setPanelProductSku(v); setPanelVoltage(null); setPanelResult(null); }}
+                            value={panelProductIdx !== null ? String(panelProductIdx) : ""}
+                            onValueChange={(v) => { setPanelProductIdx(Number(v)); setPanelVoltage(null); setPanelControle("ON/OFF"); setPanelResult(null); }}
                           >
                             <SelectTrigger className="h-10"><SelectValue placeholder="Selecione o produto..." /></SelectTrigger>
                             <SelectContent>
-                              {panelProdutos.map(({ p }, idx) => (
-                                <SelectItem key={`${p.sku}-${idx}`} value={p.sku ?? p.name}>{p.name}</SelectItem>
+                              {panelProdutos.map(({ p, i }) => (
+                                <SelectItem key={i} value={String(i)}>{p.sku ? `${p.name} — ${p.sku}` : p.name}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         </div>
                       )}
                       {/* Controle */}
-                      {panelProductSku !== null && (
+                      {panelProductIdx !== null && (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Controle</Label>
                           <div className="flex gap-2">
                             {(["ON/OFF", "DIM 1-10V", "DIM DALI"] as ControleType[]).map((ctrl) => {
-                              const isAvailable = ctrl === "ON/OFF";
+                              const selProd = panelProductIdx !== null ? activePanelCatalog[panelProductIdx] : null;
+                              const isAvailable =
+                                ctrl === "ON/OFF" ||
+                                (ctrl === "DIM 1-10V" && selProd?.driverDim110v != null) ||
+                                (ctrl === "DIM DALI" && selProd?.driverDimDali != null);
                               return (
                                 <button
                                   key={ctrl}
                                   disabled={!isAvailable}
                                   onClick={() => { if (isAvailable) { setPanelControle(ctrl); setPanelResult(null); } }}
-                                  title={!isAvailable ? "Opção ainda não disponível" : undefined}
+                                  title={!isAvailable ? "Não disponível para este produto" : undefined}
                                   className={[
                                     "flex-1 py-2 rounded-lg text-xs font-medium border transition-all",
                                     panelControle === ctrl && isAvailable
@@ -1805,16 +1809,15 @@ export default function Home() {
                               );
                             })}
                           </div>
-                          <p className="text-xs text-muted-foreground">DIM 1-10V e DIM DALI serão habilitados quando os dados estiverem disponíveis.</p>
                         </div>
                       )}
                       {/* Tensão */}
-                      {panelProductSku !== null && (
+                      {panelProductIdx !== null && (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
                           <div className="flex gap-2">
                             {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
-                              const hasBivolt = activePanelCatalog.find(p => p.sku === panelProductSku)?.driverBivolt !== null;
+                              const hasBivolt = panelProductIdx !== null ? activePanelCatalog[panelProductIdx]?.driverBivolt !== null : false;
                               const disabled = v === "Bivolt" && !hasBivolt;
                               return (
                                 <button
@@ -1834,7 +1837,7 @@ export default function Home() {
                               );
                             })}
                           </div>
-                          {panelVoltage === "Bivolt" && activePanelCatalog.find(p => p.sku === panelProductSku)?.driverBivolt === null && (
+                          {panelVoltage === "Bivolt" && (panelProductIdx !== null ? activePanelCatalog[panelProductIdx]?.driverBivolt === null : false) && (
                             <p className="text-xs text-destructive flex items-center gap-1">
                               <AlertTriangle className="w-3 h-3" /> Este produto não possui opção Bivolt.
                             </p>
@@ -1842,7 +1845,7 @@ export default function Home() {
                         </div>
                       )}
                       {/* CCT */}
-                      {panelProductSku !== null && (
+                      {panelProductIdx !== null && (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
                           <div className="flex gap-2 flex-wrap">
@@ -2088,21 +2091,23 @@ export default function Home() {
                     <AlertTriangle className="w-3.5 h-3.5" /> Selecione a família antes de calcular.
                   </p>
                 )}
-                {panelFamilia && panelProductSku === null && (
+                {panelFamilia && panelProductIdx === null && (
                   <p className="text-xs text-amber-500 flex items-center gap-1.5">
                     <AlertTriangle className="w-3.5 h-3.5" /> Selecione o produto antes de calcular.
                   </p>
                 )}
-                {panelProductSku !== null && !panelVoltage && (
+                {panelProductIdx !== null && !panelVoltage && (
                   <p className="text-xs text-amber-500 flex items-center gap-1.5">
                     <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
                   </p>
                 )}
                 <Button
-                  disabled={panelProductSku === null || !panelVoltage}
+                  disabled={panelProductIdx === null || !panelVoltage}
                   onClick={() => {
-                    if (panelProductSku === null || !panelVoltage) return;
-                    setPanelResult(calculatePainel({ productSku: panelProductSku, tensao: panelVoltage, cct: panelCCT, controle: panelControle }, activePanelCatalog));
+                    if (panelProductIdx === null || !panelVoltage) return;
+                    const selPainel = activePanelCatalog[panelProductIdx];
+                    if (!selPainel) return;
+                    setPanelResult(calculatePainel({ productSku: selPainel.sku ?? selPainel.name, productIdx: panelProductIdx, tensao: panelVoltage, cct: panelCCT, controle: panelControle }, activePanelCatalog));
                   }}
                   className="w-full h-12 text-base font-semibold font-display"
                   size="lg"
