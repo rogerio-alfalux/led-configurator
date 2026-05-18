@@ -32,7 +32,10 @@ queryClient.getQueryCache().subscribe(event => {
   if (event.type === "updated" && event.action.type === "error") {
     const error = event.query.state.error;
     redirectToLoginIfUnauthorized(error);
-    console.error("[API Query Error]", error);
+    // Só logar erros de autenticação; erros de rede têm fallback e não devem poluir o console
+    if (error instanceof TRPCClientError && error.message === UNAUTHED_ERR_MSG) {
+      console.error("[API Query Error]", error);
+    }
   }
 });
 
