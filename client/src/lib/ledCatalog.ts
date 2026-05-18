@@ -33,9 +33,9 @@ export interface ProfileVariant {
   /** Alerta de driver remoto obrigatório */
   requiresRemoteDriver?: boolean;
   /** Driver DIM DALI disponível para este perfil (vindo da API) */
-  driverDimDali?: string | null;
+  driverDimDali?: { model: string; code: string | null } | null;
   /** Driver DIM 1-10V disponível para este perfil (vindo da API) */
-  driverDim110v?: string | null;
+  driverDim110v?: { model: string; code: string | null } | null;
   modules: ProfileModules;
 }
 

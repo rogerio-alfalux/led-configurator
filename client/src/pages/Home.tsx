@@ -538,7 +538,7 @@ function ResultBlock({ result }: { result: CompositionResult }) {
                 </p>
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
                   <Zap className="w-3 h-3" />
-                  {result.controlType === "dimDali" ? "DIM DALI" : "DIM 1-10V"}: {result.driverDimSelected}
+                  {result.controlType === "dimDali" ? "DIM DALI" : "DIM 1-10V"}: {typeof result.driverDimSelected === "object" && result.driverDimSelected !== null ? result.driverDimSelected.model : result.driverDimSelected}
                 </span>
               </div>
             )}

@@ -1,58 +1,58 @@
 import { describe, it, expect } from "vitest";
 import { adaptAlfaluxProducts, parseCCTs } from "./alfaluxApiAdapter";
-import type { ApiProduct } from "./alfaluxApiAdapter";
+import type { ApiProduct, DriverInfo } from "./alfaluxApiAdapter";
 
+/** Cria um DriverInfo padrão para testes */
+function makeDriver(model: string, code: string | null = null): DriverInfo {
+  return { model, code };
+}
+
+/** Cria um ApiProduct no novo formato (campos do /api/products/all) */
 function makeProduct(overrides: Partial<ApiProduct> = {}): ApiProduct {
   return {
-    id: 1,
     categoria: "DOWNLIGHTS",
     instalacao: "EMBUTIR",
     familia: "LUNA",
     sku: "LDE-1234.567.89F",
-    produto: "LUNA PP LED 13W",
-    moduloLed: "TRACE CIRCULAR 12 LEDS Ø67MM",
+    name: "LUNA PP LED 13W",
+    ledModule: "TRACE CIRCULAR 12 LEDS Ø67MM",
     otica: "REFLETOR Ø50MM 15°",
-    oticaNaoAplicavel: false,
     holder: "HOLDER NATA 50MM",
-    holderNaoAplicavel: false,
-    dissipador: "NÃO APLICÁVEL",
-    dissipadorNaoAplicavel: true,
-    driverOnoff220: "LIFUD 30W 700MA (EQ00123)",
-    driverOnoffBivolt: "LIFUD 30W BIVOLT (EQ00456)",
-    driverOnoffBivoltNaoAplicavel: false,
-    driverDim110v: null,
-    driverDim110vNaoAplicavel: false,
-    driverDimDali: null,
-    driverDimDaliNaoAplicavel: false,
-    temperaturasCor: '["2700","3000","4000","5000"]',
+    dissipador: null,
     fotoUrl: "https://example.com/foto.jpg",
-    fotoKey: "foto.jpg",
+    temperaturasCor: ["2700", "3000", "4000", "5000"],
+    driver220: makeDriver("LIFUD 30W 700MA", "EQ00123"),
+    driverBivolt: makeDriver("LIFUD 30W BIVOLT", "EQ00456"),
+    driverDim110v: null,
+    driverDimDali: null,
     custoLuminaria: null,
-    custoDriverOnoff220: null,
-    custoDriverOnoffBivolt: null,
+    custoDriver220: null,
+    custoDriverBivolt: null,
     custoDriverDim110v: null,
     custoDriverDimDali: null,
-    createdAt: "2026-05-15T00:00:00.000Z",
-    updatedAt: "2026-05-15T00:00:00.000Z",
     ...overrides,
   };
 }
 
 describe("parseCCTs", () => {
-  it("converte array JSON de CCTs para strings com K", () => {
-    expect(parseCCTs('["2700","3000","4000","5000"]')).toEqual(["2700K", "3000K", "4000K", "5000K"]);
+  it("converte array de CCTs para strings com K", () => {
+    expect(parseCCTs(["2700", "3000", "4000", "5000"])).toEqual(["2700K", "3000K", "4000K", "5000K"]);
   });
 
-  it("mantém K se já presente", () => {
-    expect(parseCCTs('["2700K","3000K"]')).toEqual(["2700K", "3000K"]);
+  it("mantém K se já presente no array", () => {
+    expect(parseCCTs(["2700K", "3000K"])).toEqual(["2700K", "3000K"]);
+  });
+
+  it("aceita JSON string legado", () => {
+    expect(parseCCTs('["2700","3000","4000","5000"]')).toEqual(["2700K", "3000K", "4000K", "5000K"]);
   });
 
   it("retorna 3000K como fallback para JSON inválido", () => {
     expect(parseCCTs("invalid")).toEqual(["3000K"]);
   });
 
-  it("retorna 3000K para string vazia", () => {
-    expect(parseCCTs("")).toEqual(["3000K"]);
+  it("retorna 3000K para array vazio", () => {
+    expect(parseCCTs([])).toEqual(["3000K"]);
   });
 });
 
@@ -69,37 +69,38 @@ describe("adaptAlfaluxProducts - Downlights", () => {
     expect(dl.ledModule).toBe("TRACE CIRCULAR 12 LEDS Ø67MM");
     expect(dl.otica).toBe("REFLETOR Ø50MM 15°");
     expect(dl.holder).toBe("HOLDER NATA 50MM");
-    expect(dl.dissipador).toBeNull(); // dissipadorNaoAplicavel = true
+    expect(dl.dissipador).toBeNull();
   });
 
-  it("extrai código EQ do driver 220V", () => {
-    const products = [makeProduct({ driverOnoff220: "LIFUD 30W 700MA (EQ00123)" })];
+  it("usa model e code do objeto DriverInfo para driver 220V", () => {
+    const products = [makeProduct({ driver220: makeDriver("LIFUD 30W 700MA", "EQ00123") })];
     const result = adaptAlfaluxProducts(products);
     expect(result.downlights[0].driver220.code).toBe("EQ00123");
     expect(result.downlights[0].driver220.model).toBe("LIFUD 30W 700MA");
   });
 
-  it("extrai código EQ do driver Bivolt", () => {
-    const products = [makeProduct({ driverOnoffBivolt: "LIFUD 30W BIVOLT (EQ00456)" })];
+  it("usa model e code do objeto DriverInfo para driver Bivolt", () => {
+    const products = [makeProduct({ driverBivolt: makeDriver("LIFUD 30W BIVOLT", "EQ00456") })];
     const result = adaptAlfaluxProducts(products);
     expect(result.downlights[0].driverBivolt?.code).toBe("EQ00456");
     expect(result.downlights[0].driverBivolt?.model).toBe("LIFUD 30W BIVOLT");
   });
 
-  it("define driverBivolt como null quando naoAplicavel=true", () => {
-    const products = [makeProduct({ driverOnoffBivoltNaoAplicavel: true })];
+  it("define driverBivolt como null quando campo é null", () => {
+    const products = [makeProduct({ driverBivolt: null })];
     const result = adaptAlfaluxProducts(products);
     expect(result.downlights[0].driverBivolt).toBeNull();
   });
 
-  it("define driverBivolt como null quando campo vazio", () => {
-    const products = [makeProduct({ driverOnoffBivolt: "", driverOnoffBivoltNaoAplicavel: false })];
+  it("extrai código EQ do model quando code é null", () => {
+    const products = [makeProduct({ driver220: makeDriver("LIFUD 30W 700MA (EQ00123)", null) })];
     const result = adaptAlfaluxProducts(products);
-    expect(result.downlights[0].driverBivolt).toBeNull();
+    expect(result.downlights[0].driver220.code).toBe("EQ00123");
+    expect(result.downlights[0].driver220.model).toBe("LIFUD 30W 700MA");
   });
 
   it("mapeia CCTs por familia", () => {
-    const products = [makeProduct({ familia: "LUNA", temperaturasCor: '["2700","3000","4000"]' })];
+    const products = [makeProduct({ familia: "LUNA", temperaturasCor: ["2700", "3000", "4000"] })];
     const result = adaptAlfaluxProducts(products);
     expect(result.downlightCCTs["LUNA"]).toEqual(["2700K", "3000K", "4000K"]);
   });
@@ -113,7 +114,7 @@ describe("adaptAlfaluxProducts - Downlights", () => {
 
 describe("adaptAlfaluxProducts - Painéis", () => {
   it("converte produto Painel corretamente", () => {
-    const products = [makeProduct({ categoria: "PAINÉIS", familia: "ALE-2103", produto: "ALE-2103 36W" })];
+    const products = [makeProduct({ categoria: "PAINÉIS", familia: "ALE-2103", name: "ALE-2103 36W" })];
     const result = adaptAlfaluxProducts(products);
     expect(result.paineis).toHaveLength(1);
     const p = result.paineis[0];
@@ -138,15 +139,15 @@ describe("adaptAlfaluxProducts - separação de categorias", () => {
   it("separa Downlights e Painéis corretamente", () => {
     const products = [
       makeProduct({ categoria: "DOWNLIGHTS", familia: "LUNA" }),
-      makeProduct({ id: 2, categoria: "PAINÉIS", familia: "ALE-2103" }),
+      makeProduct({ categoria: "PAINÉIS", familia: "ALE-2103" }),
     ];
     const result = adaptAlfaluxProducts(products);
     expect(result.downlights).toHaveLength(1);
     expect(result.paineis).toHaveLength(1);
   });
 
-  it("ignora categorias desconhecidas", () => {
-    const products = [makeProduct({ categoria: "SPOTS" })];
+  it("ignora categorias desconhecidas (PERFIS vai para o profileApiAdapter)", () => {
+    const products = [makeProduct({ categoria: "PERFIS" })];
     const result = adaptAlfaluxProducts(products);
     expect(result.downlights).toHaveLength(0);
     expect(result.paineis).toHaveLength(0);

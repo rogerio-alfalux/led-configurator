@@ -566,3 +566,23 @@
 - [x] Home.tsx: botão ON/OFF agora exibido em maiúsculas (ON/OFF)
 - [x] Home.tsx: corrigido erro JSX causado por `hover:bg-muted/50` em template literal — substituído por array de classes com `.join(" ")`
 - [x] 381 testes passando, 0 erros TypeScript
+
+## Correção: driverDimDali como objeto { model, code } (18/05/2026)
+- [ ] Corrigir alfaluxApiService.ts: interface AlfaluxProduct deve ter driverDimDali e driverDim110v como `{ model: string; code: string | null } | null` em vez de `string | null`
+- [ ] Corrigir alfaluxApiService.ts: mesma correção para driverOnoff220 e driverOnoffBivolt (também são objetos na API externa)
+- [ ] Corrigir ApiProduct em alfaluxApiAdapter.ts: mesma mudança de tipo para driverDimDali e driverDim110v
+- [ ] Corrigir profileApiAdapter.ts: ler `p.driverDimDali?.model` em vez de `p.driverDimDali`
+- [ ] Corrigir alfaluxApiAdapter.ts: ler `p.driverOnoff220?.model` para downlights/painéis/spots
+- [ ] Atualizar testes do profileApiAdapter para usar o formato de objeto
+- [ ] Atualizar testes do alfaluxApiAdapter para usar o formato de objeto
+
+## Migração para /api/products/all com DriverInfo (18/05/2026)
+- [x] alfaluxApiService.ts: migrado para /api/products/all, interface AlfaluxProduct com DriverInfo { model, code } | null
+- [x] alfaluxApiAdapter.ts: interface ApiProduct atualizada para o novo formato (name, ledModule, driver220/driverBivolt/driverDim110v/driverDimDali como DriverInfo | null, temperaturasCor como string[])
+- [x] profileApiAdapter.ts: usa p.name em vez de p.produto; variantMap tipado com DriverInfo | null
+- [x] ledCatalog.ts: driverDimDali e driverDim110v em ProfileVariant agora são { model, code } | null
+- [x] ledEngine.ts: driverDimDali e driverDim110v em ConfigInput e driverDimSelected em CompositionResult agora são { model, code } | null
+- [x] Home.tsx: exibição de driverDimSelected usa .model do objeto DriverInfo
+- [x] alfaluxApiAdapter.test.ts: reescrito para o novo formato ApiProduct
+- [x] profileApiAdapter.test.ts: reescrito para o novo formato ApiProduct (name, DriverInfo)
+- [x] 385 testes passando, 0 erros TypeScript

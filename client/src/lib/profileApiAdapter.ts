@@ -119,7 +119,7 @@ export function adaptProfileProducts(
   // Acumula módulos por código de perfil
   const variantMap: Record<
     string,
-    { rule: ProfileRule; installType: InstallType; modules: ProfileModules; driverDimDali: string | null; driverDim110v: string | null }
+    { rule: ProfileRule; installType: InstallType; modules: ProfileModules; driverDimDali: { model: string; code: string | null } | null; driverDim110v: { model: string; code: string | null } | null }
   > = {};
 
   for (const p of perfisProducts) {
@@ -132,10 +132,10 @@ export function adaptProfileProducts(
     const installType = INSTALL_MAP[(p.instalacao ?? "").toUpperCase()];
     if (!installType) continue;
 
-    const parsed = parseModuleName(p.produto);
+    const parsed = parseModuleName(p.name);
     if (!parsed) continue;
 
-    if (!variantMap[profileCode]) {
+      if (!variantMap[profileCode]) {
       variantMap[profileCode] = {
         rule,
         installType,
@@ -152,6 +152,7 @@ export function adaptProfileProducts(
         variantMap[profileCode].driverDim110v = p.driverDim110v;
       }
     }
+    
 
     const entry = variantMap[profileCode];
     const moduleData: ModuleData = { length: parsed.length, sku: p.sku };

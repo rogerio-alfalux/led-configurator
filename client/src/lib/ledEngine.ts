@@ -103,7 +103,7 @@ export interface CompositionResult {
   /** Tipo de controle selecionado (onoff, dimDali, dim110v) */
   controlType: ControlType;
   /** Driver DIM selecionado quando controlType != onoff */
-  driverDimSelected?: string | null;
+  driverDimSelected?: { model: string; code: string | null } | null;
 }
 
 export interface ConfigInput {
@@ -138,9 +138,9 @@ export interface ConfigInput {
    */
   controlType?: ControlType;
   /** Driver DIM DALI disponível para este perfil (da API) */
-  driverDimDali?: string | null;
+  driverDimDali?: { model: string; code: string | null } | null;
   /** Driver DIM 1-10V disponível para este perfil (da API) */
-  driverDim110v?: string | null;
+  driverDim110v?: { model: string; code: string | null } | null;
   /**
    * Catálogo de perfis dinâmico (da API). Quando fornecido, substitui o LED_CATALOG estático.
    */
