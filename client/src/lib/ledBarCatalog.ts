@@ -1,0 +1,314 @@
+/**
+ * ledBarCatalog.ts
+ *
+ * Tipos, engine de cálculo e catálogo estático de fallback para a família LED BAR.
+ *
+ * LED BAR é vendido por metro linear — o usuário digita qualquer comprimento até 3000mm.
+ * Se o comprimento for maior que 3000mm, é obrigatório informar a quantidade de cortes
+ * (nCortes ≥ 2), e o perfil será dividido em trechos iguais, cada um com sua fonte.
+ *
+ * Drivers 0-10V (driverDim010v) são MONOVOLT: 110V ou 220V separados, NÃO bivolt automático.
+ * Drivers DALI (driverDimDali) podem ser bivolt conforme indicado no modelo.
+ * Driver ON/OFF (driver220 / driverBivolt) seguem o padrão normal.
+ */
+
+// ─── Tipos ────────────────────────────────────────────────────────────────────
+
+export type LedBarDifusor = "DA" | "DB" | "DC";
+export type LedBarPotencia = 5 | 10 | 25;
+export type LedBarControle = "ON/OFF" | "DIM 0-10V" | "DIM DALI";
+export type LedBarVoltage = "110V" | "220V" | "Bivolt";
+
+export interface LedBarDriverInfo {
+  model: string;
+  code: string;
+}
+
+export interface LedBarProduct {
+  /** Família do produto (ex: "LED BAR U") */
+  familia: string;
+  /** SKU do produto (ex: "LED BAR U DB") */
+  sku: string;
+  /** Nome completo do produto (ex: "LED BAR U DB 10W/M") */
+  name: string;
+  /** Potência em W/m */
+  potencia: LedBarPotencia;
+  /** Tipo de difusor */
+  difusor: LedBarDifusor;
+  /** Módulo LED (sem [CCT]) */
+  ledModule: string;
+  /** Temperaturas de cor disponíveis */
+  ccts: string[];
+  /** Driver ON/OFF 220V */
+  driver220: LedBarDriverInfo | null;
+  /** Driver ON/OFF Bivolt */
+  driverBivolt: LedBarDriverInfo | null;
+  /** Driver DIM 0-10V (MONOVOLT — 110V ou 220V, NÃO bivolt automático) */
+  driverDim010v: LedBarDriverInfo | null;
+  /** Driver DIM DALI */
+  driverDimDali: LedBarDriverInfo | null;
+  /** URL da foto do produto */
+  fotoUrl: string | null;
+}
+
+// ─── Catálogo estático de fallback ───────────────────────────────────────────
+// Usado quando a API não está disponível. Contém apenas os produtos confirmados.
+
+export const LED_BAR_CATALOG: LedBarProduct[] = [
+  {
+    familia: "LED BAR U",
+    sku: "LED BAR U DB",
+    name: "LED BAR U DB 5W/M",
+    potencia: 5,
+    difusor: "DB",
+    ledModule: "FITA LED HOPELUMI 24V 5W/M",
+    ccts: ["2700K", "3000K", "4000K", "5000K"],
+    driver220: { model: "FONTE DE TENSÃO 60W 24V IP20 BIV DIP SLIM", code: "EQ00112" },
+    driverBivolt: { model: "FONTE DE TENSÃO 60W 24V IP20 BIV DIP SLIM", code: "EQ00112" },
+    driverDim010v: { model: "FONTE DE TENSÃO 60W 24V IP20 220V DIM TRIAC 0-10V", code: "EQ00583" },
+    driverDimDali: { model: "FONTE DE TENSÃO 72W 24V IP67 BIV DIM DALI/0-10V/1-10V/PUSH DT6", code: "EQ00666" },
+    fotoUrl: null,
+  },
+  {
+    familia: "LED BAR U",
+    sku: "LED BAR U DB",
+    name: "LED BAR U DB 10W/M",
+    potencia: 10,
+    difusor: "DB",
+    ledModule: "FITA LED HOPELUMI 24V 10W/M",
+    ccts: ["2700K", "3000K", "4000K", "5000K"],
+    driver220: { model: "FONTE DE TENSÃO 60W 24V IP20 BIV DIP SLIM", code: "EQ00112" },
+    driverBivolt: { model: "FONTE DE TENSÃO 60W 24V IP20 BIV DIP SLIM", code: "EQ00112" },
+    driverDim010v: { model: "FONTE DE TENSÃO 60W 24V IP20 220V DIM TRIAC 0-10V", code: "EQ00583" },
+    driverDimDali: { model: "FONTE DE TENSÃO 72W 24V IP67 BIV DIM DALI/0-10V/1-10V/PUSH DT6", code: "EQ00666" },
+    fotoUrl: null,
+  },
+  {
+    familia: "LED BAR U",
+    sku: "LED BAR U DB",
+    name: "LED BAR U DB 25W/M",
+    potencia: 25,
+    difusor: "DB",
+    ledModule: "FITA LED HOPELUMI 24V 25W/M",
+    ccts: ["2700K", "3000K", "4000K", "5000K"],
+    driver220: { model: "FONTE DE TENSÃO 60W 24V IP20 BIV DIP SLIM", code: "EQ00112" },
+    driverBivolt: { model: "FONTE DE TENSÃO 60W 24V IP20 BIV DIP SLIM", code: "EQ00112" },
+    driverDim010v: { model: "FONTE DE TENSÃO 60W 24V IP20 220V DIM TRIAC 0-10V", code: "EQ00583" },
+    driverDimDali: { model: "FONTE DE TENSÃO 72W 24V IP67 BIV DIM DALI/0-10V/1-10V/PUSH DT6", code: "EQ00666" },
+    fotoUrl: null,
+  },
+];
+
+// ─── Constantes ───────────────────────────────────────────────────────────────
+
+/** Comprimento máximo de um trecho sem corte (mm) */
+export const LED_BAR_MAX_LENGTH_MM = 3000;
+
+export const LED_BAR_POTENCIA_OPTIONS: { value: LedBarPotencia; label: string }[] = [
+  { value: 5,  label: "5 W/m" },
+  { value: 10, label: "10 W/m" },
+  { value: 25, label: "25 W/m" },
+];
+
+export const LED_BAR_DIFUSOR_OPTIONS: { value: LedBarDifusor; label: string; desc: string }[] = [
+  { value: "DA", label: "DA", desc: "Difusor Alto" },
+  { value: "DB", label: "DB", desc: "Difusor Baixo" },
+  { value: "DC", label: "DC", desc: "Difusor Curvo" },
+];
+
+export const LED_BAR_CONTROLE_OPTIONS: { value: LedBarControle; label: string }[] = [
+  { value: "ON/OFF",    label: "ON/OFF" },
+  { value: "DIM 0-10V", label: "DIM 0-10V" },
+  { value: "DIM DALI",  label: "DIM DALI" },
+];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Extrai a potência em W/m do nome do produto.
+ * Ex: "LED BAR U DB 10W/M" → 10
+ */
+export function parsePotenciaFromName(name: string): LedBarPotencia | null {
+  const m = name.match(/(\d+)\s*W\/M/i);
+  if (!m) return null;
+  const v = parseInt(m[1], 10);
+  if (v === 5 || v === 10 || v === 25) return v;
+  return null;
+}
+
+/**
+ * Extrai o tipo de difusor do nome ou SKU do produto.
+ * Ex: "LED BAR U DB 10W/M" → "DB"
+ */
+export function parseDifusorFromName(name: string): LedBarDifusor | null {
+  const m = name.match(/\b(DA|DB|DC)\b/i);
+  if (!m) return null;
+  return m[1].toUpperCase() as LedBarDifusor;
+}
+
+/**
+ * Verifica se o driver DIM 0-10V suporta bivolt (busca "biv" no modelo).
+ */
+export function dim010vIsBivolt(product: LedBarProduct): boolean {
+  if (!product.driverDim010v) return false;
+  return /bivolt|biv\b/i.test(product.driverDim010v.model);
+}
+
+/**
+ * Verifica se o driver DALI suporta bivolt.
+ */
+export function daliIsBivolt(product: LedBarProduct): boolean {
+  if (!product.driverDimDali) return false;
+  return /bivolt|biv\b/i.test(product.driverDimDali.model);
+}
+
+/**
+ * Retorna as opções de tensão disponíveis para o produto e controle selecionados.
+ * - ON/OFF: 220V + Bivolt (se driverBivolt != null)
+ * - DIM 0-10V: 110V + 220V (monovolt — NÃO bivolt automático, exceto se modelo indicar)
+ * - DIM DALI: 220V + Bivolt (se modelo indicar bivolt)
+ */
+export function getAvailableVoltages(
+  product: LedBarProduct,
+  controle: LedBarControle
+): LedBarVoltage[] {
+  if (controle === "ON/OFF") {
+    const opts: LedBarVoltage[] = ["220V"];
+    if (product.driverBivolt) opts.push("Bivolt");
+    return opts;
+  }
+  if (controle === "DIM 0-10V") {
+    // Monovolt: 110V e 220V separados. Bivolt apenas se o modelo indicar explicitamente.
+    const opts: LedBarVoltage[] = ["110V", "220V"];
+    if (dim010vIsBivolt(product)) opts.push("Bivolt");
+    return opts;
+  }
+  if (controle === "DIM DALI") {
+    const opts: LedBarVoltage[] = ["220V"];
+    if (daliIsBivolt(product)) opts.push("Bivolt");
+    return opts;
+  }
+  return ["220V"];
+}
+
+// ─── Engine de Cálculo ────────────────────────────────────────────────────────
+
+export interface LedBarInput {
+  product: LedBarProduct;
+  comprimentoMm: number;
+  nCortes: number; // 1 = sem corte (trecho único), ≥ 2 = dividir em nCortes trechos iguais
+  controle: LedBarControle;
+  voltage: LedBarVoltage;
+  cct: string;
+}
+
+export interface LedBarTrecho {
+  /** Número do trecho (1-based) */
+  numero: number;
+  /** Comprimento do trecho em mm */
+  comprimentoMm: number;
+  /** Driver selecionado para este trecho */
+  driver: LedBarDriverInfo;
+  /** Tensão do driver */
+  voltage: LedBarVoltage;
+}
+
+export interface LedBarResult {
+  product: LedBarProduct;
+  comprimentoTotalMm: number;
+  nCortes: number;
+  comprimentoPorTrechoMm: number;
+  trechos: LedBarTrecho[];
+  controle: LedBarControle;
+  voltage: LedBarVoltage;
+  cct: string;
+  /** Módulo LED com CCT substituído */
+  ledModuleWithCCT: string;
+  /** Erros de validação */
+  errors: string[];
+}
+
+/**
+ * Seleciona o driver correto para o controle e tensão selecionados.
+ */
+function selectDriver(
+  product: LedBarProduct,
+  controle: LedBarControle,
+  voltage: LedBarVoltage
+): LedBarDriverInfo | null {
+  if (controle === "ON/OFF") {
+    if (voltage === "Bivolt") return product.driverBivolt;
+    return product.driver220;
+  }
+  if (controle === "DIM 0-10V") {
+    // Monovolt: usa driverDim010v para 110V e 220V
+    // (o mesmo driver físico, mas a tensão de entrada é configurada pelo instalador)
+    return product.driverDim010v;
+  }
+  if (controle === "DIM DALI") {
+    return product.driverDimDali;
+  }
+  return product.driver220;
+}
+
+/**
+ * Calcula a composição de um LED BAR.
+ *
+ * Regras:
+ * - comprimento ≤ 3000mm → 1 trecho (nCortes = 1)
+ * - comprimento > 3000mm → nCortes ≥ 2 obrigatório
+ * - Cada trecho recebe sua própria fonte
+ * - Comprimento por trecho = floor(comprimentoTotal / nCortes) mm
+ *   (o último trecho pode ter 1mm a menos por arredondamento — aceitável)
+ */
+export function calculateLedBar(input: LedBarInput): LedBarResult {
+  const { product, comprimentoMm, nCortes, controle, voltage, cct } = input;
+  const errors: string[] = [];
+
+  // Validações
+  if (comprimentoMm <= 0) {
+    errors.push("O comprimento deve ser maior que 0mm.");
+  }
+  if (comprimentoMm > LED_BAR_MAX_LENGTH_MM && nCortes < 2) {
+    errors.push(`Comprimento acima de ${LED_BAR_MAX_LENGTH_MM}mm requer pelo menos 2 cortes.`);
+  }
+  if (nCortes < 1) {
+    errors.push("A quantidade de cortes deve ser pelo menos 1.");
+  }
+
+  const driver = selectDriver(product, controle, voltage);
+  if (!driver) {
+    errors.push(`Driver não disponível para controle "${controle}" e tensão "${voltage}".`);
+  }
+
+  // Calcular comprimento por trecho
+  const nTrechos = Math.max(1, nCortes);
+  const comprimentoPorTrechoMm = Math.floor(comprimentoMm / nTrechos);
+
+  // Montar trechos
+  const trechos: LedBarTrecho[] = [];
+  for (let i = 0; i < nTrechos; i++) {
+    trechos.push({
+      numero: i + 1,
+      comprimentoMm: comprimentoPorTrechoMm,
+      driver: driver ?? { model: "Driver não disponível", code: "" },
+      voltage,
+    });
+  }
+
+  // Substituir [CCT] no ledModule pelo CCT selecionado
+  const ledModuleWithCCT = product.ledModule.replace(/\[CCT\]/gi, cct).trim();
+
+  return {
+    product,
+    comprimentoTotalMm: comprimentoMm,
+    nCortes: nTrechos,
+    comprimentoPorTrechoMm,
+    trechos,
+    controle,
+    voltage,
+    cct,
+    ledModuleWithCCT,
+    errors,
+  };
+}

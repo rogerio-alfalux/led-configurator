@@ -35,6 +35,16 @@ import { SPOT_CATALOG, calculateSpot } from "@/lib/spotCatalog";
 import type { SpotProduct, SpotResult } from "@/lib/spotCatalog";
 import { adaptAlfaluxProducts } from "@/lib/alfaluxApiAdapter";
 import { useAlfaluxProducts } from "@/hooks/useAlfaluxProducts";
+import {
+  LED_BAR_CATALOG,
+  LED_BAR_POTENCIA_OPTIONS,
+  LED_BAR_DIFUSOR_OPTIONS,
+  LED_BAR_CONTROLE_OPTIONS,
+  LED_BAR_MAX_LENGTH_MM,
+  getAvailableVoltages,
+  calculateLedBar,
+} from "@/lib/ledBarCatalog";
+import type { LedBarProduct, LedBarPotencia, LedBarDifusor, LedBarControle, LedBarVoltage, LedBarResult } from "@/lib/ledBarCatalog";
 import type {
   CompositionResult,
   ConfigInput,
@@ -858,6 +868,97 @@ export default function Home() {
   const [spotControle, setSpotControle] = useState<ControleType>("ON/OFF");
   const [spotResult, setSpotResult] = useState<SpotResult | null>(null);
 
+  // ── Estados de LED BAR ───────────────────────────────────────────────────────
+  const [lbFamilia, setLbFamilia] = useState<string | null>(null);
+  const [lbPotencia, setLbPotencia] = useState<LedBarPotencia | null>(null);
+  const [lbDifusor, setLbDifusor] = useState<LedBarDifusor | null>(null);
+  const [lbControle, setLbControle] = useState<LedBarControle>("ON/OFF");
+  const [lbVoltage, setLbVoltage] = useState<LedBarVoltage>("220V");
+  const [lbCCT, setLbCCT] = useState<string>("3000K");
+  const [lbComprimento, setLbComprimento] = useState<string>("");
+  const [lbNCortes, setLbNCortes] = useState<string>("2");
+  const [lbResult, setLbResult] = useState<LedBarResult | null>(null);
+
+  // Catálogo ativo de LED BAR (API ou fallback estático)
+  const activeLedBarCatalog = useMemo(() => {
+    const apiLedBars = adaptedCatalogs?.ledBars;
+    return apiLedBars && apiLedBars.length > 0 ? apiLedBars : LED_BAR_CATALOG;
+  }, [adaptedCatalogs]);
+
+  // Famílias LED BAR disponíveis
+  const lbFamilias = useMemo(() =>
+    Array.from(new Set(activeLedBarCatalog.map(p => p.familia))).sort(),
+    [activeLedBarCatalog]
+  );
+
+  // Produto LED BAR selecionado (potência + difusor)
+  const lbSelectedProduct = useMemo<LedBarProduct | null>(() => {
+    if (!lbFamilia || !lbPotencia || !lbDifusor) return null;
+    return activeLedBarCatalog.find(
+      p => p.familia === lbFamilia && p.potencia === lbPotencia && p.difusor === lbDifusor
+    ) ?? null;
+  }, [lbFamilia, lbPotencia, lbDifusor, activeLedBarCatalog]);
+
+  // Tensões disponíveis para o produto e controle selecionados
+  const lbAvailableVoltages = useMemo<LedBarVoltage[]>(() => {
+    if (!lbSelectedProduct) return ["220V"];
+    return getAvailableVoltages(lbSelectedProduct, lbControle);
+  }, [lbSelectedProduct, lbControle]);
+
+  // CCTs disponíveis para o produto selecionado
+  const lbAvailableCCTs = useMemo(() => {
+    return lbSelectedProduct?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+  }, [lbSelectedProduct]);
+
+  // Comprimento em mm (número)
+  const lbComprimentoNum = useMemo(() => {
+    const v = parseInt(lbComprimento);
+    return isNaN(v) ? 0 : v;
+  }, [lbComprimento]);
+
+  // Requer cortes obrigatórios (comprimento > 3000mm)
+  const lbRequiresCuts = lbComprimentoNum > LED_BAR_MAX_LENGTH_MM;
+
+  // Reset tensão quando muda controle ou produto
+  useEffect(() => {
+    if (!lbAvailableVoltages.includes(lbVoltage)) {
+      setLbVoltage(lbAvailableVoltages[0] ?? "220V");
+    }
+  }, [lbAvailableVoltages, lbVoltage]);
+
+  // Reset CCT quando muda produto
+  useEffect(() => {
+    if (!lbAvailableCCTs.includes(lbCCT)) {
+      setLbCCT(lbAvailableCCTs[0] ?? "3000K");
+    }
+  }, [lbAvailableCCTs, lbCCT]);
+
+  const handleCalculateLedBar = useCallback(() => {
+    if (!lbSelectedProduct) {
+      toast.error("Selecione família, potência e difusor.");
+      return;
+    }
+    const comprMm = lbComprimentoNum;
+    if (comprMm <= 0) {
+      toast.error("Informe um comprimento válido.");
+      return;
+    }
+    const nCortes = lbRequiresCuts ? Math.max(2, parseInt(lbNCortes) || 2) : 1;
+    const res = calculateLedBar({
+      product: lbSelectedProduct,
+      comprimentoMm: comprMm,
+      nCortes,
+      controle: lbControle,
+      voltage: lbVoltage,
+      cct: lbCCT,
+    });
+    if (res.errors.length > 0) {
+      toast.error(res.errors[0]);
+      return;
+    }
+    setLbResult(res);
+  }, [lbSelectedProduct, lbComprimentoNum, lbRequiresCuts, lbNCortes, lbControle, lbVoltage, lbCCT]);
+
   // Listas derivadas para filtros de Downlights (usando catálogo dinâmico da API ou fallback estático)
   const dlInstalacoes = useMemo(() => Array.from(new Set(activeDlCatalog.map(p => p.instalacao))).sort(), [activeDlCatalog]);
   const dlFamilias = useMemo(() =>
@@ -1151,20 +1252,274 @@ export default function Home() {
                     </span>
                   )}
                 </div>
-                {/* 1. Perfil */}
+                {/* 1. Perfil / Família */}
                 <div>
                   <FieldLabel>Perfil</FieldLabel>
-                  <Select value={profileName} onValueChange={handleProfileChange}>
+                  <Select
+                    value={lbFamilia ? `__LEDBAR__${lbFamilia}` : profileName}
+                    onValueChange={(v) => {
+                      if (v.startsWith("__LEDBAR__")) {
+                        const fam = v.replace("__LEDBAR__", "");
+                        setLbFamilia(fam);
+                        setLbPotencia(null);
+                        setLbDifusor(null);
+                        setLbResult(null);
+                        // Limpar seleção de perfil modular
+                        setProfileName("");
+                        setInstallType("");
+                        setResult(null);
+                        setError(null);
+                      } else {
+                        handleProfileChange(v);
+                        setLbFamilia(null);
+                        setLbResult(null);
+                      }
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o perfil..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {profileNames.map((name) => (
-                        <SelectItem key={name} value={name}>{name}</SelectItem>
-                      ))}
+                      {profileNames.length > 0 && (
+                        <>
+                          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Perfis Modulares</div>
+                          {profileNames.map((name) => (
+                            <SelectItem key={name} value={name}>{name}</SelectItem>
+                          ))}
+                        </>
+                      )}
+                      {lbFamilias.length > 0 && (
+                        <>
+                          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">LED BAR</div>
+                          {lbFamilias.map((fam) => (
+                            <SelectItem key={`__LEDBAR__${fam}`} value={`__LEDBAR__${fam}`}>{fam}</SelectItem>
+                          ))}
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* ── Fluxo LED BAR ────────────────────────────────────────────────────────── */}
+                {lbFamilia && (
+                <div className="space-y-4">
+
+                  {/* Potência */}
+                  <div>
+                    <FieldLabel>Potência</FieldLabel>
+                    <div className="grid grid-cols-3 gap-2">
+                      {LED_BAR_POTENCIA_OPTIONS.map((opt) => {
+                        const exists = activeLedBarCatalog.some(
+                          p => p.familia === lbFamilia && p.potencia === opt.value
+                        );
+                        return (
+                          <button
+                            key={opt.value}
+                            onClick={() => { if (exists) { setLbPotencia(opt.value); setLbDifusor(null); setLbResult(null); } }}
+                            disabled={!exists}
+                            className={`px-3 py-2 rounded-md text-sm font-medium border transition-all ${
+                              !exists
+                                ? "opacity-30 cursor-not-allowed bg-muted text-muted-foreground border-border"
+                                : lbPotencia === opt.value
+                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Difusor */}
+                  {lbPotencia && (
+                  <div>
+                    <FieldLabel>Difusor</FieldLabel>
+                    <div className="grid grid-cols-3 gap-2">
+                      {LED_BAR_DIFUSOR_OPTIONS.map((opt) => {
+                        const exists = activeLedBarCatalog.some(
+                          p => p.familia === lbFamilia && p.potencia === lbPotencia && p.difusor === opt.value
+                        );
+                        return (
+                          <button
+                            key={opt.value}
+                            onClick={() => { if (exists) { setLbDifusor(opt.value); setLbResult(null); } }}
+                            disabled={!exists}
+                            className={`px-3 py-2 rounded-md text-sm font-medium border transition-all ${
+                              !exists
+                                ? "opacity-30 cursor-not-allowed bg-muted text-muted-foreground border-border"
+                                : lbDifusor === opt.value
+                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                            }`}
+                          >
+                            <span className="block font-semibold">{opt.value}</span>
+                            <span className="text-[10px] block">{opt.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  )}
+
+                  {/* Comprimento */}
+                  {lbDifusor && (
+                  <div>
+                    <FieldLabel>Comprimento (mm)</FieldLabel>
+                    <input
+                      type="number"
+                      min={1}
+                      max={99999}
+                      value={lbComprimento}
+                      onChange={(e) => { setLbComprimento(e.target.value); setLbResult(null); }}
+                      placeholder="Ex: 2500"
+                      className="w-full h-10 px-3 rounded-md border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    />
+                    {lbRequiresCuts && (
+                      <p className="mt-1.5 text-xs text-amber-500 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        Comprimento acima de {LED_BAR_MAX_LENGTH_MM}mm — informe a quantidade de trechos.
+                      </p>
+                    )}
+                  </div>
+                  )}
+
+                  {/* Quantidade de Trechos */}
+                  {lbDifusor && (
+                  <div>
+                    <FieldLabel hint={lbRequiresCuts ? "obrigatório" : "opcional"}>Quantidade de Trechos</FieldLabel>
+                    <input
+                      type="number"
+                      min={1}
+                      max={99}
+                      value={lbNCortes}
+                      onChange={(e) => { setLbNCortes(e.target.value); setLbResult(null); }}
+                      placeholder="1"
+                      className={`w-full h-10 px-3 rounded-md border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 ${
+                        lbRequiresCuts ? "border-amber-500" : "border-border"
+                      }`}
+                    />
+                    {lbComprimentoNum > 0 && parseInt(lbNCortes) >= 2 && (
+                      <p className="mt-1.5 text-xs text-muted-foreground">
+                        {parseInt(lbNCortes)} trechos de {Math.round(lbComprimentoNum / parseInt(lbNCortes))}mm cada
+                      </p>
+                    )}
+                  </div>
+                  )}
+
+                  {/* Controle */}
+                  {lbDifusor && (
+                  <div>
+                    <FieldLabel>Controle</FieldLabel>
+                    <div className="flex gap-2">
+                      {LED_BAR_CONTROLE_OPTIONS.map((opt) => {
+                        const prod = lbSelectedProduct;
+                        const isAvail = opt.value === "ON/OFF"
+                          || (opt.value === "DIM 0-10V" && prod?.driverDim010v != null)
+                          || (opt.value === "DIM DALI" && prod?.driverDimDali != null);
+                        return (
+                          <button
+                            key={opt.value}
+                            onClick={() => {
+                              if (isAvail) {
+                                setLbControle(opt.value);
+                                setLbResult(null);
+                              }
+                            }}
+                            disabled={!isAvail}
+                            title={!isAvail ? "Não disponível para este produto" : undefined}
+                            className={`flex-1 px-3 py-2 rounded-md text-sm font-medium border transition-all ${
+                              !isAvail
+                                ? "opacity-30 cursor-not-allowed bg-muted text-muted-foreground border-border"
+                                : lbControle === opt.value
+                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {!lbSelectedProduct && (
+                      <p className="mt-1.5 text-xs text-muted-foreground">DIM 0-10V e DIM DALI serão habilitados quando o produto estiver selecionado.</p>
+                    )}
+                  </div>
+                  )}
+
+                  {/* Tensão */}
+                  {lbDifusor && (
+                  <div>
+                    <FieldLabel>Tensão</FieldLabel>
+                    <div className="flex gap-2">
+                      {(["110V", "220V", "Bivolt"] as LedBarVoltage[]).map((v) => {
+                        const avail = lbAvailableVoltages.includes(v);
+                        return (
+                          <button
+                            key={v}
+                            onClick={() => { if (avail) { setLbVoltage(v); setLbResult(null); } }}
+                            disabled={!avail}
+                            title={!avail ? "Não disponível para o controle selecionado" : undefined}
+                            className={`flex-1 px-3 py-2 rounded-md text-sm font-medium border transition-all ${
+                              !avail
+                                ? "opacity-30 cursor-not-allowed bg-muted text-muted-foreground border-border"
+                                : lbVoltage === v
+                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                            }`}
+                          >
+                            {v}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {lbControle === "DIM 0-10V" && (
+                      <p className="mt-1.5 text-xs text-amber-500 flex items-center gap-1">
+                        <Info className="w-3 h-3" />
+                        Fonte DIM 0-10V é monovolt: escolha 110V ou 220V.
+                      </p>
+                    )}
+                  </div>
+                  )}
+
+                  {/* CCT */}
+                  {lbDifusor && (
+                  <div>
+                    <FieldLabel>CCT</FieldLabel>
+                    <div className="flex flex-wrap gap-2">
+                      {lbAvailableCCTs.map((c) => (
+                        <button
+                          key={c}
+                          onClick={() => { setLbCCT(c); setLbResult(null); }}
+                          className={`px-4 py-2 rounded-md text-sm font-medium border transition-all ${
+                            lbCCT === c
+                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                              : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                          }`}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  )}
+
+                  {/* Botão Calcular */}
+                  {lbDifusor && (
+                  <Button
+                    className="w-full h-12 text-base font-semibold"
+                    onClick={handleCalculateLedBar}
+                    disabled={!lbSelectedProduct || lbComprimentoNum <= 0 || (lbRequiresCuts && parseInt(lbNCortes) < 2)}
+                  >
+                    <Zap className="w-4 h-4 mr-2" />
+                    Calcular LED BAR
+                  </Button>
+                  )}
+
+                </div>
+                )}
+                {/* fim fluxo LED BAR */}
 
                 {/* 2. Instalação */}
                 {profileName && availableInstallTypes.length > 0 && (
@@ -2294,7 +2649,7 @@ export default function Home() {
               </p>
             </div>
 
-            {productCategory === "Perfis" && (!result ? (
+            {productCategory === "Perfis" && !lbFamilia && (!result ? (
               <Card className="shadow-sm">
                 <CardContent className="flex flex-col items-center justify-center py-20 text-center">
                   <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
@@ -2311,6 +2666,166 @@ export default function Home() {
             ) : (
               <ResultBlock result={result} />
             ))}
+
+            {/* ── Resultado LED BAR ─────────────────────────────────────────────────── */}
+            {productCategory === "Perfis" && lbFamilia && (
+              !lbResult ? (
+                <Card className="shadow-sm">
+                  <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                      <Zap className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
+                    <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+                      Selecione potência, difusor, comprimento e clique em "Calcular LED BAR".
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-4">
+                  {/* Card principal */}
+                  <Card className="shadow-sm border-emerald-500/30">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-emerald-500" />
+                        Resultado — LED BAR
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
+                          <p className="text-sm font-semibold">{lbResult.product.name}</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Comprimento Total</p>
+                          <p className="text-sm font-semibold">{lbResult.comprimentoTotalMm} mm</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Trechos</p>
+                          <p className="text-sm font-semibold">{lbResult.nCortes}x de {lbResult.comprimentoPorTrechoMm} mm</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                          <p className="text-sm font-semibold">{lbResult.cct}</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Controle</p>
+                          <p className="text-sm font-semibold">{lbResult.controle}</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                          <p className="text-sm font-semibold">{lbResult.voltage}</p>
+                        </div>
+                      </div>
+
+                      {/* Módulo LED */}
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
+                        <p className="text-sm font-semibold">{lbResult.ledModuleWithCCT} {lbResult.cct}</p>
+                      </div>
+
+                      {/* Trechos com fonte */}
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Fontes por Trecho</p>
+                        {lbResult.trechos.map((t) => (
+                          <div key={t.numero} className="flex items-start gap-3 p-3 rounded-lg border border-border bg-background">
+                            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                              <span className="text-xs font-bold text-primary">{t.numero}</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-muted-foreground mb-0.5">{t.comprimentoMm} mm • {t.voltage}</p>
+                              <p className="text-sm font-semibold">{t.driver.model}</p>
+                              {t.driver.code && (
+                                <a
+                                  href={`https://alfaluxprod-c8zmg2fn.manus.space/products/${t.driver.code}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-primary hover:underline font-mono"
+                                >
+                                  {t.driver.code}
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Resumo para Orçamento */}
+                  {(() => {
+                    const r = lbResult;
+                    const nT = r.nCortes;
+                    const mm = r.comprimentoPorTrechoMm;
+                    const driverLine = `${r.trechos[0]?.driver.model}${r.trechos[0]?.driver.code ? ` (${r.trechos[0].driver.code})` : ""}`;
+                    const orcamento = [
+                      `${r.product.name} ${r.cct} ${r.voltage}`,
+                      nT > 1 ? `${nT} TRECHOS DE ${mm}MM` : `${mm}MM`,
+                    ].join(" ");
+                    const pedido = [
+                      `CÓDIGO: ${r.product.sku}`,
+                      `${r.product.name} ${r.cct} ${r.voltage}${nT > 1 ? ` — ${nT}x ${mm}MM` : ` — ${mm}MM`} MONTADO COM ${r.ledModuleWithCCT} ${r.cct} + ${nT}x FONTE ${driverLine}`,
+                    ].join("\n");
+                    return (
+                      <>
+                        <Card className="shadow-sm">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                              <CheckCircle2 className="w-4 h-4 text-primary" />
+                              Resumo para Orçamento
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div
+                              className="font-mono text-sm bg-muted/50 rounded-lg p-4 cursor-text select-all whitespace-pre-wrap"
+                              onClick={(e) => { const sel = window.getSelection(); sel?.selectAllChildren(e.currentTarget); }}
+                            >
+                              {orcamento}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mt-2"
+                              onClick={() => { navigator.clipboard.writeText(orcamento); toast.success("Resumo copiado!"); }}
+                            >
+                              <Copy className="w-3 h-3 mr-1" /> Copiar Resumo
+                            </Button>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="shadow-sm">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                              <ClipboardCheck className="w-4 h-4 text-emerald-500" />
+                              Resumo para Pedido
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div
+                              className="font-mono text-sm bg-muted/50 rounded-lg p-4 cursor-text select-all whitespace-pre-wrap"
+                              onClick={(e) => { const sel = window.getSelection(); sel?.selectAllChildren(e.currentTarget); }}
+                            >
+                              {pedido}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mt-2"
+                              onClick={() => { navigator.clipboard.writeText(pedido); toast.success("Pedido copiado!"); }}
+                            >
+                              <Copy className="w-3 h-3 mr-1" /> Copiar Pedido
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      </>
+                    );
+                  })()}
+                </div>
+              )
+            )}
 
             {/* Resultado Downlights */}
             {productCategory === "Downlights" && dlResult && (

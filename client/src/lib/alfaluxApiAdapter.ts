@@ -23,6 +23,8 @@ import type { DownlightProduct } from "./downlightCatalog";
 import type { PainelProduct } from "./painelCatalog";
 import { PAINEL_CATALOG } from "./painelCatalog";
 import type { SpotProduct } from "./spotCatalog";
+import type { LedBarProduct, LedBarPotencia, LedBarDifusor } from "./ledBarCatalog";
+import { parsePotenciaFromName, parseDifusorFromName } from "./ledBarCatalog";
 
 /** Formato de um driver retornado pelo /api/products/all */
 export interface DriverInfo {
@@ -220,6 +222,7 @@ export interface AdaptedCatalogs {
   downlights: DownlightProduct[];
   paineis: PainelProduct[];
   spots: SpotProduct[];
+  ledBars: LedBarProduct[];
   /** Mapa familia → CCTs disponíveis para Downlights */
   downlightCCTs: Record<string, string[]>;
   /** Mapa familia → CCTs disponíveis para Painéis */
@@ -234,11 +237,46 @@ export interface AdaptedCatalogs {
   spotFotos: Record<string, string>;
 }
 
+/** Converte um produto da API para LedBarProduct */
+function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
+  const potencia = parsePotenciaFromName(p.name);
+  const difusor = parseDifusorFromName(p.name);
+  if (!potencia || !difusor) return null; // não conseguiu parsear potência ou difusor
+
+  const d220 = p.driver220;
+  const dBivolt = p.driverBivolt;
+  const dDim010v = p.driverDim110v; // campo da API: driverDim110v mapeia para DIM 0-10V em LED BAR
+  const dDimDali = p.driverDimDali;
+  const ccts = normalizeCCTs(p.temperaturasCor);
+
+  return {
+    familia: p.familia,
+    sku: p.sku,
+    name: p.name,
+    potencia,
+    difusor,
+    // Remover [CCT] do ledModule
+    ledModule: p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : "",
+    ccts,
+    driver220: d220 ? { model: driverModel(d220), code: driverCode(d220) } : null,
+    driverBivolt: dBivolt ? { model: driverModel(dBivolt), code: driverCode(dBivolt) } : null,
+    driverDim010v: dDim010v ? { model: driverModel(dDim010v), code: driverCode(dDim010v) } : null,
+    driverDimDali: dDimDali ? { model: driverModel(dDimDali), code: driverCode(dDimDali) } : null,
+    fotoUrl: normalizeFotoUrl(p.fotoUrl),
+  };
+}
+
+/** Verifica se um produto PERFIS é da família LED BAR */
+function isLedBarProduct(p: ApiProduct): boolean {
+  return /^LED BAR/i.test(p.familia ?? "");
+}
+
 /** Converte o array completo de produtos da API nos catálogos internos */
 export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
   const downlights: DownlightProduct[] = [];
   const paineis: PainelProduct[] = [];
   const spots: SpotProduct[] = [];
+  const ledBars: LedBarProduct[] = [];
   const downlightCCTs: Record<string, string[]> = {};
   const painelCCTs: Record<string, string[]> = {};
   const spotCCTs: Record<string, string[]> = {};
@@ -262,6 +300,9 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
       spots.push(toSpotProduct(p));
       if (!spotCCTs[p.familia]) spotCCTs[p.familia] = ccts;
       if (p.fotoUrl && p.familia) spotFotos[p.familia] = normalizeFotoUrl(p.fotoUrl)!;
+    } else if (cat === "PERFIS" && isLedBarProduct(p)) {
+      const lb = toLedBarProduct(p);
+      if (lb) ledBars.push(lb);
     }
   }
 
@@ -269,6 +310,7 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
     downlights,
     paineis,
     spots,
+    ledBars,
     downlightCCTs,
     painelCCTs,
     spotCCTs,
