@@ -919,6 +919,14 @@ export default function Home() {
   // Requer cortes obrigatórios (comprimento > 3000mm)
   const lbRequiresCuts = lbComprimentoNum > LED_BAR_MAX_LENGTH_MM;
 
+  // Comprimento por trecho com os cortes atuais
+  const lbNCortesNum = Math.max(1, parseInt(lbNCortes) || 1);
+  const lbTrechoMm = lbComprimentoNum > 0 ? Math.ceil(lbComprimentoNum / lbNCortesNum) : 0;
+  // Trecho excede 3000mm mesmo com cortes definidos
+  const lbTrechoExcede = lbTrechoMm > LED_BAR_MAX_LENGTH_MM;
+  // Quantidade mínima de cortes para que nenhum trecho ultrapasse 3000mm
+  const lbMinCortesNecessarios = lbComprimentoNum > 0 ? Math.ceil(lbComprimentoNum / LED_BAR_MAX_LENGTH_MM) : 1;
+
   // Reset tensão quando muda controle ou produto
   useEffect(() => {
     if (!lbAvailableVoltages.includes(lbVoltage)) {
@@ -1400,9 +1408,18 @@ export default function Home() {
                         lbRequiresCuts ? "border-amber-500" : "border-border"
                       }`}
                     />
-                    {lbComprimentoNum > 0 && parseInt(lbNCortes) >= 2 && (
+                    {lbComprimentoNum > 0 && lbNCortesNum >= 2 && !lbTrechoExcede && (
                       <p className="mt-1.5 text-xs text-muted-foreground">
-                        {parseInt(lbNCortes)} cortes → {parseInt(lbNCortes)} trechos de {Math.round(lbComprimentoNum / parseInt(lbNCortes))}mm cada
+                        {lbNCortesNum} cortes → {lbNCortesNum} trechos de {Math.round(lbComprimentoNum / lbNCortesNum)}mm cada
+                      </p>
+                    )}
+                    {lbTrechoExcede && (
+                      <p className="mt-1.5 text-xs text-red-500 flex items-start gap-1">
+                        <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+                        <span>
+                          Com {lbNCortesNum} corte{lbNCortesNum !== 1 ? "s" : ""}, cada trecho ficaria com {lbTrechoMm}mm — acima do limite de {LED_BAR_MAX_LENGTH_MM}mm.
+                          {" "}Mínimo necessário: <strong>{lbMinCortesNecessarios} cortes</strong>.
+                        </span>
                       </p>
                     )}
                   </div>
@@ -1510,7 +1527,7 @@ export default function Home() {
                   <Button
                     className="w-full h-12 text-base font-semibold"
                     onClick={handleCalculateLedBar}
-                    disabled={!lbSelectedProduct || lbComprimentoNum <= 0 || (lbRequiresCuts && parseInt(lbNCortes) < 2)}
+                    disabled={!lbSelectedProduct || lbComprimentoNum <= 0 || (lbRequiresCuts && lbNCortesNum < 2) || lbTrechoExcede}
                   >
                     <Zap className="w-4 h-4 mr-2" />
                     Calcular LED BAR
