@@ -876,7 +876,7 @@ export default function Home() {
   const [lbVoltage, setLbVoltage] = useState<LedBarVoltage>("220V");
   const [lbCCT, setLbCCT] = useState<string>("3000K");
   const [lbComprimento, setLbComprimento] = useState<string>("");
-  const [lbNCortes, setLbNCortes] = useState<string>("2");
+  const [lbNCortes, setLbNCortes] = useState<string>("1");
   const [lbResult, setLbResult] = useState<LedBarResult | null>(null);
 
   // Catálogo ativo de LED BAR (API ou fallback estático)
@@ -1346,7 +1346,7 @@ export default function Home() {
                             key={opt.value}
                             onClick={() => { if (exists) { setLbDifusor(opt.value); setLbResult(null); } }}
                             disabled={!exists}
-                            className={`px-3 py-2 rounded-md text-sm font-medium border transition-all ${
+                            className={`px-3 py-2.5 rounded-md text-sm font-medium border transition-all text-left ${
                               !exists
                                 ? "opacity-30 cursor-not-allowed bg-muted text-muted-foreground border-border"
                                 : lbDifusor === opt.value
@@ -1354,8 +1354,8 @@ export default function Home() {
                                 : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
                             }`}
                           >
-                            <span className="block font-semibold">{opt.value}</span>
-                            <span className="text-[10px] block">{opt.label}</span>
+                            <span className="block font-bold text-base leading-tight">{opt.value}</span>
+                            <span className="block text-[10px] mt-0.5 opacity-80">{opt.desc}</span>
                           </button>
                         );
                       })}
@@ -1379,7 +1379,7 @@ export default function Home() {
                     {lbRequiresCuts && (
                       <p className="mt-1.5 text-xs text-amber-500 flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" />
-                        Comprimento acima de {LED_BAR_MAX_LENGTH_MM}mm — informe a quantidade de trechos.
+                        Comprimento acima de {LED_BAR_MAX_LENGTH_MM}mm — informe a quantidade de cortes.
                       </p>
                     )}
                   </div>
@@ -1388,7 +1388,7 @@ export default function Home() {
                   {/* Quantidade de Trechos */}
                   {lbDifusor && (
                   <div>
-                    <FieldLabel hint={lbRequiresCuts ? "obrigatório" : "opcional"}>Quantidade de Trechos</FieldLabel>
+                    <FieldLabel hint={lbRequiresCuts ? "obrigatório" : "opcional"}>Quantidade de Cortes</FieldLabel>
                     <input
                       type="number"
                       min={1}
@@ -1402,7 +1402,7 @@ export default function Home() {
                     />
                     {lbComprimentoNum > 0 && parseInt(lbNCortes) >= 2 && (
                       <p className="mt-1.5 text-xs text-muted-foreground">
-                        {parseInt(lbNCortes)} trechos de {Math.round(lbComprimentoNum / parseInt(lbNCortes))}mm cada
+                        {parseInt(lbNCortes)} cortes → {parseInt(lbNCortes)} trechos de {Math.round(lbComprimentoNum / parseInt(lbNCortes))}mm cada
                       </p>
                     )}
                   </div>
@@ -2692,11 +2692,26 @@ export default function Home() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                      {/* Foto do produto LED BAR */}
+                      {lbResult.product.fotoUrl && (
+                        <div className="flex gap-3 items-stretch">
+                          <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-36 flex items-center justify-center">
+                            <img src={lbResult.product.fotoUrl} alt={lbResult.product.name} className="w-full h-full object-contain p-2" loading="lazy" />
+                          </div>
+                          <div className="flex-1 min-w-0 p-3 rounded-lg bg-muted/50 flex flex-col justify-center">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
+                            <p className="text-sm font-semibold">{lbResult.product.name}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{lbResult.product.familia} · {lbResult.product.difusor} · {lbResult.product.potencia}W/m</p>
+                          </div>
+                        </div>
+                      )}
                       <div className="grid grid-cols-2 gap-3">
+                        {!lbResult.product.fotoUrl && (
                         <div className="p-3 rounded-lg bg-muted/50">
                           <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
                           <p className="text-sm font-semibold">{lbResult.product.name}</p>
                         </div>
+                        )}
                         <div className="p-3 rounded-lg bg-muted/50">
                           <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Comprimento Total</p>
                           <p className="text-sm font-semibold">{lbResult.comprimentoTotalMm} mm</p>
@@ -2763,9 +2778,10 @@ export default function Home() {
                       `${r.product.name} ${r.cct} ${r.voltage}`,
                       nT > 1 ? `${nT} TRECHOS DE ${mm}MM` : `${mm}MM`,
                     ].join(" ");
+                    const cortesInfo = nT > 1 ? ` COM ${nT} CORTES` : "";
                     const pedido = [
                       `CÓDIGO: ${r.product.sku}`,
-                      `${r.product.name} ${r.cct} ${r.voltage}${nT > 1 ? ` — ${nT}x ${mm}MM` : ` — ${mm}MM`} MONTADO COM ${r.ledModuleWithCCT} ${r.cct} + ${nT}x FONTE ${driverLine}`,
+                      `${r.product.name} ${r.cct} ${r.voltage} ${r.comprimentoTotalMm}MM${cortesInfo}${nT > 1 ? ` (${nT}x ${mm}MM)` : ""} MONTADO COM ${r.ledModuleWithCCT} ${r.cct} + ${nT}x FONTE ${driverLine}`,
                     ].join("\n");
                     return (
                       <>
