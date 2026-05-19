@@ -658,3 +658,13 @@
 - [ ] UI: seletor de tensão 110V / 220V / Bivolt (Bivolt bloqueado para drivers 0-10V monovolt)
 - [ ] Resumo para orçamento e pedido com cortes, comprimento por trecho, fonte por trecho
 - [ ] Testes unitários para calculateLedBar e adaptador LED BAR
+
+## allowMixedIF — Otimizar com IFs Diferentes (19/05/2026)
+- [x] ConfigInput: campo allowMixedIF?: boolean adicionado
+- [x] CompositionResult: compositionMode agora inclui "IF_ML_MIXED"
+- [x] ledEngine.ts: função buildIfMlCompositionMixed() — testa todos os pares (IF1 ≠ IF2) + MLs, escolhe menor remainingLength
+- [x] buildComposition: parâmetro allowMixedIF=false; quando true, testa mixed e usa se for melhor que IF_ML_LINE
+- [x] calculateComposition: extrai allowMixedIF do input e passa para buildComposition
+- [x] Nota de engenharia: "⚠️ IFs diferentes nas pontas — estética menos uniforme (otimização de comprimento ativa)."
+- [x] Home.tsx: toggle "Otimizar com IFs Diferentes" com aviso de estética menos uniforme
+- [x] 7 novos testes unitários para allowMixedIF (432 testes totais, 0 erros TypeScript reais)

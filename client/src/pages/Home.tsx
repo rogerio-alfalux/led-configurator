@@ -999,6 +999,7 @@ export default function Home() {
   const [allowLongModules, setAllowLongModules] = useState(false);
   const [allowFractional, setAllowFractional] = useState(false);
   const [adjustToLarger, setAdjustToLarger] = useState(false);
+  const [allowMixedIF, setAllowMixedIF] = useState(false);
   const [independentLighting, setIndependentLighting] = useState(false);
   // SHARP difusor
   const [diffuserD1, setDiffuserD1] = useState<DiffuserType | undefined>(undefined);
@@ -1103,6 +1104,7 @@ export default function Home() {
       allowLongModules,
       allowFractional,
       adjustToLarger,
+      allowMixedIF,
       independentLighting: effectiveIndependent,
       diffuserD1: hasDiffuser ? diffuserD1 : undefined,
       diffuserD2: hasDiffuser && isDual ? diffuserD2 : undefined,
@@ -1119,7 +1121,7 @@ export default function Home() {
       const msg = e instanceof Error ? e.message : "Erro ao calcular composição.";
       setError(msg);
     }
-  }, [profileCode, effectiveApplication, powerD1, powerD2, cct, voltage, stripMethod, totalLength, allowLongModules, allowFractional, adjustToLarger, effectiveIndependent, isDual, hasDiffuser, diffuserD1, diffuserD2, controlType, selectedVariant]);
+  }, [profileCode, effectiveApplication, powerD1, powerD2, cct, voltage, stripMethod, totalLength, allowLongModules, allowFractional, adjustToLarger, allowMixedIF, effectiveIndependent, isDual, hasDiffuser, diffuserD1, diffuserD2, controlType, selectedVariant]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -1900,6 +1902,27 @@ export default function Home() {
                         id="adjusttolarger"
                         checked={adjustToLarger}
                         onCheckedChange={setAdjustToLarger}
+                      />
+                    </div>
+                    {/* Otimizar com IFs Diferentes */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="allowmixedif" className="text-sm font-medium cursor-pointer">
+                          Otimizar com IFs Diferentes
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Permite IFs de tamanhos distintos nas pontas para melhor aproveitamento
+                        </p>
+                        {allowMixedIF && (
+                          <p className="text-xs text-amber-500 mt-0.5">
+                            ⚠️ Estética menos uniforme — pontas com módulos de tamanhos diferentes
+                          </p>
+                        )}
+                      </div>
+                      <Switch
+                        id="allowmixedif"
+                        checked={allowMixedIF}
+                        onCheckedChange={setAllowMixedIF}
                       />
                     </div>
                   </div>

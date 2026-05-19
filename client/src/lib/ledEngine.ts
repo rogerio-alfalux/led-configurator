@@ -93,7 +93,7 @@ export interface CompositionResult {
   engineeringNotes: string[];
   hasAlert: boolean;
   alertMessage?: string;
-  compositionMode: "IN_SINGLE" | "IF_ML_LINE";
+  compositionMode: "IN_SINGLE" | "IF_ML_LINE" | "IF_ML_MIXED";
   diffuserD1?: DiffuserType;
   diffuserD2?: DiffuserType;
   /** true quando o comprimento foi ajustado para cima (adjustToLarger) */
@@ -145,6 +145,13 @@ export interface ConfigInput {
    * Catálogo de perfis dinâmico (da API). Quando fornecido, substitui o LED_CATALOG estático.
    */
   catalog?: Record<string, import("./ledCatalog").ProfileVariant>;
+  /**
+   * Quando true, permite usar dois módulos IF de tamanhos diferentes nas pontas para
+   * otimizar o aproveitamento do comprimento solicitado.
+   * Por padrão false — IFs iguais (estética uniforme).
+   * Restrição: nenhum IF pode ter menos de 2 barras (MIN_BARS_FOR_COMPOSITION).
+   */
+  allowMixedIF?: boolean;
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -590,6 +597,98 @@ function buildIfMlComposition(
   return { composition, realizedLength: best.realizedLength, remainingLength };
 }
 
+// ─── Estratégia 3: IF diferentes nas pontas (otimização de comprimento) ────────
+
+/**
+ * Variante de buildIfMlComposition que permite dois módulos IF de tamanhos distintos
+ * nas pontas (IF1 ≠ IF2), ambos com ≥ MIN_BARS_FOR_COMPOSITION barras.
+ * Testa todas as combinações de pares (IF1, IF2) + MLs e escolhe a que minimiza
+ * o comprimento não realizado.
+ */
+function buildIfMlCompositionMixed(
+  profileCode: string,
+  requestedLength: number,
+  power: Power,
+  voltage: Voltage,
+  allowLongModules: boolean,
+  stripMethod: StripMethod,
+  sheetDrivers?: SheetDriver[],
+  allowFractional = false
+): { composition: CompositionItem[]; realizedLength: number; remainingLength: number } | null {
+  const ifModules = getModules(profileCode, "IF", allowLongModules, stripMethod, power, true, allowFractional)
+    .sort((a, b) => b.length - a.length);
+  const mlModules = getModules(profileCode, "ML", allowLongModules, stripMethod, power, true, allowFractional)
+    .sort((a, b) => b.length - a.length);
+
+  if (ifModules.length < 2) return null;
+
+  const barsPerSection = stripMethod === "STRIPLINE" ? 1 : BARS_PER_SECTION_STRIPFLEX[power];
+
+  interface MixedCandidate {
+    if1: RawModule;
+    if2: RawModule;
+    mlItems: RawModule[];
+    realizedLength: number;
+    remainingLength: number;
+    moduleCount: number;
+  }
+
+  const candidates: MixedCandidate[] = [];
+
+  // Testar todos os pares (if1, if2) onde if1 ≠ if2 (SKU diferente ou tamanho diferente)
+  for (let i = 0; i < ifModules.length; i++) {
+    for (let j = i + 1; j < ifModules.length; j++) {
+      const if1 = ifModules[i];
+      const if2 = ifModules[j];
+      const twoIfLength = if1.length + if2.length;
+      if (twoIfLength > requestedLength) continue;
+
+      const remaining = requestedLength - twoIfLength;
+
+      // Candidato A: IF1 + IF2 sem ML
+      candidates.push({
+        if1, if2, mlItems: [],
+        realizedLength: twoIfLength,
+        remainingLength: remaining,
+        moduleCount: 2,
+      });
+
+      // Candidato B: IF1 + IF2 + MLs
+      if (mlModules.length > 0 && remaining > 0) {
+        const mlItems: RawModule[] = [];
+        let rem = remaining;
+        for (const ml of mlModules) {
+          while (rem >= ml.length) {
+            mlItems.push(ml);
+            rem -= ml.length;
+          }
+        }
+        if (mlItems.length > 0) {
+          candidates.push({
+            if1, if2, mlItems,
+            realizedLength: requestedLength - rem,
+            remainingLength: rem,
+            moduleCount: 2 + mlItems.length,
+          });
+        }
+      }
+    }
+  }
+
+  if (candidates.length === 0) return null;
+
+  // Escolher: menor comprimento não realizado → menor número de módulos
+  candidates.sort((a, b) => {
+    if (a.remainingLength !== b.remainingLength) return a.remainingLength - b.remainingLength;
+    return a.moduleCount - b.moduleCount;
+  });
+
+  const best = candidates[0];
+  const rawItems: RawModule[] = [best.if1, best.if2, ...best.mlItems];
+  const composition = toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod, sheetDrivers);
+  return { composition, realizedLength: best.realizedLength, remainingLength: best.remainingLength };
+}
+
 // ─── buildComposition: orquestrador das duas estratégias ─────────────────────
 
 export function buildComposition(
@@ -600,12 +699,13 @@ export function buildComposition(
   allowLongModules: boolean,
   stripMethod: StripMethod = "STRIPFLEX",
   sheetDrivers?: SheetDriver[],
-  allowFractional = false
+  allowFractional = false,
+  allowMixedIF = false
 ): {
   composition: CompositionItem[];
   realizedLength: number;
   remainingLength: number;
-  compositionMode: "IN_SINGLE" | "IF_ML_LINE";
+  compositionMode: "IN_SINGLE" | "IF_ML_LINE" | "IF_ML_MIXED";
 } {
   const profile = LED_CATALOG[profileCode];
   if (!profile) {
@@ -629,6 +729,19 @@ export function buildComposition(
   }
 
   const ifMlResult = buildIfMlComposition(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, sheetDrivers, allowFractional);
+
+  // Estratégia 3: IF diferentes nas pontas (quando allowMixedIF=true)
+  if (allowMixedIF) {
+    const mixedResult = buildIfMlCompositionMixed(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, sheetDrivers, allowFractional);
+    if (mixedResult) {
+      // Usar mixed se for melhor (menor remainingLength) ou igual ao IF_ML_LINE
+      const ifMlRemaining = ifMlResult ? ifMlResult.remainingLength : requestedLength;
+      if (mixedResult.remainingLength < ifMlRemaining) {
+        return { ...mixedResult, compositionMode: "IF_ML_MIXED" };
+      }
+    }
+  }
+
   if (ifMlResult) {
     return { ...ifMlResult, compositionMode: "IF_ML_LINE" };
   }
@@ -729,6 +842,8 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     );
   }
 
+  const allowMixedIF = input.allowMixedIF ?? false;
+
   // ── Composição de módulos ──
   let buildResult = buildComposition(
     profileCode,
@@ -738,7 +853,8 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     allowLongModules,
     stripMethod,
     undefined,
-    allowFractional
+    allowFractional,
+    allowMixedIF
   );
 
   // ── Ajuste para medida maior ──
@@ -773,6 +889,9 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
 
   if (compositionMode === "IN_SINGLE") {
     engineeringNotes.push("Composição: Módulo Inteiro (IN) — peça única dentro do limite de barras.");
+  } else if (compositionMode === "IF_ML_MIXED") {
+    engineeringNotes.push("Composição: Linha longa — 2× IF (Inicio/Final) + ML (Meio de Linha).");
+    engineeringNotes.push("⚠️ IFs diferentes nas pontas — estética menos uniforme (otimização de comprimento ativa).");
   } else {
     engineeringNotes.push("Composição: Linha longa — 2× IF (Início/Final) + ML (Meio de Linha).");
   }
