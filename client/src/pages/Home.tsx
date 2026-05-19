@@ -2757,31 +2757,27 @@ export default function Home() {
                         <p className="text-sm font-semibold">{lbResult.ledModuleWithCCT} {lbResult.cct}</p>
                       </div>
 
-                      {/* Trechos com fonte */}
-                      <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Fontes por Trecho</p>
-                        {lbResult.trechos.map((t) => (
-                          <div key={t.numero} className="flex items-start gap-3 p-3 rounded-lg border border-border bg-background">
-                            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                              <span className="text-xs font-bold text-primary">{t.numero}</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs text-muted-foreground mb-0.5">{t.comprimentoMm} mm • {t.voltage}</p>
-                              <p className="text-sm font-semibold">{t.driver.model}</p>
-                              {t.driver.code && (
-                                <a
-                                  href={`https://alfaluxprod-c8zmg2fn.manus.space/products/${t.driver.code}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-primary hover:underline font-mono"
-                                >
-                                  {t.driver.code}
-                                </a>
-                              )}
-                            </div>
+                      {/* Fonte (total) */}
+                      {(() => {
+                        const t0 = lbResult.trechos[0];
+                        if (!t0) return null;
+                        return (
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fonte</p>
+                            <p className="text-sm font-semibold">{lbResult.nCortes}x {t0.driver.model}</p>
+                            {t0.driver.code && (
+                              <a
+                                href={`https://alfaluxprod-c8zmg2fn.manus.space/products/${t0.driver.code}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-primary hover:underline font-mono mt-0.5 block"
+                              >
+                                {t0.driver.code}
+                              </a>
+                            )}
                           </div>
-                        ))}
-                      </div>
+                        );
+                      })()}
                     </CardContent>
                   </Card>
 
@@ -2798,7 +2794,7 @@ export default function Home() {
                     const cortesInfo = nT > 1 ? ` COM ${nT} CORTES` : "";
                     const pedido = [
                       `CÓDIGO: ${r.product.sku}`,
-                      `${r.product.name} ${r.cct} ${r.voltage} ${r.comprimentoTotalMm}MM${cortesInfo}${nT > 1 ? ` (${nT}x ${mm}MM)` : ""} MONTADO COM ${r.ledModuleWithCCT} ${r.cct} + ${nT}x FONTE ${driverLine}`,
+                      `${r.product.name} ${r.cct} ${r.voltage} ${r.comprimentoTotalMm}MM${cortesInfo}${nT > 1 ? ` (${nT}x ${mm}MM)` : ""} MONTADO COM ${r.ledModuleWithCCT} ${r.cct} + ${nT}x ${driverLine}`,
                     ].join("\n");
                     return (
                       <>
