@@ -3045,7 +3045,7 @@ export default function Home() {
                           if (dlResult.product.otica) parts.push(dlResult.product.otica.toUpperCase());
                           if (dlResult.product.holder) parts.push(dlResult.product.holder.toUpperCase());
                           if (dlResult.product.dissipador) parts.push(dlResult.product.dissipador.toUpperCase());
-                          parts.push(`1x DRIVER ${dlResult.driver.model.toUpperCase()} (${dlResult.driver.code})`);
+                          { const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; parts.push(`1x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`); }
                           const txt = (`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim();
                         navigator.clipboard.writeText(txt);
                         toast.success("Copiado!");
@@ -3072,7 +3072,7 @@ export default function Home() {
                           if (dlResult.product.otica) parts.push(dlResult.product.otica.toUpperCase());
                           if (dlResult.product.holder) parts.push(dlResult.product.holder.toUpperCase());
                           if (dlResult.product.dissipador) parts.push(dlResult.product.dissipador.toUpperCase());
-                          parts.push(`1x DRIVER ${dlResult.driver.model.toUpperCase()} (${dlResult.driver.code})`);
+                          { const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; parts.push(`1x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`); }
                           return (`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim();
                         })()}
                     </div>
@@ -3215,7 +3215,7 @@ export default function Home() {
                       onClick={() => {
                         const parts: string[] = [];
                         if (panelResult.ledModuleWithCCT) parts.push(panelResult.ledModuleWithCCT.toUpperCase());
-                        parts.push(`1x DRIVER ${panelResult.driver.model.toUpperCase()} (${panelResult.driver.code})`);
+                        { const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; parts.push(`1x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`); }
                         const skuLine = panelResult.product.sku ? `CÓDIGO: ${panelResult.product.sku}\n` : "";
                         const txt = `${skuLine}${panelResult.product.name.toUpperCase()} ${panelResult.cct} ${panelResult.tensao} MONTADA COM ${parts.join(" + ")}`;
                         navigator.clipboard.writeText(txt);
@@ -3233,7 +3233,7 @@ export default function Home() {
                       {(() => {
                         const parts: string[] = [];
                         if (panelResult.ledModuleWithCCT) parts.push(panelResult.ledModuleWithCCT.toUpperCase());
-                        parts.push(`1x DRIVER ${panelResult.driver.model.toUpperCase()} (${panelResult.driver.code})`);
+                        { const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; parts.push(`1x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`); }
                         const skuLine = panelResult.product.sku ? `CÓDIGO: ${panelResult.product.sku}\n` : "";
                         return `${skuLine}${panelResult.product.name.toUpperCase()} ${panelResult.cct} ${panelResult.tensao} MONTADA COM ${parts.join(" + ")}`;
                       })()}
@@ -3369,7 +3369,7 @@ export default function Home() {
                         if (spotResult.ledModuleWithCCT) parts.push(spotResult.ledModuleWithCCT.toUpperCase());
                         if (spotResult.product.otica) parts.push(spotResult.product.otica.toUpperCase());
                         if (spotResult.product.holder) parts.push(spotResult.product.holder.toUpperCase());
-                        parts.push(`1x DRIVER ${spotResult.driver.model.toUpperCase()} (${spotResult.driver.code})`);
+                        { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; parts.push(`1x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`); }
                         const skuLine = spotResult.product.sku ? `CÓDIGO: ${spotResult.product.sku}\n` : "";
                         const txt = `${skuLine}${spotResult.product.name.toUpperCase()} ${spotResult.cct} ${spotResult.tensao} MONTADA COM ${parts.join(" + ")}`;
                         navigator.clipboard.writeText(txt);
@@ -3389,7 +3389,7 @@ export default function Home() {
                         if (spotResult.ledModuleWithCCT) parts.push(spotResult.ledModuleWithCCT.toUpperCase());
                         if (spotResult.product.otica) parts.push(spotResult.product.otica.toUpperCase());
                         if (spotResult.product.holder) parts.push(spotResult.product.holder.toUpperCase());
-                        parts.push(`1x DRIVER ${spotResult.driver.model.toUpperCase()} (${spotResult.driver.code})`);
+                        { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; parts.push(`1x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`); }
                         const skuLine = spotResult.product.sku ? `CÓDIGO: ${spotResult.product.sku}\n` : "";
                         return `${skuLine}${spotResult.product.name.toUpperCase()} ${spotResult.cct} ${spotResult.tensao} MONTADA COM ${parts.join(" + ")}`;
                       })()}
