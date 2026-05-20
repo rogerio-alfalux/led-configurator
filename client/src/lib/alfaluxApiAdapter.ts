@@ -21,7 +21,6 @@
 
 import type { DownlightProduct } from "./downlightCatalog";
 import type { PainelProduct } from "./painelCatalog";
-import { PAINEL_CATALOG } from "./painelCatalog";
 import type { SpotProduct } from "./spotCatalog";
 import type { LedBarProduct, LedBarPotencia, LedBarDifusor } from "./ledBarCatalog";
 import { parsePotenciaFromName, parseDifusorFromName } from "./ledBarCatalog";
@@ -58,6 +57,15 @@ export interface ApiProduct {
   driverDim110v: DriverInfo | null;
   /** Driver DIM DALI (null = não disponível) */
   driverDimDali: DriverInfo | null;
+  /**
+   * Ótica primária (campo separado — retornado quando a API divide ótica em dois campos).
+   * Quando presente, usar este campo em vez de `otica`.
+   */
+  oticaPrimaria: string | null;
+  /**
+   * Ótica secundária (campo separado — retornado quando a API divide ótica em dois campos).
+   */
+  oticaSecundaria: string | null;
   custoLuminaria: number | null;
   custoDriver220: number | null;
   custoDriverBivolt: number | null;
@@ -87,54 +95,19 @@ function driverModel(d: DriverInfo): string {
 }
 
 /**
- * Extrai o número de módulos do nome do produto para produtos do tipo NxM.
- * Ex: "EASY LED POINT 3X3 18W 10º" → 3
- *     "EASY LED POINT 2X6 26W 48º" → 2
- *     "EASY LED POINT 1X3 6W 10º"  → 1 (sem prefixo necessário)
+ * Resolve o campo ótica a partir dos campos da API.
+ * Prioridade:
+ *   1. Se `oticaPrimaria` estiver presente, constrói a string combinando todos os campos de ótica
+ *      separados por " + " (oticaPrimaria + oticaSecundaria + ... conforme a API expandir).
+ *   2. Caso contrário, usa o campo `otica` diretamente como retornado pela API.
+ * Nunca infere ou adiciona dados que não vieram da API.
  */
-function extractModuleQty(name: string): number {
-  const match = name.match(/(\d+)[Xx](\d+)/);
-  if (!match) return 1;
-  return parseInt(match[1], 10);
-}
-
-/**
- * Aplica o prefixo de quantidade de módulos nos campos ledModule, otica e holder.
- * Quando qty > 1:
- *   - ledModule: adiciona "Nx " no início (ex: "3x TRACE LINEAR...")
- *   - holder:    adiciona "Nx " no início (ex: "3x SUPORTE LENTE...")
- *   - otica:     adiciona "Nx " antes do primeiro componente (ex: "3x LENTE DARKOO... + 3x LOUVER...")
- *               A API já inclui "Nx" no LOUVER, mas não na LENTE — só prefixamos o primeiro segmento.
- */
-function applyModuleQtyPrefix(
-  name: string,
-  ledModule: string | null,
-  otica: string | null,
-  holder: string | null,
-): { ledModule: string | null; otica: string | null; holder: string | null } {
-  const qty = extractModuleQty(name);
-  if (qty <= 1) return { ledModule, otica, holder };
-
-  const prefix = `${qty}x `;
-
-  const newLedModule = ledModule ? `${prefix}${ledModule}` : ledModule;
-  const newHolder = holder ? `${prefix}${holder}` : holder;
-
-  // Para otica: prefixar apenas o primeiro segmento (antes do primeiro " + ")
-  // A API já inclui "Nx" nos segmentos seguintes (LOUVER)
-  let newOtica = otica;
-  if (otica) {
-    const plusIdx = otica.indexOf(" + ");
-    if (plusIdx !== -1) {
-      const firstPart = otica.slice(0, plusIdx);
-      const rest = otica.slice(plusIdx); // inclui " + "
-      newOtica = `${prefix}${firstPart}${rest}`;
-    } else {
-      newOtica = `${prefix}${otica}`;
-    }
+function resolveOtica(p: ApiProduct): string | null {
+  if (p.oticaPrimaria) {
+    const parts = [p.oticaPrimaria, p.oticaSecundaria].filter(Boolean) as string[];
+    return parts.join(" + ");
   }
-
-  return { ledModule: newLedModule, otica: newOtica, holder: newHolder };
+  return p.otica ?? null;
 }
 
 /** Converte um produto da API para DownlightProduct */
@@ -145,18 +118,16 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
   const dDimDali = p.driverDimDali;
   const ccts = normalizeCCTs(p.temperaturasCor);
 
-  const rawLedModule = p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : "";
-  const prefixed = applyModuleQtyPrefix(p.name, rawLedModule, p.otica ?? null, p.holder ?? null);
-
   return {
     instalacao: p.instalacao,
     familia: p.familia,
     sku: p.sku,
     name: p.name,
-    holder: prefixed.holder,
-    otica: prefixed.otica,
+    holder: p.holder ?? null,
+    otica: resolveOtica(p),
     dissipador: p.dissipador ?? null,
-    ledModule: prefixed.ledModule ?? "",
+    // Remove [CCT] do ledModule — substituído pela CCT selecionada pelo usuário na UI
+    ledModule: p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : "",
     ccts,
     driver220: d220
       ? { model: driverModel(d220), code: driverCode(d220) }
@@ -179,17 +150,14 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
   const dBivolt = p.driverBivolt;
   const ccts = normalizeCCTs(p.temperaturasCor);
 
-  const rawLedModuleSpot = p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : null;
-  const prefixedSpot = applyModuleQtyPrefix(p.name, rawLedModuleSpot, p.otica ?? null, p.holder ?? null);
-
   return {
     instalacao: p.instalacao,
     familia: p.familia,
     sku: p.sku || null,
     name: p.name,
-    ledModule: prefixedSpot.ledModule,
-    otica: prefixedSpot.otica,
-    holder: prefixedSpot.holder,
+    ledModule: p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : null,
+    otica: resolveOtica(p),
+    holder: p.holder ?? null,
     dissipador: p.dissipador ?? null,
     driver220: d220
       ? { model: driverModel(d220), code: driverCode(d220) }
@@ -209,18 +177,13 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
   const dDim110v = p.driverDim110v;
   const dDimDali = p.driverDimDali;
 
-  // Fallback: quando os drivers não estão cadastrados na API, usa o catálogo estático pelo SKU
-  const staticFallback = p.sku ? PAINEL_CATALOG.find((s) => s.sku === p.sku) : undefined;
-
   const driver220: PainelProduct["driver220"] = d220
     ? { model: driverModel(d220), code: driverCode(d220) }
-    : staticFallback?.driver220 ?? { model: "", code: "" };
+    : { model: "", code: "" };
 
   const driverBivolt: PainelProduct["driverBivolt"] = dBivolt
     ? { model: driverModel(dBivolt), code: driverCode(dBivolt) }
-    : d220
-    ? null
-    : staticFallback?.driverBivolt ?? null;
+    : null;
 
   const driverDim110v: PainelProduct["driverDim110v"] = dDim110v
     ? { model: driverModel(dDim110v), code: driverCode(dDim110v) }

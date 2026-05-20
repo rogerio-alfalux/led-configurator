@@ -43,6 +43,15 @@ export interface AlfaluxProduct {
   driverDim110v: DriverInfo | null;
   /** Driver DIM DALI (null = não disponível) */
   driverDimDali: DriverInfo | null;
+  /**
+   * Ótica primária (campo separado — retornado quando a API divide ótica em dois campos).
+   * Quando presente, usar este campo em vez de `otica`.
+   */
+  oticaPrimaria: string | null;
+  /**
+   * Ótica secundária (campo separado — retornado quando a API divide ótica em dois campos).
+   */
+  oticaSecundaria: string | null;
   custoLuminaria: number | null;
   custoDriver220: number | null;
   custoDriverBivolt: number | null;

@@ -33,13 +33,9 @@ export const appRouter = router({
 
   alfalux: router({
     products: publicProcedure.query(async () => {
-      try {
-        const products = await fetchAllAlfaluxProducts();
-        return products;
-      } catch (err) {
-        console.error("[AlfaluxAPI] Falha ao buscar produtos — usando catálogo estático como fallback:", err);
-        return []; // UI usa catálogo estático quando array vazio
-      }
+      // Não há fallback estático: se a API falhar, o erro é propagado para a UI exibir ao usuário.
+      const products = await fetchAllAlfaluxProducts();
+      return products;
     }),
     refreshProducts: publicProcedure.mutation(async () => {
       try {
