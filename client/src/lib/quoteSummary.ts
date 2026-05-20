@@ -142,10 +142,7 @@ export function generateQuoteSummary(result: CompositionResult): string {
     const modTypeSuffix = modType ? ` ${modType}` : "";
     const qtyStr = info.quantity === 1 ? "1 x" : `${info.quantity} x`;
 
-    const driverSummary = buildDriverSummaryForQuote(driverEntries, sku);
-    const driverPart = driverSummary ? ` + ${driverSummary}` : "";
-
-    return `Item ${index + 1}: ${qtyStr} ${productLabel} - ${info.length}mm${modTypeSuffix}${driverPart}`;
+    return `Item ${index + 1}: ${qtyStr} ${productLabel} - ${info.length}mm${modTypeSuffix}`;
   });
 
   // Preço temporariamente oculto — reativar quando necessário

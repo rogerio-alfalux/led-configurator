@@ -161,29 +161,40 @@ function SkuDriverList({ entries, label }: { entries: SkuDriverEntry[]; label?: 
           </tr>
         </thead>
         <tbody>
-          {entries.map((entry, idx) => (
-            <tr key={idx} className="border-t border-border hover:bg-muted/20 transition-colors">
-              <td className="px-3 py-2 font-mono text-primary font-medium">{entry.sku}</td>
-              <td className="px-3 py-2 text-right text-foreground font-semibold">{entry.quantity}</td>
-              <td className="px-3 py-2 text-foreground">
-                <span className="inline-flex items-center gap-1">
-                  <Zap className="w-3 h-3 text-primary shrink-0" />
-                  {entry.driver.quantity > 1 ? (
-                    <><span className="font-bold text-primary">{entry.driver.quantity}×</span> {entry.driver.model}</>
-                  ) : entry.driver.model}
-                </span>
-              </td>
-              <td className="px-3 py-2">
-                {entry.driver.code ? (
-                  <span className="font-mono text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                    {entry.driver.code}
+          {entries.map((entry, idx) => {
+            // Se o driver tem combo, expandir em múltiplas linhas (uma por driver do combo)
+            const comboItems = entry.driver.combo && entry.driver.combo.length > 0
+              ? entry.driver.combo
+              : [{ code: entry.driver.code, model: entry.driver.model, quantity: entry.driver.quantity ?? 1 }];
+            return comboItems.map((item, comboIdx) => (
+              <tr key={`${idx}-${comboIdx}`} className="border-t border-border hover:bg-muted/20 transition-colors">
+                {/* SKU e Qtd só na primeira linha do combo */}
+                {comboIdx === 0 ? (
+                  <>
+                    <td className="px-3 py-2 font-mono text-primary font-medium" rowSpan={comboItems.length}>{entry.sku}</td>
+                    <td className="px-3 py-2 text-right text-foreground font-semibold" rowSpan={comboItems.length}>{entry.quantity}</td>
+                  </>
+                ) : null}
+                <td className="px-3 py-2 text-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <Zap className="w-3 h-3 text-primary shrink-0" />
+                    {item.quantity > 1 ? (
+                      <><span className="font-bold text-primary">{item.quantity}×</span> {item.model}</>
+                    ) : item.model}
                   </span>
-                ) : (
-                  <span className="text-muted-foreground text-xs">—</span>
-                )}
-              </td>
-            </tr>
-          ))}
+                </td>
+                <td className="px-3 py-2">
+                  {item.code ? (
+                    <span className="font-mono text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                      {item.code}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground text-xs">—</span>
+                  )}
+                </td>
+              </tr>
+            ));
+          })}
         </tbody>
       </table>
     </div>
@@ -526,8 +537,16 @@ function ResultBlock({ result }: { result: CompositionResult }) {
                   : [...result.driversD1, ...result.driversD2];
                 const driverMap = new Map<string, number>();
                 for (const e of allEntries) {
-                  const key = e.driver.model;
-                  driverMap.set(key, (driverMap.get(key) ?? 0) + e.quantity * (e.driver.quantity ?? 1));
+                  if (e.driver.combo && e.driver.combo.length > 0) {
+                    // Driver composto: somar cada item do combo
+                    for (const item of e.driver.combo) {
+                      const key = item.model;
+                      driverMap.set(key, (driverMap.get(key) ?? 0) + e.quantity * item.quantity);
+                    }
+                  } else {
+                    const key = e.driver.model;
+                    driverMap.set(key, (driverMap.get(key) ?? 0) + e.quantity * (e.driver.quantity ?? 1));
+                  }
                 }
                 return (
                   <div className="flex flex-wrap gap-2">
