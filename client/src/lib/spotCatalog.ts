@@ -21,10 +21,18 @@ export interface SpotProduct {
   name: string;
   /** Módulo LED (sem [CCT]) */
   ledModule: string | null;
-  /** Ótica — null se não aplicável */
+  /** Quantidade numérica de módulos LED. null quando não retornado pela API. */
+  ledModuleQtd: number | null;
+  /** Ótica legado (primaria + secundaria concatenadas) — null se não aplicável */
   otica: string | null;
+  /** Ótica primária com quantidade embutida. null quando não retornado pela API. */
+  oticaPrimaria: string | null;
+  /** Ótica secundária com quantidade embutida. null quando não há. */
+  oticaSecundaria: string | null;
   /** Holder — null se não aplicável */
   holder: string | null;
+  /** Quantidade numérica de holders. null quando não retornado pela API. */
+  holderQtd: number | null;
   /** Dissipador — null se não aplicável */
   dissipador: string | null;
   /** Driver para 220Vac */
@@ -64,8 +72,12 @@ export const SPOT_CATALOG: SpotProduct[] = [
     sku: "LDS-2300.1CO.01B",
     name: "ZEUS 17W 10° TRL",
     ledModule: "LED COB 13 X 13MM CREE CMU1013",
+    ledModuleQtd: null,
     otica: "REFLETOR Ø69 X 38MM BA/2512-E 15° (CP00217)",
+    oticaPrimaria: null,
+    oticaSecundaria: null,
     holder: "HOLDER C-1313 LUCCHI (CP00061)",
+    holderQtd: null,
     dissipador: null,
     driver220: { model: "PHILIPS CERTADRIVE 20W 500MA", code: "EQ00353" },
     driverBivolt: null,
@@ -78,8 +90,12 @@ export const SPOT_CATALOG: SpotProduct[] = [
     sku: "LDS-2300.1CO.01B",
     name: "ZEUS 17W 24° TRL",
     ledModule: "LED COB 13 X 13MM CREE CMU1013",
+    ledModuleQtd: null,
     otica: "REFLETOR Ø69 X 38MM BA/2513-E-Z 24° (CP00802)",
+    oticaPrimaria: null,
+    oticaSecundaria: null,
     holder: "HOLDER C-1313 LUCCHI (CP00061)",
+    holderQtd: null,
     dissipador: null,
     driver220: { model: "PHILIPS CERTADRIVE 20W 500MA", code: "EQ00353" },
     driverBivolt: null,
@@ -92,8 +108,12 @@ export const SPOT_CATALOG: SpotProduct[] = [
     sku: "LDS-2300.1CO.01B",
     name: "ZEUS 17W 36° TRL",
     ledModule: "LED COB 13 X 13MM CREE CMU1013",
+    ledModuleQtd: null,
     otica: "REFLETOR Ø69 X 38MM BA/2514-E 36° (PC00062)",
+    oticaPrimaria: null,
+    oticaSecundaria: null,
     holder: "HOLDER C-1313 LUCCHI (CP00061)",
+    holderQtd: null,
     dissipador: null,
     driver220: { model: "PHILIPS CERTADRIVE 20W 500MA", code: "EQ00353" },
     driverBivolt: null,

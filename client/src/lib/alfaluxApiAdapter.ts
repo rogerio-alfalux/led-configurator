@@ -43,8 +43,16 @@ export interface ApiProduct {
   /** Nome do produto (ex: "BLAZE E IF 1.1B 645MM") */
   name: string;
   ledModule: string | null;
+  /** Quantidade numérica de módulos LED. null quando não retornado pela API. */
+  ledModuleQtd: number | null;
   otica: string | null;
+  /** Ótica primária com quantidade embutida. null quando não retornado pela API. */
+  oticaPrimaria: string | null;
+  /** Ótica secundária com quantidade embutida. null quando não há. */
+  oticaSecundaria: string | null;
   holder: string | null;
+  /** Quantidade numérica de holders. null quando não retornado pela API. */
+  holderQtd: number | null;
   dissipador: string | null;
   fotoUrl: string | null;
   /** Array de temperaturas de cor (ex: ["3000K", "4000K"]) */
@@ -57,15 +65,6 @@ export interface ApiProduct {
   driverDim110v: DriverInfo | null;
   /** Driver DIM DALI (null = não disponível) */
   driverDimDali: DriverInfo | null;
-  /**
-   * Ótica primária (campo separado — retornado quando a API divide ótica em dois campos).
-   * Quando presente, usar este campo em vez de `otica`.
-   */
-  oticaPrimaria: string | null;
-  /**
-   * Ótica secundária (campo separado — retornado quando a API divide ótica em dois campos).
-   */
-  oticaSecundaria: string | null;
   custoLuminaria: number | null;
   custoDriver220: number | null;
   custoDriverBivolt: number | null;
@@ -124,10 +123,14 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
     sku: p.sku,
     name: p.name,
     holder: p.holder ?? null,
+    holderQtd: p.holderQtd ?? null,
     otica: resolveOtica(p),
+    oticaPrimaria: p.oticaPrimaria ?? null,
+    oticaSecundaria: p.oticaSecundaria ?? null,
     dissipador: p.dissipador ?? null,
     // Remove [CCT] do ledModule — substituído pela CCT selecionada pelo usuário na UI
     ledModule: p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : "",
+    ledModuleQtd: p.ledModuleQtd ?? null,
     ccts,
     driver220: d220
       ? { model: driverModel(d220), code: driverCode(d220) }
@@ -156,8 +159,12 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
     sku: p.sku || null,
     name: p.name,
     ledModule: p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : null,
+    ledModuleQtd: p.ledModuleQtd ?? null,
     otica: resolveOtica(p),
+    oticaPrimaria: p.oticaPrimaria ?? null,
+    oticaSecundaria: p.oticaSecundaria ?? null,
     holder: p.holder ?? null,
+    holderQtd: p.holderQtd ?? null,
     dissipador: p.dissipador ?? null,
     driver220: d220
       ? { model: driverModel(d220), code: driverCode(d220) }

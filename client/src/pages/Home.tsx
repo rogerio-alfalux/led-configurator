@@ -2964,10 +2964,26 @@ export default function Home() {
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
                         <p className="text-sm font-semibold">{dlResult.ledModuleWithCCT}</p>
                       </div>
-                      {dlResult.product.otica && (
+                      {/* Ótica: exibir primária/secundária separadas quando disponíveis, senão legado */}
+                      {(dlResult.product.oticaPrimaria || dlResult.product.otica) && (
                         <div className="p-3 rounded-lg bg-muted/50 col-span-2">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ótica</p>
-                          <p className="text-sm font-semibold">{dlResult.product.otica}</p>
+                          {dlResult.product.oticaPrimaria ? (
+                            <>
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ótica Primária</p>
+                              <p className="text-sm font-semibold">{dlResult.product.oticaPrimaria}</p>
+                              {dlResult.product.oticaSecundaria && (
+                                <>
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mt-2 mb-1">Ótica Secundária</p>
+                                  <p className="text-sm font-semibold">{dlResult.product.oticaSecundaria}</p>
+                                </>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ótica</p>
+                              <p className="text-sm font-semibold">{dlResult.product.otica}</p>
+                            </>
+                          )}
                         </div>
                       )}
                       {dlResult.product.holder && (
@@ -3039,13 +3055,19 @@ export default function Home() {
                       size="sm"
                       className="h-7 text-xs gap-1.5"
                       onClick={() => {
-                        const parts: string[] = [
-                            (dlResult.ledModuleWithCCT.toUpperCase().startsWith("MÓDULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`),
-                          ];
-                          if (dlResult.product.otica) parts.push(dlResult.product.otica.toUpperCase());
-                          if (dlResult.product.holder) parts.push(dlResult.product.holder.toUpperCase());
-                          if (dlResult.product.dissipador) parts.push(dlResult.product.dissipador.toUpperCase());
-                          { const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; parts.push(`1x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`); }
+                          const parts: string[] = [
+                              (dlResult.ledModuleWithCCT.toUpperCase().startsWith("MÓDULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`),
+                            ];
+                            // Ótica: usar primária+secundária separadas se disponíveis, senão legado
+                            if (dlResult.product.oticaPrimaria) {
+                              parts.push(dlResult.product.oticaPrimaria.toUpperCase());
+                              if (dlResult.product.oticaSecundaria) parts.push(dlResult.product.oticaSecundaria.toUpperCase());
+                            } else if (dlResult.product.otica) {
+                              parts.push(dlResult.product.otica.toUpperCase());
+                            }
+                            if (dlResult.product.holder) parts.push(dlResult.product.holder.toUpperCase());
+                            if (dlResult.product.dissipador) parts.push(dlResult.product.dissipador.toUpperCase());
+                            { const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; parts.push(`1x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`); }
                           const txt = (`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim();
                         navigator.clipboard.writeText(txt);
                         toast.success("Copiado!");
@@ -3069,7 +3091,13 @@ export default function Home() {
                           const parts: string[] = [
                             (dlResult.ledModuleWithCCT.toUpperCase().startsWith("MÓDULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`),
                           ];
-                          if (dlResult.product.otica) parts.push(dlResult.product.otica.toUpperCase());
+                          // Ótica: usar primária+secundária separadas se disponíveis, senão legado
+                          if (dlResult.product.oticaPrimaria) {
+                            parts.push(dlResult.product.oticaPrimaria.toUpperCase());
+                            if (dlResult.product.oticaSecundaria) parts.push(dlResult.product.oticaSecundaria.toUpperCase());
+                          } else if (dlResult.product.otica) {
+                            parts.push(dlResult.product.otica.toUpperCase());
+                          }
                           if (dlResult.product.holder) parts.push(dlResult.product.holder.toUpperCase());
                           if (dlResult.product.dissipador) parts.push(dlResult.product.dissipador.toUpperCase());
                           { const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; parts.push(`1x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`); }
@@ -3306,11 +3334,26 @@ export default function Home() {
                         <p className="text-sm font-semibold">{spotResult.ledModuleWithCCT}</p>
                       </div>
                     )}
-                    {/* Ótica */}
-                    {spotResult.product.otica && (
+                    {/* Ótica: exibir primária/secundária separadas quando disponíveis, senão legado */}
+                    {(spotResult.product.oticaPrimaria || spotResult.product.otica) && (
                       <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ótica</p>
-                        <p className="text-sm font-semibold">{spotResult.product.otica}</p>
+                        {spotResult.product.oticaPrimaria ? (
+                          <>
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ótica Primária</p>
+                            <p className="text-sm font-semibold">{spotResult.product.oticaPrimaria}</p>
+                            {spotResult.product.oticaSecundaria && (
+                              <>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide mt-2 mb-1">Ótica Secundária</p>
+                                <p className="text-sm font-semibold">{spotResult.product.oticaSecundaria}</p>
+                              </>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ótica</p>
+                            <p className="text-sm font-semibold">{spotResult.product.otica}</p>
+                          </>
+                        )}
                       </div>
                     )}
                     {/* Holder */}
@@ -3366,11 +3409,17 @@ export default function Home() {
                       variant="outline" size="sm" className="h-7 text-xs gap-1.5"
                       onClick={() => {
                         const parts: string[] = [];
-                        if (spotResult.ledModuleWithCCT) parts.push(spotResult.ledModuleWithCCT.toUpperCase());
-                        if (spotResult.product.otica) parts.push(spotResult.product.otica.toUpperCase());
-                        if (spotResult.product.holder) parts.push(spotResult.product.holder.toUpperCase());
-                        { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; parts.push(`1x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`); }
-                        const skuLine = spotResult.product.sku ? `CÓDIGO: ${spotResult.product.sku}\n` : "";
+                         if (spotResult.ledModuleWithCCT) parts.push(spotResult.ledModuleWithCCT.toUpperCase());
+                         // Ótica: usar primária+secundária separadas se disponíveis, senão legado
+                         if (spotResult.product.oticaPrimaria) {
+                           parts.push(spotResult.product.oticaPrimaria.toUpperCase());
+                           if (spotResult.product.oticaSecundaria) parts.push(spotResult.product.oticaSecundaria.toUpperCase());
+                         } else if (spotResult.product.otica) {
+                           parts.push(spotResult.product.otica.toUpperCase());
+                         }
+                         if (spotResult.product.holder) parts.push(spotResult.product.holder.toUpperCase());
+                         { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; parts.push(`1x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`); }
+                         const skuLine = spotResult.product.sku ? `CÓDIGO: ${spotResult.product.sku}\n` : "";
                         const txt = `${skuLine}${spotResult.product.name.toUpperCase()} ${spotResult.cct} ${spotResult.tensao} MONTADA COM ${parts.join(" + ")}`;
                         navigator.clipboard.writeText(txt);
                         toast.success("Copiado!");
@@ -3386,11 +3435,18 @@ export default function Home() {
                     >
                       {(() => {
                         const parts: string[] = [];
-                        if (spotResult.ledModuleWithCCT) parts.push(spotResult.ledModuleWithCCT.toUpperCase());
-                        if (spotResult.product.otica) parts.push(spotResult.product.otica.toUpperCase());
-                        if (spotResult.product.holder) parts.push(spotResult.product.holder.toUpperCase());
-                        { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; parts.push(`1x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`); }
-                        const skuLine = spotResult.product.sku ? `CÓDIGO: ${spotResult.product.sku}\n` : "";
+                         if (spotResult.ledModuleWithCCT) parts.push(spotResult.ledModuleWithCCT.toUpperCase());
+                         // Ótica: usar primária+secundária separadas se disponíveis, senão legado
+                         if (spotResult.product.oticaPrimaria) {
+                           parts.push(spotResult.product.oticaPrimaria.toUpperCase());
+                           if (spotResult.product.oticaSecundaria) parts.push(spotResult.product.oticaSecundaria.toUpperCase());
+                         } else if (spotResult.product.otica) {
+                           parts.push(spotResult.product.otica.toUpperCase());
+                         }
+                         if (spotResult.product.holder) parts.push(spotResult.product.holder.toUpperCase());
+                         { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; parts.push(`1x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`); }
+                         const skuLine = spotResult.product.sku ? `CÓDIGO: ${spotResult.product.sku}\n` : "";
+                         
                         return `${skuLine}${spotResult.product.name.toUpperCase()} ${spotResult.cct} ${spotResult.tensao} MONTADA COM ${parts.join(" + ")}`;
                       })()}
                     </div>

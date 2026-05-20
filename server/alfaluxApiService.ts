@@ -30,8 +30,16 @@ export interface AlfaluxProduct {
   /** Nome do produto (ex: "BLAZE E IF 1.1B 645MM") */
   name: string;
   ledModule: string | null;
+  /** Quantidade numérica de módulos LED (ex: 3 para produto 3X3). null quando não retornado pela API. */
+  ledModuleQtd: number | null;
   otica: string | null;
+  /** Ótica primária com quantidade embutida (ex: "9x LENTE DARKOO..."). null quando não retornado pela API. */
+  oticaPrimaria: string | null;
+  /** Ótica secundária com quantidade embutida (ex: "3x LOUVER PRETO..."). null quando não há ou não retornado. */
+  oticaSecundaria: string | null;
   holder: string | null;
+  /** Quantidade numérica de holders. null quando não aplicável ou não retornado. */
+  holderQtd: number | null;
   dissipador: string | null;
   fotoUrl: string | null;
   temperaturasCor: string[];
@@ -43,15 +51,7 @@ export interface AlfaluxProduct {
   driverDim110v: DriverInfo | null;
   /** Driver DIM DALI (null = não disponível) */
   driverDimDali: DriverInfo | null;
-  /**
-   * Ótica primária (campo separado — retornado quando a API divide ótica em dois campos).
-   * Quando presente, usar este campo em vez de `otica`.
-   */
-  oticaPrimaria: string | null;
-  /**
-   * Ótica secundária (campo separado — retornado quando a API divide ótica em dois campos).
-   */
-  oticaSecundaria: string | null;
+
   custoLuminaria: number | null;
   custoDriver220: number | null;
   custoDriverBivolt: number | null;
