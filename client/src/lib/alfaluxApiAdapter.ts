@@ -86,6 +86,57 @@ function driverModel(d: DriverInfo): string {
   return d.model.replace(/\s*\(EQ\d{5}\)\s*$/, "").trim();
 }
 
+/**
+ * Extrai o número de módulos do nome do produto para produtos do tipo NxM.
+ * Ex: "EASY LED POINT 3X3 18W 10º" → 3
+ *     "EASY LED POINT 2X6 26W 48º" → 2
+ *     "EASY LED POINT 1X3 6W 10º"  → 1 (sem prefixo necessário)
+ */
+function extractModuleQty(name: string): number {
+  const match = name.match(/(\d+)[Xx](\d+)/);
+  if (!match) return 1;
+  return parseInt(match[1], 10);
+}
+
+/**
+ * Aplica o prefixo de quantidade de módulos nos campos ledModule, otica e holder.
+ * Quando qty > 1:
+ *   - ledModule: adiciona "Nx " no início (ex: "3x TRACE LINEAR...")
+ *   - holder:    adiciona "Nx " no início (ex: "3x SUPORTE LENTE...")
+ *   - otica:     adiciona "Nx " antes do primeiro componente (ex: "3x LENTE DARKOO... + 3x LOUVER...")
+ *               A API já inclui "Nx" no LOUVER, mas não na LENTE — só prefixamos o primeiro segmento.
+ */
+function applyModuleQtyPrefix(
+  name: string,
+  ledModule: string | null,
+  otica: string | null,
+  holder: string | null,
+): { ledModule: string | null; otica: string | null; holder: string | null } {
+  const qty = extractModuleQty(name);
+  if (qty <= 1) return { ledModule, otica, holder };
+
+  const prefix = `${qty}x `;
+
+  const newLedModule = ledModule ? `${prefix}${ledModule}` : ledModule;
+  const newHolder = holder ? `${prefix}${holder}` : holder;
+
+  // Para otica: prefixar apenas o primeiro segmento (antes do primeiro " + ")
+  // A API já inclui "Nx" nos segmentos seguintes (LOUVER)
+  let newOtica = otica;
+  if (otica) {
+    const plusIdx = otica.indexOf(" + ");
+    if (plusIdx !== -1) {
+      const firstPart = otica.slice(0, plusIdx);
+      const rest = otica.slice(plusIdx); // inclui " + "
+      newOtica = `${prefix}${firstPart}${rest}`;
+    } else {
+      newOtica = `${prefix}${otica}`;
+    }
+  }
+
+  return { ledModule: newLedModule, otica: newOtica, holder: newHolder };
+}
+
 /** Converte um produto da API para DownlightProduct */
 function toDownlightProduct(p: ApiProduct): DownlightProduct {
   const d220 = p.driver220;
@@ -94,16 +145,18 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
   const dDimDali = p.driverDimDali;
   const ccts = normalizeCCTs(p.temperaturasCor);
 
+  const rawLedModule = p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : "";
+  const prefixed = applyModuleQtyPrefix(p.name, rawLedModule, p.otica ?? null, p.holder ?? null);
+
   return {
     instalacao: p.instalacao,
     familia: p.familia,
     sku: p.sku,
     name: p.name,
-    holder: p.holder ?? null,
-    otica: p.otica ?? null,
+    holder: prefixed.holder,
+    otica: prefixed.otica,
     dissipador: p.dissipador ?? null,
-    // Remover [CCT] do ledModule (igual a Spots e Painéis)
-    ledModule: p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : "",
+    ledModule: prefixed.ledModule ?? "",
     ccts,
     driver220: d220
       ? { model: driverModel(d220), code: driverCode(d220) }
@@ -126,14 +179,17 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
   const dBivolt = p.driverBivolt;
   const ccts = normalizeCCTs(p.temperaturasCor);
 
+  const rawLedModuleSpot = p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : null;
+  const prefixedSpot = applyModuleQtyPrefix(p.name, rawLedModuleSpot, p.otica ?? null, p.holder ?? null);
+
   return {
     instalacao: p.instalacao,
     familia: p.familia,
     sku: p.sku || null,
     name: p.name,
-    ledModule: p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : null,
-    otica: p.otica ?? null,
-    holder: p.holder ?? null,
+    ledModule: prefixedSpot.ledModule,
+    otica: prefixedSpot.otica,
+    holder: prefixedSpot.holder,
     dissipador: p.dissipador ?? null,
     driver220: d220
       ? { model: driverModel(d220), code: driverCode(d220) }

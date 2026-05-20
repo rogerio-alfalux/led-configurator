@@ -183,3 +183,93 @@ describe("adaptAlfaluxProducts - separação de categorias", () => {
     expect(result.paineis).toHaveLength(0);
   });
 });
+
+describe("applyModuleQtyPrefix — prefixo de quantidade de módulos", () => {
+  it("1X3: não adiciona prefixo (qty = 1)", () => {
+    const p = makeProduct({
+      categoria: "DOWNLIGHTS",
+      name: "EASY LED POINT 1X3 6W 10º",
+      ledModule: "TRACE LINEAR 74 x 23MM 3 LEDS 750LM [CCT]",
+      otica: "LENTE DARKOO DK-15-X10-LENS-H8.6-3535 + LOUVER PRETO 3 PONTOS DK-S80-GSZ",
+      holder: "SUPORTE LENTE DARKOO 3 PONTOS DK-72-ZJ-3H1",
+    });
+    const result = adaptAlfaluxProducts([p]);
+    const dl = result.downlights[0];
+    expect(dl.ledModule).toBe("TRACE LINEAR 74 x 23MM 3 LEDS 750LM");
+    expect(dl.otica).toBe("LENTE DARKOO DK-15-X10-LENS-H8.6-3535 + LOUVER PRETO 3 PONTOS DK-S80-GSZ");
+    expect(dl.holder).toBe("SUPORTE LENTE DARKOO 3 PONTOS DK-72-ZJ-3H1");
+  });
+
+  it("3X3: adiciona 3x em ledModule e holder; 3x na LENTE da otica", () => {
+    const p = makeProduct({
+      categoria: "DOWNLIGHTS",
+      name: "EASY LED POINT 3X3 18W 10º",
+      ledModule: "TRACE LINEAR 74 x 23MM 3 LEDS 750LM [CCT]",
+      otica: "LENTE DARKOO DK-15-X10-LENS-H8.6-3535 + 3x LOUVER PRETO 3 PONTOS DK-S80-GSZ",
+      holder: "SUPORTE LENTE DARKOO 3 PONTOS DK-72-ZJ-3H1",
+    });
+    const result = adaptAlfaluxProducts([p]);
+    const dl = result.downlights[0];
+    expect(dl.ledModule).toBe("3x TRACE LINEAR 74 x 23MM 3 LEDS 750LM");
+    expect(dl.otica).toBe("3x LENTE DARKOO DK-15-X10-LENS-H8.6-3535 + 3x LOUVER PRETO 3 PONTOS DK-S80-GSZ");
+    expect(dl.holder).toBe("3x SUPORTE LENTE DARKOO 3 PONTOS DK-72-ZJ-3H1");
+  });
+
+  it("2X6: adiciona 2x em ledModule e holder; 2x na LENTE da otica", () => {
+    const p = makeProduct({
+      categoria: "DOWNLIGHTS",
+      name: "EASY LED POINT 2X6 26W 10º",
+      ledModule: "TRACE LINEAR 154 x 23MM 6 LEDS 1400LM [CCT]",
+      otica: "LENTE DARKOO DK-15-X10-LENS-H8.6-3535 + 2x LOUVER PRETO 6 PONTOS DK-149-GSZ-6H5",
+      holder: "SUPORTE LENTE DARKOO 6 PONTOS DK-151-ZJ-6H1",
+    });
+    const result = adaptAlfaluxProducts([p]);
+    const dl = result.downlights[0];
+    expect(dl.ledModule).toBe("2x TRACE LINEAR 154 x 23MM 6 LEDS 1400LM");
+    expect(dl.otica).toBe("2x LENTE DARKOO DK-15-X10-LENS-H8.6-3535 + 2x LOUVER PRETO 6 PONTOS DK-149-GSZ-6H5");
+    expect(dl.holder).toBe("2x SUPORTE LENTE DARKOO 6 PONTOS DK-151-ZJ-6H1");
+  });
+
+  it("4X6: adiciona 4x em ledModule e holder; 4x na LENTE da otica", () => {
+    const p = makeProduct({
+      categoria: "DOWNLIGHTS",
+      name: "EASY LED POINT 4X6 52W 10º",
+      ledModule: "TRACE LINEAR 154 x 23MM 6 LEDS 1400LM [CCT]",
+      otica: "LENTE DARKOO DK-15-X10-LENS-H8.6-3535 + 4x LOUVER PRETO 6 PONTOS DK-149-GSZ-6H5",
+      holder: "SUPORTE LENTE DARKOO 6 PONTOS DK-151-ZJ-6H1",
+    });
+    const result = adaptAlfaluxProducts([p]);
+    const dl = result.downlights[0];
+    expect(dl.ledModule).toBe("4x TRACE LINEAR 154 x 23MM 6 LEDS 1400LM");
+    expect(dl.otica).toBe("4x LENTE DARKOO DK-15-X10-LENS-H8.6-3535 + 4x LOUVER PRETO 6 PONTOS DK-149-GSZ-6H5");
+    expect(dl.holder).toBe("4x SUPORTE LENTE DARKOO 6 PONTOS DK-151-ZJ-6H1");
+  });
+
+  it("produto sem NxM no nome: não adiciona prefixo", () => {
+    const p = makeProduct({
+      categoria: "DOWNLIGHTS",
+      name: "LUNA PP LED 13W",
+      ledModule: "TRACE CIRCULAR 12 LEDS Ø67MM",
+      otica: "REFLETOR Ø50MM 15°",
+      holder: "HOLDER NATA 50MM",
+    });
+    const result = adaptAlfaluxProducts([p]);
+    const dl = result.downlights[0];
+    expect(dl.ledModule).toBe("TRACE CIRCULAR 12 LEDS Ø67MM");
+    expect(dl.otica).toBe("REFLETOR Ø50MM 15°");
+    expect(dl.holder).toBe("HOLDER NATA 50MM");
+  });
+
+  it("otica sem ' + ': prefixo aplicado em toda a string", () => {
+    const p = makeProduct({
+      categoria: "DOWNLIGHTS",
+      name: "EASY LED POINT 3X3 18W 10º",
+      ledModule: "TRACE LINEAR 74 x 23MM 3 LEDS 750LM [CCT]",
+      otica: "LENTE DARKOO DK-15-X10-LENS-H8.6-3535",
+      holder: "SUPORTE LENTE DARKOO 3 PONTOS DK-72-ZJ-3H1",
+    });
+    const result = adaptAlfaluxProducts([p]);
+    const dl = result.downlights[0];
+    expect(dl.otica).toBe("3x LENTE DARKOO DK-15-X10-LENS-H8.6-3535");
+  });
+});
