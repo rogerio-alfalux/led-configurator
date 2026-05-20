@@ -99,7 +99,7 @@ function buildModuleBlock(
 
   const driverLines = Array.from(driverMap.values())
     .map((d) => `${d.total}x ${d.model}${d.code ? ` (${d.code})` : ""}`)
-    .join("\n    ");
+    .join(" + ");
 
   lines.push(`Drivers: ${driverLines}`);
 

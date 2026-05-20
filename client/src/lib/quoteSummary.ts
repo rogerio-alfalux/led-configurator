@@ -4,14 +4,13 @@
  *
  * Formato:
  *   BLAZE H P 18W - Medida Total: 5675mm
- *   Item 1: 2 x BLAZE H P 18W - 1710mm IF
- *   Item 2: 1 x BLAZE H P 18W - 2255mm ML
- *   Preço Total: R$ 3.400,00  ← apenas quando há preço cadastrado (ON/OFF 220V)
+ *   Item 1: 2 x BLAZE H P 18W - 1710mm IF + 1X PHILIPS XITANIUM 44W 350MA (EQ00347)
+ *   Item 2: 1 x BLAZE H P 18W - 2255mm ML + 1X PHILIPS XITANIUM 65W 350MA (EQ00393)
  *
  * Sufixo de instalação: E=Embutir, S=Sobrepor, P=Pendente, A=Arandela
  */
 
-import type { CompositionResult } from "./ledEngine";
+import type { CompositionResult, SkuDriverEntry } from "./ledEngine";
 import { calculateTotalPrice, formatBRL } from "./priceCatalog";
 
 // Re-exporta formatBRL para compatibilidade com código existente
@@ -45,9 +44,51 @@ function moduleTypeFromSku(sku: string): string {
 }
 
 /**
+ * Constrói a string de drivers para um SKU no formato "1X MODELO (CÓDIGO) + 1X MODELO2 (CÓDIGO2)".
+ * Suporta combos (múltiplos drivers por peça).
+ */
+function buildDriverSummaryForQuote(entries: SkuDriverEntry[] | undefined, sku: string): string {
+  if (!entries) return "";
+  const entry = entries.find((e) => e.sku === sku);
+  if (!entry) return "";
+
+  const driverMap = new Map<string, { model: string; code: string; total: number }>();
+
+  if (entry.driver.combo && entry.driver.combo.length > 0) {
+    for (const item of entry.driver.combo) {
+      const key = item.code || item.model.toUpperCase();
+      const existing = driverMap.get(key);
+      if (existing) {
+        existing.total += item.quantity;
+      } else {
+        driverMap.set(key, {
+          model: item.model.toUpperCase(),
+          code: item.code || "",
+          total: item.quantity,
+        });
+      }
+    }
+  } else {
+    const driverQtyPerPiece = entry.driver.quantity ?? 1;
+    const key = entry.driver.code || entry.driver.model.toUpperCase();
+    driverMap.set(key, {
+      model: entry.driver.model.toUpperCase(),
+      code: entry.driver.code || "",
+      total: driverQtyPerPiece,
+    });
+  }
+
+  return Array.from(driverMap.values())
+    .map((d) => {
+      const eqSuffix = d.code && d.code !== "ERRO" ? ` (${d.code})` : "";
+      return `${d.total}X ${d.model}${eqSuffix}`;
+    })
+    .join(" + ");
+}
+
+/**
  * Gera o texto resumo para orçamento.
- * Uma linha de cabeçalho + uma linha por tipo de módulo (SKU distinto)
- * + linha de preço total quando o produto tem preço cadastrado (ON/OFF 220V).
+ * Uma linha de cabeçalho + uma linha por tipo de módulo (SKU distinto) com drivers incluídos.
  */
 export function generateQuoteSummary(result: CompositionResult): string {
   const suffix = INSTALL_SUFFIX[result.installType] ?? result.installType.charAt(0);
@@ -55,10 +96,13 @@ export function generateQuoteSummary(result: CompositionResult): string {
   const power = result.powerD1;
   const cct = result.cct;
 
+  const isDual = result.application === "D1+D2";
+  const isIndependent = isDual && (result.independentLighting || result.forcedIndependent);
+
   // Aplicação (D1/D2/D1+D2) — apenas para Pendente e Arandela
   const showApplication = result.installType === "PENDENTE" || result.installType === "ARANDELA";
   const applicationLabel = showApplication
-    ? result.application === "D1+D2"
+    ? isDual
       ? "D1 + D2"
       : result.application === "D2"
       ? "D2"
@@ -71,6 +115,12 @@ export function generateQuoteSummary(result: CompositionResult): string {
 
   // Medida total realizada
   const totalMm = result.realizedLength;
+
+  // Selecionar as entradas de driver corretas (combinado para D1+D2 simultâneo)
+  const driverEntries =
+    isDual && !isIndependent && result.combinedDrivers
+      ? result.combinedDrivers
+      : result.driversD1;
 
   // Construir mapa de SKUs únicos preservando a ordem
   const skuOrder: string[] = [];
@@ -85,13 +135,17 @@ export function generateQuoteSummary(result: CompositionResult): string {
   // Linha de cabeçalho
   const header = `${productLabel} - Medida Total: ${totalMm}mm`;
 
-  // Linhas de itens
+  // Linhas de itens — inclui drivers no formato "driver1 + driver2"
   const items = skuOrder.map((sku, index) => {
     const info = skuMap.get(sku)!;
     const modType = moduleTypeFromSku(sku);
     const modTypeSuffix = modType ? ` ${modType}` : "";
     const qtyStr = info.quantity === 1 ? "1 x" : `${info.quantity} x`;
-    return `Item ${index + 1}: ${qtyStr} ${productLabel} - ${info.length}mm${modTypeSuffix}`;
+
+    const driverSummary = buildDriverSummaryForQuote(driverEntries, sku);
+    const driverPart = driverSummary ? ` + ${driverSummary}` : "";
+
+    return `Item ${index + 1}: ${qtyStr} ${productLabel} - ${info.length}mm${modTypeSuffix}${driverPart}`;
   });
 
   // Preço temporariamente oculto — reativar quando necessário

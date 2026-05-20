@@ -645,19 +645,19 @@
 - [x] 391 testes passando, 0 erros TypeScript reais
 
 ## LED BAR — Nova família em Perfis (19/05/2026)
-- [ ] Inspecionar estrutura da API para produtos LED BAR (potência, difusor, drivers)
-- [ ] Criar tipo LedBarProduct no adaptador (potência W/m, difusor DA/DB/DC, driverOnOff, driverDim010v, driverDimDali)
-- [ ] Remover [CCT] do ledModule no adaptador para LED BAR
-- [ ] Criar função calculateLedBar: comprimento → cortes → fonte por trecho
-- [ ] Lógica de cortes: comprimento ≤ 3000mm → 1 trecho; > 3000mm → exigir nCortes, dividir igualmente
-- [ ] Tensão 110V / 220V / Bivolt (drivers 0-10V são monovolt: 110V ou 220V separados, não bivolt automático)
-- [ ] UI: após selecionar LED BAR, mostrar seletor de potência (5/10/25 W/m)
-- [ ] UI: após potência, mostrar seletor de difusor (DA/DB/DC)
-- [ ] UI: campo de comprimento (mm), campo de cortes (aparece obrigatório se comprimento > 3000mm)
-- [ ] UI: seletor de controle (ON/OFF, DIM 0-10V, DIM DALI) baseado nos drivers do produto
-- [ ] UI: seletor de tensão 110V / 220V / Bivolt (Bivolt bloqueado para drivers 0-10V monovolt)
-- [ ] Resumo para orçamento e pedido com cortes, comprimento por trecho, fonte por trecho
-- [ ] Testes unitários para calculateLedBar e adaptador LED BAR
+- [x] Inspecionar estrutura da API para produtos LED BAR (potência, difusor, drivers)
+- [x] Criar tipo LedBarProduct no adaptador (potência W/m, difusor DA/DB/DC, driverOnOff, driverDim010v, driverDimDali)
+- [x] Remover [CCT] do ledModule no adaptador para LED BAR
+- [x] Criar função calculateLedBar: comprimento → cortes → fonte por trecho
+- [x] Lógica de cortes: comprimento ≤ 3000mm → 1 trecho; > 3000mm → exigir nCortes, dividir igualmente
+- [x] Tensão 110V / 220V / Bivolt (drivers 0-10V são monovolt: 110V ou 220V separados, não bivolt automático)
+- [x] UI: após selecionar LED BAR, mostrar seletor de potência (5/10/25 W/m)
+- [x] UI: após potência, mostrar seletor de difusor (DA/DB/DC)
+- [x] UI: campo de comprimento (mm), campo de cortes (aparece obrigatório se comprimento > 3000mm)
+- [x] UI: seletor de controle (ON/OFF, DIM 0-10V, DIM DALI) baseado nos drivers do produto
+- [x] UI: seletor de tensão 110V / 220V / Bivolt (Bivolt bloqueado para drivers 0-10V monovolt)
+- [x] Resumo para orçamento e pedido com cortes, comprimento por trecho, fonte por trecho
+- [x] Testes unitários para calculateLedBar e adaptador LED BAR (34 testes)
 
 ## allowMixedIF — Otimizar com IFs Diferentes (19/05/2026)
 - [x] ConfigInput: campo allowMixedIF?: boolean adicionado
