@@ -32,6 +32,14 @@ export interface PainelProduct {
   driverDim110v: PainelDriver | null;
   /** Driver DIM DALI -- null se nao disponivel */
   driverDimDali: PainelDriver | null;
+  /** Quantidade de drivers ON/OFF 220V. null = driver não existe no produto. */
+  driverQtd220: number | null;
+  /** Quantidade de drivers Bivolt. null = driver não existe no produto. */
+  driverQtdBivolt: number | null;
+  /** Quantidade de drivers DIM 1-10V. null = driver não existe no produto. */
+  driverQtdDim110v: number | null;
+  /** Quantidade de drivers DIM DALI. null = driver não existe no produto. */
+  driverQtdDimDali: number | null;
 }
 
 export interface PainelInput {
@@ -65,6 +73,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -77,6 +89,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -89,6 +105,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -101,6 +121,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -113,6 +137,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -125,6 +153,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -137,6 +169,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "1x LIFUD 40W 1000mA BIVOLT (LF-GIF040YCII1000U)", code: "EQ00496" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -149,6 +185,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "1x LIFUD 40W 1000mA BIVOLT (LF-GIF040YCII1000U)", code: "EQ00496" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -161,6 +201,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "3x LIFUD 60W LF-FMR060YS0350U(S) 200MA", code: "EQ00582" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -173,6 +217,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "2x LIFUD 60W LF-FMR060YS0350U(S) 200MA", code: "EQ00582" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -185,6 +233,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "2x LIFUD 40W LF-FMR040YS0350U(S) 200MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -197,6 +249,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 60W LF-FMR060YS0350U(S) 200MA", code: "EQ00582" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -209,6 +265,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 200MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -221,6 +281,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "3x LIFUD 60W LF-FMR060YS0350U(S) 200MA", code: "EQ00582" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -233,6 +297,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "2x LIFUD 60W LF-FMR060YS0350U(S) 200MA", code: "EQ00582" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -245,6 +313,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "2x LIFUD 40W LF-FMR040YS0350U(S) 200MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -257,6 +329,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 60W LF-FMR060YS0350U(S) 200MA", code: "EQ00582" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -269,6 +345,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 200MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "PENDENTE",
@@ -281,6 +361,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "3x LIFUD 60W LF-FMR060YS0350U(S) 200MA", code: "EQ00582" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "PENDENTE",
@@ -293,6 +377,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "2x LIFUD 60W LF-FMR060YS0350U(S) 200MA", code: "EQ00582" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "PENDENTE",
@@ -305,6 +393,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "2x LIFUD 40W LF-FMR040YS0350U(S) 200MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "PENDENTE",
@@ -317,6 +409,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 60W LF-FMR060YS0350U(S) 200MA", code: "EQ00582" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "PENDENTE",
@@ -329,6 +425,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 200MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -341,6 +441,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -353,6 +457,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -365,6 +473,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -377,6 +489,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -389,6 +505,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -401,6 +521,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -413,6 +537,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -425,6 +553,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -437,6 +569,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "SOBREPOR",
@@ -449,6 +585,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -461,6 +601,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -473,6 +617,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -485,6 +633,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -497,6 +649,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -509,6 +665,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -521,6 +681,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: null,
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -533,6 +697,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -545,6 +713,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -557,6 +729,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -569,6 +745,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -581,6 +761,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -593,6 +777,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -605,6 +793,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -617,6 +809,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -629,6 +825,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -641,6 +841,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -653,6 +857,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -665,6 +873,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 40W LF-FMR040YS0350U(S) 350MA", code: "EQ00581" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
   {
     instalacao: "EMBUTIR",
@@ -677,6 +889,10 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverBivolt: { model: "LIFUD 20W LF-FMR020YS0350U(S) 350MA", code: "EQ00580" },
     driverDim110v: null,
     driverDimDali: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
+    driverQtdDim110v: null,
+    driverQtdDimDali: null,
   },
 ];
 

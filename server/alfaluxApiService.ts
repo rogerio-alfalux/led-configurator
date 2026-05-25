@@ -52,6 +52,15 @@ export interface AlfaluxProduct {
   /** Driver DIM DALI (null = não disponível) */
   driverDimDali: DriverInfo | null;
 
+  /** Quantidade de drivers ON/OFF 220V. null = driver não existe no produto. */
+  driverQtd220: number | null;
+  /** Quantidade de drivers Bivolt. null = driver não existe no produto. */
+  driverQtdBivolt: number | null;
+  /** Quantidade de drivers DIM 1-10V. null = driver não existe no produto. */
+  driverQtdDim110v: number | null;
+  /** Quantidade de drivers DIM DALI. null = driver não existe no produto. */
+  driverQtdDimDali: number | null;
+
   custoLuminaria: number | null;
   custoDriver220: number | null;
   custoDriverBivolt: number | null;

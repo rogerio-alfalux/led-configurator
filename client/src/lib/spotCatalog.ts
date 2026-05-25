@@ -39,6 +39,10 @@ export interface SpotProduct {
   driver220: SpotDriver;
   /** Driver para Bivolt — null se não houver opção */
   driverBivolt: SpotDriver | null;
+  /** Quantidade de drivers ON/OFF 220V. null = driver não existe no produto. */
+  driverQtd220: number | null;
+  /** Quantidade de drivers Bivolt. null = driver não existe no produto. */
+  driverQtdBivolt: number | null;
   /** CCTs disponíveis para este produto */
   ccts: string[];
   /** URL da foto do produto */
@@ -81,6 +85,8 @@ export const SPOT_CATALOG: SpotProduct[] = [
     dissipador: null,
     driver220: { model: "PHILIPS CERTADRIVE 20W 500MA", code: "EQ00353" },
     driverBivolt: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     fotoUrl: null,
   },
@@ -99,6 +105,8 @@ export const SPOT_CATALOG: SpotProduct[] = [
     dissipador: null,
     driver220: { model: "PHILIPS CERTADRIVE 20W 500MA", code: "EQ00353" },
     driverBivolt: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     fotoUrl: null,
   },
@@ -117,6 +125,8 @@ export const SPOT_CATALOG: SpotProduct[] = [
     dissipador: null,
     driver220: { model: "PHILIPS CERTADRIVE 20W 500MA", code: "EQ00353" },
     driverBivolt: null,
+    driverQtd220: null,
+    driverQtdBivolt: null,
     ccts: ["2700K", "3000K", "4000K", "5000K"],
     fotoUrl: null,
   },

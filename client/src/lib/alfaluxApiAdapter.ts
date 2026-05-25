@@ -65,6 +65,14 @@ export interface ApiProduct {
   driverDim110v: DriverInfo | null;
   /** Driver DIM DALI (null = não disponível) */
   driverDimDali: DriverInfo | null;
+  /** Quantidade de drivers ON/OFF 220V. null = driver não existe no produto. */
+  driverQtd220: number | null;
+  /** Quantidade de drivers Bivolt. null = driver não existe no produto. */
+  driverQtdBivolt: number | null;
+  /** Quantidade de drivers DIM 1-10V. null = driver não existe no produto. */
+  driverQtdDim110v: number | null;
+  /** Quantidade de drivers DIM DALI. null = driver não existe no produto. */
+  driverQtdDimDali: number | null;
   custoLuminaria: number | null;
   custoDriver220: number | null;
   custoDriverBivolt: number | null;
@@ -144,6 +152,10 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
     driverDimDali: dDimDali
       ? { model: driverModel(dDimDali), code: driverCode(dDimDali) }
       : null,
+    driverQtd220: p.driverQtd220 ?? null,
+    driverQtdBivolt: p.driverQtdBivolt ?? null,
+    driverQtdDim110v: p.driverQtdDim110v ?? null,
+    driverQtdDimDali: p.driverQtdDimDali ?? null,
   };
 }
 
@@ -172,6 +184,8 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
     driverBivolt: dBivolt
       ? { model: driverModel(dBivolt), code: driverCode(dBivolt) }
       : null,
+    driverQtd220: p.driverQtd220 ?? null,
+    driverQtdBivolt: p.driverQtdBivolt ?? null,
     ccts,
     fotoUrl: normalizeFotoUrl(p.fotoUrl),
   };
@@ -213,6 +227,10 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
     driverBivolt,
     driverDim110v,
     driverDimDali,
+    driverQtd220: p.driverQtd220 ?? null,
+    driverQtdBivolt: p.driverQtdBivolt ?? null,
+    driverQtdDim110v: p.driverQtdDim110v ?? null,
+    driverQtdDimDali: p.driverQtdDimDali ?? null,
   };
 }
 

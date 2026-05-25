@@ -108,8 +108,19 @@ const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.E
   { value: "Decorativas",  label: "Decorativas",   icon: Sparkles,    image: "/manus-storage/DECORATIVAS_4ee44c0e.png", available: false },
 ];
 
-// ─── Componentes Auxiliares ────────────────────────────────────────────────────
+// ─── Auxiliar: quantidade de drivers por produto/controle/tensão ─────────────
+function driverQtyFor(
+  product: { driverQtd220?: number | null; driverQtdBivolt?: number | null; driverQtdDim110v?: number | null; driverQtdDimDali?: number | null },
+  controle: string,
+  tensao: string
+): number {
+  if (controle === 'DIM DALI') return product.driverQtdDimDali ?? 1;
+  if (controle === 'DIM 1-10V') return product.driverQtdDim110v ?? 1;
+  if (tensao === 'Bivolt') return product.driverQtdBivolt ?? 1;
+  return product.driverQtd220 ?? 1;
+}
 
+// ─── Componentes Auxiliares ────────────────────────────────────────────────────
 function FieldLabel({ children, hint }: { children: React.ReactNode; hint?: string }) {
   return (
     <div className="flex items-center gap-1.5 mb-1.5">
@@ -3067,7 +3078,7 @@ export default function Home() {
                             }
                             if (dlResult.product.holder) parts.push(dlResult.product.holder.toUpperCase());
                             if (dlResult.product.dissipador) parts.push(dlResult.product.dissipador.toUpperCase());
-                            { const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; parts.push(`1x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`); }
+                            { const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); parts.push(`${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`); }
                           const txt = (`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim();
                         navigator.clipboard.writeText(txt);
                         toast.success("Copiado!");
@@ -3100,7 +3111,7 @@ export default function Home() {
                           }
                           if (dlResult.product.holder) parts.push(dlResult.product.holder.toUpperCase());
                           if (dlResult.product.dissipador) parts.push(dlResult.product.dissipador.toUpperCase());
-                          { const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; parts.push(`1x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`); }
+                          { const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); parts.push(`${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`); }
                           return (`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim();
                         })()}
                     </div>
@@ -3243,7 +3254,7 @@ export default function Home() {
                       onClick={() => {
                         const parts: string[] = [];
                         if (panelResult.ledModuleWithCCT) parts.push(panelResult.ledModuleWithCCT.toUpperCase());
-                        { const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; parts.push(`1x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`); }
+                        { const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; const drvQty = driverQtyFor(panelResult.product, panelResult.controle, panelResult.tensao); parts.push(`${drvQty}x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`); }
                         const skuLine = panelResult.product.sku ? `CÓDIGO: ${panelResult.product.sku}\n` : "";
                         const txt = `${skuLine}${panelResult.product.name.toUpperCase()} ${panelResult.cct} ${panelResult.tensao} MONTADA COM ${parts.join(" + ")}`;
                         navigator.clipboard.writeText(txt);
@@ -3261,7 +3272,7 @@ export default function Home() {
                       {(() => {
                         const parts: string[] = [];
                         if (panelResult.ledModuleWithCCT) parts.push(panelResult.ledModuleWithCCT.toUpperCase());
-                        { const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; parts.push(`1x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`); }
+                        { const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; const drvQty = driverQtyFor(panelResult.product, panelResult.controle, panelResult.tensao); parts.push(`${drvQty}x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`); }
                         const skuLine = panelResult.product.sku ? `CÓDIGO: ${panelResult.product.sku}\n` : "";
                         return `${skuLine}${panelResult.product.name.toUpperCase()} ${panelResult.cct} ${panelResult.tensao} MONTADA COM ${parts.join(" + ")}`;
                       })()}
@@ -3418,7 +3429,7 @@ export default function Home() {
                            parts.push(spotResult.product.otica.toUpperCase());
                          }
                          if (spotResult.product.holder) parts.push(spotResult.product.holder.toUpperCase());
-                         { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; parts.push(`1x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`); }
+                         { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; const drvQty = driverQtyFor(spotResult.product, spotResult.controle, spotResult.tensao); parts.push(`${drvQty}x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`); }
                          const skuLine = spotResult.product.sku ? `CÓDIGO: ${spotResult.product.sku}\n` : "";
                         const txt = `${skuLine}${spotResult.product.name.toUpperCase()} ${spotResult.cct} ${spotResult.tensao} MONTADA COM ${parts.join(" + ")}`;
                         navigator.clipboard.writeText(txt);
@@ -3444,7 +3455,7 @@ export default function Home() {
                            parts.push(spotResult.product.otica.toUpperCase());
                          }
                          if (spotResult.product.holder) parts.push(spotResult.product.holder.toUpperCase());
-                         { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; parts.push(`1x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`); }
+                         { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; const drvQty = driverQtyFor(spotResult.product, spotResult.controle, spotResult.tensao); parts.push(`${drvQty}x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`); }
                          const skuLine = spotResult.product.sku ? `CÓDIGO: ${spotResult.product.sku}\n` : "";
                          
                         return `${skuLine}${spotResult.product.name.toUpperCase()} ${spotResult.cct} ${spotResult.tensao} MONTADA COM ${parts.join(" + ")}`;
