@@ -237,13 +237,19 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
 
 const ALFALUX_API_BASE = "https://alfaluxprod-c8zmg2fn.manus.space";
 
-/** Normaliza fotoUrl: usa proxy interno para evitar bloqueios CORS/referrer do CloudFront */
+/**
+ * Normaliza fotoUrl:
+ * - URLs absolutas (http/https) → usadas diretamente pelo browser (CloudFront pré-assinado público)
+ * - Caminhos relativos (/manus-storage/...) → passados pelo proxy interno (legado autenticado)
+ */
 function normalizeFotoUrl(fotoUrl: string | null): string | null {
   if (!fotoUrl) return null;
-  const absoluteUrl =
-    fotoUrl.startsWith("http://") || fotoUrl.startsWith("https://")
-      ? fotoUrl
-      : `${ALFALUX_API_BASE}${fotoUrl}`;
+  // URL absoluta (CloudFront assinado ou qualquer CDN público) → usar diretamente
+  if (fotoUrl.startsWith("http://") || fotoUrl.startsWith("https://")) {
+    return fotoUrl;
+  }
+  // Caminho relativo legado → passar pelo proxy para evitar bloqueio de autenticação
+  const absoluteUrl = `${ALFALUX_API_BASE}${fotoUrl}`;
   return `/api/image-proxy?url=${encodeURIComponent(absoluteUrl)}`;
 }
 

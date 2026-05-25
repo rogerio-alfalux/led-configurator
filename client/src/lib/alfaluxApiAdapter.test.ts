@@ -110,7 +110,15 @@ describe("adaptAlfaluxProducts - Downlights", () => {
   it("mapeia foto por SKU", () => {
     const products = [makeProduct({ sku: "LDE-1234.567.89F", fotoUrl: "https://example.com/foto.jpg" })];
     const result = adaptAlfaluxProducts(products);
-    expect(result.downlightFotos["LDE-1234.567.89F"]).toBe("/api/image-proxy?url=https%3A%2F%2Fexample.com%2Ffoto.jpg");
+    // URLs absolutas (CloudFront pré-assinado) são usadas diretamente pelo browser, sem proxy
+    expect(result.downlightFotos["LDE-1234.567.89F"]).toBe("https://example.com/foto.jpg");
+  });
+
+  it("usa proxy para caminhos relativos de foto (legado)", () => {
+    const products = [makeProduct({ sku: "LDE-1234.567.89F", fotoUrl: "/manus-storage/foto.jpg" })];
+    const result = adaptAlfaluxProducts(products);
+    // Caminhos relativos passam pelo proxy para evitar bloqueio de autenticação
+    expect(result.downlightFotos["LDE-1234.567.89F"]).toBe("/api/image-proxy?url=https%3A%2F%2Falfaluxprod-c8zmg2fn.manus.space%2Fmanus-storage%2Ffoto.jpg");
   });
 });
 
@@ -133,7 +141,8 @@ describe("adaptAlfaluxProducts - Painéis", () => {
   it("mapeia foto por familia para Painéis", () => {
     const products = [makeProduct({ categoria: "PAINÉIS", familia: "ALE-2103", fotoUrl: "https://example.com/painel.jpg" })];
     const result = adaptAlfaluxProducts(products);
-    expect(result.painelFotos["ALE-2103"]).toBe("/api/image-proxy?url=https%3A%2F%2Fexample.com%2Fpainel.jpg");
+    // URLs absolutas (CloudFront pré-assinado) são usadas diretamente pelo browser, sem proxy
+    expect(result.painelFotos["ALE-2103"]).toBe("https://example.com/painel.jpg");
   });
 
   it("remove [CCT] do ledModule em Painéis", () => {
