@@ -3624,7 +3624,7 @@ export default function Home() {
                       variant="outline" size="sm" className="h-7 text-xs gap-1.5"
                       onClick={() => {
                         const parts: string[] = [];
-                        if (arandelaResult.ledModuleWithCCT) parts.push(arandelaResult.ledModuleWithCCT.toUpperCase());
+                        if (arandelaResult.ledModuleWithCCT) { const mQtd = arandelaResult.product.ledModuleQtd; const mPrefix = mQtd != null ? `${mQtd}x ` : ""; parts.push(`${mPrefix}${arandelaResult.ledModuleWithCCT.toUpperCase()}`); }
                         { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); parts.push(`${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`); }
                         const skuLine = arandelaResult.product.sku ? `CÓDIGO: ${arandelaResult.product.sku}\n` : "";
                         const txt = `${skuLine}${arandelaResult.product.name.toUpperCase()} ${arandelaResult.cct} ${arandelaResult.tensao} MONTADA COM ${parts.join(" + ")}`;
@@ -3642,7 +3642,7 @@ export default function Home() {
                     >
                       {(() => {
                         const parts: string[] = [];
-                        if (arandelaResult.ledModuleWithCCT) parts.push(arandelaResult.ledModuleWithCCT.toUpperCase());
+                        if (arandelaResult.ledModuleWithCCT) { const mQtd = arandelaResult.product.ledModuleQtd; const mPrefix = mQtd != null ? `${mQtd}x ` : ""; parts.push(`${mPrefix}${arandelaResult.ledModuleWithCCT.toUpperCase()}`); }
                         { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); parts.push(`${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`); }
                         const skuLine = arandelaResult.product.sku ? `CÓDIGO: ${arandelaResult.product.sku}\n` : "";
                         return `${skuLine}${arandelaResult.product.name.toUpperCase()} ${arandelaResult.cct} ${arandelaResult.tensao} MONTADA COM ${parts.join(" + ")}`;
