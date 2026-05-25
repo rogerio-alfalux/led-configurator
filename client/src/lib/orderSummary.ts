@@ -196,5 +196,11 @@ export function generateOrderSummary(result: CompositionResult): string {
     }
   });
 
-  return blocks.join("\n\n");
+  // Observação especial: 36W com Stripline → programar driver em 250mA
+  const striplineObs =
+    result.powerD1 === 36 && result.stripMethod === "STRIPLINE"
+      ? "\nOBS: programar driver em 250mA"
+      : "";
+
+  return blocks.join("\n\n") + striplineObs;
 }

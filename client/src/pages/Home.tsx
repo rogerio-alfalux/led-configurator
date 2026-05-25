@@ -3256,7 +3256,9 @@ export default function Home() {
                         if (panelResult.ledModuleWithCCT) parts.push(panelResult.ledModuleWithCCT.toUpperCase());
                         { const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; const drvQty = driverQtyFor(panelResult.product, panelResult.controle, panelResult.tensao); parts.push(`${drvQty}x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`); }
                         const skuLine = panelResult.product.sku ? `CÓDIGO: ${panelResult.product.sku}\n` : "";
-                        const txt = `${skuLine}${panelResult.product.name.toUpperCase()} ${panelResult.cct} ${panelResult.tensao} MONTADA COM ${parts.join(" + ")}`;
+                        const isOrbitFamily = panelResult.product.familia.toUpperCase().startsWith("ORBIT");
+                        const orbitObs = isOrbitFamily ? "\nOBS: programar driver em 200mA" : "";
+                        const txt = `${skuLine}${panelResult.product.name.toUpperCase()} ${panelResult.cct} ${panelResult.tensao} MONTADA COM ${parts.join(" + ")}${orbitObs}`;
                         navigator.clipboard.writeText(txt);
                         toast.success("Copiado!");
                       }}
@@ -3274,7 +3276,9 @@ export default function Home() {
                         if (panelResult.ledModuleWithCCT) parts.push(panelResult.ledModuleWithCCT.toUpperCase());
                         { const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; const drvQty = driverQtyFor(panelResult.product, panelResult.controle, panelResult.tensao); parts.push(`${drvQty}x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`); }
                         const skuLine = panelResult.product.sku ? `CÓDIGO: ${panelResult.product.sku}\n` : "";
-                        return `${skuLine}${panelResult.product.name.toUpperCase()} ${panelResult.cct} ${panelResult.tensao} MONTADA COM ${parts.join(" + ")}`;
+                        const isOrbitFamily = panelResult.product.familia.toUpperCase().startsWith("ORBIT");
+                        const orbitObs = isOrbitFamily ? "\nOBS: programar driver em 200mA" : "";
+                        return `${skuLine}${panelResult.product.name.toUpperCase()} ${panelResult.cct} ${panelResult.tensao} MONTADA COM ${parts.join(" + ")}${orbitObs}`;
                       })()}
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
