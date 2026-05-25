@@ -22,6 +22,7 @@
 import type { DownlightProduct } from "./downlightCatalog";
 import type { PainelProduct } from "./painelCatalog";
 import type { SpotProduct } from "./spotCatalog";
+import type { ArandelaProduct } from "./arandelaCatalog";
 import type { LedBarProduct, LedBarPotencia, LedBarDifusor } from "./ledBarCatalog";
 import { parsePotenciaFromName, parseDifusorFromName } from "./ledBarCatalog";
 
@@ -266,6 +267,7 @@ export interface AdaptedCatalogs {
   downlights: DownlightProduct[];
   paineis: PainelProduct[];
   spots: SpotProduct[];
+  arandelas: ArandelaProduct[];
   ledBars: LedBarProduct[];
   /** Mapa familia → CCTs disponíveis para Downlights */
   downlightCCTs: Record<string, string[]>;
@@ -273,12 +275,47 @@ export interface AdaptedCatalogs {
   painelCCTs: Record<string, string[]>;
   /** Mapa familia → CCTs disponíveis para Spots */
   spotCCTs: Record<string, string[]>;
+  /** Mapa familia → CCTs disponíveis para Arandelas */
+  arandelaCCTs: Record<string, string[]>;
   /** Mapa sku → fotoUrl para Downlights */
   downlightFotos: Record<string, string>;
   /** Mapa familia → fotoUrl para Painéis */
   painelFotos: Record<string, string>;
   /** Mapa familia → fotoUrl para Spots */
   spotFotos: Record<string, string>;
+  /** Mapa familia → fotoUrl para Arandelas */
+  arandelaFotos: Record<string, string>;
+}
+
+/** Converte um produto da API para ArandelaProduct */
+function toArandelaProduct(p: ApiProduct): ArandelaProduct {
+  const d220 = p.driver220;
+  const dBivolt = p.driverBivolt;
+  const ccts = normalizeCCTs(p.temperaturasCor);
+  return {
+    instalacao: p.instalacao,
+    familia: p.familia,
+    sku: p.sku || null,
+    name: p.name,
+    ledModule: p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : null,
+    ledModuleQtd: p.ledModuleQtd ?? null,
+    otica: resolveOtica(p),
+    oticaPrimaria: p.oticaPrimaria ?? null,
+    oticaSecundaria: p.oticaSecundaria ?? null,
+    holder: p.holder ?? null,
+    holderQtd: p.holderQtd ?? null,
+    dissipador: p.dissipador ?? null,
+    driver220: d220
+      ? { model: driverModel(d220), code: driverCode(d220) }
+      : { model: "", code: "" },
+    driverBivolt: dBivolt
+      ? { model: driverModel(dBivolt), code: driverCode(dBivolt) }
+      : null,
+    driverQtd220: p.driverQtd220 ?? null,
+    driverQtdBivolt: p.driverQtdBivolt ?? null,
+    ccts,
+    fotoUrl: normalizeFotoUrl(p.fotoUrl),
+  };
 }
 
 /** Converte um produto da API para LedBarProduct */
@@ -320,13 +357,16 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
   const downlights: DownlightProduct[] = [];
   const paineis: PainelProduct[] = [];
   const spots: SpotProduct[] = [];
+  const arandelas: ArandelaProduct[] = [];
   const ledBars: LedBarProduct[] = [];
   const downlightCCTs: Record<string, string[]> = {};
   const painelCCTs: Record<string, string[]> = {};
   const spotCCTs: Record<string, string[]> = {};
+  const arandelaCCTs: Record<string, string[]> = {};
   const downlightFotos: Record<string, string> = {};
   const painelFotos: Record<string, string> = {};
   const spotFotos: Record<string, string> = {};
+  const arandelaFotos: Record<string, string> = {};
 
   for (const p of products) {
     const ccts = normalizeCCTs(p.temperaturasCor);
@@ -344,6 +384,10 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
       spots.push(toSpotProduct(p));
       if (!spotCCTs[p.familia]) spotCCTs[p.familia] = ccts;
       if (p.fotoUrl && p.familia) spotFotos[p.familia] = normalizeFotoUrl(p.fotoUrl)!;
+    } else if (cat === "ARANDELAS") {
+      arandelas.push(toArandelaProduct(p));
+      if (!arandelaCCTs[p.familia]) arandelaCCTs[p.familia] = ccts;
+      if (p.fotoUrl && p.familia) arandelaFotos[p.familia] = normalizeFotoUrl(p.fotoUrl)!;
     } else if (cat === "PERFIS" && isLedBarProduct(p)) {
       const lb = toLedBarProduct(p);
       if (lb) ledBars.push(lb);
@@ -354,12 +398,15 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
     downlights,
     paineis,
     spots,
+    arandelas,
     ledBars,
     downlightCCTs,
     painelCCTs,
     spotCCTs,
+    arandelaCCTs,
     downlightFotos,
     painelFotos,
     spotFotos,
+    arandelaFotos,
   };
 }

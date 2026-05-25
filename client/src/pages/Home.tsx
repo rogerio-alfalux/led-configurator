@@ -33,6 +33,8 @@ import {
 import type { PainelResult } from "@/lib/painelCatalog";
 import { SPOT_CATALOG, calculateSpot } from "@/lib/spotCatalog";
 import type { SpotProduct, SpotResult } from "@/lib/spotCatalog";
+import { ARANDELA_CATALOG, calculateArandela } from "@/lib/arandelaCatalog";
+import type { ArandelaProduct, ArandelaResult } from "@/lib/arandelaCatalog";
 import { adaptAlfaluxProducts } from "@/lib/alfaluxApiAdapter";
 import { useAlfaluxProducts } from "@/hooks/useAlfaluxProducts";
 import {
@@ -102,7 +104,7 @@ const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.E
   { value: "Downlights",   label: "Downlights",    icon: Lightbulb,   image: "/manus-storage/DOWNLIGHTS_938e9ef2.png",  available: true  },
   { value: "Painéis",      label: "Painéis",       icon: Grid2X2,     image: "/manus-storage/PAINEIS_34c70c2f.png",     available: true },
   { value: "Spots",        label: "Spots",         icon: Focus,       image: "/manus-storage/SPOTS_dfc5ecee.jpg",       available: true },
-  { value: "Arandelas",    label: "Arandelas",     icon: Lamp,        image: "/manus-storage/ARANDELAS_2553a7b7.webp",  available: false },
+  { value: "Arandelas",    label: "Arandelas",     icon: Lamp,        image: "/manus-storage/ARANDELAS_2553a7b7.webp",  available: true },
   { value: "Área Externa", label: "Área Externa",  icon: TreePine,    image: "/manus-storage/AREAEXTERNA_5811f7cb.png", available: false },
   { value: "Balizadores",  label: "Balizadores",   icon: Navigation,  image: "/manus-storage/BALIZADORES_482d54f1.png", available: false },
   { value: "Decorativas",  label: "Decorativas",   icon: Sparkles,    image: "/manus-storage/DECORATIVAS_4ee44c0e.png", available: false },
@@ -833,6 +835,7 @@ export default function Home() {
   const activeDlCatalog = adaptedCatalogs?.downlights ?? DOWNLIGHT_CATALOG;
   const activePanelCatalog = adaptedCatalogs?.paineis ?? PAINEL_CATALOG;
   const activeSpotCatalog = adaptedCatalogs?.spots ?? SPOT_CATALOG;
+  const activeArandelaCatalog = adaptedCatalogs?.arandelas ?? ARANDELA_CATALOG;
 
   // ── Catálogo de perfis via API (com fallback para LED_CATALOG estático) ──────
   const activeProfileCatalog = useMemo(() => {
@@ -896,8 +899,15 @@ export default function Home() {
   const [spotVoltage, setSpotVoltage] = useState<"220V" | "Bivolt" | null>(null);
   const [spotCCT, setSpotCCT] = useState<string>("3000K");
   const [spotControle, setSpotControle] = useState<ControleType>("ON/OFF");
-  const [spotResult, setSpotResult] = useState<SpotResult | null>(null);
-
+   const [spotResult, setSpotResult] = useState<SpotResult | null>(null);
+  // Estados de Arandelas
+  const [arandelaInstalacao, setArandelaInstalacao] = useState<string | null>(null);
+  const [arandelaFamilia, setArandelaFamilia] = useState<string | null>(null);
+  const [arandelaProductKey, setArandelaProductKey] = useState<string | null>(null);
+  const [arandelaVoltage, setArandelaVoltage] = useState<"220V" | "Bivolt" | null>(null);
+  const [arandelaCCT, setArandelaCCT] = useState<string>("3000K");
+  const [arandelaControle, setArandelaControle] = useState<ControleType>("ON/OFF");
+  const [arandelaResult, setArandelaResult] = useState<ArandelaResult | null>(null);
   // ── Estados de LED BAR ───────────────────────────────────────────────────────
   const [lbFamilia, setLbFamilia] = useState<string | null>(null);
   const [lbPotencia, setLbPotencia] = useState<LedBarPotencia | null>(null);
@@ -2568,6 +2578,225 @@ export default function Home() {
               );
             })()}
 
+            {/* Bloco de seleção — Arandelas */}
+            {productCategory === "Arandelas" && (() => {
+              const arandelaInstalacoes = Array.from(new Set(activeArandelaCatalog.map(p => p.instalacao))).sort();
+              const arandelaFamilias = arandelaInstalacao
+                ? Array.from(new Set(activeArandelaCatalog.filter(p => p.instalacao === arandelaInstalacao).map(p => p.familia))).sort()
+                : [];
+              const arandelaProdutos = arandelaInstalacao && arandelaFamilia
+                ? activeArandelaCatalog.filter(p => p.instalacao === arandelaInstalacao && p.familia === arandelaFamilia)
+                : [];
+              return (
+                <div className="space-y-4">
+                  {/* Badge de status da API */}
+                  <div className="flex items-center gap-2">
+                    {alfaluxLoading ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span className="inline-block w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                        Carregando catálogo...
+                      </span>
+                    ) : adaptedCatalogs ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500">
+                        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+                        {activeArandelaCatalog.length} produto{activeArandelaCatalog.length !== 1 ? "s" : ""} • Dados ao vivo
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span className="inline-block w-2 h-2 rounded-full bg-muted-foreground" />
+                        Catálogo local
+                      </span>
+                    )}
+                  </div>
+                  {/* Tipo de Instalação */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tipo de Instalação</Label>
+                    <Select
+                      value={arandelaInstalacao ?? ""}
+                      onValueChange={(v) => { setArandelaInstalacao(v); setArandelaFamilia(null); setArandelaProductKey(null); setArandelaVoltage(null); setArandelaResult(null); }}
+                    >
+                      <SelectTrigger className="h-10">
+                        <SelectValue placeholder="Selecione a instalação..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {arandelaInstalacoes.map(ins => (
+                          <SelectItem key={ins} value={ins}>{ins}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Família */}
+                  {arandelaInstalacao && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Família</Label>
+                      <Select
+                        value={arandelaFamilia ?? ""}
+                        onValueChange={(v) => { setArandelaFamilia(v); setArandelaProductKey(null); setArandelaVoltage(null); setArandelaResult(null); }}
+                      >
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Selecione a família..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {arandelaFamilias.map(f => (
+                            <SelectItem key={f} value={f}>{f}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {/* Produto */}
+                  {arandelaFamilia && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Produto</Label>
+                      <Select
+                        value={arandelaProductKey ?? ""}
+                        onValueChange={(v) => {
+                          setArandelaProductKey(v);
+                          const [newSku, ...newNameParts] = v.split('::');
+                          const newName = newNameParts.join('::');
+                          const newProd = activeArandelaCatalog.find(p => p.sku === newSku && p.name === newName);
+                          if (newProd) {
+                            setArandelaVoltage(null);
+                            const defaultCCT = newProd.ccts.includes("3000K") ? "3000K" : newProd.ccts[0];
+                            setArandelaCCT(defaultCCT);
+                          }
+                          setArandelaResult(null);
+                        }}
+                      >
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Selecione o produto..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {arandelaProdutos.map((p) => {
+                            const key = `${p.sku}::${p.name}`;
+                            return (
+                              <SelectItem key={key} value={key}>{p.name}</SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {/* Controle */}
+                  {arandelaProductKey !== null && (() => {
+                    const [_aSku, ..._aNameParts] = (arandelaProductKey ?? '::').split('::');
+                    const _aName = _aNameParts.join('::');
+                    const _aProd = activeArandelaCatalog.find(p => p.sku === _aSku && p.name === _aName);
+                    const availableControles: ControleType[] = ["ON/OFF"];
+                    return (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Controle</Label>
+                        <div className="flex gap-2 flex-wrap">
+                          {availableControles.map(ctrl => (
+                            <button
+                              key={ctrl}
+                              onClick={() => { setArandelaControle(ctrl); setArandelaResult(null); }}
+                              className={[
+                                "flex-1 py-2 rounded-lg text-xs font-medium border transition-all",
+                                arandelaControle === ctrl
+                                  ? "bg-primary text-primary-foreground border-primary"
+                                  : "bg-background text-foreground border-border hover:border-primary/50",
+                              ].join(" ")}
+                            >
+                              {ctrl}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  {/* Tensão */}
+                  {arandelaProductKey !== null && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
+                      <div className="flex gap-2">
+                        {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
+                          const [_aSku, ..._aNameParts] = (arandelaProductKey ?? '::').split('::'); const _aName = _aNameParts.join('::'); const hasBivolt = activeArandelaCatalog.find(p => p.sku === _aSku && p.name === _aName)?.driverBivolt !== null;
+                          const disabled = v === "Bivolt" && !hasBivolt;
+                          return (
+                            <button
+                              key={v}
+                              disabled={disabled}
+                              onClick={() => { setArandelaVoltage(v); setArandelaResult(null); }}
+                              className={[
+                                "flex-1 py-2 rounded-lg text-sm font-medium border transition-all",
+                                arandelaVoltage === v && !disabled
+                                  ? "bg-primary text-primary-foreground border-primary"
+                                  : "bg-background text-foreground border-border hover:border-primary/50",
+                                disabled ? "opacity-40 cursor-not-allowed" : "",
+                              ].join(" ")}
+                            >
+                              {v}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {/* CCT */}
+                  {arandelaProductKey !== null && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
+                      <div className="flex gap-2 flex-wrap">
+                        {(activeArandelaCatalog.find(p => { const [s, ...np] = (arandelaProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); })?.ccts ?? ["2700K", "3000K", "4000K", "5000K"]).map((c) => (
+                          <button
+                            key={c}
+                            onClick={() => { setArandelaCCT(c); setArandelaResult(null); }}
+                            className={[
+                              "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
+                              arandelaCCT === c
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background text-foreground border-border hover:border-primary/50",
+                            ].join(" ")}
+                          >
+                            {c}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+            {/* Botão Calcular — Arandelas */}
+            {productCategory === "Arandelas" && (
+              <div className="space-y-2">
+                {!arandelaInstalacao && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione o tipo de instalação antes de calcular.
+                  </p>
+                )}
+                {arandelaInstalacao && !arandelaFamilia && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione a família antes de calcular.
+                  </p>
+                )}
+                {arandelaFamilia && arandelaProductKey === null && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione o produto antes de calcular.
+                  </p>
+                )}
+                {arandelaProductKey !== null && !arandelaVoltage && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
+                  </p>
+                )}
+                <Button
+                  disabled={arandelaProductKey === null || !arandelaVoltage}
+                  onClick={() => {
+                    if (arandelaProductKey === null || !arandelaVoltage) return;
+                    const [arandelaSku, ...arandelaNameParts] = (arandelaProductKey ?? '::').split('::');
+                    const arandelaName = arandelaNameParts.join('::');
+                    setArandelaResult(calculateArandela(activeArandelaCatalog, { productSku: arandelaSku, productName: arandelaName, tensao: arandelaVoltage, cct: arandelaCCT, controle: arandelaControle }));
+                  }}
+                  className="w-full h-12 text-base font-semibold font-display"
+                  size="lg"
+                >
+                  <Zap className="w-5 h-5 mr-2" />
+                  Calcular Arandela
+                </Button>
+              </div>
+            )}
             {/* Botão Calcular — Spots */}
             {productCategory === "Spots" && (
               <div className="space-y-2">
@@ -3287,7 +3516,155 @@ export default function Home() {
               </div>
             )}
 
-            {/* Resultado — Spots */}
+            {/* Resultado — Arandelas */}
+            {productCategory === "Arandelas" && arandelaResult && (
+              <div className="space-y-4">
+                <Card className="shadow-sm border-amber-500/30">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <Lamp className="w-4 h-4 text-amber-500" />
+                      Resultado — Arandela
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {/* Foto do produto */}
+                    {(() => {
+                      const aPhoto = arandelaResult.product.fotoUrl;
+                      return aPhoto ? (
+                        <div className="flex gap-3 items-stretch">
+                          <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-36 flex items-center justify-center">
+                            <img src={aPhoto} alt={arandelaResult.product.name} className="w-full h-full object-contain p-2" loading="lazy" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 flex-1">
+                            {arandelaResult.product.sku && (
+                              <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
+                                <p className="text-sm font-mono font-semibold text-primary">{arandelaResult.product.sku}</p>
+                              </div>
+                            )}
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                              <p className="text-sm font-semibold">{arandelaResult.tensao}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                              <p className="text-sm font-semibold">{arandelaResult.cct}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          {arandelaResult.product.sku && (
+                            <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
+                              <p className="text-sm font-mono font-semibold text-primary">{arandelaResult.product.sku}</p>
+                            </div>
+                          )}
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                            <p className="text-sm font-semibold">{arandelaResult.tensao}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                            <p className="text-sm font-semibold">{arandelaResult.cct}</p>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    {/* Módulo LED */}
+                    {arandelaResult.ledModuleWithCCT && (
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
+                        <p className="text-sm font-semibold">{arandelaResult.ledModuleWithCCT}</p>
+                      </div>
+                    )}
+                    {/* Driver */}
+                    <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
+                      <p className="text-sm font-bold">{arandelaResult.driver.model} <span className="font-mono text-primary">({arandelaResult.driver.code})</span></p>
+                    </div>
+                  </CardContent>
+                </Card>
+                {/* Resumo para Orçamento */}
+                <Card className="shadow-sm border-blue-500/30">
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                      Resumo Para Orçamento
+                    </CardTitle>
+                    <Button
+                      variant="outline" size="sm" className="h-7 text-xs gap-1.5"
+                      onClick={() => {
+                        const txt = `${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.tensao}`.toUpperCase();
+                        navigator.clipboard.writeText(txt);
+                        toast.success("Copiado!");
+                      }}
+                    >
+                      <Copy className="w-3 h-3" /> Copiar Orçamento
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div
+                      className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
+                      onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
+                    >
+                      {`${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.tensao}`.toUpperCase()}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
+                  </CardContent>
+                </Card>
+                {/* Resumo para Pedido */}
+                <Card className="shadow-sm border-green-500/30">
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <ClipboardCheck className="w-4 h-4 text-green-500" />
+                      Resumo Para Pedido
+                    </CardTitle>
+                    <Button
+                      variant="outline" size="sm" className="h-7 text-xs gap-1.5"
+                      onClick={() => {
+                        const parts: string[] = [];
+                        if (arandelaResult.ledModuleWithCCT) parts.push(arandelaResult.ledModuleWithCCT.toUpperCase());
+                        { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); parts.push(`${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`); }
+                        const skuLine = arandelaResult.product.sku ? `CÓDIGO: ${arandelaResult.product.sku}\n` : "";
+                        const txt = `${skuLine}${arandelaResult.product.name.toUpperCase()} ${arandelaResult.cct} ${arandelaResult.tensao} MONTADA COM ${parts.join(" + ")}`;
+                        navigator.clipboard.writeText(txt);
+                        toast.success("Copiado!");
+                      }}
+                    >
+                      <Copy className="w-3 h-3" /> Copiar Pedido
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div
+                      className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
+                      onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
+                    >
+                      {(() => {
+                        const parts: string[] = [];
+                        if (arandelaResult.ledModuleWithCCT) parts.push(arandelaResult.ledModuleWithCCT.toUpperCase());
+                        { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); parts.push(`${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`); }
+                        const skuLine = arandelaResult.product.sku ? `CÓDIGO: ${arandelaResult.product.sku}\n` : "";
+                        return `${skuLine}${arandelaResult.product.name.toUpperCase()} ${arandelaResult.cct} ${arandelaResult.tensao} MONTADA COM ${parts.join(" + ")}`;
+                      })()}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+            {/* Estado vazio Arandelas */}
+            {productCategory === "Arandelas" && !arandelaResult && (
+              <Card className="shadow-sm">
+                <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                    <Lamp className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione a instalação, família, produto, tensão e CCT, depois clique em "Calcular Arandela".</p>
+                </CardContent>
+              </Card>
+            )}
             {productCategory === "Spots" && spotResult && (
               <div className="space-y-4">
                 <Card className="shadow-sm border-orange-500/30">
