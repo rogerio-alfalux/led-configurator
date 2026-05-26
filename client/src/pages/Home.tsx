@@ -3606,6 +3606,12 @@ export default function Home() {
                           >
                             {orcamento}
                           </div>
+                          {r.precoTotal !== null && r.precoTotal !== undefined && (
+                            <div className="flex items-center justify-between rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-3 mt-3">
+                              <span className="text-sm font-semibold text-blue-400 uppercase tracking-wide">Preço Total</span>
+                              <span className="text-lg font-bold text-blue-300">{formatBRL(r.precoTotal)}</span>
+                            </div>
+                          )}
                           <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
                           <Button variant="outline" size="sm" className="mt-2" onClick={() => { navigator.clipboard.writeText(orcamento); toast.success("Resumo copiado!"); }}>
                             <Copy className="w-3 h-3 mr-1" /> Copiar Resumo
