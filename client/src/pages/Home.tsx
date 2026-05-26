@@ -133,6 +133,22 @@ function driverQtyFor(
   return product.driverQtd220 ?? 1;
 }
 
+/**
+ * Retorna o preço unitário do produto para o controle/tensão selecionados.
+ * Retorna null se o preço não estiver cadastrado.
+ */
+function getPrecoForControle(
+  product: { precoOnOff220?: number | null; precoOnOffBivolt?: number | null; precoDim110v?: number | null; precoDimDali?: number | null },
+  controle: string,
+  tensao: string
+): number | null {
+  if (controle === 'DIM DALI') return product.precoDimDali ?? null;
+  if (controle === 'DIM 1-10V') return product.precoDim110v ?? null;
+  if (tensao === 'Bivolt') return product.precoOnOffBivolt ?? null;
+  return product.precoOnOff220 ?? null;
+}
+
+
 // ─── Componentes Auxiliares ────────────────────────────────────────────────────
 function FieldLabel({ children, hint }: { children: React.ReactNode; hint?: string }) {
   return (
@@ -3332,10 +3348,12 @@ export default function Home() {
                     const nT = r.nCortes;
                     const mm = r.comprimentoPorTrechoMm;
                     const driverLine = `${r.trechos[0]?.driver.model}${r.trechos[0]?.driver.code ? ` (${r.trechos[0].driver.code})` : ""}`;
-                    const orcamento = [
-                      `${r.product.name} ${r.cct} ${r.voltage}`,
-                      nT > 1 ? `${nT} TRECHOS DE ${mm}MM` : `${mm}MM`,
-                    ].join(" ");
+                    const lbPreco = getPrecoForControle(r.product, r.voltage === "Bivolt" ? "ON/OFF Bivolt" : "ON/OFF 220V", r.voltage);
+                    const orcamentoLines = [
+                      [`${r.product.name} ${r.cct} ${r.voltage}`, nT > 1 ? `${nT} TRECHOS DE ${mm}MM` : `${mm}MM`].join(" "),
+                    ];
+                    if (lbPreco !== null) orcamentoLines.push(`PREÇO: ${formatBRL(lbPreco)}`);
+                    const orcamento = orcamentoLines.join("\n");
                     const cortesInfo = nT > 1 ? ` COM ${nT} CORTES` : "";
                     const pedido = [
                       `CÓDIGO: ${r.product.sku}`,
@@ -3705,7 +3723,10 @@ export default function Home() {
                       size="sm"
                       className="h-7 text-xs gap-1.5"
                       onClick={() => {
-                        const txt = `${dlResult.product.name} ${dlResult.cct} ${dlResult.tensao}`.toUpperCase();
+                        const preco = getPrecoForControle(dlResult.product, dlResult.controle, dlResult.tensao);
+                        const lines = [`${dlResult.product.name} ${dlResult.cct} ${dlResult.tensao}`.toUpperCase()];
+                        if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                        const txt = lines.join("\n");
                         navigator.clipboard.writeText(txt);
                         toast.success("Copiado!");
                       }}
@@ -3724,7 +3745,12 @@ export default function Home() {
                         sel?.addRange(range);
                       }}
                     >
-                      {`${dlResult.product.name} ${dlResult.cct} ${dlResult.tensao}`.toUpperCase()}
+                      {(() => {
+                          const preco = getPrecoForControle(dlResult.product, dlResult.controle, dlResult.tensao);
+                          const lines = [`${dlResult.product.name} ${dlResult.cct} ${dlResult.tensao}`.toUpperCase()];
+                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          return lines.join("\n");
+                        })()}
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.</p>
                   </CardContent>
@@ -3899,7 +3925,10 @@ export default function Home() {
                     <Button
                       variant="outline" size="sm" className="h-7 text-xs gap-1.5"
                       onClick={() => {
-                        const txt = `${panelResult.product.name} ${panelResult.cct} ${panelResult.tensao}`.toUpperCase();
+                        const preco = getPrecoForControle(panelResult.product, panelResult.controle, panelResult.tensao);
+                        const lines = [`${panelResult.product.name} ${panelResult.cct} ${panelResult.tensao}`.toUpperCase()];
+                        if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                        const txt = lines.join("\n");
                         navigator.clipboard.writeText(txt);
                         toast.success("Copiado!");
                       }}
@@ -3912,7 +3941,12 @@ export default function Home() {
                       className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
                       onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
                     >
-                      {`${panelResult.product.name} ${panelResult.cct} ${panelResult.tensao}`.toUpperCase()}
+                      {(() => {
+                          const preco = getPrecoForControle(panelResult.product, panelResult.controle, panelResult.tensao);
+                          const lines = [`${panelResult.product.name} ${panelResult.cct} ${panelResult.tensao}`.toUpperCase()];
+                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          return lines.join("\n");
+                        })()}
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
                   </CardContent>
@@ -4042,7 +4076,10 @@ export default function Home() {
                     <Button
                       variant="outline" size="sm" className="h-7 text-xs gap-1.5"
                       onClick={() => {
-                        const txt = `${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.tensao}`.toUpperCase();
+                        const preco = getPrecoForControle(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao);
+                        const lines = [`${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.tensao}`.toUpperCase()];
+                        if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                        const txt = lines.join("\n");
                         navigator.clipboard.writeText(txt);
                         toast.success("Copiado!");
                       }}
@@ -4055,7 +4092,12 @@ export default function Home() {
                       className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
                       onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
                     >
-                      {`${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.tensao}`.toUpperCase()}
+                      {(() => {
+                          const preco = getPrecoForControle(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao);
+                          const lines = [`${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.tensao}`.toUpperCase()];
+                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          return lines.join("\n");
+                        })()}
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
                   </CardContent>
@@ -4219,7 +4261,10 @@ export default function Home() {
                     <Button
                       variant="outline" size="sm" className="h-7 text-xs gap-1.5"
                       onClick={() => {
-                        const txt = `${spotResult.product.name} ${spotResult.cct} ${spotResult.tensao}`.toUpperCase();
+                        const preco = getPrecoForControle(spotResult.product, spotResult.controle, spotResult.tensao);
+                        const lines = [`${spotResult.product.name} ${spotResult.cct} ${spotResult.tensao}`.toUpperCase()];
+                        if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                        const txt = lines.join("\n");
                         navigator.clipboard.writeText(txt);
                         toast.success("Copiado!");
                       }}
@@ -4232,7 +4277,12 @@ export default function Home() {
                       className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
                       onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
                     >
-                      {`${spotResult.product.name} ${spotResult.cct} ${spotResult.tensao}`.toUpperCase()}
+                      {(() => {
+                          const preco = getPrecoForControle(spotResult.product, spotResult.controle, spotResult.tensao);
+                          const lines = [`${spotResult.product.name} ${spotResult.cct} ${spotResult.tensao}`.toUpperCase()];
+                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          return lines.join("\n");
+                        })()}
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
                   </CardContent>

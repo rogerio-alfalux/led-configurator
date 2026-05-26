@@ -165,6 +165,10 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
     driverQtdBivolt: p.driverQtdBivolt ?? null,
     driverQtdDim110v: p.driverQtdDim110v ?? null,
     driverQtdDimDali: p.driverQtdDimDali ?? null,
+    precoOnOff220: p.precoOnOff220 ?? null,
+    precoOnOffBivolt: p.precoOnOffBivolt ?? null,
+    precoDim110v: p.precoDim110v ?? null,
+    precoDimDali: p.precoDimDali ?? null,
   };
 }
 
@@ -197,6 +201,10 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
     driverQtdBivolt: p.driverQtdBivolt ?? null,
     ccts,
     fotoUrl: normalizeFotoUrl(p.fotoUrl),
+    precoOnOff220: p.precoOnOff220 ?? null,
+    precoOnOffBivolt: p.precoOnOffBivolt ?? null,
+    precoDim110v: p.precoDim110v ?? null,
+    precoDimDali: p.precoDimDali ?? null,
   };
 }
 
@@ -240,6 +248,10 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
     driverQtdBivolt: p.driverQtdBivolt ?? null,
     driverQtdDim110v: p.driverQtdDim110v ?? null,
     driverQtdDimDali: p.driverQtdDimDali ?? null,
+    precoOnOff220: p.precoOnOff220 ?? null,
+    precoOnOffBivolt: p.precoOnOffBivolt ?? null,
+    precoDim110v: p.precoDim110v ?? null,
+    precoDimDali: p.precoDimDali ?? null,
   };
 }
 
@@ -330,6 +342,10 @@ function toArandelaProduct(p: ApiProduct): ArandelaProduct {
     driverQtdBivolt: p.driverQtdBivolt ?? null,
     ccts,
     fotoUrl: normalizeFotoUrl(p.fotoUrl),
+    precoOnOff220: p.precoOnOff220 ?? null,
+    precoOnOffBivolt: p.precoOnOffBivolt ?? null,
+    precoDim110v: p.precoDim110v ?? null,
+    precoDimDali: p.precoDimDali ?? null,
   };
 }
 
@@ -359,6 +375,10 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
     driverDim010v: dDim010v ? { model: driverModel(dDim010v), code: driverCode(dDim010v) } : null,
     driverDimDali: dDimDali ? { model: driverModel(dDimDali), code: driverCode(dDimDali) } : null,
     fotoUrl: normalizeFotoUrl(p.fotoUrl),
+    precoOnOff220: p.precoOnOff220 ?? null,
+    precoOnOffBivolt: p.precoOnOffBivolt ?? null,
+    precoDim110v: p.precoDim110v ?? null,
+    precoDimDali: p.precoDimDali ?? null,
   };
 }
 

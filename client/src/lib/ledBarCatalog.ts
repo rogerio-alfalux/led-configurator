@@ -49,6 +49,14 @@ export interface LedBarProduct {
   driverDimDali: LedBarDriverInfo | null;
   /** URL da foto do produto */
   fotoUrl: string | null;
+  /** Preço unitário ON/OFF 220V (R$). null = não cadastrado. */
+  precoOnOff220?: number | null;
+  /** Preço unitário ON/OFF Bivolt (R$). null = não cadastrado. */
+  precoOnOffBivolt?: number | null;
+  /** Preço unitário DIM 0-10V (R$). null = não cadastrado. */
+  precoDim110v?: number | null;
+  /** Preço unitário DIM DALI (R$). null = não cadastrado. */
+  precoDimDali?: number | null;
 }
 
 // ─── Catálogo estático de fallback ───────────────────────────────────────────
