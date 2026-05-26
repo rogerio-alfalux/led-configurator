@@ -1559,16 +1559,16 @@ export default function Home() {
                     )}
                   </div>
                   )}
-                  {/* Controle — botões em linha única sem quebra */}
+                  {/* Controle — grid 2×2 para caber na caixa */}
                   {bgInstalacao && (
                   <div>
                     <FieldLabel>Controle</FieldLabel>
-                    <div className="flex gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       {bgControles.map((ctrl) => (
                         <button
                           key={ctrl}
                           onClick={() => { setBgControle(ctrl); setBgResult(null); }}
-                          className={`flex-1 px-3 py-2 rounded-md text-sm font-medium border transition-all whitespace-nowrap ${
+                          className={`px-3 py-2 rounded-md text-sm font-medium border transition-all text-center ${
                             bgControle === ctrl
                               ? "bg-primary text-primary-foreground border-primary shadow-sm"
                               : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
@@ -3504,8 +3504,32 @@ export default function Home() {
                     `${r.product.name} ${r.cct} ${r.controle} ${comprStr}`,
                     precoLine,
                   ].filter(Boolean).join("\n");
-                  const fitaLine = `${r.fitaMetros.toFixed(1).replace(".",",")}M DE FITA LED ${r.ledModuleWithCCT.toUpperCase()}`;
-                  const drvLine = `${r.driverQtd}x FONTE DE TENSÃO ${r.driver.model.toUpperCase()}${r.driver.code ? ` (${r.driver.code})` : ""}`;
+                  // Monta a linha de fita com "voltas"
+                  // D1 (20W/m): 2x voltas de comprimento mm cada
+                  // D1+D2 (40W/m): 4x voltas de comprimento mm cada (2 por lado × 2 lados)
+                  const aplicacao = r.product.aplicacao;
+                  const ledModuleName = r.ledModuleWithCCT.toUpperCase();
+                  let fitaLine: string;
+                  let drvLine: string;
+                  if (aplicacao === "D1+D2") {
+                    // D1+D2: dois circuitos independentes (D1 e D2), cada um com 2 voltas
+                    const voltasPorLado = 2;
+                    const fitaD1 = `D1: ${voltasPorLado}x VOLTAS DE ${r.comprimento}MM DE FITA LED ${ledModuleName}`;
+                    const fitaD2 = `D2: ${voltasPorLado}x VOLTAS DE ${r.comprimento}MM DE FITA LED ${ledModuleName}`;
+                    const drvModel = r.driver.model.toUpperCase();
+                    const drvCode = r.driver.code ? ` (${r.driver.code})` : "";
+                    const drvD1 = `D1: ${r.driverQtd}x FONTE DE TENSÃO ${drvModel}${drvCode}`;
+                    const drvD2 = `D2: ${r.driverQtd}x FONTE DE TENSÃO ${drvModel}${drvCode}`;
+                    fitaLine = `${fitaD1} | ${fitaD2}`;
+                    drvLine = `${drvD1} | ${drvD2}`;
+                  } else {
+                    // D1 (20W/m): 2 voltas de comprimento mm
+                    const voltas = r.ledModuleQtd; // 2 para D1
+                    const drvModel = r.driver.model.toUpperCase();
+                    const drvCode = r.driver.code ? ` (${r.driver.code})` : "";
+                    fitaLine = `${voltas}x VOLTAS DE ${r.comprimento}MM DE FITA LED ${ledModuleName}`;
+                    drvLine = `${r.driverQtd}x FONTE DE TENSÃO ${drvModel}${drvCode}`;
+                  }
                   const pedido = [
                     `CÓDIGO: ${r.product.sku}`,
                     `${r.product.name} ${r.cct} ${r.controle} ${comprStr}`,
