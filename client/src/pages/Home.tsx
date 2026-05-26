@@ -930,6 +930,7 @@ export default function Home() {
   const [lbNCortes, setLbNCortes] = useState<string>("1");
   const [lbResult, setLbResult] = useState<LedBarResult | null>(null);
   // ── Estados de BAGEO ─────────────────────────────────────────────────────────
+  const [bgMode, setBgMode] = useState<boolean>(false); // true quando BAGEO está selecionado no dropdown
   const [bgInstalacao, setBgInstalacao] = useState<BageoInstalacao | null>(null);
   const [bgProduct, setBgProduct] = useState<BageoProduct | null>(null);
   const [bgComprimento, setBgComprimento] = useState<string>("1000");
@@ -1428,10 +1429,11 @@ export default function Home() {
                 <div>
                   <FieldLabel>Perfil</FieldLabel>
                   <Select
-                    value={bgInstalacao ? "__BAGEO__" : lbFamilia ? `__LEDBAR__${lbFamilia}` : profileName}
+                    value={bgMode ? "__BAGEO__" : lbFamilia ? `__LEDBAR__${lbFamilia}` : profileName}
                     onValueChange={(v) => {
                       if (v === "__BAGEO__") {
-                        setBgInstalacao(bgInstalacoes[0] ?? "PENDENTE");
+                        setBgMode(true);
+                        setBgInstalacao(null);
                         setBgProduct(null);
                         setBgResult(null);
                         setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
@@ -1442,7 +1444,7 @@ export default function Home() {
                         setLbPotencia(null);
                         setLbDifusor(null);
                         setLbResult(null);
-                        setBgInstalacao(null); setBgProduct(null); setBgResult(null);
+                        setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                         setProfileName("");
                         setInstallType("");
                         setResult(null);
@@ -1451,7 +1453,7 @@ export default function Home() {
                         handleProfileChange(v);
                         setLbFamilia(null);
                         setLbResult(null);
-                        setBgInstalacao(null); setBgProduct(null); setBgResult(null);
+                        setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                       }
                     }}
                   >
@@ -1486,30 +1488,33 @@ export default function Home() {
                 </div>
 
                 {/* ── Fluxo BAGEO ───────────────────────────────────────────────────────────────────────── */}
-                {bgInstalacao && (
+                {bgMode && (
                 <div className="space-y-4">
-                  {/* Instalação */}
-                  {bgInstalacoes.length > 1 && (
+                  {/* Instalação — sempre visível após BAGEO ser selecionado */}
                   <div>
                     <FieldLabel>Instalação</FieldLabel>
-                    <div className="flex gap-2">
-                      {bgInstalacoes.map((inst) => (
-                        <button
-                          key={inst}
-                          onClick={() => { setBgInstalacao(inst); setBgProduct(null); setBgResult(null); }}
-                          className={`flex-1 px-3 py-2 rounded-md text-sm font-medium border transition-all ${
-                            bgInstalacao === inst
-                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                              : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
-                          }`}
-                        >
-                          {inst.charAt(0) + inst.slice(1).toLowerCase()}
-                        </button>
-                      ))}
-                    </div>
+                    <Select
+                      value={bgInstalacao ?? ""}
+                      onValueChange={(v) => {
+                        setBgInstalacao(v as BageoInstalacao);
+                        setBgProduct(null);
+                        setBgResult(null);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o tipo de instalação..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {bgInstalacoes.map((inst) => (
+                          <SelectItem key={inst} value={inst}>
+                            {inst.charAt(0) + inst.slice(1).toLowerCase()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  )}
-                  {/* Modelo */}
+                  {/* Modelo — só após instalação selecionada */}
+                  {bgInstalacao && (
                   <div>
                     <FieldLabel>Modelo</FieldLabel>
                     <Select
@@ -1533,7 +1538,9 @@ export default function Home() {
                       </SelectContent>
                     </Select>
                   </div>
+                  )}
                   {/* Comprimento */}
+                  {bgInstalacao && (
                   <div>
                     <FieldLabel>Comprimento (mm)</FieldLabel>
                     <input
@@ -1551,15 +1558,17 @@ export default function Home() {
                       </p>
                     )}
                   </div>
-                  {/* Controle */}
+                  )}
+                  {/* Controle — botões em linha única sem quebra */}
+                  {bgInstalacao && (
                   <div>
                     <FieldLabel>Controle</FieldLabel>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex gap-2">
                       {bgControles.map((ctrl) => (
                         <button
                           key={ctrl}
                           onClick={() => { setBgControle(ctrl); setBgResult(null); }}
-                          className={`flex-1 min-w-[80px] px-3 py-2 rounded-md text-sm font-medium border transition-all ${
+                          className={`flex-1 px-3 py-2 rounded-md text-sm font-medium border transition-all whitespace-nowrap ${
                             bgControle === ctrl
                               ? "bg-primary text-primary-foreground border-primary shadow-sm"
                               : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
@@ -1570,7 +1579,9 @@ export default function Home() {
                       ))}
                     </div>
                   </div>
+                  )}
                   {/* CCT */}
+                  {bgInstalacao && (
                   <div>
                     <FieldLabel>CCT</FieldLabel>
                     <div className="flex flex-wrap gap-2">
@@ -1589,7 +1600,9 @@ export default function Home() {
                       ))}
                     </div>
                   </div>
+                  )}
                   {/* Botão Calcular */}
+                  {bgInstalacao && (
                   <Button
                     className="w-full h-12 text-base font-semibold"
                     onClick={handleCalculateBageo}
@@ -1598,6 +1611,7 @@ export default function Home() {
                     <Zap className="w-4 h-4 mr-2" />
                     Calcular BAGEO
                   </Button>
+                  )}
                 </div>
                 )}
                 {/* ── Fluxo LED BAR ────────────────────────────────────────────────────────────────── */}
@@ -3398,37 +3412,67 @@ export default function Home() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {bgResult.product.fotoUrl && (
-                      <div className="rounded-lg overflow-hidden border border-border bg-muted/20 w-full flex items-center justify-center h-40">
-                        <img src={bgResult.product.fotoUrl} alt={bgResult.product.name} className="h-full object-contain p-2" loading="lazy" />
+                    {/* Layout padrão: foto pequena à esquerda + grid de métricas */}
+                    {bgResult.product.fotoUrl ? (
+                      <div className="flex gap-3 items-stretch">
+                        <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-36 flex items-center justify-center">
+                          <img src={bgResult.product.fotoUrl} alt={bgResult.product.name} className="w-full h-full object-contain p-2" loading="lazy" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 flex-1">
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
+                            <p className="text-sm font-mono font-semibold text-primary">{bgResult.product.sku}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
+                            <p className="text-sm font-semibold">{bgResult.product.name}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                            <p className="text-sm font-semibold">{bgResult.cct}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Controle</p>
+                            <p className="text-sm font-semibold">{bgResult.controle}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Comprimento</p>
+                            <p className="text-sm font-semibold">{bgResult.comprimento}mm ({bgResult.comprimentoMetros.toFixed(3).replace(".",",")} m)</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Instalação</p>
+                            <p className="text-sm font-semibold">{bgResult.product.instalacao}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
+                          <p className="text-sm font-mono font-semibold text-primary">{bgResult.product.sku}</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
+                          <p className="text-sm font-semibold">{bgResult.product.name}</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                          <p className="text-sm font-semibold">{bgResult.cct}</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Controle</p>
+                          <p className="text-sm font-semibold">{bgResult.controle}</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Comprimento</p>
+                          <p className="text-sm font-semibold">{bgResult.comprimento}mm ({bgResult.comprimentoMetros.toFixed(3).replace(".",",")} m)</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Instalação</p>
+                          <p className="text-sm font-semibold">{bgResult.product.instalacao}</p>
+                        </div>
                       </div>
                     )}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
-                        <p className="text-sm font-mono font-semibold text-primary">{bgResult.product.sku}</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
-                        <p className="text-sm font-semibold">{bgResult.product.name}</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
-                        <p className="text-sm font-semibold">{bgResult.cct}</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Controle</p>
-                        <p className="text-sm font-semibold">{bgResult.controle}</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Comprimento</p>
-                        <p className="text-sm font-semibold">{bgResult.comprimento}mm ({bgResult.comprimentoMetros.toFixed(3).replace(".",",")} m)</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Instalação</p>
-                        <p className="text-sm font-semibold">{bgResult.product.instalacao}</p>
-                      </div>
-                    </div>
                     {/* Fita LED */}
                     <div className="p-3 rounded-lg bg-muted/50">
                       <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fita LED ({bgResult.ledModuleQtd}x por metro → {bgResult.fitaMetros.toFixed(1).replace(".",",")} m total)</p>
@@ -3451,31 +3495,21 @@ export default function Home() {
                     </div>
                   </CardContent>
                 </Card>
-                {/* Preço */}
-                {bgResult.precoTotal !== null ? (
-                  <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Preço Total</p>
-                    <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{formatBRL(bgResult.precoTotal)}</p>
-                  </div>
-                ) : (
-                  <div className="p-3 rounded-lg bg-muted/30 border border-border">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Preço</p>
-                    <p className="text-sm text-muted-foreground italic">Preço não cadastrado</p>
-                  </div>
-                )}
                 {/* Resumos */}
                 {(() => {
                   const r = bgResult;
                   const comprStr = `${r.comprimento}MM`;
-                  const orcamento = `${r.product.name} ${r.cct} ${r.controle} ${comprStr}`;
+                  const precoLine = r.precoTotal !== null ? `PREÇO: ${formatBRL(r.precoTotal)}` : null;
+                  const orcamento = [
+                    `${r.product.name} ${r.cct} ${r.controle} ${comprStr}`,
+                    precoLine,
+                  ].filter(Boolean).join("\n");
                   const fitaLine = `${r.fitaMetros.toFixed(1).replace(".",",")}M DE FITA LED ${r.ledModuleWithCCT.toUpperCase()}`;
                   const drvLine = `${r.driverQtd}x FONTE DE TENSÃO ${r.driver.model.toUpperCase()}${r.driver.code ? ` (${r.driver.code})` : ""}`;
-                  const precoLine = r.precoTotal !== null ? `PREÇO: ${formatBRL(r.precoTotal)} (${formatBRL(r.precoPorMetro!)} /m)` : null;
                   const pedido = [
                     `CÓDIGO: ${r.product.sku}`,
                     `${r.product.name} ${r.cct} ${r.controle} ${comprStr}`,
                     `COMPOSIÇÃO: ${fitaLine} + ${drvLine}`,
-                    precoLine,
                   ].filter(Boolean).join("\n");
                   return (
                     <>
