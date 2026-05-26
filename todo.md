@@ -668,3 +668,5 @@
 - [x] Nota de engenharia: "⚠️ IFs diferentes nas pontas — estética menos uniforme (otimização de comprimento ativa)."
 - [x] Home.tsx: toggle "Otimizar com IFs Diferentes" com aviso de estética menos uniforme
 - [x] 7 novos testes unitários para allowMixedIF (432 testes totais, 0 erros TypeScript reais)
+- [x] Corrigir exibição dos perfis BAGEO que não aparecem nas opções de perfis
+- [x] Implementar campo de busca rápida por produtos no topo do configurador com sugestões em tempo real

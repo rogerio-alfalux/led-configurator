@@ -47,6 +47,14 @@ import {
   calculateLedBar,
 } from "@/lib/ledBarCatalog";
 import type { LedBarProduct, LedBarPotencia, LedBarDifusor, LedBarControle, LedBarVoltage, LedBarResult } from "@/lib/ledBarCatalog";
+import {
+  BAGEO_CATALOG,
+  getBageoAvailableVoltages,
+  calculateBageo,
+} from "@/lib/bageoCatalog";
+import type { BageoProduct, BageoAplicacao, BageoControle, BageoVoltage, BageoResult } from "@/lib/bageoCatalog";
+import { ProductSearch } from "@/components/ProductSearch";
+import type { SearchSuggestion, ProductSearchCatalogs } from "@/components/ProductSearch";
 import type {
   CompositionResult,
   ConfigInput,
@@ -918,8 +926,13 @@ export default function Home() {
   const [lbComprimento, setLbComprimento] = useState<string>("");
   const [lbNCortes, setLbNCortes] = useState<string>("1");
   const [lbResult, setLbResult] = useState<LedBarResult | null>(null);
-
-  // Catálogo ativo de LED BAR (API ou fallback estático)
+  // ── Estados de BAGEO ─────────────────────────────────────────────────────────
+  const [bgAplicacao, setBgAplicacao] = useState<BageoAplicacao | null>(null);
+  const [bgControle, setBgControle] = useState<BageoControle>("ON/OFF");
+  const [bgVoltage, setBgVoltage] = useState<BageoVoltage>("220V");
+  const [bgCCT, setBgCCT] = useState<string>("3000K");
+  const [bgResult, setBgResult] = useState<BageoResult | null>(null);
+  // Catálogo ativo de LED BAR (API ou fallback estático))
   const activeLedBarCatalog = useMemo(() => {
     const apiLedBars = adaptedCatalogs?.ledBars;
     return apiLedBars && apiLedBars.length > 0 ? apiLedBars : LED_BAR_CATALOG;
@@ -1006,8 +1019,102 @@ export default function Home() {
     }
     setLbResult(res);
   }, [lbSelectedProduct, lbComprimentoNum, lbRequiresCuts, lbNCortes, lbControle, lbVoltage, lbCCT]);
+  // Catálogo ativo de BAGEO (API ou fallback estático)
+  const activeBageoCatalog = useMemo(() => {
+    const apiBageos = adaptedCatalogs?.bageos;
+    return apiBageos && apiBageos.length > 0 ? apiBageos : BAGEO_CATALOG;
+  }, [adaptedCatalogs]);
+  // Produto BAGEO selecionado pela aplicação
+  const bgSelectedProduct = useMemo<BageoProduct | null>(() => {
+    if (!bgAplicacao) return null;
+    return activeBageoCatalog.find(p => p.aplicacao === bgAplicacao) ?? null;
+  }, [bgAplicacao, activeBageoCatalog]);
+  // Tensões disponíveis para o produto e controle selecionados
+  const bgAvailableVoltages = useMemo<BageoVoltage[]>(() => {
+    if (!bgSelectedProduct) return ["220V"];
+    return getBageoAvailableVoltages(bgSelectedProduct, bgControle);
+  }, [bgSelectedProduct, bgControle]);
+  // CCTs disponíveis para o produto selecionado
+  const bgAvailableCCTs = useMemo(() => {
+    return bgSelectedProduct?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+  }, [bgSelectedProduct]);
+  // Reset tensão quando muda controle ou produto
+  useEffect(() => {
+    if (!bgAvailableVoltages.includes(bgVoltage)) {
+      setBgVoltage(bgAvailableVoltages[0] ?? "220V");
+    }
+  }, [bgAvailableVoltages, bgVoltage]);
+  // Reset CCT quando muda produto
+  useEffect(() => {
+    if (!bgAvailableCCTs.includes(bgCCT)) {
+      setBgCCT(bgAvailableCCTs[0] ?? "3000K");
+    }
+  }, [bgAvailableCCTs, bgCCT]);
+  const handleCalculateBageo = useCallback(() => {
+    if (!bgSelectedProduct) {
+      toast.error("Selecione a aplicação (D1 ou D1+D2).");
+      return;
+    }
+    const res = calculateBageo(activeBageoCatalog, {
+      product: bgSelectedProduct,
+      controle: bgControle,
+      voltage: bgVoltage,
+      cct: bgCCT,
+    });
+    if (!res) {
+      toast.error("Não foi possível calcular. Verifique as opções selecionadas.");
+      return;
+    }
+    setBgResult(res);
+  }, [bgSelectedProduct, activeBageoCatalog, bgControle, bgVoltage, bgCCT]);
 
-  // Listas derivadas para filtros de Downlights (usando catálogo dinâmico da API ou fallback estático)
+  // ─── Busca rápida ──────────────────────────────────────────────────────────
+  const searchCatalogs: ProductSearchCatalogs = useMemo(() => ({
+    profiles: activeProfileCatalog,
+    ledBars: activeLedBarCatalog,
+    bageos: activeBageoCatalog,
+    downlights: activeDlCatalog,
+    paineis: activePanelCatalog,
+    spots: activeSpotCatalog,
+    arandelas: activeArandelaCatalog,
+  }), [activeProfileCatalog, activeLedBarCatalog, activeBageoCatalog, activeDlCatalog, activePanelCatalog, activeSpotCatalog, activeArandelaCatalog]);
+
+  const handleSearchSelect = useCallback((suggestion: SearchSuggestion) => {
+    const cat = suggestion.category;
+    if (cat === "Perfis") {
+      setProductCategory("Perfis");
+      setProfileName(suggestion.familia);
+      setInstallType("");
+    } else if (cat === "LED BAR") {
+      setProductCategory("Perfis");
+      setProfileName("LED BAR");
+    } else if (cat === "BAGEO") {
+      setProductCategory("Perfis");
+      setProfileName("BAGEO");
+    } else if (cat === "Downlights") {
+      setProductCategory("Downlights");
+      setDlInstalacao(null);
+      setDlFamilia(suggestion.familia);
+    } else if (cat === "Painéis") {
+      setProductCategory("Painéis");
+      setPanelInstalacao(null);
+      setPanelFamilia(suggestion.familia);
+    } else if (cat === "Spots") {
+      setProductCategory("Spots");
+      setSpotInstalacao(null);
+      setSpotFamilia(suggestion.familia);
+    } else if (cat === "Arandelas") {
+      setProductCategory("Arandelas");
+      setArandelaInstalacao(null);
+      setArandelaFamilia(suggestion.familia);
+    }
+    // Scroll suave até o configurador
+    setTimeout(() => {
+      document.getElementById("configurador-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }, []);
+
+  // Listas derivadas para filtros de Downlightss (usando catálogo dinâmico da API ou fallback estático)
   const dlInstalacoes = useMemo(() => Array.from(new Set(activeDlCatalog.map(p => p.instalacao))).sort(), [activeDlCatalog]);
   const dlFamilias = useMemo(() =>
     dlInstalacao ? Array.from(new Set(activeDlCatalog.filter(p => p.instalacao === dlInstalacao).map(p => p.familia))).sort() : [],
@@ -1214,19 +1321,23 @@ export default function Home() {
       </header>
 
       {/* ── Main Content ───────────────────────────────────────────────────── */}
-      <main className="container py-8">
-        <div className="grid grid-cols-1 xl:grid-cols-[440px_1fr] gap-8 items-start">
+      <main className="container py-8">        {/* ── Busca rápida de produtos ────────────────────────────────────────────── */}
+        <div className="mb-6">
+          <div className="max-w-xl">
+            <p className="text-xs text-muted-foreground mb-1.5 font-medium">Busca rápida de produto</p>
+            <ProductSearch catalogs={searchCatalogs} onSelect={handleSearchSelect} />
+          </div>
+        </div>
 
-          {/* ── Painel de Configuração ──────────────────────────────────────── */}
-          <div className="space-y-4">
+        <div className="grid grid-cols-1 xl:grid-cols-[440px_1fr] gap-8 items-start">
+          {/* ── Painel de Configuração ──────────────────────────────────────────────────── */}
+          <div className="space-y-4" id="configurador-panel">
             <div>
               <h2 className="text-xl font-bold font-display text-foreground">Configuração</h2>
               <p className="text-sm text-muted-foreground mt-0.5">
                 Preencha os parâmetros para calcular a composição ideal.
               </p>
-            </div>
-
-            <Card className="shadow-sm">
+            </div>    <Card className="shadow-sm">
               <CardContent className="pt-6 space-y-5">
 
                 {/* 0. Categoria de Produto */}
@@ -1306,14 +1417,21 @@ export default function Home() {
                 <div>
                   <FieldLabel>Perfil</FieldLabel>
                   <Select
-                    value={lbFamilia ? `__LEDBAR__${lbFamilia}` : profileName}
+                    value={bgAplicacao ? `__BAGEO__${bgAplicacao}` : lbFamilia ? `__LEDBAR__${lbFamilia}` : profileName}
                     onValueChange={(v) => {
-                      if (v.startsWith("__LEDBAR__")) {
+                      if (v.startsWith("__BAGEO__")) {
+                        const ap = v.replace("__BAGEO__", "") as BageoAplicacao;
+                        setBgAplicacao(ap);
+                        setBgResult(null);
+                        setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
+                        setProfileName(""); setInstallType(""); setResult(null); setError(null);
+                      } else if (v.startsWith("__LEDBAR__")) {
                         const fam = v.replace("__LEDBAR__", "");
                         setLbFamilia(fam);
                         setLbPotencia(null);
                         setLbDifusor(null);
                         setLbResult(null);
+                        setBgAplicacao(null); setBgResult(null);
                         // Limpar seleção de perfil modular
                         setProfileName("");
                         setInstallType("");
@@ -1323,6 +1441,7 @@ export default function Home() {
                         handleProfileChange(v);
                         setLbFamilia(null);
                         setLbResult(null);
+                        setBgAplicacao(null); setBgResult(null);
                       }
                     }}
                   >
@@ -1346,13 +1465,117 @@ export default function Home() {
                           ))}
                         </>
                       )}
+                      {activeBageoCatalog.length > 0 && (
+                        <>
+                          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">BAGEO</div>
+                          {(["D1", "D1+D2"] as BageoAplicacao[]).map((ap) => {
+                            const prod = activeBageoCatalog.find(p => p.aplicacao === ap);
+                            if (!prod) return null;
+                            return (
+                              <SelectItem key={`__BAGEO__${ap}`} value={`__BAGEO__${ap}`}>{prod.name}</SelectItem>
+                            );
+                          })}
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
 
-                {/* ── Fluxo LED BAR ────────────────────────────────────────────────────────── */}
-                {lbFamilia && (
+                {/* ── Fluxo BAGEO ───────────────────────────────────────────────────────────────────────── */}
+                {bgAplicacao && (
                 <div className="space-y-4">
+                  {/* Controle */}
+                  <div>
+                    <FieldLabel>Controle</FieldLabel>
+                    <div className="flex gap-2">
+                      {(["ON/OFF", "DIM 0-10V", "DIM DALI"] as BageoControle[]).map((ctrl) => {
+                        const prod = bgSelectedProduct;
+                        const isAvail = !prod || (
+                          (ctrl === "ON/OFF" && (prod.driver220 != null || prod.driverBivolt != null))
+                          || (ctrl === "DIM 0-10V" && prod.driverDim110v != null)
+                          || (ctrl === "DIM DALI" && prod.driverDimDali != null)
+                        );
+                        return (
+                          <button
+                            key={ctrl}
+                            onClick={() => { if (isAvail) { setBgControle(ctrl); setBgResult(null); } }}
+                            disabled={!isAvail}
+                            className={`flex-1 px-3 py-2 rounded-md text-sm font-medium border transition-all ${
+                              !isAvail
+                                ? "opacity-30 cursor-not-allowed bg-muted text-muted-foreground border-border"
+                                : bgControle === ctrl
+                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                            }`}
+                          >
+                            {ctrl}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {/* Tensão */}
+                  <div>
+                    <FieldLabel>Tensão</FieldLabel>
+                    <div className="flex gap-2">
+                      {(["220V", "Bivolt"] as BageoVoltage[]).map((v) => {
+                        const avail = bgAvailableVoltages.includes(v);
+                        return (
+                          <button
+                            key={v}
+                            onClick={() => { if (avail) { setBgVoltage(v); setBgResult(null); } }}
+                            disabled={!avail}
+                            className={`flex-1 px-3 py-2 rounded-md text-sm font-medium border transition-all ${
+                              !avail
+                                ? "opacity-30 cursor-not-allowed bg-muted text-muted-foreground border-border"
+                                : bgVoltage === v
+                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                            }`}
+                          >
+                            {v}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {bgControle === "DIM 0-10V" && (
+                      <p className="mt-1.5 text-xs text-amber-500 flex items-center gap-1">
+                        <Info className="w-3 h-3" />
+                        Fonte DIM 0-10V é monovolt: apenas 220V disponível.
+                      </p>
+                    )}
+                  </div>
+                  {/* CCT */}
+                  <div>
+                    <FieldLabel>CCT</FieldLabel>
+                    <div className="flex flex-wrap gap-2">
+                      {bgAvailableCCTs.map((c) => (
+                        <button
+                          key={c}
+                          onClick={() => { setBgCCT(c); setBgResult(null); }}
+                          className={`px-4 py-2 rounded-md text-sm font-medium border transition-all ${
+                            bgCCT === c
+                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                              : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                          }`}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Botão Calcular */}
+                  <Button
+                    className="w-full h-12 text-base font-semibold"
+                    onClick={handleCalculateBageo}
+                  >
+                    <Zap className="w-4 h-4 mr-2" />
+                    Calcular BAGEO
+                  </Button>
+                </div>
+                )}
+                {/* ── Fluxo LED BAR ────────────────────────────────────────────────────────────────── */}
+                {lbFamilia && (         <div className="space-y-4">
 
                   {/* Potência */}
                   <div>
@@ -3138,6 +3361,117 @@ export default function Home() {
               )
             )}
 
+            {/* ── Resultado BAGEO ───────────────────────────────────────────────────────────────────────── */}
+            {productCategory === "Perfis" && bgAplicacao && bgResult && (
+              <div className="space-y-4">
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-primary" />
+                      Resultado — BAGEO
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {bgResult.product.fotoUrl && (
+                      <div className="rounded-lg overflow-hidden border border-border bg-muted/20 w-full flex items-center justify-center h-40">
+                        <img src={bgResult.product.fotoUrl} alt={bgResult.product.name} className="h-full object-contain p-2" loading="lazy" />
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
+                        <p className="text-sm font-mono font-semibold text-primary">{bgResult.product.sku}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
+                        <p className="text-sm font-semibold">{bgResult.product.name}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                        <p className="text-sm font-semibold">{bgResult.cct}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                        <p className="text-sm font-semibold">{bgResult.voltage}</p>
+                      </div>
+                    </div>
+                    {/* Módulo LED */}
+                    <div className="p-3 rounded-lg bg-muted/50">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
+                      <p className="text-sm font-semibold">{bgResult.ledModuleWithCCT}</p>
+                    </div>
+                    {/* Driver */}
+                    <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
+                      <p className="text-sm font-semibold">{bgResult.driver.model}</p>
+                      {bgResult.driver.code && (
+                        <a
+                          href={`https://alfaluxprod-c8zmg2fn.manus.space/products/${bgResult.driver.code}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary hover:underline font-mono mt-0.5 block"
+                        >
+                          {bgResult.driver.code}
+                        </a>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+                {/* Resumos */}
+                {(() => {
+                  const r = bgResult;
+                  const orcamento = `${r.product.name} ${r.cct} ${r.voltage}`;
+                  const pedido = [
+                    `CÓDIGO: ${r.product.sku}`,
+                    `${r.product.name} ${r.cct} ${r.voltage} MONTADO COM ${r.ledModuleWithCCT} + 1x ${r.driver.model}${r.driver.code ? ` (${r.driver.code})` : ""}`,
+                  ].join("\n");
+                  return (
+                    <>
+                      <Card className="shadow-sm">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-primary" />
+                            Resumo para Orçamento
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div
+                            className="font-mono text-sm bg-muted/50 rounded-lg p-4 cursor-text select-all whitespace-pre-wrap"
+                            onClick={(e) => { const sel = window.getSelection(); sel?.selectAllChildren(e.currentTarget); }}
+                          >
+                            {orcamento}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
+                          <Button variant="outline" size="sm" className="mt-2" onClick={() => { navigator.clipboard.writeText(orcamento); toast.success("Resumo copiado!"); }}>
+                            <Copy className="w-3 h-3 mr-1" /> Copiar Resumo
+                          </Button>
+                        </CardContent>
+                      </Card>
+                      <Card className="shadow-sm">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                            <ClipboardCheck className="w-4 h-4 text-emerald-500" />
+                            Resumo para Pedido
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div
+                            className="font-mono text-sm bg-muted/50 rounded-lg p-4 cursor-text select-all whitespace-pre-wrap"
+                            onClick={(e) => { const sel = window.getSelection(); sel?.selectAllChildren(e.currentTarget); }}
+                          >
+                            {pedido}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
+                          <Button variant="outline" size="sm" className="mt-2" onClick={() => { navigator.clipboard.writeText(pedido); toast.success("Pedido copiado!"); }}>
+                            <Copy className="w-3 h-3 mr-1" /> Copiar Pedido
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
             {/* Resultado Downlights */}
             {productCategory === "Downlights" && dlResult && (
               <div className="space-y-4">

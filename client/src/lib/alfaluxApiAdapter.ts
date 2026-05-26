@@ -25,6 +25,8 @@ import type { SpotProduct } from "./spotCatalog";
 import type { ArandelaProduct } from "./arandelaCatalog";
 import type { LedBarProduct, LedBarPotencia, LedBarDifusor } from "./ledBarCatalog";
 import { parsePotenciaFromName, parseDifusorFromName } from "./ledBarCatalog";
+import type { BageoProduct, BageoAplicacao } from "./bageoCatalog";
+import { parseAplicacaoFromName } from "./bageoCatalog";
 
 /** Formato de um driver retornado pelo /api/products/all */
 export interface DriverInfo {
@@ -275,6 +277,7 @@ export interface AdaptedCatalogs {
   spots: SpotProduct[];
   arandelas: ArandelaProduct[];
   ledBars: LedBarProduct[];
+  bageos: BageoProduct[];
   /** Mapa familia → CCTs disponíveis para Downlights */
   downlightCCTs: Record<string, string[]>;
   /** Mapa familia → CCTs disponíveis para Painéis */
@@ -357,6 +360,34 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
 function isLedBarProduct(p: ApiProduct): boolean {
   return /^LED BAR/i.test(p.familia ?? "");
 }
+/** Verifica se um produto PERFIS é da família BAGEO */
+function isBageoProduct(p: ApiProduct): boolean {
+  return /^BAGEO/i.test(p.familia ?? "");
+}
+/** Converte um produto da API para BageoProduct */
+function toBageoProduct(p: ApiProduct): BageoProduct | null {
+  const aplicacao = parseAplicacaoFromName(p.name);
+  if (!aplicacao) return null;
+  const ccts = normalizeCCTs(p.temperaturasCor);
+  const d220 = p.driver220;
+  const dBivolt = p.driverBivolt;
+  const dDim110v = p.driverDim110v;
+  const dDimDali = p.driverDimDali;
+  return {
+    familia: p.familia,
+    sku: p.sku,
+    name: p.name,
+    aplicacao,
+    ledModule: p.ledModule ?? "",
+    ledModuleQtd: p.ledModuleQtd ?? 1,
+    ccts,
+    driver220: d220 ? { model: driverModel(d220), code: driverCode(d220) } : null,
+    driverBivolt: dBivolt ? { model: driverModel(dBivolt), code: driverCode(dBivolt) } : null,
+    driverDim110v: dDim110v ? { model: driverModel(dDim110v), code: driverCode(dDim110v) } : null,
+    driverDimDali: dDimDali ? { model: driverModel(dDimDali), code: driverCode(dDimDali) } : null,
+    fotoUrl: normalizeFotoUrl(p.fotoUrl),
+  };
+}
 
 /** Converte o array completo de produtos da API nos catálogos internos */
 export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
@@ -365,6 +396,7 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
   const spots: SpotProduct[] = [];
   const arandelas: ArandelaProduct[] = [];
   const ledBars: LedBarProduct[] = [];
+  const bageos: BageoProduct[] = [];
   const downlightCCTs: Record<string, string[]> = {};
   const painelCCTs: Record<string, string[]> = {};
   const spotCCTs: Record<string, string[]> = {};
@@ -397,6 +429,9 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
     } else if (cat === "PERFIS" && isLedBarProduct(p)) {
       const lb = toLedBarProduct(p);
       if (lb) ledBars.push(lb);
+    } else if (cat === "PERFIS" && isBageoProduct(p)) {
+      const bg = toBageoProduct(p);
+      if (bg) bageos.push(bg);
     }
   }
 
@@ -406,6 +441,7 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
     spots,
     arandelas,
     ledBars,
+    bageos,
     downlightCCTs,
     painelCCTs,
     spotCCTs,
