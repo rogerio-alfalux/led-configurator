@@ -25,8 +25,8 @@ import type { SpotProduct } from "./spotCatalog";
 import type { ArandelaProduct } from "./arandelaCatalog";
 import type { LedBarProduct, LedBarPotencia, LedBarDifusor } from "./ledBarCatalog";
 import { parsePotenciaFromName, parseDifusorFromName } from "./ledBarCatalog";
-import type { BageoProduct, BageoAplicacao } from "./bageoCatalog";
-import { parseAplicacaoFromName } from "./bageoCatalog";
+import type { BageoProduct, BageoAplicacao, BageoInstalacao } from "./bageoCatalog";
+import { parseAplicacaoFromName, parseInstalacaoFromApi } from "./bageoCatalog";
 
 /** Formato de um driver retornado pelo /api/products/all */
 export interface DriverInfo {
@@ -368,6 +368,7 @@ function isBageoProduct(p: ApiProduct): boolean {
 function toBageoProduct(p: ApiProduct): BageoProduct | null {
   const aplicacao = parseAplicacaoFromName(p.name);
   if (!aplicacao) return null;
+  const instalacao: BageoInstalacao = parseInstalacaoFromApi(p.instalacao ?? "");
   const ccts = normalizeCCTs(p.temperaturasCor);
   const d220 = p.driver220;
   const dBivolt = p.driverBivolt;
@@ -377,6 +378,7 @@ function toBageoProduct(p: ApiProduct): BageoProduct | null {
     familia: p.familia,
     sku: p.sku,
     name: p.name,
+    instalacao,
     aplicacao,
     ledModule: p.ledModule ?? "",
     ledModuleQtd: p.ledModuleQtd ?? 1,
@@ -385,6 +387,15 @@ function toBageoProduct(p: ApiProduct): BageoProduct | null {
     driverBivolt: dBivolt ? { model: driverModel(dBivolt), code: driverCode(dBivolt) } : null,
     driverDim110v: dDim110v ? { model: driverModel(dDim110v), code: driverCode(dDim110v) } : null,
     driverDimDali: dDimDali ? { model: driverModel(dDimDali), code: driverCode(dDimDali) } : null,
+    // Preços por metro linear — mapeamento dos campos da API:
+    // custoLuminaria → precoOnOff220 (preço base ON/OFF 220V)
+    // custoDriverBivolt → precoOnOffBivolt
+    // custoDriverDim110v → precoDim110v
+    // custoDriverDimDali → precoDimDali
+    precoOnOff220: p.custoLuminaria ?? null,
+    precoOnOffBivolt: p.custoDriverBivolt ?? null,
+    precoDim110v: p.custoDriverDim110v ?? null,
+    precoDimDali: p.custoDriverDimDali ?? null,
     fotoUrl: normalizeFotoUrl(p.fotoUrl),
   };
 }

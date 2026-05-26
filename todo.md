@@ -670,3 +670,23 @@
 - [x] 7 novos testes unitários para allowMixedIF (432 testes totais, 0 erros TypeScript reais)
 - [x] Corrigir exibição dos perfis BAGEO que não aparecem nas opções de perfis
 - [x] Implementar campo de busca rápida por produtos no topo do configurador com sugestões em tempo real
+
+## v3.x — BAGEO como perfil linear com preço
+- [ ] Reestruturar BAGEO como perfil linear com entrada de comprimento e cálculo por metro
+- [ ] Integrar preços do BAGEO da API no resumo de orçamento
+- [ ] Ajustar dropdown de perfil: família BAGEO → instalação → modelos disponíveis
+
+## v4.x — Reestruturação BAGEO como perfil linear (26/05/2026)
+
+- [x] Mapear campos de preço da API BAGEO: precoOnOff220, precoOnOffBivolt, precoDim110v, precoDimDali
+- [x] Atualizar toBageoProduct no alfaluxApiAdapter.ts para mapear instalacao e campos de preço
+- [x] Reestruturar bageoCatalog.ts: BageoInstalacao, BageoControle (ON/OFF 220V, ON/OFF Bivolt, DIM 1-10V, DIM DALI)
+- [x] Engine calculateBageo: cálculo por metro linear (ledModuleQtd, driverQtd, precoTotal = precoPorMetro × metros)
+- [x] Helpers: getBageoAvailableInstalacoes, getBageoProductsByInstalacao, getBageoAvailableControles
+- [x] UI: dropdown mostra apenas "BAGEO Sinuosa" → ao clicar abre botões de instalação → select de modelo
+- [x] UI: campo de comprimento em mm com exibição em metros
+- [x] UI: botões de controle (ON/OFF 220V, ON/OFF Bivolt, DIM 1-10V, DIM DALI)
+- [x] Resultado: exibe comprimento, instalação, módulo LED com qtd por metro, driver com qtd, preço total e por metro
+- [x] Resumo para orçamento: "NOME CCT CONTROLE COMPRIMENTOmm"
+- [x] Resumo para pedido: inclui linha de preço total quando disponível
+- [x] 31 novos testes unitários para bageoCatalog.ts (489 testes passando no total)

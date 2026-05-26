@@ -49,10 +49,13 @@ import {
 import type { LedBarProduct, LedBarPotencia, LedBarDifusor, LedBarControle, LedBarVoltage, LedBarResult } from "@/lib/ledBarCatalog";
 import {
   BAGEO_CATALOG,
-  getBageoAvailableVoltages,
+  getBageoAvailableInstalacoes,
+  getBageoProductsByInstalacao,
+  getBageoAvailableControles,
   calculateBageo,
+  formatBRL,
 } from "@/lib/bageoCatalog";
-import type { BageoProduct, BageoAplicacao, BageoControle, BageoVoltage, BageoResult } from "@/lib/bageoCatalog";
+import type { BageoProduct, BageoInstalacao, BageoControle, BageoResult } from "@/lib/bageoCatalog";
 import { ProductSearch } from "@/components/ProductSearch";
 import type { SearchSuggestion, ProductSearchCatalogs } from "@/components/ProductSearch";
 import type {
@@ -927,9 +930,10 @@ export default function Home() {
   const [lbNCortes, setLbNCortes] = useState<string>("1");
   const [lbResult, setLbResult] = useState<LedBarResult | null>(null);
   // ── Estados de BAGEO ─────────────────────────────────────────────────────────
-  const [bgAplicacao, setBgAplicacao] = useState<BageoAplicacao | null>(null);
-  const [bgControle, setBgControle] = useState<BageoControle>("ON/OFF");
-  const [bgVoltage, setBgVoltage] = useState<BageoVoltage>("220V");
+  const [bgInstalacao, setBgInstalacao] = useState<BageoInstalacao | null>(null);
+  const [bgProduct, setBgProduct] = useState<BageoProduct | null>(null);
+  const [bgComprimento, setBgComprimento] = useState<string>("1000");
+  const [bgControle, setBgControle] = useState<BageoControle>("ON/OFF 220V");
   const [bgCCT, setBgCCT] = useState<string>("3000K");
   const [bgResult, setBgResult] = useState<BageoResult | null>(null);
   // Catálogo ativo de LED BAR (API ou fallback estático))
@@ -1024,26 +1028,28 @@ export default function Home() {
     const apiBageos = adaptedCatalogs?.bageos;
     return apiBageos && apiBageos.length > 0 ? apiBageos : BAGEO_CATALOG;
   }, [adaptedCatalogs]);
-  // Produto BAGEO selecionado pela aplicação
-  const bgSelectedProduct = useMemo<BageoProduct | null>(() => {
-    if (!bgAplicacao) return null;
-    return activeBageoCatalog.find(p => p.aplicacao === bgAplicacao) ?? null;
-  }, [bgAplicacao, activeBageoCatalog]);
-  // Tensões disponíveis para o produto e controle selecionados
-  const bgAvailableVoltages = useMemo<BageoVoltage[]>(() => {
-    if (!bgSelectedProduct) return ["220V"];
-    return getBageoAvailableVoltages(bgSelectedProduct, bgControle);
-  }, [bgSelectedProduct, bgControle]);
+  // Instalações disponíveis no catálogo BAGEO
+  const bgInstalacoes = useMemo(() => getBageoAvailableInstalacoes(activeBageoCatalog), [activeBageoCatalog]);
+  // Produtos BAGEO filtrados pela instalação selecionada
+  const bgProductsByInstalacao = useMemo(() => {
+    if (!bgInstalacao) return [];
+    return getBageoProductsByInstalacao(activeBageoCatalog, bgInstalacao);
+  }, [bgInstalacao, activeBageoCatalog]);
+  // Controles disponíveis para o produto selecionado
+  const bgControles = useMemo(() => {
+    if (!bgProduct) return ["ON/OFF 220V", "ON/OFF Bivolt", "DIM 1-10V", "DIM DALI"] as BageoControle[];
+    return getBageoAvailableControles(bgProduct);
+  }, [bgProduct]);
   // CCTs disponíveis para o produto selecionado
   const bgAvailableCCTs = useMemo(() => {
-    return bgSelectedProduct?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
-  }, [bgSelectedProduct]);
-  // Reset tensão quando muda controle ou produto
+    return bgProduct?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+  }, [bgProduct]);
+  // Reset controle quando muda produto
   useEffect(() => {
-    if (!bgAvailableVoltages.includes(bgVoltage)) {
-      setBgVoltage(bgAvailableVoltages[0] ?? "220V");
+    if (!bgControles.includes(bgControle)) {
+      setBgControle(bgControles[0] ?? "ON/OFF 220V");
     }
-  }, [bgAvailableVoltages, bgVoltage]);
+  }, [bgControles, bgControle]);
   // Reset CCT quando muda produto
   useEffect(() => {
     if (!bgAvailableCCTs.includes(bgCCT)) {
@@ -1051,22 +1057,27 @@ export default function Home() {
     }
   }, [bgAvailableCCTs, bgCCT]);
   const handleCalculateBageo = useCallback(() => {
-    if (!bgSelectedProduct) {
-      toast.error("Selecione a aplicação (D1 ou D1+D2).");
+    if (!bgProduct) {
+      toast.error("Selecione o produto BAGEO.");
+      return;
+    }
+    const comprMm = parseInt(bgComprimento);
+    if (isNaN(comprMm) || comprMm < 100) {
+      toast.error("Informe um comprimento válido (mínimo 100mm).");
       return;
     }
     const res = calculateBageo(activeBageoCatalog, {
-      product: bgSelectedProduct,
+      product: bgProduct,
       controle: bgControle,
-      voltage: bgVoltage,
       cct: bgCCT,
+      comprimento: comprMm,
     });
     if (!res) {
       toast.error("Não foi possível calcular. Verifique as opções selecionadas.");
       return;
     }
     setBgResult(res);
-  }, [bgSelectedProduct, activeBageoCatalog, bgControle, bgVoltage, bgCCT]);
+  }, [bgProduct, activeBageoCatalog, bgControle, bgCCT, bgComprimento]);
 
   // ─── Busca rápida ──────────────────────────────────────────────────────────
   const searchCatalogs: ProductSearchCatalogs = useMemo(() => ({
@@ -1417,11 +1428,11 @@ export default function Home() {
                 <div>
                   <FieldLabel>Perfil</FieldLabel>
                   <Select
-                    value={bgAplicacao ? `__BAGEO__${bgAplicacao}` : lbFamilia ? `__LEDBAR__${lbFamilia}` : profileName}
+                    value={bgInstalacao ? "__BAGEO__" : lbFamilia ? `__LEDBAR__${lbFamilia}` : profileName}
                     onValueChange={(v) => {
-                      if (v.startsWith("__BAGEO__")) {
-                        const ap = v.replace("__BAGEO__", "") as BageoAplicacao;
-                        setBgAplicacao(ap);
+                      if (v === "__BAGEO__") {
+                        setBgInstalacao(bgInstalacoes[0] ?? "PENDENTE");
+                        setBgProduct(null);
                         setBgResult(null);
                         setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
                         setProfileName(""); setInstallType(""); setResult(null); setError(null);
@@ -1431,8 +1442,7 @@ export default function Home() {
                         setLbPotencia(null);
                         setLbDifusor(null);
                         setLbResult(null);
-                        setBgAplicacao(null); setBgResult(null);
-                        // Limpar seleção de perfil modular
+                        setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                         setProfileName("");
                         setInstallType("");
                         setResult(null);
@@ -1441,7 +1451,7 @@ export default function Home() {
                         handleProfileChange(v);
                         setLbFamilia(null);
                         setLbResult(null);
-                        setBgAplicacao(null); setBgResult(null);
+                        setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                       }
                     }}
                   >
@@ -1468,13 +1478,7 @@ export default function Home() {
                       {activeBageoCatalog.length > 0 && (
                         <>
                           <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">BAGEO</div>
-                          {(["D1", "D1+D2"] as BageoAplicacao[]).map((ap) => {
-                            const prod = activeBageoCatalog.find(p => p.aplicacao === ap);
-                            if (!prod) return null;
-                            return (
-                              <SelectItem key={`__BAGEO__${ap}`} value={`__BAGEO__${ap}`}>{prod.name}</SelectItem>
-                            );
-                          })}
+                          <SelectItem value="__BAGEO__">BAGEO Sinuosa</SelectItem>
                         </>
                       )}
                     </SelectContent>
@@ -1482,68 +1486,89 @@ export default function Home() {
                 </div>
 
                 {/* ── Fluxo BAGEO ───────────────────────────────────────────────────────────────────────── */}
-                {bgAplicacao && (
+                {bgInstalacao && (
                 <div className="space-y-4">
+                  {/* Instalação */}
+                  {bgInstalacoes.length > 1 && (
+                  <div>
+                    <FieldLabel>Instalação</FieldLabel>
+                    <div className="flex gap-2">
+                      {bgInstalacoes.map((inst) => (
+                        <button
+                          key={inst}
+                          onClick={() => { setBgInstalacao(inst); setBgProduct(null); setBgResult(null); }}
+                          className={`flex-1 px-3 py-2 rounded-md text-sm font-medium border transition-all ${
+                            bgInstalacao === inst
+                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                              : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                          }`}
+                        >
+                          {inst.charAt(0) + inst.slice(1).toLowerCase()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  )}
+                  {/* Modelo */}
+                  <div>
+                    <FieldLabel>Modelo</FieldLabel>
+                    <Select
+                      value={bgProduct ? `${bgProduct.sku}__${bgProduct.aplicacao}` : ""}
+                      onValueChange={(v) => {
+                        const [sku, ap] = v.split("__");
+                        const found = bgProductsByInstalacao.find(p => p.sku === sku && p.aplicacao === ap);
+                        setBgProduct(found ?? null);
+                        setBgResult(null);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o modelo..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {bgProductsByInstalacao.map((p) => (
+                          <SelectItem key={`${p.sku}__${p.aplicacao}`} value={`${p.sku}__${p.aplicacao}`}>
+                            {p.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Comprimento */}
+                  <div>
+                    <FieldLabel>Comprimento (mm)</FieldLabel>
+                    <input
+                      type="number"
+                      min={100}
+                      step={100}
+                      value={bgComprimento}
+                      onChange={(e) => { setBgComprimento(e.target.value); setBgResult(null); }}
+                      placeholder="Ex: 2500"
+                      className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    />
+                    {bgComprimento && parseInt(bgComprimento) >= 100 && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {(parseInt(bgComprimento) / 1000).toFixed(3).replace(".", ",")} m
+                      </p>
+                    )}
+                  </div>
                   {/* Controle */}
                   <div>
                     <FieldLabel>Controle</FieldLabel>
-                    <div className="flex gap-2">
-                      {(["ON/OFF", "DIM 0-10V", "DIM DALI"] as BageoControle[]).map((ctrl) => {
-                        const prod = bgSelectedProduct;
-                        const isAvail = !prod || (
-                          (ctrl === "ON/OFF" && (prod.driver220 != null || prod.driverBivolt != null))
-                          || (ctrl === "DIM 0-10V" && prod.driverDim110v != null)
-                          || (ctrl === "DIM DALI" && prod.driverDimDali != null)
-                        );
-                        return (
-                          <button
-                            key={ctrl}
-                            onClick={() => { if (isAvail) { setBgControle(ctrl); setBgResult(null); } }}
-                            disabled={!isAvail}
-                            className={`flex-1 px-3 py-2 rounded-md text-sm font-medium border transition-all ${
-                              !isAvail
-                                ? "opacity-30 cursor-not-allowed bg-muted text-muted-foreground border-border"
-                                : bgControle === ctrl
-                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                                : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
-                            }`}
-                          >
-                            {ctrl}
-                          </button>
-                        );
-                      })}
+                    <div className="flex flex-wrap gap-2">
+                      {bgControles.map((ctrl) => (
+                        <button
+                          key={ctrl}
+                          onClick={() => { setBgControle(ctrl); setBgResult(null); }}
+                          className={`flex-1 min-w-[80px] px-3 py-2 rounded-md text-sm font-medium border transition-all ${
+                            bgControle === ctrl
+                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                              : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                          }`}
+                        >
+                          {ctrl}
+                        </button>
+                      ))}
                     </div>
-                  </div>
-                  {/* Tensão */}
-                  <div>
-                    <FieldLabel>Tensão</FieldLabel>
-                    <div className="flex gap-2">
-                      {(["220V", "Bivolt"] as BageoVoltage[]).map((v) => {
-                        const avail = bgAvailableVoltages.includes(v);
-                        return (
-                          <button
-                            key={v}
-                            onClick={() => { if (avail) { setBgVoltage(v); setBgResult(null); } }}
-                            disabled={!avail}
-                            className={`flex-1 px-3 py-2 rounded-md text-sm font-medium border transition-all ${
-                              !avail
-                                ? "opacity-30 cursor-not-allowed bg-muted text-muted-foreground border-border"
-                                : bgVoltage === v
-                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                                : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
-                            }`}
-                          >
-                            {v}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {bgControle === "DIM 0-10V" && (
-                      <p className="mt-1.5 text-xs text-amber-500 flex items-center gap-1">
-                        <Info className="w-3 h-3" />
-                        Fonte DIM 0-10V é monovolt: apenas 220V disponível.
-                      </p>
-                    )}
                   </div>
                   {/* CCT */}
                   <div>
@@ -1568,6 +1593,7 @@ export default function Home() {
                   <Button
                     className="w-full h-12 text-base font-semibold"
                     onClick={handleCalculateBageo}
+                    disabled={!bgProduct}
                   >
                     <Zap className="w-4 h-4 mr-2" />
                     Calcular BAGEO
@@ -3362,7 +3388,7 @@ export default function Home() {
             )}
 
             {/* ── Resultado BAGEO ───────────────────────────────────────────────────────────────────────── */}
-            {productCategory === "Perfis" && bgAplicacao && bgResult && (
+            {productCategory === "Perfis" && bgInstalacao && bgResult && (
               <div className="space-y-4">
                 <Card className="shadow-sm">
                   <CardHeader className="pb-3">
@@ -3391,18 +3417,26 @@ export default function Home() {
                         <p className="text-sm font-semibold">{bgResult.cct}</p>
                       </div>
                       <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
-                        <p className="text-sm font-semibold">{bgResult.voltage}</p>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Controle</p>
+                        <p className="text-sm font-semibold">{bgResult.controle}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Comprimento</p>
+                        <p className="text-sm font-semibold">{bgResult.comprimento}mm ({bgResult.comprimentoMetros.toFixed(3).replace(".",",")} m)</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Instalação</p>
+                        <p className="text-sm font-semibold">{bgResult.product.instalacao}</p>
                       </div>
                     </div>
                     {/* Módulo LED */}
                     <div className="p-3 rounded-lg bg-muted/50">
-                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED ({bgResult.ledModuleQtd.toFixed(2).replace(".",",")}x por metro)</p>
                       <p className="text-sm font-semibold">{bgResult.ledModuleWithCCT}</p>
                     </div>
                     {/* Driver */}
                     <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fonte de Tensão ({bgResult.driverQtd}x)</p>
                       <p className="text-sm font-semibold">{bgResult.driver.model}</p>
                       {bgResult.driver.code && (
                         <a
@@ -3417,14 +3451,28 @@ export default function Home() {
                     </div>
                   </CardContent>
                 </Card>
+                {/* Preço */}
+                {bgResult.precoTotal !== null ? (
+                  <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Preço Total</p>
+                    <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{formatBRL(bgResult.precoTotal)}</p>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Preço</p>
+                    <p className="text-sm text-muted-foreground italic">Preço não cadastrado</p>
+                  </div>
+                )}
                 {/* Resumos */}
                 {(() => {
                   const r = bgResult;
-                  const orcamento = `${r.product.name} ${r.cct} ${r.voltage}`;
+                  const comprStr = `${r.comprimento}MM`;
+                  const orcamento = `${r.product.name} ${r.cct} ${r.controle} ${comprStr}`;
+                  const drvLine = `${r.driverQtd}x FONTE DE TENSÃO ${r.driver.model.toUpperCase()}${r.driver.code ? ` (${r.driver.code})` : ""}`;
                   const pedido = [
                     `CÓDIGO: ${r.product.sku}`,
-                    `${r.product.name} ${r.cct} ${r.voltage} MONTADO COM ${r.ledModuleWithCCT} + 1x ${r.driver.model}${r.driver.code ? ` (${r.driver.code})` : ""}`,
-                  ].join("\n");
+                    `${r.product.name} ${r.cct} ${r.controle} ${comprStr} MONTADO COM ${r.ledModuleWithCCT.toUpperCase()} + ${drvLine}`,
+                  ].filter(Boolean).join("\n");
                   return (
                     <>
                       <Card className="shadow-sm">
