@@ -3508,7 +3508,10 @@ export default function Home() {
                   // D1 (20W/m): 2x voltas de comprimento mm cada
                   // D1+D2 (40W/m): 4x voltas de comprimento mm cada (2 por lado × 2 lados)
                   const aplicacao = r.product.aplicacao;
-                  const ledModuleName = r.ledModuleWithCCT.toUpperCase();
+                  // Remove prefixo de quantidade do nome do módulo (ex: "2x FITA LED..." → "FITA LED...")
+                  // para evitar duplicação com o "Nx VOLTAS" que construímos aqui
+                  const ledModuleRaw = r.ledModuleWithCCT.toUpperCase();
+                  const ledModuleName = ledModuleRaw.replace(/^\d+[Xx]\s+/, "");
                   let fitaLine: string;
                   let drvLine: string;
                   if (aplicacao === "D1+D2") {
@@ -3523,8 +3526,8 @@ export default function Home() {
                     fitaLine = `${fitaD1} | ${fitaD2}`;
                     drvLine = `${drvD1} | ${drvD2}`;
                   } else {
-                    // D1 (20W/m): 2 voltas de comprimento mm
-                    const voltas = r.ledModuleQtd; // 2 para D1
+                    // D1 (20W/m): ledModuleQtd voltas (2 para D1)
+                    const voltas = r.ledModuleQtd;
                     const drvModel = r.driver.model.toUpperCase();
                     const drvCode = r.driver.code ? ` (${r.driver.code})` : "";
                     fitaLine = `${voltas}x VOLTAS DE ${r.comprimento}MM DE FITA LED ${ledModuleName}`;
