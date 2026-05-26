@@ -166,12 +166,14 @@ export interface BageoResult {
   /** Comprimento em metros (para exibição e cálculo de preço) */
   comprimentoMetros: number;
   driver: BageoDriverInfo;
-  /** Quantidade de drivers necessários */
+  /** Quantidade de fontes (1 a cada 2300mm) */
   driverQtd: number;
-  /** Módulo LED com CCT substituído */
+  /** Módulo LED com CCT substituído (ex: FITA LED HOPELUMI 24V 10W/M 3000K) */
   ledModuleWithCCT: string;
-  /** Quantidade de módulos LED */
+  /** Quantidade de módulos LED por metro (do produto) */
   ledModuleQtd: number;
+  /** Metragem total de fita LED (ledModuleQtd × comprimentoMetros) */
+  fitaMetros: number;
   /** Preço por metro (R$) — null se não cadastrado */
   precoPorMetro: number | null;
   /** Preço total da linha (R$) — null se não cadastrado */
@@ -184,25 +186,29 @@ export interface BageoResult {
 function selectBageoDriverAndPrice(
   product: BageoProduct,
   controle: BageoControle
-): { driver: BageoDriverInfo | null; precoPorMetro: number | null; driverQtd: number } {
+): { driver: BageoDriverInfo | null; precoPorMetro: number | null } {
   switch (controle) {
     case "ON/OFF 220V":
-      return { driver: product.driver220, precoPorMetro: product.precoOnOff220, driverQtd: product.driver220 ? 1 : 0 };
+      return { driver: product.driver220, precoPorMetro: product.precoOnOff220 };
     case "ON/OFF Bivolt":
-      return { driver: product.driverBivolt, precoPorMetro: product.precoOnOffBivolt, driverQtd: product.driverBivolt ? 1 : 0 };
+      return { driver: product.driverBivolt, precoPorMetro: product.precoOnOffBivolt };
     case "DIM 1-10V":
-      return { driver: product.driverDim110v, precoPorMetro: product.precoDim110v, driverQtd: product.driverDim110v ? 1 : 0 };
+      return { driver: product.driverDim110v, precoPorMetro: product.precoDim110v };
     case "DIM DALI":
-      return { driver: product.driverDimDali, precoPorMetro: product.precoDimDali, driverQtd: product.driverDimDali ? 1 : 0 };
+      return { driver: product.driverDimDali, precoPorMetro: product.precoDimDali };
   }
 }
+
+/** Intervalo máximo entre fontes em mm */
+const DRIVER_INTERVAL_MM = 2300;
 
 /**
  * Calcula o resultado de configuração de um BAGEO com base no comprimento.
  *
  * Regras:
  * - Comprimento mínimo: 100mm
- * - Módulos LED e drivers são calculados proporcionalmente ao comprimento em metros
+ * - Fontes: 1 a cada 2300mm (arredondado para cima)
+ * - Fita LED: ledModuleQtd (por metro) × comprimento em metros
  * - Preço total = preço por metro × comprimento em metros
  */
 export function calculateBageo(catalog: BageoProduct[], input: BageoInput): BageoResult | null {
@@ -216,14 +222,19 @@ export function calculateBageo(catalog: BageoProduct[], input: BageoInput): Bage
   );
   if (!product) return null;
 
-  const { driver, precoPorMetro, driverQtd } = selectBageoDriverAndPrice(product, input.controle);
+  const { driver, precoPorMetro } = selectBageoDriverAndPrice(product, input.controle);
   if (!driver) return null;
 
   const comprimentoMetros = input.comprimento / 1000;
-  const ledModuleWithCCT = product.ledModule.replace(/\[CCT\]/gi, input.cct).trim();
 
-  // Quantidade de módulos LED: ledModuleQtd por metro × comprimento em metros
-  const ledModuleQtdTotal = product.ledModuleQtd * comprimentoMetros;
+  // Quantidade de fontes: 1 a cada 2300mm (arredondado para cima)
+  const driverQtd = Math.ceil(input.comprimento / DRIVER_INTERVAL_MM);
+
+  // Metragem total de fita LED: ledModuleQtd (por metro) × comprimento em metros
+  const fitaMetros = product.ledModuleQtd * comprimentoMetros;
+
+  // ledModuleQtd no resultado representa a quantidade por metro (do produto)
+  const ledModuleWithCCT = product.ledModule.replace(/\[CCT\]/gi, input.cct).trim();
 
   // Preço total
   const precoTotal = precoPorMetro !== null ? precoPorMetro * comprimentoMetros : null;
@@ -237,7 +248,8 @@ export function calculateBageo(catalog: BageoProduct[], input: BageoInput): Bage
     driver,
     driverQtd,
     ledModuleWithCCT,
-    ledModuleQtd: ledModuleQtdTotal,
+    ledModuleQtd: product.ledModuleQtd,
+    fitaMetros,
     precoPorMetro,
     precoTotal,
   };

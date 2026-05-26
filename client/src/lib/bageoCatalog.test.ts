@@ -171,7 +171,9 @@ describe("calculateBageo", () => {
     expect(result!.precoTotal).toBe(300);
     expect(result!.driver.code).toBe("EQ00112");
     expect(result!.ledModuleWithCCT).toContain("3000K");
-    expect(result!.ledModuleQtd).toBe(2); // 2 por metro × 1 metro
+    expect(result!.ledModuleQtd).toBe(2); // 2 por metro (do produto)
+    expect(result!.fitaMetros).toBe(2); // 2 por metro × 1 metro
+    expect(result!.driverQtd).toBe(1); // ceil(1000 / 2300) = 1
   });
 
   it("calcula corretamente para 2500mm (2.5 metros)", () => {
@@ -184,7 +186,9 @@ describe("calculateBageo", () => {
     expect(result).not.toBeNull();
     expect(result!.comprimentoMetros).toBe(2.5);
     expect(result!.precoTotal).toBe(750); // 300 × 2.5
-    expect(result!.ledModuleQtd).toBe(5); // 2 × 2.5
+    expect(result!.ledModuleQtd).toBe(2); // 2 por metro (do produto)
+    expect(result!.fitaMetros).toBe(5); // 2 × 2.5
+    expect(result!.driverQtd).toBe(2); // ceil(2500 / 2300) = 2
   });
 
   it("seleciona driver DIM DALI corretamente", () => {
@@ -255,7 +259,23 @@ describe("calculateBageo", () => {
     expect(result!.comprimentoMetros).toBe(10);
     expect(result!.precoPorMetro).toBe(320);
     expect(result!.precoTotal).toBe(3200); // 320 × 10
-    expect(result!.ledModuleQtd).toBe(20); // 2 × 10
+    expect(result!.ledModuleQtd).toBe(2); // 2 por metro (do produto)
+    expect(result!.fitaMetros).toBe(20); // 2 × 10
+    expect(result!.driverQtd).toBe(5); // ceil(10000 / 2300) = 5
+  });
+
+  it("calcula corretamente para 56000mm (56 metros)", () => {
+    const result = calculateBageo(mockCatalog, {
+      product: mockCatalog[0],
+      controle: "ON/OFF 220V",
+      cct: "3000K",
+      comprimento: 56000,
+    });
+    expect(result).not.toBeNull();
+    expect(result!.comprimentoMetros).toBe(56);
+    expect(result!.fitaMetros).toBe(112); // 2 por metro × 56 metros
+    expect(result!.driverQtd).toBe(25); // ceil(56000 / 2300) = ceil(24.35) = 25
+    expect(result!.precoTotal).toBe(16800); // 300 × 56
   });
 });
 

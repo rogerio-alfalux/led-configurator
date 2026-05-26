@@ -66,6 +66,12 @@ export interface AlfaluxProduct {
   custoDriverBivolt: number | null;
   custoDriverDim110v: number | null;
   custoDriverDimDali: number | null;
+  /** Campos alternativos de preço que a API pode enviar para BAGEO */
+  precoOnOff220?: number | null;
+  precoOnOffBivolt?: number | null;
+  precoDim110v?: number | null;
+  precoDimDali?: number | null;
+  precoMetro?: number | null;
 }
 
 interface ApiResponse {

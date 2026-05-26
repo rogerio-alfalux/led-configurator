@@ -672,11 +672,19 @@
 - [x] Implementar campo de busca rápida por produtos no topo do configurador com sugestões em tempo real
 
 ## v3.x — BAGEO como perfil linear com preço
-- [ ] Reestruturar BAGEO como perfil linear com entrada de comprimento e cálculo por metro
-- [ ] Integrar preços do BAGEO da API no resumo de orçamento
-- [ ] Ajustar dropdown de perfil: família BAGEO → instalação → modelos disponíveis
+- [x] Reestruturar BAGEO como perfil linear com entrada de comprimento e cálculo por metro
+- [x] Integrar preços do BAGEO da API no resumo de orçamento
+- [x] Ajustar dropdown de perfil: família BAGEO → instalação → modelos disponíveis
 
 ## v4.x — Reestruturação BAGEO como perfil linear (26/05/2026)
+
+- [x] Ocultar card vazio superior quando BAGEO está selecionado
+- [x] Corrigir mapeamento de preço da API (tentar precoOnOff220/precoOnOffBivolt/precoDim110v/precoDimDali e fallback para custo*)
+- [x] Ajustar engine: 1 fonte a cada 2300mm (Math.ceil), fitaMetros = ledModuleQtd × metros
+- [x] Atualizar UI: Fita LED mostra qtd/metro → total em metros; Fonte mostra "1 a cada 2300mm → Nx"
+- [x] Atualizar resumo para pedido: inclui metragem de fita e quantidade de fontes
+- [x] Atualizar testes: fitaMetros, driverQtd por 2300mm, teste para 56000mm (112m fita, 25 fontes)
+- [x] 490 testes passando (zero erros TypeScript)
 
 - [x] Mapear campos de preço da API BAGEO: precoOnOff220, precoOnOffBivolt, precoDim110v, precoDimDali
 - [x] Atualizar toBageoProduct no alfaluxApiAdapter.ts para mapear instalacao e campos de preço

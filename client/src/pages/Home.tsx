@@ -3197,7 +3197,7 @@ export default function Home() {
               </p>
             </div>
 
-            {productCategory === "Perfis" && !lbFamilia && (!result ? (
+            {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && (!result ? (
               <Card className="shadow-sm">
                 <CardContent className="flex flex-col items-center justify-center py-20 text-center">
                   <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
@@ -3429,14 +3429,14 @@ export default function Home() {
                         <p className="text-sm font-semibold">{bgResult.product.instalacao}</p>
                       </div>
                     </div>
-                    {/* Módulo LED */}
+                    {/* Fita LED */}
                     <div className="p-3 rounded-lg bg-muted/50">
-                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED ({bgResult.ledModuleQtd.toFixed(2).replace(".",",")}x por metro)</p>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fita LED ({bgResult.ledModuleQtd}x por metro → {bgResult.fitaMetros.toFixed(1).replace(".",",")} m total)</p>
                       <p className="text-sm font-semibold">{bgResult.ledModuleWithCCT}</p>
                     </div>
                     {/* Driver */}
                     <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fonte de Tensão ({bgResult.driverQtd}x)</p>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fonte de Tensão (1 a cada 2300mm → {bgResult.driverQtd}x)</p>
                       <p className="text-sm font-semibold">{bgResult.driver.model}</p>
                       {bgResult.driver.code && (
                         <a
@@ -3468,10 +3468,14 @@ export default function Home() {
                   const r = bgResult;
                   const comprStr = `${r.comprimento}MM`;
                   const orcamento = `${r.product.name} ${r.cct} ${r.controle} ${comprStr}`;
+                  const fitaLine = `${r.fitaMetros.toFixed(1).replace(".",",")}M DE FITA LED ${r.ledModuleWithCCT.toUpperCase()}`;
                   const drvLine = `${r.driverQtd}x FONTE DE TENSÃO ${r.driver.model.toUpperCase()}${r.driver.code ? ` (${r.driver.code})` : ""}`;
+                  const precoLine = r.precoTotal !== null ? `PREÇO: ${formatBRL(r.precoTotal)} (${formatBRL(r.precoPorMetro!)} /m)` : null;
                   const pedido = [
                     `CÓDIGO: ${r.product.sku}`,
-                    `${r.product.name} ${r.cct} ${r.controle} ${comprStr} MONTADO COM ${r.ledModuleWithCCT.toUpperCase()} + ${drvLine}`,
+                    `${r.product.name} ${r.cct} ${r.controle} ${comprStr}`,
+                    `COMPOSIÇÃO: ${fitaLine} + ${drvLine}`,
+                    precoLine,
                   ].filter(Boolean).join("\n");
                   return (
                     <>

@@ -81,6 +81,12 @@ export interface ApiProduct {
   custoDriverBivolt: number | null;
   custoDriverDim110v: number | null;
   custoDriverDimDali: number | null;
+  /** Campos alternativos de preço que a API pode enviar para BAGEO */
+  precoOnOff220?: number | null;
+  precoOnOffBivolt?: number | null;
+  precoDim110v?: number | null;
+  precoDimDali?: number | null;
+  precoMetro?: number | null;
 }
 
 /** Normaliza CCTs: garante sufixo "K" */
@@ -387,15 +393,13 @@ function toBageoProduct(p: ApiProduct): BageoProduct | null {
     driverBivolt: dBivolt ? { model: driverModel(dBivolt), code: driverCode(dBivolt) } : null,
     driverDim110v: dDim110v ? { model: driverModel(dDim110v), code: driverCode(dDim110v) } : null,
     driverDimDali: dDimDali ? { model: driverModel(dDimDali), code: driverCode(dDimDali) } : null,
-    // Preços por metro linear — mapeamento dos campos da API:
-    // custoLuminaria → precoOnOff220 (preço base ON/OFF 220V)
-    // custoDriverBivolt → precoOnOffBivolt
-    // custoDriverDim110v → precoDim110v
-    // custoDriverDimDali → precoDimDali
-    precoOnOff220: p.custoLuminaria ?? null,
-    precoOnOffBivolt: p.custoDriverBivolt ?? null,
-    precoDim110v: p.custoDriverDim110v ?? null,
-    precoDimDali: p.custoDriverDimDali ?? null,
+    // Preços por metro linear — a API pode enviar os campos com nomes diferentes.
+    // Tentamos os nomes explícitos primeiro (precoOnOff220, etc.) e depois os campos custo*.
+    // Isso garante compatibilidade enquanto a API não padroniza os nomes.
+    precoOnOff220: p.precoOnOff220 ?? p.custoLuminaria ?? p.custoDriver220 ?? null,
+    precoOnOffBivolt: p.precoOnOffBivolt ?? p.custoDriverBivolt ?? null,
+    precoDim110v: p.precoDim110v ?? p.custoDriverDim110v ?? null,
+    precoDimDali: p.precoDimDali ?? p.custoDriverDimDali ?? null,
     fotoUrl: normalizeFotoUrl(p.fotoUrl),
   };
 }
