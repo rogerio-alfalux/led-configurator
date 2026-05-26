@@ -90,7 +90,7 @@ function buildDriverSummaryForQuote(entries: SkuDriverEntry[] | undefined, sku: 
  * Gera o texto resumo para orçamento.
  * Uma linha de cabeçalho + uma linha por tipo de módulo (SKU distinto) com drivers incluídos.
  */
-export function generateQuoteSummary(result: CompositionResult): string {
+export function generateQuoteSummary(result: CompositionResult, precoTotal?: number | null): string {
   const suffix = INSTALL_SUFFIX[result.installType] ?? result.installType.charAt(0);
   const productName = result.profileName.toUpperCase();
   const power = result.powerD1;
@@ -145,15 +145,7 @@ export function generateQuoteSummary(result: CompositionResult): string {
     return `Item ${index + 1}: ${qtyStr} ${productLabel} - ${info.length}mm${modTypeSuffix}`;
   });
 
-  // Preço temporariamente oculto — reativar quando necessário
-  // const totalPrice = calculateTotalPrice(
-  //   result.profileCode,
-  //   result.powerD1,
-  //   result.voltage,
-  //   result.application,
-  //   result.realizedLength,
-  // );
-  // const priceLine = totalPrice !== null ? `Preço Total: ${formatBRL(totalPrice)}` : null;
+  const priceLine = precoTotal != null ? `PREÇO: ${formatBRL(precoTotal)}` : null;
 
-  return [header, ...items].join("\n");
+  return [header, ...items, priceLine].filter(Boolean).join("\n");
 }

@@ -275,7 +275,9 @@ function DiffuserSelector({
   );
 }
 
-function ResultBlock({ result }: { result: CompositionResult }) {
+type ProfilePriceMap = Record<string, { onoff220: number | null; onoffBivolt: number | null; dim110v: number | null; dimDali: number | null }>;
+
+function ResultBlock({ result, profilePriceMap }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap }) {
   const efficiency = result.requestedLength > 0
     ? Math.round((result.realizedLength / result.requestedLength) * 100)
     : 0;
@@ -446,7 +448,7 @@ function ResultBlock({ result }: { result: CompositionResult }) {
       </Card>
 
       {/* Resumo Para Orçamento — Resumo para o cliente */}
-      <QuoteSummaryCard result={result} />
+      <QuoteSummaryCard result={result} profilePriceMap={profilePriceMap} />
       {/* Resumo para Pedido — Ficha Comercial */}
       <OrderSummaryCard result={result} />
       {/* Composição de Módulos — bloco unificado */}
@@ -640,13 +642,25 @@ function ResultBlock({ result }: { result: CompositionResult }) {
 }
 
 //// ─── Resumo Para Orçamento (Resumo para o cliente) ──────────────────────────
-function QuoteSummaryCard({ result }: { result: CompositionResult }) {
+function QuoteSummaryCard({ result, profilePriceMap }: { result: CompositionResult; profilePriceMap?: Record<string, { onoff220: number | null; onoffBivolt: number | null; dim110v: number | null; dimDali: number | null }> }) {
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const summary = generateQuoteSummary(result);
 
-  // Preço temporariamente oculto — reativar quando necessário
-  // const totalPrice = calculateTotalPrice(...);
+  // Calcular preço total a partir do mapa de preços da API
+  const precoTotal = (() => {
+    if (!profilePriceMap) return null;
+    const prices = profilePriceMap[result.profileCode];
+    if (!prices) return null;
+    let precoPerMeter: number | null = null;
+    if (result.controlType === 'dimDali') precoPerMeter = prices.dimDali;
+    else if (result.controlType === 'dim110v') precoPerMeter = prices.dim110v;
+    else if (result.voltage === 'Bivolt') precoPerMeter = prices.onoffBivolt;
+    else precoPerMeter = prices.onoff220;
+    if (precoPerMeter == null) return null;
+    return Math.round(precoPerMeter * (result.realizedLength / 1000) * 100) / 100;
+  })();
+
+  const summary = generateQuoteSummary(result, precoTotal);
 
   const handleCopy = async () => {
     try {
@@ -693,14 +707,12 @@ function QuoteSummaryCard({ result }: { result: CompositionResult }) {
           rows={Math.max(summary.split('\n').length + 1, 3)}
           onClick={(e) => (e.target as HTMLTextAreaElement).select()}
         />
-        {/* Preço total temporariamente oculto — reativar quando necessário:
-        {totalPrice !== null && (
+        {precoTotal !== null && precoTotal !== undefined && (
           <div className="flex items-center justify-between rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-3">
             <span className="text-sm font-semibold text-blue-400 uppercase tracking-wide">Preço Total</span>
-            <span className="text-lg font-bold text-blue-300">{formatBRL(totalPrice)}</span>
+            <span className="text-lg font-bold text-blue-300">{formatBRL(precoTotal)}</span>
           </div>
         )}
-        */}
         <p className="text-xs text-muted-foreground">
           Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.
         </p>
@@ -875,6 +887,28 @@ export default function Home() {
     if (!alfaluxApiProducts || alfaluxApiProducts.length === 0) return false;
     const apiCatalog = adaptProfileProducts(alfaluxApiProducts);
     return apiCatalog !== null && Object.keys(apiCatalog).length > 0;
+  }, [alfaluxApiProducts]);
+
+  // Mapa de preços por metro por profileCode (extraído dos produtos PERFIS da API)
+  // Estrutura: { [profileCode]: { onoff220: number|null, onoffBivolt: number|null, dim110v: number|null, dimDali: number|null } }
+  const profilePriceMap = useMemo(() => {
+    if (!alfaluxApiProducts || alfaluxApiProducts.length === 0) return {};
+    const map: Record<string, { onoff220: number | null; onoffBivolt: number | null; dim110v: number | null; dimDali: number | null }> = {};
+    for (const p of alfaluxApiProducts) {
+      const cat = (p.categoria ?? "").toUpperCase();
+      if (cat !== "PERFIS") continue;
+      const code = (p.sku ?? "").split(".")[0];
+      if (!code) continue;
+      if (!map[code]) {
+        map[code] = {
+          onoff220: p.precoOnOff220 ?? null,
+          onoffBivolt: p.precoOnOffBivolt ?? null,
+          dim110v: p.precoDim110v ?? null,
+          dimDali: p.precoDimDali ?? null,
+        };
+      }
+    }
+    return map;
   }, [alfaluxApiProducts]);
 
   // Funções de acesso ao catálogo ativo de perfis
@@ -3242,7 +3276,7 @@ export default function Home() {
                 </CardContent>
               </Card>
             ) : (
-              <ResultBlock result={result} />
+              <ResultBlock result={result} profilePriceMap={profilePriceMap} />
             ))}
 
             {/* ── Resultado LED BAR ─────────────────────────────────────────────────── */}
