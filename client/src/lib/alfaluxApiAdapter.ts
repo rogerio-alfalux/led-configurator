@@ -81,11 +81,30 @@ export interface ApiProduct {
   custoDriverBivolt: number | null;
   custoDriverDim110v: number | null;
   custoDriverDimDali: number | null;
-  /** Campos alternativos de preço que a API pode enviar para BAGEO */
+  /** Preço por metro (D1 simples) — ON/OFF 220V */
   precoOnOff220?: number | null;
+  /** Preço por metro (D1 simples) — ON/OFF Bivolt */
   precoOnOffBivolt?: number | null;
+  /** Preço por metro (D1 simples) — DIM 1-10V */
   precoDim110v?: number | null;
+  /** Preço por metro (D1 simples) — DIM DALI */
   precoDimDali?: number | null;
+  /** Preço por metro (D1 isolado) — ON/OFF 220V */
+  precoOnOff220D1?: number | null;
+  /** Preço por metro (D1 isolado) — ON/OFF Bivolt */
+  precoOnOffBivoltD1?: number | null;
+  /** Preço por metro (D1 isolado) — DIM 1-10V */
+  precoDim110vD1?: number | null;
+  /** Preço por metro (D1 isolado) — DIM DALI */
+  precoDimDaliD1?: number | null;
+  /** Preço por metro (D1+D2 duplo) — ON/OFF 220V */
+  precoOnOff220D1D2?: number | null;
+  /** Preço por metro (D1+D2 duplo) — ON/OFF Bivolt */
+  precoOnOffBivoltD1D2?: number | null;
+  /** Preço por metro (D1+D2 duplo) — DIM 1-10V */
+  precoDim110vD1D2?: number | null;
+  /** Preço por metro (D1+D2 duplo) — DIM DALI */
+  precoDimDaliD1D2?: number | null;
   precoMetro?: number | null;
 }
 

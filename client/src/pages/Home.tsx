@@ -275,7 +275,17 @@ function DiffuserSelector({
   );
 }
 
-type ProfilePriceMap = Record<string, { onoff220: number | null; onoffBivolt: number | null; dim110v: number | null; dimDali: number | null }>;
+type ProfilePriceMap = Record<string, {
+  onoff220: number | null;
+  onoffBivolt: number | null;
+  dim110v: number | null;
+  dimDali: number | null;
+  // Campos D1+D2 (quando a configuração é D1+D2)
+  onoff220D1D2: number | null;
+  onoffBivoltD1D2: number | null;
+  dim110vD1D2: number | null;
+  dimDaliD1D2: number | null;
+}>;
 
 function ResultBlock({ result, profilePriceMap }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap }) {
   const efficiency = result.requestedLength > 0
@@ -642,7 +652,7 @@ function ResultBlock({ result, profilePriceMap }: { result: CompositionResult; p
 }
 
 //// ─── Resumo Para Orçamento (Resumo para o cliente) ──────────────────────────
-function QuoteSummaryCard({ result, profilePriceMap }: { result: CompositionResult; profilePriceMap?: Record<string, { onoff220: number | null; onoffBivolt: number | null; dim110v: number | null; dimDali: number | null }> }) {
+function QuoteSummaryCard({ result, profilePriceMap }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap }) {
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -651,11 +661,17 @@ function QuoteSummaryCard({ result, profilePriceMap }: { result: CompositionResu
     if (!profilePriceMap) return null;
     const prices = profilePriceMap[result.profileCode];
     if (!prices) return null;
+    const isD1D2 = result.application === 'D1+D2';
     let precoPerMeter: number | null = null;
-    if (result.controlType === 'dimDali') precoPerMeter = prices.dimDali;
-    else if (result.controlType === 'dim110v') precoPerMeter = prices.dim110v;
-    else if (result.voltage === 'Bivolt') precoPerMeter = prices.onoffBivolt;
-    else precoPerMeter = prices.onoff220;
+    if (result.controlType === 'dimDali') {
+      precoPerMeter = isD1D2 ? (prices.dimDaliD1D2 ?? prices.dimDali) : prices.dimDali;
+    } else if (result.controlType === 'dim110v') {
+      precoPerMeter = isD1D2 ? (prices.dim110vD1D2 ?? prices.dim110v) : prices.dim110v;
+    } else if (result.voltage === 'Bivolt') {
+      precoPerMeter = isD1D2 ? (prices.onoffBivoltD1D2 ?? prices.onoffBivolt) : prices.onoffBivolt;
+    } else {
+      precoPerMeter = isD1D2 ? (prices.onoff220D1D2 ?? prices.onoff220) : prices.onoff220;
+    }
     if (precoPerMeter == null) return null;
     return Math.round(precoPerMeter * (result.realizedLength / 1000) * 100) / 100;
   })();
@@ -893,7 +909,7 @@ export default function Home() {
   // Estrutura: { [profileCode]: { onoff220: number|null, onoffBivolt: number|null, dim110v: number|null, dimDali: number|null } }
   const profilePriceMap = useMemo(() => {
     if (!alfaluxApiProducts || alfaluxApiProducts.length === 0) return {};
-    const map: Record<string, { onoff220: number | null; onoffBivolt: number | null; dim110v: number | null; dimDali: number | null }> = {};
+    const map: ProfilePriceMap = {};
     for (const p of alfaluxApiProducts) {
       const cat = (p.categoria ?? "").toUpperCase();
       if (cat !== "PERFIS") continue;
@@ -905,7 +921,17 @@ export default function Home() {
           onoffBivolt: p.precoOnOffBivolt ?? null,
           dim110v: p.precoDim110v ?? null,
           dimDali: p.precoDimDali ?? null,
+          onoff220D1D2: p.precoOnOff220D1D2 ?? null,
+          onoffBivoltD1D2: p.precoOnOffBivoltD1D2 ?? null,
+          dim110vD1D2: p.precoDim110vD1D2 ?? null,
+          dimDaliD1D2: p.precoDimDaliD1D2 ?? null,
         };
+      } else {
+        // Preencher campos D1D2 se ainda não preenchidos (o primeiro produto com valor vence)
+        if (map[code].onoff220D1D2 == null && p.precoOnOff220D1D2 != null) map[code].onoff220D1D2 = p.precoOnOff220D1D2;
+        if (map[code].onoffBivoltD1D2 == null && p.precoOnOffBivoltD1D2 != null) map[code].onoffBivoltD1D2 = p.precoOnOffBivoltD1D2;
+        if (map[code].dim110vD1D2 == null && p.precoDim110vD1D2 != null) map[code].dim110vD1D2 = p.precoDim110vD1D2;
+        if (map[code].dimDaliD1D2 == null && p.precoDimDaliD1D2 != null) map[code].dimDaliD1D2 = p.precoDimDaliD1D2;
       }
     }
     return map;
