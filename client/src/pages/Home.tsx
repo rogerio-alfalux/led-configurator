@@ -20,6 +20,7 @@ import { generateProductionTemplate } from "@/lib/productionTemplate";
 import { generateOrderSummary } from "@/lib/orderSummary";
 import { generateQuoteSummary } from "@/lib/quoteSummary";
 // import { calculateTotalPrice } from "@/lib/priceCatalog"; // Oculto temporariamente
+import { getStaticPricePerMeter } from "@/lib/profilePriceCatalog";
 import { getProfilePhoto, getDownlightPhoto, getPainelPhoto } from "@/lib/profilePhotos";
 import {
   DOWNLIGHT_CATALOG,
@@ -656,22 +657,17 @@ function QuoteSummaryCard({ result, profilePriceMap }: { result: CompositionResu
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Calcular preço total a partir do mapa de preços da API
+  // Calcular preço total a partir do catálogo estático (planilha Comparativolineares)
   const precoTotal = (() => {
-    if (!profilePriceMap) return null;
-    const prices = profilePriceMap[result.profileCode];
-    if (!prices) return null;
     const isD1D2 = result.application === 'D1+D2';
-    let precoPerMeter: number | null = null;
-    if (result.controlType === 'dimDali') {
-      precoPerMeter = isD1D2 ? (prices.dimDaliD1D2 ?? prices.dimDali) : prices.dimDali;
-    } else if (result.controlType === 'dim110v') {
-      precoPerMeter = isD1D2 ? (prices.dim110vD1D2 ?? prices.dim110v) : prices.dim110v;
-    } else if (result.voltage === 'Bivolt') {
-      precoPerMeter = isD1D2 ? (prices.onoffBivoltD1D2 ?? prices.onoffBivolt) : prices.onoffBivolt;
-    } else {
-      precoPerMeter = isD1D2 ? (prices.onoff220D1D2 ?? prices.onoff220) : prices.onoff220;
-    }
+    // Mapear controlType do engine para o tipo do catálogo estático
+    const ctStatic: 'onoff' | 'dimDali' | 'dim110v' =
+      result.controlType === 'dimDali' ? 'dimDali'
+      : result.controlType === 'dim110v' ? 'dim110v'
+      : 'onoff'; // ON/OFF 220V e Bivolt têm mesmo preço
+    // Usar a potência D1 como referência (powerD1 está sempre definido)
+    const powerW = result.powerD1 ?? 18;
+    const precoPerMeter = getStaticPricePerMeter(result.profileCode, powerW, ctStatic, isD1D2);
     if (precoPerMeter == null) return null;
     return Math.round(precoPerMeter * (result.realizedLength / 1000) * 100) / 100;
   })();
