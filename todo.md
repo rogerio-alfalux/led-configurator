@@ -715,3 +715,8 @@
 
 - [x] Incluir tipo de controle (ON/OFF, DIM DALI, DIM 1-10V) na descrição de todos os itens ao enviar ao carrinho (Perfis, LED BAR, BAGEO, Downlights, Painéis, Arandelas, Spots)
 - [x] Corrigir inserção de fotos no Excel gerado (proxy server-side para evitar CORS + ImagePosition com ext)
+
+## v5.2 — Correções Imagens Excel e Resumo do Pedido (27/05/2026)
+
+- [x] Corrigir imagens no Excel gerado (proxy bloqueava files.manuscdn.com — adicionado à whitelist)
+- [x] Corrigir Resumo para Pedido para incluir tipo de controle em todas as categorias (Downlights, Painéis, Arandelas, Spots) + orderSummary atualizado no carrinho

@@ -11,7 +11,10 @@ import type { Express, Request, Response } from "express";
 import https from "https";
 import http from "http";
 
-const ALLOWED_HOSTS = ["alfaluxprod-c8zmg2fn.manus.space"];
+const ALLOWED_HOSTS = [
+  "alfaluxprod-c8zmg2fn.manus.space",
+  "files.manuscdn.com",
+];
 
 function isAllowedUrl(rawUrl: string): boolean {
   try {
