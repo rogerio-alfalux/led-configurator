@@ -1,6 +1,10 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles } from "lucide-react";
+import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart } from "lucide-react";
+import { Link } from "wouter";
+import { useCart } from "@/hooks/useCart";
+import { useAuth } from "@/_core/hooks/useAuth";
+import type { CartItemData } from "@/lib/cartTypes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -656,6 +660,7 @@ function ResultBlock({ result, profilePriceMap }: { result: CompositionResult; p
 function QuoteSummaryCard({ result, profilePriceMap }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap }) {
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { addItem, isAdding: isAddingToCart } = useCart();
 
   // Calcular preço total a partir do catálogo estático (planilha Comparativolineares)
   const precoTotal = (() => {
@@ -696,18 +701,44 @@ function QuoteSummaryCard({ result, profilePriceMap }: { result: CompositionResu
             <ClipboardCheck className="w-4 h-4 text-blue-500" />
             Resumo Para Orçamento
           </CardTitle>
-          <Button
-            size="sm"
-            variant={copied ? "default" : "outline"}
-            onClick={handleCopy}
-            className="gap-1.5 text-xs h-7"
-          >
-            {copied ? (
-              <><ClipboardCheck className="w-3.5 h-3.5" /> Copiado!</>
-            ) : (
-              <><Copy className="w-3.5 h-3.5" /> Copiar Resumo</>
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={copied ? "default" : "outline"}
+              onClick={handleCopy}
+              className="gap-1.5 text-xs h-7"
+            >
+              {copied ? (
+                <><ClipboardCheck className="w-3.5 h-3.5" /> Copiado!</>
+              ) : (
+                <><Copy className="w-3.5 h-3.5" /> Copiar Resumo</>
+              )}
+            </Button>
+            <Button
+              size="sm"
+              className="gap-1.5 text-xs h-7 bg-emerald-600 hover:bg-emerald-700 text-white"
+              disabled={isAddingToCart}
+              onClick={() => {
+                const photo = getProfilePhoto(result.profileCode, result.diffuserD1, result.diffuserD2);
+                const item: CartItemData = {
+                  category: "Perfis",
+                  sku: result.profileCode,
+                  description: `${result.profileName} ${result.installType} ${result.powerD1}W ${result.cct} ${result.voltage} ${result.realizedLength}mm`,
+                  power: `${result.powerD1}W`,
+                  cct: result.cct,
+                  qty: 1,
+                  unitPrice: precoTotal ?? 0,
+                  totalPrice: precoTotal ?? 0,
+                  photoUrl: photo ?? "",
+                  orderSummary: "",
+                  quoteSummary: summary,
+                };
+                addItem(item);
+              }}
+            >
+              <ShoppingCart className="w-3.5 h-3.5" /> Enviar ao Carrinho
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -858,6 +889,8 @@ function ProductionTemplateCard({ result }: { result: CompositionResult }) {
 
 export default function Home() {
   const { theme, toggleTheme } = useTheme();
+  const { user } = useAuth();
+  const { addItem, count: cartCount, isAdding: isAddingToCart } = useCart();
   // Buscar drivers do Google Sheets (cache de 1h via React Query)
   const utils = trpc.useUtils();
   const { data: sheetDrivers } = trpc.led.drivers.useQuery(undefined, {
@@ -1382,6 +1415,21 @@ export default function Home() {
                 </span>
               )}
             </span>
+            <Link href="/carrinho">
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Carrinho de orçamento"
+                className="relative text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                    {cartCount > 9 ? "9+" : cartCount}
+                  </span>
+                )}
+              </Button>
+            </Link>
             <Button
               variant="ghost"
               size="icon"
@@ -3432,14 +3480,38 @@ export default function Home() {
                               {orcamento}
                             </div>
                             <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="mt-2"
-                              onClick={() => { navigator.clipboard.writeText(orcamento); toast.success("Resumo copiado!"); }}
-                            >
-                              <Copy className="w-3 h-3 mr-1" /> Copiar Resumo
-                            </Button>
+                            <div className="flex gap-2 mt-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => { navigator.clipboard.writeText(orcamento); toast.success("Resumo copiado!"); }}
+                              >
+                                <Copy className="w-3 h-3 mr-1" /> Copiar Resumo
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                disabled={isAddingToCart}
+                                onClick={() => {
+                                  const item: CartItemData = {
+                                    category: "LED BAR",
+                                    sku: r.product.sku ?? "",
+                                    description: `${r.product.name} ${r.cct} ${r.voltage} ${r.comprimentoTotalMm}MM`,
+                                    power: `${r.product.potencia}W/m`,
+                                    cct: r.cct,
+                                    qty: 1,
+                                    unitPrice: lbPreco ?? 0,
+                                    totalPrice: lbPreco ?? 0,
+                                    photoUrl: r.product.fotoUrl ?? "",
+                                    orderSummary: pedido,
+                                    quoteSummary: orcamento,
+                                  };
+                                  addItem(item);
+                                }}
+                              >
+                                <ShoppingCart className="w-3 h-3 mr-1" /> Enviar ao Carrinho
+                              </Button>
+                            </div>
                           </CardContent>
                         </Card>
 
@@ -3635,9 +3707,34 @@ export default function Home() {
                             </div>
                           )}
                           <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
-                          <Button variant="outline" size="sm" className="mt-2" onClick={() => { navigator.clipboard.writeText(orcamento); toast.success("Resumo copiado!"); }}>
-                            <Copy className="w-3 h-3 mr-1" /> Copiar Resumo
-                          </Button>
+                          <div className="flex gap-2 mt-2">
+                            <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(orcamento); toast.success("Resumo copiado!"); }}>
+                              <Copy className="w-3 h-3 mr-1" /> Copiar Resumo
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                              disabled={isAddingToCart}
+                              onClick={() => {
+                                const item: CartItemData = {
+                                  category: "BAGEO",
+                                  sku: r.product.sku ?? "",
+                                  description: `${r.product.name} ${r.cct} ${r.controle} ${r.comprimento}MM`,
+                                  power: "",
+                                  cct: r.cct,
+                                  qty: 1,
+                                  unitPrice: r.precoTotal ?? 0,
+                                  totalPrice: r.precoTotal ?? 0,
+                                  photoUrl: r.product.fotoUrl ?? "",
+                                  orderSummary: pedido,
+                                  quoteSummary: orcamento,
+                                };
+                                addItem(item);
+                              }}
+                            >
+                              <ShoppingCart className="w-3 h-3 mr-1" /> Enviar ao Carrinho
+                            </Button>
+                          </div>
                         </CardContent>
                       </Card>
                       <Card className="shadow-sm">
@@ -3780,21 +3877,48 @@ export default function Home() {
                       <CheckCircle2 className="w-4 h-4 text-blue-500" />
                       Resumo Para Orçamento
                     </CardTitle>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs gap-1.5"
-                      onClick={() => {
-                        const preco = getPrecoForControle(dlResult.product, dlResult.controle, dlResult.tensao);
-                        const lines = [`${dlResult.product.name} ${dlResult.cct} ${dlResult.tensao}`.toUpperCase()];
-                        if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
-                        const txt = lines.join("\n");
-                        navigator.clipboard.writeText(txt);
-                        toast.success("Copiado!");
-                      }}
-                    >
-                      <Copy className="w-3 h-3" /> Copiar Resumo
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5"
+                        onClick={() => {
+                          const preco = getPrecoForControle(dlResult.product, dlResult.controle, dlResult.tensao);
+                          const lines = [`${dlResult.product.name} ${dlResult.cct} ${dlResult.tensao}`.toUpperCase()];
+                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          const txt = lines.join("\n");
+                          navigator.clipboard.writeText(txt);
+                          toast.success("Copiado!");
+                        }}
+                      >
+                        <Copy className="w-3 h-3" /> Copiar Resumo
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        disabled={isAddingToCart}
+                        onClick={() => {
+                          const preco = getPrecoForControle(dlResult.product, dlResult.controle, dlResult.tensao);
+                          const dlPhoto = dlFamilia ? getDownlightPhoto(dlFamilia, dlResult.product.name) : null;
+                          const item: CartItemData = {
+                            category: "Downlights",
+                            sku: dlResult.product.sku ?? "",
+                            description: `${dlResult.product.name} ${dlResult.cct} ${dlResult.tensao}`,
+                            power: "",
+                            cct: dlResult.cct,
+                            qty: 1,
+                            unitPrice: preco ?? 0,
+                            totalPrice: preco ?? 0,
+                            photoUrl: dlPhoto ?? "",
+                            orderSummary: "",
+                            quoteSummary: `${dlResult.product.name} ${dlResult.cct} ${dlResult.tensao}`.toUpperCase(),
+                          };
+                          addItem(item);
+                        }}
+                      >
+                        <ShoppingCart className="w-3 h-3" /> Enviar ao Carrinho
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div
@@ -3984,19 +4108,46 @@ export default function Home() {
                       <CheckCircle2 className="w-4 h-4 text-blue-500" />
                       Resumo Para Orçamento
                     </CardTitle>
-                    <Button
-                      variant="outline" size="sm" className="h-7 text-xs gap-1.5"
-                      onClick={() => {
-                        const preco = getPrecoForControle(panelResult.product, panelResult.controle, panelResult.tensao);
-                        const lines = [`${panelResult.product.name} ${panelResult.cct} ${panelResult.tensao}`.toUpperCase()];
-                        if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
-                        const txt = lines.join("\n");
-                        navigator.clipboard.writeText(txt);
-                        toast.success("Copiado!");
-                      }}
-                    >
-                      <Copy className="w-3 h-3" /> Copiar Resumo
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline" size="sm" className="h-7 text-xs gap-1.5"
+                        onClick={() => {
+                          const preco = getPrecoForControle(panelResult.product, panelResult.controle, panelResult.tensao);
+                          const lines = [`${panelResult.product.name} ${panelResult.cct} ${panelResult.tensao}`.toUpperCase()];
+                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          const txt = lines.join("\n");
+                          navigator.clipboard.writeText(txt);
+                          toast.success("Copiado!");
+                        }}
+                      >
+                        <Copy className="w-3 h-3" /> Copiar Resumo
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        disabled={isAddingToCart}
+                        onClick={() => {
+                          const preco = getPrecoForControle(panelResult.product, panelResult.controle, panelResult.tensao);
+                          const pPhoto = panelFamilia ? getPainelPhoto(panelFamilia, panelResult.product.name) : null;
+                          const item: CartItemData = {
+                            category: "Painéis",
+                            sku: panelResult.product.sku ?? "",
+                            description: `${panelResult.product.name} ${panelResult.cct} ${panelResult.tensao}`,
+                            power: "",
+                            cct: panelResult.cct,
+                            qty: 1,
+                            unitPrice: preco ?? 0,
+                            totalPrice: preco ?? 0,
+                            photoUrl: pPhoto ?? "",
+                            orderSummary: "",
+                            quoteSummary: `${panelResult.product.name} ${panelResult.cct} ${panelResult.tensao}`.toUpperCase(),
+                          };
+                          addItem(item);
+                        }}
+                      >
+                        <ShoppingCart className="w-3 h-3" /> Enviar ao Carrinho
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div
@@ -4135,19 +4286,45 @@ export default function Home() {
                       <CheckCircle2 className="w-4 h-4 text-blue-500" />
                       Resumo Para Orçamento
                     </CardTitle>
-                    <Button
-                      variant="outline" size="sm" className="h-7 text-xs gap-1.5"
-                      onClick={() => {
-                        const preco = getPrecoForControle(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao);
-                        const lines = [`${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.tensao}`.toUpperCase()];
-                        if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
-                        const txt = lines.join("\n");
-                        navigator.clipboard.writeText(txt);
-                        toast.success("Copiado!");
-                      }}
-                    >
-                      <Copy className="w-3 h-3" /> Copiar Orçamento
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline" size="sm" className="h-7 text-xs gap-1.5"
+                        onClick={() => {
+                          const preco = getPrecoForControle(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao);
+                          const lines = [`${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.tensao}`.toUpperCase()];
+                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          const txt = lines.join("\n");
+                          navigator.clipboard.writeText(txt);
+                          toast.success("Copiado!");
+                        }}
+                      >
+                        <Copy className="w-3 h-3" /> Copiar Orçamento
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        disabled={isAddingToCart}
+                        onClick={() => {
+                          const preco = getPrecoForControle(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao);
+                          const item: CartItemData = {
+                            category: "Arandelas",
+                            sku: arandelaResult.product.sku ?? "",
+                            description: `${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.tensao}`,
+                            power: "",
+                            cct: arandelaResult.cct,
+                            qty: 1,
+                            unitPrice: preco ?? 0,
+                            totalPrice: preco ?? 0,
+                            photoUrl: arandelaResult.product.fotoUrl ?? "",
+                            orderSummary: "",
+                            quoteSummary: `${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.tensao}`.toUpperCase(),
+                          };
+                          addItem(item);
+                        }}
+                      >
+                        <ShoppingCart className="w-3 h-3" /> Enviar ao Carrinho
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div
@@ -4320,19 +4497,45 @@ export default function Home() {
                       <CheckCircle2 className="w-4 h-4 text-blue-500" />
                       Resumo Para Orçamento
                     </CardTitle>
-                    <Button
-                      variant="outline" size="sm" className="h-7 text-xs gap-1.5"
-                      onClick={() => {
-                        const preco = getPrecoForControle(spotResult.product, spotResult.controle, spotResult.tensao);
-                        const lines = [`${spotResult.product.name} ${spotResult.cct} ${spotResult.tensao}`.toUpperCase()];
-                        if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
-                        const txt = lines.join("\n");
-                        navigator.clipboard.writeText(txt);
-                        toast.success("Copiado!");
-                      }}
-                    >
-                      <Copy className="w-3 h-3" /> Copiar Resumo
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline" size="sm" className="h-7 text-xs gap-1.5"
+                        onClick={() => {
+                          const preco = getPrecoForControle(spotResult.product, spotResult.controle, spotResult.tensao);
+                          const lines = [`${spotResult.product.name} ${spotResult.cct} ${spotResult.tensao}`.toUpperCase()];
+                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          const txt = lines.join("\n");
+                          navigator.clipboard.writeText(txt);
+                          toast.success("Copiado!");
+                        }}
+                      >
+                        <Copy className="w-3 h-3" /> Copiar Resumo
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        disabled={isAddingToCart}
+                        onClick={() => {
+                          const preco = getPrecoForControle(spotResult.product, spotResult.controle, spotResult.tensao);
+                          const item: CartItemData = {
+                            category: "Spots",
+                            sku: spotResult.product.sku ?? "",
+                            description: `${spotResult.product.name} ${spotResult.cct} ${spotResult.tensao}`,
+                            power: "",
+                            cct: spotResult.cct,
+                            qty: 1,
+                            unitPrice: preco ?? 0,
+                            totalPrice: preco ?? 0,
+                            photoUrl: spotResult.product.fotoUrl ?? "",
+                            orderSummary: "",
+                            quoteSummary: `${spotResult.product.name} ${spotResult.cct} ${spotResult.tensao}`.toUpperCase(),
+                          };
+                          addItem(item);
+                        }}
+                      >
+                        <ShoppingCart className="w-3 h-3" /> Enviar ao Carrinho
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div

@@ -26,3 +26,18 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
 // TODO: Add your tables here
+
+/**
+ * Cart items for quote generation.
+ * Each item stores the full configuration as JSON so it can be rendered in the PDF.
+ */
+export const cartItems = mysqlTable("cart_items", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  /** Full serialized item data (category, description, power, cct, qty, unitPrice, totalPrice, photoUrl, sku) */
+  itemData: text("itemData").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type CartItem = typeof cartItems.$inferSelect;
+export type InsertCartItem = typeof cartItems.$inferInsert;

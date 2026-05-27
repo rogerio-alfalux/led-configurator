@@ -698,3 +698,15 @@
 - [x] Resumo para orçamento: "NOME CCT CONTROLE COMPRIMENTOmm"
 - [x] Resumo para pedido: inclui linha de preço total quando disponível
 - [x] 31 novos testes unitários para bageoCatalog.ts (489 testes passando no total)
+
+## v5.x — Carrinho de Orçamento e Gerador de Excel (27/05/2026)
+
+- [x] Schema DB: tabela cart_items com userId, itemData JSON, createdAt
+- [x] tRPC procedures: cart.add, cart.list, cart.remove, cart.clear, cart.updateQty
+- [x] Botão "Enviar ao Carrinho" em cada card de resultado (Perfis, Downlights, Painéis, Spots, Arandelas, LED BAR, BAGEO)
+- [x] Ícone de carrinho no header com badge de quantidade
+- [x] Página /carrinho com lista de itens, preço unitário, preço total, controle de quantidade e botão Remover
+- [x] Botão "Gerar Orçamento" na página do carrinho
+- [x] Gerador de Excel fiel ao template Alfalux: cabeçalho azul #5B9BD5, campos cliente/obra/data, tabela de itens com foto, rodapé com condições gerais
+- [x] Campos preenchíveis antes de gerar: Cliente, Contato, Tel, E-mail, Obra, Referência, Número, Data
+- [x] 490 testes passando (zero erros TypeScript reais)
