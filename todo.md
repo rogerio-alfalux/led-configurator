@@ -710,3 +710,8 @@
 - [x] Gerador de Excel fiel ao template Alfalux: cabeçalho azul #5B9BD5, campos cliente/obra/data, tabela de itens com foto, rodapé com condições gerais
 - [x] Campos preenchíveis antes de gerar: Cliente, Contato, Tel, E-mail, Obra, Referência, Número, Data
 - [x] 490 testes passando (zero erros TypeScript reais)
+
+## v5.1 — Correções no Carrinho e Excel (27/05/2026)
+
+- [x] Incluir tipo de controle (ON/OFF, DIM DALI, DIM 1-10V) na descrição de todos os itens ao enviar ao carrinho (Perfis, LED BAR, BAGEO, Downlights, Painéis, Arandelas, Spots)
+- [x] Corrigir inserção de fotos no Excel gerado (proxy server-side para evitar CORS + ImagePosition com ext)

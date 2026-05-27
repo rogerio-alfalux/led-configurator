@@ -723,7 +723,7 @@ function QuoteSummaryCard({ result, profilePriceMap }: { result: CompositionResu
                 const item: CartItemData = {
                   category: "Perfis",
                   sku: result.profileCode,
-                  description: `${result.profileName} ${result.installType} ${result.powerD1}W ${result.cct} ${result.voltage} ${result.realizedLength}mm`,
+                  description: `${result.profileName} ${result.installType} ${result.powerD1}W ${result.cct} ${result.controlType === 'dimDali' ? 'DIM DALI' : result.controlType === 'dim110v' ? 'DIM 1-10V' : 'ON/OFF'} ${result.voltage} ${result.realizedLength}mm`,
                   power: `${result.powerD1}W`,
                   cct: result.cct,
                   qty: 1,
@@ -3496,7 +3496,7 @@ export default function Home() {
                                   const item: CartItemData = {
                                     category: "LED BAR",
                                     sku: r.product.sku ?? "",
-                                    description: `${r.product.name} ${r.cct} ${r.voltage} ${r.comprimentoTotalMm}MM`,
+                                    description: `${r.product.name} ${r.cct} ${r.controle} ${r.voltage} ${r.comprimentoTotalMm}MM`,
                                     power: `${r.product.potencia}W/m`,
                                     cct: r.cct,
                                     qty: 1,
@@ -3903,7 +3903,7 @@ export default function Home() {
                           const item: CartItemData = {
                             category: "Downlights",
                             sku: dlResult.product.sku ?? "",
-                            description: `${dlResult.product.name} ${dlResult.cct} ${dlResult.tensao}`,
+                            description: `${dlResult.product.name} ${dlResult.cct} ${dlResult.controle} ${dlResult.tensao}`,
                             power: "",
                             cct: dlResult.cct,
                             qty: 1,
@@ -3911,7 +3911,7 @@ export default function Home() {
                             totalPrice: preco ?? 0,
                             photoUrl: dlPhoto ?? "",
                             orderSummary: "",
-                            quoteSummary: `${dlResult.product.name} ${dlResult.cct} ${dlResult.tensao}`.toUpperCase(),
+                            quoteSummary: `${dlResult.product.name} ${dlResult.cct} ${dlResult.controle} ${dlResult.tensao}`.toUpperCase(),
                           };
                           addItem(item);
                         }}
@@ -4132,7 +4132,7 @@ export default function Home() {
                           const item: CartItemData = {
                             category: "Painéis",
                             sku: panelResult.product.sku ?? "",
-                            description: `${panelResult.product.name} ${panelResult.cct} ${panelResult.tensao}`,
+                            description: `${panelResult.product.name} ${panelResult.cct} ${panelResult.controle} ${panelResult.tensao}`,
                             power: "",
                             cct: panelResult.cct,
                             qty: 1,
@@ -4140,7 +4140,7 @@ export default function Home() {
                             totalPrice: preco ?? 0,
                             photoUrl: pPhoto ?? "",
                             orderSummary: "",
-                            quoteSummary: `${panelResult.product.name} ${panelResult.cct} ${panelResult.tensao}`.toUpperCase(),
+                            quoteSummary: `${panelResult.product.name} ${panelResult.cct} ${panelResult.controle} ${panelResult.tensao}`.toUpperCase(),
                           };
                           addItem(item);
                         }}
@@ -4309,7 +4309,7 @@ export default function Home() {
                           const item: CartItemData = {
                             category: "Arandelas",
                             sku: arandelaResult.product.sku ?? "",
-                            description: `${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.tensao}`,
+                            description: `${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.controle} ${arandelaResult.tensao}`,
                             power: "",
                             cct: arandelaResult.cct,
                             qty: 1,
@@ -4317,7 +4317,7 @@ export default function Home() {
                             totalPrice: preco ?? 0,
                             photoUrl: arandelaResult.product.fotoUrl ?? "",
                             orderSummary: "",
-                            quoteSummary: `${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.tensao}`.toUpperCase(),
+                            quoteSummary: `${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.controle} ${arandelaResult.tensao}`.toUpperCase(),
                           };
                           addItem(item);
                         }}
@@ -4520,7 +4520,7 @@ export default function Home() {
                           const item: CartItemData = {
                             category: "Spots",
                             sku: spotResult.product.sku ?? "",
-                            description: `${spotResult.product.name} ${spotResult.cct} ${spotResult.tensao}`,
+                            description: `${spotResult.product.name} ${spotResult.cct} ${spotResult.controle} ${spotResult.tensao}`,
                             power: "",
                             cct: spotResult.cct,
                             qty: 1,
@@ -4528,7 +4528,7 @@ export default function Home() {
                             totalPrice: preco ?? 0,
                             photoUrl: spotResult.product.fotoUrl ?? "",
                             orderSummary: "",
-                            quoteSummary: `${spotResult.product.name} ${spotResult.cct} ${spotResult.tensao}`.toUpperCase(),
+                            quoteSummary: `${spotResult.product.name} ${spotResult.cct} ${spotResult.controle} ${spotResult.tensao}`.toUpperCase(),
                           };
                           addItem(item);
                         }}

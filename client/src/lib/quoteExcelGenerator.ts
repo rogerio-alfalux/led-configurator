@@ -242,8 +242,9 @@ export async function generateQuoteExcel(
     // D = FOTO — inserir imagem se disponível
     if (item.photoUrl) {
       try {
-        // Buscar a imagem via fetch e converter para base64
-        const response = await fetch(item.photoUrl);
+        // Usar o proxy server-side para evitar CORS
+        const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(item.photoUrl)}`;
+        const response = await fetch(proxyUrl);
         if (response.ok) {
           const arrayBuffer = await response.arrayBuffer();
           const uint8 = new Uint8Array(arrayBuffer);
@@ -256,9 +257,14 @@ export async function generateQuoteExcel(
             buffer: arrayBuffer,
             extension: ext,
           });
-          // Posicionar a imagem na célula D (col index 3 = D)
-          // Usar formato de range string para compatibilidade
-          ws.addImage(imgId, `D${rowNum}:D${rowNum}`);
+          // Posicionar a imagem usando ImagePosition com tamanho fixo
+          // Coluna D = índice 3 (0-based), linha rowNum-1 (0-based)
+          // 1 pt = 9525 EMUs; largura ~120pt, altura ~80pt
+          ws.addImage(imgId, {
+            tl: { col: 3, row: rowNum - 1 },
+            ext: { width: 140, height: 90 },
+            editAs: "oneCell",
+          } as ExcelJS.ImagePosition & { editAs: string });
         }
       } catch {
         // Ignorar erros de imagem — célula ficará vazia
