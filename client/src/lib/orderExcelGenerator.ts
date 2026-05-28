@@ -129,16 +129,10 @@ function buildProfileEquipamentosText(item: CartItemData): string {
 
 /**
  * Gera o texto da coluna PRODUTO para a Ficha Técnica de Produção.
- * Para perfis: usa orderSummary (resumo técnico completo).
- * Para outros produtos: usa description.
+ * Usa sempre a description curta do produto (ex: "BLAZE EMBUTIR 18W 3000K DIM DALI 220Vac 55875mm").
  * ETIQUETA (coluna C) fica em branco.
  */
 function buildProdutoText(item: CartItemData): string {
-  // Para perfis, o orderSummary contém o resumo técnico completo (gerado por generateOrderSummary)
-  if (item.category === "Perfis" && item.orderSummary) {
-    return item.orderSummary;
-  }
-  // Para outros produtos, usar description
   return item.description || "";
 }
 
