@@ -169,6 +169,13 @@ export default function Cart() {
     updateQtyMutation.mutate({ id, qty: newQty });
   };
 
+  const handleQtyInput = (id: number, value: string) => {
+    const parsed = parseInt(value, 10);
+    if (!isNaN(parsed) && parsed >= 1) {
+      updateQtyMutation.mutate({ id, qty: parsed });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -257,7 +264,15 @@ export default function Cart() {
                               >
                                 <Minus className="w-3 h-3" />
                               </Button>
-                              <span className="text-sm font-semibold w-6 text-center">{entry.data.qty}</span>
+                              <input
+                                type="number"
+                                min={1}
+                                value={entry.data.qty}
+                                onChange={(e) => handleQtyInput(entry.id, e.target.value)}
+                                onBlur={(e) => handleQtyInput(entry.id, e.target.value)}
+                                className="text-sm font-semibold w-14 text-center border border-border rounded px-1 py-0.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                                disabled={updateQtyMutation.isPending}
+                              />
                               <Button
                                 variant="outline"
                                 size="icon"

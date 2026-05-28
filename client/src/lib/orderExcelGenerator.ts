@@ -164,14 +164,14 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     // ETIQUETA (C) — SKU do produto
     fillRow(ws.getCell(`C${rowNum}`), item.sku ?? "");
 
-    // PRODUTO (D) — nome/descrição curta
-    const prodDesc = item.description?.split(" – ")[0] ?? item.description ?? "";
+    // PRODUTO (D) — descrição completa do produto (orderSummary ou description)
+    const prodDesc = item.orderSummary || item.description || "";
     fillRow(ws.getCell(`D${rowNum}`), prodDesc);
     ws.getCell(`D${rowNum}`).alignment = { horizontal: "left", vertical: "middle", wrapText: true };
 
-    // SKU (E) — descrição completa / orderSummary
-    fillRow(ws.getCell(`E${rowNum}`), item.orderSummary ?? item.description ?? "");
-    ws.getCell(`E${rowNum}`).alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+    // SKU (E) — apenas o código SKU do produto
+    fillRow(ws.getCell(`E${rowNum}`), item.sku ?? "");
+    ws.getCell(`E${rowNum}`).alignment = { horizontal: "center", vertical: "middle", wrapText: false };
 
     // FONTE DE LUZ (F) — módulo LED do produto
     const fonteInfo = item.moduloLed ?? [item.power, item.cct].filter(Boolean).join(" | ") ?? "";

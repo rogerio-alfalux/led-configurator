@@ -735,6 +735,8 @@ function QuoteSummaryCard({ result, profilePriceMap }: { result: CompositionResu
                   unitPrice: precoTotal ?? 0,
                   totalPrice: precoTotal ?? 0,
                   photoUrl: photo ?? "",
+                  moduloLed: `Stripflex 562,5 x 10mm 36L ${result.cct}`,
+                  drivers: "",
                   orderSummary: "",
                   quoteSummary: summary,
                 };

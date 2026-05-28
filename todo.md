@@ -747,3 +747,10 @@
 - [x] Número do orçamento: campo manual com sugestão automática (ORC-YYYY-NNNN) quando deixado em branco
 - [x] Procedure tRPC: quotes.delete (hard delete) + quotes.suggestNumber
 - [x] 490 testes passando (zero erros TypeScript reais)
+
+## v6.2 — Correções no Carrinho e Fichas (28/05/2026)
+
+- [x] Campo de quantidade no carrinho: input number editável por digitação livre (além das setas +/-)
+- [x] Extrair potência (ex: 17W) da descrição do produto via regex como fallback na coluna Potência
+- [x] Ficha de Produção: SKU (coluna E) = apenas o código SKU; PRODUTO (coluna D) = orderSummary completo
+- [x] Ficha de Produção: Fonte de Luz dos perfis = "Stripflex 562,5 x 10mm 36L [CCT]" com CCT real

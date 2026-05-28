@@ -35,6 +35,12 @@ function applyHeaderStyle(cell: ExcelJS.Cell) {
   applyBorder(cell, { style: "thin", color: { argb: "FF4472C4" } });
 }
 
+/** Extrai a potência (ex: "17W") da descrição do produto usando regex. */
+function extractPowerFromDescription(description: string): string {
+  const match = description.match(/(\d+(?:[,.]\d+)?\s*W(?:\/m)?)/i);
+  return match ? match[1].replace(/\s+/g, "") : "-";
+}
+
 function formatBRLValue(value: number | null): string {
   if (value === null || value === undefined) return "-";
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -281,9 +287,9 @@ export async function generateQuoteExcel(
     cDesc.value = item.description;
     cDesc.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
 
-    // G = POTÊNCIA
+    // G = POTÊNCIA (usa item.power se disponível, senão extrai da descrição)
     const cPow = ws.getCell(`G${rowNum}`);
-    cPow.value = item.power || "-";
+    cPow.value = (item.power && item.power.trim()) ? item.power : extractPowerFromDescription(item.description);
 
     // H = TEMPERATURA DE COR
     const cCct = ws.getCell(`H${rowNum}`);
