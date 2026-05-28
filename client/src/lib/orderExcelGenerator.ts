@@ -173,43 +173,24 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     fillRow(ws.getCell(`E${rowNum}`), item.orderSummary ?? item.description ?? "");
     ws.getCell(`E${rowNum}`).alignment = { horizontal: "left", vertical: "middle", wrapText: true };
 
-    // FONTE DE LUZ (F) — potência + CCT
-    const fonteInfo = [item.power, item.cct].filter(Boolean).join(" | ");
+    // FONTE DE LUZ (F) — módulo LED do produto
+    const fonteInfo = item.moduloLed ?? [item.power, item.cct].filter(Boolean).join(" | ") ?? "";
     fillRow(ws.getCell(`F${rowNum}`), fonteInfo);
     ws.getCell(`F${rowNum}`).alignment = { horizontal: "left", vertical: "middle", wrapText: true };
 
-    // EQUIPAMENTOS (G) — deixar em branco para preenchimento manual
-    fillRow(ws.getCell(`G${rowNum}`), "");
+    // EQUIPAMENTOS (G) — drivers do produto
+    const equipInfo = item.drivers ?? "";
+    fillRow(ws.getCell(`G${rowNum}`), equipInfo);
+    ws.getCell(`G${rowNum}`).alignment = { horizontal: "left", vertical: "middle", wrapText: true };
 
     // QTD (H)
     fillRow(ws.getCell(`H${rowNum}`), item.qty, true);
 
-    // COR DA PEÇA (I) — deixar em branco
-    fillRow(ws.getCell(`I${rowNum}`), "");
+    // COR DA PEÇA (I) — cor escolhida pelo usuário ou "A Definir"
+    fillRow(ws.getCell(`I${rowNum}`), item.corPeca ?? "A Definir");
 
     // OBSERVAÇÕES (J) — deixar em branco
     fillRow(ws.getCell(`J${rowNum}`), "");
-
-    // Foto do produto via proxy
-    if (item.photoUrl) {
-      const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(item.photoUrl)}`;
-      const rowNumCapture = rowNum;
-      const promise = fetch(proxyUrl)
-        .then(r => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return r.arrayBuffer();
-        })
-        .then(buf => {
-          const ext = item.photoUrl!.toLowerCase().includes(".png") ? "png" : "jpeg";
-          const imgId = wb.addImage({ buffer: buf, extension: ext });
-          ws.addImage(imgId, {
-            tl: { col: 3, row: rowNumCapture - 1 } as ExcelJS.Anchor,
-            ext: { width: 80, height: 55 },
-          });
-        })
-        .catch(() => {/* silently skip if image fails */});
-      imagePromises.push(promise);
-    }
   }
 
   // Aguardar todas as imagens

@@ -3,7 +3,7 @@ import { Link, useParams, useLocation } from "wouter";
 import {
   ArrowLeft, CheckCircle, XCircle, Clock, TrendingDown,
   FileSpreadsheet, History, Package, Edit, AlertTriangle,
-  ChevronDown, ChevronUp, Factory,
+  ChevronDown, ChevronUp, Factory, Trash2, PenLine,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { CartItemData, formatBRL, parseCartItemData } from "@/lib/cartTypes";
@@ -36,6 +37,15 @@ export default function QuoteDetail() {
   const [newStatus, setNewStatus] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Edit (add revision) dialog
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ clientName: "", clientContact: "", clientPhone: "", clientEmail: "", projectName: "", projectRef: "", vendorName: "", assistantName: "", versionNotes: "" });
+
+  // Delete dialog — triple confirmation
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteStep, setDeleteStep] = useState(0); // 0, 1, 2
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+
   const { data, isLoading, error } = trpc.quotes.getById.useQuery({ id: Number(id) });
 
   const updateStatusMutation = trpc.quotes.updateStatus.useMutation({
@@ -46,6 +56,25 @@ export default function QuoteDetail() {
       setStatusDialogOpen(false);
     },
     onError: (err) => toast.error(`Erro: ${err.message}`),
+  });
+
+  const addRevisionMutation = trpc.quotes.addRevision.useMutation({
+    onSuccess: () => {
+      utils.quotes.getById.invalidate({ id: Number(id) });
+      utils.quotes.list.invalidate();
+      toast.success("Orçamento atualizado! Nova revisão criada.");
+      setEditDialogOpen(false);
+    },
+    onError: (err) => toast.error(`Erro: ${err.message}`),
+  });
+
+  const deleteMutation = trpc.quotes.delete.useMutation({
+    onSuccess: () => {
+      utils.quotes.list.invalidate();
+      toast.success("Orçamento excluído permanentemente.");
+      navigate("/orcamentos");
+    },
+    onError: (err) => toast.error(`Erro ao excluir: ${err.message}`),
   });
 
   if (isLoading) {
@@ -206,6 +235,7 @@ export default function QuoteDetail() {
             </Button>
           )}
 
+          {/* Alterar Status */}
           <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2">
@@ -251,6 +281,192 @@ export default function QuoteDetail() {
                   {updateStatusMutation.isPending ? "Salvando..." : "Confirmar"}
                 </Button>
               </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Editar Orçamento (nova revisão) */}
+          <Dialog open={editDialogOpen} onOpenChange={(open) => {
+            setEditDialogOpen(open);
+            if (open) {
+              setEditForm({
+                clientName: quote.clientName,
+                clientContact: quote.clientContact ?? "",
+                clientPhone: quote.clientPhone ?? "",
+                clientEmail: quote.clientEmail ?? "",
+                projectName: quote.projectName ?? "",
+                projectRef: quote.projectRef ?? "",
+                vendorName: quote.vendorName ?? "",
+                assistantName: quote.assistantName ?? "",
+                versionNotes: "",
+              });
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <PenLine className="w-4 h-4" />
+                Editar Orçamento
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Editar Orçamento — Nova Revisão</DialogTitle>
+              </DialogHeader>
+              <p className="text-xs text-muted-foreground -mt-2 mb-1">
+                A versão atual (v{quote.currentVersion}) será preservada no histórico. Uma nova revisão será criada com os dados abaixo.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <Label>Cliente *</Label>
+                  <Input value={editForm.clientName} onChange={e => setEditForm(f => ({ ...f, clientName: e.target.value }))} placeholder="Nome do cliente" />
+                </div>
+                <div>
+                  <Label>Contato</Label>
+                  <Input value={editForm.clientContact} onChange={e => setEditForm(f => ({ ...f, clientContact: e.target.value }))} placeholder="Nome do contato" />
+                </div>
+                <div>
+                  <Label>Telefone</Label>
+                  <Input value={editForm.clientPhone} onChange={e => setEditForm(f => ({ ...f, clientPhone: e.target.value }))} placeholder="(11) 99999-9999" />
+                </div>
+                <div>
+                  <Label>E-mail</Label>
+                  <Input value={editForm.clientEmail} onChange={e => setEditForm(f => ({ ...f, clientEmail: e.target.value }))} placeholder="email@cliente.com" />
+                </div>
+                <div>
+                  <Label>Obra / Projeto</Label>
+                  <Input value={editForm.projectName} onChange={e => setEditForm(f => ({ ...f, projectName: e.target.value }))} placeholder="Nome da obra" />
+                </div>
+                <div>
+                  <Label>Referência</Label>
+                  <Input value={editForm.projectRef} onChange={e => setEditForm(f => ({ ...f, projectRef: e.target.value }))} placeholder="Código de referência" />
+                </div>
+                <div>
+                  <Label>Vendedor</Label>
+                  <Input value={editForm.vendorName} onChange={e => setEditForm(f => ({ ...f, vendorName: e.target.value }))} placeholder="Nome do vendedor" />
+                </div>
+                <div>
+                  <Label>Assistente</Label>
+                  <Input value={editForm.assistantName} onChange={e => setEditForm(f => ({ ...f, assistantName: e.target.value }))} placeholder="Nome da assistente" />
+                </div>
+                <div className="col-span-2">
+                  <Label>Notas desta revisão</Label>
+                  <Textarea
+                    value={editForm.versionNotes}
+                    onChange={e => setEditForm(f => ({ ...f, versionNotes: e.target.value }))}
+                    placeholder="Ex: Ajuste de preços, inclusão de novos itens..."
+                    rows={2}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-2">
+                <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancelar</Button>
+                <Button
+                  onClick={() => {
+                    if (!editForm.clientName.trim()) { toast.error("Nome do cliente é obrigatório."); return; }
+                    addRevisionMutation.mutate({
+                      quoteId: Number(id),
+                      clientName: editForm.clientName.trim(),
+                      clientContact: editForm.clientContact || undefined,
+                      clientPhone: editForm.clientPhone || undefined,
+                      clientEmail: editForm.clientEmail || undefined,
+                      projectName: editForm.projectName || undefined,
+                      projectRef: editForm.projectRef || undefined,
+                      vendorName: editForm.vendorName || undefined,
+                      assistantName: editForm.assistantName || undefined,
+                      versionNotes: editForm.versionNotes || undefined,
+                      totalAmount: Number(quote.totalAmount ?? 0),
+                      items: currentItems.map((i, idx) => ({ itemNumber: idx + 1, itemData: i.itemData })),
+                    });
+                  }}
+                  disabled={addRevisionMutation.isPending}
+                >
+                  {addRevisionMutation.isPending ? "Salvando..." : "Salvar Nova Revisão"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Excluir Orçamento — tripla confirmação */}
+          <Dialog open={deleteDialogOpen} onOpenChange={(open) => {
+            setDeleteDialogOpen(open);
+            if (!open) { setDeleteStep(0); setDeleteConfirmText(""); }
+          }}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2 text-destructive hover:bg-destructive/10 border-destructive/30">
+                <Trash2 className="w-4 h-4" />
+                Excluir
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-destructive">
+                  <Trash2 className="w-5 h-5" />
+                  Excluir Orçamento
+                </DialogTitle>
+              </DialogHeader>
+
+              {deleteStep === 0 && (
+                <div className="space-y-3">
+                  <div className="p-3 bg-destructive/10 rounded-lg border border-destructive/20">
+                    <p className="text-sm font-semibold text-destructive mb-1">⚠️ Atenção: Ação irreversível!</p>
+                    <p className="text-sm text-muted-foreground">
+                      Excluir este orçamento removerá permanentemente <strong>todos os dados</strong>, incluindo
+                      o histórico de revisões, itens e informações do cliente. <strong>Esta ação não pode ser desfeita.</strong>
+                    </p>
+                  </div>
+                  <p className="text-sm">Tem certeza que deseja excluir o orçamento <strong>{quote.quoteNumber}</strong>?</p>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Não, cancelar</Button>
+                    <Button variant="destructive" onClick={() => setDeleteStep(1)}>Sim, quero excluir</Button>
+                  </div>
+                </div>
+              )}
+
+              {deleteStep === 1 && (
+                <div className="space-y-3">
+                  <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
+                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-400 mb-1">🚨 Segunda confirmação</p>
+                    <p className="text-sm text-muted-foreground">
+                      Você está prestes a excluir um orçamento que pode estar vinculado a um cliente ativo.
+                      Considere alterar o status para <strong>"Cancelado"</strong> em vez de excluir.
+                    </p>
+                  </div>
+                  <p className="text-sm">Confirma que deseja excluir <strong>permanentemente</strong>?</p>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setDeleteStep(0)}>Voltar</Button>
+                    <Button variant="destructive" onClick={() => setDeleteStep(2)}>Confirmar exclusão</Button>
+                  </div>
+                </div>
+              )}
+
+              {deleteStep === 2 && (
+                <div className="space-y-3">
+                  <div className="p-3 bg-destructive/10 rounded-lg border border-destructive/20">
+                    <p className="text-sm font-semibold text-destructive mb-1">🔒 Confirmação final</p>
+                    <p className="text-sm text-muted-foreground">
+                      Para confirmar a exclusão, digite o número do orçamento abaixo:
+                    </p>
+                  </div>
+                  <div>
+                    <Label>Digite <strong>{quote.quoteNumber}</strong> para confirmar</Label>
+                    <Input
+                      value={deleteConfirmText}
+                      onChange={e => setDeleteConfirmText(e.target.value)}
+                      placeholder={quote.quoteNumber}
+                      className="mt-1 font-mono"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => { setDeleteStep(0); setDeleteConfirmText(""); }}>Cancelar</Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => deleteMutation.mutate({ id: Number(id) })}
+                      disabled={deleteConfirmText !== quote.quoteNumber || deleteMutation.isPending}
+                    >
+                      {deleteMutation.isPending ? "Excluindo..." : "Excluir Definitivamente"}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </DialogContent>
           </Dialog>
         </div>

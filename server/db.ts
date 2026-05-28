@@ -155,6 +155,7 @@ export async function generateQuoteNumber(): Promise<string> {
 }
 
 export interface SaveQuoteInput {
+  quoteNumber?: string;
   clientName: string;
   clientContact?: string;
   clientPhone?: string;
@@ -175,7 +176,7 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const quoteNumber = await generateQuoteNumber();
+  const quoteNumber = input.quoteNumber?.trim() || await generateQuoteNumber();
   const headerSnapshot = JSON.stringify({
     clientName: input.clientName,
     clientContact: input.clientContact,
@@ -443,4 +444,21 @@ export async function getQuoteStats() {
     .orderBy(sql`DATE_FORMAT(createdAt, '%Y-%m')`);
 
   return { totals, topVendors, topAssistants, byMonth };
+}
+
+/** Exclui um orçamento e todas as suas versões e itens */
+export async function deleteQuote(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Delete items first (FK constraint)
+  await db.delete(quoteItems).where(eq(quoteItems.quoteId, id));
+  // Delete versions
+  await db.delete(quoteVersions).where(eq(quoteVersions.quoteId, id));
+  // Delete quote
+  await db.delete(quotes).where(eq(quotes.id, id));
+}
+
+/** Gera sugestão de próximo número de orçamento sem criar nada no banco */
+export async function suggestQuoteNumber(): Promise<string> {
+  return generateQuoteNumber();
 }

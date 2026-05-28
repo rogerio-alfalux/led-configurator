@@ -734,3 +734,16 @@
 - [x] Página /dashboard: KPIs (total, valor orçado, aprovado, taxa de conversão), breakdown por status, ranking de vendedores e assistentes
 - [x] Rotas registradas no App.tsx: /orcamentos, /orcamentos/:id, /dashboard
 - [x] 490 testes passando (zero erros TypeScript reais)
+
+## v6.1 — Melhorias no Módulo de Orçamentos (28/05/2026)
+
+- [x] Seleção de cor da peça no configurador via ColorPickerModal antes de enviar ao carrinho (todos os 7 blocos)
+- [x] Cores disponíveis: Branco Fosco Micro, Preto Fosco Micro, Cinza Fosco Liso, Cinza Alumínio, Cinza Asfalto, Grafite, Marrom Cortén, Amarelo, Vermelho, Aço Cortén, Branco Fosco Liso + "A Definir"
+- [x] Campo cor salvo no CartItemData e exibido no carrinho e na Ficha de Produção
+- [x] Ficha de Produção: Fonte de Luz = moduloLed, Equipamentos = drivers, sem fotos, Cor da Peça com fallback "A Definir"
+- [x] moduloLed e drivers preenchidos em todos os 7 blocos de CartItemData
+- [x] Botão "Editar Orçamento" na página /orcamentos/:id (cria nova revisão preservando histórico, formulário pré-preenchido)
+- [x] Botão "Excluir" com tripla confirmação: aviso 1 (irreversível), aviso 2 (considerar cancelar), confirmação 3 (digitar número do orçamento)
+- [x] Número do orçamento: campo manual com sugestão automática (ORC-YYYY-NNNN) quando deixado em branco
+- [x] Procedure tRPC: quotes.delete (hard delete) + quotes.suggestNumber
+- [x] 490 testes passando (zero erros TypeScript reais)

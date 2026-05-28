@@ -7,7 +7,7 @@ import { fetchAllAlfaluxProducts, invalidateAlfaluxCache } from "./alfaluxApiSer
 import {
   addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty,
   createQuote, addQuoteRevision, listQuotes, getQuoteById, approveQuote,
-  updateQuoteStatus, getQuoteStats,
+  updateQuoteStatus, getQuoteStats, deleteQuote, suggestQuoteNumber,
 } from "./db";
 import { protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
@@ -101,6 +101,7 @@ export const appRouter = router({
     /** Schema compartilhado para cabeçalho + itens */
     save: protectedProcedure
       .input(z.object({
+        quoteNumber: z.string().optional(),
         clientName: z.string().min(1),
         clientContact: z.string().optional(),
         clientPhone: z.string().optional(),
@@ -186,6 +187,19 @@ export const appRouter = router({
     stats: protectedProcedure.query(async () => {
       return getQuoteStats();
     }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await deleteQuote(input.id);
+        return { success: true };
+      }),
+
+    suggestNumber: protectedProcedure.query(async () => {
+      const suggested = await suggestQuoteNumber();
+      return { suggested };
+    }),
+
   }),
 });
 

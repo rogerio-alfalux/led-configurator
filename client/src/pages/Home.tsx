@@ -63,6 +63,8 @@ import {
 import type { BageoProduct, BageoInstalacao, BageoControle, BageoResult } from "@/lib/bageoCatalog";
 import { ProductSearch } from "@/components/ProductSearch";
 import type { SearchSuggestion, ProductSearchCatalogs } from "@/components/ProductSearch";
+import ColorPickerModal from "@/components/ColorPickerModal";
+import type { CorPeca } from "@/components/ColorPickerModal";
 import type {
   CompositionResult,
   ConfigInput,
@@ -661,6 +663,8 @@ function QuoteSummaryCard({ result, profilePriceMap }: { result: CompositionResu
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { addItem, isAdding: isAddingToCart } = useCart();
+  const [colorModalOpen, setColorModalOpen] = useState(false);
+  const [pendingItem, setPendingItem] = useState<CartItemData | null>(null);
 
   // Calcular preço total a partir do catálogo estático (planilha Comparativolineares)
   const precoTotal = (() => {
@@ -694,6 +698,7 @@ function QuoteSummaryCard({ result, profilePriceMap }: { result: CompositionResu
     }
   };
   return (
+    <>
     <Card className="shadow-sm border-blue-500/30">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
@@ -733,7 +738,8 @@ function QuoteSummaryCard({ result, profilePriceMap }: { result: CompositionResu
                   orderSummary: "",
                   quoteSummary: summary,
                 };
-                addItem(item);
+                setPendingItem(item);
+                setColorModalOpen(true);
               }}
             >
               <ShoppingCart className="w-3.5 h-3.5" /> Enviar ao Carrinho
@@ -761,6 +767,18 @@ function QuoteSummaryCard({ result, profilePriceMap }: { result: CompositionResu
         </p>
       </CardContent>
     </Card>
+    <ColorPickerModal
+      open={colorModalOpen}
+      onClose={() => { setColorModalOpen(false); setPendingItem(null); }}
+      onConfirm={(cor: CorPeca) => {
+        if (pendingItem) addItem({ ...pendingItem, corPeca: cor });
+        setColorModalOpen(false);
+        setPendingItem(null);
+      }}
+      isAdding={isAddingToCart}
+      productName={result.profileName}
+    />
+    </>
   );
 }
 
@@ -891,6 +909,8 @@ export default function Home() {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   const { addItem, count: cartCount, isAdding: isAddingToCart } = useCart();
+  const [pendingCartItem, setPendingCartItem] = useState<CartItemData | null>(null);
+  const [colorModalOpen, setColorModalOpen] = useState(false);
   // Buscar drivers do Google Sheets (cache de 1h via React Query)
   const utils = trpc.useUtils();
   const { data: sheetDrivers } = trpc.led.drivers.useQuery(undefined, {
@@ -3505,8 +3525,11 @@ export default function Home() {
                                     photoUrl: r.product.fotoUrl ?? "",
                                     orderSummary: pedido,
                                     quoteSummary: orcamento,
+                                    moduloLed: r.product.ledModule ?? "",
+                                    drivers: r.product.driver ?? "",
                                   };
-                                  addItem(item);
+                                  setPendingCartItem(item);
+                                  setColorModalOpen(true);
                                 }}
                               >
                                 <ShoppingCart className="w-3 h-3 mr-1" /> Enviar ao Carrinho
@@ -3728,8 +3751,11 @@ export default function Home() {
                                   photoUrl: r.product.fotoUrl ?? "",
                                   orderSummary: pedido,
                                   quoteSummary: orcamento,
+                                  moduloLed: r.product.ledModule ?? "",
+                                  drivers: r.product.driver ?? "",
                                 };
-                                addItem(item);
+                                setPendingCartItem(item);
+                                setColorModalOpen(true);
                               }}
                             >
                               <ShoppingCart className="w-3 h-3 mr-1" /> Enviar ao Carrinho
@@ -3910,10 +3936,13 @@ export default function Home() {
                             unitPrice: preco ?? 0,
                             totalPrice: preco ?? 0,
                             photoUrl: dlPhoto ?? "",
-                            orderSummary: (() => { const parts: string[] = [(dlResult.ledModuleWithCCT.toUpperCase().startsWith("MÓDULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`)]; if (dlResult.product.oticaPrimaria) { parts.push(dlResult.product.oticaPrimaria.toUpperCase()); if (dlResult.product.oticaSecundaria) parts.push(dlResult.product.oticaSecundaria.toUpperCase()); } else if (dlResult.product.otica) { parts.push(dlResult.product.otica.toUpperCase()); } if (dlResult.product.holder) parts.push(dlResult.product.holder.toUpperCase()); if (dlResult.product.dissipador) parts.push(dlResult.product.dissipador.toUpperCase()); const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); parts.push(`${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`); return (`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.controle.toUpperCase()} ${dlResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim(); })(),
+                            orderSummary: (() => { const parts: string[] = [(dlResult.ledModuleWithCCT.toUpperCase().startsWith("ÍCODULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`)]; if (dlResult.product.oticaPrimaria) { parts.push(dlResult.product.oticaPrimaria.toUpperCase()); if (dlResult.product.oticaSecundaria) parts.push(dlResult.product.oticaSecundaria.toUpperCase()); } else if (dlResult.product.otica) { parts.push(dlResult.product.otica.toUpperCase()); } if (dlResult.product.holder) parts.push(dlResult.product.holder.toUpperCase()); if (dlResult.product.dissipador) parts.push(dlResult.product.dissipador.toUpperCase()); const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); parts.push(`${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`); return (`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.controle.toUpperCase()} ${dlResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim(); })(),
                             quoteSummary: `${dlResult.product.name} ${dlResult.cct} ${dlResult.controle} ${dlResult.tensao}`.toUpperCase(),
+                            moduloLed: dlResult.ledModuleWithCCT ?? "",
+                            drivers: (() => { const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); return `${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                           };
-                          addItem(item);
+                          setPendingCartItem(item);
+                          setColorModalOpen(true);
                         }}
                       >
                         <ShoppingCart className="w-3 h-3" /> Enviar ao Carrinho
@@ -4141,8 +4170,11 @@ export default function Home() {
                             photoUrl: pPhoto ?? "",
                             orderSummary: (() => { const parts: string[] = []; if (panelResult.ledModuleWithCCT) parts.push(panelResult.ledModuleWithCCT.toUpperCase()); const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; const drvQty = driverQtyFor(panelResult.product, panelResult.controle, panelResult.tensao); parts.push(`${drvQty}x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`); const skuLine = panelResult.product.sku ? `CÓDIGO: ${panelResult.product.sku}\n` : ""; const isOrbit = panelResult.product.familia.toUpperCase().startsWith("ORBIT"); const orbitObs = isOrbit ? "\nOBS: programar driver em 200mA" : ""; return `${skuLine}${panelResult.product.name.toUpperCase()} ${panelResult.cct} ${panelResult.controle.toUpperCase()} ${panelResult.tensao} MONTADA COM ${parts.join(" + ")}${orbitObs}`; })(),
                             quoteSummary: `${panelResult.product.name} ${panelResult.cct} ${panelResult.controle} ${panelResult.tensao}`.toUpperCase(),
+                            moduloLed: panelResult.ledModuleWithCCT ?? "",
+                            drivers: (() => { const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; const drvQty = driverQtyFor(panelResult.product, panelResult.controle, panelResult.tensao); return `${drvQty}x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                           };
-                          addItem(item);
+                          setPendingCartItem(item);
+                          setColorModalOpen(true);
                         }}
                       >
                         <ShoppingCart className="w-3 h-3" /> Enviar ao Carrinho
@@ -4318,8 +4350,11 @@ export default function Home() {
                             photoUrl: arandelaResult.product.fotoUrl ?? "",
                             orderSummary: (() => { const parts: string[] = []; if (arandelaResult.ledModuleWithCCT) { const mQtd = arandelaResult.product.ledModuleQtd; const mPrefix = mQtd != null ? `${mQtd}x ` : ""; parts.push(`${mPrefix}${arandelaResult.ledModuleWithCCT.toUpperCase()}`); } const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); parts.push(`${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`); const skuLine = arandelaResult.product.sku ? `CÓDIGO: ${arandelaResult.product.sku}\n` : ""; return `${skuLine}${arandelaResult.product.name.toUpperCase()} ${arandelaResult.cct} ${arandelaResult.controle.toUpperCase()} ${arandelaResult.tensao} MONTADA COM ${parts.join(" + ")}`; })(),
                             quoteSummary: `${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.controle} ${arandelaResult.tensao}`.toUpperCase(),
+                            moduloLed: arandelaResult.ledModuleWithCCT ?? "",
+                            drivers: (() => { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); return `${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                           };
-                          addItem(item);
+                          setPendingCartItem(item);
+                          setColorModalOpen(true);
                         }}
                       >
                         <ShoppingCart className="w-3 h-3" /> Enviar ao Carrinho
@@ -4529,8 +4564,11 @@ export default function Home() {
                             photoUrl: spotResult.product.fotoUrl ?? "",
                             orderSummary: (() => { const parts: string[] = []; if (spotResult.ledModuleWithCCT) parts.push(spotResult.ledModuleWithCCT.toUpperCase()); if (spotResult.product.oticaPrimaria) { parts.push(spotResult.product.oticaPrimaria.toUpperCase()); if (spotResult.product.oticaSecundaria) parts.push(spotResult.product.oticaSecundaria.toUpperCase()); } else if (spotResult.product.otica) { parts.push(spotResult.product.otica.toUpperCase()); } if (spotResult.product.holder) parts.push(spotResult.product.holder.toUpperCase()); const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; const drvQty = driverQtyFor(spotResult.product, spotResult.controle, spotResult.tensao); parts.push(`${drvQty}x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`); const skuLine = spotResult.product.sku ? `CÓDIGO: ${spotResult.product.sku}\n` : ""; return `${skuLine}${spotResult.product.name.toUpperCase()} ${spotResult.cct} ${spotResult.controle.toUpperCase()} ${spotResult.tensao} MONTADA COM ${parts.join(" + ")}`; })(),
                             quoteSummary: `${spotResult.product.name} ${spotResult.cct} ${spotResult.controle} ${spotResult.tensao}`.toUpperCase(),
+                            moduloLed: spotResult.ledModuleWithCCT ?? "",
+                            drivers: (() => { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; const drvQty = driverQtyFor(spotResult.product, spotResult.controle, spotResult.tensao); return `${drvQty}x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                           };
-                          addItem(item);
+                          setPendingCartItem(item);
+                          setColorModalOpen(true);
                         }}
                       >
                         <ShoppingCart className="w-3 h-3" /> Enviar ao Carrinho
@@ -4638,7 +4676,7 @@ export default function Home() {
         </div>
       </main>
 
-      {/* ── Footer ─────────────────────────────────────────────────────────── */}
+      {/* ── Footer ──────────────────────────────────────────────────────────────────────── */}
       <footer className="border-t border-border mt-16 py-6">
         <div className="container flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
           <span>© 2026 Alfalux Iluminação · Configurador de Produtos</span>
@@ -4647,6 +4685,18 @@ export default function Home() {
           </span>
         </div>
       </footer>
+      {/* Modal de seleção de cor da peça */}
+      <ColorPickerModal
+        open={colorModalOpen}
+        onClose={() => { setColorModalOpen(false); setPendingCartItem(null); }}
+        onConfirm={(cor: CorPeca) => {
+          if (pendingCartItem) addItem({ ...pendingCartItem, corPeca: cor });
+          setColorModalOpen(false);
+          setPendingCartItem(null);
+        }}
+        isAdding={isAddingToCart}
+        productName={pendingCartItem?.sku ?? ""}
+      />
     </div>
   );
 }

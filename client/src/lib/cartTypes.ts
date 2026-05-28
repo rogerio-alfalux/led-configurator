@@ -25,6 +25,12 @@ export interface CartItemData {
   orderSummary: string;
   /** Texto completo do resumo para orçamento */
   quoteSummary: string;
+  /** Cor da peça selecionada (ex: "Branco Fosco Micro", "A Definir") */
+  corPeca?: string;
+  /** Módulo LED (fonte de luz) para ficha de produção */
+  moduloLed?: string;
+  /** Drivers (equipamentos) para ficha de produção */
+  drivers?: string;
 }
 
 export interface QuoteFormData {

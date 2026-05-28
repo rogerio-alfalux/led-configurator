@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import {
   ShoppingCart, Trash2, FileSpreadsheet, ArrowLeft, Package,
@@ -19,6 +19,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
 interface SaveFormData {
+  quoteNumber: string;
   clientName: string;
   clientContact: string;
   clientPhone: string;
@@ -68,6 +69,7 @@ export default function Cart() {
 
   // Formulário para salvar no banco
   const [saveForm, setSaveForm] = useState<SaveFormData>({
+    quoteNumber: "",
     clientName: "",
     clientContact: "",
     clientPhone: "",
@@ -79,6 +81,17 @@ export default function Cart() {
     notes: "",
     versionNotes: "",
   });
+
+  // Busca sugestão de número ao abrir o diálogo
+  const suggestQuery = trpc.quotes.suggestNumber.useQuery(undefined, {
+    enabled: saveDialogOpen,
+    staleTime: 0,
+  });
+  useEffect(() => {
+    if (saveDialogOpen && suggestQuery.data?.suggested && !saveForm.quoteNumber) {
+      setSaveForm(prev => ({ ...prev, quoteNumber: suggestQuery.data!.suggested }));
+    }
+  }, [saveDialogOpen, suggestQuery.data]);
 
   if (!user) {
     return (
@@ -125,6 +138,7 @@ export default function Cart() {
       return;
     }
     saveQuoteMutation.mutate({
+      quoteNumber: saveForm.quoteNumber.trim() || undefined,
       clientName: saveForm.clientName,
       clientContact: saveForm.clientContact || undefined,
       clientPhone: saveForm.clientPhone || undefined,
@@ -328,6 +342,21 @@ export default function Cart() {
                             <TabsTrigger value="equipe" className="flex-1">Equipe</TabsTrigger>
                           </TabsList>
                           <TabsContent value="cliente" className="space-y-3 pt-3">
+                            <div>
+                              <Label>Número do Orçamento</Label>
+                              <div className="relative">
+                                <Input
+                                  placeholder={suggestQuery.data?.suggested ?? "ORC-2026-0001"}
+                                  value={saveForm.quoteNumber}
+                                  onChange={e => updateSaveForm("quoteNumber", e.target.value)}
+                                />
+                                {suggestQuery.data?.suggested && !saveForm.quoteNumber && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Sugestão: <button type="button" className="text-primary underline" onClick={() => updateSaveForm("quoteNumber", suggestQuery.data!.suggested)}>{suggestQuery.data.suggested}</button>
+                                  </p>
+                                )}
+                              </div>
+                            </div>
                             <div>
                               <Label>Cliente *</Label>
                               <Input
