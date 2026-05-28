@@ -2,17 +2,21 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import {
   ShoppingCart, Trash2, FileSpreadsheet, ArrowLeft, Package,
-  Plus, Minus, Save, CheckCircle, ClipboardList,
+  Plus, Minus, Save, ClipboardList, Factory, AlertTriangle,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCart } from "@/hooks/useCart";
-import { formatBRL, QuoteFormData } from "@/lib/cartTypes";
+import { formatBRL, QuoteFormData, CartItemData, parseCartItemData } from "@/lib/cartTypes";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
+import { generateOrderExcel } from "@/lib/orderExcelGenerator";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
@@ -30,6 +34,14 @@ interface SaveFormData {
   assistantName: string;
   notes: string;
   versionNotes: string;
+}
+
+interface OrderFormData {
+  clientName: string;
+  projectName: string;
+  vendorName: string;
+  quoteRef: string;
+  empresa: "ALFALUX" | "LUMINEW";
 }
 
 export default function Cart() {
@@ -50,12 +62,26 @@ export default function Cart() {
       toast.error(`Erro ao salvar orçamento: ${err.message}`);
     },
   });
+  const logProductionSheetMutation = trpc.quotes.logProductionSheet.useMutation();
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 
-  // Formulário para gerar Excel
+  // ─── Pedido de Fábrica direto do carrinho ─────────────────────────────────
+  // Passo 1: alerta de confirmação inicial
+  const [orderConfirmOpen, setOrderConfirmOpen] = useState(false);
+  // Passo 2: formulário com dados + empresa
+  const [orderFormOpen, setOrderFormOpen] = useState(false);
+  const [orderForm, setOrderForm] = useState<OrderFormData>({
+    clientName: "",
+    projectName: "",
+    vendorName: "",
+    quoteRef: "",
+    empresa: "ALFALUX",
+  });
+
+  // Formulário para gerar Excel de orçamento
   const [form, setForm] = useState<QuoteFormData>({
     cliente: "",
     contato: "",
@@ -157,11 +183,51 @@ export default function Cart() {
     });
   };
 
+  const handleGenerateDirectOrder = async () => {
+    if (!orderForm.clientName.trim()) {
+      toast.error("Informe o nome do cliente.");
+      return;
+    }
+    setIsGenerating(true);
+    setOrderFormOpen(false);
+    try {
+      const items = entries
+        .map(e => parseCartItemData(JSON.stringify(e.data)))
+        .filter((d): d is CartItemData => d !== null);
+
+      await generateOrderExcel(items, {
+        clientName: orderForm.clientName,
+        projectName: orderForm.projectName,
+        quoteNumber: orderForm.quoteRef || "SEM-ORC",
+        vendorName: orderForm.vendorName,
+        date: new Date().toLocaleDateString("pt-BR"),
+        empresa: orderForm.empresa,
+      });
+
+      // Registrar no log de auditoria (sem quoteId — pedido avulso)
+      logProductionSheetMutation.mutate({
+        quoteId: 0,
+        quoteNumber: orderForm.quoteRef || "SEM-ORC",
+        empresa: orderForm.empresa,
+      });
+
+      toast.success("Pedido de fábrica gerado com sucesso!");
+    } catch (err) {
+      console.error("Erro ao gerar pedido:", err);
+      toast.error("Erro ao gerar o pedido. Tente novamente.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const updateForm = (field: keyof QuoteFormData, value: string) =>
     setForm(prev => ({ ...prev, [field]: value }));
 
   const updateSaveForm = (field: keyof SaveFormData, value: string) =>
     setSaveForm(prev => ({ ...prev, [field]: value }));
+
+  const updateOrderForm = (field: keyof OrderFormData, value: string) =>
+    setOrderForm(prev => ({ ...prev, [field]: value as OrderFormData[typeof field] }));
 
   const handleUpdateQty = (id: number, currentQty: number, delta: number) => {
     const newQty = Math.max(1, currentQty + delta);
@@ -341,12 +407,14 @@ export default function Cart() {
 
                     {/* Salvar Orçamento no banco */}
                     <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" className="gap-2 border-green-600/40 text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950">
-                          <Save className="w-4 h-4" />
-                          Salvar Orçamento
-                        </Button>
-                      </DialogTrigger>
+                      <Button
+                        variant="outline"
+                        className="gap-2 border-green-600/40 text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950"
+                        onClick={() => setSaveDialogOpen(true)}
+                      >
+                        <Save className="w-4 h-4" />
+                        Salvar Orçamento
+                      </Button>
                       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                           <DialogTitle>Salvar Orçamento no Sistema</DialogTitle>
@@ -479,14 +547,12 @@ export default function Cart() {
                       </DialogContent>
                     </Dialog>
 
-                    {/* Gerar Excel */}
+                    {/* Gerar Excel de Orçamento */}
                     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button className="gap-2">
-                          <FileSpreadsheet className="w-4 h-4" />
-                          Gerar Orçamento
-                        </Button>
-                      </DialogTrigger>
+                      <Button className="gap-2" onClick={() => setDialogOpen(true)}>
+                        <FileSpreadsheet className="w-4 h-4" />
+                        Gerar Orçamento
+                      </Button>
                       <DialogContent className="max-w-lg">
                         <DialogHeader>
                           <DialogTitle>Dados para o Orçamento</DialogTitle>
@@ -566,6 +632,17 @@ export default function Cart() {
                         </div>
                       </DialogContent>
                     </Dialog>
+
+                    {/* ─── Gerar Pedido de Fábrica (sem orçamento) ─── */}
+                    <Button
+                      variant="outline"
+                      className="gap-2 border-orange-500/40 text-orange-700 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-950"
+                      onClick={() => setOrderConfirmOpen(true)}
+                      disabled={isGenerating}
+                    >
+                      <Factory className="w-4 h-4" />
+                      Pedido de Fábrica
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -573,6 +650,135 @@ export default function Cart() {
           </>
         )}
       </div>
+
+      {/* ─── Passo 1: Confirmação inicial ─────────────────────────────────────── */}
+      <AlertDialog open={orderConfirmOpen} onOpenChange={setOrderConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-orange-500" />
+              Gerar Pedido de Fábrica sem Orçamento?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Você está prestes a gerar uma <strong>Ficha Técnica de Produção</strong> diretamente
+                do carrinho, <strong>sem vincular a um orçamento salvo no sistema</strong>.
+              </p>
+              <p>
+                Este pedido <strong>não ficará registrado</strong> no histórico de orçamentos.
+                Recomendamos salvar o orçamento primeiro e gerar o pedido a partir dele.
+              </p>
+              <p>Deseja continuar mesmo assim?</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-orange-600 hover:bg-orange-700 text-white gap-2"
+              onClick={() => {
+                setOrderConfirmOpen(false);
+                setOrderFormOpen(true);
+              }}
+            >
+              <ChevronRight className="w-4 h-4" />
+              Continuar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── Passo 2: Formulário de dados do pedido ───────────────────────────── */}
+      <Dialog open={orderFormOpen} onOpenChange={setOrderFormOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Factory className="w-5 h-5 text-orange-500" />
+              Dados para o Pedido de Fábrica
+            </DialogTitle>
+            <DialogDescription>
+              Preencha os dados que aparecerão na Ficha Técnica de Produção.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div>
+              <Label>Cliente *</Label>
+              <Input
+                placeholder="Nome do cliente ou obra"
+                value={orderForm.clientName}
+                onChange={e => updateOrderForm("clientName", e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Obra / Projeto</Label>
+                <Input
+                  placeholder="Nome da obra"
+                  value={orderForm.projectName}
+                  onChange={e => updateOrderForm("projectName", e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>Vendedor</Label>
+                <Input
+                  placeholder="Nome do vendedor"
+                  value={orderForm.vendorName}
+                  onChange={e => updateOrderForm("vendorName", e.target.value)}
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Referência do Orçamento (opcional)</Label>
+              <Input
+                placeholder="Ex: ORC-2026-0042 ou referência interna"
+                value={orderForm.quoteRef}
+                onChange={e => updateOrderForm("quoteRef", e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Empresa Fabricante</Label>
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setOrderForm(prev => ({ ...prev, empresa: "ALFALUX" }))}
+                  className={`p-3 rounded-lg border-2 text-sm font-semibold transition-colors ${
+                    orderForm.empresa === "ALFALUX"
+                      ? "border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300"
+                      : "border-border text-muted-foreground hover:border-orange-300"
+                  }`}
+                >
+                  1 — ALFALUX
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOrderForm(prev => ({ ...prev, empresa: "LUMINEW" }))}
+                  className={`p-3 rounded-lg border-2 text-sm font-semibold transition-colors ${
+                    orderForm.empresa === "LUMINEW"
+                      ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                      : "border-border text-muted-foreground hover:border-blue-300"
+                  }`}
+                >
+                  2 — LUMINEW
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t">
+            <Button variant="outline" onClick={() => setOrderFormOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleGenerateDirectOrder}
+              disabled={isGenerating || !orderForm.clientName.trim()}
+              className="gap-2 bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              <Factory className="w-4 h-4" />
+              {isGenerating ? "Gerando..." : "Gerar Pedido de Fábrica"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

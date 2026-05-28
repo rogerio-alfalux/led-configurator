@@ -248,9 +248,15 @@ export async function generateQuoteExcel(
     // D = FOTO — inserir imagem se disponível
     if (item.photoUrl) {
       try {
-        // Usar o proxy server-side para evitar CORS
-        const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(item.photoUrl)}`;
-        const response = await fetch(proxyUrl);
+        // Para URLs /manus-storage/ buscamos diretamente (são arquivos internos).
+        // Para URLs externas usamos o proxy server-side para evitar CORS.
+        let fetchUrl: string;
+        if (item.photoUrl.startsWith("/manus-storage/")) {
+          fetchUrl = item.photoUrl; // fetch relativo — funciona no browser
+        } else {
+          fetchUrl = `/api/image-proxy?url=${encodeURIComponent(item.photoUrl)}`;
+        }
+        const response = await fetch(fetchUrl);
         if (response.ok) {
           const arrayBuffer = await response.arrayBuffer();
           const uint8 = new Uint8Array(arrayBuffer);
@@ -259,16 +265,45 @@ export async function generateQuoteExcel(
           if (uint8[0] === 0x89 && uint8[1] === 0x50) ext = "png";
           else if (uint8[0] === 0x47 && uint8[1] === 0x49) ext = "gif";
 
+          // Calcular dimensões originais para manter proporção (contain)
+          const blob = new Blob([arrayBuffer]);
+          const blobUrl = URL.createObjectURL(blob);
+          const imgEl = await new Promise<HTMLImageElement>((resolve) => {
+            const el = new Image();
+            el.onload = () => resolve(el);
+            el.onerror = () => resolve(el);
+            el.src = blobUrl;
+          });
+          URL.revokeObjectURL(blobUrl);
+
+          // Célula da foto: largura ~140px, altura ~90px
+          const cellW = 140;
+          const cellH = 90;
+          let drawW = cellW;
+          let drawH = cellH;
+          if (imgEl.naturalWidth > 0 && imgEl.naturalHeight > 0) {
+            const ratio = imgEl.naturalWidth / imgEl.naturalHeight;
+            if (ratio > cellW / cellH) {
+              // Imagem mais larga: ajustar pela largura
+              drawW = cellW;
+              drawH = cellW / ratio;
+            } else {
+              // Imagem mais alta: ajustar pela altura
+              drawH = cellH;
+              drawW = cellH * ratio;
+            }
+          }
+          // Centralizar dentro da célula
+          const offsetX = (cellW - drawW) / 2;
+          const offsetY = (cellH - drawH) / 2;
+
           const imgId = wb.addImage({
             buffer: arrayBuffer,
             extension: ext,
           });
-          // Posicionar a imagem usando ImagePosition com tamanho fixo
-          // Coluna D = índice 3 (0-based), linha rowNum-1 (0-based)
-          // 1 pt = 9525 EMUs; largura ~120pt, altura ~80pt
           ws.addImage(imgId, {
-            tl: { col: 3, row: rowNum - 1 },
-            ext: { width: 140, height: 90 },
+            tl: { col: 3 + offsetX / cellW, row: rowNum - 1 + offsetY / cellH },
+            ext: { width: drawW, height: drawH },
             editAs: "oneCell",
           } as ExcelJS.ImagePosition & { editAs: string });
         }

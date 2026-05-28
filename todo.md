@@ -781,3 +781,13 @@
 - [x] Página /admin com tabela de logs (paginada, filtrável por ação/usuário/data)
 - [x] Rota /admin protegida: redireciona não-ADM para home
 - [x] Link "Admin" visível somente para ADM no header/sidebar
+
+## v7.1 — Correções de Fotos no Excel e Pedido de Fábrica sem Orçamento
+
+- [x] Corrigir BOX LED sem foto no Excel de orçamentos (investigar campo photoUrl)
+- [x] Corrigir proporção de imagens no Excel (contain, não stretch — manter aspect ratio original)
+- [x] Verificar label de status inicial "Em Aberto" na UI (já estava correto)
+- [x] Botão "Gerar Pedido de Fábrica" no carrinho (sem orçamento vinculado)
+- [x] Dupla confirmação antes de gerar pedido direto do carrinho
+- [x] Formulário com dados do cliente/obra/vendedor antes de gerar o pedido
+- [x] Registrar geração de pedido direto no log de auditoria
