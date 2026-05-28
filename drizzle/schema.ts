@@ -123,3 +123,35 @@ export const quoteItems = mysqlTable("quote_items", {
 
 export type QuoteItem = typeof quoteItems.$inferSelect;
 export type InsertQuoteItem = typeof quoteItems.$inferInsert;
+
+// ─── LOG DE AUDITORIA ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Registro de auditoria de todas as ações relevantes do sistema.
+ * Somente administradores podem consultar estes registros.
+ */
+export const auditLogs = mysqlTable("audit_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  /** ID do usuário que executou a ação (null = sistema) */
+  userId: int("userId"),
+  /** E-mail do usuário no momento da ação (desnormalizado para histórico) */
+  userEmail: varchar("userEmail", { length: 320 }),
+  /** Nome do usuário no momento da ação */
+  userName: varchar("userName", { length: 256 }),
+  /**
+   * Tipo de ação executada.
+   * Ex: quote_created, quote_updated, quote_deleted, quote_status_changed,
+   *     production_sheet_generated, login_blocked
+   */
+  action: varchar("action", { length: 64 }).notNull(),
+  /** Tipo da entidade afetada (quote, user, cart_item, etc.) */
+  entityType: varchar("entityType", { length: 64 }),
+  /** ID da entidade afetada */
+  entityId: int("entityId"),
+  /** Detalhes adicionais em JSON (ex: {quoteNumber, oldStatus, newStatus}) */
+  details: text("details"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = typeof auditLogs.$inferInsert;

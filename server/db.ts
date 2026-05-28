@@ -462,3 +462,102 @@ export async function deleteQuote(id: number): Promise<void> {
 export async function suggestQuoteNumber(): Promise<string> {
   return generateQuoteNumber();
 }
+
+// ─── Auditoria ────────────────────────────────────────────────────────────────
+import { auditLogs, InsertAuditLog } from "../drizzle/schema";
+
+/**
+ * E-mails dos administradores do sistema.
+ * Esses usuários têm acesso total, incluindo logs de auditoria.
+ */
+export const ADMIN_EMAILS = [
+  "rogeriojohnwayne@gmail.com",
+  "rogerio@grupoalfalux.com.br",
+];
+
+/**
+ * Domínio permitido para acesso ao sistema.
+ * Usuários com e-mail fora desse domínio serão bloqueados (exceto ADMINs).
+ */
+export const ALLOWED_DOMAIN = "grupoalfalux";
+
+/**
+ * Verifica se um e-mail tem permissão para acessar o sistema.
+ * Permite: ADMINs explícitos + qualquer e-mail @grupoalfalux.*
+ */
+export function isEmailAllowed(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const lower = email.toLowerCase();
+  if (ADMIN_EMAILS.includes(lower)) return true;
+  // Aceita qualquer subdomínio de grupoalfalux (ex: @grupoalfalux.com.br, @grupoalfalux.com)
+  return /@grupoalfalux\b/.test(lower);
+}
+
+/**
+ * Verifica se um e-mail pertence a um administrador do sistema.
+ */
+export function isAdminEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return ADMIN_EMAILS.includes(email.toLowerCase());
+}
+
+/**
+ * Insere um registro de auditoria no banco.
+ * Falha silenciosamente para não interromper o fluxo principal.
+ */
+export async function insertAuditLog(entry: Omit<InsertAuditLog, "id" | "createdAt">): Promise<void> {
+  try {
+    const db = await getDb();
+    if (!db) return;
+    await db.insert(auditLogs).values({
+      userId: entry.userId ?? null,
+      userEmail: entry.userEmail ?? null,
+      userName: entry.userName ?? null,
+      action: entry.action,
+      entityType: entry.entityType ?? null,
+      entityId: entry.entityId ?? null,
+      details: entry.details ?? null,
+    });
+  } catch (err) {
+    console.error("[AuditLog] Failed to insert log:", err);
+  }
+}
+
+/**
+ * Lista logs de auditoria com paginação e filtros.
+ * Somente para administradores.
+ */
+export async function getAuditLogs(opts: {
+  action?: string;
+  userEmail?: string;
+  entityType?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const db = await getDb();
+  if (!db) return { rows: [], total: 0 };
+
+  const conditions = [];
+  if (opts.action) conditions.push(eq(auditLogs.action, opts.action));
+  if (opts.userEmail) conditions.push(like(auditLogs.userEmail, `%${opts.userEmail}%`));
+  if (opts.entityType) conditions.push(eq(auditLogs.entityType, opts.entityType));
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const limit = opts.limit ?? 50;
+  const offset = opts.offset ?? 0;
+
+  const rows = await db
+    .select()
+    .from(auditLogs)
+    .where(where)
+    .orderBy(desc(auditLogs.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  const countResult = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(auditLogs)
+    .where(where);
+
+  return { rows, total: Number(countResult[0]?.count ?? 0) };
+}

@@ -9,6 +9,7 @@ import Cart from "./pages/Cart";
 import Quotes from "./pages/Quotes";
 import QuoteDetail from "./pages/QuoteDetail";
 import Dashboard from "./pages/Dashboard";
+import Admin from "./pages/Admin";
 
 function Router() {
   return (
@@ -18,6 +19,7 @@ function Router() {
       <Route path={"/orcamentos"} component={Quotes} />
       <Route path={"/orcamentos/:id"} component={QuoteDetail} />
       <Route path={"/dashboard"} component={Dashboard} />
+      <Route path={"/admin"} component={Admin} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

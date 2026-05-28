@@ -1,6 +1,7 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import type { Express, Request, Response } from "express";
 import * as db from "../db";
+import { isEmailAllowed, isAdminEmail, insertAuditLog } from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 
@@ -28,12 +29,42 @@ export function registerOAuthRoutes(app: Express) {
         return;
       }
 
+      const email = userInfo.email ?? null;
+
+      // ─── Verificação de domínio ─────────────────────────────────────────
+      // Somente e-mails @grupoalfalux.* ou ADMINs explícitos podem acessar.
+      if (!isEmailAllowed(email)) {
+        // Registrar tentativa bloqueada no log de auditoria
+        await insertAuditLog({
+          userId: null,
+          userEmail: email,
+          userName: userInfo.name ?? null,
+          action: "login_blocked",
+          entityType: "user",
+          entityId: null,
+          details: JSON.stringify({
+            reason: "email_domain_not_allowed",
+            email,
+            name: userInfo.name,
+          }),
+        });
+
+        console.warn(`[OAuth] Login bloqueado para e-mail não autorizado: ${email}`);
+        // Redirecionar para página de acesso negado
+        res.redirect(302, "/?access=denied");
+        return;
+      }
+
+      // Promover automaticamente ADMINs pelo e-mail
+      const role = isAdminEmail(email) ? "admin" : undefined;
+
       await db.upsertUser({
         openId: userInfo.openId,
         name: userInfo.name || null,
-        email: userInfo.email ?? null,
+        email,
         loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
         lastSignedIn: new Date(),
+        ...(role ? { role } : {}),
       });
 
       const sessionToken = await sdk.createSessionToken(userInfo.openId, {

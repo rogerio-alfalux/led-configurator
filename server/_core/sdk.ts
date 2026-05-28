@@ -292,10 +292,25 @@ class SDKServer {
       throw ForbiddenError("User not found");
     }
 
-    await db.upsertUser({
-      openId: user.openId,
-      lastSignedIn: signedInAt,
-    });
+    // ─── Verificação de domínio em sessões existentes ────────────────────────
+    // Garante que mesmo usuários com cookie válido sejam bloqueados se o
+    // e-mail não pertencer ao domínio permitido.
+    const { isEmailAllowed, isAdminEmail } = await import("../db");
+    if (!isEmailAllowed(user.email)) {
+      throw ForbiddenError("Access denied: email domain not allowed");
+    }
+
+    // Garantir que ADMINs explícitos sempre tenham role=admin no banco
+    const shouldBeAdmin = isAdminEmail(user.email);
+    if (shouldBeAdmin && user.role !== "admin") {
+      await db.upsertUser({ openId: user.openId, role: "admin", lastSignedIn: signedInAt });
+      user = { ...user, role: "admin" };
+    } else {
+      await db.upsertUser({
+        openId: user.openId,
+        lastSignedIn: signedInAt,
+      });
+    }
 
     return user;
   }

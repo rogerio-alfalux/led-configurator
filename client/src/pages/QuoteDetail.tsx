@@ -72,6 +72,8 @@ export default function QuoteDetail() {
     onError: (err) => toast.error(`Erro: ${err.message}`),
   });
 
+  const logProductionSheetMutation = trpc.quotes.logProductionSheet.useMutation();
+
   const deleteMutation = trpc.quotes.delete.useMutation({
     onSuccess: () => {
       utils.quotes.list.invalidate();
@@ -150,6 +152,12 @@ export default function QuoteDetail() {
           empresa,
         }
       );
+      // Registrar geração no log de auditoria
+      logProductionSheetMutation.mutate({
+        quoteId: quote.id,
+        quoteNumber: quote.quoteNumber,
+        empresa,
+      });
       toast.success("Pedido de fábrica gerado!");
     } catch (err) {
       toast.error("Erro ao gerar pedido.");

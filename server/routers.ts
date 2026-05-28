@@ -1,29 +1,34 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { fetchDrivers, invalidateDriverCache } from "./driverService";
 import { fetchAllAlfaluxProducts, invalidateAlfaluxCache } from "./alfaluxApiService";
 import {
   addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty,
   createQuote, addQuoteRevision, listQuotes, getQuoteById, approveQuote,
   updateQuoteStatus, getQuoteStats, deleteQuote, suggestQuoteNumber,
+  insertAuditLog, getAuditLogs,
 } from "./db";
-import { protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 
+// ─── Admin-only procedure ─────────────────────────────────────────────────────
+const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if (ctx.user.role !== "admin") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a administradores." });
+  }
+  return next({ ctx });
+});
+
 export const appRouter = router({
-    // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return {
-        success: true,
-      } as const;
+      return { success: true } as const;
     }),
   }),
 
@@ -41,7 +46,6 @@ export const appRouter = router({
 
   alfalux: router({
     products: publicProcedure.query(async () => {
-      // Não há fallback estático: se a API falhar, o erro é propagado para a UI exibir ao usuário.
       const products = await fetchAllAlfaluxProducts();
       return products;
     }),
@@ -59,9 +63,7 @@ export const appRouter = router({
 
   cart: router({
     add: protectedProcedure
-      .input(z.object({
-        itemData: z.string(), // JSON serializado do CartItemData
-      }))
+      .input(z.object({ itemData: z.string() }))
       .mutation(async ({ ctx, input }) => {
         const id = await addCartItem({ userId: ctx.user.id, itemData: input.itemData });
         return { id };
@@ -98,7 +100,6 @@ export const appRouter = router({
 
   // ─── Orçamentos ────────────────────────────────────────────────────────────
   quotes: router({
-    /** Schema compartilhado para cabeçalho + itens */
     save: protectedProcedure
       .input(z.object({
         quoteNumber: z.string().optional(),
@@ -113,13 +114,24 @@ export const appRouter = router({
         notes: z.string().optional(),
         versionNotes: z.string().optional(),
         totalAmount: z.number(),
-        items: z.array(z.object({
-          itemNumber: z.number(),
-          itemData: z.string(),
-        })),
+        items: z.array(z.object({ itemNumber: z.number(), itemData: z.string() })),
       }))
       .mutation(async ({ ctx, input }) => {
         const result = await createQuote({ ...input, createdByUserId: ctx.user.id });
+        await insertAuditLog({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+          userName: ctx.user.name,
+          action: "quote_created",
+          entityType: "quote",
+          entityId: result.quoteId,
+          details: JSON.stringify({
+            quoteNumber: result.quoteNumber,
+            clientName: input.clientName,
+            totalAmount: input.totalAmount,
+            itemCount: input.items.length,
+          }),
+        });
         return result;
       }),
 
@@ -137,14 +149,25 @@ export const appRouter = router({
         notes: z.string().optional(),
         versionNotes: z.string().optional(),
         totalAmount: z.number(),
-        items: z.array(z.object({
-          itemNumber: z.number(),
-          itemData: z.string(),
-        })),
+        items: z.array(z.object({ itemNumber: z.number(), itemData: z.string() })),
       }))
       .mutation(async ({ ctx, input }) => {
         const { quoteId, ...rest } = input;
         const result = await addQuoteRevision(quoteId, { ...rest, createdByUserId: ctx.user.id });
+        await insertAuditLog({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+          userName: ctx.user.name,
+          action: "quote_revised",
+          entityType: "quote",
+          entityId: quoteId,
+          details: JSON.stringify({
+            newVersion: result.version,
+            clientName: input.clientName,
+            totalAmount: input.totalAmount,
+            versionNotes: input.versionNotes,
+          }),
+        });
         return result;
       }),
 
@@ -169,8 +192,17 @@ export const appRouter = router({
 
     approve: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
         await approveQuote(input.id);
+        await insertAuditLog({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+          userName: ctx.user.name,
+          action: "quote_status_changed",
+          entityType: "quote",
+          entityId: input.id,
+          details: JSON.stringify({ newStatus: "approved" }),
+        });
         return { success: true };
       }),
 
@@ -178,9 +210,22 @@ export const appRouter = router({
       .input(z.object({
         id: z.number(),
         status: z.enum(["open", "approved", "lost", "cancelled"]),
+        quoteNumber: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
         await updateQuoteStatus(input.id, input.status);
+        await insertAuditLog({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+          userName: ctx.user.name,
+          action: "quote_status_changed",
+          entityType: "quote",
+          entityId: input.id,
+          details: JSON.stringify({
+            newStatus: input.status,
+            quoteNumber: input.quoteNumber,
+          }),
+        });
         return { success: true };
       }),
 
@@ -189,8 +234,17 @@ export const appRouter = router({
     }),
 
     delete: protectedProcedure
-      .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
+      .input(z.object({ id: z.number(), quoteNumber: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        await insertAuditLog({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+          userName: ctx.user.name,
+          action: "quote_deleted",
+          entityType: "quote",
+          entityId: input.id,
+          details: JSON.stringify({ quoteNumber: input.quoteNumber }),
+        });
         await deleteQuote(input.id);
         return { success: true };
       }),
@@ -200,6 +254,52 @@ export const appRouter = router({
       return { suggested };
     }),
 
+    /** Registra geração de ficha de produção */
+    logProductionSheet: protectedProcedure
+      .input(z.object({
+        quoteId: z.number(),
+        quoteNumber: z.string(),
+        empresa: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await insertAuditLog({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+          userName: ctx.user.name,
+          action: "production_sheet_generated",
+          entityType: "quote",
+          entityId: input.quoteId,
+          details: JSON.stringify({
+            quoteNumber: input.quoteNumber,
+            empresa: input.empresa,
+          }),
+        });
+        return { success: true };
+      }),
+  }),
+
+  // ─── Painel ADM ────────────────────────────────────────────────────────────
+  admin: router({
+    getLogs: adminProcedure
+      .input(z.object({
+        action: z.string().optional(),
+        userEmail: z.string().optional(),
+        entityType: z.string().optional(),
+        limit: z.number().min(1).max(200).optional(),
+        offset: z.number().optional(),
+      }))
+      .query(async ({ input }) => {
+        return getAuditLogs(input);
+      }),
+
+    getUsers: adminProcedure.query(async () => {
+      const { getDb } = await import("./db");
+      const { users } = await import("../drizzle/schema");
+      const { desc } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) return [];
+      return db.select().from(users).orderBy(desc(users.lastSignedIn));
+    }),
   }),
 });
 

@@ -768,3 +768,16 @@
 - [x] Altura de linha dinâmica: proporcional ao número de segmentos
 - [x] Corrigido: LED BAR e BAGEO usavam r.product.driver (inexistente) → corrigido para driver220?.model
 - [x] 490 testes passando, zero erros TypeScript reais
+
+## v7 — Controle de Acesso, Auditoria e Painel ADM
+
+- [x] Tabela audit_logs: id, userId, userEmail, userName, action, entityType, entityId, details (JSON), createdAt
+- [x] DB helper: insertAuditLog(entry) e getAuditLogs(filters)
+- [x] Procedure tRPC: admin.getLogs (somente ADM)
+- [x] Restrição de domínio: bloquear login de e-mails fora de @grupoalfalux (exceto ADMs rogeriojohnwayne@gmail.com e rogerio@grupoalfalux.com.br)
+- [x] Tela de acesso negado para usuários bloqueados
+- [x] Marcar ADMINs no banco (role=admin para os dois e-mails do Rogério)
+- [x] Instrumentar: criar orçamento, editar orçamento, excluir orçamento, alterar status, gerar ficha de produção
+- [x] Página /admin com tabela de logs (paginada, filtrável por ação/usuário/data)
+- [x] Rota /admin protegida: redireciona não-ADM para home
+- [x] Link "Admin" visível somente para ADM no header/sidebar

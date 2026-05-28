@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE `audit_logs` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`userId` int,\n\t`userEmail` varchar(320),\n\t`userName` varchar(256),\n\t`action` varchar(64) NOT NULL,\n\t`entityType` varchar(64),\n\t`entityId` int,\n\t`details` text,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `audit_logs_id` PRIMARY KEY(`id`)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute CREATE TABLE `audit_logs` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`userId` int,\n\t`userEmail` varchar(320),\n\t`userName` varchar(256),\n\t`action` varchar(64) NOT NULL,\n\t`entityType` varchar(64),\n\t`entityId` int,\n\t`details` text,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `audit_logs_id` PRIMARY KEY(`id`)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 392
+}
