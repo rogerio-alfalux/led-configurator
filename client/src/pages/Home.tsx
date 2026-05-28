@@ -4,7 +4,7 @@ import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, Re
 import { Link } from "wouter";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/_core/hooks/useAuth";
-import type { CartItemData } from "@/lib/cartTypes";
+import type { CartItemData, ProfileSegment } from "@/lib/cartTypes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -725,6 +725,65 @@ function QuoteSummaryCard({ result, profilePriceMap }: { result: CompositionResu
               disabled={isAddingToCart}
               onClick={() => {
                 const photo = getProfilePhoto(result.profileCode, result.diffuserD1, result.diffuserD2);
+
+                // Construir segmentos da composição para a Ficha Técnica de Produção
+                const isDual = result.application === 'D1+D2';
+                const isIndependent = isDual && (result.independentLighting || result.forcedIndependent);
+                const driverEntriesD1 =
+                  isDual && !isIndependent && result.combinedDrivers
+                    ? result.combinedDrivers
+                    : result.driversD1;
+
+                // Mapa de SKUs únicos preservando a ordem da composição
+                const skuOrder: string[] = [];
+                const skuMap = new Map<string, { length: number; quantity: number; barsPerModule: number }>();
+                for (const compItem of result.composition) {
+                  if (!skuMap.has(compItem.sku)) {
+                    skuOrder.push(compItem.sku);
+                    skuMap.set(compItem.sku, {
+                      length: compItem.length,
+                      quantity: compItem.quantity,
+                      barsPerModule: compItem.barsPerModule,
+                    });
+                  }
+                }
+
+                const profileSegments: ProfileSegment[] = skuOrder.map((sku) => {
+                  const info = skuMap.get(sku)!;
+                  const d1Entry = driverEntriesD1.find((e) => e.sku === sku);
+                  const barsPerPiece = d1Entry ? d1Entry.barsPerPiece : info.barsPerModule;
+
+                  // Calcular quantidade de drivers por peça
+                  let driverQtyPerPiece = 1;
+                  let driverModel = "";
+                  let driverCode = "";
+
+                  if (d1Entry) {
+                    if (d1Entry.driver.combo && d1Entry.driver.combo.length > 0) {
+                      // Para combos, usar o primeiro driver do combo como referência
+                      // e somar as quantidades
+                      const totalComboQty = d1Entry.driver.combo.reduce((s, c) => s + c.quantity, 0);
+                      driverQtyPerPiece = totalComboQty;
+                      driverModel = d1Entry.driver.combo.map(c => `${c.quantity} x ${c.model.toUpperCase()}${c.code ? ` (${c.code})` : ''}`).join(' + ');
+                      driverCode = "";
+                    } else {
+                      driverQtyPerPiece = d1Entry.driver.quantity ?? 1;
+                      driverModel = d1Entry.driver.model.toUpperCase();
+                      driverCode = d1Entry.driver.code ?? "";
+                    }
+                  }
+
+                  return {
+                    sku,
+                    qty: info.quantity,
+                    lengthMm: info.length,
+                    barsPerPiece,
+                    driverQtyPerPiece,
+                    driverModel,
+                    driverCode,
+                  };
+                });
+
                 const item: CartItemData = {
                   category: "Perfis",
                   sku: result.profileCode,
@@ -737,8 +796,10 @@ function QuoteSummaryCard({ result, profilePriceMap }: { result: CompositionResu
                   photoUrl: photo ?? "",
                   moduloLed: `Stripflex 562,5 x 10mm 36L ${result.cct}`,
                   drivers: "",
-                  orderSummary: "",
+                  orderSummary: generateOrderSummary(result),
                   quoteSummary: summary,
+                  profileSegments,
+                  stripMethod: result.stripMethod,
                 };
                 setPendingItem(item);
                 setColorModalOpen(true);
@@ -3528,7 +3589,7 @@ export default function Home() {
                                     orderSummary: pedido,
                                     quoteSummary: orcamento,
                                     moduloLed: r.product.ledModule ?? "",
-                                    drivers: r.product.driver ?? "",
+                                    drivers: r.product.driver220?.model ?? r.product.driverBivolt?.model ?? "",
                                   };
                                   setPendingCartItem(item);
                                   setColorModalOpen(true);
@@ -3754,7 +3815,7 @@ export default function Home() {
                                   orderSummary: pedido,
                                   quoteSummary: orcamento,
                                   moduloLed: r.product.ledModule ?? "",
-                                  drivers: r.product.driver ?? "",
+                                  drivers: r.product.driver220?.model ?? r.product.driverBivolt?.model ?? "",
                                 };
                                 setPendingCartItem(item);
                                 setColorModalOpen(true);

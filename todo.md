@@ -754,3 +754,17 @@
 - [x] Extrair potência (ex: 17W) da descrição do produto via regex como fallback na coluna Potência
 - [x] Ficha de Produção: SKU (coluna E) = apenas o código SKU; PRODUTO (coluna D) = orderSummary completo
 - [x] Ficha de Produção: Fonte de Luz dos perfis = "Stripflex 562,5 x 10mm 36L [CCT]" com CCT real
+
+## v6.3 — Ficha Técnica de Produção: Composição Multi-Segmento de Perfis (28/05/2026)
+
+- [x] CartItemData: novo campo profileSegments (ProfileSegment[]) com sku, qty, lengthMm, barsPerPiece, driverQtyPerPiece, driverModel, driverCode
+- [x] CartItemData: novo campo stripMethod ("STRIPFLEX" | "STRIPLINE") para perfis 36W
+- [x] Home.tsx: botão "Enviar ao Carrinho" de perfis popula profileSegments a partir de result.composition e driversD1/combinedDrivers
+- [x] orderExcelGenerator.ts: SKU (col E) = multi-linha "02 x LLE-2810.3IF.18F - 1710mm" por segmento
+- [x] orderExcelGenerator.ts: FONTE DE LUZ (col F) = "LLE-2810.3IF.18F - 03 x Stripflex 562,5 x 10mm 36L 3000K" por segmento (Stripline para 36W Stripline)
+- [x] orderExcelGenerator.ts: EQUIPAMENTOS (col G) = "LLE-2810.3IF.18F - 02 x PHILIPS XITANIUM 44W 350MA (EQ00347)" por segmento
+- [x] orderExcelGenerator.ts: ETIQUETA (col C) = em branco
+- [x] orderExcelGenerator.ts: PRODUTO (col D) = orderSummary para perfis, description para outros
+- [x] Altura de linha dinâmica: proporcional ao número de segmentos
+- [x] Corrigido: LED BAR e BAGEO usavam r.product.driver (inexistente) → corrigido para driver220?.model
+- [x] 490 testes passando, zero erros TypeScript reais

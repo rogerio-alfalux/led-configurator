@@ -2,6 +2,28 @@
  * Dados serializados de um item do carrinho de orçamento.
  * Armazenado como JSON na coluna itemData da tabela cart_items.
  */
+
+/**
+ * Segmento individual de uma composição de perfil.
+ * Cada SKU diferente na composição é um segmento separado.
+ */
+export interface ProfileSegment {
+  /** SKU do módulo (ex: "LLE-2810.3IF.18F") */
+  sku: string;
+  /** Quantidade de peças deste SKU */
+  qty: number;
+  /** Comprimento em mm de cada peça */
+  lengthMm: number;
+  /** Quantidade de barras de LED por peça (para calcular Fonte de Luz) */
+  barsPerPiece: number;
+  /** Quantidade de drivers por peça */
+  driverQtyPerPiece: number;
+  /** Nome do driver (ex: "PHILIPS XITANIUM 44W 350MA") */
+  driverModel: string;
+  /** Código do driver (ex: "EQ00347") */
+  driverCode: string;
+}
+
 export interface CartItemData {
   /** Categoria do produto: perfil, downlight, painel, spot, arandela, ledbar, bageo */
   category: string;
@@ -27,10 +49,21 @@ export interface CartItemData {
   quoteSummary: string;
   /** Cor da peça selecionada (ex: "Branco Fosco Micro", "A Definir") */
   corPeca?: string;
-  /** Módulo LED (fonte de luz) para ficha de produção */
+  /** Módulo LED (fonte de luz) para ficha de produção — usado por produtos não-perfil */
   moduloLed?: string;
-  /** Drivers (equipamentos) para ficha de produção */
+  /** Drivers (equipamentos) para ficha de produção — usado por produtos não-perfil */
   drivers?: string;
+  /**
+   * Segmentos da composição de perfil (apenas para categoria "Perfis").
+   * Quando presente, a Ficha Técnica de Produção usa este campo para gerar
+   * SKU, FONTE DE LUZ e EQUIPAMENTOS no formato multi-linha por segmento.
+   */
+  profileSegments?: ProfileSegment[];
+  /**
+   * Método de barra para perfis 36W: "STRIPFLEX" (fileira dupla) ou "STRIPLINE" (fileira única).
+   * Determina qual nome usar na coluna FONTE DE LUZ da Ficha de Produção.
+   */
+  stripMethod?: "STRIPFLEX" | "STRIPLINE";
 }
 
 export interface QuoteFormData {

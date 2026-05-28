@@ -47,6 +47,101 @@ function valueCell(cell: ExcelJS.Cell, value: string | number | null) {
   applyBorder(cell);
 }
 
+/**
+ * Formata quantidade com zero à esquerda para 2 dígitos (ex: 2 → "02", 19 → "19").
+ */
+function fmtQty(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/**
+ * Gera o texto da coluna SKU para composições de perfis.
+ * Formato: "02 x LLE-2810.3IF.18F - 1710mm" por segmento, um por linha.
+ */
+function buildProfileSkuText(item: CartItemData): string {
+  if (!item.profileSegments || item.profileSegments.length === 0) {
+    return item.sku ?? "";
+  }
+  return item.profileSegments
+    .map((seg) => `${fmtQty(seg.qty)} x ${seg.sku} - ${seg.lengthMm}mm`)
+    .join("\n");
+}
+
+/**
+ * Gera o texto da coluna FONTE DE LUZ para composições de perfis.
+ *
+ * Regras:
+ * - 18W ou 26W: cada barra = 1 Stripflex → qty de barras = barsPerPiece
+ * - 36W Stripflex (barra dupla): barsPerPiece já é 2 → qty de barras = barsPerPiece
+ * - 36W Stripline: usa nome Stripline 562,5 x 15mm 108L [CCT]
+ *
+ * Formato por segmento:
+ *   "LLE-2810.3IF.18F - 03 x Stripflex 562,5 x 10mm 36L 3000K"
+ */
+function buildProfileFonteLuzText(item: CartItemData): string {
+  if (!item.profileSegments || item.profileSegments.length === 0) {
+    // Fallback para produtos não-perfil
+    return item.moduloLed ?? [item.power, item.cct].filter(Boolean).join(" | ") ?? "";
+  }
+
+  const cct = item.cct ?? "";
+  const isStripline = item.stripMethod === "STRIPLINE";
+
+  return item.profileSegments
+    .map((seg) => {
+      const barName = isStripline
+        ? `Stripline 562,5 x 15mm 108L ${cct}`
+        : `Stripflex 562,5 x 10mm 36L ${cct}`;
+      const barQty = seg.barsPerPiece; // já inclui duplicação para 36W Stripflex
+      return `${seg.sku} - ${fmtQty(barQty)} x ${barName}`;
+    })
+    .join("\n");
+}
+
+/**
+ * Gera o texto da coluna EQUIPAMENTOS para composições de perfis.
+ *
+ * Formato por segmento:
+ *   "LLE-2810.3IF.18F - 02 x PHILIPS XITANIUM 44W 350MA (EQ00347)"
+ *
+ * Para drivers combo (ex: Stripline 3 barras = 44W + 65W), o driverModel
+ * já foi formatado como "1 x MODEL1 (CODE1) + 1 x MODEL2 (CODE2)" no Home.tsx.
+ */
+function buildProfileEquipamentosText(item: CartItemData): string {
+  if (!item.profileSegments || item.profileSegments.length === 0) {
+    return item.drivers ?? "";
+  }
+
+  return item.profileSegments
+    .map((seg) => {
+      // Se driverModel já contém formatação de combo (tem " + "), usar direto
+      if (seg.driverModel.includes(" + ")) {
+        return `${seg.sku} - ${seg.driverModel}`;
+      }
+      // Driver simples: "SKU - QTY x MODEL (CODE)"
+      const codeSuffix = seg.driverCode && seg.driverCode !== "ERRO"
+        ? ` (${seg.driverCode})`
+        : "";
+      return `${seg.sku} - ${fmtQty(seg.driverQtyPerPiece)} x ${seg.driverModel}${codeSuffix}`;
+    })
+    .join("\n");
+}
+
+/**
+ * Gera o texto da coluna PRODUTO para a Ficha Técnica de Produção.
+ * Para perfis: usa orderSummary (resumo técnico completo).
+ * Para outros produtos: usa description.
+ * ETIQUETA (coluna C) fica em branco.
+ */
+function buildProdutoText(item: CartItemData): string {
+  // Para perfis, o orderSummary contém o resumo técnico completo (gerado por generateOrderSummary)
+  if (item.category === "Perfis" && item.orderSummary) {
+    return item.orderSummary;
+  }
+  // Para outros produtos, usar description
+  return item.description || "";
+}
+
 export async function generateOrderExcel(items: CartItemData[], form: OrderFormData): Promise<void> {
   const wb = new ExcelJS.Workbook();
   wb.creator = "Alfalux LED Configurator";
@@ -61,10 +156,10 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     { key: "A", width: 8 },   // ITEM
     { key: "B", width: 14 },  // PA
     { key: "C", width: 15 },  // ETIQUETA
-    { key: "D", width: 22 },  // PRODUTO
-    { key: "E", width: 22 },  // SKU
-    { key: "F", width: 34 },  // FONTE DE LUZ
-    { key: "G", width: 44 },  // EQUIPAMENTOS
+    { key: "D", width: 28 },  // PRODUTO
+    { key: "E", width: 26 },  // SKU
+    { key: "F", width: 38 },  // FONTE DE LUZ
+    { key: "G", width: 48 },  // EQUIPAMENTOS
     { key: "H", width: 8 },   // QTD
     { key: "I", width: 18 },  // COR DA PEÇA
     { key: "J", width: 48 },  // OBSERVAÇÕES
@@ -142,7 +237,10 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     const item = items[i];
     const rowNum = DATA_START + i;
     const row = ws.getRow(rowNum);
-    row.height = 60;
+
+    // Altura dinâmica: perfis com múltiplos segmentos precisam de mais espaço
+    const segCount = item.profileSegments?.length ?? 1;
+    row.height = Math.max(60, segCount * 22);
 
     const isOdd = i % 2 === 0;
     const rowBg = isOdd ? ROW_BG_ODD : ROW_BG_EVEN;
@@ -161,27 +259,44 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     // PA (B) — deixar em branco para preenchimento manual
     fillRow(ws.getCell(`B${rowNum}`), "");
 
-    // ETIQUETA (C) — SKU do produto
-    fillRow(ws.getCell(`C${rowNum}`), item.sku ?? "");
+    // ETIQUETA (C) — deixar em BRANCO (conforme requisito)
+    fillRow(ws.getCell(`C${rowNum}`), "");
 
-    // PRODUTO (D) — descrição completa do produto (orderSummary ou description)
-    const prodDesc = item.orderSummary || item.description || "";
-    fillRow(ws.getCell(`D${rowNum}`), prodDesc);
-    ws.getCell(`D${rowNum}`).alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+    // PRODUTO (D) — apenas a descrição do produto (orderSummary para perfis, description para outros)
+    const prodDesc = buildProdutoText(item);
+    const dCell = ws.getCell(`D${rowNum}`);
+    dCell.value = prodDesc;
+    dCell.font = { size: 10 };
+    dCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } };
+    dCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
+    applyBorder(dCell);
 
-    // SKU (E) — apenas o código SKU do produto
-    fillRow(ws.getCell(`E${rowNum}`), item.sku ?? "");
-    ws.getCell(`E${rowNum}`).alignment = { horizontal: "center", vertical: "middle", wrapText: false };
+    // SKU (E) — para perfis: multi-segmento "QTY x SKU - LENGTHmm" por linha
+    const skuText = buildProfileSkuText(item);
+    const eCell = ws.getCell(`E${rowNum}`);
+    eCell.value = skuText;
+    eCell.font = { size: 10 };
+    eCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } };
+    eCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
+    applyBorder(eCell);
 
-    // FONTE DE LUZ (F) — módulo LED do produto
-    const fonteInfo = item.moduloLed ?? [item.power, item.cct].filter(Boolean).join(" | ") ?? "";
-    fillRow(ws.getCell(`F${rowNum}`), fonteInfo);
-    ws.getCell(`F${rowNum}`).alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+    // FONTE DE LUZ (F) — para perfis: multi-segmento "SKU - QTY x Stripflex/Stripline [CCT]"
+    const fonteText = buildProfileFonteLuzText(item);
+    const fCell = ws.getCell(`F${rowNum}`);
+    fCell.value = fonteText;
+    fCell.font = { size: 10 };
+    fCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } };
+    fCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
+    applyBorder(fCell);
 
-    // EQUIPAMENTOS (G) — drivers do produto
-    const equipInfo = item.drivers ?? "";
-    fillRow(ws.getCell(`G${rowNum}`), equipInfo);
-    ws.getCell(`G${rowNum}`).alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+    // EQUIPAMENTOS (G) — para perfis: multi-segmento "SKU - QTY x DRIVER (CODE)"
+    const equipText = buildProfileEquipamentosText(item);
+    const gCell = ws.getCell(`G${rowNum}`);
+    gCell.value = equipText;
+    gCell.font = { size: 10 };
+    gCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } };
+    gCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
+    applyBorder(gCell);
 
     // QTD (H)
     fillRow(ws.getCell(`H${rowNum}`), item.qty, true);
