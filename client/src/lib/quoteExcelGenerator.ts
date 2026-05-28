@@ -276,33 +276,44 @@ export async function generateQuoteExcel(
           });
           URL.revokeObjectURL(blobUrl);
 
-          // Célula da foto: largura ~140px, altura ~90px
-          const cellW = 140;
-          const cellH = 90;
-          let drawW = cellW;
-          let drawH = cellH;
+          // Dimensões reais da célula:
+          //   Coluna D: width=22 unidades Excel. 1 unidade Excel ≈ 7.5px → 22*7.5 = 165px
+          //   Linha de item: height=90pt. ExcelJS usa pontos diretamente → 90px (96dpi)
+          const cellW = 22 * 7.5;  // 165px
+          const cellH = IMAGE_ROW_HEIGHT; // 90px (definido acima)
+          // Margem interna para não colar nas bordas
+          const PAD = 6;
+          const maxW = cellW - PAD * 2;
+          const maxH = cellH - PAD * 2;
+
+          let drawW = maxW;
+          let drawH = maxH;
           if (imgEl.naturalWidth > 0 && imgEl.naturalHeight > 0) {
             const ratio = imgEl.naturalWidth / imgEl.naturalHeight;
-            if (ratio > cellW / cellH) {
-              // Imagem mais larga: ajustar pela largura
-              drawW = cellW;
-              drawH = cellW / ratio;
+            if (ratio > maxW / maxH) {
+              // Imagem mais larga: limitar pela largura
+              drawW = maxW;
+              drawH = maxW / ratio;
             } else {
-              // Imagem mais alta: ajustar pela altura
-              drawH = cellH;
-              drawW = cellH * ratio;
+              // Imagem mais alta: limitar pela altura
+              drawH = maxH;
+              drawW = maxH * ratio;
             }
           }
-          // Centralizar dentro da célula
-          const offsetX = (cellW - drawW) / 2;
-          const offsetY = (cellH - drawH) / 2;
+
+          // Centralizar dentro da célula (offset em fração de coluna/linha)
+          const offsetX = (cellW - drawW) / 2;  // px
+          const offsetY = (cellH - drawH) / 2;  // px
 
           const imgId = wb.addImage({
             buffer: arrayBuffer,
             extension: ext,
           });
           ws.addImage(imgId, {
-            tl: { col: 3 + offsetX / cellW, row: rowNum - 1 + offsetY / cellH },
+            tl: {
+              col: 3 + offsetX / cellW,
+              row: rowNum - 1 + offsetY / cellH,
+            },
             ext: { width: drawW, height: drawH },
             editAs: "oneCell",
           } as ExcelJS.ImagePosition & { editAs: string });
