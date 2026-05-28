@@ -7,6 +7,8 @@ export interface OrderFormData {
   quoteNumber: string;
   vendorName: string;
   date: string;
+  /** Empresa fabricante: "ALFALUX" (padrão) ou "LUMINEW" */
+  empresa?: "ALFALUX" | "LUMINEW";
 }
 
 const HEADER_BG = "FF1F3864"; // Azul escuro (similar ao template)
@@ -204,7 +206,10 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
 
   ws.mergeCells("H4:J4");
   const brandCell = ws.getCell("H4");
-  brandCell.value = "1 - ALFALUX     (  X  )                    2 - LUMINEW     (    )";
+  const isLuminew = form.empresa === "LUMINEW";
+  brandCell.value = isLuminew
+    ? "1 - ALFALUX     (    )                    2 - LUMINEW     (  X  )"
+    : "1 - ALFALUX     (  X  )                    2 - LUMINEW     (    )";
   brandCell.font = { bold: true, size: 10 };
   brandCell.alignment = { horizontal: "left", vertical: "middle" };
   applyBorder(brandCell);

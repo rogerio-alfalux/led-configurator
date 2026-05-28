@@ -46,6 +46,10 @@ export default function QuoteDetail() {
   const [deleteStep, setDeleteStep] = useState(0); // 0, 1, 2
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
+  // Seleção de empresa para Ficha de Produção
+  const [empresaDialogOpen, setEmpresaDialogOpen] = useState(false);
+  const [empresaSelecionada, setEmpresaSelecionada] = useState<"ALFALUX" | "LUMINEW">("ALFALUX");
+
   const { data, isLoading, error } = trpc.quotes.getById.useQuery({ id: Number(id) });
 
   const updateStatusMutation = trpc.quotes.updateStatus.useMutation({
@@ -131,8 +135,9 @@ export default function QuoteDetail() {
     }
   };
 
-  const handleGenerateOrder = async () => {
+  const handleGenerateOrder = async (empresa: "ALFALUX" | "LUMINEW") => {
     setIsGenerating(true);
+    setEmpresaDialogOpen(false);
     try {
       await generateOrderExcel(
         currentItems.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null),
@@ -142,6 +147,7 @@ export default function QuoteDetail() {
           quoteNumber: quote.quoteNumber,
           vendorName: quote.vendorName ?? "",
           date: new Date(quote.approvedAt ?? quote.createdAt).toLocaleDateString("pt-BR"),
+          empresa,
         }
       );
       toast.success("Pedido de fábrica gerado!");
@@ -225,14 +231,68 @@ export default function QuoteDetail() {
           </Button>
 
           {quote.status === "approved" && (
-            <Button
-              className="gap-2 bg-orange-600 hover:bg-orange-700 text-white"
-              onClick={handleGenerateOrder}
-              disabled={isGenerating}
-            >
-              <Factory className="w-4 h-4" />
-              Gerar Pedido de Fábrica
-            </Button>
+            <>
+              <Button
+                className="gap-2 bg-orange-600 hover:bg-orange-700 text-white"
+                onClick={() => setEmpresaDialogOpen(true)}
+                disabled={isGenerating}
+              >
+                <Factory className="w-4 h-4" />
+                Gerar Pedido de Fábrica
+              </Button>
+
+              {/* Dialog de seleção de empresa */}
+              <Dialog open={empresaDialogOpen} onOpenChange={setEmpresaDialogOpen}>
+                <DialogContent className="max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle>Empresa Fabricante</DialogTitle>
+                  </DialogHeader>
+                  <p className="text-sm text-muted-foreground">Selecione a empresa que irá fabricar este pedido. A seleção aparecerá marcada na Ficha Técnica de Produção.</p>
+                  <div className="flex flex-col gap-3 py-2">
+                    <button
+                      onClick={() => setEmpresaSelecionada("ALFALUX")}
+                      className={`flex items-center gap-3 rounded-lg border-2 px-4 py-3 text-left transition-colors ${
+                        empresaSelecionada === "ALFALUX"
+                          ? "border-orange-500 bg-orange-50 dark:bg-orange-950/30"
+                          : "border-border hover:border-orange-300"
+                      }`}
+                    >
+                      <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        empresaSelecionada === "ALFALUX" ? "border-orange-500" : "border-muted-foreground"
+                      }`}>
+                        {empresaSelecionada === "ALFALUX" && <span className="w-2 h-2 rounded-full bg-orange-500" />}
+                      </span>
+                      <span className="font-semibold text-sm">1 — ALFALUX</span>
+                    </button>
+                    <button
+                      onClick={() => setEmpresaSelecionada("LUMINEW")}
+                      className={`flex items-center gap-3 rounded-lg border-2 px-4 py-3 text-left transition-colors ${
+                        empresaSelecionada === "LUMINEW"
+                          ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
+                          : "border-border hover:border-blue-300"
+                      }`}
+                    >
+                      <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        empresaSelecionada === "LUMINEW" ? "border-blue-500" : "border-muted-foreground"
+                      }`}>
+                        {empresaSelecionada === "LUMINEW" && <span className="w-2 h-2 rounded-full bg-blue-500" />}
+                      </span>
+                      <span className="font-semibold text-sm">2 — LUMINEW</span>
+                    </button>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button variant="outline" onClick={() => setEmpresaDialogOpen(false)}>Cancelar</Button>
+                    <Button
+                      className="bg-orange-600 hover:bg-orange-700 text-white"
+                      onClick={() => handleGenerateOrder(empresaSelecionada)}
+                    >
+                      <Factory className="w-4 h-4 mr-2" />
+                      Gerar Ficha
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </>
           )}
 
           {/* Alterar Status */}
