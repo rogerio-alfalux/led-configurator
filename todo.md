@@ -720,3 +720,17 @@
 
 - [x] Corrigir imagens no Excel gerado (proxy bloqueava files.manuscdn.com — adicionado à whitelist)
 - [x] Corrigir Resumo para Pedido para incluir tipo de controle em todas as categorias (Downlights, Painéis, Arandelas, Spots) + orderSummary atualizado no carrinho
+
+## v6.x — Módulo de Gestão de Orçamentos (28/05/2026)
+
+- [x] Schema DB: tabelas quotes, quote_versions, quote_items com versionamento e status
+- [x] tRPC procedures: quotes.save, quotes.list, quotes.getById, quotes.updateStatus, quotes.stats
+- [x] Botão "Salvar Orçamento" no Cart.tsx com formulário de identificação (vendedor/assistente)
+- [x] Campo assistantName salvo no banco para indicadores internos (não aparece no orçamento)
+- [x] Página /orcamentos: lista com busca por número, cliente, vendedor; filtro por status; paginação
+- [x] Página /orcamentos/:id: detalhes, itens da versão atual, histórico de revisões, alterar status
+- [x] Botão "Gerar Pedido de Fábrica" disponível apenas quando status = approved
+- [x] Gerador de pedido de fábrica em Excel (FICHA TÉCNICA DE PRODUÇÃO) fiel ao template
+- [x] Página /dashboard: KPIs (total, valor orçado, aprovado, taxa de conversão), breakdown por status, ranking de vendedores e assistentes
+- [x] Rotas registradas no App.tsx: /orcamentos, /orcamentos/:id, /dashboard
+- [x] 490 testes passando (zero erros TypeScript reais)

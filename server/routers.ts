@@ -4,9 +4,14 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { fetchDrivers, invalidateDriverCache } from "./driverService";
 import { fetchAllAlfaluxProducts, invalidateAlfaluxCache } from "./alfaluxApiService";
-import { addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty } from "./db";
+import {
+  addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty,
+  createQuote, addQuoteRevision, listQuotes, getQuoteById, approveQuote,
+  updateQuoteStatus, getQuoteStats,
+} from "./db";
 import { protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -51,6 +56,7 @@ export const appRouter = router({
       }
     }),
   }),
+
   cart: router({
     add: protectedProcedure
       .input(z.object({
@@ -88,6 +94,98 @@ export const appRouter = router({
         await updateCartItemQty(input.id, ctx.user.id, input.qty);
         return { success: true };
       }),
+  }),
+
+  // ─── Orçamentos ────────────────────────────────────────────────────────────
+  quotes: router({
+    /** Schema compartilhado para cabeçalho + itens */
+    save: protectedProcedure
+      .input(z.object({
+        clientName: z.string().min(1),
+        clientContact: z.string().optional(),
+        clientPhone: z.string().optional(),
+        clientEmail: z.string().optional(),
+        projectName: z.string().optional(),
+        projectRef: z.string().optional(),
+        vendorName: z.string().optional(),
+        assistantName: z.string().optional(),
+        notes: z.string().optional(),
+        versionNotes: z.string().optional(),
+        totalAmount: z.number(),
+        items: z.array(z.object({
+          itemNumber: z.number(),
+          itemData: z.string(),
+        })),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await createQuote({ ...input, createdByUserId: ctx.user.id });
+        return result;
+      }),
+
+    addRevision: protectedProcedure
+      .input(z.object({
+        quoteId: z.number(),
+        clientName: z.string().min(1),
+        clientContact: z.string().optional(),
+        clientPhone: z.string().optional(),
+        clientEmail: z.string().optional(),
+        projectName: z.string().optional(),
+        projectRef: z.string().optional(),
+        vendorName: z.string().optional(),
+        assistantName: z.string().optional(),
+        notes: z.string().optional(),
+        versionNotes: z.string().optional(),
+        totalAmount: z.number(),
+        items: z.array(z.object({
+          itemNumber: z.number(),
+          itemData: z.string(),
+        })),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { quoteId, ...rest } = input;
+        const result = await addQuoteRevision(quoteId, { ...rest, createdByUserId: ctx.user.id });
+        return result;
+      }),
+
+    list: protectedProcedure
+      .input(z.object({
+        search: z.string().optional(),
+        status: z.enum(["open", "approved", "lost", "cancelled"]).optional(),
+        limit: z.number().optional(),
+        offset: z.number().optional(),
+      }))
+      .query(async ({ input }) => {
+        return listQuotes(input);
+      }),
+
+    getById: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const result = await getQuoteById(input.id);
+        if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
+        return result;
+      }),
+
+    approve: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await approveQuote(input.id);
+        return { success: true };
+      }),
+
+    updateStatus: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(["open", "approved", "lost", "cancelled"]),
+      }))
+      .mutation(async ({ input }) => {
+        await updateQuoteStatus(input.id, input.status);
+        return { success: true };
+      }),
+
+    stats: protectedProcedure.query(async () => {
+      return getQuoteStats();
+    }),
   }),
 });
 

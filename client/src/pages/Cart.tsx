@@ -1,11 +1,15 @@
 import { useState } from "react";
-import { Link } from "wouter";
-import { ShoppingCart, Trash2, FileSpreadsheet, ArrowLeft, Package, Plus, Minus } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import {
+  ShoppingCart, Trash2, FileSpreadsheet, ArrowLeft, Package,
+  Plus, Minus, Save, CheckCircle, ClipboardList,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCart } from "@/hooks/useCart";
 import { formatBRL, QuoteFormData } from "@/lib/cartTypes";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
@@ -14,15 +18,43 @@ import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
+interface SaveFormData {
+  clientName: string;
+  clientContact: string;
+  clientPhone: string;
+  clientEmail: string;
+  projectName: string;
+  projectRef: string;
+  vendorName: string;
+  assistantName: string;
+  notes: string;
+  versionNotes: string;
+}
+
 export default function Cart() {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
   const { entries, count, isLoading, removeItem, clearCart, isRemoving } = useCart();
   const utils = trpc.useUtils();
   const updateQtyMutation = trpc.cart.updateQty.useMutation({
     onSuccess: () => utils.cart.list.invalidate(),
   });
+  const saveQuoteMutation = trpc.quotes.save.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Orçamento ${data.quoteNumber} salvo com sucesso!`);
+      setSaveDialogOpen(false);
+      navigate(`/orcamentos/${data.quoteId}`);
+    },
+    onError: (err) => {
+      toast.error(`Erro ao salvar orçamento: ${err.message}`);
+    },
+  });
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+
+  // Formulário para gerar Excel
   const [form, setForm] = useState<QuoteFormData>({
     cliente: "",
     contato: "",
@@ -32,6 +64,20 @@ export default function Cart() {
     referencia: "",
     numero: String(new Date().getFullYear()).slice(-2) + String(Date.now()).slice(-4),
     data: new Date().toLocaleDateString("pt-BR"),
+  });
+
+  // Formulário para salvar no banco
+  const [saveForm, setSaveForm] = useState<SaveFormData>({
+    clientName: "",
+    clientContact: "",
+    clientPhone: "",
+    clientEmail: "",
+    projectName: "",
+    projectRef: "",
+    vendorName: "",
+    assistantName: user?.name ?? "",
+    notes: "",
+    versionNotes: "",
   });
 
   if (!user) {
@@ -69,8 +115,39 @@ export default function Cart() {
     }
   };
 
+  const handleSaveQuote = () => {
+    if (!saveForm.clientName.trim()) {
+      toast.error("Informe o nome do cliente.");
+      return;
+    }
+    if (entries.length === 0) {
+      toast.error("O carrinho está vazio.");
+      return;
+    }
+    saveQuoteMutation.mutate({
+      clientName: saveForm.clientName,
+      clientContact: saveForm.clientContact || undefined,
+      clientPhone: saveForm.clientPhone || undefined,
+      clientEmail: saveForm.clientEmail || undefined,
+      projectName: saveForm.projectName || undefined,
+      projectRef: saveForm.projectRef || undefined,
+      vendorName: saveForm.vendorName || undefined,
+      assistantName: saveForm.assistantName || undefined,
+      notes: saveForm.notes || undefined,
+      versionNotes: saveForm.versionNotes || undefined,
+      totalAmount: totalGeral,
+      items: entries.map((e, idx) => ({
+        itemNumber: idx + 1,
+        itemData: JSON.stringify(e.data),
+      })),
+    });
+  };
+
   const updateForm = (field: keyof QuoteFormData, value: string) =>
     setForm(prev => ({ ...prev, [field]: value }));
+
+  const updateSaveForm = (field: keyof SaveFormData, value: string) =>
+    setSaveForm(prev => ({ ...prev, [field]: value }));
 
   const handleUpdateQty = (id: number, currentQty: number, delta: number) => {
     const newQty = Math.max(1, currentQty + delta);
@@ -90,6 +167,12 @@ export default function Cart() {
             </Button>
           </Link>
           <div className="flex-1" />
+          <Link href="/orcamentos">
+            <Button variant="ghost" size="sm" className="gap-2">
+              <ClipboardList className="w-4 h-4" />
+              Meus Orçamentos
+            </Button>
+          </Link>
           <ShoppingCart className="w-5 h-5 text-primary" />
           <h1 className="text-lg font-semibold">Carrinho de Orçamento</h1>
           <span className="bg-primary text-primary-foreground text-xs font-bold px-2 py-0.5 rounded-full">
@@ -224,9 +307,135 @@ export default function Cart() {
                       onClick={() => clearCart()}
                     >
                       <Trash2 className="w-4 h-4" />
-                      Limpar Carrinho
+                      Limpar
                     </Button>
 
+                    {/* Salvar Orçamento no banco */}
+                    <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" className="gap-2 border-green-600/40 text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950">
+                          <Save className="w-4 h-4" />
+                          Salvar Orçamento
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle>Salvar Orçamento no Sistema</DialogTitle>
+                        </DialogHeader>
+                        <Tabs defaultValue="cliente">
+                          <TabsList className="w-full">
+                            <TabsTrigger value="cliente" className="flex-1">Cliente</TabsTrigger>
+                            <TabsTrigger value="equipe" className="flex-1">Equipe</TabsTrigger>
+                          </TabsList>
+                          <TabsContent value="cliente" className="space-y-3 pt-3">
+                            <div>
+                              <Label>Cliente *</Label>
+                              <Input
+                                placeholder="Nome do cliente"
+                                value={saveForm.clientName}
+                                onChange={e => updateSaveForm("clientName", e.target.value)}
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label>Contato</Label>
+                                <Input
+                                  placeholder="Nome do contato"
+                                  value={saveForm.clientContact}
+                                  onChange={e => updateSaveForm("clientContact", e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <Label>Telefone</Label>
+                                <Input
+                                  placeholder="(11) 99999-9999"
+                                  value={saveForm.clientPhone}
+                                  onChange={e => updateSaveForm("clientPhone", e.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <Label>E-mail</Label>
+                              <Input
+                                placeholder="email@cliente.com"
+                                value={saveForm.clientEmail}
+                                onChange={e => updateSaveForm("clientEmail", e.target.value)}
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label>Obra / Projeto</Label>
+                                <Input
+                                  placeholder="Nome da obra"
+                                  value={saveForm.projectName}
+                                  onChange={e => updateSaveForm("projectName", e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <Label>Referência</Label>
+                                <Input
+                                  placeholder="Ref. interna"
+                                  value={saveForm.projectRef}
+                                  onChange={e => updateSaveForm("projectRef", e.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <Label>Observações</Label>
+                              <Input
+                                placeholder="Observações gerais do orçamento"
+                                value={saveForm.notes}
+                                onChange={e => updateSaveForm("notes", e.target.value)}
+                              />
+                            </div>
+                          </TabsContent>
+                          <TabsContent value="equipe" className="space-y-3 pt-3">
+                            <div>
+                              <Label>Vendedor Responsável</Label>
+                              <Input
+                                placeholder="Nome do vendedor"
+                                value={saveForm.vendorName}
+                                onChange={e => updateSaveForm("vendorName", e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label>Assistente / Elaborado por</Label>
+                              <Input
+                                placeholder="Quem está gerando este orçamento"
+                                value={saveForm.assistantName}
+                                onChange={e => updateSaveForm("assistantName", e.target.value)}
+                              />
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Este campo não aparece no orçamento, mas fica registrado para indicadores internos.
+                              </p>
+                            </div>
+                            <div>
+                              <Label>Observações desta versão</Label>
+                              <Input
+                                placeholder="Ex: Revisão após reunião com cliente"
+                                value={saveForm.versionNotes}
+                                onChange={e => updateSaveForm("versionNotes", e.target.value)}
+                              />
+                            </div>
+                          </TabsContent>
+                        </Tabs>
+                        <div className="flex justify-end gap-2 pt-3 border-t">
+                          <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
+                            Cancelar
+                          </Button>
+                          <Button
+                            onClick={handleSaveQuote}
+                            disabled={saveQuoteMutation.isPending}
+                            className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            <Save className="w-4 h-4" />
+                            {saveQuoteMutation.isPending ? "Salvando..." : "Salvar no Sistema"}
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+
+                    {/* Gerar Excel */}
                     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                       <DialogTrigger asChild>
                         <Button className="gap-2">
