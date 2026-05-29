@@ -48,8 +48,11 @@ import {
   LED_BAR_DIFUSOR_OPTIONS,
   LED_BAR_CONTROLE_OPTIONS,
   LED_BAR_MAX_LENGTH_MM,
+  LED_BAR_PRECO_POR_METRO,
+  LED_BAR_PRECO_DRIVER_60W,
   getAvailableVoltages,
   calculateLedBar,
+  calcLedBarPrice,
 } from "@/lib/ledBarCatalog";
 import type { LedBarProduct, LedBarPotencia, LedBarDifusor, LedBarControle, LedBarVoltage, LedBarResult } from "@/lib/ledBarCatalog";
 import {
@@ -3535,11 +3538,12 @@ export default function Home() {
                     const nT = r.nCortes;
                     const mm = r.comprimentoPorTrechoMm;
                     const driverLine = `${r.trechos[0]?.driver.model}${r.trechos[0]?.driver.code ? ` (${r.trechos[0].driver.code})` : ""}`;
-                    const lbPreco = getPrecoForControle(r.product, r.voltage === "Bivolt" ? "ON/OFF Bivolt" : "ON/OFF 220V", r.voltage);
+                    // Preço = (R$/m × comprimento_total_m) + (driver 60W × número de cortes)
+                    const lbPreco = calcLedBarPrice(r.product.potencia, r.comprimentoTotalMm, nT);
                     const orcamentoLines = [
                       [`${r.product.name} ${r.cct} ${r.voltage}`, nT > 1 ? `${nT} TRECHOS DE ${mm}MM` : `${mm}MM`].join(" "),
+                      `PREÇO: ${formatBRL(lbPreco)}`,
                     ];
-                    if (lbPreco !== null) orcamentoLines.push(`PREÇO: ${formatBRL(lbPreco)}`);
                     const orcamento = orcamentoLines.join("\n");
                     const cortesInfo = nT > 1 ? ` COM ${nT} CORTES` : "";
                     const pedido = [
@@ -3556,6 +3560,21 @@ export default function Home() {
                             </CardTitle>
                           </CardHeader>
                           <CardContent>
+                            {/* Detalhamento do preço */}
+                            <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3 mb-3 space-y-0.5">
+                              <div className="flex justify-between">
+                                <span>Perfil ({r.product.potencia}W/m × {(r.comprimentoTotalMm/1000).toFixed(3)}m)</span>
+                                <span className="font-mono">{formatBRL(LED_BAR_PRECO_POR_METRO[r.product.potencia] * r.comprimentoTotalMm / 1000)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Driver 60W × {nT} corte{nT > 1 ? "s" : ""}</span>
+                                <span className="font-mono">{formatBRL(LED_BAR_PRECO_DRIVER_60W * nT)}</span>
+                              </div>
+                              <div className="flex justify-between font-semibold border-t border-border pt-1 mt-1">
+                                <span>Total</span>
+                                <span className="font-mono text-primary">{formatBRL(lbPreco)}</span>
+                              </div>
+                            </div>
                             <div
                               className="font-mono text-sm bg-muted/50 rounded-lg p-4 cursor-text select-all whitespace-pre-wrap"
                               onClick={(e) => { const sel = window.getSelection(); sel?.selectAllChildren(e.currentTarget); }}
@@ -3583,8 +3602,8 @@ export default function Home() {
                                     power: `${r.product.potencia}W/m`,
                                     cct: r.cct,
                                     qty: 1,
-                                    unitPrice: lbPreco ?? 0,
-                                    totalPrice: lbPreco ?? 0,
+                                    unitPrice: lbPreco,
+                                    totalPrice: lbPreco,
                                     photoUrl: r.product.fotoUrl ?? "",
                                     orderSummary: pedido,
                                     quoteSummary: orcamento,

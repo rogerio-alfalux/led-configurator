@@ -791,3 +791,12 @@
 - [x] Dupla confirmação antes de gerar pedido direto do carrinho
 - [x] Formulário com dados do cliente/obra/vendedor antes de gerar o pedido
 - [x] Registrar geração de pedido direto no log de auditoria
+
+## v7.3 — Precificação LED BAR U
+
+- [x] Tabela de preços: 5W/m=R$106,40, 10W/m=R$120,00, 25W/m=R$133,89 (por metro linear)
+- [x] Driver 60W fixo por corte: R$104,28
+- [x] Fórmula: preço = (R$/m × comprimento_m) + (R$104,28 × nCortes)
+- [x] Detalhamento do preço no card "Resumo para Orçamento" (perfil + driver + total)
+- [x] Preço final agrupado exibido no orçamento e enviado ao carrinho
+- [x] 490 testes passando, zero erros TypeScript reais

@@ -112,6 +112,39 @@ export const LED_BAR_CATALOG: LedBarProduct[] = [
 /** Comprimento máximo de um trecho sem corte (mm) */
 export const LED_BAR_MAX_LENGTH_MM = 3000;
 
+// ─── Tabela de preços LED BAR U ──────────────────────────────────────────────
+
+/** Preço por metro linear (R$) por potência. Difusor não altera o valor. */
+export const LED_BAR_PRECO_POR_METRO: Record<LedBarPotencia, number> = {
+  5:  106.40,
+  10: 120.00,
+  25: 133.89,
+};
+
+/** Preço fixo do driver 60W por corte (R$). Válido para ON/OFF 220V e Bivolt. */
+export const LED_BAR_PRECO_DRIVER_60W = 104.28;
+
+/**
+ * Calcula o preço total de um LED BAR:
+ *   preço = (R$/m × comprimentoTotalMm / 1000) + (preço_driver × nCortes)
+ *
+ * @param potencia  Potência em W/m
+ * @param comprimentoTotalMm  Comprimento total em mm
+ * @param nCortes   Número de cortes (cada corte leva 1 driver)
+ * @returns Preço total em R$, arredondado para 2 casas decimais
+ */
+export function calcLedBarPrice(
+  potencia: LedBarPotencia,
+  comprimentoTotalMm: number,
+  nCortes: number
+): number {
+  const precoPorMetro = LED_BAR_PRECO_POR_METRO[potencia] ?? 0;
+  const precoDriver   = LED_BAR_PRECO_DRIVER_60W;
+  const comprimentoM  = comprimentoTotalMm / 1000;
+  const total = precoPorMetro * comprimentoM + precoDriver * nCortes;
+  return Math.round(total * 100) / 100;
+}
+
 export const LED_BAR_POTENCIA_OPTIONS: { value: LedBarPotencia; label: string }[] = [
   { value: 5,  label: "5 W/m" },
   { value: 10, label: "10 W/m" },
