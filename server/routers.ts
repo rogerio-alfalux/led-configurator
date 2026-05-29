@@ -285,10 +285,12 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    suggestNumber: protectedProcedure.query(async () => {
-      const suggested = await suggestQuoteNumber();
-      return { suggested };
-    }),
+    suggestNumber: protectedProcedure
+      .input(z.object({ sellerId: z.number().optional() }))
+      .query(async ({ input }) => {
+        const suggested = await suggestQuoteNumber(input.sellerId);
+        return { suggested };
+      }),
 
     /** Registra geração de ficha de produção */
     logProductionSheet: protectedProcedure

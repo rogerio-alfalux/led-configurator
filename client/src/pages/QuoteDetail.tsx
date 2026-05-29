@@ -4,12 +4,15 @@ import {
   ArrowLeft, CheckCircle, XCircle, Clock, TrendingDown,
   FileSpreadsheet, History, Package, Edit, AlertTriangle,
   ChevronDown, ChevronUp, Factory, Trash2, PenLine,
+  Users, Percent, Truck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,9 +40,24 @@ export default function QuoteDetail() {
   const [newStatus, setNewStatus] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Edit (add revision) dialog
+  // Edit (add revision) dialog — full form with all tabs
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ clientName: "", clientContact: "", clientPhone: "", clientEmail: "", projectName: "", projectRef: "", vendorName: "", assistantName: "", versionNotes: "" });
+  const [editForm, setEditForm] = useState({
+    clientName: "", clientContact: "", clientPhone: "", clientEmail: "",
+    projectName: "", projectRef: "", notes: "",
+    seller1Id: "", seller1Name: "", seller2Id: "", seller2Name: "",
+    assistantId: "", assistantName: "", versionNotes: "",
+    rtPercent: "0", rtDest1: "", rtDest1Active: true, rtDest2: "", rtDest2Active: false, rtDest3: "", rtDest3Active: false,
+    marginPercent: "10",
+    freteType: "free" as "free" | "paid" | "night" | "consult",
+    freteIsento: false, freteLocalidade: "sp" as "sp" | "other",
+  });
+
+  // Sellers & Assistants for edit dialog
+  const sellersQuery = trpc.sellers.list.useQuery();
+  const assistantsQuery = trpc.assistants.list.useQuery();
+  const editSellers = sellersQuery.data ?? [];
+  const editAssistants = assistantsQuery.data ?? [];
 
   // Delete dialog — triple confirmation
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -112,10 +130,16 @@ export default function QuoteDetail() {
   const currentVersionId = versions[0]?.id;
   const currentItems = items.filter(i => i.quoteVersionId === currentVersionId);
 
+  // RT/Margem calc for edit form
+  const editTotalBase = currentItems.reduce((s, i) => { const d = parseCartItemData(i.itemData); return s + (d?.totalPrice ?? 0); }, 0);
+  const editRtPct = Math.min(Math.max(parseFloat(editForm.rtPercent || "0") / 100, 0), 0.99);
+  const editMarginPct = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, 0), 0.99);
+  const editTotalComRT = editRtPct > 0 ? editTotalBase / (1 - editRtPct) : editTotalBase;
+  const editTotalFinal = editMarginPct > 0 ? editTotalComRT / (1 - editMarginPct) : editTotalComRT;
+
   const handleGenerateQuote = async () => {
     setIsGenerating(true);
     try {
-      const header = JSON.parse(versions[0]?.headerSnapshot ?? "{}");
       await generateQuoteExcel(
         currentItems.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null),
         {
@@ -127,6 +151,20 @@ export default function QuoteDetail() {
           referencia: quote.projectRef ?? "",
           numero: quote.quoteNumber,
           data: new Date(quote.createdAt).toLocaleDateString("pt-BR"),
+          seller1Name: quote.seller1Name ?? undefined,
+          seller2Name: quote.seller2Name ?? undefined,
+          assistantName: quote.assistantName ?? undefined,
+          rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) / 100 : undefined,
+          rtDest1: quote.rtDest1 ?? undefined,
+          rtDest1Active: quote.rtDest1Active ?? false,
+          rtDest2: quote.rtDest2 ?? undefined,
+          rtDest2Active: quote.rtDest2Active ?? false,
+          rtDest3: quote.rtDest3 ?? undefined,
+          rtDest3Active: quote.rtDest3Active ?? false,
+          marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) / 100 : undefined,
+          freteType: (quote.freteType as "free" | "paid" | "night" | "consult") ?? "free",
+          freteIsento: quote.freteIsento ?? false,
+          freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
         }
       );
       toast.success("Orçamento Excel gerado!");
@@ -352,7 +390,7 @@ export default function QuoteDetail() {
             </DialogContent>
           </Dialog>
 
-          {/* Editar Orçamento (nova revisão) */}
+          {/* Editar Orçamento (nova revisão) — todas as abas */}
           <Dialog open={editDialogOpen} onOpenChange={(open) => {
             setEditDialogOpen(open);
             if (open) {
@@ -363,9 +401,25 @@ export default function QuoteDetail() {
                 clientEmail: quote.clientEmail ?? "",
                 projectName: quote.projectName ?? "",
                 projectRef: quote.projectRef ?? "",
-                vendorName: quote.vendorName ?? "",
+                notes: quote.notes ?? "",
+                seller1Id: quote.seller1Id ? String(quote.seller1Id) : "",
+                seller1Name: quote.seller1Name ?? "",
+                seller2Id: quote.seller2Id ? String(quote.seller2Id) : "",
+                seller2Name: quote.seller2Name ?? "",
+                assistantId: quote.assistantId ? String(quote.assistantId) : "",
                 assistantName: quote.assistantName ?? "",
                 versionNotes: "",
+                rtPercent: quote.rtPercent ? String(parseFloat(String(quote.rtPercent)) * 100) : "0",
+                rtDest1: quote.rtDest1 ?? "",
+                rtDest1Active: quote.rtDest1Active ?? true,
+                rtDest2: quote.rtDest2 ?? "",
+                rtDest2Active: quote.rtDest2Active ?? false,
+                rtDest3: quote.rtDest3 ?? "",
+                rtDest3Active: quote.rtDest3Active ?? false,
+                marginPercent: quote.marginPercent ? String(parseFloat(String(quote.marginPercent)) * 100) : "10",
+                freteType: (quote.freteType as "free" | "paid" | "night" | "consult") ?? "free",
+                freteIsento: quote.freteIsento ?? false,
+                freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
               });
             }
           }}>
@@ -375,61 +429,180 @@ export default function QuoteDetail() {
                 Editar Orçamento
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Editar Orçamento — Nova Revisão</DialogTitle>
               </DialogHeader>
-              <p className="text-xs text-muted-foreground -mt-2 mb-1">
-                A versão atual (v{quote.currentVersion}) será preservada no histórico. Uma nova revisão será criada com os dados abaixo.
+              <p className="text-xs text-muted-foreground -mt-2 mb-2">
+                A versão atual (v{quote.currentVersion}) será preservada no histórico.
               </p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
-                  <Label>Cliente *</Label>
-                  <Input value={editForm.clientName} onChange={e => setEditForm(f => ({ ...f, clientName: e.target.value }))} placeholder="Nome do cliente" />
-                </div>
-                <div>
-                  <Label>Contato</Label>
-                  <Input value={editForm.clientContact} onChange={e => setEditForm(f => ({ ...f, clientContact: e.target.value }))} placeholder="Nome do contato" />
-                </div>
-                <div>
-                  <Label>Telefone</Label>
-                  <Input value={editForm.clientPhone} onChange={e => setEditForm(f => ({ ...f, clientPhone: e.target.value }))} placeholder="(11) 99999-9999" />
-                </div>
-                <div>
-                  <Label>E-mail</Label>
-                  <Input value={editForm.clientEmail} onChange={e => setEditForm(f => ({ ...f, clientEmail: e.target.value }))} placeholder="email@cliente.com" />
-                </div>
-                <div>
-                  <Label>Obra / Projeto</Label>
-                  <Input value={editForm.projectName} onChange={e => setEditForm(f => ({ ...f, projectName: e.target.value }))} placeholder="Nome da obra" />
-                </div>
-                <div>
-                  <Label>Referência</Label>
-                  <Input value={editForm.projectRef} onChange={e => setEditForm(f => ({ ...f, projectRef: e.target.value }))} placeholder="Código de referência" />
-                </div>
-                <div>
-                  <Label>Vendedor</Label>
-                  <Input value={editForm.vendorName} onChange={e => setEditForm(f => ({ ...f, vendorName: e.target.value }))} placeholder="Nome do vendedor" />
-                </div>
-                <div>
-                  <Label>Assistente</Label>
-                  <Input value={editForm.assistantName} onChange={e => setEditForm(f => ({ ...f, assistantName: e.target.value }))} placeholder="Nome da assistente" />
-                </div>
-                <div className="col-span-2">
-                  <Label>Notas desta revisão</Label>
-                  <Textarea
-                    value={editForm.versionNotes}
-                    onChange={e => setEditForm(f => ({ ...f, versionNotes: e.target.value }))}
-                    placeholder="Ex: Ajuste de preços, inclusão de novos itens..."
-                    rows={2}
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 mt-2">
+              <Tabs defaultValue="equipe">
+                <TabsList className="w-full">
+                  <TabsTrigger value="equipe" className="flex-1"><Users className="w-3 h-3 mr-1" />Equipe</TabsTrigger>
+                  <TabsTrigger value="cliente" className="flex-1">Cliente</TabsTrigger>
+                  <TabsTrigger value="financeiro" className="flex-1"><Percent className="w-3 h-3 mr-1" />RT / Margem</TabsTrigger>
+                  <TabsTrigger value="frete" className="flex-1"><Truck className="w-3 h-3 mr-1" />Frete</TabsTrigger>
+                </TabsList>
+
+                {/* Aba Equipe */}
+                <TabsContent value="equipe" className="space-y-3 pt-3">
+                  <div>
+                    <Label>Vendedor 1</Label>
+                    <Select value={editForm.seller1Id} onValueChange={(v) => {
+                      const sel = editSellers.find(s => String(s.id) === v);
+                      setEditForm(f => ({ ...f, seller1Id: v, seller1Name: sel?.name ?? "" }));
+                    }}>
+                      <SelectTrigger><SelectValue placeholder="Selecione o vendedor principal" /></SelectTrigger>
+                      <SelectContent>{editSellers.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Vendedor 2 (opcional)</Label>
+                    <Select value={editForm.seller2Id || "none"} onValueChange={(v) => {
+                      if (v === "none") setEditForm(f => ({ ...f, seller2Id: "", seller2Name: "" }));
+                      else { const sel = editSellers.find(s => String(s.id) === v); setEditForm(f => ({ ...f, seller2Id: v, seller2Name: sel?.name ?? "" })); }
+                    }}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhum</SelectItem>
+                        {editSellers.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Assistente Comercial</Label>
+                    <Select value={editForm.assistantId} onValueChange={(v) => {
+                      const ast = editAssistants.find(a => String(a.id) === v);
+                      setEditForm(f => ({ ...f, assistantId: v, assistantName: ast?.name ?? "" }));
+                    }}>
+                      <SelectTrigger><SelectValue placeholder="Selecione o assistente" /></SelectTrigger>
+                      <SelectContent>{editAssistants.map(a => <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Notas desta revisão</Label>
+                    <Textarea value={editForm.versionNotes} onChange={e => setEditForm(f => ({ ...f, versionNotes: e.target.value }))} placeholder="Ex: Ajuste de preços..." rows={2} />
+                  </div>
+                </TabsContent>
+
+                {/* Aba Cliente */}
+                <TabsContent value="cliente" className="space-y-3 pt-3">
+                  <div>
+                    <Label>Cliente *</Label>
+                    <Input value={editForm.clientName} onChange={e => setEditForm(f => ({ ...f, clientName: e.target.value }))} placeholder="Nome do cliente" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Contato</Label>
+                      <Input value={editForm.clientContact} onChange={e => setEditForm(f => ({ ...f, clientContact: e.target.value }))} placeholder="Nome do contato" />
+                    </div>
+                    <div>
+                      <Label>Telefone</Label>
+                      <Input value={editForm.clientPhone} onChange={e => setEditForm(f => ({ ...f, clientPhone: e.target.value }))} placeholder="(11) 99999-9999" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>E-mail</Label>
+                    <Input value={editForm.clientEmail} onChange={e => setEditForm(f => ({ ...f, clientEmail: e.target.value }))} placeholder="email@cliente.com" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Obra / Projeto</Label>
+                      <Input value={editForm.projectName} onChange={e => setEditForm(f => ({ ...f, projectName: e.target.value }))} placeholder="Nome da obra" />
+                    </div>
+                    <div>
+                      <Label>Referência</Label>
+                      <Input value={editForm.projectRef} onChange={e => setEditForm(f => ({ ...f, projectRef: e.target.value }))} placeholder="Código de referência" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Observações</Label>
+                    <Input value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} placeholder="Observações gerais" />
+                  </div>
+                </TabsContent>
+
+                {/* Aba RT / Margem */}
+                <TabsContent value="financeiro" className="space-y-4 pt-3">
+                  <div className="bg-muted/40 rounded-lg p-3 text-xs text-muted-foreground">
+                    Fórmula: <code>Preço final = base ÷ (1 − RT%) ÷ (1 − Margem%)</code>
+                  </div>
+                  <div>
+                    <Label className="flex items-center gap-2"><Percent className="w-3 h-3" />Reserva Técnica (RT)</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Input type="number" min={0} max={99} step={0.5} className="w-24" value={editForm.rtPercent} onChange={e => setEditForm(f => ({ ...f, rtPercent: e.target.value }))} />
+                      <span className="text-sm text-muted-foreground">%</span>
+                    </div>
+                  </div>
+                  {editRtPct > 0 && (
+                    <div className="space-y-2 pl-2 border-l-2 border-primary/20">
+                      <Label className="text-xs text-muted-foreground">Destinos da RT (até 3)</Label>
+                      {[1, 2, 3].map((n) => {
+                        const dk = `rtDest${n}` as keyof typeof editForm;
+                        const ak = `rtDest${n}Active` as keyof typeof editForm;
+                        return (
+                          <div key={n} className="flex items-center gap-2">
+                            <Checkbox checked={editForm[ak] as boolean} onCheckedChange={(v) => setEditForm(f => ({ ...f, [ak]: Boolean(v) }))} />
+                            <Input placeholder={`Destino ${n}`} value={editForm[dk] as string} onChange={e => setEditForm(f => ({ ...f, [dk]: e.target.value }))} disabled={!editForm[ak]} className="flex-1" />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div>
+                    <Label className="flex items-center gap-2"><Percent className="w-3 h-3" />Margem de Negociação</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Input type="number" min={0} max={99} step={0.5} className="w-24" value={editForm.marginPercent} onChange={e => setEditForm(f => ({ ...f, marginPercent: e.target.value }))} />
+                      <span className="text-sm text-muted-foreground">%</span>
+                    </div>
+                  </div>
+                  <div className="bg-muted/60 rounded-lg p-3 space-y-1 text-sm">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatBRL(editTotalBase)}</span></div>
+                    {editRtPct > 0 && <div className="flex justify-between"><span className="text-muted-foreground">+ RT ({editForm.rtPercent}%)</span><span>{formatBRL(editTotalComRT - editTotalBase)}</span></div>}
+                    {editMarginPct > 0 && <div className="flex justify-between"><span className="text-muted-foreground">+ Margem ({editForm.marginPercent}%)</span><span>{formatBRL(editTotalFinal - editTotalComRT)}</span></div>}
+                    <div className="flex justify-between font-bold border-t pt-1"><span>Total final</span><span className="text-primary">{formatBRL(editTotalFinal)}</span></div>
+                  </div>
+                </TabsContent>
+
+                {/* Aba Frete */}
+                <TabsContent value="frete" className="space-y-4 pt-3">
+                  <div>
+                    <Label>Localidade de entrega</Label>
+                    <Select value={editForm.freteLocalidade} onValueChange={(v) => setEditForm(f => ({ ...f, freteLocalidade: v as "sp" | "other" }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sp">São Paulo (SP)</SelectItem>
+                        <SelectItem value="other">Outra cidade</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Tipo de frete</Label>
+                    <Select value={editForm.freteType} onValueChange={(v) => setEditForm(f => ({ ...f, freteType: v as "free" | "paid" | "night" | "consult" }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="free">Grátis (SP, acima de R$1.500)</SelectItem>
+                        <SelectItem value="paid">A calcular</SelectItem>
+                        <SelectItem value="night">Noturno (R$2.000)</SelectItem>
+                        <SelectItem value="consult">Sob consulta</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="editFreteIsento" checked={editForm.freteIsento} onCheckedChange={(v) => setEditForm(f => ({ ...f, freteIsento: Boolean(v) }))} />
+                    <label htmlFor="editFreteIsento" className="text-sm cursor-pointer">Isentar frete</label>
+                  </div>
+                </TabsContent>
+              </Tabs>
+
+              <div className="flex justify-end gap-2 mt-4 pt-3 border-t">
                 <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancelar</Button>
                 <Button
                   onClick={() => {
                     if (!editForm.clientName.trim()) { toast.error("Nome do cliente é obrigatório."); return; }
+                    const editRtPctVal = Math.min(Math.max(parseFloat(editForm.rtPercent || "0") / 100, 0), 0.99);
+                    const editMarginPctVal = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, 0), 0.99);
+                    const totalComRTVal = editRtPctVal > 0 ? editTotalBase / (1 - editRtPctVal) : editTotalBase;
+                    const totalFinalVal = editMarginPctVal > 0 ? totalComRTVal / (1 - editMarginPctVal) : totalComRTVal;
                     addRevisionMutation.mutate({
                       quoteId: Number(id),
                       clientName: editForm.clientName.trim(),
@@ -438,10 +611,28 @@ export default function QuoteDetail() {
                       clientEmail: editForm.clientEmail || undefined,
                       projectName: editForm.projectName || undefined,
                       projectRef: editForm.projectRef || undefined,
-                      vendorName: editForm.vendorName || undefined,
+                      notes: editForm.notes || undefined,
+                      vendorName: editForm.seller1Name || undefined,
                       assistantName: editForm.assistantName || undefined,
+                      seller1Id: editForm.seller1Id ? parseInt(editForm.seller1Id) : undefined,
+                      seller1Name: editForm.seller1Name || undefined,
+                      seller2Id: editForm.seller2Id ? parseInt(editForm.seller2Id) : undefined,
+                      seller2Name: editForm.seller2Name || undefined,
+                      assistantId: editForm.assistantId ? parseInt(editForm.assistantId) : undefined,
+                      rtPercent: editRtPctVal > 0 ? editRtPctVal : undefined,
+                      rtDest1: editForm.rtDest1 || undefined,
+                      rtDest1Active: editForm.rtDest1Active,
+                      rtDest2: editForm.rtDest2 || undefined,
+                      rtDest2Active: editForm.rtDest2Active,
+                      rtDest3: editForm.rtDest3 || undefined,
+                      rtDest3Active: editForm.rtDest3Active,
+                      marginPercent: editMarginPctVal > 0 ? editMarginPctVal : undefined,
+                      freteType: editForm.freteType,
+                      freteIsento: editForm.freteIsento,
+                      freteLocalidade: editForm.freteLocalidade,
                       versionNotes: editForm.versionNotes || undefined,
-                      totalAmount: Number(quote.totalAmount ?? 0),
+                      totalAmount: totalFinalVal,
+                      totalFinal: totalFinalVal,
                       items: currentItems.map((i, idx) => ({ itemNumber: idx + 1, itemData: i.itemData })),
                     });
                   }}

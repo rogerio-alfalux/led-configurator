@@ -149,16 +149,18 @@ export default function Cart() {
     versionNotes: "",
   });
 
-  // Busca sugestão de número ao abrir o diálogo
-  const suggestQuery = trpc.quotes.suggestNumber.useQuery(undefined, {
-    enabled: saveDialogOpen,
-    staleTime: 0,
-  });
+  // Busca sugestão de número ao abrir o diálogo (atualiza quando vendedor muda)
+  const seller1IdNum = saveForm.seller1Id ? parseInt(saveForm.seller1Id) : undefined;
+  const suggestQuery = trpc.quotes.suggestNumber.useQuery(
+    { sellerId: seller1IdNum },
+    { enabled: saveDialogOpen, staleTime: 0 }
+  );
+  // Atualiza número automaticamente quando vendedor é selecionado
   useEffect(() => {
-    if (saveDialogOpen && suggestQuery.data?.suggested && !saveForm.quoteNumber) {
+    if (saveDialogOpen && suggestQuery.data?.suggested) {
       setSaveForm(prev => ({ ...prev, quoteNumber: suggestQuery.data!.suggested }));
     }
-  }, [saveDialogOpen, suggestQuery.data]);
+  }, [saveDialogOpen, suggestQuery.data?.suggested, saveForm.seller1Id]);
 
   if (!user) {
     return (
@@ -558,12 +560,12 @@ export default function Cart() {
                         <DialogHeader>
                           <DialogTitle>Salvar Orçamento no Sistema</DialogTitle>
                         </DialogHeader>
-                        <Tabs defaultValue="cliente">
+                        <Tabs defaultValue="equipe">
                           <TabsList className="w-full">
-                            <TabsTrigger value="cliente" className="flex-1">Cliente</TabsTrigger>
                             <TabsTrigger value="equipe" className="flex-1">
                               <Users className="w-3 h-3 mr-1" />Equipe
                             </TabsTrigger>
+                            <TabsTrigger value="cliente" className="flex-1">Cliente</TabsTrigger>
                             <TabsTrigger value="financeiro" className="flex-1">
                               <Percent className="w-3 h-3 mr-1" />RT / Margem
                             </TabsTrigger>
@@ -578,15 +580,13 @@ export default function Cart() {
                               <Label>Número do Orçamento</Label>
                               <div className="relative">
                                 <Input
-                                  placeholder={suggestQuery.data?.suggested ?? "ORC-2026-0001"}
+                                  placeholder={suggestQuery.data?.suggested ?? "ORC-26-0001"}
                                   value={saveForm.quoteNumber}
                                   onChange={e => updateSaveForm("quoteNumber", e.target.value)}
                                 />
-                                {suggestQuery.data?.suggested && !saveForm.quoteNumber && (
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    Sugestão: <button type="button" className="text-primary underline" onClick={() => updateSaveForm("quoteNumber", suggestQuery.data!.suggested)}>{suggestQuery.data.suggested}</button>
-                                  </p>
-                                )}
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {suggestQuery.isLoading ? "Calculando número..." : suggestQuery.data?.suggested ? `Número gerado: ${suggestQuery.data.suggested}` : "Selecione o Vendedor 1 para gerar o número automaticamente"}
+                                </p>
                               </div>
                             </div>
                             <div>
@@ -674,6 +674,17 @@ export default function Cart() {
                                   ))}
                                 </SelectContent>
                               </Select>
+                              {/* Preview do número gerado */}
+                              {saveForm.seller1Id && (
+                                <div className="mt-2 flex items-center gap-2 p-2 bg-primary/5 border border-primary/20 rounded-md">
+                                  <span className="text-xs text-muted-foreground">Número do orçamento:</span>
+                                  {suggestQuery.isLoading ? (
+                                    <span className="text-xs text-muted-foreground animate-pulse">Calculando...</span>
+                                  ) : (
+                                    <span className="text-sm font-mono font-bold text-primary">{suggestQuery.data?.suggested ?? saveForm.quoteNumber}</span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                             <div>
                               <Label>Vendedor 2 (opcional)</Label>

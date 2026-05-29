@@ -139,10 +139,42 @@ export async function updateCartItemQty(id: number, userId: number, qty: number)
 // ─── Quote helpers ────────────────────────────────────────────────────────────
 
 /** Gera o próximo número de orçamento no formato ORC-YYYY-NNNN */
-export async function generateQuoteNumber(): Promise<string> {
+export async function generateQuoteNumber(sellerCode?: string | null): Promise<string> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const year = new Date().getFullYear();
+  const year = new Date().getFullYear().toString().slice(-2);
+
+  // Se tiver código do vendedor, usa o prefixo dele (ex: "04.0XXX-26" → "04.0")
+  // Formato do código: "04.0XXX-26" → prefixo = "04.0203-26" (substituindo XXX pelo seq)
+  // Mas o código tem formato "04.0XXX-26" onde XXX é o número sequencial
+  // Então geramos: "04.0001-26", "04.0002-26", etc.
+  if (sellerCode) {
+    // Remove o XXX e usa o padrão do vendedor
+    // Ex: "04.0XXX-26" → base = "04.0", suffix = "-26"
+    const match = sellerCode.match(/^(\d+\.\d*)XXX(-\d+)$/);
+    if (match) {
+      const base = match[1]; // ex: "04.0"
+      const suffix = match[2]; // ex: "-26"
+      const prefixPattern = `${base}%${suffix}`;
+      const rows = await db
+        .select({ quoteNumber: quotes.quoteNumber })
+        .from(quotes)
+        .where(like(quotes.quoteNumber, prefixPattern))
+        .orderBy(desc(quotes.quoteNumber))
+        .limit(50);
+      // Extrai o número sequencial de cada orçamento e pega o maior
+      let maxSeq = 0;
+      for (const r of rows) {
+        const inner = r.quoteNumber.replace(base, "").replace(suffix, "");
+        const n = parseInt(inner, 10);
+        if (!isNaN(n) && n > maxSeq) maxSeq = n;
+      }
+      const nextSeq = maxSeq + 1;
+      return `${base}${String(nextSeq).padStart(4, "0")}${suffix}`;
+    }
+  }
+
+  // Fallback: formato ORC-YY-NNNN
   const prefix = `ORC-${year}-`;
   const rows = await db
     .select({ quoteNumber: quotes.quoteNumber })
@@ -499,7 +531,15 @@ export async function deleteQuote(id: number): Promise<void> {
 }
 
 /** Gera sugestão de próximo número de orçamento sem criar nada no banco */
-export async function suggestQuoteNumber(): Promise<string> {
+export async function suggestQuoteNumber(sellerId?: number | null): Promise<string> {
+  if (sellerId) {
+    const db = await getDb();
+    if (db) {
+      const sellerRows = await db.select().from(sellers).where(eq(sellers.id, sellerId)).limit(1);
+      const sellerCode = sellerRows[0]?.code ?? null;
+      return generateQuoteNumber(sellerCode);
+    }
+  }
   return generateQuoteNumber();
 }
 

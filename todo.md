@@ -825,3 +825,18 @@
 - [x] Filtros na lista de orçamentos: por vendedor, assistente, status
 - [x] Estatísticas: total de orçamentos, fechados, perdidos, em aberto por período
 - [x] 490 testes passando, zero erros TypeScript reais
+
+## v9 — Formulário Equipe Primeiro, Número por Prefixo, Edição Completa, Novo Template Excel
+
+- [x] Formulário de orçamento: aba Equipe vem primeiro (antes de Cliente)
+- [x] Número do orçamento gerado automaticamente com prefixo do vendedor (ex: 04.0203-26 para Daniel)
+- [x] Ao selecionar Vendedor 1, número é preenchido automaticamente com prefixo correto
+- [x] suggestNumber no servidor aceita sellerId e gera número com prefixo do vendedor
+- [x] QuoteDetail.tsx: dialog de edição com abas (Equipe, Cliente, RT/Margem, Frete) — todos os campos editáveis
+- [x] QuoteDetail.tsx: ao gerar Excel, usar todos os campos do quote (seller1Name, seller2Name, assistantName, rtPercent, marginPercent, freteType, freteIsento, freteLocalidade)
+- [x] quoteExcelGenerator.ts: novo template fiel ao TEMPLATEVIVIAN28.05.2026.xlsx
+  - Colunas: C=ITEM EM PLANTA, D=FOTO, E=MODELO ALFALUX, F=COMPRIMENTO(mm), G=POTÊNCIA(W), H=DIM, I=TENSÃO(V), J=COR, K=TEMPERATURA DE COR(K), L=QTD, M=PREÇO UNITÁRIO, N=PREÇO TOTAL
+  - Cabeçalho: logo Alfalux, número do orçamento, vendedor, obra, cliente, contato, e-mail, arquitetura/LD, referência, data
+  - RT e Margem em células P10/P11 (lado direito)
+  - Rodapé: prazo de fabricação, valor total, condição de pagamento, frete, observação, nome do vendedor, contato
+  - Condições gerais de fornecimento (3 itens)

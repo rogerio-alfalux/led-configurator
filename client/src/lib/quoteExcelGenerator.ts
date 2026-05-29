@@ -1,33 +1,38 @@
 /**
- * Gerador de orçamento em Excel fiel ao template Alfalux (v8).
+ * Gerador de orçamento em Excel fiel ao template Alfalux (TEMPLATEVIVIAN28.05.2026).
  * Usa ExcelJS para criar um workbook com o mesmo layout visual do template.
  *
- * Colunas da tabela de produtos:
- *   C = ITEM
+ * Colunas da tabela de produtos (linha 18 em diante):
+ *   C = ITEM EM PLANTA
  *   D = FOTO (imagem do produto)
- *   E = MODELO ALFALUX (SKU/código)
- *   F = DESCRIÇÃO
- *   G = POTÊNCIA
- *   H = TEMPERATURA DE COR
- *   I = QTD
- *   J = COR DA PEÇA
- *   K = ITEM EM PLANTA
- *   L = PREÇO UNITÁRIO
- *   M = PREÇO TOTAL
+ *   E = MODELO ALFALUX (SKU + descrição)
+ *   F = COMPRIMENTO (mm)
+ *   G = POTÊNCIA (W)
+ *   H = DIM (dimmer)
+ *   I = TENSÃO (V)
+ *   J = COR
+ *   K = TEMPERATURA DE COR (K)
+ *   L = QTD
+ *   M = PREÇO UNITÁRIO
+ *   N = PREÇO TOTAL
  */
 
 import ExcelJS from "exceljs";
 import type { CartItemData, QuoteFormData } from "./cartTypes";
 
-// Cores do template
-const HEADER_BLUE = "FF5B9BD5";
-const HEADER_TEXT_WHITE = "FFFFFFFF";
-const BORDER_GRAY = "FFD9D9D9";
-const ROW_ALT = "FFF2F7FD";
-const TOTAL_BG = "FFE2EFF8";
-const LABEL_GRAY = "FFF5F5F5";
+// ── Cores do template ────────────────────────────────────────────────────────
+const HEADER_BLUE = "FF5B9BD5";       // Azul do cabeçalho da tabela
+const HEADER_TEXT_WHITE = "FFFFFFFF"; // Branco para texto do cabeçalho
+const BORDER_GRAY = "FFD9D9D9";       // Cinza para bordas
+const ROW_ALT = "FFF2F7FD";           // Azul muito claro para linhas alternadas
+const TOTAL_BG = "FFE2EFF8";          // Fundo da linha de total
+const LABEL_GRAY = "FFF5F5F5";        // Fundo de linhas de label
 
-function applyBorder(cell: ExcelJS.Cell, style: Partial<ExcelJS.Border> = { style: "thin", color: { argb: BORDER_GRAY } }) {
+// ── Helpers de estilo ────────────────────────────────────────────────────────
+function applyBorder(
+  cell: ExcelJS.Cell,
+  style: Partial<ExcelJS.Border> = { style: "thin", color: { argb: BORDER_GRAY } }
+) {
   cell.border = { top: style, bottom: style, left: style, right: style };
 }
 
@@ -44,9 +49,26 @@ function extractPowerFromDescription(description: string): string {
   return match ? match[1].replace(/\s+/g, "") : "-";
 }
 
-/** Formata número como moeda BRL */
-function formatBRL(value: number): string {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+/** Extrai comprimento em mm da descrição (ex: "1000mm", "2400mm") */
+function extractLengthFromDescription(description: string): string {
+  const match = description.match(/(\d{3,5})\s*mm/i);
+  return match ? match[1] : "-";
+}
+
+/** Extrai tensão da descrição (ex: "220V", "BIVOLT") */
+function extractVoltageFromDescription(description: string): string {
+  const bivolt = /bivolt/i.test(description);
+  if (bivolt) return "BIVOLT";
+  const match = description.match(/(\d{2,3}[Vv])/);
+  return match ? match[1].toUpperCase() : "-";
+}
+
+/** Extrai DIM (dimmer) da descrição */
+function extractDimFromDescription(description: string): string {
+  if (/dali/i.test(description)) return "DALI";
+  if (/dim\s*110/i.test(description)) return "DIM 110V";
+  if (/dim/i.test(description)) return "DIM";
+  return "ON/OFF";
 }
 
 /** Calcula o total final aplicando RT e margem */
@@ -85,183 +107,235 @@ export async function generateQuoteExcel(
 
   const ws = wb.addWorksheet("Alfalux");
 
-  // ── Configurar larguras das colunas ──────────────────────────────────────
+  // ── Configurar larguras das colunas (fiel ao template) ───────────────────
   ws.columns = [
-    { key: "A", width: 2.1 },   // A - margem
-    { key: "B", width: 2.3 },   // B - margem
-    { key: "C", width: 8 },     // C - ITEM
-    { key: "D", width: 22 },    // D - FOTO
-    { key: "E", width: 22 },    // E - MODELO ALFALUX
-    { key: "F", width: 32 },    // F - DESCRIÇÃO
-    { key: "G", width: 14 },    // G - POTÊNCIA
-    { key: "H", width: 16 },    // H - TEMPERATURA DE COR
-    { key: "I", width: 7 },     // I - QTD
-    { key: "J", width: 20 },    // J - COR DA PEÇA
-    { key: "K", width: 14 },    // K - ITEM EM PLANTA
-    { key: "L", width: 18 },    // L - PREÇO UNITÁRIO
-    { key: "M", width: 18 },    // M - PREÇO TOTAL
+    { key: "A", width: 2.1 },    // A - margem
+    { key: "B", width: 2.3 },    // B - margem
+    { key: "C", width: 14 },     // C - ITEM EM PLANTA
+    { key: "D", width: 22 },     // D - FOTO
+    { key: "E", width: 38 },     // E - MODELO ALFALUX
+    { key: "F", width: 14 },     // F - COMPRIMENTO (mm)
+    { key: "G", width: 12 },     // G - POTÊNCIA (W)
+    { key: "H", width: 10 },     // H - DIM
+    { key: "I", width: 12 },     // I - TENSÃO (V)
+    { key: "J", width: 16 },     // J - COR
+    { key: "K", width: 16 },     // K - TEMPERATURA DE COR (K)
+    { key: "L", width: 8 },      // L - QTD
+    { key: "M", width: 18 },     // M - PREÇO UNITÁRIO
+    { key: "N", width: 18 },     // N - PREÇO TOTAL
   ];
 
-  // ── Linha 1: espaço ──────────────────────────────────────────────────────
-  ws.getRow(1).height = 18.75;
+  // ── Linha 1-2: Espaço / Logo ─────────────────────────────────────────────
+  ws.getRow(1).height = 19.8;
+  ws.getRow(2).height = 19.8;
 
-  // ── Linha 2: espaço ──────────────────────────────────────────────────────
-  ws.getRow(2).height = 10.2;
-
-  // ── Linha 3: DATA ────────────────────────────────────────────────────────
-  ws.getRow(3).height = 19.8;
+  // ── Linha 3: Telefone (fiel ao template) ─────────────────────────────────
+  ws.getRow(3).height = 21.0;
+  ws.mergeCells("C3:N3");
   {
-    const cLabel = ws.getCell("C3");
-    cLabel.value = "DATA:";
-    cLabel.font = { name: "Calibri", size: 13, bold: true };
-    cLabel.alignment = { horizontal: "left", vertical: "middle" };
-
-    ws.mergeCells("E3:H3");
-    const cData = ws.getCell("E3");
-    cData.value = formData.data || new Date().toLocaleDateString("pt-BR");
-    cData.font = { name: "Calibri", size: 13 };
-    cData.alignment = { horizontal: "left", vertical: "middle" };
+    const c = ws.getCell("C3");
+    c.value = "          (11) 5666.9272 / 5666.4856";
+    c.font = { name: "Calibri", size: 13, bold: true };
+    c.alignment = { horizontal: "center", vertical: "middle" };
   }
 
-  // ── Linha 4: espaço ──────────────────────────────────────────────────────
-  ws.getRow(4).height = 19.8;
-  ws.mergeCells("C4:H4");
-
-  // ── Linha 5: CLIENTE ─────────────────────────────────────────────────────
-  ws.getRow(5).height = 24.9;
+  // ── Linha 4: Endereço ─────────────────────────────────────────────────────
+  ws.getRow(4).height = 21.6;
+  ws.mergeCells("C4:N4");
   {
-    const cLabel = ws.getCell("C5");
-    cLabel.value = "CLIENTE:";
-    cLabel.font = { name: "Calibri", size: 13, bold: true };
-    cLabel.alignment = { horizontal: "left", vertical: "middle" };
-
-    ws.mergeCells("E5:H5");
-    const cVal = ws.getCell("E5");
-    cVal.value = formData.cliente;
-    cVal.font = { name: "Calibri", size: 13 };
-    cVal.alignment = { horizontal: "left", vertical: "middle" };
+    const c = ws.getCell("C4");
+    c.value = "Rua Agostino Togneri, n° 617 - Jurubatuba - São Paulo/ SP";
+    c.font = { name: "Calibri", size: 13, bold: true };
+    c.alignment = { horizontal: "center", vertical: "middle" };
   }
 
-  // ── Linha 6: CONTATO ─────────────────────────────────────────────────────
-  ws.getRow(6).height = 24.9;
+  // ── Linha 5: VENDEDOR ─────────────────────────────────────────────────────
+  ws.getRow(5).height = 20.4;
+  ws.mergeCells("C5:D5");
   {
-    const cLabel = ws.getCell("C6");
-    cLabel.value = "CONTATO:";
-    cLabel.font = { name: "Calibri", size: 13, bold: true };
-    cLabel.alignment = { horizontal: "left", vertical: "middle" };
-    const cVal = ws.getCell("E6");
-    cVal.value = formData.contato;
-    cVal.font = { name: "Calibri", size: 13 };
+    const c = ws.getCell("C5");
+    c.value = "VENDEDOR:";
+    c.font = { name: "Calibri", size: 12, bold: true };
+    c.alignment = { horizontal: "left", vertical: "middle" };
+  }
+  ws.mergeCells("E5:N5");
+  {
+    const c = ws.getCell("E5");
+    const vendedorText = [formData.seller1Name, formData.seller2Name].filter(Boolean).join(" / ") || "";
+    c.value = vendedorText;
+    c.font = { name: "Calibri", size: 12, bold: true };
+    c.alignment = { horizontal: "left", vertical: "middle" };
   }
 
-  // ── Linha 7: TEL ─────────────────────────────────────────────────────────
-  ws.getRow(7).height = 24.9;
+  // ── Linha 6: Número do orçamento ─────────────────────────────────────────
+  ws.getRow(6).height = 31.2;
+  ws.mergeCells("C6:D6");
   {
-    const cLabel = ws.getCell("C7");
-    cLabel.value = "TEL.:";
-    cLabel.font = { name: "Calibri", size: 13, bold: true };
-    cLabel.alignment = { horizontal: "left", vertical: "middle" };
-    const cVal = ws.getCell("E7");
-    cVal.value = formData.tel;
-    cVal.font = { name: "Calibri", size: 13 };
+    const c = ws.getCell("C6");
+    c.value = formData.numero || "";
+    c.font = { name: "Calibri", size: 20, bold: true };
+    c.alignment = { horizontal: "left", vertical: "middle" };
   }
 
-  // ── Linha 8: E-MAIL ──────────────────────────────────────────────────────
-  ws.getRow(8).height = 24.9;
+  // ── Linha 7: OBRA ─────────────────────────────────────────────────────────
+  ws.getRow(7).height = 25.8;
   {
-    const cLabel = ws.getCell("C8");
-    cLabel.value = "E-MAIL:";
-    cLabel.font = { name: "Calibri", size: 13, bold: true };
-    cLabel.alignment = { horizontal: "left", vertical: "middle" };
-    const cVal = ws.getCell("E8");
-    cVal.value = formData.email;
-    cVal.font = { name: "Calibri", size: 13 };
+    const c = ws.getCell("C7");
+    c.value = "OBRA:";
+    c.font = { name: "Calibri", size: 12, bold: true };
+    c.alignment = { horizontal: "left", vertical: "middle" };
+  }
+  ws.mergeCells("E7:N7");
+  {
+    const c = ws.getCell("E7");
+    c.value = formData.obra || "";
+    c.font = { name: "Calibri", size: 12, bold: true };
+    c.alignment = { horizontal: "left", vertical: "middle" };
   }
 
-  // ── Linha 9: VENDEDOR ────────────────────────────────────────────────────
-  ws.getRow(9).height = 24.9;
+  // ── Linha 8: CLIENTE ─────────────────────────────────────────────────────
+  ws.getRow(8).height = 19.8;
   {
-    const cLabel = ws.getCell("C9");
-    cLabel.value = "VENDEDOR:";
-    cLabel.font = { name: "Calibri", size: 13, bold: true };
-    cLabel.alignment = { horizontal: "left", vertical: "middle" };
-    const cVal = ws.getCell("E9");
-    const vendedorText = [formData.seller1Name, formData.seller2Name].filter(Boolean).join(" / ") || formData.contato || "";
-    cVal.value = vendedorText;
-    cVal.font = { name: "Calibri", size: 13 };
+    const c = ws.getCell("C8");
+    c.value = "CLIENTE:";
+    c.font = { name: "Calibri", size: 12, bold: true };
+    c.alignment = { horizontal: "left", vertical: "middle" };
+  }
+  ws.mergeCells("E8:N8");
+  {
+    const c = ws.getCell("E8");
+    c.value = formData.cliente;
+    c.font = { name: "Calibri", size: 12, bold: true };
+    c.alignment = { horizontal: "left", vertical: "middle" };
   }
 
-  // ── Linha 10: REFERÊNCIA ─────────────────────────────────────────────────
-  ws.getRow(10).height = 19.8;
+  // ── Linha 9: CONTATO/TEL ─────────────────────────────────────────────────
+  ws.getRow(9).height = 20.4;
   {
-    const cLabel = ws.getCell("C10");
-    cLabel.value = "REFERÊNCIA:";
-    cLabel.font = { name: "Calibri", size: 13, bold: true };
-    cLabel.alignment = { horizontal: "left", vertical: "middle" };
-    const cVal = ws.getCell("E10");
-    cVal.value = formData.referencia || "Referência: Fornecimento de luminárias";
-    cVal.font = { name: "Calibri", size: 13 };
+    const c = ws.getCell("C9");
+    c.value = "CONTATO/TEL:";
+    c.font = { name: "Calibri", size: 12, bold: true };
+    c.alignment = { horizontal: "left", vertical: "middle" };
+  }
+  ws.mergeCells("E9:N9");
+  {
+    const c = ws.getCell("E9");
+    const contactText = [formData.contato, formData.tel].filter(Boolean).join(" — ");
+    c.value = contactText;
+    c.font = { name: "Calibri", size: 12 };
+    c.alignment = { horizontal: "left", vertical: "middle" };
   }
 
-  // ── Linha 11: OBRA ───────────────────────────────────────────────────────
-  ws.getRow(11).height = 24.9;
+  // ── Linha 10: E-MAIL ─────────────────────────────────────────────────────
+  ws.getRow(10).height = 20.4;
   {
-    const cLabel = ws.getCell("C11");
-    cLabel.value = "OBRA:";
-    cLabel.font = { name: "Calibri", size: 13, bold: true };
-    cLabel.alignment = { horizontal: "left", vertical: "middle" };
-    const cVal = ws.getCell("E11");
-    cVal.value = formData.obra;
-    cVal.font = { name: "Calibri", size: 13 };
+    const c = ws.getCell("C10");
+    c.value = "E-MAIL:";
+    c.font = { name: "Calibri", size: 12, bold: true };
+    c.alignment = { horizontal: "left", vertical: "middle" };
+  }
+  ws.mergeCells("E10:N10");
+  {
+    const c = ws.getCell("E10");
+    c.value = formData.email || "";
+    c.font = { name: "Calibri", size: 12 };
+    c.alignment = { horizontal: "left", vertical: "middle" };
   }
 
-  // ── Linha 12: espaço ─────────────────────────────────────────────────────
-  ws.getRow(12).height = 24.9;
-
-  // ── Linha 13: Proposta Comercial ─────────────────────────────────────────
-  ws.getRow(13).height = 24.9;
-  ws.mergeCells("C13:M14");
+  // ── Linha 11: ARQUITETURA/LD ─────────────────────────────────────────────
+  ws.getRow(11).height = 20.4;
   {
-    const cProp = ws.getCell("C13");
-    cProp.value = "Proposta Comercial para fornecimento dos produtos abaixo especificados, com validade de 3 dias:";
-    cProp.font = { name: "Calibri", size: 12, italic: true };
-    cProp.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+    const c = ws.getCell("C11");
+    c.value = "ARQUITETURA/LD:";
+    c.font = { name: "Calibri", size: 12, bold: true };
+    c.alignment = { horizontal: "left", vertical: "middle" };
+  }
+  ws.mergeCells("E11:N11");
+  {
+    const c = ws.getCell("E11");
+    c.value = formData.assistantName || "";
+    c.font = { name: "Calibri", size: 12 };
+    c.alignment = { horizontal: "left", vertical: "middle" };
   }
 
-  // ── Linha 15: espaço ─────────────────────────────────────────────────────
-  ws.getRow(15).height = 13.5;
-
-  // ── Linha 16: linha separadora ───────────────────────────────────────────
-  ws.getRow(16).height = 18.6;
-  ws.mergeCells("C16:M16");
+  // ── Linha 12: REFERÊNCIA ─────────────────────────────────────────────────
+  ws.getRow(12).height = 19.8;
   {
-    const cSep = ws.getCell("C16");
-    cSep.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_BLUE } };
+    const c = ws.getCell("C12");
+    c.value = "REFERÊNCIA:";
+    c.font = { name: "Calibri", size: 12, bold: true };
+    c.alignment = { horizontal: "left", vertical: "middle" };
+  }
+  ws.mergeCells("E12:N12");
+  {
+    const c = ws.getCell("E12");
+    c.value = formData.referencia || "FORNECIMENTO DE LUMINÁRIAS";
+    c.font = { name: "Calibri", size: 12 };
+    c.alignment = { horizontal: "left", vertical: "middle" };
   }
 
-  // ── Linha 17: Cabeçalho da tabela ────────────────────────────────────────
-  ws.getRow(17).height = 45;
-  const headers: Array<{ col: string; label: string }> = [
-    { col: "C", label: "ITEM" },
+  // ── Linha 13: espaço ─────────────────────────────────────────────────────
+  ws.getRow(13).height = 19.8;
+
+  // ── Linha 14: DATA ───────────────────────────────────────────────────────
+  ws.getRow(14).height = 31.2;
+  ws.mergeCells("C14:D14");
+  {
+    const c = ws.getCell("C14");
+    c.value = formData.data || new Date().toLocaleDateString("pt-BR");
+    c.font = { name: "Calibri", size: 20, bold: true };
+    c.alignment = { horizontal: "center", vertical: "middle" };
+  }
+
+  // ── Linha 15: Proposta Comercial ─────────────────────────────────────────
+  ws.getRow(15).height = 28.8;
+  ws.mergeCells("C15:N15");
+  {
+    const c = ws.getCell("C15");
+    c.value = "PROPOSTA COMERCIAL PARA FORNECIMENTO DOS PRODUTOS ABAIXO ESPECIFICADOS, COM VALIDADE DE 3 (TRÊS) DIAS.";
+    c.font = { name: "Calibri", size: 13, bold: true };
+    c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+  }
+
+  // ── Linha 16: espaço ─────────────────────────────────────────────────────
+  ws.getRow(16).height = 18.0;
+
+  // ── Linha 17: Título da obra (header da tabela) ──────────────────────────
+  ws.getRow(17).height = 39.6;
+  ws.mergeCells("C17:N17");
+  {
+    const c = ws.getCell("C17");
+    c.value = formData.obra || formData.cliente || "ORÇAMENTO";
+    c.font = { name: "Calibri", size: 22, bold: true };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF000000" } };
+    c.font = { name: "Calibri", size: 22, bold: true, color: { argb: "FFFFFFFF" } };
+    c.alignment = { horizontal: "center", vertical: "middle" };
+  }
+
+  // ── Linha 18: Cabeçalho da tabela ────────────────────────────────────────
+  ws.getRow(18).height = 48.6;
+  const tableHeaders: Array<{ col: string; label: string }> = [
+    { col: "C", label: "ITEM EM\nPLANTA" },
     { col: "D", label: "FOTO" },
-    { col: "E", label: "MODELO\nALFALUX" },
-    { col: "F", label: "DESCRIÇÃO" },
-    { col: "G", label: "POTÊNCIA" },
-    { col: "H", label: "TEMPERATURA\nDE COR" },
-    { col: "I", label: "QTD" },
-    { col: "J", label: "COR DA\nPEÇA" },
-    { col: "K", label: "ITEM EM\nPLANTA" },
-    { col: "L", label: "PREÇO\nUNITÁRIO" },
-    { col: "M", label: "PREÇO\nTOTAL" },
+    { col: "E", label: "MODELO ALFALUX" },
+    { col: "F", label: "COMPRIMENTO\n(mm)" },
+    { col: "G", label: "POTÊNCIA\n(W)" },
+    { col: "H", label: "DIM" },
+    { col: "I", label: "TENSÃO\n(V)" },
+    { col: "J", label: "COR" },
+    { col: "K", label: "TEMPERATURA\nDE COR (K)" },
+    { col: "L", label: "QTD" },
+    { col: "M", label: "PREÇO\nUNITÁRIO" },
+    { col: "N", label: "PREÇO\nTOTAL" },
   ];
-  for (const h of headers) {
-    const cell = ws.getCell(`${h.col}17`);
+  for (const h of tableHeaders) {
+    const cell = ws.getCell(`${h.col}18`);
     cell.value = h.label;
     applyHeaderStyle(cell);
   }
 
-  // ── Linhas de dados (a partir da linha 18) ───────────────────────────────
-  let currentRow = 18;
+  // ── Linhas de dados (a partir da linha 19) ───────────────────────────────
+  let currentRow = 19;
   const IMAGE_ROW_HEIGHT = 90;
 
   for (let i = 0; i < items.length; i++) {
@@ -273,7 +347,7 @@ export async function generateQuoteExcel(
     const isAlt = i % 2 === 1;
     const rowBg = isAlt ? ROW_ALT : "FFFFFFFF";
 
-    for (const col of ["C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"]) {
+    for (const col of ["C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N"]) {
       const cell = ws.getCell(`${col}${rowNum}`);
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } };
       applyBorder(cell, { style: "thin", color: { argb: BORDER_GRAY } });
@@ -281,10 +355,10 @@ export async function generateQuoteExcel(
       cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
     }
 
-    // C = ITEM
-    const cItem = ws.getCell(`C${rowNum}`);
-    cItem.value = i + 1;
-    cItem.font = { name: "Calibri", size: 12, bold: true };
+    // C = ITEM EM PLANTA
+    const cPlanta = ws.getCell(`C${rowNum}`);
+    cPlanta.value = item.itemEmPlanta || String(i + 1);
+    cPlanta.font = { name: "Calibri", size: 12, bold: true };
 
     // D = FOTO
     if (item.photoUrl) {
@@ -313,7 +387,7 @@ export async function generateQuoteExcel(
           });
           URL.revokeObjectURL(blobUrl);
 
-          const cellW = 22 * 7.5;  // 165px
+          const cellW = 22 * 7.5;  // ~165px
           const cellH = IMAGE_ROW_HEIGHT;
           const PAD = 6;
           const maxW = cellW - PAD * 2;
@@ -350,40 +424,44 @@ export async function generateQuoteExcel(
       }
     }
 
-    // E = MODELO ALFALUX (SKU)
+    // E = MODELO ALFALUX (SKU + descrição)
     const cSku = ws.getCell(`E${rowNum}`);
-    cSku.value = item.sku || "-";
-    cSku.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FF1F497D" } };
+    const modelText = item.sku ? `${item.sku}\n${item.description}` : item.description;
+    cSku.value = modelText;
+    cSku.font = { name: "Calibri", size: 11, bold: false };
+    cSku.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
 
-    // F = DESCRIÇÃO
-    const cDesc = ws.getCell(`F${rowNum}`);
-    cDesc.value = item.description;
-    cDesc.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+    // F = COMPRIMENTO (mm)
+    const cLen = ws.getCell(`F${rowNum}`);
+    cLen.value = extractLengthFromDescription(item.description);
 
-    // G = POTÊNCIA
+    // G = POTÊNCIA (W)
     const cPow = ws.getCell(`G${rowNum}`);
     cPow.value = (item.power && item.power.trim()) ? item.power : extractPowerFromDescription(item.description);
 
-    // H = TEMPERATURA DE COR
-    const cCct = ws.getCell(`H${rowNum}`);
+    // H = DIM
+    const cDim = ws.getCell(`H${rowNum}`);
+    cDim.value = extractDimFromDescription(item.description);
+
+    // I = TENSÃO (V)
+    const cVolt = ws.getCell(`I${rowNum}`);
+    cVolt.value = extractVoltageFromDescription(item.description);
+
+    // J = COR
+    const cCor = ws.getCell(`J${rowNum}`);
+    cCor.value = item.corPeca || "-";
+
+    // K = TEMPERATURA DE COR (K)
+    const cCct = ws.getCell(`K${rowNum}`);
     cCct.value = item.cct || "-";
 
-    // I = QTD
-    const cQty = ws.getCell(`I${rowNum}`);
+    // L = QTD
+    const cQty = ws.getCell(`L${rowNum}`);
     cQty.value = item.qty;
     cQty.font = { name: "Calibri", size: 12, bold: true };
 
-    // J = COR DA PEÇA
-    const cCor = ws.getCell(`J${rowNum}`);
-    cCor.value = item.corPeca || "-";
-    cCor.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
-
-    // K = ITEM EM PLANTA
-    const cPlanta = ws.getCell(`K${rowNum}`);
-    cPlanta.value = item.itemEmPlanta || "-";
-
-    // L = PREÇO UNITÁRIO
-    const cUnit = ws.getCell(`L${rowNum}`);
+    // M = PREÇO UNITÁRIO
+    const cUnit = ws.getCell(`M${rowNum}`);
     if (item.unitPrice !== null && item.unitPrice !== undefined) {
       cUnit.value = item.unitPrice;
       cUnit.numFmt = '"R$"#,##0.00';
@@ -391,8 +469,8 @@ export async function generateQuoteExcel(
       cUnit.value = "-";
     }
 
-    // M = PREÇO TOTAL
-    const cTotal = ws.getCell(`M${rowNum}`);
+    // N = PREÇO TOTAL
+    const cTotal = ws.getCell(`N${rowNum}`);
     if (item.totalPrice !== null && item.totalPrice !== undefined) {
       cTotal.value = item.totalPrice;
       cTotal.numFmt = '"R$"#,##0.00';
@@ -410,31 +488,54 @@ export async function generateQuoteExcel(
 
   let nextRow = currentRow + items.length;
 
-  // Linha: VALOR TOTAL DOS PRODUTOS (sem frete)
-  ws.getRow(nextRow).height = 28;
-  ws.mergeCells(`C${nextRow}:L${nextRow}`);
-  {
-    const cLabel = ws.getCell(`C${nextRow}`);
-    cLabel.value = "VALOR TOTAL DOS PRODUTOS (sem frete):";
-    cLabel.font = { name: "Calibri", size: 12, bold: true };
-    cLabel.fill = { type: "pattern", pattern: "solid", fgColor: { argb: TOTAL_BG } };
-    cLabel.alignment = { horizontal: "right", vertical: "middle" };
-    applyBorder(cLabel, { style: "medium", color: { argb: "FF4472C4" } });
+  // Linha de espaço antes dos totais
+  nextRow++;
+  ws.getRow(nextRow).height = 10;
+  nextRow++;
 
-    const cVal = ws.getCell(`M${nextRow}`);
-    cVal.value = totalBase;
-    cVal.numFmt = '"R$"#,##0.00';
-    cVal.font = { name: "Calibri", size: 13, bold: true, color: { argb: "FF1F497D" } };
-    cVal.fill = { type: "pattern", pattern: "solid", fgColor: { argb: TOTAL_BG } };
-    cVal.alignment = { horizontal: "center", vertical: "middle" };
-    applyBorder(cVal, { style: "medium", color: { argb: "FF4472C4" } });
+  // Linha: Prazo de fabricação e entrega
+  ws.getRow(nextRow).height = 29.4;
+  ws.mergeCells(`C${nextRow}:D${nextRow}`);
+  {
+    const c = ws.getCell(`C${nextRow}`);
+    c.value = "Prazo de fabricação e entrega:";
+    c.font = { name: "Calibri", size: 12, bold: true };
+    c.alignment = { horizontal: "left", vertical: "middle" };
+  }
+  ws.mergeCells(`E${nextRow}:N${nextRow}`);
+  {
+    const c = ws.getCell(`E${nextRow}`);
+    c.value = "20 dias úteis";
+    c.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FFFF0000" } };
+    c.alignment = { horizontal: "left", vertical: "middle" };
+  }
+  nextRow++;
+
+  // Linha: Valor total dos produtos (sem frete)
+  ws.getRow(nextRow).height = 42.6;
+  ws.mergeCells(`C${nextRow}:D${nextRow}`);
+  {
+    const c = ws.getCell(`C${nextRow}`);
+    c.value = "Valor total dos produtos\n(sem o frete):";
+    c.font = { name: "Calibri", size: 12, bold: true };
+    c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+  }
+  ws.mergeCells(`E${nextRow}:N${nextRow}`);
+  {
+    const c = ws.getCell(`E${nextRow}`);
+    c.value = totalBase;
+    c.numFmt = '"R$"#,##0.00';
+    c.font = { name: "Calibri", size: 14, bold: true, color: { argb: "FF1F497D" } };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: TOTAL_BG } };
+    c.alignment = { horizontal: "left", vertical: "middle" };
+    applyBorder(c, { style: "medium", color: { argb: "FF4472C4" } });
   }
   nextRow++;
 
   // Linha: RT (se aplicável)
   if (rtPct > 0) {
     ws.getRow(nextRow).height = 22;
-    ws.mergeCells(`C${nextRow}:L${nextRow}`);
+    ws.mergeCells(`C${nextRow}:D${nextRow}`);
     const activeDestinos = [
       formData.rtDest1Active ? formData.rtDest1 : null,
       formData.rtDest2Active ? formData.rtDest2 : null,
@@ -445,16 +546,17 @@ export async function generateQuoteExcel(
     cLabel.value = `Reserva Técnica (${(rtPct * 100).toFixed(1)}%)${destinoText}:`;
     cLabel.font = { name: "Calibri", size: 11, italic: true };
     cLabel.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LABEL_GRAY } };
-    cLabel.alignment = { horizontal: "right", vertical: "middle" };
+    cLabel.alignment = { horizontal: "left", vertical: "middle" };
     applyBorder(cLabel, { style: "thin", color: { argb: BORDER_GRAY } });
 
     const rtValue = totalBase / (1 - rtPct) - totalBase;
-    const cVal = ws.getCell(`M${nextRow}`);
+    ws.mergeCells(`E${nextRow}:N${nextRow}`);
+    const cVal = ws.getCell(`E${nextRow}`);
     cVal.value = rtValue;
     cVal.numFmt = '"R$"#,##0.00';
     cVal.font = { name: "Calibri", size: 11 };
     cVal.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LABEL_GRAY } };
-    cVal.alignment = { horizontal: "center", vertical: "middle" };
+    cVal.alignment = { horizontal: "left", vertical: "middle" };
     applyBorder(cVal, { style: "thin", color: { argb: BORDER_GRAY } });
     nextRow++;
   }
@@ -462,22 +564,23 @@ export async function generateQuoteExcel(
   // Linha: Margem de Negociação (se aplicável)
   if (marginPct > 0) {
     ws.getRow(nextRow).height = 22;
-    ws.mergeCells(`C${nextRow}:L${nextRow}`);
+    ws.mergeCells(`C${nextRow}:D${nextRow}`);
     const cLabel = ws.getCell(`C${nextRow}`);
     cLabel.value = `Margem de Negociação (${(marginPct * 100).toFixed(1)}%):`;
     cLabel.font = { name: "Calibri", size: 11, italic: true };
     cLabel.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LABEL_GRAY } };
-    cLabel.alignment = { horizontal: "right", vertical: "middle" };
+    cLabel.alignment = { horizontal: "left", vertical: "middle" };
     applyBorder(cLabel, { style: "thin", color: { argb: BORDER_GRAY } });
 
     const baseAfterRt = rtPct > 0 ? totalBase / (1 - rtPct) : totalBase;
     const marginValue = baseAfterRt / (1 - marginPct) - baseAfterRt;
-    const cVal = ws.getCell(`M${nextRow}`);
+    ws.mergeCells(`E${nextRow}:N${nextRow}`);
+    const cVal = ws.getCell(`E${nextRow}`);
     cVal.value = marginValue;
     cVal.numFmt = '"R$"#,##0.00';
     cVal.font = { name: "Calibri", size: 11 };
     cVal.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LABEL_GRAY } };
-    cVal.alignment = { horizontal: "center", vertical: "middle" };
+    cVal.alignment = { horizontal: "left", vertical: "middle" };
     applyBorder(cVal, { style: "thin", color: { argb: BORDER_GRAY } });
     nextRow++;
   }
@@ -485,78 +588,161 @@ export async function generateQuoteExcel(
   // Linha: VALOR TOTAL FINAL (se RT ou margem foram aplicados)
   if (rtPct > 0 || marginPct > 0) {
     ws.getRow(nextRow).height = 30;
-    ws.mergeCells(`C${nextRow}:L${nextRow}`);
+    ws.mergeCells(`C${nextRow}:D${nextRow}`);
     const cLabel = ws.getCell(`C${nextRow}`);
     cLabel.value = "VALOR TOTAL FINAL (com RT e margem):";
     cLabel.font = { name: "Calibri", size: 12, bold: true };
     cLabel.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD6E4F0" } };
-    cLabel.alignment = { horizontal: "right", vertical: "middle" };
+    cLabel.alignment = { horizontal: "left", vertical: "middle" };
     applyBorder(cLabel, { style: "medium", color: { argb: "FF4472C4" } });
 
-    const cVal = ws.getCell(`M${nextRow}`);
+    ws.mergeCells(`E${nextRow}:N${nextRow}`);
+    const cVal = ws.getCell(`E${nextRow}`);
     cVal.value = totalFinal;
     cVal.numFmt = '"R$"#,##0.00';
-    cVal.font = { name: "Calibri", size: 13, bold: true, color: { argb: "FF1F497D" } };
+    cVal.font = { name: "Calibri", size: 14, bold: true, color: { argb: "FF1F497D" } };
     cVal.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD6E4F0" } };
-    cVal.alignment = { horizontal: "center", vertical: "middle" };
+    cVal.alignment = { horizontal: "left", vertical: "middle" };
     applyBorder(cVal, { style: "medium", color: { argb: "FF4472C4" } });
     nextRow++;
   }
 
   // ── Espaço ────────────────────────────────────────────────────────────────
   nextRow++;
-  ws.getRow(nextRow).height = 18;
+  ws.getRow(nextRow).height = 10;
+  nextRow++;
 
-  // ── Condições comerciais ──────────────────────────────────────────────────
-  const addCondRow = (rowNum: number, label: string, value: string) => {
-    ws.getRow(rowNum).height = 28;
-    const cLabel = ws.getCell(`C${rowNum}`);
-    cLabel.value = label;
-    cLabel.font = { name: "Calibri", size: 11, bold: true };
-    cLabel.alignment = { horizontal: "left", vertical: "middle" };
+  // ── Condição de pagamento ─────────────────────────────────────────────────
+  ws.getRow(nextRow).height = 19.8;
+  ws.mergeCells(`C${nextRow}:D${nextRow}`);
+  {
+    const c = ws.getCell(`C${nextRow}`);
+    c.value = "Condição de pagto:";
+    c.font = { name: "Calibri", size: 12, bold: true };
+    c.alignment = { horizontal: "left", vertical: "middle" };
+  }
+  ws.mergeCells(`E${nextRow}:N${nextRow}`);
+  {
+    const c = ws.getCell(`E${nextRow}`);
+    c.value = "30% Sinal e 70% a 28DDF (mediante a aprovação de cadastro)";
+    c.font = { name: "Calibri", size: 11 };
+    c.alignment = { horizontal: "left", vertical: "middle" };
+  }
+  nextRow++;
 
-    ws.mergeCells(`E${rowNum}:M${rowNum}`);
-    const cVal = ws.getCell(`E${rowNum}`);
-    cVal.value = value;
-    cVal.font = { name: "Calibri", size: 11 };
-    cVal.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
-  };
+  // ── Frete ─────────────────────────────────────────────────────────────────
+  ws.getRow(nextRow).height = 19.8;
+  ws.mergeCells(`C${nextRow}:D${nextRow}`);
+  {
+    const c = ws.getCell(`C${nextRow}`);
+    c.value = "Frete dedicado:";
+    c.font = { name: "Calibri", size: 12, bold: true };
+    c.alignment = { horizontal: "left", vertical: "middle" };
+  }
+  ws.mergeCells(`E${nextRow}:N${nextRow}`);
+  {
+    const c = ws.getCell(`E${nextRow}`);
+    c.value = buildFreteText(formData, totalBase);
+    c.font = { name: "Calibri", size: 11 };
+    c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+  }
+  nextRow++;
 
-  const condRow = nextRow + 1;
-  addCondRow(condRow, "Prazo de fabricação e entrega:", "PRAZO A SER PREENCHIDO");
-  addCondRow(condRow + 2, "Condição de pagto:", "30% Sinal e 70% a 28DDF (mediante a aprovação de cadastro)");
-  addCondRow(condRow + 4, "Frete:", buildFreteText(formData, totalBase));
-  addCondRow(condRow + 6, "Observação:", "Pode ser acrescido o valor de DIFAL, de acordo com o Estado e classificação fiscal da empresa.");
+  // ── Observação ────────────────────────────────────────────────────────────
+  ws.getRow(nextRow).height = 18.0;
+  ws.mergeCells(`C${nextRow}:D${nextRow}`);
+  {
+    const c = ws.getCell(`C${nextRow}`);
+    c.value = "Observação:";
+    c.font = { name: "Calibri", size: 11, bold: true };
+    c.alignment = { horizontal: "left", vertical: "middle" };
+  }
+  nextRow++;
+  ws.getRow(nextRow).height = 18.0;
+  ws.mergeCells(`C${nextRow}:N${nextRow}`);
+  {
+    const c = ws.getCell(`C${nextRow}`);
+    c.value = "Pode ser acrescido o valor de DIFAL, de acordo com o Estado e classificação fiscal da empresa.";
+    c.font = { name: "Calibri", size: 11 };
+    c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+  }
+  nextRow++;
 
-  // ── Rodapé ────────────────────────────────────────────────────────────────
-  const footerRow = condRow + 9;
-  ws.getRow(footerRow).height = 35;
-  ws.mergeCells(`C${footerRow}:M${footerRow}`);
-  const cFooter = ws.getCell(`C${footerRow}`);
-  cFooter.value = "Estamos à disposição para quaisquer esclarecimentos,";
-  cFooter.font = { name: "Calibri", size: 12, italic: true };
-  cFooter.alignment = { horizontal: "center", vertical: "middle" };
+  // ── Espaço ────────────────────────────────────────────────────────────────
+  nextRow++;
+  ws.getRow(nextRow).height = 10;
+  nextRow++;
 
-  const vendRow = footerRow + 2;
-  ws.getRow(vendRow).height = 20;
-  const vendedorNome = [formData.seller1Name, formData.seller2Name].filter(Boolean).join(" / ") || "";
-  ws.getCell(`C${vendRow}`).value = vendedorNome || "VENDEDOR";
-  ws.getCell(`C${vendRow}`).font = { name: "Calibri", size: 11, bold: true };
+  // ── Condições Gerais ─────────────────────────────────────────────────────
+  const conditions = [
+    { num: "1)", text: "A validade desta proposta é de 3 (três) dias corridos a partir da data de emissão;" },
+    { num: "2)", text: "Os preços praticados são os vigentes na data de emissão da proposta, podendo sofrer alterações sem aviso prévio;" },
+    { num: "3)", text: "Pagamentos de sinal e/ou antecipado poderão ser efetuados num prazo de 5 dias úteis após a aprovação da proposta. O faturamento será realizado mediante a aprovação do cadastro;" },
+    { num: "4)", text: "As luminárias ALFALUX possuem 01 (um) ano de garantia contra defeitos de fabricação. Para equipamentos (lâmpadas, drivers, reatores, transformadores, ignitores e capacitores), é repassada a garantia do fabricante;" },
+    { num: "5)", text: "A ALFALUX não realiza instalação de luminárias;" },
+    { num: "6)", text: "Em caso de qualquer problema em nossos produtos, nossa assistência técnica deverá ser acionada. A manipulação incorreta ou alteração do produto ocasionará a perda da garantia. Serviços de assistência técnica que envolvam substituição de peças ou componentes das luminárias deverão ser realizados em nossa fábrica;" },
+    { num: "7)", text: "A conferência do material deverá ser efetuada no ato da entrega, havendo qualquer irregularidade ou avaria, está deverá ser comunicada e notificado no recebimento. Em caso de não conferência a ALFALUX não se responsabiliza por eventuais divergências ou danos às mercadorias;" },
+    { num: "8)", text: "A responsabilidade sobre problemas ocasionados durante o transporte é da transportadora, orientamos que realizem anotação no conhecimento, como forma de comprovação do dano e o futuro ressarcimento pelo responsável. Não nos responsabilizamos por danos ocasionados pelo transporte incorreto da mercadoria, por terceiros;" },
+    { num: "9)", text: "Cancelamento total ou parcial, será aceito somente no período de 48 horas da aprovação do pedido, após haverá a cobrança de 10% sobre o valor dos itens cancelados, em função da interrupção do processo fabril e ressarcimento de despesas geradas com a compra de matéria prima e mão de obra. Não aceitamos o cancelamento de produtos especiais, nesta hipótese haverá a cobrança do valor integral do produto." },
+  ];
 
-  ws.getRow(vendRow + 2).height = 40;
-  ws.mergeCells(`C${vendRow + 2}:F${vendRow + 2}`);
-  ws.getCell(`C${vendRow + 2}`).value = "CONTATO:   (11) 5666.9272";
-  ws.getCell(`C${vendRow + 2}`).font = { name: "Calibri", size: 11 };
+  for (const cond of conditions) {
+    ws.getRow(nextRow).height = 16.8;
+    {
+      const c = ws.getCell(`C${nextRow}`);
+      c.value = cond.num;
+      c.font = { name: "Calibri", size: 11, bold: true };
+      c.alignment = { horizontal: "left", vertical: "middle" };
+    }
+    ws.mergeCells(`D${nextRow}:N${nextRow}`);
+    {
+      const c = ws.getCell(`D${nextRow}`);
+      c.value = cond.text;
+      c.font = { name: "Calibri", size: 10 };
+      c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+    }
+    nextRow++;
+    nextRow++; // espaço entre condições
+  }
+
+  // ── Estou ciente ─────────────────────────────────────────────────────────
+  ws.getRow(nextRow).height = 31.2;
+  ws.mergeCells(`C${nextRow}:N${nextRow}`);
+  {
+    const c = ws.getCell(`C${nextRow}`);
+    c.value = "Estou ciente das informações contidas neste documento.";
+    c.font = { name: "Calibri", size: 18, bold: true, color: { argb: "FFFF0000" } };
+    c.alignment = { horizontal: "center", vertical: "middle" };
+  }
+  nextRow += 3;
+
+  // ── Data e Assinatura ─────────────────────────────────────────────────────
+  ws.getRow(nextRow).height = 33.6;
+  {
+    const c = ws.getCell(`D${nextRow}`);
+    c.value = "Data:  ____/___/_____";
+    c.font = { name: "Calibri", size: 14, bold: true };
+    c.alignment = { horizontal: "left", vertical: "middle" };
+  }
+  ws.mergeCells(`F${nextRow}:H${nextRow}`);
+  {
+    const c = ws.getCell(`F${nextRow}`);
+    c.value = "De acordo: _____________________________________";
+    c.font = { name: "Calibri", size: 14, bold: true };
+    c.alignment = { horizontal: "left", vertical: "middle" };
+  }
+  nextRow += 4;
 
   // ── Rodapé endereço ───────────────────────────────────────────────────────
-  const addrRow = vendRow + 6;
-  ws.getRow(addrRow).height = 22;
-  ws.mergeCells(`C${addrRow}:M${addrRow}`);
-  const cAddr = ws.getCell(`C${addrRow}`);
-  cAddr.value = "R. Agostino Togneri, nº 617 - Jurubatuba - São Paulo/SP";
-  cAddr.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_BLUE } };
-  cAddr.font = { name: "Calibri", size: 10, bold: true, color: { argb: HEADER_TEXT_WHITE } };
-  cAddr.alignment = { horizontal: "center", vertical: "middle" };
+  ws.getRow(nextRow).height = 19.8;
+  ws.mergeCells(`C${nextRow}:N${nextRow}`);
+  {
+    const c = ws.getCell(`C${nextRow}`);
+    c.value = "R. Agostino Togneri, nº 617 - Jurubatuba - São Paulo/SP  - CEP: 04690-090";
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_BLUE } };
+    c.font = { name: "Calibri", size: 10, bold: false, color: { argb: HEADER_TEXT_WHITE } };
+    c.alignment = { horizontal: "center", vertical: "middle" };
+  }
 
   // ── Gerar e baixar o arquivo ──────────────────────────────────────────────
   const buffer = await wb.xlsx.writeBuffer();
