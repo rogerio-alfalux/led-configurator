@@ -53,6 +53,7 @@ import {
   getAvailableVoltages,
   calculateLedBar,
   calcLedBarPrice,
+  calcLedBarPriceDetail,
 } from "@/lib/ledBarCatalog";
 import type { LedBarProduct, LedBarPotencia, LedBarDifusor, LedBarControle, LedBarVoltage, LedBarResult } from "@/lib/ledBarCatalog";
 import {
@@ -3538,8 +3539,9 @@ export default function Home() {
                     const nT = r.nCortes;
                     const mm = r.comprimentoPorTrechoMm;
                     const driverLine = `${r.trechos[0]?.driver.model}${r.trechos[0]?.driver.code ? ` (${r.trechos[0].driver.code})` : ""}`;
-                    // Preço = (R$/m × comprimento_total_m) + (driver 60W × número de cortes)
+                    // Preço = (R$/m × comprimento_total_m) + driver selecionado por potência do trecho
                     const lbPreco = calcLedBarPrice(r.product.potencia, r.comprimentoTotalMm, nT);
+                    const lbDetail = calcLedBarPriceDetail(r.product.potencia, r.comprimentoTotalMm, nT);
                     const orcamentoLines = [
                       [`${r.product.name} ${r.cct} ${r.voltage}`, nT > 1 ? `${nT} TRECHOS DE ${mm}MM` : `${mm}MM`].join(" "),
                       `PREÇO: ${formatBRL(lbPreco)}`,
@@ -3564,15 +3566,20 @@ export default function Home() {
                             <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3 mb-3 space-y-0.5">
                               <div className="flex justify-between">
                                 <span>Perfil ({r.product.potencia}W/m × {(r.comprimentoTotalMm/1000).toFixed(3)}m)</span>
-                                <span className="font-mono">{formatBRL(LED_BAR_PRECO_POR_METRO[r.product.potencia] * r.comprimentoTotalMm / 1000)}</span>
+                                <span className="font-mono">{formatBRL(lbDetail.precoPerfil)}</span>
                               </div>
                               <div className="flex justify-between">
-                                <span>Driver 60W × {nT} corte{nT > 1 ? "s" : ""}</span>
-                                <span className="font-mono">{formatBRL(LED_BAR_PRECO_DRIVER_60W * nT)}</span>
+                                <span>
+                                  Driver {lbDetail.wattsDriver}W × {nT} corte{nT > 1 ? "s" : ""}
+                                  {lbDetail.wattsDriver === 100 && (
+                                    <span className="ml-1 text-amber-500 font-medium">(potência {lbDetail.potenciaTrecho.toFixed(1)}W — driver 60W insuficiente)</span>
+                                  )}
+                                </span>
+                                <span className="font-mono">{formatBRL(lbDetail.totalDrivers)}</span>
                               </div>
                               <div className="flex justify-between font-semibold border-t border-border pt-1 mt-1">
                                 <span>Total</span>
-                                <span className="font-mono text-primary">{formatBRL(lbPreco)}</span>
+                                <span className="font-mono text-primary">{formatBRL(lbDetail.total)}</span>
                               </div>
                             </div>
                             <div

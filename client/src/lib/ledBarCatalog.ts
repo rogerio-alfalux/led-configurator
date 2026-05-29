@@ -121,12 +121,34 @@ export const LED_BAR_PRECO_POR_METRO: Record<LedBarPotencia, number> = {
   25: 133.89,
 };
 
-/** Preço fixo do driver 60W por corte (R$). Válido para ON/OFF 220V e Bivolt. */
+/** Preço fixo do driver 60W por corte (R$). Usado quando potência do trecho ≤ 60W. */
 export const LED_BAR_PRECO_DRIVER_60W = 104.28;
+
+/** Preço fixo do driver 100W por corte (R$). Usado quando potência do trecho > 60W e ≤ 100W. */
+export const LED_BAR_PRECO_DRIVER_100W = 157.27;
+
+/**
+ * Seleciona o preço do driver correto para um trecho de LED BAR.
+ * Regra: potência_trecho = potencia_wm × comprimento_trecho_m
+ *   ≤ 60W  → driver 60W  (R$104,28)
+ *   > 60W  → driver 100W (R$157,27)
+ */
+export function selectLedBarDriverPrice(
+  potenciaWm: LedBarPotencia,
+  comprimentoTrechoMm: number
+): { preco: number; wattsDriver: 60 | 100; potenciaTrecho: number } {
+  const potenciaTrecho = potenciaWm * (comprimentoTrechoMm / 1000);
+  if (potenciaTrecho <= 60) {
+    return { preco: LED_BAR_PRECO_DRIVER_60W, wattsDriver: 60, potenciaTrecho };
+  }
+  return { preco: LED_BAR_PRECO_DRIVER_100W, wattsDriver: 100, potenciaTrecho };
+}
 
 /**
  * Calcula o preço total de um LED BAR:
- *   preço = (R$/m × comprimentoTotalMm / 1000) + (preço_driver × nCortes)
+ *   preço = (R$/m × comprimentoTotalMm / 1000) + soma(preço_driver_por_trecho)
+ *
+ * Cada trecho tem seu driver selecionado individualmente com base na potência.
  *
  * @param potencia  Potência em W/m
  * @param comprimentoTotalMm  Comprimento total em mm
@@ -139,10 +161,42 @@ export function calcLedBarPrice(
   nCortes: number
 ): number {
   const precoPorMetro = LED_BAR_PRECO_POR_METRO[potencia] ?? 0;
-  const precoDriver   = LED_BAR_PRECO_DRIVER_60W;
   const comprimentoM  = comprimentoTotalMm / 1000;
-  const total = precoPorMetro * comprimentoM + precoDriver * nCortes;
+  // Comprimento por trecho (igual para todos os cortes)
+  const comprimentoTrechoMm = Math.floor(comprimentoTotalMm / Math.max(1, nCortes));
+  // Soma dos drivers (cada trecho pode ter driver diferente)
+  let totalDrivers = 0;
+  for (let i = 0; i < Math.max(1, nCortes); i++) {
+    totalDrivers += selectLedBarDriverPrice(potencia, comprimentoTrechoMm).preco;
+  }
+  const total = precoPorMetro * comprimentoM + totalDrivers;
   return Math.round(total * 100) / 100;
+}
+
+/**
+ * Retorna o detalhamento de preço do LED BAR para exibição na UI.
+ */
+export function calcLedBarPriceDetail(
+  potencia: LedBarPotencia,
+  comprimentoTotalMm: number,
+  nCortes: number
+): {
+  precoPerfil: number;
+  precoDriverPorCorte: number;
+  wattsDriver: 60 | 100;
+  potenciaTrecho: number;
+  totalDrivers: number;
+  total: number;
+} {
+  const precoPorMetro = LED_BAR_PRECO_POR_METRO[potencia] ?? 0;
+  const comprimentoM  = comprimentoTotalMm / 1000;
+  const comprimentoTrechoMm = Math.floor(comprimentoTotalMm / Math.max(1, nCortes));
+  const { preco: precoDriverPorCorte, wattsDriver, potenciaTrecho } = selectLedBarDriverPrice(potencia, comprimentoTrechoMm);
+  const nT = Math.max(1, nCortes);
+  const precoPerfil = Math.round(precoPorMetro * comprimentoM * 100) / 100;
+  const totalDrivers = Math.round(precoDriverPorCorte * nT * 100) / 100;
+  const total = Math.round((precoPerfil + totalDrivers) * 100) / 100;
+  return { precoPerfil, precoDriverPorCorte, wattsDriver, potenciaTrecho, totalDrivers, total };
 }
 
 export const LED_BAR_POTENCIA_OPTIONS: { value: LedBarPotencia; label: string }[] = [
