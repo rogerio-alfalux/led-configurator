@@ -840,3 +840,19 @@
   - RT e Margem em células P10/P11 (lado direito)
   - Rodapé: prazo de fabricação, valor total, condição de pagamento, frete, observação, nome do vendedor, contato
   - Condições gerais de fornecimento (3 itens)
+
+## v10 — Template Excel Fiel ao TEMPLATEVIVIAN28.05.2026.xlsx
+
+- [x] Logo ALFALUX (novo, enviado pelo usuário) no canto superior direito do cabeçalho (linhas 1-14, colunas G-N)
+- [x] Número do orçamento (C6:D6) com fundo azul (#5B9BD5), fonte 24pt bold
+- [x] Data (C14:D14) com fundo azul, fonte 24pt bold
+- [x] Título da obra (C17:N17) com fundo azul escuro (#1F3864), texto branco 28pt
+- [x] Cabeçalho da tabela (linha 18) com fundo azul (#5B9BD5), texto branco 14pt, bordas medium
+- [x] Linhas de dados com bordas medium, fonte 14pt, ITEM EM PLANTA em 26pt bold
+- [x] Rodapé: prazo (vermelho), total (fundo azul claro), pagamento, frete, observação
+- [x] Nome do vendedor no rodapé (sem assistente, sem RT, sem margem)
+- [x] 9 condições gerais de fornecimento exatas do template
+- [x] "Estou ciente..." em vermelho 24pt
+- [x] Data e Assinatura em 26pt bold
+- [x] Rodapé endereço com fundo azul
+- [x] Sem nenhuma menção a RT, Margem ou Assistente no arquivo Excel
