@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -364,7 +365,7 @@ export default function QuoteDetail() {
           )}
 
           {/* Editar Itens do Orçamento */}
-          <Dialog open={editItemsDialogOpen} onOpenChange={(open) => {
+          <Sheet open={editItemsDialogOpen} onOpenChange={(open) => {
             setEditItemsDialogOpen(open);
             if (open) {
               setEditableItems(currentItems.map(item => {
@@ -379,24 +380,25 @@ export default function QuoteDetail() {
               setEditItemsNotes("");
             }
           }}>
-            <DialogTrigger asChild>
+            <SheetTrigger asChild>
               <Button variant="outline" className="gap-2">
                 <Pencil className="w-4 h-4" />
                 Editar Itens
               </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
+            </SheetTrigger>
+            <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto flex flex-col p-0">
+              <SheetHeader className="px-6 pt-6 pb-3 border-b">
+                <SheetTitle className="flex items-center gap-2 text-lg">
                   <ShoppingBag className="w-5 h-5" />
                   Editar Itens do Orçamento
-                </DialogTitle>
-              </DialogHeader>
-              <p className="text-xs text-muted-foreground -mt-2 mb-3">
-                Edite quantidades, cor, temperatura de cor e identificação em planta. Uma nova revisão será criada ao salvar.
-              </p>
+                </SheetTitle>
+                <p className="text-xs text-muted-foreground">
+                  Edite quantidades, cor, temperatura de cor e identificação em planta. Uma nova revisão será criada ao salvar.
+                </p>
+              </SheetHeader>
+              <div className="flex-1 overflow-y-auto px-6 py-4">
 
-              <div className="space-y-4">
+                <div className="space-y-4">
                 {editableItems.map((item, idx) => {
                   const d = item.parsed;
                   const updateItem = (fields: Partial<CartItemData>) => {
@@ -521,77 +523,80 @@ export default function QuoteDetail() {
                     </div>
                   );
                 })}
-              </div>
+                </div>
 
-              {/* Nota da revisão */}
-              <div className="mt-4">
-                <Label className="text-xs">Nota desta revisão (opcional)</Label>
-                <Textarea
-                  value={editItemsNotes}
-                  onChange={e => setEditItemsNotes(e.target.value)}
-                  placeholder="Ex: Ajuste de quantidades após reunião com cliente"
-                  rows={2}
-                  className="mt-1"
-                />
-              </div>
+                {/* Nota da revisão */}
+                <div className="mt-4">
+                  <Label className="text-xs">Nota desta revisão (opcional)</Label>
+                  <Textarea
+                    value={editItemsNotes}
+                    onChange={e => setEditItemsNotes(e.target.value)}
+                    placeholder="Ex: Ajuste de quantidades após reunião com cliente"
+                    rows={2}
+                    className="mt-1"
+                  />
+                </div>
+              </div>{/* end flex-1 scroll area */}
 
-              {/* Resumo do total */}
-              <div className="mt-3 p-3 bg-muted/40 rounded-lg flex justify-between items-center">
-                <span className="text-sm font-medium">Total dos itens</span>
-                <span className="text-lg font-bold text-primary">
-                  {formatBRL(editableItems.reduce((s, it) => s + (it.parsed.totalPrice ?? 0), 0))}
-                </span>
+              {/* Footer fixo */}
+              <div className="px-6 py-4 border-t bg-background">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-sm font-medium">Total dos itens</span>
+                  <span className="text-lg font-bold text-primary">
+                    {formatBRL(editableItems.reduce((s, it) => s + (it.parsed.totalPrice ?? 0), 0))}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => setEditItemsDialogOpen(false)}>Cancelar</Button>
+                  <Button
+                    className="flex-1"
+                    onClick={() => {
+                      const totalBase = editableItems.reduce((s, it) => s + (it.parsed.totalPrice ?? 0), 0);
+                      const rtPct = quote.rtPercent ? parseFloat(String(quote.rtPercent)) : 0;
+                      const marginPct = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;
+                      const totalComRT = rtPct > 0 ? totalBase / (1 - rtPct) : totalBase;
+                      const totalFinal = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
+                      addRevisionForItemsMutation.mutate({
+                        quoteId: Number(id),
+                        clientName: quote.clientName,
+                        clientContact: quote.clientContact ?? undefined,
+                        clientPhone: quote.clientPhone ?? undefined,
+                        clientEmail: quote.clientEmail ?? undefined,
+                        projectName: quote.projectName ?? undefined,
+                        projectRef: quote.projectRef ?? undefined,
+                        notes: quote.notes ?? undefined,
+                        vendorName: quote.vendorName ?? undefined,
+                        assistantName: quote.assistantName ?? undefined,
+                        seller1Id: quote.seller1Id ?? undefined,
+                        seller1Name: quote.seller1Name ?? undefined,
+                        seller2Id: quote.seller2Id ?? undefined,
+                        seller2Name: quote.seller2Name ?? undefined,
+                        assistantId: quote.assistantId ?? undefined,
+                        rtPercent: rtPct > 0 ? rtPct : undefined,
+                        rtDest1: quote.rtDest1 ?? undefined,
+                        rtDest1Active: quote.rtDest1Active ?? undefined,
+                        rtDest2: quote.rtDest2 ?? undefined,
+                        rtDest2Active: quote.rtDest2Active ?? undefined,
+                        rtDest3: quote.rtDest3 ?? undefined,
+                        rtDest3Active: quote.rtDest3Active ?? undefined,
+                        marginPercent: marginPct > 0 ? marginPct : undefined,
+                        freteType: (quote.freteType as "free" | "paid" | "night" | "consult") ?? "free",
+                        freteIsento: quote.freteIsento ?? undefined,
+                        freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
+                        versionNotes: editItemsNotes || undefined,
+                        totalAmount: totalFinal,
+                        totalFinal,
+                        items: editableItems.map((it, i) => ({ itemNumber: i + 1, itemData: it.itemData })),
+                      });
+                    }}
+                    disabled={addRevisionForItemsMutation.isPending}
+                  >
+                    {addRevisionForItemsMutation.isPending ? "Salvando..." : "Salvar Alterações"}
+                  </Button>
+                </div>
               </div>
-
-              <div className="flex justify-end gap-2 mt-4 pt-3 border-t">
-                <Button variant="outline" onClick={() => setEditItemsDialogOpen(false)}>Cancelar</Button>
-                <Button
-                  onClick={() => {
-                    const totalBase = editableItems.reduce((s, it) => s + (it.parsed.totalPrice ?? 0), 0);
-                    const rtPct = quote.rtPercent ? parseFloat(String(quote.rtPercent)) : 0;
-                    const marginPct = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;
-                    const totalComRT = rtPct > 0 ? totalBase / (1 - rtPct) : totalBase;
-                    const totalFinal = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
-                    addRevisionForItemsMutation.mutate({
-                      quoteId: Number(id),
-                      clientName: quote.clientName,
-                      clientContact: quote.clientContact ?? undefined,
-                      clientPhone: quote.clientPhone ?? undefined,
-                      clientEmail: quote.clientEmail ?? undefined,
-                      projectName: quote.projectName ?? undefined,
-                      projectRef: quote.projectRef ?? undefined,
-                      notes: quote.notes ?? undefined,
-                      vendorName: quote.vendorName ?? undefined,
-                      assistantName: quote.assistantName ?? undefined,
-                      seller1Id: quote.seller1Id ?? undefined,
-                      seller1Name: quote.seller1Name ?? undefined,
-                      seller2Id: quote.seller2Id ?? undefined,
-                      seller2Name: quote.seller2Name ?? undefined,
-                      assistantId: quote.assistantId ?? undefined,
-                      rtPercent: rtPct > 0 ? rtPct : undefined,
-                      rtDest1: quote.rtDest1 ?? undefined,
-                      rtDest1Active: quote.rtDest1Active ?? undefined,
-                      rtDest2: quote.rtDest2 ?? undefined,
-                      rtDest2Active: quote.rtDest2Active ?? undefined,
-                      rtDest3: quote.rtDest3 ?? undefined,
-                      rtDest3Active: quote.rtDest3Active ?? undefined,
-                      marginPercent: marginPct > 0 ? marginPct : undefined,
-                      freteType: (quote.freteType as "free" | "paid" | "night" | "consult") ?? "free",
-                      freteIsento: quote.freteIsento ?? undefined,
-                      freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
-                      versionNotes: editItemsNotes || undefined,
-                      totalAmount: totalFinal,
-                      totalFinal,
-                      items: editableItems.map((it, i) => ({ itemNumber: i + 1, itemData: it.itemData })),
-                    });
-                  }}
-                  disabled={addRevisionForItemsMutation.isPending}
-                >
-                  {addRevisionForItemsMutation.isPending ? "Salvando..." : "Salvar Alterações"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+            </SheetContent>
+          </Sheet>
 
           {/* Alterar Status */}
           <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>

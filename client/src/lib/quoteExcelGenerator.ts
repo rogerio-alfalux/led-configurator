@@ -82,6 +82,34 @@ function buildFreteText(formData: QuoteFormData, totalBase: number): string {
   return "CIF - Para faturamento acima de R$ 1.500,00 São Paulo/ SP (Capital). Demais localidades sob consulta";
 }
 
+// ── Cache de fotos frescas da API Alfalux ───────────────────────────────────
+// A URL da foto no itemData pode expirar (CloudFront signed URL).
+// Esta função busca uma URL fresca via API usando o SKU do produto.
+let _freshPhotoCache: Map<string, string> | null = null;
+async function getFreshPhotoUrl(sku: string, fallbackUrl?: string | null): Promise<string | null> {
+  try {
+    if (!_freshPhotoCache) {
+      const res = await fetch("/api/trpc/alfalux.products", {
+        headers: { "Content-Type": "application/json" },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const products: Array<{ sku?: string; fotoUrl?: string }> =
+          json?.result?.data?.json ?? json?.result?.data ?? [];
+        _freshPhotoCache = new Map();
+        for (const p of products) {
+          if (p.sku && p.fotoUrl) _freshPhotoCache.set(p.sku, p.fotoUrl);
+        }
+      } else {
+        _freshPhotoCache = new Map();
+      }
+    }
+    return _freshPhotoCache.get(sku) ?? fallbackUrl ?? null;
+  } catch {
+    return fallbackUrl ?? null;
+  }
+}
+
 // ── Função principal ─────────────────────────────────────────────────────────
 export async function generateQuoteExcel(
   items: CartItemData[],
@@ -309,13 +337,15 @@ export async function generateQuoteExcel(
     cPlanta.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
 
     // D = FOTO (imagem do produto — centralizada na célula quadrada)
-    if (item.photoUrl) {
+    // Buscar URL fresca via API para evitar expiração de CloudFront signed URLs
+    const freshPhotoUrl = await getFreshPhotoUrl(item.sku || "", item.photoUrl);
+    if (freshPhotoUrl) {
       try {
         let fetchUrl: string;
-        if (item.photoUrl.startsWith("/manus-storage/")) {
-          fetchUrl = item.photoUrl;
+        if (freshPhotoUrl.startsWith("/manus-storage/")) {
+          fetchUrl = freshPhotoUrl;
         } else {
-          fetchUrl = `/api/image-proxy?url=${encodeURIComponent(item.photoUrl)}`;
+          fetchUrl = `/api/image-proxy?url=${encodeURIComponent(freshPhotoUrl)}`;
         }
         const response = await fetch(fetchUrl);
         if (response.ok) {

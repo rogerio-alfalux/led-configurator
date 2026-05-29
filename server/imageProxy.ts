@@ -14,8 +14,9 @@ import http from "http";
 const ALLOWED_HOSTS = [
   "alfaluxprod-c8zmg2fn.manus.space",
   "files.manuscdn.com",
-  "cloudfront.net",           // manus-storage redirects
+  "cloudfront.net",           // manus-storage redirects + Alfalux CloudFront (subdomínios)
   "manuscdn.com",             // CDN alternativo
+  "amazonaws.com",            // S3 direto
 ];
 
 function isAllowedUrl(rawUrl: string): boolean {

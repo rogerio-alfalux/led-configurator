@@ -866,3 +866,9 @@
 - [x] Excel: coluna D (FOTO) com formato quadrado e imagem centralizada
 - [x] Excel: fontes do cabeçalho menores, fiéis ao template original
 - [x] Excel: ITEM EM PLANTA deixar em branco quando não preenchido (não mostrar número automático)
+
+## v12 — Correções Modal de Edição e Foto Excel
+
+- [x] Modal "Editar Itens": substituir Dialog por Sheet lateral (painel deslizante), grid 2 colunas, sem scroll horizontal
+- [x] Excel: foto LED BAR U corrigida - URL CloudFront expirada, agora busca URL fresca via API Alfalux
+- [x] imageProxy.ts: aceitar subdomínios do CloudFront (d36hbw14aib5lz.cloudfront.net)
