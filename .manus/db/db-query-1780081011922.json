@@ -1,0 +1,60 @@
+{
+  "query": "SELECT id, name, code FROM sellers ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT id, name, code FROM sellers ORDER BY id;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "VIVIAN FRANCESCHINELLI",
+      "code": "33.0XXX-26"
+    },
+    {
+      "id": "2",
+      "name": "DANIEL PUGLIESE",
+      "code": "04.0XXX-26"
+    },
+    {
+      "id": "3",
+      "name": "MAURÍCIO SARTORI",
+      "code": "31.0XXX-26"
+    },
+    {
+      "id": "4",
+      "name": "DENNIS PUGLIESI",
+      "code": "05.0XXX-26"
+    },
+    {
+      "id": "5",
+      "name": "FABÍOLA MARTINEZ",
+      "code": "20.0XXX-26"
+    },
+    {
+      "id": "6",
+      "name": "JULIANO BUSTAMANTE",
+      "code": "29.0XXX-26"
+    },
+    {
+      "id": "7",
+      "name": "IZABEL SIMON",
+      "code": "25.0XXX-26"
+    },
+    {
+      "id": "8",
+      "name": "GUSTAVO GATTI",
+      "code": "32.0XXX-26"
+    },
+    {
+      "id": "9",
+      "name": "RICARDO MIRANDA",
+      "code": "27.0XXX-26"
+    },
+    {
+      "id": "10",
+      "name": "EDVALDO LIMA",
+      "code": "01.0XXX-26"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tcode\n1\tVIVIAN FRANCESCHINELLI\t33.0XXX-26\n2\tDANIEL PUGLIESE\t04.0XXX-26\n3\tMAURÍCIO SARTORI\t31.0XXX-26\n4\tDENNIS PUGLIESI\t05.0XXX-26\n5\tFABÍOLA MARTINEZ\t20.0XXX-26\n6\tJULIANO BUSTAMANTE\t29.0XXX-26\n7\tIZABEL SIMON\t25.0XXX-26\n8\tGUSTAVO GATTI\t32.0XXX-26\n9\tRICARDO MIRANDA\t27.0XXX-26\n10\tEDVALDO LIMA\t01.0XXX-26\n",
+  "stderr": "",
+  "execution_time_ms": 308
+}

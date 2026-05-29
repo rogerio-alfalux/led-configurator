@@ -138,43 +138,52 @@ export async function updateCartItemQty(id: number, userId: number, qty: number)
 
 // ─── Quote helpers ────────────────────────────────────────────────────────────
 
-/** Gera o próximo número de orçamento no formato ORC-YYYY-NNNN */
+/** Gera o próximo número de orçamento no formato XX.NNNN-AA (código vendedor + sequencial anual + ano) */
 export async function generateQuoteNumber(sellerCode?: string | null): Promise<string> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const year = new Date().getFullYear().toString().slice(-2);
+  const year = new Date().getFullYear().toString().slice(-2); // ex: "26"
 
-  // Se tiver código do vendedor, usa o prefixo dele (ex: "04.0XXX-26" → "04.0")
-  // Formato do código: "04.0XXX-26" → prefixo = "04.0203-26" (substituindo XXX pelo seq)
-  // Mas o código tem formato "04.0XXX-26" onde XXX é o número sequencial
-  // Então geramos: "04.0001-26", "04.0002-26", etc.
+  // Formato final: "XX.NNNN-AA"
+  // XX   = código do vendedor (2 dígitos, ex: "33")
+  // NNNN = sequencial 4 dígitos com zero à esquerda, zera a cada virada de ano
+  // AA   = ano vigente 2 dígitos (ex: "26")
+  //
+  // O campo code do vendedor pode ser "33.0XXX-26" ou "33.0XXX" —
+  // extraimos apenas os dígitos antes do ponto como código do vendedor.
+
+  let vendorCode: string | null = null;
   if (sellerCode) {
-    // Remove o XXX e usa o padrão do vendedor
-    // Ex: "04.0XXX-26" → base = "04.0", suffix = "-26"
-    const match = sellerCode.match(/^(\d+\.\d*)XXX(-\d+)$/);
-    if (match) {
-      const base = match[1]; // ex: "04.0"
-      const suffix = match[2]; // ex: "-26"
-      const prefixPattern = `${base}%${suffix}`;
-      const rows = await db
-        .select({ quoteNumber: quotes.quoteNumber })
-        .from(quotes)
-        .where(like(quotes.quoteNumber, prefixPattern))
-        .orderBy(desc(quotes.quoteNumber))
-        .limit(50);
-      // Extrai o número sequencial de cada orçamento e pega o maior
-      let maxSeq = 0;
-      for (const r of rows) {
-        const inner = r.quoteNumber.replace(base, "").replace(suffix, "");
-        const n = parseInt(inner, 10);
-        if (!isNaN(n) && n > maxSeq) maxSeq = n;
-      }
-      const nextSeq = maxSeq + 1;
-      return `${base}${String(nextSeq).padStart(4, "0")}${suffix}`;
-    }
+    // Extrai os dígitos antes do primeiro ponto: "33.0XXX-26" → "33"
+    const m = sellerCode.match(/^(\d+)/);
+    if (m) vendorCode = m[1];
   }
 
-  // Fallback: formato ORC-YY-NNNN
+  if (vendorCode) {
+    // Padrão do ano vigente: "33.XXXX-26"
+    const pattern = `${vendorCode}.%-${year}`;
+    const rows = await db
+      .select({ quoteNumber: quotes.quoteNumber })
+      .from(quotes)
+      .where(like(quotes.quoteNumber, pattern))
+      .orderBy(desc(quotes.quoteNumber))
+      .limit(100);
+
+    // Extrai o sequencial de cada número no formato "XX.NNNN-AA"
+    let maxSeq = 0;
+    const re = new RegExp(`^${vendorCode}\\.(\\d{4})-${year}$`);
+    for (const r of rows) {
+      const m2 = r.quoteNumber.match(re);
+      if (m2) {
+        const n = parseInt(m2[1], 10);
+        if (n > maxSeq) maxSeq = n;
+      }
+    }
+    const nextSeq = maxSeq + 1;
+    return `${vendorCode}.${String(nextSeq).padStart(4, "0")}-${year}`;
+  }
+
+  // Fallback sem vendedor: formato ORC-YY-NNNN
   const prefix = `ORC-${year}-`;
   const rows = await db
     .select({ quoteNumber: quotes.quoteNumber })
