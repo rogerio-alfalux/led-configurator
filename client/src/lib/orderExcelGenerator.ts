@@ -258,8 +258,8 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     // PA (B) — deixar em branco para preenchimento manual
     fillRow(ws.getCell(`B${rowNum}`), "");
 
-    // ETIQUETA (C) — deixar em BRANCO (conforme requisito)
-    fillRow(ws.getCell(`C${rowNum}`), "");
+    // ETIQUETA (C) — usar itemEmPlanta do orçamento ("ITEM NO PROJETO")
+    fillRow(ws.getCell(`C${rowNum}`), item.itemEmPlanta ?? "");
 
     // PRODUTO (D) — apenas a descrição do produto (orderSummary para perfis, description para outros)
     const prodDesc = buildProdutoText(item);
