@@ -872,3 +872,9 @@
 - [x] Modal "Editar Itens": substituir Dialog por Sheet lateral (painel deslizante), grid 2 colunas, sem scroll horizontal
 - [x] Excel: foto LED BAR U corrigida - URL CloudFront expirada, agora busca URL fresca via API Alfalux
 - [x] imageProxy.ts: aceitar subdomínios do CloudFront (d36hbw14aib5lz.cloudfront.net)
+
+## v16 — Carrinho por Usuário e Limpeza Automática
+
+- [x] Carrinho isolado por usuário (userId) — já implementado no banco, cada item tem userId, todas as queries filtram por userId
+- [x] Limpar o carrinho automaticamente após salvar o orçamento com sucesso (clearCart() no onSuccess do saveQuoteMutation)
+- [x] Confirmado: não há risco de cruzamento entre usuários — carrinho é gerenciado no banco por userId

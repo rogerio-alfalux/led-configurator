@@ -74,6 +74,8 @@ export default function Cart() {
     onSuccess: (data) => {
       toast.success(`Orçamento ${data.quoteNumber} salvo com sucesso!`);
       setSaveDialogOpen(false);
+      // Limpar o carrinho automaticamente após salvar o orçamento
+      clearCart();
       navigate(`/orcamentos/${data.quoteId}`);
     },
     onError: (err) => {
