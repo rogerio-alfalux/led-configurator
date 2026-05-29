@@ -711,9 +711,11 @@ export async function generateQuoteExcel(
       const logoId = wb.addImage({ buffer: logoBuffer, extension: "png" });
       // Posicionar: começa na coluna G (índice 6), linha 4 (índice 3)
       // Largura: 480px, Altura: 110px (proporção 4.34:1 do logo original 1263×291)
+      // Logo posicionado entre linha 7 (VENDEDOR) e linha 10 (CONTATO),
+      // colunas F-N — sem sobrepor telefone/endereço das linhas 3-4
       ws.addImage(logoId, {
-        tl: { col: 6.3, row: 3.2 },
-        ext: { width: 440, height: 101 },
+        tl: { col: 5.5, row: 6.1 },
+        ext: { width: 420, height: 97 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });
     }
