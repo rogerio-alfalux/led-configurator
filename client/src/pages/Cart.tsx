@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useLocation } from "wouter";
 import {
   ShoppingCart, Trash2, FileSpreadsheet, ArrowLeft, Package,
   Plus, Minus, Save, ClipboardList, Factory, AlertTriangle,
-  ChevronRight,
+  ChevronRight, Tag, Percent, Truck, Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useCart } from "@/hooks/useCart";
 import { formatBRL, QuoteFormData, CartItemData, parseCartItemData } from "@/lib/cartTypes";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
@@ -30,8 +31,24 @@ interface SaveFormData {
   clientEmail: string;
   projectName: string;
   projectRef: string;
-  vendorName: string;
+  seller1Id: string;
+  seller1Name: string;
+  seller2Id: string;
+  seller2Name: string;
+  assistantId: string;
   assistantName: string;
+  rtPercent: string;
+  rtDest1: string;
+  rtDest1Active: boolean;
+  rtDest2: string;
+  rtDest2Active: boolean;
+  rtDest3: string;
+  rtDest3Active: boolean;
+  marginPercent: string;
+  freteType: "free" | "paid" | "night" | "consult";
+  freteIsento: boolean;
+  freteLocalidade: "sp" | "other";
+  freteCity: string;
   notes: string;
   versionNotes: string;
 }
@@ -49,6 +66,7 @@ export default function Cart() {
   const [, navigate] = useLocation();
   const { entries, count, isLoading, removeItem, clearCart, isRemoving } = useCart();
   const utils = trpc.useUtils();
+
   const updateQtyMutation = trpc.cart.updateQty.useMutation({
     onSuccess: () => utils.cart.list.invalidate(),
   });
@@ -64,14 +82,21 @@ export default function Cart() {
   });
   const logProductionSheetMutation = trpc.quotes.logProductionSheet.useMutation();
 
+  // Sellers & Assistants
+  const sellersQuery = trpc.sellers.list.useQuery();
+  const assistantsQuery = trpc.assistants.list.useQuery();
+  const sellers = sellersQuery.data ?? [];
+  const assistants = assistantsQuery.data ?? [];
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 
-  // ─── Pedido de Fábrica direto do carrinho ─────────────────────────────────
-  // Passo 1: alerta de confirmação inicial
+  // Item em Planta — mapa de id do item → valor
+  const [itemEmPlantaMap, setItemEmPlantaMap] = useState<Record<number, string>>({});
+
+  // Pedido de Fábrica direto do carrinho
   const [orderConfirmOpen, setOrderConfirmOpen] = useState(false);
-  // Passo 2: formulário com dados + empresa
   const [orderFormOpen, setOrderFormOpen] = useState(false);
   const [orderForm, setOrderForm] = useState<OrderFormData>({
     clientName: "",
@@ -102,8 +127,24 @@ export default function Cart() {
     clientEmail: "",
     projectName: "",
     projectRef: "",
-    vendorName: "",
+    seller1Id: "",
+    seller1Name: "",
+    seller2Id: "",
+    seller2Name: "",
+    assistantId: "",
     assistantName: user?.name ?? "",
+    rtPercent: "0",
+    rtDest1: "",
+    rtDest1Active: true,
+    rtDest2: "",
+    rtDest2Active: false,
+    rtDest3: "",
+    rtDest3Active: false,
+    marginPercent: "10",
+    freteType: "free",
+    freteIsento: false,
+    freteLocalidade: "sp",
+    freteCity: "",
     notes: "",
     versionNotes: "",
   });
@@ -136,6 +177,36 @@ export default function Cart() {
 
   const totalGeral = entries.reduce((acc, e) => acc + (e.data.totalPrice ?? 0), 0);
 
+  // Cálculo de RT e Margem
+  const rtPct = Math.min(Math.max(parseFloat(saveForm.rtPercent || "0") / 100, 0), 0.99);
+  const marginPct = Math.min(Math.max(parseFloat(saveForm.marginPercent || "0") / 100, 0), 0.99);
+  const totalComRT = rtPct > 0 ? totalGeral / (1 - rtPct) : totalGeral;
+  const totalFinal = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
+
+  // Cálculo de frete
+  const FRETE_NOTURNO = 2000;
+  const FRETE_GRATIS_MINIMO = 1500;
+  let freteValor = 0;
+  let freteLabel = "";
+  if (!saveForm.freteIsento) {
+    if (saveForm.freteType === "night") {
+      freteValor = FRETE_NOTURNO;
+      freteLabel = `Frete noturno: ${formatBRL(FRETE_NOTURNO)}`;
+    } else if (saveForm.freteType === "consult") {
+      freteLabel = "Frete: sob consulta";
+    } else if (saveForm.freteLocalidade === "sp") {
+      if (totalFinal >= FRETE_GRATIS_MINIMO) {
+        freteLabel = "Frete grátis (SP)";
+      } else {
+        freteLabel = "Frete: a calcular (SP)";
+      }
+    } else {
+      freteLabel = "Frete: sob consulta (outra cidade)";
+    }
+  } else {
+    freteLabel = "Frete isento";
+  }
+
   const handleGenerate = async () => {
     if (!form.cliente.trim()) {
       toast.error("Informe o nome do cliente.");
@@ -143,7 +214,34 @@ export default function Cart() {
     }
     setIsGenerating(true);
     try {
-      await generateQuoteExcel(entries.map(e => e.data), form);
+      // Mesclar campos do saveForm no form para o Excel ter RT, margem, frete e vendedores
+      const enrichedForm: QuoteFormData = {
+        ...form,
+        seller1Id: saveForm.seller1Id ? Number(saveForm.seller1Id) : undefined,
+        seller1Name: saveForm.seller1Name || undefined,
+        seller2Id: saveForm.seller2Id ? Number(saveForm.seller2Id) : undefined,
+        seller2Name: saveForm.seller2Name || undefined,
+        assistantId: saveForm.assistantId ? Number(saveForm.assistantId) : undefined,
+        assistantName: saveForm.assistantName || undefined,
+        rtPercent: rtPct > 0 ? rtPct : undefined,
+        rtDest1: saveForm.rtDest1 || undefined,
+        rtDest1Active: saveForm.rtDest1Active,
+        rtDest2: saveForm.rtDest2 || undefined,
+        rtDest2Active: saveForm.rtDest2Active,
+        rtDest3: saveForm.rtDest3 || undefined,
+        rtDest3Active: saveForm.rtDest3Active,
+        marginPercent: marginPct > 0 ? marginPct : undefined,
+        freteType: saveForm.freteType,
+        freteIsento: saveForm.freteIsento,
+        freteLocalidade: saveForm.freteLocalidade,
+        freteCity: saveForm.freteCity,
+      };
+      // Injetar itemEmPlanta em cada item
+      const itemsWithPlanta = entries.map((e, idx) => ({
+        ...e.data,
+        itemEmPlanta: itemEmPlantaMap[e.id] ?? e.data.itemEmPlanta ?? "",
+      }));
+      await generateQuoteExcel(itemsWithPlanta, enrichedForm);
       setDialogOpen(false);
       toast.success("Orçamento gerado com sucesso!");
     } catch (err) {
@@ -159,6 +257,14 @@ export default function Cart() {
       toast.error("Informe o nome do cliente.");
       return;
     }
+    if (!saveForm.seller1Id) {
+      toast.error("Selecione o Vendedor 1.");
+      return;
+    }
+    if (!saveForm.assistantId) {
+      toast.error("Selecione o Assistente Comercial.");
+      return;
+    }
     if (entries.length === 0) {
       toast.error("O carrinho está vazio.");
       return;
@@ -171,14 +277,34 @@ export default function Cart() {
       clientEmail: saveForm.clientEmail || undefined,
       projectName: saveForm.projectName || undefined,
       projectRef: saveForm.projectRef || undefined,
-      vendorName: saveForm.vendorName || undefined,
+      vendorName: saveForm.seller1Name || undefined,
       assistantName: saveForm.assistantName || undefined,
+      seller1Id: saveForm.seller1Id ? parseInt(saveForm.seller1Id) : undefined,
+      seller1Name: saveForm.seller1Name || undefined,
+      seller2Id: saveForm.seller2Id ? parseInt(saveForm.seller2Id) : undefined,
+      seller2Name: saveForm.seller2Name || undefined,
+      assistantId: saveForm.assistantId ? parseInt(saveForm.assistantId) : undefined,
+      rtPercent: rtPct,
+      rtDest1: saveForm.rtDest1 || undefined,
+      rtDest1Active: saveForm.rtDest1Active,
+      rtDest2: saveForm.rtDest2 || undefined,
+      rtDest2Active: saveForm.rtDest2Active,
+      rtDest3: saveForm.rtDest3 || undefined,
+      rtDest3Active: saveForm.rtDest3Active,
+      marginPercent: marginPct,
+      freteType: saveForm.freteType,
+      freteIsento: saveForm.freteIsento,
+      freteLocalidade: saveForm.freteLocalidade,
       notes: saveForm.notes || undefined,
       versionNotes: saveForm.versionNotes || undefined,
       totalAmount: totalGeral,
+      totalFinal: totalFinal + freteValor,
       items: entries.map((e, idx) => ({
         itemNumber: idx + 1,
-        itemData: JSON.stringify(e.data),
+        itemData: JSON.stringify({
+          ...e.data,
+          itemEmPlanta: itemEmPlantaMap[e.id] || e.data.itemEmPlanta || "",
+        }),
       })),
     });
   };
@@ -192,7 +318,10 @@ export default function Cart() {
     setOrderFormOpen(false);
     try {
       const items = entries
-        .map(e => parseCartItemData(JSON.stringify(e.data)))
+        .map(e => parseCartItemData(JSON.stringify({
+          ...e.data,
+          itemEmPlanta: itemEmPlantaMap[e.id] || e.data.itemEmPlanta || "",
+        })))
         .filter((d): d is CartItemData => d !== null);
 
       await generateOrderExcel(items, {
@@ -204,7 +333,6 @@ export default function Cart() {
         empresa: orderForm.empresa,
       });
 
-      // Registrar no log de auditoria (sem quoteId — pedido avulso)
       logProductionSheetMutation.mutate({
         quoteId: 0,
         quoteNumber: orderForm.quoteRef || "SEM-ORC",
@@ -223,7 +351,7 @@ export default function Cart() {
   const updateForm = (field: keyof QuoteFormData, value: string) =>
     setForm(prev => ({ ...prev, [field]: value }));
 
-  const updateSaveForm = (field: keyof SaveFormData, value: string) =>
+  const updateSaveForm = <K extends keyof SaveFormData>(field: K, value: SaveFormData[K]) =>
     setSaveForm(prev => ({ ...prev, [field]: value }));
 
   const updateOrderForm = (field: keyof OrderFormData, value: string) =>
@@ -350,6 +478,17 @@ export default function Cart() {
                               </Button>
                               <span className="text-xs text-muted-foreground">un</span>
                             </div>
+                            {/* Item em Planta */}
+                            <div className="flex items-center gap-2 mt-2">
+                              <Tag className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                              <input
+                                type="text"
+                                placeholder="Item em planta (ex: L1)"
+                                value={itemEmPlantaMap[entry.id] ?? entry.data.itemEmPlanta ?? ""}
+                                onChange={(e) => setItemEmPlantaMap(prev => ({ ...prev, [entry.id]: e.target.value }))}
+                                className="text-xs border border-border rounded px-2 py-0.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary w-40"
+                              />
+                            </div>
                           </div>
                           <div className="text-right flex-shrink-0">
                             {entry.data.unitPrice != null && entry.data.unitPrice > 0 && (
@@ -415,15 +554,25 @@ export default function Cart() {
                         <Save className="w-4 h-4" />
                         Salvar Orçamento
                       </Button>
-                      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                           <DialogTitle>Salvar Orçamento no Sistema</DialogTitle>
                         </DialogHeader>
                         <Tabs defaultValue="cliente">
                           <TabsList className="w-full">
                             <TabsTrigger value="cliente" className="flex-1">Cliente</TabsTrigger>
-                            <TabsTrigger value="equipe" className="flex-1">Equipe</TabsTrigger>
+                            <TabsTrigger value="equipe" className="flex-1">
+                              <Users className="w-3 h-3 mr-1" />Equipe
+                            </TabsTrigger>
+                            <TabsTrigger value="financeiro" className="flex-1">
+                              <Percent className="w-3 h-3 mr-1" />RT / Margem
+                            </TabsTrigger>
+                            <TabsTrigger value="frete" className="flex-1">
+                              <Truck className="w-3 h-3 mr-1" />Frete
+                            </TabsTrigger>
                           </TabsList>
+
+                          {/* ─── Aba Cliente ─── */}
                           <TabsContent value="cliente" className="space-y-3 pt-3">
                             <div>
                               <Label>Número do Orçamento</Label>
@@ -501,24 +650,82 @@ export default function Cart() {
                               />
                             </div>
                           </TabsContent>
+
+                          {/* ─── Aba Equipe ─── */}
                           <TabsContent value="equipe" className="space-y-3 pt-3">
                             <div>
-                              <Label>Vendedor Responsável</Label>
-                              <Input
-                                placeholder="Nome do vendedor"
-                                value={saveForm.vendorName}
-                                onChange={e => updateSaveForm("vendorName", e.target.value)}
-                              />
+                              <Label>Vendedor 1 *</Label>
+                              <Select
+                                value={saveForm.seller1Id}
+                                onValueChange={(v) => {
+                                  const sel = sellers.find(s => String(s.id) === v);
+                                  updateSaveForm("seller1Id", v);
+                                  updateSaveForm("seller1Name", sel?.name ?? "");
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione o vendedor principal" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {sellers.map(s => (
+                                    <SelectItem key={s.id} value={String(s.id)}>
+                                      {s.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </div>
                             <div>
-                              <Label>Assistente / Elaborado por</Label>
-                              <Input
-                                placeholder="Quem está gerando este orçamento"
-                                value={saveForm.assistantName}
-                                onChange={e => updateSaveForm("assistantName", e.target.value)}
-                              />
+                              <Label>Vendedor 2 (opcional)</Label>
+                              <Select
+                                value={saveForm.seller2Id || "none"}
+                                onValueChange={(v) => {
+                                  if (v === "none") {
+                                    updateSaveForm("seller2Id", "");
+                                    updateSaveForm("seller2Name", "");
+                                  } else {
+                                    const sel = sellers.find(s => String(s.id) === v);
+                                    updateSaveForm("seller2Id", v);
+                                    updateSaveForm("seller2Name", sel?.name ?? "");
+                                  }
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione o segundo vendedor (opcional)" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">Nenhum</SelectItem>
+                                  {sellers.map(s => (
+                                    <SelectItem key={s.id} value={String(s.id)}>
+                                      {s.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label>Assistente Comercial *</Label>
+                              <Select
+                                value={saveForm.assistantId}
+                                onValueChange={(v) => {
+                                  const ast = assistants.find(a => String(a.id) === v);
+                                  updateSaveForm("assistantId", v);
+                                  updateSaveForm("assistantName", ast?.name ?? "");
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione o assistente" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {assistants.map(a => (
+                                    <SelectItem key={a.id} value={String(a.id)}>
+                                      {a.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                               <p className="text-xs text-muted-foreground mt-1">
-                                Este campo não aparece no orçamento, mas fica registrado para indicadores internos.
+                                O assistente é quem está elaborando este orçamento.
                               </p>
                             </div>
                             <div>
@@ -530,7 +737,178 @@ export default function Cart() {
                               />
                             </div>
                           </TabsContent>
+
+                          {/* ─── Aba RT / Margem ─── */}
+                          <TabsContent value="financeiro" className="space-y-4 pt-3">
+                            <div className="bg-muted/40 rounded-lg p-3 text-xs text-muted-foreground">
+                              Fórmula: <code>Preço final = base ÷ (1 − RT%) ÷ (1 − Margem%)</code>
+                            </div>
+
+                            {/* RT */}
+                            <div>
+                              <Label className="flex items-center gap-2">
+                                <Percent className="w-3 h-3" />
+                                Reserva Técnica (RT)
+                              </Label>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  max={99}
+                                  step={0.5}
+                                  className="w-24"
+                                  value={saveForm.rtPercent}
+                                  onChange={e => updateSaveForm("rtPercent", e.target.value)}
+                                />
+                                <span className="text-sm text-muted-foreground">%</span>
+                                {rtPct > 0 && (
+                                  <span className="text-xs text-muted-foreground">
+                                    → {formatBRL(totalComRT)} (base + RT)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Destinos da RT */}
+                            {rtPct > 0 && (
+                              <div className="space-y-2 pl-2 border-l-2 border-primary/20">
+                                <Label className="text-xs text-muted-foreground">Destinos da RT (até 3)</Label>
+                                {[1, 2, 3].map((n) => {
+                                  const destKey = `rtDest${n}` as keyof SaveFormData;
+                                  const activeKey = `rtDest${n}Active` as keyof SaveFormData;
+                                  return (
+                                    <div key={n} className="flex items-center gap-2">
+                                      <Checkbox
+                                        checked={saveForm[activeKey] as boolean}
+                                        onCheckedChange={(v) => updateSaveForm(activeKey, Boolean(v) as SaveFormData[typeof activeKey])}
+                                      />
+                                      <Input
+                                        placeholder={`Destino ${n} (ex: Engenharia)`}
+                                        value={saveForm[destKey] as string}
+                                        onChange={e => updateSaveForm(destKey, e.target.value as SaveFormData[typeof destKey])}
+                                        disabled={!saveForm[activeKey]}
+                                        className="flex-1"
+                                      />
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            {/* Margem */}
+                            <div>
+                              <Label className="flex items-center gap-2">
+                                <Percent className="w-3 h-3" />
+                                Margem de Negociação
+                              </Label>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  max={99}
+                                  step={0.5}
+                                  className="w-24"
+                                  value={saveForm.marginPercent}
+                                  onChange={e => updateSaveForm("marginPercent", e.target.value)}
+                                />
+                                <span className="text-sm text-muted-foreground">%</span>
+                                <span className="text-xs text-muted-foreground">(padrão 10%)</span>
+                              </div>
+                            </div>
+
+                            {/* Resumo */}
+                            <div className="bg-muted/60 rounded-lg p-3 space-y-1 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Subtotal produtos</span>
+                                <span>{formatBRL(totalGeral)}</span>
+                              </div>
+                              {rtPct > 0 && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">+ RT ({saveForm.rtPercent}%)</span>
+                                  <span>{formatBRL(totalComRT - totalGeral)}</span>
+                                </div>
+                              )}
+                              {marginPct > 0 && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">+ Margem ({saveForm.marginPercent}%)</span>
+                                  <span>{formatBRL(totalFinal - totalComRT)}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between font-bold border-t pt-1">
+                                <span>Total final</span>
+                                <span className="text-primary">{formatBRL(totalFinal)}</span>
+                              </div>
+                            </div>
+                          </TabsContent>
+
+                          {/* ─── Aba Frete ─── */}
+                          <TabsContent value="frete" className="space-y-4 pt-3">
+                            <div>
+                              <Label>Localidade de entrega</Label>
+                              <Select
+                                value={saveForm.freteLocalidade}
+                                onValueChange={(v) => updateSaveForm("freteLocalidade", v as "sp" | "other")}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="sp">São Paulo (SP)</SelectItem>
+                                  <SelectItem value="other">Outra cidade</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {saveForm.freteLocalidade === "other" && (
+                              <div>
+                                <Label>Cidade de destino</Label>
+                                <Input
+                                  placeholder="Ex: Campinas, Curitiba..."
+                                  value={saveForm.freteCity}
+                                  onChange={e => updateSaveForm("freteCity", e.target.value)}
+                                />
+                              </div>
+                            )}
+
+                            <div>
+                              <Label>Tipo de frete</Label>
+                              <Select
+                                value={saveForm.freteType}
+                                onValueChange={(v) => updateSaveForm("freteType", v as SaveFormData["freteType"])}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="free">Grátis (SP, acima de R$1.500)</SelectItem>
+                                  <SelectItem value="paid">A calcular</SelectItem>
+                                  <SelectItem value="night">Noturno (R$2.000)</SelectItem>
+                                  <SelectItem value="consult">Sob consulta</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id="freteIsento"
+                                checked={saveForm.freteIsento}
+                                onCheckedChange={(v) => updateSaveForm("freteIsento", Boolean(v))}
+                              />
+                              <label htmlFor="freteIsento" className="text-sm cursor-pointer">
+                                Isentar frete (frete grátis independente do valor)
+                              </label>
+                            </div>
+
+                            <div className="bg-muted/60 rounded-lg p-3 text-sm">
+                              <p className="text-muted-foreground">Resumo do frete:</p>
+                              <p className="font-medium mt-1">{freteLabel}</p>
+                              {freteValor > 0 && (
+                                <p className="font-bold text-primary mt-1">+ {formatBRL(freteValor)}</p>
+                              )}
+                            </div>
+                          </TabsContent>
                         </Tabs>
+
                         <div className="flex justify-end gap-2 pt-3 border-t">
                           <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
                             Cancelar

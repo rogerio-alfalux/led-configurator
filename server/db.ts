@@ -1,6 +1,10 @@
-import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, cartItems, InsertCartItem } from "../drizzle/schema";
+import { eq, like, or, desc, and, sql, asc } from "drizzle-orm";
+import {
+  InsertUser, users, cartItems, InsertCartItem, sellers, assistants,
+  quotes, quoteVersions, quoteItems, InsertQuote, InsertQuoteVersion, InsertQuoteItem,
+  auditLogs, InsertAuditLog
+} from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -133,8 +137,6 @@ export async function updateCartItemQty(id: number, userId: number, qty: number)
 }
 
 // ─── Quote helpers ────────────────────────────────────────────────────────────
-import { quotes, quoteVersions, quoteItems, InsertQuote, InsertQuoteVersion, InsertQuoteItem } from "../drizzle/schema";
-import { like, or, desc, and, sql } from "drizzle-orm";
 
 /** Gera o próximo número de orçamento no formato ORC-YYYY-NNNN */
 export async function generateQuoteNumber(): Promise<string> {
@@ -164,9 +166,26 @@ export interface SaveQuoteInput {
   projectRef?: string;
   vendorName?: string;
   assistantName?: string;
+  seller1Id?: number;
+  seller1Name?: string;
+  seller2Id?: number;
+  seller2Name?: string;
+  assistantId?: number;
+  rtPercent?: number;
+  rtDest1?: string;
+  rtDest1Active?: boolean;
+  rtDest2?: string;
+  rtDest2Active?: boolean;
+  rtDest3?: string;
+  rtDest3Active?: boolean;
+  marginPercent?: number;
+  freteType?: "free" | "paid" | "night" | "consult";
+  freteIsento?: boolean;
+  freteLocalidade?: "sp" | "other";
   notes?: string;
   versionNotes?: string;
   totalAmount: number;
+  totalFinal?: number;
   items: Array<{ itemNumber: number; itemData: string }>;
   createdByUserId: number;
 }
@@ -200,10 +219,27 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
     projectRef: input.projectRef ?? null,
     vendorName: input.vendorName ?? null,
     assistantName: input.assistantName ?? null,
+    seller1Id: input.seller1Id ?? null,
+    seller1Name: input.seller1Name ?? null,
+    seller2Id: input.seller2Id ?? null,
+    seller2Name: input.seller2Name ?? null,
+    assistantId: input.assistantId ?? null,
+    rtPercent: input.rtPercent != null ? String(input.rtPercent) : null,
+    rtDest1: input.rtDest1 ?? null,
+    rtDest1Active: input.rtDest1Active ?? false,
+    rtDest2: input.rtDest2 ?? null,
+    rtDest2Active: input.rtDest2Active ?? false,
+    rtDest3: input.rtDest3 ?? null,
+    rtDest3Active: input.rtDest3Active ?? false,
+    marginPercent: input.marginPercent != null ? String(input.marginPercent) : null,
+    freteType: input.freteType ?? null,
+    freteIsento: input.freteIsento ?? false,
+    freteLocalidade: input.freteLocalidade ?? null,
     createdByUserId: input.createdByUserId,
     status: "open",
     currentVersion: 1,
     totalAmount: String(input.totalAmount),
+    totalFinal: input.totalFinal != null ? String(input.totalFinal) : null,
     notes: input.notes ?? null,
   });
   const quoteId = (qResult as unknown as { insertId: number }[])[0]?.insertId ?? 0;
@@ -309,6 +345,8 @@ export async function addQuoteRevision(
 export async function listQuotes(opts: {
   search?: string;
   status?: "open" | "approved" | "lost" | "cancelled";
+  seller1Name?: string;
+  assistantName?: string;
   limit?: number;
   offset?: number;
 }) {
@@ -317,6 +355,8 @@ export async function listQuotes(opts: {
 
   const conditions = [];
   if (opts.status) conditions.push(eq(quotes.status, opts.status));
+  if (opts.seller1Name) conditions.push(like(quotes.seller1Name, `%${opts.seller1Name}%`));
+  if (opts.assistantName) conditions.push(like(quotes.assistantName, `%${opts.assistantName}%`));
   if (opts.search) {
     const s = `%${opts.search}%`;
     conditions.push(
@@ -464,7 +504,7 @@ export async function suggestQuoteNumber(): Promise<string> {
 }
 
 // ─── Auditoria ────────────────────────────────────────────────────────────────
-import { auditLogs, InsertAuditLog } from "../drizzle/schema";
+// (auditLogs e InsertAuditLog já importados acima)
 
 /**
  * E-mails dos administradores do sistema.
@@ -560,4 +600,20 @@ export async function getAuditLogs(opts: {
     .where(where);
 
   return { rows, total: Number(countResult[0]?.count ?? 0) };
+}
+
+// ─── Sellers & Assistants ─────────────────────────────────────────────────────
+
+/** Lista todos os vendedores ativos */
+export async function listSellers() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(sellers).where(eq(sellers.active, true)).orderBy(asc(sellers.name));
+}
+
+/** Lista todos os assistentes ativos */
+export async function listAssistants() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(assistants).where(eq(assistants.active, true)).orderBy(asc(assistants.name));
 }

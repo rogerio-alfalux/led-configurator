@@ -64,6 +64,11 @@ export interface CartItemData {
    * Determina qual nome usar na coluna FONTE DE LUZ da Ficha de Produção.
    */
   stripMethod?: "STRIPFLEX" | "STRIPLINE";
+  /**
+   * Identificação do item na planta (ex: "L1", "L2") — aparece na coluna ETIQUETA da Ficha de Produção
+   * e no campo correspondente do orçamento.
+   */
+  itemEmPlanta?: string;
 }
 
 export interface QuoteFormData {
@@ -75,6 +80,30 @@ export interface QuoteFormData {
   referencia: string;
   numero: string;
   data: string;
+  /** Vendedor 1 (obrigatório) */
+  seller1Id?: number;
+  seller1Name?: string;
+  /** Vendedor 2 (opcional) */
+  seller2Id?: number;
+  seller2Name?: string;
+  /** Assistente comercial (obrigatório) */
+  assistantId?: number;
+  assistantName?: string;
+  /** Reserva Técnica (0–1, ex: 0.10 = 10%) */
+  rtPercent?: number;
+  rtDest1?: string;
+  rtDest1Active?: boolean;
+  rtDest2?: string;
+  rtDest2Active?: boolean;
+  rtDest3?: string;
+  rtDest3Active?: boolean;
+  /** Margem de negociação (0–1, ex: 0.10 = 10%) */
+  marginPercent?: number;
+  /** Frete */
+  freteType?: "free" | "paid" | "night" | "consult";
+  freteIsento?: boolean;
+  freteLocalidade?: "sp" | "other";
+  freteCity?: string;
 }
 
 export function parseCartItemData(json: string): CartItemData | null {

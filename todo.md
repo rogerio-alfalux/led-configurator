@@ -800,3 +800,28 @@
 - [x] Detalhamento do preço no card "Resumo para Orçamento" (perfil + driver + total)
 - [x] Preço final agrupado exibido no orçamento e enviado ao carrinho
 - [x] 490 testes passando, zero erros TypeScript reais
+
+## v8 — Vendedores, Assistentes, RT, Margem, Frete, Filtros
+
+- [x] Tabela sellers: id, code, name, phone, email
+- [x] Tabela assistants: id, name, email
+- [x] Tabela quote_sellers: quoteId, sellerId, role (seller1|seller2)
+- [x] Popular sellers e assistants com dados do cadastro
+- [x] Procedures tRPC: sellers.list, assistants.list
+- [x] Schema quotes: assistantId, seller2Id, rtPercent, rtDest1/2/3, rtDest1Active/2Active/3Active, marginPercent, freteType (none|free|paid|night), freteIsento, freteLocalidade (sp|other)
+- [x] Migração do banco
+- [x] CartItemData: campo itemEmPlanta (string opcional)
+- [x] Campo "Item em Planta" por produto no carrinho (Cart.tsx)
+- [x] Formulário de orçamento: seleção vendedor1 (obrigatório), vendedor2 (opcional)
+- [x] Formulário: seleção assistente (obrigatório); trava: assistente não pode ser vendedor
+- [x] Formulário: campo RT % + 3 destinos com checkbox "não aplicável"
+- [x] Formulário: campo Margem de Negociação % (default 10%)
+- [x] Formulário: seleção de frete (SP grátis >R$1.500, outras localidades sob consulta, noturno R$2.000)
+- [x] Opção de isentar frete pelo vendedor
+- [x] Validações obrigatórias: Cliente, Obra, Vendedor 1, Assistente
+- [x] Fórmula RT e Margem: preço_final = preço_base / (1 - RT%) / (1 - Margem%)
+- [x] RT dividida igualmente entre destinos ativos (1, 2 ou 3)
+- [x] Gerador Excel: novo template com Item em Planta, cor do produto, RT, margem, frete
+- [x] Filtros na lista de orçamentos: por vendedor, assistente, status
+- [x] Estatísticas: total de orçamentos, fechados, perdidos, em aberto por período
+- [x] 490 testes passando, zero erros TypeScript reais

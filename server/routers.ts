@@ -8,7 +8,7 @@ import {
   addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty,
   createQuote, addQuoteRevision, listQuotes, getQuoteById, approveQuote,
   updateQuoteStatus, getQuoteStats, deleteQuote, suggestQuoteNumber,
-  insertAuditLog, getAuditLogs,
+  insertAuditLog, getAuditLogs, listSellers, listAssistants,
 } from "./db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -111,9 +111,26 @@ export const appRouter = router({
         projectRef: z.string().optional(),
         vendorName: z.string().optional(),
         assistantName: z.string().optional(),
+        seller1Id: z.number().optional(),
+        seller1Name: z.string().optional(),
+        seller2Id: z.number().optional(),
+        seller2Name: z.string().optional(),
+        assistantId: z.number().optional(),
+        rtPercent: z.number().optional(),
+        rtDest1: z.string().optional(),
+        rtDest1Active: z.boolean().optional(),
+        rtDest2: z.string().optional(),
+        rtDest2Active: z.boolean().optional(),
+        rtDest3: z.string().optional(),
+        rtDest3Active: z.boolean().optional(),
+        marginPercent: z.number().optional(),
+        freteType: z.enum(["free", "paid", "night", "consult"]).optional(),
+        freteIsento: z.boolean().optional(),
+        freteLocalidade: z.enum(["sp", "other"]).optional(),
         notes: z.string().optional(),
         versionNotes: z.string().optional(),
         totalAmount: z.number(),
+        totalFinal: z.number().optional(),
         items: z.array(z.object({ itemNumber: z.number(), itemData: z.string() })),
       }))
       .mutation(async ({ ctx, input }) => {
@@ -146,9 +163,26 @@ export const appRouter = router({
         projectRef: z.string().optional(),
         vendorName: z.string().optional(),
         assistantName: z.string().optional(),
+        seller1Id: z.number().optional(),
+        seller1Name: z.string().optional(),
+        seller2Id: z.number().optional(),
+        seller2Name: z.string().optional(),
+        assistantId: z.number().optional(),
+        rtPercent: z.number().optional(),
+        rtDest1: z.string().optional(),
+        rtDest1Active: z.boolean().optional(),
+        rtDest2: z.string().optional(),
+        rtDest2Active: z.boolean().optional(),
+        rtDest3: z.string().optional(),
+        rtDest3Active: z.boolean().optional(),
+        marginPercent: z.number().optional(),
+        freteType: z.enum(["free", "paid", "night", "consult"]).optional(),
+        freteIsento: z.boolean().optional(),
+        freteLocalidade: z.enum(["sp", "other"]).optional(),
         notes: z.string().optional(),
         versionNotes: z.string().optional(),
         totalAmount: z.number(),
+        totalFinal: z.number().optional(),
         items: z.array(z.object({ itemNumber: z.number(), itemData: z.string() })),
       }))
       .mutation(async ({ ctx, input }) => {
@@ -175,6 +209,8 @@ export const appRouter = router({
       .input(z.object({
         search: z.string().optional(),
         status: z.enum(["open", "approved", "lost", "cancelled"]).optional(),
+        seller1Name: z.string().optional(),
+        assistantName: z.string().optional(),
         limit: z.number().optional(),
         offset: z.number().optional(),
       }))
@@ -276,6 +312,14 @@ export const appRouter = router({
         });
         return { success: true };
       }),
+  }),
+
+  // ─── Sellers & Assistants ─────────────────────────────────────────────────
+  sellers: router({
+    list: protectedProcedure.query(async () => listSellers()),
+  }),
+  assistants: router({
+    list: protectedProcedure.query(async () => listAssistants()),
   }),
 
   // ─── Painel ADM ────────────────────────────────────────────────────────────

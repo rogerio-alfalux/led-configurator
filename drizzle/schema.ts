@@ -2,16 +2,9 @@ import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, boolean 
 
 /**
  * Core user table backing auth flow.
- * Extend this file with additional tables as your product grows.
- * Columns use camelCase to match both database fields and generated types.
  */
 export const users = mysqlTable("users", {
-  /**
-   * Surrogate primary key. Auto-incremented numeric value managed by the database.
-   * Use this for relations between tables.
-   */
   id: int("id").autoincrement().primaryKey(),
-  /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
@@ -25,14 +18,48 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
+// ─── VENDEDORES ──────────────────────────────────────────────────────────────
+
 /**
- * Cart items for quote generation.
- * Each item stores the full configuration as JSON so it can be rendered in the PDF.
+ * Cadastro de vendedores da Alfalux.
+ * O campo code é o prefixo do número do orçamento (ex: "04.0XXX-26").
  */
+export const sellers = mysqlTable("sellers", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Código do orçamento (ex: "04.0XXX-26") */
+  code: varchar("code", { length: 32 }).notNull().unique(),
+  name: varchar("name", { length: 128 }).notNull(),
+  phone: varchar("phone", { length: 32 }),
+  email: varchar("email", { length: 320 }),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Seller = typeof sellers.$inferSelect;
+export type InsertSeller = typeof sellers.$inferInsert;
+
+// ─── ASSISTENTES COMERCIAIS ──────────────────────────────────────────────────
+
+/**
+ * Cadastro de assistentes comerciais.
+ * Assistentes podem inserir orçamentos mas não aparecem como vendedores.
+ */
+export const assistants = mysqlTable("assistants", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 128 }).notNull(),
+  email: varchar("email", { length: 320 }),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Assistant = typeof assistants.$inferSelect;
+export type InsertAssistant = typeof assistants.$inferInsert;
+
+// ─── CARRINHO ────────────────────────────────────────────────────────────────
+
 export const cartItems = mysqlTable("cart_items", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
-  /** Full serialized item data (category, description, power, cct, qty, unitPrice, totalPrice, photoUrl, sku) */
   itemData: text("itemData").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
@@ -42,14 +69,8 @@ export type InsertCartItem = typeof cartItems.$inferInsert;
 
 // ─── MÓDULO DE ORÇAMENTOS ────────────────────────────────────────────────────
 
-/**
- * Orçamentos — cabeçalho principal.
- * Cada orçamento tem um número sequencial único e mantém o status atual.
- * O versionamento completo fica em quote_versions.
- */
 export const quotes = mysqlTable("quotes", {
   id: int("id").autoincrement().primaryKey(),
-  /** Número do orçamento (ex: ORC-2026-0001) */
   quoteNumber: varchar("quoteNumber", { length: 32 }).notNull().unique(),
   /** Dados do cliente */
   clientName: varchar("clientName", { length: 256 }).notNull(),
@@ -59,20 +80,41 @@ export const quotes = mysqlTable("quotes", {
   /** Dados da obra/projeto */
   projectName: varchar("projectName", { length: 256 }),
   projectRef: varchar("projectRef", { length: 128 }),
-  /** Identificação interna */
-  vendorName: varchar("vendorName", { length: 128 }),
+  /** Vendedor 1 (obrigatório) */
+  seller1Id: int("seller1Id"),
+  seller1Name: varchar("seller1Name", { length: 128 }),
+  /** Vendedor 2 (opcional) */
+  seller2Id: int("seller2Id"),
+  seller2Name: varchar("seller2Name", { length: 128 }),
+  /** Assistente comercial (obrigatório) */
+  assistantId: int("assistantId"),
   assistantName: varchar("assistantName", { length: 128 }),
+  /** Campos legados mantidos para compatibilidade */
+  vendorName: varchar("vendorName", { length: 128 }),
+  /** Reserva Técnica — percentual (ex: 0.10 = 10%) */
+  rtPercent: decimal("rtPercent", { precision: 5, scale: 4 }).default("0"),
+  /** Destinos da RT (até 3); null = não aplicável */
+  rtDest1: varchar("rtDest1", { length: 256 }),
+  rtDest1Active: boolean("rtDest1Active").default(true).notNull(),
+  rtDest2: varchar("rtDest2", { length: 256 }),
+  rtDest2Active: boolean("rtDest2Active").default(false).notNull(),
+  rtDest3: varchar("rtDest3", { length: 256 }),
+  rtDest3Active: boolean("rtDest3Active").default(false).notNull(),
+  /** Margem de negociação — percentual (ex: 0.10 = 10%) */
+  marginPercent: decimal("marginPercent", { precision: 5, scale: 4 }).default("0.10"),
+  /** Frete */
+  freteType: mysqlEnum("freteType", ["free", "paid", "night", "consult"]).default("free"),
+  freteIsento: boolean("freteIsento").default(false).notNull(),
+  freteLocalidade: mysqlEnum("freteLocalidade", ["sp", "other"]).default("sp"),
   /** Usuário que criou o orçamento */
   createdByUserId: int("createdByUserId").notNull(),
-  /** Status do orçamento */
   status: mysqlEnum("status", ["open", "approved", "lost", "cancelled"]).default("open").notNull(),
-  /** Versão atual (incrementa a cada revisão) */
   currentVersion: int("currentVersion").default(1).notNull(),
-  /** Valor total da versão atual */
+  /** Valor total dos produtos (sem RT, sem margem, sem frete) */
   totalAmount: decimal("totalAmount", { precision: 12, scale: 2 }).default("0"),
-  /** Data de aprovação pelo cliente */
+  /** Valor total final (com RT + margem + frete) */
+  totalFinal: decimal("totalFinal", { precision: 12, scale: 2 }).default("0"),
   approvedAt: timestamp("approvedAt"),
-  /** Observações gerais */
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -81,24 +123,16 @@ export const quotes = mysqlTable("quotes", {
 export type Quote = typeof quotes.$inferSelect;
 export type InsertQuote = typeof quotes.$inferInsert;
 
-/**
- * Versões de orçamento — cada revisão gera um novo registro aqui.
- * Permite consultar o histórico completo de alterações.
- */
 export const quoteVersions = mysqlTable("quote_versions", {
   id: int("id").autoincrement().primaryKey(),
   quoteId: int("quoteId").notNull(),
-  /** Número da revisão (1, 2, 3...) */
   version: int("version").notNull(),
-  /** Snapshot dos dados do cabeçalho nesta revisão */
   headerSnapshot: text("headerSnapshot").notNull(),
-  /** Valor total desta versão */
   totalAmount: decimal("totalAmount", { precision: 12, scale: 2 }).default("0"),
-  /** Quem gerou esta revisão */
+  totalFinal: decimal("totalFinal", { precision: 12, scale: 2 }).default("0"),
   createdByUserId: int("createdByUserId").notNull(),
   assistantName: varchar("assistantName", { length: 128 }),
   vendorName: varchar("vendorName", { length: 128 }),
-  /** Observações desta revisão */
   versionNotes: text("versionNotes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
@@ -106,17 +140,11 @@ export const quoteVersions = mysqlTable("quote_versions", {
 export type QuoteVersion = typeof quoteVersions.$inferSelect;
 export type InsertQuoteVersion = typeof quoteVersions.$inferInsert;
 
-/**
- * Itens de cada versão do orçamento.
- * Cada item armazena os dados completos do produto configurado.
- */
 export const quoteItems = mysqlTable("quote_items", {
   id: int("id").autoincrement().primaryKey(),
   quoteVersionId: int("quoteVersionId").notNull(),
   quoteId: int("quoteId").notNull(),
-  /** Número sequencial do item (1, 2, 3...) */
   itemNumber: int("itemNumber").notNull(),
-  /** Dados completos do item (JSON serializado) */
   itemData: text("itemData").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
@@ -124,31 +152,16 @@ export const quoteItems = mysqlTable("quote_items", {
 export type QuoteItem = typeof quoteItems.$inferSelect;
 export type InsertQuoteItem = typeof quoteItems.$inferInsert;
 
-// ─── LOG DE AUDITORIA ────────────────────────────────────────────────────────────────────────────
+// ─── LOG DE AUDITORIA ────────────────────────────────────────────────────────
 
-/**
- * Registro de auditoria de todas as ações relevantes do sistema.
- * Somente administradores podem consultar estes registros.
- */
 export const auditLogs = mysqlTable("audit_logs", {
   id: int("id").autoincrement().primaryKey(),
-  /** ID do usuário que executou a ação (null = sistema) */
   userId: int("userId"),
-  /** E-mail do usuário no momento da ação (desnormalizado para histórico) */
   userEmail: varchar("userEmail", { length: 320 }),
-  /** Nome do usuário no momento da ação */
   userName: varchar("userName", { length: 256 }),
-  /**
-   * Tipo de ação executada.
-   * Ex: quote_created, quote_updated, quote_deleted, quote_status_changed,
-   *     production_sheet_generated, login_blocked
-   */
   action: varchar("action", { length: 64 }).notNull(),
-  /** Tipo da entidade afetada (quote, user, cart_item, etc.) */
   entityType: varchar("entityType", { length: 64 }),
-  /** ID da entidade afetada */
   entityId: int("entityId"),
-  /** Detalhes adicionais em JSON (ex: {quoteNumber, oldStatus, newStatus}) */
   details: text("details"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });

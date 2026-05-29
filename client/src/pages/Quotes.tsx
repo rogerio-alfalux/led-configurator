@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "wouter";
 import {
   Search, Plus, ClipboardList, CheckCircle, XCircle, Clock,
   TrendingDown, ArrowLeft, BarChart2, ShoppingCart, Eye,
+  Users, UserCheck, Filter, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
@@ -25,15 +26,61 @@ export default function Quotes() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string>("all");
+  const [sellerFilter, setSellerFilter] = useState<string>("all");
+  const [assistantFilter, setAssistantFilter] = useState<string>("all");
   const [page, setPage] = useState(0);
   const limit = 20;
 
   const { data, isLoading } = trpc.quotes.list.useQuery({
     search: search || undefined,
     status: status !== "all" ? (status as "open" | "approved" | "lost" | "cancelled") : undefined,
+    seller1Name: sellerFilter !== "all" ? sellerFilter : undefined,
+    assistantName: assistantFilter !== "all" ? assistantFilter : undefined,
     limit,
     offset: page * limit,
   });
+
+  // Buscar todos os orçamentos sem filtro para estatísticas e listas de vendedores/assistentes
+  const { data: allData } = trpc.quotes.list.useQuery({ limit: 1000, offset: 0 });
+
+  // Listas únicas de vendedores e assistentes
+  const uniqueSellers = useMemo(() => {
+    const names = new Set<string>();
+    (allData?.rows ?? []).forEach(q => {
+      if (q.seller1Name) names.add(q.seller1Name);
+    });
+    return Array.from(names).sort();
+  }, [allData]);
+
+  const uniqueAssistants = useMemo(() => {
+    const names = new Set<string>();
+    (allData?.rows ?? []).forEach(q => {
+      if (q.assistantName) names.add(q.assistantName);
+    });
+    return Array.from(names).sort();
+  }, [allData]);
+
+  // Estatísticas gerais
+  const stats = useMemo(() => {
+    const rows = allData?.rows ?? [];
+    const total = rows.length;
+    const open = rows.filter(q => q.status === "open").length;
+    const approved = rows.filter(q => q.status === "approved").length;
+    const lost = rows.filter(q => q.status === "lost").length;
+    const totalValue = rows.reduce((sum, q) => sum + (Number(q.totalAmount) || 0), 0);
+    const approvedValue = rows.filter(q => q.status === "approved").reduce((sum, q) => sum + (Number(q.totalAmount) || 0), 0);
+    return { total, open, approved, lost, totalValue, approvedValue };
+  }, [allData]);
+
+  const hasFilters = status !== "all" || sellerFilter !== "all" || assistantFilter !== "all" || search.trim() !== "";
+
+  const clearFilters = () => {
+    setSearch("");
+    setStatus("all");
+    setSellerFilter("all");
+    setAssistantFilter("all");
+    setPage(0);
+  };
 
   if (!user) {
     return (
@@ -79,18 +126,41 @@ export default function Quotes() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-6 space-y-4">
+      <div className="max-w-6xl mx-auto px-4 py-6 space-y-5">
+
+        {/* Cards de estatísticas */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {[
+            { label: "Total", value: stats.total, color: "text-foreground", icon: <ClipboardList className="w-4 h-4" /> },
+            { label: "Em Aberto", value: stats.open, color: "text-blue-600", icon: <Clock className="w-4 h-4 text-blue-500" /> },
+            { label: "Aprovados", value: stats.approved, color: "text-green-600", icon: <CheckCircle className="w-4 h-4 text-green-500" /> },
+            { label: "Perdidos", value: stats.lost, color: "text-red-600", icon: <TrendingDown className="w-4 h-4 text-red-500" /> },
+            { label: "Valor Total", value: formatBRL(stats.totalValue), color: "text-primary", icon: <BarChart2 className="w-4 h-4 text-primary" /> },
+            { label: "Aprovados R$", value: formatBRL(stats.approvedValue), color: "text-green-600", icon: <CheckCircle className="w-4 h-4 text-green-500" /> },
+          ].map(s => (
+            <Card key={s.label} className="p-3">
+              <div className="flex items-center gap-2 mb-1">
+                {s.icon}
+                <span className="text-xs text-muted-foreground">{s.label}</span>
+              </div>
+              <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+            </Card>
+          ))}
+        </div>
+
         {/* Filtros */}
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex gap-3 flex-wrap items-center">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por número, cliente, vendedor ou projeto..."
+              placeholder="Buscar por número, cliente, projeto..."
               className="pl-9"
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(0); }}
             />
           </div>
+
+          {/* Status */}
           <Select value={status} onValueChange={v => { setStatus(v); setPage(0); }}>
             <SelectTrigger className="w-44">
               <SelectValue placeholder="Status" />
@@ -103,6 +173,42 @@ export default function Quotes() {
               <SelectItem value="cancelled">Cancelados</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Vendedor */}
+          <Select value={sellerFilter} onValueChange={v => { setSellerFilter(v); setPage(0); }}>
+            <SelectTrigger className="w-48">
+              <Users className="w-3.5 h-3.5 mr-1 text-muted-foreground" />
+              <SelectValue placeholder="Vendedor" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os vendedores</SelectItem>
+              {uniqueSellers.map(s => (
+                <SelectItem key={s} value={s}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Assistente */}
+          <Select value={assistantFilter} onValueChange={v => { setAssistantFilter(v); setPage(0); }}>
+            <SelectTrigger className="w-48">
+              <UserCheck className="w-3.5 h-3.5 mr-1 text-muted-foreground" />
+              <SelectValue placeholder="Assistente" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os assistentes</SelectItem>
+              {uniqueAssistants.map(a => (
+                <SelectItem key={a} value={a}>{a}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Limpar filtros */}
+          {hasFilters && (
+            <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={clearFilters}>
+              <X className="w-3.5 h-3.5" />
+              Limpar
+            </Button>
+          )}
         </div>
 
         {/* Tabela de orçamentos */}
@@ -114,22 +220,30 @@ export default function Quotes() {
               <ClipboardList className="w-12 h-12 text-muted-foreground" />
               <h2 className="text-xl font-semibold">Nenhum orçamento encontrado</h2>
               <p className="text-muted-foreground">
-                {search || status !== "all"
+                {hasFilters
                   ? "Tente outros filtros de busca."
                   : "Crie seu primeiro orçamento no carrinho."}
               </p>
-              <Link href="/carrinho">
-                <Button className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Ir para o Carrinho
+              {hasFilters ? (
+                <Button variant="outline" onClick={clearFilters} className="gap-2">
+                  <X className="w-4 h-4" />
+                  Limpar filtros
                 </Button>
-              </Link>
+              ) : (
+                <Link href="/carrinho">
+                  <Button className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Ir para o Carrinho
+                  </Button>
+                </Link>
+              )}
             </div>
           </Card>
         ) : (
           <>
             <div className="text-sm text-muted-foreground">
               {total} orçamento{total !== 1 ? "s" : ""} encontrado{total !== 1 ? "s" : ""}
+              {hasFilters && <span className="ml-2 text-primary font-medium"><Filter className="w-3 h-3 inline mr-0.5" />Filtros ativos</span>}
             </div>
             <div className="space-y-2">
               {rows.map(q => {
@@ -152,8 +266,18 @@ export default function Quotes() {
                           <p className="font-semibold truncate">{q.clientName}</p>
                           <div className="flex gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
                             {q.projectName && <span>📍 {q.projectName}</span>}
-                            {q.vendorName && <span>👤 {q.vendorName}</span>}
-                            {q.assistantName && <span>✏️ {q.assistantName}</span>}
+                            {q.seller1Name && (
+                              <span className="flex items-center gap-1">
+                                <Users className="w-3 h-3" />
+                                {q.seller1Name}{q.seller2Name ? ` / ${q.seller2Name}` : ""}
+                              </span>
+                            )}
+                            {q.assistantName && (
+                              <span className="flex items-center gap-1">
+                                <UserCheck className="w-3 h-3" />
+                                {q.assistantName}
+                              </span>
+                            )}
                           </div>
                         </div>
 
