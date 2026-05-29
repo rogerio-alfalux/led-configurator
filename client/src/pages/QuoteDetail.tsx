@@ -4,7 +4,7 @@ import {
   ArrowLeft, CheckCircle, XCircle, Clock, TrendingDown,
   FileSpreadsheet, History, Package, Edit, AlertTriangle,
   ChevronDown, ChevronUp, Factory, Trash2, PenLine,
-  Users, Percent, Truck,
+  Users, Percent, Truck, Pencil, ShoppingBag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { CartItemData, formatBRL, parseCartItemData } from "@/lib/cartTypes";
+import { CORES_PECA } from "@/components/ColorPickerModal";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
 import { generateOrderExcel } from "@/lib/orderExcelGenerator";
 import { toast } from "sonner";
@@ -68,7 +69,28 @@ export default function QuoteDetail() {
   const [empresaDialogOpen, setEmpresaDialogOpen] = useState(false);
   const [empresaSelecionada, setEmpresaSelecionada] = useState<"ALFALUX" | "LUMINEW">("ALFALUX");
 
+  // Edição de itens do orçamento
+  const [editItemsDialogOpen, setEditItemsDialogOpen] = useState(false);
+  // editableItems: cópia dos itens da versão atual para edição
+  const [editableItems, setEditableItems] = useState<Array<{
+    id: number;
+    itemNumber: number;
+    itemData: string;
+    parsed: CartItemData;
+  }>>([]);
+  const [editItemsNotes, setEditItemsNotes] = useState("");
+
   const { data, isLoading, error } = trpc.quotes.getById.useQuery({ id: Number(id) });
+
+  const addRevisionForItemsMutation = trpc.quotes.addRevision.useMutation({
+    onSuccess: () => {
+      utils.quotes.getById.invalidate({ id: Number(id) });
+      utils.quotes.list.invalidate();
+      toast.success("Itens atualizados! Nova revisão criada.");
+      setEditItemsDialogOpen(false);
+    },
+    onError: (err) => toast.error(`Erro: ${err.message}`),
+  });
 
   const updateStatusMutation = trpc.quotes.updateStatus.useMutation({
     onSuccess: () => {
@@ -340,6 +362,236 @@ export default function QuoteDetail() {
               </Dialog>
             </>
           )}
+
+          {/* Editar Itens do Orçamento */}
+          <Dialog open={editItemsDialogOpen} onOpenChange={(open) => {
+            setEditItemsDialogOpen(open);
+            if (open) {
+              setEditableItems(currentItems.map(item => {
+                const parsed = parseCartItemData(item.itemData);
+                return {
+                  id: item.id,
+                  itemNumber: item.itemNumber,
+                  itemData: item.itemData,
+                  parsed: parsed ?? ({} as CartItemData),
+                };
+              }));
+              setEditItemsNotes("");
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Pencil className="w-4 h-4" />
+                Editar Itens
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <ShoppingBag className="w-5 h-5" />
+                  Editar Itens do Orçamento
+                </DialogTitle>
+              </DialogHeader>
+              <p className="text-xs text-muted-foreground -mt-2 mb-3">
+                Edite quantidades, cor, temperatura de cor e identificação em planta. Uma nova revisão será criada ao salvar.
+              </p>
+
+              <div className="space-y-4">
+                {editableItems.map((item, idx) => {
+                  const d = item.parsed;
+                  const updateItem = (fields: Partial<CartItemData>) => {
+                    setEditableItems(prev => prev.map((it, i) => {
+                      if (i !== idx) return it;
+                      const newParsed = { ...it.parsed, ...fields };
+                      // Recalcular totalPrice
+                      if (fields.qty !== undefined || fields.unitPrice !== undefined) {
+                        const qty = fields.qty ?? newParsed.qty;
+                        const up = fields.unitPrice ?? newParsed.unitPrice;
+                        newParsed.totalPrice = up != null ? up * qty : null;
+                      }
+                      return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) };
+                    }));
+                  };
+
+                  return (
+                    <div key={item.id} className="border rounded-lg p-4 space-y-3">
+                      {/* Cabeçalho do item */}
+                      <div className="flex items-center gap-3">
+                        <span className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
+                          {idx + 1}
+                        </span>
+                        {d.photoUrl ? (
+                          <img src={d.photoUrl} alt={d.description} className="w-12 h-12 object-contain rounded border bg-white flex-shrink-0" />
+                        ) : (
+                          <div className="w-12 h-12 rounded border bg-muted flex items-center justify-center flex-shrink-0">
+                            <Package className="w-5 h-5 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground font-mono">{d.sku}</p>
+                          <p className="text-sm font-semibold leading-tight">{d.description}</p>
+                          <p className="text-xs text-muted-foreground">{d.category}</p>
+                        </div>
+                      </div>
+
+                      {/* Campos editáveis */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {/* Quantidade */}
+                        <div>
+                          <Label className="text-xs">Quantidade</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={d.qty}
+                            onChange={e => updateItem({ qty: Math.max(1, parseInt(e.target.value) || 1) })}
+                            className="mt-1 h-8 text-sm"
+                          />
+                        </div>
+
+                        {/* Item em Planta */}
+                        <div>
+                          <Label className="text-xs">Item em Planta</Label>
+                          <Input
+                            value={d.itemEmPlanta ?? ""}
+                            onChange={e => updateItem({ itemEmPlanta: e.target.value })}
+                            placeholder="Ex: L1, EF2"
+                            className="mt-1 h-8 text-sm"
+                          />
+                        </div>
+
+                        {/* Temperatura de Cor */}
+                        <div>
+                          <Label className="text-xs">Temperatura de Cor</Label>
+                          <Select
+                            value={d.cct || ""}
+                            onValueChange={v => updateItem({ cct: v })}
+                          >
+                            <SelectTrigger className="mt-1 h-8 text-sm">
+                              <SelectValue placeholder="CCT" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {["2700K", "3000K", "3500K", "4000K", "5000K", "6500K", "RGB", "Tunável", "A Definir"].map(c => (
+                                <SelectItem key={c} value={c}>{c}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Cor da Peça */}
+                        <div>
+                          <Label className="text-xs">Cor da Peça</Label>
+                          <Select
+                            value={d.corPeca || "A Definir"}
+                            onValueChange={v => updateItem({ corPeca: v })}
+                          >
+                            <SelectTrigger className="mt-1 h-8 text-sm">
+                              <SelectValue placeholder="Cor" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="A Definir">A Definir</SelectItem>
+                              {CORES_PECA.map(c => (
+                                <SelectItem key={c} value={c}>{c}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {/* Preço unitário (editável) */}
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1">
+                          <Label className="text-xs">Preço Unitário (R$)</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={d.unitPrice ?? ""}
+                            onChange={e => updateItem({ unitPrice: e.target.value ? parseFloat(e.target.value) : null })}
+                            placeholder="0,00"
+                            className="mt-1 h-8 text-sm"
+                          />
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">Total</p>
+                          <p className="font-bold text-primary">
+                            {d.totalPrice != null && d.totalPrice > 0 ? formatBRL(d.totalPrice) : "A consultar"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Nota da revisão */}
+              <div className="mt-4">
+                <Label className="text-xs">Nota desta revisão (opcional)</Label>
+                <Textarea
+                  value={editItemsNotes}
+                  onChange={e => setEditItemsNotes(e.target.value)}
+                  placeholder="Ex: Ajuste de quantidades após reunião com cliente"
+                  rows={2}
+                  className="mt-1"
+                />
+              </div>
+
+              {/* Resumo do total */}
+              <div className="mt-3 p-3 bg-muted/40 rounded-lg flex justify-between items-center">
+                <span className="text-sm font-medium">Total dos itens</span>
+                <span className="text-lg font-bold text-primary">
+                  {formatBRL(editableItems.reduce((s, it) => s + (it.parsed.totalPrice ?? 0), 0))}
+                </span>
+              </div>
+
+              <div className="flex justify-end gap-2 mt-4 pt-3 border-t">
+                <Button variant="outline" onClick={() => setEditItemsDialogOpen(false)}>Cancelar</Button>
+                <Button
+                  onClick={() => {
+                    const totalBase = editableItems.reduce((s, it) => s + (it.parsed.totalPrice ?? 0), 0);
+                    const rtPct = quote.rtPercent ? parseFloat(String(quote.rtPercent)) : 0;
+                    const marginPct = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;
+                    const totalComRT = rtPct > 0 ? totalBase / (1 - rtPct) : totalBase;
+                    const totalFinal = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
+                    addRevisionForItemsMutation.mutate({
+                      quoteId: Number(id),
+                      clientName: quote.clientName,
+                      clientContact: quote.clientContact ?? undefined,
+                      clientPhone: quote.clientPhone ?? undefined,
+                      clientEmail: quote.clientEmail ?? undefined,
+                      projectName: quote.projectName ?? undefined,
+                      projectRef: quote.projectRef ?? undefined,
+                      notes: quote.notes ?? undefined,
+                      vendorName: quote.vendorName ?? undefined,
+                      assistantName: quote.assistantName ?? undefined,
+                      seller1Id: quote.seller1Id ?? undefined,
+                      seller1Name: quote.seller1Name ?? undefined,
+                      seller2Id: quote.seller2Id ?? undefined,
+                      seller2Name: quote.seller2Name ?? undefined,
+                      assistantId: quote.assistantId ?? undefined,
+                      rtPercent: rtPct > 0 ? rtPct : undefined,
+                      rtDest1: quote.rtDest1 ?? undefined,
+                      rtDest1Active: quote.rtDest1Active ?? undefined,
+                      rtDest2: quote.rtDest2 ?? undefined,
+                      rtDest2Active: quote.rtDest2Active ?? undefined,
+                      rtDest3: quote.rtDest3 ?? undefined,
+                      rtDest3Active: quote.rtDest3Active ?? undefined,
+                      marginPercent: marginPct > 0 ? marginPct : undefined,
+                      freteType: (quote.freteType as "free" | "paid" | "night" | "consult") ?? "free",
+                      freteIsento: quote.freteIsento ?? undefined,
+                      freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
+                      versionNotes: editItemsNotes || undefined,
+                      totalAmount: totalFinal,
+                      totalFinal,
+                      items: editableItems.map((it, i) => ({ itemNumber: i + 1, itemData: it.itemData })),
+                    });
+                  }}
+                  disabled={addRevisionForItemsMutation.isPending}
+                >
+                  {addRevisionForItemsMutation.isPending ? "Salvando..." : "Salvar Alterações"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Alterar Status */}
           <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>

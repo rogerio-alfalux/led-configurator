@@ -1,15 +1,17 @@
 /**
  * Gerador de orçamento em Excel — fiel ao template TEMPLATEVIVIAN28.05.2026.xlsx
  *
- * Layout:
+ * Layout (colunas C-N visíveis ao cliente):
  *   Linhas 1-2  : espaço
- *   Linhas 3-4  : telefone e endereço (C3:N3 e C4:N4) — logo ALFALUX à direita (G1:N14)
+ *   Linhas 3-4  : telefone e endereço (C3:N3 e C4:N4)
+ *   Linhas 3-14 : logo ALFALUX à direita (colunas G-N)
+ *   Linha  5    : espaço
  *   Linha  6    : número do orçamento (C6:D6) — fundo azul
  *   Linhas 7-13 : VENDEDOR, OBRA, CLIENTE, CONTATO/TEL, E-MAIL, ARQUITEURA/LD, REFERÊNCIA
  *   Linha  14   : DATA (C14:D14) — fundo azul
  *   Linha  15   : proposta comercial
  *   Linha  16   : espaço
- *   Linha  17   : título da obra (C17:N17) — fundo azul
+ *   Linha  17   : título da obra (C17:N17) — fundo azul escuro
  *   Linha  18   : cabeçalho da tabela (azul)
  *   Linhas 19+  : produtos
  *   Rodapé      : prazo, total, pagamento, frete, observação, vendedor, condições, assinatura
@@ -21,15 +23,14 @@ import ExcelJS from "exceljs";
 import type { CartItemData, QuoteFormData } from "./cartTypes";
 
 // ── Cores do template ────────────────────────────────────────────────────────
-const BLUE       = "FF5B9BD5"; // Azul do template (cabeçalho tabela, número, data)
-const WHITE_TXT  = "FFFFFFFF";
-const RED_TXT    = "FFFF0000";
-const DARK_BLUE  = "FF1F3864"; // Azul escuro para título da obra
-const TOTAL_BG   = "FFE2EFF8"; // Fundo do total
+const BLUE      = "FF5B9BD5"; // Azul do template (cabeçalho tabela, número, data)
+const WHITE_TXT = "FFFFFFFF";
+const RED_TXT   = "FFFF0000";
+const DARK_BLUE = "FF1F3864"; // Azul escuro para título da obra
+const TOTAL_BG  = "FFE2EFF8"; // Fundo do total
 
 // ── Borda medium (fiel ao template) ─────────────────────────────────────────
 const BORDER_MEDIUM: Partial<ExcelJS.Border> = { style: "medium" };
-const BORDER_THIN:   Partial<ExcelJS.Border> = { style: "thin" };
 
 function mediumBorder(cell: ExcelJS.Cell) {
   cell.border = {
@@ -37,15 +38,6 @@ function mediumBorder(cell: ExcelJS.Cell) {
     bottom: BORDER_MEDIUM,
     left:   BORDER_MEDIUM,
     right:  BORDER_MEDIUM,
-  };
-}
-
-function thinBorder(cell: ExcelJS.Cell) {
-  cell.border = {
-    top:    BORDER_THIN,
-    bottom: BORDER_THIN,
-    left:   BORDER_THIN,
-    right:  BORDER_THIN,
   };
 }
 
@@ -102,23 +94,24 @@ export async function generateQuoteExcel(
   const ws = wb.addWorksheet("Alfalux");
 
   // ── Larguras das colunas (fiel ao template) ──────────────────────────────
-  // A=2.1, B=2.3, C=25.1, D=41.4, E=62.7, F=26.4, G=22.4, H=18.1,
-  // I=sem width (col I não tem width definida no template), J=24.6, K=29, L=23.8, M=16.8, N=18.2
+  // Template original: C=25.11, D=41.44, E=62.66, F=26.44, G=22.44, H=18.11,
+  //                    I=8.43, J=24.55, K=29.00, L=23.78, M=16.78, N=18.22
+  // Ajustamos para exibição no Excel (1 char ≈ 7px)
   ws.columns = [
     { key: "A", width: 2.1  },
     { key: "B", width: 2.3  },
-    { key: "C", width: 13   },  // ITEM EM PLANTA
-    { key: "D", width: 22   },  // FOTO
-    { key: "E", width: 38   },  // MODELO ALFALUX
-    { key: "F", width: 14   },  // COMPRIMENTO
-    { key: "G", width: 12   },  // POTÊNCIA
+    { key: "C", width: 12   },  // ITEM EM PLANTA
+    { key: "D", width: 18   },  // FOTO — quadrado
+    { key: "E", width: 35   },  // MODELO ALFALUX
+    { key: "F", width: 14   },  // COMPRIMENTO (mm)
+    { key: "G", width: 12   },  // POTÊNCIA (W)
     { key: "H", width: 10   },  // DIM
-    { key: "I", width: 12   },  // TENSÃO
-    { key: "J", width: 16   },  // COR
-    { key: "K", width: 16   },  // TEMPERATURA DE COR
-    { key: "L", width: 8    },  // QTD
-    { key: "M", width: 14   },  // PREÇO UNITÁRIO
-    { key: "N", width: 15   },  // PREÇO TOTAL
+    { key: "I", width: 10   },  // TENSÃO (V)
+    { key: "J", width: 14   },  // COR
+    { key: "K", width: 14   },  // TEMPERATURA DE COR (K)
+    { key: "L", width: 7    },  // QTD
+    { key: "M", width: 13   },  // PREÇO UNITÁRIO
+    { key: "N", width: 14   },  // PREÇO TOTAL
   ];
 
   // ── Linhas 1-2: espaço para o logo ──────────────────────────────────────
@@ -130,8 +123,8 @@ export async function generateQuoteExcel(
   ws.mergeCells("C3:N3");
   {
     const c = ws.getCell("C3");
-    c.value = "          (11) 5666.9272 / 5666.4856";
-    c.font = { name: "Calibri", size: 16, bold: true };
+    c.value = "(11) 5666.9272 / 5666.4856";
+    c.font = { name: "Calibri", size: 11, bold: true };
     c.alignment = { horizontal: "center", vertical: "middle" };
   }
 
@@ -141,20 +134,20 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell("C4");
     c.value = "Rua Agostino Togneri, n° 617 - Jurubatuba - São Paulo/ SP";
-    c.font = { name: "Calibri", size: 16, bold: true };
+    c.font = { name: "Calibri", size: 11, bold: true };
     c.alignment = { horizontal: "center", vertical: "middle" };
   }
 
   // ── Linha 5: espaço ──────────────────────────────────────────────────────
   ws.getRow(5).height = 20.4;
 
-  // ── Linha 6: Número do orçamento (fundo azul, bold grande) ──────────────
+  // ── Linha 6: Número do orçamento (fundo azul) ────────────────────────────
   ws.getRow(6).height = 31.2;
   ws.mergeCells("C6:D6");
   {
     const c = ws.getCell("C6");
     c.value = formData.numero || "";
-    c.font = { name: "Calibri", size: 24, bold: true };
+    c.font = { name: "Calibri", size: 16, bold: true };
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BLUE } };
     c.alignment = { horizontal: "center", vertical: "middle" };
   }
@@ -165,7 +158,7 @@ export async function generateQuoteExcel(
     const c = ws.getCell("C7");
     const vendedorText = [formData.seller1Name, formData.seller2Name].filter(Boolean).join(" / ") || "";
     c.value = `VENDEDOR: ${vendedorText}`;
-    c.font = { name: "Calibri", size: 15, bold: true };
+    c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
 
@@ -174,7 +167,7 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell("C8");
     c.value = `OBRA: ${formData.obra || ""}`;
-    c.font = { name: "Calibri", size: 15, bold: true };
+    c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
 
@@ -183,7 +176,7 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell("C9");
     c.value = `CLIENTE: ${formData.cliente || ""}`;
-    c.font = { name: "Calibri", size: 15, bold: true };
+    c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
 
@@ -193,7 +186,7 @@ export async function generateQuoteExcel(
     const c = ws.getCell("C10");
     const contactText = [formData.contato, formData.tel].filter(Boolean).join(" — ");
     c.value = `CONTATO/TEL: ${contactText}`;
-    c.font = { name: "Calibri", size: 15, bold: true };
+    c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
 
@@ -202,7 +195,7 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell("C11");
     c.value = `E-MAIL: ${formData.email || ""}`;
-    c.font = { name: "Calibri", size: 15, bold: true };
+    c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
 
@@ -211,7 +204,7 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell("C12");
     c.value = "ARQUITEURA/LD:";
-    c.font = { name: "Calibri", size: 15, bold: true };
+    c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
 
@@ -220,7 +213,7 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell("C13");
     c.value = `REFERÊNCIA: ${formData.referencia || "FORNECIMENTO DE LUMINÁRIAS"}`;
-    c.font = { name: "Calibri", size: 15, bold: true };
+    c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
 
@@ -230,7 +223,7 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell("C14");
     c.value = formData.data || new Date().toLocaleDateString("pt-BR");
-    c.font = { name: "Calibri", size: 24, bold: true };
+    c.font = { name: "Calibri", size: 16, bold: true };
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BLUE } };
     c.alignment = { horizontal: "center", vertical: "middle" };
   }
@@ -241,7 +234,7 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell("C15");
     c.value = "PROPOSTA COMERCIAL PARA FORNECIMENTO DOS PRODUTOS ABAIXO ESPECIFICADOS, COM VALIDADE DE 3 (TRÊS) DIAS.";
-    c.font = { name: "Calibri", size: 18, bold: true };
+    c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
   }
 
@@ -254,7 +247,7 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell("C17");
     c.value = `OBRA ${(formData.obra || formData.cliente || "ORÇAMENTO").toUpperCase()}`;
-    c.font = { name: "Calibri", size: 28, bold: true, color: { argb: WHITE_TXT } };
+    c.font = { name: "Calibri", size: 20, bold: true, color: { argb: WHITE_TXT } };
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: DARK_BLUE } };
     c.alignment = { horizontal: "center", vertical: "middle" };
   }
@@ -279,7 +272,7 @@ export async function generateQuoteExcel(
   for (const h of tableHeaders) {
     const cell = ws.getCell(`${h.col}18`);
     cell.value = h.label;
-    cell.font = { name: "Calibri", size: 14, bold: true, color: { argb: WHITE_TXT } };
+    cell.font = { name: "Calibri", size: 11, bold: true, color: { argb: WHITE_TXT } };
     cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BLUE } };
     cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
     mediumBorder(cell);
@@ -287,7 +280,9 @@ export async function generateQuoteExcel(
 
   // ── Linhas de dados (a partir da linha 19) ───────────────────────────────
   let currentRow = 19;
-  const IMAGE_ROW_HEIGHT = 100; // altura generosa para fotos
+  // Altura da linha de produto: quadrado para a foto
+  // Coluna D tem 18 chars * ~7px = ~126px → usamos 90pt (1pt ≈ 1.33px → ~120px)
+  const IMAGE_ROW_HEIGHT = 90;
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
@@ -299,17 +294,21 @@ export async function generateQuoteExcel(
     for (const col of ["C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N"]) {
       const cell = ws.getCell(`${col}${rowNum}`);
       mediumBorder(cell);
-      cell.font = { name: "Calibri", size: 14, bold: false };
+      cell.font = { name: "Calibri", size: 11, bold: false };
       cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
     }
 
-    // C = ITEM EM PLANTA
+    // C = ITEM EM PLANTA — em branco se não preenchido
     const cPlanta = ws.getCell(`C${rowNum}`);
-    cPlanta.value = item.itemEmPlanta || String(i + 1);
-    cPlanta.font = { name: "Calibri", size: 26, bold: true };
+    if (item.itemEmPlanta && item.itemEmPlanta.trim()) {
+      cPlanta.value = item.itemEmPlanta.trim();
+      cPlanta.font = { name: "Calibri", size: 20, bold: true };
+    } else {
+      cPlanta.value = "";
+    }
     cPlanta.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
 
-    // D = FOTO (imagem do produto)
+    // D = FOTO (imagem do produto — centralizada na célula quadrada)
     if (item.photoUrl) {
       try {
         let fetchUrl: string;
@@ -326,6 +325,7 @@ export async function generateQuoteExcel(
           if (uint8[0] === 0x89 && uint8[1] === 0x50) ext = "png";
           else if (uint8[0] === 0x47 && uint8[1] === 0x49) ext = "gif";
 
+          // Carregar imagem para obter dimensões reais
           const blob = new Blob([arrayBuffer]);
           const blobUrl = URL.createObjectURL(blob);
           const imgEl = await new Promise<HTMLImageElement>((resolve) => {
@@ -336,11 +336,13 @@ export async function generateQuoteExcel(
           });
           URL.revokeObjectURL(blobUrl);
 
-          const cellW = 22 * 7.5;
-          const cellH = IMAGE_ROW_HEIGHT;
+          // Célula D: largura 18 chars × 7px = 126px, altura 90pt × 1.33 = ~120px
+          // Usamos pixels reais para posicionamento
+          const cellWpx = 18 * 7;   // ~126px
+          const cellHpx = 90 * 1.33; // ~120px
           const PAD = 8;
-          const maxW = cellW - PAD * 2;
-          const maxH = cellH - PAD * 2;
+          const maxW = cellWpx - PAD * 2;  // ~110px
+          const maxH = cellHpx - PAD * 2;  // ~104px
 
           let drawW = maxW;
           let drawH = maxH;
@@ -355,14 +357,19 @@ export async function generateQuoteExcel(
             }
           }
 
-          const offsetX = (cellW - drawW) / 2;
-          const offsetY = (cellH - drawH) / 2;
+          // Centralizar dentro da célula D
+          // Coluna D começa no índice 3 (0-based)
+          // offsetX em fração de coluna, offsetY em fração de linha
+          const colDWidthPx = cellWpx;
+          const rowHeightPx = cellHpx;
+          const offsetXfrac = (colDWidthPx - drawW) / 2 / colDWidthPx;
+          const offsetYfrac = (rowHeightPx - drawH) / 2 / rowHeightPx;
 
           const imgId = wb.addImage({ buffer: arrayBuffer, extension: ext });
           ws.addImage(imgId, {
             tl: {
-              col: 3 + offsetX / cellW,
-              row: rowNum - 1 + offsetY / cellH,
+              col: 3 + offsetXfrac,
+              row: (rowNum - 1) + offsetYfrac,
             },
             ext: { width: drawW, height: drawH },
             editAs: "oneCell",
@@ -377,7 +384,7 @@ export async function generateQuoteExcel(
     const cSku = ws.getCell(`E${rowNum}`);
     const modelText = item.sku ? `${item.sku}\n${item.description}` : item.description;
     cSku.value = modelText;
-    cSku.font = { name: "Calibri", size: 14, bold: false };
+    cSku.font = { name: "Calibri", size: 11, bold: false };
     cSku.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
 
     // F = COMPRIMENTO (mm)
@@ -401,7 +408,7 @@ export async function generateQuoteExcel(
     // L = QTD
     const cQty = ws.getCell(`L${rowNum}`);
     cQty.value = item.qty;
-    cQty.font = { name: "Calibri", size: 14, bold: true };
+    cQty.font = { name: "Calibri", size: 11, bold: true };
 
     // M = PREÇO UNITÁRIO
     const cUnit = ws.getCell(`M${rowNum}`);
@@ -417,7 +424,7 @@ export async function generateQuoteExcel(
     if (item.totalPrice !== null && item.totalPrice !== undefined) {
       cTotal.value = item.totalPrice;
       cTotal.numFmt = '"R$"#,##0.00';
-      cTotal.font = { name: "Calibri", size: 14, bold: false };
+      cTotal.font = { name: "Calibri", size: 11, bold: false };
     } else {
       cTotal.value = "-";
     }
@@ -438,14 +445,14 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell(`C${nextRow}`);
     c.value = "Prazo de fabricação e entrega:";
-    c.font = { name: "Calibri", size: 15, bold: true };
+    c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
   ws.mergeCells(`E${nextRow}:N${nextRow}`);
   {
     const c = ws.getCell(`E${nextRow}`);
     c.value = "20 dias úteis";
-    c.font = { name: "Calibri", size: 15, bold: true, color: { argb: RED_TXT } };
+    c.font = { name: "Calibri", size: 12, bold: true, color: { argb: RED_TXT } };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
   nextRow++;
@@ -456,7 +463,7 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell(`C${nextRow}`);
     c.value = "Valor total dos produtos\n(sem o frete):";
-    c.font = { name: "Calibri", size: 15, bold: true };
+    c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
   }
   ws.mergeCells(`E${nextRow}:N${nextRow}`);
@@ -464,7 +471,7 @@ export async function generateQuoteExcel(
     const c = ws.getCell(`E${nextRow}`);
     c.value = totalBase;
     c.numFmt = '"R$"#,##0.00';
-    c.font = { name: "Calibri", size: 16, bold: true };
+    c.font = { name: "Calibri", size: 14, bold: true };
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: TOTAL_BG } };
     c.alignment = { horizontal: "left", vertical: "middle" };
     mediumBorder(c);
@@ -482,14 +489,14 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell(`C${nextRow}`);
     c.value = "Condição de pagto:";
-    c.font = { name: "Calibri", size: 15, bold: true };
+    c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
   ws.mergeCells(`E${nextRow}:N${nextRow}`);
   {
     const c = ws.getCell(`E${nextRow}`);
     c.value = "30% Sinal e 70% a 28DDF (mediante a aprovação de cadastro)";
-    c.font = { name: "Calibri", size: 14 };
+    c.font = { name: "Calibri", size: 11 };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
   nextRow++;
@@ -500,14 +507,14 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell(`C${nextRow}`);
     c.value = "Frete dedicado:";
-    c.font = { name: "Calibri", size: 15, bold: true };
+    c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
   ws.mergeCells(`E${nextRow}:N${nextRow}`);
   {
     const c = ws.getCell(`E${nextRow}`);
     c.value = buildFreteText(formData, totalBase);
-    c.font = { name: "Calibri", size: 14 };
+    c.font = { name: "Calibri", size: 11 };
     c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
   }
   nextRow++;
@@ -518,7 +525,7 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell(`C${nextRow}`);
     c.value = "Observação:";
-    c.font = { name: "Calibri", size: 14, bold: true };
+    c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
   nextRow++;
@@ -527,7 +534,7 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell(`C${nextRow}`);
     c.value = "Pode ser acrescido o valor de DIFAL, de acordo com o Estado e classificação fiscal da empresa.";
-    c.font = { name: "Calibri", size: 14 };
+    c.font = { name: "Calibri", size: 11 };
     c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
   }
   nextRow++;
@@ -543,7 +550,7 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell(`C${nextRow}`);
     c.value = "Estamos à disposição para quaisquer esclarecimentos,";
-    c.font = { name: "Calibri", size: 13 };
+    c.font = { name: "Calibri", size: 11 };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
   nextRow++;
@@ -555,7 +562,7 @@ export async function generateQuoteExcel(
     const c = ws.getCell(`C${nextRow}`);
     const vendedorName = [formData.seller1Name, formData.seller2Name].filter(Boolean).join(" / ") || "";
     c.value = vendedorName;
-    c.font = { name: "Calibri", size: 15, bold: true };
+    c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
   nextRow++;
@@ -566,7 +573,7 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell(`C${nextRow}`);
     c.value = "CONTATO:   (11) 5666.9272 | (11) 9 8221.9581";
-    c.font = { name: "Calibri", size: 14 };
+    c.font = { name: "Calibri", size: 11 };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
   nextRow++;
@@ -582,7 +589,7 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell(`C${nextRow}`);
     c.value = "CONDIÇÕES GERAIS DE FORNECIMENTO";
-    c.font = { name: "Calibri", size: 22, bold: true, color: { argb: RED_TXT } };
+    c.font = { name: "Calibri", size: 16, bold: true, color: { argb: RED_TXT } };
     c.alignment = { horizontal: "center", vertical: "middle" };
   }
   nextRow++;
@@ -604,14 +611,14 @@ export async function generateQuoteExcel(
     {
       const c = ws.getCell(`C${nextRow}`);
       c.value = cond.num;
-      c.font = { name: "Calibri", size: 14, bold: true };
+      c.font = { name: "Calibri", size: 11, bold: true };
       c.alignment = { horizontal: "right", vertical: "top" };
     }
     ws.mergeCells(`D${nextRow}:N${nextRow}`);
     {
       const c = ws.getCell(`D${nextRow}`);
       c.value = cond.text;
-      c.font = { name: "Calibri", size: 12 };
+      c.font = { name: "Calibri", size: 10 };
       c.alignment = { horizontal: "left", vertical: "top", wrapText: true };
     }
     nextRow++;
@@ -624,7 +631,7 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell(`C${nextRow}`);
     c.value = "Estou ciente das informações contidas neste documento.";
-    c.font = { name: "Calibri", size: 24, bold: true, color: { argb: RED_TXT } };
+    c.font = { name: "Calibri", size: 16, bold: true, color: { argb: RED_TXT } };
     c.alignment = { horizontal: "center", vertical: "middle" };
   }
   nextRow += 3;
@@ -635,14 +642,14 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell(`D${nextRow}`);
     c.value = "Data:  ____/___/_____";
-    c.font = { name: "Calibri", size: 26, bold: true };
+    c.font = { name: "Calibri", size: 14, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
   ws.mergeCells(`F${nextRow}:H${nextRow}`);
   {
     const c = ws.getCell(`F${nextRow}`);
     c.value = "De acordo: _____________________________________";
-    c.font = { name: "Calibri", size: 26, bold: true };
+    c.font = { name: "Calibri", size: 14, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
   nextRow += 4;
@@ -654,24 +661,29 @@ export async function generateQuoteExcel(
     const c = ws.getCell(`C${nextRow}`);
     c.value = "R. Agostino Togneri, nº 617 - Jurubatuba - São Paulo/SP  - CEP: 04690-090";
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BLUE } };
-    c.font = { name: "Calibri", size: 11, color: { argb: WHITE_TXT } };
+    c.font = { name: "Calibri", size: 10, color: { argb: WHITE_TXT } };
     c.alignment = { horizontal: "center", vertical: "middle" };
   }
 
-  // ── Inserir logo ALFALUX (canto superior direito, linhas 1-14, colunas G-N) ──
-  // O logo é inserido como imagem no canto direito do cabeçalho
+  // ── Inserir logo ALFALUX ─────────────────────────────────────────────────
+  // Posição fiel ao template: TwoCellAnchor from col=4 (E, índice 4), row=5 (linha 6, índice 5)
+  // Logo original: 1263×291px → proporção 4.34:1
+  // Área disponível: colunas G-N (índices 6-13), linhas 3-14
+  // Calculamos para caber bem no espaço direito do cabeçalho
+  // Largura aproximada colunas G-N: (12+10+10+14+14+7+13+14) * 7px = ~658px
+  // Altura aproximada linhas 3-14: ~12 linhas * 20pt * 1.33 = ~320px
+  // Mantendo proporção 4.34:1: width=480, height=110
   try {
-    const logoUrl = "/manus-storage/alfalux-logo-v2_e9782715.png";
+    const logoUrl = "/manus-storage/alfalux-logo-excel_8e8ca9f4.png";
     const logoResponse = await fetch(logoUrl);
     if (logoResponse.ok) {
       const logoBuffer = await logoResponse.arrayBuffer();
       const logoId = wb.addImage({ buffer: logoBuffer, extension: "png" });
-      // Posicionar logo: coluna G (índice 6) até N (índice 13), linhas 1-14
-      // Usando posicionamento em pixels para fidelidade ao template
-      // Calcular tamanho do logo: colunas G-N (~8 colunas * 7.5px/char * 12chars = ~720px), linhas 1-14 (~14 * 15px = ~210px)
+      // Posicionar: começa na coluna G (índice 6), linha 4 (índice 3)
+      // Largura: 480px, Altura: 110px (proporção 4.34:1 do logo original 1263×291)
       ws.addImage(logoId, {
-        tl: { col: 6.2, row: 0.5 },
-        ext: { width: 560, height: 200 },
+        tl: { col: 6.3, row: 3.2 },
+        ext: { width: 440, height: 101 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });
     }

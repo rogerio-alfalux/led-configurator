@@ -856,3 +856,13 @@
 - [x] Data e Assinatura em 26pt bold
 - [x] Rodapé endereço com fundo azul
 - [x] Sem nenhuma menção a RT, Margem ou Assistente no arquivo Excel
+
+## v11 — Edição de Itens do Orçamento + Correções Excel
+
+- [x] QuoteDetail: botão "Editar Itens" para abrir modal de edição de produtos do orçamento
+- [x] Modal de edição de itens: editar qty, cor, CCT, itemEmPlanta e demais campos configurados
+- [x] Salvar alterações dos itens no banco (tabela quote_items, campo itemData JSON)
+- [x] Excel: logo ALFALUX com posição e proporção corretas (canto superior direito, proporcional)
+- [x] Excel: coluna D (FOTO) com formato quadrado e imagem centralizada
+- [x] Excel: fontes do cabeçalho menores, fiéis ao template original
+- [x] Excel: ITEM EM PLANTA deixar em branco quando não preenchido (não mostrar número automático)
