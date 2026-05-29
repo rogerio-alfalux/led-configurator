@@ -1480,12 +1480,12 @@ export default function Home() {
       <header className="sticky top-0 z-50 border-b border-border bg-sidebar text-sidebar-foreground shadow-sm">
         <div className="container flex items-center justify-between h-16">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center">
-              <Zap className="w-4 h-4 text-sidebar-primary-foreground" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center">
+              <img src="/manus-storage/alfalux-icon-192_36cf164c.png" alt="Alfalux" className="w-8 h-8 object-cover" />
             </div>
             <div>
               <h1 className="text-base font-bold font-display text-sidebar-foreground leading-none">
-                Configurador de Produtos (versão beta)
+                Configurador Alfalux
               </h1>
               <p className="text-xs text-sidebar-foreground/60 leading-none mt-0.5">
                 Alfalux Iluminação
@@ -4768,7 +4768,7 @@ export default function Home() {
       {/* ── Footer ──────────────────────────────────────────────────────────────────────── */}
       <footer className="border-t border-border mt-16 py-6">
         <div className="container flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span>© 2026 Alfalux Iluminação · Configurador de Produtos</span>
+          <span>© 2026 Alfalux Iluminação · Configurador Alfalux</span>
           <span className="font-mono">
             {Object.keys(activeProfileCatalog).length} variantes{profileCatalogIsFromApi ? " (API)" : " (local)"} · Regra de Ouro aplicada
           </span>

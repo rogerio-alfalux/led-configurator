@@ -116,7 +116,7 @@ export async function generateQuoteExcel(
   formData: QuoteFormData
 ): Promise<void> {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Alfalux LED Configurator";
+  wb.creator = "Configurador Alfalux";
   wb.created = new Date();
 
   const ws = wb.addWorksheet("Alfalux");

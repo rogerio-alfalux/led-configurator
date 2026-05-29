@@ -140,7 +140,7 @@ function buildProdutoText(item: CartItemData): string {
 
 export async function generateOrderExcel(items: CartItemData[], form: OrderFormData): Promise<void> {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Alfalux LED Configurator";
+  wb.creator = "Configurador Alfalux";
   wb.created = new Date();
 
   const ws = wb.addWorksheet("Pedido", {
