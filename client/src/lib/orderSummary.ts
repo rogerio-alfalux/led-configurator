@@ -80,10 +80,13 @@ export function generateOrderSummary(result: CompositionResult): string {
   const productName = result.profileName.toUpperCase();
   const cct = result.cct;
 
-  const barTypeName =
-    result.stripMethod === "STRIPFLEX"
-      ? "BARRAS STRIPFLEX 562,5 10MM"
-      : "BARRAS STRIPLINE 562,5 15MM";
+  // Usar nome da barra da API (stripflexName já inclui a CCT); remover CCT do final para não duplicar
+  const barTypeBase = result.stripflexName
+    ? result.stripflexName.replace(new RegExp(`\\s*${cct}\\s*$`, "i"), "").trim()
+    : result.stripMethod === "STRIPFLEX"
+      ? "STRIPFLEX 562,5 X 10MM"
+      : "STRIPLINE 562,5 X 15MM";
+  const barTypeName = `BARRAS ${barTypeBase}`;
 
   const isDual = result.application === "D1+D2";
   const isIndependent = isDual && (result.independentLighting || result.forcedIndependent);

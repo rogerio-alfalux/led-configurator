@@ -144,6 +144,11 @@ export interface ConfigInput {
   /** Driver DIM 1-10V disponível para este perfil (da API) */
   driverDim110v?: { model: string; code: string | null } | null;
   /**
+   * Nome do módulo LED (barra) vindo da API, ex: "STRIPLINE 562,5 X 15MM 108L".
+   * Quando presente, substitui o nome hardcoded gerado por getStriplineName/getStripflexName.
+   */
+  ledModule?: string | null;
+  /**
    * Catálogo de perfis dinâmico (da API). Quando fornecido, substitui o LED_CATALOG estático.
    */
   catalog?: Record<string, import("./ledCatalog").ProfileVariant>;
@@ -1018,9 +1023,12 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     ? totalBarsD1 + totalBarsD2
     : totalBarsD1;
 
-  const stripflexName = stripMethod === "STRIPLINE"
-    ? getStriplineName(cct)
-    : getStripflexName(cct);
+  // Usar nome da barra da API quando disponível; fallback para nome estático
+  const stripflexName = input.ledModule
+    ? `${input.ledModule} ${cct}`.trim()
+    : stripMethod === "STRIPLINE"
+      ? getStriplineName(cct)
+      : getStripflexName(cct);
 
   // Drivers combinados para D1+D2 conjunto
   // Quando D1+D2 simultâneo: barras × 2 para dimensionar o driver (as duas fileiras compartilham o mesmo driver)

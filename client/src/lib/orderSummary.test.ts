@@ -40,9 +40,12 @@ describe("generateOrderSummary — estrutura básica", () => {
     expect(generateOrderSummary(result)).toContain("MONTADO COM");
   });
 
-  it("deve conter o tipo de barra STRIPFLEX para 18W", () => {
+  it("deve conter o tipo de barra Stripflex para 18W", () => {
     const result = calculateComposition(makeInput({ powerD1: 18, stripMethod: "STRIPFLEX" }));
-    expect(generateOrderSummary(result)).toContain("STRIPFLEX");
+    const summary = generateOrderSummary(result);
+    // O nome da barra vem da API com capitalização mista (ex: "Stripflex 562,5 x 10mm")
+    // Quando não há ledModule da API (teste unitário), usa o fallback estático
+    expect(summary.toLowerCase()).toContain("stripflex");
   });
 });
 
