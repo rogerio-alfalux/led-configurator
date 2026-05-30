@@ -1463,7 +1463,8 @@ export default function Home() {
       controlType,
       driverDimDali: selectedVariant?.driverDimDali ?? null,
       driverDim110v: selectedVariant?.driverDim110v ?? null,
-      ledModule: selectedVariant?.ledModule ?? null,
+      ledModuleStripflex: selectedVariant?.ledModuleStripflex ?? null,
+      ledModuleStripline: selectedVariant?.ledModuleStripline ?? null,
     };
 
     try {

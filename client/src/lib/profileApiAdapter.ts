@@ -119,7 +119,7 @@ export function adaptProfileProducts(
   // Acumula módulos por código de perfil
   const variantMap: Record<
     string,
-    { rule: ProfileRule; installType: InstallType; modules: ProfileModules; driverDimDali: { model: string; code: string | null } | null; driverDim110v: { model: string; code: string | null } | null; ledModule: string | null }
+    { rule: ProfileRule; installType: InstallType; modules: ProfileModules; driverDimDali: { model: string; code: string | null } | null; driverDim110v: { model: string; code: string | null } | null; ledModuleStripflex: string | null; ledModuleStripline: string | null }
   > = {};
 
   for (const p of perfisProducts) {
@@ -142,8 +142,8 @@ export function adaptProfileProducts(
         modules: { IN: {}, IF: {}, ML: {} },
         driverDimDali: p.driverDimDali ?? null,
         driverDim110v: p.driverDim110v ?? null,
-        // ledModule: remover [CCT] e usar como nome da barra
-        ledModule: p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : null,
+        ledModuleStripflex: null,
+        ledModuleStripline: null,
       };
     } else {
       // Atualizar drivers DIM se ainda não preenchidos (usar o primeiro produto que tiver)
@@ -153,9 +153,18 @@ export function adaptProfileProducts(
       if (!variantMap[profileCode].driverDim110v && p.driverDim110v) {
         variantMap[profileCode].driverDim110v = p.driverDim110v;
       }
-      // Atualizar ledModule se ainda não preenchido
-      if (!variantMap[profileCode].ledModule && p.ledModule) {
-        variantMap[profileCode].ledModule = p.ledModule.replace(/\[CCT\]/gi, "").trim();
+    }
+    // Atualizar ledModule por tipo (Stripflex vs Stripline) — independente de ser novo ou existente
+    if (p.ledModule) {
+      const lmClean = p.ledModule.replace(/\[CCT\]/gi, "").trim();
+      if (lmClean.toUpperCase().includes("STRIPLINE")) {
+        if (!variantMap[profileCode].ledModuleStripline) {
+          variantMap[profileCode].ledModuleStripline = lmClean;
+        }
+      } else if (lmClean.toUpperCase().includes("STRIPFLEX")) {
+        if (!variantMap[profileCode].ledModuleStripflex) {
+          variantMap[profileCode].ledModuleStripflex = lmClean;
+        }
       }
     }
     
@@ -171,7 +180,7 @@ export function adaptProfileProducts(
 
   // Monta o Record<string, ProfileVariant> final
   const catalog: Record<string, ProfileVariant> = {};
-  for (const [code, { rule, installType, modules, driverDimDali, driverDim110v, ledModule }] of Object.entries(variantMap)) {
+  for (const [code, { rule, installType, modules, driverDimDali, driverDim110v, ledModuleStripflex, ledModuleStripline }] of Object.entries(variantMap)) {
     catalog[code] = {
       name: rule.name,
       code,
@@ -183,7 +192,8 @@ export function adaptProfileProducts(
       ...(rule.requiresRemoteDriver ? { requiresRemoteDriver: true } : {}),
       driverDimDali: driverDimDali ?? null,
       driverDim110v: driverDim110v ?? null,
-      ledModule: ledModule ?? null,
+      ledModuleStripflex: ledModuleStripflex ?? null,
+      ledModuleStripline: ledModuleStripline ?? null,
       modules,
     };
   }

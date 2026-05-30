@@ -36,8 +36,10 @@ export interface ProfileVariant {
   driverDimDali?: { model: string; code: string | null } | null;
   /** Driver DIM 1-10V disponível para este perfil (vindo da API) */
   driverDim110v?: { model: string; code: string | null } | null;
-  /** Nome do módulo LED (barra) vindo da API, ex: "STRIPLINE 562,5 X 15MM 108L" */
-  ledModule?: string | null;
+  /** Nome da barra Stripflex vindo da API, ex: "STRIPFLEX 562,5 X 10MM 36L" */
+  ledModuleStripflex?: string | null;
+  /** Nome da barra Stripline vindo da API, ex: "STRIPLINE 562,5 X 15MM 108L" */
+  ledModuleStripline?: string | null;
   modules: ProfileModules;
 }
 

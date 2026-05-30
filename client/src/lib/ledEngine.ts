@@ -144,10 +144,15 @@ export interface ConfigInput {
   /** Driver DIM 1-10V disponível para este perfil (da API) */
   driverDim110v?: { model: string; code: string | null } | null;
   /**
-   * Nome do módulo LED (barra) vindo da API, ex: "STRIPLINE 562,5 X 15MM 108L".
-   * Quando presente, substitui o nome hardcoded gerado por getStriplineName/getStripflexName.
+   * Nome da barra Stripflex vindo da API (ex: "STRIPFLEX 562,5 X 10MM 36L").
+   * Quando presente, substitui o nome hardcoded para método STRIPFLEX.
    */
-  ledModule?: string | null;
+  ledModuleStripflex?: string | null;
+  /**
+   * Nome da barra Stripline vindo da API (ex: "STRIPLINE 562,5 X 15MM 108L").
+   * Quando presente, substitui o nome hardcoded para método STRIPLINE.
+   */
+  ledModuleStripline?: string | null;
   /**
    * Catálogo de perfis dinâmico (da API). Quando fornecido, substitui o LED_CATALOG estático.
    */
@@ -1024,8 +1029,11 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     : totalBarsD1;
 
   // Usar nome da barra da API quando disponível; fallback para nome estático
-  const stripflexName = input.ledModule
-    ? `${input.ledModule} ${cct}`.trim()
+  const apiBarName = stripMethod === "STRIPLINE"
+    ? input.ledModuleStripline
+    : input.ledModuleStripflex;
+  const stripflexName = apiBarName
+    ? `${apiBarName} ${cct}`.trim()
     : stripMethod === "STRIPLINE"
       ? getStriplineName(cct)
       : getStripflexName(cct);
