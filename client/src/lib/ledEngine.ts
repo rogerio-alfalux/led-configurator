@@ -1,7 +1,9 @@
-// LED Engine v1.6
+// LED Engine v1.7
 // Regras de módulos:
 //   IN (Módulo Inteiro): apenas quando a composição é uma peça única (≤ 5 barras; ≤ 6 com módulos longos)
+//                        OU quando a medida é tão curta que 2x IF de ≥ 2 barras não cabe (fallback)
 //   IF + ML: para linhas longas — sempre 2 IFs iguais nas pontas + MLs no meio
+//            NUNCA usar IF ou ML de 1 barra em composições (MIN_BARS_FOR_COMPOSITION = 2)
 //
 // Regras de driver remoto:
 //   Sempre remoto: todos os de embutir, BLAZE H D1+D2, SKYLINE Pendente, MINI BLAZE, SHARP, SOFT
@@ -324,7 +326,8 @@ interface RawModule {
  *   Gap 1: 1.61–1.99 (sem driver entre 1x e 2x Certadrive)
  *   Gap 2: 3.21–3.99 (sem driver entre 3x Certadrive e OSRAM)
  */
-// Mínimo de barras para módulos usados em composição IF/ML (evitar emendas muito próximas)
+// Mínimo de barras para módulos IF/ML em composições — nunca usar 1 barra em composições
+// Módulos de 1 barra só são permitidos como IN (peça única inteira)
 const MIN_BARS_FOR_COMPOSITION = 2;
 
 function getModules(profileCode: string, type: ModuleType, allowLongModules: boolean, stripMethod?: StripMethod, power?: Power, forComposition = false, allowFractional = false): RawModule[] {
@@ -714,12 +717,24 @@ export function buildComposition(
 
   const maxBars = allowLongModules ? IN_MAX_BARS_LONG : IN_MAX_BARS_STANDARD;
 
+  // Verificar se existe ao menos um IF de ≥ 2 barras que caiba em metade da medida solicitada
+  // (ou seja, se 2x IF de ≥ 2 barras consegue cobrir a linha).
+  // Se não couber, a linha é curta demais para IF/ML e deve usar IN como peça única.
+  const ifModulesMin2Bars = getModules(profileCode, "IF", allowLongModules, stripMethod, power, true, allowFractional)
+    .filter(m => m.barras >= MIN_BARS_FOR_COMPOSITION)
+    .sort((a, b) => a.length - b.length); // menor primeiro
+
+  const smallestValidIF = ifModulesMin2Bars[0];
+  // A linha é "curta demais" se nem 2x o menor IF de ≥ 2 barras cabe dentro da medida solicitada
+  const tooShortForIfMl = smallestValidIF === undefined || (2 * smallestValidIF.length) > requestedLength;
+
   const inModulesAll = getModules(profileCode, "IN", allowLongModules, stripMethod, power, false, allowFractional);
   const largestInWithinLimit = inModulesAll
     .filter(m => m.barras <= maxBars)
     .sort((a, b) => b.length - a.length)[0];
 
-  const isShortLine = largestInWithinLimit !== undefined && requestedLength <= largestInWithinLimit.length;
+  // Usar IN_SINGLE apenas quando a medida é curta demais para 2x IF de ≥ 2 barras
+  const isShortLine = tooShortForIfMl && largestInWithinLimit !== undefined && requestedLength <= largestInWithinLimit.length;
 
   if (isShortLine) {
     const inResult = tryInSingle(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, sheetDrivers, allowFractional);

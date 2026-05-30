@@ -123,7 +123,8 @@ describe("Constantes de limite de barras para IN", () => {
 // ─── buildComposition — Lógica IN/IF+ML ──────────────────────────────────────
 
 describe("buildComposition — linha curta → deve usar IN como peça única", () => {
-  it("585mm (1 barra) → modo IN_SINGLE, apenas módulos IN", () => {
+  it("585mm (1 barra) → modo IN_SINGLE como fallback (muito curto para 2x IF de ≥ 2 barras)", () => {
+    // 2x menor IF de 2 barras do LLP-4251 = 2 * 1135mm = 2270mm > 585mm → fallback para IN
     const r = buildComposition("LLP-4251", 585, 18, "220Vac", false, "STRIPFLEX");
     expect(r.compositionMode).toBe("IN_SINGLE");
     expect(r.composition.every(i => i.moduleType === "IN")).toBe(true);
@@ -131,16 +132,20 @@ describe("buildComposition — linha curta → deve usar IN como peça única", 
     expect(r.composition.length).toBe(1);
   });
 
-  it("1135mm (2 barras) → modo IN_SINGLE", () => {
+  it("1135mm (2 barras) → modo IN_SINGLE como fallback (muito curto para 2x IF de ≥ 2 barras)", () => {
+    // 2x menor IF de 2 barras = 2270mm > 1135mm → ainda fallback para IN
     const r = buildComposition("LLP-4251", 1135, 18, "220Vac", false, "STRIPFLEX");
     expect(r.compositionMode).toBe("IN_SINGLE");
     expect(r.composition.every(i => i.moduleType === "IN")).toBe(true);
   });
 
-  it("2825mm (5 barras) → modo IN_SINGLE (no limite padrão)", () => {
+  it("2825mm (5 barras) → deve usar IF_ML_LINE pois 2x IF de 2 barras (2270mm) cabe", () => {
+    // 2x IF de 2 barras (1135mm cada) = 2270mm ≤ 2825mm → deve usar IF_ML_LINE
     const r = buildComposition("LLP-4251", 2825, 18, "220Vac", false, "STRIPFLEX");
-    expect(r.compositionMode).toBe("IN_SINGLE");
-    expect(r.composition.every(i => i.moduleType === "IN")).toBe(true);
+    expect(r.compositionMode).toBe("IF_ML_LINE");
+    // Não deve conter IF de 1 barra
+    const ifItems = r.composition.filter(i => i.moduleType === "IF");
+    ifItems.forEach(item => expect(item.barras).toBeGreaterThanOrEqual(2));
   });
 });
 
@@ -2568,8 +2573,9 @@ describe("D1+D2 simultâneo — split de drivers quando barras efetivas > limite
     expect(result).toBeNull(); // 6.8 ≤ 7 → sem split
   });
 
-  it("HIT 18W 220Vac D1+D2 simultâneo 2362mm (4.2 barras) → combinedDrivers: 2× EQ00347", () => {
-    // 4.2 barras × 2 = 8.4 barras efetivas → split em 2× EQ00347 (44W, 4.2 barras cada)
+  it("HIT 18W 220Vac D1+D2 simultâneo 2362mm → combinedDrivers: 1× EQ00347 (4 barras efetivas, sem split)", () => {
+    // Com a regra v1.7: 2362mm usa 2x IF de 2 barras (1135mm cada) = 2270mm
+    // barras efetivas D1+D2 = 2 barras × 2 = 4 barras ≤ 7 (limite) → sem split, 1 driver por SKU
     const r = calculateComposition({
       profileCode: "LLP-4251",
       application: "D1+D2",
@@ -2583,15 +2589,16 @@ describe("D1+D2 simultâneo — split de drivers quando barras efetivas > limite
     });
     expect(r.combinedDrivers).toBeDefined();
     expect(r.combinedDrivers!.length).toBeGreaterThan(0);
-    // Deve ter combo com 2× EQ00347
+    // 4 barras efetivas ≤ 7 → sem split, combo deve ser undefined
     const firstDriver = r.combinedDrivers![0].driver;
-    expect(firstDriver.combo).toBeDefined();
-    expect(firstDriver.combo![0].code).toBe("EQ00347");
-    expect(firstDriver.combo![0].quantity).toBe(2);
+    expect(firstDriver.combo).toBeUndefined();
+    // Driver deve ser EQ00347 (44W, faixa 2.01–5 barras)
+    expect(firstDriver.code).toBe("EQ00347");
   });
 
-  it("HIT 18W 220Vac D1+D2 simultâneo 2825mm (5 barras) → combinedDrivers: 2× EQ00347 (10 barras)", () => {
-    // 5 barras × 2 = 10 barras efetivas → split em 2× EQ00347 (44W, 5 barras cada)
+  it("HIT 18W 220Vac D1+D2 simultâneo 2825mm → combinedDrivers: 1× EQ00347 (4 barras efetivas, sem split)", () => {
+    // Com a regra v1.7: 2825mm usa 2x IF de 2 barras (1135mm cada) = 2270mm
+    // barras efetivas D1+D2 = 2 barras × 2 = 4 barras ≤ 7 (limite) → sem split
     const r = calculateComposition({
       profileCode: "LLP-4251",
       application: "D1+D2",
@@ -2605,9 +2612,8 @@ describe("D1+D2 simultâneo — split de drivers quando barras efetivas > limite
     });
     expect(r.combinedDrivers).toBeDefined();
     const firstDriver = r.combinedDrivers![0].driver;
-    expect(firstDriver.combo).toBeDefined();
-    expect(firstDriver.combo![0].code).toBe("EQ00347");
-    expect(firstDriver.combo![0].quantity).toBe(2);
+    expect(firstDriver.combo).toBeUndefined();
+    expect(firstDriver.code).toBe("EQ00347");
   });
 });
 

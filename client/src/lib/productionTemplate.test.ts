@@ -73,10 +73,11 @@ describe("generateProductionTemplate — 26W CERTADRIVE quantidade", () => {
     expect(template).toContain("EQ00353");
   });
   it("4 barras 26W → deve mostrar OSRAM (tabela DRIVER_LOOKUP: 4-6 barras = OSRAM)", () => {
-    // 2300mm → módulo IN 4 barras (2260mm) cabe → faixa 4-6 → OSRAM IT FIT 75W
-    // Nota: 2250mm não funciona porque o módulo de 4 barras tem 2260mm (> 2250mm)
+    // Com a regra v1.7: 2300mm usa IF_ML_LINE com 2x IF de 2 barras (1135mm) = 2270mm
+    // Para obter OSRAM (4+ barras), precisamos de uma medida que force 4 barras por módulo
+    // Usar 9000mm: 2x IF de 4 barras (2260mm) = 4520mm + MLs → cada IF tem 4 barras → OSRAM
     const result = calculateComposition(
-      makeInput({ powerD1: 26, totalLength: 2300 })
+      makeInput({ powerD1: 26, totalLength: 9000 })
     );
     const template = generateProductionTemplate(result);
     // Deve conter OSRAM com código EQ00220
