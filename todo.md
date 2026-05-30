@@ -878,3 +878,13 @@
 - [x] Carrinho isolado por usuário (userId) — já implementado no banco, cada item tem userId, todas as queries filtram por userId
 - [x] Limpar o carrinho automaticamente após salvar o orçamento com sucesso (clearCart() no onSuccess do saveQuoteMutation)
 - [x] Confirmado: não há risco de cruzamento entre usuários — carrinho é gerenciado no banco por userId
+
+## v18 — Ficha de Produção LED BAR U (29/05/2026)
+- [x] Adicionar campos ledBarNCortes, ledBarComprimentoPorTrechoMm, ledBarComprimentoTotalMm, ledBarDriverModel, ledBarDriverCode ao CartItemData
+- [x] Salvar esses campos ao adicionar LED BAR U ao carrinho (Home.tsx)
+- [x] Ficha de produção: FONTE DE LUZ mostra módulo LED + trechos com comprimentos
+- [x] Ficha de produção: EQUIPAMENTOS mostra QTY x driver com código (ex: "2x FONTE 60W 24V (EQ00112)")
+- [x] Corrigir import faltante de tinyint no schema.ts (causava crash do servidor)
+- [x] Corrigir tipos InsertUser, InsertCartItem, InsertQuote, etc. faltantes no schema.ts
+- [x] Corrigir campos boolean (active, rtDest1Active, freteIsento) que estavam como tinyint
+- [x] Corrigir timestamps (lastSignedIn, approvedAt) para usar string ISO no db.ts, oauth.ts, sdk.ts

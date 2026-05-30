@@ -63,7 +63,7 @@ export function registerOAuthRoutes(app: Express) {
         name: userInfo.name || null,
         email,
         loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
-        lastSignedIn: new Date(),
+        lastSignedIn: new Date().toISOString().slice(0, 19).replace('T', ' '),
         ...(role ? { role } : {}),
       });
 

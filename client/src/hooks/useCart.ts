@@ -6,7 +6,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 export interface CartEntry {
   id: number;
   data: CartItemData;
-  createdAt: Date;
+  createdAt: string;
 }
 
 export function useCart() {

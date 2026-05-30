@@ -1,170 +1,148 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, boolean } from "drizzle-orm/mysql-core";
+import { mysqlTable, mysqlSchema, AnyMySqlColumn, int, varchar, timestamp, text, decimal, index, mysqlEnum, tinyint, boolean } from "drizzle-orm/mysql-core"
+import { sql } from "drizzle-orm"
 
-/**
- * Core user table backing auth flow.
- */
-export const users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
-  openId: varchar("openId", { length: 64 }).notNull().unique(),
-  name: text("name"),
-  email: varchar("email", { length: 320 }),
-  loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
-});
-
-export type User = typeof users.$inferSelect;
-export type InsertUser = typeof users.$inferInsert;
-
-// ─── VENDEDORES ──────────────────────────────────────────────────────────────
-
-/**
- * Cadastro de vendedores da Alfalux.
- * O campo code é o prefixo do número do orçamento (ex: "04.0XXX-26").
- */
-export const sellers = mysqlTable("sellers", {
-  id: int("id").autoincrement().primaryKey(),
-  /** Código do orçamento (ex: "04.0XXX-26") */
-  code: varchar("code", { length: 32 }).notNull().unique(),
-  name: varchar("name", { length: 128 }).notNull(),
-  phone: varchar("phone", { length: 32 }),
-  email: varchar("email", { length: 320 }),
-  active: boolean("active").default(true).notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
-
-export type Seller = typeof sellers.$inferSelect;
-export type InsertSeller = typeof sellers.$inferInsert;
-
-// ─── ASSISTENTES COMERCIAIS ──────────────────────────────────────────────────
-
-/**
- * Cadastro de assistentes comerciais.
- * Assistentes podem inserir orçamentos mas não aparecem como vendedores.
- */
 export const assistants = mysqlTable("assistants", {
-  id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 128 }).notNull(),
-  email: varchar("email", { length: 320 }),
-  active: boolean("active").default(true).notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
+	id: int().autoincrement().notNull(),
+	name: varchar({ length: 128 }).notNull(),
+	email: varchar({ length: 320 }),
+	active: boolean().default(true).notNull(),
+	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 });
-
-export type Assistant = typeof assistants.$inferSelect;
-export type InsertAssistant = typeof assistants.$inferInsert;
-
-// ─── CARRINHO ────────────────────────────────────────────────────────────────
-
-export const cartItems = mysqlTable("cart_items", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  itemData: text("itemData").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
-
-export type CartItem = typeof cartItems.$inferSelect;
-export type InsertCartItem = typeof cartItems.$inferInsert;
-
-// ─── MÓDULO DE ORÇAMENTOS ────────────────────────────────────────────────────
-
-export const quotes = mysqlTable("quotes", {
-  id: int("id").autoincrement().primaryKey(),
-  quoteNumber: varchar("quoteNumber", { length: 32 }).notNull().unique(),
-  /** Dados do cliente */
-  clientName: varchar("clientName", { length: 256 }).notNull(),
-  clientContact: varchar("clientContact", { length: 128 }),
-  clientPhone: varchar("clientPhone", { length: 64 }),
-  clientEmail: varchar("clientEmail", { length: 320 }),
-  /** Dados da obra/projeto */
-  projectName: varchar("projectName", { length: 256 }),
-  projectRef: varchar("projectRef", { length: 128 }),
-  /** Vendedor 1 (obrigatório) */
-  seller1Id: int("seller1Id"),
-  seller1Name: varchar("seller1Name", { length: 128 }),
-  /** Vendedor 2 (opcional) */
-  seller2Id: int("seller2Id"),
-  seller2Name: varchar("seller2Name", { length: 128 }),
-  /** Assistente comercial (obrigatório) */
-  assistantId: int("assistantId"),
-  assistantName: varchar("assistantName", { length: 128 }),
-  /** Campos legados mantidos para compatibilidade */
-  vendorName: varchar("vendorName", { length: 128 }),
-  /** Reserva Técnica — percentual (ex: 0.10 = 10%) */
-  rtPercent: decimal("rtPercent", { precision: 5, scale: 4 }).default("0"),
-  /** Destinos da RT (até 3); null = não aplicável */
-  rtDest1: varchar("rtDest1", { length: 256 }),
-  rtDest1Active: boolean("rtDest1Active").default(true).notNull(),
-  rtDest2: varchar("rtDest2", { length: 256 }),
-  rtDest2Active: boolean("rtDest2Active").default(false).notNull(),
-  rtDest3: varchar("rtDest3", { length: 256 }),
-  rtDest3Active: boolean("rtDest3Active").default(false).notNull(),
-  /** Margem de negociação — percentual (ex: 0.10 = 10%) */
-  marginPercent: decimal("marginPercent", { precision: 5, scale: 4 }).default("0.10"),
-  /** Frete */
-  freteType: mysqlEnum("freteType", ["free", "paid", "night", "consult"]).default("free"),
-  freteIsento: boolean("freteIsento").default(false).notNull(),
-  freteLocalidade: mysqlEnum("freteLocalidade", ["sp", "other"]).default("sp"),
-  /** Usuário que criou o orçamento */
-  createdByUserId: int("createdByUserId").notNull(),
-  status: mysqlEnum("status", ["open", "approved", "lost", "cancelled"]).default("open").notNull(),
-  currentVersion: int("currentVersion").default(1).notNull(),
-  /** Valor total dos produtos (sem RT, sem margem, sem frete) */
-  totalAmount: decimal("totalAmount", { precision: 12, scale: 2 }).default("0"),
-  /** Valor total final (com RT + margem + frete) */
-  totalFinal: decimal("totalFinal", { precision: 12, scale: 2 }).default("0"),
-  approvedAt: timestamp("approvedAt"),
-  notes: text("notes"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
-
-export type Quote = typeof quotes.$inferSelect;
-export type InsertQuote = typeof quotes.$inferInsert;
-
-export const quoteVersions = mysqlTable("quote_versions", {
-  id: int("id").autoincrement().primaryKey(),
-  quoteId: int("quoteId").notNull(),
-  version: int("version").notNull(),
-  headerSnapshot: text("headerSnapshot").notNull(),
-  totalAmount: decimal("totalAmount", { precision: 12, scale: 2 }).default("0"),
-  totalFinal: decimal("totalFinal", { precision: 12, scale: 2 }).default("0"),
-  createdByUserId: int("createdByUserId").notNull(),
-  assistantName: varchar("assistantName", { length: 128 }),
-  vendorName: varchar("vendorName", { length: 128 }),
-  versionNotes: text("versionNotes"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
-
-export type QuoteVersion = typeof quoteVersions.$inferSelect;
-export type InsertQuoteVersion = typeof quoteVersions.$inferInsert;
-
-export const quoteItems = mysqlTable("quote_items", {
-  id: int("id").autoincrement().primaryKey(),
-  quoteVersionId: int("quoteVersionId").notNull(),
-  quoteId: int("quoteId").notNull(),
-  itemNumber: int("itemNumber").notNull(),
-  itemData: text("itemData").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
-
-export type QuoteItem = typeof quoteItems.$inferSelect;
-export type InsertQuoteItem = typeof quoteItems.$inferInsert;
-
-// ─── LOG DE AUDITORIA ────────────────────────────────────────────────────────
 
 export const auditLogs = mysqlTable("audit_logs", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId"),
-  userEmail: varchar("userEmail", { length: 320 }),
-  userName: varchar("userName", { length: 256 }),
-  action: varchar("action", { length: 64 }).notNull(),
-  entityType: varchar("entityType", { length: 64 }),
-  entityId: int("entityId"),
-  details: text("details"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
+	id: int().autoincrement().notNull(),
+	userId: int(),
+	userEmail: varchar({ length: 320 }),
+	userName: varchar({ length: 256 }),
+	action: varchar({ length: 64 }).notNull(),
+	entityType: varchar({ length: 64 }),
+	entityId: int(),
+	details: text(),
+	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 });
 
-export type AuditLog = typeof auditLogs.$inferSelect;
-export type InsertAuditLog = typeof auditLogs.$inferInsert;
+export const cartItems = mysqlTable("cart_items", {
+	id: int().autoincrement().notNull(),
+	userId: int().notNull(),
+	itemData: text().notNull(),
+	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+});
+
+export const quoteItems = mysqlTable("quote_items", {
+	id: int().autoincrement().notNull(),
+	quoteVersionId: int().notNull(),
+	quoteId: int().notNull(),
+	itemNumber: int().notNull(),
+	itemData: text().notNull(),
+	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+});
+
+export const quoteVersions = mysqlTable("quote_versions", {
+	id: int().autoincrement().notNull(),
+	quoteId: int().notNull(),
+	version: int().notNull(),
+	headerSnapshot: text().notNull(),
+	totalAmount: decimal({ precision: 12, scale: 2 }).default('0'),
+	createdByUserId: int().notNull(),
+	assistantName: varchar({ length: 128 }),
+	vendorName: varchar({ length: 128 }),
+	versionNotes: text(),
+	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	totalFinal: decimal({ precision: 12, scale: 2 }).default('0'),
+});
+
+export const quotes = mysqlTable("quotes", {
+	id: int().autoincrement().notNull(),
+	quoteNumber: varchar({ length: 32 }).notNull(),
+	clientName: varchar({ length: 256 }).notNull(),
+	clientContact: varchar({ length: 128 }),
+	clientPhone: varchar({ length: 64 }),
+	clientEmail: varchar({ length: 320 }),
+	projectName: varchar({ length: 256 }),
+	projectRef: varchar({ length: 128 }),
+	vendorName: varchar({ length: 128 }),
+	assistantName: varchar({ length: 128 }),
+	createdByUserId: int().notNull(),
+	status: mysqlEnum(['open','approved','lost','cancelled']).default('open').notNull(),
+	currentVersion: int().default(1).notNull(),
+	totalAmount: decimal({ precision: 12, scale: 2 }).default('0'),
+	approvedAt: timestamp({ mode: 'string' }),
+	notes: text(),
+	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+	seller1Id: int(),
+	seller1Name: varchar({ length: 128 }),
+	seller2Id: int(),
+	seller2Name: varchar({ length: 128 }),
+	assistantId: int(),
+	rtPercent: decimal({ precision: 5, scale: 4 }).default('0'),
+	rtDest1: varchar({ length: 256 }),
+	rtDest1Active: boolean().default(true).notNull(),
+	rtDest2: varchar({ length: 256 }),
+	rtDest2Active: boolean().default(false).notNull(),
+	rtDest3: varchar({ length: 256 }),
+	rtDest3Active: boolean().default(false).notNull(),
+	marginPercent: decimal({ precision: 5, scale: 4 }).default('0.10'),
+	freteType: mysqlEnum(['free','paid','night','consult']).default('free'),
+	freteIsento: boolean().default(false).notNull(),
+	freteLocalidade: mysqlEnum(['sp','other']).default('sp'),
+	totalFinal: decimal({ precision: 12, scale: 2 }).default('0'),
+},
+(table) => [
+	index("quotes_quoteNumber_unique").on(table.quoteNumber),
+]);
+
+export const sellers = mysqlTable("sellers", {
+	id: int().autoincrement().notNull(),
+	code: varchar({ length: 32 }).notNull(),
+	name: varchar({ length: 128 }).notNull(),
+	phone: varchar({ length: 32 }),
+	email: varchar({ length: 320 }),
+	active: boolean().default(true).notNull(),
+	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("sellers_code_unique").on(table.code),
+]);
+
+export const users = mysqlTable("users", {
+	id: int().autoincrement().notNull(),
+	openId: varchar({ length: 64 }).notNull(),
+	name: text(),
+	email: varchar({ length: 320 }),
+	loginMethod: varchar({ length: 64 }),
+	role: mysqlEnum(['user','admin']).default('user').notNull(),
+	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+	lastSignedIn: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("users_openId_unique").on(table.openId),
+]);
+
+// ─── Tipos inferidos para Insert/Select ──────────────────────────────────────
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
+
+export type User = InferSelectModel<typeof users>;
+export type InsertUser = InferInsertModel<typeof users>;
+
+export type CartItem = InferSelectModel<typeof cartItems>;
+export type InsertCartItem = InferInsertModel<typeof cartItems>;
+
+export type Quote = InferSelectModel<typeof quotes>;
+export type InsertQuote = InferInsertModel<typeof quotes>;
+
+export type QuoteVersion = InferSelectModel<typeof quoteVersions>;
+export type InsertQuoteVersion = InferInsertModel<typeof quoteVersions>;
+
+export type QuoteItem = InferSelectModel<typeof quoteItems>;
+export type InsertQuoteItem = InferInsertModel<typeof quoteItems>;
+
+export type AuditLog = InferSelectModel<typeof auditLogs>;
+export type InsertAuditLog = InferInsertModel<typeof auditLogs>;
+
+export type Seller = InferSelectModel<typeof sellers>;
+export type InsertSeller = InferInsertModel<typeof sellers>;
+
+export type Assistant = InferSelectModel<typeof assistants>;
+export type InsertAssistant = InferInsertModel<typeof assistants>;

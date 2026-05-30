@@ -138,6 +138,46 @@ function buildProdutoText(item: CartItemData): string {
   return item.description || "";
 }
 
+/**
+ * Retorna true se o item é um LED BAR U (tem dados específicos de cortes).
+ */
+function isLedBar(item: CartItemData): boolean {
+  return item.category === "LED BAR" && item.ledBarNCortes !== undefined;
+}
+
+/**
+ * Gera o texto da coluna FONTE DE LUZ para o LED BAR U.
+ * Formato:
+ *   "Módulo: FITA LED HOPELUMI 24V 10W/M 3000K"
+ *   "Trechos: 2x de 1500mm"
+ */
+function buildLedBarFonteLuzText(item: CartItemData): string {
+  const nCortes = item.ledBarNCortes ?? 1;
+  const mm = item.ledBarComprimentoPorTrechoMm ?? item.ledBarComprimentoTotalMm ?? 0;
+  const modulo = item.moduloLed ?? "";
+  const linhas: string[] = [];
+  if (modulo) linhas.push(`Módulo: ${modulo}`);
+  if (nCortes > 1) {
+    linhas.push(`Trechos: ${nCortes}x de ${mm}mm`);
+  } else {
+    linhas.push(`Comprimento: ${mm}mm`);
+  }
+  return linhas.join("\n");
+}
+
+/**
+ * Gera o texto da coluna EQUIPAMENTOS para o LED BAR U.
+ * Formato: "2x FONTE DE TENSÃO 60W 24V IP20 BIV DIP SLIM (EQ00112)"
+ */
+function buildLedBarEquipamentosText(item: CartItemData): string {
+  const nCortes = item.ledBarNCortes ?? 1;
+  const model = item.ledBarDriverModel ?? "";
+  const code = item.ledBarDriverCode ?? "";
+  if (!model) return item.drivers ?? "";
+  const codeSuffix = code ? ` (${code})` : "";
+  return `${nCortes}x ${model}${codeSuffix}`;
+}
+
 export async function generateOrderExcel(items: CartItemData[], form: OrderFormData): Promise<void> {
   const wb = new ExcelJS.Workbook();
   wb.creator = "Configurador Alfalux";
@@ -279,8 +319,10 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     eCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
     applyBorder(eCell);
 
-    // FONTE DE LUZ (F) — para perfis: multi-segmento "SKU - QTY x Stripflex/Stripline [CCT]"
-    const fonteText = buildProfileFonteLuzText(item);
+    // FONTE DE LUZ (F) — LED BAR: módulo + trechos; perfis: multi-segmento
+    const fonteText = isLedBar(item)
+      ? buildLedBarFonteLuzText(item)
+      : buildProfileFonteLuzText(item);
     const fCell = ws.getCell(`F${rowNum}`);
     fCell.value = fonteText;
     fCell.font = { size: 10 };
@@ -288,8 +330,10 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     fCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
     applyBorder(fCell);
 
-    // EQUIPAMENTOS (G) — para perfis: multi-segmento "SKU - QTY x DRIVER (CODE)"
-    const equipText = buildProfileEquipamentosText(item);
+    // EQUIPAMENTOS (G) — LED BAR: QTY x driver; perfis: multi-segmento
+    const equipText = isLedBar(item)
+      ? buildLedBarEquipamentosText(item)
+      : buildProfileEquipamentosText(item);
     const gCell = ws.getCell(`G${rowNum}`);
     gCell.value = equipText;
     gCell.font = { size: 10 };

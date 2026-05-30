@@ -3602,6 +3602,9 @@ export default function Home() {
                                 className="bg-emerald-600 hover:bg-emerald-700 text-white"
                                 disabled={isAddingToCart}
                                 onClick={() => {
+                                  const lbDriverInfo = r.trechos[0]?.driver;
+                                  const lbDriverCode = lbDriverInfo?.code ?? "";
+                                  const lbDriverModel = lbDriverInfo?.model ?? "";
                                   const item: CartItemData = {
                                     category: "LED BAR",
                                     sku: r.product.sku ?? "",
@@ -3614,8 +3617,13 @@ export default function Home() {
                                     photoUrl: r.product.fotoUrl ?? "",
                                     orderSummary: pedido,
                                     quoteSummary: orcamento,
-                                    moduloLed: r.product.ledModule ?? "",
-                                    drivers: r.product.driver220?.model ?? r.product.driverBivolt?.model ?? "",
+                                    moduloLed: r.ledModuleWithCCT ?? r.product.ledModule ?? "",
+                                    drivers: lbDriverCode ? `${r.nCortes}x ${lbDriverModel} (${lbDriverCode})` : `${r.nCortes}x ${lbDriverModel}`,
+                                    ledBarNCortes: r.nCortes,
+                                    ledBarComprimentoPorTrechoMm: r.comprimentoPorTrechoMm,
+                                    ledBarComprimentoTotalMm: r.comprimentoTotalMm,
+                                    ledBarDriverModel: lbDriverModel,
+                                    ledBarDriverCode: lbDriverCode,
                                   };
                                   setPendingCartItem(item);
                                   setColorModalOpen(true);

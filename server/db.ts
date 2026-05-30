@@ -65,11 +65,11 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     }
 
     if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date();
+      values.lastSignedIn = new Date().toISOString().slice(0, 19).replace('T', ' ');
     }
 
     if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date();
+      updateSet.lastSignedIn = new Date().toISOString().slice(0, 19).replace('T', ' ');
     }
 
     await db.insert(users).values(values).onDuplicateKeyUpdate({
@@ -459,7 +459,7 @@ export async function approveQuote(id: number) {
   if (!db) throw new Error("Database not available");
   await db.update(quotes).set({
     status: "approved",
-    approvedAt: new Date(),
+    approvedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
   }).where(eq(quotes.id, id));
 }
 
@@ -468,7 +468,7 @@ export async function updateQuoteStatus(id: number, status: "open" | "approved" 
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const updateData: Record<string, unknown> = { status };
-  if (status === "approved") updateData.approvedAt = new Date();
+  if (status === "approved") updateData.approvedAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
   await db.update(quotes).set(updateData).where(eq(quotes.id, id));
 }
 

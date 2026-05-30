@@ -69,6 +69,31 @@ export interface CartItemData {
    * e no campo correspondente do orçamento.
    */
   itemEmPlanta?: string;
+
+  // ─── Campos específicos do LED BAR U ──────────────────────────────────────
+  /**
+   * Número de cortes/trechos do LED BAR U (1 = sem corte, ≥2 = dividido em trechos).
+   * Usado na coluna FONTE DE LUZ da Ficha de Produção.
+   */
+  ledBarNCortes?: number;
+  /**
+   * Comprimento de cada trecho em mm (comprimento total / nCortes).
+   * Usado na coluna FONTE DE LUZ da Ficha de Produção.
+   */
+  ledBarComprimentoPorTrechoMm?: number;
+  /**
+   * Comprimento total do LED BAR U em mm.
+   */
+  ledBarComprimentoTotalMm?: number;
+  /**
+   * Modelo do driver do LED BAR U com código (ex: "FONTE 60W 24V (EQ00112)").
+   * Usado na coluna EQUIPAMENTOS da Ficha de Produção.
+   */
+  ledBarDriverModel?: string;
+  /**
+   * Código do driver do LED BAR U (ex: "EQ00112").
+   */
+  ledBarDriverCode?: string;
 }
 
 export interface QuoteFormData {
