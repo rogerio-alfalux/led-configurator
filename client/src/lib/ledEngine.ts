@@ -238,25 +238,44 @@ export function getStriplineName(cct: CCT): string {
  * A planilha Google Sheets está desabilitada por enquanto — toda seleção usa selectDriverFallback.
  * Cada SKU recebe seu próprio driver — nunca compartilhado entre SKUs.
  */
+/**
+ * Resolve o nome real de um driver pelo código, usando os sheetDrivers da API.
+ * Se não encontrar, retorna o nome estático do driverLookup.
+ */
+function resolveDriverName(code: string, staticModel: string, sheetDrivers?: SheetDriver[]): string {
+  if (!sheetDrivers || sheetDrivers.length === 0) return staticModel;
+  const found = sheetDrivers.find(d => d.code === code);
+  return found ? found.model : staticModel;
+}
+
 function selectDriverForBars(
   totalBars: number,
   power: Power,
   voltage: Voltage,
   stripMethod: StripMethod,
-  _sheetDrivers?: SheetDriver[],
+  sheetDrivers?: SheetDriver[],
   driverContext?: Partial<DriverSelectionContext>
 ): DriverSpec {
   // Lógica v01: sempre usar o fallback determinístico (planilha desabilitada)
   const d = selectDriverFallback(totalBars, power, voltage, stripMethod, driverContext?.allowLongModules);
+
+  // Resolver nome real do driver pela API (sheetDrivers), substituindo o nome estático do driverLookup
+  const resolvedModel = resolveDriverName(d.code, d.model, sheetDrivers);
+
+  // Para combos, resolver cada item individualmente
+  const resolvedCombo = d.combo?.map(c => ({
+    ...c,
+    model: resolveDriverName(c.code, c.model, sheetDrivers),
+  }));
+
   return {
     code: d.code,
-    model: d.model,
-    power: parseInt(d.model.match(/(\d+)W/i)?.[1] ?? "0"),
+    model: resolvedModel,
+    power: parseInt(resolvedModel.match(/(\d+)W/i)?.[1] ?? "0"),
     current: d.current,
-    quantity: d.quantity, // preserva a quantidade retornada pelo fallback (ex: 26W CERTADRIVE = qty de barras)
+    quantity: d.quantity,
     vOut: d.vOut,
-    // Propagar combo para drivers compostos (ex: Stripline 3 barras = 44W + 65W)
-    ...(d.combo ? { combo: d.combo } : {}),
+    ...(resolvedCombo ? { combo: resolvedCombo } : {}),
   };
 }
 
@@ -285,15 +304,21 @@ function buildSkuDriverList(
     if (dualSimultaneous) {
       const splitResult = splitDriverForDualSimultaneous(effectiveBars, power, voltage, stripMethod);
       if (splitResult) {
+        // Resolver nomes reais dos drivers pelo código via sheetDrivers
+        const resolvedModel = resolveDriverName(splitResult.code, splitResult.model, sheetDrivers);
+        const resolvedCombo = splitResult.combo?.map(c => ({
+          ...c,
+          model: resolveDriverName(c.code, c.model, sheetDrivers),
+        }));
         // Converter SelectedDriver para DriverSpec
         driver = {
           code: splitResult.code,
-          model: splitResult.model,
+          model: resolvedModel,
           power: power,
           current: splitResult.current,
           quantity: splitResult.quantity,
           vOut: splitResult.vOut,
-          ...(splitResult.combo ? { combo: splitResult.combo } : {}),
+          ...(resolvedCombo ? { combo: resolvedCombo } : {}),
         };
       } else {
         driver = selectDriverForBars(effectiveBars, power, voltage, stripMethod, sheetDrivers, driverContext);
