@@ -344,23 +344,22 @@ function getModules(profileCode: string, type: ModuleType, allowLongModules: boo
         const b = parseFloat(barrasKey);
         if (!Number.isInteger(b)) return false;
       }
+      const b = parseFloat(barrasKey);
       // Stripline: apenas barras inteiras (1, 2, 3, 4, 5)
       if (stripMethod === "STRIPLINE") {
-        const b = parseFloat(barrasKey);
-        return STRIPLINE_VALID_BARS.includes(b);
+        if (!STRIPLINE_VALID_BARS.includes(b)) return false;
+        // Continua para aplicar filtro forComposition abaixo
       }
       // 26W: excluir módulos nos gaps inválidos da tabela DRIVER_LOOKUP
       // Gap 1: 1.61–1.99 (sem driver entre 1x e 2x Certadrive)
       // Gap 2: 3.21–3.99 (sem driver entre 3x Certadrive e OSRAM)
       if (power === 26) {
-        const b = parseFloat(barrasKey);
         if (b > 1.6 && b < 2.0) return false; // gap 1.61–1.99
         if (b > 3.2 && b < 4.0) return false; // gap 3.21–3.99
       }
       // Composições IF/ML: excluir módulos com menos de 2 barras (evitar emendas muito próximas)
       // Módulos < 2 barras só são permitidos para IN (módulo único inteiro)
       if (forComposition && type !== "IN") {
-        const b = parseFloat(barrasKey);
         if (b < MIN_BARS_FOR_COMPOSITION) return false;
       }
       return true;
