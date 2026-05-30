@@ -1050,16 +1050,18 @@ export default function Cart() {
               <AlertTriangle className="w-5 h-5 text-orange-500" />
               Gerar Pedido de Fábrica sem Orçamento?
             </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>
-                Você está prestes a gerar uma <strong>Ficha Técnica de Produção</strong> diretamente
-                do carrinho, <strong>sem vincular a um orçamento salvo no sistema</strong>.
-              </p>
-              <p>
-                Este pedido <strong>não ficará registrado</strong> no histórico de orçamentos.
-                Recomendamos salvar o orçamento primeiro e gerar o pedido a partir dele.
-              </p>
-              <p>Deseja continuar mesmo assim?</p>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  Você está prestes a gerar uma <strong>Ficha Técnica de Produção</strong> diretamente
+                  do carrinho, <strong>sem vincular a um orçamento salvo no sistema</strong>.
+                </p>
+                <p>
+                  Este pedido <strong>não ficará registrado</strong> no histórico de orçamentos.
+                  Recomendamos salvar o orçamento primeiro e gerar o pedido a partir dele.
+                </p>
+                <p>Deseja continuar mesmo assim?</p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
