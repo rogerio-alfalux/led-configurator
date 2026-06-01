@@ -140,3 +140,46 @@ export async function fetchAllAlfaluxProducts(): Promise<AlfaluxProduct[]> {
 export function invalidateAlfaluxCache(): void {
   cache = null;
 }
+
+// ── Revenda ───────────────────────────────────────────────────────────────────────────────────
+
+export interface RevendaProduct {
+  id: number;
+  codigo: string;
+  descricao: string;
+  referencia: string | null;
+  fornecedor: string | null;
+  observacoes: string | null;
+  fotoUrl: string | null;
+  custo: number | null;
+  precoVenda: number | null;
+}
+
+interface RevendaCacheEntry {
+  data: RevendaProduct[];
+  fetchedAt: number;
+}
+
+let revendaCache: RevendaCacheEntry | null = null;
+
+export async function fetchRevendaProducts(): Promise<RevendaProduct[]> {
+  const now = Date.now();
+  if (revendaCache && now - revendaCache.fetchedAt < CACHE_TTL_MS) {
+    return revendaCache.data;
+  }
+
+  console.log("[AlfaluxAPI] Buscando produtos de revenda via /api/revenda/all...");
+  const url = `${ALFALUX_BASE}/api/revenda/all`;
+  const res = await fetch(url, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) throw new Error(`Alfalux Revenda API error: ${res.status}`);
+
+  const body = await res.json() as { count?: number; products?: RevendaProduct[] };
+  const all = body.products ?? (Array.isArray(body) ? body as RevendaProduct[] : []);
+
+  console.log(`[AlfaluxAPI] ${all.length} produtos de revenda carregados.`);
+  revendaCache = { data: all, fetchedAt: now };
+  return all;
+}

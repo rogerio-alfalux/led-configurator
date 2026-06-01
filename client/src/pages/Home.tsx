@@ -1163,7 +1163,8 @@ export default function Home() {
     return revendaProducts.filter(p =>
       p.sku.toLowerCase().includes(q) ||
       p.name.toLowerCase().includes(q) ||
-      (p.familia ?? "").toLowerCase().includes(q)
+      (p.referencia ?? "").toLowerCase().includes(q) ||
+      (p.fornecedor ?? "").toLowerCase().includes(q)
     );
   }, [revendaProducts, rvSearch]);
 
@@ -1190,9 +1191,10 @@ export default function Home() {
       unitPrice,
       totalPrice: qty * unitPrice,
       power: "",
-      cct: product.temperaturasCor?.[0] ?? "",
+      cct: "",
       orderSummary: `${product.name} (${product.sku})`,
       quoteSummary: `${product.name} (${product.sku})`,
+      specialInternalNotes: product.observacoes ?? undefined,
       corPeca: "",
     };
     setPendingCartItem(item);
@@ -3681,7 +3683,7 @@ export default function Home() {
                           }`}
                         >
                           <div className="font-medium">{p.name}</div>
-                          <div className="text-xs text-muted-foreground">{p.sku} {p.familia ? `· ${p.familia}` : ""}</div>
+                          <div className="text-xs text-muted-foreground">{p.sku} {p.fornecedor ? `· ${p.fornecedor}` : ""}</div>
                         </button>
                       ))}
                     </div>
@@ -3691,11 +3693,10 @@ export default function Home() {
                 {selectedRevendaProduct && (
                   <div className="p-3 rounded-lg bg-muted/50 border text-sm space-y-1">
                     <div className="font-semibold">{selectedRevendaProduct.name}</div>
-                    <div className="text-muted-foreground">SKU: {selectedRevendaProduct.sku}</div>
-                    {selectedRevendaProduct.familia && <div className="text-muted-foreground">Família: {selectedRevendaProduct.familia}</div>}
-                    {selectedRevendaProduct.temperaturasCor?.length > 0 && (
-                      <div className="text-muted-foreground">CCT: {selectedRevendaProduct.temperaturasCor.join(", ")}</div>
-                    )}
+                    <div className="text-muted-foreground">Código: {selectedRevendaProduct.sku}</div>
+                    {selectedRevendaProduct.referencia && <div className="text-muted-foreground">Ref: {selectedRevendaProduct.referencia}</div>}
+                    {selectedRevendaProduct.fornecedor && <div className="text-muted-foreground">Fornecedor: {selectedRevendaProduct.fornecedor}</div>}
+                    {selectedRevendaProduct.observacoes && <div className="text-muted-foreground">Obs: {selectedRevendaProduct.observacoes}</div>}
                   </div>
                 )}
 

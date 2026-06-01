@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { fetchDrivers, invalidateDriverCache } from "./driverService";
-import { fetchAllAlfaluxProducts, invalidateAlfaluxCache } from "./alfaluxApiService";
+import { fetchAllAlfaluxProducts, invalidateAlfaluxCache, fetchRevendaProducts } from "./alfaluxApiService";
 import {
   addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty, updateCartItemData,
   createQuote, addQuoteRevision, listQuotes, getQuoteById, approveQuote,
@@ -63,18 +63,15 @@ export const appRouter = router({
 
     // Produtos de revenda: identificados por SKU começando com 'RV' ou categoria 'REVENDA'
     revendaProducts: publicProcedure.query(async () => {
-      const products = await fetchAllAlfaluxProducts();
-      return products.filter(p =>
-        p.sku.startsWith("RV") ||
-        p.categoria?.toUpperCase() === "REVENDA" ||
-        p.familia?.toUpperCase().startsWith("RV")
-      ).map(p => ({
-        sku: p.sku,
-        name: p.name,
-        familia: p.familia,
-        categoria: p.categoria,
+      const products = await fetchRevendaProducts();
+      return products.map(p => ({
+        sku: p.codigo,
+        name: p.descricao,
+        referencia: p.referencia,
+        fornecedor: p.fornecedor,
+        observacoes: p.observacoes,
         fotoUrl: p.fotoUrl,
-        temperaturasCor: p.temperaturasCor,
+        precoVenda: p.precoVenda,
       }));
     }),
   }),
