@@ -161,19 +161,34 @@ function SortableEditItem({ item, idx, resolvePhoto, onUpdate }: SortableEditIte
         </div>
       </div>
 
-      {/* Preço unitário (editável) */}
+      {/* Preço unitário: editável apenas quando não veio da API */}
       <div className="flex items-center gap-4">
         <div className="flex-1">
-          <Label className="text-xs">Preço Unitário (R$)</Label>
+          <Label className="text-xs">
+            Preço Unitário (R$)
+            {d.priceFromApi && (
+              <span className="ml-1 text-muted-foreground font-normal">(API)</span>
+            )}
+          </Label>
           <Input
             type="number"
             min={0}
             step={0.01}
             value={d.unitPrice ?? ""}
-            onChange={e => onUpdate(item.id, { unitPrice: e.target.value ? parseFloat(e.target.value) : null })}
-            placeholder="0,00"
-            className="mt-1 h-8 text-sm"
+            onChange={d.priceFromApi ? undefined : (e => {
+              const newUnitPrice = e.target.value ? parseFloat(e.target.value) : null;
+              onUpdate(item.id, {
+                unitPrice: newUnitPrice,
+                totalPrice: newUnitPrice != null ? newUnitPrice * d.qty : null,
+              });
+            })}
+            readOnly={!!d.priceFromApi}
+            placeholder={d.priceFromApi ? "Preço da API" : "Definir preço"}
+            className={`mt-1 h-8 text-sm${d.priceFromApi ? " bg-muted text-muted-foreground cursor-not-allowed" : ""}`}
           />
+          {d.priceFromApi && (
+            <p className="text-xs text-muted-foreground mt-0.5">Preço definido pela API — não editável.</p>
+          )}
         </div>
         <div className="text-right">
           <p className="text-xs text-muted-foreground">Total</p>

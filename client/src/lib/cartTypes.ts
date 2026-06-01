@@ -139,6 +139,11 @@ export interface CartItemData {
   specialInternalNotes?: string;
 
   /**
+   * Indica se o preço unitário veio da API (true) ou foi definido manualmente (false/undefined).
+   * Quando true, o campo de preço é somente leitura no carrinho e no orçamento.
+   */
+  priceFromApi?: boolean;
+  /**
    * Observação livre por item — editável pelo vendedor/assistente.
    * Para itens de Revenda, preenchida automaticamente com "fabricante ref: XXXX".
    * Aparece no Excel na coluna P (fora da área de impressão).

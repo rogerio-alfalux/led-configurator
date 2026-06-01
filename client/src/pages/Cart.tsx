@@ -196,7 +196,7 @@ function SortableCartItem({
                   )}
                   {entry.data.totalPrice != null && entry.data.totalPrice > 0 ? (
                     <p className="font-bold text-primary text-base">{formatBRL(entry.data.totalPrice)}</p>
-                  ) : entry.data.category === 'Revenda' ? (
+                  ) : !entry.data.priceFromApi ? (
                     <p className="text-xs text-amber-600 italic cursor-pointer hover:underline" onClick={() => onEditClick(entry.id, entry.data)}>Definir preço →</p>
                   ) : (
                     <p className="text-xs text-muted-foreground italic">Preço a consultar</p>
@@ -1396,6 +1396,7 @@ export default function Cart() {
             {(() => {
               const item = orderedEntries.find(e => e.id === editItemId);
               const isRevenda = item?.data.category === 'Revenda';
+              const canEditPrice = !item?.data.priceFromApi;
               return isRevenda ? (
                 <>
                   <div className="space-y-1">
@@ -1451,6 +1452,20 @@ export default function Cart() {
                       placeholder="ex: Branco, Preto, Anodizado"
                     />
                   </div>
+                  {/* Campo de preço: editável se não veio da API, bloqueado se veio */}
+                  <div className="space-y-1">
+                    <Label>Preço unitário (R$)</Label>
+                    <Input
+                      value={editFields.unitPrice}
+                      onChange={canEditPrice ? (e) => setEditFields(prev => ({ ...prev, unitPrice: e.target.value })) : undefined}
+                      readOnly={!canEditPrice}
+                      placeholder={canEditPrice ? "Definir preço" : "Preço da API"}
+                      className={!canEditPrice ? "bg-muted text-muted-foreground cursor-not-allowed" : ""}
+                    />
+                    {!canEditPrice && (
+                      <p className="text-xs text-muted-foreground">Preço definido pela API — não editável.</p>
+                    )}
+                  </div>
                   <div className="space-y-1">
                     <Label>Observação</Label>
                     <Input
@@ -1470,6 +1485,7 @@ export default function Cart() {
               const item = orderedEntries.find(e => e.id === editItemId);
               const isRevenda = item?.data.category === 'Revenda';
               const patch: Record<string, unknown> = {};
+              const canEditPriceSave = !item?.data.priceFromApi;
               if (isRevenda) {
                 const qty = parseInt(editFields.qty) || 1;
                 const unitPrice = parseFloat(editFields.unitPrice.replace(',', '.')) || 0;
@@ -1480,10 +1496,20 @@ export default function Cart() {
                 if (editFields.cct.trim()) patch.cct = editFields.cct.trim();
                 if (editFields.power.trim()) patch.power = editFields.power.trim();
                 if (editFields.corPeca.trim()) patch.corPeca = editFields.corPeca.trim();
+                // Salvar preço manual apenas quando não veio da API
+                if (canEditPriceSave && editFields.unitPrice.trim()) {
+                  const qty = parseInt(editFields.qty) || item?.data.qty || 1;
+                  const unitPrice = parseFloat(editFields.unitPrice.replace(',', '.')) || 0;
+                  patch.unitPrice = unitPrice;
+                  patch.totalPrice = qty * unitPrice;
+                }
               }
               // Sempre salvar itemNote (pode ser vazio para limpar)
               patch.itemNote = editFields.itemNote.trim() || undefined;
-              updateItemField(editItemId, patch, isRevenda ? (parseInt(editFields.qty) || 1) * (parseFloat(editFields.unitPrice.replace(',', '.')) || 0) : 0);
+              const totalForUpdate = isRevenda
+                ? (parseInt(editFields.qty) || 1) * (parseFloat(editFields.unitPrice.replace(',', '.')) || 0)
+                : (canEditPriceSave && editFields.unitPrice.trim() ? (item?.data.qty || 1) * (parseFloat(editFields.unitPrice.replace(',', '.')) || 0) : 0);
+              updateItemField(editItemId, patch, totalForUpdate);
               toast.success('Item atualizado!');
               setEditItemId(null);
             }}>
