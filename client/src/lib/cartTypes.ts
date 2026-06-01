@@ -31,10 +31,10 @@ export interface CartItemData {
   sku: string;
   /** Descrição completa do produto */
   description: string;
-  /** Potência em W (ex: "18W", "26W", "36W") */
-  power: string;
-  /** Temperatura de cor (ex: "3000K") */
-  cct: string;
+  /** Potência em W (ex: "18W", "26W", "36W"). Opcional para itens especiais. */
+  power?: string;
+  /** Temperatura de cor (ex: "3000K"). Opcional para itens especiais. */
+  cct?: string;
   /** Quantidade de unidades */
   qty: number;
   /** Preço unitário em reais (null se não cadastrado) */
@@ -43,10 +43,10 @@ export interface CartItemData {
   totalPrice: number | null;
   /** URL da foto do produto (pode ser null) */
   photoUrl: string | null;
-  /** Texto completo do resumo para pedido */
-  orderSummary: string;
-  /** Texto completo do resumo para orçamento */
-  quoteSummary: string;
+  /** Texto completo do resumo para pedido. Opcional para itens especiais. */
+  orderSummary?: string;
+  /** Texto completo do resumo para orçamento. Opcional para itens especiais. */
+  quoteSummary?: string;
   /** Cor da peça selecionada (ex: "Branco Fosco Micro", "A Definir") */
   corPeca?: string;
   /** Módulo LED (fonte de luz) para ficha de produção — usado por produtos não-perfil */
@@ -94,6 +94,49 @@ export interface CartItemData {
    * Código do driver do LED BAR U (ex: "EQ00112").
    */
   ledBarDriverCode?: string;
+
+  // ─── Campos específicos de Item Especial ──────────────────────────────────
+  /**
+   * Indica que este item é um Item Especial (não está no catálogo).
+   */
+  isSpecialItem?: boolean;
+  /**
+   * Descrição do produto especial (preenchida pelo usuário).
+   */
+  specialDescription?: string;
+  /**
+   * Dimensões do produto especial (ex: "620 x 620 x 100mm").
+   */
+  specialDimensions?: string;
+  /**
+   * Potência do produto especial (ex: "36W").
+   */
+  specialPower?: string;
+  /**
+   * Tipo de acionamento/DIM do produto especial (ex: "ON/OFF", "DALI", "DIM").
+   */
+  specialDim?: string;
+  /**
+   * Tensão do produto especial (ex: "BIVOLT", "220V").
+   */
+  specialVoltage?: string;
+  /**
+   * Cor da peça do produto especial.
+   */
+  specialColor?: string;
+  /**
+   * Valor unitário do produto especial (preenchido pelo usuário no formulário).
+   */
+  specialUnitPrice?: number;
+  /**
+   * URL da foto do produto especial (armazenada via storagePut).
+   */
+  specialPhotoUrl?: string;
+  /**
+   * Observação interna do item especial — NÃO aparece no orçamento para o cliente.
+   * Aparece no Excel fora da área de impressão, na mesma linha do item.
+   */
+  specialInternalNotes?: string;
 }
 
 export interface QuoteFormData {
@@ -129,6 +172,8 @@ export interface QuoteFormData {
   freteIsento?: boolean;
   freteLocalidade?: "sp" | "other";
   freteCity?: string;
+  /** Número de revisões do orçamento (0 = sem revisões, 1 = primeira revisão, etc.) */
+  revisionCount?: number;
 }
 
 export function parseCartItemData(json: string): CartItemData | null {

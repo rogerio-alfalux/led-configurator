@@ -292,6 +292,7 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
     createdByUserId: input.createdByUserId,
     status: "open",
     currentVersion: 1,
+    revisionCount: 0,
     totalAmount: String(input.totalAmount),
     totalFinal: input.totalFinal != null ? String(input.totalFinal) : null,
     notes: input.notes ?? null,
@@ -352,7 +353,7 @@ export async function addQuoteRevision(
     notes: input.notes,
   });
 
-  // Update quote header
+  // Update quote header — incrementa revisionCount a cada edição/salvamento
   await db.update(quotes).set({
     clientName: input.clientName,
     clientContact: input.clientContact ?? null,
@@ -365,6 +366,7 @@ export async function addQuoteRevision(
     notes: input.notes ?? null,
     currentVersion: newVersion,
     totalAmount: String(input.totalAmount),
+    revisionCount: sql`revisionCount + 1`,
   }).where(eq(quotes.id, quoteId));
 
   // Insert new version

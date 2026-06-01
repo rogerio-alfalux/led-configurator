@@ -12,6 +12,7 @@ import {
 } from "./db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { storagePut } from "./storage";
 
 // ─── Admin-only procedure ─────────────────────────────────────────────────────
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -105,6 +106,28 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         await updateCartItemData(input.id, ctx.user.id, input.patch);
         return { success: true };
+      }),
+  }),
+
+  // ─── Upload de arquivos ─────────────────────────────────────────────────────────────────────────────────────
+  upload: router({
+    /** Faz upload de uma foto de item especial e retorna a URL /manus-storage/... */
+    specialItemPhoto: protectedProcedure
+      .input(z.object({
+        /** Conteúdo da imagem em base64 */
+        base64: z.string(),
+        /** MIME type: "image/jpeg" ou "image/png" */
+        mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),
+        /** Nome original do arquivo (para gerar chave única) */
+        fileName: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const ext = input.mimeType === "image/png" ? "png" : input.mimeType === "image/webp" ? "webp" : "jpg";
+        const ts = Date.now();
+        const key = `special-items/${ctx.user.id}/${ts}.${ext}`;
+        const buffer = Buffer.from(input.base64, "base64");
+        const { url } = await storagePut(key, buffer, input.mimeType);
+        return { url };
       }),
   }),
 

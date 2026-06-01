@@ -289,7 +289,7 @@ export default function Quotes() {
                             <p className="text-xs text-muted-foreground italic">A consultar</p>
                           )}
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            v{q.currentVersion} · {new Date(q.createdAt).toLocaleDateString("pt-BR")}
+                            v{q.currentVersion}{q.revisionCount != null && q.revisionCount > 0 && <span className="ml-1 text-[10px] text-amber-500 font-medium">• {q.revisionCount} rev.</span>} · {new Date(q.createdAt).toLocaleDateString("pt-BR")}
                           </p>
                         </div>
 

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart } from "lucide-react";
+import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon } from "lucide-react";
 import { Link } from "wouter";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useTheme } from "@/contexts/ThemeContext";
 import { toast } from "sonner";
 import {
@@ -119,7 +121,8 @@ type ProductCategory =
   | "Arandelas"
   | "Área Externa"
   | "Balizadores"
-  | "Decorativas";
+  | "Decorativas"
+  | "Item Especial";
 
 const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.ElementType; image?: string; available: boolean }[] = [
   { value: "Perfis",       label: "Perfis",        icon: Layers,      image: "/manus-storage/PERFIS_e65318d1.png",      available: true  },
@@ -130,6 +133,7 @@ const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.E
   { value: "Área Externa", label: "Área Externa",  icon: TreePine,    image: "/manus-storage/AREAEXTERNA_5811f7cb.png", available: false },
   { value: "Balizadores",  label: "Balizadores",   icon: Navigation,  image: "/manus-storage/BALIZADORES_482d54f1.png", available: false },
   { value: "Decorativas",  label: "Decorativas",   icon: Sparkles,    image: "/manus-storage/DECORATIVAS_4ee44c0e.png", available: false },
+  { value: "Item Especial", label: "Item Especial",  icon: PackagePlus, available: true  },
 ];
 
 // ─── Auxiliar: quantidade de drivers por produto/controle/tensão ─────────────
@@ -1129,6 +1133,79 @@ export default function Home() {
   const [bgControle, setBgControle] = useState<BageoControle>("ON/OFF 220V");
   const [bgCCT, setBgCCT] = useState<string>("3000K");
   const [bgResult, setBgResult] = useState<BageoResult | null>(null);
+  // ── Estados de Item Especial ──────────────────────────────────────────────
+  const [spDescription, setSpDescription] = useState<string>("");
+  const [spDimensions, setSpDimensions] = useState<string>("");
+  const [spPower, setSpPower] = useState<string>("");
+  const [spDim, setSpDim] = useState<string>("");
+  const [spVoltage, setSpVoltage] = useState<string>("");
+  const [spColor, setSpColor] = useState<string>("");
+  const [spUnitPrice, setSpUnitPrice] = useState<string>("");
+  const [spInternalNotes, setSpInternalNotes] = useState<string>("");
+  const [spPhotoUrl, setSpPhotoUrl] = useState<string>("");
+  const [spPhotoPreview, setSpPhotoPreview] = useState<string>("");
+  const [spIsUploading, setSpIsUploading] = useState(false);
+
+  const uploadSpecialPhotoMutation = trpc.upload.specialItemPhoto.useMutation({
+    onSuccess: (data) => {
+      setSpPhotoUrl(data.url);
+      toast.success("Foto enviada com sucesso!");
+    },
+    onError: () => {
+      toast.error("Erro ao enviar foto. Tente novamente.");
+    },
+    onSettled: () => setSpIsUploading(false),
+  });
+
+  const handleSpPhotoChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Foto muito grande. Máximo 5MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setSpPhotoPreview(dataUrl);
+      // Extrair base64 puro (sem prefixo data:...;base64,)
+      const base64 = dataUrl.split(",")[1];
+      const mimeType = file.type as "image/jpeg" | "image/png" | "image/webp";
+      setSpIsUploading(true);
+      uploadSpecialPhotoMutation.mutate({ base64, mimeType, fileName: file.name });
+    };
+    reader.readAsDataURL(file);
+  }, [uploadSpecialPhotoMutation]);
+
+  const handleAddSpecialItem = useCallback(() => {
+    if (!spDescription.trim()) {
+      toast.error("Informe a descrição do item especial.");
+      return;
+    }
+    const unitPrice = parseFloat(spUnitPrice.replace(",", ".")) || 0;
+    const item: CartItemData = {
+      category: "Item Especial",
+      sku: "ESPECIAL",
+      description: spDescription.trim(),
+      qty: 1,
+      unitPrice,
+      totalPrice: unitPrice,
+      photoUrl: spPhotoUrl || "",
+      isSpecialItem: true,
+      specialDescription: spDescription.trim(),
+      specialDimensions: spDimensions.trim() || undefined,
+      specialPower: spPower.trim() || undefined,
+      specialDim: spDim.trim() || undefined,
+      specialVoltage: spVoltage.trim() || undefined,
+      specialColor: spColor.trim() || undefined,
+      specialUnitPrice: unitPrice || undefined,
+      specialPhotoUrl: spPhotoUrl || undefined,
+      specialInternalNotes: spInternalNotes.trim() || undefined,
+    };
+    setPendingCartItem(item);
+    setColorModalOpen(true);
+  }, [spDescription, spDimensions, spPower, spDim, spVoltage, spColor, spUnitPrice, spPhotoUrl, spInternalNotes]);
+
   // Catálogo ativo de LED BAR (API ou fallback estático))
   const activeLedBarCatalog = useMemo(() => {
     const apiLedBars = adaptedCatalogs?.ledBars;
@@ -3391,6 +3468,131 @@ export default function Home() {
               </div>
             )}
 
+            {/* ── Formulário de Item Especial ── */}
+            {productCategory === "Item Especial" && (
+              <div className="space-y-4">
+                {/* Descrição */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Descrição <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    value={spDescription}
+                    onChange={(e) => setSpDescription(e.target.value)}
+                    placeholder="Ex: Luminária linear pendente sob medida..."
+                    className="h-10"
+                  />
+                </div>
+                {/* Dimensões */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Dimensões</Label>
+                  <Input
+                    value={spDimensions}
+                    onChange={(e) => setSpDimensions(e.target.value)}
+                    placeholder="Ex: 1200 x 80 x 50mm"
+                    className="h-10"
+                  />
+                </div>
+                {/* Potência / DIM / Tensão em linha */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Potência</Label>
+                    <Input value={spPower} onChange={(e) => setSpPower(e.target.value)} placeholder="Ex: 36W" className="h-10" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">DIM</Label>
+                    <Input value={spDim} onChange={(e) => setSpDim(e.target.value)} placeholder="Ex: 1-10V" className="h-10" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
+                    <Input value={spVoltage} onChange={(e) => setSpVoltage(e.target.value)} placeholder="Ex: 220V" className="h-10" />
+                  </div>
+                </div>
+                {/* Cor */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cor / Acabamento</Label>
+                  <Input
+                    value={spColor}
+                    onChange={(e) => setSpColor(e.target.value)}
+                    placeholder="Ex: Branco Fosco, Preto Texturizado..."
+                    className="h-10"
+                  />
+                </div>
+                {/* Valor unitário */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Valor Unitário (R$)</Label>
+                  <Input
+                    value={spUnitPrice}
+                    onChange={(e) => setSpUnitPrice(e.target.value)}
+                    placeholder="Ex: 1250,00"
+                    className="h-10"
+                    inputMode="decimal"
+                  />
+                </div>
+                {/* Foto */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Foto do Produto</Label>
+                  <div className="flex gap-2">
+                    <label
+                      htmlFor="sp-photo-input"
+                      className={[
+                        "flex-1 flex items-center justify-center gap-2 h-10 rounded-lg border border-dashed cursor-pointer text-xs font-medium transition-colors",
+                        spIsUploading
+                          ? "border-primary/50 bg-primary/5 text-primary cursor-wait"
+                          : "border-border bg-muted/20 text-muted-foreground hover:border-primary/50 hover:bg-muted/40",
+                      ].join(" ")}
+                    >
+                      {spIsUploading ? (
+                        <><div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" /> Enviando...</>
+                      ) : (
+                        <><Upload className="w-3.5 h-3.5" /> {spPhotoPreview ? "Trocar foto" : "Adicionar foto"}</>
+                      )}
+                    </label>
+                    {spPhotoPreview && (
+                      <button
+                        onClick={() => { setSpPhotoPreview(""); setSpPhotoUrl(""); }}
+                        className="h-10 w-10 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors"
+                        title="Remover foto"
+                      >
+                        <XIcon className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    id="sp-photo-input"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={handleSpPhotoChange}
+                    disabled={spIsUploading}
+                  />
+                </div>
+                {/* Observações Internas */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Observações Internas
+                    <span className="ml-1.5 text-[10px] font-normal text-muted-foreground/60 normal-case">(não aparece no orçamento)</span>
+                  </Label>
+                  <Textarea
+                    value={spInternalNotes}
+                    onChange={(e) => setSpInternalNotes(e.target.value)}
+                    placeholder="Anotações internas sobre o item..."
+                    className="min-h-[72px] text-sm"
+                  />
+                </div>
+                {/* Botão adicionar */}
+                <Button
+                  onClick={handleAddSpecialItem}
+                  disabled={!spDescription.trim() || spIsUploading}
+                  className="w-full h-12 text-base font-semibold font-display bg-amber-600 hover:bg-amber-700 text-white"
+                  size="lg"
+                >
+                  <PackagePlus className="w-5 h-5 mr-2" />
+                  Adicionar ao Carrinho
+                </Button>
+              </div>
+            )}
+
             {/* Botão Calcular — Perfis */}
             {selectedVariant && productCategory === "Perfis" && (
               <Button
@@ -4768,6 +4970,66 @@ export default function Home() {
                   </div>
                   <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
                   <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione a instalação, família, produto, tensão e CCT, depois clique em "Calcular Painél".</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* ── Item Especial: painel de resultado / pré-visualização ── */}
+            {productCategory === "Item Especial" && (
+              <Card className="shadow-sm border-amber-500/30">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                    <PackagePlus className="w-4 h-4 text-amber-500" />
+                    Item Especial
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {spPhotoPreview ? (
+                    <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-border bg-muted/30">
+                      <img src={spPhotoPreview} alt="Preview" className="w-full h-full object-contain" />
+                      {spIsUploading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-background/70">
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            <span className="text-xs text-muted-foreground">Enviando foto...</span>
+                          </div>
+                        </div>
+                      )}
+                      {!spIsUploading && spPhotoUrl && (
+                        <div className="absolute top-2 right-2">
+                          <span className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-semibold">Foto salva</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12 rounded-lg border-2 border-dashed border-border bg-muted/20 text-center">
+                      <ImageIcon className="w-10 h-10 text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground">Nenhuma foto adicionada</p>
+                      <p className="text-xs text-muted-foreground/60 mt-0.5">Preencha o formulário ao lado e adicione uma foto</p>
+                    </div>
+                  )}
+                  {spDescription && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-semibold text-foreground">{spDescription}</p>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        {spDimensions && <span><span className="font-medium text-foreground">Dimensões:</span> {spDimensions}</span>}
+                        {spPower && <span><span className="font-medium text-foreground">Potência:</span> {spPower}</span>}
+                        {spDim && <span><span className="font-medium text-foreground">DIM:</span> {spDim}</span>}
+                        {spVoltage && <span><span className="font-medium text-foreground">Tensão:</span> {spVoltage}</span>}
+                        {spColor && <span><span className="font-medium text-foreground">Cor:</span> {spColor}</span>}
+                        {spUnitPrice && <span><span className="font-medium text-foreground">Valor unit.:</span> {formatBRL(parseFloat(spUnitPrice.replace(",",".")) || 0)}</span>}
+                      </div>
+                      {spInternalNotes && (
+                        <div className="rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 px-3 py-2">
+                          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-0.5">Obs. Interna (não aparece no orçamento)</p>
+                          <p className="text-xs text-amber-700/80 dark:text-amber-400/80">{spInternalNotes}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {!spDescription && (
+                    <p className="text-sm text-muted-foreground text-center py-4">Preencha os campos do formulário para visualizar o item.</p>
+                  )}
                 </CardContent>
               </Card>
             )}

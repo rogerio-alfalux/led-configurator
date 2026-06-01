@@ -261,6 +261,8 @@ export default function Cart() {
         freteIsento: saveForm.freteIsento,
         freteLocalidade: saveForm.freteLocalidade,
         freteCity: saveForm.freteCity,
+        // revisionCount: 0 para orçamentos gerados diretamente do carrinho (sem revisões)
+        revisionCount: 0,
       };
       // Injetar itemEmPlanta em cada item
       const itemsWithPlanta = entries.map((e, idx) => ({

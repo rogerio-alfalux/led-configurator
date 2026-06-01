@@ -140,6 +140,9 @@ export async function generateQuoteExcel(
     { key: "L", width: 7    },  // QTD
     { key: "M", width: 13   },  // PREÇO UNITÁRIO
     { key: "N", width: 14   },  // PREÇO TOTAL
+    { key: "O", width: 30   },  // OBS. INTERNA (não impresso)
+    { key: "P", width: 14   },  // RT (não impresso)
+    { key: "Q", width: 14   },  // MARGEM (não impresso)
   ];
 
   // ── Linhas 1-2: espaço para o logo ──────────────────────────────────────
@@ -168,19 +171,51 @@ export async function generateQuoteExcel(
 
   // ── Linha 5: espaço ──────────────────────────────────────────────────────
   ws.getRow(5).height = 20.4;
-
-  // ── Linha 6: Número do orçamento (fundo azul) ────────────────────────────
+  // ── Linha 6: Número do orçamento (fundo azul) ────────────────────────────────────────
+  // Sufixo de revisão: RV0 = sem revisões, RV1 = 1 revisão, etc.
+  const revCount = formData.revisionCount ?? 0;
+  const rvSuffix = ` (RV${revCount})`;
   ws.getRow(6).height = 31.2;
   ws.mergeCells("C6:D6");
   {
     const c = ws.getCell("C6");
-    c.value = formData.numero || "";
+    c.value = (formData.numero || "") + rvSuffix;
     c.font = { name: "Calibri", size: 16, bold: true };
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BLUE } };
     c.alignment = { horizontal: "center", vertical: "middle" };
   }
 
-  // ── Linha 7: VENDEDOR ────────────────────────────────────────────────────
+  // ── Colunas P-Q: RT e Margem (não impressas, apenas para controle interno) ────────
+  const INTERNAL_LABEL_FONT: Partial<ExcelJS.Font> = { name: "Calibri", size: 10, bold: true, color: { argb: "FF7F7F7F" } };
+  const INTERNAL_VALUE_FONT: Partial<ExcelJS.Font> = { name: "Calibri", size: 11, bold: true };
+  // P6: label RT, Q6: valor RT
+  { const c = ws.getCell("P6"); c.value = "RT:"; c.font = INTERNAL_LABEL_FONT; c.alignment = { horizontal: "right", vertical: "middle" }; }
+  {
+    const c = ws.getCell("Q6");
+    const rtPct = formData.rtPercent ?? 0;
+    c.value = rtPct > 0 ? `${(rtPct * 100).toFixed(1)}%` : "-";
+    c.font = INTERNAL_VALUE_FONT;
+    c.alignment = { horizontal: "left", vertical: "middle" };
+  }
+  // P7: label Margem, Q7: valor Margem
+  { const c = ws.getCell("P7"); c.value = "Margem:"; c.font = INTERNAL_LABEL_FONT; c.alignment = { horizontal: "right", vertical: "middle" }; }
+  {
+    const c = ws.getCell("Q7");
+    const marginPct = formData.marginPercent ?? 0;
+    c.value = marginPct > 0 ? `${(marginPct * 100).toFixed(1)}%` : "-";
+    c.font = INTERNAL_VALUE_FONT;
+    c.alignment = { horizontal: "left", vertical: "middle" };
+  }
+  // P8: label Assistente, Q8: nome
+  { const c = ws.getCell("P8"); c.value = "Assistente:"; c.font = INTERNAL_LABEL_FONT; c.alignment = { horizontal: "right", vertical: "middle" }; }
+  {
+    const c = ws.getCell("Q8");
+    c.value = formData.assistantName || "-";
+    c.font = INTERNAL_VALUE_FONT;
+    c.alignment = { horizontal: "left", vertical: "middle" };
+  }
+
+  // ── Linha 7: VENDEDOR ────────────────────────────────────────
   ws.getRow(7).height = 25.8;
   {
     const c = ws.getCell("C7");
@@ -417,20 +452,30 @@ export async function generateQuoteExcel(
     cSku.font = { name: "Calibri", size: 11, bold: false };
     cSku.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
 
-    // F = COMPRIMENTO (mm)
-    ws.getCell(`F${rowNum}`).value = extractLength(item.description);
+    // F = COMPRIMENTO (mm) — usa dimensões do item especial se disponível
+    ws.getCell(`F${rowNum}`).value = (item.category === "Item Especial" && item.specialDimensions)
+      ? item.specialDimensions
+      : extractLength(item.description);
 
-    // G = POTÊNCIA (W)
-    ws.getCell(`G${rowNum}`).value = (item.power && item.power.trim()) ? item.power : extractPower(item.description);
+    // G = POTÊNCIA (W) — usa campo especial se disponível
+    ws.getCell(`G${rowNum}`).value = (item.category === "Item Especial" && item.specialPower)
+      ? item.specialPower
+      : ((item.power && item.power.trim()) ? item.power : extractPower(item.description));
 
-    // H = DIM
-    ws.getCell(`H${rowNum}`).value = extractDim(item.description);
+    // H = DIM — usa campo especial se disponível
+    ws.getCell(`H${rowNum}`).value = (item.category === "Item Especial" && item.specialDim)
+      ? item.specialDim
+      : extractDim(item.description);
 
-    // I = TENSÃO (V)
-    ws.getCell(`I${rowNum}`).value = extractVoltage(item.description);
+    // I = TENSÃO (V) — usa campo especial se disponível
+    ws.getCell(`I${rowNum}`).value = (item.category === "Item Especial" && item.specialVoltage)
+      ? item.specialVoltage
+      : extractVoltage(item.description);
 
-    // J = COR
-    ws.getCell(`J${rowNum}`).value = item.corPeca || "-";
+    // J = COR — usa campo especial de cor se disponível, depois corPeca
+    ws.getCell(`J${rowNum}`).value = (item.category === "Item Especial" && item.specialColor)
+      ? item.specialColor
+      : (item.corPeca || "-");
 
     // K = TEMPERATURA DE COR (K)
     ws.getCell(`K${rowNum}`).value = item.cct || "-";
@@ -458,6 +503,13 @@ export async function generateQuoteExcel(
     } else {
       cTotal.value = "-";
     }
+
+    // O = OBSERVAÇÃO INTERNA (não impressa — apenas para controle interno)
+    const cObs = ws.getCell(`O${rowNum}`);
+    const obsInterna = item.specialInternalNotes || "";
+    cObs.value = obsInterna;
+    cObs.font = { name: "Calibri", size: 10, italic: true, color: { argb: "FF7F7F7F" } };
+    cObs.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
   }
 
   // ── Calcular total dos produtos ──────────────────────────────────────────

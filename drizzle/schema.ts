@@ -87,6 +87,8 @@ export const quotes = mysqlTable("quotes", {
 	freteIsento: boolean().default(false).notNull(),
 	freteLocalidade: mysqlEnum(['sp','other']).default('sp'),
 	totalFinal: decimal({ precision: 12, scale: 2 }).default('0'),
+	/** Número de revisões do orçamento (0 = RV0, 1 = RV1, ...). Incrementa a cada edição/salvamento. */
+	revisionCount: int().default(0).notNull(),
 },
 (table) => [
 	index("quotes_quoteNumber_unique").on(table.quoteNumber),

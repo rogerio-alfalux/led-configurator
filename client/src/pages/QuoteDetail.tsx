@@ -188,6 +188,7 @@ export default function QuoteDetail() {
           freteType: (quote.freteType as "free" | "paid" | "night" | "consult") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
+          revisionCount: quote.revisionCount ?? 0,
         }
       );
       toast.success("Orçamento Excel gerado!");
@@ -274,7 +275,7 @@ export default function QuoteDetail() {
               {quote.vendorName && <p>🧑‍💼 Vendedor: <span className="font-medium">{quote.vendorName}</span></p>}
               {quote.assistantName && <p>✏️ Assistente: <span className="font-medium">{quote.assistantName}</span></p>}
               <p>📅 Criado em: {new Date(quote.createdAt).toLocaleDateString("pt-BR")}</p>
-              <p>🔄 Versão atual: <span className="font-bold">v{quote.currentVersion}</span></p>
+              <p>🔄 Versão atual: <span className="font-bold">v{quote.currentVersion}</span>{quote.revisionCount != null && quote.revisionCount > 0 && <span className="ml-2 text-xs text-muted-foreground">({quote.revisionCount} revisão{quote.revisionCount !== 1 ? "ões" : ""})</span>}</p>
               {quote.approvedAt && (
                 <p className="text-green-600 dark:text-green-400 font-medium">
                   ✅ Aprovado em: {new Date(quote.approvedAt).toLocaleDateString("pt-BR")}

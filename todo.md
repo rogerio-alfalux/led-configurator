@@ -891,8 +891,26 @@
 
 ## v24 — Adicionar itens a orçamentos salvos + autosave "Item no Projeto"
 
-- [ ] Autosave do campo "Item no Projeto" por item do carrinho (persistir em localStorage por itemId, não perder ao navegar)
-- [ ] Permitir editar o "Item no Projeto" depois de salvo no orçamento (inline edit no QuoteDetail)
-- [ ] Botão "Adicionar mais itens" em orçamentos salvos (QuoteDetail) que reabre o configurador com o carrinho vinculado ao orçamento
-- [ ] Ao enviar ao carrinho com orçamento aberto, o novo item é adicionado diretamente ao orçamento existente
-- [ ] Procedure tRPC para adicionar item a orçamento existente (server/routers.ts)
+- [x] Autosave do campo "Item no Projeto" por item do carrinho (persistir em localStorage por itemId, não perder ao navegar)
+- [x] Permitir editar o "Item no Projeto" depois de salvo no orçamento (inline edit no QuoteDetail)
+- [x] Botão "Adicionar mais itens" em orçamentos salvos (QuoteDetail) que reabre o configurador com o carrinho vinculado ao orçamento
+- [x] Ao enviar ao carrinho com orçamento aberto, o novo item é adicionado diretamente ao orçamento existente
+- [x] Procedure tRPC para adicionar item a orçamento existente (server/routers.ts)
+
+## v25 — Item Especial + Revisão do Orçamento + RT/Margem no Excel
+
+- [x] cartTypes.ts: adicionar campos specialItem* ao CartItemData (isSpecialItem, specialDescription, specialDimensions, specialPower, specialDim, specialVoltage, specialColor, specialUnitPrice, specialPhotoUrl, specialInternalNotes)
+- [x] drizzle/schema.ts: adicionar campo revisionCount (int, default 0) à tabela quotes
+- [x] Migração SQL: ALTER TABLE quotes ADD COLUMN revisionCount INT DEFAULT 0
+- [x] server/routers.ts: ao salvar/editar orçamento, incrementar revisionCount; ao criar novo, revisionCount=0
+- [x] server/routers.ts: procedure para upload de foto de item especial (storagePut)
+- [x] Home.tsx: adicionar aba/seção "Item Especial" no configurador com formulário (Foto, Descrição, Dimensões, Potência, DIM, Tensão, Cor da Peça, Valor unitário, Observação interna)
+- [x] Home.tsx: upload de foto via tRPC mutation → storagePut → URL /manus-storage/...
+- [x] Home.tsx: ao submeter Item Especial, addToCart com category='Item Especial' e todos os campos
+- [x] Cart.tsx: renderizar Item Especial com seus campos específicos (foto thumbnail, descrição, etc.) — já funciona pelo render genérico existente
+- [x] quoteExcelGenerator.ts: renderizar linha de Item Especial com campos diretos (sem regex de description)
+- [x] quoteExcelGenerator.ts: adicionar coluna O (OBSERVAÇÃO INTERNA) fora da área de impressão, mesma linha do item
+- [x] quoteExcelGenerator.ts: adicionar RT e Margem fora da área de impressão (colunas P-Q, linhas do cabeçalho)
+- [x] quoteExcelGenerator.ts: incluir revisão do orçamento (RV0, RV1...) no número do orçamento (ex: "04.0203-26 (RV0)")
+- [x] orderExcelGenerator.ts: renderizar Item Especial na ficha de produção
+- [x] Testes: 495/495 passando

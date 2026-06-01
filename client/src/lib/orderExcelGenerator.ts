@@ -302,7 +302,10 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     fillRow(ws.getCell(`C${rowNum}`), item.itemEmPlanta ?? "");
 
     // PRODUTO (D) — apenas a descrição do produto (orderSummary para perfis, description para outros)
-    const prodDesc = buildProdutoText(item);
+    // Para Item Especial: usa description + dimensões/potência se disponíveis
+    const prodDesc = item.category === "Item Especial"
+      ? [item.description, item.specialDimensions, item.specialPower].filter(Boolean).join(" | ")
+      : buildProdutoText(item);
     const dCell = ws.getCell(`D${rowNum}`);
     dCell.value = prodDesc;
     dCell.font = { size: 10 };
@@ -311,7 +314,10 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     applyBorder(dCell);
 
     // SKU (E) — para perfis: multi-segmento "QTY x SKU - LENGTHmm" por linha
-    const skuText = buildProfileSkuText(item);
+    // Para Item Especial: SKU vazio ou "ITEM ESPECIAL"
+    const skuText = item.category === "Item Especial"
+      ? (item.sku || "ITEM ESPECIAL")
+      : buildProfileSkuText(item);
     const eCell = ws.getCell(`E${rowNum}`);
     eCell.value = skuText;
     eCell.font = { size: 10 };
@@ -320,9 +326,12 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     applyBorder(eCell);
 
     // FONTE DE LUZ (F) — LED BAR: módulo + trechos; perfis: multi-segmento
-    const fonteText = isLedBar(item)
-      ? buildLedBarFonteLuzText(item)
-      : buildProfileFonteLuzText(item);
+    // Para Item Especial: dim + potência + DIM + tensão
+    const fonteText = item.category === "Item Especial"
+      ? [item.specialPower, item.specialDim, item.specialVoltage].filter(Boolean).join(" | ") || "-"
+      : isLedBar(item)
+        ? buildLedBarFonteLuzText(item)
+        : buildProfileFonteLuzText(item);
     const fCell = ws.getCell(`F${rowNum}`);
     fCell.value = fonteText;
     fCell.font = { size: 10 };
@@ -331,9 +340,12 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     applyBorder(fCell);
 
     // EQUIPAMENTOS (G) — LED BAR: QTY x driver; perfis: multi-segmento
-    const equipText = isLedBar(item)
-      ? buildLedBarEquipamentosText(item)
-      : buildProfileEquipamentosText(item);
+    // Para Item Especial: observações internas (não aparecem no orçamento)
+    const equipText = item.category === "Item Especial"
+      ? (item.specialInternalNotes || "")
+      : isLedBar(item)
+        ? buildLedBarEquipamentosText(item)
+        : buildProfileEquipamentosText(item);
     const gCell = ws.getCell(`G${rowNum}`);
     gCell.value = equipText;
     gCell.font = { size: 10 };
@@ -345,7 +357,11 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     fillRow(ws.getCell(`H${rowNum}`), item.qty, true);
 
     // COR DA PEÇA (I) — cor escolhida pelo usuário ou "A Definir"
-    fillRow(ws.getCell(`I${rowNum}`), item.corPeca ?? "A Definir");
+    // Para Item Especial: usa specialColor se disponível, depois corPeca
+    const corPecaValue = item.category === "Item Especial"
+      ? (item.specialColor || item.corPeca || "A Definir")
+      : (item.corPeca ?? "A Definir");
+    fillRow(ws.getCell(`I${rowNum}`), corPecaValue);
 
     // OBSERVAÇÕES (J) — deixar em branco
     fillRow(ws.getCell(`J${rowNum}`), "");
