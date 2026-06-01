@@ -49,6 +49,143 @@ const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.
   cancelled: { label: "Cancelado", color: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400", icon: <XCircle className="w-3 h-3" /> },
 };
 
+// Componente separado para cada item editável com drag-and-drop
+// (useSortable DEVE ser chamado no nível do componente, nunca dentro de .map())
+interface SortableEditItemProps {
+  item: { id: number; itemNumber: number; itemData: string; parsed: CartItemData };
+  idx: number;
+  resolvePhoto: (sku: string | undefined, savedUrl: string | null) => string | null;
+  onUpdate: (id: number, fields: Partial<CartItemData>) => void;
+}
+
+function SortableEditItem({ item, idx, resolvePhoto, onUpdate }: SortableEditItemProps) {
+  const d = item.parsed;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="border rounded-lg p-4 space-y-3">
+      {/* Cabeçalho do item */}
+      <div className="flex items-center gap-3">
+        {/* Handle de drag */}
+        <button
+          {...attributes}
+          {...listeners}
+          className="flex-shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+          title="Arrastar para reordenar"
+        >
+          <GripVertical className="w-5 h-5" />
+        </button>
+        <span className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
+          {idx + 1}
+        </span>
+        {resolvePhoto(d.sku, d.photoUrl) ? (
+          <img src={resolvePhoto(d.sku, d.photoUrl)!} alt={d.description} className="w-12 h-12 object-contain rounded border bg-white flex-shrink-0" />
+        ) : (
+          <div className="w-12 h-12 rounded border bg-muted flex items-center justify-center flex-shrink-0">
+            <Package className="w-5 h-5 text-muted-foreground" />
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-muted-foreground font-mono">{d.sku}</p>
+          <p className="text-sm font-semibold leading-tight">{d.description}</p>
+          <p className="text-xs text-muted-foreground">{d.category}</p>
+        </div>
+      </div>
+
+      {/* Campos editáveis */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Quantidade */}
+        <div>
+          <Label className="text-xs">Quantidade</Label>
+          <Input
+            type="number"
+            min={1}
+            value={d.qty}
+            onChange={e => onUpdate(item.id, { qty: Math.max(1, parseInt(e.target.value) || 1) })}
+            className="mt-1 h-8 text-sm"
+          />
+        </div>
+
+        {/* Item em Planta */}
+        <div>
+          <Label className="text-xs">Item em Planta</Label>
+          <Input
+            value={d.itemEmPlanta ?? ""}
+            onChange={e => onUpdate(item.id, { itemEmPlanta: e.target.value })}
+            placeholder="Ex: L1, EF2"
+            className="mt-1 h-8 text-sm"
+          />
+        </div>
+
+        {/* Temperatura de Cor */}
+        <div>
+          <Label className="text-xs">Temperatura de Cor</Label>
+          <Select
+            value={d.cct || ""}
+            onValueChange={v => onUpdate(item.id, { cct: v })}
+          >
+            <SelectTrigger className="mt-1 h-8 text-sm">
+              <SelectValue placeholder="CCT" />
+            </SelectTrigger>
+            <SelectContent>
+              {["2700K", "3000K", "3500K", "4000K", "5000K", "6500K", "RGB", "Tunável", "A Definir"].map(c => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Cor da Peça */}
+        <div>
+          <Label className="text-xs">Cor da Peça</Label>
+          <Select
+            value={d.corPeca || "A Definir"}
+            onValueChange={v => onUpdate(item.id, { corPeca: v })}
+          >
+            <SelectTrigger className="mt-1 h-8 text-sm">
+              <SelectValue placeholder="Cor" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="A Definir">A Definir</SelectItem>
+              {CORES_PECA.map(c => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Preço unitário (editável) */}
+      <div className="flex items-center gap-4">
+        <div className="flex-1">
+          <Label className="text-xs">Preço Unitário (R$)</Label>
+          <Input
+            type="number"
+            min={0}
+            step={0.01}
+            value={d.unitPrice ?? ""}
+            onChange={e => onUpdate(item.id, { unitPrice: e.target.value ? parseFloat(e.target.value) : null })}
+            placeholder="0,00"
+            className="mt-1 h-8 text-sm"
+          />
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-muted-foreground">Total</p>
+          <p className="font-bold text-primary">
+            {d.totalPrice != null && d.totalPrice > 0 ? formatBRL(d.totalPrice) : "A consultar"}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function QuoteDetail() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
@@ -469,152 +606,30 @@ export default function QuoteDetail() {
               </SheetHeader>
               <div className="flex-1 overflow-y-auto px-6 py-4">
 
-                <DndContext sensors={editItemsSensors} collisionDetection={closestCenter} onDragEnd={handleEditItemsDragEnd}>
+<DndContext sensors={editItemsSensors} collisionDetection={closestCenter} onDragEnd={handleEditItemsDragEnd}>
                   <SortableContext items={editableItems.map(it => it.id)} strategy={verticalListSortingStrategy}>
-                <div className="space-y-4">
-                {editableItems.map((item, idx) => {
-                  const d = item.parsed;
-                  const updateItem = (fields: Partial<CartItemData>) => {
-                    setEditableItems(prev => prev.map((it, i) => {
-                      if (i !== idx) return it;
-                      const newParsed = { ...it.parsed, ...fields };
-                      // Recalcular totalPrice
-                      if (fields.qty !== undefined || fields.unitPrice !== undefined) {
-                        const qty = fields.qty ?? newParsed.qty;
-                        const up = fields.unitPrice ?? newParsed.unitPrice;
-                        newParsed.totalPrice = up != null ? up * qty : null;
-                      }
-                      return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) };
-                    }));
-                  };
-
-                  // eslint-disable-next-line react-hooks/rules-of-hooks
-                  const { attributes: dndAttrs, listeners: dndListeners, setNodeRef: dndRef, transform: dndTransform, transition: dndTransition, isDragging: dndIsDragging } = useSortable({ id: item.id });
-                  const dndStyle = {
-                    transform: CSS.Transform.toString(dndTransform),
-                    transition: dndTransition,
-                    opacity: dndIsDragging ? 0.5 : 1,
-                    zIndex: dndIsDragging ? 50 : undefined,
-                  };
-
-                  return (
-                    <div key={item.id} ref={dndRef} style={dndStyle} className="border rounded-lg p-4 space-y-3">
-                      {/* Cabeçalho do item */}
-                      <div className="flex items-center gap-3">
-                        {/* Handle de drag */}
-                        <button
-                          {...dndAttrs}
-                          {...dndListeners}
-                          className="flex-shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
-                          title="Arrastar para reordenar"
-                        >
-                          <GripVertical className="w-5 h-5" />
-                        </button>
-                        <span className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
-                          {idx + 1}
-                        </span>
-                        {resolvePhoto(d.sku, d.photoUrl) ? (
-                          <img src={resolvePhoto(d.sku, d.photoUrl)!} alt={d.description} className="w-12 h-12 object-contain rounded border bg-white flex-shrink-0" />
-                        ) : (
-                          <div className="w-12 h-12 rounded border bg-muted flex items-center justify-center flex-shrink-0">
-                            <Package className="w-5 h-5 text-muted-foreground" />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground font-mono">{d.sku}</p>
-                          <p className="text-sm font-semibold leading-tight">{d.description}</p>
-                          <p className="text-xs text-muted-foreground">{d.category}</p>
-                        </div>
-                      </div>
-
-                      {/* Campos editáveis */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        {/* Quantidade */}
-                        <div>
-                          <Label className="text-xs">Quantidade</Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            value={d.qty}
-                            onChange={e => updateItem({ qty: Math.max(1, parseInt(e.target.value) || 1) })}
-                            className="mt-1 h-8 text-sm"
-                          />
-                        </div>
-
-                        {/* Item em Planta */}
-                        <div>
-                          <Label className="text-xs">Item em Planta</Label>
-                          <Input
-                            value={d.itemEmPlanta ?? ""}
-                            onChange={e => updateItem({ itemEmPlanta: e.target.value })}
-                            placeholder="Ex: L1, EF2"
-                            className="mt-1 h-8 text-sm"
-                          />
-                        </div>
-
-                        {/* Temperatura de Cor */}
-                        <div>
-                          <Label className="text-xs">Temperatura de Cor</Label>
-                          <Select
-                            value={d.cct || ""}
-                            onValueChange={v => updateItem({ cct: v })}
-                          >
-                            <SelectTrigger className="mt-1 h-8 text-sm">
-                              <SelectValue placeholder="CCT" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {["2700K", "3000K", "3500K", "4000K", "5000K", "6500K", "RGB", "Tunável", "A Definir"].map(c => (
-                                <SelectItem key={c} value={c}>{c}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {/* Cor da Peça */}
-                        <div>
-                          <Label className="text-xs">Cor da Peça</Label>
-                          <Select
-                            value={d.corPeca || "A Definir"}
-                            onValueChange={v => updateItem({ corPeca: v })}
-                          >
-                            <SelectTrigger className="mt-1 h-8 text-sm">
-                              <SelectValue placeholder="Cor" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="A Definir">A Definir</SelectItem>
-                              {CORES_PECA.map(c => (
-                                <SelectItem key={c} value={c}>{c}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      {/* Preço unitário (editável) */}
-                      <div className="flex items-center gap-4">
-                        <div className="flex-1">
-                          <Label className="text-xs">Preço Unitário (R$)</Label>
-                          <Input
-                            type="number"
-                            min={0}
-                            step={0.01}
-                            value={d.unitPrice ?? ""}
-                            onChange={e => updateItem({ unitPrice: e.target.value ? parseFloat(e.target.value) : null })}
-                            placeholder="0,00"
-                            className="mt-1 h-8 text-sm"
-                          />
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-muted-foreground">Total</p>
-                          <p className="font-bold text-primary">
-                            {d.totalPrice != null && d.totalPrice > 0 ? formatBRL(d.totalPrice) : "A consultar"}
-                          </p>
-                        </div>
-                      </div>
+                    <div className="space-y-4">
+                      {editableItems.map((item, idx) => (
+                        <SortableEditItem
+                          key={item.id}
+                          item={item}
+                          idx={idx}
+                          resolvePhoto={resolvePhoto}
+                          onUpdate={(id, fields) => {
+                            setEditableItems(prev => prev.map(it => {
+                              if (it.id !== id) return it;
+                              const newParsed = { ...it.parsed, ...fields };
+                              if (fields.qty !== undefined || fields.unitPrice !== undefined) {
+                                const qty = fields.qty ?? newParsed.qty;
+                                const up = fields.unitPrice ?? newParsed.unitPrice;
+                                newParsed.totalPrice = up != null ? up * qty : null;
+                              }
+                              return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) };
+                            }));
+                          }}
+                        />
+                      ))}
                     </div>
-                  );
-                })}
-                </div>
                   </SortableContext>
                 </DndContext>
 
