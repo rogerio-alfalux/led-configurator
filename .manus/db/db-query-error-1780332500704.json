@@ -1,0 +1,8 @@
+{
+  "query": "\nSELECT qi.id, qi.itemData\nFROM quote_items qi\nJOIN quote_versions qv ON qi.versionId = qv.id\nJOIN quotes q ON qv.quoteId = q.id\nWHERE q.quoteNumber = '33.0056-26'\nLIMIT 3;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute \nSELECT qi.id, qi.itemData\nFROM quote_items qi\nJOIN quote_versions qv ON qi.versionId = qv.id\nJOIN quotes q ON qv.quoteId = q.id\nWHERE q.quoteNumber = '33.0056-26'\nLIMIT 3;\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 2: Unknown column 'qi.versionid' in 'on clause'"
+  ]
+}

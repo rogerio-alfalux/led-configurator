@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import {
   ArrowLeft, CheckCircle, XCircle, Clock, TrendingDown,
@@ -60,6 +60,22 @@ export default function QuoteDetail() {
   const assistantsQuery = trpc.assistants.list.useQuery();
   const editSellers = sellersQuery.data ?? [];
   const editAssistants = assistantsQuery.data ?? [];
+
+  // Catálogo de produtos para resolver fotos atualizadas (URLs CloudFront expiram)
+  const productsQuery = trpc.alfalux.products.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const productPhotoMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of productsQuery.data ?? []) {
+      if (p.sku && p.fotoUrl) map.set(p.sku, p.fotoUrl);
+    }
+    return map;
+  }, [productsQuery.data]);
+
+  /** Retorna a URL de foto mais fresca: catálogo > salva no banco > null */
+  const resolvePhoto = (sku: string | undefined, savedUrl: string | null): string | null => {
+    if (sku && productPhotoMap.has(sku)) return productPhotoMap.get(sku)!;
+    return savedUrl;
+  };
 
   // Delete dialog — triple confirmation
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -438,8 +454,8 @@ export default function QuoteDetail() {
                         <span className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
                           {idx + 1}
                         </span>
-                        {d.photoUrl ? (
-                          <img src={d.photoUrl} alt={d.description} className="w-12 h-12 object-contain rounded border bg-white flex-shrink-0" />
+                        {resolvePhoto(d.sku, d.photoUrl) ? (
+                          <img src={resolvePhoto(d.sku, d.photoUrl)!} alt={d.description} className="w-12 h-12 object-contain rounded border bg-white flex-shrink-0" />
                         ) : (
                           <div className="w-12 h-12 rounded border bg-muted flex items-center justify-center flex-shrink-0">
                             <Package className="w-5 h-5 text-muted-foreground" />
@@ -1018,8 +1034,8 @@ export default function QuoteDetail() {
                     <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
                       {idx + 1}
                     </span>
-                    {d.photoUrl ? (
-                      <img src={d.photoUrl} alt={d.description} className="w-12 h-12 object-contain rounded border bg-white flex-shrink-0" />
+                    {resolvePhoto(d.sku, d.photoUrl) ? (
+                      <img src={resolvePhoto(d.sku, d.photoUrl)!} alt={d.description} className="w-12 h-12 object-contain rounded border bg-white flex-shrink-0" />
                     ) : (
                       <div className="w-12 h-12 rounded border bg-muted flex items-center justify-center flex-shrink-0">
                         <Package className="w-5 h-5 text-muted-foreground" />

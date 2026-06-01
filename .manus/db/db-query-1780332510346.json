@@ -1,0 +1,18 @@
+{
+  "query": "\nSELECT qi.id, LEFT(qi.itemData, 300) as itemData_preview\nFROM quote_items qi\nJOIN quotes q ON qi.quoteId = q.id\nWHERE q.quoteNumber = '33.0056-26'\nLIMIT 2;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute \nSELECT qi.id, LEFT(qi.itemData, 300) as itemData_preview\nFROM quote_items qi\nJOIN quotes q ON qi.quoteId = q.id\nWHERE q.quoteNumber = '33.0056-26'\nLIMIT 2;\n",
+  "rows": [
+    {
+      "id": "330001",
+      "itemData_preview": "{\"category\":\"LED BAR\",\"sku\":\"LED BAR U DA\",\"description\":\"LED BAR U DA 10W/M 3000K ON/OFF 220V 1970MM\",\"power\":\"10W/m\",\"cct\":\"3000K\",\"qty\":54,\"unitPrice\":340.68,\"totalPrice\":18396.72,\"photoUrl\":\"https://d36hbw14aib5lz.cloudfront.net/310419663032619542/c8ZMg2fnQHfcAMKPDCkQRJ/products/photos/177921660"
+    },
+    {
+      "id": "330002",
+      "itemData_preview": "{\"category\":\"LED BAR\",\"sku\":\"LED BAR U DA\",\"description\":\"LED BAR U DA 10W/M 3000K ON/OFF 220V 2649MM\",\"power\":\"10W/m\",\"cct\":\"3000K\",\"qty\":54,\"unitPrice\":422.16,\"totalPrice\":22796.640000000003,\"photoUrl\":\"https://d36hbw14aib5lz.cloudfront.net/310419663032619542/c8ZMg2fnQHfcAMKPDCkQRJ/products/photos"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\titemData_preview\n330001\t{\"category\":\"LED BAR\",\"sku\":\"LED BAR U DA\",\"description\":\"LED BAR U DA 10W/M 3000K ON/OFF 220V 1970MM\",\"power\":\"10W/m\",\"cct\":\"3000K\",\"qty\":54,\"unitPrice\":340.68,\"totalPrice\":18396.72,\"photoUrl\":\"https://d36hbw14aib5lz.cloudfront.net/310419663032619542/c8ZMg2fnQHfcAMKPDCkQRJ/products/photos/177921660\n330002\t{\"category\":\"LED BAR\",\"sku\":\"LED BAR U DA\",\"description\":\"LED BAR U DA 10W/M 3000K ON/OFF 220V 2649MM\",\"power\":\"10W/m\",\"cct\":\"3000K\",\"qty\":54,\"unitPrice\":422.16,\"totalPrice\":22796.640000000003,\"photoUrl\":\"https://d36hbw14aib5lz.cloudfront.net/310419663032619542/c8ZMg2fnQHfcAMKPDCkQRJ/products/photos\n",
+  "stderr": "",
+  "execution_time_ms": 279
+}
