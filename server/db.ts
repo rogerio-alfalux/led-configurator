@@ -136,6 +136,19 @@ export async function updateCartItemQty(id: number, userId: number, qty: number)
   await db.update(cartItems).set({ itemData: JSON.stringify(data) }).where(eq(cartItems.id, id));
 }
 
+/** Atualiza campos arbitrários do itemData de um item do carrinho */
+export async function updateCartItemData(id: number, userId: number, patch: Record<string, unknown>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const rows = await db.select().from(cartItems).where(eq(cartItems.id, id)).limit(1);
+  if (!rows.length) throw new Error("Item not found");
+  const item = rows[0];
+  if (item.userId !== userId) throw new Error("Forbidden");
+  const data = JSON.parse(item.itemData);
+  Object.assign(data, patch);
+  await db.update(cartItems).set({ itemData: JSON.stringify(data) }).where(eq(cartItems.id, id));
+}
+
 // ─── Quote helpers ────────────────────────────────────────────────────────────
 
 /** Gera o próximo número de orçamento no formato XX.NNNN-AA (código vendedor + sequencial anual + ano) */

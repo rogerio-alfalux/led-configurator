@@ -5,7 +5,7 @@ import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { fetchDrivers, invalidateDriverCache } from "./driverService";
 import { fetchAllAlfaluxProducts, invalidateAlfaluxCache } from "./alfaluxApiService";
 import {
-  addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty,
+  addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty, updateCartItemData,
   createQuote, addQuoteRevision, listQuotes, getQuoteById, approveQuote,
   updateQuoteStatus, getQuoteStats, deleteQuote, suggestQuoteNumber,
   insertAuditLog, getAuditLogs, listSellers, listAssistants,
@@ -94,6 +94,16 @@ export const appRouter = router({
       .input(z.object({ id: z.number(), qty: z.number().min(1) }))
       .mutation(async ({ ctx, input }) => {
         await updateCartItemQty(input.id, ctx.user.id, input.qty);
+        return { success: true };
+      }),
+
+    updateItemData: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        patch: z.record(z.string(), z.unknown()),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await updateCartItemData(input.id, ctx.user.id, input.patch);
         return { success: true };
       }),
   }),
@@ -283,6 +293,58 @@ export const appRouter = router({
         });
         await deleteQuote(input.id);
         return { success: true };
+      }),
+
+    /** Adiciona novos itens a um orçamento existente criando uma nova revisão */
+    appendItems: protectedProcedure
+      .input(z.object({
+        quoteId: z.number(),
+        newItems: z.array(z.object({ itemNumber: z.number(), itemData: z.string() })),
+        versionNotes: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const existing = await getQuoteById(input.quoteId);
+        if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
+        const { quote, versions, items } = existing;
+        const currentVersionId = versions[0]?.id;
+        const currentItems = items
+          .filter(i => i.quoteVersionId === currentVersionId)
+          .map((i, idx) => ({ itemNumber: i.itemNumber, itemData: i.itemData }));
+        // Renumerar novos itens após os existentes
+        const offset = currentItems.length;
+        const newItemsNumbered = input.newItems.map((it, idx) => ({
+          itemNumber: offset + idx + 1,
+          itemData: it.itemData,
+        }));
+        const allItems = [...currentItems, ...newItemsNumbered];
+        const totalAmount = allItems.reduce((sum, it) => {
+          try { const d = JSON.parse(it.itemData); return sum + (d.totalPrice ?? 0); } catch { return sum; }
+        }, 0);
+        const result = await addQuoteRevision(input.quoteId, {
+          clientName: quote.clientName,
+          clientContact: quote.clientContact ?? undefined,
+          clientPhone: quote.clientPhone ?? undefined,
+          clientEmail: quote.clientEmail ?? undefined,
+          projectName: quote.projectName ?? undefined,
+          projectRef: quote.projectRef ?? undefined,
+          vendorName: quote.vendorName ?? undefined,
+          assistantName: quote.assistantName ?? undefined,
+          notes: quote.notes ?? undefined,
+          versionNotes: input.versionNotes ?? `+${input.newItems.length} item(s) adicionado(s)`,
+          totalAmount,
+          items: allItems,
+          createdByUserId: ctx.user.id,
+        });
+        await insertAuditLog({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+          userName: ctx.user.name,
+          action: "quote_revised",
+          entityType: "quote",
+          entityId: input.quoteId,
+          details: JSON.stringify({ newVersion: result.version, addedItems: input.newItems.length }),
+        });
+        return { ...result, quoteNumber: quote.quoteNumber };
       }),
 
     suggestNumber: protectedProcedure

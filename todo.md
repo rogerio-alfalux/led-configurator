@@ -888,3 +888,11 @@
 - [x] Corrigir tipos InsertUser, InsertCartItem, InsertQuote, etc. faltantes no schema.ts
 - [x] Corrigir campos boolean (active, rtDest1Active, freteIsento) que estavam como tinyint
 - [x] Corrigir timestamps (lastSignedIn, approvedAt) para usar string ISO no db.ts, oauth.ts, sdk.ts
+
+## v24 — Adicionar itens a orçamentos salvos + autosave "Item no Projeto"
+
+- [ ] Autosave do campo "Item no Projeto" por item do carrinho (persistir em localStorage por itemId, não perder ao navegar)
+- [ ] Permitir editar o "Item no Projeto" depois de salvo no orçamento (inline edit no QuoteDetail)
+- [ ] Botão "Adicionar mais itens" em orçamentos salvos (QuoteDetail) que reabre o configurador com o carrinho vinculado ao orçamento
+- [ ] Ao enviar ao carrinho com orçamento aberto, o novo item é adicionado diretamente ao orçamento existente
+- [ ] Procedure tRPC para adicionar item a orçamento existente (server/routers.ts)

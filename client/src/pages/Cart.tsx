@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import {
   ShoppingCart, Trash2, FileSpreadsheet, ArrowLeft, Package,
   Plus, Minus, Save, ClipboardList, Factory, AlertTriangle,
-  ChevronRight, Tag, Percent, Truck, Users,
+  ChevronRight, Tag, Percent, Truck, Users, PlusCircle, CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,7 +64,17 @@ interface OrderFormData {
 export default function Cart() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
-  const { entries, count, isLoading, removeItem, clearCart, isRemoving } = useCart();
+  const search = useSearch();
+  const appendToQuoteId = new URLSearchParams(search).get("appendToQuote");
+  const appendToQuoteIdNum = appendToQuoteId ? parseInt(appendToQuoteId) : null;
+
+  // Buscar dados do orçamento alvo (se appendToQuote estiver na URL)
+  const appendQuoteQuery = trpc.quotes.getById.useQuery(
+    { id: appendToQuoteIdNum! },
+    { enabled: appendToQuoteIdNum != null }
+  );
+  const appendQuote = appendQuoteQuery.data;
+  const { entries, count, isLoading, removeItem, clearCart, isRemoving, updateItemField } = useCart();
   const utils = trpc.useUtils();
 
   const updateQtyMutation = trpc.cart.updateQty.useMutation({
@@ -84,6 +94,18 @@ export default function Cart() {
   });
   const logProductionSheetMutation = trpc.quotes.logProductionSheet.useMutation();
 
+  // Mutation para adicionar itens a orçamento existente
+  const appendItemsMutation = trpc.quotes.appendItems.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Itens adicionados ao orçamento ${data.quoteNumber} com sucesso!`);
+      clearCart();
+      navigate(`/orcamentos/${appendToQuoteIdNum}`);
+    },
+    onError: (err) => {
+      toast.error(`Erro ao adicionar itens: ${err.message}`);
+    },
+  });
+
   // Sellers & Assistants
   const sellersQuery = trpc.sellers.list.useQuery();
   const assistantsQuery = trpc.assistants.list.useQuery();
@@ -94,7 +116,7 @@ export default function Cart() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 
-  // Item em Planta — mapa de id do item → valor
+  // Item em Planta — mapa local (UI imediata) + autosave via updateItemField
   const [itemEmPlantaMap, setItemEmPlantaMap] = useState<Record<number, string>>({});
 
   // Pedido de Fábrica direto do carrinho
@@ -379,10 +401,10 @@ export default function Cart() {
       {/* Header */}
       <div className="border-b bg-card sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Link href="/">
+          <Link href={appendToQuoteId ? `/?appendToQuote=${appendToQuoteId}` : "/"}>
             <Button variant="ghost" size="sm" className="gap-2">
               <ArrowLeft className="w-4 h-4" />
-              Voltar ao Configurador
+              {appendToQuoteId ? "Voltar ao Configurador" : "Voltar ao Configurador"}
             </Button>
           </Link>
           <div className="flex-1" />
@@ -401,6 +423,29 @@ export default function Cart() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-4">
+        {/* Banner de contexto: adicionando a orçamento existente */}
+        {appendToQuoteId && (
+          <div className="flex items-center gap-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
+            <PlusCircle className="w-5 h-5 text-blue-400 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-blue-300">
+                Adicionando itens ao orçamento{appendQuote ? ` ${appendQuote.quote.quoteNumber} — ${appendQuote.quote.clientName}` : ` #${appendToQuoteId}`}
+              </p>
+              <p className="text-xs text-blue-400/80">
+                Os itens do carrinho serão inseridos como nova revisão do orçamento existente.
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-blue-400 hover:text-blue-300"
+              onClick={() => navigate("/carrinho")}
+            >
+              Cancelar
+            </Button>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="text-center py-16 text-muted-foreground">Carregando itens...</div>
         ) : entries.length === 0 ? (
@@ -489,7 +534,12 @@ export default function Cart() {
                                 type="text"
                                 placeholder="Item em planta (ex: L1)"
                                 value={itemEmPlantaMap[entry.id] ?? entry.data.itemEmPlanta ?? ""}
-                                onChange={(e) => setItemEmPlantaMap(prev => ({ ...prev, [entry.id]: e.target.value }))}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setItemEmPlantaMap(prev => ({ ...prev, [entry.id]: val }));
+                                  // Autosave com debounce de 600ms
+                                  updateItemField(entry.id, { itemEmPlanta: val });
+                                }}
                                 className="text-xs border border-border rounded px-2 py-0.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary w-40"
                               />
                             </div>
@@ -547,6 +597,31 @@ export default function Cart() {
                       <Trash2 className="w-4 h-4" />
                       Limpar
                     </Button>
+
+                    {/* Adicionar ao orçamento existente (modo append) */}
+                    {appendToQuoteId && (
+                      <Button
+                        className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                        disabled={appendItemsMutation.isPending || entries.length === 0}
+                        onClick={() => {
+                          const newItems = entries.map((e) => ({
+                            itemNumber: e.id,
+                            itemData: JSON.stringify({
+                              ...e.data,
+                              itemEmPlanta: itemEmPlantaMap[e.id] ?? e.data.itemEmPlanta ?? "",
+                            }),
+                          }));
+                          appendItemsMutation.mutate({
+                            quoteId: appendToQuoteIdNum!,
+                            newItems,
+                            versionNotes: `+${entries.length} item(s) adicionado(s) via carrinho`,
+                          });
+                        }}
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        {appendItemsMutation.isPending ? "Adicionando..." : `Adicionar ${entries.length} item(s) ao Orçamento`}
+                      </Button>
+                    )}
 
                     {/* Salvar Orçamento no banco */}
                     <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>

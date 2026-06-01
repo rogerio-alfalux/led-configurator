@@ -4,7 +4,7 @@ import {
   ArrowLeft, CheckCircle, XCircle, Clock, TrendingDown,
   FileSpreadsheet, History, Package, Edit, AlertTriangle,
   ChevronDown, ChevronUp, Factory, Trash2, PenLine,
-  Users, Percent, Truck, Pencil, ShoppingBag,
+  Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -363,6 +363,16 @@ export default function QuoteDetail() {
               </Dialog>
             </>
           )}
+
+          {/* Adicionar mais itens ao orçamento */}
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => navigate(`/?appendToQuote=${quote.id}`)}
+          >
+            <PlusCircle className="w-4 h-4" />
+            Adicionar Itens
+          </Button>
 
           {/* Editar Itens do Orçamento */}
           <Sheet open={editItemsDialogOpen} onOpenChange={(open) => {
