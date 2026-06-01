@@ -1,0 +1,65 @@
+{
+  "query": "SELECT id, name, email FROM sellers ORDER BY name; SELECT id, name, email, role FROM users ORDER BY name;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT id, name, email FROM sellers ORDER BY name; SELECT id, name, email, role FROM users ORDER BY name;",
+  "rows": [
+    {
+      "id": "2",
+      "name": "DANIEL PUGLIESE",
+      "email": "daniel@grupoalfalux.com.br"
+    },
+    {
+      "id": "4",
+      "name": "DENNIS PUGLIESI",
+      "email": "dennis@grupoalfalux.com.br"
+    },
+    {
+      "id": "10",
+      "name": "EDVALDO LIMA",
+      "email": "edvaldo@grupoalfalux.com.br"
+    },
+    {
+      "id": "5",
+      "name": "FABÍOLA MARTINEZ",
+      "email": "fabiola@grupoalfalux.com.br"
+    },
+    {
+      "id": "8",
+      "name": "GUSTAVO GATTI",
+      "email": "gustavo@grupoalfalux.com.br"
+    },
+    {
+      "id": "7",
+      "name": "IZABEL SIMON",
+      "email": "vendas.alfalux@outlook.com"
+    },
+    {
+      "id": "6",
+      "name": "JULIANO BUSTAMANTE",
+      "email": "juliano.bustamante@grupoalfalux.com.br"
+    },
+    {
+      "id": "3",
+      "name": "MAURÍCIO SARTORI",
+      "email": "mauricio.sartori@grupoalfalux.com.br"
+    },
+    {
+      "id": "9",
+      "name": "RICARDO MIRANDA",
+      "email": "miranda@grupoalfalux.com.br"
+    },
+    {
+      "id": "1",
+      "name": "VIVIAN FRANCESCHINELLI",
+      "email": "vivian@grupoalfalux.com.br"
+    }
+  ],
+  "messages": [
+    "id\tname\temail\trole",
+    "1\tCosmos Band\trogeriojohnwayne@gmail.com\tadmin",
+    "9660001\tbeatriz\tbeatriz@grupoalfalux.com.br\tuser",
+    "9600001\tvivian\tvivian@grupoalfalux.com.br\tuser"
+  ],
+  "stdout": "id\tname\temail\n2\tDANIEL PUGLIESE\tdaniel@grupoalfalux.com.br\n4\tDENNIS PUGLIESI\tdennis@grupoalfalux.com.br\n10\tEDVALDO LIMA\tedvaldo@grupoalfalux.com.br\n5\tFABÍOLA MARTINEZ\tfabiola@grupoalfalux.com.br\n8\tGUSTAVO GATTI\tgustavo@grupoalfalux.com.br\n7\tIZABEL SIMON\tvendas.alfalux@outlook.com\n6\tJULIANO BUSTAMANTE\tjuliano.bustamante@grupoalfalux.com.br\n3\tMAURÍCIO SARTORI\tmauricio.sartori@grupoalfalux.com.br\n9\tRICARDO MIRANDA\tmiranda@grupoalfalux.com.br\n1\tVIVIAN FRANCESCHINELLI\tvivian@grupoalfalux.com.br\nid\tname\temail\trole\n1\tCosmos Band\trogeriojohnwayne@gmail.com\tadmin\n9660001\tbeatriz\tbeatriz@grupoalfalux.com.br\tuser\n9600001\tvivian\tvivian@grupoalfalux.com.br\tuser\n",
+  "stderr": "",
+  "execution_time_ms": 2157
+}

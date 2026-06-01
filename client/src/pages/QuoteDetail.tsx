@@ -348,7 +348,7 @@ export default function QuoteDetail() {
     );
   }
 
-  const { quote, versions, items } = data;
+  const { quote, versions, items, canEdit } = data;
   const st = STATUS_LABELS[quote.status] ?? STATUS_LABELS.open;
 
   // Itens da versão mais recente
@@ -578,6 +578,7 @@ export default function QuoteDetail() {
           )}
 
           {/* Adicionar mais itens ao orçamento */}
+          {canEdit && (
           <Button
             variant="outline"
             className="gap-2"
@@ -586,9 +587,10 @@ export default function QuoteDetail() {
             <PlusCircle className="w-4 h-4" />
             Adicionar Itens
           </Button>
+          )}
 
           {/* Editar Itens do Orçamento */}
-          <Sheet open={editItemsDialogOpen} onOpenChange={(open) => {
+          {canEdit && <Sheet open={editItemsDialogOpen} onOpenChange={(open) => {
             setEditItemsDialogOpen(open);
             if (open) {
               setEditableItems(currentItems.map(item => {
@@ -719,10 +721,10 @@ export default function QuoteDetail() {
                 </div>
               </div>
             </SheetContent>
-          </Sheet>
+          </Sheet>}
 
           {/* Alterar Status */}
-          <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
+          {canEdit && <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2">
                 <Edit className="w-4 h-4" />
@@ -768,10 +770,10 @@ export default function QuoteDetail() {
                 </Button>
               </div>
             </DialogContent>
-          </Dialog>
+          </Dialog>}
 
           {/* Editar Orçamento (nova revisão) — todas as abas */}
-          <Dialog open={editDialogOpen} onOpenChange={(open) => {
+          {canEdit && <Dialog open={editDialogOpen} onOpenChange={(open) => {
             setEditDialogOpen(open);
             if (open) {
               setEditForm({
@@ -1022,10 +1024,10 @@ export default function QuoteDetail() {
                 </Button>
               </div>
             </DialogContent>
-          </Dialog>
+          </Dialog>}
 
           {/* Excluir Orçamento — tripla confirmação */}
-          <Dialog open={deleteDialogOpen} onOpenChange={(open) => {
+          {canEdit && <Dialog open={deleteDialogOpen} onOpenChange={(open) => {
             setDeleteDialogOpen(open);
             if (!open) { setDeleteStep(0); setDeleteConfirmText(""); }
           }}>
@@ -1107,7 +1109,7 @@ export default function QuoteDetail() {
                 </div>
               )}
             </DialogContent>
-          </Dialog>
+          </Dialog>}
         </div>
 
         {/* Itens da versão atual */}

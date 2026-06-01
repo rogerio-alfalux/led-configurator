@@ -13,6 +13,56 @@ import {
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { storagePut } from "./storage";
+import { getDb } from "./db";
+import { sellers, assistants } from "../drizzle/schema";
+import { eq } from "drizzle-orm";
+
+// ─── Controle de acesso a orçamentos ─────────────────────────────────────────
+/** Emails dos gestores com acesso irrestrito a todos os orçamentos */
+const MANAGER_EMAILS = [
+  "daniel@grupoalfalux.com.br",   // DANIEL PUGLIESE
+  "dennis@grupoalfalux.com.br",   // DENNIS PUGLIESI
+  "vivian@grupoalfalux.com.br",   // VIVIAN FRANCESCHINELLI
+];
+
+/**
+ * Verifica se o usuário logado pode editar/excluir um orçamento.
+ * Gestores (MANAGER_EMAILS) têm acesso irrestrito.
+ * Demais usuários só podem editar orçamentos onde seu email está vinculado
+ * como seller1, seller2 ou assistente.
+ */
+async function canEditQuote(
+  userEmail: string | null | undefined,
+  quote: { seller1Id?: number | null; seller2Id?: number | null; assistantId?: number | null; createdByUserId?: number | null }
+): Promise<boolean> {
+  if (!userEmail) return false;
+  const email = userEmail.toLowerCase().trim();
+
+  // Gestores têm acesso total
+  if (MANAGER_EMAILS.map(e => e.toLowerCase()).includes(email)) return true;
+
+  const db = await getDb();
+  if (!db) return false;
+
+  // Verificar se o email corresponde a algum seller vinculado ao orçamento
+  if (quote.seller1Id) {
+    const s1 = await db.select({ email: sellers.email }).from(sellers).where(eq(sellers.id, quote.seller1Id)).limit(1);
+    if (s1[0]?.email?.toLowerCase() === email) return true;
+  }
+  // Checar seller2
+  if (quote.seller2Id) {
+    const s2 = await db.select({ email: sellers.email }).from(sellers).where(eq(sellers.id, quote.seller2Id)).limit(1);
+    if (s2[0]?.email?.toLowerCase() === email) return true;
+  }
+
+  // Verificar se o email corresponde ao assistente vinculado
+  if (quote.assistantId) {
+    const a = await db.select({ email: assistants.email }).from(assistants).where(eq(assistants.id, quote.assistantId)).limit(1);
+    if (a[0]?.email?.toLowerCase() === email) return true;
+  }
+
+  return false;
+}
 
 // ─── Admin-only procedure ─────────────────────────────────────────────────────
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -234,6 +284,11 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const { quoteId, ...rest } = input;
+        // Verificar permissão de edição
+        const existingForRevision = await getQuoteById(quoteId);
+        if (!existingForRevision) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
+        const hasPermission = await canEditQuote(ctx.user.email, existingForRevision.quote);
+        if (!hasPermission) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para editar este orçamento." });
         // Garantir que 0 seja passado explicitamente (não undefined) para limpar RT/Margem
         const result = await addQuoteRevision(quoteId, {
           ...rest,
@@ -273,10 +328,11 @@ export const appRouter = router({
 
     getById: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
         const result = await getQuoteById(input.id);
         if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
-        return result;
+        const canEdit = await canEditQuote(ctx.user.email, result.quote);
+        return { ...result, canEdit };
       }),
 
     approve: protectedProcedure
@@ -302,6 +358,10 @@ export const appRouter = router({
         quoteNumber: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
+        const qForStatus = await getQuoteById(input.id);
+        if (!qForStatus) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
+        const canEditStatus = await canEditQuote(ctx.user.email, qForStatus.quote);
+        if (!canEditStatus) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para alterar o status deste orçamento." });
         await updateQuoteStatus(input.id, input.status);
         await insertAuditLog({
           userId: ctx.user.id,
@@ -325,6 +385,10 @@ export const appRouter = router({
     delete: protectedProcedure
       .input(z.object({ id: z.number(), quoteNumber: z.string().optional() }))
       .mutation(async ({ ctx, input }) => {
+        const qForDelete = await getQuoteById(input.id);
+        if (!qForDelete) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
+        const canDelete = await canEditQuote(ctx.user.email, qForDelete.quote);
+        if (!canDelete) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para excluir este orçamento." });
         await insertAuditLog({
           userId: ctx.user.id,
           userEmail: ctx.user.email,
