@@ -1,0 +1,34 @@
+{
+  "query": "SELECT id, quoteNumber, rtDest1, rtDest1Active, rtDest2, rtDest3 FROM quotes ORDER BY id DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT id, quoteNumber, rtDest1, rtDest1Active, rtDest2, rtDest3 FROM quotes ORDER BY id DESC LIMIT 5;",
+  "rows": [
+    {
+      "id": "450001",
+      "quoteNumber": "33.0057-26",
+      "rtDest1": "NULL",
+      "rtDest1Active": "1",
+      "rtDest2": "NULL",
+      "rtDest3": "NULL"
+    },
+    {
+      "id": "330001",
+      "quoteNumber": "04.0205-26",
+      "rtDest1": "NULL",
+      "rtDest1Active": "1",
+      "rtDest2": "NULL",
+      "rtDest3": "NULL"
+    },
+    {
+      "id": "270001",
+      "quoteNumber": "33.0056-26",
+      "rtDest1": "NULL",
+      "rtDest1Active": "1",
+      "rtDest2": "NULL",
+      "rtDest3": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tquoteNumber\trtDest1\trtDest1Active\trtDest2\trtDest3\n450001\t33.0057-26\tNULL\t1\tNULL\tNULL\n330001\t04.0205-26\tNULL\t1\tNULL\tNULL\n270001\t33.0056-26\tNULL\t1\tNULL\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 268
+}
