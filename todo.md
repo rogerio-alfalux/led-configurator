@@ -914,3 +914,14 @@
 - [x] quoteExcelGenerator.ts: incluir revisão do orçamento (RV0, RV1...) no número do orçamento (ex: "04.0203-26 (RV0)")
 - [x] orderExcelGenerator.ts: renderizar Item Especial na ficha de produção
 - [x] Testes: 495/495 passando
+
+## v26 — Melhorias Carrinho + Excel + REVENDA
+
+- [x] quoteExcelGenerator.ts: usar totalFinal (com RT+Margem) como valor total do orçamento no Excel
+- [x] Cart.tsx: instalar @dnd-kit/core e @dnd-kit/sortable para drag-and-drop
+- [x] Cart.tsx: implementar drag-and-drop para reordenar itens no carrinho
+- [x] Cart.tsx: implementar edição inline de CCT, potência e cor da peça por item
+- [x] Home.tsx: adicionar categoria REVENDA com formulário simplificado (dados da API)
+- [x] cartTypes.ts: campo isRevenda não necessário (category='Revenda' é suficiente)
+- [x] quoteExcelGenerator.ts: renderizar itens REVENDA corretamente (usa render genérico existente)
+- [x] orderExcelGenerator.ts: renderizar itens REVENDA na ficha de produção (usa render genérico existente)

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon } from "lucide-react";
+import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag } from "lucide-react";
 import { Link } from "wouter";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -122,7 +122,8 @@ type ProductCategory =
   | "Área Externa"
   | "Balizadores"
   | "Decorativas"
-  | "Item Especial";
+  | "Item Especial"
+  | "Revenda";
 
 const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.ElementType; image?: string; available: boolean }[] = [
   { value: "Perfis",       label: "Perfis",        icon: Layers,      image: "/manus-storage/PERFIS_e65318d1.png",      available: true  },
@@ -134,6 +135,7 @@ const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.E
   { value: "Balizadores",  label: "Balizadores",   icon: Navigation,  image: "/manus-storage/BALIZADORES_482d54f1.png", available: false },
   { value: "Decorativas",  label: "Decorativas",   icon: Sparkles,    image: "/manus-storage/DECORATIVAS_4ee44c0e.png", available: false },
   { value: "Item Especial", label: "Item Especial",  icon: PackagePlus, available: true  },
+  { value: "Revenda",       label: "Revenda",        icon: ShoppingBag, available: true  },
 ];
 
 // ─── Auxiliar: quantidade de drivers por produto/controle/tensão ─────────────
@@ -1145,6 +1147,57 @@ export default function Home() {
   const [spPhotoUrl, setSpPhotoUrl] = useState<string>("");
   const [spPhotoPreview, setSpPhotoPreview] = useState<string>("");
   const [spIsUploading, setSpIsUploading] = useState(false);
+
+  // ── Estados de Revenda ──────────────────────────────────────────────────────
+  const [rvSelectedSku, setRvSelectedSku] = useState<string>("");
+  const [rvQty, setRvQty] = useState<string>("1");
+  const [rvUnitPrice, setRvUnitPrice] = useState<string>("");
+  const [rvSearch, setRvSearch] = useState<string>("");
+
+  const revendaProductsQuery = trpc.alfalux.revendaProducts.useQuery();
+  const revendaProducts = revendaProductsQuery.data ?? [];
+
+  const filteredRevendaProducts = useMemo(() => {
+    if (!rvSearch.trim()) return revendaProducts;
+    const q = rvSearch.toLowerCase();
+    return revendaProducts.filter(p =>
+      p.sku.toLowerCase().includes(q) ||
+      p.name.toLowerCase().includes(q) ||
+      (p.familia ?? "").toLowerCase().includes(q)
+    );
+  }, [revendaProducts, rvSearch]);
+
+  const selectedRevendaProduct = useMemo(() =>
+    revendaProducts.find(p => p.sku === rvSelectedSku) ?? null,
+    [revendaProducts, rvSelectedSku]
+  );
+
+  const handleAddRevendaItem = useCallback(() => {
+    if (!rvSelectedSku || !rvUnitPrice) {
+      toast.error("Selecione um produto e informe o preço unitário.");
+      return;
+    }
+    const product = revendaProducts.find(p => p.sku === rvSelectedSku);
+    if (!product) return;
+    const qty = parseInt(rvQty) || 1;
+    const unitPrice = parseFloat(rvUnitPrice.replace(",", ".")) || 0;
+    const item: CartItemData = {
+      category: "Revenda",
+      sku: product.sku,
+      description: product.name,
+      photoUrl: product.fotoUrl ?? "",
+      qty,
+      unitPrice,
+      totalPrice: qty * unitPrice,
+      power: "",
+      cct: product.temperaturasCor?.[0] ?? "",
+      orderSummary: `${product.name} (${product.sku})`,
+      quoteSummary: `${product.name} (${product.sku})`,
+      corPeca: "",
+    };
+    setPendingCartItem(item);
+    setColorModalOpen(true);
+  }, [rvSelectedSku, rvQty, rvUnitPrice, revendaProducts, setPendingCartItem, setColorModalOpen]);
 
   const uploadSpecialPhotoMutation = trpc.upload.specialItemPhoto.useMutation({
     onSuccess: (data) => {
@@ -3588,6 +3641,92 @@ export default function Home() {
                   size="lg"
                 >
                   <PackagePlus className="w-5 h-5 mr-2" />
+                  Adicionar ao Carrinho
+                </Button>
+              </div>
+            )}
+
+            {/* ── Formulário de Revenda ─────────────────────────────────── */}
+            {productCategory === "Revenda" && (
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Buscar produto</label>
+                  <Input
+                    placeholder="Pesquisar por nome, SKU ou família..."
+                    value={rvSearch}
+                    onChange={e => setRvSearch(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Produto <span className="text-destructive">*</span></label>
+                  {revendaProductsQuery.isLoading ? (
+                    <div className="text-sm text-muted-foreground py-2">Carregando produtos...</div>
+                  ) : revendaProducts.length === 0 ? (
+                    <div className="text-sm text-muted-foreground py-2 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-500" />
+                      Nenhum produto de revenda disponível na API no momento.
+                    </div>
+                  ) : (
+                    <div className="max-h-60 overflow-y-auto border rounded-md divide-y">
+                      {filteredRevendaProducts.length === 0 ? (
+                        <div className="text-sm text-muted-foreground p-3">Nenhum produto encontrado.</div>
+                      ) : filteredRevendaProducts.map(p => (
+                        <button
+                          key={p.sku}
+                          type="button"
+                          onClick={() => { setRvSelectedSku(p.sku); setRvSearch(""); }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors ${
+                            rvSelectedSku === p.sku ? "bg-primary/10 font-semibold" : ""
+                          }`}
+                        >
+                          <div className="font-medium">{p.name}</div>
+                          <div className="text-xs text-muted-foreground">{p.sku} {p.familia ? `· ${p.familia}` : ""}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {selectedRevendaProduct && (
+                  <div className="p-3 rounded-lg bg-muted/50 border text-sm space-y-1">
+                    <div className="font-semibold">{selectedRevendaProduct.name}</div>
+                    <div className="text-muted-foreground">SKU: {selectedRevendaProduct.sku}</div>
+                    {selectedRevendaProduct.familia && <div className="text-muted-foreground">Família: {selectedRevendaProduct.familia}</div>}
+                    {selectedRevendaProduct.temperaturasCor?.length > 0 && (
+                      <div className="text-muted-foreground">CCT: {selectedRevendaProduct.temperaturasCor.join(", ")}</div>
+                    )}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Quantidade <span className="text-destructive">*</span></label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={rvQty}
+                      onChange={e => setRvQty(e.target.value)}
+                      placeholder="1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Preço unitário (R$) <span className="text-destructive">*</span></label>
+                    <Input
+                      value={rvUnitPrice}
+                      onChange={e => setRvUnitPrice(e.target.value)}
+                      placeholder="0,00"
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleAddRevendaItem}
+                  disabled={!rvSelectedSku || !rvUnitPrice}
+                  className="w-full h-12 text-base font-semibold font-display bg-emerald-600 hover:bg-emerald-700 text-white"
+                  size="lg"
+                >
+                  <ShoppingBag className="w-5 h-5 mr-2" />
                   Adicionar ao Carrinho
                 </Button>
               </div>

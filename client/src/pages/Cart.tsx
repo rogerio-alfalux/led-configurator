@@ -1,9 +1,27 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link, useLocation, useSearch } from "wouter";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   ShoppingCart, Trash2, FileSpreadsheet, ArrowLeft, Package,
   Plus, Minus, Save, ClipboardList, Factory, AlertTriangle,
   ChevronRight, Tag, Percent, Truck, Users, PlusCircle, CheckCircle2,
+  GripVertical, Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,6 +77,144 @@ interface OrderFormData {
   vendorName: string;
   quoteRef: string;
   empresa: "ALFALUX" | "LUMINEW";
+}
+
+// ── Componente sortable de item do carrinho ─────────────────────────────────
+interface SortableCartItemProps {
+  entry: { id: number; data: CartItemData; createdAt: string };
+  idx: number;
+  itemEmPlantaMap: Record<number, string>;
+  setItemEmPlantaMap: React.Dispatch<React.SetStateAction<Record<number, string>>>;
+  updateItemField: (id: number, patch: Record<string, unknown>, debounceMs?: number) => void;
+  handleUpdateQty: (id: number, currentQty: number, delta: number) => void;
+  handleQtyInput: (id: number, value: string) => void;
+  removeItem: (id: number) => void;
+  updateQtyMutation: { isPending: boolean };
+  isRemoving: boolean;
+  onEditClick: (id: number, data: CartItemData) => void;
+}
+
+function SortableCartItem({
+  entry, idx, itemEmPlantaMap, setItemEmPlantaMap, updateItemField,
+  handleUpdateQty, handleQtyInput, removeItem, updateQtyMutation, isRemoving, onEditClick,
+}: SortableCartItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: entry.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Card className="overflow-hidden">
+        <CardContent className="p-0">
+          <div className="flex items-start gap-3 p-4">
+            {/* Handle de drag */}
+            <button
+              {...attributes}
+              {...listeners}
+              className="flex-shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground mt-1 touch-none"
+              title="Arrastar para reordenar"
+            >
+              <GripVertical className="w-5 h-5" />
+            </button>
+
+            {/* Número do item */}
+            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">
+              {idx + 1}
+            </div>
+
+            {/* Foto */}
+            {entry.data.photoUrl ? (
+              <img
+                src={entry.data.photoUrl}
+                alt={entry.data.description}
+                className="w-16 h-16 object-contain rounded border bg-white flex-shrink-0"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded border bg-muted flex items-center justify-center flex-shrink-0">
+                <Package className="w-6 h-6 text-muted-foreground" />
+              </div>
+            )}
+
+            {/* Dados */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground font-mono">{entry.data.sku}</p>
+                  <p className="font-semibold text-sm leading-tight">{entry.data.description}</p>
+                  <div className="flex gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
+                    {entry.data.power && <span>⚡ {entry.data.power}</span>}
+                    {entry.data.cct && <span>🌡 {entry.data.cct}</span>}
+                    {entry.data.corPeca && <span>🎨 {entry.data.corPeca}</span>}
+                    <span className="text-muted-foreground/60">{entry.data.category}</span>
+                  </div>
+                  {/* Controle de quantidade */}
+                  <div className="flex items-center gap-2 mt-2">
+                    <Button variant="outline" size="icon" className="h-6 w-6"
+                      onClick={() => handleUpdateQty(entry.id, entry.data.qty, -1)}
+                      disabled={updateQtyMutation.isPending || entry.data.qty <= 1}>
+                      <Minus className="w-3 h-3" />
+                    </Button>
+                    <input type="number" min={1} value={entry.data.qty}
+                      onChange={(e) => handleQtyInput(entry.id, e.target.value)}
+                      onBlur={(e) => handleQtyInput(entry.id, e.target.value)}
+                      className="text-sm font-semibold w-14 text-center border border-border rounded px-1 py-0.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                      disabled={updateQtyMutation.isPending}
+                    />
+                    <Button variant="outline" size="icon" className="h-6 w-6"
+                      onClick={() => handleUpdateQty(entry.id, entry.data.qty, 1)}
+                      disabled={updateQtyMutation.isPending}>
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                    <span className="text-xs text-muted-foreground">un</span>
+                  </div>
+                  {/* Item em Planta */}
+                  <div className="flex items-center gap-2 mt-2">
+                    <Tag className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                    <input type="text" placeholder="Item em planta (ex: L1)"
+                      value={itemEmPlantaMap[entry.id] ?? entry.data.itemEmPlanta ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setItemEmPlantaMap(prev => ({ ...prev, [entry.id]: val }));
+                        updateItemField(entry.id, { itemEmPlanta: val });
+                      }}
+                      className="text-xs border border-border rounded px-2 py-0.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary w-40"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                  {entry.data.unitPrice != null && entry.data.unitPrice > 0 && (
+                    <p className="text-xs text-muted-foreground">{formatBRL(entry.data.unitPrice)} / un</p>
+                  )}
+                  {entry.data.totalPrice != null && entry.data.totalPrice > 0 ? (
+                    <p className="font-bold text-primary text-base">{formatBRL(entry.data.totalPrice)}</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">Preço a consultar</p>
+                  )}
+                  {/* Botão editar */}
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                    title="Editar CCT, potência e cor"
+                    onClick={() => onEditClick(entry.id, entry.data)}>
+                    <Pencil className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Remover */}
+            <Button variant="ghost" size="icon"
+              className="flex-shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => removeItem(entry.id)}
+              disabled={isRemoving}>
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 export default function Cart() {
@@ -118,6 +274,47 @@ export default function Cart() {
 
   // Item em Planta — mapa local (UI imediata) + autosave via updateItemField
   const [itemEmPlantaMap, setItemEmPlantaMap] = useState<Record<number, string>>({});
+
+  // Drag-and-drop: ordenação local dos IDs
+  const [orderedIds, setOrderedIds] = useState<number[]>([]);
+  // Sincronizar orderedIds quando entries mudam (ex: item removido ou adicionado)
+  useEffect(() => {
+    setOrderedIds(prev => {
+      const currentIds = entries.map(e => e.id);
+      // Manter a ordem existente, adicionando novos ao final e removendo os que saíram
+      const kept = prev.filter(id => currentIds.includes(id));
+      const added = currentIds.filter(id => !kept.includes(id));
+      return [...kept, ...added];
+    });
+  }, [entries.map(e => e.id).join(',')]);
+
+  // Entries reordenadas conforme orderedIds
+  const orderedEntries = useMemo(() => {
+    if (orderedIds.length === 0) return entries;
+    const map = new Map(entries.map(e => [e.id, e]));
+    return orderedIds.map(id => map.get(id)).filter((e): e is typeof entries[0] => e !== null && e !== undefined);
+  }, [entries, orderedIds]);
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setOrderedIds(prev => {
+        const oldIndex = prev.indexOf(Number(active.id));
+        const newIndex = prev.indexOf(Number(over.id));
+        return arrayMove(prev, oldIndex, newIndex);
+      });
+    }
+  };
+
+  // Edição inline de campos do item
+  const [editItemId, setEditItemId] = useState<number | null>(null);
+  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string }>({ cct: '', power: '', corPeca: '' });
 
   // Pedido de Fábrica direto do carrinho
   const [orderConfirmOpen, setOrderConfirmOpen] = useState(false);
@@ -269,8 +466,8 @@ export default function Cart() {
         // revisionCount: 0 para orçamentos gerados diretamente do carrinho (sem revisões)
         revisionCount: 0,
       };
-      // Injetar itemEmPlanta em cada item
-      const itemsWithPlanta = entries.map((e, idx) => ({
+      // Injetar itemEmPlanta em cada item (respeitando a ordem do DnD)
+      const itemsWithPlanta = orderedEntries.map((e, idx) => ({
         ...e.data,
         itemEmPlanta: itemEmPlantaMap[e.id] ?? e.data.itemEmPlanta ?? "",
       }));
@@ -332,7 +529,7 @@ export default function Cart() {
       versionNotes: saveForm.versionNotes || undefined,
       totalAmount: totalGeral,
       totalFinal: totalFinal + freteValor,
-      items: entries.map((e, idx) => ({
+      items: orderedEntries.map((e, idx) => ({
         itemNumber: idx + 1,
         itemData: JSON.stringify({
           ...e.data,
@@ -350,7 +547,7 @@ export default function Cart() {
     setIsGenerating(true);
     setOrderFormOpen(false);
     try {
-      const items = entries
+      const items = orderedEntries
         .map(e => parseCartItemData(JSON.stringify({
           ...e.data,
           itemEmPlanta: itemEmPlantaMap[e.id] || e.data.itemEmPlanta || "",
@@ -468,121 +665,36 @@ export default function Cart() {
           </Card>
         ) : (
           <>
-            {/* Lista de itens */}
-            <div className="space-y-3">
-              {entries.map((entry, idx) => (
-                <Card key={entry.id} className="overflow-hidden">
-                  <CardContent className="p-0">
-                    <div className="flex items-start gap-4 p-4">
-                      {/* Número do item */}
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">
-                        {idx + 1}
-                      </div>
-
-                      {/* Foto */}
-                      {entry.data.photoUrl ? (
-                        <img
-                          src={entry.data.photoUrl}
-                          alt={entry.data.description}
-                          className="w-16 h-16 object-contain rounded border bg-white flex-shrink-0"
-                        />
-                      ) : (
-                        <div className="w-16 h-16 rounded border bg-muted flex items-center justify-center flex-shrink-0">
-                          <Package className="w-6 h-6 text-muted-foreground" />
-                        </div>
-                      )}
-
-                      {/* Dados */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs text-muted-foreground font-mono">{entry.data.sku}</p>
-                            <p className="font-semibold text-sm leading-tight">{entry.data.description}</p>
-                            <div className="flex gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
-                              {entry.data.power && <span>⚡ {entry.data.power}</span>}
-                              {entry.data.cct && <span>🌡 {entry.data.cct}</span>}
-                              <span className="text-muted-foreground/60">{entry.data.category}</span>
-                            </div>
-                            {/* Controle de quantidade */}
-                            <div className="flex items-center gap-2 mt-2">
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => handleUpdateQty(entry.id, entry.data.qty, -1)}
-                                disabled={updateQtyMutation.isPending || entry.data.qty <= 1}
-                              >
-                                <Minus className="w-3 h-3" />
-                              </Button>
-                              <input
-                                type="number"
-                                min={1}
-                                value={entry.data.qty}
-                                onChange={(e) => handleQtyInput(entry.id, e.target.value)}
-                                onBlur={(e) => handleQtyInput(entry.id, e.target.value)}
-                                className="text-sm font-semibold w-14 text-center border border-border rounded px-1 py-0.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-                                disabled={updateQtyMutation.isPending}
-                              />
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => handleUpdateQty(entry.id, entry.data.qty, 1)}
-                                disabled={updateQtyMutation.isPending}
-                              >
-                                <Plus className="w-3 h-3" />
-                              </Button>
-                              <span className="text-xs text-muted-foreground">un</span>
-                            </div>
-                            {/* Item em Planta */}
-                            <div className="flex items-center gap-2 mt-2">
-                              <Tag className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                              <input
-                                type="text"
-                                placeholder="Item em planta (ex: L1)"
-                                value={itemEmPlantaMap[entry.id] ?? entry.data.itemEmPlanta ?? ""}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setItemEmPlantaMap(prev => ({ ...prev, [entry.id]: val }));
-                                  // Autosave com debounce de 600ms
-                                  updateItemField(entry.id, { itemEmPlanta: val });
-                                }}
-                                className="text-xs border border-border rounded px-2 py-0.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary w-40"
-                              />
-                            </div>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            {entry.data.unitPrice != null && entry.data.unitPrice > 0 && (
-                              <p className="text-xs text-muted-foreground">
-                                {formatBRL(entry.data.unitPrice)} / un
-                              </p>
-                            )}
-                            {entry.data.totalPrice != null && entry.data.totalPrice > 0 ? (
-                              <p className="font-bold text-primary text-base">
-                                {formatBRL(entry.data.totalPrice)}
-                              </p>
-                            ) : (
-                              <p className="text-xs text-muted-foreground italic">Preço a consultar</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Remover */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="flex-shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => removeItem(entry.id)}
-                        disabled={isRemoving}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            {/* Lista de itens com Drag-and-Drop */}
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={orderedIds} strategy={verticalListSortingStrategy}>
+                <div className="space-y-3">
+                  {orderedEntries.map((entry, idx) => (
+                    <SortableCartItem
+                      key={entry.id}
+                      entry={entry}
+                      idx={idx}
+                      itemEmPlantaMap={itemEmPlantaMap}
+                      setItemEmPlantaMap={setItemEmPlantaMap}
+                      updateItemField={updateItemField}
+                      handleUpdateQty={handleUpdateQty}
+                      handleQtyInput={handleQtyInput}
+                      removeItem={removeItem}
+                      updateQtyMutation={updateQtyMutation}
+                      isRemoving={isRemoving}
+                      onEditClick={(id, data) => {
+                        setEditItemId(id);
+                        setEditFields({
+                          cct: data.cct ?? '',
+                          power: data.power ?? '',
+                          corPeca: data.corPeca ?? '',
+                        });
+                      }}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
 
             {/* Rodapé com total e ações */}
             <Card className="border-primary/30 bg-primary/5">
@@ -611,8 +723,8 @@ export default function Cart() {
                         className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
                         disabled={appendItemsMutation.isPending || entries.length === 0}
                         onClick={() => {
-                          const newItems = entries.map((e) => ({
-                            itemNumber: e.id,
+                          const newItems = orderedEntries.map((e, idx) => ({
+                            itemNumber: idx + 1,
                             itemData: JSON.stringify({
                               ...e.data,
                               itemEmPlanta: itemEmPlantaMap[e.id] ?? e.data.itemEmPlanta ?? "",
@@ -621,7 +733,7 @@ export default function Cart() {
                           appendItemsMutation.mutate({
                             quoteId: appendToQuoteIdNum!,
                             newItems,
-                            versionNotes: `+${entries.length} item(s) adicionado(s) via carrinho`,
+                            versionNotes: `+${orderedEntries.length} item(s) adicionado(s) via carrinho`,
                           });
                         }}
                       >
@@ -1250,6 +1362,57 @@ export default function Cart() {
             >
               <Factory className="w-4 h-4" />
               {isGenerating ? "Gerando..." : "Gerar Pedido de Fábrica"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de edição inline de CCT / Potência / Cor da Peça */}
+      <Dialog open={editItemId !== null} onOpenChange={(open) => { if (!open) setEditItemId(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Editar item</DialogTitle>
+            <DialogDescription>Altere CCT, potência e/ou cor da peça. As mudanças são salvas automaticamente.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label>CCT (temperatura de cor)</Label>
+              <Input
+                value={editFields.cct}
+                onChange={(e) => setEditFields(prev => ({ ...prev, cct: e.target.value }))}
+                placeholder="ex: 3000K, 4000K"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Potência</Label>
+              <Input
+                value={editFields.power}
+                onChange={(e) => setEditFields(prev => ({ ...prev, power: e.target.value }))}
+                placeholder="ex: 10W/m, 20W"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Cor da peça</Label>
+              <Input
+                value={editFields.corPeca}
+                onChange={(e) => setEditFields(prev => ({ ...prev, corPeca: e.target.value }))}
+                placeholder="ex: Branco, Preto, Anodizado"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setEditItemId(null)}>Cancelar</Button>
+            <Button onClick={() => {
+              if (editItemId === null) return;
+              const patch: Record<string, unknown> = {};
+              if (editFields.cct.trim()) patch.cct = editFields.cct.trim();
+              if (editFields.power.trim()) patch.power = editFields.power.trim();
+              if (editFields.corPeca.trim()) patch.corPeca = editFields.corPeca.trim();
+              updateItemField(editItemId, patch, 0);
+              toast.success("Item atualizado!");
+              setEditItemId(null);
+            }}>
+              Salvar
             </Button>
           </div>
         </DialogContent>

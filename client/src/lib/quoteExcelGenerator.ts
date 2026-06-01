@@ -514,6 +514,11 @@ export async function generateQuoteExcel(
 
   // ── Calcular total dos produtos ──────────────────────────────────────────
   const totalBase = items.reduce((sum, it) => sum + (it.totalPrice ?? 0), 0);
+  // Aplicar RT e Margem (mesma fórmula do Cart.tsx)
+  const rtPct    = Math.min(Math.max(formData.rtPercent    ?? 0, 0), 0.99);
+  const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
+  const totalComRT   = rtPct    > 0 ? totalBase  / (1 - rtPct)    : totalBase;
+  const totalFinal   = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
   let nextRow = currentRow + items.length;
 
   // Espaço após a tabela
@@ -551,7 +556,7 @@ export async function generateQuoteExcel(
   ws.mergeCells(`E${nextRow}:N${nextRow}`);
   {
     const c = ws.getCell(`E${nextRow}`);
-    c.value = totalBase;
+    c.value = totalFinal;
     c.numFmt = '"R$"#,##0.00';
     c.font = { name: "Calibri", size: 14, bold: true };
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: TOTAL_BG } };
@@ -595,7 +600,7 @@ export async function generateQuoteExcel(
   ws.mergeCells(`E${nextRow}:N${nextRow}`);
   {
     const c = ws.getCell(`E${nextRow}`);
-    c.value = buildFreteText(formData, totalBase);
+    c.value = buildFreteText(formData, totalFinal);
     c.font = { name: "Calibri", size: 11 };
     c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
   }

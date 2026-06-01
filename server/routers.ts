@@ -60,6 +60,23 @@ export const appRouter = router({
         return { count: 0, error: "Falha ao conectar com a API Alfalux" };
       }
     }),
+
+    // Produtos de revenda: identificados por SKU começando com 'RV' ou categoria 'REVENDA'
+    revendaProducts: publicProcedure.query(async () => {
+      const products = await fetchAllAlfaluxProducts();
+      return products.filter(p =>
+        p.sku.startsWith("RV") ||
+        p.categoria?.toUpperCase() === "REVENDA" ||
+        p.familia?.toUpperCase().startsWith("RV")
+      ).map(p => ({
+        sku: p.sku,
+        name: p.name,
+        familia: p.familia,
+        categoria: p.categoria,
+        fotoUrl: p.fotoUrl,
+        temperaturasCor: p.temperaturasCor,
+      }));
+    }),
   }),
 
   cart: router({
