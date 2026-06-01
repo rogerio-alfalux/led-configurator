@@ -151,9 +151,11 @@ export interface QuoteFormData {
   /** Vendedor 1 (obrigatório) */
   seller1Id?: number;
   seller1Name?: string;
+  seller1Phone?: string;
   /** Vendedor 2 (opcional) */
   seller2Id?: number;
   seller2Name?: string;
+  seller2Phone?: string;
   /** Assistente comercial (obrigatório) */
   assistantId?: number;
   assistantName?: string;

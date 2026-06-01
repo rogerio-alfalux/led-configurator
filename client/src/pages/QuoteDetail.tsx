@@ -163,6 +163,9 @@ export default function QuoteDetail() {
   const handleGenerateQuote = async () => {
     setIsGenerating(true);
     try {
+      // Buscar telefones dos vendedores pelo ID no catálogo
+      const s1 = quote.seller1Id ? editSellers.find(s => s.id === quote.seller1Id) : undefined;
+      const s2 = quote.seller2Id ? editSellers.find(s => s.id === quote.seller2Id) : undefined;
       await generateQuoteExcel(
         currentItems.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null),
         {
@@ -175,7 +178,9 @@ export default function QuoteDetail() {
           numero: quote.quoteNumber,
           data: new Date(quote.createdAt).toLocaleDateString("pt-BR"),
           seller1Name: quote.seller1Name ?? undefined,
+          seller1Phone: s1?.phone ?? undefined,
           seller2Name: quote.seller2Name ?? undefined,
+          seller2Phone: s2?.phone ?? undefined,
           assistantName: quote.assistantName ?? undefined,
           rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) / 100 : undefined,
           rtDest1: quote.rtDest1 ?? undefined,

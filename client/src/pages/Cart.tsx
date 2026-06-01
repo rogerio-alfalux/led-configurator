@@ -241,12 +241,17 @@ export default function Cart() {
     setIsGenerating(true);
     try {
       // Mesclar campos do saveForm no form para o Excel ter RT, margem, frete e vendedores
+      // Buscar telefones dos vendedores pelo ID no catálogo
+      const seller1Obj = saveForm.seller1Id ? sellers.find(s => String(s.id) === saveForm.seller1Id) : undefined;
+      const seller2Obj = saveForm.seller2Id ? sellers.find(s => String(s.id) === saveForm.seller2Id) : undefined;
       const enrichedForm: QuoteFormData = {
         ...form,
         seller1Id: saveForm.seller1Id ? Number(saveForm.seller1Id) : undefined,
         seller1Name: saveForm.seller1Name || undefined,
+        seller1Phone: seller1Obj?.phone || undefined,
         seller2Id: saveForm.seller2Id ? Number(saveForm.seller2Id) : undefined,
         seller2Name: saveForm.seller2Name || undefined,
+        seller2Phone: seller2Obj?.phone || undefined,
         assistantId: saveForm.assistantId ? Number(saveForm.assistantId) : undefined,
         assistantName: saveForm.assistantName || undefined,
         rtPercent: rtPct > 0 ? rtPct : undefined,

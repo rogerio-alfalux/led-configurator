@@ -649,12 +649,16 @@ export async function generateQuoteExcel(
   }
   nextRow++;
 
-  // Contato do vendedor
+  // Contato do vendedor — usa os telefones cadastrados (seller1Phone / seller2Phone)
   ws.getRow(nextRow).height = 19.8;
   ws.mergeCells(`C${nextRow}:N${nextRow}`);
   {
     const c = ws.getCell(`C${nextRow}`);
-    c.value = "CONTATO:   (11) 5666.9272 | (11) 9 8221.9581";
+    const phones = [formData.seller1Phone, formData.seller2Phone].filter(Boolean);
+    const phoneText = phones.length > 0
+      ? `CONTATO:   ${phones.join(" | ")}`
+      : "CONTATO:   (11) 5666.9272";
+    c.value = phoneText;
     c.font = { name: "Calibri", size: 11 };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
