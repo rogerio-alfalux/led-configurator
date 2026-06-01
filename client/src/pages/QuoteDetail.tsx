@@ -712,6 +712,7 @@ export default function QuoteDetail() {
                         totalAmount: totalFinal,
                         totalFinal,
                         items: editableItems.map((it, i) => ({ itemNumber: i + 1, itemData: it.itemData })),
+                        bumpVersion: false,
                       });
                     }}
                     disabled={addRevisionForItemsMutation.isPending}
@@ -1016,6 +1017,7 @@ export default function QuoteDetail() {
                       totalAmount: totalFinalVal,
                       totalFinal: totalFinalVal,
                       items: currentItems.map((i, idx) => ({ itemNumber: idx + 1, itemData: i.itemData })),
+                      bumpVersion: false,
                     });
                   }}
                   disabled={addRevisionMutation.isPending}

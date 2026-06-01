@@ -96,6 +96,7 @@ const CCT_OPTIONS: { value: CCT; label: string }[] = [
   { value: "3000K", label: "3000K (Branco Quente)" },
   { value: "4000K", label: "4000K (Branco Neutro)" },
   { value: "5000K", label: "5000K (Branco Frio)" },
+  { value: "A definir", label: "A definir" },
 ];
 
 const INSTALL_LABELS: Record<InstallType, string> = {

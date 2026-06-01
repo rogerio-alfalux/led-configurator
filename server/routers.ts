@@ -281,9 +281,10 @@ export const appRouter = router({
         totalAmount: z.number(),
         totalFinal: z.number().optional(),
         items: z.array(z.object({ itemNumber: z.number(), itemData: z.string() })),
+        bumpVersion: z.boolean().optional().default(false),
       }))
       .mutation(async ({ ctx, input }) => {
-        const { quoteId, ...rest } = input;
+        const { quoteId, bumpVersion, ...rest } = input;
         // Verificar permissão de edição
         const existingForRevision = await getQuoteById(quoteId);
         if (!existingForRevision) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
@@ -295,7 +296,7 @@ export const appRouter = router({
           rtPercent: input.rtPercent ?? 0,
           marginPercent: input.marginPercent ?? 0,
           createdByUserId: ctx.user.id,
-        });
+        }, bumpVersion ?? false);
         await insertAuditLog({
           userId: ctx.user.id,
           userEmail: ctx.user.email,

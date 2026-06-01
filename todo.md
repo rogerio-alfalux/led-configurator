@@ -934,3 +934,11 @@
 - [x] Todos os itens: observação visível no card do carrinho (📋 texto)
 - [x] Excel orçamento: coluna P com observação livre do item (fora da área de impressão, azul)
 - [x] Excel orçamento: RT/Margem/Assistente movidos para colunas Q-R (era P-Q)
+
+## v26.14 — 5 correções
+
+- [ ] appendToQuote: após salvar itens no carrinho, redirecionar de volta ao orçamento correto
+- [ ] Revisão do orçamento só incrementa ao gerar novo Excel (não ao editar itens/dados)
+- [ ] Campo OBRA obrigatório no formulário de criação/edição de orçamento
+- [ ] CCT "A definir" disponível na tela inicial do configurador
+- [ ] Excel: linha de frete noturno em vermelho

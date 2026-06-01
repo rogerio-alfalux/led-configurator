@@ -21,7 +21,7 @@ import { selectDriverFromSheet, selectDriverFallback, calcVOut, splitDriverForDu
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 export type Power = 18 | 26 | 36;
-export type CCT = "2700K" | "3000K" | "4000K" | "5000K";
+export type CCT = "2700K" | "3000K" | "4000K" | "5000K" | "A definir";
 export type Voltage = "220Vac" | "Bivolt";
 export type Application = "D1" | "D2" | "D1+D2";
 export type ModuleType = "IN" | "IF" | "ML";

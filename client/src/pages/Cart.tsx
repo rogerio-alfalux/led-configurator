@@ -495,6 +495,10 @@ export default function Cart() {
       toast.error("Informe o nome do cliente.");
       return;
     }
+    if (!saveForm.projectName.trim()) {
+      toast.error("Informe o nome da Obra / Projeto.");
+      return;
+    }
     if (!saveForm.seller1Id) {
       toast.error("Selecione o Vendedor 1.");
       return;
@@ -753,8 +757,8 @@ export default function Cart() {
                       </Button>
                     )}
 
-                    {/* Salvar Orçamento no banco */}
-                    <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+                    {/* Salvar Orçamento no banco — oculto no modo append */}
+                    {!appendToQuoteId && <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
                       <Button
                         variant="outline"
                         className="gap-2 border-green-600/40 text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950"
@@ -832,11 +836,12 @@ export default function Cart() {
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                               <div>
-                                <Label>Obra / Projeto</Label>
+                                <Label>Obra / Projeto <span className="text-destructive">*</span></Label>
                                 <Input
                                   placeholder="Nome da obra"
                                   value={saveForm.projectName}
                                   onChange={e => updateSaveForm("projectName", e.target.value)}
+                                  className={!saveForm.projectName.trim() ? "border-destructive" : ""}
                                 />
                               </div>
                               <div>
@@ -1141,10 +1146,10 @@ export default function Cart() {
                           </Button>
                         </div>
                       </DialogContent>
-                    </Dialog>
+                    </Dialog>}
 
-                    {/* Gerar Excel de Orçamento */}
-                    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                    {/* Gerar Excel de Orçamento — oculto no modo append */}
+                    {!appendToQuoteId && <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                       <Button className="gap-2" onClick={() => setDialogOpen(true)}>
                         <FileSpreadsheet className="w-4 h-4" />
                         Gerar Orçamento
@@ -1227,7 +1232,7 @@ export default function Cart() {
                           </Button>
                         </div>
                       </DialogContent>
-                    </Dialog>
+                    </Dialog>}
 
                     {/* ─── Gerar Pedido de Fábrica (sem orçamento) ─── */}
                     <Button

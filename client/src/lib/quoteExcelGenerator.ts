@@ -617,8 +617,14 @@ export async function generateQuoteExcel(
   {
     const c = ws.getCell(`E${nextRow}`);
     c.value = buildFreteText(formData, totalFinal);
-    c.font = { name: "Calibri", size: 11 };
+    const isNight = formData.freteType === "night";
+    c.font = { name: "Calibri", size: 11, bold: isNight, color: isNight ? { argb: "FFCC0000" } : undefined };
     c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+  }
+  // Também colorir o label "Frete dedicado:" em vermelho quando noturno
+  if (formData.freteType === "night") {
+    const labelCell = ws.getCell(`C${nextRow}`);
+    labelCell.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FFCC0000" } };
   }
   nextRow++;
 

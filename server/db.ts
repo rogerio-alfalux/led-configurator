@@ -331,7 +331,8 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
 /** Adiciona uma nova revisão a um orçamento existente */
 export async function addQuoteRevision(
   quoteId: number,
-  input: SaveQuoteInput
+  input: SaveQuoteInput,
+  bumpVersion = true
 ): Promise<{ versionId: number; version: number }> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -340,7 +341,8 @@ export async function addQuoteRevision(
   const qRows = await db.select().from(quotes).where(eq(quotes.id, quoteId)).limit(1);
   if (!qRows.length) throw new Error("Quote not found");
   const quote = qRows[0];
-  const newVersion = quote.currentVersion + 1;
+  // Se bumpVersion=false, mantém a versão atual (atualiza in-place)
+  const newVersion = bumpVersion ? quote.currentVersion + 1 : quote.currentVersion;
 
   const headerSnapshot = JSON.stringify({
     clientName: input.clientName,
@@ -374,6 +376,7 @@ export async function addQuoteRevision(
     totalAmount: String(input.totalAmount),
     totalFinal: input.totalFinal != null ? String(input.totalFinal) : String(input.totalAmount),
     rtPercent: input.rtPercent != null ? String(input.rtPercent) : '0',
+    // Não incrementa revisionCount quando atualiza in-place
     rtDest1: input.rtDest1 ?? null,
     rtDest1Active: input.rtDest1Active ?? false,
     rtDest2: input.rtDest2 ?? null,
@@ -384,8 +387,39 @@ export async function addQuoteRevision(
     freteType: input.freteType ?? null,
     freteIsento: input.freteIsento ?? false,
     freteLocalidade: input.freteLocalidade ?? null,
-    revisionCount: sql`revisionCount + 1`,
+    revisionCount: bumpVersion ? sql`revisionCount + 1` : sql`revisionCount`,
   }).where(eq(quotes.id, quoteId));
+
+  if (!bumpVersion) {
+    // Atualiza in-place: busca a versão atual e substitui seus itens
+    const vRows = await db.select().from(quoteVersions)
+      .where(eq(quoteVersions.quoteId, quoteId))
+      .orderBy(desc(quoteVersions.version))
+      .limit(1);
+    const currentVId = vRows[0]?.id;
+    if (currentVId) {
+      // Atualiza header da versão
+      await db.update(quoteVersions).set({
+        headerSnapshot,
+        totalAmount: String(input.totalAmount),
+        totalFinal: input.totalFinal != null ? String(input.totalFinal) : String(input.totalAmount),
+        versionNotes: input.versionNotes ?? vRows[0].versionNotes ?? null,
+      }).where(eq(quoteVersions.id, currentVId));
+      // Substitui itens
+      if (input.items.length > 0) {
+        await db.delete(quoteItems).where(eq(quoteItems.quoteVersionId, currentVId));
+        await db.insert(quoteItems).values(
+          input.items.map((it) => ({
+            quoteVersionId: currentVId,
+            quoteId,
+            itemNumber: it.itemNumber,
+            itemData: it.itemData,
+          }))
+        );
+      }
+      return { versionId: currentVId, version: newVersion };
+    }
+  }
 
   // Insert new version
   const vResult = await db.insert(quoteVersions).values({
