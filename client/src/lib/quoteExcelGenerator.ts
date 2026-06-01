@@ -186,31 +186,32 @@ export async function generateQuoteExcel(
     c.alignment = { horizontal: "center", vertical: "middle" };
   }
 
-  // ── Colunas Q-R: RT e Margem (não impressas, apenas para controle interno) ────────
+  // ── Colunas P-Q: RT, Margem e Assistente (não impressas, posição conforme template) ────────
+  // Posição exata: P5=RT:, Q5=valor; P6=Margem:, Q6=valor; P7=Assistente:, Q7=nome
   const INTERNAL_LABEL_FONT: Partial<ExcelJS.Font> = { name: "Calibri", size: 10, bold: true, color: { argb: "FF7F7F7F" } };
   const INTERNAL_VALUE_FONT: Partial<ExcelJS.Font> = { name: "Calibri", size: 11, bold: true };
-  // Q6: label RT, R6: valor RT
-  { const c = ws.getCell("Q6"); c.value = "RT:"; c.font = INTERNAL_LABEL_FONT; c.alignment = { horizontal: "right", vertical: "middle" }; }
+  // P5: label RT, Q5: valor RT
+  { const c = ws.getCell("P5"); c.value = "RT:"; c.font = INTERNAL_LABEL_FONT; c.alignment = { horizontal: "right", vertical: "middle" }; }
   {
-    const c = ws.getCell("R6");
+    const c = ws.getCell("Q5");
     const rtPct = formData.rtPercent ?? 0;
     c.value = rtPct > 0 ? `${(rtPct * 100).toFixed(1)}%` : "-";
     c.font = INTERNAL_VALUE_FONT;
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
-  // Q7: label Margem, R7: valor Margem
-  { const c = ws.getCell("Q7"); c.value = "Margem:"; c.font = INTERNAL_LABEL_FONT; c.alignment = { horizontal: "right", vertical: "middle" }; }
+  // P6: label Margem, Q6: valor Margem
+  { const c = ws.getCell("P6"); c.value = "Margem:"; c.font = INTERNAL_LABEL_FONT; c.alignment = { horizontal: "right", vertical: "middle" }; }
   {
-    const c = ws.getCell("R7");
+    const c = ws.getCell("Q6");
     const marginPct = formData.marginPercent ?? 0;
     c.value = marginPct > 0 ? `${(marginPct * 100).toFixed(1)}%` : "-";
     c.font = INTERNAL_VALUE_FONT;
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
-  // Q8: label Assistente, R8: nome
-  { const c = ws.getCell("Q8"); c.value = "Assistente:"; c.font = INTERNAL_LABEL_FONT; c.alignment = { horizontal: "right", vertical: "middle" }; }
+  // P7: label Assistente, Q7: nome
+  { const c = ws.getCell("P7"); c.value = "Assistente:"; c.font = INTERNAL_LABEL_FONT; c.alignment = { horizontal: "right", vertical: "middle" }; }
   {
-    const c = ws.getCell("R8");
+    const c = ws.getCell("Q7");
     c.value = formData.assistantName || "-";
     c.font = INTERNAL_VALUE_FONT;
     c.alignment = { horizontal: "left", vertical: "middle" };
@@ -486,19 +487,26 @@ export async function generateQuoteExcel(
     cQty.value = item.qty;
     cQty.font = { name: "Calibri", size: 11, bold: true };
 
-    // M = PREÇO UNITÁRIO
+    // M = PREÇO UNITÁRIO (já com RT e Margem aplicados — valor final ao cliente)
+    const _rtPct    = Math.min(Math.max(formData.rtPercent    ?? 0, 0), 0.99);
+    const _marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
+    const applyMarkup = (base: number) => {
+      const comRT  = _rtPct    > 0 ? base   / (1 - _rtPct)    : base;
+      const final  = _marginPct > 0 ? comRT  / (1 - _marginPct) : comRT;
+      return final;
+    };
     const cUnit = ws.getCell(`M${rowNum}`);
-    if (item.unitPrice !== null && item.unitPrice !== undefined) {
-      cUnit.value = item.unitPrice;
+    if (item.unitPrice !== null && item.unitPrice !== undefined && item.unitPrice > 0) {
+      cUnit.value = applyMarkup(item.unitPrice);
       cUnit.numFmt = '"R$"#,##0.00';
     } else {
       cUnit.value = "-";
     }
 
-    // N = PREÇO TOTAL
+    // N = PREÇO TOTAL (já com RT e Margem aplicados — valor final ao cliente)
     const cTotal = ws.getCell(`N${rowNum}`);
-    if (item.totalPrice !== null && item.totalPrice !== undefined) {
-      cTotal.value = item.totalPrice;
+    if (item.totalPrice !== null && item.totalPrice !== undefined && item.totalPrice > 0) {
+      cTotal.value = applyMarkup(item.totalPrice);
       cTotal.numFmt = '"R$"#,##0.00';
       cTotal.font = { name: "Calibri", size: 11, bold: false };
     } else {
