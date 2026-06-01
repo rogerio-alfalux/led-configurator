@@ -107,6 +107,20 @@ export const sellers = mysqlTable("sellers", {
 	index("sellers_code_unique").on(table.code),
 ]);
 
+export const apiKeys = mysqlTable("api_keys", {
+	id: int().autoincrement().notNull(),
+	name: varchar({ length: 128 }).notNull(),
+	keyHash: varchar({ length: 64 }).notNull(),
+	keyPrefix: varchar({ length: 8 }).notNull(),
+	createdByUserId: int().notNull(),
+	active: boolean().default(true).notNull(),
+	lastUsedAt: timestamp({ mode: 'string' }),
+	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("api_keys_keyHash_unique").on(table.keyHash),
+]);
+
 export const users = mysqlTable("users", {
 	id: int().autoincrement().notNull(),
 	openId: varchar({ length: 64 }).notNull(),
@@ -148,3 +162,6 @@ export type InsertSeller = InferInsertModel<typeof sellers>;
 
 export type Assistant = InferSelectModel<typeof assistants>;
 export type InsertAssistant = InferInsertModel<typeof assistants>;
+
+export type ApiKey = InferSelectModel<typeof apiKeys>;
+export type InsertApiKey = InferInsertModel<typeof apiKeys>;

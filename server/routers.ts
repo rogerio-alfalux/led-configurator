@@ -494,6 +494,56 @@ export const appRouter = router({
     list: protectedProcedure.query(async () => listAssistants()),
   }),
 
+  // ─── API Keys (somente admin) ────────────────────────────────────────────
+  apiKeys: router({
+    list: adminProcedure.query(async () => {
+      const { apiKeys } = await import("../drizzle/schema");
+      const { desc } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) return [];
+      return db.select({
+        id: apiKeys.id,
+        name: apiKeys.name,
+        keyPrefix: apiKeys.keyPrefix,
+        active: apiKeys.active,
+        lastUsedAt: apiKeys.lastUsedAt,
+        createdAt: apiKeys.createdAt,
+      }).from(apiKeys).orderBy(desc(apiKeys.createdAt));
+    }),
+
+    create: adminProcedure
+      .input(z.object({ name: z.string().min(1).max(128) }))
+      .mutation(async ({ input }) => {
+        const { generateApiKey, hashApiKey } = await import("./apiAuth");
+        const { apiKeys } = await import("../drizzle/schema");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const raw = generateApiKey();
+        const hash = hashApiKey(raw);
+        const prefix = raw.slice(0, 8); // "alf_XXXX"
+        await db.insert(apiKeys).values({
+          name: input.name,
+          keyHash: hash,
+          keyPrefix: prefix,
+          createdByUserId: 1,
+          active: true,
+        });
+        // Retorna a chave bruta UMA ÚNICA VEZ — não é armazenada
+        return { key: raw, prefix };
+      }),
+
+    revoke: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const { apiKeys } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        await db.update(apiKeys).set({ active: false }).where(eq(apiKeys.id, input.id));
+        return { success: true };
+      }),
+  }),
+
   // ─── Painel ADM ────────────────────────────────────────────────────────────
   admin: router({
     getLogs: adminProcedure

@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   ArrowLeft, Shield, Search, RefreshCw, Users, Activity,
   FileText, Trash2, CheckCircle, XCircle, Clock, TrendingDown,
-  FileSpreadsheet, LogIn,
+  FileSpreadsheet, LogIn, Key,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,6 +84,12 @@ export default function Admin() {
             </Button>
           </Link>
           <div className="flex-1" />
+          <Link href="/api-keys">
+            <Button variant="outline" size="sm" className="gap-2">
+              <Key className="w-4 h-4" />
+              API Keys
+            </Button>
+          </Link>
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-primary" />
             <span className="font-semibold text-sm">Painel Administrativo</span>

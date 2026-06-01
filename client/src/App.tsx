@@ -10,6 +10,7 @@ import Quotes from "./pages/Quotes";
 import QuoteDetail from "./pages/QuoteDetail";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
+import ApiKeys from "./pages/ApiKeys";
 
 function Router() {
   return (
@@ -20,6 +21,7 @@ function Router() {
       <Route path={"/orcamentos/:id"} component={QuoteDetail} />
       <Route path={"/dashboard"} component={Dashboard} />
       <Route path={"/admin"} component={Admin} />
+      <Route path={"/api-keys"} component={ApiKeys} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

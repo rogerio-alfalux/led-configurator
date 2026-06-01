@@ -937,8 +937,21 @@
 
 ## v26.14 — 5 correções
 
-- [ ] appendToQuote: após salvar itens no carrinho, redirecionar de volta ao orçamento correto
-- [ ] Revisão do orçamento só incrementa ao gerar novo Excel (não ao editar itens/dados)
-- [ ] Campo OBRA obrigatório no formulário de criação/edição de orçamento
-- [ ] CCT "A definir" disponível na tela inicial do configurador
-- [ ] Excel: linha de frete noturno em vermelho
+- [x] appendToQuote: após salvar itens no carrinho, redirecionar de volta ao orçamento correto
+- [x] Revisão do orçamento só incrementa ao gerar novo Excel (não ao editar itens/dados)
+- [x] Campo OBRA obrigatório no formulário de criação/edição de orçamento
+- [x] CCT "A definir" disponível na tela inicial do configurador
+- [x] Excel: linha de frete noturno em vermelho
+
+## v27 — API REST somente-leitura para sistemas externos
+
+- [ ] drizzle/schema.ts: criar tabela api_keys (id, name, keyHash, createdAt, lastUsedAt, active)
+- [ ] Migração SQL: CREATE TABLE api_keys
+- [ ] server/apiAuth.ts: middleware de autenticação por Bearer token (hash SHA-256)
+- [ ] server/index.ts: registrar rotas REST /api/v1/*
+- [ ] GET /api/v1/quotes: lista paginada de orçamentos com filtros (status, vendedor, data)
+- [ ] GET /api/v1/quotes/:id: detalhes completos do orçamento com itens e versões
+- [ ] GET /api/v1/sellers: lista de vendedores
+- [ ] Página admin /admin/api-keys: listar, criar e revogar chaves
+- [ ] Documentação dos endpoints (formato, exemplos, autenticação)
+- [ ] Testes: endpoints retornam 401 sem chave, 200 com chave válida
