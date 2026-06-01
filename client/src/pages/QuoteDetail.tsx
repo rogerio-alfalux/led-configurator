@@ -4,8 +4,25 @@ import {
   ArrowLeft, CheckCircle, XCircle, Clock, TrendingDown,
   FileSpreadsheet, History, Package, Edit, AlertTriangle,
   ChevronDown, ChevronUp, Factory, Trash2, PenLine,
-  Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle,
+  Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle, GripVertical,
 } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -96,6 +113,23 @@ export default function QuoteDetail() {
     parsed: CartItemData;
   }>>([]);
   const [editItemsNotes, setEditItemsNotes] = useState("");
+
+  // DnD sensors para reordenação de itens
+  const editItemsSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleEditItemsDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setEditableItems(prev => {
+        const oldIndex = prev.findIndex(it => it.id === Number(active.id));
+        const newIndex = prev.findIndex(it => it.id === Number(over.id));
+        return arrayMove(prev, oldIndex, newIndex);
+      });
+    }
+  };
 
   const { data, isLoading, error } = trpc.quotes.getById.useQuery({ id: Number(id) });
 
@@ -435,6 +469,8 @@ export default function QuoteDetail() {
               </SheetHeader>
               <div className="flex-1 overflow-y-auto px-6 py-4">
 
+                <DndContext sensors={editItemsSensors} collisionDetection={closestCenter} onDragEnd={handleEditItemsDragEnd}>
+                  <SortableContext items={editableItems.map(it => it.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-4">
                 {editableItems.map((item, idx) => {
                   const d = item.parsed;
@@ -452,10 +488,28 @@ export default function QuoteDetail() {
                     }));
                   };
 
+                  // eslint-disable-next-line react-hooks/rules-of-hooks
+                  const { attributes: dndAttrs, listeners: dndListeners, setNodeRef: dndRef, transform: dndTransform, transition: dndTransition, isDragging: dndIsDragging } = useSortable({ id: item.id });
+                  const dndStyle = {
+                    transform: CSS.Transform.toString(dndTransform),
+                    transition: dndTransition,
+                    opacity: dndIsDragging ? 0.5 : 1,
+                    zIndex: dndIsDragging ? 50 : undefined,
+                  };
+
                   return (
-                    <div key={item.id} className="border rounded-lg p-4 space-y-3">
+                    <div key={item.id} ref={dndRef} style={dndStyle} className="border rounded-lg p-4 space-y-3">
                       {/* Cabeçalho do item */}
                       <div className="flex items-center gap-3">
+                        {/* Handle de drag */}
+                        <button
+                          {...dndAttrs}
+                          {...dndListeners}
+                          className="flex-shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+                          title="Arrastar para reordenar"
+                        >
+                          <GripVertical className="w-5 h-5" />
+                        </button>
                         <span className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
                           {idx + 1}
                         </span>
@@ -561,6 +615,8 @@ export default function QuoteDetail() {
                   );
                 })}
                 </div>
+                  </SortableContext>
+                </DndContext>
 
                 {/* Nota da revisão */}
                 <div className="mt-4">
