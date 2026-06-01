@@ -135,7 +135,7 @@ const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.E
   { value: "Balizadores",  label: "Balizadores",   icon: Navigation,  image: "/manus-storage/BALIZADORES_482d54f1.png", available: false },
   { value: "Decorativas",  label: "Decorativas",   icon: Sparkles,    image: "/manus-storage/DECORATIVAS_4ee44c0e.png", available: false },
   { value: "Item Especial", label: "Item Especial",  icon: PackagePlus, available: true  },
-  { value: "Revenda",       label: "Revenda",        icon: ShoppingBag, available: true  },
+  { value: "Revenda",       label: "Revenda",        icon: ShoppingBag, image: "/manus-storage/revenda-icon_9ee010ce.png", available: true  },
 ];
 
 // ─── Auxiliar: quantidade de drivers por produto/controle/tensão ─────────────
@@ -1156,17 +1156,47 @@ export default function Home() {
   const revendaProductsQuery = trpc.alfalux.revendaProducts.useQuery();
   const revendaProducts = revendaProductsQuery.data ?? [];
 
-  // Fornecedores únicos para os chips de filtro
+  // Regras de agrupamento de fornecedores
+  const FORNECEDOR_IGNORE = ["BACKLIT LUMIGRID"];
+  const FORNECEDOR_MAP: Record<string, string> = {
+    "ADILSON": "DIVERSOS",
+    "MARIA": "DIVERSOS",
+    "MERC. LIVRE": "DIVERSOS",
+    "MERCADO LIVRE": "DIVERSOS",
+    "ROBERTET": "DIVERSOS",
+    "S. GROUND": "STELLA",
+    "S.GROUND": "STELLA",
+    "SOLAR GROUND": "STELLA",
+  };
+  const normalizeFornecedor = (f: string) => {
+    const upper = f.toUpperCase().trim();
+    if (FORNECEDOR_IGNORE.includes(upper)) return null;
+    return FORNECEDOR_MAP[upper] ?? f.trim();
+  };
+
+  // Fornecedores únicos para os chips de filtro (após agrupamento)
   const revendaFornecedores = useMemo(() => {
     const set = new Set<string>();
-    revendaProducts.forEach(p => { if (p.fornecedor) set.add(p.fornecedor); });
+    revendaProducts.forEach(p => {
+      if (!p.fornecedor) return;
+      const norm = normalizeFornecedor(p.fornecedor);
+      if (norm) set.add(norm);
+    });
     return Array.from(set).sort();
   }, [revendaProducts]);
 
-  // Produtos filtrados por fornecedor + busca textual
+  // Produtos filtrados por fornecedor + busca textual (com agrupamento)
   const filteredRevendaProducts = useMemo(() => {
-    let list = revendaProducts;
-    if (rvFornecedor) list = list.filter(p => p.fornecedor === rvFornecedor);
+    let list = revendaProducts.filter(p => {
+      if (!p.fornecedor) return true;
+      return normalizeFornecedor(p.fornecedor) !== null;
+    });
+    if (rvFornecedor) {
+      list = list.filter(p => {
+        const norm = p.fornecedor ? normalizeFornecedor(p.fornecedor) : "";
+        return norm === rvFornecedor;
+      });
+    }
     if (rvSearch.trim()) {
       const q = rvSearch.toLowerCase();
       list = list.filter(p =>
