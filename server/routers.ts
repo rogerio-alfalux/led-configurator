@@ -215,14 +215,14 @@ export const appRouter = router({
         seller2Id: z.number().optional(),
         seller2Name: z.string().optional(),
         assistantId: z.number().optional(),
-        rtPercent: z.number().optional(),
+        rtPercent: z.number().min(0).max(0.99).optional(),
         rtDest1: z.string().optional(),
         rtDest1Active: z.boolean().optional(),
         rtDest2: z.string().optional(),
         rtDest2Active: z.boolean().optional(),
         rtDest3: z.string().optional(),
         rtDest3Active: z.boolean().optional(),
-        marginPercent: z.number().optional(),
+        marginPercent: z.number().min(0).max(0.99).optional(),
         freteType: z.enum(["free", "paid", "night", "consult"]).optional(),
         freteIsento: z.boolean().optional(),
         freteLocalidade: z.enum(["sp", "other"]).optional(),
@@ -234,7 +234,13 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const { quoteId, ...rest } = input;
-        const result = await addQuoteRevision(quoteId, { ...rest, createdByUserId: ctx.user.id });
+        // Garantir que 0 seja passado explicitamente (não undefined) para limpar RT/Margem
+        const result = await addQuoteRevision(quoteId, {
+          ...rest,
+          rtPercent: input.rtPercent ?? 0,
+          marginPercent: input.marginPercent ?? 0,
+          createdByUserId: ctx.user.id,
+        });
         await insertAuditLog({
           userId: ctx.user.id,
           userEmail: ctx.user.email,

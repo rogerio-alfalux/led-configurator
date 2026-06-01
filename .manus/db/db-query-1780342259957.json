@@ -1,0 +1,16 @@
+{
+  "query": "SELECT quoteNumber, rtPercent, marginPercent, currentVersion FROM quotes WHERE quoteNumber = '33.0058-26';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT quoteNumber, rtPercent, marginPercent, currentVersion FROM quotes WHERE quoteNumber = '33.0058-26';",
+  "rows": [
+    {
+      "quoteNumber": "33.0058-26",
+      "rtPercent": "0.1000",
+      "marginPercent": "0.1000",
+      "currentVersion": "2"
+    }
+  ],
+  "messages": [],
+  "stdout": "quoteNumber\trtPercent\tmarginPercent\tcurrentVersion\n33.0058-26\t0.1000\t0.1000\t2\n",
+  "stderr": "",
+  "execution_time_ms": 269
+}

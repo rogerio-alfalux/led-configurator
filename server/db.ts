@@ -367,6 +367,9 @@ export async function addQuoteRevision(
     notes: input.notes ?? null,
     currentVersion: newVersion,
     totalAmount: String(input.totalAmount),
+    totalFinal: input.totalFinal != null ? String(input.totalFinal) : String(input.totalAmount),
+    rtPercent: input.rtPercent != null ? String(input.rtPercent) : '0',
+    marginPercent: input.marginPercent != null ? String(input.marginPercent) : '0',
     revisionCount: sql`revisionCount + 1`,
   }).where(eq(quotes.id, quoteId));
 
