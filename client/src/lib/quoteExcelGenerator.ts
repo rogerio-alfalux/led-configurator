@@ -140,9 +140,10 @@ export async function generateQuoteExcel(
     { key: "L", width: 7    },  // QTD
     { key: "M", width: 13   },  // PREÇO UNITÁRIO
     { key: "N", width: 14   },  // PREÇO TOTAL
-    { key: "O", width: 30   },  // OBS. INTERNA (não impresso)
-    { key: "P", width: 14   },  // RT (não impresso)
-    { key: "Q", width: 14   },  // MARGEM (não impresso)
+    { key: "O", width: 30   },  // OBS. INTERNA (item especial, não impresso)
+    { key: "P", width: 35   },  // OBSERVAÇÃO DO ITEM (livre, não impresso)
+    { key: "Q", width: 14   },  // RT (não impresso)
+    { key: "R", width: 14   },  // MARGEM (não impresso)
   ];
 
   // ── Linhas 1-2: espaço para o logo ──────────────────────────────────────
@@ -185,31 +186,31 @@ export async function generateQuoteExcel(
     c.alignment = { horizontal: "center", vertical: "middle" };
   }
 
-  // ── Colunas P-Q: RT e Margem (não impressas, apenas para controle interno) ────────
+  // ── Colunas Q-R: RT e Margem (não impressas, apenas para controle interno) ────────
   const INTERNAL_LABEL_FONT: Partial<ExcelJS.Font> = { name: "Calibri", size: 10, bold: true, color: { argb: "FF7F7F7F" } };
   const INTERNAL_VALUE_FONT: Partial<ExcelJS.Font> = { name: "Calibri", size: 11, bold: true };
-  // P6: label RT, Q6: valor RT
-  { const c = ws.getCell("P6"); c.value = "RT:"; c.font = INTERNAL_LABEL_FONT; c.alignment = { horizontal: "right", vertical: "middle" }; }
+  // Q6: label RT, R6: valor RT
+  { const c = ws.getCell("Q6"); c.value = "RT:"; c.font = INTERNAL_LABEL_FONT; c.alignment = { horizontal: "right", vertical: "middle" }; }
   {
-    const c = ws.getCell("Q6");
+    const c = ws.getCell("R6");
     const rtPct = formData.rtPercent ?? 0;
     c.value = rtPct > 0 ? `${(rtPct * 100).toFixed(1)}%` : "-";
     c.font = INTERNAL_VALUE_FONT;
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
-  // P7: label Margem, Q7: valor Margem
-  { const c = ws.getCell("P7"); c.value = "Margem:"; c.font = INTERNAL_LABEL_FONT; c.alignment = { horizontal: "right", vertical: "middle" }; }
+  // Q7: label Margem, R7: valor Margem
+  { const c = ws.getCell("Q7"); c.value = "Margem:"; c.font = INTERNAL_LABEL_FONT; c.alignment = { horizontal: "right", vertical: "middle" }; }
   {
-    const c = ws.getCell("Q7");
+    const c = ws.getCell("R7");
     const marginPct = formData.marginPercent ?? 0;
     c.value = marginPct > 0 ? `${(marginPct * 100).toFixed(1)}%` : "-";
     c.font = INTERNAL_VALUE_FONT;
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
-  // P8: label Assistente, Q8: nome
-  { const c = ws.getCell("P8"); c.value = "Assistente:"; c.font = INTERNAL_LABEL_FONT; c.alignment = { horizontal: "right", vertical: "middle" }; }
+  // Q8: label Assistente, R8: nome
+  { const c = ws.getCell("Q8"); c.value = "Assistente:"; c.font = INTERNAL_LABEL_FONT; c.alignment = { horizontal: "right", vertical: "middle" }; }
   {
-    const c = ws.getCell("Q8");
+    const c = ws.getCell("R8");
     c.value = formData.assistantName || "-";
     c.font = INTERNAL_VALUE_FONT;
     c.alignment = { horizontal: "left", vertical: "middle" };
@@ -504,12 +505,19 @@ export async function generateQuoteExcel(
       cTotal.value = "-";
     }
 
-    // O = OBSERVAÇÃO INTERNA (não impressa — apenas para controle interno)
+    // O = OBSERVAÇÃO INTERNA do item especial (não impressa)
     const cObs = ws.getCell(`O${rowNum}`);
     const obsInterna = item.specialInternalNotes || "";
     cObs.value = obsInterna;
     cObs.font = { name: "Calibri", size: 10, italic: true, color: { argb: "FF7F7F7F" } };
     cObs.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+
+    // P = OBSERVAÇÃO LIVRE DO ITEM (não impressa — editada pelo vendedor ou preenchida automaticamente para Revenda)
+    const cItemNote = ws.getCell(`P${rowNum}`);
+    const itemNote = item.itemNote || "";
+    cItemNote.value = itemNote;
+    cItemNote.font = { name: "Calibri", size: 10, italic: true, color: { argb: "FF4472C4" } };
+    cItemNote.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
   }
 
   // ── Calcular total dos produtos ──────────────────────────────────────────

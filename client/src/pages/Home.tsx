@@ -1216,6 +1216,10 @@ export default function Home() {
     }
     const product = revendaProducts.find(p => p.sku === targetSku);
     if (!product) return;
+    // Montar nota automática: "Fabricante ref: XXXX"
+    const fabricante = product.fornecedor ? normalizeFornecedor(product.fornecedor) : null;
+    const autoNote = [fabricante, product.referencia ? `ref: ${product.referencia}` : null]
+      .filter(Boolean).join(" ");
     const item: CartItemData = {
       category: "Revenda",
       sku: product.sku,
@@ -1230,6 +1234,7 @@ export default function Home() {
       quoteSummary: `${product.name} (${product.sku})`,
       specialInternalNotes: product.observacoes ?? undefined,
       corPeca: "",
+      itemNote: autoNote || undefined,
     };
     addItem(item);
     toast.success(`"${product.name}" adicionado! Defina o preço e a quantidade no carrinho.`);

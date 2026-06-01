@@ -183,6 +183,12 @@ function SortableCartItem({
                       className="text-xs border border-border rounded px-2 py-0.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary w-40"
                     />
                   </div>
+                  {/* Observação do item */}
+                  {entry.data.itemNote && (
+                    <p className="text-xs text-muted-foreground italic mt-1 truncate max-w-xs" title={entry.data.itemNote}>
+                      📋 {entry.data.itemNote}
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
                   {entry.data.unitPrice != null && entry.data.unitPrice > 0 && (
@@ -190,6 +196,8 @@ function SortableCartItem({
                   )}
                   {entry.data.totalPrice != null && entry.data.totalPrice > 0 ? (
                     <p className="font-bold text-primary text-base">{formatBRL(entry.data.totalPrice)}</p>
+                  ) : entry.data.category === 'Revenda' ? (
+                    <p className="text-xs text-amber-600 italic cursor-pointer hover:underline" onClick={() => onEditClick(entry.id, entry.data)}>Definir preço →</p>
                   ) : (
                     <p className="text-xs text-muted-foreground italic">Preço a consultar</p>
                   )}
@@ -314,7 +322,7 @@ export default function Cart() {
 
   // Edição inline de campos do item
   const [editItemId, setEditItemId] = useState<number | null>(null);
-  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '' });
+  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; itemNote: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', itemNote: '' });
 
   // Pedido de Fábrica direto do carrinho
   const [orderConfirmOpen, setOrderConfirmOpen] = useState(false);
@@ -690,6 +698,7 @@ export default function Cart() {
                           corPeca: data.corPeca ?? '',
                           qty: String(data.qty ?? 1),
                           unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '',
+                          itemNote: data.itemNote ?? '',
                         });
                       }}
                     />
@@ -1407,6 +1416,14 @@ export default function Cart() {
                       placeholder="0,00"
                     />
                   </div>
+                  <div className="space-y-1">
+                    <Label>Observação</Label>
+                    <Input
+                      value={editFields.itemNote}
+                      onChange={(e) => setEditFields(prev => ({ ...prev, itemNote: e.target.value }))}
+                      placeholder="ex: STELLA ref: SD1720BR"
+                    />
+                  </div>
                 </>
               ) : (
                 <>
@@ -1434,6 +1451,14 @@ export default function Cart() {
                       placeholder="ex: Branco, Preto, Anodizado"
                     />
                   </div>
+                  <div className="space-y-1">
+                    <Label>Observação</Label>
+                    <Input
+                      value={editFields.itemNote}
+                      onChange={(e) => setEditFields(prev => ({ ...prev, itemNote: e.target.value }))}
+                      placeholder="Observação livre sobre este item"
+                    />
+                  </div>
                 </>
               );
             })()}
@@ -1456,6 +1481,8 @@ export default function Cart() {
                 if (editFields.power.trim()) patch.power = editFields.power.trim();
                 if (editFields.corPeca.trim()) patch.corPeca = editFields.corPeca.trim();
               }
+              // Sempre salvar itemNote (pode ser vazio para limpar)
+              patch.itemNote = editFields.itemNote.trim() || undefined;
               updateItemField(editItemId, patch, isRevenda ? (parseInt(editFields.qty) || 1) * (parseFloat(editFields.unitPrice.replace(',', '.')) || 0) : 0);
               toast.success('Item atualizado!');
               setEditItemId(null);

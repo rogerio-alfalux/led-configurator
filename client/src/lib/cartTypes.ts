@@ -137,6 +137,13 @@ export interface CartItemData {
    * Aparece no Excel fora da área de impressão, na mesma linha do item.
    */
   specialInternalNotes?: string;
+
+  /**
+   * Observação livre por item — editável pelo vendedor/assistente.
+   * Para itens de Revenda, preenchida automaticamente com "fabricante ref: XXXX".
+   * Aparece no Excel na coluna P (fora da área de impressão).
+   */
+  itemNote?: string;
 }
 
 export interface QuoteFormData {

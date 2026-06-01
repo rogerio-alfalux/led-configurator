@@ -925,3 +925,12 @@
 - [x] cartTypes.ts: campo isRevenda não necessário (category='Revenda' é suficiente)
 - [x] quoteExcelGenerator.ts: renderizar itens REVENDA corretamente (usa render genérico existente)
 - [x] orderExcelGenerator.ts: renderizar itens REVENDA na ficha de produção (usa render genérico existente)
+
+## v26.5 — Campo de observação por item + melhorias Revenda
+- [x] Campo itemNote em CartItemData (observação livre por item)
+- [x] Revenda: preenchimento automático de itemNote com fabricante + ref (ex: "STELLA ref: SD1720BR")
+- [x] Revenda: modal de edição simplificado (só qtd, preço, observação — sem CCT/potência/cor)
+- [x] Revenda: exibir "Definir preço →" clicável no carrinho quando preço = 0
+- [x] Todos os itens: observação visível no card do carrinho (📋 texto)
+- [x] Excel orçamento: coluna P com observação livre do item (fora da área de impressão, azul)
+- [x] Excel orçamento: RT/Margem/Assistente movidos para colunas Q-R (era P-Q)
