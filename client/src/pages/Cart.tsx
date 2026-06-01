@@ -314,7 +314,7 @@ export default function Cart() {
 
   // Edição inline de campos do item
   const [editItemId, setEditItemId] = useState<number | null>(null);
-  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string }>({ cct: '', power: '', corPeca: '' });
+  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '' });
 
   // Pedido de Fábrica direto do carrinho
   const [orderConfirmOpen, setOrderConfirmOpen] = useState(false);
@@ -688,6 +688,8 @@ export default function Cart() {
                           cct: data.cct ?? '',
                           power: data.power ?? '',
                           corPeca: data.corPeca ?? '',
+                          qty: String(data.qty ?? 1),
+                          unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '',
                         });
                       }}
                     />
@@ -1372,44 +1374,90 @@ export default function Cart() {
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Editar item</DialogTitle>
-            <DialogDescription>Altere CCT, potência e/ou cor da peça. As mudanças são salvas automaticamente.</DialogDescription>
+            <DialogDescription>
+              {(() => {
+                const item = orderedEntries.find(e => e.id === editItemId);
+                return item?.data.category === 'Revenda'
+                  ? 'Defina a quantidade e o preço unitário do item de revenda.'
+                  : 'Altere CCT, potência e/ou cor da peça. As mudanças são salvas automaticamente.';
+              })()}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label>CCT (temperatura de cor)</Label>
-              <Input
-                value={editFields.cct}
-                onChange={(e) => setEditFields(prev => ({ ...prev, cct: e.target.value }))}
-                placeholder="ex: 3000K, 4000K"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Potência</Label>
-              <Input
-                value={editFields.power}
-                onChange={(e) => setEditFields(prev => ({ ...prev, power: e.target.value }))}
-                placeholder="ex: 10W/m, 20W"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Cor da peça</Label>
-              <Input
-                value={editFields.corPeca}
-                onChange={(e) => setEditFields(prev => ({ ...prev, corPeca: e.target.value }))}
-                placeholder="ex: Branco, Preto, Anodizado"
-              />
-            </div>
+            {(() => {
+              const item = orderedEntries.find(e => e.id === editItemId);
+              const isRevenda = item?.data.category === 'Revenda';
+              return isRevenda ? (
+                <>
+                  <div className="space-y-1">
+                    <Label>Quantidade <span className="text-destructive">*</span></Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={editFields.qty}
+                      onChange={(e) => setEditFields(prev => ({ ...prev, qty: e.target.value }))}
+                      placeholder="1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Preço unitário (R$) <span className="text-destructive">*</span></Label>
+                    <Input
+                      value={editFields.unitPrice}
+                      onChange={(e) => setEditFields(prev => ({ ...prev, unitPrice: e.target.value }))}
+                      placeholder="0,00"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-1">
+                    <Label>CCT (temperatura de cor)</Label>
+                    <Input
+                      value={editFields.cct}
+                      onChange={(e) => setEditFields(prev => ({ ...prev, cct: e.target.value }))}
+                      placeholder="ex: 3000K, 4000K"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Potência</Label>
+                    <Input
+                      value={editFields.power}
+                      onChange={(e) => setEditFields(prev => ({ ...prev, power: e.target.value }))}
+                      placeholder="ex: 10W/m, 20W"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Cor da peça</Label>
+                    <Input
+                      value={editFields.corPeca}
+                      onChange={(e) => setEditFields(prev => ({ ...prev, corPeca: e.target.value }))}
+                      placeholder="ex: Branco, Preto, Anodizado"
+                    />
+                  </div>
+                </>
+              );
+            })()}
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setEditItemId(null)}>Cancelar</Button>
             <Button onClick={() => {
               if (editItemId === null) return;
+              const item = orderedEntries.find(e => e.id === editItemId);
+              const isRevenda = item?.data.category === 'Revenda';
               const patch: Record<string, unknown> = {};
-              if (editFields.cct.trim()) patch.cct = editFields.cct.trim();
-              if (editFields.power.trim()) patch.power = editFields.power.trim();
-              if (editFields.corPeca.trim()) patch.corPeca = editFields.corPeca.trim();
-              updateItemField(editItemId, patch, 0);
-              toast.success("Item atualizado!");
+              if (isRevenda) {
+                const qty = parseInt(editFields.qty) || 1;
+                const unitPrice = parseFloat(editFields.unitPrice.replace(',', '.')) || 0;
+                patch.qty = qty;
+                patch.unitPrice = unitPrice;
+                patch.totalPrice = qty * unitPrice;
+              } else {
+                if (editFields.cct.trim()) patch.cct = editFields.cct.trim();
+                if (editFields.power.trim()) patch.power = editFields.power.trim();
+                if (editFields.corPeca.trim()) patch.corPeca = editFields.corPeca.trim();
+              }
+              updateItemField(editItemId, patch, isRevenda ? (parseInt(editFields.qty) || 1) * (parseFloat(editFields.unitPrice.replace(',', '.')) || 0) : 0);
+              toast.success('Item atualizado!');
               setEditItemId(null);
             }}>
               Salvar

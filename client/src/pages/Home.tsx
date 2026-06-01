@@ -1150,46 +1150,50 @@ export default function Home() {
 
   // ── Estados de Revenda ──────────────────────────────────────────────────────
   const [rvSelectedSku, setRvSelectedSku] = useState<string>("");
-  const [rvQty, setRvQty] = useState<string>("1");
-  const [rvUnitPrice, setRvUnitPrice] = useState<string>("");
+  const [rvFornecedor, setRvFornecedor] = useState<string>("");
   const [rvSearch, setRvSearch] = useState<string>("");
 
   const revendaProductsQuery = trpc.alfalux.revendaProducts.useQuery();
   const revendaProducts = revendaProductsQuery.data ?? [];
 
+  // Fornecedores únicos para os chips de filtro
+  const revendaFornecedores = useMemo(() => {
+    const set = new Set<string>();
+    revendaProducts.forEach(p => { if (p.fornecedor) set.add(p.fornecedor); });
+    return Array.from(set).sort();
+  }, [revendaProducts]);
+
+  // Produtos filtrados por fornecedor + busca textual
   const filteredRevendaProducts = useMemo(() => {
-    if (!rvSearch.trim()) return revendaProducts;
-    const q = rvSearch.toLowerCase();
-    return revendaProducts.filter(p =>
-      p.sku.toLowerCase().includes(q) ||
-      p.name.toLowerCase().includes(q) ||
-      (p.referencia ?? "").toLowerCase().includes(q) ||
-      (p.fornecedor ?? "").toLowerCase().includes(q)
-    );
-  }, [revendaProducts, rvSearch]);
+    let list = revendaProducts;
+    if (rvFornecedor) list = list.filter(p => p.fornecedor === rvFornecedor);
+    if (rvSearch.trim()) {
+      const q = rvSearch.toLowerCase();
+      list = list.filter(p =>
+        p.sku.toLowerCase().includes(q) ||
+        p.name.toLowerCase().includes(q) ||
+        (p.referencia ?? "").toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [revendaProducts, rvFornecedor, rvSearch]);
 
-  const selectedRevendaProduct = useMemo(() =>
-    revendaProducts.find(p => p.sku === rvSelectedSku) ?? null,
-    [revendaProducts, rvSelectedSku]
-  );
-
-  const handleAddRevendaItem = useCallback(() => {
-    if (!rvSelectedSku || !rvUnitPrice) {
-      toast.error("Selecione um produto e informe o preço unitário.");
+  const handleAddRevendaItem = useCallback((sku?: string) => {
+    const targetSku = sku ?? rvSelectedSku;
+    if (!targetSku) {
+      toast.error("Selecione um produto.");
       return;
     }
-    const product = revendaProducts.find(p => p.sku === rvSelectedSku);
+    const product = revendaProducts.find(p => p.sku === targetSku);
     if (!product) return;
-    const qty = parseInt(rvQty) || 1;
-    const unitPrice = parseFloat(rvUnitPrice.replace(",", ".")) || 0;
     const item: CartItemData = {
       category: "Revenda",
       sku: product.sku,
       description: product.name,
       photoUrl: product.fotoUrl ?? "",
-      qty,
-      unitPrice,
-      totalPrice: qty * unitPrice,
+      qty: 1,
+      unitPrice: 0,
+      totalPrice: 0,
       power: "",
       cct: "",
       orderSummary: `${product.name} (${product.sku})`,
@@ -1197,9 +1201,10 @@ export default function Home() {
       specialInternalNotes: product.observacoes ?? undefined,
       corPeca: "",
     };
-    setPendingCartItem(item);
-    setColorModalOpen(true);
-  }, [rvSelectedSku, rvQty, rvUnitPrice, revendaProducts, setPendingCartItem, setColorModalOpen]);
+    addItem(item);
+    toast.success(`"${product.name}" adicionado! Defina o preço e a quantidade no carrinho.`);
+    setRvSelectedSku("");
+  }, [rvSelectedSku, revendaProducts, addItem]);
 
   const uploadSpecialPhotoMutation = trpc.upload.specialItemPhoto.useMutation({
     onSuccess: (data) => {
@@ -3651,85 +3656,103 @@ export default function Home() {
             {/* ── Formulário de Revenda ─────────────────────────────────── */}
             {productCategory === "Revenda" && (
               <div className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Buscar produto</label>
-                  <Input
-                    placeholder="Pesquisar por nome, SKU ou família..."
-                    value={rvSearch}
-                    onChange={e => setRvSearch(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Produto <span className="text-destructive">*</span></label>
-                  {revendaProductsQuery.isLoading ? (
-                    <div className="text-sm text-muted-foreground py-2">Carregando produtos...</div>
-                  ) : revendaProducts.length === 0 ? (
-                    <div className="text-sm text-muted-foreground py-2 flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-500" />
-                      Nenhum produto de revenda disponível na API no momento.
-                    </div>
-                  ) : (
-                    <div className="max-h-60 overflow-y-auto border rounded-md divide-y">
-                      {filteredRevendaProducts.length === 0 ? (
-                        <div className="text-sm text-muted-foreground p-3">Nenhum produto encontrado.</div>
-                      ) : filteredRevendaProducts.map(p => (
+                {revendaProductsQuery.isLoading ? (
+                  <div className="text-sm text-muted-foreground py-4 text-center">Carregando produtos...</div>
+                ) : revendaProducts.length === 0 ? (
+                  <div className="text-sm text-muted-foreground py-4 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-500" />
+                    Nenhum produto de revenda disponível na API no momento.
+                  </div>
+                ) : (
+                  <>
+                    {/* Passo 1: Seleção de Fornecedor */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Fornecedor</label>
+                      <div className="flex flex-wrap gap-2">
                         <button
-                          key={p.sku}
                           type="button"
-                          onClick={() => { setRvSelectedSku(p.sku); setRvSearch(""); }}
-                          className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors ${
-                            rvSelectedSku === p.sku ? "bg-primary/10 font-semibold" : ""
+                          onClick={() => { setRvFornecedor(""); setRvSelectedSku(""); setRvSearch(""); }}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                            !rvFornecedor
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-background border-border hover:border-primary/50 text-foreground"
                           }`}
                         >
-                          <div className="font-medium">{p.name}</div>
-                          <div className="text-xs text-muted-foreground">{p.sku} {p.fornecedor ? `· ${p.fornecedor}` : ""}</div>
+                          Todos
                         </button>
-                      ))}
+                        {revendaFornecedores.map(f => (
+                          <button
+                            key={f}
+                            type="button"
+                            onClick={() => { setRvFornecedor(f); setRvSelectedSku(""); setRvSearch(""); }}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                              rvFornecedor === f
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background border-border hover:border-primary/50 text-foreground"
+                            }`}
+                          >
+                            {f}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  )}
-                </div>
 
-                {selectedRevendaProduct && (
-                  <div className="p-3 rounded-lg bg-muted/50 border text-sm space-y-1">
-                    <div className="font-semibold">{selectedRevendaProduct.name}</div>
-                    <div className="text-muted-foreground">Código: {selectedRevendaProduct.sku}</div>
-                    {selectedRevendaProduct.referencia && <div className="text-muted-foreground">Ref: {selectedRevendaProduct.referencia}</div>}
-                    {selectedRevendaProduct.fornecedor && <div className="text-muted-foreground">Fornecedor: {selectedRevendaProduct.fornecedor}</div>}
-                    {selectedRevendaProduct.observacoes && <div className="text-muted-foreground">Obs: {selectedRevendaProduct.observacoes}</div>}
-                  </div>
+                    {/* Passo 2: Busca textual */}
+                    <div className="relative">
+                      <Input
+                        placeholder={rvFornecedor ? `Buscar em ${rvFornecedor}...` : "Buscar por nome, código ou referência..."}
+                        value={rvSearch}
+                        onChange={e => { setRvSearch(e.target.value); setRvSelectedSku(""); }}
+                        className="pr-8"
+                      />
+                      {rvSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setRvSearch("")}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-lg leading-none"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Passo 3: Lista de produtos */}
+                    {(rvFornecedor || rvSearch.trim()) && (
+                      <div className="border rounded-md divide-y max-h-72 overflow-y-auto">
+                        {filteredRevendaProducts.length === 0 ? (
+                          <div className="text-sm text-muted-foreground p-4 text-center">Nenhum produto encontrado.</div>
+                        ) : filteredRevendaProducts.map(p => (
+                          <div
+                            key={p.sku}
+                            className="flex items-center justify-between px-3 py-2.5 hover:bg-muted/50 transition-colors group"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium truncate">{p.name}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {p.sku}{p.referencia ? ` · Ref: ${p.referencia}` : ""}
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleAddRevendaItem(p.sku)}
+                              className="ml-2 shrink-0 h-8 px-3 text-xs opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-600/10 hover:bg-emerald-600 hover:text-white text-emerald-700"
+                            >
+                              + Adicionar
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Dica quando nada está selecionado */}
+                    {!rvFornecedor && !rvSearch.trim() && (
+                      <p className="text-xs text-muted-foreground text-center py-2">
+                        Selecione um fornecedor ou busque pelo nome do produto.
+                      </p>
+                    )}
+                  </>
                 )}
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">Quantidade <span className="text-destructive">*</span></label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={rvQty}
-                      onChange={e => setRvQty(e.target.value)}
-                      placeholder="1"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">Preço unitário (R$) <span className="text-destructive">*</span></label>
-                    <Input
-                      value={rvUnitPrice}
-                      onChange={e => setRvUnitPrice(e.target.value)}
-                      placeholder="0,00"
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  onClick={handleAddRevendaItem}
-                  disabled={!rvSelectedSku || !rvUnitPrice}
-                  className="w-full h-12 text-base font-semibold font-display bg-emerald-600 hover:bg-emerald-700 text-white"
-                  size="lg"
-                >
-                  <ShoppingBag className="w-5 h-5 mr-2" />
-                  Adicionar ao Carrinho
-                </Button>
               </div>
             )}
 
