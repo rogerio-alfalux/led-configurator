@@ -129,13 +129,13 @@ const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.E
   { value: "Perfis",       label: "Perfis",        icon: Layers,      image: "/manus-storage/PERFIS_e65318d1.png",      available: true  },
   { value: "Downlights",   label: "Downlights",    icon: Lightbulb,   image: "/manus-storage/DOWNLIGHTS_938e9ef2.png",  available: true  },
   { value: "Painéis",      label: "Painéis",       icon: Grid2X2,     image: "/manus-storage/PAINEIS_34c70c2f.png",     available: true },
-  { value: "Spots",        label: "Spots",         icon: Focus,       image: "/manus-storage/SPOTS_dfc5ecee.jpg",       available: true },
+  { value: "Spots",        label: "Spots",         icon: Focus,       image: "/manus-storage/spots-nobg_a12052bc.png",   available: true },
   { value: "Arandelas",    label: "Arandelas",     icon: Lamp,        image: "/manus-storage/ARANDELAS_324ddfb0.webp",  available: true },
   { value: "Área Externa", label: "Área Externa",  icon: TreePine,    image: "/manus-storage/AREAEXTERNA_5811f7cb.png", available: false },
   { value: "Balizadores",  label: "Balizadores",   icon: Navigation,  image: "/manus-storage/BALIZADORES_482d54f1.png", available: false },
   { value: "Decorativas",  label: "Decorativas",   icon: Sparkles,    image: "/manus-storage/DECORATIVAS_4ee44c0e.png", available: false },
-  { value: "Item Especial", label: "Item Especial",  icon: PackagePlus, available: true  },
-  { value: "Revenda",       label: "Revenda",        icon: ShoppingBag, image: "/manus-storage/revenda-icon_9ee010ce.png", available: true  },
+  { value: "Item Especial", label: "Item Especial",  icon: PackagePlus, image: "/manus-storage/item-especial-icon_c570c491.png", available: true  },
+  { value: "Revenda",       label: "Revenda",        icon: ShoppingBag, image: "/manus-storage/revenda-icon-nobg_245d52aa.png", available: true  },
 ];
 
 // ─── Auxiliar: quantidade de drivers por produto/controle/tensão ─────────────
