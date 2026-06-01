@@ -302,9 +302,14 @@ export default function QuoteDetail() {
                   ✅ Aprovado em: {new Date(quote.approvedAt).toLocaleDateString("pt-BR")}
                 </p>
               )}
-              {quote.totalAmount && Number(quote.totalAmount) > 0 && (
-                <p className="text-primary font-bold text-lg">{formatBRL(Number(quote.totalAmount))}</p>
-              )}
+              {(() => {
+                const displayTotal = quote.totalFinal && Number(quote.totalFinal) > 0
+                  ? Number(quote.totalFinal)
+                  : (quote.totalAmount ? Number(quote.totalAmount) : 0);
+                return displayTotal > 0 ? (
+                  <p className="text-primary font-bold text-lg">{formatBRL(displayTotal)}</p>
+                ) : null;
+              })()}
             </CardContent>
           </Card>
         </div>
@@ -1052,25 +1057,49 @@ export default function QuoteDetail() {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-xs text-muted-foreground">Qtd: {d.qty}</p>
-                      {d.unitPrice != null && d.unitPrice > 0 && (
-                        <p className="text-xs text-muted-foreground">{formatBRL(d.unitPrice)}/un</p>
-                      )}
-                      {d.totalPrice != null && d.totalPrice > 0 ? (
-                        <p className="font-bold text-primary text-sm">{formatBRL(d.totalPrice)}</p>
-                      ) : (
-                        <p className="text-xs italic text-muted-foreground">A consultar</p>
-                      )}
+                      {(() => {
+                        const rtPct = quote.rtPercent ? parseFloat(String(quote.rtPercent)) : 0;
+                        const mPct = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;
+                        const applyMkup = (base: number) => {
+                          const comRT = rtPct > 0 ? base / (1 - rtPct) : base;
+                          return mPct > 0 ? comRT / (1 - mPct) : comRT;
+                        };
+                        const hasMarkup = rtPct > 0 || mPct > 0;
+                        const unitDisplay = d.unitPrice != null && d.unitPrice > 0
+                          ? (hasMarkup ? applyMkup(d.unitPrice) : d.unitPrice)
+                          : null;
+                        const totalDisplay = d.totalPrice != null && d.totalPrice > 0
+                          ? (hasMarkup ? applyMkup(d.totalPrice) : d.totalPrice)
+                          : null;
+                        return (
+                          <>
+                            {unitDisplay != null && (
+                              <p className="text-xs text-muted-foreground">{formatBRL(unitDisplay)}/un</p>
+                            )}
+                            {totalDisplay != null ? (
+                              <p className="font-bold text-primary text-sm">{formatBRL(totalDisplay)}</p>
+                            ) : (
+                              <p className="text-xs italic text-muted-foreground">A consultar</p>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 );
               })}
             </div>
-            {quote.totalAmount && Number(quote.totalAmount) > 0 && (
-              <div className="px-4 py-3 border-t bg-primary/5 flex justify-between items-center">
-                <span className="text-sm font-medium">Total</span>
-                <span className="text-xl font-bold text-primary">{formatBRL(Number(quote.totalAmount))}</span>
-              </div>
-            )}
+{(() => {
+                const displayTotal = quote.totalFinal && Number(quote.totalFinal) > 0
+                  ? Number(quote.totalFinal)
+                  : (quote.totalAmount ? Number(quote.totalAmount) : 0);
+                return displayTotal > 0 ? (
+                  <div className="px-4 py-3 border-t bg-primary/5 flex justify-between items-center">
+                    <span className="text-sm font-medium">Total</span>
+                    <span className="text-xl font-bold text-primary">{formatBRL(displayTotal)}</span>
+                  </div>
+                ) : null;
+              })()}
           </CardContent>
         </Card>
 
@@ -1108,7 +1137,12 @@ export default function QuoteDetail() {
                         </div>
                         <div className="text-right flex-shrink-0">
                           <p className="text-sm font-bold text-primary">
-                            {v.totalAmount && Number(v.totalAmount) > 0 ? formatBRL(Number(v.totalAmount)) : "—"}
+                            {(() => {
+                              const vTotal = v.totalFinal && Number(v.totalFinal) > 0
+                                ? Number(v.totalFinal)
+                                : (v.totalAmount ? Number(v.totalAmount) : 0);
+                              return vTotal > 0 ? formatBRL(vTotal) : "—";
+                            })()}
                           </p>
                           <p className="text-xs text-muted-foreground">{vItems.length} iten{vItems.length !== 1 ? "s" : ""}</p>
                         </div>

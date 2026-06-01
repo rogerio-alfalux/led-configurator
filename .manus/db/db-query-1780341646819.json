@@ -1,0 +1,298 @@
+{
+  "query": "SHOW COLUMNS FROM quotes;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SHOW COLUMNS FROM quotes;",
+  "rows": [
+    {
+      "Field": "id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": "NULL",
+      "Extra": "auto_increment"
+    },
+    {
+      "Field": "quoteNumber",
+      "Type": "varchar(32)",
+      "Null": "NO",
+      "Key": "UNI",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "clientName",
+      "Type": "varchar(256)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "clientContact",
+      "Type": "varchar(128)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "clientPhone",
+      "Type": "varchar(64)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "clientEmail",
+      "Type": "varchar(320)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "projectName",
+      "Type": "varchar(256)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "projectRef",
+      "Type": "varchar(128)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "vendorName",
+      "Type": "varchar(128)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "assistantName",
+      "Type": "varchar(128)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "createdByUserId",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "status",
+      "Type": "enum('open','approved','lost','cancelled')",
+      "Null": "NO",
+      "Key": "",
+      "Default": "open",
+      "Extra": ""
+    },
+    {
+      "Field": "currentVersion",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "1",
+      "Extra": ""
+    },
+    {
+      "Field": "totalAmount",
+      "Type": "decimal(12,2)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "approvedAt",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "notes",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "createdAt",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": ""
+    },
+    {
+      "Field": "updatedAt",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "Field": "seller1Id",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "seller1Name",
+      "Type": "varchar(128)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "seller2Id",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "seller2Name",
+      "Type": "varchar(128)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "assistantId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "rtPercent",
+      "Type": "decimal(5,4)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "rtDest1",
+      "Type": "varchar(256)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "rtDest1Active",
+      "Type": "tinyint(1)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "1",
+      "Extra": ""
+    },
+    {
+      "Field": "rtDest2",
+      "Type": "varchar(256)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "rtDest2Active",
+      "Type": "tinyint(1)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "rtDest3",
+      "Type": "varchar(256)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "rtDest3Active",
+      "Type": "tinyint(1)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "marginPercent",
+      "Type": "decimal(5,4)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0.10",
+      "Extra": ""
+    },
+    {
+      "Field": "freteType",
+      "Type": "enum('free','paid','night','consult')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "free",
+      "Extra": ""
+    },
+    {
+      "Field": "freteIsento",
+      "Type": "tinyint(1)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "freteLocalidade",
+      "Type": "enum('sp','other')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "sp",
+      "Extra": ""
+    },
+    {
+      "Field": "totalFinal",
+      "Type": "decimal(12,2)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "revisionCount",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\tauto_increment\nquoteNumber\tvarchar(32)\tNO\tUNI\tNULL\t\nclientName\tvarchar(256)\tNO\t\tNULL\t\nclientContact\tvarchar(128)\tYES\t\tNULL\t\nclientPhone\tvarchar(64)\tYES\t\tNULL\t\nclientEmail\tvarchar(320)\tYES\t\tNULL\t\nprojectName\tvarchar(256)\tYES\t\tNULL\t\nprojectRef\tvarchar(128)\tYES\t\tNULL\t\nvendorName\tvarchar(128)\tYES\t\tNULL\t\nassistantName\tvarchar(128)\tYES\t\tNULL\t\ncreatedByUserId\tint\tNO\t\tNULL\t\nstatus\tenum('open','approved','lost','cancelled')\tNO\t\topen\t\ncurrentVersion\tint\tNO\t\t1\t\ntotalAmount\tdecimal(12,2)\tYES\t\t0\t\napprovedAt\ttimestamp\tYES\t\tNULL\t\nnotes\ttext\tYES\t\tNULL\t\ncreatedAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t\nupdatedAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\tDEFAULT_GENERATED on update CURRENT_TIMESTAMP\nseller1Id\tint\tYES\t\tNULL\t\nseller1Name\tvarchar(128)\tYES\t\tNULL\t\nseller2Id\tint\tYES\t\tNULL\t\nseller2Name\tvarchar(128)\tYES\t\tNULL\t\nassistantId\tint\tYES\t\tNULL\t\nrtPercent\tdecimal(5,4)\tYES\t\t0\t\nrtDest1\tvarchar(256)\tYES\t\tNULL\t\nrtDest1Active\ttinyint(1)\tNO\t\t1\t\nrtDest2\tvarchar(256)\tYES\t\tNULL\t\nrtDest2Active\ttinyint(1)\tNO\t\t0\t\nrtDest3\tvarchar(256)\tYES\t\tNULL\t\nrtDest3Active\ttinyint(1)\tNO\t\t0\t\nmarginPercent\tdecimal(5,4)\tYES\t\t0.10\t\nfreteType\tenum('free','paid','night','consult')\tYES\t\tfree\t\nfreteIsento\ttinyint(1)\tNO\t\t0\t\nfreteLocalidade\tenum('sp','other')\tYES\t\tsp\t\ntotalFinal\tdecimal(12,2)\tYES\t\t0\t\nrevisionCount\tint\tNO\t\t0\t\n",
+  "stderr": "",
+  "execution_time_ms": 263
+}

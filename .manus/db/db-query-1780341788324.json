@@ -1,0 +1,31 @@
+{
+  "query": "SELECT quoteNumber, totalAmount, totalFinal, rtPercent, marginPercent FROM quotes ORDER BY id DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT quoteNumber, totalAmount, totalFinal, rtPercent, marginPercent FROM quotes ORDER BY id DESC LIMIT 5;",
+  "rows": [
+    {
+      "quoteNumber": "33.0057-26",
+      "totalAmount": "698.00",
+      "totalFinal": "775.56",
+      "rtPercent": "0.0000",
+      "marginPercent": "0.1000"
+    },
+    {
+      "quoteNumber": "04.0205-26",
+      "totalAmount": "20043.88",
+      "totalFinal": "20039.49",
+      "rtPercent": "0.0000",
+      "marginPercent": "0.1000"
+    },
+    {
+      "quoteNumber": "33.0056-26",
+      "totalAmount": "135045.36",
+      "totalFinal": "150050.40",
+      "rtPercent": "0.0000",
+      "marginPercent": "0.1000"
+    }
+  ],
+  "messages": [],
+  "stdout": "quoteNumber\ttotalAmount\ttotalFinal\trtPercent\tmarginPercent\n33.0057-26\t698.00\t775.56\t0.0000\t0.1000\n04.0205-26\t20043.88\t20039.49\t0.0000\t0.1000\n33.0056-26\t135045.36\t150050.40\t0.0000\t0.1000\n",
+  "stderr": "",
+  "execution_time_ms": 287
+}

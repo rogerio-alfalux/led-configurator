@@ -1,0 +1,25 @@
+{
+  "query": "SELECT quoteNumber, rtPercent, marginPercent FROM quotes ORDER BY id DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT quoteNumber, rtPercent, marginPercent FROM quotes ORDER BY id DESC LIMIT 5;",
+  "rows": [
+    {
+      "quoteNumber": "33.0057-26",
+      "rtPercent": "0.0000",
+      "marginPercent": "0.1000"
+    },
+    {
+      "quoteNumber": "04.0205-26",
+      "rtPercent": "0.0000",
+      "marginPercent": "0.1000"
+    },
+    {
+      "quoteNumber": "33.0056-26",
+      "rtPercent": "0.0000",
+      "marginPercent": "0.1000"
+    }
+  ],
+  "messages": [],
+  "stdout": "quoteNumber\trtPercent\tmarginPercent\n33.0057-26\t0.0000\t0.1000\n04.0205-26\t0.0000\t0.1000\n33.0056-26\t0.0000\t0.1000\n",
+  "stderr": "",
+  "execution_time_ms": 281
+}

@@ -1,0 +1,34 @@
+{
+  "query": "SELECT id, version, totalAmount, totalFinal FROM quote_versions ORDER BY id DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT id, version, totalAmount, totalFinal FROM quote_versions ORDER BY id DESC LIMIT 5;",
+  "rows": [
+    {
+      "id": "480001",
+      "version": "1",
+      "totalAmount": "698.00",
+      "totalFinal": "0.00"
+    },
+    {
+      "id": "390002",
+      "version": "2",
+      "totalAmount": "20043.88",
+      "totalFinal": "0.00"
+    },
+    {
+      "id": "390001",
+      "version": "1",
+      "totalAmount": "16235.54",
+      "totalFinal": "0.00"
+    },
+    {
+      "id": "330001",
+      "version": "1",
+      "totalAmount": "135045.36",
+      "totalFinal": "0.00"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tversion\ttotalAmount\ttotalFinal\n480001\t1\t698.00\t0.00\n390002\t2\t20043.88\t0.00\n390001\t1\t16235.54\t0.00\n330001\t1\t135045.36\t0.00\n",
+  "stderr": "",
+  "execution_time_ms": 264
+}
