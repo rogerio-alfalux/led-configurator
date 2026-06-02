@@ -22,6 +22,8 @@ import {
 import { adaptProfileProducts } from "@/lib/profileApiAdapter";
 import type { InstallType } from "@/lib/ledCatalog";
 import { calculateComposition } from "@/lib/ledEngine";
+import { profileSupportsLShape, calculateLShape, calculateSquare, calculateRectangle } from "@/lib/lEngine";
+import type { ProfileShape, ShapeResult, ShapePiece } from "@/lib/lCatalog";
 import { generateProductionTemplate } from "@/lib/productionTemplate";
 import { generateOrderSummary } from "@/lib/orderSummary";
 import { generateQuoteSummary } from "@/lib/quoteSummary";
@@ -1583,7 +1585,15 @@ export default function Home() {
   // SHARP difusor
   const [diffuserD1, setDiffuserD1] = useState<DiffuserType | undefined>(undefined);
   const [diffuserD2, setDiffuserD2] = useState<DiffuserType | undefined>(undefined);
-
+  // Formato de perfil (reto, L, quadrado, retangular)
+  const [profileShape, setProfileShape] = useState<ProfileShape>("STRAIGHT");
+  // Medidas para formatos EM L
+  const [shapeWidth, setShapeWidth] = useState<string>("2000");
+  const [shapeHeight, setShapeHeight] = useState<string>("1200");
+  const [shapeSide, setShapeSide] = useState<string>("1200");
+  const [shapeSideH, setShapeSideH] = useState<string>("2000");
+  const [shapeSideV, setShapeSideV] = useState<string>("1200");
+  const [shapeResult, setShapeResult] = useState<ShapeResult | null>(null);
   // Result state
   const [result, setResult] = useState<CompositionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1619,6 +1629,8 @@ export default function Home() {
     setProfileName(name);
     setInstallType("");
     setApplication("D1");
+    setProfileShape("STRAIGHT");
+    setShapeResult(null);
     setResult(null);
     setError(null);
   };
@@ -2360,6 +2372,55 @@ export default function Home() {
                   </div>
                 )}
 
+                {/* 2b. Formato do Perfil (apenas para perfis que suportam EM L) */}
+                {selectedVariant && profileSupportsLShape(profileCode) && (
+                  <div>
+                    <FieldLabel>Formato</FieldLabel>
+                    <div className="grid grid-cols-4 gap-2">
+                      {([
+                        { value: "STRAIGHT" as ProfileShape, label: "Reto", icon: (
+                          <svg viewBox="0 0 40 20" className="w-8 h-4" fill="none">
+                            <rect x="2" y="8" width="36" height="4" rx="1" fill="currentColor" opacity="0.9" />
+                          </svg>
+                        )},
+                        { value: "L_SHAPE" as ProfileShape, label: "Em L", icon: (
+                          <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none">
+                            <path d="M4 4 L4 20 L20 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                          </svg>
+                        )},
+                        { value: "SQUARE" as ProfileShape, label: "Quadrado", icon: (
+                          <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none">
+                            <rect x="3" y="3" width="18" height="18" rx="1" stroke="currentColor" strokeWidth="3" fill="none" />
+                          </svg>
+                        )},
+                        { value: "RECTANGLE" as ProfileShape, label: "Retangular", icon: (
+                          <svg viewBox="0 0 32 20" className="w-8 h-5" fill="none">
+                            <rect x="2" y="2" width="28" height="16" rx="1" stroke="currentColor" strokeWidth="2.5" fill="none" />
+                          </svg>
+                        )},
+                      ]).map(({ value, label, icon }) => (
+                        <button
+                          key={value}
+                          onClick={() => { setProfileShape(value); setShapeResult(null); setResult(null); setError(null); }}
+                          className={`flex flex-col items-center gap-1 px-2 py-2.5 rounded-md text-xs font-medium border transition-all ${
+                            profileShape === value
+                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                              : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                          }`}
+                        >
+                          {icon}
+                          <span>{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {profileShape !== "STRAIGHT" && (
+                      <p className="mt-1.5 text-xs text-muted-foreground flex items-center gap-1">
+                        <Info className="w-3 h-3" />
+                        Composição com cantos EM L + módulos retos
+                      </p>
+                    )}
+                  </div>
+                )}
                 {/* 3. Aplicação (oculto para embutir) */}
                 {selectedVariant && !isEmbutir && (
                   <div>
@@ -2580,8 +2641,8 @@ export default function Home() {
                     )}
                   </div>
                 )}
-                {/* 7. Comprimento Total */}
-                {selectedVariant && (
+                {/* 7. Comprimento Total / Dimensões */}
+                {selectedVariant && profileShape === "STRAIGHT" && (
                   <div>
                     <FieldLabel>Comprimento Total</FieldLabel>
                     {isDual && (
@@ -2604,6 +2665,71 @@ export default function Home() {
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">
                         mm
                       </span>
+                    </div>
+                  </div>
+                )}
+                {/* 7b. Dimensões para formato EM L */}
+                {selectedVariant && profileShape === "L_SHAPE" && (
+                  <div className="space-y-3">
+                    <FieldLabel>Dimensões do L</FieldLabel>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Lado Horizontal (mm)</p>
+                        <div className="relative">
+                          <input type="number" value={shapeSideH} onChange={(e) => { setShapeSideH(e.target.value); setShapeResult(null); }} min={100} max={20000} step={1}
+                            className="w-full h-10 px-3 pr-10 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                            placeholder="ex: 2000" />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">mm</span>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Lado Vertical (mm)</p>
+                        <div className="relative">
+                          <input type="number" value={shapeSideV} onChange={(e) => { setShapeSideV(e.target.value); setShapeResult(null); }} min={100} max={20000} step={1}
+                            className="w-full h-10 px-3 pr-10 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                            placeholder="ex: 1200" />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">mm</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {/* 7c. Dimensões para formato Quadrado */}
+                {selectedVariant && profileShape === "SQUARE" && (
+                  <div>
+                    <FieldLabel>Lado do Quadrado (mm)</FieldLabel>
+                    <div className="relative">
+                      <input type="number" value={shapeSide} onChange={(e) => { setShapeSide(e.target.value); setShapeResult(null); }} min={100} max={20000} step={1}
+                        className="w-full h-10 px-3 pr-10 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                        placeholder="ex: 1200" />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">mm</span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">4 lados iguais</p>
+                  </div>
+                )}
+                {/* 7d. Dimensões para formato Retangular */}
+                {selectedVariant && profileShape === "RECTANGLE" && (
+                  <div className="space-y-3">
+                    <FieldLabel>Dimensões do Retângulo</FieldLabel>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Largura / Lado Longo (mm)</p>
+                        <div className="relative">
+                          <input type="number" value={shapeWidth} onChange={(e) => { setShapeWidth(e.target.value); setShapeResult(null); }} min={100} max={20000} step={1}
+                            className="w-full h-10 px-3 pr-10 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                            placeholder="ex: 2000" />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">mm</span>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Altura / Lado Curto (mm)</p>
+                        <div className="relative">
+                          <input type="number" value={shapeHeight} onChange={(e) => { setShapeHeight(e.target.value); setShapeResult(null); }} min={100} max={20000} step={1}
+                            className="w-full h-10 px-3 pr-10 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                            placeholder="ex: 1200" />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">mm</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -3890,7 +4016,7 @@ export default function Home() {
             )}
 
             {/* Botão Calcular — Perfis */}
-            {selectedVariant && productCategory === "Perfis" && (
+            {selectedVariant && productCategory === "Perfis" && profileShape === "STRAIGHT" && (
               <Button
                 onClick={handleCalculate}
                 className="w-full h-12 text-base font-semibold font-display"
@@ -3898,6 +4024,33 @@ export default function Home() {
               >
                 <Zap className="w-5 h-5 mr-2" />
                 Calcular Composição
+              </Button>
+            )}
+            {selectedVariant && productCategory === "Perfis" && profileShape !== "STRAIGHT" && (
+              <Button
+                onClick={() => {
+                  const code = profileCode;
+                  let sr: ShapeResult | null = null;
+                  if (profileShape === "L_SHAPE") {
+                    sr = calculateLShape(code, parseInt(shapeSideH) || 2000, parseInt(shapeSideV) || 1200);
+                  } else if (profileShape === "SQUARE") {
+                    sr = calculateSquare(code, parseInt(shapeSide) || 1200);
+                  } else if (profileShape === "RECTANGLE") {
+                    sr = calculateRectangle(code, parseInt(shapeWidth) || 2000, parseInt(shapeHeight) || 1200);
+                  }
+                  if (sr) {
+                    setShapeResult(sr);
+                    setResult(null);
+                    setError(null);
+                  } else {
+                    setError("Não foi possível calcular a composição para este formato. Verifique as dimensões informadas.");
+                  }
+                }}
+                className="w-full h-12 text-base font-semibold font-display"
+                size="lg"
+              >
+                <Zap className="w-5 h-5 mr-2" />
+                Calcular Formato EM L
               </Button>
             )}
 
@@ -3918,7 +4071,7 @@ export default function Home() {
               </p>
             </div>
 
-            {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && (!result ? (
+            {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && profileShape === "STRAIGHT" && (!result ? (
               <Card className="shadow-sm">
                 <CardContent className="flex flex-col items-center justify-center py-20 text-center">
                   <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
@@ -3935,6 +4088,63 @@ export default function Home() {
             ) : (
               <ResultBlock result={result} profilePriceMap={profilePriceMap} onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined} />
             ))}
+            {/* Resultado EM L */}
+            {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && profileShape !== "STRAIGHT" && (
+              !shapeResult ? (
+                <Card className="shadow-sm">
+                  <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                      <svg viewBox="0 0 24 24" className="w-8 h-8 text-muted-foreground" fill="none">
+                        <path d="M4 4 L4 20 L20 20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                    <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
+                    <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+                      Informe as dimensões e clique em "Calcular Formato EM L".
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-bold font-display flex items-center gap-2">
+                      <svg viewBox="0 0 24 24" className="w-5 h-5 text-primary" fill="none">
+                        <path d="M4 4 L4 20 L20 20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      Composição EM L
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      {shapeResult.shape === "L_SHAPE" && `Formato L: ${shapeResult.dimensions[0]}mm × ${shapeResult.dimensions[1]}mm`}
+                      {shapeResult.shape === "SQUARE" && `Quadrado: ${shapeResult.dimensions[0]}mm × ${shapeResult.dimensions[1]}mm`}
+                      {shapeResult.shape === "RECTANGLE" && `Retângulo: ${shapeResult.dimensions[0]}mm × ${shapeResult.dimensions[1]}mm`}
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      {shapeResult.pieces.map((piece, idx) => (
+                        <div key={idx} className="flex items-start justify-between gap-3 p-3 rounded-lg bg-muted/40 border border-border/50">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-mono font-semibold text-foreground truncate">{piece.sku}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{piece.description}</p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold">{piece.quantity}×</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/30 border border-border/40">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Resumo</p>
+                      <pre className="text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed">{shapeResult.summary}</pre>
+                    </div>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Info className="w-3 h-3" />
+                      Os drivers são calculados conforme a composição de cada módulo reto. Cantos EM L não possuem driver próprio.
+                    </p>
+                  </CardContent>
+                </Card>
+              )
+            )}
 
             {/* ── Resultado LED BAR ─────────────────────────────────────────────────── */}
             {productCategory === "Perfis" && lbFamilia && (
