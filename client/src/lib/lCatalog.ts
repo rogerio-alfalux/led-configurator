@@ -423,6 +423,20 @@ export function getCorner1x1(profileCode: string): LCornerModule | null {
 export type ProfileShape = "STRAIGHT" | "L_SHAPE" | "SQUARE" | "RECTANGLE";
 
 /**
+ * Driver calculado para uma peça da composição EM L.
+ */
+export type ShapePieceDriver = {
+  /** Código do driver (ex: "EQ00346") */
+  code?: string;
+  /** Modelo do driver (ex: "PHILIPS XITANIUM 44W 350MA") */
+  model: string;
+  /** Quantidade de drivers por peça */
+  quantity: number;
+  /** Drivers adicionais para combos */
+  combo?: Array<{ code: string; model: string; quantity: number }>;
+};
+
+/**
  * Resultado do cálculo de uma forma.
  */
 export type ShapeResult = {
@@ -433,6 +447,16 @@ export type ShapeResult = {
   pieces: ShapePiece[];
   /** Descrição textual da composição */
   summary: string;
+  /** Potência em W usada no cálculo (para exibição e driver) */
+  power?: number;
+  /** Tensão usada no cálculo */
+  voltage?: string;
+  /** Método de barra usado no cálculo */
+  stripMethod?: "STRIPFLEX" | "STRIPLINE";
+  /** CCT selecionada */
+  cct?: string;
+  /** Nome do perfil */
+  profileName?: string;
 };
 
 export type ShapePiece = {
@@ -443,4 +467,8 @@ export type ShapePiece = {
   length?: number;
   /** Tipo de peça */
   type: "CORNER" | "STRAIGHT_IN" | "STRAIGHT_IF" | "STRAIGHT_ML";
+  /** Número de barras desta peça (para cálculo de driver) */
+  bars?: number;
+  /** Driver calculado para esta peça */
+  driver?: ShapePieceDriver;
 };

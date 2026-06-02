@@ -982,3 +982,16 @@
 - [x] Itens acumulados em lista local (pendingQuoteItems) antes de confirmar
 - [x] Botão "Confirmar" no banner chama quotes.appendItems e redireciona ao orçamento
 - [x] Botão "Cancelar" retorna ao orçamento sem salvar
+
+## v30 — Formatos EM L: drivers por peça, allowLongModules e ShapeResultCard (02/06/2026)
+
+- [x] lCatalog.ts: adicionar tipo ShapePieceDriver com code, model, quantity, combo
+- [x] lCatalog.ts: adicionar campos bars e driver em ShapePiece
+- [x] lCatalog.ts: adicionar campos power, voltage, stripMethod, cct, profileName em ShapeResult
+- [x] lEngine.ts: reescrever com cálculo de driver por peça via selectDriverFallback
+- [x] lEngine.ts: respeitar allowLongModules ao filtrar módulos IF (limite MAX_IF_LENGTH_STANDARD = 2840mm)
+- [x] lEngine.ts: exportar ShapeDriverParams com power, voltage, stripMethod, allowLongModules, cct, profileName
+- [x] Home.tsx: passar ShapeDriverParams ao calcular L_SHAPE, SQUARE, RECTANGLE
+- [x] Home.tsx: criar ShapeResultCard com lista de peças + driver por peça + textarea copiável + botão Enviar ao Carrinho/Orçamento
+- [x] Home.tsx: substituir bloco básico de resultado EM L pelo ShapeResultCard
+- [x] 495 testes passando

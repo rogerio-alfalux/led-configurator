@@ -21,13 +21,34 @@
  * Módulos retos entre cantos: usamos módulos IF do catálogo reto.
  * O comprimento disponível para retos = lado total - 2 × cornerLength.
  * Escolhemos o módulo IF mais próximo (por baixo) do comprimento disponível.
+ *
+ * Drivers:
+ *   - Cada peça (canto ou módulo reto) recebe 1 driver calculado pelas suas barras.
+ *   - Canto 1x1: totalBars = barsLong + barsShort = 1 + 1 = 2
+ *   - Canto 1xN: totalBars = barsLong + barsShort = N + 1
+ *   - Módulo reto IF: totalBars = bars do módulo
  */
 
-import { getLConfig, getCorner1x1, type LCornerModule, type ShapeResult, type ShapePiece } from "./lCatalog";
+import { getLConfig, getCorner1x1, type LCornerModule, type ShapeResult, type ShapePiece, type ShapePieceDriver } from "./lCatalog";
 import { LED_CATALOG, type ProfileVariant } from "./ledCatalog";
+import { selectDriverFallback } from "./driverSelector";
+import type { Power, Voltage, StripMethod } from "./ledEngine";
 
 /** Tolerância de ajuste em mm (diferença aceitável entre medida desejada e real) */
 const TOLERANCE_MM = 50;
+
+/** Comprimento máximo de módulo IF sem módulos longos habilitados */
+const MAX_IF_LENGTH_STANDARD = 2840;
+
+/** Parâmetros de driver para cálculo */
+export interface ShapeDriverParams {
+  power: Power;
+  voltage: Voltage;
+  stripMethod: StripMethod;
+  allowLongModules: boolean;
+  cct?: string;
+  profileName?: string;
+}
 
 /** Resultado do cálculo de um lado reto entre dois cantos */
 type StraightSegment = {
@@ -40,12 +61,38 @@ type StraightSegment = {
 };
 
 /**
+ * Calcula o driver para uma peça com base no total de barras.
+ */
+function calcPieceDriver(
+  totalBars: number,
+  params: ShapeDriverParams
+): ShapePieceDriver {
+  // driverSelector usa Voltage = "220Vac" | "Bivolt" (mesmo tipo do ledEngine)
+  const d = selectDriverFallback(
+    totalBars,
+    params.power,
+    params.voltage,
+    params.stripMethod,
+    params.allowLongModules
+  );
+
+  return {
+    code: d.code,
+    model: d.model,
+    quantity: d.quantity,
+    combo: d.combo,
+  };
+}
+
+/**
  * Encontra o melhor módulo IF para preencher um comprimento disponível.
  * Escolhe o módulo mais próximo por baixo (≤ availableLength).
+ * Respeita o limite de comprimento de módulos longos.
  */
 function findBestIFModule(
   profileEntry: ProfileVariant,
-  availableLength: number
+  availableLength: number,
+  allowLongModules: boolean
 ): StraightSegment {
   if (availableLength <= 0) {
     return { availableLength, module: null, actualLength: 0 };
@@ -60,6 +107,8 @@ function findBestIFModule(
 
   for (const [barsKey, mod] of Object.entries(ifModules)) {
     const m = mod as { length: number; sku: string };
+    // Respeitar limite de comprimento (allowLongModules libera módulos > 2840mm)
+    if (!allowLongModules && m.length > MAX_IF_LENGTH_STANDARD) continue;
     if (m.length <= availableLength + TOLERANCE_MM) {
       if (!best || m.length > best.length) {
         best = { sku: m.sku, length: m.length, bars: parseFloat(barsKey) };
@@ -80,11 +129,13 @@ function findBestIFModule(
  * @param profileCode - Código do perfil (ex: "LLP-4536")
  * @param sideH - Comprimento desejado do lado horizontal em mm
  * @param sideV - Comprimento desejado do lado vertical em mm
+ * @param driverParams - Parâmetros para cálculo de drivers (opcional)
  */
 export function calculateLShape(
   profileCode: string,
   sideH: number,
-  sideV: number
+  sideV: number,
+  driverParams?: ShapeDriverParams
 ): ShapeResult | null {
   const lConfig = getLConfig(profileCode);
   if (!lConfig) return null;
@@ -95,19 +146,24 @@ export function calculateLShape(
   const profileEntry = LED_CATALOG[profileCode];
   if (!profileEntry) return null;
 
+  const allowLongModules = driverParams?.allowLongModules ?? false;
   const cornerLen = corner.lengthLong; // 1x1 é quadrado, ambos os lados iguais
 
   // Comprimento disponível para módulos retos em cada lado
   const availH = sideH - cornerLen;
   const availV = sideV - cornerLen;
 
-  const segH = findBestIFModule(profileEntry as unknown as ProfileVariant, availH);
-  const segV = findBestIFModule(profileEntry as unknown as ProfileVariant, availV);
+  const segH = findBestIFModule(profileEntry as unknown as ProfileVariant, availH, allowLongModules);
+  const segV = findBestIFModule(profileEntry as unknown as ProfileVariant, availV, allowLongModules);
 
   const actualH = cornerLen + segH.actualLength;
   const actualV = cornerLen + segV.actualLength;
 
   const pieces: ShapePiece[] = [];
+
+  // Calcular driver do canto (barsLong + barsShort)
+  const cornerBars = corner.barsLong + corner.barsShort;
+  const cornerDriver = driverParams ? calcPieceDriver(cornerBars, driverParams) : undefined;
 
   // 1 canto
   pieces.push({
@@ -115,32 +171,46 @@ export function calculateLShape(
     quantity: 1,
     description: `Canto EM L 1×1 (${cornerLen}×${cornerLen}mm)`,
     type: "CORNER",
+    bars: cornerBars,
+    driver: cornerDriver,
   });
 
   // Módulo reto horizontal (se houver)
   if (segH.module) {
+    const hDriver = driverParams ? calcPieceDriver(segH.module.bars, driverParams) : undefined;
     pieces.push({
       sku: segH.module.sku,
       quantity: 1,
       description: `Módulo reto IF ${segH.module.bars} barras (${segH.module.length}mm) — lado horizontal`,
       length: segH.module.length,
       type: "STRAIGHT_IF",
+      bars: segH.module.bars,
+      driver: hDriver,
     });
   }
 
   // Módulo reto vertical (se houver)
   if (segV.module) {
-    pieces.push({
-      sku: segV.module.sku,
-      quantity: segH.module?.sku === segV.module.sku ? 0 : 1, // será agrupado
-      description: `Módulo reto IF ${segV.module.bars} barras (${segV.module.length}mm) — lado vertical`,
-      length: segV.module.length,
-      type: "STRAIGHT_IF",
-    });
-    // Agrupar se mesmo SKU
+    const vDriver = driverParams ? calcPieceDriver(segV.module.bars, driverParams) : undefined;
+    // Verificar se é o mesmo SKU do horizontal
     if (segH.module?.sku === segV.module.sku) {
-      pieces[pieces.length - 2].quantity = 2;
-      pieces.pop();
+      // Agrupar: incrementar quantidade do horizontal
+      const hPiece = pieces.find(p => p.sku === segV.module!.sku && p.type === "STRAIGHT_IF");
+      if (hPiece) {
+        hPiece.quantity = 2;
+        // Atualizar descrição para refletir ambos os lados
+        hPiece.description = `Módulo reto IF ${segV.module.bars} barras (${segV.module.length}mm) — horizontal e vertical`;
+      }
+    } else {
+      pieces.push({
+        sku: segV.module.sku,
+        quantity: 1,
+        description: `Módulo reto IF ${segV.module.bars} barras (${segV.module.length}mm) — lado vertical`,
+        length: segV.module.length,
+        type: "STRAIGHT_IF",
+        bars: segV.module.bars,
+        driver: vDriver,
+      });
     }
   }
 
@@ -155,6 +225,11 @@ export function calculateLShape(
     dimensions: [actualH, actualV],
     pieces,
     summary,
+    power: driverParams?.power,
+    voltage: driverParams?.voltage,
+    stripMethod: driverParams?.stripMethod,
+    cct: driverParams?.cct,
+    profileName: driverParams?.profileName,
   };
 }
 
@@ -163,10 +238,12 @@ export function calculateLShape(
  *
  * @param profileCode - Código do perfil
  * @param side - Comprimento desejado de cada lado em mm
+ * @param driverParams - Parâmetros para cálculo de drivers (opcional)
  */
 export function calculateSquare(
   profileCode: string,
-  side: number
+  side: number,
+  driverParams?: ShapeDriverParams
 ): ShapeResult | null {
   const lConfig = getLConfig(profileCode);
   if (!lConfig) return null;
@@ -177,17 +254,22 @@ export function calculateSquare(
   const profileEntry = LED_CATALOG[profileCode];
   if (!profileEntry) return null;
 
+  const allowLongModules = driverParams?.allowLongModules ?? false;
   const cornerLen = corner.lengthLong;
 
   // Comprimento disponível para módulos retos entre os dois cantos opostos
   // Cada lado = canto + reto + canto → disponível = side - 2 × cornerLen
   const availPerSide = side - 2 * cornerLen;
 
-  const seg = findBestIFModule(profileEntry as unknown as ProfileVariant, availPerSide);
+  const seg = findBestIFModule(profileEntry as unknown as ProfileVariant, availPerSide, allowLongModules);
 
   const actualSide = 2 * cornerLen + seg.actualLength;
 
   const pieces: ShapePiece[] = [];
+
+  // Calcular driver do canto
+  const cornerBars = corner.barsLong + corner.barsShort;
+  const cornerDriver = driverParams ? calcPieceDriver(cornerBars, driverParams) : undefined;
 
   // 4 cantos
   pieces.push({
@@ -195,16 +277,21 @@ export function calculateSquare(
     quantity: 4,
     description: `Canto EM L 1×1 (${cornerLen}×${cornerLen}mm)`,
     type: "CORNER",
+    bars: cornerBars,
+    driver: cornerDriver,
   });
 
   // Módulos retos (4 lados, cada um com 1 módulo reto se houver)
   if (seg.module) {
+    const segDriver = driverParams ? calcPieceDriver(seg.module.bars, driverParams) : undefined;
     pieces.push({
       sku: seg.module.sku,
       quantity: 4,
       description: `Módulo reto IF ${seg.module.bars} barras (${seg.module.length}mm)`,
       length: seg.module.length,
       type: "STRAIGHT_IF",
+      bars: seg.module.bars,
+      driver: segDriver,
     });
   }
 
@@ -218,6 +305,11 @@ export function calculateSquare(
     dimensions: [actualSide, actualSide],
     pieces,
     summary,
+    power: driverParams?.power,
+    voltage: driverParams?.voltage,
+    stripMethod: driverParams?.stripMethod,
+    cct: driverParams?.cct,
+    profileName: driverParams?.profileName,
   };
 }
 
@@ -227,11 +319,13 @@ export function calculateSquare(
  * @param profileCode - Código do perfil
  * @param width - Comprimento desejado do lado longo (largura) em mm
  * @param height - Comprimento desejado do lado curto (altura) em mm
+ * @param driverParams - Parâmetros para cálculo de drivers (opcional)
  */
 export function calculateRectangle(
   profileCode: string,
   width: number,
-  height: number
+  height: number,
+  driverParams?: ShapeDriverParams
 ): ShapeResult | null {
   const lConfig = getLConfig(profileCode);
   if (!lConfig) return null;
@@ -242,6 +336,7 @@ export function calculateRectangle(
   const profileEntry = LED_CATALOG[profileCode];
   if (!profileEntry) return null;
 
+  const allowLongModules = driverParams?.allowLongModules ?? false;
   const cornerLen = corner.lengthLong;
 
   // Lado curto (altura): canto + canto = 2 × cornerLen
@@ -249,13 +344,17 @@ export function calculateRectangle(
   const availWidth = width - 2 * cornerLen;
   const availHeight = height - 2 * cornerLen;
 
-  const segWidth = findBestIFModule(profileEntry as unknown as ProfileVariant, availWidth);
-  const segHeight = findBestIFModule(profileEntry as unknown as ProfileVariant, availHeight);
+  const segWidth = findBestIFModule(profileEntry as unknown as ProfileVariant, availWidth, allowLongModules);
+  const segHeight = findBestIFModule(profileEntry as unknown as ProfileVariant, availHeight, allowLongModules);
 
   const actualWidth = 2 * cornerLen + segWidth.actualLength;
   const actualHeight = 2 * cornerLen + segHeight.actualLength;
 
   const pieces: ShapePiece[] = [];
+
+  // Calcular driver do canto
+  const cornerBars = corner.barsLong + corner.barsShort;
+  const cornerDriver = driverParams ? calcPieceDriver(cornerBars, driverParams) : undefined;
 
   // 4 cantos
   pieces.push({
@@ -263,28 +362,36 @@ export function calculateRectangle(
     quantity: 4,
     description: `Canto EM L 1×1 (${cornerLen}×${cornerLen}mm)`,
     type: "CORNER",
+    bars: cornerBars,
+    driver: cornerDriver,
   });
 
   // Módulos retos nos lados largos (2 peças)
   if (segWidth.module) {
+    const widthDriver = driverParams ? calcPieceDriver(segWidth.module.bars, driverParams) : undefined;
     const widthPiece: ShapePiece = {
       sku: segWidth.module.sku,
       quantity: 2,
       description: `Módulo reto IF ${segWidth.module.bars} barras (${segWidth.module.length}mm) — lados largos`,
       length: segWidth.module.length,
       type: "STRAIGHT_IF",
+      bars: segWidth.module.bars,
+      driver: widthDriver,
     };
     pieces.push(widthPiece);
   }
 
   // Módulos retos nos lados curtos (2 peças) — se diferentes dos largos
   if (segHeight.module && segHeight.module.sku !== segWidth.module?.sku) {
+    const heightDriver = driverParams ? calcPieceDriver(segHeight.module.bars, driverParams) : undefined;
     pieces.push({
       sku: segHeight.module.sku,
       quantity: 2,
       description: `Módulo reto IF ${segHeight.module.bars} barras (${segHeight.module.length}mm) — lados curtos`,
       length: segHeight.module.length,
       type: "STRAIGHT_IF",
+      bars: segHeight.module.bars,
+      driver: heightDriver,
     });
   } else if (segHeight.module && segHeight.module.sku === segWidth.module?.sku) {
     // Mesmo SKU: somar quantidades
@@ -305,6 +412,11 @@ export function calculateRectangle(
     dimensions: [actualWidth, actualHeight],
     pieces,
     summary,
+    power: driverParams?.power,
+    voltage: driverParams?.voltage,
+    stripMethod: driverParams?.stripMethod,
+    cct: driverParams?.cct,
+    profileName: driverParams?.profileName,
   };
 }
 

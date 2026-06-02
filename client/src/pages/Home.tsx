@@ -22,8 +22,8 @@ import {
 import { adaptProfileProducts } from "@/lib/profileApiAdapter";
 import type { InstallType } from "@/lib/ledCatalog";
 import { calculateComposition } from "@/lib/ledEngine";
-import { profileSupportsLShape, calculateLShape, calculateSquare, calculateRectangle } from "@/lib/lEngine";
-import type { ProfileShape, ShapeResult, ShapePiece } from "@/lib/lCatalog";
+import { profileSupportsLShape, calculateLShape, calculateSquare, calculateRectangle, type ShapeDriverParams } from "@/lib/lEngine";
+import type { ProfileShape, ShapeResult } from "@/lib/lCatalog";
 import { generateProductionTemplate } from "@/lib/productionTemplate";
 import { generateOrderSummary } from "@/lib/orderSummary";
 import { generateQuoteSummary } from "@/lib/quoteSummary";
@@ -292,6 +292,243 @@ function DiffuserSelector({
         ))}
       </div>
     </div>
+  );
+}
+
+// ─── ShapeResultCard: Card de resultado para formatos EM L ──────────────────────
+function ShapeResultCard({
+  shapeResult,
+  onAddToQuote,
+}: {
+  shapeResult: ShapeResult;
+  onAddToQuote?: (item: CartItemData) => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { addItem, isAdding: isAddingToCart } = useCart();
+  const [colorModalOpen, setColorModalOpen] = useState(false);
+  const [pendingItem, setPendingItem] = useState<CartItemData | null>(null);
+
+  const shapeLabel =
+    shapeResult.shape === "L_SHAPE" ? "Formato L" :
+    shapeResult.shape === "SQUARE" ? "Quadrado" :
+    "Retangular";
+
+  const dimensionLabel =
+    shapeResult.shape === "SQUARE"
+      ? `${shapeResult.dimensions[0]}mm × ${shapeResult.dimensions[0]}mm`
+      : `${shapeResult.dimensions[0]}mm × ${shapeResult.dimensions[1]}mm`;
+
+  // Gerar texto de resumo para cópia
+  const summaryText = (() => {
+    const lines: string[] = [];
+    const pName = shapeResult.profileName ?? "Perfil";
+    const pw = shapeResult.power ? `${shapeResult.power}W` : "";
+    const cctStr = shapeResult.cct ?? "";
+    const voltStr = shapeResult.voltage ?? "";
+    lines.push(`${pName} ${pw} ${cctStr} ${voltStr} — ${shapeLabel} ${dimensionLabel}`.trim());
+    lines.push("");
+    for (const piece of shapeResult.pieces) {
+      const driverStr = piece.driver
+        ? piece.driver.combo && piece.driver.combo.length > 0
+          ? piece.driver.combo.map(c => `${c.quantity}× ${c.model.toUpperCase()}${c.code ? ` (${c.code})` : ""}`).join(" + ")
+          : `${piece.driver.quantity}× ${piece.driver.model.toUpperCase()}${piece.driver.code ? ` (${piece.driver.code})` : ""}`
+        : "";
+      const barsStr = piece.bars ? ` — ${piece.bars} barras` : "";
+      lines.push(`${piece.quantity}× ${piece.sku}${barsStr}`);
+      if (driverStr) lines.push(`   Driver: ${driverStr}`);
+    }
+    return lines.join("\n");
+  })();
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(summaryText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      if (textareaRef.current) {
+        textareaRef.current.select();
+        document.execCommand("copy");
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      }
+    }
+  };
+
+  const handleAddToCart = () => {
+    // Construir profileSegments para cada peça
+    const profileSegments: ProfileSegment[] = shapeResult.pieces.map((piece) => {
+      let driverQtyPerPiece = 1;
+      let driverModel = "";
+      let driverCode = "";
+
+      if (piece.driver) {
+        if (piece.driver.combo && piece.driver.combo.length > 0) {
+          const totalComboQty = piece.driver.combo.reduce((s, c) => s + c.quantity, 0);
+          driverQtyPerPiece = totalComboQty;
+          driverModel = piece.driver.combo
+            .map(c => `${c.quantity} x ${c.model.toUpperCase()}${c.code ? ` (${c.code})` : ""}`)
+            .join(" + ");
+          driverCode = "";
+        } else {
+          driverQtyPerPiece = piece.driver.quantity ?? 1;
+          driverModel = piece.driver.model.toUpperCase();
+          driverCode = piece.driver.code ?? "";
+        }
+      }
+
+      return {
+        sku: piece.sku,
+        qty: piece.quantity,
+        lengthMm: piece.length ?? 0,
+        barsPerPiece: piece.bars ?? 0,
+        driverQtyPerPiece,
+        driverModel,
+        driverCode,
+      };
+    });
+
+    const pName = shapeResult.profileName ?? "Perfil";
+    const pw = shapeResult.power ? `${shapeResult.power}W` : "";
+    const cctStr = shapeResult.cct ?? "";
+    const voltStr = shapeResult.voltage ?? "";
+    const description = `${pName} ${pw} ${cctStr} ${voltStr} — ${shapeLabel} ${dimensionLabel}`.trim();
+
+    const profileCode = shapeResult.pieces[0]?.sku.split(".")[0] ?? "";
+    const photo = getProfilePhoto(profileCode, undefined, undefined);
+
+    const item: CartItemData = {
+      category: "Perfis",
+      sku: profileCode,
+      description,
+      power: pw || undefined,
+      cct: cctStr || undefined,
+      qty: 1,
+      unitPrice: null,
+      totalPrice: null,
+      priceFromApi: false,
+      photoUrl: photo ?? null,
+      orderSummary: summaryText,
+      quoteSummary: summaryText,
+      profileSegments,
+      stripMethod: shapeResult.stripMethod,
+      availableCCTs: ["2700K", "3000K", "4000K", "5000K", "A definir"],
+    };
+
+    if (onAddToQuote) {
+      onAddToQuote(item);
+    } else {
+      setPendingItem(item);
+      setColorModalOpen(true);
+    }
+  };
+
+  return (
+    <>
+    <Card className="shadow-sm border-blue-500/30">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+            <svg viewBox="0 0 24 24" className="w-4 h-4 text-blue-500" fill="none">
+              <path d="M4 4 L4 20 L20 20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Composição {shapeLabel}
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={copied ? "default" : "outline"}
+              onClick={handleCopy}
+              className="gap-1.5 text-xs h-7"
+            >
+              {copied ? (
+                <><ClipboardCheck className="w-3.5 h-3.5" /> Copiado!</>
+              ) : (
+                <><Copy className="w-3.5 h-3.5" /> Copiar Resumo</>
+              )}
+            </Button>
+            <Button
+              size="sm"
+              className="gap-1.5 text-xs h-7 bg-emerald-600 hover:bg-emerald-700 text-white"
+              disabled={isAddingToCart}
+              onClick={handleAddToCart}
+            >
+              <ShoppingCart className="w-3.5 h-3.5" />
+              {onAddToQuote ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+            </Button>
+          </div>
+        </div>
+        <p className="text-sm text-muted-foreground mt-1">
+          {dimensionLabel}
+          {shapeResult.power && ` · ${shapeResult.power}W`}
+          {shapeResult.cct && ` · ${shapeResult.cct}`}
+          {shapeResult.voltage && ` · ${shapeResult.voltage}`}
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* Lista de peças */}
+        <div className="space-y-2">
+          {shapeResult.pieces.map((piece, idx) => (
+            <div key={idx} className="p-3 rounded-lg bg-muted/40 border border-border/50 space-y-1.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-mono font-semibold text-foreground">{piece.sku}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{piece.description}</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold">{piece.quantity}×</span>
+                </div>
+              </div>
+              {piece.bars !== undefined && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted/60 border border-border/40">
+                    <Zap className="w-2.5 h-2.5" />
+                    {piece.bars} barra{piece.bars !== 1 ? "s" : ""}
+                  </span>
+                  {piece.driver && (
+                    <span className="text-xs text-muted-foreground">
+                      Driver:
+                      {piece.driver.combo && piece.driver.combo.length > 0
+                        ? ` ${piece.driver.combo.map(c => `${c.quantity}× ${c.model.toUpperCase()}`).join(" + ")}`
+                        : ` ${piece.driver.quantity}× ${piece.driver.model.toUpperCase()}`
+                      }
+                      {piece.driver.code && ` (${piece.driver.code})`}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        {/* Resumo copiável */}
+        <textarea
+          ref={textareaRef}
+          readOnly
+          value={summaryText}
+          className="w-full font-mono text-xs bg-muted/40 border border-border rounded-md p-3 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/50 text-foreground leading-relaxed"
+          rows={Math.max(summaryText.split("\n").length + 1, 3)}
+          onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+        />
+        <p className="text-xs text-muted-foreground">
+          Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.
+        </p>
+      </CardContent>
+    </Card>
+    {pendingItem && (
+      <ColorPickerModal
+        open={colorModalOpen}
+        onClose={() => { setColorModalOpen(false); setPendingItem(null); }}
+        onConfirm={(cor: CorPeca) => {
+          if (pendingItem) addItem({ ...pendingItem, corPeca: cor });
+          setColorModalOpen(false);
+          setPendingItem(null);
+        }}
+        isAdding={isAddingToCart}
+        productName={shapeResult.profileName ?? "Perfil EM L"}
+      />
+    )}
+    </>
   );
 }
 
@@ -4031,12 +4268,20 @@ export default function Home() {
                 onClick={() => {
                   const code = profileCode;
                   let sr: ShapeResult | null = null;
+                  const dp: ShapeDriverParams = {
+                    power: powerD1,
+                    voltage,
+                    stripMethod: powerD1 === 36 ? stripMethod : "STRIPFLEX",
+                    allowLongModules,
+                    cct,
+                    profileName,
+                  };
                   if (profileShape === "L_SHAPE") {
-                    sr = calculateLShape(code, parseInt(shapeSideH) || 2000, parseInt(shapeSideV) || 1200);
+                    sr = calculateLShape(code, parseInt(shapeSideH) || 2000, parseInt(shapeSideV) || 1200, dp);
                   } else if (profileShape === "SQUARE") {
-                    sr = calculateSquare(code, parseInt(shapeSide) || 1200);
+                    sr = calculateSquare(code, parseInt(shapeSide) || 1200, dp);
                   } else if (profileShape === "RECTANGLE") {
-                    sr = calculateRectangle(code, parseInt(shapeWidth) || 2000, parseInt(shapeHeight) || 1200);
+                    sr = calculateRectangle(code, parseInt(shapeWidth) || 2000, parseInt(shapeHeight) || 1200, dp);
                   }
                   if (sr) {
                     setShapeResult(sr);
@@ -4105,44 +4350,10 @@ export default function Home() {
                   </CardContent>
                 </Card>
               ) : (
-                <Card className="shadow-sm">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base font-bold font-display flex items-center gap-2">
-                      <svg viewBox="0 0 24 24" className="w-5 h-5 text-primary" fill="none">
-                        <path d="M4 4 L4 20 L20 20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      Composição EM L
-                    </CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      {shapeResult.shape === "L_SHAPE" && `Formato L: ${shapeResult.dimensions[0]}mm × ${shapeResult.dimensions[1]}mm`}
-                      {shapeResult.shape === "SQUARE" && `Quadrado: ${shapeResult.dimensions[0]}mm × ${shapeResult.dimensions[1]}mm`}
-                      {shapeResult.shape === "RECTANGLE" && `Retângulo: ${shapeResult.dimensions[0]}mm × ${shapeResult.dimensions[1]}mm`}
-                    </p>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      {shapeResult.pieces.map((piece, idx) => (
-                        <div key={idx} className="flex items-start justify-between gap-3 p-3 rounded-lg bg-muted/40 border border-border/50">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-mono font-semibold text-foreground truncate">{piece.sku}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{piece.description}</p>
-                          </div>
-                          <div className="shrink-0 text-right">
-                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold">{piece.quantity}×</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="p-3 rounded-lg bg-muted/30 border border-border/40">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Resumo</p>
-                      <pre className="text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed">{shapeResult.summary}</pre>
-                    </div>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Info className="w-3 h-3" />
-                      Os drivers são calculados conforme a composição de cada módulo reto. Cantos EM L não possuem driver próprio.
-                    </p>
-                  </CardContent>
-                </Card>
+                <ShapeResultCard
+                  shapeResult={shapeResult}
+                  onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined}
+                />
               )
             )}
 
