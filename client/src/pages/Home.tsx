@@ -3033,7 +3033,8 @@ export default function Home() {
                         onCheckedChange={setAllowFractional}
                       />
                     </div>
-                    {/* Ajustar para Medida Maior */}
+                    {/* Ajustar para Medida Maior — apenas para retos */}
+                    {profileShape === "STRAIGHT" && (
                     <div className="flex items-center justify-between">
                       <div>
                         <Label htmlFor="adjusttolarger" className="text-sm font-medium cursor-pointer">
@@ -3049,7 +3050,9 @@ export default function Home() {
                         onCheckedChange={setAdjustToLarger}
                       />
                     </div>
-                    {/* Otimizar com IFs Diferentes */}
+                    )}
+                    {/* Otimizar com IFs Diferentes — apenas para retos */}
+                    {profileShape === "STRAIGHT" && (
                     <div className="flex items-center justify-between">
                       <div>
                         <Label htmlFor="allowmixedif" className="text-sm font-medium cursor-pointer">
@@ -3070,6 +3073,7 @@ export default function Home() {
                         onCheckedChange={setAllowMixedIF}
                       />
                     </div>
+                    )}
                   </div>
                 )}
 
@@ -4273,6 +4277,7 @@ export default function Home() {
                     voltage,
                     stripMethod: powerD1 === 36 ? stripMethod : "STRIPFLEX",
                     allowLongModules,
+                    allowFractionalBars: allowFractional,
                     cct,
                     profileName,
                   };

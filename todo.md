@@ -995,3 +995,11 @@
 - [x] Home.tsx: criar ShapeResultCard com lista de peças + driver por peça + textarea copiável + botão Enviar ao Carrinho/Orçamento
 - [x] Home.tsx: substituir bloco básico de resultado EM L pelo ShapeResultCard
 - [x] 495 testes passando
+
+## v30.1 — Medidas Quebradas: apenas com toggle ativo (02/06/2026)
+
+- [x] lEngine.ts: adicionar parâmetro allowFractionalBars em ShapeDriverParams (default false)
+- [x] lEngine.ts: findBestIFModule filtra módulos com barras decimais quando allowFractionalBars = false
+- [x] Home.tsx: passar allowFractional (toggle existente) como allowFractionalBars no ShapeDriverParams
+- [x] Home.tsx: ocultar toggles "Ajustar para Medida Maior" e "Otimizar com IFs Diferentes" quando profileShape !== STRAIGHT (não se aplicam a EM L)
+- [x] 495 testes passando

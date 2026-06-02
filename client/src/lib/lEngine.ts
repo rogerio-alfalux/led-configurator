@@ -46,6 +46,8 @@ export interface ShapeDriverParams {
   voltage: Voltage;
   stripMethod: StripMethod;
   allowLongModules: boolean;
+  /** Quando false (padrão), apenas módulos com número inteiro de barras são considerados */
+  allowFractionalBars?: boolean;
   cct?: string;
   profileName?: string;
 }
@@ -88,11 +90,13 @@ function calcPieceDriver(
  * Encontra o melhor módulo IF para preencher um comprimento disponível.
  * Escolhe o módulo mais próximo por baixo (≤ availableLength).
  * Respeita o limite de comprimento de módulos longos.
+ * Por padrão, apenas módulos com número inteiro de barras são considerados.
  */
 function findBestIFModule(
   profileEntry: ProfileVariant,
   availableLength: number,
-  allowLongModules: boolean
+  allowLongModules: boolean,
+  allowFractionalBars: boolean = false
 ): StraightSegment {
   if (availableLength <= 0) {
     return { availableLength, module: null, actualLength: 0 };
@@ -107,11 +111,14 @@ function findBestIFModule(
 
   for (const [barsKey, mod] of Object.entries(ifModules)) {
     const m = mod as { length: number; sku: string };
+    const bars = parseFloat(barsKey);
     // Respeitar limite de comprimento (allowLongModules libera módulos > 2840mm)
     if (!allowLongModules && m.length > MAX_IF_LENGTH_STANDARD) continue;
+    // Bloquear barras decimais quando allowFractionalBars = false
+    if (!allowFractionalBars && !Number.isInteger(bars)) continue;
     if (m.length <= availableLength + TOLERANCE_MM) {
       if (!best || m.length > best.length) {
-        best = { sku: m.sku, length: m.length, bars: parseFloat(barsKey) };
+        best = { sku: m.sku, length: m.length, bars };
       }
     }
   }
@@ -147,14 +154,15 @@ export function calculateLShape(
   if (!profileEntry) return null;
 
   const allowLongModules = driverParams?.allowLongModules ?? false;
+  const allowFractionalBars = driverParams?.allowFractionalBars ?? false;
   const cornerLen = corner.lengthLong; // 1x1 é quadrado, ambos os lados iguais
 
   // Comprimento disponível para módulos retos em cada lado
   const availH = sideH - cornerLen;
   const availV = sideV - cornerLen;
 
-  const segH = findBestIFModule(profileEntry as unknown as ProfileVariant, availH, allowLongModules);
-  const segV = findBestIFModule(profileEntry as unknown as ProfileVariant, availV, allowLongModules);
+  const segH = findBestIFModule(profileEntry as unknown as ProfileVariant, availH, allowLongModules, allowFractionalBars);
+  const segV = findBestIFModule(profileEntry as unknown as ProfileVariant, availV, allowLongModules, allowFractionalBars);
 
   const actualH = cornerLen + segH.actualLength;
   const actualV = cornerLen + segV.actualLength;
@@ -255,13 +263,14 @@ export function calculateSquare(
   if (!profileEntry) return null;
 
   const allowLongModules = driverParams?.allowLongModules ?? false;
+  const allowFractionalBars = driverParams?.allowFractionalBars ?? false;
   const cornerLen = corner.lengthLong;
 
   // Comprimento disponível para módulos retos entre os dois cantos opostos
   // Cada lado = canto + reto + canto → disponível = side - 2 × cornerLen
   const availPerSide = side - 2 * cornerLen;
 
-  const seg = findBestIFModule(profileEntry as unknown as ProfileVariant, availPerSide, allowLongModules);
+  const seg = findBestIFModule(profileEntry as unknown as ProfileVariant, availPerSide, allowLongModules, allowFractionalBars);
 
   const actualSide = 2 * cornerLen + seg.actualLength;
 
@@ -337,6 +346,7 @@ export function calculateRectangle(
   if (!profileEntry) return null;
 
   const allowLongModules = driverParams?.allowLongModules ?? false;
+  const allowFractionalBars = driverParams?.allowFractionalBars ?? false;
   const cornerLen = corner.lengthLong;
 
   // Lado curto (altura): canto + canto = 2 × cornerLen
@@ -344,8 +354,8 @@ export function calculateRectangle(
   const availWidth = width - 2 * cornerLen;
   const availHeight = height - 2 * cornerLen;
 
-  const segWidth = findBestIFModule(profileEntry as unknown as ProfileVariant, availWidth, allowLongModules);
-  const segHeight = findBestIFModule(profileEntry as unknown as ProfileVariant, availHeight, allowLongModules);
+  const segWidth = findBestIFModule(profileEntry as unknown as ProfileVariant, availWidth, allowLongModules, allowFractionalBars);
+  const segHeight = findBestIFModule(profileEntry as unknown as ProfileVariant, availHeight, allowLongModules, allowFractionalBars);
 
   const actualWidth = 2 * cornerLen + segWidth.actualLength;
   const actualHeight = 2 * cornerLen + segHeight.actualLength;
