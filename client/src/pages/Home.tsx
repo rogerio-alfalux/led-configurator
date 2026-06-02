@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag } from "lucide-react";
-import { Link } from "wouter";
+import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck } from "lucide-react";
+import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/_core/hooks/useAuth";
 import type { CartItemData, ProfileSegment } from "@/lib/cartTypes";
@@ -305,7 +305,7 @@ type ProfilePriceMap = Record<string, {
   dimDaliD1D2: number | null;
 }>;
 
-function ResultBlock({ result, profilePriceMap }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap }) {
+function ResultBlock({ result, profilePriceMap, onAddToQuote }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; onAddToQuote?: (item: CartItemData) => void }) {
   const efficiency = result.requestedLength > 0
     ? Math.round((result.realizedLength / result.requestedLength) * 100)
     : 0;
@@ -476,7 +476,7 @@ function ResultBlock({ result, profilePriceMap }: { result: CompositionResult; p
       </Card>
 
       {/* Resumo Para Orçamento — Resumo para o cliente */}
-      <QuoteSummaryCard result={result} profilePriceMap={profilePriceMap} />
+      <QuoteSummaryCard result={result} profilePriceMap={profilePriceMap} onAddToQuote={onAddToQuote} />
       {/* Resumo para Pedido — Ficha Comercial */}
       <OrderSummaryCard result={result} />
       {/* Composição de Módulos — bloco unificado */}
@@ -670,7 +670,7 @@ function ResultBlock({ result, profilePriceMap }: { result: CompositionResult; p
 }
 
 //// ─── Resumo Para Orçamento (Resumo para o cliente) ──────────────────────────
-function QuoteSummaryCard({ result, profilePriceMap }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap }) {
+function QuoteSummaryCard({ result, profilePriceMap, onAddToQuote }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; onAddToQuote?: (item: CartItemData) => void }) {
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { addItem, isAdding: isAddingToCart } = useCart();
@@ -814,11 +814,15 @@ function QuoteSummaryCard({ result, profilePriceMap }: { result: CompositionResu
                   stripMethod: result.stripMethod,
                   availableCCTs: ["2700K", "3000K", "4000K", "5000K", "A definir"],
                 };
-                setPendingItem(item);
-                setColorModalOpen(true);
+                if (onAddToQuote) {
+                  onAddToQuote(item);
+                } else {
+                  setPendingItem(item);
+                  setColorModalOpen(true);
+                }
               }}
             >
-              <ShoppingCart className="w-3.5 h-3.5" /> Enviar ao Carrinho
+              <ShoppingCart className="w-3.5 h-3.5" /> {onAddToQuote ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
             </Button>
           </div>
         </div>
@@ -987,6 +991,47 @@ export default function Home() {
   const { addItem, count: cartCount, isAdding: isAddingToCart } = useCart();
   const [pendingCartItem, setPendingCartItem] = useState<CartItemData | null>(null);
   const [colorModalOpen, setColorModalOpen] = useState(false);
+  const [, navigate] = useLocation();
+
+  // ── Modo "Adicionar ao Orçamento" ─────────────────────────────────────────
+  // Detecta ?appendToQuote=ID na URL e ativa o modo de adição direta ao orçamento
+  const appendToQuoteId = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    const v = params.get("appendToQuote");
+    return v ? parseInt(v, 10) : null;
+  }, []);
+  const [pendingQuoteItems, setPendingQuoteItems] = useState<CartItemData[]>([]);
+  const appendItemsMutation = trpc.quotes.appendItems.useMutation({
+    onSuccess: (data) => {
+      toast.success(`${pendingQuoteItems.length} item(s) adicionado(s) ao orçamento ${data.quoteNumber}!`);
+      navigate(`/orcamentos/${appendToQuoteId}`);
+    },
+    onError: (err) => {
+      toast.error(`Erro ao adicionar itens: ${err.message}`);
+    },
+  });
+
+  // Função central: adiciona ao orçamento ou ao carrinho dependendo do modo
+  const handleAddItemOrToQuote = useCallback((item: CartItemData) => {
+    if (appendToQuoteId) {
+      setPendingQuoteItems(prev => [...prev, item]);
+      toast.success(`"${item.description || item.sku}" adicionado à lista (${pendingQuoteItems.length + 1} item(s) pendente(s)).`);
+    } else {
+      addItem(item);
+    }
+  }, [appendToQuoteId, pendingQuoteItems.length, addItem]);
+
+  const handleConfirmAddToQuote = useCallback(() => {
+    if (!appendToQuoteId || pendingQuoteItems.length === 0) return;
+    appendItemsMutation.mutate({
+      quoteId: appendToQuoteId,
+      newItems: pendingQuoteItems.map((it, idx) => ({
+        itemNumber: idx + 1,
+        itemData: JSON.stringify(it),
+      })),
+      versionNotes: `+${pendingQuoteItems.length} item(s) adicionado(s) via configurador`,
+    });
+  }, [appendToQuoteId, pendingQuoteItems, appendItemsMutation]);
   // Buscar drivers do Google Sheets (cache de 1h via React Query)
   const utils = trpc.useUtils();
   const { data: sheetDrivers } = trpc.led.drivers.useQuery(undefined, {
@@ -1239,10 +1284,14 @@ export default function Home() {
       corPeca: "",
       itemNote: autoNote || undefined,
     };
-    addItem(item);
-    toast.success(`"${product.name}" adicionado! Defina o preço e a quantidade no carrinho.`);
+    if (appendToQuoteId) {
+      handleAddItemOrToQuote(item);
+    } else {
+      addItem(item);
+      toast.success(`"${product.name}" adicionado! Defina o preço e a quantidade no carrinho.`);
+    }
     setRvSelectedSku("");
-  }, [rvSelectedSku, revendaProducts, addItem]);
+  }, [rvSelectedSku, revendaProducts, addItem, appendToQuoteId, handleAddItemOrToQuote]);
 
   const uploadSpecialPhotoMutation = trpc.upload.specialItemPhoto.useMutation({
     onSuccess: (data) => {
@@ -1300,9 +1349,13 @@ export default function Home() {
       specialPhotoUrl: spPhotoUrl || undefined,
       specialInternalNotes: spInternalNotes.trim() || undefined,
     };
-    setPendingCartItem(item);
-    setColorModalOpen(true);
-  }, [spDescription, spDimensions, spPower, spDim, spVoltage, spColor, spUnitPrice, spPhotoUrl, spInternalNotes]);
+    if (appendToQuoteId) {
+      handleAddItemOrToQuote(item);
+    } else {
+      setPendingCartItem(item);
+      setColorModalOpen(true);
+    }
+  }, [spDescription, spDimensions, spPower, spDim, spVoltage, spColor, spUnitPrice, spPhotoUrl, spInternalNotes, appendToQuoteId, handleAddItemOrToQuote]);
 
   // Catálogo ativo de LED BAR (API ou fallback estático))
   const activeLedBarCatalog = useMemo(() => {
@@ -1717,7 +1770,49 @@ export default function Home() {
       </header>
 
       {/* ── Main Content ───────────────────────────────────────────────────── */}
-      <main className="container py-8">        {/* ── Busca rápida de produtos ────────────────────────────────────────────── */}
+      <main className="container py-8">
+        {/* ── Banner: Modo Adicionar ao Orçamento ──────────────────────────── */}
+        {appendToQuoteId && (
+          <div className="mb-6 rounded-xl border border-blue-500/40 bg-blue-500/10 px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-blue-400 flex items-center gap-2">
+                <FileCheck className="w-4 h-4" />
+                Modo: Adicionar Itens ao Orçamento #{appendToQuoteId}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Configure os produtos e clique em <strong>"Enviar ao Orçamento"</strong>. Ao confirmar, uma nova revisão será criada com os itens adicionados.
+                {pendingQuoteItems.length > 0 && (
+                  <span className="ml-2 inline-flex items-center gap-1 text-blue-400 font-semibold">
+                    · {pendingQuoteItems.length} item(s) na lista
+                  </span>
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {pendingQuoteItems.length > 0 && (
+                <Button
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5"
+                  onClick={handleConfirmAddToQuote}
+                  disabled={appendItemsMutation.isPending}
+                >
+                  <FileCheck className="w-3.5 h-3.5" />
+                  {appendItemsMutation.isPending ? "Salvando..." : `Confirmar (${pendingQuoteItems.length})`}
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 bg-transparent"
+                onClick={() => navigate(`/orcamentos/${appendToQuoteId}`)}
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        )}
+        {/* ── Busca rápida de produtos ────────────────────────────────────────────── */}
         <div className="mb-6">
           <div className="max-w-xl">
             <p className="text-xs text-muted-foreground mb-1.5 font-medium">Busca rápida de produto</p>
@@ -3838,7 +3933,7 @@ export default function Home() {
                 </CardContent>
               </Card>
             ) : (
-              <ResultBlock result={result} profilePriceMap={profilePriceMap} />
+              <ResultBlock result={result} profilePriceMap={profilePriceMap} onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined} />
             ))}
 
             {/* ── Resultado LED BAR ─────────────────────────────────────────────────── */}
@@ -4031,11 +4126,15 @@ export default function Home() {
                                     ledBarDriverCode: lbDriverCode,
                                     availableCCTs: r.product.ccts,
                                   };
-                                  setPendingCartItem(item);
-                                  setColorModalOpen(true);
+                                  if (appendToQuoteId) {
+                                    handleAddItemOrToQuote(item);
+                                  } else {
+                                    setPendingCartItem(item);
+                                    setColorModalOpen(true);
+                                  }
                                 }}
                               >
-                                <ShoppingCart className="w-3 h-3 mr-1" /> Enviar ao Carrinho
+                                <ShoppingCart className="w-3 h-3 mr-1" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                               </Button>
                             </div>
                           </CardContent>
@@ -4259,19 +4358,23 @@ export default function Home() {
                                   drivers: r.product.driver220?.model ?? r.product.driverBivolt?.model ?? "",
                                   availableCCTs: r.product.ccts,
                                 };
-                                setPendingCartItem(item);
-                                setColorModalOpen(true);
-                              }}
-                            >
-                              <ShoppingCart className="w-3 h-3 mr-1" /> Enviar ao Carrinho
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                      <Card className="shadow-sm">
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
-                            <ClipboardCheck className="w-4 h-4 text-emerald-500" />
+                                  if (appendToQuoteId) {
+                                    handleAddItemOrToQuote(item);
+                                  } else {
+                                    setPendingCartItem(item);
+                                    setColorModalOpen(true);
+                                  }
+                                }}
+                              >
+                                <ShoppingCart className="w-3 h-3 mr-1" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                        <Card className="shadow-sm">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                              <ClipboardCheck className="w-4 h-4 text-emerald-500" />
                             Resumo para Pedido
                           </CardTitle>
                         </CardHeader>
@@ -4448,11 +4551,15 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); return `${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: dlResult.product.ccts,
                           };
-                          setPendingCartItem(item);
-                          setColorModalOpen(true);
+                          if (appendToQuoteId) {
+                            handleAddItemOrToQuote(item);
+                          } else {
+                            setPendingCartItem(item);
+                            setColorModalOpen(true);
+                          }
                         }}
                       >
-                        <ShoppingCart className="w-3 h-3" /> Enviar ao Carrinho
+                        <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                       </Button>
                     </div>
                   </CardHeader>
@@ -4682,11 +4789,15 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; const drvQty = driverQtyFor(panelResult.product, panelResult.controle, panelResult.tensao); return `${drvQty}x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: panelResult.product.ccts,
                           };
-                          setPendingCartItem(item);
-                          setColorModalOpen(true);
+                          if (appendToQuoteId) {
+                            handleAddItemOrToQuote(item);
+                          } else {
+                            setPendingCartItem(item);
+                            setColorModalOpen(true);
+                          }
                         }}
                       >
-                        <ShoppingCart className="w-3 h-3" /> Enviar ao Carrinho
+                        <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                       </Button>
                     </div>
                   </CardHeader>
@@ -4864,11 +4975,15 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); return `${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: arandelaResult.product.ccts,
                           };
-                          setPendingCartItem(item);
-                          setColorModalOpen(true);
+                          if (appendToQuoteId) {
+                            handleAddItemOrToQuote(item);
+                          } else {
+                            setPendingCartItem(item);
+                            setColorModalOpen(true);
+                          }
                         }}
                       >
-                        <ShoppingCart className="w-3 h-3" /> Enviar ao Carrinho
+                        <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                       </Button>
                     </div>
                   </CardHeader>
@@ -5080,11 +5195,15 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; const drvQty = driverQtyFor(spotResult.product, spotResult.controle, spotResult.tensao); return `${drvQty}x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: spotResult.product.ccts,
                           };
-                          setPendingCartItem(item);
-                          setColorModalOpen(true);
+                          if (appendToQuoteId) {
+                            handleAddItemOrToQuote(item);
+                          } else {
+                            setPendingCartItem(item);
+                            setColorModalOpen(true);
+                          }
                         }}
                       >
-                        <ShoppingCart className="w-3 h-3" /> Enviar ao Carrinho
+                        <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                       </Button>
                     </div>
                   </CardHeader>

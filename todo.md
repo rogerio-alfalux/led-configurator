@@ -962,3 +962,23 @@
 - [x] Salvar availableCCTs ao adicionar ao carrinho: Perfis (2700K/3000K/4000K/5000K/A definir), demais categorias (ccts do produto via catálogo/API)
 - [x] Seletor de CCT no editor do orçamento (QuoteDetail) usa apenas as opções de availableCCTs do item
 - [x] Itens sem availableCCTs (Revenda, Item Especial) exibem campo de texto livre para CCT
+
+## v29 — Adicionar Itens ao Orçamento (modo appendToQuote)
+
+- [ ] Detectar parâmetro ?appendToQuote=ID na URL do Home.tsx
+- [ ] Exibir banner de contexto no topo do configurador indicando que itens serão adicionados ao orçamento ID
+- [ ] Substituir botão "Enviar ao Carrinho" por "Enviar ao Orçamento" quando appendToQuote está ativo
+- [ ] Acumular itens selecionados em estado local (pendingQuoteItems) em vez de usar o carrinho
+- [ ] Exibir contador de itens pendentes para o orçamento no banner
+- [ ] Botão "Confirmar e Voltar ao Orçamento" que chama quotes.appendItems e redireciona para /quotes/:id
+- [ ] Botão "Cancelar" no banner que volta para o orçamento sem adicionar itens
+- [ ] Revenda: chamar addToQuoteMode diretamente (sem ColorPickerModal) quando appendToQuote ativo
+- [ ] Item Especial: chamar addToQuoteMode diretamente quando appendToQuote ativo
+
+## v29 — Adicionar Itens ao Orçamento via Configurador (01/06/2026)
+- [x] Fluxo de Adicionar Itens ao Orçamento: ao clicar em "Adicionar Itens" no orçamento, configurador abre com ?appendToQuote=ID
+- [x] Banner no topo do configurador indicando o modo de adição ao orçamento
+- [x] Botão "Enviar ao Carrinho" muda para "Enviar ao Orçamento" em todas as categorias
+- [x] Itens acumulados em lista local (pendingQuoteItems) antes de confirmar
+- [x] Botão "Confirmar" no banner chama quotes.appendItems e redireciona ao orçamento
+- [x] Botão "Cancelar" retorna ao orçamento sem salvar
