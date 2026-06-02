@@ -945,13 +945,13 @@
 
 ## v27 — API REST somente-leitura para sistemas externos
 
-- [ ] drizzle/schema.ts: criar tabela api_keys (id, name, keyHash, createdAt, lastUsedAt, active)
-- [ ] Migração SQL: CREATE TABLE api_keys
-- [ ] server/apiAuth.ts: middleware de autenticação por Bearer token (hash SHA-256)
-- [ ] server/index.ts: registrar rotas REST /api/v1/*
-- [ ] GET /api/v1/quotes: lista paginada de orçamentos com filtros (status, vendedor, data)
-- [ ] GET /api/v1/quotes/:id: detalhes completos do orçamento com itens e versões
-- [ ] GET /api/v1/sellers: lista de vendedores
-- [ ] Página admin /admin/api-keys: listar, criar e revogar chaves
-- [ ] Documentação dos endpoints (formato, exemplos, autenticação)
-- [ ] Testes: endpoints retornam 401 sem chave, 200 com chave válida
+- [x] drizzle/schema.ts: criar tabela api_keys (id, name, keyHash, createdAt, lastUsedAt, active)
+- [x] Migração SQL: CREATE TABLE api_keys
+- [x] server/apiAuth.ts: middleware de autenticação por Bearer token (hash SHA-256)
+- [x] server/index.ts: registrar rotas REST /api/v1/*
+- [x] GET /api/v1/quotes: lista paginada de orçamentos com filtros (status, vendedor, data)
+- [x] GET /api/v1/quotes/:id: detalhes completos do orçamento com itens e versões
+- [x] GET /api/v1/sellers: lista de vendedores (via tRPC)
+- [x] Página admin /admin/api-keys: listar, criar e revogar chaves
+- [x] Documentação dos endpoints (formato, exemplos, autenticação)
+- [x] Testes: endpoints retornam 401 sem chave, 200 com chave válida (manual)
