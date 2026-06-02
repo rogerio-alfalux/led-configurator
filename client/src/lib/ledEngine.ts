@@ -767,10 +767,11 @@ export function buildComposition(
     .filter(m => m.barras <= maxBars)
     .sort((a, b) => b.length - a.length)[0];
 
-  // Usar IN_SINGLE apenas quando a medida é curta demais para 2x IF de ≥ 2 barras
-  const isShortLine = tooShortForIfMl && largestInWithinLimit !== undefined && requestedLength <= largestInWithinLimit.length;
+  // Usar IN_SINGLE quando a medida cabe em um único módulo IN dentro do limite de barras.
+  // Uma peça única é sempre preferível a 2x IF quando cabe no limite (estética e custo).
+  const canFitInSingle = largestInWithinLimit !== undefined && requestedLength <= largestInWithinLimit.length;
 
-  if (isShortLine) {
+  if (canFitInSingle) {
     const inResult = tryInSingle(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, sheetDrivers, allowFractional);
     if (inResult) {
       return { ...inResult, compositionMode: "IN_SINGLE" };

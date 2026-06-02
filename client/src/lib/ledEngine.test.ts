@@ -139,13 +139,11 @@ describe("buildComposition — linha curta → deve usar IN como peça única", 
     expect(r.composition.every(i => i.moduleType === "IN")).toBe(true);
   });
 
-  it("2825mm (5 barras) → deve usar IF_ML_LINE pois 2x IF de 2 barras (2270mm) cabe", () => {
-    // 2x IF de 2 barras (1135mm cada) = 2270mm ≤ 2825mm → deve usar IF_ML_LINE
+  it("2825mm (5 barras) → deve usar IN_SINGLE pois cabe em 1× IN de 5 barras (2825mm)", () => {
+    // Peça única IN de 5 barras (2825mm) é preferível a 2× IF
     const r = buildComposition("LLP-4251", 2825, 18, "220Vac", false, "STRIPFLEX");
-    expect(r.compositionMode).toBe("IF_ML_LINE");
-    // Não deve conter IF de 1 barra
-    const ifItems = r.composition.filter(i => i.moduleType === "IF");
-    ifItems.forEach(item => expect(item.barras).toBeGreaterThanOrEqual(2));
+    expect(r.compositionMode).toBe("IN_SINGLE");
+    expect(r.composition.every(i => i.moduleType === "IN")).toBe(true);
   });
 });
 
@@ -2573,9 +2571,9 @@ describe("D1+D2 simultâneo — split de drivers quando barras efetivas > limite
     expect(result).toBeNull(); // 6.8 ≤ 7 → sem split
   });
 
-  it("HIT 18W 220Vac D1+D2 simultâneo 2362mm → combinedDrivers: 1× EQ00347 (4 barras efetivas, sem split)", () => {
-    // Com a regra v1.7: 2362mm usa 2x IF de 2 barras (1135mm cada) = 2270mm
-    // barras efetivas D1+D2 = 2 barras × 2 = 4 barras ≤ 7 (limite) → sem split, 1 driver por SKU
+  it("HIT 18W 220Vac D1+D2 simultâneo 2362mm → combinedDrivers com split (IN de 5 barras, 10 barras efetivas > 7)", () => {
+    // Nova regra v1.8: 2362mm usa 1× IN de 5 barras (2825mm)
+    // barras efetivas D1+D2 = 5 barras × 2 = 10 barras > 7 (limite) → split em 2 drivers
     const r = calculateComposition({
       profileCode: "LLP-4251",
       application: "D1+D2",
@@ -2587,18 +2585,16 @@ describe("D1+D2 simultâneo — split de drivers quando barras efetivas > limite
       allowLongModules: false,
       independentLighting: false,
     });
+    expect(r.compositionMode).toBe("IN_SINGLE");
     expect(r.combinedDrivers).toBeDefined();
     expect(r.combinedDrivers!.length).toBeGreaterThan(0);
-    // 4 barras efetivas ≤ 7 → sem split, combo deve ser undefined
+    // 10 barras efetivas > 7 → split: combo deve ser definido
     const firstDriver = r.combinedDrivers![0].driver;
-    expect(firstDriver.combo).toBeUndefined();
-    // Driver deve ser EQ00347 (44W, faixa 2.01–5 barras)
-    expect(firstDriver.code).toBe("EQ00347");
+    expect(firstDriver.combo).toBeDefined();
   });
-
-  it("HIT 18W 220Vac D1+D2 simultâneo 2825mm → combinedDrivers: 1× EQ00347 (4 barras efetivas, sem split)", () => {
-    // Com a regra v1.7: 2825mm usa 2x IF de 2 barras (1135mm cada) = 2270mm
-    // barras efetivas D1+D2 = 2 barras × 2 = 4 barras ≤ 7 (limite) → sem split
+  it("HIT 18W 220Vac D1+D2 simultâneo 2825mm → combinedDrivers com split (IN de 5 barras, 10 barras efetivas > 7)", () => {
+    // Nova regra v1.8: 2825mm usa 1× IN de 5 barras (2825mm)
+    // barras efetivas D1+D2 = 5 barras × 2 = 10 barras > 7 (limite) → split em 2 drivers
     const r = calculateComposition({
       profileCode: "LLP-4251",
       application: "D1+D2",
@@ -2610,11 +2606,12 @@ describe("D1+D2 simultâneo — split de drivers quando barras efetivas > limite
       allowLongModules: false,
       independentLighting: false,
     });
+    expect(r.compositionMode).toBe("IN_SINGLE");
     expect(r.combinedDrivers).toBeDefined();
     const firstDriver = r.combinedDrivers![0].driver;
-    expect(firstDriver.combo).toBeUndefined();
-    expect(firstDriver.code).toBe("EQ00347");
-  });
+    // 10 barras efetivas > 7 → split: combo deve ser definido
+    expect(firstDriver.combo).toBeDefined();
+  });;
 });
 
 // ─── adjustToLarger — Ajuste para Medida Maior ───────────────────────────────
