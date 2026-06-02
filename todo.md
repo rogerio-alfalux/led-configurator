@@ -955,3 +955,10 @@
 - [x] Página admin /admin/api-keys: listar, criar e revogar chaves
 - [x] Documentação dos endpoints (formato, exemplos, autenticação)
 - [x] Testes: endpoints retornam 401 sem chave, 200 com chave válida (manual)
+
+## v28 — CCT do editor de orçamento restrito ao produto
+
+- [x] Adicionar campo availableCCTs ao CartItemData para armazenar CCTs válidos por produto
+- [x] Salvar availableCCTs ao adicionar ao carrinho: Perfis (2700K/3000K/4000K/5000K/A definir), demais categorias (ccts do produto via catálogo/API)
+- [x] Seletor de CCT no editor do orçamento (QuoteDetail) usa apenas as opções de availableCCTs do item
+- [x] Itens sem availableCCTs (Revenda, Item Especial) exibem campo de texto livre para CCT

@@ -144,6 +144,14 @@ export interface CartItemData {
    */
   priceFromApi?: boolean;
   /**
+   * Lista de CCTs disponíveis para este produto específico.
+   * Quando presente, o seletor de CCT no editor do orçamento exibe apenas estas opções.
+   * Quando ausente, o seletor usa a CCT atual como única opção editável.
+   * Exemplos: ["2700K", "3000K", "4000K", "5000K"] para a maioria dos produtos;
+   *           ["2700K", "3000K", "4000K", "5000K", "A definir"] para Perfis.
+   */
+  availableCCTs?: string[];
+  /**
    * Observação livre por item — editável pelo vendedor/assistente.
    * Para itens de Revenda, preenchida automaticamente com "fabricante ref: XXXX".
    * Aparece no Excel na coluna P (fora da área de impressão).

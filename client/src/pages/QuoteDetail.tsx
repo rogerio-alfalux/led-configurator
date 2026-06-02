@@ -126,19 +126,28 @@ function SortableEditItem({ item, idx, resolvePhoto, onUpdate }: SortableEditIte
         {/* Temperatura de Cor */}
         <div>
           <Label className="text-xs">Temperatura de Cor</Label>
-          <Select
-            value={d.cct || ""}
-            onValueChange={v => onUpdate(item.id, { cct: v })}
-          >
-            <SelectTrigger className="mt-1 h-8 text-sm">
-              <SelectValue placeholder="CCT" />
-            </SelectTrigger>
-            <SelectContent>
-              {["2700K", "3000K", "3500K", "4000K", "5000K", "6500K", "RGB", "Tunável", "A Definir"].map(c => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {d.availableCCTs && d.availableCCTs.length > 0 ? (
+            <Select
+              value={d.cct || ""}
+              onValueChange={v => onUpdate(item.id, { cct: v })}
+            >
+              <SelectTrigger className="mt-1 h-8 text-sm">
+                <SelectValue placeholder="CCT" />
+              </SelectTrigger>
+              <SelectContent>
+                {d.availableCCTs.map(c => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              value={d.cct ?? ""}
+              onChange={e => onUpdate(item.id, { cct: e.target.value })}
+              placeholder="Ex: 3000K"
+              className="mt-1 h-8 text-sm"
+            />
+          )}
         </div>
 
         {/* Cor da Peça */}

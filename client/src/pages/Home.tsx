@@ -812,6 +812,7 @@ function QuoteSummaryCard({ result, profilePriceMap }: { result: CompositionResu
                   quoteSummary: summary,
                   profileSegments,
                   stripMethod: result.stripMethod,
+                  availableCCTs: ["2700K", "3000K", "4000K", "5000K", "A definir"],
                 };
                 setPendingItem(item);
                 setColorModalOpen(true);
@@ -4028,6 +4029,7 @@ export default function Home() {
                                     ledBarComprimentoTotalMm: r.comprimentoTotalMm,
                                     ledBarDriverModel: lbDriverModel,
                                     ledBarDriverCode: lbDriverCode,
+                                    availableCCTs: r.product.ccts,
                                   };
                                   setPendingCartItem(item);
                                   setColorModalOpen(true);
@@ -4255,6 +4257,7 @@ export default function Home() {
                                   quoteSummary: orcamento,
                                   moduloLed: r.product.ledModule ?? "",
                                   drivers: r.product.driver220?.model ?? r.product.driverBivolt?.model ?? "",
+                                  availableCCTs: r.product.ccts,
                                 };
                                 setPendingCartItem(item);
                                 setColorModalOpen(true);
@@ -4443,6 +4446,7 @@ export default function Home() {
                             quoteSummary: `${dlResult.product.name} ${dlResult.cct} ${dlResult.controle} ${dlResult.tensao}`.toUpperCase(),
                             moduloLed: dlResult.ledModuleWithCCT ?? "",
                             drivers: (() => { const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); return `${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
+                            availableCCTs: dlResult.product.ccts,
                           };
                           setPendingCartItem(item);
                           setColorModalOpen(true);
@@ -4676,6 +4680,7 @@ export default function Home() {
                             quoteSummary: `${panelResult.product.name} ${panelResult.cct} ${panelResult.controle} ${panelResult.tensao}`.toUpperCase(),
                             moduloLed: panelResult.ledModuleWithCCT ?? "",
                             drivers: (() => { const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; const drvQty = driverQtyFor(panelResult.product, panelResult.controle, panelResult.tensao); return `${drvQty}x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
+                            availableCCTs: panelResult.product.ccts,
                           };
                           setPendingCartItem(item);
                           setColorModalOpen(true);
@@ -4857,6 +4862,7 @@ export default function Home() {
                             quoteSummary: `${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.controle} ${arandelaResult.tensao}`.toUpperCase(),
                             moduloLed: arandelaResult.ledModuleWithCCT ?? "",
                             drivers: (() => { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); return `${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
+                            availableCCTs: arandelaResult.product.ccts,
                           };
                           setPendingCartItem(item);
                           setColorModalOpen(true);
@@ -5072,6 +5078,7 @@ export default function Home() {
                             quoteSummary: `${spotResult.product.name} ${spotResult.cct} ${spotResult.controle} ${spotResult.tensao}`.toUpperCase(),
                             moduloLed: spotResult.ledModuleWithCCT ?? "",
                             drivers: (() => { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; const drvQty = driverQtyFor(spotResult.product, spotResult.controle, spotResult.tensao); return `${drvQty}x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
+                            availableCCTs: spotResult.product.ccts,
                           };
                           setPendingCartItem(item);
                           setColorModalOpen(true);
