@@ -33,10 +33,14 @@ const MANAGER_EMAILS = [
  */
 async function canEditQuote(
   userEmail: string | null | undefined,
-  quote: { seller1Id?: number | null; seller2Id?: number | null; assistantId?: number | null; createdByUserId?: number | null }
+  quote: { seller1Id?: number | null; seller2Id?: number | null; assistantId?: number | null; createdByUserId?: number | null },
+  userRole?: string | null
 ): Promise<boolean> {
   if (!userEmail) return false;
   const email = userEmail.toLowerCase().trim();
+
+  // Admins têm acesso total
+  if (userRole === "admin") return true;
 
   // Gestores têm acesso total
   if (MANAGER_EMAILS.map(e => e.toLowerCase()).includes(email)) return true;
@@ -288,7 +292,7 @@ export const appRouter = router({
         // Verificar permissão de edição
         const existingForRevision = await getQuoteById(quoteId);
         if (!existingForRevision) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
-        const hasPermission = await canEditQuote(ctx.user.email, existingForRevision.quote);
+        const hasPermission = await canEditQuote(ctx.user.email, existingForRevision.quote, ctx.user.role);
         if (!hasPermission) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para editar este orçamento." });
         // Garantir que 0 seja passado explicitamente (não undefined) para limpar RT/Margem
         const result = await addQuoteRevision(quoteId, {
@@ -332,7 +336,7 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => {
         const result = await getQuoteById(input.id);
         if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
-        const canEdit = await canEditQuote(ctx.user.email, result.quote);
+        const canEdit = await canEditQuote(ctx.user.email, result.quote, ctx.user.role);
         return { ...result, canEdit };
       }),
 
@@ -361,7 +365,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const qForStatus = await getQuoteById(input.id);
         if (!qForStatus) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
-        const canEditStatus = await canEditQuote(ctx.user.email, qForStatus.quote);
+        const canEditStatus = await canEditQuote(ctx.user.email, qForStatus.quote, ctx.user.role);
         if (!canEditStatus) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para alterar o status deste orçamento." });
         await updateQuoteStatus(input.id, input.status);
         await insertAuditLog({
@@ -388,7 +392,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const qForDelete = await getQuoteById(input.id);
         if (!qForDelete) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
-        const canDelete = await canEditQuote(ctx.user.email, qForDelete.quote);
+        const canDelete = await canEditQuote(ctx.user.email, qForDelete.quote, ctx.user.role);
         if (!canDelete) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para excluir este orçamento." });
         await insertAuditLog({
           userId: ctx.user.id,

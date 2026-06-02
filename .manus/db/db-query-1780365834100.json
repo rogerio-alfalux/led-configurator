@@ -1,0 +1,22 @@
+{
+  "query": "SELECT id, email, role FROM users WHERE email = 'rogeriojohnwayne@gmail.com'; SELECT id, quoteNumber, seller1Id, seller2Id, assistantId FROM quotes LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT id, email, role FROM users WHERE email = 'rogeriojohnwayne@gmail.com'; SELECT id, quoteNumber, seller1Id, seller2Id, assistantId FROM quotes LIMIT 5;",
+  "rows": [
+    {
+      "id": "1",
+      "email": "rogeriojohnwayne@gmail.com",
+      "role": "admin"
+    }
+  ],
+  "messages": [
+    "id\tquoteNumber\tseller1Id\tseller2Id\tassistantId",
+    "270001\t33.0056-26\t1\tNULL\t5",
+    "330001\t04.0205-26\t2\tNULL\t5",
+    "510001\t33.0057-26\t1\tNULL\t5",
+    "510002\t33.0058-26\t1\tNULL\t5",
+    "540001\t29.0001-26\t6\tNULL\t5"
+  ],
+  "stdout": "id\temail\trole\n1\trogeriojohnwayne@gmail.com\tadmin\nid\tquoteNumber\tseller1Id\tseller2Id\tassistantId\n270001\t33.0056-26\t1\tNULL\t5\n330001\t04.0205-26\t2\tNULL\t5\n510001\t33.0057-26\t1\tNULL\t5\n510002\t33.0058-26\t1\tNULL\t5\n540001\t29.0001-26\t6\tNULL\t5\n",
+  "stderr": "",
+  "execution_time_ms": 270
+}
