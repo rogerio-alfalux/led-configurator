@@ -1145,12 +1145,15 @@ export default function QuoteDetail() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Input
-                        type="number" min={0} max={20} step={0.5}
+                        type="number" min={0} max={5} step={0.5}
                         className="w-24"
                         value={editForm.commissionPercent}
-                        onChange={e => setEditForm(f => ({ ...f, commissionPercent: e.target.value }))}
+                        onChange={e => {
+                          const val = Math.min(5, Math.max(0, parseFloat(e.target.value) || 0));
+                          setEditForm(f => ({ ...f, commissionPercent: String(val) }));
+                        }}
                       />
-                      <span className="text-sm text-muted-foreground">%</span>
+                      <span className="text-sm text-muted-foreground">% (máx. 5%)</span>
                     </div>
                     {(() => {
                       const commPct = parseFloat(editForm.commissionPercent || "0") / 100;
@@ -1183,6 +1186,7 @@ export default function QuoteDetail() {
                         <SelectTrigger><SelectValue placeholder="Selecione o estado" /></SelectTrigger>
                         <SelectContent className="max-h-60">
                           <SelectItem value="none">Selecione...</SelectItem>
+                          <SelectItem value="SP">SP — São Paulo (venda interna — sem DIFAL)</SelectItem>
                           {DIFAL_TABLE.map(s => (
                             <SelectItem key={s.uf} value={s.uf}>
                               {s.uf} — {s.name} (DIFAL {s.difal.toFixed(1)}% + FCP {s.fcp.toFixed(1)}%)
@@ -1191,7 +1195,12 @@ export default function QuoteDetail() {
                         </SelectContent>
                       </Select>
                     </div>
-                    {editForm.destState && editForm.destState !== "none" && (() => {
+                    {editForm.destState === "SP" && (
+                      <p className="text-xs text-muted-foreground bg-muted/40 rounded p-2">
+                        São Paulo é o estado de origem — DIFAL não se aplica para vendas internas.
+                      </p>
+                    )}
+                    {editForm.destState && editForm.destState !== "none" && editForm.destState !== "SP" && (() => {
                       const info = getStateInfo(editForm.destState);
                       if (!info) return null;
                       const difalVal = (editTotalFinal * info.difal) / 100;

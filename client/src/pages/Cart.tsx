@@ -390,10 +390,10 @@ export default function Cart() {
     notes: "",
     versionNotes: "",
     deliveryDays: "20",
-    paymentTerm: "30sinal70",
+    paymentTerm: "30% Sinal e 70% a 28DDF (mediante aprovação de cadastro)",
     paymentTermCustom: "",
     commissionPercent: "5",
-    destState: "",
+    destState: "SP",
     difalEnabled: false,
     difalPercent: "",
     difalValue: "",
@@ -498,7 +498,7 @@ export default function Cart() {
         // revisionCount: 0 para orçamentos gerados diretamente do carrinho (sem revisões)
         revisionCount: 0,
         deliveryDays: parseInt(saveForm.deliveryDays) || 20,
-        paymentTerm: saveForm.paymentTerm === "custom" ? saveForm.paymentTermCustom : saveForm.paymentTerm || undefined,
+        paymentTerm: saveForm.paymentTerm || undefined,
         commissionPercent: parseFloat(saveForm.commissionPercent) || 5,
         destState: saveForm.destState || undefined,
         difalEnabled: saveForm.difalEnabled,
@@ -574,7 +574,7 @@ export default function Cart() {
       notes: saveForm.notes || undefined,
       versionNotes: saveForm.versionNotes || undefined,
       deliveryDays: parseInt(saveForm.deliveryDays) || 20,
-      paymentTerm: saveForm.paymentTerm === "custom" ? saveForm.paymentTermCustom : saveForm.paymentTerm || undefined,
+      paymentTerm: saveForm.paymentTerm || undefined,
       commissionPercent: parseFloat(saveForm.commissionPercent) || 5,
       destState: saveForm.destState || undefined,
       difalEnabled: saveForm.difalEnabled,
@@ -1111,85 +1111,131 @@ export default function Cart() {
 
                           {/* ─── Aba Comercial ─── */}
                           <TabsContent value="comercial" className="space-y-4 pt-3">
-                            <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                <Label>Prazo de entrega (dias úteis)</Label>
+                            {/* Prazo de entrega */}
+                            <div>
+                              <Label>Prazo de entrega (dias úteis)</Label>
+                              <div className="flex items-center gap-2">
                                 <Input
-                                  type="number"
-                                  min={1}
+                                  type="number" min={1} max={365} step={1}
+                                  className="w-28"
                                   value={saveForm.deliveryDays}
                                   onChange={e => updateSaveForm("deliveryDays", e.target.value)}
                                 />
-                                <p className="text-xs text-muted-foreground mt-1">Padrão: 20 dias úteis</p>
-                              </div>
-                              <div>
-                                <Label>Comissão do vendedor (%)</Label>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  max={100}
-                                  step={0.5}
-                                  value={saveForm.commissionPercent}
-                                  onChange={e => updateSaveForm("commissionPercent", e.target.value)}
-                                />
-                                <p className="text-xs text-muted-foreground mt-1">Base: total − 12% impostos</p>
+                                <span className="text-sm text-muted-foreground">dias úteis (padrão: 20)</span>
                               </div>
                             </div>
 
+                            {/* Condição de pagamento */}
                             <div>
                               <Label>Condição de pagamento</Label>
                               <Select
-                                value={saveForm.paymentTerm}
-                                onValueChange={(v) => updateSaveForm("paymentTerm", v)}
+                                value={["30% Sinal e 70% a 28DDF (mediante aprovação de cadastro)","À VISTA","A COMBINAR","50% Sinal e 50% a 28DDF","100% Antecipado"].includes(saveForm.paymentTerm) ? saveForm.paymentTerm : "__custom__"}
+                                onValueChange={(v) => {
+                                  if (v === "__custom__") {
+                                    updateSaveForm("paymentTerm", "");
+                                  } else {
+                                    updateSaveForm("paymentTerm", v);
+                                  }
+                                }}
                               >
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="30sinal70">30% Sinal + 70% a 28DDF</SelectItem>
-                                  <SelectItem value="avista">À VISTA</SelectItem>
-                                  <SelectItem value="acombinar">A COMBINAR</SelectItem>
-                                  <SelectItem value="custom">Especificar...</SelectItem>
+                                  <SelectItem value="30% Sinal e 70% a 28DDF (mediante aprovação de cadastro)">30% Sinal + 70% a 28DDF</SelectItem>
+                                  <SelectItem value="À VISTA">À VISTA</SelectItem>
+                                  <SelectItem value="A COMBINAR">A COMBINAR</SelectItem>
+                                  <SelectItem value="50% Sinal e 50% a 28DDF">50% Sinal + 50% a 28DDF</SelectItem>
+                                  <SelectItem value="100% Antecipado">100% Antecipado</SelectItem>
+                                  <SelectItem value="__custom__">Especificar...</SelectItem>
                                 </SelectContent>
                               </Select>
-                              {saveForm.paymentTerm === "custom" && (
+                              {!["30% Sinal e 70% a 28DDF (mediante aprovação de cadastro)","À VISTA","A COMBINAR","50% Sinal e 50% a 28DDF","100% Antecipado"].includes(saveForm.paymentTerm) && (
                                 <Input
                                   className="mt-2"
-                                  placeholder="Digite a condição de pagamento"
-                                  value={saveForm.paymentTermCustom}
-                                  onChange={e => updateSaveForm("paymentTermCustom", e.target.value)}
+                                  placeholder="Digite a condição de pagamento..."
+                                  value={saveForm.paymentTerm}
+                                  onChange={e => updateSaveForm("paymentTerm", e.target.value)}
                                 />
                               )}
+                              <p className="text-xs text-muted-foreground mt-1">Será impresso no Excel do orçamento.</p>
                             </div>
 
+                            {/* Comissão do vendedor */}
+                            <div className="border rounded-lg p-3 space-y-2 bg-amber-50 dark:bg-amber-950/20">
+                              <div className="flex items-center gap-2">
+                                <Percent className="w-4 h-4 text-amber-600" />
+                                <span className="text-sm font-medium">Comissão do Vendedor (demonstrativo)</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number" min={0} max={5} step={0.5}
+                                  className="w-24"
+                                  value={saveForm.commissionPercent}
+                                  onChange={e => {
+                                    const val = Math.min(5, Math.max(0, parseFloat(e.target.value) || 0));
+                                    updateSaveForm("commissionPercent", String(val));
+                                  }}
+                                />
+                                <span className="text-sm text-muted-foreground">% (máx. 5%)</span>
+                              </div>
+                              {(() => {
+                                const commPct = parseFloat(saveForm.commissionPercent || "0") / 100;
+                                const baseComComissao = totalFinal * (1 - 0.12);
+                                const commValue = baseComComissao * commPct;
+                                return commValue > 0 ? (
+                                  <div className="text-sm">
+                                    <span className="text-muted-foreground">Base (total − 12% impostos): </span>
+                                    <span className="font-medium">{formatBRL(baseComComissao)}</span>
+                                    <br />
+                                    <span className="text-muted-foreground">Comissão estimada: </span>
+                                    <span className="font-semibold text-amber-700 dark:text-amber-400">{formatBRL(commValue)}</span>
+                                  </div>
+                                ) : null;
+                              })()}
+                              <p className="text-xs text-muted-foreground">Não altera o valor do orçamento. Apenas demonstrativo para controle interno.</p>
+                            </div>
+
+                            {/* DIFAL / FCP */}
                             <div className="border rounded-lg p-3 space-y-3">
-                              <p className="text-sm font-semibold">DIFAL / FCP (venda interestadual)</p>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">DIFAL / FCP (venda interestadual)</span>
+                              </div>
                               <div>
                                 <Label>Estado destino</Label>
                                 <Select
-                                  value={saveForm.destState}
+                                  value={saveForm.destState || "none"}
                                   onValueChange={(v) => {
-                                    const info = getStateInfo(v);
-                                    updateSaveForm("destState", v);
+                                    const state = v === "none" ? "" : v;
+                                    const info = state ? getStateInfo(state) : null;
+                                    updateSaveForm("destState", state);
                                     if (info) {
                                       updateSaveForm("difalPercent", String(info.difal));
                                       updateSaveForm("fcpPercent", String(info.fcp));
                                     }
                                   }}
                                 >
-                                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                  <SelectContent>
+                                  <SelectTrigger><SelectValue placeholder="Selecione o estado" /></SelectTrigger>
+                                  <SelectContent className="max-h-60">
+                                    <SelectItem value="none">Selecione...</SelectItem>
+                                    <SelectItem value="SP">SP — São Paulo (venda interna — sem DIFAL)</SelectItem>
                                     {DIFAL_TABLE.map(s => (
                                       <SelectItem key={s.uf} value={s.uf}>
-                                        {s.uf} — {s.name} (DIFAL {s.difal}% + FCP {s.fcp}%)
+                                        {s.uf} — {s.name} (DIFAL {s.difal.toFixed(1)}% + FCP {s.fcp.toFixed(1)}%)
                                       </SelectItem>
                                     ))}
                                   </SelectContent>
                                 </Select>
                               </div>
-                              {saveForm.destState && (() => {
+                              {saveForm.destState === "SP" && (
+                                <p className="text-xs text-muted-foreground bg-muted/40 rounded p-2">
+                                  São Paulo é o estado de origem — DIFAL não se aplica para vendas internas.
+                                </p>
+                              )}
+                              {saveForm.destState && saveForm.destState !== "none" && saveForm.destState !== "SP" && (() => {
                                 const info = getStateInfo(saveForm.destState);
+                                if (!info) return null;
                                 const base = totalFinal;
-                                const difalVal = info ? base * (info.difal / 100) : 0;
-                                const fcpVal = info ? base * (info.fcp / 100) : 0;
+                                const difalVal = base * (info.difal / 100);
+                                const fcpVal = base * (info.fcp / 100);
                                 return (
                                   <div className="space-y-2">
                                     <div className="flex items-center gap-2">
@@ -1202,10 +1248,10 @@ export default function Cart() {
                                         }}
                                       />
                                       <label htmlFor="saveFormDifal" className="text-sm cursor-pointer">
-                                        Aplicar DIFAL ({info?.difal}%) = {formatBRL(difalVal)}
+                                        Aplicar DIFAL ({info.difal.toFixed(1)}%) = {formatBRL(difalVal)}
                                       </label>
                                     </div>
-                                    {info && info.fcp > 0 && (
+                                    {info.fcp > 0 && (
                                       <div className="flex items-center gap-2">
                                         <Checkbox
                                           id="saveFormFcp"
@@ -1216,18 +1262,23 @@ export default function Cart() {
                                           }}
                                         />
                                         <label htmlFor="saveFormFcp" className="text-sm cursor-pointer">
-                                          Aplicar FCP ({info?.fcp}%) = {formatBRL(fcpVal)}
+                                          Aplicar FCP ({info.fcp.toFixed(1)}%) = {formatBRL(fcpVal)}
                                         </label>
                                       </div>
                                     )}
                                     {(saveForm.difalEnabled || saveForm.fcpEnabled) && (
                                       <div className="bg-muted/60 rounded p-2 text-sm">
-                                        <span className="text-muted-foreground">Total com DIFAL/FCP: </span>
-                                        <span className="font-bold text-primary">
-                                          {formatBRL(base + (saveForm.difalEnabled ? difalVal : 0) + (saveForm.fcpEnabled ? fcpVal : 0))}
-                                        </span>
+                                        <div className="flex justify-between">
+                                          <span className="text-muted-foreground">Total com DIFAL/FCP</span>
+                                          <span className="font-semibold">
+                                            {formatBRL(base + (saveForm.difalEnabled ? difalVal : 0) + (saveForm.fcpEnabled ? fcpVal : 0))}
+                                          </span>
+                                        </div>
                                       </div>
                                     )}
+                                    <p className="text-xs text-muted-foreground">
+                                      Alíquota interna {info.uf}: {info.icmsInterno}% | Interestadual SP→{info.uf}: {info.icmsInterestadual}%
+                                    </p>
                                   </div>
                                 );
                               })()}

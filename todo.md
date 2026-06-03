@@ -1038,7 +1038,19 @@
 
 ## v32 — Melhorias no Orçamento (03/06/2026)
 
-- [ ] Aba Comercial na criação inicial do orçamento (não apenas na edição)
-- [ ] Opção "Especificar" na condição de pagamento com campo de texto livre
-- [ ] Alterações no orçamento salvam logs sem gerar nova revisão; revisão gerada apenas ao baixar Excel
-- [ ] Excel: incluir DIFAL e FCP no total final quando aplicáveis
+- [x] Aba Comercial na criação inicial do orçamento (não apenas na edição)
+- [x] Opção "Especificar" na condição de pagamento com campo de texto livre
+- [x] Alterações no orçamento salvam logs sem gerar nova revisão; revisão gerada apenas ao baixar Excel
+- [x] Excel: incluir DIFAL e FCP no total final quando aplicáveis
+
+## v32.1 — Correções Comercial (03/06/2026)
+
+- [x] Cart.tsx: SP adicionado como opção no Select de estado destino (venda interna — sem DIFAL)
+- [x] Cart.tsx: mensagem informativa quando SP selecionado ("São Paulo é o estado de origem — DIFAL não se aplica")
+- [x] Cart.tsx: destState default alterado para "SP" no saveForm inicial
+- [x] Cart.tsx: paymentTerm default atualizado para string completa "30% Sinal e 70% a 28DDF..."
+- [x] Cart.tsx: lógica de payload paymentTerm simplificada (sem mapeamento "custom" → usa valor direto)
+- [x] QuoteDetail.tsx: SP adicionado como opção no Select de estado destino com mesma mensagem informativa
+- [x] QuoteDetail.tsx: condição {destState !== "SP"} para não exibir toggles DIFAL/FCP quando SP selecionado
+- [x] Commission max=5% enforced em Cart.tsx (Math.min) e QuoteDetail.tsx
+- [x] 495 testes passando
