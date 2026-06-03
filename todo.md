@@ -1062,3 +1062,21 @@
 - [x] Home.tsx: toast diferenciado — exibe o preço quando disponível, ou pede para definir quando zero
 - [x] Home.tsx: lista de produtos de revenda exibe precoVenda em verde ao lado do SKU/referência
 - [x] 495 testes passando
+
+## v32.3 — Cabeceira no Formato EM L para Embutir (03/06/2026)
+
+- [x] Planilha MEDIDASPERFIL analisada: cabeceiras por perfil embutir extraídas
+- [x] lCatalog.ts: campo cabeceiraMm adicionado ao tipo LProfileConfig
+- [x] lCatalog.ts: LLE-2580 (EASY PRIME embutir) → cabeceiraMm: 7
+- [x] lCatalog.ts: LLE-2052 (SKYLINE embutir) → cabeceiraMm: 7
+- [x] lCatalog.ts: LLE-2810 (BLAZE embutir) → cabeceiraMm: 10
+- [x] lCatalog.ts: perfis não-embutir (LLP-*, LLS-*, LLA-*) → sem cabeceiraMm
+- [x] lCatalog.ts: getCabeceiraMm() exportada para uso na engine
+- [x] lCatalog.ts: cantos LLE-2052 e LLE-2810 atualizados com SKUs corretos da planilha (1L2, 1L3, 1L4)
+- [x] lCatalog.ts: LLP-4945 (BLAZE pendente/sobrepor/arandela) removido — substituído por LLS-3945 e LLA-5945 com SKUs corretos
+- [x] lEngine.ts: calculateLShape aplica 2× cabeceira em cada lado SEM módulos retos (canto isolado)
+- [x] lEngine.ts: quando há módulos retos (IF/ML), cabeceira NÃO é somada (já incluída no IF)
+- [x] lEngine.ts: totalLengthMm corrigido para actualH + actualV
+- [x] lEngine.ts: summary inclui linha informativa quando cabeceira é aplicada
+- [x] lEngine.test.ts: 14 novos testes cobrindo lógica de cabeceira (getCabeceiraMm + calculateLShape + quadrado/retangular)
+- [x] 509 testes passando (18 arquivos)

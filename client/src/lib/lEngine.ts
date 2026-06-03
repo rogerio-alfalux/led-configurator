@@ -32,7 +32,7 @@
  *   - Módulo reto IF: totalBars = bars do módulo
  */
 
-import { getLConfig, getCorner1x1, type LCornerModule, type ShapeResult, type ShapePiece, type ShapePieceDriver } from "./lCatalog";
+import { getLConfig, getCorner1x1, getCabeceiraMm, type LCornerModule, type ShapeResult, type ShapePiece, type ShapePieceDriver } from "./lCatalog";
 import { LED_CATALOG, type ProfileVariant } from "./ledCatalog";
 import { selectDriverFallback } from "./driverSelector";
 import type { Power, Voltage, StripMethod } from "./ledEngine";
@@ -176,6 +176,11 @@ export function calculateLShape(
   const allowFractionalBars = driverParams?.allowFractionalBars ?? false;
   const cornerLen = corner.lengthLong; // 1x1 é quadrado, ambos os lados iguais
 
+  // Cabeceira para perfis embutir (LLE-*): só aplicada quando o canto é instalado
+  // SOZINHO em um lado (sem módulos retos naquele lado).
+  // Quando há módulos retos (IF/ML), a cabeceira já está incluída no IF.
+  const cabeceiraMm = getCabeceiraMm(profileCode);
+
   // Comprimento disponível para módulos retos em cada lado
   const availH = sideH - cornerLen;
   const availV = sideV - cornerLen;
@@ -183,8 +188,15 @@ export function calculateLShape(
   const segH = findBestIFModule(profileEntry as unknown as ProfileVariant, availH, allowLongModules, allowFractionalBars);
   const segV = findBestIFModule(profileEntry as unknown as ProfileVariant, availV, allowLongModules, allowFractionalBars);
 
-  const actualH = cornerLen + segH.actualLength;
-  const actualV = cornerLen + segV.actualLength;
+  // Ajuste de cabeceira: quando um lado não tem módulos retos (canto sozinho),
+  // soma 2× cabeceira ao comprimento realizado naquele lado.
+  // Isso reflete que o canto EM L, quando isolado, precisa das duas cabeceiras
+  // (uma em cada extremidade), assim como um módulo IN.
+  const cabH = (cabeceiraMm > 0 && segH.actualLength === 0) ? 2 * cabeceiraMm : 0;
+  const cabV = (cabeceiraMm > 0 && segV.actualLength === 0) ? 2 * cabeceiraMm : 0;
+
+  const actualH = cornerLen + segH.actualLength + cabH;
+  const actualV = cornerLen + segV.actualLength + cabV;
 
   const pieces: ShapePiece[] = [];
 
@@ -255,14 +267,18 @@ export function calculateLShape(
     }
   }
 
-  const summary =
-    `Formato L: ${actualH}mm × ${actualV}mm\n` +
-    `1× canto ${corner.sku} (${cornerLen}mm)\n` +
-    (segH.module ? `${segH.moduleQty}× IF ${segH.module.sku} (${segH.module.length}mm) — horizontal\n` : "") +
-    (segV.module ? `${segV.moduleQty}× IF ${segV.module.sku} (${segV.module.length}mm) — vertical\n` : "");
+  const summaryLines: string[] = [
+    `Formato L: ${actualH}mm × ${actualV}mm`,
+    `1× canto ${corner.sku} (${cornerLen}mm)`,
+  ];
+  if (segH.module) summaryLines.push(`${segH.moduleQty}× IF ${segH.module.sku} (${segH.module.length}mm) — horizontal`);
+  if (cabH > 0) summaryLines.push(`+ ${cabH}mm cabeceira (lado horizontal, canto isolado)`);
+  if (segV.module) summaryLines.push(`${segV.moduleQty}× IF ${segV.module.sku} (${segV.module.length}mm) — vertical`);
+  if (cabV > 0) summaryLines.push(`+ ${cabV}mm cabeceira (lado vertical, canto isolado)`);
+  const summary = summaryLines.join("\n") + "\n";
 
-  // Comprimento total = soma de todos os lados (1 canto + 2 retos)
-  const totalLengthMm = cornerLen + segH.actualLength + segV.actualLength;
+  // Comprimento total = soma dos dois lados realizados (já incluem canto + retos + cabeceira)
+  const totalLengthMm = actualH + actualV;
 
   return {
     shape: "L_SHAPE",

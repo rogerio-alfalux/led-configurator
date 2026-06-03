@@ -11,6 +11,19 @@
  *
  * Dimensões do canto 1x1: ambos os lados têm o mesmo comprimento (quadrado).
  * Cantos 1xN: um lado tem N barras, o outro tem 1 barra.
+ *
+ * ─── MEDIDA DE CABECEIRA (embutir) ──────────────────────────────────────────
+ * Para perfis de embutir (LLE-*), o módulo EM L funciona como um módulo ML:
+ * quando conectado a módulos retos (IF/ML), a cabeceira já está incluída no IF.
+ * Quando o canto EM L é instalado SOZINHO (sem módulos retos em nenhum lado),
+ * é necessário somar 2× cabeceira ao comprimento de cada lado.
+ *
+ * Cabeceiras por perfil embutir (planilha MEDIDASPERFIL):
+ *   LLE-2580 (EASY PRIME):  7mm
+ *   LLE-2052 (SKYLINE):     7mm
+ *   LLE-2810 (BLAZE):      10mm
+ *
+ * Perfis não-embutir (pendente, sobrepor, arandela) não têm cabeceira.
  */
 
 export type LCornerModule = {
@@ -37,6 +50,15 @@ export type LProfileConfig = {
   barLength: number;
   /** Módulos de canto disponíveis */
   corners: LCornerModule[];
+  /**
+   * Medida de cabeceira em mm (apenas para perfis embutir LLE-*).
+   * Quando o canto EM L é instalado SOZINHO (sem módulos retos em nenhum lado),
+   * soma-se 2× cabeceira ao comprimento de cada lado.
+   * Quando há módulos retos (IF/ML) em qualquer lado, a cabeceira já está
+   * incluída no IF e não deve ser somada novamente.
+   * Perfis não-embutir: undefined (sem cabeceira).
+   */
+  cabeceiraMm?: number;
 };
 
 /**
@@ -48,9 +70,11 @@ export type LProfileConfig = {
  */
 export const L_CATALOG: Record<string, LProfileConfig> = {
   // ─── EASY PRIME (LLE-2580) ───────────────────────────────────────────────
+  // Cabeceira: 7mm (planilha MEDIDASPERFIL, aba EASY PRIME, linha 54)
   "LLE-2580": {
     profileCode: "LLE-2580",
     barLength: 560, // 1 barra EASY PRIME ≈ 560mm (589mm com emenda)
+    cabeceiraMm: 7,
     corners: [
       {
         sku: "LLE-2580.1L1.18F",
@@ -65,6 +89,7 @@ export const L_CATALOG: Record<string, LProfileConfig> = {
   },
 
   // ─── SKYLINE (LLP-4536) ──────────────────────────────────────────────────
+  // Pendente: sem cabeceira
   "LLP-4536": {
     profileCode: "LLP-4536",
     barLength: 560,
@@ -81,62 +106,36 @@ export const L_CATALOG: Record<string, LProfileConfig> = {
     ],
   },
 
-  // ─── BLAZE (LLE-2052 / LLS-3945 / LLA-5945) ─────────────────────────────
-  // O BLAZE tem cantos maiores disponíveis (1x1, 1x2, 1x3, 1x4)
-  // SKU base: LLP-4945.1L{N}.48F (direito) / LLP-4945.1L{N}.48E (esquerdo)
-  // Nota: na planilha o código é LLP-4945, mas no catálogo interno o BLAZE usa LLE-2052/LLS-3945/LLA-5945
-  // Mapeamos para todos os códigos de perfil BLAZE
+  // ─── SKYLINE EMBUTIR (LLE-2052) ──────────────────────────────────────────
+  // Cabeceira: 7mm (planilha MEDIDASPERFIL, aba SKYLINE, linha 54, coluna 16)
   "LLE-2052": {
     profileCode: "LLE-2052",
     barLength: 560,
+    cabeceiraMm: 7,
     corners: [
       {
-        sku: "LLP-4945.1L1.48F",
+        sku: "LLE-2052.1L1.18F",
         barsLong: 1,
         barsShort: 1,
-        lengthLong: 600,
-        lengthShort: 600,
+        lengthLong: 590,
+        lengthShort: 590,
         orientation: "F",
         voltage: "220V",
       },
       {
-        sku: "LLP-4945.1L1.49F",
-        barsLong: 1,
-        barsShort: 1,
-        lengthLong: 600,
-        lengthShort: 600,
-        orientation: "F",
-        voltage: "Bivolt",
-      },
-      {
-        sku: "LLP-4945.1L2.48E",
+        sku: "LLE-2052.1L2.18D",
         barsLong: 2,
         barsShort: 1,
-        lengthLong: 1170,
-        lengthShort: 600,
-        orientation: "E",
-        voltage: "220V",
-      },
-      {
-        sku: "LLP-4945.1L3.48E",
-        barsLong: 3,
-        barsShort: 1,
-        lengthLong: 1730,
-        lengthShort: 600,
-        orientation: "E",
-        voltage: "220V",
-      },
-      {
-        sku: "LLP-4945.1L4.48E",
-        barsLong: 4,
-        barsShort: 1,
-        lengthLong: 2290,
-        lengthShort: 600,
-        orientation: "E",
+        lengthLong: 1150,
+        lengthShort: 590,
+        orientation: "F",
         voltage: "220V",
       },
     ],
   },
+
+  // ─── BLAZE (LLS-3945 / LLA-5945) ─────────────────────────────────────────
+  // Pendente/Sobrepor/Arandela: sem cabeceira
   "LLS-3945": {
     profileCode: "LLS-3945",
     barLength: 560,
@@ -240,22 +239,54 @@ export const L_CATALOG: Record<string, LProfileConfig> = {
     ],
   },
 
-  // ─── BLAZE H (LLE-2810 / LLP-6060) ──────────────────────────────────────
+  // ─── BLAZE EMBUTIR (LLE-2810) ────────────────────────────────────────────
+  // Cabeceira: 10mm (planilha MEDIDASPERFIL, aba BLAZE, linha 54, coluna 26)
   "LLE-2810": {
     profileCode: "LLE-2810",
     barLength: 560,
+    cabeceiraMm: 10,
     corners: [
       {
-        sku: "LLP-6060.1L1.48F",
+        sku: "LLE-2810.1L1.18F",
         barsLong: 1,
         barsShort: 1,
-        lengthLong: 600,
-        lengthShort: 600,
+        lengthLong: 615,
+        lengthShort: 615,
         orientation: "F",
+        voltage: "220V",
+      },
+      {
+        sku: "LLE-2810.1L2.18E",
+        barsLong: 2,
+        barsShort: 1,
+        lengthLong: 1175,
+        lengthShort: 615,
+        orientation: "E",
+        voltage: "220V",
+      },
+      {
+        sku: "LLE-2810.1L3.18E",
+        barsLong: 3,
+        barsShort: 1,
+        lengthLong: 1735,
+        lengthShort: 615,
+        orientation: "E",
+        voltage: "220V",
+      },
+      {
+        sku: "LLE-2810.1L4.18E",
+        barsLong: 4,
+        barsShort: 1,
+        lengthLong: 2300,
+        lengthShort: 615,
+        orientation: "E",
         voltage: "220V",
       },
     ],
   },
+
+  // ─── BLAZE H (LLP-6060) ──────────────────────────────────────────────────
+  // Pendente: sem cabeceira
   "LLP-6060": {
     profileCode: "LLP-6060",
     barLength: 560,
@@ -273,6 +304,7 @@ export const L_CATALOG: Record<string, LProfileConfig> = {
   },
 
   // ─── MINI BLAZE (LLP-3336 / LLS-3336) ───────────────────────────────────
+  // Pendente/Sobrepor: sem cabeceira
   "LLP-3336": {
     profileCode: "LLP-3336",
     barLength: 555,
@@ -304,7 +336,8 @@ export const L_CATALOG: Record<string, LProfileConfig> = {
     ],
   },
 
-  // ─── HIT (LLP-4251 / LLS-3395 / LLA-3395) ───────────────────────────────
+  // ─── HIT (LLP-4251 / LLA-3395) ───────────────────────────────────────────
+  // Pendente/Arandela: sem cabeceira
   "LLP-4251": {
     profileCode: "LLP-4251",
     barLength: 555,
@@ -337,6 +370,7 @@ export const L_CATALOG: Record<string, LProfileConfig> = {
   },
 
   // ─── EASY H PLUS (LLP-4450 / LLA-4450) ──────────────────────────────────
+  // Pendente/Arandela: sem cabeceira
   "LLP-4450": {
     profileCode: "LLP-4450",
     barLength: 560,
@@ -369,6 +403,7 @@ export const L_CATALOG: Record<string, LProfileConfig> = {
   },
 
   // ─── SMART MINI (LLP-3435 / LLS-3400) ───────────────────────────────────
+  // Pendente/Sobrepor: sem cabeceira
   "LLP-3435": {
     profileCode: "LLP-3435",
     barLength: 560,
@@ -415,6 +450,13 @@ export function getCorner1x1(profileCode: string): LCornerModule | null {
   const config = getLConfig(profileCode);
   if (!config) return null;
   return config.corners.find(c => c.barsLong === 1 && c.barsShort === 1) ?? null;
+}
+
+/**
+ * Retorna a medida de cabeceira em mm para um perfil embutir, ou 0 se não aplicável.
+ */
+export function getCabeceiraMm(profileCode: string): number {
+  return L_CATALOG[profileCode]?.cabeceiraMm ?? 0;
 }
 
 /**
