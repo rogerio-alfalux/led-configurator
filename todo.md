@@ -1054,3 +1054,11 @@
 - [x] QuoteDetail.tsx: condição {destState !== "SP"} para não exibir toggles DIFAL/FCP quando SP selecionado
 - [x] Commission max=5% enforced em Cart.tsx (Math.min) e QuoteDetail.tsx
 - [x] 495 testes passando
+
+## v32.2 — Preço de Venda nos Produtos de Revenda (03/06/2026)
+
+- [x] Home.tsx: handleAddRevendaItem pré-preenche unitPrice e totalPrice com precoVenda da API
+- [x] Home.tsx: priceFromApi: false para Revenda (preço editável, mas pré-preenchido)
+- [x] Home.tsx: toast diferenciado — exibe o preço quando disponível, ou pede para definir quando zero
+- [x] Home.tsx: lista de produtos de revenda exibe precoVenda em verde ao lado do SKU/referência
+- [x] 495 testes passando

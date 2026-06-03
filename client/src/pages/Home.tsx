@@ -1739,14 +1739,16 @@ export default function Home() {
     const fabricante = product.fornecedor ? normalizeFornecedor(product.fornecedor) : null;
     const autoNote = [fabricante, product.referencia ? `ref: ${product.referencia}` : null]
       .filter(Boolean).join(" ");
+    const precoVenda = product.precoVenda ?? 0;
     const item: CartItemData = {
       category: "Revenda",
       sku: product.sku,
       description: product.name,
       photoUrl: product.fotoUrl ?? "",
       qty: 1,
-      unitPrice: 0,
-      totalPrice: 0,
+      unitPrice: precoVenda,
+      totalPrice: precoVenda,
+      priceFromApi: false, // Revenda: preço pré-preenchido mas sempre editável
       power: "",
       cct: "",
       orderSummary: `${product.name} (${product.sku})`,
@@ -1759,7 +1761,11 @@ export default function Home() {
       handleAddItemOrToQuote(item);
     } else {
       addItem(item);
-      toast.success(`"${product.name}" adicionado! Defina o preço e a quantidade no carrinho.`);
+      if (precoVenda > 0) {
+        toast.success(`"${product.name}" adicionado com preço R$ ${precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.`);
+      } else {
+        toast.success(`"${product.name}" adicionado! Defina o preço no carrinho.`);
+      }
     }
     setRvSelectedSku("");
   }, [rvSelectedSku, revendaProducts, addItem, appendToQuoteId, handleAddItemOrToQuote]);
@@ -4462,6 +4468,11 @@ export default function Home() {
                               <div className="text-sm font-medium truncate">{p.name}</div>
                               <div className="text-xs text-muted-foreground">
                                 {p.sku}{p.referencia ? ` · Ref: ${p.referencia}` : ""}
+                                {p.precoVenda != null && p.precoVenda > 0 && (
+                                  <span className="ml-2 text-emerald-700 dark:text-emerald-400 font-medium">
+                                    R$ {p.precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                  </span>
+                                )}
                               </div>
                             </div>
                             <Button
