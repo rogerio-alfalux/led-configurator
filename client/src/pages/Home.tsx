@@ -5008,7 +5008,7 @@ export default function Home() {
                                   qty: 1,
                                   unitPrice: r.precoTotal ?? 0,
                                   totalPrice: r.precoTotal ?? 0,
-                                  priceFromApi: r.precoTotal != null,
+                                  priceFromApi: false, // BAGEO sempre permite edição manual de preço
                                   photoUrl: r.product.fotoUrl ?? "",
                                   orderSummary: pedido,
                                   quoteSummary: orcamento,

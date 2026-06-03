@@ -233,6 +233,16 @@ export const appRouter = router({
         totalAmount: z.number(),
         totalFinal: z.number().optional(),
         items: z.array(z.object({ itemNumber: z.number(), itemData: z.string() })),
+        deliveryDays: z.number().int().min(1).optional(),
+        commissionPercent: z.number().min(0).max(1).optional(),
+        paymentTerm: z.string().optional(),
+        destState: z.string().max(2).optional(),
+        difalEnabled: z.boolean().optional(),
+        difalPercent: z.number().min(0).optional(),
+        fcpPercent: z.number().min(0).optional(),
+        fcpEnabled: z.boolean().optional(),
+        difalValue: z.number().min(0).optional(),
+        fcpValue: z.number().min(0).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const result = await createQuote({ ...input, createdByUserId: ctx.user.id });
@@ -286,6 +296,16 @@ export const appRouter = router({
         totalFinal: z.number().optional(),
         items: z.array(z.object({ itemNumber: z.number(), itemData: z.string() })),
         bumpVersion: z.boolean().optional().default(false),
+        deliveryDays: z.number().int().min(1).optional(),
+        commissionPercent: z.number().min(0).max(1).optional(),
+        paymentTerm: z.string().optional(),
+        destState: z.string().max(2).optional(),
+        difalEnabled: z.boolean().optional(),
+        difalPercent: z.number().min(0).optional(),
+        fcpPercent: z.number().min(0).optional(),
+        fcpEnabled: z.boolean().optional(),
+        difalValue: z.number().min(0).optional(),
+        fcpValue: z.number().min(0).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const { quoteId, bumpVersion, ...rest } = input;

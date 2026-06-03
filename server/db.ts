@@ -242,6 +242,26 @@ export interface SaveQuoteInput {
   totalFinal?: number;
   items: Array<{ itemNumber: number; itemData: string }>;
   createdByUserId: number;
+  /** Prazo de entrega em dias úteis (padrão: 20) */
+  deliveryDays?: number;
+  /** Percentual de comissão do vendedor (0-1) */
+  commissionPercent?: number;
+  /** Condição de pagamento */
+  paymentTerm?: string;
+  /** Estado destino para DIFAL */
+  destState?: string;
+  /** Se DIFAL está habilitado */
+  difalEnabled?: boolean;
+  /** Alíquota DIFAL (%) */
+  difalPercent?: number;
+  /** Alíquota FCP (%) */
+  fcpPercent?: number;
+  /** Se FCP está habilitado */
+  fcpEnabled?: boolean;
+  /** Valor DIFAL calculado */
+  difalValue?: number;
+  /** Valor FCP calculado */
+  fcpValue?: number;
 }
 
 /** Cria um novo orçamento com versão 1 */
@@ -296,6 +316,16 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
     totalAmount: String(input.totalAmount),
     totalFinal: input.totalFinal != null ? String(input.totalFinal) : null,
     notes: input.notes ?? null,
+    deliveryDays: input.deliveryDays ?? 20,
+    commissionPercent: input.commissionPercent != null ? String(input.commissionPercent) : '0.05',
+    paymentTerm: input.paymentTerm ?? '30% Sinal e 70% a 28DDF (mediante aprovação de cadastro)',
+    destState: input.destState ?? null,
+    difalEnabled: input.difalEnabled ?? false,
+    difalPercent: input.difalPercent != null ? String(input.difalPercent) : '0',
+    fcpPercent: input.fcpPercent != null ? String(input.fcpPercent) : '0',
+    fcpEnabled: input.fcpEnabled ?? false,
+    difalValue: input.difalValue != null ? String(input.difalValue) : '0',
+    fcpValue: input.fcpValue != null ? String(input.fcpValue) : '0',
   });
   const quoteId = (qResult as unknown as { insertId: number }[])[0]?.insertId ?? 0;
 
@@ -388,6 +418,16 @@ export async function addQuoteRevision(
     freteIsento: input.freteIsento ?? false,
     freteLocalidade: input.freteLocalidade ?? null,
     revisionCount: bumpVersion ? sql`revisionCount + 1` : sql`revisionCount`,
+    deliveryDays: input.deliveryDays ?? 20,
+    commissionPercent: input.commissionPercent != null ? String(input.commissionPercent) : '0.05',
+    paymentTerm: input.paymentTerm ?? '30% Sinal e 70% a 28DDF (mediante aprovação de cadastro)',
+    destState: input.destState ?? null,
+    difalEnabled: input.difalEnabled ?? false,
+    difalPercent: input.difalPercent != null ? String(input.difalPercent) : '0',
+    fcpPercent: input.fcpPercent != null ? String(input.fcpPercent) : '0',
+    fcpEnabled: input.fcpEnabled ?? false,
+    difalValue: input.difalValue != null ? String(input.difalValue) : '0',
+    fcpValue: input.fcpValue != null ? String(input.fcpValue) : '0',
   }).where(eq(quotes.id, quoteId));
 
   if (!bumpVersion) {

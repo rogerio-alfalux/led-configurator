@@ -9,6 +9,22 @@ export interface OrderFormData {
   date: string;
   /** Empresa fabricante: "ALFALUX" (padrão) ou "LUMINEW" */
   empresa?: "ALFALUX" | "LUMINEW";
+  /** Prazo de entrega em dias úteis (padrão: 20) */
+  deliveryDays?: number;
+  /** Data de aprovação do orçamento (ISO string) para calcular prazo */
+  approvedAt?: string;
+}
+
+/** Calcula data de entrega adicionando dias úteis (seg-sex) a partir de uma data base */
+function addBusinessDays(start: Date, days: number): Date {
+  const result = new Date(start);
+  let added = 0;
+  while (added < days) {
+    result.setDate(result.getDate() + 1);
+    const dow = result.getDay();
+    if (dow !== 0 && dow !== 6) added++;
+  }
+  return result;
 }
 
 const HEADER_BG = "FF1F3864"; // Azul escuro (similar ao template)
@@ -243,6 +259,18 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   ws.mergeCells("H3:I3");
   labelCell(ws.getCell("H3"), "PRAZO DE PRODUÇÃO:");
   ws.getCell("H3").alignment = { horizontal: "left", vertical: "middle" };
+  // Calcular e exibir data de entrega prevista
+  {
+    const prazo = form.deliveryDays ?? 20;
+    const base = form.approvedAt ? new Date(form.approvedAt) : new Date();
+    const deliveryDate = addBusinessDays(base, prazo);
+    const prazoStr = `${prazo} dias úteis → ${deliveryDate.toLocaleDateString("pt-BR")}`;
+    ws.mergeCells("J3:K3");
+    const prazoCell = ws.getCell("J3");
+    prazoCell.value = prazoStr;
+    prazoCell.font = { bold: true, size: 10, color: { argb: "FFCC0000" } };
+    prazoCell.alignment = { horizontal: "left", vertical: "middle" };
+  }
 
   ws.mergeCells("H4:J4");
   const brandCell = ws.getCell("H4");

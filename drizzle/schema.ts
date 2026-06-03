@@ -89,6 +89,26 @@ export const quotes = mysqlTable("quotes", {
 	totalFinal: decimal({ precision: 12, scale: 2 }).default('0'),
 	/** Número de revisões do orçamento (0 = RV0, 1 = RV1, ...). Incrementa a cada edição/salvamento. */
 	revisionCount: int().default(0).notNull(),
+	/** Prazo de entrega em dias úteis (padrão: 20) */
+	deliveryDays: int().default(20).notNull(),
+	/** Percentual de comissão do vendedor (padrão: 5%) */
+	commissionPercent: decimal({ precision: 5, scale: 4 }).default('0.05').notNull(),
+	/** Condição de pagamento */
+	paymentTerm: varchar({ length: 256 }).default('30% Sinal e 70% a 28DDF (mediante aprovação de cadastro)'),
+	/** Estado destino para cálculo de DIFAL (sigla UF) */
+	destState: varchar({ length: 2 }),
+	/** Se DIFAL está habilitado para este orçamento */
+	difalEnabled: boolean().default(false).notNull(),
+	/** Alíquota DIFAL calculada (%) */
+	difalPercent: decimal({ precision: 5, scale: 2 }).default('0'),
+	/** Alíquota FCP (%) */
+	fcpPercent: decimal({ precision: 5, scale: 2 }).default('0'),
+	/** Se FCP está habilitado para este orçamento */
+	fcpEnabled: boolean().default(false).notNull(),
+	/** Valor total de DIFAL calculado */
+	difalValue: decimal({ precision: 12, scale: 2 }).default('0'),
+	/** Valor total de FCP calculado */
+	fcpValue: decimal({ precision: 12, scale: 2 }).default('0'),
 },
 (table) => [
 	index("quotes_quoteNumber_unique").on(table.quoteNumber),

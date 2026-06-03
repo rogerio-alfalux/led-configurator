@@ -1020,3 +1020,18 @@
 - [x] Home.tsx: texto copiável inclui comprimento total, barra e preço estimado
 - [x] Home.tsx: botão Enviar ao Carrinho passa unitPrice e totalPrice
 - [x] 495 testes passando
+
+## v31 — Campos Comerciais no Orçamento (03/06/2026)
+
+- [x] BAGEO: priceFromApi: false — preço sempre editável (pré-preenchido com valor da API)
+- [x] Schema: novos campos deliveryDays, commissionPercent, paymentTerm, destState, difalEnabled, difalPercent, difalValue, fcpEnabled, fcpPercent, fcpValue na tabela quotes
+- [x] db.ts: SaveQuoteInput atualizado com todos os novos campos
+- [x] routers.ts: schema Zod de createQuote e addRevision atualizado com novos campos
+- [x] difalTable.ts: tabela completa de DIFAL e FCP por estado (27 UFs + DF)
+- [x] QuoteDetail.tsx: aba "Comercial" no diálogo de edição com prazo, pagamento, comissão, estado destino, toggles DIFAL/FCP
+- [x] QuoteDetail.tsx: exibição de prazo, pagamento, comissão e DIFAL/FCP no card de Dados Internos
+- [x] QuoteDetail.tsx: cálculo automático de DIFAL e FCP ao selecionar estado destino
+- [x] cartTypes.ts: QuoteFormData atualizado com deliveryDays, paymentTerm, commissionPercent, destState, difalEnabled, difalValue, fcpEnabled, fcpValue
+- [x] quoteExcelGenerator.ts: prazo dinâmico e condição de pagamento dinâmica no Excel do orçamento
+- [x] orderExcelGenerator.ts: prazo calculado (data aprovação + dias úteis) exibido em vermelho na ficha de produção
+- [x] 495 testes passando

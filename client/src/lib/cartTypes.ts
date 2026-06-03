@@ -196,6 +196,26 @@ export interface QuoteFormData {
   freteCity?: string;
   /** Número de revisões do orçamento (0 = sem revisões, 1 = primeira revisão, etc.) */
   revisionCount?: number;
+  /** Prazo de entrega em dias úteis (padrão: 20) */
+  deliveryDays?: number;
+  /** Comissão do vendedor (0–1, ex: 0.05 = 5%). Apenas demonstrativo. */
+  commissionPercent?: number;
+  /** Condição de pagamento (ex: "30% Sinal e 70% a 28DDF") */
+  paymentTerm?: string;
+  /** Estado destino para cálculo de DIFAL/FCP (ex: "RJ") */
+  destState?: string;
+  /** Se true, aplica DIFAL ao total */
+  difalEnabled?: boolean;
+  /** Alíquota de DIFAL em % (ex: 4.5) */
+  difalPercent?: number;
+  /** Valor de DIFAL calculado em R$ */
+  difalValue?: number;
+  /** Se true, aplica FCP ao total */
+  fcpEnabled?: boolean;
+  /** Alíquota de FCP em % (ex: 2) */
+  fcpPercent?: number;
+  /** Valor de FCP calculado em R$ */
+  fcpValue?: number;
 }
 
 export function parseCartItemData(json: string): CartItemData | null {

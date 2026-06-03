@@ -554,7 +554,8 @@ export async function generateQuoteExcel(
   ws.mergeCells(`E${nextRow}:N${nextRow}`);
   {
     const c = ws.getCell(`E${nextRow}`);
-    c.value = "20 dias úteis";
+    const prazo = formData.deliveryDays ?? 20;
+    c.value = `${prazo} dias úteis`;
     c.font = { name: "Calibri", size: 12, bold: true, color: { argb: RED_TXT } };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
@@ -598,7 +599,7 @@ export async function generateQuoteExcel(
   ws.mergeCells(`E${nextRow}:N${nextRow}`);
   {
     const c = ws.getCell(`E${nextRow}`);
-    c.value = "30% Sinal e 70% a 28DDF (mediante a aprovação de cadastro)";
+    c.value = formData.paymentTerm ?? "30% Sinal e 70% a 28DDF (mediante a aprovação de cadastro)";
     c.font = { name: "Calibri", size: 11 };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
@@ -642,7 +643,19 @@ export async function generateQuoteExcel(
   ws.mergeCells(`C${nextRow}:N${nextRow}`);
   {
     const c = ws.getCell(`C${nextRow}`);
-    c.value = "Pode ser acrescido o valor de DIFAL, de acordo com o Estado e classificação fiscal da empresa.";
+    // Montar texto de observação com DIFAL/FCP se aplicado
+    let obsText = "Pode ser acrescido o valor de DIFAL, de acordo com o Estado e classificação fiscal da empresa.";
+    const difalParts: string[] = [];
+    if (formData.difalEnabled && formData.difalValue && formData.difalValue > 0) {
+      difalParts.push(`DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%): R$ ${formData.difalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
+    }
+    if (formData.fcpEnabled && formData.fcpValue && formData.fcpValue > 0) {
+      difalParts.push(`FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%): R$ ${formData.fcpValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
+    }
+    if (difalParts.length > 0) {
+      obsText = `DIFAL/FCP aplicado para ${formData.destState ?? ""}: ${difalParts.join(" | ")}. Valores já incluídos na proposta.`;
+    }
+    c.value = obsText;
     c.font = { name: "Calibri", size: 11 };
     c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
   }

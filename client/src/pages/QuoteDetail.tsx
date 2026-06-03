@@ -40,6 +40,7 @@ import { CartItemData, formatBRL, parseCartItemData } from "@/lib/cartTypes";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
 import { generateOrderExcel } from "@/lib/orderExcelGenerator";
+import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 import { toast } from "sonner";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -231,6 +232,13 @@ export default function QuoteDetail() {
     marginPercent: "10",
     freteType: "free" as "free" | "paid" | "night" | "consult",
     freteIsento: false, freteLocalidade: "sp" as "sp" | "other",
+    // Novos campos
+    deliveryDays: "20",
+    commissionPercent: "5",
+    paymentTerm: "30% Sinal e 70% a 28DDF (mediante aprovação de cadastro)",
+    destState: "",
+    difalEnabled: false,
+    fcpEnabled: false,
   });
 
   // Sellers & Assistants for edit dialog
@@ -405,6 +413,16 @@ export default function QuoteDetail() {
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
           revisionCount: quote.revisionCount ?? 0,
+          deliveryDays: quote.deliveryDays ?? 20,
+          commissionPercent: quote.commissionPercent ? parseFloat(String(quote.commissionPercent)) : undefined,
+          paymentTerm: quote.paymentTerm ?? undefined,
+          destState: quote.destState ?? undefined,
+          difalEnabled: quote.difalEnabled ?? false,
+          difalPercent: quote.difalPercent ? parseFloat(String(quote.difalPercent)) : undefined,
+          difalValue: quote.difalValue ? parseFloat(String(quote.difalValue)) : undefined,
+          fcpEnabled: quote.fcpEnabled ?? false,
+          fcpPercent: quote.fcpPercent ? parseFloat(String(quote.fcpPercent)) : undefined,
+          fcpValue: quote.fcpValue ? parseFloat(String(quote.fcpValue)) : undefined,
         }
       );
       toast.success("Orçamento Excel gerado!");
@@ -428,6 +446,8 @@ export default function QuoteDetail() {
           vendorName: quote.vendorName ?? "",
           date: new Date(quote.approvedAt ?? quote.createdAt).toLocaleDateString("pt-BR"),
           empresa,
+          deliveryDays: quote.deliveryDays ?? 20,
+          approvedAt: quote.approvedAt ? new Date(quote.approvedAt).toISOString() : new Date().toISOString(),
         }
       );
       // Registrar geração no log de auditoria
@@ -495,6 +515,35 @@ export default function QuoteDetail() {
               {quote.approvedAt && (
                 <p className="text-green-600 dark:text-green-400 font-medium">
                   ✅ Aprovado em: {new Date(quote.approvedAt).toLocaleDateString("pt-BR")}
+                </p>
+              )}
+              {/* Novos campos comerciais */}
+              {quote.deliveryDays != null && (
+                <p>🚚 Prazo: <span className="font-medium">{quote.deliveryDays} dias úteis</span></p>
+              )}
+              {quote.paymentTerm && (
+                <p>💳 Pagamento: <span className="font-medium">{quote.paymentTerm}</span></p>
+              )}
+              {quote.commissionPercent != null && Number(quote.commissionPercent) > 0 && (() => {
+                const commPct = parseFloat(String(quote.commissionPercent));
+                const total = quote.totalFinal ? Number(quote.totalFinal) : (quote.totalAmount ? Number(quote.totalAmount) : 0);
+                const base = total * (1 - 0.12);
+                const commVal = base * commPct;
+                return (
+                  <p className="text-amber-700 dark:text-amber-400">
+                    💰 Comissão: <span className="font-medium">{(commPct * 100).toFixed(1)}%</span>
+                    {commVal > 0 && <span className="ml-1 text-xs">({formatBRL(commVal)})</span>}
+                  </p>
+                );
+              })()}
+              {quote.destState && (
+                <p>🗺️ Destino: <span className="font-medium">{quote.destState}</span>
+                  {quote.difalEnabled && quote.difalValue != null && Number(quote.difalValue) > 0 && (
+                    <span className="ml-1 text-xs text-orange-600">DIFAL: {formatBRL(Number(quote.difalValue))}</span>
+                  )}
+                  {quote.fcpEnabled && quote.fcpValue != null && Number(quote.fcpValue) > 0 && (
+                    <span className="ml-1 text-xs text-orange-600">FCP: {formatBRL(Number(quote.fcpValue))}</span>
+                  )}
                 </p>
               )}
               {(() => {
@@ -812,6 +861,12 @@ export default function QuoteDetail() {
                 freteType: (quote.freteType as "free" | "paid" | "night" | "consult") ?? "free",
                 freteIsento: quote.freteIsento ?? false,
                 freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
+                deliveryDays: quote.deliveryDays != null ? String(quote.deliveryDays) : "20",
+                commissionPercent: quote.commissionPercent != null ? String(parseFloat(String(quote.commissionPercent)) * 100) : "5",
+                paymentTerm: quote.paymentTerm ?? "30% Sinal e 70% a 28DDF (mediante aprovação de cadastro)",
+                destState: quote.destState ?? "",
+                difalEnabled: quote.difalEnabled ?? false,
+                fcpEnabled: quote.fcpEnabled ?? false,
               });
             }
           }}>
@@ -834,6 +889,7 @@ export default function QuoteDetail() {
                   <TabsTrigger value="cliente" className="flex-1">Cliente</TabsTrigger>
                   <TabsTrigger value="financeiro" className="flex-1"><Percent className="w-3 h-3 mr-1" />RT / Margem</TabsTrigger>
                   <TabsTrigger value="frete" className="flex-1"><Truck className="w-3 h-3 mr-1" />Frete</TabsTrigger>
+                  <TabsTrigger value="comercial" className="flex-1"><ShoppingBag className="w-3 h-3 mr-1" />Comercial</TabsTrigger>
                 </TabsList>
 
                 {/* Aba Equipe */}
@@ -984,6 +1040,143 @@ export default function QuoteDetail() {
                     <label htmlFor="editFreteIsento" className="text-sm cursor-pointer">Isentar frete</label>
                   </div>
                 </TabsContent>
+
+                {/* Aba Comercial */}
+                <TabsContent value="comercial" className="space-y-4 pt-3">
+                  {/* Prazo de entrega */}
+                  <div>
+                    <Label>Prazo de entrega (dias úteis)</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number" min={1} max={365} step={1}
+                        className="w-28"
+                        value={editForm.deliveryDays}
+                        onChange={e => setEditForm(f => ({ ...f, deliveryDays: e.target.value }))}
+                      />
+                      <span className="text-sm text-muted-foreground">dias úteis (padrão: 20)</span>
+                    </div>
+                  </div>
+
+                  {/* Condição de pagamento */}
+                  <div>
+                    <Label>Condição de pagamento</Label>
+                    <Select
+                      value={editForm.paymentTerm}
+                      onValueChange={(v) => setEditForm(f => ({ ...f, paymentTerm: v }))}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="30% Sinal e 70% a 28DDF (mediante aprovação de cadastro)">30% Sinal + 70% a 28DDF</SelectItem>
+                        <SelectItem value="À VISTA">À VISTA</SelectItem>
+                        <SelectItem value="A COMBINAR">A COMBINAR</SelectItem>
+                        <SelectItem value="50% Sinal e 50% a 28DDF">50% Sinal + 50% a 28DDF</SelectItem>
+                        <SelectItem value="100% Antecipado">100% Antecipado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">Será impresso no Excel do orçamento.</p>
+                  </div>
+
+                  {/* Comissão do vendedor */}
+                  <div className="border rounded-lg p-3 space-y-2 bg-amber-50 dark:bg-amber-950/20">
+                    <div className="flex items-center gap-2">
+                      <Percent className="w-4 h-4 text-amber-600" />
+                      <span className="text-sm font-medium">Comissão do Vendedor (demonstrativo)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number" min={0} max={20} step={0.5}
+                        className="w-24"
+                        value={editForm.commissionPercent}
+                        onChange={e => setEditForm(f => ({ ...f, commissionPercent: e.target.value }))}
+                      />
+                      <span className="text-sm text-muted-foreground">%</span>
+                    </div>
+                    {(() => {
+                      const commPct = parseFloat(editForm.commissionPercent || "0") / 100;
+                      const baseComComissao = editTotalFinal * (1 - 0.12); // deduz 12% de impostos
+                      const commValue = baseComComissao * commPct;
+                      return commValue > 0 ? (
+                        <div className="text-sm">
+                          <span className="text-muted-foreground">Base (total − 12% impostos): </span>
+                          <span className="font-medium">{formatBRL(baseComComissao)}</span>
+                          <br />
+                          <span className="text-muted-foreground">Comissão estimada: </span>
+                          <span className="font-semibold text-amber-700 dark:text-amber-400">{formatBRL(commValue)}</span>
+                        </div>
+                      ) : null;
+                    })()}
+                    <p className="text-xs text-muted-foreground">Não altera o valor do orçamento. Apenas demonstrativo para controle interno.</p>
+                  </div>
+
+                  {/* DIFAL / FCP */}
+                  <div className="border rounded-lg p-3 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">DIFAL / FCP (venda interestadual)</span>
+                    </div>
+                    <div>
+                      <Label>Estado destino</Label>
+                      <Select
+                        value={editForm.destState || "none"}
+                        onValueChange={(v) => setEditForm(f => ({ ...f, destState: v === "none" ? "" : v }))}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Selecione o estado" /></SelectTrigger>
+                        <SelectContent className="max-h-60">
+                          <SelectItem value="none">Selecione...</SelectItem>
+                          {DIFAL_TABLE.map(s => (
+                            <SelectItem key={s.uf} value={s.uf}>
+                              {s.uf} — {s.name} (DIFAL {s.difal.toFixed(1)}% + FCP {s.fcp.toFixed(1)}%)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {editForm.destState && editForm.destState !== "none" && (() => {
+                      const info = getStateInfo(editForm.destState);
+                      if (!info) return null;
+                      const difalVal = (editTotalFinal * info.difal) / 100;
+                      const fcpVal = (editTotalFinal * info.fcp) / 100;
+                      return (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="editDifalEnabled"
+                              checked={editForm.difalEnabled}
+                              onCheckedChange={(v) => setEditForm(f => ({ ...f, difalEnabled: Boolean(v) }))}
+                            />
+                            <label htmlFor="editDifalEnabled" className="text-sm cursor-pointer">
+                              Aplicar DIFAL ({info.difal.toFixed(1)}%) = {formatBRL(difalVal)}
+                            </label>
+                          </div>
+                          {info.fcp > 0 && (
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id="editFcpEnabled"
+                                checked={editForm.fcpEnabled}
+                                onCheckedChange={(v) => setEditForm(f => ({ ...f, fcpEnabled: Boolean(v) }))}
+                              />
+                              <label htmlFor="editFcpEnabled" className="text-sm cursor-pointer">
+                                Aplicar FCP ({info.fcp.toFixed(1)}%) = {formatBRL(fcpVal)}
+                              </label>
+                            </div>
+                          )}
+                          {(editForm.difalEnabled || editForm.fcpEnabled) && (
+                            <div className="bg-muted/60 rounded p-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Total com DIFAL/FCP</span>
+                                <span className="font-semibold">
+                                  {formatBRL(editTotalFinal + (editForm.difalEnabled ? difalVal : 0) + (editForm.fcpEnabled ? fcpVal : 0))}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Alíquota interna {info.uf}: {info.icmsInterno}% | Interestadual SP→{info.uf}: {info.icmsInterestadual}%
+                          </p>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </TabsContent>
               </Tabs>
 
               <div className="flex justify-end gap-2 mt-4 pt-3 border-t">
@@ -1027,6 +1220,21 @@ export default function QuoteDetail() {
                       totalFinal: totalFinalVal,
                       items: currentItems.map((i, idx) => ({ itemNumber: idx + 1, itemData: i.itemData })),
                       bumpVersion: false,
+                      deliveryDays: parseInt(editForm.deliveryDays || "20") || 20,
+                      commissionPercent: Math.min(Math.max(parseFloat(editForm.commissionPercent || "5") / 100, 0), 1),
+                      paymentTerm: editForm.paymentTerm || undefined,
+                      destState: editForm.destState || undefined,
+                      difalEnabled: editForm.difalEnabled,
+                      fcpEnabled: editForm.fcpEnabled,
+                      ...(() => {
+                        const info = editForm.destState ? getStateInfo(editForm.destState) : undefined;
+                        return {
+                          difalPercent: info ? info.difal : 0,
+                          fcpPercent: info ? info.fcp : 0,
+                          difalValue: info && editForm.difalEnabled ? (totalFinalVal * info.difal) / 100 : 0,
+                          fcpValue: info && editForm.fcpEnabled ? (totalFinalVal * info.fcp) / 100 : 0,
+                        };
+                      })(),
                     });
                   }}
                   disabled={addRevisionMutation.isPending}
