@@ -21,9 +21,9 @@ import {
 } from "@/lib/ledCatalog";
 import { adaptProfileProducts } from "@/lib/profileApiAdapter";
 import type { InstallType } from "@/lib/ledCatalog";
-import { calculateComposition } from "@/lib/ledEngine";
+import { calculateComposition, getStripflexName, getStriplineName } from "@/lib/ledEngine";
 import { profileSupportsLShape, calculateLShape, calculateSquare, calculateRectangle, type ShapeDriverParams } from "@/lib/lEngine";
-import type { ProfileShape, ShapeResult } from "@/lib/lCatalog";
+import type { ProfileShape, ShapeResult, ShapePiece } from "@/lib/lCatalog";
 import { generateProductionTemplate } from "@/lib/productionTemplate";
 import { generateOrderSummary } from "@/lib/orderSummary";
 import { generateQuoteSummary } from "@/lib/quoteSummary";
@@ -309,17 +309,27 @@ function ShapeResultCard({
   const [colorModalOpen, setColorModalOpen] = useState(false);
   const [pendingItem, setPendingItem] = useState<CartItemData | null>(null);
 
+  const profileCode = shapeResult.profileCode ?? "";
+  const profileEntry = LED_CATALOG[profileCode];
+  const profilePhoto = profileCode ? getProfilePhoto(profileCode, undefined, undefined) : null;
+
+  // Barra Stripflex/Stripline
+  const stripBarName = useMemo(() => {
+    if (!shapeResult.cct) return null;
+    const cct = shapeResult.cct as import("@/lib/ledEngine").CCT;
+    if (shapeResult.stripMethod === "STRIPLINE") return getStriplineName(cct);
+    return getStripflexName(cct);
+  }, [shapeResult.cct, shapeResult.stripMethod]);
+
   // Calcular preço por metro linear usando catálogo estático
-  const precoTotal = (() => {
-    const code = shapeResult.profileCode;
+  const precoTotal = useMemo(() => {
     const power = shapeResult.power;
     const totalMm = shapeResult.totalLengthMm;
-    if (!code || !power || !totalMm) return null;
-    // Formatos EM L são sempre D1 simples (nunca D1+D2)
-    const pricePerMeter = getStaticPricePerMeter(code, power, "onoff", false);
+    if (!profileCode || !power || !totalMm) return null;
+    const pricePerMeter = getStaticPricePerMeter(profileCode, power, "onoff", false);
     if (pricePerMeter == null) return null;
     return Math.round(pricePerMeter * (totalMm / 1000) * 100) / 100;
-  })();
+  }, [profileCode, shapeResult.power, shapeResult.totalLengthMm]);
 
   const shapeLabel =
     shapeResult.shape === "L_SHAPE" ? "Formato L" :
@@ -331,27 +341,67 @@ function ShapeResultCard({
       ? `${shapeResult.dimensions[0]}mm × ${shapeResult.dimensions[0]}mm`
       : `${shapeResult.dimensions[0]}mm × ${shapeResult.dimensions[1]}mm`;
 
+  // Consolidar drivers por SKU (agrupando peças com mesmo SKU e mesmo driver)
+  const driversBySku: Array<{ sku: string; quantity: number; driver: NonNullable<ShapePiece["driver"]>; bars: number }> = useMemo(() => {
+    const map = new Map<string, { sku: string; quantity: number; driver: NonNullable<ShapePiece["driver"]>; bars: number }>();
+    for (const piece of shapeResult.pieces) {
+      if (!piece.driver) continue;
+      const existing = map.get(piece.sku);
+      if (existing) {
+        existing.quantity += piece.quantity;
+      } else {
+        map.set(piece.sku, { sku: piece.sku, quantity: piece.quantity, driver: piece.driver, bars: piece.bars ?? 0 });
+      }
+    }
+    return Array.from(map.values());
+  }, [shapeResult.pieces]);
+
+  // Resumo consolidado de drivers (modelo → quantidade total)
+  const driverSummary = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const entry of driversBySku) {
+      if (entry.driver.combo && entry.driver.combo.length > 0) {
+        for (const c of entry.driver.combo) {
+          map.set(c.model, (map.get(c.model) ?? 0) + entry.quantity * c.quantity);
+        }
+      } else {
+        const qty = entry.driver.quantity ?? 1;
+        map.set(entry.driver.model, (map.get(entry.driver.model) ?? 0) + entry.quantity * qty);
+      }
+    }
+    return Array.from(map.entries());
+  }, [driversBySku]);
+
   // Gerar texto de resumo para cópia
-  const summaryText = (() => {
+  const summaryText = useMemo(() => {
     const lines: string[] = [];
     const pName = shapeResult.profileName ?? "Perfil";
     const pw = shapeResult.power ? `${shapeResult.power}W` : "";
     const cctStr = shapeResult.cct ?? "";
     const voltStr = shapeResult.voltage ?? "";
     lines.push(`${pName} ${pw} ${cctStr} ${voltStr} — ${shapeLabel} ${dimensionLabel}`.trim());
+    if (shapeResult.totalLengthMm) {
+      lines.push(`Comprimento linear total: ${shapeResult.totalLengthMm}mm = ${(shapeResult.totalLengthMm / 1000).toFixed(3)}m`);
+    }
+    if (stripBarName) lines.push(`Barra: ${stripBarName}`);
     lines.push("");
     for (const piece of shapeResult.pieces) {
       const driverStr = piece.driver
         ? piece.driver.combo && piece.driver.combo.length > 0
           ? piece.driver.combo.map(c => `${c.quantity}× ${c.model.toUpperCase()}${c.code ? ` (${c.code})` : ""}`).join(" + ")
-          : `${piece.driver.quantity}× ${piece.driver.model.toUpperCase()}${piece.driver.code ? ` (${piece.driver.code})` : ""}`
+          : `${piece.driver.quantity ?? 1}× ${piece.driver.model.toUpperCase()}${piece.driver.code ? ` (${piece.driver.code})` : ""}`
         : "";
-      const barsStr = piece.bars ? ` — ${piece.bars} barras` : "";
-      lines.push(`${piece.quantity}× ${piece.sku}${barsStr}`);
-      if (driverStr) lines.push(`   Driver: ${driverStr}`);
+      const barsStr = piece.bars !== undefined ? ` — ${piece.bars} barras` : "";
+      const lenStr = piece.length ? ` (${piece.length}mm)` : "";
+      lines.push(`${piece.quantity}× ${piece.sku}${lenStr}${barsStr}`);
+      if (driverStr) lines.push(`   Driver por peça: ${driverStr}`);
+    }
+    if (precoTotal !== null) {
+      lines.push("");
+      lines.push(`PREÇO ESTIMADO: ${formatBRL(precoTotal)} (ON/OFF 220V)`);
     }
     return lines.join("\n");
-  })();
+  }, [shapeResult, shapeLabel, dimensionLabel, stripBarName, precoTotal]);
 
   const handleCopy = async () => {
     try {
@@ -369,7 +419,6 @@ function ShapeResultCard({
   };
 
   const handleAddToCart = () => {
-    // Construir profileSegments para cada peça
     const profileSegments: ProfileSegment[] = shapeResult.pieces.map((piece) => {
       let driverQtyPerPiece = 1;
       let driverModel = "";
@@ -406,19 +455,17 @@ function ShapeResultCard({
     const cctStr = shapeResult.cct ?? "";
     const voltStr = shapeResult.voltage ?? "";
     const description = `${pName} ${pw} ${cctStr} ${voltStr} — ${shapeLabel} ${dimensionLabel}`.trim();
-
-    const profileCode = shapeResult.pieces[0]?.sku.split(".")[0] ?? "";
-    const photo = getProfilePhoto(profileCode, undefined, undefined);
+    const photo = profileCode ? getProfilePhoto(profileCode, undefined, undefined) : null;
 
     const item: CartItemData = {
       category: "Perfis",
-      sku: profileCode,
+      sku: profileCode || (shapeResult.pieces[0]?.sku.split(".")[0] ?? ""),
       description,
       power: pw || undefined,
       cct: cctStr || undefined,
       qty: 1,
-      unitPrice: null,
-      totalPrice: null,
+      unitPrice: precoTotal ?? null,
+      totalPrice: precoTotal ?? null,
       priceFromApi: false,
       photoUrl: photo ?? null,
       orderSummary: summaryText,
@@ -438,14 +485,15 @@ function ShapeResultCard({
 
   return (
     <>
+    <div className="space-y-4">
+
+    {/* Card principal: Resumo da Configuração */}
     <Card className="shadow-sm border-blue-500/30">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-            <svg viewBox="0 0 24 24" className="w-4 h-4 text-blue-500" fill="none">
-              <path d="M4 4 L4 20 L20 20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Composição {shapeLabel}
+            <CheckCircle2 className="w-4 h-4 text-green-500" />
+            Resumo — {shapeLabel}
           </CardTitle>
           <div className="flex items-center gap-2">
             <Button
@@ -471,70 +519,225 @@ function ShapeResultCard({
             </Button>
           </div>
         </div>
-        <div className="flex items-center justify-between mt-1 flex-wrap gap-2">
-          <p className="text-sm text-muted-foreground">
-            {dimensionLabel}
-            {shapeResult.power && ` · ${shapeResult.power}W`}
-            {shapeResult.cct && ` · ${shapeResult.cct}`}
-            {shapeResult.voltage && ` · ${shapeResult.voltage}`}
-          </p>
-          {shapeResult.totalLengthMm && (
-            <p className="text-xs text-muted-foreground">
-              Comprimento linear: <span className="font-semibold text-foreground">{shapeResult.totalLengthMm.toLocaleString("pt-BR")}mm</span>
-              {" = "}<span className="font-semibold text-foreground">{(shapeResult.totalLengthMm / 1000).toFixed(3).replace(".", ",")}m</span>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Layout com foto */}
+        {profilePhoto ? (
+          <div className="flex gap-3 items-stretch">
+            <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-36 flex items-center justify-center">
+              <img src={profilePhoto} alt={shapeResult.profileName ?? profileCode} className="w-full h-full object-contain p-2" loading="lazy" />
+            </div>
+            <div className="grid grid-cols-2 gap-2 flex-1">
+              <div className="rounded-lg bg-muted/40 p-3 border border-border">
+                <p className="text-xs text-muted-foreground mb-1">Perfil</p>
+                <p className="text-sm font-bold text-foreground font-display">{shapeResult.profileName ?? profileCode}</p>
+                <p className="text-xs text-muted-foreground font-mono">{profileCode}</p>
+              </div>
+              <div className="rounded-lg bg-muted/40 p-3 border border-border">
+                <p className="text-xs text-muted-foreground mb-1">Instalação</p>
+                <p className="text-sm font-bold text-foreground font-display">
+                  {profileEntry?.installType ? INSTALL_LABELS[profileEntry.installType] : "—"}
+                </p>
+              </div>
+              <div className="rounded-lg bg-muted/40 p-3 border border-border">
+                <p className="text-xs text-muted-foreground mb-1">Potência · CCT · Tensão</p>
+                <p className="text-sm font-bold text-foreground font-display">
+                  {shapeResult.power ? `${shapeResult.power}W` : "—"}
+                </p>
+                <p className="text-xs text-muted-foreground">{shapeResult.cct} · {shapeResult.voltage}</p>
+              </div>
+              <div className="rounded-lg bg-muted/40 p-3 border border-border">
+                <p className="text-xs text-muted-foreground mb-1">Dimensões</p>
+                <p className="text-sm font-bold text-foreground font-display">{dimensionLabel}</p>
+                {shapeResult.totalLengthMm && (
+                  <p className="text-xs text-muted-foreground">
+                    Linear: {(shapeResult.totalLengthMm / 1000).toFixed(3).replace(".", ",")}m
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="rounded-lg bg-muted/40 p-3 border border-border">
+              <p className="text-xs text-muted-foreground mb-1">Perfil</p>
+              <p className="text-sm font-bold text-foreground font-display">{shapeResult.profileName ?? profileCode}</p>
+              <p className="text-xs text-muted-foreground font-mono">{profileCode}</p>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-3 border border-border">
+              <p className="text-xs text-muted-foreground mb-1">Instalação</p>
+              <p className="text-sm font-bold text-foreground font-display">
+                {profileEntry?.installType ? INSTALL_LABELS[profileEntry.installType] : "—"}
+              </p>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-3 border border-border">
+              <p className="text-xs text-muted-foreground mb-1">Potência · CCT</p>
+              <p className="text-sm font-bold text-foreground font-display">
+                {shapeResult.power ? `${shapeResult.power}W` : "—"}
+              </p>
+              <p className="text-xs text-muted-foreground">{shapeResult.cct} · {shapeResult.voltage}</p>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-3 border border-border">
+              <p className="text-xs text-muted-foreground mb-1">Dimensões</p>
+              <p className="text-sm font-bold text-foreground font-display">{dimensionLabel}</p>
+              {shapeResult.totalLengthMm && (
+                <p className="text-xs text-muted-foreground">
+                  Linear: {(shapeResult.totalLengthMm / 1000).toFixed(3).replace(".", ",")}m
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Barra Stripflex/Stripline */}
+        {stripBarName && (
+          <div className="rounded-lg bg-muted/30 border border-border p-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+              {shapeResult.stripMethod === "STRIPLINE" ? "Barra Stripline" : "Barra Stripflex"}
             </p>
-          )}
-        </div>
+            <p className="text-sm font-medium text-foreground font-mono">{stripBarName}</p>
+          </div>
+        )}
+
+        {/* Preço estimado */}
         {precoTotal !== null && (
-          <div className="mt-2 flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Preço estimado:</span>
             <span className="text-lg font-bold text-blue-400">{formatBRL(precoTotal)}</span>
             <span className="text-xs text-muted-foreground">(ON/OFF 220V)</span>
           </div>
         )}
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {/* Lista de peças */}
-        <div className="space-y-2">
-          {shapeResult.pieces.map((piece, idx) => (
-            <div key={idx} className="p-3 rounded-lg bg-muted/40 border border-border/50 space-y-1.5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-mono font-semibold text-foreground">{piece.sku}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{piece.description}</p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold">{piece.quantity}×</span>
-                </div>
-              </div>
-              {piece.bars !== undefined && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted/60 border border-border/40">
-                    <Zap className="w-2.5 h-2.5" />
-                    {piece.bars} barra{piece.bars !== 1 ? "s" : ""}
-                  </span>
-                  {piece.driver && (
-                    <span className="text-xs text-muted-foreground">
-                      Driver:
-                      {piece.driver.combo && piece.driver.combo.length > 0
-                        ? ` ${piece.driver.combo.map(c => `${c.quantity}× ${c.model.toUpperCase()}`).join(" + ")}`
-                        : ` ${piece.driver.quantity}× ${piece.driver.model.toUpperCase()}`
-                      }
-                      {piece.driver.code && ` (${piece.driver.code})`}
-                    </span>
-                  )}
-                </div>
-              )}
+      </CardContent>
+    </Card>
+
+    {/* Composição de Módulos */}
+    {shapeResult.pieces.length > 0 && (
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+            <Settings className="w-4 h-4" />
+            Composição de Módulos
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border border-border overflow-hidden">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-muted/50">
+                  <th className="text-left px-3 py-2 font-semibold text-muted-foreground">SKU</th>
+                  <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Tipo</th>
+                  <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Compr.</th>
+                  <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Qtd</th>
+                  <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Barras</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shapeResult.pieces.map((piece, idx) => (
+                  <tr key={idx} className="border-t border-border hover:bg-muted/20 transition-colors">
+                    <td className="px-3 py-2 font-mono text-primary font-medium">{piece.sku}</td>
+                    <td className="px-3 py-2 text-foreground">
+                      <span className="inline-flex items-center gap-1">
+                        <span className="font-semibold">
+                          {piece.type === "CORNER" ? "Canto" : "IF"}
+                        </span>
+                        <span className="text-muted-foreground hidden sm:inline">
+                          — {piece.type === "CORNER" ? "Canto EM L" : "Início/Final de Linha"}
+                        </span>
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-right text-foreground">
+                      {piece.length ? `${piece.length}mm` : (piece.type === "CORNER" ? `${shapeResult.dimensions[0] > 0 ? "—" : "—"}` : "—")}
+                    </td>
+                    <td className="px-3 py-2 text-right text-foreground font-semibold">{piece.quantity}</td>
+                    <td className="px-3 py-2 text-right text-foreground">
+                      {piece.bars !== undefined ? (Number.isInteger(piece.bars) ? piece.bars : piece.bars.toFixed(1)) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-border bg-muted/30">
+                  <td className="px-3 py-2 font-semibold text-foreground" colSpan={3}>Total</td>
+                  <td className="px-3 py-2 text-right font-semibold text-foreground">
+                    {shapeResult.pieces.reduce((s, p) => s + p.quantity, 0)}
+                  </td>
+                  <td className="px-3 py-2 text-right font-semibold text-foreground">
+                    {(() => {
+                      const t = shapeResult.pieces.reduce((s, p) => s + (p.bars ?? 0) * p.quantity, 0);
+                      return Number.isInteger(t) ? t : t.toFixed(1);
+                    })()}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            * Barras {shapeResult.stripMethod === "STRIPLINE" ? "Stripline (562,5mm cada, 75V)" : "Stripflex (562,5mm cada, 25V)"}.
+          </p>
+        </CardContent>
+      </Card>
+    )}
+
+    {/* Drivers por SKU */}
+    {driversBySku.length > 0 && (
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+            <Zap className="w-4 h-4" />
+            Drivers por SKU
+            <span className="text-xs font-normal text-muted-foreground ml-1">
+              (1 driver por módulo — nunca compartilhado)
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <SkuDriverList
+            entries={driversBySku.map(e => ({
+              sku: e.sku,
+              quantity: e.quantity,
+              barsPerPiece: e.bars,
+              driver: {
+                code: e.driver.code,
+                model: e.driver.model,
+                power: 0,
+                current: "",
+                quantity: e.driver.quantity ?? 1,
+                combo: e.driver.combo,
+              } as import("@/lib/ledEngine").DriverSpec,
+            }))}
+            label={`${shapeResult.power ? `${shapeResult.power}W` : ""} · ${shapeResult.voltage ?? ""}`}
+          />
+
+          {/* Resumo total de drivers */}
+          <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
+            <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
+              Resumo de Drivers
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {driverSummary.map(([model, qty], idx) => (
+                <span
+                  key={idx}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border bg-primary/10 text-primary border-primary/20"
+                >
+                  <Zap className="w-3 h-3" />
+                  {qty}× {model}
+                </span>
+              ))}
             </div>
-          ))}
-        </div>
-        {/* Resumo copiável */}
+          </div>
+        </CardContent>
+      </Card>
+    )}
+
+    {/* Resumo copiável */}
+    <Card className="shadow-sm">
+      <CardContent className="pt-4 space-y-2">
         <textarea
           ref={textareaRef}
           readOnly
           value={summaryText}
           className="w-full font-mono text-xs bg-muted/40 border border-border rounded-md p-3 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/50 text-foreground leading-relaxed"
-          rows={Math.max(summaryText.split("\n").length + 1, 3)}
+          rows={Math.max(summaryText.split("\n").length + 1, 4)}
           onClick={(e) => (e.target as HTMLTextAreaElement).select()}
         />
         <p className="text-xs text-muted-foreground">
@@ -542,6 +745,8 @@ function ShapeResultCard({
         </p>
       </CardContent>
     </Card>
+
+    </div>
     {pendingItem && (
       <ColorPickerModal
         open={colorModalOpen}

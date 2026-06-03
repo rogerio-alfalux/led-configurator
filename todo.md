@@ -1011,3 +1011,12 @@
 - [x] Home.tsx: calcular precoTotal no ShapeResultCard usando getStaticPricePerMeter(profileCode, power, "onoff", false) × (totalLengthMm / 1000)
 - [x] Home.tsx: exibir comprimento linear total em mm e metros, e preço estimado em R$ no ShapeResultCard
 - [x] 495 testes passando
+
+## v30.3 — Otimização e ShapeResultCard enriquecido (03/06/2026)
+
+- [x] lEngine.ts: reescrever findBestIFModule para testar múltiplas quantidades (1×, 2×, 3×...) por módulo e escolher a combinação que minimiza o desvio (MAX_MODULES_PER_SIDE = 8)
+- [x] lEngine.ts: retornar moduleQty no StraightSegment e usar na descrição e quantidade das peças
+- [x] Home.tsx: ShapeResultCard enriquecido com foto do perfil, tipo de instalação, barra Stripflex/Stripline, tabela de composição de módulos (SKU/tipo/comprimento/qtd/barras), tabela de drivers por SKU (SkuDriverList), resumo de drivers consolidado
+- [x] Home.tsx: texto copiável inclui comprimento total, barra e preço estimado
+- [x] Home.tsx: botão Enviar ao Carrinho passa unitPrice e totalPrice
+- [x] 495 testes passando

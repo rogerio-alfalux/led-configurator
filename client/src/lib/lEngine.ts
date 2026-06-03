@@ -20,7 +20,10 @@
  *
  * Módulos retos entre cantos: usamos módulos IF do catálogo reto.
  * O comprimento disponível para retos = lado total - 2 × cornerLength.
- * Escolhemos o módulo IF mais próximo (por baixo) do comprimento disponível.
+ *
+ * Otimização: para cada módulo IF disponível, testamos múltiplas quantidades
+ * (1×, 2×, 3×...) e escolhemos a combinação que minimiza o desvio em relação
+ * ao comprimento disponível (sem ultrapassar).
  *
  * Drivers:
  *   - Cada peça (canto ou módulo reto) recebe 1 driver calculado pelas suas barras.
@@ -34,11 +37,11 @@ import { LED_CATALOG, type ProfileVariant } from "./ledCatalog";
 import { selectDriverFallback } from "./driverSelector";
 import type { Power, Voltage, StripMethod } from "./ledEngine";
 
-/** Tolerância de ajuste em mm (diferença aceitável entre medida desejada e real) */
-const TOLERANCE_MM = 50;
-
 /** Comprimento máximo de módulo IF sem módulos longos habilitados */
 const MAX_IF_LENGTH_STANDARD = 2840;
+
+/** Número máximo de módulos por lado (evita combinações absurdas) */
+const MAX_MODULES_PER_SIDE = 8;
 
 /** Parâmetros de driver para cálculo */
 export interface ShapeDriverParams {
@@ -52,12 +55,14 @@ export interface ShapeDriverParams {
   profileName?: string;
 }
 
-/** Resultado do cálculo de um lado reto entre dois cantos */
+/** Resultado do cálculo de um segmento reto entre dois cantos */
 type StraightSegment = {
   /** Comprimento total disponível para módulos retos */
   availableLength: number;
   /** Módulo IF escolhido (ou null se não há espaço) */
   module: { sku: string; length: number; bars: number } | null;
+  /** Quantidade de módulos neste segmento */
+  moduleQty: number;
   /** Comprimento real do segmento (0 se sem módulo) */
   actualLength: number;
 };
@@ -69,7 +74,6 @@ function calcPieceDriver(
   totalBars: number,
   params: ShapeDriverParams
 ): ShapePieceDriver {
-  // driverSelector usa Voltage = "220Vac" | "Bivolt" (mesmo tipo do ledEngine)
   const d = selectDriverFallback(
     totalBars,
     params.power,
@@ -87,10 +91,13 @@ function calcPieceDriver(
 }
 
 /**
- * Encontra o melhor módulo IF para preencher um comprimento disponível.
- * Escolhe o módulo mais próximo por baixo (≤ availableLength).
- * Respeita o limite de comprimento de módulos longos.
- * Por padrão, apenas módulos com número inteiro de barras são considerados.
+ * Encontra a melhor combinação de módulos IF para preencher um comprimento disponível.
+ *
+ * Algoritmo:
+ * 1. Para cada módulo IF disponível, testa quantidades de 1 a MAX_MODULES_PER_SIDE.
+ * 2. Escolhe a combinação (módulo × qty) que resulta no comprimento mais próximo
+ *    do disponível, sem ultrapassar.
+ * 3. Respeita os limites de allowLongModules e allowFractionalBars.
  */
 function findBestIFModule(
   profileEntry: ProfileVariant,
@@ -99,34 +106,46 @@ function findBestIFModule(
   allowFractionalBars: boolean = false
 ): StraightSegment {
   if (availableLength <= 0) {
-    return { availableLength, module: null, actualLength: 0 };
+    return { availableLength, module: null, moduleQty: 0, actualLength: 0 };
   }
 
   const ifModules = profileEntry.modules?.IF;
   if (!ifModules) {
-    return { availableLength, module: null, actualLength: 0 };
+    return { availableLength, module: null, moduleQty: 0, actualLength: 0 };
   }
 
-  let best: { sku: string; length: number; bars: number } | null = null;
+  let bestModule: { sku: string; length: number; bars: number } | null = null;
+  let bestQty = 0;
+  let bestTotal = 0;
 
   for (const [barsKey, mod] of Object.entries(ifModules)) {
     const m = mod as { length: number; sku: string };
     const bars = parseFloat(barsKey);
+
     // Respeitar limite de comprimento (allowLongModules libera módulos > 2840mm)
     if (!allowLongModules && m.length > MAX_IF_LENGTH_STANDARD) continue;
     // Bloquear barras decimais quando allowFractionalBars = false
     if (!allowFractionalBars && !Number.isInteger(bars)) continue;
-    if (m.length <= availableLength + TOLERANCE_MM) {
-      if (!best || m.length > best.length) {
-        best = { sku: m.sku, length: m.length, bars };
+
+    // Testar múltiplas quantidades deste módulo
+    for (let qty = 1; qty <= MAX_MODULES_PER_SIDE; qty++) {
+      const total = m.length * qty;
+      // Não ultrapassar o comprimento disponível
+      if (total > availableLength) break;
+      // Escolher a combinação que chega mais perto (maior total ≤ availableLength)
+      if (total > bestTotal) {
+        bestTotal = total;
+        bestModule = { sku: m.sku, length: m.length, bars };
+        bestQty = qty;
       }
     }
   }
 
   return {
     availableLength,
-    module: best,
-    actualLength: best?.length ?? 0,
+    module: bestModule,
+    moduleQty: bestQty,
+    actualLength: bestTotal,
   };
 }
 
@@ -186,10 +205,13 @@ export function calculateLShape(
   // Módulo reto horizontal (se houver)
   if (segH.module) {
     const hDriver = driverParams ? calcPieceDriver(segH.module.bars, driverParams) : undefined;
+    const hDesc = segH.moduleQty > 1
+      ? `${segH.moduleQty}× Módulo reto IF ${segH.module.bars} barras (${segH.module.length}mm) — lado horizontal`
+      : `Módulo reto IF ${segH.module.bars} barras (${segH.module.length}mm) — lado horizontal`;
     pieces.push({
       sku: segH.module.sku,
-      quantity: 1,
-      description: `Módulo reto IF ${segH.module.bars} barras (${segH.module.length}mm) — lado horizontal`,
+      quantity: segH.moduleQty,
+      description: hDesc,
       length: segH.module.length,
       type: "STRAIGHT_IF",
       bars: segH.module.bars,
@@ -200,20 +222,31 @@ export function calculateLShape(
   // Módulo reto vertical (se houver)
   if (segV.module) {
     const vDriver = driverParams ? calcPieceDriver(segV.module.bars, driverParams) : undefined;
-    // Verificar se é o mesmo SKU do horizontal
-    if (segH.module?.sku === segV.module.sku) {
-      // Agrupar: incrementar quantidade do horizontal
-      const hPiece = pieces.find(p => p.sku === segV.module!.sku && p.type === "STRAIGHT_IF");
-      if (hPiece) {
-        hPiece.quantity = 2;
-        // Atualizar descrição para refletir ambos os lados
-        hPiece.description = `Módulo reto IF ${segV.module.bars} barras (${segV.module.length}mm) — horizontal e vertical`;
-      }
+    // Verificar se é o mesmo SKU e mesma quantidade do horizontal
+    const hPiece = pieces.find(p => p.sku === segV.module!.sku && p.type === "STRAIGHT_IF");
+    if (hPiece && hPiece.quantity === segV.moduleQty) {
+      // Agrupar: dobrar quantidade
+      hPiece.quantity = hPiece.quantity + segV.moduleQty;
+      hPiece.description = `Módulo reto IF ${segV.module.bars} barras (${segV.module.length}mm) — horizontal e vertical`;
+    } else if (hPiece) {
+      // Mesmo SKU mas quantidades diferentes: manter separado
+      pieces.push({
+        sku: segV.module.sku + "_V",
+        quantity: segV.moduleQty,
+        description: `Módulo reto IF ${segV.module.bars} barras (${segV.module.length}mm) — lado vertical`,
+        length: segV.module.length,
+        type: "STRAIGHT_IF",
+        bars: segV.module.bars,
+        driver: vDriver,
+      });
     } else {
+      const vDesc = segV.moduleQty > 1
+        ? `${segV.moduleQty}× Módulo reto IF ${segV.module.bars} barras (${segV.module.length}mm) — lado vertical`
+        : `Módulo reto IF ${segV.module.bars} barras (${segV.module.length}mm) — lado vertical`;
       pieces.push({
         sku: segV.module.sku,
-        quantity: 1,
-        description: `Módulo reto IF ${segV.module.bars} barras (${segV.module.length}mm) — lado vertical`,
+        quantity: segV.moduleQty,
+        description: vDesc,
         length: segV.module.length,
         type: "STRAIGHT_IF",
         bars: segV.module.bars,
@@ -225,8 +258,8 @@ export function calculateLShape(
   const summary =
     `Formato L: ${actualH}mm × ${actualV}mm\n` +
     `1× canto ${corner.sku} (${cornerLen}mm)\n` +
-    (segH.module ? `1× IF ${segH.module.sku} (${segH.module.length}mm) — horizontal\n` : "") +
-    (segV.module ? `1× IF ${segV.module.sku} (${segV.module.length}mm) — vertical\n` : "");
+    (segH.module ? `${segH.moduleQty}× IF ${segH.module.sku} (${segH.module.length}mm) — horizontal\n` : "") +
+    (segV.module ? `${segV.moduleQty}× IF ${segV.module.sku} (${segV.module.length}mm) — vertical\n` : "");
 
   // Comprimento total = soma de todos os lados (1 canto + 2 retos)
   const totalLengthMm = cornerLen + segH.actualLength + segV.actualLength;
@@ -272,7 +305,7 @@ export function calculateSquare(
   const cornerLen = corner.lengthLong;
 
   // Comprimento disponível para módulos retos entre os dois cantos opostos
-  // Cada lado = canto + reto + canto → disponível = side - 2 × cornerLen
+  // Cada lado = canto + reto(s) + canto → disponível = side - 2 × cornerLen
   const availPerSide = side - 2 * cornerLen;
 
   const seg = findBestIFModule(profileEntry as unknown as ProfileVariant, availPerSide, allowLongModules, allowFractionalBars);
@@ -295,13 +328,17 @@ export function calculateSquare(
     driver: cornerDriver,
   });
 
-  // Módulos retos (4 lados, cada um com 1 módulo reto se houver)
+  // Módulos retos (4 lados, cada um com moduleQty módulos)
   if (seg.module) {
     const segDriver = driverParams ? calcPieceDriver(seg.module.bars, driverParams) : undefined;
+    const totalQty = 4 * seg.moduleQty;
+    const desc = seg.moduleQty > 1
+      ? `${seg.moduleQty}× Módulo reto IF ${seg.module.bars} barras (${seg.module.length}mm) por lado`
+      : `Módulo reto IF ${seg.module.bars} barras (${seg.module.length}mm)`;
     pieces.push({
       sku: seg.module.sku,
-      quantity: 4,
-      description: `Módulo reto IF ${seg.module.bars} barras (${seg.module.length}mm)`,
+      quantity: totalQty,
+      description: desc,
       length: seg.module.length,
       type: "STRAIGHT_IF",
       bars: seg.module.bars,
@@ -312,9 +349,9 @@ export function calculateSquare(
   const summary =
     `Formato Quadrado: ${actualSide}mm × ${actualSide}mm\n` +
     `4× canto ${corner.sku} (${cornerLen}mm)\n` +
-    (seg.module ? `4× IF ${seg.module.sku} (${seg.module.length}mm)\n` : "");
+    (seg.module ? `${4 * seg.moduleQty}× IF ${seg.module.sku} (${seg.module.length}mm)\n` : "");
 
-  // Comprimento total = 4 lados (4 cantos + 4 retos)
+  // Comprimento total = 4 lados (4 cantos + 4 × retos)
   const totalLengthMm = 4 * cornerLen + 4 * seg.actualLength;
 
   return {
@@ -359,8 +396,8 @@ export function calculateRectangle(
   const allowFractionalBars = driverParams?.allowFractionalBars ?? false;
   const cornerLen = corner.lengthLong;
 
-  // Lado curto (altura): canto + canto = 2 × cornerLen
-  // Lado longo (largura): canto + reto + canto = 2 × cornerLen + reto
+  // Lado curto (altura): canto + reto(s) + canto
+  // Lado longo (largura): canto + reto(s) + canto
   const availWidth = width - 2 * cornerLen;
   const availHeight = height - 2 * cornerLen;
 
@@ -386,45 +423,58 @@ export function calculateRectangle(
     driver: cornerDriver,
   });
 
-  // Módulos retos nos lados largos (2 peças)
+  // Módulos retos nos lados largos (2 lados × moduleQty)
   if (segWidth.module) {
     const widthDriver = driverParams ? calcPieceDriver(segWidth.module.bars, driverParams) : undefined;
-    const widthPiece: ShapePiece = {
+    const totalWidthQty = 2 * segWidth.moduleQty;
+    const desc = segWidth.moduleQty > 1
+      ? `${segWidth.moduleQty}× Módulo reto IF ${segWidth.module.bars} barras (${segWidth.module.length}mm) por lado largo`
+      : `Módulo reto IF ${segWidth.module.bars} barras (${segWidth.module.length}mm) — lados largos`;
+    pieces.push({
       sku: segWidth.module.sku,
-      quantity: 2,
-      description: `Módulo reto IF ${segWidth.module.bars} barras (${segWidth.module.length}mm) — lados largos`,
+      quantity: totalWidthQty,
+      description: desc,
       length: segWidth.module.length,
       type: "STRAIGHT_IF",
       bars: segWidth.module.bars,
       driver: widthDriver,
-    };
-    pieces.push(widthPiece);
+    });
   }
 
-  // Módulos retos nos lados curtos (2 peças) — se diferentes dos largos
-  if (segHeight.module && segHeight.module.sku !== segWidth.module?.sku) {
+  // Módulos retos nos lados curtos (2 lados × moduleQty)
+  if (segHeight.module) {
     const heightDriver = driverParams ? calcPieceDriver(segHeight.module.bars, driverParams) : undefined;
-    pieces.push({
-      sku: segHeight.module.sku,
-      quantity: 2,
-      description: `Módulo reto IF ${segHeight.module.bars} barras (${segHeight.module.length}mm) — lados curtos`,
-      length: segHeight.module.length,
-      type: "STRAIGHT_IF",
-      bars: segHeight.module.bars,
-      driver: heightDriver,
-    });
-  } else if (segHeight.module && segHeight.module.sku === segWidth.module?.sku) {
-    // Mesmo SKU: somar quantidades
-    const existing = pieces.find(p => p.sku === segHeight.module!.sku);
-    if (existing) existing.quantity += 2;
+    const totalHeightQty = 2 * segHeight.moduleQty;
+
+    if (segHeight.module.sku === segWidth.module?.sku) {
+      // Mesmo SKU: somar quantidades
+      const existing = pieces.find(p => p.sku === segHeight.module!.sku);
+      if (existing) {
+        existing.quantity += totalHeightQty;
+        existing.description = `Módulo reto IF ${segHeight.module.bars} barras (${segHeight.module.length}mm) — todos os lados`;
+      }
+    } else {
+      const desc = segHeight.moduleQty > 1
+        ? `${segHeight.moduleQty}× Módulo reto IF ${segHeight.module.bars} barras (${segHeight.module.length}mm) por lado curto`
+        : `Módulo reto IF ${segHeight.module.bars} barras (${segHeight.module.length}mm) — lados curtos`;
+      pieces.push({
+        sku: segHeight.module.sku,
+        quantity: totalHeightQty,
+        description: desc,
+        length: segHeight.module.length,
+        type: "STRAIGHT_IF",
+        bars: segHeight.module.bars,
+        driver: heightDriver,
+      });
+    }
   }
 
   const summary =
     `Formato Retangular: ${actualWidth}mm × ${actualHeight}mm\n` +
     `4× canto ${corner.sku} (${cornerLen}mm)\n` +
-    (segWidth.module ? `2× IF ${segWidth.module.sku} (${segWidth.module.length}mm) — lados largos\n` : "") +
+    (segWidth.module ? `${2 * segWidth.moduleQty}× IF ${segWidth.module.sku} (${segWidth.module.length}mm) — lados largos\n` : "") +
     (segHeight.module && segHeight.module.sku !== segWidth.module?.sku
-      ? `2× IF ${segHeight.module.sku} (${segHeight.module.length}mm) — lados curtos\n`
+      ? `${2 * segHeight.moduleQty}× IF ${segHeight.module.sku} (${segHeight.module.length}mm) — lados curtos\n`
       : "");
 
   // Comprimento total = 2 lados largos + 2 lados curtos
