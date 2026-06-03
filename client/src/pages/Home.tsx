@@ -309,6 +309,18 @@ function ShapeResultCard({
   const [colorModalOpen, setColorModalOpen] = useState(false);
   const [pendingItem, setPendingItem] = useState<CartItemData | null>(null);
 
+  // Calcular preço por metro linear usando catálogo estático
+  const precoTotal = (() => {
+    const code = shapeResult.profileCode;
+    const power = shapeResult.power;
+    const totalMm = shapeResult.totalLengthMm;
+    if (!code || !power || !totalMm) return null;
+    // Formatos EM L são sempre D1 simples (nunca D1+D2)
+    const pricePerMeter = getStaticPricePerMeter(code, power, "onoff", false);
+    if (pricePerMeter == null) return null;
+    return Math.round(pricePerMeter * (totalMm / 1000) * 100) / 100;
+  })();
+
   const shapeLabel =
     shapeResult.shape === "L_SHAPE" ? "Formato L" :
     shapeResult.shape === "SQUARE" ? "Quadrado" :
@@ -459,12 +471,27 @@ function ShapeResultCard({
             </Button>
           </div>
         </div>
-        <p className="text-sm text-muted-foreground mt-1">
-          {dimensionLabel}
-          {shapeResult.power && ` · ${shapeResult.power}W`}
-          {shapeResult.cct && ` · ${shapeResult.cct}`}
-          {shapeResult.voltage && ` · ${shapeResult.voltage}`}
-        </p>
+        <div className="flex items-center justify-between mt-1 flex-wrap gap-2">
+          <p className="text-sm text-muted-foreground">
+            {dimensionLabel}
+            {shapeResult.power && ` · ${shapeResult.power}W`}
+            {shapeResult.cct && ` · ${shapeResult.cct}`}
+            {shapeResult.voltage && ` · ${shapeResult.voltage}`}
+          </p>
+          {shapeResult.totalLengthMm && (
+            <p className="text-xs text-muted-foreground">
+              Comprimento linear: <span className="font-semibold text-foreground">{shapeResult.totalLengthMm.toLocaleString("pt-BR")}mm</span>
+              {" = "}<span className="font-semibold text-foreground">{(shapeResult.totalLengthMm / 1000).toFixed(3).replace(".", ",")}m</span>
+            </p>
+          )}
+        </div>
+        {precoTotal !== null && (
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Preço estimado:</span>
+            <span className="text-lg font-bold text-blue-400">{formatBRL(precoTotal)}</span>
+            <span className="text-xs text-muted-foreground">(ON/OFF 220V)</span>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Lista de peças */}

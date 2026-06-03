@@ -1003,3 +1003,11 @@
 - [x] Home.tsx: passar allowFractional (toggle existente) como allowFractionalBars no ShapeDriverParams
 - [x] Home.tsx: ocultar toggles "Ajustar para Medida Maior" e "Otimizar com IFs Diferentes" quando profileShape !== STRAIGHT (não se aplicam a EM L)
 - [x] 495 testes passando
+
+## v30.2 — Preço por metro linear nos formatos EM L (02/06/2026)
+
+- [x] lCatalog.ts: adicionar campos profileCode e totalLengthMm ao ShapeResult
+- [x] lEngine.ts: calcular totalLengthMm em cada função (L_SHAPE: canto + 2 retos; SQUARE: 4 × lado; RECTANGLE: 2 × largura + 2 × altura) e incluir profileCode no retorno
+- [x] Home.tsx: calcular precoTotal no ShapeResultCard usando getStaticPricePerMeter(profileCode, power, "onoff", false) × (totalLengthMm / 1000)
+- [x] Home.tsx: exibir comprimento linear total em mm e metros, e preço estimado em R$ no ShapeResultCard
+- [x] 495 testes passando

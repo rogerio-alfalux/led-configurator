@@ -457,6 +457,10 @@ export type ShapeResult = {
   cct?: string;
   /** Nome do perfil */
   profileName?: string;
+  /** Código do perfil pai (ex: "LLP-6060") */
+  profileCode?: string;
+  /** Comprimento total de todos os lados em mm (para cálculo de preço por metro linear) */
+  totalLengthMm?: number;
 };
 
 export type ShapePiece = {

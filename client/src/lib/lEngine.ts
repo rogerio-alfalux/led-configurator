@@ -228,6 +228,9 @@ export function calculateLShape(
     (segH.module ? `1× IF ${segH.module.sku} (${segH.module.length}mm) — horizontal\n` : "") +
     (segV.module ? `1× IF ${segV.module.sku} (${segV.module.length}mm) — vertical\n` : "");
 
+  // Comprimento total = soma de todos os lados (1 canto + 2 retos)
+  const totalLengthMm = cornerLen + segH.actualLength + segV.actualLength;
+
   return {
     shape: "L_SHAPE",
     dimensions: [actualH, actualV],
@@ -238,6 +241,8 @@ export function calculateLShape(
     stripMethod: driverParams?.stripMethod,
     cct: driverParams?.cct,
     profileName: driverParams?.profileName,
+    profileCode,
+    totalLengthMm,
   };
 }
 
@@ -309,6 +314,9 @@ export function calculateSquare(
     `4× canto ${corner.sku} (${cornerLen}mm)\n` +
     (seg.module ? `4× IF ${seg.module.sku} (${seg.module.length}mm)\n` : "");
 
+  // Comprimento total = 4 lados (4 cantos + 4 retos)
+  const totalLengthMm = 4 * cornerLen + 4 * seg.actualLength;
+
   return {
     shape: "SQUARE",
     dimensions: [actualSide, actualSide],
@@ -319,6 +327,8 @@ export function calculateSquare(
     stripMethod: driverParams?.stripMethod,
     cct: driverParams?.cct,
     profileName: driverParams?.profileName,
+    profileCode,
+    totalLengthMm,
   };
 }
 
@@ -417,6 +427,9 @@ export function calculateRectangle(
       ? `2× IF ${segHeight.module.sku} (${segHeight.module.length}mm) — lados curtos\n`
       : "");
 
+  // Comprimento total = 2 lados largos + 2 lados curtos
+  const totalLengthMm = 2 * actualWidth + 2 * actualHeight;
+
   return {
     shape: "RECTANGLE",
     dimensions: [actualWidth, actualHeight],
@@ -427,6 +440,8 @@ export function calculateRectangle(
     stripMethod: driverParams?.stripMethod,
     cct: driverParams?.cct,
     profileName: driverParams?.profileName,
+    profileCode,
+    totalLengthMm,
   };
 }
 
