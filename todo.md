@@ -1035,3 +1035,10 @@
 - [x] quoteExcelGenerator.ts: prazo dinâmico e condição de pagamento dinâmica no Excel do orçamento
 - [x] orderExcelGenerator.ts: prazo calculado (data aprovação + dias úteis) exibido em vermelho na ficha de produção
 - [x] 495 testes passando
+
+## v32 — Melhorias no Orçamento (03/06/2026)
+
+- [ ] Aba Comercial na criação inicial do orçamento (não apenas na edição)
+- [ ] Opção "Especificar" na condição de pagamento com campo de texto livre
+- [ ] Alterações no orçamento salvam logs sem gerar nova revisão; revisão gerada apenas ao baixar Excel
+- [ ] Excel: incluir DIFAL e FCP no total final quando aplicáveis

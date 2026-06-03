@@ -40,6 +40,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 
 interface SaveFormData {
   quoteNumber: string;
@@ -69,6 +70,18 @@ interface SaveFormData {
   freteCity: string;
   notes: string;
   versionNotes: string;
+  // Campos comerciais
+  deliveryDays: string;
+  paymentTerm: string;
+  paymentTermCustom: string;
+  commissionPercent: string;
+  destState: string;
+  difalEnabled: boolean;
+  difalPercent: string;
+  difalValue: string;
+  fcpEnabled: boolean;
+  fcpPercent: string;
+  fcpValue: string;
 }
 
 interface OrderFormData {
@@ -376,6 +389,17 @@ export default function Cart() {
     freteCity: "",
     notes: "",
     versionNotes: "",
+    deliveryDays: "20",
+    paymentTerm: "30sinal70",
+    paymentTermCustom: "",
+    commissionPercent: "5",
+    destState: "",
+    difalEnabled: false,
+    difalPercent: "",
+    difalValue: "",
+    fcpEnabled: false,
+    fcpPercent: "",
+    fcpValue: "",
   });
 
   // Busca sugestão de número ao abrir o diálogo (atualiza quando vendedor muda)
@@ -473,6 +497,16 @@ export default function Cart() {
         freteCity: saveForm.freteCity,
         // revisionCount: 0 para orçamentos gerados diretamente do carrinho (sem revisões)
         revisionCount: 0,
+        deliveryDays: parseInt(saveForm.deliveryDays) || 20,
+        paymentTerm: saveForm.paymentTerm === "custom" ? saveForm.paymentTermCustom : saveForm.paymentTerm || undefined,
+        commissionPercent: parseFloat(saveForm.commissionPercent) || 5,
+        destState: saveForm.destState || undefined,
+        difalEnabled: saveForm.difalEnabled,
+        difalPercent: saveForm.difalEnabled && saveForm.difalPercent ? parseFloat(saveForm.difalPercent) : undefined,
+        difalValue: saveForm.difalEnabled && saveForm.difalValue ? parseFloat(saveForm.difalValue) : undefined,
+        fcpEnabled: saveForm.fcpEnabled,
+        fcpPercent: saveForm.fcpEnabled && saveForm.fcpPercent ? parseFloat(saveForm.fcpPercent) : undefined,
+        fcpValue: saveForm.fcpEnabled && saveForm.fcpValue ? parseFloat(saveForm.fcpValue) : undefined,
       };
       // Injetar itemEmPlanta em cada item (respeitando a ordem do DnD)
       const itemsWithPlanta = orderedEntries.map((e, idx) => ({
@@ -539,6 +573,16 @@ export default function Cart() {
       freteLocalidade: saveForm.freteLocalidade,
       notes: saveForm.notes || undefined,
       versionNotes: saveForm.versionNotes || undefined,
+      deliveryDays: parseInt(saveForm.deliveryDays) || 20,
+      paymentTerm: saveForm.paymentTerm === "custom" ? saveForm.paymentTermCustom : saveForm.paymentTerm || undefined,
+      commissionPercent: parseFloat(saveForm.commissionPercent) || 5,
+      destState: saveForm.destState || undefined,
+      difalEnabled: saveForm.difalEnabled,
+      difalPercent: saveForm.difalEnabled && saveForm.difalPercent ? parseFloat(saveForm.difalPercent) : undefined,
+      difalValue: saveForm.difalEnabled && saveForm.difalValue ? parseFloat(saveForm.difalValue) : undefined,
+      fcpEnabled: saveForm.fcpEnabled,
+      fcpPercent: saveForm.fcpEnabled && saveForm.fcpPercent ? parseFloat(saveForm.fcpPercent) : undefined,
+      fcpValue: saveForm.fcpEnabled && saveForm.fcpValue ? parseFloat(saveForm.fcpValue) : undefined,
       totalAmount: totalGeral,
       totalFinal: totalFinal + freteValor,
       items: orderedEntries.map((e, idx) => ({
@@ -780,6 +824,7 @@ export default function Cart() {
                             <TabsTrigger value="financeiro" className="flex-1">
                               <Percent className="w-3 h-3 mr-1" />RT / Margem
                             </TabsTrigger>
+                            <TabsTrigger value="comercial" className="flex-1">Comercial</TabsTrigger>
                             <TabsTrigger value="frete" className="flex-1">
                               <Truck className="w-3 h-3 mr-1" />Frete
                             </TabsTrigger>
@@ -1061,6 +1106,131 @@ export default function Cart() {
                                 <span>Total final</span>
                                 <span className="text-primary">{formatBRL(totalFinal)}</span>
                               </div>
+                            </div>
+                          </TabsContent>
+
+                          {/* ─── Aba Comercial ─── */}
+                          <TabsContent value="comercial" className="space-y-4 pt-3">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label>Prazo de entrega (dias úteis)</Label>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  value={saveForm.deliveryDays}
+                                  onChange={e => updateSaveForm("deliveryDays", e.target.value)}
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">Padrão: 20 dias úteis</p>
+                              </div>
+                              <div>
+                                <Label>Comissão do vendedor (%)</Label>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  step={0.5}
+                                  value={saveForm.commissionPercent}
+                                  onChange={e => updateSaveForm("commissionPercent", e.target.value)}
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">Base: total − 12% impostos</p>
+                              </div>
+                            </div>
+
+                            <div>
+                              <Label>Condição de pagamento</Label>
+                              <Select
+                                value={saveForm.paymentTerm}
+                                onValueChange={(v) => updateSaveForm("paymentTerm", v)}
+                              >
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="30sinal70">30% Sinal + 70% a 28DDF</SelectItem>
+                                  <SelectItem value="avista">À VISTA</SelectItem>
+                                  <SelectItem value="acombinar">A COMBINAR</SelectItem>
+                                  <SelectItem value="custom">Especificar...</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              {saveForm.paymentTerm === "custom" && (
+                                <Input
+                                  className="mt-2"
+                                  placeholder="Digite a condição de pagamento"
+                                  value={saveForm.paymentTermCustom}
+                                  onChange={e => updateSaveForm("paymentTermCustom", e.target.value)}
+                                />
+                              )}
+                            </div>
+
+                            <div className="border rounded-lg p-3 space-y-3">
+                              <p className="text-sm font-semibold">DIFAL / FCP (venda interestadual)</p>
+                              <div>
+                                <Label>Estado destino</Label>
+                                <Select
+                                  value={saveForm.destState}
+                                  onValueChange={(v) => {
+                                    const info = getStateInfo(v);
+                                    updateSaveForm("destState", v);
+                                    if (info) {
+                                      updateSaveForm("difalPercent", String(info.difal));
+                                      updateSaveForm("fcpPercent", String(info.fcp));
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                  <SelectContent>
+                                    {DIFAL_TABLE.map(s => (
+                                      <SelectItem key={s.uf} value={s.uf}>
+                                        {s.uf} — {s.name} (DIFAL {s.difal}% + FCP {s.fcp}%)
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              {saveForm.destState && (() => {
+                                const info = getStateInfo(saveForm.destState);
+                                const base = totalFinal;
+                                const difalVal = info ? base * (info.difal / 100) : 0;
+                                const fcpVal = info ? base * (info.fcp / 100) : 0;
+                                return (
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      <Checkbox
+                                        id="saveFormDifal"
+                                        checked={saveForm.difalEnabled}
+                                        onCheckedChange={(v) => {
+                                          updateSaveForm("difalEnabled", Boolean(v));
+                                          updateSaveForm("difalValue", String(difalVal.toFixed(2)));
+                                        }}
+                                      />
+                                      <label htmlFor="saveFormDifal" className="text-sm cursor-pointer">
+                                        Aplicar DIFAL ({info?.difal}%) = {formatBRL(difalVal)}
+                                      </label>
+                                    </div>
+                                    {info && info.fcp > 0 && (
+                                      <div className="flex items-center gap-2">
+                                        <Checkbox
+                                          id="saveFormFcp"
+                                          checked={saveForm.fcpEnabled}
+                                          onCheckedChange={(v) => {
+                                            updateSaveForm("fcpEnabled", Boolean(v));
+                                            updateSaveForm("fcpValue", String(fcpVal.toFixed(2)));
+                                          }}
+                                        />
+                                        <label htmlFor="saveFormFcp" className="text-sm cursor-pointer">
+                                          Aplicar FCP ({info?.fcp}%) = {formatBRL(fcpVal)}
+                                        </label>
+                                      </div>
+                                    )}
+                                    {(saveForm.difalEnabled || saveForm.fcpEnabled) && (
+                                      <div className="bg-muted/60 rounded p-2 text-sm">
+                                        <span className="text-muted-foreground">Total com DIFAL/FCP: </span>
+                                        <span className="font-bold text-primary">
+                                          {formatBRL(base + (saveForm.difalEnabled ? difalVal : 0) + (saveForm.fcpEnabled ? fcpVal : 0))}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </TabsContent>
 

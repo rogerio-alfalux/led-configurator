@@ -535,6 +535,10 @@ export async function generateQuoteExcel(
   const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
   const totalComRT   = rtPct    > 0 ? totalBase  / (1 - rtPct)    : totalBase;
   const totalFinal   = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
+  // Calcular DIFAL e FCP a partir dos valores do formData (já calculados na UI)
+  const difalAmt = (formData.difalEnabled && formData.difalValue && formData.difalValue > 0) ? formData.difalValue : 0;
+  const fcpAmt   = (formData.fcpEnabled && formData.fcpValue && formData.fcpValue > 0) ? formData.fcpValue : 0;
+  const totalComDifal = totalFinal + difalAmt + fcpAmt;
   let nextRow = currentRow + items.length;
 
   // Espaço após a tabela
@@ -559,14 +563,14 @@ export async function generateQuoteExcel(
     c.font = { name: "Calibri", size: 12, bold: true, color: { argb: RED_TXT } };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
-  nextRow++;
-
-  // ── Valor total dos produtos (sem o frete) ───────────────────────────────
+  nextRow++;  // ── Valor total dos produtos (sem o frete) ───────────────────────────────────────
   ws.getRow(nextRow).height = 42.6;
   ws.mergeCells(`C${nextRow}:D${nextRow}`);
   {
     const c = ws.getCell(`C${nextRow}`);
-    c.value = "Valor total dos produtos\n(sem o frete):";
+    c.value = totalComDifal > totalFinal
+      ? "Subtotal dos produtos\n(sem frete, sem DIFAL/FCP):"
+      : "Valor total dos produtos\n(sem o frete):";
     c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
   }
@@ -581,6 +585,68 @@ export async function generateQuoteExcel(
     mediumBorder(c);
   }
   nextRow++;
+
+  // ── Linhas de DIFAL e FCP (quando aplicáveis) ──────────────────────────
+  if (difalAmt > 0) {
+    ws.getRow(nextRow).height = 24;
+    ws.mergeCells(`C${nextRow}:D${nextRow}`);
+    {
+      const c = ws.getCell(`C${nextRow}`);
+      c.value = `DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%) — ${formData.destState ?? ""}:`;
+      c.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FFCC0000" } };
+      c.alignment = { horizontal: "left", vertical: "middle" };
+    }
+    ws.mergeCells(`E${nextRow}:N${nextRow}`);
+    {
+      const c = ws.getCell(`E${nextRow}`);
+      c.value = difalAmt;
+      c.numFmt = '"R$"#,##0.00';
+      c.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FFCC0000" } };
+      c.alignment = { horizontal: "left", vertical: "middle" };
+    }
+    nextRow++;
+  }
+  if (fcpAmt > 0) {
+    ws.getRow(nextRow).height = 24;
+    ws.mergeCells(`C${nextRow}:D${nextRow}`);
+    {
+      const c = ws.getCell(`C${nextRow}`);
+      c.value = `FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%) — ${formData.destState ?? ""}:`;
+      c.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FFCC0000" } };
+      c.alignment = { horizontal: "left", vertical: "middle" };
+    }
+    ws.mergeCells(`E${nextRow}:N${nextRow}`);
+    {
+      const c = ws.getCell(`E${nextRow}`);
+      c.value = fcpAmt;
+      c.numFmt = '"R$"#,##0.00';
+      c.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FFCC0000" } };
+      c.alignment = { horizontal: "left", vertical: "middle" };
+    }
+    nextRow++;
+  }
+  // ── Total com DIFAL/FCP (quando aplicável) ────────────────────────────────
+  if (totalComDifal > totalFinal) {
+    ws.getRow(nextRow).height = 42.6;
+    ws.mergeCells(`C${nextRow}:D${nextRow}`);
+    {
+      const c = ws.getCell(`C${nextRow}`);
+      c.value = "TOTAL GERAL\n(com DIFAL/FCP, sem frete):";
+      c.font = { name: "Calibri", size: 12, bold: true };
+      c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+    }
+    ws.mergeCells(`E${nextRow}:N${nextRow}`);
+    {
+      const c = ws.getCell(`E${nextRow}`);
+      c.value = totalComDifal;
+      c.numFmt = '"R$"#,##0.00';
+      c.font = { name: "Calibri", size: 14, bold: true };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFCE4D6" } }; // laranja claro
+      c.alignment = { horizontal: "left", vertical: "middle" };
+      mediumBorder(c);
+    }
+    nextRow++;
+  }
 
   // Espaço
   nextRow++;
