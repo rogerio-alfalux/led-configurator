@@ -1089,3 +1089,17 @@
 - [x] Tipo das peças retas: STRAIGHT_ML em quadrado/retangular, STRAIGHT_IF em formato L
 - [x] UI: tabela de composição exibe "ML — Meio de Linha" vs "IF — Início/Final de Linha"
 - [x] 3 novos testes cobrindo ML vs IF por formato (512 testes passando)
+
+## v32.7 — Algoritmo Greedy de Otimização de Módulos (05/06/2026)
+- [x] lEngine.ts: findBestModuleByType substituído por algoritmo greedy (maior módulo que cabe primeiro)
+- [x] StraightSegment refatorado para MultiSegment com lista de peças (pieces[])
+- [x] calculateSquare, calculateRectangle e calculateLShape migrados para MultiSegment
+- [x] Resultado: quadrado 8000mm LLP-6060 passou de 24 peças para 12 peças (−50%)
+- [x] lEngine.test.ts: testes atualizados para cobrir combinação de módulos diferentes
+- [x] 513 testes passando
+
+## v32.8 — LUMIGRID cor única Branco (05/06/2026)
+- [x] painelCatalog.ts: campo corUnica adicionado ao tipo PainelProduct
+- [x] LUMIGRID E e LUMIGRID S: corUnica = "Branco"
+- [x] Home.tsx: botão "Enviar ao Carrinho" de painéis pula modal quando corUnica definido
+- [x] 513 testes passando

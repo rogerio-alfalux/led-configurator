@@ -5465,6 +5465,9 @@ export default function Home() {
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
+                          } else if (panelResult.product.corUnica) {
+                            // Produto só existe em uma cor: pular modal e adicionar diretamente
+                            addItem({ ...item, corPeca: panelResult.product.corUnica });
                           } else {
                             setPendingCartItem(item);
                             setColorModalOpen(true);
@@ -5485,8 +5488,8 @@ export default function Home() {
                           const lines = [`${panelResult.product.name} ${panelResult.cct} ${panelResult.tensao}`.toUpperCase()];
                           if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
                           return lines.join("\n");
-                        })()}
-                    </div>
+                        })()
+                      }</div>
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
                   </CardContent>
                 </Card>

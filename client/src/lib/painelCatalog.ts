@@ -48,6 +48,12 @@ export interface PainelProduct {
   precoDim110v?: number | null;
   /** Preço unitário DIM DALI (R$). null = não cadastrado. */
   precoDimDali?: number | null;
+  /**
+   * Cor de acabamento única (quando o produto só existe em uma cor).
+   * Se definido, o modal de seleção de cor é pulado e esse valor é usado diretamente.
+   * Ex: "Branco" para LUMIGRID.
+   */
+  corUnica?: string;
 }
 
 export interface PainelInput {
@@ -181,6 +187,7 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverQtdBivolt: null,
     driverQtdDim110v: null,
     driverQtdDimDali: null,
+    corUnica: "Branco",
   },
   {
     instalacao: "SOBREPOR",
@@ -197,6 +204,7 @@ export const PAINEL_CATALOG: PainelProduct[] = [
     driverQtdBivolt: null,
     driverQtdDim110v: null,
     driverQtdDimDali: null,
+    corUnica: "Branco",
   },
   {
     instalacao: "EMBUTIR",
