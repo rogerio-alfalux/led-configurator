@@ -147,8 +147,9 @@ describe("calculateSquare/calculateRectangle — sem ajuste de cabeceira e módu
   it("calculateSquare LLP-6060 (BLAZE H): módulos retos devem ser ML, não IF", () => {
     // cornerLen LLP-6060 = 565mm (canto 1x1)
     // Quadrado 3000mm: availPerSide = 3000 - 2*565 = 1870mm
-    // ML disponível: 1 barra=570mm, 2 barras=1130mm, 3 barras=1695mm > 1870 → melhor = 1130mm (2 barras)
-    // actualSide = 2*565 + 1130 = 2260mm
+    // Greedy: ML 3 barras (1695mm) + ML 1 barra (570mm) = 2265mm > 1870 → ML 3 barras (1695mm) + ML 1 barra (570mm) = 2265mm > 1870
+    //         ML 3 barras (1695mm) ≤ 1870 → usa 1695mm; restante = 175mm; ML 1 barra = 570mm > 175 → para
+    //         actualSide = 2*565 + 1695 = 2825mm
     const result = calculateSquare("LLP-6060", 3000, baseParams);
     expect(result).not.toBeNull();
     // Deve ter peças do tipo STRAIGHT_ML (não STRAIGHT_IF)
@@ -163,11 +164,30 @@ describe("calculateSquare/calculateRectangle — sem ajuste de cabeceira e módu
     });
   });
 
+  it("calculateSquare LLP-6060 (BLAZE H) 8000mm: greedy usa módulos maiores primeiro", () => {
+    // cornerLen = 565mm; availPerSide = 8000 - 2*565 = 6870mm
+    // Greedy: ML 5 barras (2820mm) → usa 2820mm; restante = 4050mm
+    //         ML 5 barras (2820mm) → usa 2820mm; restante = 1230mm
+    //         ML 2 barras (1130mm) → usa 1130mm; restante = 100mm
+    //         ML 1 barra (570mm) > 100mm → para
+    //         actualSide = 2*565 + 2820+2820+1130 = 7900mm
+    const result = calculateSquare("LLP-6060", 8000, baseParams);
+    expect(result).not.toBeNull();
+    const straightPieces = result!.pieces.filter(p => p.type !== "CORNER");
+    // Deve ter pelo menos 2 tipos de módulo diferentes (5 barras e 2 barras)
+    expect(straightPieces.length).toBeGreaterThanOrEqual(2);
+    // Todos devem ser ML
+    straightPieces.forEach(p => expect(p.type).toBe("STRAIGHT_ML"));
+    // Número total de peças deve ser menor que 24 (antigo: 6×4=24 peças de 2 barras)
+    const totalQty = straightPieces.reduce((s, p) => s + p.quantity, 0);
+    expect(totalQty).toBeLessThan(24);
+  });
+
   it("calculateRectangle LLP-6060 (BLAZE H): módulos retos devem ser ML, não IF", () => {
     // cornerLen = 565mm
     // Retângulo 4000mm × 2000mm:
-    // availWidth = 4000 - 2*565 = 2870mm → ML melhor = 2820mm (5 barras)
-    // availHeight = 2000 - 2*565 = 870mm → ML melhor = 570mm (1 barra)
+    // availWidth = 4000 - 2*565 = 2870mm → greedy: ML 5 barras (2820mm) → restante 50mm → para
+    // availHeight = 2000 - 2*565 = 870mm → greedy: ML 1 barra (570mm) → restante 300mm → para
     const result = calculateRectangle("LLP-6060", 4000, 2000, baseParams);
     expect(result).not.toBeNull();
     const straightPieces = result!.pieces.filter(p => p.type !== "CORNER");
@@ -180,8 +200,8 @@ describe("calculateSquare/calculateRectangle — sem ajuste de cabeceira e módu
   it("calculateLShape LLP-6060 (BLAZE H): módulos retos devem ser IF (formato L)", () => {
     // Formato L usa IF para acabamento
     // cornerLen = 565mm
-    // Lado H = 2000mm: availH = 2000 - 565 = 1435mm → IF melhor = 1135mm (2 barras)
-    // Lado V = 2000mm: availV = 2000 - 565 = 1435mm → IF melhor = 1135mm (2 barras)
+    // Lado H = 2000mm: availH = 2000 - 565 = 1435mm → greedy: IF 2 barras (1135mm) → restante 300mm → para
+    // Lado V = 2000mm: availV = 2000 - 565 = 1435mm → greedy: IF 2 barras (1135mm) → restante 300mm → para
     const result = calculateLShape("LLP-6060", 2000, 2000, baseParams);
     expect(result).not.toBeNull();
     const straightPieces = result!.pieces.filter(p => p.type !== "CORNER");

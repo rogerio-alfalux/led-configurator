@@ -55,16 +55,25 @@ export interface ShapeDriverParams {
   profileName?: string;
 }
 
+/** Uma peça dentro de um segmento reto (pode haver múltiplas peças diferentes) */
+type SegmentPiece = {
+  sku: string;
+  length: number;
+  bars: number;
+  qty: number;
+};
+
 /** Resultado do cálculo de um segmento reto entre dois cantos */
 type StraightSegment = {
   /** Comprimento total disponível para módulos retos */
   availableLength: number;
-  /** Módulo IF escolhido (ou null se não há espaço) */
-  module: { sku: string; length: number; bars: number } | null;
-  /** Quantidade de módulos neste segmento */
-  moduleQty: number;
-  /** Comprimento real do segmento (0 se sem módulo) */
+  /** Lista de peças (pode ser vazia se não há espaço) */
+  pieces: SegmentPiece[];
+  /** Comprimento real do segmento (0 se sem módulos) */
   actualLength: number;
+  // Compat: primeiro módulo (para código legado)
+  module: { sku: string; length: number; bars: number } | null;
+  moduleQty: number;
 };
 
 /**
@@ -91,8 +100,10 @@ function calcPieceDriver(
 }
 
 /**
- * Encontra a melhor combinação de módulos para preencher um comprimento disponível.
- * Algoritmo genérico usado tanto para IF (formato L) quanto para ML (quadrado/retangular).
+ * Algoritmo greedy de combinação de módulos:
+ * Ordena os módulos do maior para o menor e vai preenchendo o espaço disponível
+ * com o maior módulo que couber, repetindo até não caber mais nenhum.
+ * Objetivo: minimizar o número de peças (usar módulos maiores primeiro).
  */
 function findBestModuleByType(
   profileEntry: ProfileVariant,
@@ -101,42 +112,71 @@ function findBestModuleByType(
   allowLongModules: boolean,
   allowFractionalBars: boolean = false
 ): StraightSegment {
-  if (availableLength <= 0) {
-    return { availableLength, module: null, moduleQty: 0, actualLength: 0 };
-  }
+  const empty: StraightSegment = {
+    availableLength,
+    pieces: [],
+    module: null,
+    moduleQty: 0,
+    actualLength: 0,
+  };
 
-  const modules = profileEntry.modules?.[moduleType];
-  if (!modules) {
-    return { availableLength, module: null, moduleQty: 0, actualLength: 0 };
-  }
+  if (availableLength <= 0) return empty;
 
-  let bestModule: { sku: string; length: number; bars: number } | null = null;
-  let bestQty = 0;
-  let bestTotal = 0;
+  const rawModules = profileEntry.modules?.[moduleType];
+  if (!rawModules) return empty;
 
-  for (const [barsKey, mod] of Object.entries(modules)) {
+  // Construir lista de módulos elegantes ordenados do maior para o menor
+  type ModEntry = { sku: string; length: number; bars: number };
+  const eligible: ModEntry[] = [];
+
+  for (const [barsKey, mod] of Object.entries(rawModules)) {
     const m = mod as { length: number; sku: string };
     const bars = parseFloat(barsKey);
-
     if (!allowLongModules && m.length > MAX_IF_LENGTH_STANDARD) continue;
     if (!allowFractionalBars && !Number.isInteger(bars)) continue;
-
-    for (let qty = 1; qty <= MAX_MODULES_PER_SIDE; qty++) {
-      const total = m.length * qty;
-      if (total > availableLength) break;
-      if (total > bestTotal) {
-        bestTotal = total;
-        bestModule = { sku: m.sku, length: m.length, bars };
-        bestQty = qty;
-      }
-    }
+    eligible.push({ sku: m.sku, length: m.length, bars });
   }
+
+  if (eligible.length === 0) return empty;
+
+  // Ordenar do maior para o menor comprimento
+  eligible.sort((a, b) => b.length - a.length);
+
+  // Greedy: preencher o espaço restante com o maior módulo que couber
+  const segPieces: SegmentPiece[] = [];
+  let remaining = availableLength;
+  let totalPieces = 0;
+
+  while (remaining > 0 && totalPieces < MAX_MODULES_PER_SIDE) {
+    // Encontrar o maior módulo que cabe no espaço restante
+    const best = eligible.find(m => m.length <= remaining);
+    if (!best) break; // Nenhum módulo cabe mais
+
+    // Adicionar à lista de peças (agrupar se já existe)
+    const existing = segPieces.find(p => p.sku === best.sku);
+    if (existing) {
+      existing.qty++;
+    } else {
+      segPieces.push({ sku: best.sku, length: best.length, bars: best.bars, qty: 1 });
+    }
+
+    remaining -= best.length;
+    totalPieces++;
+  }
+
+  if (segPieces.length === 0) return empty;
+
+  const actualLength = availableLength - remaining;
+
+  // Compat: expor o primeiro módulo (maior) e total de peças do primeiro tipo
+  const firstPiece = segPieces[0];
 
   return {
     availableLength,
-    module: bestModule,
-    moduleQty: bestQty,
-    actualLength: bestTotal,
+    pieces: segPieces,
+    module: { sku: firstPiece.sku, length: firstPiece.length, bars: firstPiece.bars },
+    moduleQty: firstPiece.qty,
+    actualLength,
   };
 }
 
@@ -237,54 +277,48 @@ export function calculateLShape(
     driver: cornerDriver,
   });
 
-  // Módulo reto horizontal (se houver)
-  if (segH.module) {
-    const hDriver = driverParams ? calcPieceDriver(segH.module.bars, driverParams) : undefined;
-    const hDesc = segH.moduleQty > 1
-      ? `${segH.moduleQty}× Módulo reto IF ${segH.module.bars} barras (${segH.module.length}mm) — lado horizontal`
-      : `Módulo reto IF ${segH.module.bars} barras (${segH.module.length}mm) — lado horizontal`;
-    pieces.push({
-      sku: segH.module.sku,
-      quantity: segH.moduleQty,
-      description: hDesc,
-      length: segH.module.length,
-      type: "STRAIGHT_IF",
-      bars: segH.module.bars,
-      driver: hDriver,
-    });
+  // Módulos retos horizontais (algoritmo greedy, múltiplos tipos possíveis)
+  for (const sp of segH.pieces) {
+    const hDriver = driverParams ? calcPieceDriver(sp.bars, driverParams) : undefined;
+    const hDesc = sp.qty > 1
+      ? `${sp.qty}× IF ${sp.bars} barras (${sp.length}mm) — horizontal`
+      : `IF ${sp.bars} barras (${sp.length}mm) — horizontal`;
+    // Agrupar com peça vertical de mesmo SKU, se existir
+    const existing = pieces.find(p => p.sku === sp.sku && p.type === "STRAIGHT_IF");
+    if (existing) {
+      existing.quantity += sp.qty;
+      existing.description = `IF ${sp.bars} barras (${sp.length}mm) — horizontal e vertical`;
+    } else {
+      pieces.push({
+        sku: sp.sku,
+        quantity: sp.qty,
+        description: hDesc,
+        length: sp.length,
+        type: "STRAIGHT_IF",
+        bars: sp.bars,
+        driver: hDriver,
+      });
+    }
   }
 
-  // Módulo reto vertical (se houver)
-  if (segV.module) {
-    const vDriver = driverParams ? calcPieceDriver(segV.module.bars, driverParams) : undefined;
-    // Verificar se é o mesmo SKU e mesma quantidade do horizontal
-    const hPiece = pieces.find(p => p.sku === segV.module!.sku && p.type === "STRAIGHT_IF");
-    if (hPiece && hPiece.quantity === segV.moduleQty) {
-      // Agrupar: dobrar quantidade
-      hPiece.quantity = hPiece.quantity + segV.moduleQty;
-      hPiece.description = `Módulo reto IF ${segV.module.bars} barras (${segV.module.length}mm) — horizontal e vertical`;
-    } else if (hPiece) {
-      // Mesmo SKU mas quantidades diferentes: manter separado
-      pieces.push({
-        sku: segV.module.sku + "_V",
-        quantity: segV.moduleQty,
-        description: `Módulo reto IF ${segV.module.bars} barras (${segV.module.length}mm) — lado vertical`,
-        length: segV.module.length,
-        type: "STRAIGHT_IF",
-        bars: segV.module.bars,
-        driver: vDriver,
-      });
+  // Módulos retos verticais (algoritmo greedy, múltiplos tipos possíveis)
+  for (const sp of segV.pieces) {
+    const vDriver = driverParams ? calcPieceDriver(sp.bars, driverParams) : undefined;
+    const vDesc = sp.qty > 1
+      ? `${sp.qty}× IF ${sp.bars} barras (${sp.length}mm) — vertical`
+      : `IF ${sp.bars} barras (${sp.length}mm) — vertical`;
+    const existing = pieces.find(p => p.sku === sp.sku && p.type === "STRAIGHT_IF");
+    if (existing) {
+      existing.quantity += sp.qty;
+      existing.description = `IF ${sp.bars} barras (${sp.length}mm) — horizontal e vertical`;
     } else {
-      const vDesc = segV.moduleQty > 1
-        ? `${segV.moduleQty}× Módulo reto IF ${segV.module.bars} barras (${segV.module.length}mm) — lado vertical`
-        : `Módulo reto IF ${segV.module.bars} barras (${segV.module.length}mm) — lado vertical`;
       pieces.push({
-        sku: segV.module.sku,
-        quantity: segV.moduleQty,
+        sku: sp.sku,
+        quantity: sp.qty,
         description: vDesc,
-        length: segV.module.length,
+        length: sp.length,
         type: "STRAIGHT_IF",
-        bars: segV.module.bars,
+        bars: sp.bars,
         driver: vDriver,
       });
     }
@@ -294,9 +328,9 @@ export function calculateLShape(
     `Formato L: ${actualH}mm × ${actualV}mm`,
     `1× canto ${corner.sku} (${cornerLen}mm)`,
   ];
-  if (segH.module) summaryLines.push(`${segH.moduleQty}× IF ${segH.module.sku} (${segH.module.length}mm) — horizontal`);
+  for (const sp of segH.pieces) summaryLines.push(`${sp.qty}× IF ${sp.sku} (${sp.length}mm) — horizontal`);
   if (cabH > 0) summaryLines.push(`+ ${cabH}mm cabeceira (lado horizontal, canto isolado)`);
-  if (segV.module) summaryLines.push(`${segV.moduleQty}× IF ${segV.module.sku} (${segV.module.length}mm) — vertical`);
+  for (const sp of segV.pieces) summaryLines.push(`${sp.qty}× IF ${sp.sku} (${sp.length}mm) — vertical`);
   if (cabV > 0) summaryLines.push(`+ ${cabV}mm cabeceira (lado vertical, canto isolado)`);
   const summary = summaryLines.join("\n") + "\n";
 
@@ -367,28 +401,31 @@ export function calculateSquare(
     driver: cornerDriver,
   });
 
-  // Módulos retos ML (4 lados, cada um com moduleQty módulos)
-  if (seg.module) {
-    const segDriver = driverParams ? calcPieceDriver(seg.module.bars, driverParams) : undefined;
-    const totalQty = 4 * seg.moduleQty;
-    const desc = seg.moduleQty > 1
-      ? `${seg.moduleQty}× Módulo reto ML ${seg.module.bars} barras (${seg.module.length}mm) por lado`
-      : `Módulo reto ML ${seg.module.bars} barras (${seg.module.length}mm)`;
+  // Módulos retos ML (4 lados, algoritmo greedy — múltiplos tipos de módulo possíveis)
+  // Cada peça do segmento aparece 4× (uma por lado do quadrado)
+  const summaryModLines: string[] = [];
+  for (const sp of seg.pieces) {
+    const spDriver = driverParams ? calcPieceDriver(sp.bars, driverParams) : undefined;
+    const totalQty = 4 * sp.qty;
+    const desc = sp.qty > 1
+      ? `${sp.qty}× Módulo reto ML ${sp.bars} barras (${sp.length}mm) por lado`
+      : `Módulo reto ML ${sp.bars} barras (${sp.length}mm)`;
     pieces.push({
-      sku: seg.module.sku,
+      sku: sp.sku,
       quantity: totalQty,
       description: desc,
-      length: seg.module.length,
+      length: sp.length,
       type: "STRAIGHT_ML",
-      bars: seg.module.bars,
-      driver: segDriver,
+      bars: sp.bars,
+      driver: spDriver,
     });
+    summaryModLines.push(`${totalQty}× ML ${sp.sku} (${sp.length}mm)`);
   }
 
   const summary =
     `Formato Quadrado: ${actualSide}mm × ${actualSide}mm\n` +
     `4× canto ${corner.sku} (${cornerLen}mm)\n` +
-    (seg.module ? `${4 * seg.moduleQty}× ML ${seg.module.sku} (${seg.module.length}mm)\n` : "");
+    summaryModLines.join("\n") + (summaryModLines.length ? "\n" : "");
 
   // Comprimento total = 4 lados (4 cantos + 4 × retos)
   const totalLengthMm = 4 * cornerLen + 4 * seg.actualLength;
@@ -462,59 +499,64 @@ export function calculateRectangle(
     driver: cornerDriver,
   });
 
-  // Módulos retos ML nos lados largos (2 lados × moduleQty)
-  if (segWidth.module) {
-    const widthDriver = driverParams ? calcPieceDriver(segWidth.module.bars, driverParams) : undefined;
-    const totalWidthQty = 2 * segWidth.moduleQty;
-    const desc = segWidth.moduleQty > 1
-      ? `${segWidth.moduleQty}× Módulo reto ML ${segWidth.module.bars} barras (${segWidth.module.length}mm) por lado largo`
-      : `Módulo reto ML ${segWidth.module.bars} barras (${segWidth.module.length}mm) — lados largos`;
-    pieces.push({
-      sku: segWidth.module.sku,
-      quantity: totalWidthQty,
-      description: desc,
-      length: segWidth.module.length,
-      type: "STRAIGHT_ML",
-      bars: segWidth.module.bars,
-      driver: widthDriver,
-    });
-  }
-
-  // Módulos retos ML nos lados curtos (2 lados × moduleQty)
-  if (segHeight.module) {
-    const heightDriver = driverParams ? calcPieceDriver(segHeight.module.bars, driverParams) : undefined;
-    const totalHeightQty = 2 * segHeight.moduleQty;
-
-    if (segHeight.module.sku === segWidth.module?.sku) {
-      // Mesmo SKU: somar quantidades
-      const existing = pieces.find(p => p.sku === segHeight.module!.sku);
-      if (existing) {
-        existing.quantity += totalHeightQty;
-        existing.description = `Módulo reto ML ${segHeight.module.bars} barras (${segHeight.module.length}mm) — todos os lados`;
-      }
+  // Módulos retos ML nos lados largos (2 lados, algoritmo greedy)
+  const summaryWidthLines: string[] = [];
+  for (const sp of segWidth.pieces) {
+    const spDriver = driverParams ? calcPieceDriver(sp.bars, driverParams) : undefined;
+    const totalQty = 2 * sp.qty;
+    const desc = sp.qty > 1
+      ? `${sp.qty}× ML ${sp.bars} barras (${sp.length}mm) por lado largo`
+      : `ML ${sp.bars} barras (${sp.length}mm) — lados largos`;
+    // Verificar se já existe peça com mesmo SKU (pode ser compartilhada com lados curtos)
+    const existing = pieces.find(p => p.sku === sp.sku && p.type === "STRAIGHT_ML");
+    if (existing) {
+      existing.quantity += totalQty;
+      existing.description = `ML ${sp.bars} barras (${sp.length}mm) — todos os lados`;
     } else {
-      const desc = segHeight.moduleQty > 1
-        ? `${segHeight.moduleQty}× Módulo reto ML ${segHeight.module.bars} barras (${segHeight.module.length}mm) por lado curto`
-        : `Módulo reto ML ${segHeight.module.bars} barras (${segHeight.module.length}mm) — lados curtos`;
       pieces.push({
-        sku: segHeight.module.sku,
-        quantity: totalHeightQty,
+        sku: sp.sku,
+        quantity: totalQty,
         description: desc,
-        length: segHeight.module.length,
+        length: sp.length,
         type: "STRAIGHT_ML",
-        bars: segHeight.module.bars,
-        driver: heightDriver,
+        bars: sp.bars,
+        driver: spDriver,
       });
     }
+    summaryWidthLines.push(`${totalQty}× ML ${sp.sku} (${sp.length}mm) — largos`);
+  }
+
+  // Módulos retos ML nos lados curtos (2 lados, algoritmo greedy)
+  const summaryHeightLines: string[] = [];
+  for (const sp of segHeight.pieces) {
+    const spDriver = driverParams ? calcPieceDriver(sp.bars, driverParams) : undefined;
+    const totalQty = 2 * sp.qty;
+    const desc = sp.qty > 1
+      ? `${sp.qty}× ML ${sp.bars} barras (${sp.length}mm) por lado curto`
+      : `ML ${sp.bars} barras (${sp.length}mm) — lados curtos`;
+    const existing = pieces.find(p => p.sku === sp.sku && p.type === "STRAIGHT_ML");
+    if (existing) {
+      existing.quantity += totalQty;
+      existing.description = `ML ${sp.bars} barras (${sp.length}mm) — todos os lados`;
+    } else {
+      pieces.push({
+        sku: sp.sku,
+        quantity: totalQty,
+        description: desc,
+        length: sp.length,
+        type: "STRAIGHT_ML",
+        bars: sp.bars,
+        driver: spDriver,
+      });
+    }
+    summaryHeightLines.push(`${totalQty}× ML ${sp.sku} (${sp.length}mm) — curtos`);
   }
 
   const summary =
     `Formato Retangular: ${actualWidth}mm × ${actualHeight}mm\n` +
     `4× canto ${corner.sku} (${cornerLen}mm)\n` +
-    (segWidth.module ? `${2 * segWidth.moduleQty}× ML ${segWidth.module.sku} (${segWidth.module.length}mm) — lados largos\n` : "") +
-    (segHeight.module && segHeight.module.sku !== segWidth.module?.sku
-      ? `${2 * segHeight.moduleQty}× ML ${segHeight.module.sku} (${segHeight.module.length}mm) — lados curtos\n`
-      : "");
+    [...summaryWidthLines, ...summaryHeightLines].join("\n") +
+    ([...summaryWidthLines, ...summaryHeightLines].length ? "\n" : "");
 
   // Comprimento total = 2 lados largos + 2 lados curtos
   const totalLengthMm = 2 * actualWidth + 2 * actualHeight;
