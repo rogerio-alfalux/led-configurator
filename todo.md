@@ -1105,11 +1105,11 @@
 - [x] 513 testes passando
 
 ## v32.12 — Categoria Acessórios (05/06/2026)
-- [ ] Endpoint GET /api/acessorios/all no alfaluxApiService.ts
-- [ ] Procedure acessoriosProducts no routers.ts
-- [ ] Botão de categoria "Acessórios" na grade de categorias (Home.tsx)
-- [ ] Lista de acessórios com filtro por família e busca por texto
-- [ ] Painel de resumo à direita ao selecionar um acessório
-- [ ] Adição ao carrinho e ao orçamento (modo appendToQuoteId)
-- [ ] Miniatura de foto na lista (placeholder quando fotoUrl = null)
-- [ ] Testes unitários para o endpoint
+- [x] Endpoint GET /api/acessorios/all no alfaluxApiService.ts
+- [x] Procedure acessoriosProducts no routers.ts
+- [x] Botão de categoria "Acessórios" na grade de categorias (Home.tsx)
+- [x] Lista de acessórios com filtro por família e busca por texto
+- [x] Painel de resumo à direita ao selecionar um acessório
+- [x] Adição ao carrinho e ao orçamento (modo appendToQuoteId)
+- [x] Miniatura de foto na lista (placeholder quando fotoUrl = null)
+- [x] 516/516 testes passando (0 erros TypeScript)
