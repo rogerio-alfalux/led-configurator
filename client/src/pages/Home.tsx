@@ -2066,7 +2066,9 @@ export default function Home() {
     paineis: activePanelCatalog,
     spots: activeSpotCatalog,
     arandelas: activeArandelaCatalog,
-  }), [activeProfileCatalog, activeLedBarCatalog, activeBageoCatalog, activeDlCatalog, activePanelCatalog, activeSpotCatalog, activeArandelaCatalog]);
+    revenda: revendaProducts,
+    acessorios: acessoriosProducts,
+  }), [activeProfileCatalog, activeLedBarCatalog, activeBageoCatalog, activeDlCatalog, activePanelCatalog, activeSpotCatalog, activeArandelaCatalog, revendaProducts, acessoriosProducts]);
 
   const handleSearchSelect = useCallback((suggestion: SearchSuggestion) => {
     const cat = suggestion.category;
@@ -2096,6 +2098,19 @@ export default function Home() {
       setProductCategory("Arandelas");
       setArandelaInstalacao(null);
       setArandelaFamilia(suggestion.familia);
+    } else if (cat === "Revenda") {
+      setProductCategory("Revenda");
+      if (suggestion.code) {
+        setRvSelectedSku(suggestion.code);
+      }
+    } else if (cat === "Acessórios") {
+      setProductCategory("Acessórios");
+      const found = acessoriosProducts.find(
+        (p) => (p.codigo ?? p.sku) === suggestion.code
+      );
+      if (found) {
+        setAcSelectedId(found.id);
+      }
     }
     // Scroll suave até o configurador
     setTimeout(() => {

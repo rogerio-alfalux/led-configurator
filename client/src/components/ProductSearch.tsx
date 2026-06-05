@@ -2,10 +2,10 @@
  * ProductSearch.tsx
  * Campo de busca rápida por produtos com sugestões em tempo real.
  * Agrega produtos de todos os catálogos (Perfis, LED BAR, BAGEO,
- * Downlights, Painéis, Spots, Arandelas).
+ * Downlights, Painéis, Spots, Arandelas, Revenda, Acessórios).
  */
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Search, X, Zap, Lightbulb, Grid2X2, Focus, Lamp } from "lucide-react";
+import { Search, X, Zap, Lightbulb, Grid2X2, Focus, Lamp, ShoppingBag, Wrench } from "lucide-react";
 import type { ProfileVariant } from "@/lib/ledCatalog";
 import type { LedBarProduct } from "@/lib/ledBarCatalog";
 import type { BageoProduct } from "@/lib/bageoCatalog";
@@ -23,7 +23,26 @@ export type ProductCategory =
   | "Downlights"
   | "Painéis"
   | "Spots"
-  | "Arandelas";
+  | "Arandelas"
+  | "Revenda"
+  | "Acessórios";
+
+// Interfaces mínimas para produtos de Revenda e Acessórios (espelham o retorno do tRPC)
+export interface RevendaSearchItem {
+  sku: string;
+  name: string;
+  fornecedor: string | null;
+  fotoUrl: string | null;
+}
+export interface AcessorioSearchItem {
+  id: number;
+  codigo: string | null;
+  sku: string | null;
+  produto: string | null;
+  familia: string | null;
+  dimensao: string | null;
+  fotoUrl: string | null;
+}
 
 export interface SearchSuggestion {
   /** Categoria do produto */
@@ -50,6 +69,8 @@ export interface ProductSearchCatalogs {
   paineis: PainelProduct[];
   spots: SpotProduct[];
   arandelas: ArandelaProduct[];
+  revenda: RevendaSearchItem[];
+  acessorios: AcessorioSearchItem[];
 }
 
 interface ProductSearchProps {
@@ -74,6 +95,10 @@ function CategoryIcon({ category }: { category: ProductCategory }) {
       return <Focus className={cls} />;
     case "Arandelas":
       return <Lamp className={cls} />;
+    case "Revenda":
+      return <ShoppingBag className={cls} />;
+    case "Acessórios":
+      return <Wrench className={cls} />;
   }
 }
 
@@ -85,6 +110,8 @@ const CATEGORY_COLORS: Record<ProductCategory, string> = {
   "Painéis": "text-emerald-500",
   Spots: "text-orange-500",
   Arandelas: "text-pink-500",
+  Revenda: "text-teal-500",
+  "Acessórios": "text-cyan-500",
 };
 
 // ─── Lógica de busca ─────────────────────────────────────────────────────────
@@ -203,6 +230,32 @@ function buildSuggestions(catalogs: ProductSearchCatalogs): SearchSuggestion[] {
     }
   }
 
+  // Revenda — cada produto individualmente (sem deduplicação, pois são itens únicos)
+  for (const p of catalogs.revenda) {
+    suggestions.push({
+      category: "Revenda",
+      name: p.name,
+      familia: p.name,
+      code: p.sku,
+      fotoUrl: p.fotoUrl,
+      instalacao: p.fornecedor ?? undefined,
+    });
+  }
+
+  // Acessórios — cada produto individualmente
+  for (const p of catalogs.acessorios) {
+    const nome = p.produto ?? p.sku ?? p.codigo ?? "";
+    suggestions.push({
+      category: "Acessórios",
+      name: nome,
+      familia: nome,
+      code: p.codigo ?? p.sku,
+      fotoUrl: p.fotoUrl,
+      instalacao: p.familia ?? undefined,
+      potencia: p.dimensao ?? undefined,
+    });
+  }
+
   return suggestions;
 }
 
@@ -243,6 +296,8 @@ export function ProductSearch({ catalogs, onSelect }: ProductSearchProps) {
       catalogs.paineis,
       catalogs.spots,
       catalogs.arandelas,
+      catalogs.revenda,
+      catalogs.acessorios,
     ]
   );
 
@@ -319,7 +374,7 @@ export function ProductSearch({ catalogs, onSelect }: ProductSearchProps) {
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onFocus={() => query.trim() && setOpen(true)}
-          placeholder="Buscar produto... (ex: BLAZE, ZEUS, ORBIT)"
+          placeholder="Buscar produto... (ex: BLAZE, ZEUS, ORBIT, Tartaruga)"
           className="w-full h-10 pl-9 pr-9 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
           autoComplete="off"
           spellCheck={false}
@@ -372,7 +427,6 @@ export function ProductSearch({ catalogs, onSelect }: ProductSearchProps) {
                         </span>
                       )}
                     </div>
-
                     {/* Texto */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">

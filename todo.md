@@ -1113,3 +1113,15 @@
 - [x] Adição ao carrinho e ao orçamento (modo appendToQuoteId)
 - [x] Miniatura de foto na lista (placeholder quando fotoUrl = null)
 - [x] 516/516 testes passando (0 erros TypeScript)
+
+## v32.15 — Busca Global com Revenda e Acessórios
+
+- [x] Adicionar "Revenda" e "Acessórios" ao tipo ProductCategory no ProductSearch
+- [x] Definir interfaces RevendaSearchItem e AcessorioSearchItem no ProductSearch
+- [x] Adicionar campos revenda e acessorios à interface ProductSearchCatalogs
+- [x] Adicionar ícones ShoppingBag (Revenda) e Wrench (Acessórios) no CategoryIcon
+- [x] Adicionar cores teal-500 (Revenda) e cyan-500 (Acessórios) no CATEGORY_COLORS
+- [x] Adicionar Revenda e Acessórios na função buildSuggestions()
+- [x] Adicionar revenda e acessorios ao searchCatalogs useMemo no Home.tsx
+- [x] Atualizar handleSearchSelect para navegar a Revenda (setRvSelectedSku) e Acessórios (setAcSelectedId)
+- [x] 0 erros TypeScript, 516/516 testes passando
