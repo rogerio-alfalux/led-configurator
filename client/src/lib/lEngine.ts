@@ -91,16 +91,12 @@ function calcPieceDriver(
 }
 
 /**
- * Encontra a melhor combinação de módulos IF para preencher um comprimento disponível.
- *
- * Algoritmo:
- * 1. Para cada módulo IF disponível, testa quantidades de 1 a MAX_MODULES_PER_SIDE.
- * 2. Escolhe a combinação (módulo × qty) que resulta no comprimento mais próximo
- *    do disponível, sem ultrapassar.
- * 3. Respeita os limites de allowLongModules e allowFractionalBars.
+ * Encontra a melhor combinação de módulos para preencher um comprimento disponível.
+ * Algoritmo genérico usado tanto para IF (formato L) quanto para ML (quadrado/retangular).
  */
-function findBestIFModule(
+function findBestModuleByType(
   profileEntry: ProfileVariant,
+  moduleType: "IF" | "ML",
   availableLength: number,
   allowLongModules: boolean,
   allowFractionalBars: boolean = false
@@ -109,8 +105,8 @@ function findBestIFModule(
     return { availableLength, module: null, moduleQty: 0, actualLength: 0 };
   }
 
-  const ifModules = profileEntry.modules?.IF;
-  if (!ifModules) {
+  const modules = profileEntry.modules?.[moduleType];
+  if (!modules) {
     return { availableLength, module: null, moduleQty: 0, actualLength: 0 };
   }
 
@@ -118,21 +114,16 @@ function findBestIFModule(
   let bestQty = 0;
   let bestTotal = 0;
 
-  for (const [barsKey, mod] of Object.entries(ifModules)) {
+  for (const [barsKey, mod] of Object.entries(modules)) {
     const m = mod as { length: number; sku: string };
     const bars = parseFloat(barsKey);
 
-    // Respeitar limite de comprimento (allowLongModules libera módulos > 2840mm)
     if (!allowLongModules && m.length > MAX_IF_LENGTH_STANDARD) continue;
-    // Bloquear barras decimais quando allowFractionalBars = false
     if (!allowFractionalBars && !Number.isInteger(bars)) continue;
 
-    // Testar múltiplas quantidades deste módulo
     for (let qty = 1; qty <= MAX_MODULES_PER_SIDE; qty++) {
       const total = m.length * qty;
-      // Não ultrapassar o comprimento disponível
       if (total > availableLength) break;
-      // Escolher a combinação que chega mais perto (maior total ≤ availableLength)
       if (total > bestTotal) {
         bestTotal = total;
         bestModule = { sku: m.sku, length: m.length, bars };
@@ -147,6 +138,38 @@ function findBestIFModule(
     moduleQty: bestQty,
     actualLength: bestTotal,
   };
+}
+
+/**
+ * Encontra a melhor combinação de módulos IF para preencher um comprimento disponível.
+ *
+ * Algoritmo:
+ * 1. Para cada módulo IF disponível, testa quantidades de 1 a MAX_MODULES_PER_SIDE.
+ * 2. Escolhe a combinação (módulo × qty) que resulta no comprimento mais próximo
+ *    do disponível, sem ultrapassar.
+ * 3. Respeita os limites de allowLongModules e allowFractionalBars.
+ */
+function findBestIFModule(
+  profileEntry: ProfileVariant,
+  availableLength: number,
+  allowLongModules: boolean,
+  allowFractionalBars: boolean = false
+): StraightSegment {
+  return findBestModuleByType(profileEntry, "IF", availableLength, allowLongModules, allowFractionalBars);
+}
+
+/**
+ * Encontra a melhor combinação de módulos ML para preencher um comprimento disponível.
+ * Usado nos formatos Quadrado e Retangular, onde os segmentos retos entre cantos
+ * devem ser sempre ML (nunca IF).
+ */
+function findBestMLModule(
+  profileEntry: ProfileVariant,
+  availableLength: number,
+  allowLongModules: boolean,
+  allowFractionalBars: boolean = false
+): StraightSegment {
+  return findBestModuleByType(profileEntry, "ML", availableLength, allowLongModules, allowFractionalBars);
 }
 
 /**
@@ -324,7 +347,7 @@ export function calculateSquare(
   // Cada lado = canto + reto(s) + canto → disponível = side - 2 × cornerLen
   const availPerSide = side - 2 * cornerLen;
 
-  const seg = findBestIFModule(profileEntry as unknown as ProfileVariant, availPerSide, allowLongModules, allowFractionalBars);
+  const seg = findBestMLModule(profileEntry as unknown as ProfileVariant, availPerSide, allowLongModules, allowFractionalBars);
 
   const actualSide = 2 * cornerLen + seg.actualLength;
 
@@ -344,19 +367,19 @@ export function calculateSquare(
     driver: cornerDriver,
   });
 
-  // Módulos retos (4 lados, cada um com moduleQty módulos)
+  // Módulos retos ML (4 lados, cada um com moduleQty módulos)
   if (seg.module) {
     const segDriver = driverParams ? calcPieceDriver(seg.module.bars, driverParams) : undefined;
     const totalQty = 4 * seg.moduleQty;
     const desc = seg.moduleQty > 1
-      ? `${seg.moduleQty}× Módulo reto IF ${seg.module.bars} barras (${seg.module.length}mm) por lado`
-      : `Módulo reto IF ${seg.module.bars} barras (${seg.module.length}mm)`;
+      ? `${seg.moduleQty}× Módulo reto ML ${seg.module.bars} barras (${seg.module.length}mm) por lado`
+      : `Módulo reto ML ${seg.module.bars} barras (${seg.module.length}mm)`;
     pieces.push({
       sku: seg.module.sku,
       quantity: totalQty,
       description: desc,
       length: seg.module.length,
-      type: "STRAIGHT_IF",
+      type: "STRAIGHT_ML",
       bars: seg.module.bars,
       driver: segDriver,
     });
@@ -365,7 +388,7 @@ export function calculateSquare(
   const summary =
     `Formato Quadrado: ${actualSide}mm × ${actualSide}mm\n` +
     `4× canto ${corner.sku} (${cornerLen}mm)\n` +
-    (seg.module ? `${4 * seg.moduleQty}× IF ${seg.module.sku} (${seg.module.length}mm)\n` : "");
+    (seg.module ? `${4 * seg.moduleQty}× ML ${seg.module.sku} (${seg.module.length}mm)\n` : "");
 
   // Comprimento total = 4 lados (4 cantos + 4 × retos)
   const totalLengthMm = 4 * cornerLen + 4 * seg.actualLength;
@@ -417,8 +440,8 @@ export function calculateRectangle(
   const availWidth = width - 2 * cornerLen;
   const availHeight = height - 2 * cornerLen;
 
-  const segWidth = findBestIFModule(profileEntry as unknown as ProfileVariant, availWidth, allowLongModules, allowFractionalBars);
-  const segHeight = findBestIFModule(profileEntry as unknown as ProfileVariant, availHeight, allowLongModules, allowFractionalBars);
+  const segWidth = findBestMLModule(profileEntry as unknown as ProfileVariant, availWidth, allowLongModules, allowFractionalBars);
+  const segHeight = findBestMLModule(profileEntry as unknown as ProfileVariant, availHeight, allowLongModules, allowFractionalBars);
 
   const actualWidth = 2 * cornerLen + segWidth.actualLength;
   const actualHeight = 2 * cornerLen + segHeight.actualLength;
@@ -439,25 +462,25 @@ export function calculateRectangle(
     driver: cornerDriver,
   });
 
-  // Módulos retos nos lados largos (2 lados × moduleQty)
+  // Módulos retos ML nos lados largos (2 lados × moduleQty)
   if (segWidth.module) {
     const widthDriver = driverParams ? calcPieceDriver(segWidth.module.bars, driverParams) : undefined;
     const totalWidthQty = 2 * segWidth.moduleQty;
     const desc = segWidth.moduleQty > 1
-      ? `${segWidth.moduleQty}× Módulo reto IF ${segWidth.module.bars} barras (${segWidth.module.length}mm) por lado largo`
-      : `Módulo reto IF ${segWidth.module.bars} barras (${segWidth.module.length}mm) — lados largos`;
+      ? `${segWidth.moduleQty}× Módulo reto ML ${segWidth.module.bars} barras (${segWidth.module.length}mm) por lado largo`
+      : `Módulo reto ML ${segWidth.module.bars} barras (${segWidth.module.length}mm) — lados largos`;
     pieces.push({
       sku: segWidth.module.sku,
       quantity: totalWidthQty,
       description: desc,
       length: segWidth.module.length,
-      type: "STRAIGHT_IF",
+      type: "STRAIGHT_ML",
       bars: segWidth.module.bars,
       driver: widthDriver,
     });
   }
 
-  // Módulos retos nos lados curtos (2 lados × moduleQty)
+  // Módulos retos ML nos lados curtos (2 lados × moduleQty)
   if (segHeight.module) {
     const heightDriver = driverParams ? calcPieceDriver(segHeight.module.bars, driverParams) : undefined;
     const totalHeightQty = 2 * segHeight.moduleQty;
@@ -467,18 +490,18 @@ export function calculateRectangle(
       const existing = pieces.find(p => p.sku === segHeight.module!.sku);
       if (existing) {
         existing.quantity += totalHeightQty;
-        existing.description = `Módulo reto IF ${segHeight.module.bars} barras (${segHeight.module.length}mm) — todos os lados`;
+        existing.description = `Módulo reto ML ${segHeight.module.bars} barras (${segHeight.module.length}mm) — todos os lados`;
       }
     } else {
       const desc = segHeight.moduleQty > 1
-        ? `${segHeight.moduleQty}× Módulo reto IF ${segHeight.module.bars} barras (${segHeight.module.length}mm) por lado curto`
-        : `Módulo reto IF ${segHeight.module.bars} barras (${segHeight.module.length}mm) — lados curtos`;
+        ? `${segHeight.moduleQty}× Módulo reto ML ${segHeight.module.bars} barras (${segHeight.module.length}mm) por lado curto`
+        : `Módulo reto ML ${segHeight.module.bars} barras (${segHeight.module.length}mm) — lados curtos`;
       pieces.push({
         sku: segHeight.module.sku,
         quantity: totalHeightQty,
         description: desc,
         length: segHeight.module.length,
-        type: "STRAIGHT_IF",
+        type: "STRAIGHT_ML",
         bars: segHeight.module.bars,
         driver: heightDriver,
       });
@@ -488,9 +511,9 @@ export function calculateRectangle(
   const summary =
     `Formato Retangular: ${actualWidth}mm × ${actualHeight}mm\n` +
     `4× canto ${corner.sku} (${cornerLen}mm)\n` +
-    (segWidth.module ? `${2 * segWidth.moduleQty}× IF ${segWidth.module.sku} (${segWidth.module.length}mm) — lados largos\n` : "") +
+    (segWidth.module ? `${2 * segWidth.moduleQty}× ML ${segWidth.module.sku} (${segWidth.module.length}mm) — lados largos\n` : "") +
     (segHeight.module && segHeight.module.sku !== segWidth.module?.sku
-      ? `${2 * segHeight.moduleQty}× IF ${segHeight.module.sku} (${segHeight.module.length}mm) — lados curtos\n`
+      ? `${2 * segHeight.moduleQty}× ML ${segHeight.module.sku} (${segHeight.module.length}mm) — lados curtos\n`
       : "");
 
   // Comprimento total = 2 lados largos + 2 lados curtos

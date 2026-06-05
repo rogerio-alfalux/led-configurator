@@ -112,9 +112,9 @@ describe("calculateLShape — cabeceira para perfis embutir", () => {
   });
 });
 
-// ─── Testes de calculateSquare/calculateRectangle — sem cabeceira ────────────
+// ─── Testes de calculateSquare/calculateRectangle — sem cabeceira e usando ML ──
 
-describe("calculateSquare/calculateRectangle — sem ajuste de cabeceira", () => {
+describe("calculateSquare/calculateRectangle — sem ajuste de cabeceira e módulos ML", () => {
   const baseParams = {
     power: 18 as const,
     voltage: "220V" as const,
@@ -126,7 +126,6 @@ describe("calculateSquare/calculateRectangle — sem ajuste de cabeceira", () =>
     // Quadrado: cabeceira não se aplica (apenas EM L)
     const result = calculateSquare("LLE-2580", 1200, baseParams);
     expect(result).not.toBeNull();
-    // Resultado deve ser baseado apenas nos cantos e módulos retos, sem cabeceira
     // cornerLen = 595, availPerSide = 1200 - 2*595 = 10 → sem módulos retos
     // actualSide = 2*595 = 1190
     expect(result!.dimensions[0]).toBe(1190);
@@ -136,12 +135,63 @@ describe("calculateSquare/calculateRectangle — sem ajuste de cabeceira", () =>
   it("calculateRectangle LLE-2810: sem ajuste de cabeceira", () => {
     const result = calculateRectangle("LLE-2810", 1400, 700, baseParams);
     expect(result).not.toBeNull();
-    // Sem cabeceira no retangular
     // cornerLen = 615
-    // availWidth = 1400 - 2*615 = 170 → sem módulos retos (menor IF > 170)
+    // availWidth = 1400 - 2*615 = 170 → sem módulos retos
     // availHeight = 700 - 2*615 = -530 → sem módulos retos
-    // actualWidth = 2*615 = 1230, actualHeight = 2*615 = 1230
     expect(result!.dimensions[0]).toBe(1230);
     expect(result!.dimensions[1]).toBe(1230);
+  });
+
+  // ─── Testes: quadrado/retangular usam ML (nunca IF) ───
+
+  it("calculateSquare LLP-6060 (BLAZE H): módulos retos devem ser ML, não IF", () => {
+    // cornerLen LLP-6060 = 565mm (canto 1x1)
+    // Quadrado 3000mm: availPerSide = 3000 - 2*565 = 1870mm
+    // ML disponível: 1 barra=570mm, 2 barras=1130mm, 3 barras=1695mm > 1870 → melhor = 1130mm (2 barras)
+    // actualSide = 2*565 + 1130 = 2260mm
+    const result = calculateSquare("LLP-6060", 3000, baseParams);
+    expect(result).not.toBeNull();
+    // Deve ter peças do tipo STRAIGHT_ML (não STRAIGHT_IF)
+    const straightPieces = result!.pieces.filter(p => p.type !== "CORNER");
+    expect(straightPieces.length).toBeGreaterThan(0);
+    straightPieces.forEach(p => {
+      expect(p.type).toBe("STRAIGHT_ML");
+    });
+    // SKU deve ser ML (conter 'ML' no nome)
+    straightPieces.forEach(p => {
+      expect(p.sku).toMatch(/ML|ml/i);
+    });
+  });
+
+  it("calculateRectangle LLP-6060 (BLAZE H): módulos retos devem ser ML, não IF", () => {
+    // cornerLen = 565mm
+    // Retângulo 4000mm × 2000mm:
+    // availWidth = 4000 - 2*565 = 2870mm → ML melhor = 2820mm (5 barras)
+    // availHeight = 2000 - 2*565 = 870mm → ML melhor = 570mm (1 barra)
+    const result = calculateRectangle("LLP-6060", 4000, 2000, baseParams);
+    expect(result).not.toBeNull();
+    const straightPieces = result!.pieces.filter(p => p.type !== "CORNER");
+    expect(straightPieces.length).toBeGreaterThan(0);
+    straightPieces.forEach(p => {
+      expect(p.type).toBe("STRAIGHT_ML");
+    });
+  });
+
+  it("calculateLShape LLP-6060 (BLAZE H): módulos retos devem ser IF (formato L)", () => {
+    // Formato L usa IF para acabamento
+    // cornerLen = 565mm
+    // Lado H = 2000mm: availH = 2000 - 565 = 1435mm → IF melhor = 1135mm (2 barras)
+    // Lado V = 2000mm: availV = 2000 - 565 = 1435mm → IF melhor = 1135mm (2 barras)
+    const result = calculateLShape("LLP-6060", 2000, 2000, baseParams);
+    expect(result).not.toBeNull();
+    const straightPieces = result!.pieces.filter(p => p.type !== "CORNER");
+    expect(straightPieces.length).toBeGreaterThan(0);
+    straightPieces.forEach(p => {
+      expect(p.type).toBe("STRAIGHT_IF");
+    });
+    // SKU deve ser IF
+    straightPieces.forEach(p => {
+      expect(p.sku).toMatch(/IF|if/i);
+    });
   });
 });

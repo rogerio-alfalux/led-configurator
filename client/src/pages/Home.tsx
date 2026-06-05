@@ -638,10 +638,10 @@ function ShapeResultCard({
                     <td className="px-3 py-2 text-foreground">
                       <span className="inline-flex items-center gap-1">
                         <span className="font-semibold">
-                          {piece.type === "CORNER" ? "Canto" : "IF"}
+                          {piece.type === "CORNER" ? "Canto" : piece.type === "STRAIGHT_ML" ? "ML" : "IF"}
                         </span>
                         <span className="text-muted-foreground hidden sm:inline">
-                          — {piece.type === "CORNER" ? "Canto EM L" : "Início/Final de Linha"}
+                          — {piece.type === "CORNER" ? "Canto EM L" : piece.type === "STRAIGHT_ML" ? "Meio de Linha" : "Início/Final de Linha"}
                         </span>
                       </span>
                     </td>

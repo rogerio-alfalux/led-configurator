@@ -1080,3 +1080,12 @@
 - [x] lEngine.ts: summary inclui linha informativa quando cabeceira é aplicada
 - [x] lEngine.test.ts: 14 novos testes cobrindo lógica de cabeceira (getCabeceiraMm + calculateLShape + quadrado/retangular)
 - [x] 509 testes passando (18 arquivos)
+
+## v32.6 — Correção de Módulos por Formato (05/06/2026)
+- [x] Quadrado/Retangular: usar cantos ML + retos ML (nunca IF)
+- [x] Formato L: usar retos IF para acabamento (comportamento já correto)
+- [x] lEngine.ts: findBestModuleByType genérico criado; findBestMLModule adicionado
+- [x] calculateSquare e calculateRectangle migrados para findBestMLModule
+- [x] Tipo das peças retas: STRAIGHT_ML em quadrado/retangular, STRAIGHT_IF em formato L
+- [x] UI: tabela de composição exibe "ML — Meio de Linha" vs "IF — Início/Final de Linha"
+- [x] 3 novos testes cobrindo ML vs IF por formato (512 testes passando)
