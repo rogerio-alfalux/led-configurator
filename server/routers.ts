@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { fetchDrivers, invalidateDriverCache } from "./driverService";
-import { fetchAllAlfaluxProducts, invalidateAlfaluxCache, fetchRevendaProducts } from "./alfaluxApiService";
+import { fetchAllAlfaluxProducts, invalidateAlfaluxCache, fetchRevendaProducts, fetchAcessoriosProducts } from "./alfaluxApiService";
 import {
   addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty, updateCartItemData,
   createQuote, addQuoteRevision, listQuotes, getQuoteById, approveQuote,
@@ -126,6 +126,21 @@ export const appRouter = router({
         observacoes: p.observacoes,
         fotoUrl: p.fotoUrl,
         precoVenda: p.precoVenda,
+      }));
+    }),
+
+    // Acessórios: trilhos, conectores e acessórios CNTRAC
+    acessoriosProducts: publicProcedure.query(async () => {
+      const items = await fetchAcessoriosProducts();
+      return items.map(p => ({
+        id: p.id,
+        codigo: p.codigo,
+        sku: p.sku,
+        produto: p.produto,
+        familia: p.familia,
+        dimensao: p.dimensao,
+        precoVenda: p.precoVenda,
+        fotoUrl: p.fotoUrl,
       }));
     }),
   }),

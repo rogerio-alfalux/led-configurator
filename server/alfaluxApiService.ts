@@ -183,3 +183,45 @@ export async function fetchRevendaProducts(): Promise<RevendaProduct[]> {
   revendaCache = { data: all, fetchedAt: now };
   return all;
 }
+
+// ── Acessórios ────────────────────────────────────────────────────────────────────────────────────
+
+export interface AcessorioProduct {
+  id: number;
+  codigo: string | null;
+  sku: string | null;
+  produto: string | null;
+  familia: string | null;
+  dimensao: string | null;
+  precoVenda: number | null;
+  fotoUrl: string | null;
+}
+
+interface AcessoriosCacheEntry {
+  data: AcessorioProduct[];
+  fetchedAt: number;
+}
+
+let acessoriosCache: AcessoriosCacheEntry | null = null;
+
+export async function fetchAcessoriosProducts(): Promise<AcessorioProduct[]> {
+  const now = Date.now();
+  if (acessoriosCache && now - acessoriosCache.fetchedAt < CACHE_TTL_MS) {
+    return acessoriosCache.data;
+  }
+
+  console.log("[AlfaluxAPI] Buscando acessórios via /api/acessorios/all...");
+  const url = `${ALFALUX_BASE}/api/acessorios/all`;
+  const res = await fetch(url, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) throw new Error(`Alfalux Acessórios API error: ${res.status}`);
+
+  const body = await res.json() as { count?: number; items?: AcessorioProduct[] };
+  const all = body.items ?? (Array.isArray(body) ? body as AcessorioProduct[] : []);
+
+  console.log(`[AlfaluxAPI] ${all.length} acessórios carregados.`);
+  acessoriosCache = { data: all, fetchedAt: now };
+  return all;
+}

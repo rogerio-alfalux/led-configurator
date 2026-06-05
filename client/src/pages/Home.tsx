@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck } from "lucide-react";
+import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -126,7 +126,8 @@ type ProductCategory =
   | "Balizadores"
   | "Decorativas"
   | "Item Especial"
-  | "Revenda";
+  | "Revenda"
+  | "Acessórios";
 
 const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.ElementType; image?: string; available: boolean }[] = [
   { value: "Perfis",       label: "Perfis",        icon: Layers,      image: "/manus-storage/PERFIS_e65318d1.png",      available: true  },
@@ -139,6 +140,7 @@ const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.E
   { value: "Decorativas",  label: "Decorativas",   icon: Sparkles,    image: "/manus-storage/DECORATIVAS_4ee44c0e.png", available: false },
   { value: "Item Especial", label: "Item Especial",  icon: PackagePlus, image: "/manus-storage/item-especial-icon_c570c491.png", available: true  },
   { value: "Revenda",       label: "Revenda",        icon: ShoppingBag, image: "/manus-storage/revenda-icon-nobg_245d52aa.png", available: true  },
+  { value: "Acessórios",    label: "Acessórios",     icon: Wrench,      available: true  },
 ];
 
 // ─── Auxiliar: quantidade de drivers por produto/controle/tensão ─────────────
@@ -1781,6 +1783,72 @@ export default function Home() {
     }
     setRvSelectedSku("");
   }, [rvSelectedSku, revendaProducts, addItem, appendToQuoteId, handleAddItemOrToQuote]);
+
+  // ── Estados de Acessórios ────────────────────────────────────────────
+  const [acSelectedId, setAcSelectedId] = useState<number | null>(null);
+  const [acFamilia, setAcFamilia] = useState<string>("");
+  const [acSearch, setAcSearch] = useState<string>("");
+
+  const acessoriosQuery = trpc.alfalux.acessoriosProducts.useQuery();
+  const acessoriosProducts = acessoriosQuery.data ?? [];
+
+  // Famílias únicas para os chips de filtro
+  const acessoriosFamilias = useMemo(() => {
+    const set = new Set<string>();
+    acessoriosProducts.forEach(p => { if (p.familia) set.add(p.familia); });
+    return Array.from(set).sort();
+  }, [acessoriosProducts]);
+
+  // Produtos filtrados por família + busca textual
+  const filteredAcessorios = useMemo(() => {
+    let list = acessoriosProducts;
+    if (acFamilia) list = list.filter(p => p.familia === acFamilia);
+    if (acSearch.trim()) {
+      const q = acSearch.toLowerCase();
+      list = list.filter(p =>
+        (p.produto ?? "").toLowerCase().includes(q) ||
+        (p.codigo ?? "").toLowerCase().includes(q) ||
+        (p.dimensao ?? "").toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [acessoriosProducts, acFamilia, acSearch]);
+
+  const handleAddAcessorioItem = useCallback((id?: number) => {
+    const targetId = id ?? acSelectedId;
+    if (!targetId) { toast.error("Selecione um acessório."); return; }
+    const product = acessoriosProducts.find(p => p.id === targetId);
+    if (!product) return;
+    const precoVenda = product.precoVenda ?? 0;
+    const descricao = product.produto ?? product.codigo ?? `Acessório #${product.id}`;
+    const item: CartItemData = {
+      category: "Acessórios",
+      sku: product.codigo ?? product.sku ?? `AC${product.id}`,
+      description: descricao,
+      photoUrl: product.fotoUrl ?? "",
+      qty: 1,
+      unitPrice: precoVenda,
+      totalPrice: precoVenda,
+      priceFromApi: false,
+      power: "",
+      cct: "",
+      orderSummary: `${descricao}${product.dimensao ? ` (${product.dimensao})` : ""}`,
+      quoteSummary: `${descricao}${product.dimensao ? ` (${product.dimensao})` : ""}`,
+      corPeca: "",
+      itemNote: product.familia ?? undefined,
+    };
+    if (appendToQuoteId) {
+      handleAddItemOrToQuote(item);
+    } else {
+      addItem(item);
+      if (precoVenda > 0) {
+        toast.success(`"${descricao}" adicionado com preço R$ ${precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.`);
+      } else {
+        toast.success(`"${descricao}" adicionado! Defina o preço no carrinho.`);
+      }
+    }
+    setAcSelectedId(null);
+  }, [acSelectedId, acessoriosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote]);
 
   const uploadSpecialPhotoMutation = trpc.upload.specialItemPhoto.useMutation({
     onSuccess: (data) => {
@@ -4516,6 +4584,119 @@ export default function Home() {
               </div>
             )}
 
+            {/* ── Formulário de Acessórios ────────────────────────────────────── */}
+            {productCategory === "Acessórios" && (
+              <div className="space-y-4">
+                {acessoriosQuery.isLoading ? (
+                  <div className="text-sm text-muted-foreground py-4 text-center">Carregando acessórios...</div>
+                ) : acessoriosProducts.length === 0 ? (
+                  <div className="text-sm text-muted-foreground py-4 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-500" />
+                    Nenhum acessório disponível na API no momento.
+                  </div>
+                ) : (
+                  <>
+                    {/* Filtro por família */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Família</label>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => { setAcFamilia(""); setAcSelectedId(null); setAcSearch(""); }}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                            !acFamilia
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-background border-border hover:border-primary/50 text-foreground"
+                          }`}
+                        >
+                          Todos
+                        </button>
+                        {acessoriosFamilias.map(f => (
+                          <button
+                            key={f}
+                            type="button"
+                            onClick={() => { setAcFamilia(f); setAcSelectedId(null); setAcSearch(""); }}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                              acFamilia === f
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background border-border hover:border-primary/50 text-foreground"
+                            }`}
+                          >
+                            {f}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Busca textual */}
+                    <div className="relative">
+                      <Input
+                        placeholder={acFamilia ? `Buscar em ${acFamilia}...` : "Buscar por nome, código ou dimensão..."}
+                        value={acSearch}
+                        onChange={e => { setAcSearch(e.target.value); setAcSelectedId(null); }}
+                        className="pr-8"
+                      />
+                      {acSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setAcSearch("")}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-lg leading-none"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Lista de acessórios */}
+                    {(acFamilia || acSearch.trim()) && (
+                      <div className="border rounded-md divide-y max-h-72 overflow-y-auto">
+                        {filteredAcessorios.length === 0 ? (
+                          <div className="text-sm text-muted-foreground p-4 text-center">Nenhum acessório encontrado.</div>
+                        ) : filteredAcessorios.map(p => (
+                          <div
+                            key={p.id}
+                            onClick={() => setAcSelectedId(prev => prev === p.id ? null : p.id)}
+                            className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors ${
+                              acSelectedId === p.id
+                                ? "bg-emerald-50 dark:bg-emerald-900/20 border-l-2 border-emerald-500"
+                                : "hover:bg-muted/50"
+                            }`}
+                          >
+                            {/* Miniatura da foto */}
+                            <div className="shrink-0 w-9 h-9 rounded border border-border bg-muted/30 flex items-center justify-center overflow-hidden">
+                              {p.fotoUrl ? (
+                                <img src={p.fotoUrl} alt={p.produto ?? ""} className="w-full h-full object-contain p-0.5" loading="lazy" />
+                              ) : (
+                                <Wrench className="w-4 h-4 text-muted-foreground/40" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium truncate">{p.produto ?? p.codigo}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {p.codigo}{p.dimensao ? ` · ${p.dimensao}` : ""}
+                                {p.precoVenda != null && p.precoVenda > 0 && (
+                                  <span className="ml-2 text-emerald-700 dark:text-emerald-400 font-medium">
+                                    R$ {p.precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Dica quando nada está selecionado */}
+                    {!acFamilia && !acSearch.trim() && (
+                      <p className="text-xs text-muted-foreground text-center py-2">
+                        Selecione uma família ou busque pelo nome do acessório.
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Botão Calcular — Perfis */}
             {selectedVariant && productCategory === "Perfis" && profileShape === "STRAIGHT" && (
               <Button
@@ -6084,6 +6265,90 @@ export default function Home() {
                 </Card>
               );
             })()}
+            {/* ── Acessórios: painel de resumo do item selecionado ── */}
+            {productCategory === "Acessórios" && (() => {
+              const acProduct = acSelectedId
+                ? acessoriosProducts.find(p => p.id === acSelectedId)
+                : null;
+              return (
+                <Card className="shadow-sm border-emerald-500/30">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <Wrench className="w-4 h-4 text-emerald-500" />
+                      {acProduct ? "Acessório Selecionado" : "Acessórios"}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {acProduct ? (
+                      <div className="space-y-3">
+                        {/* Foto pequena + dados principais lado a lado */}
+                        <div className="flex gap-3 items-stretch">
+                          <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-28 flex items-center justify-center">
+                            {acProduct.fotoUrl ? (
+                              <img src={acProduct.fotoUrl} alt={acProduct.produto ?? ""} className="w-full h-full object-contain p-2" loading="lazy" />
+                            ) : (
+                              <Wrench className="w-8 h-8 text-muted-foreground/30" />
+                            )}
+                          </div>
+                          <div className="grid grid-cols-1 gap-2 flex-1">
+                            {/* Código */}
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Código</p>
+                              <p className="text-sm font-mono font-semibold text-primary">{acProduct.codigo ?? acProduct.sku ?? "—"}</p>
+                            </div>
+                            {/* Família */}
+                            {acProduct.familia && (
+                              <div className="p-3 rounded-lg bg-muted/50">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Família</p>
+                                <p className="text-sm font-semibold">{acProduct.familia}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {/* Descrição */}
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Descrição</p>
+                          <p className="text-sm font-semibold leading-snug">{acProduct.produto ?? acProduct.codigo}</p>
+                        </div>
+                        {/* Dimensão */}
+                        {acProduct.dimensao && (
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Dimensão</p>
+                            <p className="text-sm font-semibold">{acProduct.dimensao}</p>
+                          </div>
+                        )}
+                        {/* Preço de venda */}
+                        {acProduct.precoVenda != null && acProduct.precoVenda > 0 && (
+                          <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700/40">
+                            <p className="text-xs text-emerald-700 dark:text-emerald-400 uppercase tracking-wide mb-1">Preço de Venda</p>
+                            <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">
+                              R$ {acProduct.precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                        )}
+                        {/* Botão adicionar */}
+                        <Button
+                          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                          onClick={() => handleAddAcessorioItem()}
+                        >
+                          <ShoppingCart className="w-4 h-4 mr-2" />
+                          {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-16 text-center">
+                        <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                          <Wrench className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                        <p className="text-base font-semibold text-foreground font-display">Nenhum acessório selecionado</p>
+                        <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione uma família, busque pelo nome e clique no item para ver o resumo.</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
             {/* ── Item Especial: painel de resultado / pré-visualização ── */}
             {productCategory === "Item Especial" && (
               <Card className="shadow-sm border-amber-500/30">
