@@ -104,13 +104,17 @@ function calcPieceDriver(
  * Ordena os módulos do maior para o menor e vai preenchendo o espaço disponível
  * com o maior módulo que couber, repetindo até não caber mais nenhum.
  * Objetivo: minimizar o número de peças (usar módulos maiores primeiro).
+ *
+ * minBars: número mínimo de barras aceito (padrão 2 — exclui módulos de 1 barra
+ * em formatos L/Quadrado/Retangular). Use 1 para formatos lineares simples.
  */
 function findBestModuleByType(
   profileEntry: ProfileVariant,
   moduleType: "IF" | "ML",
   availableLength: number,
   allowLongModules: boolean,
-  allowFractionalBars: boolean = false
+  allowFractionalBars: boolean = false,
+  minBars: number = 2
 ): StraightSegment {
   const empty: StraightSegment = {
     availableLength,
@@ -134,6 +138,7 @@ function findBestModuleByType(
     const bars = parseFloat(barsKey);
     if (!allowLongModules && m.length > MAX_IF_LENGTH_STANDARD) continue;
     if (!allowFractionalBars && !Number.isInteger(bars)) continue;
+    if (bars < minBars) continue; // excluir módulos abaixo do mínimo de barras
     eligible.push({ sku: m.sku, length: m.length, bars });
   }
 

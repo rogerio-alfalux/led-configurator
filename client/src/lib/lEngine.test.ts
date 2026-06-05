@@ -214,4 +214,32 @@ describe("calculateSquare/calculateRectangle — sem ajuste de cabeceira e módu
       expect(p.sku).toMatch(/IF|if/i);
     });
   });
+
+  it("módulos de 1 barra não devem aparecer em formato L", () => {
+    // Qualquer comprimento que antes usaria 1 barra não deve mais
+    const result = calculateLShape("LLP-6060", 1500, 1500, baseParams);
+    expect(result).not.toBeNull();
+    const straightPieces = result!.pieces.filter(p => p.type !== "CORNER");
+    straightPieces.forEach(p => {
+      expect(p.bars).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it("módulos de 1 barra não devem aparecer em formato Quadrado", () => {
+    const result = calculateSquare("LLP-6060", 3000, baseParams);
+    expect(result).not.toBeNull();
+    const straightPieces = result!.pieces.filter(p => p.type !== "CORNER");
+    straightPieces.forEach(p => {
+      expect(p.bars).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it("módulos de 1 barra não devem aparecer em formato Retangular", () => {
+    const result = calculateRectangle("LLP-6060", 4000, 2000, baseParams);
+    expect(result).not.toBeNull();
+    const straightPieces = result!.pieces.filter(p => p.type !== "CORNER");
+    straightPieces.forEach(p => {
+      expect(p.bars).toBeGreaterThanOrEqual(2);
+    });
+  });
 });
