@@ -9,22 +9,75 @@ export interface OrderFormData {
   date: string;
   /** Empresa fabricante: "ALFALUX" (padrão) ou "LUMINEW" */
   empresa?: "ALFALUX" | "LUMINEW";
-  /** Prazo de entrega em dias úteis (padrão: 20) */
+  /** Prazo acordado em dias úteis (padrão: 20). O Excel exibe prazo - 1 (logística). */
   deliveryDays?: number;
   /** Data de aprovação do orçamento (ISO string) para calcular prazo */
   approvedAt?: string;
+  /**
+   * Se fornecido, usa esta data diretamente em vez de calcular.
+   * Formato: "DD/MM/YYYY"
+   */
+  precomputedDeliveryDate?: string;
+  /**
+   * Número de dias úteis já calculado (prazo - 1).
+   * Se fornecido, usa este valor em vez de calcular.
+   */
+  precomputedDisplayDays?: number;
 }
 
-/** Calcula data de entrega adicionando dias úteis (seg-sex) a partir de uma data base */
-function addBusinessDays(start: Date, days: number): Date {
+/** Cache de feriados nacionais por ano */
+const _holidayCache: Record<number, Set<string>> = {};
+
+async function fetchHolidays(year: number): Promise<Set<string>> {
+  if (_holidayCache[year]) return _holidayCache[year];
+  try {
+    const resp = await fetch(`https://brasilapi.com.br/api/feriados/v1/${year}`);
+    if (!resp.ok) throw new Error(`BrasilAPI status ${resp.status}`);
+    const data = await resp.json() as Array<{ date: string }>;
+    const set = new Set(data.map((h: { date: string }) => h.date.slice(0, 10)));
+    _holidayCache[year] = set;
+    return set;
+  } catch {
+    return new Set<string>();
+  }
+}
+
+/**
+ * Calcula data de entrega adicionando dias úteis (seg-sex) a partir de uma data base,
+ * descontando feriados nacionais.
+ */
+function addBusinessDays(start: Date, days: number, holidays: Set<string> = new Set()): Date {
   const result = new Date(start);
   let added = 0;
   while (added < days) {
     result.setDate(result.getDate() + 1);
     const dow = result.getDay();
-    if (dow !== 0 && dow !== 6) added++;
+    const dateStr = result.toISOString().slice(0, 10);
+    if (dow !== 0 && dow !== 6 && !holidays.has(dateStr)) added++;
   }
   return result;
+}
+
+/**
+ * Calcula a data de entrega para o pedido de fábrica.
+ * - Prazo exibido = deliveryDays - 1 (1 dia reservado para logística)
+ * - Desconta feriados nacionais via BrasilAPI
+ */
+export async function calcDeliveryDate(
+  approvedAt: string | undefined,
+  deliveryDays: number = 20
+): Promise<{ displayDays: number; deliveryDate: Date; deliveryDateStr: string }> {
+  const displayDays = deliveryDays - 1;
+  const base = approvedAt ? new Date(approvedAt) : new Date();
+  const startYear = base.getFullYear();
+  const [h1, h2] = await Promise.all([
+    fetchHolidays(startYear),
+    fetchHolidays(startYear + 1),
+  ]);
+  const holidays = new Set([...Array.from(h1), ...Array.from(h2)]);
+  const deliveryDate = addBusinessDays(base, displayDays, holidays);
+  const deliveryDateStr = deliveryDate.toLocaleDateString("pt-BR");
+  return { displayDays, deliveryDate, deliveryDateStr };
 }
 
 const HEADER_BG = "FF1F3864"; // Azul escuro (similar ao template)
@@ -261,10 +314,14 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   ws.getCell("H3").alignment = { horizontal: "left", vertical: "middle" };
   // Calcular e exibir data de entrega prevista
   {
-    const prazo = form.deliveryDays ?? 20;
-    const base = form.approvedAt ? new Date(form.approvedAt) : new Date();
-    const deliveryDate = addBusinessDays(base, prazo);
-    const prazoStr = `${prazo} dias úteis → ${deliveryDate.toLocaleDateString("pt-BR")}`;
+    // Se já foi pré-calculado (com feriados), usar diretamente
+    const displayDays = form.precomputedDisplayDays ?? (form.deliveryDays ?? 20) - 1;
+    const dateStr = form.precomputedDeliveryDate
+      ?? (() => {
+        const base = form.approvedAt ? new Date(form.approvedAt) : new Date();
+        return addBusinessDays(base, displayDays).toLocaleDateString("pt-BR");
+      })();
+    const prazoStr = `${displayDays} dias úteis → ${dateStr}`;
     ws.mergeCells("J3:K3");
     const prazoCell = ws.getCell("J3");
     prazoCell.value = prazoStr;

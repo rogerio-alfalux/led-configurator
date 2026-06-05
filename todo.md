@@ -1125,3 +1125,15 @@
 - [x] Adicionar revenda e acessorios ao searchCatalogs useMemo no Home.tsx
 - [x] Atualizar handleSearchSelect para navegar a Revenda (setRvSelectedSku) e Acessórios (setAcSelectedId)
 - [x] 0 erros TypeScript, 516/516 testes passando
+
+## v32.16 — Botão "Incluir Acessório" e Prazo de Entrega com Feriados
+
+- [x] Botão "Incluir Acessório" no painel de resultado (todas as categorias)
+- [x] Modal de seleção de acessório: lista filtrável com foto, código, dimensão, família e preço
+- [x] Ao confirmar, acessório adicionado como item separado no carrinho/orçamento
+- [x] fetchHolidays(year) com cache em memória via BrasilAPI
+- [x] addBusinessDays() atualizado para descontar feriados nacionais
+- [x] calcDeliveryDate() exportada: calcula displayDays = deliveryDays - 1 com feriados
+- [x] handleGenerateOrder no QuoteDetail chama calcDeliveryDate antes de gerar o Excel
+- [x] Excel do pedido de fábrica: prazo exibido como "19 dias úteis → DD/MM/YYYY"
+- [x] 0 erros TypeScript, 516/516 testes passando

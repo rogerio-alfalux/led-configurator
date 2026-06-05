@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useTheme } from "@/contexts/ThemeContext";
 import { toast } from "sonner";
 import {
@@ -1784,10 +1785,15 @@ export default function Home() {
     setRvSelectedSku("");
   }, [rvSelectedSku, revendaProducts, addItem, appendToQuoteId, handleAddItemOrToQuote]);
 
-  // ── Estados de Acessórios ────────────────────────────────────────────
+  // ── Estados de Acessórios ────────────────────────────────────
   const [acSelectedId, setAcSelectedId] = useState<number | null>(null);
   const [acFamilia, setAcFamilia] = useState<string>("");
   const [acSearch, setAcSearch] = useState<string>("");
+  // Modal de inclusão de acessório a partir do painel de resultados
+  const [addAcModalOpen, setAddAcModalOpen] = useState(false);
+  const [addAcModalFamilia, setAddAcModalFamilia] = useState<string>("");
+  const [addAcModalSearch, setAddAcModalSearch] = useState<string>("");
+  const [addAcModalSelectedId, setAddAcModalSelectedId] = useState<number | null>(null);
 
   const acessoriosQuery = trpc.alfalux.acessoriosProducts.useQuery();
   const acessoriosProducts = acessoriosQuery.data ?? [];
@@ -1813,6 +1819,60 @@ export default function Home() {
     }
     return list;
   }, [acessoriosProducts, acFamilia, acSearch]);
+
+  // Filtro para o modal de inclusão de acessório no painel de resultados
+  const filteredAcessoriosModal = useMemo(() => {
+    let list = acessoriosProducts;
+    if (addAcModalFamilia) list = list.filter(p => p.familia === addAcModalFamilia);
+    if (addAcModalSearch.trim()) {
+      const q = addAcModalSearch.toLowerCase();
+      list = list.filter(p =>
+        (p.produto ?? "").toLowerCase().includes(q) ||
+        (p.codigo ?? "").toLowerCase().includes(q) ||
+        (p.dimensao ?? "").toLowerCase().includes(q) ||
+        (p.familia ?? "").toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [acessoriosProducts, addAcModalFamilia, addAcModalSearch]);
+
+  const handleAddAcessorioFromModal = useCallback(() => {
+    if (!addAcModalSelectedId) { toast.error("Selecione um acessório."); return; }
+    const product = acessoriosProducts.find(p => p.id === addAcModalSelectedId);
+    if (!product) return;
+    const precoVenda = product.precoVenda ?? 0;
+    const descricao = product.produto ?? product.codigo ?? `Acessório #${product.id}`;
+    const item: CartItemData = {
+      category: "Acessórios",
+      sku: product.codigo ?? product.sku ?? `AC${product.id}`,
+      description: descricao,
+      photoUrl: product.fotoUrl ?? "",
+      qty: 1,
+      unitPrice: precoVenda,
+      totalPrice: precoVenda,
+      priceFromApi: false,
+      power: "",
+      cct: "",
+      orderSummary: `${descricao}${product.dimensao ? ` (${product.dimensao})` : ""}`,
+      quoteSummary: `${descricao}${product.dimensao ? ` (${product.dimensao})` : ""}`,
+      corPeca: "",
+      itemNote: product.familia ?? undefined,
+    };
+    if (appendToQuoteId) {
+      handleAddItemOrToQuote(item);
+    } else {
+      addItem(item);
+      if (precoVenda > 0) {
+        toast.success(`"${descricao}" adicionado com preço R$ ${precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.`);
+      } else {
+        toast.success(`"${descricao}" adicionado! Defina o preço no carrinho.`);
+      }
+    }
+    setAddAcModalOpen(false);
+    setAddAcModalSelectedId(null);
+    setAddAcModalSearch("");
+    setAddAcModalFamilia("");
+  }, [addAcModalSelectedId, acessoriosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote]);
 
   const handleAddAcessorioItem = useCallback((id?: number) => {
     const targetId = id ?? acSelectedId;
@@ -4770,11 +4830,22 @@ export default function Home() {
 
           {/* ── Painel de Resultados ────────────────────────────────────────── */}
           <div className="space-y-4">
-            <div>
-              <h2 className="text-xl font-bold font-display text-foreground">Resultado</h2>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Composição calculada com base nos parâmetros informados.
-              </p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold font-display text-foreground">Resultado</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Composição calculada com base nos parâmetros informados.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0 h-8 text-xs gap-1.5 border-cyan-500/50 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                onClick={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
+              >
+                <Wrench className="w-3.5 h-3.5" />
+                Incluir Acessório
+              </Button>
             </div>
 
             {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && profileShape === "STRAIGHT" && (!result ? (
@@ -6436,6 +6507,122 @@ export default function Home() {
           </span>
         </div>
       </footer>
+      {/* Modal de inclusão de acessório a partir do painel de resultados */}
+      <Dialog open={addAcModalOpen} onOpenChange={(open) => { setAddAcModalOpen(open); if (!open) { setAddAcModalSelectedId(null); setAddAcModalSearch(""); setAddAcModalFamilia(""); } }}>
+        <DialogContent className="max-w-lg w-full">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Wrench className="w-4 h-4 text-cyan-500" />
+              Incluir Acessório
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            {/* Busca textual */}
+            <div className="relative">
+              <Input
+                placeholder="Buscar por nome, código, dimensão ou família..."
+                value={addAcModalSearch}
+                onChange={e => { setAddAcModalSearch(e.target.value); setAddAcModalSelectedId(null); }}
+                className="pr-8"
+                autoFocus
+              />
+              {addAcModalSearch && (
+                <button
+                  type="button"
+                  onClick={() => setAddAcModalSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-lg leading-none"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            {/* Chips de família */}
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => { setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                  !addAcModalFamilia
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background border-border hover:border-primary/50 text-foreground"
+                }`}
+              >
+                Todos
+              </button>
+              {acessoriosFamilias.map(f => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => { setAddAcModalFamilia(f); setAddAcModalSelectedId(null); }}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                    addAcModalFamilia === f
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background border-border hover:border-primary/50 text-foreground"
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+            {/* Lista de acessórios */}
+            <div className="border rounded-md divide-y max-h-72 overflow-y-auto">
+              {acessoriosQuery.isLoading ? (
+                <div className="text-sm text-muted-foreground p-4 text-center">Carregando acessórios...</div>
+              ) : filteredAcessoriosModal.length === 0 ? (
+                <div className="text-sm text-muted-foreground p-4 text-center">
+                  {addAcModalSearch || addAcModalFamilia ? "Nenhum acessório encontrado." : "Digite para buscar ou selecione uma família."}
+                </div>
+              ) : filteredAcessoriosModal.map(p => (
+                <div
+                  key={p.id}
+                  onClick={() => setAddAcModalSelectedId(prev => prev === p.id ? null : p.id)}
+                  className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors ${
+                    addAcModalSelectedId === p.id
+                      ? "bg-cyan-50 dark:bg-cyan-900/20 border-l-2 border-cyan-500"
+                      : "hover:bg-muted/50"
+                  }`}
+                >
+                  <div className="shrink-0 w-10 h-10 rounded border border-border bg-muted/30 flex items-center justify-center overflow-hidden">
+                    {p.fotoUrl ? (
+                      <img src={p.fotoUrl} alt={p.produto ?? ""} className="w-full h-full object-contain p-0.5" loading="lazy" />
+                    ) : (
+                      <Wrench className="w-4 h-4 text-muted-foreground/40" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{p.produto ?? p.codigo}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {p.codigo}{p.dimensao ? ` · ${p.dimensao}` : ""}{p.familia ? ` · ${p.familia}` : ""}
+                      {p.precoVenda != null && p.precoVenda > 0 && (
+                        <span className="ml-2 text-emerald-700 dark:text-emerald-400 font-medium">
+                          R$ {p.precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {addAcModalSelectedId === p.id && (
+                    <CheckCircle2 className="w-4 h-4 text-cyan-500 shrink-0" />
+                  )}
+                </div>
+              ))}
+            </div>
+            {/* Botões de ação */}
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" size="sm" onClick={() => setAddAcModalOpen(false)}>Cancelar</Button>
+              <Button
+                size="sm"
+                disabled={!addAcModalSelectedId}
+                onClick={handleAddAcessorioFromModal}
+                className="gap-1.5"
+              >
+                <Wrench className="w-3.5 h-3.5" />
+                {appendToQuoteId ? "Enviar ao Orçamento" : "Adicionar ao Carrinho"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Modal de seleção de cor da peça */}
       <ColorPickerModal
         open={colorModalOpen}

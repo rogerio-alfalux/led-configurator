@@ -39,7 +39,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { CartItemData, formatBRL, parseCartItemData } from "@/lib/cartTypes";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
-import { generateOrderExcel } from "@/lib/orderExcelGenerator";
+import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 import { toast } from "sonner";
 
@@ -482,6 +482,11 @@ export default function QuoteDetail() {
     setIsGenerating(true);
     setEmpresaDialogOpen(false);
     try {
+      // Calcular prazo com feriados nacionais antes de gerar o Excel
+      const deliveryDays = quote.deliveryDays ?? 20;
+      const approvedAtIso = quote.approvedAt ? new Date(quote.approvedAt).toISOString() : new Date().toISOString();
+      const { displayDays, deliveryDateStr } = await calcDeliveryDate(approvedAtIso, deliveryDays);
+
       await generateOrderExcel(
         currentItems.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null),
         {
@@ -491,8 +496,10 @@ export default function QuoteDetail() {
           vendorName: quote.vendorName ?? "",
           date: new Date(quote.approvedAt ?? quote.createdAt).toLocaleDateString("pt-BR"),
           empresa,
-          deliveryDays: quote.deliveryDays ?? 20,
-          approvedAt: quote.approvedAt ? new Date(quote.approvedAt).toISOString() : new Date().toISOString(),
+          deliveryDays,
+          approvedAt: approvedAtIso,
+          precomputedDisplayDays: displayDays,
+          precomputedDeliveryDate: deliveryDateStr,
         }
       );
       // Registrar geração no log de auditoria
