@@ -571,7 +571,8 @@ export default function QuoteDetail() {
               )}
               {quote.commissionPercent != null && Number(quote.commissionPercent) > 0 && (() => {
                 const commPct = parseFloat(String(quote.commissionPercent));
-                const total = quote.totalFinal ? Number(quote.totalFinal) : (quote.totalAmount ? Number(quote.totalAmount) : 0);
+                // Base de comissão = totalAmount (valor dos produtos, sem RT/margem) - 12% impostos
+                const total = quote.totalAmount ? Number(quote.totalAmount) : (quote.totalFinal ? Number(quote.totalFinal) : 0);
                 const base = total * (1 - 0.12);
                 const commVal = base * commPct;
                 return (
@@ -1157,11 +1158,11 @@ export default function QuoteDetail() {
                     </div>
                     {(() => {
                       const commPct = parseFloat(editForm.commissionPercent || "0") / 100;
-                      const baseComComissao = editTotalFinal * (1 - 0.12); // deduz 12% de impostos
+                      const baseComComissao = editTotalBase * (1 - 0.12); // base = valor dos produtos (sem RT/margem) - 12% impostos
                       const commValue = baseComComissao * commPct;
                       return commValue > 0 ? (
                         <div className="text-sm">
-                          <span className="text-muted-foreground">Base (total − 12% impostos): </span>
+                          <span className="text-muted-foreground">Base (produtos − 12% impostos): </span>
                           <span className="font-medium">{formatBRL(baseComComissao)}</span>
                           <br />
                           <span className="text-muted-foreground">Comissão estimada: </span>

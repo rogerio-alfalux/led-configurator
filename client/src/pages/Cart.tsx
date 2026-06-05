@@ -1179,11 +1179,11 @@ export default function Cart() {
                               </div>
                               {(() => {
                                 const commPct = parseFloat(saveForm.commissionPercent || "0") / 100;
-                                const baseComComissao = totalFinal * (1 - 0.12);
+                                const baseComComissao = totalGeral * (1 - 0.12);
                                 const commValue = baseComComissao * commPct;
                                 return commValue > 0 ? (
                                   <div className="text-sm">
-                                    <span className="text-muted-foreground">Base (total − 12% impostos): </span>
+                                    <span className="text-muted-foreground">Base (produtos − 12% impostos): </span>
                                     <span className="font-medium">{formatBRL(baseComComissao)}</span>
                                     <br />
                                     <span className="text-muted-foreground">Comissão estimada: </span>
