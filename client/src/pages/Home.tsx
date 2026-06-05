@@ -4463,12 +4463,20 @@ export default function Home() {
                           <div
                             key={p.sku}
                             onClick={() => setRvSelectedSku(prev => prev === p.sku ? "" : p.sku)}
-                            className={`flex items-center justify-between px-3 py-2.5 cursor-pointer transition-colors group ${
+                            className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors ${
                               rvSelectedSku === p.sku
                                 ? "bg-emerald-50 dark:bg-emerald-900/20 border-l-2 border-emerald-500"
                                 : "hover:bg-muted/50"
                             }`}
                           >
+                            {/* Miniatura da foto */}
+                            <div className="shrink-0 w-9 h-9 rounded border border-border bg-muted/30 flex items-center justify-center overflow-hidden">
+                              {p.fotoUrl ? (
+                                <img src={p.fotoUrl} alt={p.name} className="w-full h-full object-contain p-0.5" loading="lazy" />
+                              ) : (
+                                <ShoppingBag className="w-4 h-4 text-muted-foreground/40" />
+                              )}
+                            </div>
                             <div className="flex-1 min-w-0">
                               <div className="text-sm font-medium truncate">{p.name}</div>
                               <div className="text-xs text-muted-foreground">
@@ -4480,14 +4488,6 @@ export default function Home() {
                                 )}
                               </div>
                             </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => { e.stopPropagation(); handleAddRevendaItem(p.sku); }}
-                              className="ml-2 shrink-0 h-8 px-3 text-xs opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-600/10 hover:bg-emerald-600 hover:text-white text-emerald-700"
-                            >
-                              + Adicionar
-                            </Button>
                           </div>
                         ))}
                       </div>
@@ -5995,42 +5995,40 @@ export default function Home() {
                   <CardContent>
                     {rvProduct ? (
                       <div className="space-y-3">
-                        {/* Foto do produto ou placeholder */}
-                        {rvProduct.fotoUrl ? (
-                          <div className="w-full aspect-video rounded-lg overflow-hidden border border-border bg-muted/20 flex items-center justify-center">
-                            <img src={rvProduct.fotoUrl} alt={rvProduct.name} className="w-full h-full object-contain p-2" loading="lazy" />
-                          </div>
-                        ) : (
-                          <div className="w-full aspect-video rounded-lg border-2 border-dashed border-border bg-muted/20 flex flex-col items-center justify-center gap-2">
-                            <ShoppingBag className="w-10 h-10 text-muted-foreground/40" />
-                            <p className="text-xs text-muted-foreground/60">Foto não disponível</p>
-                          </div>
-                        )}
-                        {/* Código */}
-                        <div className="p-3 rounded-lg bg-muted/50">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Código</p>
-                          <p className="text-sm font-mono font-semibold text-primary">{rvProduct.sku}</p>
-                        </div>
-                        {/* Descrição */}
-                        <div className="p-3 rounded-lg bg-muted/50">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Descrição</p>
-                          <p className="text-sm font-semibold leading-snug">{rvProduct.name}</p>
-                        </div>
-                        {/* Grid: Referência + Fornecedor */}
-                        {(rvProduct.referencia || rvProduct.fornecedor) && (
-                          <div className="grid grid-cols-2 gap-2">
-                            {rvProduct.referencia && (
-                              <div className="p-3 rounded-lg bg-muted/50">
-                                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Referência</p>
-                                <p className="text-sm font-semibold">{rvProduct.referencia}</p>
-                              </div>
+                        {/* Foto pequena + dados principais lado a lado (como downlights) */}
+                        <div className="flex gap-3 items-stretch">
+                          <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-28 flex items-center justify-center">
+                            {rvProduct.fotoUrl ? (
+                              <img src={rvProduct.fotoUrl} alt={rvProduct.name} className="w-full h-full object-contain p-2" loading="lazy" />
+                            ) : (
+                              <ShoppingBag className="w-8 h-8 text-muted-foreground/30" />
                             )}
+                          </div>
+                          <div className="grid grid-cols-1 gap-2 flex-1">
+                            {/* Código */}
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Código</p>
+                              <p className="text-sm font-mono font-semibold text-primary">{rvProduct.sku}</p>
+                            </div>
+                            {/* Fornecedor */}
                             {rvProduct.fornecedor && (
                               <div className="p-3 rounded-lg bg-muted/50">
                                 <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fornecedor</p>
                                 <p className="text-sm font-semibold">{rvProduct.fornecedor}</p>
                               </div>
                             )}
+                          </div>
+                        </div>
+                        {/* Descrição */}
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Descrição</p>
+                          <p className="text-sm font-semibold leading-snug">{rvProduct.name}</p>
+                        </div>
+                        {/* Referência */}
+                        {rvProduct.referencia && (
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Referência</p>
+                            <p className="text-sm font-semibold">{rvProduct.referencia}</p>
                           </div>
                         )}
                         {/* Preço de venda */}
@@ -6055,7 +6053,7 @@ export default function Home() {
                           onClick={() => handleAddRevendaItem(rvProduct.sku)}
                         >
                           <ShoppingCart className="w-4 h-4 mr-2" />
-                          Adicionar ao Carrinho
+                          {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                         </Button>
                       </div>
                     ) : (
