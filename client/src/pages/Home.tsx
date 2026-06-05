@@ -1533,6 +1533,18 @@ export default function Home() {
   const activeSpotCatalog = adaptedCatalogs?.spots ?? SPOT_CATALOG;
   const activeArandelaCatalog = adaptedCatalogs?.arandelas ?? ARANDELA_CATALOG;
 
+  // Resolve foto de painel: API primeiro, depois dicionário estático
+  const resolvePainelPhoto = useCallback((familia: string | null, produto: string): string | null => {
+    if (!familia) return null;
+    return adaptedCatalogs?.painelFotos?.[familia] ?? getPainelPhoto(familia, produto);
+  }, [adaptedCatalogs]);
+
+  // Resolve foto de downlight: API primeiro, depois dicionário estático
+  const resolveDownlightPhoto = useCallback((familia: string | null, produto: string): string | null => {
+    if (!familia) return null;
+    return adaptedCatalogs?.downlightFotos?.[`${familia}|${produto}`] ?? getDownlightPhoto(familia, produto);
+  }, [adaptedCatalogs]);
+
   // ── Catálogo de perfis via API (com fallback para LED_CATALOG estático) ──────
   const activeProfileCatalog = useMemo(() => {
     if (!alfaluxApiProducts || alfaluxApiProducts.length === 0) return LED_CATALOG;
@@ -5352,7 +5364,7 @@ export default function Home() {
                   <CardContent className="space-y-3">
                     {/* Foto do produto Painél */}
                     {(() => {
-                      const pPhoto = panelFamilia && panelResult ? getPainelPhoto(panelFamilia, panelResult.product.name) : null;
+                      const pPhoto = panelFamilia && panelResult ? resolvePainelPhoto(panelFamilia, panelResult.product.name) : null;
                       return pPhoto ? (
                         <div className="flex gap-3 items-stretch">
                           <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-36 flex items-center justify-center">
@@ -5378,7 +5390,7 @@ export default function Home() {
                       ) : null;
                     })()}
                     <div className="grid grid-cols-2 gap-3">
-                      {(!panelFamilia || !getPainelPhoto(panelFamilia, panelResult.product.name)) && (
+                      {(!panelFamilia || !resolvePainelPhoto(panelFamilia, panelResult.product.name)) && (
                         <>
                           {panelResult.product.sku && (
                             <div className="p-3 rounded-lg bg-muted/50">
@@ -5445,7 +5457,7 @@ export default function Home() {
                         disabled={isAddingToCart}
                         onClick={() => {
                           const preco = getPrecoForControle(panelResult.product, panelResult.controle, panelResult.tensao);
-                          const pPhoto = panelFamilia ? getPainelPhoto(panelFamilia, panelResult.product.name) : null;
+                          const pPhoto = panelFamilia ? resolvePainelPhoto(panelFamilia, panelResult.product.name) : null;
                           const item: CartItemData = {
                             category: "Painéis",
                             sku: panelResult.product.sku ?? "",
