@@ -4,7 +4,7 @@ import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, Re
 import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/_core/hooks/useAuth";
-import type { CartItemData, ProfileSegment } from "@/lib/cartTypes";
+import type { CartItemData, LinkedAccessory, ProfileSegment } from "@/lib/cartTypes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -1789,6 +1789,8 @@ export default function Home() {
   const [acSelectedId, setAcSelectedId] = useState<number | null>(null);
   const [acFamilia, setAcFamilia] = useState<string>("");
   const [acSearch, setAcSearch] = useState<string>("");
+  // Acessórios pendentes para vincular ao próximo item enviado ao carrinho
+  const [pendingAccessories, setPendingAccessories] = useState<LinkedAccessory[]>([]);
   // Modal de inclusão de acessório a partir do painel de resultados
   const [addAcModalOpen, setAddAcModalOpen] = useState(false);
   const [addAcModalFamilia, setAddAcModalFamilia] = useState<string>("");
@@ -1842,37 +1844,31 @@ export default function Home() {
     if (!product) return;
     const precoVenda = product.precoVenda ?? 0;
     const descricao = product.produto ?? product.codigo ?? `Acessório #${product.id}`;
-    const item: CartItemData = {
-      category: "Acessórios",
-      sku: product.codigo ?? product.sku ?? `AC${product.id}`,
-      description: descricao,
-      photoUrl: product.fotoUrl ?? "",
+    // Acumula o acessório como pendente para ser vinculado ao próximo item enviado ao carrinho
+    const linked: LinkedAccessory = {
+      codigo: product.codigo ?? product.sku ?? `AC${product.id}`,
+      descricao,
       qty: 1,
-      unitPrice: precoVenda,
-      totalPrice: precoVenda,
-      priceFromApi: false,
-      power: "",
-      cct: "",
-      orderSummary: `${descricao}${product.dimensao ? ` (${product.dimensao})` : ""}`,
-      quoteSummary: `${descricao}${product.dimensao ? ` (${product.dimensao})` : ""}`,
-      corPeca: "",
-      itemNote: product.familia ?? undefined,
+      unitPrice: precoVenda > 0 ? precoVenda : null,
+      fotoUrl: product.fotoUrl ?? null,
+      familia: product.familia ?? undefined,
+      dimensao: product.dimensao ?? undefined,
     };
-    if (appendToQuoteId) {
-      handleAddItemOrToQuote(item);
-    } else {
-      addItem(item);
-      if (precoVenda > 0) {
-        toast.success(`"${descricao}" adicionado com preço R$ ${precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.`);
-      } else {
-        toast.success(`"${descricao}" adicionado! Defina o preço no carrinho.`);
+    setPendingAccessories(prev => {
+      // Evita duplicata pelo código
+      const exists = prev.some(a => a.codigo === linked.codigo);
+      if (exists) {
+        toast.info(`"${descricao}" já está na lista de acessórios pendentes.`);
+        return prev;
       }
-    }
+      toast.success(`Acessório "${descricao}" vinculado! Será incluído no próximo item enviado ao carrinho.`);
+      return [...prev, linked];
+    });
     setAddAcModalOpen(false);
     setAddAcModalSelectedId(null);
     setAddAcModalSearch("");
     setAddAcModalFamilia("");
-  }, [addAcModalSelectedId, acessoriosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote]);
+  }, [addAcModalSelectedId, acessoriosProducts]);
 
   const handleAddAcessorioItem = useCallback((id?: number) => {
     const targetId = id ?? acSelectedId;

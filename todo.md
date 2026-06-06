@@ -1137,3 +1137,12 @@
 - [x] handleGenerateOrder no QuoteDetail chama calcDeliveryDate antes de gerar o Excel
 - [x] Excel do pedido de fábrica: prazo exibido como "19 dias úteis → DD/MM/YYYY"
 - [x] 0 erros TypeScript, 516/516 testes passando
+
+## v32.17 — Acessórios Vinculados ao Produto (Sub-item Opcional)
+
+- [ ] Adicionar campo `accessories?: LinkedAccessory[]` ao CartItemData (código, descrição, qtd, preço, fotoUrl)
+- [ ] Modal "Incluir Acessório": ao confirmar, acessório é adicionado ao item atual (não ao carrinho como item separado)
+- [ ] Carrinho: exibir acessórios vinculados indentados abaixo do produto pai (ícone Wrench, código, qtd, preço)
+- [ ] QuoteDetail: exibir acessórios vinculados abaixo do item pai na lista de itens
+- [ ] Excel do orçamento e pedido de fábrica: listar acessórios como sub-linhas do produto pai
+- [ ] 0 erros TypeScript, todos os testes passando

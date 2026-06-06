@@ -157,6 +157,33 @@ export interface CartItemData {
    * Aparece no Excel na coluna P (fora da área de impressão).
    */
   itemNote?: string;
+  /**
+   * Acessórios opcionais vinculados a este item (ex: rabicho, conector, suporte).
+   * São montados na própria luminária — não são itens independentes no carrinho.
+   * Aparecem indentados abaixo do produto pai no carrinho, orçamento e ficha de produção.
+   */
+  accessories?: LinkedAccessory[];
+}
+
+/**
+ * Acessório opcional vinculado a um item do carrinho.
+ * Montado na luminária — não é um item independente.
+ */
+export interface LinkedAccessory {
+  /** Código/SKU do acessório */
+  codigo: string;
+  /** Descrição do acessório */
+  descricao: string;
+  /** Quantidade (padrão: 1 por luminária) */
+  qty: number;
+  /** Preço unitário do acessório (null se não cadastrado) */
+  unitPrice: number | null;
+  /** URL da foto do acessório */
+  fotoUrl?: string | null;
+  /** Família/categoria do acessório (ex: "Rabicho", "Conector") */
+  familia?: string;
+  /** Dimensão do acessório (ex: "1,5m") */
+  dimensao?: string;
 }
 
 export interface QuoteFormData {
