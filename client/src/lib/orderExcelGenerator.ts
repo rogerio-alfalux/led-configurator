@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { CartItemData } from "./cartTypes";
+import type { LinkedAccessory } from "./cartTypes";
 
 export interface OrderFormData {
   clientName: string;
@@ -450,9 +451,39 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
 
     // OBSERVAÇÕES (J) — deixar em branco
     fillRow(ws.getCell(`J${rowNum}`), "");
+    // ── Sub-linhas de acessórios vinculados ──────────────────────────────
+    if (item.accessories && item.accessories.length > 0) {
+      (item.accessories as LinkedAccessory[]).forEach((acc) => {
+        ws.spliceRows(rowNum + 1, 0, []);
+        const accRowNum = rowNum + 1;
+        ws.getRow(accRowNum).height = 20;
+        const ACC_BG = "FFE0F7FA";
+        const fillAcc = (cell: ExcelJS.Cell, value: string | number | null, bold = false) => {
+          cell.value = value ?? "";
+          cell.font = { size: 9, bold, italic: true, color: { argb: "FF006064" } };
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
+          cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+          applyBorder(cell);
+        };
+        fillAcc(ws.getCell(`A${accRowNum}`), "");
+        fillAcc(ws.getCell(`B${accRowNum}`), "");
+        fillAcc(ws.getCell(`C${accRowNum}`), "");
+        const accDCell = ws.getCell(`D${accRowNum}`);
+        accDCell.value = `↳ Acessório: ${acc.descricao}`;
+        accDCell.font = { size: 9, italic: true, color: { argb: "FF006064" } };
+        accDCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
+        accDCell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+        applyBorder(accDCell);
+        fillAcc(ws.getCell(`E${accRowNum}`), acc.codigo ?? "");
+        fillAcc(ws.getCell(`F${accRowNum}`), "");
+        fillAcc(ws.getCell(`G${accRowNum}`), "");
+        fillAcc(ws.getCell(`H${accRowNum}`), acc.qty, true);
+        fillAcc(ws.getCell(`I${accRowNum}`), "");
+        fillAcc(ws.getCell(`J${accRowNum}`), "");
+      });
+    }
   }
-
-  // Aguardar todas as imagens
+  // Aguardar todas as imagenss
   await Promise.allSettled(imagePromises);
 
   // ─── Linha de observações gerais ─────────────────────────────────────────

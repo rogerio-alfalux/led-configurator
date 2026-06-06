@@ -1475,6 +1475,8 @@ export default function Home() {
     return v ? parseInt(v, 10) : null;
   }, []);
   const [pendingQuoteItems, setPendingQuoteItems] = useState<CartItemData[]>([]);
+  // Acessórios pendentes a serem vinculados ao próximo item enviado ao carrinho
+  const [pendingAccessories, setPendingAccessories] = useState<LinkedAccessory[]>([]);
   const appendItemsMutation = trpc.quotes.appendItems.useMutation({
     onSuccess: (data) => {
       toast.success(`${pendingQuoteItems.length} item(s) adicionado(s) ao orçamento ${data.quoteNumber}!`);
@@ -1487,13 +1489,20 @@ export default function Home() {
 
   // Função central: adiciona ao orçamento ou ao carrinho dependendo do modo
   const handleAddItemOrToQuote = useCallback((item: CartItemData) => {
-    if (appendToQuoteId) {
-      setPendingQuoteItems(prev => [...prev, item]);
-      toast.success(`"${item.description || item.sku}" adicionado à lista (${pendingQuoteItems.length + 1} item(s) pendente(s)).`);
-    } else {
-      addItem(item);
+    // Injeta acessórios pendentes no item antes de enviá-lo
+    const itemWithAcc: CartItemData = pendingAccessories.length > 0
+      ? { ...item, accessories: [...pendingAccessories] }
+      : item;
+    if (pendingAccessories.length > 0) {
+      setPendingAccessories([]);
     }
-  }, [appendToQuoteId, pendingQuoteItems.length, addItem]);
+    if (appendToQuoteId) {
+      setPendingQuoteItems(prev => [...prev, itemWithAcc]);
+      toast.success(`"${itemWithAcc.description || itemWithAcc.sku}" adicionado à lista (${pendingQuoteItems.length + 1} item(s) pendente(s)).`);
+    } else {
+      addItem(itemWithAcc);
+    }
+  }, [appendToQuoteId, pendingQuoteItems.length, addItem, pendingAccessories]);
 
   const handleConfirmAddToQuote = useCallback(() => {
     if (!appendToQuoteId || pendingQuoteItems.length === 0) return;
@@ -1775,7 +1784,11 @@ export default function Home() {
     if (appendToQuoteId) {
       handleAddItemOrToQuote(item);
     } else {
-      addItem(item);
+      const itemWithAcc: CartItemData = pendingAccessories.length > 0
+        ? { ...item, accessories: [...pendingAccessories] }
+        : item;
+      if (pendingAccessories.length > 0) setPendingAccessories([]);
+      addItem(itemWithAcc);
       if (precoVenda > 0) {
         toast.success(`"${product.name}" adicionado com preço R$ ${precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.`);
       } else {
@@ -1783,14 +1796,12 @@ export default function Home() {
       }
     }
     setRvSelectedSku("");
-  }, [rvSelectedSku, revendaProducts, addItem, appendToQuoteId, handleAddItemOrToQuote]);
+  }, [rvSelectedSku, revendaProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, pendingAccessories]);
 
   // ── Estados de Acessórios ────────────────────────────────────
   const [acSelectedId, setAcSelectedId] = useState<number | null>(null);
   const [acFamilia, setAcFamilia] = useState<string>("");
   const [acSearch, setAcSearch] = useState<string>("");
-  // Acessórios pendentes para vincular ao próximo item enviado ao carrinho
-  const [pendingAccessories, setPendingAccessories] = useState<LinkedAccessory[]>([]);
   // Modal de inclusão de acessório a partir do painel de resultados
   const [addAcModalOpen, setAddAcModalOpen] = useState(false);
   const [addAcModalFamilia, setAddAcModalFamilia] = useState<string>("");
@@ -6624,7 +6635,14 @@ export default function Home() {
         open={colorModalOpen}
         onClose={() => { setColorModalOpen(false); setPendingCartItem(null); }}
         onConfirm={(cor: CorPeca) => {
-          if (pendingCartItem) addItem({ ...pendingCartItem, corPeca: cor });
+          if (pendingCartItem) {
+            // Injeta acessórios pendentes no item antes de enviar ao carrinho
+            const itemWithAcc: CartItemData = pendingAccessories.length > 0
+              ? { ...pendingCartItem, corPeca: cor, accessories: [...pendingAccessories] }
+              : { ...pendingCartItem, corPeca: cor };
+            if (pendingAccessories.length > 0) setPendingAccessories([]);
+            addItem(itemWithAcc);
+          }
           setColorModalOpen(false);
           setPendingCartItem(null);
         }}

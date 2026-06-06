@@ -21,7 +21,7 @@ import {
   ShoppingCart, Trash2, FileSpreadsheet, ArrowLeft, Package,
   Plus, Minus, Save, ClipboardList, Factory, AlertTriangle,
   ChevronRight, Tag, Percent, Truck, Users, PlusCircle, CheckCircle2,
-  GripVertical, Pencil,
+  GripVertical, Pencil, Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCart } from "@/hooks/useCart";
 import { formatBRL, QuoteFormData, CartItemData, parseCartItemData } from "@/lib/cartTypes";
+import type { LinkedAccessory } from "@/lib/cartTypes";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
 import { generateOrderExcel } from "@/lib/orderExcelGenerator";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -201,6 +202,22 @@ function SortableCartItem({
                     <p className="text-xs text-muted-foreground italic mt-1 truncate max-w-xs" title={entry.data.itemNote}>
                       📋 {entry.data.itemNote}
                     </p>
+                  )}
+                  {/* Acessórios vinculados */}
+                  {entry.data.accessories && entry.data.accessories.length > 0 && (
+                    <div className="mt-2 border-l-2 border-cyan-500/40 pl-2 space-y-1">
+                      {(entry.data.accessories as LinkedAccessory[]).map((acc, i) => (
+                        <div key={i} className="flex items-center gap-1.5 text-xs">
+                          <Wrench className="w-3 h-3 flex-shrink-0 text-cyan-500" />
+                          <span className="font-mono text-[10px] text-muted-foreground">{acc.codigo}</span>
+                          <span className="text-cyan-700 dark:text-cyan-400 truncate">{acc.descricao}</span>
+                          {acc.qty > 1 && <span className="text-muted-foreground">x{acc.qty}</span>}
+                          {acc.unitPrice != null && acc.unitPrice > 0 && (
+                            <span className="ml-auto text-muted-foreground">{formatBRL(acc.unitPrice)}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
