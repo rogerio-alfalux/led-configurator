@@ -147,7 +147,7 @@ export const users = mysqlTable("users", {
 	name: text(),
 	email: varchar({ length: 320 }),
 	loginMethod: varchar({ length: 64 }),
-	role: mysqlEnum(['user','admin']).default('user').notNull(),
+	role: mysqlEnum(['user','admin','gerente','vendedor','assistente']).default('user').notNull(),
 	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 	updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 	lastSignedIn: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
@@ -220,3 +220,19 @@ export type FactoryOrder = InferSelectModel<typeof factoryOrders>;
 export type InsertFactoryOrder = InferInsertModel<typeof factoryOrders>;
 export type FactoryOrderItem = InferSelectModel<typeof factoryOrderItems>;
 export type InsertFactoryOrderItem = InferInsertModel<typeof factoryOrderItems>;
+// ─── Metas de Faturamento ─────────────────────────────────────────────────────
+export const salesGoals = mysqlTable("sales_goals", {
+	id: int().autoincrement().notNull(),
+	/** Ano da meta (ex: 2025) */
+	year: int().notNull(),
+	/** Mês da meta (1-12). NULL = meta anual */
+	month: int(),
+	/** Valor da meta em R$ */
+	goalAmount: decimal({ precision: 14, scale: 2 }).notNull(),
+	/** Usuário que definiu a meta */
+	setByUserId: int(),
+	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+});
+export type SalesGoal = InferSelectModel<typeof salesGoals>;
+export type InsertSalesGoal = InferInsertModel<typeof salesGoals>;

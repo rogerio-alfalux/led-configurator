@@ -4,7 +4,8 @@ import {
   InsertUser, users, cartItems, InsertCartItem, sellers, assistants,
   quotes, quoteVersions, quoteItems, InsertQuote, InsertQuoteVersion, InsertQuoteItem,
   auditLogs, InsertAuditLog,
-  factoryOrders, factoryOrderItems, InsertFactoryOrder, InsertFactoryOrderItem
+  factoryOrders, factoryOrderItems, InsertFactoryOrder, InsertFactoryOrderItem,
+  salesGoals, InsertSalesGoal
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -886,4 +887,254 @@ export async function createFactoryOrderRevision(sourceOrderId: number) {
     );
   }
   return newOrderId;
+}
+
+// ─── Metas de Faturamento ─────────────────────────────────────────────────────
+/** Retorna todas as metas de um ano */
+export async function getSalesGoalsByYear(year: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(salesGoals).where(eq(salesGoals.year, year)).orderBy(asc(salesGoals.month));
+}
+
+/** Upsert de meta: cria ou atualiza meta anual (month=null) ou mensal */
+export async function upsertSalesGoal(data: { year: number; month: number | null; goalAmount: string; setByUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error('DB não disponível');
+  // Verificar se já existe
+  const existing = await db.select({ id: salesGoals.id })
+    .from(salesGoals)
+    .where(
+      data.month == null
+        ? and(eq(salesGoals.year, data.year), sql`month IS NULL`)
+        : and(eq(salesGoals.year, data.year), eq(salesGoals.month, data.month))
+    )
+    .limit(1);
+  if (existing.length > 0) {
+    await db.update(salesGoals)
+      .set({ goalAmount: data.goalAmount, setByUserId: data.setByUserId })
+      .where(eq(salesGoals.id, existing[0].id));
+    return existing[0].id;
+  } else {
+    const [result] = await db.insert(salesGoals).values({
+      year: data.year,
+      month: data.month,
+      goalAmount: data.goalAmount,
+      setByUserId: data.setByUserId,
+    });
+    return (result as any).insertId as number;
+  }
+}
+
+// ─── Dashboard Gerencial ──────────────────────────────────────────────────────
+/**
+ * Retorna dados completos do dashboard para admins/gerentes.
+ * Inclui: comissões por vendedor, ranking RT, metas e progresso.
+ */
+export async function getManagerDashboard(year: number, month?: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  // ── Totais gerais do período ──────────────────────────────────────────────
+  const periodCondition = month
+    ? sql`YEAR(approvedAt) = ${year} AND MONTH(approvedAt) = ${month} AND status = 'approved'`
+    : sql`YEAR(approvedAt) = ${year} AND status = 'approved'`;
+
+  const [periodTotals] = await db.select({
+    approvedCount: sql<number>`count(*)`,
+    approvedAmount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
+  }).from(quotes).where(periodCondition);
+
+  // ── Comissões por vendedor (seller1) ──────────────────────────────────────
+  const commissionBySeller = await db.select({
+    sellerName: quotes.seller1Name,
+    count: sql<number>`count(*)`,
+    totalAmount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
+    totalCommission: sql<number>`sum(cast(totalFinal as decimal(14,2)) * cast(commissionPercent as decimal(5,4)))`,
+  })
+    .from(quotes)
+    .where(and(periodCondition, sql`seller1Name IS NOT NULL`))
+    .groupBy(quotes.seller1Name)
+    .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)) * cast(commissionPercent as decimal(5,4)))`));
+
+  // ── RT: quem mais recebe RT ───────────────────────────────────────────────
+  // rtDest1/2/3 são strings com o nome do destinatário
+  const rtByDest1 = await db.select({
+    dest: quotes.rtDest1,
+    count: sql<number>`count(*)`,
+    totalRt: sql<number>`sum(cast(totalFinal as decimal(14,2)) * cast(rtPercent as decimal(5,4)))`,
+  })
+    .from(quotes)
+    .where(and(periodCondition, sql`rtDest1 IS NOT NULL AND rtDest1 != '' AND rtDest1Active = 1 AND cast(rtPercent as decimal(5,4)) > 0`))
+    .groupBy(quotes.rtDest1)
+    .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)) * cast(rtPercent as decimal(5,4)))`));
+
+  const rtByDest2 = await db.select({
+    dest: quotes.rtDest2,
+    count: sql<number>`count(*)`,
+    totalRt: sql<number>`sum(cast(totalFinal as decimal(14,2)) * cast(rtPercent as decimal(5,4)))`,
+  })
+    .from(quotes)
+    .where(and(periodCondition, sql`rtDest2 IS NOT NULL AND rtDest2 != '' AND rtDest2Active = 1 AND cast(rtPercent as decimal(5,4)) > 0`))
+    .groupBy(quotes.rtDest2)
+    .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)) * cast(rtPercent as decimal(5,4)))`));
+
+  const rtByDest3 = await db.select({
+    dest: quotes.rtDest3,
+    count: sql<number>`count(*)`,
+    totalRt: sql<number>`sum(cast(totalFinal as decimal(14,2)) * cast(rtPercent as decimal(5,4)))`,
+  })
+    .from(quotes)
+    .where(and(periodCondition, sql`rtDest3 IS NOT NULL AND rtDest3 != '' AND rtDest3Active = 1 AND cast(rtPercent as decimal(5,4)) > 0`))
+    .groupBy(quotes.rtDest3)
+    .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)) * cast(rtPercent as decimal(5,4)))`));
+
+  // Consolidar RT por destinatário
+  const rtMap = new Map<string, { count: number; totalRt: number }>();
+  for (const row of [...rtByDest1, ...rtByDest2, ...rtByDest3]) {
+    if (!row.dest) continue;
+    const existing = rtMap.get(row.dest) ?? { count: 0, totalRt: 0 };
+    rtMap.set(row.dest, {
+      count: existing.count + Number(row.count),
+      totalRt: existing.totalRt + Number(row.totalRt),
+    });
+  }
+  const rtRanking = Array.from(rtMap.entries())
+    .map(([dest, v]) => ({ dest, count: v.count, totalRt: v.totalRt }))
+    .sort((a, b) => b.totalRt - a.totalRt);
+
+  // ── Ranking de vendas (por valor aprovado) ────────────────────────────────
+  const salesRanking = await db.select({
+    sellerName: quotes.seller1Name,
+    count: sql<number>`count(*)`,
+    totalAmount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
+  })
+    .from(quotes)
+    .where(and(periodCondition, sql`seller1Name IS NOT NULL`))
+    .groupBy(quotes.seller1Name)
+    .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)))`));
+
+  // ── Progresso mensal (todos os meses do ano) ──────────────────────────────
+  const monthlyProgress = await db.select({
+    month: sql<number>`MONTH(approvedAt)`,
+    count: sql<number>`count(*)`,
+    amount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
+  })
+    .from(quotes)
+    .where(sql`YEAR(approvedAt) = ${year} AND status = 'approved'`)
+    .groupBy(sql`MONTH(approvedAt)`)
+    .orderBy(sql`MONTH(approvedAt)`);
+
+  // ── Metas ─────────────────────────────────────────────────────────────────
+  const goals = await getSalesGoalsByYear(year);
+
+  return {
+    periodTotals,
+    commissionBySeller,
+    rtRanking,
+    salesRanking,
+    monthlyProgress,
+    goals,
+  };
+}
+
+/**
+ * Retorna dados do dashboard para um vendedor específico (apenas seus orçamentos).
+ * Filtra por email do vendedor na tabela sellers.
+ */
+export async function getSellerDashboard(sellerEmail: string, year: number, month?: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  // Buscar o seller pelo email
+  const [seller] = await db.select({ id: sellers.id, name: sellers.name })
+    .from(sellers)
+    .where(eq(sellers.email, sellerEmail))
+    .limit(1);
+
+  if (!seller) return null;
+
+  const periodCondition = month
+    ? and(
+        sql`YEAR(approvedAt) = ${year} AND MONTH(approvedAt) = ${month} AND status = 'approved'`,
+        sql`(seller1Id = ${seller.id} OR seller2Id = ${seller.id})`
+      )
+    : and(
+        sql`YEAR(approvedAt) = ${year} AND status = 'approved'`,
+        sql`(seller1Id = ${seller.id} OR seller2Id = ${seller.id})`
+      );
+
+  const [totals] = await db.select({
+    approvedCount: sql<number>`count(*)`,
+    approvedAmount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
+    totalCommission: sql<number>`sum(cast(totalFinal as decimal(14,2)) * cast(commissionPercent as decimal(5,4)))`,
+  }).from(quotes).where(periodCondition);
+
+  // Progresso mensal do vendedor
+  const monthlyProgress = await db.select({
+    month: sql<number>`MONTH(approvedAt)`,
+    count: sql<number>`count(*)`,
+    amount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
+    commission: sql<number>`sum(cast(totalFinal as decimal(14,2)) * cast(commissionPercent as decimal(5,4)))`,
+  })
+    .from(quotes)
+    .where(
+      and(
+        sql`YEAR(approvedAt) = ${year} AND status = 'approved'`,
+        sql`(seller1Id = ${seller.id} OR seller2Id = ${seller.id})`
+      )
+    )
+    .groupBy(sql`MONTH(approvedAt)`)
+    .orderBy(sql`MONTH(approvedAt)`);
+
+  // Metas (visíveis para todos)
+  const goals = await getSalesGoalsByYear(year);
+
+  return {
+    seller,
+    totals,
+    monthlyProgress,
+    goals,
+  };
+}
+
+// ─── Relatório Mensal de Vendas ───────────────────────────────────────────────
+/**
+ * Retorna todos os orçamentos aprovados de um mês/ano com dados de comissão e RT.
+ * Usado para gerar o relatório mensal de vendas.
+ */
+export async function getMonthlyReport(year: number, month: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const rows = await db.select({
+    id: quotes.id,
+    quoteNumber: quotes.quoteNumber,
+    clientName: quotes.clientName,
+    seller1Name: quotes.seller1Name,
+    seller2Name: quotes.seller2Name,
+    assistantName: quotes.assistantName,
+    totalFinal: quotes.totalFinal,
+    commissionPercent: quotes.commissionPercent,
+    rtPercent: quotes.rtPercent,
+    rtDest1: quotes.rtDest1,
+    rtDest1Active: quotes.rtDest1Active,
+    rtDest2: quotes.rtDest2,
+    rtDest2Active: quotes.rtDest2Active,
+    rtDest3: quotes.rtDest3,
+    rtDest3Active: quotes.rtDest3Active,
+    approvedAt: sql<string>`approvedAt`,
+  })
+    .from(quotes)
+    .where(sql`YEAR(approvedAt) = ${year} AND MONTH(approvedAt) = ${month} AND status = 'approved'`)
+    .orderBy(sql`approvedAt`);
+
+  return rows.map(r => ({
+    ...r,
+    totalFinal: Number(r.totalFinal ?? 0),
+    commissionPercent: Number(r.commissionPercent ?? 0),
+    rtPercent: Number(r.rtPercent ?? 0),
+    commission: Number(r.totalFinal ?? 0) * Number(r.commissionPercent ?? 0),
+    rtValue: Number(r.totalFinal ?? 0) * Number(r.rtPercent ?? 0),
+  }));
 }

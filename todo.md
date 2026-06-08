@@ -1163,3 +1163,17 @@
 - [x] Integrar ao QuoteDetail: botão "Gerenciar Pedido de Fábrica" abre FactoryOrderDetail (orçamento congelado, pedido editável)
 - [x] Excel do pedido de fábrica gerado a partir dos dados do factory_order (não mais do orçamento)
 - [x] 0 erros TypeScript novos, 516/516 testes passando
+
+## v32.22 — Dashboard Gerencial com Controle de Acesso
+
+- [x] Expandir enum `role` em users: admin | gerente | vendedor | assistente | user
+- [x] Criar tabela `sales_goals` (metas anuais e mensais de faturamento)
+- [x] Funções DB: getManagerDashboard, getSellerDashboard, getSalesGoalsByYear, upsertSalesGoal, getMonthlyReport
+- [x] Procedures tRPC: dashboard.managerData, dashboard.sellerData, dashboard.goals, dashboard.upsertGoal, dashboard.updateUserRole, dashboard.listUsers, dashboard.monthlyReport
+- [x] Dashboard reescrito com controle de acesso por papel (admin/gerente veem tudo, vendedor vê só os próprios dados, assistente bloqueado)
+- [x] Comissões por vendedor: total faturado, % comissão, valor a receber — visível somente para admin/gerente
+- [x] Ranking de vendas por vendedor — visível somente para admin/gerente
+- [x] Ranking de RT (Retorno de Tabela) por destinatário — visível somente para admin/gerente
+- [x] Metas de faturamento: anual e mensal com barra de progresso — visível para todos exceto assistentes, editável somente por admin
+- [x] Exportar relatório mensal de vendas em Excel com comissões por vendedor e resumo por vendedor — somente admin/gerente
+- [x] 516/516 testes passando, 0 erros TypeScript novos

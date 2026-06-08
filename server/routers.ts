@@ -12,6 +12,8 @@ import {
   createFactoryOrder, getFactoryOrdersByQuoteId, getFactoryOrderById,
   updateFactoryOrder, addFactoryOrderItem, updateFactoryOrderItem,
   deleteFactoryOrderItem, createFactoryOrderRevision,
+  getManagerDashboard, getSellerDashboard, getSalesGoalsByYear, upsertSalesGoal,
+  getMonthlyReport,
 } from "./db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -685,7 +687,91 @@ export const appRouter = router({
       }),
   }),
 
-  // ─── Painel ADM ────────────────────────────────────────────────────────────
+   // ─── Dashboard Gerencial ────────────────────────────────────────────────────
+  dashboard: router({
+    /** Dados completos para admin/gerente */
+    managerData: protectedProcedure
+      .input(z.object({ year: z.number(), month: z.number().optional() }))
+      .query(async ({ ctx, input }) => {
+        const email = ctx.user.email?.toLowerCase() ?? '';
+        const isManager = ctx.user.role === 'admin' ||
+          ctx.user.role === 'gerente' ||
+          MANAGER_EMAILS.map(e => e.toLowerCase()).includes(email);
+        if (!isManager) throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso restrito a gerentes e administradores.' });
+        return getManagerDashboard(input.year, input.month);
+      }),
+    /** Dados do próprio vendedor */
+    sellerData: protectedProcedure
+      .input(z.object({ year: z.number(), month: z.number().optional() }))
+      .query(async ({ ctx, input }) => {
+        const role = ctx.user.role;
+        if (role === 'assistente') throw new TRPCError({ code: 'FORBIDDEN', message: 'Assistentes não têm acesso ao dashboard.' });
+        const email = ctx.user.email ?? '';
+        return getSellerDashboard(email, input.year, input.month);
+      }),
+    /** Metas do ano (visível para todos exceto assistentes) */
+    goals: protectedProcedure
+      .input(z.object({ year: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role === 'assistente') throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado.' });
+        return getSalesGoalsByYear(input.year);
+      }),
+    /** Upsert de meta (somente admin) */
+    upsertGoal: adminProcedure
+      .input(z.object({
+        year: z.number(),
+        month: z.number().nullable(),
+        goalAmount: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const id = await upsertSalesGoal({
+          year: input.year,
+          month: input.month,
+          goalAmount: input.goalAmount,
+          setByUserId: ctx.user.id,
+        });
+        return { id };
+      }),
+    /** Atualiza role de um usuário (somente admin) */
+    updateUserRole: adminProcedure
+      .input(z.object({
+        userId: z.number(),
+        role: z.enum(['user', 'admin', 'gerente', 'vendedor', 'assistente']),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const { users } = await import('../drizzle/schema');
+        await db.update(users).set({ role: input.role }).where(eq(users.id, input.userId));
+        return { success: true };
+      }),
+    /** Relatório mensal de vendas com comissões (somente admin/gerente) */
+    monthlyReport: protectedProcedure
+      .input(z.object({ year: z.number(), month: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const email = ctx.user.email?.toLowerCase() ?? '';
+        const isManager = ctx.user.role === 'admin' ||
+          ctx.user.role === 'gerente' ||
+          MANAGER_EMAILS.map(e => e.toLowerCase()).includes(email);
+        if (!isManager) throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso restrito a gerentes e administradores.' });
+        return getMonthlyReport(input.year, input.month);
+      }),
+    /** Lista usuários com seus roles (somente admin) */
+    listUsers: adminProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      const { users } = await import('../drizzle/schema');
+      const { desc } = await import('drizzle-orm');
+      return db.select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        role: users.role,
+        lastSignedIn: users.lastSignedIn,
+      }).from(users).orderBy(desc(users.lastSignedIn));
+    }),
+  }),
+  // ─── Painel ADM ──────────────────────────────────────────────────────
   admin: router({
     getLogs: adminProcedure
       .input(z.object({
