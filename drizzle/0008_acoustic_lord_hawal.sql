@@ -1,0 +1,1 @@
+ALTER TABLE `factory_orders` ADD `orderNumber` varchar(100);

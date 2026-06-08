@@ -6,6 +6,8 @@ export interface OrderFormData {
   clientName: string;
   projectName: string;
   quoteNumber: string;
+  /** Número do pedido de fábrica (digitado manualmente). Se informado, aparece no Excel em vez do quoteNumber. */
+  orderNumber?: string;
   vendorName: string;
   date: string;
   /** Empresa fabricante: "ALFALUX" (padrão) ou "LUMINEW" */
@@ -305,7 +307,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   labelCell(ws.getCell("F4"), "VENDEDOR:");
 
   // Col G: valor pedido (G3) e valor vendedor (G4)
-  valueCell(ws.getCell("G3"), form.quoteNumber);
+  valueCell(ws.getCell("G3"), form.orderNumber || form.quoteNumber);
   ws.getCell("G3").font = { bold: true, size: 11 };
   valueCell(ws.getCell("G4"), form.vendorName);
 
@@ -502,7 +504,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `PEDIDO-FABRICA-${form.quoteNumber}-${form.clientName.replace(/\s+/g, "_")}.xlsx`;
+  a.download = `PEDIDO-FABRICA-${form.orderNumber || form.quoteNumber}-${form.clientName.replace(/\s+/g, "_")}.xlsx`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

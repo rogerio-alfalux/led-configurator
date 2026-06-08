@@ -160,6 +160,7 @@ export const users = mysqlTable("users", {
 export const factoryOrders = mysqlTable("factory_orders", {
 	id: int().autoincrement().notNull(),
 	quoteId: int().notNull(),
+	orderNumber: varchar({ length: 100 }),
 	revision: int().default(1).notNull(),
 	empresa: mysqlEnum(['ALFALUX','LUMINEW']).default('ALFALUX').notNull(),
 	status: mysqlEnum(['draft','sent','in_production','completed']).default('draft').notNull(),

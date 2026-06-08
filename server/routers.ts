@@ -628,10 +628,11 @@ export const appRouter = router({
         return order;
       }),
 
-    /** Atualiza campos do pedido (empresa, status, deliveryDays, notes) */
+    /** Atualiza campos do pedido (empresa, status, deliveryDays, notes, orderNumber) */
     update: protectedProcedure
       .input(z.object({
         id: z.number(),
+        orderNumber: z.string().optional(),
         empresa: z.enum(['ALFALUX', 'LUMINEW']).optional(),
         status: z.enum(['draft', 'sent', 'in_production', 'completed']).optional(),
         deliveryDays: z.number().optional(),

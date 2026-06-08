@@ -830,6 +830,7 @@ export async function getFactoryOrderById(id: number) {
 
 /** Atualiza campos do pedido de fábrica (empresa, status, deliveryDays, notes) */
 export async function updateFactoryOrder(id: number, data: Partial<{
+  orderNumber: string;
   empresa: 'ALFALUX' | 'LUMINEW';
   status: 'draft' | 'sent' | 'in_production' | 'completed';
   deliveryDays: number;

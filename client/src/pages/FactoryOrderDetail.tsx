@@ -1,9 +1,9 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import {
   ArrowLeft, Factory, Plus, Trash2, RefreshCw, FileSpreadsheet,
   ChevronDown, ChevronUp, Wrench, X, Search, Package,
-  CheckCircle, Clock, Truck, AlertTriangle,
+  CheckCircle, Clock, Truck, AlertTriangle, Edit2, Save,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,6 +41,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove }: Editabl
   const [showAcessorioModal, setShowAcessorioModal] = useState(false);
   const [acessorioSearch, setAcessorioSearch] = useState("");
   const [acessorioFamilia, setAcessorioFamilia] = useState<string>("Todos");
+  const [acQty, setAcQty] = useState<number>(1);
 
   const parsed = useMemo(() => parseCartItemData(item.itemData), [item.itemData]);
   if (!parsed) return null;
@@ -68,10 +69,11 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove }: Editabl
   }, [acessorios, acessorioSearch, acessorioFamilia]);
 
   const handleAddAcessorio = (ac: typeof acessorios[0]) => {
+    const qty = Math.max(1, acQty || 1);
     const newAcc: LinkedAccessory = {
       codigo: ac.codigo ?? "",
       descricao: ac.produto ?? "",
-      qty: 1,
+      qty,
       unitPrice: ac.precoVenda,
       fotoUrl: ac.fotoUrl,
       familia: ac.familia ?? undefined,
@@ -81,7 +83,8 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove }: Editabl
     update({ accessories: [...existing, newAcc] });
     setShowAcessorioModal(false);
     setAcessorioSearch("");
-    toast.success(`Acessório ${ac.codigo} vinculado`);
+    setAcQty(1);
+    toast.success(`Acessório ${ac.codigo} (${qty}×) vinculado`);
   };
 
   const handleRemoveAcessorio = (idx: number) => {
@@ -95,6 +98,9 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove }: Editabl
   };
 
   const isSpecial = parsed.isSpecialItem;
+
+  // Valor seguro para o Select de driver — nunca string vazia
+  const driverValue = parsed.drivers && parsed.drivers.trim() !== "" ? parsed.drivers : "__none__";
 
   return (
     <Card className="border-border">
@@ -154,8 +160,8 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove }: Editabl
             <div>
               <Label className="text-xs">Cor da Peça</Label>
               <Select
-                value={parsed.corPeca || "A Definir"}
-                onValueChange={v => update({ corPeca: v })}
+                value={parsed.corPeca && parsed.corPeca.trim() !== "" ? parsed.corPeca : "A Definir"}
+                onValueChange={v => update({ corPeca: v === "A Definir" ? "" : v })}
               >
                 <SelectTrigger className="mt-1 h-8 text-sm">
                   <SelectValue />
@@ -198,14 +204,14 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove }: Editabl
               <Label className="text-xs">Driver / Equipamento</Label>
               <div className="flex gap-2 mt-1">
                 <Select
-                  value={parsed.drivers ?? ""}
-                  onValueChange={v => update({ drivers: v })}
+                  value={driverValue}
+                  onValueChange={v => update({ drivers: v === "__none__" ? "" : v })}
                 >
                   <SelectTrigger className="h-8 text-sm flex-1">
                     <SelectValue placeholder="Selecionar driver da API..." />
                   </SelectTrigger>
                   <SelectContent className="max-h-64">
-                    <SelectItem value="">— Sem driver —</SelectItem>
+                    <SelectItem value="__none__">— Sem driver —</SelectItem>
                     {drivers.filter(d => d.available).map(d => (
                       <SelectItem key={d.code} value={`${d.code} — ${d.model} ${d.inputVoltage}`}>
                         {d.code} — {d.model} ({d.inputVoltage})
@@ -224,7 +230,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove }: Editabl
                     )}
                   </SelectContent>
                 </Select>
-                {parsed.drivers && (
+                {parsed.drivers && parsed.drivers.trim() !== "" && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -273,7 +279,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove }: Editabl
                 variant="outline"
                 size="sm"
                 className="h-7 text-xs gap-1 border-cyan-400 text-cyan-600 hover:bg-cyan-50 dark:hover:bg-cyan-950/30"
-                onClick={() => setShowAcessorioModal(true)}
+                onClick={() => { setShowAcessorioModal(true); setAcQty(parsed.qty || 1); }}
               >
                 <Plus className="w-3 h-3" />
                 Adicionar Acessório
@@ -313,8 +319,8 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove }: Editabl
       )}
 
       {/* Modal de seleção de acessório */}
-      <Dialog open={showAcessorioModal} onOpenChange={setShowAcessorioModal}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+      <Dialog open={showAcessorioModal} onOpenChange={(open) => { setShowAcessorioModal(open); if (!open) { setAcessorioSearch(""); setAcQty(1); } }}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Adicionar Acessório</DialogTitle>
           </DialogHeader>
@@ -359,7 +365,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove }: Editabl
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-mono font-semibold">{ac.codigo}</p>
-                    <p className="text-xs text-muted-foreground truncate">{ac.produto}</p>
+                    <p className="text-xs text-muted-foreground break-words">{ac.produto}</p>
                     {ac.dimensao && <p className="text-xs text-muted-foreground">{ac.dimensao}</p>}
                   </div>
                   <div className="text-right shrink-0">
@@ -371,6 +377,20 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove }: Editabl
                 </button>
               ))
             )}
+          </div>
+          {/* Quantidade + botões */}
+          <div className="flex items-center justify-between gap-3 pt-2 border-t">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm text-muted-foreground whitespace-nowrap">Quantidade:</Label>
+              <Input
+                type="number"
+                min={1}
+                value={acQty}
+                onChange={e => setAcQty(Math.max(1, parseInt(e.target.value) || 1))}
+                className="w-20 h-8 text-sm text-center"
+              />
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setShowAcessorioModal(false)}>Fechar</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -391,11 +411,14 @@ export default function FactoryOrderDetail() {
   const [showRevisionDialog, setShowRevisionDialog] = useState(false);
   const [notesEdit, setNotesEdit] = useState("");
   const [showNotesEdit, setShowNotesEdit] = useState(false);
+  // Número do pedido de fábrica (editável manualmente)
+  const [orderNumberEdit, setOrderNumberEdit] = useState("");
+  const [editingOrderNumber, setEditingOrderNumber] = useState(false);
 
   // Dados do orçamento
   const { data: quoteData, isLoading: quoteLoading } = trpc.quotes.getById.useQuery({ id: Number(quoteId) });
 
-  // Lista de pedidos de fábrica
+  // Lista de pedidos de fábrica deste orçamento
   const { data: orders = [], isLoading: ordersLoading } = trpc.factoryOrders.list.useQuery({ quoteId: Number(quoteId) });
 
   // Pedido selecionado (com itens)
@@ -404,6 +427,13 @@ export default function FactoryOrderDetail() {
     { id: effectiveOrderId! },
     { enabled: effectiveOrderId !== null }
   );
+
+  // Sincronizar orderNumberEdit quando o pedido carrega
+  useEffect(() => {
+    if (currentOrder) {
+      setOrderNumberEdit(currentOrder.orderNumber ?? "");
+    }
+  }, [currentOrder?.id, currentOrder?.orderNumber]);
 
   // Drivers da API
   const { data: driversData = [] } = trpc.led.drivers.useQuery();
@@ -463,11 +493,12 @@ export default function FactoryOrderDetail() {
     onError: (err) => toast.error(`Erro: ${err.message}`),
   });
 
-  // Handlers
   const handleCreateOrder = useCallback(() => {
     if (!quoteData) return;
     const { quote, versions, items } = quoteData;
-    const currentVersionId = versions[0]?.id;
+    // Pegar a versão mais recente do orçamento
+    const sortedVersions = [...versions].sort((a, b) => b.version - a.version);
+    const currentVersionId = sortedVersions[0]?.id;
     const currentItems = items.filter(i => i.quoteVersionId === currentVersionId);
     createOrderMutation.mutate({
       quoteId: Number(quoteId),
@@ -508,6 +539,13 @@ export default function FactoryOrderDetail() {
     });
   }, [effectiveOrderId, currentOrder, addItemMutation]);
 
+  const handleSaveOrderNumber = useCallback(() => {
+    if (!effectiveOrderId) return;
+    updateOrderMutation.mutate({ id: effectiveOrderId, orderNumber: orderNumberEdit.trim() });
+    setEditingOrderNumber(false);
+    toast.success("Número do pedido salvo");
+  }, [effectiveOrderId, orderNumberEdit, updateOrderMutation]);
+
   const handleGenerateExcel = useCallback(async () => {
     if (!currentOrder || !quoteData) return;
     setIsGenerating(true);
@@ -525,6 +563,7 @@ export default function FactoryOrderDetail() {
         clientName: quote.clientName,
         projectName: quote.projectName ?? "",
         quoteNumber: `${quote.quoteNumber} Rev.${currentOrder.revision}`,
+        orderNumber: currentOrder.orderNumber ?? undefined,
         vendorName: quote.vendorName ?? "",
         date: new Date().toLocaleDateString("pt-BR"),
         empresa: currentOrder.empresa as "ALFALUX" | "LUMINEW",
@@ -589,7 +628,7 @@ export default function FactoryOrderDetail() {
             <Factory className="w-5 h-5 text-orange-500 shrink-0" />
             <div className="min-w-0">
               <h1 className="text-sm font-semibold truncate">
-                Pedido de Fábrica — {quote.quoteNumber}
+                Pedido de Fábrica — Orç. {quote.quoteNumber}
               </h1>
               <p className="text-xs text-muted-foreground truncate">{quote.clientName}</p>
             </div>
@@ -677,7 +716,12 @@ export default function FactoryOrderDetail() {
                         {st.label}
                       </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">{order.empresa}</p>
+                    {order.orderNumber && (
+                      <p className="text-xs font-mono text-orange-700 dark:text-orange-400 mt-0.5">
+                        Ped. {order.orderNumber}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-0.5">{order.empresa}</p>
                     <p className="text-xs text-muted-foreground">
                       {new Date(order.createdAt).toLocaleDateString("pt-BR")}
                     </p>
@@ -697,7 +741,53 @@ export default function FactoryOrderDetail() {
                   {/* Cabeçalho do pedido */}
                   <Card>
                     <CardContent className="pt-4 pb-4">
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        {/* Número do Pedido de Fábrica (manual) */}
+                        <div className="sm:col-span-3">
+                          <Label className="text-xs">Número do Pedido de Fábrica</Label>
+                          <p className="text-xs text-muted-foreground mb-1">
+                            Número interno da fábrica (diferente do número do orçamento). Será usado na ficha de produção.
+                          </p>
+                          {editingOrderNumber ? (
+                            <div className="flex gap-2 mt-1">
+                              <Input
+                                value={orderNumberEdit}
+                                onChange={e => setOrderNumberEdit(e.target.value)}
+                                placeholder="Ex: 2025-0042"
+                                className="h-8 text-sm font-mono flex-1"
+                                autoFocus
+                                onKeyDown={e => { if (e.key === "Enter") handleSaveOrderNumber(); if (e.key === "Escape") setEditingOrderNumber(false); }}
+                              />
+                              <Button size="sm" className="h-8 gap-1 bg-orange-600 hover:bg-orange-700 text-white" onClick={handleSaveOrderNumber}>
+                                <Save className="w-3.5 h-3.5" />
+                                Salvar
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-8" onClick={() => setEditingOrderNumber(false)}>
+                                Cancelar
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 mt-1">
+                              {currentOrder.orderNumber ? (
+                                <span className="text-sm font-mono font-semibold text-orange-700 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded px-2 py-1">
+                                  {currentOrder.orderNumber}
+                                </span>
+                              ) : (
+                                <span className="text-sm text-muted-foreground italic">Não informado</span>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs gap-1"
+                                onClick={() => { setOrderNumberEdit(currentOrder.orderNumber ?? ""); setEditingOrderNumber(true); }}
+                              >
+                                <Edit2 className="w-3 h-3" />
+                                {currentOrder.orderNumber ? "Editar" : "Informar"}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+
                         {/* Empresa */}
                         <div>
                           <Label className="text-xs">Empresa</Label>
@@ -745,16 +835,16 @@ export default function FactoryOrderDetail() {
                             className="mt-1 h-8 text-sm"
                           />
                         </div>
+                      </div>
 
-                        {/* Revisão */}
-                        <div>
-                          <Label className="text-xs">Revisão</Label>
-                          <div className="mt-1 h-8 flex items-center">
-                            <Badge variant="outline" className="text-sm font-semibold">
-                              Rev. {currentOrder.revision}
-                            </Badge>
-                          </div>
-                        </div>
+                      {/* Revisão */}
+                      <div className="flex items-center gap-2 mt-3">
+                        <Badge variant="outline" className="text-sm font-semibold">
+                          Rev. {currentOrder.revision}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          Criado em {new Date(currentOrder.createdAt).toLocaleDateString("pt-BR")}
+                        </span>
                       </div>
 
                       {/* Observações */}
@@ -830,7 +920,7 @@ export default function FactoryOrderDetail() {
             <DialogTitle>Criar Pedido de Fábrica</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            O pedido será criado com os itens da versão atual do orçamento. Você poderá editá-los livremente.
+            O pedido será criado com os itens da versão atual do orçamento <strong>{quote.quoteNumber}</strong>. Você poderá editá-los livremente.
           </p>
           <div className="space-y-3 py-2">
             <Label className="text-sm font-medium">Empresa Fabricante</Label>
