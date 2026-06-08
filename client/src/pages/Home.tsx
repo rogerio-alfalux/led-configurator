@@ -6563,7 +6563,7 @@ export default function Home() {
       </footer>
       {/* Modal de inclusão de acessório a partir do painel de resultados */}
       <Dialog open={addAcModalOpen} onOpenChange={(open) => { setAddAcModalOpen(open); if (!open) { setAddAcModalSelectedId(null); setAddAcModalSearch(""); setAddAcModalFamilia(""); } }}>
-        <DialogContent className="max-w-lg w-full">
+        <DialogContent className="max-w-2xl w-full">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
               <Wrench className="w-4 h-4 text-cyan-500" />
@@ -6644,11 +6644,13 @@ export default function Home() {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{p.produto ?? p.codigo}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {p.codigo}{p.dimensao ? ` · ${p.dimensao}` : ""}{p.familia ? ` · ${p.familia}` : ""}
+                    <div className="text-sm font-medium leading-snug break-words">{p.produto ?? p.codigo}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-1.5">
+                      <span className="font-mono">{p.codigo}</span>
+                      {p.dimensao && <span>· {p.dimensao}</span>}
+                      {p.familia && <span>· {p.familia}</span>}
                       {p.precoVenda != null && p.precoVenda > 0 && (
-                        <span className="ml-2 text-emerald-700 dark:text-emerald-400 font-medium">
+                        <span className="text-emerald-700 dark:text-emerald-400 font-medium">
                           R$ {p.precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                         </span>
                       )}
