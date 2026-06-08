@@ -9,6 +9,9 @@ import {
   createQuote, addQuoteRevision, listQuotes, getQuoteById, approveQuote,
   updateQuoteStatus, getQuoteStats, deleteQuote, suggestQuoteNumber,
   insertAuditLog, getAuditLogs, listSellers, listAssistants,
+  createFactoryOrder, getFactoryOrdersByQuoteId, getFactoryOrderById,
+  updateFactoryOrder, addFactoryOrderItem, updateFactoryOrderItem,
+  deleteFactoryOrderItem, createFactoryOrderRevision,
 } from "./db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -580,6 +583,104 @@ export const appRouter = router({
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
         await db.update(apiKeys).set({ active: false }).where(eq(apiKeys.id, input.id));
         return { success: true };
+      }),
+  }),
+
+  // ─── Pedidos de Fábrica ──────────────────────────────────────────────────────
+  factoryOrders: router({
+    /** Cria um novo pedido de fábrica a partir do orçamento aprovado */
+    create: protectedProcedure
+      .input(z.object({
+        quoteId: z.number(),
+        empresa: z.enum(['ALFALUX', 'LUMINEW']).default('ALFALUX'),
+        deliveryDays: z.number().optional(),
+        notes: z.string().optional(),
+        items: z.array(z.object({
+          itemNumber: z.number(),
+          itemData: z.string(), // CartItemData serializado como JSON
+        })),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const orderId = await createFactoryOrder({
+          quoteId: input.quoteId,
+          empresa: input.empresa,
+          deliveryDays: input.deliveryDays,
+          notes: input.notes,
+          createdByUserId: ctx.user.id,
+          items: input.items,
+        });
+        return { id: orderId };
+      }),
+
+    /** Lista todos os pedidos de fábrica de um orçamento */
+    list: protectedProcedure
+      .input(z.object({ quoteId: z.number() }))
+      .query(async ({ input }) => {
+        return getFactoryOrdersByQuoteId(input.quoteId);
+      }),
+
+    /** Retorna um pedido de fábrica com seus itens */
+    getById: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const order = await getFactoryOrderById(input.id);
+        if (!order) throw new TRPCError({ code: 'NOT_FOUND', message: 'Pedido não encontrado' });
+        return order;
+      }),
+
+    /** Atualiza campos do pedido (empresa, status, deliveryDays, notes) */
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        empresa: z.enum(['ALFALUX', 'LUMINEW']).optional(),
+        status: z.enum(['draft', 'sent', 'in_production', 'completed']).optional(),
+        deliveryDays: z.number().optional(),
+        notes: z.string().optional(),
+        approvedAt: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        await updateFactoryOrder(id, data);
+        return { success: true };
+      }),
+
+    /** Adiciona um item ao pedido */
+    addItem: protectedProcedure
+      .input(z.object({
+        factoryOrderId: z.number(),
+        itemNumber: z.number(),
+        itemData: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const itemId = await addFactoryOrderItem(input.factoryOrderId, input.itemNumber, input.itemData);
+        return { id: itemId };
+      }),
+
+    /** Atualiza o itemData de um item */
+    updateItem: protectedProcedure
+      .input(z.object({
+        itemId: z.number(),
+        itemData: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        await updateFactoryOrderItem(input.itemId, input.itemData);
+        return { success: true };
+      }),
+
+    /** Remove um item do pedido */
+    removeItem: protectedProcedure
+      .input(z.object({ itemId: z.number() }))
+      .mutation(async ({ input }) => {
+        await deleteFactoryOrderItem(input.itemId);
+        return { success: true };
+      }),
+
+    /** Cria nova revisão clonando o pedido atual */
+    createRevision: protectedProcedure
+      .input(z.object({ sourceOrderId: z.number() }))
+      .mutation(async ({ input }) => {
+        const newOrderId = await createFactoryOrderRevision(input.sourceOrderId);
+        return { id: newOrderId };
       }),
   }),
 

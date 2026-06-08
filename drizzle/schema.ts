@@ -156,6 +156,36 @@ export const users = mysqlTable("users", {
 	index("users_openId_unique").on(table.openId),
 ]);
 
+// ─── Pedidos de Fábrica ─────────────────────────────────────────────────────
+export const factoryOrders = mysqlTable("factory_orders", {
+	id: int().autoincrement().notNull(),
+	quoteId: int().notNull(),
+	revision: int().default(1).notNull(),
+	empresa: mysqlEnum(['ALFALUX','LUMINEW']).default('ALFALUX').notNull(),
+	status: mysqlEnum(['draft','sent','in_production','completed']).default('draft').notNull(),
+	deliveryDays: int().default(19),
+	approvedAt: timestamp({ mode: 'string' }),
+	notes: text(),
+	createdByUserId: int(),
+	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("factory_orders_quoteId_idx").on(table.quoteId),
+]);
+
+export const factoryOrderItems = mysqlTable("factory_order_items", {
+	id: int().autoincrement().notNull(),
+	factoryOrderId: int().notNull(),
+	itemNumber: int().default(1).notNull(),
+	itemData: text().notNull(),
+	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("factory_order_items_orderId_idx").on(table.factoryOrderId),
+]);
+
 // ─── Tipos inferidos para Insert/Select ──────────────────────────────────────
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
@@ -185,3 +215,7 @@ export type InsertAssistant = InferInsertModel<typeof assistants>;
 
 export type ApiKey = InferSelectModel<typeof apiKeys>;
 export type InsertApiKey = InferInsertModel<typeof apiKeys>;
+export type FactoryOrder = InferSelectModel<typeof factoryOrders>;
+export type InsertFactoryOrder = InferInsertModel<typeof factoryOrders>;
+export type FactoryOrderItem = InferSelectModel<typeof factoryOrderItems>;
+export type InsertFactoryOrderItem = InferInsertModel<typeof factoryOrderItems>;

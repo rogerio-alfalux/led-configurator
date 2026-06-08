@@ -1,0 +1,916 @@
+import { useState, useMemo, useCallback } from "react";
+import { Link, useParams, useLocation } from "wouter";
+import {
+  ArrowLeft, Factory, Plus, Trash2, RefreshCw, FileSpreadsheet,
+  ChevronDown, ChevronUp, Wrench, X, Search, Package,
+  CheckCircle, Clock, Truck, AlertTriangle,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { trpc } from "@/lib/trpc";
+import { CartItemData, LinkedAccessory, parseCartItemData, formatBRL } from "@/lib/cartTypes";
+import { CORES_PECA } from "@/components/ColorPickerModal";
+import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
+import { toast } from "sonner";
+
+const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+  draft: { label: "Rascunho", color: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300", icon: <Clock className="w-3 h-3" /> },
+  sent: { label: "Enviado", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: <Truck className="w-3 h-3" /> },
+  in_production: { label: "Em Produção", color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300", icon: <Factory className="w-3 h-3" /> },
+  completed: { label: "Concluído", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300", icon: <CheckCircle className="w-3 h-3" /> },
+};
+
+// ─── Componente de item editável ─────────────────────────────────────────────
+interface EditableItemProps {
+  item: { id: number; itemNumber: number; itemData: string };
+  drivers: Array<{ code: string; model: string; inputVoltage: string; available: boolean }>;
+  acessorios: Array<{ codigo: string | null; produto: string | null; familia: string | null; dimensao: string | null; precoVenda: number | null; fotoUrl: string | null }>;
+  onUpdate: (itemId: number, newData: CartItemData) => void;
+  onRemove: (itemId: number) => void;
+}
+
+function EditableItem({ item, drivers, acessorios, onUpdate, onRemove }: EditableItemProps) {
+  const [expanded, setExpanded] = useState(true);
+  const [showAcessorioModal, setShowAcessorioModal] = useState(false);
+  const [acessorioSearch, setAcessorioSearch] = useState("");
+  const [acessorioFamilia, setAcessorioFamilia] = useState<string>("Todos");
+
+  const parsed = useMemo(() => parseCartItemData(item.itemData), [item.itemData]);
+  if (!parsed) return null;
+
+  const update = (fields: Partial<CartItemData>) => {
+    onUpdate(item.id, { ...parsed, ...fields });
+  };
+
+  // Famílias de acessórios disponíveis
+  const familias = useMemo(() => {
+    const fams = new Set(acessorios.map(a => a.familia ?? "Outros").filter(Boolean));
+    return ["Todos", ...Array.from(fams).sort()];
+  }, [acessorios]);
+
+  const filteredAcessorios = useMemo(() => {
+    return acessorios.filter(a => {
+      const matchFamilia = acessorioFamilia === "Todos" || a.familia === acessorioFamilia;
+      const term = acessorioSearch.toLowerCase();
+      const matchSearch = !term ||
+        (a.codigo ?? "").toLowerCase().includes(term) ||
+        (a.produto ?? "").toLowerCase().includes(term) ||
+        (a.familia ?? "").toLowerCase().includes(term);
+      return matchFamilia && matchSearch;
+    });
+  }, [acessorios, acessorioSearch, acessorioFamilia]);
+
+  const handleAddAcessorio = (ac: typeof acessorios[0]) => {
+    const newAcc: LinkedAccessory = {
+      codigo: ac.codigo ?? "",
+      descricao: ac.produto ?? "",
+      qty: 1,
+      unitPrice: ac.precoVenda,
+      fotoUrl: ac.fotoUrl,
+      familia: ac.familia ?? undefined,
+      dimensao: ac.dimensao ?? undefined,
+    };
+    const existing = parsed.accessories ?? [];
+    update({ accessories: [...existing, newAcc] });
+    setShowAcessorioModal(false);
+    setAcessorioSearch("");
+    toast.success(`Acessório ${ac.codigo} vinculado`);
+  };
+
+  const handleRemoveAcessorio = (idx: number) => {
+    const accs = (parsed.accessories ?? []).filter((_, i) => i !== idx);
+    update({ accessories: accs });
+  };
+
+  const handleAcessorioQty = (idx: number, qty: number) => {
+    const accs = (parsed.accessories ?? []).map((a, i) => i === idx ? { ...a, qty } : a);
+    update({ accessories: accs });
+  };
+
+  const isSpecial = parsed.isSpecialItem;
+
+  return (
+    <Card className="border-border">
+      <CardHeader className="py-3 px-4">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded text-muted-foreground">
+            #{item.itemNumber}
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate">{parsed.sku || parsed.description}</p>
+            {parsed.sku && parsed.description !== parsed.sku && (
+              <p className="text-xs text-muted-foreground truncate">{parsed.description}</p>
+            )}
+          </div>
+          {(parsed.accessories?.length ?? 0) > 0 && (
+            <Badge variant="outline" className="text-cyan-600 border-cyan-400 gap-1 text-xs">
+              <Wrench className="w-3 h-3" />
+              {parsed.accessories!.length}
+            </Badge>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={() => setExpanded(e => !e)}
+          >
+            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+            onClick={() => onRemove(item.id)}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      </CardHeader>
+
+      {expanded && (
+        <CardContent className="px-4 pb-4 pt-0 space-y-4">
+          {/* Campos básicos */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* Quantidade */}
+            <div>
+              <Label className="text-xs">Quantidade</Label>
+              <Input
+                type="number"
+                min={1}
+                value={parsed.qty}
+                onChange={e => update({ qty: Math.max(1, parseInt(e.target.value) || 1) })}
+                className="mt-1 h-8 text-sm"
+              />
+            </div>
+
+            {/* Cor da Peça */}
+            <div>
+              <Label className="text-xs">Cor da Peça</Label>
+              <Select
+                value={parsed.corPeca || "A Definir"}
+                onValueChange={v => update({ corPeca: v })}
+              >
+                <SelectTrigger className="mt-1 h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="A Definir">A Definir</SelectItem>
+                  {CORES_PECA.map(c => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Temperatura de Cor */}
+            <div>
+              <Label className="text-xs">Temperatura de Cor</Label>
+              <Input
+                value={parsed.cct ?? ""}
+                onChange={e => update({ cct: e.target.value })}
+                placeholder="Ex: 3000K"
+                className="mt-1 h-8 text-sm"
+              />
+            </div>
+
+            {/* Item em Planta */}
+            <div>
+              <Label className="text-xs">Item em Planta</Label>
+              <Input
+                value={parsed.itemEmPlanta ?? ""}
+                onChange={e => update({ itemEmPlanta: e.target.value })}
+                placeholder="Ex: L1, EF2"
+                className="mt-1 h-8 text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Drivers (apenas para itens não-especiais) */}
+          {!isSpecial && (
+            <div>
+              <Label className="text-xs">Driver / Equipamento</Label>
+              <div className="flex gap-2 mt-1">
+                <Select
+                  value={parsed.drivers ?? ""}
+                  onValueChange={v => update({ drivers: v })}
+                >
+                  <SelectTrigger className="h-8 text-sm flex-1">
+                    <SelectValue placeholder="Selecionar driver da API..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-64">
+                    <SelectItem value="">— Sem driver —</SelectItem>
+                    {drivers.filter(d => d.available).map(d => (
+                      <SelectItem key={d.code} value={`${d.code} — ${d.model} ${d.inputVoltage}`}>
+                        {d.code} — {d.model} ({d.inputVoltage})
+                      </SelectItem>
+                    ))}
+                    {drivers.filter(d => !d.available).length > 0 && (
+                      <>
+                        <Separator className="my-1" />
+                        <div className="px-2 py-1 text-xs text-muted-foreground">Indisponíveis</div>
+                        {drivers.filter(d => !d.available).map(d => (
+                          <SelectItem key={d.code} value={`${d.code} — ${d.model} ${d.inputVoltage}`} className="opacity-50">
+                            {d.code} — {d.model} ({d.inputVoltage})
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+                {parsed.drivers && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => update({ drivers: "" })}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+              {/* Campo livre para driver manual */}
+              <Input
+                value={parsed.drivers ?? ""}
+                onChange={e => update({ drivers: e.target.value })}
+                placeholder="Ou digitar driver manualmente..."
+                className="mt-2 h-8 text-sm"
+              />
+            </div>
+          )}
+
+          {/* Descrição / SKU (editável) */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">SKU / Código</Label>
+              <Input
+                value={parsed.sku ?? ""}
+                onChange={e => update({ sku: e.target.value })}
+                className="mt-1 h-8 text-sm font-mono"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Descrição</Label>
+              <Input
+                value={parsed.description ?? ""}
+                onChange={e => update({ description: e.target.value })}
+                className="mt-1 h-8 text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Acessórios vinculados */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-xs">Acessórios Vinculados</Label>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1 border-cyan-400 text-cyan-600 hover:bg-cyan-50 dark:hover:bg-cyan-950/30"
+                onClick={() => setShowAcessorioModal(true)}
+              >
+                <Plus className="w-3 h-3" />
+                Adicionar Acessório
+              </Button>
+            </div>
+            {(parsed.accessories ?? []).length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">Nenhum acessório vinculado</p>
+            ) : (
+              <div className="space-y-1">
+                {parsed.accessories!.map((acc, idx) => (
+                  <div key={idx} className="flex items-center gap-2 bg-cyan-50 dark:bg-cyan-950/20 border border-cyan-200 dark:border-cyan-800 rounded px-3 py-2">
+                    <Wrench className="w-3 h-3 text-cyan-600 shrink-0" />
+                    <span className="text-xs font-mono text-cyan-700 dark:text-cyan-300 shrink-0">{acc.codigo}</span>
+                    <span className="text-xs text-muted-foreground flex-1 truncate">{acc.descricao}</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={acc.qty}
+                      onChange={e => handleAcessorioQty(idx, Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-16 h-6 text-xs"
+                    />
+                    <span className="text-xs text-muted-foreground">un</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                      onClick={() => handleRemoveAcessorio(idx)}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      )}
+
+      {/* Modal de seleção de acessório */}
+      <Dialog open={showAcessorioModal} onOpenChange={setShowAcessorioModal}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Adicionar Acessório</DialogTitle>
+          </DialogHeader>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar acessório..."
+                value={acessorioSearch}
+                onChange={e => setAcessorioSearch(e.target.value)}
+                className="pl-8 h-8 text-sm"
+                autoFocus
+              />
+            </div>
+            <Select value={acessorioFamilia} onValueChange={setAcessorioFamilia}>
+              <SelectTrigger className="w-36 h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {familias.map(f => (
+                  <SelectItem key={f} value={f}>{f}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex-1 overflow-y-auto space-y-1 mt-2">
+            {filteredAcessorios.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhum acessório encontrado</p>
+            ) : (
+              filteredAcessorios.map((ac, i) => (
+                <button
+                  key={i}
+                  className="w-full flex items-center gap-3 p-2 rounded hover:bg-muted text-left"
+                  onClick={() => handleAddAcessorio(ac)}
+                >
+                  {ac.fotoUrl ? (
+                    <img src={ac.fotoUrl} alt={ac.codigo ?? ""} className="w-10 h-10 object-contain rounded border bg-white shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 bg-muted rounded border flex items-center justify-center shrink-0">
+                      <Package className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-mono font-semibold">{ac.codigo}</p>
+                    <p className="text-xs text-muted-foreground truncate">{ac.produto}</p>
+                    {ac.dimensao && <p className="text-xs text-muted-foreground">{ac.dimensao}</p>}
+                  </div>
+                  <div className="text-right shrink-0">
+                    {ac.familia && <Badge variant="outline" className="text-xs mb-1">{ac.familia}</Badge>}
+                    {ac.precoVenda != null && (
+                      <p className="text-xs font-semibold">{formatBRL(ac.precoVenda)}</p>
+                    )}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
+// ─── Página principal ─────────────────────────────────────────────────────────
+export default function FactoryOrderDetail() {
+  const { quoteId } = useParams<{ quoteId: string }>();
+  const [, navigate] = useLocation();
+  const utils = trpc.useUtils();
+
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
+  const [newOrderEmpresa, setNewOrderEmpresa] = useState<"ALFALUX" | "LUMINEW">("ALFALUX");
+  const [showRevisionDialog, setShowRevisionDialog] = useState(false);
+  const [notesEdit, setNotesEdit] = useState("");
+  const [showNotesEdit, setShowNotesEdit] = useState(false);
+
+  // Dados do orçamento
+  const { data: quoteData, isLoading: quoteLoading } = trpc.quotes.getById.useQuery({ id: Number(quoteId) });
+
+  // Lista de pedidos de fábrica
+  const { data: orders = [], isLoading: ordersLoading } = trpc.factoryOrders.list.useQuery({ quoteId: Number(quoteId) });
+
+  // Pedido selecionado (com itens)
+  const effectiveOrderId = selectedOrderId ?? orders[0]?.id ?? null;
+  const { data: currentOrder, isLoading: orderLoading } = trpc.factoryOrders.getById.useQuery(
+    { id: effectiveOrderId! },
+    { enabled: effectiveOrderId !== null }
+  );
+
+  // Drivers da API
+  const { data: driversData = [] } = trpc.led.drivers.useQuery();
+
+  // Acessórios
+  const { data: acessoriosData = [] } = trpc.alfalux.acessoriosProducts.useQuery();
+
+  // Mutations
+  const createOrderMutation = trpc.factoryOrders.create.useMutation({
+    onSuccess: (result) => {
+      utils.factoryOrders.list.invalidate({ quoteId: Number(quoteId) });
+      setSelectedOrderId(result.id);
+      setShowNewOrderDialog(false);
+      toast.success("Pedido de fábrica criado!");
+    },
+    onError: (err) => toast.error(`Erro: ${err.message}`),
+  });
+
+  const updateOrderMutation = trpc.factoryOrders.update.useMutation({
+    onSuccess: () => {
+      utils.factoryOrders.getById.invalidate({ id: effectiveOrderId! });
+      utils.factoryOrders.list.invalidate({ quoteId: Number(quoteId) });
+    },
+    onError: (err) => toast.error(`Erro: ${err.message}`),
+  });
+
+  const updateItemMutation = trpc.factoryOrders.updateItem.useMutation({
+    onSuccess: () => {
+      utils.factoryOrders.getById.invalidate({ id: effectiveOrderId! });
+    },
+    onError: (err) => toast.error(`Erro ao salvar item: ${err.message}`),
+  });
+
+  const removeItemMutation = trpc.factoryOrders.removeItem.useMutation({
+    onSuccess: () => {
+      utils.factoryOrders.getById.invalidate({ id: effectiveOrderId! });
+      toast.success("Item removido");
+    },
+    onError: (err) => toast.error(`Erro: ${err.message}`),
+  });
+
+  const addItemMutation = trpc.factoryOrders.addItem.useMutation({
+    onSuccess: () => {
+      utils.factoryOrders.getById.invalidate({ id: effectiveOrderId! });
+      toast.success("Item adicionado");
+    },
+    onError: (err) => toast.error(`Erro: ${err.message}`),
+  });
+
+  const createRevisionMutation = trpc.factoryOrders.createRevision.useMutation({
+    onSuccess: (result) => {
+      utils.factoryOrders.list.invalidate({ quoteId: Number(quoteId) });
+      setSelectedOrderId(result.id);
+      setShowRevisionDialog(false);
+      toast.success("Nova revisão criada!");
+    },
+    onError: (err) => toast.error(`Erro: ${err.message}`),
+  });
+
+  // Handlers
+  const handleCreateOrder = useCallback(() => {
+    if (!quoteData) return;
+    const { quote, versions, items } = quoteData;
+    const currentVersionId = versions[0]?.id;
+    const currentItems = items.filter(i => i.quoteVersionId === currentVersionId);
+    createOrderMutation.mutate({
+      quoteId: Number(quoteId),
+      empresa: newOrderEmpresa,
+      deliveryDays: quote.deliveryDays ?? 19,
+      items: currentItems.map((item, idx) => ({
+        itemNumber: idx + 1,
+        itemData: item.itemData,
+      })),
+    });
+  }, [quoteData, quoteId, newOrderEmpresa, createOrderMutation]);
+
+  const handleUpdateItem = useCallback((itemId: number, newData: CartItemData) => {
+    updateItemMutation.mutate({ itemId, itemData: JSON.stringify(newData) });
+  }, [updateItemMutation]);
+
+  const handleRemoveItem = useCallback((itemId: number) => {
+    removeItemMutation.mutate({ itemId });
+  }, [removeItemMutation]);
+
+  const handleAddBlankItem = useCallback(() => {
+    if (!effectiveOrderId) return;
+    const maxNum = (currentOrder?.items ?? []).reduce((m, i) => Math.max(m, i.itemNumber), 0);
+    const blankItem: CartItemData = {
+      category: "especial",
+      sku: "NOVO-ITEM",
+      description: "Novo item",
+      qty: 1,
+      unitPrice: null,
+      totalPrice: null,
+      photoUrl: null,
+      isSpecialItem: true,
+    };
+    addItemMutation.mutate({
+      factoryOrderId: effectiveOrderId,
+      itemNumber: maxNum + 1,
+      itemData: JSON.stringify(blankItem),
+    });
+  }, [effectiveOrderId, currentOrder, addItemMutation]);
+
+  const handleGenerateExcel = useCallback(async () => {
+    if (!currentOrder || !quoteData) return;
+    setIsGenerating(true);
+    try {
+      const { quote } = quoteData;
+      const deliveryDays = currentOrder.deliveryDays ?? 19;
+      const approvedAtIso = quote.approvedAt
+        ? new Date(quote.approvedAt).toISOString()
+        : new Date().toISOString();
+      const { displayDays, deliveryDateStr } = await calcDeliveryDate(approvedAtIso, deliveryDays);
+      const itemsData = currentOrder.items
+        .map(i => parseCartItemData(i.itemData))
+        .filter((d): d is CartItemData => d !== null);
+      await generateOrderExcel(itemsData, {
+        clientName: quote.clientName,
+        projectName: quote.projectName ?? "",
+        quoteNumber: `${quote.quoteNumber} Rev.${currentOrder.revision}`,
+        vendorName: quote.vendorName ?? "",
+        date: new Date().toLocaleDateString("pt-BR"),
+        empresa: currentOrder.empresa as "ALFALUX" | "LUMINEW",
+        deliveryDays,
+        approvedAt: approvedAtIso,
+        precomputedDisplayDays: displayDays,
+        precomputedDeliveryDate: deliveryDateStr,
+      });
+      toast.success("Excel do pedido de fábrica gerado!");
+    } catch (err) {
+      toast.error("Erro ao gerar Excel.");
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [currentOrder, quoteData]);
+
+  const handleSaveNotes = useCallback(() => {
+    if (!effectiveOrderId) return;
+    updateOrderMutation.mutate({ id: effectiveOrderId, notes: notesEdit });
+    setShowNotesEdit(false);
+    toast.success("Observações salvas");
+  }, [effectiveOrderId, notesEdit, updateOrderMutation]);
+
+  // Loading states
+  if (quoteLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-muted-foreground">Carregando...</p>
+      </div>
+    );
+  }
+
+  if (!quoteData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Card className="w-full max-w-md text-center p-8">
+          <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-destructive" />
+          <h2 className="text-xl font-semibold mb-2">Orçamento não encontrado</h2>
+          <Link href="/orcamentos">
+            <Button>Voltar para a lista</Button>
+          </Link>
+        </Card>
+      </div>
+    );
+  }
+
+  const { quote } = quoteData;
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="border-b bg-card sticky top-0 z-10">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3 flex-wrap">
+          <Link href={`/orcamentos/${quoteId}`}>
+            <Button variant="ghost" size="sm" className="gap-2">
+              <ArrowLeft className="w-4 h-4" />
+              Orçamento
+            </Button>
+          </Link>
+          <Separator orientation="vertical" className="h-6" />
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <Factory className="w-5 h-5 text-orange-500 shrink-0" />
+            <div className="min-w-0">
+              <h1 className="text-sm font-semibold truncate">
+                Pedido de Fábrica — {quote.quoteNumber}
+              </h1>
+              <p className="text-xs text-muted-foreground truncate">{quote.clientName}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 ml-auto">
+            {currentOrder && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 text-orange-600 border-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/30"
+                  onClick={() => setShowRevisionDialog(true)}
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Nova Revisão
+                </Button>
+                <Button
+                  size="sm"
+                  className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+                  onClick={handleGenerateExcel}
+                  disabled={isGenerating}
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  {isGenerating ? "Gerando..." : "Gerar Excel"}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+        {/* Sem pedidos ainda */}
+        {!ordersLoading && orders.length === 0 && (
+          <Card className="text-center py-12">
+            <Factory className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <h2 className="text-lg font-semibold mb-2">Nenhum pedido de fábrica criado</h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              Crie o primeiro pedido de fábrica a partir dos itens do orçamento aprovado.
+            </p>
+            <Button
+              className="gap-2 bg-orange-600 hover:bg-orange-700 text-white"
+              onClick={() => setShowNewOrderDialog(true)}
+            >
+              <Plus className="w-4 h-4" />
+              Criar Pedido de Fábrica
+            </Button>
+          </Card>
+        )}
+
+        {/* Lista de revisões + conteúdo */}
+        {orders.length > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Sidebar de revisões */}
+            <div className="lg:col-span-1 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Revisões</h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => setShowNewOrderDialog(true)}
+                >
+                  <Plus className="w-3 h-3" />
+                  Novo
+                </Button>
+              </div>
+              {orders.map(order => {
+                const st = STATUS_LABELS[order.status] ?? STATUS_LABELS.draft;
+                const isActive = order.id === effectiveOrderId;
+                return (
+                  <button
+                    key={order.id}
+                    onClick={() => setSelectedOrderId(order.id)}
+                    className={`w-full text-left rounded-lg border p-3 transition-colors ${
+                      isActive
+                        ? "border-orange-400 bg-orange-50 dark:bg-orange-950/20"
+                        : "border-border hover:border-orange-300 hover:bg-muted/50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold">Rev. {order.revision}</span>
+                      <Badge className={`text-xs gap-1 ${st.color}`}>
+                        {st.icon}
+                        {st.label}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">{order.empresa}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(order.createdAt).toLocaleDateString("pt-BR")}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Conteúdo do pedido selecionado */}
+            <div className="lg:col-span-3 space-y-4">
+              {orderLoading && (
+                <div className="text-center py-12 text-muted-foreground">Carregando pedido...</div>
+              )}
+
+              {currentOrder && (
+                <>
+                  {/* Cabeçalho do pedido */}
+                  <Card>
+                    <CardContent className="pt-4 pb-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        {/* Empresa */}
+                        <div>
+                          <Label className="text-xs">Empresa</Label>
+                          <Select
+                            value={currentOrder.empresa}
+                            onValueChange={v => updateOrderMutation.mutate({ id: currentOrder.id, empresa: v as "ALFALUX" | "LUMINEW" })}
+                          >
+                            <SelectTrigger className="mt-1 h-8 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="ALFALUX">ALFALUX</SelectItem>
+                              <SelectItem value="LUMINEW">LUMINEW</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Status */}
+                        <div>
+                          <Label className="text-xs">Status</Label>
+                          <Select
+                            value={currentOrder.status}
+                            onValueChange={v => updateOrderMutation.mutate({ id: currentOrder.id, status: v as "draft" | "sent" | "in_production" | "completed" })}
+                          >
+                            <SelectTrigger className="mt-1 h-8 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="draft">Rascunho</SelectItem>
+                              <SelectItem value="sent">Enviado</SelectItem>
+                              <SelectItem value="in_production">Em Produção</SelectItem>
+                              <SelectItem value="completed">Concluído</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Prazo */}
+                        <div>
+                          <Label className="text-xs">Prazo (dias úteis)</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={currentOrder.deliveryDays ?? 19}
+                            onChange={e => updateOrderMutation.mutate({ id: currentOrder.id, deliveryDays: Math.max(1, parseInt(e.target.value) || 19) })}
+                            className="mt-1 h-8 text-sm"
+                          />
+                        </div>
+
+                        {/* Revisão */}
+                        <div>
+                          <Label className="text-xs">Revisão</Label>
+                          <div className="mt-1 h-8 flex items-center">
+                            <Badge variant="outline" className="text-sm font-semibold">
+                              Rev. {currentOrder.revision}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Observações */}
+                      <div className="mt-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <Label className="text-xs">Observações</Label>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 text-xs"
+                            onClick={() => {
+                              setNotesEdit(currentOrder.notes ?? "");
+                              setShowNotesEdit(true);
+                            }}
+                          >
+                            Editar
+                          </Button>
+                        </div>
+                        {currentOrder.notes ? (
+                          <p className="text-sm text-muted-foreground bg-muted/50 rounded p-2">{currentOrder.notes}</p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground italic">Sem observações</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Lista de itens */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold">
+                        Itens ({currentOrder.items.length})
+                      </h3>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1"
+                        onClick={handleAddBlankItem}
+                      >
+                        <Plus className="w-3 h-3" />
+                        Adicionar Item
+                      </Button>
+                    </div>
+
+                    {currentOrder.items.length === 0 ? (
+                      <Card className="text-center py-8">
+                        <p className="text-sm text-muted-foreground">Nenhum item neste pedido</p>
+                      </Card>
+                    ) : (
+                      currentOrder.items.map(item => (
+                        <EditableItem
+                          key={item.id}
+                          item={item}
+                          drivers={driversData}
+                          acessorios={acessoriosData}
+                          onUpdate={handleUpdateItem}
+                          onRemove={handleRemoveItem}
+                        />
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Dialog: Criar novo pedido */}
+      <Dialog open={showNewOrderDialog} onOpenChange={setShowNewOrderDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Criar Pedido de Fábrica</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            O pedido será criado com os itens da versão atual do orçamento. Você poderá editá-los livremente.
+          </p>
+          <div className="space-y-3 py-2">
+            <Label className="text-sm font-medium">Empresa Fabricante</Label>
+            <div className="flex flex-col gap-2">
+              {(["ALFALUX", "LUMINEW"] as const).map(emp => (
+                <button
+                  key={emp}
+                  onClick={() => setNewOrderEmpresa(emp)}
+                  className={`flex items-center gap-3 rounded-lg border-2 px-4 py-3 text-left transition-colors ${
+                    newOrderEmpresa === emp
+                      ? "border-orange-500 bg-orange-50 dark:bg-orange-950/30"
+                      : "border-border hover:border-orange-300"
+                  }`}
+                >
+                  <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                    newOrderEmpresa === emp ? "border-orange-500" : "border-muted-foreground"
+                  }`}>
+                    {newOrderEmpresa === emp && <span className="w-2 h-2 rounded-full bg-orange-500" />}
+                  </span>
+                  <span className="font-semibold text-sm">{emp}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setShowNewOrderDialog(false)}>Cancelar</Button>
+            <Button
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+              onClick={handleCreateOrder}
+              disabled={createOrderMutation.isPending}
+            >
+              <Factory className="w-4 h-4 mr-2" />
+              {createOrderMutation.isPending ? "Criando..." : "Criar Pedido"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Nova revisão */}
+      <Dialog open={showRevisionDialog} onOpenChange={setShowRevisionDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Nova Revisão</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Será criada uma cópia da revisão atual (Rev. {currentOrder?.revision}) com todos os itens.
+            Você poderá editar a nova revisão sem alterar a anterior.
+          </p>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setShowRevisionDialog(false)}>Cancelar</Button>
+            <Button
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+              onClick={() => effectiveOrderId && createRevisionMutation.mutate({ sourceOrderId: effectiveOrderId })}
+              disabled={createRevisionMutation.isPending}
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              {createRevisionMutation.isPending ? "Criando..." : "Criar Revisão"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Editar observações */}
+      <Dialog open={showNotesEdit} onOpenChange={setShowNotesEdit}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Observações do Pedido</DialogTitle>
+          </DialogHeader>
+          <Textarea
+            value={notesEdit}
+            onChange={e => setNotesEdit(e.target.value)}
+            placeholder="Observações internas sobre este pedido..."
+            rows={4}
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setShowNotesEdit(false)}>Cancelar</Button>
+            <Button onClick={handleSaveNotes}>Salvar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

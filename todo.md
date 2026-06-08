@@ -1153,3 +1153,13 @@
 - [x] Botão da aba Acessórios: mostra "Vincular ao Produto" (ciano) quando há produto configurado
 - [x] Imagem do acessório no Cart.tsx: exibe fotoUrl do LinkedAccessory quando disponível
 - [x] 0 erros TypeScript novos, 516/516 testes passando
+
+## v32.21 — Pedido de Fábrica com Revisões Independentes
+
+- [x] Criar tabelas `factory_orders` e `factory_order_items` no banco (schema + migração SQL)
+- [x] Procedures tRPC: criar/listar/atualizar factory_order e seus itens (produto, qtd, cor, controle, drivers, acessórios)
+- [x] Página FactoryOrderDetail: editor completo de itens com revisões numeradas (Rev.1, Rev.2...)
+- [x] Edição de item: produto, quantidade, cor, tipo de controle, drivers (lista da API), acessórios vinculados
+- [x] Integrar ao QuoteDetail: botão "Gerenciar Pedido de Fábrica" abre FactoryOrderDetail (orçamento congelado, pedido editável)
+- [x] Excel do pedido de fábrica gerado a partir dos dados do factory_order (não mais do orçamento)
+- [x] 0 erros TypeScript novos, 516/516 testes passando

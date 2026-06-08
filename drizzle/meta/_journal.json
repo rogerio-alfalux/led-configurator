@@ -50,6 +50,13 @@
       "when": 1780496122948,
       "tag": "0006_boring_piledriver",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1780928689478,
+      "tag": "0007_mushy_stranger",
+      "breakpoints": true
     }
   ]
 }

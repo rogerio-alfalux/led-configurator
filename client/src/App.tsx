@@ -8,6 +8,7 @@ import Home from "./pages/Home";
 import Cart from "./pages/Cart";
 import Quotes from "./pages/Quotes";
 import QuoteDetail from "./pages/QuoteDetail";
+import FactoryOrderDetail from "./pages/FactoryOrderDetail";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import ApiKeys from "./pages/ApiKeys";
@@ -19,6 +20,7 @@ function Router() {
       <Route path={"/carrinho"} component={Cart} />
       <Route path={"/orcamentos"} component={Quotes} />
       <Route path={"/orcamentos/:id"} component={QuoteDetail} />
+      <Route path={"/orcamentos/:quoteId/pedido-fabrica"} component={FactoryOrderDetail} />
       <Route path={"/dashboard"} component={Dashboard} />
       <Route path={"/admin"} component={Admin} />
       <Route path={"/api-keys"} component={ApiKeys} />

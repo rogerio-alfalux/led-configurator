@@ -3,7 +3,8 @@ import { eq, like, or, desc, and, sql, asc } from "drizzle-orm";
 import {
   InsertUser, users, cartItems, InsertCartItem, sellers, assistants,
   quotes, quoteVersions, quoteItems, InsertQuote, InsertQuoteVersion, InsertQuoteItem,
-  auditLogs, InsertAuditLog
+  auditLogs, InsertAuditLog,
+  factoryOrders, factoryOrderItems, InsertFactoryOrder, InsertFactoryOrderItem
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -773,4 +774,115 @@ export async function listAssistants() {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(assistants).where(eq(assistants.active, true)).orderBy(asc(assistants.name));
+}
+
+// ─── Factory Orders ───────────────────────────────────────────────────────────
+
+/** Cria um novo pedido de fábrica (revisão 1) com seus itens */
+export async function createFactoryOrder(data: {
+  quoteId: number;
+  empresa: 'ALFALUX' | 'LUMINEW';
+  deliveryDays?: number;
+  notes?: string;
+  createdByUserId?: number;
+  items: { itemNumber: number; itemData: string }[];
+}) {
+  const db = await getDb();
+  if (!db) throw new Error('DB não disponível');
+  const [result] = await db.insert(factoryOrders).values({
+    quoteId: data.quoteId,
+    revision: 1,
+    empresa: data.empresa,
+    status: 'draft',
+    deliveryDays: data.deliveryDays ?? 19,
+    notes: data.notes ?? null,
+    createdByUserId: data.createdByUserId ?? null,
+  });
+  const orderId = (result as any).insertId as number;
+  if (data.items.length > 0) {
+    await db.insert(factoryOrderItems).values(
+      data.items.map(i => ({ factoryOrderId: orderId, itemNumber: i.itemNumber, itemData: i.itemData }))
+    );
+  }
+  return orderId;
+}
+
+/** Lista todos os pedidos de fábrica de um orçamento (ordenados por revisão desc) */
+export async function getFactoryOrdersByQuoteId(quoteId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(factoryOrders)
+    .where(eq(factoryOrders.quoteId, quoteId))
+    .orderBy(desc(factoryOrders.revision));
+}
+
+/** Retorna um pedido de fábrica com seus itens */
+export async function getFactoryOrderById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [order] = await db.select().from(factoryOrders).where(eq(factoryOrders.id, id));
+  if (!order) return null;
+  const items = await db.select().from(factoryOrderItems)
+    .where(eq(factoryOrderItems.factoryOrderId, id))
+    .orderBy(asc(factoryOrderItems.itemNumber));
+  return { ...order, items };
+}
+
+/** Atualiza campos do pedido de fábrica (empresa, status, deliveryDays, notes) */
+export async function updateFactoryOrder(id: number, data: Partial<{
+  empresa: 'ALFALUX' | 'LUMINEW';
+  status: 'draft' | 'sent' | 'in_production' | 'completed';
+  deliveryDays: number;
+  notes: string;
+  approvedAt: string;
+}>) {
+  const db = await getDb();
+  if (!db) throw new Error('DB não disponível');
+  await db.update(factoryOrders).set(data).where(eq(factoryOrders.id, id));
+}
+
+/** Adiciona um item ao pedido de fábrica */
+export async function addFactoryOrderItem(factoryOrderId: number, itemNumber: number, itemData: string) {
+  const db = await getDb();
+  if (!db) throw new Error('DB não disponível');
+  const [result] = await db.insert(factoryOrderItems).values({ factoryOrderId, itemNumber, itemData });
+  return (result as any).insertId as number;
+}
+
+/** Atualiza o itemData de um item do pedido de fábrica */
+export async function updateFactoryOrderItem(itemId: number, itemData: string) {
+  const db = await getDb();
+  if (!db) throw new Error('DB não disponível');
+  await db.update(factoryOrderItems).set({ itemData }).where(eq(factoryOrderItems.id, itemId));
+}
+
+/** Remove um item do pedido de fábrica */
+export async function deleteFactoryOrderItem(itemId: number) {
+  const db = await getDb();
+  if (!db) throw new Error('DB não disponível');
+  await db.delete(factoryOrderItems).where(eq(factoryOrderItems.id, itemId));
+}
+
+/** Cria uma nova revisão clonando o pedido atual */
+export async function createFactoryOrderRevision(sourceOrderId: number) {
+  const db = await getDb();
+  if (!db) throw new Error('DB não disponível');
+  const source = await getFactoryOrderById(sourceOrderId);
+  if (!source) throw new Error('Pedido não encontrado');
+  const [result] = await db.insert(factoryOrders).values({
+    quoteId: source.quoteId,
+    revision: source.revision + 1,
+    empresa: source.empresa,
+    status: 'draft',
+    deliveryDays: source.deliveryDays,
+    notes: source.notes ?? null,
+    createdByUserId: source.createdByUserId ?? null,
+  });
+  const newOrderId = (result as any).insertId as number;
+  if (source.items.length > 0) {
+    await db.insert(factoryOrderItems).values(
+      source.items.map(i => ({ factoryOrderId: newOrderId, itemNumber: i.itemNumber, itemData: i.itemData }))
+    );
+  }
+  return newOrderId;
 }

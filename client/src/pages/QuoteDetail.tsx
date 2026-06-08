@@ -627,6 +627,14 @@ export default function QuoteDetail() {
           {quote.status === "approved" && (
             <>
               <Button
+                variant="outline"
+                className="gap-2 border-orange-400 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/30"
+                onClick={() => navigate(`/orcamentos/${id}/pedido-fabrica`)}
+              >
+                <Factory className="w-4 h-4" />
+                Gerenciar Pedido de Fábrica
+              </Button>
+              <Button
                 className="gap-2 bg-orange-600 hover:bg-orange-700 text-white"
                 onClick={() => setEmpresaDialogOpen(true)}
                 disabled={isGenerating}
