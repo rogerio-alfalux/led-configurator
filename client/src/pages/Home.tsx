@@ -1888,6 +1888,39 @@ export default function Home() {
     if (!product) return;
     const precoVenda = product.precoVenda ?? 0;
     const descricao = product.produto ?? product.codigo ?? `Acessório #${product.id}`;
+
+    // Verifica se há um produto configurado em qualquer categoria
+    // Nota: result e shapeResult são declarados depois deste callback, por isso são verificados via productCategory
+    const hasConfiguredProduct = !!(dlResult || spotResult || arandelaResult || panelResult || lbResult || bgResult || rvSelectedSku ||
+      (productCategory === "Perfis") || (productCategory === "Spots") || (productCategory === "Downlights") ||
+      (productCategory === "Painéis") || (productCategory === "Arandelas") || (productCategory === "Revenda") ||
+      (productCategory === "Item Especial"));
+
+    if (hasConfiguredProduct) {
+      // Vincula o acessório ao produto pai como sub-item
+      const linked: LinkedAccessory = {
+        codigo: product.codigo ?? product.sku ?? `AC${product.id}`,
+        descricao,
+        qty: 1,
+        unitPrice: precoVenda > 0 ? precoVenda : null,
+        fotoUrl: product.fotoUrl ?? null,
+        familia: product.familia ?? undefined,
+        dimensao: product.dimensao ?? undefined,
+      };
+      setPendingAccessories(prev => {
+        const exists = prev.some(a => a.codigo === linked.codigo);
+        if (exists) {
+          toast.info(`"${descricao}" já está vinculado ao produto.`);
+          return prev;
+        }
+        toast.success(`Acessório "${descricao}" vinculado! Será incluído junto com o produto no carrinho.`);
+        return [...prev, linked];
+      });
+      setAcSelectedId(null);
+      return;
+    }
+
+    // Sem produto configurado: adiciona como item independente
     const item: CartItemData = {
       category: "Acessórios",
       sku: product.codigo ?? product.sku ?? `AC${product.id}`,
@@ -1915,7 +1948,7 @@ export default function Home() {
       }
     }
     setAcSelectedId(null);
-  }, [acSelectedId, acessoriosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote]);
+  }, [acSelectedId, acessoriosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, dlResult, spotResult, arandelaResult, panelResult, lbResult, bgResult, rvSelectedSku, productCategory, setPendingAccessories]);
 
   const uploadSpecialPhotoMutation = trpc.upload.specialItemPhoto.useMutation({
     onSuccess: (data) => {
@@ -6420,13 +6453,19 @@ export default function Home() {
                           </div>
                         )}
                         {/* Botão adicionar */}
-                        <Button
-                          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                          onClick={() => handleAddAcessorioItem()}
-                        >
-                          <ShoppingCart className="w-4 h-4 mr-2" />
-                          {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
-                        </Button>
+                        {(() => {
+                          const hasProd = !!(dlResult || spotResult || arandelaResult || panelResult || lbResult || bgResult || rvSelectedSku ||
+                            (productCategory !== "Acessórios"));
+                          return (
+                            <Button
+                              className={`w-full text-white ${hasProd ? "bg-cyan-600 hover:bg-cyan-700" : "bg-emerald-600 hover:bg-emerald-700"}`}
+                              onClick={() => handleAddAcessorioItem()}
+                            >
+                              {hasProd ? <Wrench className="w-4 h-4 mr-2" /> : <ShoppingCart className="w-4 h-4 mr-2" />}
+                              {hasProd ? "Vincular ao Produto" : (appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho")}
+                            </Button>
+                          );
+                        })()}
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center py-16 text-center">

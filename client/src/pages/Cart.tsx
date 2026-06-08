@@ -208,7 +208,11 @@ function SortableCartItem({
                     <div className="mt-2 border-l-2 border-cyan-500/40 pl-2 space-y-1">
                       {(entry.data.accessories as LinkedAccessory[]).map((acc, i) => (
                         <div key={i} className="flex items-center gap-1.5 text-xs">
-                          <Wrench className="w-3 h-3 flex-shrink-0 text-cyan-500" />
+                          {acc.fotoUrl ? (
+                            <img src={acc.fotoUrl} alt={acc.descricao} className="w-6 h-6 object-contain rounded bg-white border border-border flex-shrink-0" />
+                          ) : (
+                            <Wrench className="w-3 h-3 flex-shrink-0 text-cyan-500" />
+                          )}
                           <span className="font-mono text-[10px] text-muted-foreground">{acc.codigo}</span>
                           <span className="text-cyan-700 dark:text-cyan-400 truncate">{acc.descricao}</span>
                           {acc.qty > 1 && <span className="text-muted-foreground">x{acc.qty}</span>}

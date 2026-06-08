@@ -1140,9 +1140,16 @@
 
 ## v32.17 — Acessórios Vinculados ao Produto (Sub-item Opcional)
 
-- [ ] Adicionar campo `accessories?: LinkedAccessory[]` ao CartItemData (código, descrição, qtd, preço, fotoUrl)
-- [ ] Modal "Incluir Acessório": ao confirmar, acessório é adicionado ao item atual (não ao carrinho como item separado)
-- [ ] Carrinho: exibir acessórios vinculados indentados abaixo do produto pai (ícone Wrench, código, qtd, preço)
-- [ ] QuoteDetail: exibir acessórios vinculados abaixo do item pai na lista de itens
-- [ ] Excel do orçamento e pedido de fábrica: listar acessórios como sub-linhas do produto pai
-- [ ] 0 erros TypeScript, todos os testes passando
+- [x] Adicionar campo `accessories?: LinkedAccessory[]` ao CartItemData (código, descrição, qtd, preço, fotoUrl)
+- [x] Modal "Incluir Acessório": ao confirmar, acessório é adicionado ao item atual (não ao carrinho como item separado)
+- [x] Carrinho: exibir acessórios vinculados indentados abaixo do produto pai (ícone Wrench, código, qtd, preço)
+- [x] QuoteDetail: exibir acessórios vinculados abaixo do item pai na lista de itens
+- [x] Excel do pedido de fábrica: listar acessórios como sub-linhas do produto pai (linha ciano)
+- [x] 0 erros TypeScript novos, 516/516 testes passando
+
+## v32.18 — Corrigir Vínculo de Acessório ao Produto Pai
+
+- [x] handleAddAcessorioItem: quando há produto configurado, acumula em pendingAccessories em vez de criar item separado
+- [x] Botão da aba Acessórios: mostra "Vincular ao Produto" (ciano) quando há produto configurado
+- [x] Imagem do acessório no Cart.tsx: exibe fotoUrl do LinkedAccessory quando disponível
+- [x] 0 erros TypeScript novos, 516/516 testes passando
