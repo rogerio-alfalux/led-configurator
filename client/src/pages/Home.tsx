@@ -2177,30 +2177,105 @@ export default function Home() {
     const cat = suggestion.category;
     if (cat === "Perfis") {
       setProductCategory("Perfis");
+      setBgMode(false);
+      setLbFamilia(null);
       setProfileName(suggestion.familia);
-      setInstallType("");
+      // Pré-selecionar instalação se houver apenas uma opção para este perfil
+      const installTypes = activeGetInstallTypesForProfile(suggestion.familia);
+      if (installTypes.length === 1) {
+        setInstallType(installTypes[0] as InstallType);
+      } else if (suggestion.instalacao) {
+        setInstallType(suggestion.instalacao as InstallType);
+      } else {
+        setInstallType("");
+      }
     } else if (cat === "LED BAR") {
       setProductCategory("Perfis");
-      setProfileName("LED BAR");
+      setBgMode(false);
+      setLbFamilia(suggestion.familia);
+      setProfileName("");
     } else if (cat === "BAGEO") {
       setProductCategory("Perfis");
-      setProfileName("BAGEO");
+      setBgMode(true);
+      setLbFamilia(null);
+      setProfileName("");
+      // Pré-selecionar produto BAGEO pelo código
+      if (suggestion.code) {
+        const bgProd = activeBageoCatalog.find(p => p.sku === suggestion.code || p.familia === suggestion.familia);
+        if (bgProd) {
+          setBgInstalacao(bgProd.instalacao);
+          setBgProduct(bgProd);
+        }
+      }
     } else if (cat === "Downlights") {
       setProductCategory("Downlights");
-      setDlInstalacao(null);
-      setDlFamilia(suggestion.familia);
+      // Pré-selecionar instalação e produto
+      const dlProd = activeDlCatalog.find(p => p.sku === suggestion.code || p.familia === suggestion.familia);
+      if (dlProd) {
+        setDlInstalacao(dlProd.instalacao);
+        setDlFamilia(dlProd.familia);
+        const key = `${dlProd.sku ?? ""}::${dlProd.name}`;
+        setDlProductKey(key);
+        const availCCTs = dlProd.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+        setDlCCT(availCCTs[0] ?? "3000K");
+      } else {
+        setDlInstalacao(suggestion.instalacao ?? null);
+        setDlFamilia(suggestion.familia);
+        setDlProductKey(null);
+      }
+      setDlVoltage(null);
+      setDlResult(null);
     } else if (cat === "Painéis") {
       setProductCategory("Painéis");
-      setPanelInstalacao(null);
-      setPanelFamilia(suggestion.familia);
+      const panelProd = activePanelCatalog.find(p => p.sku === suggestion.code || p.familia === suggestion.familia);
+      if (panelProd) {
+        setPanelInstalacao(panelProd.instalacao);
+        setPanelFamilia(panelProd.familia);
+        const key = `${panelProd.sku ?? ""}::${panelProd.name}`;
+        setPanelProductKey(key);
+        const availCCTs = panelProd.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+        setPanelCCT(availCCTs[0] ?? "3000K");
+      } else {
+        setPanelInstalacao(suggestion.instalacao ?? null);
+        setPanelFamilia(suggestion.familia);
+        setPanelProductKey(null);
+      }
+      setPanelVoltage(null);
+      setPanelResult(null);
     } else if (cat === "Spots") {
       setProductCategory("Spots");
-      setSpotInstalacao(null);
-      setSpotFamilia(suggestion.familia);
+      const spotProd = activeSpotCatalog.find(p => p.sku === suggestion.code || p.familia === suggestion.familia);
+      if (spotProd) {
+        setSpotInstalacao(spotProd.instalacao);
+        setSpotFamilia(spotProd.familia);
+        const key = `${spotProd.sku ?? ""}::${spotProd.name}`;
+        setSpotProductKey(key);
+        const availCCTs = spotProd.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+        setSpotCCT(availCCTs[0] ?? "3000K");
+      } else {
+        setSpotInstalacao(suggestion.instalacao ?? null);
+        setSpotFamilia(suggestion.familia);
+        setSpotProductKey(null);
+      }
+      setSpotVoltage(null);
+      setSpotResult(null);
     } else if (cat === "Arandelas") {
       setProductCategory("Arandelas");
-      setArandelaInstalacao(null);
-      setArandelaFamilia(suggestion.familia);
+      const arandelaProd = activeArandelaCatalog.find(p => p.sku === suggestion.code || p.familia === suggestion.familia);
+      if (arandelaProd) {
+        setArandelaInstalacao(arandelaProd.instalacao);
+        setArandelaFamilia(arandelaProd.familia);
+        const key = `${arandelaProd.sku ?? ""}::${arandelaProd.name}`;
+        setArandelaProductKey(key);
+        const availCCTs = arandelaProd.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+        setArandelaCCT(availCCTs[0] ?? "3000K");
+      } else {
+        setArandelaInstalacao(suggestion.instalacao ?? null);
+        setArandelaFamilia(suggestion.familia);
+        setArandelaProductKey(null);
+      }
+      setArandelaVoltage(null);
+      setArandelaResult(null);
     } else if (cat === "Revenda") {
       setProductCategory("Revenda");
       if (suggestion.code) {
@@ -2218,8 +2293,8 @@ export default function Home() {
     // Scroll suave até o configurador
     setTimeout(() => {
       document.getElementById("configurador-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
-  }, []);
+    }, 100);
+  }, [activeGetInstallTypesForProfile, activeBageoCatalog, activeDlCatalog, activePanelCatalog, activeSpotCatalog, activeArandelaCatalog, acessoriosProducts]);
 
   // Listas derivadas para filtros de Downlightss (usando catálogo dinâmico da API ou fallback estático)
   const dlInstalacoes = useMemo(() => Array.from(new Set(activeDlCatalog.map(p => p.instalacao))).sort(), [activeDlCatalog]);
