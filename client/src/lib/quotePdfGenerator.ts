@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { CartItemData, formatBRL, QuoteFormData } from "./cartTypes";
+import { CartItemData, formatBRL, LinkedAccessory, QuoteFormData } from "./cartTypes";
 
 // ─── Cores do template Excel ────────────────────────────────────────────────
 const HEADER_BG = [91, 155, 213] as [number, number, number];   // #5B9BD5
@@ -106,16 +106,36 @@ export async function generateQuotePdf(
   // ─── Tabela de itens ───────────────────────────────────────────────────────
   const totalGeral = items.reduce((acc, it) => acc + (it.totalPrice ?? 0), 0);
 
-  const tableBody = items.map((item, idx) => [
-    String(idx + 1),
-    item.sku || "—",
-    item.description,
-    item.power || "—",
-    item.cct || "—",
-    String(item.qty),
-    item.unitPrice != null ? formatBRL(item.unitPrice) : "—",
-    item.totalPrice != null ? formatBRL(item.totalPrice) : "—",
-  ]);
+  const ACC_ROW_BG = [224, 247, 250] as [number, number, number]; // ciano claro
+  const ACC_ROW_TEXT = [0, 96, 100] as [number, number, number];  // teal escuro
+  const tableBody: (string | object)[][] = [];
+  items.forEach((item, idx) => {
+    tableBody.push([
+      String(idx + 1),
+      item.sku || "—",
+      item.description,
+      item.power || "—",
+      item.cct || "—",
+      String(item.qty),
+      item.unitPrice != null ? formatBRL(item.unitPrice) : "—",
+      item.totalPrice != null ? formatBRL(item.totalPrice) : "—",
+    ]);
+    // Sub-linhas de acessórios vinculados
+    if (item.accessories && item.accessories.length > 0) {
+      (item.accessories as LinkedAccessory[]).forEach((acc) => {
+        tableBody.push([
+          { content: "", styles: { fillColor: ACC_ROW_BG } },
+          { content: acc.codigo ?? "", styles: { fillColor: ACC_ROW_BG, textColor: ACC_ROW_TEXT, fontStyle: "italic", fontSize: 7 } },
+          { content: `↳ Acessório: ${acc.descricao}`, styles: { fillColor: ACC_ROW_BG, textColor: ACC_ROW_TEXT, fontStyle: "italic", fontSize: 7 } },
+          { content: "", styles: { fillColor: ACC_ROW_BG } },
+          { content: "", styles: { fillColor: ACC_ROW_BG } },
+          { content: String(acc.qty), styles: { fillColor: ACC_ROW_BG, textColor: ACC_ROW_TEXT, fontStyle: "bold", fontSize: 7 } },
+          { content: acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice) : "—", styles: { fillColor: ACC_ROW_BG, textColor: ACC_ROW_TEXT, fontStyle: "italic", fontSize: 7 } },
+          { content: acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice * acc.qty) : "—", styles: { fillColor: ACC_ROW_BG, textColor: ACC_ROW_TEXT, fontStyle: "italic", fontSize: 7 } },
+        ]);
+      });
+    }
+  });
 
   // Linha de total
   tableBody.push([

@@ -20,7 +20,7 @@
  */
 
 import ExcelJS from "exceljs";
-import type { CartItemData, QuoteFormData } from "./cartTypes";
+import type { CartItemData, LinkedAccessory, QuoteFormData } from "./cartTypes";
 
 // ── Cores do template ────────────────────────────────────────────────────────
 const BLUE      = "FF5B9BD5"; // Azul do template (cabeçalho tabela, número, data)
@@ -526,6 +526,60 @@ export async function generateQuoteExcel(
     cItemNote.value = itemNote;
     cItemNote.font = { name: "Calibri", size: 10, italic: true, color: { argb: "FF4472C4" } };
     cItemNote.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+
+    // ── Sub-linhas de acessórios vinculados ──────────────────────────────────
+    if (item.accessories && item.accessories.length > 0) {
+      (item.accessories as LinkedAccessory[]).forEach((acc, accIdx) => {
+        const accRowNum = rowNum + accIdx + 1;
+        ws.spliceRows(accRowNum, 0, []);
+        const accRow = ws.getRow(accRowNum);
+        accRow.height = 22;
+        const ACC_BG = "FFE0F7FA";
+        const ACC_COLOR = "FF006064";
+        const thinCyan: Partial<ExcelJS.Border> = { style: "thin", color: { argb: "FF80DEEA" } };
+        const accBorder = { top: thinCyan, bottom: thinCyan, left: thinCyan, right: thinCyan };
+        const fillAcc = (cell: ExcelJS.Cell, value: string | number | null, bold = false) => {
+          cell.value = value ?? "";
+          cell.font = { name: "Calibri", size: 9, bold, italic: true, color: { argb: ACC_COLOR } };
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
+          cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+          cell.border = accBorder;
+        };
+        fillAcc(ws.getCell(`C${accRowNum}`), "");
+        const dCell = ws.getCell(`D${accRowNum}`);
+        dCell.value = `↳ Acessório: ${acc.descricao}`;
+        dCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: ACC_COLOR } };
+        dCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
+        dCell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+        dCell.border = accBorder;
+        fillAcc(ws.getCell(`E${accRowNum}`), acc.codigo ?? "");
+        for (const col of ["F", "G", "H", "I", "J", "K"]) {
+          fillAcc(ws.getCell(`${col}${accRowNum}`), "");
+        }
+        fillAcc(ws.getCell(`L${accRowNum}`), acc.qty, true);
+        if (acc.unitPrice && acc.unitPrice > 0) {
+          const mCell = ws.getCell(`M${accRowNum}`);
+          mCell.value = acc.unitPrice;
+          mCell.numFmt = '"R$"#,##0.00';
+          mCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: ACC_COLOR } };
+          mCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
+          mCell.alignment = { horizontal: "center", vertical: "middle" };
+          mCell.border = accBorder;
+          const nCell = ws.getCell(`N${accRowNum}`);
+          nCell.value = acc.unitPrice * acc.qty;
+          nCell.numFmt = '"R$"#,##0.00';
+          nCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: ACC_COLOR } };
+          nCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
+          nCell.alignment = { horizontal: "center", vertical: "middle" };
+          nCell.border = accBorder;
+        } else {
+          fillAcc(ws.getCell(`M${accRowNum}`), "-");
+          fillAcc(ws.getCell(`N${accRowNum}`), "-");
+        }
+      });
+      // Avançar currentRow para compensar as sub-linhas inseridas
+      currentRow += item.accessories.length;
+    }
   }
 
   // ── Calcular total dos produtos ──────────────────────────────────────────
