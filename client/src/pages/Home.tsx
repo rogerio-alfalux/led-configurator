@@ -1807,6 +1807,7 @@ export default function Home() {
   const [addAcModalFamilia, setAddAcModalFamilia] = useState<string>("");
   const [addAcModalSearch, setAddAcModalSearch] = useState<string>("");
   const [addAcModalSelectedId, setAddAcModalSelectedId] = useState<number | null>(null);
+  const [addAcModalQty, setAddAcModalQty] = useState<number>(1);
 
   const acessoriosQuery = trpc.alfalux.acessoriosProducts.useQuery();
   const acessoriosProducts = acessoriosQuery.data ?? [];
@@ -1856,10 +1857,11 @@ export default function Home() {
     const precoVenda = product.precoVenda ?? 0;
     const descricao = product.produto ?? product.codigo ?? `Acessório #${product.id}`;
     // Acumula o acessório como pendente para ser vinculado ao próximo item enviado ao carrinho
+    const qty = Math.max(1, addAcModalQty || 1);
     const linked: LinkedAccessory = {
       codigo: product.codigo ?? product.sku ?? `AC${product.id}`,
       descricao,
-      qty: 1,
+      qty,
       unitPrice: precoVenda > 0 ? precoVenda : null,
       fotoUrl: product.fotoUrl ?? null,
       familia: product.familia ?? undefined,
@@ -1872,14 +1874,15 @@ export default function Home() {
         toast.info(`"${descricao}" já está na lista de acessórios pendentes.`);
         return prev;
       }
-      toast.success(`Acessório "${descricao}" incluído ao produto! Será enviado junto ao carrinho.`);
+      toast.success(`Acessório "${descricao}" (${qty}×) incluído ao produto! Será enviado junto ao carrinho.`);
       return [...prev, linked];
     });
     setAddAcModalOpen(false);
     setAddAcModalSelectedId(null);
     setAddAcModalSearch("");
     setAddAcModalFamilia("");
-  }, [addAcModalSelectedId, acessoriosProducts]);
+    setAddAcModalQty(1);
+  }, [addAcModalSelectedId, addAcModalQty, acessoriosProducts]);
 
   const handleAddAcessorioItem = useCallback((id?: number) => {
     const targetId = id ?? acSelectedId;
@@ -6562,7 +6565,7 @@ export default function Home() {
         </div>
       </footer>
       {/* Modal de inclusão de acessório a partir do painel de resultados */}
-      <Dialog open={addAcModalOpen} onOpenChange={(open) => { setAddAcModalOpen(open); if (!open) { setAddAcModalSelectedId(null); setAddAcModalSearch(""); setAddAcModalFamilia(""); } }}>
+      <Dialog open={addAcModalOpen} onOpenChange={(open) => { setAddAcModalOpen(open); if (!open) { setAddAcModalSelectedId(null); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalQty(1); } }}>
         <DialogContent className="max-w-2xl w-full">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
@@ -6662,18 +6665,30 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            {/* Botões de ação */}
-            <div className="flex justify-end gap-2 pt-1">
-              <Button variant="outline" size="sm" onClick={() => setAddAcModalOpen(false)}>Cancelar</Button>
-              <Button
-                size="sm"
-                disabled={!addAcModalSelectedId}
-                onClick={handleAddAcessorioFromModal}
-                className="gap-1.5 bg-cyan-600 hover:bg-cyan-700 text-white"
-              >
-                <Wrench className="w-3.5 h-3.5" />
-                Incluir ao Produto
-              </Button>
+            {/* Quantidade + Botões de ação */}
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm text-muted-foreground whitespace-nowrap">Quantidade:</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={addAcModalQty}
+                  onChange={e => setAddAcModalQty(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-20 h-8 text-sm text-center"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setAddAcModalOpen(false)}>Cancelar</Button>
+                <Button
+                  size="sm"
+                  disabled={!addAcModalSelectedId}
+                  onClick={handleAddAcessorioFromModal}
+                  className="gap-1.5 bg-cyan-600 hover:bg-cyan-700 text-white"
+                >
+                  <Wrench className="w-3.5 h-3.5" />
+                  Incluir ao Produto
+                </Button>
+              </div>
             </div>
           </div>
         </DialogContent>
