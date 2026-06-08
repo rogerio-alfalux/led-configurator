@@ -2345,8 +2345,11 @@ export default function Home() {
   // Result state
   const [result, setResult] = useState<CompositionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  // ── Dados derivados ─────────────────────────────────────────────
+  // ── Produto configurado (habilita botão Incluir Acessório) ───────
+  // Verdadeiro quando há um resultado calculado em qualquer categoria,
+  // ou quando um produto de Revenda/Acessório/Item Especial está selecionado.
+  const hasResult = !!(result || shapeResult || dlResult || panelResult || spotResult || arandelaResult || lbResult || bgResult || rvSelectedSku || acSelectedId || productCategory === "Item Especial");
+  // ── Dados derivados ──────────────────────────────────────────────
   // Usa funções do catálogo ativo (API ou estático)
   const profileNames = activeGetProfileNames();
   // Tipos de instalação disponíveis para o perfil selecionado
@@ -4962,6 +4965,7 @@ export default function Home() {
                     {pendingAccessories.length} acessório{pendingAccessories.length > 1 ? "s" : ""} vinculado{pendingAccessories.length > 1 ? "s" : ""}
                   </span>
                 )}
+                {hasResult && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -4971,6 +4975,7 @@ export default function Home() {
                   <Wrench className="w-3.5 h-3.5" />
                   Incluir Acessório
                 </Button>
+                )}
               </div>
             </div>
 
