@@ -163,6 +163,30 @@ export interface CartItemData {
    * Aparecem indentados abaixo do produto pai no carrinho, orçamento e ficha de produção.
    */
   accessories?: LinkedAccessory[];
+
+  // ─── Campos de v32.24 ─────────────────────────────────────────────────────
+  /**
+   * Observação livre por item — aparece abaixo do item no Excel quando itemObsShowInExcel=true.
+   */
+  itemObs?: string;
+  /**
+   * Se true, exibe itemObs no Excel do orçamento (abaixo da linha do item).
+   */
+  itemObsShowInExcel?: boolean;
+  /**
+   * Margem de negociação específica por item (0–100, ex: 10 = 10%).
+   * Quando definida, sobrescreve a margem global do orçamento para este item.
+   */
+  itemMarginPercent?: number;
+  /**
+   * ID do pavimento/zona ao qual este item pertence.
+   * Usado para agrupar itens por pavimento no Excel.
+   */
+  floorId?: string;
+  /**
+   * Nome do pavimento/zona (ex: "Térreo", "1º Andar", "Cobertura").
+   */
+  floorName?: string;
 }
 
 /**
@@ -243,6 +267,12 @@ export interface QuoteFormData {
   fcpPercent?: number;
   /** Valor de FCP calculado em R$ */
   fcpValue?: number;
+  /** Número do projeto (campo separado do número do orçamento, preenchido manualmente) */
+  projectNumber?: string;
+  /** Comissão do 2º vendedor (0–1, ex: 0.05 = 5%). Apenas demonstrativo. */
+  commissionPercent2?: number;
+  /** Valor do frete cotado em R$ (quando freteType = 'paid') */
+  freteValue?: number;
 }
 
 export function parseCartItemData(json: string): CartItemData | null {

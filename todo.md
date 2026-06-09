@@ -1187,3 +1187,17 @@
 - [x] Todos os 216 produtos exibidos sem filtro de exclusão por fornecedor
 - [x] Busca textual também filtra por nome do fornecedor normalizado
 - [x] 0 erros TypeScript, 516/516 testes passando
+## v32.24 — Melhorias de Orçamento e Excel
+- [x] Corrigir bug Rev0/Rev1: usar (revisionCount ?? 0) + 1 ao gerar Excel
+- [x] Duplicar orçamento: botão no QuoteDetail.tsx com dialog de confirmação e navegação para o novo orçamento
+- [x] Campo Número do Projeto (projectNumber): exibido no cabeçalho do orçamento, editável nos formulários
+- [x] Comissão dividida (commissionPercent2): campo "Comissão 2º Vendedor" no Cart.tsx e QuoteDetail.tsx
+- [x] Frete cotado (freteValue): campo "Frete Cotado (R$)" na aba Frete do Cart.tsx e QuoteDetail.tsx
+- [x] Observação por item (itemObs + itemObsShowInExcel): campo no dialog de edição de item no Cart.tsx
+- [x] Margem por item (itemMarginPercent): campo no dialog de edição de item no Cart.tsx
+- [x] Controle de preços por papel: apenas admin/gerente podem editar preços de itens que vieram da API
+- [x] Rabicho inline no Excel: rabicho aparece como texto na coluna D do item pai, não em sub-linha separada
+- [x] Remover cor do item especial: coluna J não exibe specialColor para itens da categoria "Item Especial"
+- [x] Categoria Serviços: nova categoria com formulário simples e linha compacta no Excel
+- [x] Orçamento por pavimentos: campo Pavimento/Ambiente no dialog de edição; cabeçalho de pavimento no Excel
+- [x] 516/516 testes passando, 0 erros TypeScript novos

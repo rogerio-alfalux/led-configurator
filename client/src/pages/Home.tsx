@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench } from "lucide-react";
+import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench, Briefcase } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -128,7 +128,8 @@ type ProductCategory =
   | "Decorativas"
   | "Item Especial"
   | "Revenda"
-  | "Acessórios";
+  | "Acessórios"
+  | "Serviços";
 
 const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.ElementType; image?: string; available: boolean }[] = [
   { value: "Perfis",       label: "Perfis",        icon: Layers,      image: "/manus-storage/PERFIS_e65318d1.png",      available: true  },
@@ -142,6 +143,7 @@ const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.E
   { value: "Item Especial", label: "Item Especial",  icon: PackagePlus, image: "/manus-storage/item-especial-icon_c570c491.png", available: true  },
   { value: "Revenda",       label: "Revenda",        icon: ShoppingBag, image: "/manus-storage/revenda-icon-nobg_245d52aa.png", available: true  },
   { value: "Acessórios",    label: "Acessórios",     icon: Wrench,      image: "/manus-storage/trilho_nobg_cf2a6de2.png", available: true  },
+  { value: "Serviços",       label: "Serviços",        icon: Briefcase,   available: true  },
 ];
 
 // ─── Auxiliar: quantidade de drivers por produto/controle/tensão ─────────────
@@ -1691,7 +1693,13 @@ export default function Home() {
   const [spPhotoPreview, setSpPhotoPreview] = useState<string>("");
   const [spIsUploading, setSpIsUploading] = useState(false);
 
-  // ── Estados de Revenda ──────────────────────────────────────────────────────
+  //  // ── Estados de Serviços ──────────────────────────────────────────────
+  const [svDescription, setSvDescription] = useState<string>("");
+  const [svQty, setSvQty] = useState<string>("1");
+  const [svUnitPrice, setSvUnitPrice] = useState<string>("");
+  const [svNotes, setSvNotes] = useState<string>("");
+
+  // ── Estados de Revenda ──────────────────────────────────────────────
   const [rvSelectedSku, setRvSelectedSku] = useState<string>("");
   const [rvFornecedor, setRvFornecedor] = useState<string>("");
   const [rvSearch, setRvSearch] = useState<string>("");
@@ -2011,6 +2019,31 @@ export default function Home() {
       setColorModalOpen(true);
     }
   }, [spDescription, spDimensions, spPower, spDim, spVoltage, spColor, spUnitPrice, spPhotoUrl, spInternalNotes, appendToQuoteId, handleAddItemOrToQuote]);
+
+  const handleAddService = useCallback(() => {
+    if (!svDescription.trim()) {
+      toast.error("Informe a descrição do serviço.");
+      return;
+    }
+    const qty = parseInt(svQty) || 1;
+    const unitPrice = parseFloat(svUnitPrice.replace(",", ".")) || 0;
+    const item: CartItemData = {
+      category: "Serviços",
+      sku: "SERVICO",
+      description: svDescription.trim(),
+      qty,
+      unitPrice,
+      totalPrice: unitPrice * qty,
+      photoUrl: null,
+      itemNote: svNotes.trim() || undefined,
+    };
+    handleAddItemOrToQuote(item);
+    setSvDescription("");
+    setSvQty("1");
+    setSvUnitPrice("");
+    setSvNotes("");
+    toast.success("Serviço adicionado ao carrinho!");
+  }, [svDescription, svQty, svUnitPrice, svNotes, handleAddItemOrToQuote]);
 
   // Catálogo ativo de LED BAR (API ou fallback estático))
   const activeLedBarCatalog = useMemo(() => {
@@ -4662,7 +4695,64 @@ export default function Home() {
               </div>
             )}
 
-            {/* ── Formulário de Revenda ─────────────────────────────────── */}
+            {/* ── Formulário de Serviços ───────────────────────────────────────── */}
+            {productCategory === "Serviços" && (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Descrição do Serviço <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    value={svDescription}
+                    onChange={(e) => setSvDescription(e.target.value)}
+                    placeholder="Ex: Instalação elétrica, Projeto luminotécnico..."
+                    className="h-10"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quantidade</Label>
+                    <Input
+                      type="number" min="1"
+                      value={svQty}
+                      onChange={(e) => setSvQty(e.target.value)}
+                      placeholder="1"
+                      className="h-10"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Valor Unitário (R$)</Label>
+                    <Input
+                      value={svUnitPrice}
+                      onChange={(e) => setSvUnitPrice(e.target.value)}
+                      placeholder="Ex: 500,00"
+                      className="h-10"
+                      inputMode="decimal"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Observações</Label>
+                  <Textarea
+                    value={svNotes}
+                    onChange={(e) => setSvNotes(e.target.value)}
+                    placeholder="Detalhes do serviço..."
+                    className="min-h-[64px] text-sm"
+                  />
+                </div>
+                <Button
+                  onClick={handleAddService}
+                  disabled={!svDescription.trim()}
+                  className="w-full h-12 text-base font-semibold font-display bg-blue-600 hover:bg-blue-700 text-white"
+                  size="lg"
+                >
+                  <Briefcase className="w-5 h-5 mr-2" />
+                  Adicionar Serviço
+                </Button>
+              </div>
+            )}
+
+            {/* ── Formulário de Revenda ────────────────────────────────────────────── */}
             {productCategory === "Revenda" && (
               <div className="space-y-4">
                 {revendaProductsQuery.isLoading ? (

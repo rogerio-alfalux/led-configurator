@@ -4,7 +4,7 @@ import {
   ArrowLeft, CheckCircle, XCircle, Clock, TrendingDown,
   FileSpreadsheet, History, Package, Edit, AlertTriangle,
   ChevronDown, ChevronUp, Factory, Trash2, PenLine,
-  Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle, GripVertical, Wrench,
+  Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle, GripVertical, Wrench, Copy,
 } from "lucide-react";
 import {
   DndContext,
@@ -236,10 +236,15 @@ export default function QuoteDetail() {
     // Novos campos
     deliveryDays: "20",
     commissionPercent: "5",
+    commissionPercent2: "0",
     paymentTerm: "30% Sinal e 70% a 28DDF (mediante aprovação de cadastro)",
     destState: "",
     difalEnabled: false,
     fcpEnabled: false,
+    projectNumber: "",
+    freteValue: "",
+    freteState: "",
+    freteIncluded: false,
   });
 
   // Sellers & Assistants for edit dialog
@@ -334,6 +339,19 @@ export default function QuoteDetail() {
   });
 
   const logProductionSheetMutation = trpc.quotes.logProductionSheet.useMutation();
+
+  // Duplicar orçamento
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [duplicateClientName, setDuplicateClientName] = useState("");
+  const duplicateMutation = trpc.quotes.duplicate.useMutation({
+    onSuccess: (result) => {
+      utils.quotes.list.invalidate();
+      toast.success(`Orçamento duplicado! Número: ${result.quoteNumber}`);
+      setDuplicateDialogOpen(false);
+      navigate(`/orcamentos/${result.quoteId}`);
+    },
+    onError: (err) => toast.error(`Erro ao duplicar: ${err.message}`),
+  });
 
   const deleteMutation = trpc.quotes.delete.useMutation({
     onSuccess: () => {
@@ -555,6 +573,7 @@ export default function QuoteDetail() {
               {quote.clientEmail && <p>✉️ {quote.clientEmail}</p>}
               {quote.projectName && <p>📍 Obra: <span className="font-medium">{quote.projectName}</span></p>}
               {quote.projectRef && <p>🔖 Ref: {quote.projectRef}</p>}
+              {(quote as any).projectNumber && <p>📁 Nº Projeto: <span className="font-medium">{(quote as any).projectNumber}</span></p>}
             </CardContent>
           </Card>
 
@@ -846,6 +865,45 @@ export default function QuoteDetail() {
             </SheetContent>
           </Sheet>}
 
+          {/* Duplicar Orçamento */}
+          <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2" onClick={() => setDuplicateClientName(quote.clientName ?? "")}>
+                <Copy className="w-4 h-4" />
+                Duplicar
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Duplicar Orçamento</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 py-2">
+                <p className="text-sm text-muted-foreground">
+                  Será criado um novo orçamento com todos os itens e configurações do <strong>{quote.quoteNumber}</strong>.
+                </p>
+                <div>
+                  <Label>Nome do Cliente (novo orçamento)</Label>
+                  <Input
+                    value={duplicateClientName}
+                    onChange={e => setDuplicateClientName(e.target.value)}
+                    placeholder="Deixe em branco para manter o mesmo cliente"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setDuplicateDialogOpen(false)}>Cancelar</Button>
+                <Button
+                  onClick={() => duplicateMutation.mutate({ id: Number(id), newClientName: duplicateClientName || undefined })}
+                  disabled={duplicateMutation.isPending}
+                  className="gap-2"
+                >
+                  <Copy className="w-4 h-4" />
+                  {duplicateMutation.isPending ? "Duplicando..." : "Confirmar Duplicação"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           {/* Alterar Status */}
           {canEdit && <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
             <DialogTrigger asChild>
@@ -927,10 +985,15 @@ export default function QuoteDetail() {
                 freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
                 deliveryDays: quote.deliveryDays != null ? String(quote.deliveryDays) : "20",
                 commissionPercent: quote.commissionPercent != null ? String(parseFloat(String(quote.commissionPercent)) * 100) : "5",
+                commissionPercent2: quote.commissionPercent2 != null ? String(parseFloat(String(quote.commissionPercent2)) * 100) : "0",
                 paymentTerm: quote.paymentTerm ?? "30% Sinal e 70% a 28DDF (mediante aprovação de cadastro)",
                 destState: quote.destState ?? "",
                 difalEnabled: quote.difalEnabled ?? false,
                 fcpEnabled: quote.fcpEnabled ?? false,
+                projectNumber: quote.projectNumber ?? "",
+                freteValue: (quote as any).freteValue != null ? String((quote as any).freteValue) : "",
+                freteState: (quote as any).freteState ?? "",
+                freteIncluded: (quote as any).freteIncluded ?? false,
               });
             }
           }}>
@@ -1016,6 +1079,11 @@ export default function QuoteDetail() {
                   <div>
                     <Label>E-mail</Label>
                     <Input value={editForm.clientEmail} onChange={e => setEditForm(f => ({ ...f, clientEmail: e.target.value }))} placeholder="email@cliente.com" />
+                  </div>
+                  <div>
+                    <Label>Número do Projeto <span className="text-xs text-muted-foreground">(opcional)</span></Label>
+                    <Input value={editForm.projectNumber} onChange={e => setEditForm(f => ({ ...f, projectNumber: e.target.value }))} placeholder="Ex: PRJ-2024-001" />
+                    <p className="text-xs text-muted-foreground mt-1">Campo separado do número do orçamento. Aparece no Excel.</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -1103,6 +1171,30 @@ export default function QuoteDetail() {
                     <Checkbox id="editFreteIsento" checked={editForm.freteIsento} onCheckedChange={(v) => setEditForm(f => ({ ...f, freteIsento: Boolean(v) }))} />
                     <label htmlFor="editFreteIsento" className="text-sm cursor-pointer">Isentar frete</label>
                   </div>
+
+                  {/* Frete Cotado */}
+                  <div className="border rounded-lg p-3 space-y-2">
+                    <Label className="text-sm font-medium">Frete Cotado (valor real)</Label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">R$</span>
+                      <Input
+                        type="number" min={0} step={0.01}
+                        className="w-32"
+                        placeholder="0,00"
+                        value={editForm.freteValue}
+                        onChange={e => setEditForm(f => ({ ...f, freteValue: e.target.value }))}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="editFreteIncluded"
+                        checked={editForm.freteIncluded}
+                        onCheckedChange={(v) => setEditForm(f => ({ ...f, freteIncluded: Boolean(v) }))}
+                      />
+                      <label htmlFor="editFreteIncluded" className="text-sm cursor-pointer">Frete já incluído no total do orçamento</label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Valor real do frete cotado. Apenas demonstrativo.</p>
+                  </div>
                 </TabsContent>
 
                 {/* Aba Comercial */}
@@ -1189,6 +1281,27 @@ export default function QuoteDetail() {
                       ) : null;
                     })()}
                     <p className="text-xs text-muted-foreground">Não altera o valor do orçamento. Apenas demonstrativo para controle interno.</p>
+                  </div>
+
+                  {/* Comissão 2º Vendedor */}
+                  <div className="border rounded-lg p-3 space-y-2 bg-amber-50/50 dark:bg-amber-950/10">
+                    <div className="flex items-center gap-2">
+                      <Percent className="w-4 h-4 text-amber-500" />
+                      <span className="text-sm font-medium">Comissão do 2º Vendedor (demonstrativo)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number" min={0} max={5} step={0.5}
+                        className="w-24"
+                        value={editForm.commissionPercent2}
+                        onChange={e => {
+                          const val = Math.min(5, Math.max(0, parseFloat(e.target.value) || 0));
+                          setEditForm(f => ({ ...f, commissionPercent2: String(val) }));
+                        }}
+                      />
+                      <span className="text-sm text-muted-foreground">% (máx. 5%)</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Apenas demonstrativo. Visível quando há 2º vendedor no orçamento.</p>
                   </div>
 
                   {/* DIFAL / FCP */}
@@ -1311,10 +1424,15 @@ export default function QuoteDetail() {
                       bumpVersion: false,
                       deliveryDays: parseInt(editForm.deliveryDays || "20") || 20,
                       commissionPercent: Math.min(Math.max(parseFloat(editForm.commissionPercent || "5") / 100, 0), 1),
+                      commissionPercent2: editForm.commissionPercent2 ? Math.min(Math.max(parseFloat(editForm.commissionPercent2) / 100, 0), 1) : undefined,
                       paymentTerm: editForm.paymentTerm || undefined,
                       destState: editForm.destState || undefined,
                       difalEnabled: editForm.difalEnabled,
                       fcpEnabled: editForm.fcpEnabled,
+                      projectNumber: editForm.projectNumber || undefined,
+                      freteValue: editForm.freteValue ? parseFloat(editForm.freteValue) : undefined,
+                      freteState: editForm.freteState || undefined,
+                      freteIncluded: editForm.freteIncluded,
                       ...(() => {
                         const info = editForm.destState ? getStateInfo(editForm.destState) : undefined;
                         return {

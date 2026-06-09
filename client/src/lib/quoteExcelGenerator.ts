@@ -342,17 +342,71 @@ export async function generateQuoteExcel(
     cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
     mediumBorder(cell);
   }
-
-  // ── Linhas de dados (a partir da linha 19) ───────────────────────────────
+  // ── Linhas de dados (a partir da linha 19) ───────────────────────────────────────
   let currentRow = 19;
   // Altura da linha de produto: quadrado para a foto
   // Coluna D tem 18 chars * ~7px = ~126px → usamos 90pt (1pt ≈ 1.33px → ~120px)
   const IMAGE_ROW_HEIGHT = 90;
+  // Rastrear pavimento atual para inserir cabeçalho quando mudar
+  let lastFloorId: string | undefined = undefined;
+  let floorHeaderCount = 0; // número de linhas de cabeçalho de pavimento inseridas
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-    const rowNum = currentRow + i;
+    // Inserir cabeçalho de pavimento quando floorId muda
+    if (item.floorId && item.floorId !== lastFloorId) {
+      const fhRow = currentRow + i + floorHeaderCount;
+      const fhRowObj = ws.getRow(fhRow);
+      fhRowObj.height = 22;
+      ws.mergeCells(`C${fhRow}:N${fhRow}`);
+      const fhCell = ws.getCell(`C${fhRow}`);
+      fhCell.value = item.floorName ? `${item.floorId} — ${item.floorName}` : item.floorId;
+      fhCell.font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
+      fhCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A3A5C' } };
+      fhCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+      mediumBorder(fhCell);
+      lastFloorId = item.floorId;
+      floorHeaderCount++;
+    }
+    const rowNum = currentRow + i + floorHeaderCount;
     const row = ws.getRow(rowNum);
+
+    // ── Categoria Serviços: linha compacta sem foto nem colunas técnicas ──────────────
+    if (item.category === 'Serviços') {
+      row.height = 30;
+      const SERV_BG = 'FFF5F5F5';
+      const SERV_COLOR = 'FF333333';
+      for (const col of ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N']) {
+        const cell = ws.getCell(`${col}${rowNum}`);
+        mediumBorder(cell);
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: SERV_BG } };
+        cell.font = { name: 'Calibri', size: 11, color: { argb: SERV_COLOR } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      }
+      ws.getCell(`C${rowNum}`).value = item.itemEmPlanta || '';
+      // Mesclar D:K para descrição
+      ws.mergeCells(`D${rowNum}:K${rowNum}`);
+      const dCell = ws.getCell(`D${rowNum}`);
+      dCell.value = item.description || item.sku || 'Serviço';
+      dCell.font = { name: 'Calibri', size: 11, italic: true, color: { argb: SERV_COLOR } };
+      dCell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+      ws.getCell(`L${rowNum}`).value = item.qty;
+      const _rtPctS = Math.min(Math.max(formData.rtPercent ?? 0, 0), 0.99);
+      const _mPctS = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
+      const applyMarkupS = (b: number) => { const r = _rtPctS > 0 ? b / (1 - _rtPctS) : b; return _mPctS > 0 ? r / (1 - _mPctS) : r; };
+      if (item.unitPrice && item.unitPrice > 0) {
+        const mCell = ws.getCell(`M${rowNum}`);
+        mCell.value = applyMarkupS(item.unitPrice);
+        mCell.numFmt = '"R$"#,##0.00';
+      }
+      if (item.totalPrice && item.totalPrice > 0) {
+        const nCell = ws.getCell(`N${rowNum}`);
+        nCell.value = applyMarkupS(item.totalPrice);
+        nCell.numFmt = '"R$"#,##0.00';
+      }
+      continue; // pular o restante do loop para este item
+    }
+
     row.height = IMAGE_ROW_HEIGHT;
 
     // Aplicar bordas medium e alinhamento em todas as colunas da tabela
@@ -474,10 +528,8 @@ export async function generateQuoteExcel(
       ? item.specialVoltage
       : extractVoltage(item.description);
 
-    // J = COR — usa campo especial de cor se disponível, depois corPeca
-    ws.getCell(`J${rowNum}`).value = (item.category === "Item Especial" && item.specialColor)
-      ? item.specialColor
-      : (item.corPeca || "-");
+    // J = COR — usa corPeca (item especial não exibe cor)
+    ws.getCell(`J${rowNum}`).value = item.category === "Item Especial" ? "-" : (item.corPeca || "-");
 
     // K = TEMPERATURA DE COR (K)
     ws.getCell(`K${rowNum}`).value = item.cct || "-";
@@ -527,9 +579,25 @@ export async function generateQuoteExcel(
     cItemNote.font = { name: "Calibri", size: 10, italic: true, color: { argb: "FF4472C4" } };
     cItemNote.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
 
-    // ── Sub-linhas de acessórios vinculados ──────────────────────────────────
-    if (item.accessories && item.accessories.length > 0) {
-      (item.accessories as LinkedAccessory[]).forEach((acc, accIdx) => {
+    // ── Rabicho inline na coluna D ──────────────────────────────────────────
+    // Se o único acessório for rabicho, adicionar texto na coluna D (inline)
+    const rabichoAcc = item.accessories?.find(a => a.familia?.toLowerCase().includes('rabicho'));
+    const nonRabichoAcc = item.accessories?.filter(a => !a.familia?.toLowerCase().includes('rabicho')) ?? [];
+    if (rabichoAcc) {
+      // Adicionar texto do rabicho abaixo da foto na célula D
+      const dCell = ws.getCell(`D${rowNum}`);
+      const currentVal = typeof dCell.value === 'string' ? dCell.value : '';
+      const rabichoText = `\n\u21B3 Rabicho: ${rabichoAcc.descricao}${rabichoAcc.dimensao ? ` ${rabichoAcc.dimensao}` : ''}`;
+      // Adicionar como rich text ou string simples
+      if (!currentVal) {
+        dCell.value = rabichoText.trim();
+        dCell.font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF006064' } };
+      }
+    }
+
+    // ── Sub-linhas de acessórios vinculados (não-rabicho) ──────────────────────
+    if (nonRabichoAcc.length > 0) {
+      nonRabichoAcc.forEach((acc, accIdx) => {
         const accRowNum = rowNum + accIdx + 1;
         ws.spliceRows(accRowNum, 0, []);
         const accRow = ws.getRow(accRowNum);
@@ -578,7 +646,7 @@ export async function generateQuoteExcel(
         }
       });
       // Avançar currentRow para compensar as sub-linhas inseridas
-      currentRow += item.accessories.length;
+      currentRow += nonRabichoAcc.length;
     }
   }
 
@@ -593,7 +661,7 @@ export async function generateQuoteExcel(
   const difalAmt = (formData.difalEnabled && formData.difalValue && formData.difalValue > 0) ? formData.difalValue : 0;
   const fcpAmt   = (formData.fcpEnabled && formData.fcpValue && formData.fcpValue > 0) ? formData.fcpValue : 0;
   const totalComDifal = totalFinal + difalAmt + fcpAmt;
-  let nextRow = currentRow + items.length;
+  let nextRow = currentRow + items.length + floorHeaderCount;
 
   // Espaço após a tabela
   nextRow++;

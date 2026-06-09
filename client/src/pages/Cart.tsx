@@ -83,6 +83,12 @@ interface SaveFormData {
   fcpEnabled: boolean;
   fcpPercent: string;
   fcpValue: string;
+  // v32.24
+  projectNumber: string;
+  commissionPercent2: string;
+  freteValue: string;
+  freteState: string;
+  freteIncluded: boolean;
 }
 
 interface OrderFormData {
@@ -356,7 +362,7 @@ export default function Cart() {
 
   // Edição inline de campos do item
   const [editItemId, setEditItemId] = useState<number | null>(null);
-  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; itemNote: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', itemNote: '' });
+  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; itemNote: string; itemObs: string; itemObsShowInExcel: boolean; itemMarginPercent: string; floorId: string; floorName: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', itemNote: '', itemObs: '', itemObsShowInExcel: false, itemMarginPercent: '', floorId: '', floorName: '' });
 
   // Pedido de Fábrica direto do carrinho
   const [orderConfirmOpen, setOrderConfirmOpen] = useState(false);
@@ -421,6 +427,11 @@ export default function Cart() {
     fcpEnabled: false,
     fcpPercent: "",
     fcpValue: "",
+    projectNumber: "",
+    commissionPercent2: "0",
+    freteValue: "",
+    freteState: "",
+    freteIncluded: false,
   });
 
   // Busca sugestão de número ao abrir o diálogo (atualiza quando vendedor muda)
@@ -528,6 +539,8 @@ export default function Cart() {
         fcpEnabled: saveForm.fcpEnabled,
         fcpPercent: saveForm.fcpEnabled && saveForm.fcpPercent ? parseFloat(saveForm.fcpPercent) : undefined,
         fcpValue: saveForm.fcpEnabled && saveForm.fcpValue ? parseFloat(saveForm.fcpValue) : undefined,
+        projectNumber: saveForm.projectNumber || undefined,
+        commissionPercent2: saveForm.commissionPercent2 ? (parseFloat(saveForm.commissionPercent2) || 0) / 100 : undefined,
       };
       // Injetar itemEmPlanta em cada item (respeitando a ordem do DnD)
       const itemsWithPlanta = orderedEntries.map((e, idx) => ({
@@ -604,6 +617,11 @@ export default function Cart() {
       fcpEnabled: saveForm.fcpEnabled,
       fcpPercent: saveForm.fcpEnabled && saveForm.fcpPercent ? parseFloat(saveForm.fcpPercent) : undefined,
       fcpValue: saveForm.fcpEnabled && saveForm.fcpValue ? parseFloat(saveForm.fcpValue) : undefined,
+      projectNumber: saveForm.projectNumber || undefined,
+      commissionPercent2: saveForm.commissionPercent2 ? (parseFloat(saveForm.commissionPercent2) || 0) / 100 : undefined,
+      freteValue: saveForm.freteValue ? parseFloat(saveForm.freteValue) : undefined,
+      freteState: saveForm.freteState || undefined,
+      freteIncluded: saveForm.freteIncluded,
       totalAmount: totalGeral,
       totalFinal: totalFinal + freteValor,
       items: orderedEntries.map((e, idx) => ({
@@ -768,6 +786,11 @@ export default function Cart() {
                           qty: String(data.qty ?? 1),
                           unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '',
                           itemNote: data.itemNote ?? '',
+                          itemObs: data.itemObs ?? '',
+                          itemObsShowInExcel: data.itemObsShowInExcel ?? false,
+                          itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '',
+                          floorId: data.floorId ?? '',
+                          floorName: data.floorName ?? '',
                         });
                       }}
                     />
@@ -899,6 +922,16 @@ export default function Cart() {
                                 value={saveForm.clientEmail}
                                 onChange={e => updateSaveForm("clientEmail", e.target.value)}
                               />
+                            </div>
+                            {/* Número do Projeto */}
+                            <div>
+                              <Label>Número do Projeto <span className="text-xs text-muted-foreground">(opcional)</span></Label>
+                              <Input
+                                placeholder="Ex: PRJ-2024-001"
+                                value={saveForm.projectNumber}
+                                onChange={e => updateSaveForm("projectNumber", e.target.value)}
+                              />
+                              <p className="text-xs text-muted-foreground mt-1">Campo separado do número do orçamento. Aparece no Excel.</p>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                               <div>
@@ -1215,6 +1248,27 @@ export default function Cart() {
                               <p className="text-xs text-muted-foreground">Não altera o valor do orçamento. Apenas demonstrativo para controle interno.</p>
                             </div>
 
+                            {/* Comissão 2º Vendedor */}
+                            <div className="border rounded-lg p-3 space-y-2 bg-amber-50/50 dark:bg-amber-950/10">
+                              <div className="flex items-center gap-2">
+                                <Percent className="w-4 h-4 text-amber-500" />
+                                <span className="text-sm font-medium">Comissão do 2º Vendedor (demonstrativo)</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number" min={0} max={5} step={0.5}
+                                  className="w-24"
+                                  value={saveForm.commissionPercent2}
+                                  onChange={e => {
+                                    const val = Math.min(5, Math.max(0, parseFloat(e.target.value) || 0));
+                                    updateSaveForm("commissionPercent2", String(val));
+                                  }}
+                                />
+                                <span className="text-sm text-muted-foreground">% (máx. 5%)</span>
+                              </div>
+                              <p className="text-xs text-muted-foreground">Apenas demonstrativo. Visível quando há 2º vendedor no orçamento.</p>
+                            </div>
+
                             {/* DIFAL / FCP */}
                             <div className="border rounded-lg p-3 space-y-3">
                               <div className="flex items-center gap-2">
@@ -1362,6 +1416,30 @@ export default function Cart() {
                               <label htmlFor="freteIsento" className="text-sm cursor-pointer">
                                 Isentar frete (frete grátis independente do valor)
                               </label>
+                            </div>
+
+                            {/* Frete Cotado */}
+                            <div className="border rounded-lg p-3 space-y-2">
+                              <Label className="text-sm font-medium">Frete Cotado (valor real)</Label>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-muted-foreground">R$</span>
+                                <Input
+                                  type="number" min={0} step={0.01}
+                                  className="w-32"
+                                  placeholder="0,00"
+                                  value={saveForm.freteValue}
+                                  onChange={e => updateSaveForm("freteValue", e.target.value)}
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Checkbox
+                                  id="freteIncluded"
+                                  checked={saveForm.freteIncluded}
+                                  onCheckedChange={(v) => updateSaveForm("freteIncluded", Boolean(v))}
+                                />
+                                <label htmlFor="freteIncluded" className="text-sm cursor-pointer">Frete já incluído no total do orçamento</label>
+                              </div>
+                              <p className="text-xs text-muted-foreground">Valor real do frete cotado. Apenas demonstrativo — não altera o total automático.</p>
                             </div>
 
                             <div className="bg-muted/60 rounded-lg p-3 text-sm">
@@ -1643,7 +1721,10 @@ export default function Cart() {
             {(() => {
               const item = orderedEntries.find(e => e.id === editItemId);
               const isRevenda = item?.data.category === 'Revenda';
-              const canEditPrice = !item?.data.priceFromApi;
+              // Controle de preços por papel: admin e gerente podem editar preços da API
+              const userRole = (user as any)?.role;
+              const canOverrideApiPrice = userRole === 'admin' || userRole === 'gerente';
+              const canEditPrice = !item?.data.priceFromApi || canOverrideApiPrice;
               return isRevenda ? (
                 <>
                   <div className="space-y-1">
@@ -1665,12 +1746,28 @@ export default function Cart() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label>Observação</Label>
+                    <Label>Observação (interna)</Label>
                     <Input
                       value={editFields.itemNote}
                       onChange={(e) => setEditFields(prev => ({ ...prev, itemNote: e.target.value }))}
                       placeholder="ex: STELLA ref: SD1720BR"
                     />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Obs. no Orçamento (Excel)</Label>
+                    <Input
+                      value={editFields.itemObs}
+                      onChange={(e) => setEditFields(prev => ({ ...prev, itemObs: e.target.value }))}
+                      placeholder="Obs. que aparece no Excel abaixo do item"
+                    />
+                    <div className="flex items-center gap-2 mt-1">
+                      <Checkbox
+                        id="itemObsShowInExcel"
+                        checked={editFields.itemObsShowInExcel}
+                        onCheckedChange={(v) => setEditFields(prev => ({ ...prev, itemObsShowInExcel: Boolean(v) }))}
+                      />
+                      <label htmlFor="itemObsShowInExcel" className="text-xs cursor-pointer">Exibir no Excel do orçamento</label>
+                    </div>
                   </div>
                 </>
               ) : (
@@ -1710,16 +1807,64 @@ export default function Cart() {
                       className={!canEditPrice ? "bg-muted text-muted-foreground cursor-not-allowed" : ""}
                     />
                     {!canEditPrice && (
-                      <p className="text-xs text-muted-foreground">Preço definido pela API — não editável.</p>
+                      <p className="text-xs text-muted-foreground">Preço definido pela API. Apenas admin/gerente podem alterar.</p>
+                    )}
+                    {canEditPrice && item?.data.priceFromApi && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">Preço da API — você pode alterar (admin/gerente).</p>
                     )}
                   </div>
                   <div className="space-y-1">
-                    <Label>Observação</Label>
+                    <Label>Observação (interna)</Label>
                     <Input
                       value={editFields.itemNote}
                       onChange={(e) => setEditFields(prev => ({ ...prev, itemNote: e.target.value }))}
                       placeholder="Observação livre sobre este item"
                     />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Obs. no Orçamento (Excel)</Label>
+                    <Input
+                      value={editFields.itemObs}
+                      onChange={(e) => setEditFields(prev => ({ ...prev, itemObs: e.target.value }))}
+                      placeholder="Obs. que aparece no Excel abaixo do item"
+                    />
+                    <div className="flex items-center gap-2 mt-1">
+                      <Checkbox
+                        id="itemObsShowInExcel2"
+                        checked={editFields.itemObsShowInExcel}
+                        onCheckedChange={(v) => setEditFields(prev => ({ ...prev, itemObsShowInExcel: Boolean(v) }))}
+                      />
+                      <label htmlFor="itemObsShowInExcel2" className="text-xs cursor-pointer">Exibir no Excel do orçamento</label>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Margem por item (%)</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number" min={0} max={99} step={0.5}
+                        className="w-24"
+                        value={editFields.itemMarginPercent}
+                        onChange={(e) => setEditFields(prev => ({ ...prev, itemMarginPercent: e.target.value }))}
+                        placeholder="Global"
+                      />
+                      <span className="text-xs text-muted-foreground">% (vazio = usa margem global)</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Pavimento / Ambiente</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        value={editFields.floorId}
+                        onChange={(e) => setEditFields(prev => ({ ...prev, floorId: e.target.value }))}
+                        placeholder="ID (ex: P1, P2)"
+                      />
+                      <Input
+                        value={editFields.floorName}
+                        onChange={(e) => setEditFields(prev => ({ ...prev, floorName: e.target.value }))}
+                        placeholder="Nome (ex: Térreo, 1º Andar)"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Agrupa itens por pavimento no Excel</p>
                   </div>
                 </>
               );
@@ -1732,7 +1877,9 @@ export default function Cart() {
               const item = orderedEntries.find(e => e.id === editItemId);
               const isRevenda = item?.data.category === 'Revenda';
               const patch: Record<string, unknown> = {};
-              const canEditPriceSave = !item?.data.priceFromApi;
+              const userRoleSave = (user as any)?.role;
+              const canOverrideApiPriceSave = userRoleSave === 'admin' || userRoleSave === 'gerente';
+              const canEditPriceSave = !item?.data.priceFromApi || canOverrideApiPriceSave;
               if (isRevenda) {
                 const qty = parseInt(editFields.qty) || 1;
                 const unitPrice = parseFloat(editFields.unitPrice.replace(',', '.')) || 0;
@@ -1753,6 +1900,18 @@ export default function Cart() {
               }
               // Sempre salvar itemNote (pode ser vazio para limpar)
               patch.itemNote = editFields.itemNote.trim() || undefined;
+              // itemObs e itemObsShowInExcel
+              patch.itemObs = editFields.itemObs.trim() || undefined;
+              patch.itemObsShowInExcel = editFields.itemObsShowInExcel;
+              // itemMarginPercent (apenas para itens não-Revenda)
+              if (!isRevenda && editFields.itemMarginPercent.trim()) {
+                patch.itemMarginPercent = parseFloat(editFields.itemMarginPercent) || undefined;
+              } else if (!isRevenda) {
+                patch.itemMarginPercent = undefined;
+              }
+              // floorId / floorName
+              patch.floorId = editFields.floorId.trim() || undefined;
+              patch.floorName = editFields.floorName.trim() || undefined;
               const totalForUpdate = isRevenda
                 ? (parseInt(editFields.qty) || 1) * (parseFloat(editFields.unitPrice.replace(',', '.')) || 0)
                 : (canEditPriceSave && editFields.unitPrice.trim() ? (item?.data.qty || 1) * (parseFloat(editFields.unitPrice.replace(',', '.')) || 0) : 0);
