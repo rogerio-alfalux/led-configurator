@@ -128,7 +128,6 @@ export const appRouter = router({
         name: p.descricao,
         referencia: p.referencia,
         fornecedor: p.fornecedor,
-        observacoes: p.observacoes,
         fotoUrl: p.fotoUrl,
         precoVenda: p.precoVenda,
       }));

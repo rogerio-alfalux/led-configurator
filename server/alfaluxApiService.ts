@@ -144,14 +144,11 @@ export function invalidateAlfaluxCache(): void {
 // ── Revenda ───────────────────────────────────────────────────────────────────────────────────
 
 export interface RevendaProduct {
-  id: number;
   codigo: string;
   descricao: string;
   referencia: string | null;
   fornecedor: string | null;
-  observacoes: string | null;
   fotoUrl: string | null;
-  custo: number | null;
   precoVenda: number | null;
 }
 

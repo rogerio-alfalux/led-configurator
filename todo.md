@@ -1177,3 +1177,13 @@
 - [x] Metas de faturamento: anual e mensal com barra de progresso — visível para todos exceto assistentes, editável somente por admin
 - [x] Exportar relatório mensal de vendas em Excel com comissões por vendedor e resumo por vendedor — somente admin/gerente
 - [x] 516/516 testes passando, 0 erros TypeScript novos
+
+## v32.23 — Integração Revenda com nova API /revenda/all
+
+- [x] Atualizar interface RevendaProduct no backend: remover campos id, observacoes, custo (não existem na nova API)
+- [x] Remover mapeamento de observacoes no routers.ts e no Home.tsx
+- [x] Atualizar normalizeFornecedor para aceitar null/undefined e retornar "SEM FORNECEDOR"
+- [x] BACKLIT LUMIGRID agora agrupado em DIVERSOS (antes era ignorado/oculto)
+- [x] Todos os 216 produtos exibidos sem filtro de exclusão por fornecedor
+- [x] Busca textual também filtra por nome do fornecedor normalizado
+- [x] 0 erros TypeScript, 516/516 testes passando

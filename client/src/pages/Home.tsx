@@ -1700,7 +1700,7 @@ export default function Home() {
   const revendaProducts = revendaProductsQuery.data ?? [];
 
   // Regras de agrupamento de fornecedores
-  const FORNECEDOR_IGNORE = ["BACKLIT LUMIGRID"];
+  const FORNECEDOR_IGNORE: string[] = []; // Nenhum fornecedor ignorado — exibir todos
   const FORNECEDOR_MAP: Record<string, string> = {
     "ADILSON": "DIVERSOS",
     "MARIA": "DIVERSOS",
@@ -1710,10 +1710,12 @@ export default function Home() {
     "S. GROUND": "STELLA",
     "S.GROUND": "STELLA",
     "SOLAR GROUND": "STELLA",
+    "BACKLIT LUMIGRID": "DIVERSOS", // antes ignorado, agora agrupado em DIVERSOS
   };
-  const normalizeFornecedor = (f: string) => {
+  const normalizeFornecedor = (f: string | null | undefined): string => {
+    if (!f) return "SEM FORNECEDOR";
     const upper = f.toUpperCase().trim();
-    if (FORNECEDOR_IGNORE.includes(upper)) return null;
+    if (FORNECEDOR_IGNORE.includes(upper)) return "DIVERSOS";
     return FORNECEDOR_MAP[upper] ?? f.trim();
   };
 
@@ -1721,35 +1723,28 @@ export default function Home() {
   const revendaFornecedores = useMemo(() => {
     const set = new Set<string>();
     revendaProducts.forEach(p => {
-      if (!p.fornecedor) return;
-      const norm = normalizeFornecedor(p.fornecedor);
-      if (norm) set.add(norm);
+      set.add(normalizeFornecedor(p.fornecedor));
     });
     return Array.from(set).sort();
   }, [revendaProducts]);
-
   // Produtos filtrados por fornecedor + busca textual (com agrupamento)
   const filteredRevendaProducts = useMemo(() => {
-    let list = revendaProducts.filter(p => {
-      if (!p.fornecedor) return true;
-      return normalizeFornecedor(p.fornecedor) !== null;
-    });
+    // Todos os 216 produtos são exibidos — sem filtro de exclusão por fornecedor
+    let list = [...revendaProducts];
     if (rvFornecedor) {
-      list = list.filter(p => {
-        const norm = p.fornecedor ? normalizeFornecedor(p.fornecedor) : "";
-        return norm === rvFornecedor;
-      });
+      list = list.filter(p => normalizeFornecedor(p.fornecedor) === rvFornecedor);
     }
     if (rvSearch.trim()) {
       const q = rvSearch.toLowerCase();
       list = list.filter(p =>
         p.sku.toLowerCase().includes(q) ||
         p.name.toLowerCase().includes(q) ||
-        (p.referencia ?? "").toLowerCase().includes(q)
+        (p.referencia ?? "").toLowerCase().includes(q) ||
+        normalizeFornecedor(p.fornecedor).toLowerCase().includes(q)
       );
     }
     return list;
-  }, [revendaProducts, rvFornecedor, rvSearch]);
+  }, [revendaProducts, rvFornecedor, rvSearch]);;
 
   const handleAddRevendaItem = useCallback((sku?: string) => {
     const targetSku = sku ?? rvSelectedSku;
@@ -1777,7 +1772,7 @@ export default function Home() {
       cct: "",
       orderSummary: `${product.name} (${product.sku})`,
       quoteSummary: `${product.name} (${product.sku})`,
-      specialInternalNotes: product.observacoes ?? undefined,
+      specialInternalNotes: undefined,
       corPeca: "",
       itemNote: autoNote || undefined,
     };
@@ -6453,13 +6448,7 @@ export default function Home() {
                             </p>
                           </div>
                         )}
-                        {/* Observações */}
-                        {rvProduct.observacoes && (
-                          <div className="rounded-md bg-muted/40 border border-border px-3 py-2">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Observações</p>
-                            <p className="text-xs text-foreground/80 leading-relaxed">{rvProduct.observacoes}</p>
-                          </div>
-                        )}
+
                         {/* Botão adicionar */}
                         <Button
                           className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
