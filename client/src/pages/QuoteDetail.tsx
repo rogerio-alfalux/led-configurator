@@ -458,7 +458,9 @@ export default function QuoteDetail() {
           freteType: (quote.freteType as "free" | "paid" | "night" | "consult") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
-          revisionCount: quote.revisionCount ?? 0,
+          // bumpVersion: true j00e1 incrementou no banco, mas o estado React ainda n00e3o foi re-fetched
+          // Por isso usamos revisionCount + 1 para o Excel refletir a revis00e3o correta (RV1, RV2, ...)
+          revisionCount: (quote.revisionCount ?? 0) + 1,
           deliveryDays: quote.deliveryDays ?? 20,
           commissionPercent: quote.commissionPercent ? parseFloat(String(quote.commissionPercent)) : undefined,
           paymentTerm: quote.paymentTerm ?? undefined,

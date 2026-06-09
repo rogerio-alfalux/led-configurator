@@ -14,6 +14,7 @@ import {
   deleteFactoryOrderItem, createFactoryOrderRevision,
   getManagerDashboard, getSellerDashboard, getSalesGoalsByYear, upsertSalesGoal,
   getMonthlyReport,
+  duplicateQuote,
 } from "./db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -262,6 +263,11 @@ export const appRouter = router({
         fcpEnabled: z.boolean().optional(),
         difalValue: z.number().min(0).optional(),
         fcpValue: z.number().min(0).optional(),
+        projectNumber: z.string().max(64).optional(),
+        freteValue: z.number().min(0).optional(),
+        freteState: z.string().max(2).optional(),
+        freteIncluded: z.boolean().optional(),
+        commissionPercent2: z.number().min(0).max(1).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const result = await createQuote({ ...input, createdByUserId: ctx.user.id });
@@ -325,6 +331,11 @@ export const appRouter = router({
         fcpEnabled: z.boolean().optional(),
         difalValue: z.number().min(0).optional(),
         fcpValue: z.number().min(0).optional(),
+        projectNumber: z.string().max(64).optional(),
+        freteValue: z.number().min(0).optional(),
+        freteState: z.string().max(2).optional(),
+        freteIncluded: z.boolean().optional(),
+        commissionPercent2: z.number().min(0).max(1).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const { quoteId, bumpVersion, ...rest } = input;
@@ -395,6 +406,24 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    duplicate: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        newClientName: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await duplicateQuote(input.id, ctx.user.id, input.newClientName);
+        await insertAuditLog({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+          userName: ctx.user.name,
+          action: "quote_duplicated",
+          entityType: "quote",
+          entityId: input.id,
+          details: JSON.stringify({ newQuoteNumber: result.quoteNumber }),
+        });
+        return result;
+      }),
     updateStatus: protectedProcedure
       .input(z.object({
         id: z.number(),

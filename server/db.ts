@@ -264,6 +264,16 @@ export interface SaveQuoteInput {
   difalValue?: number;
   /** Valor FCP calculado */
   fcpValue?: number;
+  /** Número interno do projeto (ex: "2025-0042") */
+  projectNumber?: string;
+  /** Valor do frete cotado em R$ */
+  freteValue?: number;
+  /** Estado de destino do frete */
+  freteState?: string;
+  /** Se true, o frete é diluído nos produtos */
+  freteIncluded?: boolean;
+  /** Comissão do vendedor 2 (0-1) */
+  commissionPercent2?: number;
 }
 
 /** Cria um novo orçamento com versão 1 */
@@ -328,6 +338,11 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
     fcpEnabled: input.fcpEnabled ?? false,
     difalValue: input.difalValue != null ? String(input.difalValue) : '0',
     fcpValue: input.fcpValue != null ? String(input.fcpValue) : '0',
+    projectNumber: input.projectNumber ?? null,
+    freteValue: input.freteValue != null ? String(input.freteValue) : '0',
+    freteState: input.freteState ?? null,
+    freteIncluded: input.freteIncluded ?? false,
+    commissionPercent2: input.commissionPercent2 != null ? String(input.commissionPercent2) : '0',
   });
   const quoteId = (qResult as unknown as { insertId: number }[])[0]?.insertId ?? 0;
 
@@ -430,6 +445,11 @@ export async function addQuoteRevision(
     fcpEnabled: input.fcpEnabled ?? false,
     difalValue: input.difalValue != null ? String(input.difalValue) : '0',
     fcpValue: input.fcpValue != null ? String(input.fcpValue) : '0',
+    projectNumber: input.projectNumber ?? null,
+    freteValue: input.freteValue != null ? String(input.freteValue) : '0',
+    freteState: input.freteState ?? null,
+    freteIncluded: input.freteIncluded ?? false,
+    commissionPercent2: input.commissionPercent2 != null ? String(input.commissionPercent2) : '0',
   }).where(eq(quotes.id, quoteId));
 
   if (!bumpVersion) {
@@ -1137,4 +1157,118 @@ export async function getMonthlyReport(year: number, month: number) {
     commission: Number(r.totalFinal ?? 0) * Number(r.commissionPercent ?? 0),
     rtValue: Number(r.totalFinal ?? 0) * Number(r.rtPercent ?? 0),
   }));
+}
+
+/** Duplica um orçamento existente, criando um novo com número próprio e versão 1 */
+export async function duplicateQuote(
+  sourceQuoteId: number,
+  createdByUserId: number,
+  newClientName?: string
+): Promise<{ quoteId: number; quoteNumber: string }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Buscar orçamento original
+  const source = await getQuoteById(sourceQuoteId);
+  if (!source) throw new Error("Orçamento não encontrado");
+
+  // Buscar itens da versão mais recente
+  const vRows = await db.select().from(quoteVersions)
+    .where(eq(quoteVersions.quoteId, sourceQuoteId))
+    .orderBy(desc(quoteVersions.version))
+    .limit(1);
+  const currentVersionId = vRows[0]?.id ?? 0;
+  const itemRows = await db.select().from(quoteItems)
+    .where(and(eq(quoteItems.quoteId, sourceQuoteId), eq(quoteItems.quoteVersionId, currentVersionId)));
+
+  const newQuoteNumber = await generateQuoteNumber();
+  const q = source.quote;
+
+  const qResult = await db.insert(quotes).values({
+    quoteNumber: newQuoteNumber,
+    clientName: newClientName ?? q.clientName,
+    clientContact: q.clientContact,
+    clientPhone: q.clientPhone,
+    clientEmail: q.clientEmail,
+    projectName: q.projectName,
+    projectRef: q.projectRef,
+    vendorName: q.vendorName,
+    assistantName: q.assistantName,
+    seller1Id: q.seller1Id,
+    seller1Name: q.seller1Name,
+    seller2Id: q.seller2Id,
+    seller2Name: q.seller2Name,
+    assistantId: q.assistantId,
+    rtPercent: q.rtPercent,
+    rtDest1: q.rtDest1,
+    rtDest1Active: q.rtDest1Active,
+    rtDest2: q.rtDest2,
+    rtDest2Active: q.rtDest2Active,
+    rtDest3: q.rtDest3,
+    rtDest3Active: q.rtDest3Active,
+    marginPercent: q.marginPercent,
+    freteType: q.freteType as "free" | "paid" | "night" | "consult" | null,
+    freteIsento: q.freteIsento,
+    freteLocalidade: q.freteLocalidade as "sp" | "other" | null,
+    createdByUserId,
+    status: "open",
+    currentVersion: 1,
+    revisionCount: 0,
+    totalAmount: q.totalAmount,
+    totalFinal: q.totalFinal,
+    notes: q.notes,
+    deliveryDays: q.deliveryDays,
+    commissionPercent: q.commissionPercent,
+    commissionPercent2: q.commissionPercent2,
+    paymentTerm: q.paymentTerm,
+    destState: q.destState,
+    difalEnabled: q.difalEnabled,
+    difalPercent: q.difalPercent,
+    fcpPercent: q.fcpPercent,
+    fcpEnabled: q.fcpEnabled,
+    difalValue: q.difalValue,
+    fcpValue: q.fcpValue,
+    projectNumber: q.projectNumber,
+    freteValue: q.freteValue,
+    freteState: q.freteState,
+    freteIncluded: q.freteIncluded,
+  });
+  const newQuoteId = (qResult as unknown as { insertId: number }[])[0]?.insertId ?? 0;
+
+  // Inserir versão 1
+  const headerSnapshot = JSON.stringify({
+    clientName: newClientName ?? q.clientName,
+    clientContact: q.clientContact,
+    projectName: q.projectName,
+    projectRef: q.projectRef,
+    vendorName: q.vendorName,
+    assistantName: q.assistantName,
+    notes: q.notes,
+  });
+  const vResult = await db.insert(quoteVersions).values({
+    quoteId: newQuoteId,
+    version: 1,
+    headerSnapshot,
+    totalAmount: q.totalAmount ?? '0',
+    totalFinal: q.totalFinal ?? q.totalAmount ?? '0',
+    createdByUserId,
+    assistantName: q.assistantName,
+    vendorName: q.vendorName,
+    versionNotes: `Duplicado do orçamento ${q.quoteNumber}`,
+  });
+  const newVersionId = (vResult as unknown as { insertId: number }[])[0]?.insertId ?? 0;
+
+  // Copiar itens
+  if (itemRows.length > 0) {
+    await db.insert(quoteItems).values(
+      itemRows.map(item => ({
+        quoteId: newQuoteId,
+        quoteVersionId: newVersionId,
+        itemNumber: item.itemNumber,
+        itemData: item.itemData,
+      }))
+    );
+  }
+
+  return { quoteId: newQuoteId, quoteNumber: newQuoteNumber };
 }

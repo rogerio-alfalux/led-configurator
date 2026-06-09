@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE `quotes` ADD `projectNumber` varchar(64);\nALTER TABLE `quotes` ADD `freteValue` decimal(10,2) DEFAULT '0';\nALTER TABLE `quotes` ADD `freteState` varchar(2);\nALTER TABLE `quotes` ADD `freteIncluded` boolean DEFAULT false NOT NULL;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute ALTER TABLE `quotes` ADD `projectNumber` varchar(64);\nALTER TABLE `quotes` ADD `freteValue` decimal(10,2) DEFAULT '0';\nALTER TABLE `quotes` ADD `freteState` varchar(2);\nALTER TABLE `quotes` ADD `freteIncluded` boolean DEFAULT false NOT NULL;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1120
+}

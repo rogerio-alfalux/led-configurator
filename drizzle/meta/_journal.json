@@ -71,6 +71,20 @@
       "when": 1780931925273,
       "tag": "0009_graceful_nebula",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1781038224162,
+      "tag": "0010_smart_komodo",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1781038286298,
+      "tag": "0011_violet_power_man",
+      "breakpoints": true
     }
   ]
 }

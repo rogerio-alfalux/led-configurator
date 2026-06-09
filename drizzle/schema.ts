@@ -93,6 +93,8 @@ export const quotes = mysqlTable("quotes", {
 	deliveryDays: int().default(20).notNull(),
 	/** Percentual de comissão do vendedor (padrão: 5%) */
 	commissionPercent: decimal({ precision: 5, scale: 4 }).default('0.05').notNull(),
+	/** Comissão do vendedor 2 (0–1, ex: 0.05 = 5%) — quando há dois vendedores, cada um pode ter % diferente */
+	commissionPercent2: decimal({ precision: 5, scale: 4 }).default('0'),
 	/** Condição de pagamento */
 	paymentTerm: varchar({ length: 256 }).default('30% Sinal e 70% a 28DDF (mediante aprovação de cadastro)'),
 	/** Estado destino para cálculo de DIFAL (sigla UF) */
@@ -109,6 +111,14 @@ export const quotes = mysqlTable("quotes", {
 	difalValue: decimal({ precision: 12, scale: 2 }).default('0'),
 	/** Valor total de FCP calculado */
 	fcpValue: decimal({ precision: 12, scale: 2 }).default('0'),
+	/** Número interno do projeto (ex: "2025-0042") — pesquisável, independente do número do orçamento */
+	projectNumber: varchar({ length: 64 }),
+	/** Valor do frete cotado em R$ (0 = não cotado) */
+	freteValue: decimal({ precision: 10, scale: 2 }).default('0'),
+	/** Estado de destino do frete (sigla UF, ex: "RJ") — pode ser preenchido automaticamente pelo destState */
+	freteState: varchar({ length: 2 }),
+	/** Se true, o frete é diluído nos produtos e sai zerado/"incluso" no Excel */
+	freteIncluded: boolean().default(false).notNull(),
 },
 (table) => [
 	index("quotes_quoteNumber_unique").on(table.quoteNumber),
