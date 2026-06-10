@@ -7,7 +7,7 @@
  *   Linhas 3-14 : logo ALFALUX à direita (colunas G-N)
  *   Linha  5    : espaço
  *   Linha  6    : número do orçamento (C6:D6) — fundo azul
- *   Linhas 7-13 : VENDEDOR, OBRA, CLIENTE, CONTATO/TEL, E-MAIL, ARQUITEURA/LD, REFERÊNCIA
+ *   Linhas 7-13 : VENDEDOR, OBRA, CLIENTE, CONTATO/TEL, E-MAIL, ARQUITETURA/LD, REFERÊNCIA
  *   Linha  14   : DATA (C14:D14) — fundo azul
  *   Linha  15   : proposta comercial
  *   Linha  16   : espaço
@@ -264,11 +264,11 @@ export async function generateQuoteExcel(
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
 
-  // ── Linha 12: ARQUITEURA/LD ──────────────────────────────────────────────
+  // ── Linha 12: ARQUITETURA/LD ─────────────────────────────────────────────
   ws.getRow(12).height = 19.8;
   {
     const c = ws.getCell("C12");
-    c.value = "ARQUITEURA/LD:";
+    c.value = "ARQUITETURA/LD:";
     c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
