@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import {
   DndContext,
@@ -67,8 +67,8 @@ interface SaveFormData {
   marginPercent: string;
   freteType: "free" | "paid" | "night" | "consult";
   freteIsento: boolean;
-  freteLocalidade: "sp" | "other";
-  freteCity: string;
+  freteStateCode: string;  // UF do estado de entrega (ex: SP, RJ)
+  freteCity: string;        // Nome da cidade de entrega
   notes: string;
   versionNotes: string;
   // Campos comerciais
@@ -265,6 +265,57 @@ function SortableCartItem({
   );
 }
 
+// ─── Componente de seleção de cidade via API IBGE ───────────────────────────
+function FreteIbgeCitySelect({
+  stateCode,
+  value,
+  onChange,
+}: {
+  stateCode: string;
+  value: string;
+  onChange: (city: string) => void;
+}) {
+  const [cities, setCities] = React.useState<string[]>([]);
+  const [loading, setLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!stateCode) return;
+    setLoading(true);
+    setCities([]);
+    fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${stateCode}/municipios?orderBy=nome`)
+      .then(r => r.json())
+      .then((data: { nome: string }[]) => {
+        setCities(data.map(d => d.nome));
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [stateCode]);
+
+  return (
+    <div>
+      <Label>Cidade de entrega</Label>
+      <Select
+        value={value || ""}
+        onValueChange={onChange}
+        disabled={loading || cities.length === 0}
+      >
+        <SelectTrigger>
+          {loading ? (
+            <span className="text-muted-foreground text-sm">Carregando cidades...</span>
+          ) : (
+            <SelectValue placeholder="Selecione a cidade" />
+          )}
+        </SelectTrigger>
+        <SelectContent className="max-h-72">
+          {cities.map(city => (
+            <SelectItem key={city} value={city}>{city}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 export default function Cart() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -412,7 +463,7 @@ export default function Cart() {
     marginPercent: "10",
     freteType: "free",
     freteIsento: false,
-    freteLocalidade: "sp",
+    freteStateCode: "SP",
     freteCity: "",
     notes: "",
     versionNotes: "",
@@ -446,6 +497,43 @@ export default function Cart() {
       setSaveForm(prev => ({ ...prev, quoteNumber: suggestQuery.data!.suggested }));
     }
   }, [saveDialogOpen, suggestQuery.data?.suggested, saveForm.seller1Id]);
+
+  // Auto-preenche o estado da aba Frete quando o estado da aba Comercial muda
+  // (apenas se o usuário ainda não escolheu um estado diferente na aba Frete)
+  const prevDestStateRef = React.useRef(saveForm.destState);
+  useEffect(() => {
+    if (saveForm.destState && saveForm.destState !== prevDestStateRef.current) {
+      setSaveForm(prev => ({
+        ...prev,
+        freteStateCode: saveForm.destState,
+        freteCity: "",
+      }));
+    }
+    prevDestStateRef.current = saveForm.destState;
+  }, [saveForm.destState]);
+
+  // Comissão automática de 2,5% para cada vendedor quando há 2º vendedor
+  const prevSeller2IdRef = React.useRef(saveForm.seller2Id);
+  useEffect(() => {
+    const hadSeller2 = !!prevSeller2IdRef.current;
+    const hasSeller2 = !!saveForm.seller2Id;
+    if (hasSeller2 && !hadSeller2) {
+      // Acabou de selecionar 2º vendedor: definir 2,5% para cada
+      setSaveForm(prev => ({
+        ...prev,
+        commissionPercent: "2.5",
+        commissionPercent2: "2.5",
+      }));
+    } else if (!hasSeller2 && hadSeller2) {
+      // Removeu o 2º vendedor: voltar para 5% no 1º e zerar o 2º
+      setSaveForm(prev => ({
+        ...prev,
+        commissionPercent: "5",
+        commissionPercent2: "0",
+      }));
+    }
+    prevSeller2IdRef.current = saveForm.seller2Id;
+  }, [saveForm.seller2Id]);
 
   if (!user) {
     return (
@@ -481,14 +569,15 @@ export default function Cart() {
       freteLabel = `Frete noturno: ${formatBRL(FRETE_NOTURNO)}`;
     } else if (saveForm.freteType === "consult") {
       freteLabel = "Frete: sob consulta";
-    } else if (saveForm.freteLocalidade === "sp") {
+    } else if (!saveForm.freteStateCode || saveForm.freteStateCode === "SP") {
       if (totalFinal >= FRETE_GRATIS_MINIMO) {
         freteLabel = "Frete grátis (SP)";
       } else {
         freteLabel = "Frete: a calcular (SP)";
       }
     } else {
-      freteLabel = "Frete: sob consulta (outra cidade)";
+      const cityPart = saveForm.freteCity ? ` — ${saveForm.freteCity}` : "";
+      freteLabel = `Frete: sob consulta (${saveForm.freteStateCode}${cityPart})`;
     }
   } else {
     freteLabel = "Frete isento";
@@ -525,8 +614,9 @@ export default function Cart() {
         marginPercent: marginPct > 0 ? marginPct : undefined,
         freteType: saveForm.freteType,
         freteIsento: saveForm.freteIsento,
-        freteLocalidade: saveForm.freteLocalidade,
+        freteLocalidade: saveForm.freteStateCode === "SP" ? "sp" : "other",
         freteCity: saveForm.freteCity,
+        freteState: saveForm.freteStateCode || undefined,
         // revisionCount: 0 para orçamentos gerados diretamente do carrinho (sem revisões)
         revisionCount: 0,
         deliveryDays: parseInt(saveForm.deliveryDays) || 20,
@@ -604,7 +694,7 @@ export default function Cart() {
       marginPercent: marginPct,
       freteType: saveForm.freteType,
       freteIsento: saveForm.freteIsento,
-      freteLocalidade: saveForm.freteLocalidade,
+      freteLocalidade: saveForm.freteStateCode === "SP" ? "sp" : "other",
       notes: saveForm.notes || undefined,
       versionNotes: saveForm.versionNotes || undefined,
       deliveryDays: parseInt(saveForm.deliveryDays) || 20,
@@ -620,7 +710,8 @@ export default function Cart() {
       projectNumber: saveForm.projectNumber || undefined,
       commissionPercent2: saveForm.commissionPercent2 ? (parseFloat(saveForm.commissionPercent2) || 0) / 100 : undefined,
       freteValue: saveForm.freteValue ? parseFloat(saveForm.freteValue) : undefined,
-      freteState: saveForm.freteState || undefined,
+      freteState: saveForm.freteStateCode || undefined,
+      freteCity: saveForm.freteCity || undefined,
       freteIncluded: saveForm.freteIncluded,
       totalAmount: totalGeral,
       totalFinal: totalFinal + freteValor,
@@ -1362,32 +1453,44 @@ export default function Cart() {
 
                           {/* ─── Aba Frete ─── */}
                           <TabsContent value="frete" className="space-y-4 pt-3">
+                            {/* Estado de entrega */}
                             <div>
-                              <Label>Localidade de entrega</Label>
+                              <Label>Estado de entrega</Label>
                               <Select
-                                value={saveForm.freteLocalidade}
-                                onValueChange={(v) => updateSaveForm("freteLocalidade", v as "sp" | "other")}
+                                value={saveForm.freteStateCode || "SP"}
+                                onValueChange={(v) => {
+                                  updateSaveForm("freteStateCode", v);
+                                  updateSaveForm("freteCity", "");
+                                }}
                               >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="sp">São Paulo (SP)</SelectItem>
-                                  <SelectItem value="other">Outra cidade</SelectItem>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent className="max-h-72">
+                                  <SelectItem value="SP">SP — São Paulo</SelectItem>
+                                  {DIFAL_TABLE.map(s => (
+                                    <SelectItem key={s.uf} value={s.uf}>{s.uf} — {s.name}</SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
+                              {saveForm.destState && saveForm.destState !== saveForm.freteStateCode && (
+                                <button
+                                  type="button"
+                                  className="text-xs text-primary underline mt-1"
+                                  onClick={() => {
+                                    updateSaveForm("freteStateCode", saveForm.destState);
+                                    updateSaveForm("freteCity", "");
+                                  }}
+                                >
+                                  Usar estado da aba Comercial ({saveForm.destState})
+                                </button>
+                              )}
                             </div>
 
-                            {saveForm.freteLocalidade === "other" && (
-                              <div>
-                                <Label>Cidade de destino</Label>
-                                <Input
-                                  placeholder="Ex: Campinas, Curitiba..."
-                                  value={saveForm.freteCity}
-                                  onChange={e => updateSaveForm("freteCity", e.target.value)}
-                                />
-                              </div>
-                            )}
+                            {/* Cidade de entrega */}
+                            <FreteIbgeCitySelect
+                              stateCode={saveForm.freteStateCode || "SP"}
+                              value={saveForm.freteCity}
+                              onChange={(city) => updateSaveForm("freteCity", city)}
+                            />
 
                             <div>
                               <Label>Tipo de frete</Label>

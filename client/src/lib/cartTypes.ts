@@ -273,6 +273,8 @@ export interface QuoteFormData {
   commissionPercent2?: number;
   /** Valor do frete cotado em R$ (quando freteType = 'paid') */
   freteValue?: number;
+  /** UF do estado de entrega (ex: SP, RJ) */
+  freteState?: string;
 }
 
 export function parseCartItemData(json: string): CartItemData | null {

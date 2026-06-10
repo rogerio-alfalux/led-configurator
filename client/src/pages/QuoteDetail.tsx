@@ -582,7 +582,14 @@ export default function QuoteDetail() {
               <CardTitle className="text-sm text-muted-foreground">Dados Internos</CardTitle>
             </CardHeader>
             <CardContent className="space-y-1 text-sm">
-              {quote.vendorName && <p>🧑‍💼 Vendedor: <span className="font-medium">{quote.vendorName}</span></p>}
+              {/* Vendedor 1 */}
+              {quote.vendorName && (
+                <p>🧑‍💼 Vendedor: <span className="font-medium">{quote.vendorName}</span></p>
+              )}
+              {/* Vendedor 2 (quando houver) */}
+              {(quote as any).seller2Name && (
+                <p>🧑‍💼 2º Vendedor: <span className="font-medium">{(quote as any).seller2Name}</span></p>
+              )}
               {quote.assistantName && <p>✏️ Assistente: <span className="font-medium">{quote.assistantName}</span></p>}
               <p>📅 Criado em: {new Date(quote.createdAt).toLocaleDateString("pt-BR")}</p>
               <p>🔄 Versão atual: <span className="font-bold">v{quote.currentVersion}</span>{quote.revisionCount != null && quote.revisionCount > 0 && <span className="ml-2 text-xs text-muted-foreground">({quote.revisionCount} revisão{quote.revisionCount !== 1 ? "ões" : ""})</span>}</p>
@@ -598,18 +605,43 @@ export default function QuoteDetail() {
               {quote.paymentTerm && (
                 <p>💳 Pagamento: <span className="font-medium">{quote.paymentTerm}</span></p>
               )}
-              {quote.commissionPercent != null && Number(quote.commissionPercent) > 0 && (() => {
-                const commPct = parseFloat(String(quote.commissionPercent));
-                // Base de comissão = totalAmount (valor dos produtos, sem RT/margem) - 12% impostos
+              {/* Comissões dos vendedores */}
+              {(() => {
                 const total = quote.totalAmount ? Number(quote.totalAmount) : (quote.totalFinal ? Number(quote.totalFinal) : 0);
                 const base = total * (1 - 0.12);
-                const commVal = base * commPct;
-                return (
-                  <p className="text-amber-700 dark:text-amber-400">
-                    💰 Comissão: <span className="font-medium">{(commPct * 100).toFixed(1)}%</span>
-                    {commVal > 0 && <span className="ml-1 text-xs">({formatBRL(commVal)})</span>}
-                  </p>
-                );
+                const comm1Pct = quote.commissionPercent != null ? parseFloat(String(quote.commissionPercent)) : 0;
+                const comm2Pct = (quote as any).commissionPercent2 != null ? parseFloat(String((quote as any).commissionPercent2)) : 0;
+                const hasSeller2 = !!(quote as any).seller2Name;
+
+                if (comm1Pct <= 0 && comm2Pct <= 0) return null;
+
+                if (hasSeller2) {
+                  // Dois vendedores: exibir comissão individual de cada um
+                  return (
+                    <>
+                      {comm1Pct > 0 && (
+                        <p className="text-amber-700 dark:text-amber-400">
+                          💰 Comissão {quote.vendorName ? `(${quote.vendorName.split(" ")[0]})` : "1º Vendedor"}: <span className="font-medium">{(comm1Pct * 100).toFixed(1)}%</span>
+                          {base * comm1Pct > 0 && <span className="ml-1 text-xs">({formatBRL(base * comm1Pct)})</span>}
+                        </p>
+                      )}
+                      {comm2Pct > 0 && (
+                        <p className="text-amber-700 dark:text-amber-400">
+                          💰 Comissão {(quote as any).seller2Name ? `(${(quote as any).seller2Name.split(" ")[0]})` : "2º Vendedor"}: <span className="font-medium">{(comm2Pct * 100).toFixed(1)}%</span>
+                          {base * comm2Pct > 0 && <span className="ml-1 text-xs">({formatBRL(base * comm2Pct)})</span>}
+                        </p>
+                      )}
+                    </>
+                  );
+                } else {
+                  // Um vendedor: exibir comissão total
+                  return comm1Pct > 0 ? (
+                    <p className="text-amber-700 dark:text-amber-400">
+                      💰 Comissão: <span className="font-medium">{(comm1Pct * 100).toFixed(1)}%</span>
+                      {base * comm1Pct > 0 && <span className="ml-1 text-xs">({formatBRL(base * comm1Pct)})</span>}
+                    </p>
+                  ) : null;
+                }
               })()}
               {quote.destState && (
                 <p>🗺️ Destino: <span className="font-medium">{quote.destState}</span>
@@ -1034,8 +1066,20 @@ export default function QuoteDetail() {
                   <div>
                     <Label>Vendedor 2 (opcional)</Label>
                     <Select value={editForm.seller2Id || "none"} onValueChange={(v) => {
-                      if (v === "none") setEditForm(f => ({ ...f, seller2Id: "", seller2Name: "" }));
-                      else { const sel = editSellers.find(s => String(s.id) === v); setEditForm(f => ({ ...f, seller2Id: v, seller2Name: sel?.name ?? "" })); }
+                      if (v === "none") {
+                        // Removeu 2º vendedor: voltar comissão para 5% no 1º
+                        setEditForm(f => ({ ...f, seller2Id: "", seller2Name: "", commissionPercent: "5", commissionPercent2: "0" }));
+                      } else {
+                        const sel = editSellers.find(s => String(s.id) === v);
+                        const hadSeller2 = !!editForm.seller2Id;
+                        setEditForm(f => ({
+                          ...f,
+                          seller2Id: v,
+                          seller2Name: sel?.name ?? "",
+                          // Se está adicionando 2º vendedor pela primeira vez, definir 2,5% para cada
+                          ...(hadSeller2 ? {} : { commissionPercent: "2.5", commissionPercent2: "2.5" }),
+                        }));
+                      }
                     }}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>

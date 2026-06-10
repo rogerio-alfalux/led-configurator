@@ -266,6 +266,7 @@ export const appRouter = router({
         projectNumber: z.string().max(64).optional(),
         freteValue: z.number().min(0).optional(),
         freteState: z.string().max(2).optional(),
+        freteCity: z.string().max(128).optional(),
         freteIncluded: z.boolean().optional(),
         commissionPercent2: z.number().min(0).max(1).optional(),
       }))
@@ -334,6 +335,7 @@ export const appRouter = router({
         projectNumber: z.string().max(64).optional(),
         freteValue: z.number().min(0).optional(),
         freteState: z.string().max(2).optional(),
+        freteCity: z.string().max(128).optional(),
         freteIncluded: z.boolean().optional(),
         commissionPercent2: z.number().min(0).max(1).optional(),
       }))
