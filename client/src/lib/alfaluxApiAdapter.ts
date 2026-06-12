@@ -327,6 +327,8 @@ export interface AdaptedCatalogs {
   arandelaCCTs: Record<string, string[]>;
   /** Mapa sku → fotoUrl para Downlights */
   downlightFotos: Record<string, string>;
+  /** Mapa sku → fotoUrl para BAGEO fixo */
+  bageosFixosFotos: Record<string, string>;
   /** Mapa familia → fotoUrl para Painéis */
   painelFotos: Record<string, string>;
   /** Mapa familia → fotoUrl para Spots */
@@ -459,6 +461,7 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
   const spotCCTs: Record<string, string[]> = {};
   const arandelaCCTs: Record<string, string[]> = {};
   const downlightFotos: Record<string, string> = {};
+  const bageosFixosFotos: Record<string, string> = {};
   const painelFotos: Record<string, string> = {};
   const spotFotos: Record<string, string> = {};
   const arandelaFotos: Record<string, string> = {};
@@ -491,6 +494,7 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
       if (familiaUpper === "BAGEO") {
         // BAGEO com tamanhos fixos — usa a mesma estrutura de DownlightProduct
         bageosFixos.push(toDownlightProduct(p));
+        if (p.fotoUrl && p.sku) bageosFixosFotos[p.sku] = normalizeFotoUrl(p.fotoUrl)!;
       } else {
         // BAGEO SINUOSA (por metro linear)
         const bg = toBageoProduct(p);
@@ -507,6 +511,7 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
     ledBars,
     bageos,
     bageosFixos,
+    bageosFixosFotos,
     downlightCCTs,
     painelCCTs,
     spotCCTs,

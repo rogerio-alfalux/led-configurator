@@ -5301,7 +5301,7 @@ export default function Home() {
               </div>
             </div>
 
-            {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && profileShape === "STRAIGHT" && (!result ? (
+            {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && profileShape === "STRAIGHT" && (!result ? (
               <Card className="shadow-sm">
                 <CardContent className="flex flex-col items-center justify-center py-20 text-center">
                   <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
@@ -5319,7 +5319,7 @@ export default function Home() {
               <ResultBlock result={result} profilePriceMap={profilePriceMap} onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined} />
             ))}
             {/* Resultado EM L */}
-            {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && profileShape !== "STRAIGHT" && (
+            {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && profileShape !== "STRAIGHT" && (
               !shapeResult ? (
                 <Card className="shadow-sm">
                   <CardContent className="flex flex-col items-center justify-center py-20 text-center">
@@ -5813,30 +5813,65 @@ export default function Home() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      {bfResult.product.sku && (
-                        <div className="p-3 rounded-lg bg-muted/50 col-span-2">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
-                          <p className="text-sm font-mono font-semibold text-primary">{bfResult.product.sku}</p>
+                    {(() => {
+                      const bfPhoto = bfResult.product.sku ? adaptedCatalogs?.bageosFixosFotos?.[bfResult.product.sku] ?? null : null;
+                      return bfPhoto ? (
+                        <div className="flex gap-3 items-stretch">
+                          <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-36 flex items-center justify-center">
+                            <img src={bfPhoto} alt={bfResult.product.name} className="w-full h-full object-contain p-2" loading="lazy" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 flex-1">
+                            {bfResult.product.sku && (
+                              <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
+                                <p className="text-sm font-mono font-semibold text-primary">{bfResult.product.sku}</p>
+                              </div>
+                            )}
+                            <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
+                              <p className="text-sm font-semibold">{bfResult.product.name}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                              <p className="text-sm font-semibold">{bfResult.cct}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                              <p className="text-sm font-semibold">{bfResult.tensao}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
+                              <p className="text-sm font-semibold">{bfResult.driver.model} <span className="font-mono text-primary">({bfResult.driver.code})</span></p>
+                            </div>
+                          </div>
                         </div>
-                      )}
-                      <div className="p-3 rounded-lg bg-muted/50 col-span-2">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
-                        <p className="text-sm font-semibold">{bfResult.product.name}</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
-                        <p className="text-sm font-semibold">{bfResult.cct}</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
-                        <p className="text-sm font-semibold">{bfResult.tensao}</p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-muted/50 col-span-2">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
-                        <p className="text-sm font-semibold">{bfResult.driver.model} <span className="font-mono text-primary">({bfResult.driver.code})</span></p>
-                      </div>
-                    </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          {bfResult.product.sku && (
+                            <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
+                              <p className="text-sm font-mono font-semibold text-primary">{bfResult.product.sku}</p>
+                            </div>
+                          )}
+                          <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
+                            <p className="text-sm font-semibold">{bfResult.product.name}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                            <p className="text-sm font-semibold">{bfResult.cct}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                            <p className="text-sm font-semibold">{bfResult.tensao}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
+                            <p className="text-sm font-semibold">{bfResult.driver.model} <span className="font-mono text-primary">({bfResult.driver.code})</span></p>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
                 {/* Resumo para Orçamento */}
