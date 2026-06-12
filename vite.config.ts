@@ -4,9 +4,7 @@ import react from "@vitejs/plugin-react";
 import fs from "node:fs";
 import path from "node:path";
 import { defineConfig, type Plugin, type ViteDevServer } from "vite";
-import { createRequire } from "node:module";
-const _require = createRequire(import.meta.url);
-const pkg = _require(path.resolve(import.meta.dirname, "package.json")) as { version: string };
+import pkg from "./package.json" assert { type: "json" };
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 
 // =============================================================================
