@@ -1201,3 +1201,4 @@
 - [x] Categoria Serviços: nova categoria com formulário simples e linha compacta no Excel
 - [x] Orçamento por pavimentos: campo Pavimento/Ambiente no dialog de edição; cabeçalho de pavimento no Excel
 - [x] 516/516 testes passando, 0 erros TypeScript novos
+- [x] Centralizar versão no package.json e injetar automaticamente no cabeçalho via Vite define

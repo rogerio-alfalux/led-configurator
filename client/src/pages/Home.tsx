@@ -2572,7 +2572,7 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden sm:block text-xs text-sidebar-foreground/50 font-mono">
-              v32.27 · {Object.keys(activeProfileCatalog).length} variantes
+              v{__APP_VERSION__} · {Object.keys(activeProfileCatalog).length} variantes
               {profileCatalogIsFromApi && (
                 <span className="ml-1.5 inline-flex items-center gap-0.5 text-emerald-400">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
