@@ -2572,11 +2572,11 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden sm:block text-xs text-sidebar-foreground/50 font-mono">
-              v2.1 · {Object.keys(activeProfileCatalog).length} variantes
+              v32.27 · {Object.keys(activeProfileCatalog).length} variantes
               {profileCatalogIsFromApi && (
                 <span className="ml-1.5 inline-flex items-center gap-0.5 text-emerald-400">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
-                  ao vivo
+                  online
                 </span>
               )}
             </span>
@@ -2743,7 +2743,7 @@ export default function Home() {
                   ) : profileCatalogIsFromApi ? (
                     <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500">
                       <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-                      {Object.keys(activeProfileCatalog).length} variantes • Dados ao vivo
+                      {Object.keys(activeProfileCatalog).length} variantes • Dados online
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -3871,7 +3871,7 @@ export default function Home() {
                       ) : adaptedCatalogs ? (
                         <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500">
                           <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-                          {activeDlCatalog.length} produtos • Dados ao vivo
+                          {activeDlCatalog.length} produtos • Dados online
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -4087,7 +4087,7 @@ export default function Home() {
                         ) : adaptedCatalogs ? (
                           <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500">
                             <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-                            {activePanelCatalog.length} produtos • Dados ao vivo
+                            {activePanelCatalog.length} produtos • Dados online
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -4310,7 +4310,7 @@ export default function Home() {
                     ) : adaptedCatalogs ? (
                       <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500">
                         <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-                        {activeSpotCatalog.length} produtos • Dados ao vivo
+                        {activeSpotCatalog.length} produtos • Dados online
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -4487,7 +4487,7 @@ export default function Home() {
                     ) : adaptedCatalogs ? (
                       <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500">
                         <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-                        {activeArandelaCatalog.length} produto{activeArandelaCatalog.length !== 1 ? "s" : ""} • Dados ao vivo
+                        {activeArandelaCatalog.length} produto{activeArandelaCatalog.length !== 1 ? "s" : ""} • Dados online
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
