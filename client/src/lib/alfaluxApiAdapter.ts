@@ -315,6 +315,8 @@ export interface AdaptedCatalogs {
   arandelas: ArandelaProduct[];
   ledBars: LedBarProduct[];
   bageos: BageoProduct[];
+  /** Produtos BAGEO com tamanhos fixos (família "BAGEO", sem sinuosa) — usam DownlightProduct */
+  bageosFixos: DownlightProduct[];
   /** Mapa familia → CCTs disponíveis para Downlights */
   downlightCCTs: Record<string, string[]>;
   /** Mapa familia → CCTs disponíveis para Painéis */
@@ -451,6 +453,7 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
   const arandelas: ArandelaProduct[] = [];
   const ledBars: LedBarProduct[] = [];
   const bageos: BageoProduct[] = [];
+  const bageosFixos: DownlightProduct[] = [];
   const downlightCCTs: Record<string, string[]> = {};
   const painelCCTs: Record<string, string[]> = {};
   const spotCCTs: Record<string, string[]> = {};
@@ -484,8 +487,15 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
       const lb = toLedBarProduct(p);
       if (lb) ledBars.push(lb);
     } else if (cat === "PERFIS" && isBageoProduct(p)) {
-      const bg = toBageoProduct(p);
-      if (bg) bageos.push(bg);
+      const familiaUpper = (p.familia ?? "").toUpperCase();
+      if (familiaUpper === "BAGEO") {
+        // BAGEO com tamanhos fixos — usa a mesma estrutura de DownlightProduct
+        bageosFixos.push(toDownlightProduct(p));
+      } else {
+        // BAGEO SINUOSA (por metro linear)
+        const bg = toBageoProduct(p);
+        if (bg) bageos.push(bg);
+      }
     }
   }
 
@@ -496,6 +506,7 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
     arandelas,
     ledBars,
     bageos,
+    bageosFixos,
     downlightCCTs,
     painelCCTs,
     spotCCTs,
