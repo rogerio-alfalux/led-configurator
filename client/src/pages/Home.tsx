@@ -123,6 +123,8 @@ type ProductCategory =
   | "Painéis"
   | "Spots"
   | "Arandelas"
+  | "BAGEO"
+  | "BAGEO SINUOSA"
   | "Área Externa"
   | "Balizadores"
   | "Decorativas"
@@ -142,6 +144,8 @@ const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.E
   { value: "Decorativas",  label: "Decorativas",   icon: Sparkles,    image: "/manus-storage/DECORATIVAS_4ee44c0e.png", available: false },
   { value: "Item Especial", label: "Item Especial",  icon: PackagePlus, image: "/manus-storage/item-especial-icon_c570c491.png", available: true  },
   { value: "Revenda",       label: "Revenda",        icon: ShoppingBag, image: "/manus-storage/revenda-icon-nobg_245d52aa.png", available: true  },
+  { value: "BAGEO",         label: "BAGEO",          icon: Layers,      available: true  },
+  { value: "BAGEO SINUOSA", label: "BAGEO Sinuosa",  icon: Layers,      available: true  },
   { value: "Acessórios",    label: "Acessórios",     icon: Wrench,      image: "/manus-storage/trilho_nobg_cf2a6de2.png", available: true  },
   { value: "Serviços",       label: "Serviços",        icon: Briefcase,   available: true  },
 ];
@@ -1672,14 +1676,24 @@ export default function Home() {
   const [lbComprimento, setLbComprimento] = useState<string>("");
   const [lbNCortes, setLbNCortes] = useState<string>("1");
   const [lbResult, setLbResult] = useState<LedBarResult | null>(null);
-  // ── Estados de BAGEO ─────────────────────────────────────────────────────────
-  const [bgMode, setBgMode] = useState<boolean>(false); // true quando BAGEO está selecionado no dropdown
+  // ── Estados de BAGEO SINUOSA (metro linear) ─────────────────────────────────
+  const [bgMode, setBgMode] = useState<boolean>(false); // true quando BAGEO SINUOSA está selecionado no dropdown
   const [bgInstalacao, setBgInstalacao] = useState<BageoInstalacao | null>(null);
   const [bgProduct, setBgProduct] = useState<BageoProduct | null>(null);
   const [bgComprimento, setBgComprimento] = useState<string>("1000");
   const [bgControle, setBgControle] = useState<BageoControle>("ON/OFF 220V");
   const [bgCCT, setBgCCT] = useState<string>("3000K");
   const [bgResult, setBgResult] = useState<BageoResult | null>(null);
+  // ── Estados de BAGEO fixo (tamanhos fixos, fluxo igual a Downlights) ─────────
+  const [bfInstalacao, setBfInstalacao] = useState<string | null>(null);
+  const [bfFamilia, setBfFamilia] = useState<string | null>(null);
+  const [bfSku, setBfSku] = useState<string | null>(null);
+  const [bfName, setBfName] = useState<string | null>(null);
+  const [bfProductKey, setBfProductKey] = useState<number | null>(null);
+  const [bfCCT, setBfCCT] = useState<string>("3000K");
+  const [bfControle, setBfControle] = useState<ControleType>("ON/OFF");
+  const [bfVoltage, setBfVoltage] = useState<"220V" | "Bivolt">("220V");
+  const [bfResult, setBfResult] = useState<DownlightResult | null>(null);
   // ── Estados de Item Especial ──────────────────────────────────────────────
   const [spDescription, setSpDescription] = useState<string>("");
   const [spDimensions, setSpDimensions] = useState<string>("");
@@ -1897,10 +1911,10 @@ export default function Home() {
 
     // Verifica se há um produto configurado em qualquer categoria
     // Nota: result e shapeResult são declarados depois deste callback, por isso são verificados via productCategory
-    const hasConfiguredProduct = !!(dlResult || spotResult || arandelaResult || panelResult || lbResult || bgResult || rvSelectedSku ||
+    const hasConfiguredProduct = !!(dlResult || spotResult || arandelaResult || panelResult || lbResult || bgResult || bfResult || rvSelectedSku ||
       (productCategory === "Perfis") || (productCategory === "Spots") || (productCategory === "Downlights") ||
       (productCategory === "Painéis") || (productCategory === "Arandelas") || (productCategory === "Revenda") ||
-      (productCategory === "Item Especial"));
+      (productCategory === "Item Especial") || (productCategory === "BAGEO") || (productCategory === "BAGEO SINUOSA"));
 
     if (hasConfiguredProduct) {
       // Vincula o acessório ao produto pai como sub-item
@@ -2188,7 +2202,56 @@ export default function Home() {
     setBgResult(res);
   }, [bgProduct, activeBageoCatalog, bgControle, bgCCT, bgComprimento]);
 
-  // ─── Busca rápida ──────────────────────────────────────────────────────────
+  // ─── Catálogo BAGEO fixo (tamanhos fixos) ───────────────────────────────────────────────────────
+  const activeBfCatalog = useMemo(() => {
+    const apiBf = adaptedCatalogs?.bageosFixos;
+    return apiBf && apiBf.length > 0 ? apiBf : [];
+  }, [adaptedCatalogs]);
+  // Instalações disponíveis no catálogo BAGEO fixo
+  const bfInstalacoes = useMemo(() =>
+    [...new Set(activeBfCatalog.map(p => p.instalacao))].sort(),
+    [activeBfCatalog]
+  );
+  // Famílias disponíveis para a instalação selecionada
+  const bfFamilias = useMemo(() =>
+    [...new Set(activeBfCatalog.filter(p => !bfInstalacao || p.instalacao === bfInstalacao).map(p => p.familia))].sort(),
+    [bfInstalacao, activeBfCatalog]
+  );
+  // Produtos filtrados por instalação e família
+  const bfProdutosFiltrados = useMemo(() =>
+    bfInstalacao && bfFamilia
+      ? activeBfCatalog.map((p, i) => ({ p, i })).filter(({ p }) => p.instalacao === bfInstalacao && p.familia === bfFamilia)
+      : [],
+    [bfInstalacao, bfFamilia, activeBfCatalog]
+  );
+  // CCTs disponíveis para o produto selecionado
+  const bfAvailCCTs = useMemo(() => {
+    const sel = bfProductKey !== null ? activeBfCatalog[bfProductKey] : null;
+    return sel?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+  }, [bfProductKey, activeBfCatalog]);
+  // Produto selecionado
+  const bfSelProd = bfProductKey !== null ? activeBfCatalog[bfProductKey] : null;
+  // Controles disponíveis
+  const bfControles = useMemo((): ControleType[] => {
+    const ctrls: ControleType[] = ["ON/OFF"];
+    if (bfSelProd?.driverBivolt) ctrls.push("ON/OFF"); // Bivolt via voltage
+    if (bfSelProd?.driverDim110v) ctrls.push("DIM 1-10V");
+    if (bfSelProd?.driverDimDali) ctrls.push("DIM DALI");
+    return [...new Set(ctrls)];
+  }, [bfSelProd]);
+  // Reset CCT quando muda produto
+  useEffect(() => {
+    if (!bfAvailCCTs.includes(bfCCT)) setBfCCT(bfAvailCCTs[0] ?? "3000K");
+  }, [bfAvailCCTs, bfCCT]);
+  // Handler calcular BAGEO fixo
+  const handleCalculateBageoFixo = useCallback(() => {
+    if (!bfSelProd) { toast.error("Selecione o produto BAGEO."); return; }
+    const res = calculateDownlight({ productSku: bfSelProd.sku, productName: bfSelProd.name, tensao: bfVoltage, cct: bfCCT, controle: bfControle }, activeBfCatalog);
+    if (!res) { toast.error("Não foi possível calcular. Verifique as opções selecionadas."); return; }
+    setBfResult(res);
+  }, [bfSelProd, activeBfCatalog, bfVoltage, bfCCT, bfControle]);
+
+  // ─── Busca rápida ──────────────────────────────────────────────────────────────────
   const searchCatalogs: ProductSearchCatalogs = useMemo(() => ({
     profiles: activeProfileCatalog,
     ledBars: activeLedBarCatalog,
@@ -2222,17 +2285,33 @@ export default function Home() {
       setBgMode(false);
       setLbFamilia(suggestion.familia);
       setProfileName("");
-    } else if (cat === "BAGEO") {
-      setProductCategory("Perfis");
+    } else if (cat === "BAGEO SINUOSA") {
+      setProductCategory("BAGEO SINUOSA");
       setBgMode(true);
       setLbFamilia(null);
       setProfileName("");
-      // Pré-selecionar produto BAGEO pelo código
+      // Pré-selecionar produto BAGEO SINUOSA pelo código
       if (suggestion.code) {
         const bgProd = activeBageoCatalog.find(p => p.sku === suggestion.code || p.familia === suggestion.familia);
         if (bgProd) {
           setBgInstalacao(bgProd.instalacao);
           setBgProduct(bgProd);
+        }
+      }
+    } else if (cat === "BAGEO") {
+      setProductCategory("BAGEO");
+      setLbFamilia(null);
+      setProfileName("");
+      // Pré-selecionar produto BAGEO fixo pelo código
+      if (suggestion.code) {
+        const bfProd = activeBfCatalog.find(p => p.sku === suggestion.code || p.familia === suggestion.familia);
+        if (bfProd) {
+          setBfInstalacao(bfProd.instalacao);
+          setBfFamilia(bfProd.familia);
+          const key = activeBfCatalog.indexOf(bfProd);
+          setBfProductKey(key >= 0 ? key : null);
+          setBfSku(bfProd.sku);
+          setBfName(bfProd.name);
         }
       }
     } else if (cat === "Downlights") {
@@ -2376,7 +2455,7 @@ export default function Home() {
   // ── Produto configurado (habilita botão Incluir Acessório) ───────
   // Verdadeiro quando há um resultado calculado em qualquer categoria,
   // ou quando um produto de Revenda/Acessório/Item Especial está selecionado.
-  const hasResult = !!(result || shapeResult || dlResult || panelResult || spotResult || arandelaResult || lbResult || bgResult || rvSelectedSku || acSelectedId || productCategory === "Item Especial");
+  const hasResult = !!(result || shapeResult || dlResult || panelResult || spotResult || arandelaResult || lbResult || bgResult || bfResult || rvSelectedSku || acSelectedId || productCategory === "Item Especial" || productCategory === "BAGEO" || productCategory === "BAGEO SINUOSA");
   // ── Dados derivados ──────────────────────────────────────────────
   // Usa funções do catálogo ativo (API ou estático)
   const profileNames = activeGetProfileNames();
@@ -3827,11 +3906,160 @@ export default function Home() {
                       );
                     })()}
                   </div>
+                )}                {/* ── BAGEO fixo (tamanhos fixos) ────────────────────────────────────────────────────────────────── */}
+                {productCategory === "BAGEO" && (
+                  <div className="space-y-4">
+                    {/* Badge de status da API */}
+                    <div className="flex items-center gap-2">
+                      {alfaluxLoading ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <span className="inline-block w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                          Carregando catálogo...
+                        </span>
+                      ) : adaptedCatalogs ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500">
+                          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+                          {activeBfCatalog.length} produtos • Dados ao vivo
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <span className="inline-block w-2 h-2 rounded-full bg-muted-foreground" />
+                          Catálogo local
+                        </span>
+                      )}
+                    </div>
+                    {/* Tipo de Instalação */}
+                    {bfInstalacoes.length > 1 && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tipo de Instalação</Label>
+                      <Select
+                        value={bfInstalacao ?? ""}
+                        onValueChange={(v) => { setBfInstalacao(v); setBfFamilia(null); setBfProductKey(null); setBfSku(null); setBfName(null); setBfVoltage("220V"); setBfResult(null); }}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                        <SelectContent>
+                          {bfInstalacoes.map(inst => <SelectItem key={inst} value={inst}>{inst}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    )}
+                    {/* Família */}
+                    {(bfInstalacao || bfInstalacoes.length === 1) && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Família</Label>
+                      <Select
+                        value={bfFamilia ?? ""}
+                        onValueChange={(v) => {
+                          setBfFamilia(v);
+                          setBfProductKey(null); setBfSku(null); setBfName(null); setBfVoltage("220V"); setBfResult(null);
+                          if (!bfInstalacao && bfInstalacoes.length === 1) setBfInstalacao(bfInstalacoes[0]);
+                        }}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Selecione a família..." /></SelectTrigger>
+                        <SelectContent>
+                          {bfFamilias.map(fam => <SelectItem key={fam} value={fam}>{fam}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    )}
+                    {/* Produto */}
+                    {bfFamilia && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Produto</Label>
+                      <div className="grid grid-cols-1 gap-2">
+                        {bfProdutosFiltrados.map(({ p, i }) => {
+                          const isSelected = bfProductKey === i;
+                          return (
+                            <button
+                              key={`${p.sku}::${p.name}`}
+                              type="button"
+                              onClick={() => {
+                                setBfProductKey(i); setBfSku(p.sku); setBfName(p.name);
+                                const availCCTs = p.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+                                if (!availCCTs.includes(bfCCT)) setBfCCT(availCCTs[0] ?? "3000K");
+                                setBfVoltage("220V"); setBfResult(null);
+                              }}
+                              className={[
+                                "w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors",
+                                isSelected
+                                  ? "bg-primary/10 border-primary text-primary font-medium"
+                                  : "bg-background border-border hover:border-primary/50",
+                              ].join(" ")}
+                            >
+                              <div className="font-medium">{p.name}</div>
+                              {p.sku && <div className="text-xs text-muted-foreground">{p.sku}</div>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    )}
+                    {/* CCT e Controle */}
+                    {bfSelProd && (() => {
+                      const bfDimBivolt = bfControle !== 'ON/OFF' ? bfSelProd.driverBivolt : null;
+                      const hasBivoltBf = bfControle !== 'ON/OFF' ? !!bfDimBivolt : (bfSelProd.driverBivolt != null);
+                      return (
+                      <>
+                        {/* Controle */}
+                        <div>
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Controle</Label>
+                          <div className="flex flex-wrap gap-2 mt-1.5">
+                            {(["ON/OFF", "DIM 1-10V", "DIM DALI"] as ControleType[]).map(ctrl => {
+                              const isAvailable = ctrl === "ON/OFF" ? true : ctrl === "DIM 1-10V" ? !!bfSelProd.driverDim110v : !!bfSelProd.driverDimDali;
+                              return (
+                                <button key={ctrl} type="button" disabled={!isAvailable}
+                                  onClick={() => { setBfControle(ctrl); setBfResult(null); }}
+                                  className={[
+                                    "px-3 py-1.5 rounded-lg border text-sm transition-colors",
+                                    !isAvailable ? "opacity-30 cursor-not-allowed border-border text-muted-foreground" :
+                                    bfControle === ctrl && isAvailable ? "bg-primary text-primary-foreground border-primary" :
+                                    "bg-background text-foreground border-border hover:border-primary/50",
+                                  ].join(" ")}
+                                >{ctrl}</button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        {/* Tensão */}
+                        {hasBivoltBf && (
+                        <div>
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
+                          <div className="flex flex-wrap gap-2 mt-1.5">
+                            {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map(v => (
+                              <button key={v} type="button"
+                                onClick={() => { setBfVoltage(v); setBfResult(null); }}
+                                className={[
+                                  "px-3 py-1.5 rounded-lg border text-sm transition-colors",
+                                  bfVoltage === v ? "bg-primary text-primary-foreground border-primary" : "bg-background text-foreground border-border hover:border-primary/50",
+                                ].join(" ")}
+                              >{v}</button>
+                            ))}
+                          </div>
+                        </div>
+                        )}
+                        {/* CCT */}
+                        <div>
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Temperatura de Cor</Label>
+                          <div className="flex flex-wrap gap-2 mt-1.5">
+                            {bfAvailCCTs.map(c => (
+                              <button key={c} type="button"
+                                onClick={() => { setBfCCT(c); setBfResult(null); }}
+                                className={[
+                                  "px-3 py-1.5 rounded-lg border text-sm transition-colors",
+                                  bfCCT === c ? "bg-primary text-primary-foreground border-primary" : "bg-background text-foreground border-border hover:border-primary/50",
+                                ].join(" ")}
+                              >{c}</button>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                      );
+                    })()}
+                  </div>
                 )}
 
-                {/* ── Painéis ───────────────────────────────────────────────────────────────────────────────────── */}
-                {productCategory === "Painéis" && (() => {
-                  const panelInstalacoes = Array.from(new Set(activePanelCatalog.map(p => p.instalacao))).sort();
+                {/* ── Painéis ───────────────────────────────────────────────────────────────────────────────────────── */}
+                {productCategory === "Painéis" && (() => {                 const panelInstalacoes = Array.from(new Set(activePanelCatalog.map(p => p.instalacao))).sort();
                   const panelFamilias = panelInstalacao
                     ? Array.from(new Set(activePanelCatalog.filter(p => p.instalacao === panelInstalacao).map(p => p.familia))).sort()
                     : [];
@@ -4526,6 +4754,31 @@ export default function Home() {
                 >
                   <Zap className="w-5 h-5 mr-2" />
                   Calcular Painél
+                </Button>
+              </div>
+            )}
+
+            {/* Botão Calcular — BAGEO fixo */}
+            {productCategory === "BAGEO" && (
+              <div className="space-y-2">
+                {!bfFamilia && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione a família antes de calcular.
+                  </p>
+                )}
+                {bfFamilia && bfProductKey === null && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione o produto antes de calcular.
+                  </p>
+                )}
+                <Button
+                  disabled={bfProductKey === null}
+                  onClick={handleCalculateBageoFixo}
+                  className="w-full h-12 text-base font-semibold font-display"
+                  size="lg"
+                >
+                  <Zap className="w-5 h-5 mr-2" />
+                  Calcular BAGEO
                 </Button>
               </div>
             )}
@@ -5819,6 +6072,94 @@ export default function Home() {
                   </CardContent>
                 </Card>
               </div>
+            )}
+
+            {/* Resultado BAGEO fixo */}
+            {productCategory === "BAGEO" && bfResult && (
+              <div className="space-y-4">
+                <Card className="shadow-sm border-amber-500/30">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                        <Lightbulb className="w-4 h-4 text-amber-500" />
+                        Resultado — BAGEO
+                      </CardTitle>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          const preco = getPrecoForControle(bfResult.product, bfResult.controle, bfResult.tensao);
+                          const bfPhoto = bfFamilia ? getDownlightPhoto(bfFamilia, bfResult.product.name) : null;
+                          const item: CartItemData = {
+                            id: crypto.randomUUID(),
+                            category: "BAGEO",
+                            sku: bfResult.product.sku ?? "",
+                            description: `${bfResult.product.name} ${bfResult.cct} ${bfResult.controle} ${bfResult.tensao}`,
+                            power: "",
+                            cct: bfResult.cct,
+                            qty: 1,
+                            unitPrice: preco ?? 0,
+                            totalPrice: preco ?? 0,
+                            priceFromApi: preco != null,
+                            photoUrl: bfPhoto ?? "",
+                            orderSummary: `CÓDIGO: ${bfResult.product.sku}\n${bfResult.product.name.toUpperCase()} ${bfResult.cct} ${bfResult.controle.toUpperCase()} ${bfResult.tensao}`,
+                            quoteSummary: `${bfResult.product.name} ${bfResult.cct} ${bfResult.controle} ${bfResult.tensao}`.toUpperCase(),
+                            moduloLed: bfResult.ledModuleWithCCT ?? "",
+                            drivers: (() => { const eqSuffix = bfResult.driver.code ? ` (${bfResult.driver.code})` : ""; const drvQty = driverQtyFor(bfResult.product, bfResult.controle, bfResult.tensao); return `${drvQty}x DRIVER ${bfResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
+                            availableCCTs: bfResult.product.ccts,
+                          };
+                          if (appendToQuoteId) {
+                            handleAddItemOrToQuote(item);
+                          } else {
+                            setPendingCartItem(item);
+                            setColorModalOpen(true);
+                          }
+                        }}
+                      >
+                        <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                      <div className="text-muted-foreground">Produto</div>
+                      <div className="font-semibold">{bfResult.product.name}</div>
+                      <div className="text-muted-foreground">SKU</div>
+                      <div className="font-mono font-semibold text-primary">{bfResult.product.sku}</div>
+                      <div className="text-muted-foreground">CCT</div>
+                      <div className="font-semibold">{bfResult.cct}</div>
+                      <div className="text-muted-foreground">Controle</div>
+                      <div className="font-semibold">{bfResult.controle}</div>
+                      <div className="text-muted-foreground">Tensão</div>
+                      <div className="font-semibold">{bfResult.tensao}</div>
+                      {bfResult.driver && (
+                        <>
+                          <div className="text-muted-foreground">Driver</div>
+                          <div className="font-semibold">{bfResult.driver.model}{bfResult.driver.code ? ` (${bfResult.driver.code})` : ""}</div>
+                        </>
+                      )}
+                      {(() => { const preco = getPrecoForControle(bfResult.product, bfResult.controle, bfResult.tensao); return preco != null ? (
+                        <>
+                          <div className="text-muted-foreground">Preço Unitário</div>
+                          <div className="font-semibold text-emerald-600">{formatBRL(preco)}</div>
+                        </>
+                      ) : null; })()}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Estado vazio BAGEO fixo */}
+            {productCategory === "BAGEO" && !bfResult && (
+              <Card className="shadow-sm">
+                <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                    <Lightbulb className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione a família e o produto, depois clique em "Calcular BAGEO".</p>
+                </CardContent>
+              </Card>
             )}
 
             {/* Estado vazio Downlights */}

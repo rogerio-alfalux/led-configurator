@@ -315,6 +315,8 @@ export interface AdaptedCatalogs {
   arandelas: ArandelaProduct[];
   ledBars: LedBarProduct[];
   bageos: BageoProduct[];
+  /** Produtos BAGEO de tamanho fixo (família "BAGEO", sem SINUOSA) — usam fluxo igual a Downlights */
+  bageosFixos: DownlightProduct[];
   /** Mapa familia → CCTs disponíveis para Downlights */
   downlightCCTs: Record<string, string[]>;
   /** Mapa familia → CCTs disponíveis para Painéis */
@@ -405,9 +407,13 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
 function isLedBarProduct(p: ApiProduct): boolean {
   return /^LED BAR/i.test(p.familia ?? "");
 }
-/** Verifica se um produto PERFIS é da família BAGEO */
+/** Verifica se um produto PERFIS é da família BAGEO SINUOSA (metro linear) */
 function isBageoProduct(p: ApiProduct): boolean {
-  return /^BAGEO/i.test(p.familia ?? "");
+  return /^BAGEO\s+SINUOSA/i.test(p.familia ?? "");
+}
+/** Verifica se um produto PERFIS é da família BAGEO fixo (tamanhos fixos, sem SINUOSA) */
+function isBageoFixoProduct(p: ApiProduct): boolean {
+  return /^BAGEO/i.test(p.familia ?? "") && !/SINUOSA/i.test(p.familia ?? "");
 }
 /** Converte um produto da API para BageoProduct */
 function toBageoProduct(p: ApiProduct): BageoProduct | null {
@@ -451,6 +457,7 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
   const arandelas: ArandelaProduct[] = [];
   const ledBars: LedBarProduct[] = [];
   const bageos: BageoProduct[] = [];
+  const bageosFixos: DownlightProduct[] = [];
   const downlightCCTs: Record<string, string[]> = {};
   const painelCCTs: Record<string, string[]> = {};
   const spotCCTs: Record<string, string[]> = {};
@@ -486,6 +493,9 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
     } else if (cat === "PERFIS" && isBageoProduct(p)) {
       const bg = toBageoProduct(p);
       if (bg) bageos.push(bg);
+    } else if (cat === "PERFIS" && isBageoFixoProduct(p)) {
+      // BAGEO fixo: reutiliza o mesmo tipo DownlightProduct (sem campo de comprimento)
+      bageosFixos.push(toDownlightProduct(p));
     }
   }
 
@@ -496,6 +506,7 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
     arandelas,
     ledBars,
     bageos,
+    bageosFixos,
     downlightCCTs,
     painelCCTs,
     spotCCTs,
