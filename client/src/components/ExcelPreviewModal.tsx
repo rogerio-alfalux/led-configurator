@@ -12,6 +12,23 @@ import type { CartItemData, QuoteFormData } from "@/lib/cartTypes";
 import { formatBRL } from "@/lib/cartTypes";
 
 // ── Helpers (mesmos do gerador Excel) ────────────────────────────────────────
+
+/**
+ * Retorna a URL da imagem passando pelo proxy server-side para URLs externas.
+ * Isso garante que imagens CloudFront (Painéis, Spots, etc.) sejam carregadas
+ * mesmo com restrições de CORS ou URLs assinadas.
+ */
+function getProxiedPhotoSrc(url: string | null | undefined): string | null {
+  if (!url) return null;
+  // URLs internas (manus-storage) não precisam de proxy
+  if (url.startsWith("/manus-storage/") || url.startsWith("/api/image-proxy")) return url;
+  // URLs externas (CloudFront, alfalux, etc.) → passar pelo proxy
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return `/api/image-proxy?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
 function extractPower(description: string): string {
   const m = description.match(/(\d+(?:[,.]\d+)?\s*W(?:\/m)?)/i);
   return m ? m[1].replace(/\s+/g, "") : "-";
@@ -339,8 +356,8 @@ export function ExcelPreviewModal({ open, onClose, items, formData }: Props) {
                           <td style={{ ...tdStyle, fontWeight: "bold", fontSize: 18 }}>{item.itemEmPlanta || ""}</td>
                           {/* Coluna FOTO — apenas a imagem do produto, sem rabicho */}
                           <td style={{ ...tdStyle, width: 80, minHeight: 80 }}>
-                            {item.photoUrl ? (
-                              <img src={item.photoUrl} alt={item.description} style={{ width: 64, height: 64, objectFit: "contain" }}
+                            {getProxiedPhotoSrc(item.photoUrl) ? (
+                              <img src={getProxiedPhotoSrc(item.photoUrl)!} alt={item.description} style={{ width: 64, height: 64, objectFit: "contain" }}
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                             ) : (
                               <span style={{ color: "#aaa", fontSize: 10 }}>—</span>

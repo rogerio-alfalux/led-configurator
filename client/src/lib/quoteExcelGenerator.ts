@@ -1097,25 +1097,21 @@ async function _generateExcelBuffer(
     c.alignment = { horizontal: "center", vertical: "middle" };
   }
 
-  // ── Inserir logo ALFALUX (posições exatas do template) ───────────────────────────────
+  // ── Inserir logo ALFALUX (posições EXATAS do template via nativeCol/nativeRow) ────────
   //
-  // Template usa 4 imagens:
-  //   1) Logo cabeçalho: OneCellAnchor col=4 colOff=1959760 row=6 rowOff=132479
-  //      ext: cx=4000500 cy=923925 EMU  →  420 x 97 px
-  //      (col=4 = coluna E, índice 4; row=6 = linha 7, índice 6)
-  //   2) Logo rodapé vendedor: TwoCellAnchor col=11→13 row=33→36
-  //   3) Logo rodapé assinatura: TwoCellAnchor col=11→13 row=67→70
+  // Valores extraídos diretamente do XML do template (spPr/xfrm):
+  //   Logo cabeçalho (Âncora 2 oneCellAnchor):
+  //     TL: nativeCol=4, nativeColOff=1959760 EMU (205.7px), nativeRow=6, nativeRowOff=132479 EMU (13.9px)
+  //     Size: cx=4000500 EMU (420px) × cy=923925 EMU (97px), ratio=4.330
+  //   Logo rodapé vendor (Âncora 3 spPr/xfrm):
+  //     TL: nativeCol=11, nativeColOff=342901 EMU (36px)
+  //     Size: cx=1543050 EMU (162px) × cy=464344 EMU (48.75px), ratio=3.323
+  //   Logo rodapé assinatura (Âncora 4 spPr/xfrm):
+  //     TL: nativeCol=11, nativeColOff=367393 EMU (38.6px)
+  //     Size: cx=1543050 EMU (162px) × cy=464344 EMU (48.75px)
   //
-  // NOTA: col/row no ExcelJS são 0-based (col=0 = coluna A)
-  //   col=4 = coluna E (5ª coluna), row=6 = linha 7
-  //   Para o logo do cabeçalho: tl.col=4, tl.row=6 com offset
-  //   Offset em EMU: colOff=1959760 EMU → 1959760/914400 = 2.14 polegadas
-  //   rowOff=132479 EMU → 132479/914400 = 0.14 polegadas
-  //   ext: 420x97px (fiel ao template)
-  //
-  // Para logos do rodapé: TwoCellAnchor col=11→13 row=33→36
-  //   col=11 = coluna L (índice 11), row=33 = linha 34
-  //   Mas como o número de linhas varia, usamos posição relativa ao vendorLogoRow
+  // ExcelJS usa EMU_PER_PIXEL = 9525 para ext (width/height em px → EMU)
+  // Para nativeColOff/nativeRowOff usamos EMU diretamente via IAnchor
   //
   try {
     const logoUrl = "/manus-storage/alfalux-logo-excel_8e8ca9f4.png";
@@ -1124,35 +1120,32 @@ async function _generateExcelBuffer(
       const logoBuffer = await logoResponse.arrayBuffer();
 
       // ── Logo 1: cabeçalho ──
-      // Posição: centralizado horizontalmente nas colunas E-J (col=4.5)
-      //           centralizado verticalmente nas linhas 7-14 (row=8.330)
-      // Tamanho: 420x97px (idêntico ao template)
+      // Posição EXATA do template: nativeCol=4 nativeColOff=1959760 nativeRow=6 nativeRowOff=132479
+      // Tamanho EXATO: 420×97px (cx=4000500 cy=923925 EMU)
       const logoId1 = wb.addImage({ buffer: logoBuffer, extension: "png" });
       ws.addImage(logoId1, {
-        tl: { col: 4.5, row: 8.330 },
+        tl: { nativeCol: 4, nativeColOff: 1959760, nativeRow: 6, nativeRowOff: 132479 } as ExcelJS.IAnchor,
         ext: { width: 420, height: 97 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });
 
       // ── Logo 2: rodapé ao lado do vendedor ──
-      // col=10.942 (centralizado nas colunas K-N)
-      // row = vendorLogoRow - 1 (início da linha do vendedor)
-      // Tamanho: 162x56px (altura igual ao preview: height:56)
+      // Posição EXATA do template: nativeCol=11 nativeColOff=342901 EMU (36px)
+      // Tamanho EXATO: 162×48.75px (cx=1543050 cy=464344 EMU, ratio=3.323)
       const logoId2 = wb.addImage({ buffer: logoBuffer, extension: "png" });
       ws.addImage(logoId2, {
-        tl: { col: 10.942, row: vendorLogoRow - 1 },
-        ext: { width: 162, height: 56 },
+        tl: { nativeCol: 11, nativeColOff: 342901, nativeRow: vendorLogoRow - 1, nativeRowOff: 0 } as ExcelJS.IAnchor,
+        ext: { width: 162, height: 48.75 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });
 
       // ── Logo 3: ao lado da assinatura ──
-      // col=10.942 (centralizado nas colunas K-N)
-      // row = signatureRow - 1 (início da linha de assinatura)
-      // Tamanho: 162x56px (altura igual ao preview: height:56)
+      // Posição EXATA do template: nativeCol=11 nativeColOff=367393 EMU (38.6px)
+      // Tamanho EXATO: 162×48.75px (cx=1543050 cy=464344 EMU, ratio=3.323)
       const logoId3 = wb.addImage({ buffer: logoBuffer, extension: "png" });
       ws.addImage(logoId3, {
-        tl: { col: 10.942, row: signatureRow - 1 },
-        ext: { width: 162, height: 56 },
+        tl: { nativeCol: 11, nativeColOff: 367393, nativeRow: signatureRow - 1, nativeRowOff: 0 } as ExcelJS.IAnchor,
+        ext: { width: 162, height: 48.75 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });
 
