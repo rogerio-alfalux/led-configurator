@@ -69,7 +69,12 @@ function buildFreteText(formData: QuoteFormData, totalBase: number): string {
   const { freteType, freteIsento, freteLocalidade } = formData;
   if (freteIsento) return "Frete isento (conforme negociação)";
   if (freteType === "free") return "CIF - Para faturamento acima de R$ 1.500,00 São Paulo/ SP (Capital). Demais localidades sob consulta";
-  if (freteType === "night") return "Frete noturno — R$ 2.000,00";
+  if (freteType === "night") {
+    const val = formData.freteValue && formData.freteValue > 0
+      ? formData.freteValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : "2.000,00";
+    return `Frete noturno — R$ ${val}`;
+  }
   if (freteType === "paid") {
     if (freteLocalidade === "sp") {
       return totalBase >= 1500

@@ -461,6 +461,7 @@ export default function QuoteDetail() {
           freteType: (quote.freteType as "free" | "paid" | "night" | "consult") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
+          freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
           // Usar revisionCount atual do banco (sem incrementar — revisão só muda ao Salvar)
           revisionCount: quote.revisionCount ?? 0,
           deliveryDays: quote.deliveryDays ?? 20,
@@ -1777,6 +1778,7 @@ export default function QuoteDetail() {
           freteType: (quote.freteType as "free" | "paid" | "night" | "consult") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
+          freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
           revisionCount: quote.revisionCount ?? 0,
           deliveryDays: quote.deliveryDays ?? 20,
           paymentTerm: quote.paymentTerm ?? undefined,

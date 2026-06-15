@@ -35,7 +35,12 @@ function buildFreteText(formData: QuoteFormData, totalBase: number): string {
   const { freteType, freteIsento, freteLocalidade } = formData;
   if (freteIsento) return "Frete isento (conforme negociação)";
   if (freteType === "free") return "CIF - Para faturamento acima de R$ 1.500,00 São Paulo/ SP (Capital). Demais localidades sob consulta";
-  if (freteType === "night") return "Frete noturno — R$ 2.000,00";
+  if (freteType === "night") {
+    const val = formData.freteValue && formData.freteValue > 0
+      ? formData.freteValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : "2.000,00";
+    return `Frete noturno — R$ ${val}`;
+  }
   if (freteType === "paid") {
     if (freteLocalidade === "sp") {
       return totalBase >= 1500
@@ -444,13 +449,30 @@ export function ExcelPreviewModal({ open, onClose, items, formData }: Props) {
                 </tbody>
               </table>
 
-              {/* Vendedor */}
-              {(formData.seller1Name || formData.seller2Name) && (
-                <div style={{ marginTop: 12, fontSize: 12 }}>
-                  <div style={{ fontWeight: "bold" }}>{vendedorText}</div>
-                  {formData.seller1Phone && <div>CONTATO: {formData.seller1Phone}</div>}
-                </div>
-              )}
+              {/* Observação */}
+              <div style={{ marginTop: 10, fontSize: 12 }}>
+                <span style={{ fontWeight: "bold" }}>Observação:</span>{" "}
+                <span>Pode ser acrescido</span>
+              </div>
+
+              {/* Fico à disposição */}
+              <div style={{ marginTop: 8, fontSize: 12 }}>Fico à disposição para quaisquer esclarecimentos,</div>
+
+              {/* Vendedor + Logo */}
+              <div style={{ marginTop: 16, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                {(formData.seller1Name || formData.seller2Name) && (
+                  <div style={{ fontSize: 12 }}>
+                    <div style={{ fontWeight: "bold" }}>{vendedorText}</div>
+                    {formData.seller1Phone && <div>CONTATO: {formData.seller1Phone}</div>}
+                  </div>
+                )}
+                <img
+                  src={LOGO_URL}
+                  alt="ALFALUX"
+                  style={{ height: 56, objectFit: "contain" }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              </div>
 
               {/* Condições gerais */}
               <div style={{ marginTop: 20, fontWeight: "bold", color: RED, fontSize: 16, textAlign: "center" }}>
