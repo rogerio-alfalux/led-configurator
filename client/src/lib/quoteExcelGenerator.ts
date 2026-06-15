@@ -153,10 +153,35 @@ async function _generateExcelBuffer(
 
   const ws = wb.addWorksheet("Alfalux");
 
-  // ── Larguras das colunas (fiel ao template) ──────────────────────────────
-  // Template original: C=25.11, D=41.44, E=62.66, F=26.44, G=22.44, H=18.11,
-  //                    I=8.43, J=24.55, K=29.00, L=23.78, M=16.78, N=18.22
-  // Ajustamos para exibição no Excel (1 char ≈ 7px)
+  // ── Configurações de impressão (fiel ao template) ──────────────────────────────
+  // Template: scale=51%, portrait, margens L/R=0.7", T/B=0.75", H/F=0.3"
+  // Área de impressão: $C$1:$N$72 (colunas C-N)
+  // fitToPage=true para garantir que cabe em 1 página
+  ws.pageSetup = {
+    paperSize: 9,            // A4
+    orientation: "portrait",
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,          // 0 = sem limite de altura (escala automática)
+    scale: 51,               // 51% igual ao template
+    horizontalDpi: 300,
+    verticalDpi: 300,
+    printArea: "C1:N200",    // Área de impressão dinâmica (colunas C-N)
+  };
+  ws.pageSetup.margins = {
+    left: 0.7,
+    right: 0.7,
+    top: 0.75,
+    bottom: 0.75,
+    header: 0.3,
+    footer: 0.3,
+  };
+  // Ocultar colunas A e B (não impressas)
+  ws.getColumn('A').hidden = true;
+  ws.getColumn('B').hidden = true;
+
+  // ── Larguras das colunas (fiel ao template) ──────────────────────────────────────────────
+  // Template original: C=12, D=18, E=35, F=15.1, G=12, H=10, I=13, J=14, K=13, L=7, M=13, N=14
   ws.columns = [
     { key: "A", width: 2.1  },
     { key: "B", width: 2.3  },
@@ -1009,7 +1034,8 @@ async function _generateExcelBuffer(
   }
   nextRow += 3;
 
-  // ── Data e Assinatura ─────────────────────────────────────────────────────
+  // ── Data e Assinatura ───────────────────────────────────────────────────────────
+  const signatureRow = nextRow; // capturar para posicionar logo
   ws.getRow(nextRow).height = 33.6;
   ws.mergeCells(`D${nextRow}:E${nextRow}`);
   {
@@ -1038,35 +1064,69 @@ async function _generateExcelBuffer(
     c.alignment = { horizontal: "center", vertical: "middle" };
   }
 
-  // ── Inserir logo ALFALUX ─────────────────────────────────────────────────
-  // Logo no cabeçalho: colunas K-N (índices 10-13), linhas 3-6
-  // Logo no rodapé do vendedor: colunas K-N, ao lado do nome/contato
-  // Logo original: 1263×291px → proporção 4.34:1
-  // Largura colunas K-N: (14+7+13+14)*7 = ~336px → usamos 280px, height=65px
+  // ── Inserir logo ALFALUX (posições exatas do template) ───────────────────────────────
+  //
+  // Template usa 4 imagens:
+  //   1) Logo cabeçalho: OneCellAnchor col=4 colOff=1959760 row=6 rowOff=132479
+  //      ext: cx=4000500 cy=923925 EMU  →  420 x 97 px
+  //      (col=4 = coluna E, índice 4; row=6 = linha 7, índice 6)
+  //   2) Logo rodapé vendedor: TwoCellAnchor col=11→13 row=33→36
+  //   3) Logo rodapé assinatura: TwoCellAnchor col=11→13 row=67→70
+  //
+  // NOTA: col/row no ExcelJS são 0-based (col=0 = coluna A)
+  //   col=4 = coluna E (5ª coluna), row=6 = linha 7
+  //   Para o logo do cabeçalho: tl.col=4, tl.row=6 com offset
+  //   Offset em EMU: colOff=1959760 EMU → 1959760/914400 = 2.14 polegadas
+  //   rowOff=132479 EMU → 132479/914400 = 0.14 polegadas
+  //   ext: 420x97px (fiel ao template)
+  //
+  // Para logos do rodapé: TwoCellAnchor col=11→13 row=33→36
+  //   col=11 = coluna L (índice 11), row=33 = linha 34
+  //   Mas como o número de linhas varia, usamos posição relativa ao vendorLogoRow
+  //
   try {
     const logoUrl = "/manus-storage/alfalux-logo-excel_8e8ca9f4.png";
     const logoResponse = await fetch(logoUrl);
     if (logoResponse.ok) {
       const logoBuffer = await logoResponse.arrayBuffer();
 
-      // ── Logo 1: cabeçalho (canto superior direito, linhas 3-6, colunas K-N) ──
+      // ── Logo 1: cabeçalho ──
+      // Template: OneCellAnchor col=4 colOff=1959760 row=6 rowOff=132479, ext 420x97px
+      // col=4 = coluna E (0-based), row=6 = linha 7 (0-based)
+      // No ExcelJS: tl.col e tl.row são 0-based com fracção para offset
+      // colOff=1959760 EMU / (col_width_in_EMU) — col E tem width=35 chars ≈ 35*7*9525=2328750 EMU
+      // fracão = 1959760/2328750 ≈ 0.84
+      // rowOff=132479 EMU / (row_height_in_EMU) — row 7 tem height=24.9pt ≈ 24.9*12700=316230 EMU
+      // fracão = 132479/316230 ≈ 0.42
       const logoId1 = wb.addImage({ buffer: logoBuffer, extension: "png" });
       ws.addImage(logoId1, {
-        tl: { col: 9.2, row: 2.1 },   // coluna K (índice 10) = 9.2 offset, linha 3 (índice 2)
-        ext: { width: 300, height: 70 },
+        tl: { col: 4.84, row: 6.42 },
+        ext: { width: 420, height: 97 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });
 
-      // ── Logo 2: rodapé ao lado do vendedor (colunas K-N) ──
+      // ── Logo 2: rodapé ao lado do vendedor ──
+      // Template: TwoCellAnchor col=11→13 row=33→36
+      // col=11 = coluna L (0-based), row=33 = linha 34
+      // Aqui usamos posição relativa ao vendorLogoRow (0-based = vendorLogoRow - 1)
+      // ext: mesmo tamanho do logo do cabeçalho (420x97px)
       const logoId2 = wb.addImage({ buffer: logoBuffer, extension: "png" });
       ws.addImage(logoId2, {
-        tl: { col: 9.2, row: vendorLogoRow - 1 + 0.1 },
-        ext: { width: 280, height: 65 },
+        tl: { col: 10.3, row: vendorLogoRow - 1 + 0.15 },
+        ext: { width: 420, height: 97 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });
 
-      // ── Logo 3: ao lado da assinatura (colunas K-N, mesma linha da assinatura) ──
-      // vendorLogoRow2 é a linha do contato do vendedor — logo vai 2 linhas abaixo
+      // ── Logo 3: ao lado da assinatura ──
+      // Template: TwoCellAnchor col=11→13 row=67→70
+      // Posição relativa à linha da assinatura (signatureRow)
+      const logoId3 = wb.addImage({ buffer: logoBuffer, extension: "png" });
+      ws.addImage(logoId3, {
+        tl: { col: 10.3, row: signatureRow - 1 + 0.15 },
+        ext: { width: 420, height: 97 },
+        editAs: "oneCell",
+      } as ExcelJS.ImagePosition & { editAs: string });
+
       void vendorLogoRow2; // usado para referência de posição
     }
   } catch {
