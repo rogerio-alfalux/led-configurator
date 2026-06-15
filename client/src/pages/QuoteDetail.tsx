@@ -4,7 +4,7 @@ import {
   ArrowLeft, CheckCircle, XCircle, Clock, TrendingDown,
   FileSpreadsheet, History, Package, Edit, AlertTriangle,
   ChevronDown, ChevronUp, Factory, Trash2, PenLine,
-  Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle, GripVertical, Wrench, Copy,
+  Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle, GripVertical, Wrench, Copy, Eye,
 } from "lucide-react";
 import {
   DndContext,
@@ -40,6 +40,7 @@ import { CartItemData, formatBRL, parseCartItemData } from "@/lib/cartTypes";
 import type { LinkedAccessory } from "@/lib/cartTypes";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
+import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 import { toast } from "sonner";
@@ -58,9 +59,10 @@ interface SortableEditItemProps {
   idx: number;
   resolvePhoto: (sku: string | undefined, savedUrl: string | null) => string | null;
   onUpdate: (id: number, fields: Partial<CartItemData>) => void;
+  onDelete: (id: number) => void;
 }
 
-function SortableEditItem({ item, idx, resolvePhoto, onUpdate }: SortableEditItemProps) {
+function SortableEditItem({ item, idx, resolvePhoto, onUpdate, onDelete }: SortableEditItemProps) {
   const d = item.parsed;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style = {
@@ -82,6 +84,15 @@ function SortableEditItem({ item, idx, resolvePhoto, onUpdate }: SortableEditIte
           title="Arrastar para reordenar"
         >
           <GripVertical className="w-5 h-5" />
+        </button>
+        {/* Botão excluir item */}
+        <button
+          type="button"
+          className="flex-shrink-0 text-destructive/60 hover:text-destructive transition-colors"
+          title="Excluir este item"
+          onClick={() => onDelete(item.id)}
+        >
+          <Trash2 className="w-4 h-4" />
         </button>
         <span className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
           {idx + 1}
@@ -221,6 +232,7 @@ export default function QuoteDetail() {
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   // Edit (add revision) dialog — full form with all tabs
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -263,10 +275,27 @@ export default function QuoteDetail() {
     return map;
   }, [productsQuery.data]);
 
+  // Catálogo de acessórios para resolver fotos frescas (URLs CloudFront expiram)
+  const acessoriosQuery = trpc.alfalux.acessoriosProducts.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const acessorioPhotoMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of acessoriosQuery.data ?? []) {
+      const key = p.codigo ?? p.sku;
+      if (key && p.fotoUrl) map.set(key, p.fotoUrl);
+    }
+    return map;
+  }, [acessoriosQuery.data]);
+
   /** Retorna a URL de foto mais fresca: catálogo > salva no banco > null */
   const resolvePhoto = (sku: string | undefined, savedUrl: string | null): string | null => {
     if (sku && productPhotoMap.has(sku)) return productPhotoMap.get(sku)!;
     return savedUrl;
+  };
+
+  /** Retorna a URL de foto fresca para acessório: catálogo > salva no item > null */
+  const resolveAccPhoto = (codigo: string | undefined, savedUrl: string | null | undefined): string | null => {
+    if (codigo && acessorioPhotoMap.has(codigo)) return acessorioPhotoMap.get(codigo)!;
+    return savedUrl ?? null;
   };
 
   // Delete dialog — triple confirmation
@@ -677,6 +706,15 @@ export default function QuoteDetail() {
             Baixar Orçamento Excel
           </Button>
 
+          <Button
+            variant="outline"
+            className="gap-2 border-amber-500/40 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950"
+            onClick={() => setPreviewOpen(true)}
+          >
+            <Eye className="w-4 h-4" />
+            Pré-visualizar Excel
+          </Button>
+
           {quote.status === "approved" && (
             <>
               <Button
@@ -805,6 +843,9 @@ export default function QuoteDetail() {
                           item={item}
                           idx={idx}
                           resolvePhoto={resolvePhoto}
+                          onDelete={(id) => {
+                            setEditableItems(prev => prev.filter(it => it.id !== id));
+                          }}
                           onUpdate={(id, fields) => {
                             setEditableItems(prev => prev.map(it => {
                               if (it.id !== id) return it;
@@ -1617,7 +1658,11 @@ export default function QuoteDetail() {
                         <div className="mt-1.5 border-l-2 border-cyan-500/40 pl-2 space-y-0.5">
                           {(d.accessories as LinkedAccessory[]).map((acc, i) => (
                             <div key={i} className="flex items-center gap-1.5 text-xs">
-                              <Wrench className="w-3 h-3 flex-shrink-0 text-cyan-500" />
+                              {resolveAccPhoto(acc.codigo, acc.fotoUrl) ? (
+                                <img src={resolveAccPhoto(acc.codigo, acc.fotoUrl)!} alt={acc.descricao} className="w-5 h-5 object-contain rounded bg-white border border-border flex-shrink-0" />
+                              ) : (
+                                <Wrench className="w-3 h-3 flex-shrink-0 text-cyan-500" />
+                              )}
                               <span className="font-mono text-[10px] text-muted-foreground">{acc.codigo}</span>
                               <span className="text-cyan-700 dark:text-cyan-400 truncate">{acc.descricao}</span>
                               {acc.qty > 1 && <span className="text-muted-foreground">x{acc.qty}</span>}
@@ -1754,6 +1799,41 @@ export default function QuoteDetail() {
           </Card>
         )}
       </div>
+
+      {/* Pré-visualização Excel — sem criar revisão */}
+      <ExcelPreviewModal
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        items={currentItems.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null)}
+        formData={{
+          cliente: quote.clientName,
+          contato: quote.clientContact ?? "",
+          tel: quote.clientPhone ?? "",
+          email: quote.clientEmail ?? "",
+          obra: quote.projectName ?? "",
+          referencia: quote.projectRef ?? "",
+          numero: quote.quoteNumber,
+          data: new Date(quote.createdAt).toLocaleDateString("pt-BR"),
+          seller1Name: quote.seller1Name ?? undefined,
+          seller2Name: quote.seller2Name ?? undefined,
+          assistantName: quote.assistantName ?? undefined,
+          rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) : undefined,
+          marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
+          freteType: (quote.freteType as "free" | "paid" | "night" | "consult") ?? "free",
+          freteIsento: quote.freteIsento ?? false,
+          freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
+          revisionCount: quote.revisionCount ?? 0,
+          deliveryDays: quote.deliveryDays ?? 20,
+          paymentTerm: quote.paymentTerm ?? undefined,
+          destState: quote.destState ?? undefined,
+          difalEnabled: quote.difalEnabled ?? false,
+          difalPercent: quote.difalPercent ? parseFloat(String(quote.difalPercent)) : undefined,
+          difalValue: quote.difalValue ? parseFloat(String(quote.difalValue)) : undefined,
+          fcpEnabled: quote.fcpEnabled ?? false,
+          fcpPercent: quote.fcpPercent ? parseFloat(String(quote.fcpPercent)) : undefined,
+          fcpValue: quote.fcpValue ? parseFloat(String(quote.fcpValue)) : undefined,
+        }}
+      />
     </div>
   );
 }

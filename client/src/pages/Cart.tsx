@@ -21,7 +21,7 @@ import {
   ShoppingCart, Trash2, FileSpreadsheet, ArrowLeft, Package,
   Plus, Minus, Save, ClipboardList, Factory, AlertTriangle,
   ChevronRight, Tag, Percent, Truck, Users, PlusCircle, CheckCircle2,
-  GripVertical, Pencil, Wrench,
+  GripVertical, Pencil, Wrench, Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,7 @@ import { useCart } from "@/hooks/useCart";
 import { formatBRL, QuoteFormData, CartItemData, parseCartItemData } from "@/lib/cartTypes";
 import type { LinkedAccessory } from "@/lib/cartTypes";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
+import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
 import { generateOrderExcel } from "@/lib/orderExcelGenerator";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
@@ -112,11 +113,13 @@ interface SortableCartItemProps {
   updateQtyMutation: { isPending: boolean };
   isRemoving: boolean;
   onEditClick: (id: number, data: CartItemData) => void;
+  acessorioPhotoMap: Map<string, string>;
 }
 
 function SortableCartItem({
   entry, idx, itemEmPlantaMap, setItemEmPlantaMap, updateItemField,
   handleUpdateQty, handleQtyInput, removeItem, updateQtyMutation, isRemoving, onEditClick,
+  acessorioPhotoMap,
 }: SortableCartItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: entry.id });
   const style = {
@@ -212,10 +215,12 @@ function SortableCartItem({
                   {/* Acessórios vinculados */}
                   {entry.data.accessories && entry.data.accessories.length > 0 && (
                     <div className="mt-2 border-l-2 border-cyan-500/40 pl-2 space-y-1">
-                      {(entry.data.accessories as LinkedAccessory[]).map((acc, i) => (
+                          {(entry.data.accessories as LinkedAccessory[]).map((acc, i) => {
+                            const freshFoto = (acc.codigo && acessorioPhotoMap.get(acc.codigo)) || acc.fotoUrl || null;
+                            return (
                         <div key={i} className="flex items-center gap-1.5 text-xs">
-                          {acc.fotoUrl ? (
-                            <img src={acc.fotoUrl} alt={acc.descricao} className="w-6 h-6 object-contain rounded bg-white border border-border flex-shrink-0" />
+                          {freshFoto ? (
+                            <img src={freshFoto} alt={acc.descricao} className="w-6 h-6 object-contain rounded bg-white border border-border flex-shrink-0" />
                           ) : (
                             <Wrench className="w-3 h-3 flex-shrink-0 text-cyan-500" />
                           )}
@@ -226,7 +231,8 @@ function SortableCartItem({
                             <span className="ml-auto text-muted-foreground">{formatBRL(acc.unitPrice)}</span>
                           )}
                         </div>
-                      ))}
+                      );
+                          })}
                     </div>
                   )}
                 </div>
@@ -367,9 +373,21 @@ export default function Cart() {
   const sellers = sellersQuery.data ?? [];
   const assistants = assistantsQuery.data ?? [];
 
+  // Catálogo de acessórios para resolver fotos frescas (URLs CloudFront expiram)
+  const acessoriosQuery = trpc.alfalux.acessoriosProducts.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const acessorioPhotoMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of acessoriosQuery.data ?? []) {
+      const key = p.codigo ?? p.sku;
+      if (key && p.fotoUrl) map.set(key, p.fotoUrl);
+    }
+    return map;
+  }, [acessoriosQuery.data]);
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   // Item em Planta — mapa local (UI imediata) + autosave via updateItemField
   const [itemEmPlantaMap, setItemEmPlantaMap] = useState<Record<number, string>>({});
@@ -868,6 +886,7 @@ export default function Cart() {
                       removeItem={removeItem}
                       updateQtyMutation={updateQtyMutation}
                       isRemoving={isRemoving}
+                      acessorioPhotoMap={acessorioPhotoMap}
                       onEditClick={(id, data) => {
                         setEditItemId(id);
                         setEditFields({
@@ -1571,91 +1590,17 @@ export default function Cart() {
                       </DialogContent>
                     </Dialog>}
 
-                    {/* Gerar Excel de Orçamento — oculto no modo append */}
-                    {!appendToQuoteId && <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                      <Button className="gap-2" onClick={() => setDialogOpen(true)}>
-                        <FileSpreadsheet className="w-4 h-4" />
-                        Gerar Orçamento
+                    {/* Pré-visualizar Excel — oculto no modo append */}
+                    {!appendToQuoteId && (
+                      <Button
+                        variant="outline"
+                        className="gap-2 border-amber-500/40 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950"
+                        onClick={() => setPreviewOpen(true)}
+                      >
+                        <Eye className="w-4 h-4" />
+                        Pré-visualizar Excel
                       </Button>
-                      <DialogContent className="max-w-lg">
-                        <DialogHeader>
-                          <DialogTitle>Dados para o Orçamento</DialogTitle>
-                        </DialogHeader>
-                        <div className="grid grid-cols-2 gap-3 py-2">
-                          <div className="col-span-2">
-                            <Label>Cliente *</Label>
-                            <Input
-                              placeholder="Nome do cliente"
-                              value={form.cliente}
-                              onChange={e => updateForm("cliente", e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <Label>Contato</Label>
-                            <Input
-                              placeholder="Nome do contato"
-                              value={form.contato}
-                              onChange={e => updateForm("contato", e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <Label>Telefone</Label>
-                            <Input
-                              placeholder="(11) 99999-9999"
-                              value={form.tel}
-                              onChange={e => updateForm("tel", e.target.value)}
-                            />
-                          </div>
-                          <div className="col-span-2">
-                            <Label>E-mail</Label>
-                            <Input
-                              placeholder="email@cliente.com"
-                              value={form.email}
-                              onChange={e => updateForm("email", e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <Label>Obra / Projeto</Label>
-                            <Input
-                              placeholder="Nome da obra"
-                              value={form.obra}
-                              onChange={e => updateForm("obra", e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <Label>Referência</Label>
-                            <Input
-                              placeholder="Referência interna"
-                              value={form.referencia}
-                              onChange={e => updateForm("referencia", e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <Label>Número do Orçamento</Label>
-                            <Input
-                              value={form.numero}
-                              onChange={e => updateForm("numero", e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <Label>Data</Label>
-                            <Input
-                              value={form.data}
-                              onChange={e => updateForm("data", e.target.value)}
-                            />
-                          </div>
-                        </div>
-                        <div className="flex justify-end gap-2 pt-2">
-                          <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                            Cancelar
-                          </Button>
-                          <Button onClick={handleGenerate} disabled={isGenerating} className="gap-2">
-                            <FileSpreadsheet className="w-4 h-4" />
-                            {isGenerating ? "Gerando..." : "Baixar Excel"}
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>}
+                    )}
 
                     {/* ─── Gerar Pedido de Fábrica (sem orçamento) ─── */}
                     <Button
@@ -1973,7 +1918,21 @@ export default function Cart() {
               );
             })()}
           </div>
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex justify-between gap-2 pt-2">
+            <Button
+              variant="outline"
+              className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10"
+              onClick={() => {
+                if (editItemId === null) return;
+                removeItem(editItemId);
+                setEditItemId(null);
+                toast.success('Item excluído do carrinho.');
+              }}
+            >
+              <Trash2 className="w-4 h-4" />
+              Excluir Item
+            </Button>
+            <div className="flex gap-2">
             <Button variant="outline" onClick={() => setEditItemId(null)}>Cancelar</Button>
             <Button onClick={() => {
               if (editItemId === null) return;
@@ -2024,9 +1983,40 @@ export default function Cart() {
             }}>
               Salvar
             </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Pré-visualização Excel — sem criar revisão */}
+      <ExcelPreviewModal
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        items={orderedEntries.map((e) => ({
+          ...e.data,
+          itemEmPlanta: itemEmPlantaMap[e.id] ?? e.data.itemEmPlanta ?? "",
+        }))}
+        formData={{
+          ...form,
+          seller1Name: saveForm.seller1Name || undefined,
+          seller2Name: saveForm.seller2Name || undefined,
+          rtPercent: rtPct > 0 ? rtPct : undefined,
+          marginPercent: marginPct > 0 ? marginPct : undefined,
+          freteType: saveForm.freteType,
+          freteIsento: saveForm.freteIsento,
+          freteLocalidade: saveForm.freteStateCode === "SP" ? "sp" : "other",
+          deliveryDays: parseInt(saveForm.deliveryDays) || 20,
+          paymentTerm: saveForm.paymentTerm || undefined,
+          revisionCount: 0,
+          difalEnabled: saveForm.difalEnabled,
+          difalPercent: saveForm.difalEnabled && saveForm.difalPercent ? parseFloat(saveForm.difalPercent) : undefined,
+          difalValue: saveForm.difalEnabled && saveForm.difalValue ? parseFloat(saveForm.difalValue) : undefined,
+          fcpEnabled: saveForm.fcpEnabled,
+          fcpPercent: saveForm.fcpEnabled && saveForm.fcpPercent ? parseFloat(saveForm.fcpPercent) : undefined,
+          fcpValue: saveForm.fcpEnabled && saveForm.fcpValue ? parseFloat(saveForm.fcpValue) : undefined,
+          destState: saveForm.destState || undefined,
+        }}
+      />
     </div>
   );
 }

@@ -82,7 +82,7 @@ function buildFreteText(formData: QuoteFormData, totalBase: number): string {
   return "CIF - Para faturamento acima de R$ 1.500,00 São Paulo/ SP (Capital). Demais localidades sob consulta";
 }
 
-// ── Cache de fotos frescas da API Alfalux ───────────────────────────────────
+//// ── Cache de fotos frescas da API Alfalux ───────────────────────────────
 // A URL da foto no itemData pode expirar (CloudFront signed URL).
 // Esta função busca uma URL fresca via API usando o SKU do produto.
 let _freshPhotoCache: Map<string, string> | null = null;
@@ -110,11 +110,38 @@ async function getFreshPhotoUrl(sku: string, fallbackUrl?: string | null): Promi
   }
 }
 
-// ── Função principal ─────────────────────────────────────────────────────────
-export async function generateQuoteExcel(
+// ── Cache de fotos frescas de acessórios ────────────────────────────────
+let _freshAccPhotoCache: Map<string, string> | null = null;
+async function getFreshAccPhotoUrl(codigo: string, fallbackUrl?: string | null): Promise<string | null> {
+  try {
+    if (!_freshAccPhotoCache) {
+      const res = await fetch("/api/trpc/alfalux.acessoriosProducts", {
+        headers: { "Content-Type": "application/json" },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const products: Array<{ codigo?: string; sku?: string; fotoUrl?: string }> =
+          json?.result?.data?.json ?? json?.result?.data ?? [];
+        _freshAccPhotoCache = new Map();
+        for (const p of products) {
+          const key = p.codigo ?? p.sku;
+          if (key && p.fotoUrl) _freshAccPhotoCache.set(key, p.fotoUrl);
+        }
+      } else {
+        _freshAccPhotoCache = new Map();
+      }
+    }
+    return _freshAccPhotoCache.get(codigo) ?? fallbackUrl ?? null;
+  } catch {
+    return fallbackUrl ?? null;
+  }
+}
+
+// ── Função interna de geração (retorna buffer) ─────────────────────────────
+async function _generateExcelBuffer(
   items: CartItemData[],
   formData: QuoteFormData
-): Promise<void> {
+): Promise<ArrayBuffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = "Configurador Alfalux";
   wb.created = new Date();
@@ -597,11 +624,12 @@ export async function generateQuoteExcel(
 
     // ── Sub-linhas de acessórios vinculados (não-rabicho) ──────────────────────
     if (nonRabichoAcc.length > 0) {
-      nonRabichoAcc.forEach((acc, accIdx) => {
+      for (let accIdx = 0; accIdx < nonRabichoAcc.length; accIdx++) {
+        const acc = nonRabichoAcc[accIdx];
         const accRowNum = rowNum + accIdx + 1;
         ws.spliceRows(accRowNum, 0, []);
         const accRow = ws.getRow(accRowNum);
-        accRow.height = 22;
+        accRow.height = 40; // Altura maior para texto visível
         const ACC_BG = "FFE0F7FA";
         const ACC_COLOR = "FF006064";
         const thinCyan: Partial<ExcelJS.Border> = { style: "thin", color: { argb: "FF80DEEA" } };
@@ -614,13 +642,46 @@ export async function generateQuoteExcel(
           cell.border = accBorder;
         };
         fillAcc(ws.getCell(`C${accRowNum}`), "");
+        // D = foto do acessório (se disponível)
+        const freshAccUrl = await getFreshAccPhotoUrl(acc.codigo ?? "", acc.fotoUrl);
+        if (freshAccUrl) {
+          try {
+            let fetchUrl = freshAccUrl.startsWith("/manus-storage/")
+              ? freshAccUrl
+              : `/api/image-proxy?url=${encodeURIComponent(freshAccUrl)}`;
+            const accImgRes = await fetch(fetchUrl);
+            if (accImgRes.ok) {
+              const accBuf = await accImgRes.arrayBuffer();
+              const accU8 = new Uint8Array(accBuf);
+              let accExt: "png" | "jpeg" | "gif" = "jpeg";
+              if (accU8[0] === 0x89 && accU8[1] === 0x50) accExt = "png";
+              const accImgId = wb.addImage({ buffer: accBuf, extension: accExt });
+              // Célula D: 18 chars * 7px = 126px, altura 40pt * 1.33 = ~53px
+              const accCellH = 40 * 1.33;
+              const accCellW = 18 * 7;
+              const accPad = 4;
+              const accMaxW = accCellW - accPad * 2;
+              const accMaxH = accCellH - accPad * 2;
+              ws.addImage(accImgId, {
+                tl: { col: 3 + accPad / accCellW, row: (accRowNum - 1) + accPad / accCellH },
+                ext: { width: Math.min(accMaxW, accMaxH), height: Math.min(accMaxW, accMaxH) },
+                editAs: "oneCell",
+              } as ExcelJS.ImagePosition & { editAs: string });
+            }
+          } catch { /* ignorar erro de imagem de acessório */ }
+        }
         const dCell = ws.getCell(`D${accRowNum}`);
-        dCell.value = `↳ Acessório: ${acc.descricao}`;
-        dCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: ACC_COLOR } };
-        dCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
-        dCell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
-        dCell.border = accBorder;
-        fillAcc(ws.getCell(`E${accRowNum}`), acc.codigo ?? "");
+        if (!freshAccUrl) {
+          dCell.value = `↳ Acessório: ${acc.descricao}`;
+          dCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: ACC_COLOR } };
+          dCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
+          dCell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+          dCell.border = accBorder;
+        } else {
+          dCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
+          dCell.border = accBorder;
+        }
+        fillAcc(ws.getCell(`E${accRowNum}`), `↳ ${acc.descricao}\n${acc.codigo ?? ""}`);
         for (const col of ["F", "G", "H", "I", "J", "K"]) {
           fillAcc(ws.getCell(`${col}${accRowNum}`), "");
         }
@@ -644,7 +705,7 @@ export async function generateQuoteExcel(
           fillAcc(ws.getCell(`M${accRowNum}`), "-");
           fillAcc(ws.getCell(`N${accRowNum}`), "-");
         }
-      });
+      }
       // Avançar currentRow para compensar as sub-linhas inseridas
       currentRow += nonRabichoAcc.length;
     }
@@ -921,11 +982,13 @@ export async function generateQuoteExcel(
   ];
 
   for (const cond of conditions) {
-    ws.getRow(nextRow).height = 16.8;
+    // Estimar altura necessária: ~75 chars por linha, 14pt por linha
+    const estimatedLines = Math.ceil(cond.text.length / 130) + 1;
+    ws.getRow(nextRow).height = Math.max(30, estimatedLines * 14);
     {
       const c = ws.getCell(`C${nextRow}`);
       c.value = cond.num;
-      c.font = { name: "Calibri", size: 11, bold: true };
+      c.font = { name: "Calibri", size: 10, bold: true };
       c.alignment = { horizontal: "right", vertical: "top" };
     }
     ws.mergeCells(`D${nextRow}:N${nextRow}`);
@@ -936,7 +999,6 @@ export async function generateQuoteExcel(
       c.alignment = { horizontal: "left", vertical: "top", wrapText: true };
     }
     nextRow++;
-    nextRow++; // espaço entre condições
   }
 
   // ── Estou ciente ─────────────────────────────────────────────────────────
@@ -1007,8 +1069,18 @@ export async function generateQuoteExcel(
     // Ignorar erro de logo
   }
 
-  // ── Gerar e baixar o arquivo ──────────────────────────────────────────────
-  const buffer = await wb.xlsx.writeBuffer();
+  // ── Retornar buffer ──────────────────────────────────────────────
+  return await wb.xlsx.writeBuffer() as ArrayBuffer;
+}
+
+/** Gera e baixa o Excel do orçamento */
+export async function generateQuoteExcel(
+  items: CartItemData[],
+  formData: QuoteFormData
+): Promise<void> {
+  _freshPhotoCache = null;
+  _freshAccPhotoCache = null;
+  const buffer = await _generateExcelBuffer(items, formData);
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
@@ -1024,4 +1096,17 @@ export async function generateQuoteExcel(
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Gera o Excel do orçamento e retorna o buffer (sem baixar).
+ * Usado para pré-visualização online sem criar revisão.
+ */
+export async function generateQuoteExcelBuffer(
+  items: CartItemData[],
+  formData: QuoteFormData
+): Promise<ArrayBuffer> {
+  _freshPhotoCache = null;
+  _freshAccPhotoCache = null;
+  return await _generateExcelBuffer(items, formData);
 }
