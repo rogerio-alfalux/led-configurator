@@ -4,7 +4,7 @@
  * Não cria revisão, não gera download.
  * Exibe marca d'água "RASCUNHO" em diagonal para deixar claro que não é versão oficial.
  */
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { CartItemData, QuoteFormData } from "@/lib/cartTypes";
 import { formatBRL } from "@/lib/cartTypes";
@@ -232,7 +232,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData }: Props) {
                     const rabichoAcc = item.accessories?.find(a => a.familia?.toLowerCase().includes("rabicho"));
 
                     return (
-                      <>
+                      <Fragment key={`row-group-${idx}`}>
                         {/* Cabeçalho de pavimento */}
                         {item.floorId && (idx === 0 || items[idx - 1]?.floorId !== item.floorId) && (
                           <tr key={`floor-${item.floorId}`}>
@@ -306,7 +306,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData }: Props) {
                             <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice * acc.qty) : "-"}</td>
                           </tr>
                         ))}
-                      </>
+                      </Fragment>
                     );
                   })}
                 </tbody>

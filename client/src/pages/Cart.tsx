@@ -478,7 +478,7 @@ export default function Cart() {
     rtDest2Active: false,
     rtDest3: "",
     rtDest3Active: false,
-    marginPercent: "10",
+    marginPercent: "0",
     freteType: "free",
     freteIsento: false,
     freteStateCode: "SP",

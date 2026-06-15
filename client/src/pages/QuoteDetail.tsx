@@ -242,7 +242,7 @@ export default function QuoteDetail() {
     seller1Id: "", seller1Name: "", seller2Id: "", seller2Name: "",
     assistantId: "", assistantName: "", versionNotes: "",
     rtPercent: "0", rtDest1: "", rtDest1Active: true, rtDest2: "", rtDest2Active: false, rtDest3: "", rtDest3Active: false,
-    marginPercent: "10",
+    marginPercent: "0",
     freteType: "free" as "free" | "paid" | "night" | "consult",
     freteIsento: false, freteLocalidade: "sp" as "sp" | "other",
     // Novos campos
@@ -1007,7 +1007,7 @@ export default function QuoteDetail() {
                 rtDest2Active: quote.rtDest2Active ?? false,
                 rtDest3: quote.rtDest3 ?? "",
                 rtDest3Active: quote.rtDest3Active ?? false,
-                marginPercent: quote.marginPercent ? String(parseFloat(String(quote.marginPercent)) * 100) : "10",
+                marginPercent: quote.marginPercent ? String(parseFloat(String(quote.marginPercent)) * 100) : "0",
                 freteType: (quote.freteType as "free" | "paid" | "night" | "consult") ?? "free",
                 freteIsento: quote.freteIsento ?? false,
                 freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
