@@ -384,6 +384,18 @@ export default function Cart() {
     return map;
   }, [acessoriosQuery.data]);
 
+  // Todos os produtos Alfalux para resolver fotos frescas de Painéis, Spots, etc.
+  // URLs CloudFront expiram em ~1h; buscamos sempre frescos com staleTime curto
+  const allProductsQuery = trpc.alfalux.products.useQuery(undefined, { staleTime: 3 * 60 * 1000 });
+  /** Mapa sku -> fotoUrl fresca para substituir URLs expiradas no preview */
+  const freshPhotoMap = useMemo(() => {
+    const map = new Map<string, string>(); // sku -> fotoUrl fresca
+    for (const p of allProductsQuery.data ?? []) {
+      if (p.sku && p.fotoUrl) map.set(p.sku, p.fotoUrl);
+    }
+    return map;
+  }, [allProductsQuery.data]);
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -2015,6 +2027,7 @@ export default function Cart() {
           fcpValue: saveForm.fcpEnabled && saveForm.fcpValue ? parseFloat(saveForm.fcpValue) : undefined,
           destState: saveForm.destState || undefined,
         }}
+        freshPhotoMap={freshPhotoMap}
       />
     </div>
   );

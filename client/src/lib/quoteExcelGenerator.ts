@@ -1105,10 +1105,10 @@ async function _generateExcelBuffer(
   //     Size: cx=4000500 EMU (420px) × cy=923925 EMU (97px), ratio=4.330
   //   Logo rodapé vendor (Âncora 3 spPr/xfrm):
   //     TL: nativeCol=11, nativeColOff=342901 EMU (36px)
-  //     Size: cx=1543050 EMU (162px) × cy=464344 EMU (48.75px), ratio=3.323
+  //     Size: cx=2004009 EMU (210.39px) × cy=464343 EMU (48.75px), ratio=4.3158 (PNG real)
   //   Logo rodapé assinatura (Âncora 4 spPr/xfrm):
   //     TL: nativeCol=11, nativeColOff=367393 EMU (38.6px)
-  //     Size: cx=1543050 EMU (162px) × cy=464344 EMU (48.75px)
+  //     Size: cx=2004009 EMU (210.39px) × cy=464343 EMU (48.75px), ratio=4.3158 (PNG real)
   //
   // ExcelJS usa EMU_PER_PIXEL = 9525 para ext (width/height em px → EMU)
   // Para nativeColOff/nativeRowOff usamos EMU diretamente via IAnchor
@@ -1131,21 +1131,21 @@ async function _generateExcelBuffer(
 
       // ── Logo 2: rodapé ao lado do vendedor ──
       // Posição EXATA do template: nativeCol=11 nativeColOff=342901 EMU (36px)
-      // Tamanho EXATO: 162×48.75px (cx=1543050 cy=464344 EMU, ratio=3.323)
+      // Tamanho CORRIGIDO: 210.39×48.75px (ratio=4.3158, igual ao PNG 656×152px)
       const logoId2 = wb.addImage({ buffer: logoBuffer, extension: "png" });
       ws.addImage(logoId2, {
         tl: { nativeCol: 11, nativeColOff: 342901, nativeRow: vendorLogoRow - 1, nativeRowOff: 0 } as ExcelJS.IAnchor,
-        ext: { width: 162, height: 48.75 },
+        ext: { width: 210.39, height: 48.75 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });
 
       // ── Logo 3: ao lado da assinatura ──
       // Posição EXATA do template: nativeCol=11 nativeColOff=367393 EMU (38.6px)
-      // Tamanho EXATO: 162×48.75px (cx=1543050 cy=464344 EMU, ratio=3.323)
+      // Tamanho CORRIGIDO: 210.39×48.75px (ratio=4.3158, igual ao PNG 656×152px)
       const logoId3 = wb.addImage({ buffer: logoBuffer, extension: "png" });
       ws.addImage(logoId3, {
         tl: { nativeCol: 11, nativeColOff: 367393, nativeRow: signatureRow - 1, nativeRowOff: 0 } as ExcelJS.IAnchor,
-        ext: { width: 162, height: 48.75 },
+        ext: { width: 210.39, height: 48.75 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });
 

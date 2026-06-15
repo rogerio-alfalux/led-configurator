@@ -89,9 +89,11 @@ interface Props {
   onClose: () => void;
   items: CartItemData[];
   formData: QuoteFormData;
+  /** Mapa sku -> fotoUrl fresca para substituir URLs CloudFront expiradas */
+  freshPhotoMap?: Map<string, string>;
 }
 
-export function ExcelPreviewModal({ open, onClose, items, formData }: Props) {
+export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMap }: Props) {
   // Bloqueia scroll do body quando aberto
   useEffect(() => {
     if (open) {
@@ -356,8 +358,8 @@ export function ExcelPreviewModal({ open, onClose, items, formData }: Props) {
                           <td style={{ ...tdStyle, fontWeight: "bold", fontSize: 18 }}>{item.itemEmPlanta || ""}</td>
                           {/* Coluna FOTO — apenas a imagem do produto, sem rabicho */}
                           <td style={{ ...tdStyle, width: 80, minHeight: 80 }}>
-                            {getProxiedPhotoSrc(item.photoUrl) ? (
-                              <img src={getProxiedPhotoSrc(item.photoUrl)!} alt={item.description} style={{ width: 64, height: 64, objectFit: "contain" }}
+                            {getProxiedPhotoSrc(freshPhotoMap?.get(item.sku ?? "") ?? item.photoUrl) ? (
+                              <img src={getProxiedPhotoSrc(freshPhotoMap?.get(item.sku ?? "") ?? item.photoUrl)!} alt={item.description} style={{ width: 64, height: 64, objectFit: "contain" }}
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                             ) : (
                               <span style={{ color: "#aaa", fontSize: 10 }}>—</span>
