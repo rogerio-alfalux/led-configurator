@@ -1,0 +1,35 @@
+{
+  "query": "SELECT qi.id, qi.itemNumber, SUBSTRING(qi.itemData, 1, 500) as itemDataPreview FROM quote_items qi ORDER BY qi.id DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT qi.id, qi.itemNumber, SUBSTRING(qi.itemData, 1, 500) as itemDataPreview FROM quote_items qi ORDER BY qi.id DESC LIMIT 5;",
+  "rows": [
+    {
+      "id": "1590007",
+      "itemNumber": "7",
+      "itemDataPreview": "{\"category\":\"LED BAR\",\"sku\":\"LED BAR U DB\",\"description\":\"LED BAR U DB 10W/M 4000K ON/OFF 220V 15410MM\",\"power\":\"10W/m\",\"cct\":\"4000K\",\"qty\":1,\"unitPrice\":2474.88,\"totalPrice\":2474.88,\"photoUrl\":\"https://d36hbw14aib5lz.cloudfront.net/310419663032619542/c8ZMg2fnQHfcAMKPDCkQRJ/products/photos/1779210878747-9rycwe4rbrp_6e6eaadb.png?Expires=1781554214&Signature=mkNvspCKgfmU9CK7JtbekqeNYS0fCKUG-~uQvUrz1oIBzJs13adanjp-r13w80ulFexn3l9Levg71t8OPi1fsZH4pSlzUuEggfTxZLPpE31UOgnFHB4XQhyDeNaQJuSapSuAG3HtBBk~A"
+    },
+    {
+      "id": "1590006",
+      "itemNumber": "6",
+      "itemDataPreview": "{\"category\":\"Item Especial\",\"sku\":\"ESPECIAL\",\"description\":\"LDP-4517.1E2.45G - PENDENTE JOY D360MM LDP E27 4000K 220V BFM\",\"qty\":1,\"unitPrice\":620,\"totalPrice\":620,\"photoUrl\":\"\",\"isSpecialItem\":true,\"specialDescription\":\"LDP-4517.1E2.45G - PENDENTE JOY D360MM LDP E27 4000K 220V BFM\",\"specialDimensions\":\"DIAMETRO 360MM\",\"specialPower\":\"9W\",\"specialVoltage\":\"220V\",\"specialColor\":\"BRANCO\",\"corPeca\":\"Branco Fosco Micro\",\"itemEmPlanta\":\"L6\",\"cct\":\"4000K\",\"itemObsShowInExcel\":false}"
+    },
+    {
+      "id": "1590005",
+      "itemNumber": "5",
+      "itemDataPreview": "{\"category\":\"Item Especial\",\"sku\":\"ESPECIAL\",\"description\":\"LLP-4090.800.48F - PENDENTE ALDA Ø800MM\",\"qty\":1,\"unitPrice\":1446,\"totalPrice\":1446,\"photoUrl\":\"\",\"isSpecialItem\":true,\"specialDescription\":\"LLP-4090.800.48F - PENDENTE ALDA Ø800MM\",\"specialDimensions\":\"Ø800MM\",\"specialPower\":\"40W\",\"specialVoltage\":\"220V\",\"specialColor\":\"BRANCO\",\"corPeca\":\"Branco Fosco Micro\",\"itemEmPlanta\":\"L5\",\"cct\":\"4000K\",\"itemObsShowInExcel\":false}"
+    },
+    {
+      "id": "1590004",
+      "itemNumber": "4",
+      "itemDataPreview": "{\"category\":\"Perfis\",\"sku\":\"LLP-6060\",\"description\":\"BLAZE H PENDENTE 36W 4000K ON/OFF 220Vac 1135mm\",\"power\":\"36W\",\"cct\":\"4000K\",\"qty\":5,\"unitPrice\":499.4,\"totalPrice\":2497,\"priceFromApi\":true,\"photoUrl\":\"https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/pdTGCQYrZGJilKKe.png\",\"moduloLed\":\"Stripflex 562,5 x 10mm 36L 4000K\",\"drivers\":\"\",\"orderSummary\":\"Item 1\\n1 x BLAZE H D1 PENDENTE COM 1135MM 36W/M (LLP-6060.2IN.48F)\\nMONTADO COM 2 BARRAS Stripline 562,5 x 15mm 10"
+    },
+    {
+      "id": "1590003",
+      "itemNumber": "3",
+      "itemDataPreview": "{\"category\":\"Revenda\",\"sku\":\"RV00094\",\"description\":\"PAINEL DE EMBUTIR LED 30W 4000K 2250LM 400X400MM BIV BRANCO\",\"photoUrl\":\"https://d36hbw14aib5lz.cloudfront.net/310419663032619542/c8ZMg2fnQHfcAMKPDCkQRJ/revenda/photos/1781028932390-acvv4eu7kuw_d87ee487.jpg?Expires=1781550830&Signature=MrGaDbyYYmPg9c06s4IaHagLGRYnXss4bDNfURMDk8lXinjXYvVfXSNUCkD2uX~s8sXTC8UmZtaqDbi-SZz2jo-8EFhHIJO2rrtWujJtHqQC~1Cnjcf51e-5dRhr7KQV0g809r8SQ-HE-IselwJdbFP2uYJHLE4LfwY-NvwtnzRezhZXaC6Hl0-w4gCBpnV469ZnFTpTge8KzjAiHSV"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\titemNumber\titemDataPreview\n1590007\t7\t{\"category\":\"LED BAR\",\"sku\":\"LED BAR U DB\",\"description\":\"LED BAR U DB 10W/M 4000K ON/OFF 220V 15410MM\",\"power\":\"10W/m\",\"cct\":\"4000K\",\"qty\":1,\"unitPrice\":2474.88,\"totalPrice\":2474.88,\"photoUrl\":\"https://d36hbw14aib5lz.cloudfront.net/310419663032619542/c8ZMg2fnQHfcAMKPDCkQRJ/products/photos/1779210878747-9rycwe4rbrp_6e6eaadb.png?Expires=1781554214&Signature=mkNvspCKgfmU9CK7JtbekqeNYS0fCKUG-~uQvUrz1oIBzJs13adanjp-r13w80ulFexn3l9Levg71t8OPi1fsZH4pSlzUuEggfTxZLPpE31UOgnFHB4XQhyDeNaQJuSapSuAG3HtBBk~A\n1590006\t6\t{\"category\":\"Item Especial\",\"sku\":\"ESPECIAL\",\"description\":\"LDP-4517.1E2.45G - PENDENTE JOY D360MM LDP E27 4000K 220V BFM\",\"qty\":1,\"unitPrice\":620,\"totalPrice\":620,\"photoUrl\":\"\",\"isSpecialItem\":true,\"specialDescription\":\"LDP-4517.1E2.45G - PENDENTE JOY D360MM LDP E27 4000K 220V BFM\",\"specialDimensions\":\"DIAMETRO 360MM\",\"specialPower\":\"9W\",\"specialVoltage\":\"220V\",\"specialColor\":\"BRANCO\",\"corPeca\":\"Branco Fosco Micro\",\"itemEmPlanta\":\"L6\",\"cct\":\"4000K\",\"itemObsShowInExcel\":false}\n1590005\t5\t{\"category\":\"Item Especial\",\"sku\":\"ESPECIAL\",\"description\":\"LLP-4090.800.48F - PENDENTE ALDA Ø800MM\",\"qty\":1,\"unitPrice\":1446,\"totalPrice\":1446,\"photoUrl\":\"\",\"isSpecialItem\":true,\"specialDescription\":\"LLP-4090.800.48F - PENDENTE ALDA Ø800MM\",\"specialDimensions\":\"Ø800MM\",\"specialPower\":\"40W\",\"specialVoltage\":\"220V\",\"specialColor\":\"BRANCO\",\"corPeca\":\"Branco Fosco Micro\",\"itemEmPlanta\":\"L5\",\"cct\":\"4000K\",\"itemObsShowInExcel\":false}\n1590004\t4\t{\"category\":\"Perfis\",\"sku\":\"LLP-6060\",\"description\":\"BLAZE H PENDENTE 36W 4000K ON/OFF 220Vac 1135mm\",\"power\":\"36W\",\"cct\":\"4000K\",\"qty\":5,\"unitPrice\":499.4,\"totalPrice\":2497,\"priceFromApi\":true,\"photoUrl\":\"https://files.manuscdn.com/user_upload_by_module/session_file/310419663032619542/pdTGCQYrZGJilKKe.png\",\"moduloLed\":\"Stripflex 562,5 x 10mm 36L 4000K\",\"drivers\":\"\",\"orderSummary\":\"Item 1\\n1 x BLAZE H D1 PENDENTE COM 1135MM 36W/M (LLP-6060.2IN.48F)\\nMONTADO COM 2 BARRAS Stripline 562,5 x 15mm 10\n1590003\t3\t{\"category\":\"Revenda\",\"sku\":\"RV00094\",\"description\":\"PAINEL DE EMBUTIR LED 30W 4000K 2250LM 400X400MM BIV BRANCO\",\"photoUrl\":\"https://d36hbw14aib5lz.cloudfront.net/310419663032619542/c8ZMg2fnQHfcAMKPDCkQRJ/revenda/photos/1781028932390-acvv4eu7kuw_d87ee487.jpg?Expires=1781550830&Signature=MrGaDbyYYmPg9c06s4IaHagLGRYnXss4bDNfURMDk8lXinjXYvVfXSNUCkD2uX~s8sXTC8UmZtaqDbi-SZz2jo-8EFhHIJO2rrtWujJtHqQC~1Cnjcf51e-5dRhr7KQV0g809r8SQ-HE-IselwJdbFP2uYJHLE4LfwY-NvwtnzRezhZXaC6Hl0-w4gCBpnV469ZnFTpTge8KzjAiHSV\n",
+  "stderr": "",
+  "execution_time_ms": 301
+}

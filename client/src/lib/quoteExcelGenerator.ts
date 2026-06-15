@@ -122,6 +122,20 @@ async function getFreshPhotoUrl(sku: string, fallbackUrl?: string | null): Promi
           if (p.sku && p.fotoUrl) _freshPhotoCache.set(p.sku, p.fotoUrl);
         }
       }
+      // Buscar acessórios (EQ*, CP*) — itens que podem ser adicionados como categoria separada
+      const res3 = await fetch("/api/trpc/alfalux.acessoriosProducts", {
+        headers: { "Content-Type": "application/json" },
+      });
+      if (res3.ok) {
+        const json3 = await res3.json();
+        const products3: Array<{ codigo?: string; sku?: string; fotoUrl?: string }> =
+          json3?.result?.data?.json ?? json3?.result?.data ?? [];
+        for (const p of products3) {
+          // Indexar por codigo (ex: EQ00435) e por sku (ex: 2J/1.5M WH)
+          if (p.codigo && p.fotoUrl) _freshPhotoCache.set(p.codigo, p.fotoUrl);
+          if (p.sku && p.fotoUrl) _freshPhotoCache.set(p.sku, p.fotoUrl);
+        }
+      }
     }
     // Se encontrou pelo SKU, usa a URL fresca; caso contrário usa o fallback
     return _freshPhotoCache.get(sku) ?? fallbackUrl ?? null;
@@ -1108,9 +1122,12 @@ async function _generateExcelBuffer(
       const logoBuffer = await logoResponse.arrayBuffer();
 
       // ── Logo 1: cabeçalho ──
-      // Posição calculada para o gerador: centralizado verticalmente nas linhas 7-14
-      // e horizontalmente nas colunas K-N (col=9.689, row=8.032)
-      // Largura 420px, Altura 97px — idêntico ao template
+      // Posição calculada com base nas alturas reais das linhas do gerador:
+      // - Logo deve ficar centralizado verticalmente nas linhas 7-14 (VENDEDOR até DATA)
+      // - Logo deve ficar centralizado horizontalmente nas colunas K-N
+      // - Cálculo: col=9.689 (10 - 0.311 = início da col K - offset para centralizar 420px em 356px)
+      //            row=8.032 (6 + 2.032 = linha 7 + offset para centralizar 97px em 236.8px)
+      // Tamanho: 420x97px (idêntico ao template)
       const logoId1 = wb.addImage({ buffer: logoBuffer, extension: "png" });
       ws.addImage(logoId1, {
         tl: { col: 9.689, row: 8.032 },
@@ -1119,21 +1136,23 @@ async function _generateExcelBuffer(
       } as ExcelJS.ImagePosition & { editAs: string });
 
       // ── Logo 2: rodapé ao lado do vendedor ──
-      // Centralizado horizontalmente nas colunas K-N (col=10.942)
-      // Alinhado verticalmente com a linha do nome do vendedor
+      // col=11.667 (col L + 36px offset, extraído do template)
+      // row = vendorLogoRow - 1 + 0.510 (17px offset dentro da linha)
+      // Tamanho: 162x49px (idêntico ao template)
       const logoId2 = wb.addImage({ buffer: logoBuffer, extension: "png" });
       ws.addImage(logoId2, {
-        tl: { col: 10.942, row: vendorLogoRow - 1 + 0.1 },
+        tl: { col: 11.667, row: vendorLogoRow - 1 + 0.510 },
         ext: { width: 162, height: 49 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });
 
       // ── Logo 3: ao lado da assinatura ──
-      // Centralizado horizontalmente nas colunas K-N (col=10.942)
-      // Alinhado verticalmente com a linha de assinatura
+      // col=11.667 (col L + 38.6px offset, extraído do template)
+      // row = signatureRow - 1 + 0.750 (25px offset dentro da linha)
+      // Tamanho: 162x50px (idêntico ao template)
       const logoId3 = wb.addImage({ buffer: logoBuffer, extension: "png" });
       ws.addImage(logoId3, {
-        tl: { col: 10.942, row: signatureRow - 1 + 0.1 },
+        tl: { col: 11.667, row: signatureRow - 1 + 0.750 },
         ext: { width: 162, height: 50 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });
