@@ -901,7 +901,7 @@ async function _generateExcelBuffer(
   ws.mergeCells(`C${nextRow}:D${nextRow}`);
   {
     const c = ws.getCell(`C${nextRow}`);
-    c.value = "Condição de pagto:";
+    c.value = "Condição de pagamento:";
     c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
@@ -993,15 +993,17 @@ async function _generateExcelBuffer(
   const vendorLogoRow = nextRow;
   nextRow++;
 
-  // Contato do vendedor — usa os telefones cadastrados (seller1Phone / seller2Phone)
+  // Contato do vendedor — só mostra se seller1Phone ou seller2Phone existir (igual ao preview)
+  const phone = formData.seller1Phone || formData.seller2Phone;
   ws.getRow(nextRow).height = 19.8;
   ws.mergeCells(`C${nextRow}:H${nextRow}`);
   {
     const c = ws.getCell(`C${nextRow}`);
-    const phone = formData.seller1Phone || formData.seller2Phone || "(11) 5666.9272";
-    c.value = `CONTATO: ${phone}`;
-    c.font = { name: "Calibri", size: 11 };
-    c.alignment = { horizontal: "left", vertical: "middle" };
+    if (phone) {
+      c.value = `CONTATO: ${phone}`;
+      c.font = { name: "Calibri", size: 11 };
+      c.alignment = { horizontal: "left", vertical: "middle" };
+    }
   }
   const vendorLogoRow2 = nextRow;
   nextRow++;
@@ -1122,38 +1124,35 @@ async function _generateExcelBuffer(
       const logoBuffer = await logoResponse.arrayBuffer();
 
       // ── Logo 1: cabeçalho ──
-      // Posição calculada com base nas alturas reais das linhas do gerador:
-      // - Logo deve ficar centralizado verticalmente nas linhas 7-14 (VENDEDOR até DATA)
-      // - Logo deve ficar centralizado horizontalmente nas colunas K-N
-      // - Cálculo: col=9.689 (10 - 0.311 = início da col K - offset para centralizar 420px em 356px)
-      //            row=8.032 (6 + 2.032 = linha 7 + offset para centralizar 97px em 236.8px)
+      // Posição: centralizado horizontalmente nas colunas E-J (col=4.5)
+      //           centralizado verticalmente nas linhas 7-14 (row=8.330)
       // Tamanho: 420x97px (idêntico ao template)
       const logoId1 = wb.addImage({ buffer: logoBuffer, extension: "png" });
       ws.addImage(logoId1, {
-        tl: { col: 9.689, row: 8.032 },
+        tl: { col: 4.5, row: 8.330 },
         ext: { width: 420, height: 97 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });
 
       // ── Logo 2: rodapé ao lado do vendedor ──
-      // col=11.667 (col L + 36px offset, extraído do template)
-      // row = vendorLogoRow - 1 + 0.510 (17px offset dentro da linha)
-      // Tamanho: 162x49px (idêntico ao template)
+      // col=10.942 (centralizado nas colunas K-N)
+      // row = vendorLogoRow - 1 (início da linha do vendedor)
+      // Tamanho: 162x56px (altura igual ao preview: height:56)
       const logoId2 = wb.addImage({ buffer: logoBuffer, extension: "png" });
       ws.addImage(logoId2, {
-        tl: { col: 11.667, row: vendorLogoRow - 1 + 0.510 },
-        ext: { width: 162, height: 49 },
+        tl: { col: 10.942, row: vendorLogoRow - 1 },
+        ext: { width: 162, height: 56 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });
 
       // ── Logo 3: ao lado da assinatura ──
-      // col=11.667 (col L + 38.6px offset, extraído do template)
-      // row = signatureRow - 1 + 0.750 (25px offset dentro da linha)
-      // Tamanho: 162x50px (idêntico ao template)
+      // col=10.942 (centralizado nas colunas K-N)
+      // row = signatureRow - 1 (início da linha de assinatura)
+      // Tamanho: 162x56px (altura igual ao preview: height:56)
       const logoId3 = wb.addImage({ buffer: logoBuffer, extension: "png" });
       ws.addImage(logoId3, {
-        tl: { col: 11.667, row: signatureRow - 1 + 0.750 },
-        ext: { width: 162, height: 50 },
+        tl: { col: 10.942, row: signatureRow - 1 },
+        ext: { width: 162, height: 56 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });
 

@@ -1,0 +1,70 @@
+{
+  "query": "SELECT id, name, phone, email FROM sellers WHERE active = 1 LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT id, name, phone, email FROM sellers WHERE active = 1 LIMIT 10;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "VIVIAN FRANCESCHINELLI",
+      "phone": "(11) 98874-4898",
+      "email": "vivian@grupoalfalux.com.br"
+    },
+    {
+      "id": "2",
+      "name": "DANIEL PUGLIESE",
+      "phone": "(11) 98221-9581",
+      "email": "daniel@grupoalfalux.com.br"
+    },
+    {
+      "id": "3",
+      "name": "MAURÍCIO SARTORI",
+      "phone": "(11) 99240-0164",
+      "email": "mauricio.sartori@grupoalfalux.com.br"
+    },
+    {
+      "id": "4",
+      "name": "DENNIS PUGLIESI",
+      "phone": "(11) 98369-7507",
+      "email": "dennis@grupoalfalux.com.br"
+    },
+    {
+      "id": "5",
+      "name": "FABÍOLA MARTINEZ",
+      "phone": "(11) 96486-2604",
+      "email": "fabiola@grupoalfalux.com.br"
+    },
+    {
+      "id": "6",
+      "name": "JULIANO BUSTAMANTE",
+      "phone": "(11) 99353-1767",
+      "email": "juliano.bustamante@grupoalfalux.com.br"
+    },
+    {
+      "id": "7",
+      "name": "IZABEL SIMON",
+      "phone": "(11) 99938-1598",
+      "email": "vendas.alfalux@outlook.com"
+    },
+    {
+      "id": "8",
+      "name": "GUSTAVO GATTI",
+      "phone": "(11) 98145-4284",
+      "email": "gustavo@grupoalfalux.com.br"
+    },
+    {
+      "id": "9",
+      "name": "RICARDO MIRANDA",
+      "phone": "(11) 99199-8420",
+      "email": "miranda@grupoalfalux.com.br"
+    },
+    {
+      "id": "10",
+      "name": "EDVALDO LIMA",
+      "phone": "(11) 98863-2226",
+      "email": "edvaldo@grupoalfalux.com.br"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tphone\temail\n1\tVIVIAN FRANCESCHINELLI\t(11) 98874-4898\tvivian@grupoalfalux.com.br\n2\tDANIEL PUGLIESE\t(11) 98221-9581\tdaniel@grupoalfalux.com.br\n3\tMAURÍCIO SARTORI\t(11) 99240-0164\tmauricio.sartori@grupoalfalux.com.br\n4\tDENNIS PUGLIESI\t(11) 98369-7507\tdennis@grupoalfalux.com.br\n5\tFABÍOLA MARTINEZ\t(11) 96486-2604\tfabiola@grupoalfalux.com.br\n6\tJULIANO BUSTAMANTE\t(11) 99353-1767\tjuliano.bustamante@grupoalfalux.com.br\n7\tIZABEL SIMON\t(11) 99938-1598\tvendas.alfalux@outlook.com\n8\tGUSTAVO GATTI\t(11) 98145-4284\tgustavo@grupoalfalux.com.br\n9\tRICARDO MIRANDA\t(11) 99199-8420\tmiranda@grupoalfalux.com.br\n10\tEDVALDO LIMA\t(11) 98863-2226\tedvaldo@grupoalfalux.com.br\n",
+  "stderr": "",
+  "execution_time_ms": 1038
+}
