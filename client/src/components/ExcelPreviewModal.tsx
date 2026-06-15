@@ -3,9 +3,11 @@
  * Renderiza os mesmos dados que o gerador Excel, mas como tabela HTML online.
  * Não cria revisão, não gera download.
  * Exibe marca d'água "RASCUNHO" em diagonal para deixar claro que não é versão oficial.
+ * Usa createPortal para garantir tela cheia real sem interferência do Dialog do shadcn.
  */
-import { Fragment, useMemo } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Fragment, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { X } from "lucide-react";
 import type { CartItemData, QuoteFormData } from "@/lib/cartTypes";
 import { formatBRL } from "@/lib/cartTypes";
 
@@ -68,6 +70,24 @@ interface Props {
 }
 
 export function ExcelPreviewModal({ open, onClose, items, formData }: Props) {
+  // Bloqueia scroll do body quando aberto
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
+  // Fecha com ESC
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, onClose]);
+
   const revCount = formData.revisionCount ?? 0;
   const rvSuffix = ` (RV${revCount})`;
 
@@ -106,58 +126,118 @@ export function ExcelPreviewModal({ open, onClose, items, formData }: Props) {
     wordBreak: "break-word",
   };
 
-  return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      {/* Tela cheia — ocupa toda a viewport */}
-      <DialogContent
-        className="!max-w-none !w-screen !h-screen !max-h-none !rounded-none flex flex-col p-0"
-        style={{ margin: 0, top: 0, left: 0, transform: "none", position: "fixed", inset: 0 }}
-      >
-        {/* Cabeçalho fixo do modal */}
-        <DialogHeader className="px-6 pt-4 pb-2 border-b bg-background z-10 flex-shrink-0">
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <span>Pré-visualização do Orçamento</span>
-            <span className="ml-2 px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-bold border border-amber-300">
-              RASCUNHO — não é versão oficial
-            </span>
-          </DialogTitle>
-          <p className="text-xs text-muted-foreground">
-            Esta visualização é apenas para conferência. Nenhuma revisão foi criada. Para gerar o Excel oficial, use "Baixar Orçamento Excel".
-          </p>
-        </DialogHeader>
+  if (!open) return null;
 
-        {/* Área de conteúdo com scroll */}
-        <div className="flex-1 overflow-y-auto relative" style={{ background: "#f9f9f9" }}>
-          {/* Marca d'água diagonal — fixa no centro da área de scroll */}
+  const content = (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 99999,
+        display: "flex",
+        flexDirection: "column",
+        background: "#1a1a1a",
+      }}
+      aria-modal="true"
+      role="dialog"
+    >
+      {/* ── Barra de topo fixa ── */}
+      <div
+        style={{
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          background: "#111",
+          color: "#fff",
+          padding: "10px 20px",
+          borderBottom: "1px solid #333",
+          gap: 12,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontWeight: "bold", fontSize: 15, color: "#fff" }}>
+            Pré-visualização do Orçamento
+          </span>
+          <span
+            style={{
+              background: "#fef3c7",
+              color: "#92400e",
+              fontWeight: "bold",
+              fontSize: 11,
+              padding: "3px 10px",
+              borderRadius: 4,
+              border: "1px solid #d97706",
+            }}
+          >
+            RASCUNHO — não é versão oficial
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <span style={{ fontSize: 12, color: "#aaa" }}>
+            Esta visualização é apenas para conferência. Nenhuma revisão foi criada.
+          </span>
+          <button
+            onClick={onClose}
+            style={{
+              background: "transparent",
+              border: "1px solid #555",
+              borderRadius: 6,
+              color: "#fff",
+              cursor: "pointer",
+              padding: "6px 10px",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 13,
+            }}
+          >
+            <X size={16} /> Fechar
+          </button>
+        </div>
+      </div>
+
+      {/* ── Área de scroll (horizontal + vertical) ── */}
+      <div
+        style={{
+          flex: 1,
+          overflow: "auto",
+          background: "#525659",
+          padding: "32px 24px",
+        }}
+      >
+        {/* Marca d'água diagonal — posicionada no centro da página A4 */}
+        <div style={{ position: "relative" }}>
           <div
             aria-hidden
             style={{
-              position: "fixed",
-              top: "50%",
+              position: "absolute",
+              top: "40%",
               left: "50%",
               transform: "translate(-50%, -50%) rotate(-35deg)",
-              fontSize: 120,
+              fontSize: 130,
               fontWeight: 900,
-              color: "rgba(220,0,0,0.07)",
+              color: "rgba(220,0,0,0.06)",
               pointerEvents: "none",
               userSelect: "none",
               whiteSpace: "nowrap",
               zIndex: 5,
-              letterSpacing: 12,
+              letterSpacing: 14,
             }}
           >
             RASCUNHO
           </div>
 
-          {/* Conteúdo do orçamento */}
+          {/* Página branca — largura fixa de 1100px para simular A4 paisagem */}
           <div
             style={{
               fontFamily: "Calibri, Arial, sans-serif",
-              maxWidth: 1200,
+              width: 1100,
+              minWidth: 1100,
               margin: "0 auto",
-              padding: "24px 32px 48px",
+              padding: "32px 40px 48px",
               background: "#fff",
-              minHeight: "100%",
+              boxShadow: "0 4px 32px rgba(0,0,0,0.5)",
               position: "relative",
               zIndex: 1,
             }}
@@ -216,109 +296,107 @@ export function ExcelPreviewModal({ open, onClose, items, formData }: Props) {
             </div>
 
             {/* ── Tabela de produtos ── */}
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
-                <thead>
-                  <tr>
-                    {["ITEM EM\nPLANTA", "FOTO", "MODELO ALFALUX", "COMPRIMENTO\n(mm)", "POTÊNCIA\n(W)", "DIM", "TENSÃO\n(V)", "COR", "TEMPERATURA\nDE COR (K)", "QTD", "PREÇO\nUNITÁRIO", "PREÇO\nTOTAL"].map((h) => (
-                      <th key={h} style={thStyle}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item, idx) => {
-                    const isService = item.category === "Serviços";
-                    const nonRabichoAcc = item.accessories?.filter(a => !a.familia?.toLowerCase().includes("rabicho")) ?? [];
-                    const rabichoAcc = item.accessories?.find(a => a.familia?.toLowerCase().includes("rabicho"));
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+              <thead>
+                <tr>
+                  {["ITEM EM\nPLANTA", "FOTO", "MODELO ALFALUX", "COMPRIMENTO\n(mm)", "POTÊNCIA\n(W)", "DIM", "TENSÃO\n(V)", "COR", "TEMPERATURA\nDE COR (K)", "QTD", "PREÇO\nUNITÁRIO", "PREÇO\nTOTAL"].map((h) => (
+                    <th key={h} style={thStyle}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, idx) => {
+                  const isService = item.category === "Serviços";
+                  const nonRabichoAcc = item.accessories?.filter(a => !a.familia?.toLowerCase().includes("rabicho")) ?? [];
+                  const rabichoAcc = item.accessories?.find(a => a.familia?.toLowerCase().includes("rabicho"));
 
-                    return (
-                      <Fragment key={`row-group-${idx}`}>
-                        {/* Cabeçalho de pavimento */}
-                        {item.floorId && (idx === 0 || items[idx - 1]?.floorId !== item.floorId) && (
-                          <tr key={`floor-${item.floorId}`}>
-                            <td colSpan={12} style={{ background: "#1A3A5C", color: WHITE, fontWeight: "bold", fontSize: 12, padding: "4px 8px", border: "2px solid #444" }}>
-                              {item.floorName ? `${item.floorId} — ${item.floorName}` : item.floorId}
-                            </td>
-                          </tr>
-                        )}
+                  return (
+                    <Fragment key={`row-group-${idx}`}>
+                      {/* Cabeçalho de pavimento */}
+                      {item.floorId && (idx === 0 || items[idx - 1]?.floorId !== item.floorId) && (
+                        <tr>
+                          <td colSpan={12} style={{ background: "#1A3A5C", color: WHITE, fontWeight: "bold", fontSize: 12, padding: "4px 8px", border: "2px solid #444" }}>
+                            {item.floorName ? `${item.floorId} — ${item.floorName}` : item.floorId}
+                          </td>
+                        </tr>
+                      )}
 
-                        {isService ? (
-                          <tr key={`item-${idx}`} style={{ background: "#F5F5F5" }}>
-                            <td style={tdStyle}>{item.itemEmPlanta || ""}</td>
-                            <td colSpan={8} style={{ ...tdStyle, textAlign: "left", fontStyle: "italic" }}>{item.description || item.sku || "Serviço"}</td>
-                            <td style={tdStyle}>{item.qty}</td>
-                            <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkup(item.unitPrice)) : "-"}</td>
-                            <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkup(item.totalPrice)) : "-"}</td>
-                          </tr>
-                        ) : (
-                          <tr key={`item-${idx}`}>
-                            <td style={{ ...tdStyle, fontWeight: "bold", fontSize: 18 }}>{item.itemEmPlanta || ""}</td>
-                            {/* Coluna FOTO — apenas a imagem do produto, sem rabicho */}
-                            <td style={{ ...tdStyle, width: 80, minHeight: 80 }}>
-                              {item.photoUrl ? (
-                                <img src={item.photoUrl} alt={item.description} style={{ width: 64, height: 64, objectFit: "contain" }}
-                                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                              ) : (
-                                <span style={{ color: "#aaa", fontSize: 10 }}>—</span>
-                              )}
-                            </td>
-                            {/* Coluna MODELO — descrição + rabicho abaixo */}
-                            <td style={{ ...tdStyle, textAlign: "left" }}>
-                              {item.sku && <div style={{ fontFamily: "monospace", fontSize: 10, color: "#666" }}>{item.sku}</div>}
-                              <div>{item.description}</div>
-                              {rabichoAcc && (
-                                <div style={{ fontSize: 9, color: "#006064", fontStyle: "italic", marginTop: 4, borderTop: "1px dashed #ccc", paddingTop: 2 }}>
-                                  ↳ Rabicho: {rabichoAcc.descricao}{rabichoAcc.dimensao ? ` ${rabichoAcc.dimensao}` : ""}
-                                </div>
-                              )}
-                            </td>
-                            <td style={tdStyle}>{item.category === "Item Especial" && item.specialDimensions ? item.specialDimensions : extractLength(item.description)}</td>
-                            <td style={tdStyle}>{item.category === "Item Especial" && item.specialPower ? item.specialPower : (item.power?.trim() || extractPower(item.description))}</td>
-                            <td style={tdStyle}>{item.category === "Item Especial" && item.specialDim ? item.specialDim : extractDim(item.description)}</td>
-                            <td style={tdStyle}>{item.category === "Item Especial" && item.specialVoltage ? item.specialVoltage : extractVoltage(item.description)}</td>
-                            <td style={tdStyle}>{item.category === "Item Especial" ? "-" : (item.corPeca || "-")}</td>
-                            <td style={tdStyle}>{item.cct || "-"}</td>
-                            <td style={{ ...tdStyle, fontWeight: "bold" }}>{item.qty}</td>
-                            <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkup(item.unitPrice)) : "-"}</td>
-                            <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkup(item.totalPrice)) : "-"}</td>
-                          </tr>
-                        )}
+                      {isService ? (
+                        <tr style={{ background: "#F5F5F5" }}>
+                          <td style={tdStyle}>{item.itemEmPlanta || ""}</td>
+                          <td colSpan={8} style={{ ...tdStyle, textAlign: "left", fontStyle: "italic" }}>{item.description || item.sku || "Serviço"}</td>
+                          <td style={tdStyle}>{item.qty}</td>
+                          <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkup(item.unitPrice)) : "-"}</td>
+                          <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkup(item.totalPrice)) : "-"}</td>
+                        </tr>
+                      ) : (
+                        <tr>
+                          <td style={{ ...tdStyle, fontWeight: "bold", fontSize: 18 }}>{item.itemEmPlanta || ""}</td>
+                          {/* Coluna FOTO — apenas a imagem do produto, sem rabicho */}
+                          <td style={{ ...tdStyle, width: 80, minHeight: 80 }}>
+                            {item.photoUrl ? (
+                              <img src={item.photoUrl} alt={item.description} style={{ width: 64, height: 64, objectFit: "contain" }}
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                            ) : (
+                              <span style={{ color: "#aaa", fontSize: 10 }}>—</span>
+                            )}
+                          </td>
+                          {/* Coluna MODELO — descrição + rabicho abaixo */}
+                          <td style={{ ...tdStyle, textAlign: "left" }}>
+                            {item.sku && <div style={{ fontFamily: "monospace", fontSize: 10, color: "#666" }}>{item.sku}</div>}
+                            <div>{item.description}</div>
+                            {rabichoAcc && (
+                              <div style={{ fontSize: 9, color: "#006064", fontStyle: "italic", marginTop: 4, borderTop: "1px dashed #ccc", paddingTop: 2 }}>
+                                ↳ Rabicho: {rabichoAcc.descricao}{rabichoAcc.dimensao ? ` ${rabichoAcc.dimensao}` : ""}
+                              </div>
+                            )}
+                          </td>
+                          <td style={tdStyle}>{item.category === "Item Especial" && item.specialDimensions ? item.specialDimensions : extractLength(item.description)}</td>
+                          <td style={tdStyle}>{item.category === "Item Especial" && item.specialPower ? item.specialPower : (item.power?.trim() || extractPower(item.description))}</td>
+                          <td style={tdStyle}>{item.category === "Item Especial" && item.specialDim ? item.specialDim : extractDim(item.description)}</td>
+                          <td style={tdStyle}>{item.category === "Item Especial" && item.specialVoltage ? item.specialVoltage : extractVoltage(item.description)}</td>
+                          <td style={tdStyle}>{item.category === "Item Especial" ? "-" : (item.corPeca || "-")}</td>
+                          <td style={tdStyle}>{item.cct || "-"}</td>
+                          <td style={{ ...tdStyle, fontWeight: "bold" }}>{item.qty}</td>
+                          <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkup(item.unitPrice)) : "-"}</td>
+                          <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkup(item.totalPrice)) : "-"}</td>
+                        </tr>
+                      )}
 
-                        {/* Sub-linhas de acessórios não-rabicho */}
-                        {nonRabichoAcc.map((acc, accIdx) => (
-                          <tr key={`acc-${idx}-${accIdx}`} style={{ background: "#E0F7FA" }}>
-                            <td style={{ ...tdStyle, fontSize: 9 }}></td>
-                            <td style={{ ...tdStyle, fontSize: 9 }}>
-                              {acc.fotoUrl ? (
-                                <img src={acc.fotoUrl} alt={acc.descricao} style={{ width: 36, height: 36, objectFit: "contain" }}
-                                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                              ) : null}
-                            </td>
-                            <td style={{ ...tdStyle, fontSize: 9, color: "#006064", fontStyle: "italic", textAlign: "left" }}>
-                              <div style={{ fontFamily: "monospace", fontSize: 9, color: "#888" }}>{acc.codigo}</div>
-                              <div>↳ Acessório: {acc.descricao}</div>
-                            </td>
-                            {["", "", "", "", "", "", ""].map((_, i) => (
-                              <td key={i} style={{ ...tdStyle, fontSize: 9 }}></td>
-                            ))}
-                            <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold" }}>{acc.qty}</td>
-                            <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice) : "-"}</td>
-                            <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice * acc.qty) : "-"}</td>
-                          </tr>
-                        ))}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                      {/* Sub-linhas de acessórios não-rabicho */}
+                      {nonRabichoAcc.map((acc, accIdx) => (
+                        <tr key={`acc-${idx}-${accIdx}`} style={{ background: "#E0F7FA" }}>
+                          <td style={{ ...tdStyle, fontSize: 9 }}></td>
+                          <td style={{ ...tdStyle, fontSize: 9 }}>
+                            {acc.fotoUrl ? (
+                              <img src={acc.fotoUrl} alt={acc.descricao} style={{ width: 36, height: 36, objectFit: "contain" }}
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                            ) : null}
+                          </td>
+                          <td style={{ ...tdStyle, fontSize: 9, color: "#006064", fontStyle: "italic", textAlign: "left" }}>
+                            <div style={{ fontFamily: "monospace", fontSize: 9, color: "#888" }}>{acc.codigo}</div>
+                            <div>↳ Acessório: {acc.descricao}</div>
+                          </td>
+                          {["", "", "", "", "", "", ""].map((_, i) => (
+                            <td key={i} style={{ ...tdStyle, fontSize: 9 }}></td>
+                          ))}
+                          <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold" }}>{acc.qty}</td>
+                          <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice) : "-"}</td>
+                          <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice * acc.qty) : "-"}</td>
+                        </tr>
+                      ))}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
 
             {/* ── Rodapé ── */}
             <div style={{ marginTop: 16, fontFamily: "Calibri, Arial, sans-serif", fontSize: 12 }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <tbody>
                   <tr>
-                    <td style={{ fontWeight: "bold", width: 260, paddingRight: 8, paddingTop: 4, paddingBottom: 4 }}>Prazo de fabricação e entrega:</td>
+                    <td style={{ fontWeight: "bold", width: 320, paddingRight: 8, paddingTop: 4, paddingBottom: 4 }}>Prazo de fabricação e entrega:</td>
                     <td style={{ color: RED, fontWeight: "bold" }}>{formData.deliveryDays ?? 20} dias úteis</td>
                   </tr>
                   <tr>
@@ -413,7 +491,9 @@ export function ExcelPreviewModal({ open, onClose, items, formData }: Props) {
             </div>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
+
+  return createPortal(content, document.body);
 }
