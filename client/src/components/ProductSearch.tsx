@@ -192,7 +192,7 @@ function buildSuggestions(catalogs: ProductSearchCatalogs): SearchSuggestion[] {
         name: p.name,
         familia: p.familia,
         code: p.sku,
-        fotoUrl: null,
+        fotoUrl: p.fotoUrl ?? null,
         instalacao: p.instalacao,
       });
     }

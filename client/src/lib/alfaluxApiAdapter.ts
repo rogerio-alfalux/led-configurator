@@ -271,6 +271,7 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
     precoOnOffBivolt: p.precoOnOffBivolt ?? null,
     precoDim110v: p.precoDim110v ?? null,
     precoDimDali: p.precoDimDali ?? null,
+    fotoUrl: normalizeFotoUrl(p.fotoUrl ?? null),
   };
 }
 

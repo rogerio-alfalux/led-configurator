@@ -6346,7 +6346,7 @@ export default function Home() {
                             unitPrice: preco ?? 0,
                             totalPrice: preco ?? 0,
                             priceFromApi: preco != null,
-                            photoUrl: pPhoto ?? "",
+                            photoUrl: pPhoto ?? panelResult.product.fotoUrl ?? "",
                             orderSummary: (() => { const parts: string[] = []; if (panelResult.ledModuleWithCCT) parts.push(panelResult.ledModuleWithCCT.toUpperCase()); const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; const drvQty = driverQtyFor(panelResult.product, panelResult.controle, panelResult.tensao); parts.push(`${drvQty}x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`); const skuLine = panelResult.product.sku ? `CÓDIGO: ${panelResult.product.sku}\n` : ""; const isOrbit = panelResult.product.familia.toUpperCase().startsWith("ORBIT"); const orbitObs = isOrbit ? "\nOBS: programar driver em 200mA" : ""; return `${skuLine}${panelResult.product.name.toUpperCase()} ${panelResult.cct} ${panelResult.controle.toUpperCase()} ${panelResult.tensao} MONTADA COM ${parts.join(" + ")}${orbitObs}`; })(),
                             quoteSummary: `${panelResult.product.name} ${panelResult.cct} ${panelResult.controle} ${panelResult.tensao}`.toUpperCase(),
                             moduloLed: panelResult.ledModuleWithCCT ?? "",

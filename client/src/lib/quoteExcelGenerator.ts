@@ -87,35 +87,50 @@ function buildFreteText(formData: QuoteFormData, totalBase: number): string {
   return "CIF - Para faturamento acima de R$ 1.500,00 São Paulo/ SP (Capital). Demais localidades sob consulta";
 }
 
-//// ── Cache de fotos frescas da API Alfalux ───────────────────────────────
+// ── Cache de fotos frescas de produtos ──
+
 // A URL da foto no itemData pode expirar (CloudFront signed URL).
 // Esta função busca uma URL fresca via API usando o SKU do produto.
+// Busca em alfalux.products (produtos principais) e revendaProducts (Painéis RV*).
 let _freshPhotoCache: Map<string, string> | null = null;
 async function getFreshPhotoUrl(sku: string, fallbackUrl?: string | null): Promise<string | null> {
   try {
     if (!_freshPhotoCache) {
-      const res = await fetch("/api/trpc/alfalux.products", {
+      _freshPhotoCache = new Map();
+      // Buscar produtos principais (luminarias, bageos, etc.)
+      const res1 = await fetch("/api/trpc/alfalux.products", {
         headers: { "Content-Type": "application/json" },
       });
-      if (res.ok) {
-        const json = await res.json();
-        const products: Array<{ sku?: string; fotoUrl?: string }> =
-          json?.result?.data?.json ?? json?.result?.data ?? [];
-        _freshPhotoCache = new Map();
-        for (const p of products) {
+      if (res1.ok) {
+        const json1 = await res1.json();
+        const products1: Array<{ sku?: string; codigo?: string; fotoUrl?: string }> =
+          json1?.result?.data?.json ?? json1?.result?.data ?? [];
+        for (const p of products1) {
+          const key = p.sku ?? p.codigo;
+          if (key && p.fotoUrl) _freshPhotoCache.set(key, p.fotoUrl);
+        }
+      }
+      // Buscar produtos de revenda (Painéis RV*)
+      const res2 = await fetch("/api/trpc/alfalux.revendaProducts", {
+        headers: { "Content-Type": "application/json" },
+      });
+      if (res2.ok) {
+        const json2 = await res2.json();
+        const products2: Array<{ sku?: string; fotoUrl?: string }> =
+          json2?.result?.data?.json ?? json2?.result?.data ?? [];
+        for (const p of products2) {
           if (p.sku && p.fotoUrl) _freshPhotoCache.set(p.sku, p.fotoUrl);
         }
-      } else {
-        _freshPhotoCache = new Map();
       }
     }
+    // Se encontrou pelo SKU, usa a URL fresca; caso contrário usa o fallback
     return _freshPhotoCache.get(sku) ?? fallbackUrl ?? null;
   } catch {
     return fallbackUrl ?? null;
   }
 }
 
-// ── Cache de fotos frescas de acessórios ────────────────────────────────
+// ── Cache de fotos frescas de acessórios ──
 let _freshAccPhotoCache: Map<string, string> | null = null;
 async function getFreshAccPhotoUrl(codigo: string, fallbackUrl?: string | null): Promise<string | null> {
   try {
@@ -170,7 +185,6 @@ async function _generateExcelBuffer(
   ws.pageSetup.scale = 51;               // 51% igual ao template
   ws.pageSetup.horizontalDpi = 4294967295; // idêntico ao template
   ws.pageSetup.verticalDpi = 4294967295;   // idêntico ao template
-  ws.pageSetup.printArea = "C1:N200";    // Área de impressão (colunas C-N)
   ws.pageSetup.margins = {
     left: 0.7,
     right: 0.7,
@@ -179,6 +193,9 @@ async function _generateExcelBuffer(
     header: 0.3,
     footer: 0.3,
   };
+  // Área de impressão: colunas C-N (idêntico ao template: Alfalux!$C$1:$N$72)
+  // ExcelJS usa wb.definedNames para definir a área de impressão
+  wb.definedNames.add("Alfalux!\$C\$1:\$N\$200", "_xlnm.Print_Area");
 
   // ── Larguras das colunas (fiel ao template) ──────────────────────────────────────────────
   // Template original: C=12, D=18, E=35, F=15.1, G=12, H=10, I=13, J=14, K=13, L=7, M=13, N=14
@@ -1091,38 +1108,32 @@ async function _generateExcelBuffer(
       const logoBuffer = await logoResponse.arrayBuffer();
 
       // ── Logo 1: cabeçalho ──
-      // Template OneCellAnchor: col=4 colOff=1959760 EMU, row=6 rowOff=132479 EMU
-      // ext: cx=4000500 EMU (420px), cy=923925 EMU (97px)
-      // col E (idx=4) width=35 chars → (35*7+5)*9525=2381250 EMU → frac=1959760/2381250=0.823
-      // row 7 (idx=6) height=24.9pt → 24.9*12700=316230 EMU → frac=132479/316230=0.419
+      // Posição calculada para o gerador: centralizado verticalmente nas linhas 7-14
+      // e horizontalmente nas colunas K-N (col=9.689, row=8.032)
+      // Largura 420px, Altura 97px — idêntico ao template
       const logoId1 = wb.addImage({ buffer: logoBuffer, extension: "png" });
       ws.addImage(logoId1, {
-        tl: { col: 4.823, row: 6.419 },
+        tl: { col: 9.689, row: 8.032 },
         ext: { width: 420, height: 97 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });
 
       // ── Logo 2: rodapé ao lado do vendedor ──
-      // Template TwoCellAnchor: col=11 colOff=342901 EMU, row=33 rowOff=161925 EMU
-      // xfrm size: cx=1543050 EMU (162px), cy=464344 EMU (49px)
-      // col L (idx=11) width=7 chars → (7*7+5)*9525=514350 EMU → frac=342901/514350=0.667
-      // row 34 (idx=33) height=15.9pt → 15.9*12700=201930 EMU → frac=161925/201930=0.802
+      // Centralizado horizontalmente nas colunas K-N (col=10.942)
+      // Alinhado verticalmente com a linha do nome do vendedor
       const logoId2 = wb.addImage({ buffer: logoBuffer, extension: "png" });
       ws.addImage(logoId2, {
-        tl: { col: 11.667, row: vendorLogoRow - 1 + 0.802 },
+        tl: { col: 10.942, row: vendorLogoRow - 1 + 0.1 },
         ext: { width: 162, height: 49 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });
 
       // ── Logo 3: ao lado da assinatura ──
-      // Template TwoCellAnchor: col=11 colOff=367393 EMU, row=67 rowOff=238125 EMU
-      // xfrm size: cx=1540329 EMU (162px), cy=476591 EMU (50px)
-      // col L (idx=11) → frac=367393/514350=0.714
-      // row 68 (idx=67) height=26.85pt → 26.85*12700=340995 EMU → frac=238125/340995=0.699
-      // (mas como linhas variam, usamos signatureRow com offset fixo)
+      // Centralizado horizontalmente nas colunas K-N (col=10.942)
+      // Alinhado verticalmente com a linha de assinatura
       const logoId3 = wb.addImage({ buffer: logoBuffer, extension: "png" });
       ws.addImage(logoId3, {
-        tl: { col: 11.714, row: signatureRow - 1 + 0.699 },
+        tl: { col: 10.942, row: signatureRow - 1 + 0.1 },
         ext: { width: 162, height: 50 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });

@@ -1218,3 +1218,10 @@
 - [x] Corrigir configurações de impressão: usar propriedades individuais do pageSetup (não objeto), DPI=4294967295 idêntico ao template
 - [x] Corrigir logo cabeçalho: posição col=4.823 row=6.419, tamanho 420x97px (fiel ao template)
 - [x] Corrigir logos rodapé: tamanho 162x49px e 162x50px (fiel ao template, não 420x97px)
+
+## Correções v32.38 — Excel: logos, impressão e imagens de Painel/Bageo
+- [x] Logo cabeçalho: posição corrigida para col=9.689, row=8.032 (centralizado nas linhas 7-14, colunas K-N)
+- [x] Logos rodapé: posição corrigida para col=10.942 (centralizado nas colunas K-N)
+- [x] Imagens de Painel (RV*): getFreshPhotoUrl agora busca em revendaProducts além de alfalux.products
+- [x] Imagens de Bageo: getFreshPhotoUrl usa fallbackUrl quando SKU não encontrado na API principal
+- [x] Configurações de impressão: printArea via wb.definedNames, sheetPr/pageSetup/pageMargins idênticos ao template

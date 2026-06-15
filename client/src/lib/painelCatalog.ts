@@ -49,6 +49,10 @@ export interface PainelProduct {
   /** Preço unitário DIM DALI (R$). null = não cadastrado. */
   precoDimDali?: number | null;
   /**
+   * URL da foto do produto (vinda da API). Pode ser null se não cadastrada.
+   */
+  fotoUrl?: string | null;
+  /**
    * Cor de acabamento única (quando o produto só existe em uma cor).
    * Se definido, o modal de seleção de cor é pulado e esse valor é usado diretamente.
    * Ex: "Branco" para LUMIGRID.
