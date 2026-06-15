@@ -46,6 +46,20 @@ function buildFreteText(formData: QuoteFormData, totalBase: number): string {
   return "CIF - Para faturamento acima de R$ 1.500,00 São Paulo/ SP (Capital). Demais localidades sob consulta";
 }
 
+const CONDITIONS = [
+  { num: "1)", text: "Os materiais especificados nesta proposta comercial estão de acordo com os dados fornecidos pelo cliente ou por profissional(is) por ele autorizados. Assim, não nos responsabilizamos por informações incompatíveis que possam ocasionar problemas com instalação ou aplicação do produto;" },
+  { num: "2)", text: "Nossos produtos são fabricados sob encomenda, por esse motivo, as trocas somente serão realizadas por motivo de defeito de fabricação, após a análise da(s) peça(s) em fábrica e constatação do efetivo defeito;" },
+  { num: "3)", text: "Pagamentos de sinal e/ou antecipado poderão ser efetuados num prazo de 5 dias úteis após a aprovação da proposta. O faturamento será realizado mediante a aprovação do cadastro;" },
+  { num: "4)", text: "As luminárias ALFALUX possuem 01 (um) ano de garantia contra defeitos de fabricação. Para equipamentos (lâmpadas, drivers, reatores, transformadores, ignitores e capacitores), é repassada a garantia do fabricante;" },
+  { num: "5)", text: "A ALFALUX não realiza instalação de luminárias;" },
+  { num: "6)", text: "Em caso de qualquer problema em nossos produtos, nossa assistência técnica deverá ser acionada. A manipulação incorreta ou alteração do produto ocasionará a perda da garantia. Serviços de assistência técnica que envolvam substituição de peças ou componentes das luminárias deverão ser realizados em nossa fábrica;" },
+  { num: "7)", text: "A conferência do material deverá ser efetuada no ato da entrega, havendo qualquer irregularidade ou avaria, está deverá ser comunicada e notificado no recebimento. Em caso de não conferência a ALFALUX não se responsabiliza por eventuais divergências ou danos às mercadorias;" },
+  { num: "8)", text: "A responsabilidade sobre problemas ocasionados durante o transporte é da transportadora, orientamos que realizem anotação no conhecimento, como forma de comprovação do dano e o futuro ressarcimento pelo responsável. Não nos responsabilizamos por danos ocasionados pelo transporte incorreto da mercadoria, por terceiros;" },
+  { num: "9)", text: "Cancelamento total ou parcial, será aceito somente no período de 48 horas da aprovação do pedido, após haverá a cobrança de 10% sobre o valor dos itens cancelados, em função da interrupção do processo fabril e ressarcimento de despesas geradas com a compra de matéria prima e mão de obra. Não aceitamos o cancelamento de produtos especiais, nesta hipótese haverá a cobrança do valor integral do produto." },
+];
+
+const LOGO_URL = "/manus-storage/alfalux-logo-excel_8e8ca9f4.png";
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -74,7 +88,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData }: Props) {
   const vendedorText = [formData.seller1Name, formData.seller2Name].filter(Boolean).join(" / ") || "";
   const contactText = [formData.contato, formData.tel].filter(Boolean).join(" — ");
 
-  // Estilos inline para fidelidade ao template
+  // Cores do template
   const BLUE = "#5B9BD5";
   const DARK_BLUE = "#1F3864";
   const WHITE = "#FFFFFF";
@@ -94,8 +108,13 @@ export function ExcelPreviewModal({ open, onClose, items, formData }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-[98vw] w-full max-h-[96vh] overflow-y-auto p-0">
-        <DialogHeader className="px-6 pt-4 pb-2 border-b sticky top-0 bg-background z-10">
+      {/* Tela cheia — ocupa toda a viewport */}
+      <DialogContent
+        className="!max-w-none !w-screen !h-screen !max-h-none !rounded-none flex flex-col p-0"
+        style={{ margin: 0, top: 0, left: 0, transform: "none", position: "fixed", inset: 0 }}
+      >
+        {/* Cabeçalho fixo do modal */}
+        <DialogHeader className="px-6 pt-4 pb-2 border-b bg-background z-10 flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-base">
             <span>Pré-visualização do Orçamento</span>
             <span className="ml-2 px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-bold border border-amber-300">
@@ -103,13 +122,13 @@ export function ExcelPreviewModal({ open, onClose, items, formData }: Props) {
             </span>
           </DialogTitle>
           <p className="text-xs text-muted-foreground">
-            Esta visualização é apenas para conferência. Nenhuma revisão foi criada. Para gerar o Excel oficial, use "Salvar Orçamento" ou "Baixar Orçamento Excel".
+            Esta visualização é apenas para conferência. Nenhuma revisão foi criada. Para gerar o Excel oficial, use "Baixar Orçamento Excel".
           </p>
         </DialogHeader>
 
-        {/* Área de conteúdo com marca d'água */}
-        <div className="relative px-4 pb-8 pt-4" style={{ minWidth: 900 }}>
-          {/* Marca d'água diagonal */}
+        {/* Área de conteúdo com scroll */}
+        <div className="flex-1 overflow-y-auto relative" style={{ background: "#f9f9f9" }}>
+          {/* Marca d'água diagonal — fixa no centro da área de scroll */}
           <div
             aria-hidden
             style={{
@@ -117,49 +136,57 @@ export function ExcelPreviewModal({ open, onClose, items, formData }: Props) {
               top: "50%",
               left: "50%",
               transform: "translate(-50%, -50%) rotate(-35deg)",
-              fontSize: 96,
+              fontSize: 120,
               fontWeight: 900,
-              color: "rgba(255,0,0,0.08)",
+              color: "rgba(220,0,0,0.07)",
               pointerEvents: "none",
               userSelect: "none",
               whiteSpace: "nowrap",
               zIndex: 5,
-              letterSpacing: 8,
+              letterSpacing: 12,
             }}
           >
             RASCUNHO
           </div>
 
-          {/* Cabeçalho */}
-          <div style={{ fontFamily: "Calibri, Arial, sans-serif", maxWidth: 1100, margin: "0 auto" }}>
-            {/* Logo + info */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-              <div>
-                <img
-                  src="/manus-storage/alfalux-logo-excel_8e8ca9f4.png"
-                  alt="ALFALUX"
-                  style={{ height: 60, objectFit: "contain" }}
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                />
+          {/* Conteúdo do orçamento */}
+          <div
+            style={{
+              fontFamily: "Calibri, Arial, sans-serif",
+              maxWidth: 1200,
+              margin: "0 auto",
+              padding: "24px 32px 48px",
+              background: "#fff",
+              minHeight: "100%",
+              position: "relative",
+              zIndex: 1,
+            }}
+          >
+            {/* ── Cabeçalho: endereço + logo ── */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+              <div style={{ fontSize: 11 }}>
+                <div style={{ fontWeight: "bold" }}>(11) 5666.9272 / 5666.4856</div>
+                <div style={{ fontWeight: "bold" }}>Rua Agostino Togneri, n° 617 - Jurubatuba - São Paulo/ SP</div>
               </div>
-              <div style={{ textAlign: "center", flex: 1, paddingTop: 4 }}>
-                <div style={{ fontWeight: "bold", fontSize: 13 }}>(11) 5666.9272 / 5666.4856</div>
-                <div style={{ fontWeight: "bold", fontSize: 12 }}>Rua Agostino Togneri, n° 617 - Jurubatuba - São Paulo/ SP</div>
-              </div>
+              <img
+                src={LOGO_URL}
+                alt="ALFALUX"
+                style={{ height: 70, objectFit: "contain" }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
             </div>
 
-            {/* Número e data */}
-            <div style={{ display: "flex", gap: 16, marginBottom: 4 }}>
-              <div style={{ background: BLUE, color: WHITE, fontWeight: "bold", fontSize: 16, padding: "4px 16px", borderRadius: 2 }}>
+            {/* ── Número, data e campos ── */}
+            <div style={{ display: "flex", gap: 12, marginBottom: 6, marginTop: 8 }}>
+              <div style={{ background: BLUE, color: WHITE, fontWeight: "bold", fontSize: 15, padding: "4px 14px", borderRadius: 2 }}>
                 {(formData.numero || "") + rvSuffix}
               </div>
-              <div style={{ background: BLUE, color: WHITE, fontWeight: "bold", fontSize: 16, padding: "4px 16px", borderRadius: 2 }}>
+              <div style={{ background: BLUE, color: WHITE, fontWeight: "bold", fontSize: 15, padding: "4px 14px", borderRadius: 2 }}>
                 {formData.data || new Date().toLocaleDateString("pt-BR")}
               </div>
             </div>
 
-            {/* Campos do cabeçalho */}
-            <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 4, fontSize: 12 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 6, fontSize: 12 }}>
               <tbody>
                 {[
                   ["VENDEDOR", vendedorText],
@@ -171,24 +198,24 @@ export function ExcelPreviewModal({ open, onClose, items, formData }: Props) {
                   ["REFERÊNCIA", formData.referencia || "FORNECIMENTO DE LUMINÁRIAS"],
                 ].map(([label, value]) => (
                   <tr key={label}>
-                    <td style={{ fontWeight: "bold", paddingRight: 8, whiteSpace: "nowrap", width: 160 }}>{label}:</td>
-                    <td>{value}</td>
+                    <td style={{ fontWeight: "bold", paddingRight: 8, whiteSpace: "nowrap", width: 160, paddingTop: 1, paddingBottom: 1 }}>{label}:</td>
+                    <td style={{ paddingTop: 1, paddingBottom: 1 }}>{value}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
 
-            {/* Proposta comercial */}
-            <div style={{ textAlign: "center", fontWeight: "bold", fontSize: 12, padding: "6px 0", borderTop: "1px solid #ccc", borderBottom: "1px solid #ccc", marginBottom: 8 }}>
+            {/* ── Proposta comercial ── */}
+            <div style={{ textAlign: "center", fontWeight: "bold", fontSize: 11, padding: "5px 0", borderTop: "1px solid #ccc", borderBottom: "1px solid #ccc", marginBottom: 6 }}>
               PROPOSTA COMERCIAL PARA FORNECIMENTO DOS PRODUTOS ABAIXO ESPECIFICADOS, COM VALIDADE DE 3 (TRÊS) DIAS.
             </div>
 
-            {/* Título da obra */}
+            {/* ── Título da obra ── */}
             <div style={{ background: DARK_BLUE, color: WHITE, fontWeight: "bold", fontSize: 18, textAlign: "center", padding: "8px 0", marginBottom: 0 }}>
               OBRA {(formData.obra || formData.cliente || "ORÇAMENTO").toUpperCase()}
             </div>
 
-            {/* Tabela de produtos */}
+            {/* ── Tabela de produtos ── */}
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
                 <thead>
@@ -226,22 +253,24 @@ export function ExcelPreviewModal({ open, onClose, items, formData }: Props) {
                         ) : (
                           <tr key={`item-${idx}`}>
                             <td style={{ ...tdStyle, fontWeight: "bold", fontSize: 18 }}>{item.itemEmPlanta || ""}</td>
-                            <td style={{ ...tdStyle, width: 80, height: 80 }}>
+                            {/* Coluna FOTO — apenas a imagem do produto, sem rabicho */}
+                            <td style={{ ...tdStyle, width: 80, minHeight: 80 }}>
                               {item.photoUrl ? (
                                 <img src={item.photoUrl} alt={item.description} style={{ width: 64, height: 64, objectFit: "contain" }}
                                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                               ) : (
                                 <span style={{ color: "#aaa", fontSize: 10 }}>—</span>
                               )}
-                              {rabichoAcc && (
-                                <div style={{ fontSize: 9, color: "#006064", fontStyle: "italic", marginTop: 2 }}>
-                                  ↳ Rabicho: {rabichoAcc.descricao}{rabichoAcc.dimensao ? ` ${rabichoAcc.dimensao}` : ""}
-                                </div>
-                              )}
                             </td>
+                            {/* Coluna MODELO — descrição + rabicho abaixo */}
                             <td style={{ ...tdStyle, textAlign: "left" }}>
                               {item.sku && <div style={{ fontFamily: "monospace", fontSize: 10, color: "#666" }}>{item.sku}</div>}
                               <div>{item.description}</div>
+                              {rabichoAcc && (
+                                <div style={{ fontSize: 9, color: "#006064", fontStyle: "italic", marginTop: 4, borderTop: "1px dashed #ccc", paddingTop: 2 }}>
+                                  ↳ Rabicho: {rabichoAcc.descricao}{rabichoAcc.dimensao ? ` ${rabichoAcc.dimensao}` : ""}
+                                </div>
+                              )}
                             </td>
                             <td style={tdStyle}>{item.category === "Item Especial" && item.specialDimensions ? item.specialDimensions : extractLength(item.description)}</td>
                             <td style={tdStyle}>{item.category === "Item Especial" && item.specialPower ? item.specialPower : (item.power?.trim() || extractPower(item.description))}</td>
@@ -259,14 +288,16 @@ export function ExcelPreviewModal({ open, onClose, items, formData }: Props) {
                         {nonRabichoAcc.map((acc, accIdx) => (
                           <tr key={`acc-${idx}-${accIdx}`} style={{ background: "#E0F7FA" }}>
                             <td style={{ ...tdStyle, fontSize: 9 }}></td>
-                            <td style={{ ...tdStyle, fontSize: 9, textAlign: "left" }}>
+                            <td style={{ ...tdStyle, fontSize: 9 }}>
                               {acc.fotoUrl ? (
-                                <img src={acc.fotoUrl} alt={acc.descricao} style={{ width: 32, height: 32, objectFit: "contain" }}
+                                <img src={acc.fotoUrl} alt={acc.descricao} style={{ width: 36, height: 36, objectFit: "contain" }}
                                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                               ) : null}
-                              <div style={{ fontSize: 9, color: "#006064", fontStyle: "italic" }}>↳ Acessório: {acc.descricao}</div>
                             </td>
-                            <td style={{ ...tdStyle, fontSize: 9, color: "#006064", fontStyle: "italic" }}>{acc.codigo}</td>
+                            <td style={{ ...tdStyle, fontSize: 9, color: "#006064", fontStyle: "italic", textAlign: "left" }}>
+                              <div style={{ fontFamily: "monospace", fontSize: 9, color: "#888" }}>{acc.codigo}</div>
+                              <div>↳ Acessório: {acc.descricao}</div>
+                            </td>
                             {["", "", "", "", "", "", ""].map((_, i) => (
                               <td key={i} style={{ ...tdStyle, fontSize: 9 }}></td>
                             ))}
@@ -282,17 +313,17 @@ export function ExcelPreviewModal({ open, onClose, items, formData }: Props) {
               </table>
             </div>
 
-            {/* Rodapé */}
+            {/* ── Rodapé ── */}
             <div style={{ marginTop: 16, fontFamily: "Calibri, Arial, sans-serif", fontSize: 12 }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <tbody>
                   <tr>
-                    <td style={{ fontWeight: "bold", width: 220, paddingRight: 8 }}>Prazo de fabricação e entrega:</td>
+                    <td style={{ fontWeight: "bold", width: 260, paddingRight: 8, paddingTop: 4, paddingBottom: 4 }}>Prazo de fabricação e entrega:</td>
                     <td style={{ color: RED, fontWeight: "bold" }}>{formData.deliveryDays ?? 20} dias úteis</td>
                   </tr>
                   <tr>
                     <td style={{ fontWeight: "bold", paddingTop: 8 }}>
-                      {totalComDifal > totalFinal ? "Subtotal dos produtos\n(sem frete, sem DIFAL/FCP):" : "Valor total dos produtos\n(sem o frete):"}
+                      {totalComDifal > totalFinal ? "Subtotal dos produtos (sem frete, sem DIFAL/FCP):" : "Valor total dos produtos (sem o frete):"}
                     </td>
                     <td>
                       <span style={{ background: TOTAL_BG, fontWeight: "bold", fontSize: 14, padding: "4px 12px", border: "2px solid #444", display: "inline-block" }}>
@@ -335,21 +366,44 @@ export function ExcelPreviewModal({ open, onClose, items, formData }: Props) {
                 </tbody>
               </table>
 
-              <div style={{ marginTop: 16, fontWeight: "bold", color: RED, fontSize: 16, textAlign: "center" }}>
+              {/* Vendedor */}
+              {(formData.seller1Name || formData.seller2Name) && (
+                <div style={{ marginTop: 12, fontSize: 12 }}>
+                  <div style={{ fontWeight: "bold" }}>{vendedorText}</div>
+                  {formData.seller1Phone && <div>CONTATO: {formData.seller1Phone}</div>}
+                </div>
+              )}
+
+              {/* Condições gerais */}
+              <div style={{ marginTop: 20, fontWeight: "bold", color: RED, fontSize: 16, textAlign: "center" }}>
                 CONDIÇÕES GERAIS DE FORNECIMENTO
               </div>
-              <div style={{ marginTop: 8, fontSize: 10, color: "#555" }}>
-                Os materiais especificados nesta proposta comercial estão de acordo com os dados fornecidos pelo cliente...
-                <span style={{ fontStyle: "italic" }}> (condições completas no Excel oficial)</span>
-              </div>
+              <ol style={{ marginTop: 12, paddingLeft: 0, listStyle: "none" }}>
+                {CONDITIONS.map((c) => (
+                  <li key={c.num} style={{ display: "flex", gap: 8, marginBottom: 8, fontSize: 10, lineHeight: 1.5 }}>
+                    <span style={{ fontWeight: "bold", whiteSpace: "nowrap", minWidth: 22 }}>{c.num}</span>
+                    <span>{c.text}</span>
+                  </li>
+                ))}
+              </ol>
 
-              <div style={{ marginTop: 24, fontWeight: "bold", fontSize: 14, color: RED, textAlign: "center" }}>
+              {/* Estou ciente */}
+              <div style={{ marginTop: 24, fontWeight: "bold", fontSize: 16, color: RED, textAlign: "center" }}>
                 Estou ciente das informações contidas neste documento.
               </div>
 
-              <div style={{ marginTop: 32, display: "flex", gap: 32 }}>
-                <div style={{ fontWeight: "bold", fontSize: 14 }}>Data:  ____/___/_____</div>
-                <div style={{ fontWeight: "bold", fontSize: 14 }}>De acordo: _____________________________________</div>
+              {/* Data e assinatura + logo */}
+              <div style={{ marginTop: 32, display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                <div style={{ display: "flex", gap: 48 }}>
+                  <div style={{ fontWeight: "bold", fontSize: 14 }}>Data:  ____/___/_____</div>
+                  <div style={{ fontWeight: "bold", fontSize: 14 }}>De acordo: _____________________________________</div>
+                </div>
+                <img
+                  src={LOGO_URL}
+                  alt="ALFALUX"
+                  style={{ height: 56, objectFit: "contain" }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
               </div>
 
               {/* Rodapé azul */}

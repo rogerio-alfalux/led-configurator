@@ -1590,17 +1590,15 @@ export default function Cart() {
                       </DialogContent>
                     </Dialog>}
 
-                    {/* Pré-visualizar Excel — oculto no modo append */}
-                    {!appendToQuoteId && (
-                      <Button
-                        variant="outline"
-                        className="gap-2 border-amber-500/40 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950"
-                        onClick={() => setPreviewOpen(true)}
-                      >
-                        <Eye className="w-4 h-4" />
-                        Pré-visualizar Excel
-                      </Button>
-                    )}
+                    {/* Pré-visualizar Excel — disponível em todos os modos */}
+                    <Button
+                      variant="outline"
+                      className="gap-2 border-amber-500/40 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950"
+                      onClick={() => setPreviewOpen(true)}
+                    >
+                      <Eye className="w-4 h-4" />
+                      Pré-visualizar Excel
+                    </Button>
 
                     {/* ─── Gerar Pedido de Fábrica (sem orçamento) ─── */}
                     <Button

@@ -430,51 +430,7 @@ export default function QuoteDetail() {
   const handleGenerateQuote = async () => {
     setIsGenerating(true);
     try {
-      // Gerar nova revisão ao baixar o Excel (bumpVersion: true)
-      await new Promise<void>((resolve, reject) => {
-        addRevisionMutation.mutate({
-          quoteId: Number(id),
-          clientName: quote.clientName,
-          clientContact: quote.clientContact ?? undefined,
-          clientPhone: quote.clientPhone ?? undefined,
-          clientEmail: quote.clientEmail ?? undefined,
-          projectName: quote.projectName ?? undefined,
-          projectRef: quote.projectRef ?? undefined,
-          notes: quote.notes ?? undefined,
-          vendorName: quote.vendorName ?? undefined,
-          assistantName: quote.assistantName ?? undefined,
-          seller1Id: quote.seller1Id ?? undefined,
-          seller1Name: quote.seller1Name ?? undefined,
-          seller2Id: quote.seller2Id ?? undefined,
-          seller2Name: quote.seller2Name ?? undefined,
-          assistantId: quote.assistantId ?? undefined,
-          rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) : 0,
-          rtDest1: quote.rtDest1 ?? undefined,
-          rtDest1Active: quote.rtDest1Active ?? false,
-          rtDest2: quote.rtDest2 ?? undefined,
-          rtDest2Active: quote.rtDest2Active ?? false,
-          rtDest3: quote.rtDest3 ?? undefined,
-          rtDest3Active: quote.rtDest3Active ?? false,
-          marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0,
-          freteType: (quote.freteType as "free" | "paid" | "night" | "consult") ?? "free",
-          freteIsento: quote.freteIsento ?? false,
-          freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
-          totalAmount: parseFloat(String(quote.totalAmount ?? 0)),
-          totalFinal: parseFloat(String(quote.totalFinal ?? 0)),
-          items: currentItems.map((i, idx) => ({ itemNumber: idx + 1, itemData: i.itemData })),
-          bumpVersion: true,
-          deliveryDays: quote.deliveryDays ?? 20,
-          commissionPercent: quote.commissionPercent ? parseFloat(String(quote.commissionPercent)) : 0.05,
-          paymentTerm: quote.paymentTerm ?? undefined,
-          destState: quote.destState ?? undefined,
-          difalEnabled: quote.difalEnabled ?? false,
-          difalPercent: quote.difalPercent ? parseFloat(String(quote.difalPercent)) : 0,
-          fcpPercent: quote.fcpPercent ? parseFloat(String(quote.fcpPercent)) : 0,
-          fcpEnabled: quote.fcpEnabled ?? false,
-          difalValue: quote.difalValue ? parseFloat(String(quote.difalValue)) : 0,
-          fcpValue: quote.fcpValue ? parseFloat(String(quote.fcpValue)) : 0,
-        }, { onSuccess: () => resolve(), onError: (e) => reject(e) });
-      });
+      // Baixar Excel sem criar nova revisão — a revisão só é criada ao Salvar Orçamento
       // Buscar telefones dos vendedores pelo ID no catálogo
       const s1 = quote.seller1Id ? editSellers.find(s => s.id === quote.seller1Id) : undefined;
       const s2 = quote.seller2Id ? editSellers.find(s => s.id === quote.seller2Id) : undefined;
@@ -505,9 +461,8 @@ export default function QuoteDetail() {
           freteType: (quote.freteType as "free" | "paid" | "night" | "consult") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
-          // bumpVersion: true j00e1 incrementou no banco, mas o estado React ainda n00e3o foi re-fetched
-          // Por isso usamos revisionCount + 1 para o Excel refletir a revis00e3o correta (RV1, RV2, ...)
-          revisionCount: (quote.revisionCount ?? 0) + 1,
+          // Usar revisionCount atual do banco (sem incrementar — revisão só muda ao Salvar)
+          revisionCount: quote.revisionCount ?? 0,
           deliveryDays: quote.deliveryDays ?? 20,
           commissionPercent: quote.commissionPercent ? parseFloat(String(quote.commissionPercent)) : undefined,
           paymentTerm: quote.paymentTerm ?? undefined,
