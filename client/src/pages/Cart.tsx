@@ -649,6 +649,7 @@ export default function Cart() {
         fcpValue: saveForm.fcpEnabled && saveForm.fcpValue ? parseFloat(saveForm.fcpValue) : undefined,
         projectNumber: saveForm.projectNumber || undefined,
         commissionPercent2: saveForm.commissionPercent2 ? (parseFloat(saveForm.commissionPercent2) || 0) / 100 : undefined,
+        freteValue: saveForm.freteValue ? parseFloat(saveForm.freteValue) : undefined,
       };
       // Injetar itemEmPlanta em cada item (respeitando a ordem do DnD)
       const itemsWithPlanta = orderedEntries.map((e, idx) => ({

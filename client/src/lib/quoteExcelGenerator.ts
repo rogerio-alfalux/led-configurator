@@ -157,17 +157,20 @@ async function _generateExcelBuffer(
   // Template: scale=51%, portrait, margens L/R=0.7", T/B=0.75", H/F=0.3"
   // Área de impressão: $C$1:$N$72 (colunas C-N)
   // fitToPage=true para garantir que cabe em 1 página
-  ws.pageSetup = {
-    paperSize: 9,            // A4
-    orientation: "portrait",
-    fitToPage: true,
-    fitToWidth: 1,
-    fitToHeight: 0,          // 0 = sem limite de altura (escala automática)
-    scale: 51,               // 51% igual ao template
-    horizontalDpi: 300,
-    verticalDpi: 300,
-    printArea: "C1:N200",    // Área de impressão dinâmica (colunas C-N)
-  };
+  // Configurações de impressão idênticas ao template:
+  // <sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
+  // <pageSetup scale="51" orientation="portrait" horizontalDpi="4294967295" verticalDpi="4294967295"/>
+  // <pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>
+  // definedName: _xlnm.Print_Area = 'Alfalux'!$C$1:$N$72
+  ws.pageSetup.paperSize = 9;            // A4
+  ws.pageSetup.orientation = "portrait";
+  ws.pageSetup.fitToPage = true;         // ativa <sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
+  ws.pageSetup.fitToWidth = 1;           // 1 página de largura
+  ws.pageSetup.fitToHeight = 0;          // 0 = sem limite de altura (escala automática)
+  ws.pageSetup.scale = 51;               // 51% igual ao template
+  ws.pageSetup.horizontalDpi = 4294967295; // idêntico ao template
+  ws.pageSetup.verticalDpi = 4294967295;   // idêntico ao template
+  ws.pageSetup.printArea = "C1:N200";    // Área de impressão (colunas C-N)
   ws.pageSetup.margins = {
     left: 0.7,
     right: 0.7,
@@ -176,9 +179,6 @@ async function _generateExcelBuffer(
     header: 0.3,
     footer: 0.3,
   };
-  // Ocultar colunas A e B (não impressas)
-  ws.getColumn('A').hidden = true;
-  ws.getColumn('B').hidden = true;
 
   // ── Larguras das colunas (fiel ao template) ──────────────────────────────────────────────
   // Template original: C=12, D=18, E=35, F=15.1, G=12, H=10, I=13, J=14, K=13, L=7, M=13, N=14
@@ -1091,39 +1091,39 @@ async function _generateExcelBuffer(
       const logoBuffer = await logoResponse.arrayBuffer();
 
       // ── Logo 1: cabeçalho ──
-      // Template: OneCellAnchor col=4 colOff=1959760 row=6 rowOff=132479, ext 420x97px
-      // col=4 = coluna E (0-based), row=6 = linha 7 (0-based)
-      // No ExcelJS: tl.col e tl.row são 0-based com fracção para offset
-      // colOff=1959760 EMU / (col_width_in_EMU) — col E tem width=35 chars ≈ 35*7*9525=2328750 EMU
-      // fracão = 1959760/2328750 ≈ 0.84
-      // rowOff=132479 EMU / (row_height_in_EMU) — row 7 tem height=24.9pt ≈ 24.9*12700=316230 EMU
-      // fracão = 132479/316230 ≈ 0.42
+      // Template OneCellAnchor: col=4 colOff=1959760 EMU, row=6 rowOff=132479 EMU
+      // ext: cx=4000500 EMU (420px), cy=923925 EMU (97px)
+      // col E (idx=4) width=35 chars → (35*7+5)*9525=2381250 EMU → frac=1959760/2381250=0.823
+      // row 7 (idx=6) height=24.9pt → 24.9*12700=316230 EMU → frac=132479/316230=0.419
       const logoId1 = wb.addImage({ buffer: logoBuffer, extension: "png" });
       ws.addImage(logoId1, {
-        tl: { col: 4.84, row: 6.42 },
+        tl: { col: 4.823, row: 6.419 },
         ext: { width: 420, height: 97 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });
 
       // ── Logo 2: rodapé ao lado do vendedor ──
-      // Template: TwoCellAnchor col=11→13 row=33→36
-      // col=11 = coluna L (0-based), row=33 = linha 34
-      // Aqui usamos posição relativa ao vendorLogoRow (0-based = vendorLogoRow - 1)
-      // ext: mesmo tamanho do logo do cabeçalho (420x97px)
+      // Template TwoCellAnchor: col=11 colOff=342901 EMU, row=33 rowOff=161925 EMU
+      // xfrm size: cx=1543050 EMU (162px), cy=464344 EMU (49px)
+      // col L (idx=11) width=7 chars → (7*7+5)*9525=514350 EMU → frac=342901/514350=0.667
+      // row 34 (idx=33) height=15.9pt → 15.9*12700=201930 EMU → frac=161925/201930=0.802
       const logoId2 = wb.addImage({ buffer: logoBuffer, extension: "png" });
       ws.addImage(logoId2, {
-        tl: { col: 10.3, row: vendorLogoRow - 1 + 0.15 },
-        ext: { width: 420, height: 97 },
+        tl: { col: 11.667, row: vendorLogoRow - 1 + 0.802 },
+        ext: { width: 162, height: 49 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });
 
       // ── Logo 3: ao lado da assinatura ──
-      // Template: TwoCellAnchor col=11→13 row=67→70
-      // Posição relativa à linha da assinatura (signatureRow)
+      // Template TwoCellAnchor: col=11 colOff=367393 EMU, row=67 rowOff=238125 EMU
+      // xfrm size: cx=1540329 EMU (162px), cy=476591 EMU (50px)
+      // col L (idx=11) → frac=367393/514350=0.714
+      // row 68 (idx=67) height=26.85pt → 26.85*12700=340995 EMU → frac=238125/340995=0.699
+      // (mas como linhas variam, usamos signatureRow com offset fixo)
       const logoId3 = wb.addImage({ buffer: logoBuffer, extension: "png" });
       ws.addImage(logoId3, {
-        tl: { col: 10.3, row: signatureRow - 1 + 0.15 },
-        ext: { width: 420, height: 97 },
+        tl: { col: 11.714, row: signatureRow - 1 + 0.699 },
+        ext: { width: 162, height: 50 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });
 

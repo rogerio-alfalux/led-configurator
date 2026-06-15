@@ -1211,3 +1211,10 @@
 - [x] Observação em linha única com rich text (label negrito + texto normal)
 - [x] "Fico à disposição" (não "Estamos à disposição") — igual ao preview e template
 - [x] Contato do vendedor: usa seller1Phone/seller2Phone (não telefone fixo hardcoded)
+
+## Correções v32.37 — Excel para download
+
+- [x] Corrigir frete: freteValue não era passado ao enrichedForm no Cart.tsx (geração direta do carrinho)
+- [x] Corrigir configurações de impressão: usar propriedades individuais do pageSetup (não objeto), DPI=4294967295 idêntico ao template
+- [x] Corrigir logo cabeçalho: posição col=4.823 row=6.419, tamanho 420x97px (fiel ao template)
+- [x] Corrigir logos rodapé: tamanho 162x49px e 162x50px (fiel ao template, não 420x97px)
