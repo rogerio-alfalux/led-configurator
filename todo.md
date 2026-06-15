@@ -1202,3 +1202,12 @@
 - [x] Orçamento por pavimentos: campo Pavimento/Ambiente no dialog de edição; cabeçalho de pavimento no Excel
 - [x] 516/516 testes passando, 0 erros TypeScript novos
 - [x] Centralizar versão no package.json e injetar automaticamente no cabeçalho via Vite define
+
+## v32.35 — Correção do Excel para download (15/06/2026)
+- [x] Rabicho movido para célula E (MODELO ALFALUX) com separador tracejado, igual ao preview
+- [x] Logo ALFALUX no cabeçalho: colunas K-N (canto superior direito), linhas 3-6
+- [x] Logo ALFALUX no rodapé: ao lado do bloco do vendedor (colunas K-N)
+- [x] Telefone/endereço no cabeçalho: colunas C-J (não mais C-N, para não sobrepor o logo)
+- [x] Observação em linha única com rich text (label negrito + texto normal)
+- [x] "Fico à disposição" (não "Estamos à disposição") — igual ao preview e template
+- [x] Contato do vendedor: usa seller1Phone/seller2Phone (não telefone fixo hardcoded)

@@ -182,24 +182,24 @@ async function _generateExcelBuffer(
   ws.getRow(1).height = 19.8;
   ws.getRow(2).height = 19.8;
 
-  // ── Linha 3: Telefone ────────────────────────────────────────────────────
+  // ── Linha 3: Telefone (colunas C-J) — logo fica em K-N ─────────────────
   ws.getRow(3).height = 21.0;
-  ws.mergeCells("C3:N3");
+  ws.mergeCells("C3:J3");
   {
     const c = ws.getCell("C3");
     c.value = "(11) 5666.9272 / 5666.4856";
     c.font = { name: "Calibri", size: 11, bold: true };
-    c.alignment = { horizontal: "center", vertical: "middle" };
+    c.alignment = { horizontal: "left", vertical: "middle" };
   }
 
-  // ── Linha 4: Endereço ────────────────────────────────────────────────────
+  // ── Linha 4: Endereço (colunas C-J) ─────────────────────────────────────
   ws.getRow(4).height = 21.6;
-  ws.mergeCells("C4:N4");
+  ws.mergeCells("C4:J4");
   {
     const c = ws.getCell("C4");
     c.value = "Rua Agostino Togneri, n° 617 - Jurubatuba - São Paulo/ SP";
     c.font = { name: "Calibri", size: 11, bold: true };
-    c.alignment = { horizontal: "center", vertical: "middle" };
+    c.alignment = { horizontal: "left", vertical: "middle" };
   }
 
   // ── Linha 5: espaço ──────────────────────────────────────────────────────
@@ -611,20 +611,19 @@ async function _generateExcelBuffer(
     cItemNote.font = { name: "Calibri", size: 10, italic: true, color: { argb: "FF4472C4" } };
     cItemNote.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
 
-    // ── Rabicho inline na coluna D ──────────────────────────────────────────
-    // Se o único acessório for rabicho, adicionar texto na coluna D (inline)
+    // ── Rabicho inline na coluna E (MODELO ALFALUX) ────────────────────────
+    // O rabicho é exibido abaixo da descrição do produto na célula E, com separador tracejado
+    // Igual ao ExcelPreviewModal: rabicho NÃO vai para a coluna D (FOTO)
     const rabichoAcc = item.accessories?.find(a => a.familia?.toLowerCase().includes('rabicho'));
     const nonRabichoAcc = item.accessories?.filter(a => !a.familia?.toLowerCase().includes('rabicho')) ?? [];
     if (rabichoAcc) {
-      // Adicionar texto do rabicho abaixo da foto na célula D
-      const dCell = ws.getCell(`D${rowNum}`);
-      const currentVal = typeof dCell.value === 'string' ? dCell.value : '';
-      const rabichoText = `\n\u21B3 Rabicho: ${rabichoAcc.descricao}${rabichoAcc.dimensao ? ` ${rabichoAcc.dimensao}` : ''}`;
-      // Adicionar como rich text ou string simples
-      if (!currentVal) {
-        dCell.value = rabichoText.trim();
-        dCell.font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF006064' } };
-      }
+      // Atualizar célula E com rabicho abaixo da descrição
+      const eCell = ws.getCell(`E${rowNum}`);
+      const currentModelText = typeof eCell.value === 'string' ? eCell.value : (item.sku ? `${item.sku}\n${item.description}` : item.description);
+      const rabichoLine = `\n- - - - - - - - - - - - - - - -\n\u21B3 Rabicho: ${rabichoAcc.descricao}${rabichoAcc.dimensao ? ` ${rabichoAcc.dimensao}` : ''}`;
+      eCell.value = currentModelText + rabichoLine;
+      eCell.font = { name: 'Calibri', size: 11, bold: false };
+      eCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     }
 
     // ── Sub-linhas de acessórios vinculados (não-rabicho) ──────────────────────
@@ -883,16 +882,7 @@ async function _generateExcelBuffer(
   }
   nextRow++;
 
-  // ── Observação ───────────────────────────────────────────────────────────
-  ws.getRow(nextRow).height = 19.8;
-  ws.mergeCells(`C${nextRow}:D${nextRow}`);
-  {
-    const c = ws.getCell(`C${nextRow}`);
-    c.value = "Observação:";
-    c.font = { name: "Calibri", size: 12, bold: true };
-    c.alignment = { horizontal: "left", vertical: "middle" };
-  }
-  nextRow++;
+  // ── Observação (linha única: label + texto) ──────────────────────────────
   ws.getRow(nextRow).height = 19.8;
   ws.mergeCells(`C${nextRow}:N${nextRow}`);
   {
@@ -909,8 +899,11 @@ async function _generateExcelBuffer(
     if (difalParts.length > 0) {
       obsText = `DIFAL/FCP aplicado para ${formData.destState ?? ""}: ${difalParts.join(" | ")}. Valores já incluídos na proposta.`;
     }
-    c.value = obsText;
-    c.font = { name: "Calibri", size: 11 };
+    // Usar rich text para ter "Observação:" em negrito + texto normal
+    c.value = { richText: [
+      { text: "Observação: ", font: { name: "Calibri", size: 11, bold: true } },
+      { text: obsText, font: { name: "Calibri", size: 11, bold: false } },
+    ]};
     c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
   }
   nextRow++;
@@ -920,20 +913,20 @@ async function _generateExcelBuffer(
   ws.getRow(nextRow).height = 10;
   nextRow++;
 
-  // ── Estamos à disposição / Vendedor ──────────────────────────────────────
+  // ── Fico à disposição / Vendedor + Logo ─────────────────────────────────
   ws.getRow(nextRow).height = 19.8;
   ws.mergeCells(`C${nextRow}:N${nextRow}`);
   {
     const c = ws.getCell(`C${nextRow}`);
-    c.value = "Estamos à disposição para quaisquer esclarecimentos,";
+    c.value = "Fico à disposição para quaisquer esclarecimentos,";
     c.font = { name: "Calibri", size: 11 };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
   nextRow++;
 
-  // Nome do vendedor
+  // Nome do vendedor (colunas C-H) — logo ficará em K-N
   ws.getRow(nextRow).height = 19.8;
-  ws.mergeCells(`C${nextRow}:D${nextRow}`);
+  ws.mergeCells(`C${nextRow}:H${nextRow}`);
   {
     const c = ws.getCell(`C${nextRow}`);
     const vendedorName = [formData.seller1Name, formData.seller2Name].filter(Boolean).join(" / ") || "";
@@ -941,21 +934,20 @@ async function _generateExcelBuffer(
     c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
+  const vendorLogoRow = nextRow;
   nextRow++;
 
   // Contato do vendedor — usa os telefones cadastrados (seller1Phone / seller2Phone)
   ws.getRow(nextRow).height = 19.8;
-  ws.mergeCells(`C${nextRow}:N${nextRow}`);
+  ws.mergeCells(`C${nextRow}:H${nextRow}`);
   {
     const c = ws.getCell(`C${nextRow}`);
-    const phones = [formData.seller1Phone, formData.seller2Phone].filter(Boolean);
-    const phoneText = phones.length > 0
-      ? `CONTATO:   ${phones.join(" | ")}`
-      : "CONTATO:   (11) 5666.9272";
-    c.value = phoneText;
+    const phone = formData.seller1Phone || formData.seller2Phone || "(11) 5666.9272";
+    c.value = `CONTATO: ${phone}`;
     c.font = { name: "Calibri", size: 11 };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
+  const vendorLogoRow2 = nextRow;
   nextRow++;
 
   // Espaço
@@ -1047,28 +1039,35 @@ async function _generateExcelBuffer(
   }
 
   // ── Inserir logo ALFALUX ─────────────────────────────────────────────────
-  // Posição fiel ao template: TwoCellAnchor from col=4 (E, índice 4), row=5 (linha 6, índice 5)
+  // Logo no cabeçalho: colunas K-N (índices 10-13), linhas 3-6
+  // Logo no rodapé do vendedor: colunas K-N, ao lado do nome/contato
   // Logo original: 1263×291px → proporção 4.34:1
-  // Área disponível: colunas G-N (índices 6-13), linhas 3-14
-  // Calculamos para caber bem no espaço direito do cabeçalho
-  // Largura aproximada colunas G-N: (12+10+10+14+14+7+13+14) * 7px = ~658px
-  // Altura aproximada linhas 3-14: ~12 linhas * 20pt * 1.33 = ~320px
-  // Mantendo proporção 4.34:1: width=480, height=110
+  // Largura colunas K-N: (14+7+13+14)*7 = ~336px → usamos 280px, height=65px
   try {
     const logoUrl = "/manus-storage/alfalux-logo-excel_8e8ca9f4.png";
     const logoResponse = await fetch(logoUrl);
     if (logoResponse.ok) {
       const logoBuffer = await logoResponse.arrayBuffer();
-      const logoId = wb.addImage({ buffer: logoBuffer, extension: "png" });
-      // Posicionar: começa na coluna G (índice 6), linha 4 (índice 3)
-      // Largura: 480px, Altura: 110px (proporção 4.34:1 do logo original 1263×291)
-      // Logo posicionado entre linha 7 (VENDEDOR) e linha 10 (CONTATO),
-      // colunas F-N — sem sobrepor telefone/endereço das linhas 3-4
-      ws.addImage(logoId, {
-        tl: { col: 5.5, row: 6.1 },
-        ext: { width: 420, height: 97 },
+
+      // ── Logo 1: cabeçalho (canto superior direito, linhas 3-6, colunas K-N) ──
+      const logoId1 = wb.addImage({ buffer: logoBuffer, extension: "png" });
+      ws.addImage(logoId1, {
+        tl: { col: 9.2, row: 2.1 },   // coluna K (índice 10) = 9.2 offset, linha 3 (índice 2)
+        ext: { width: 300, height: 70 },
         editAs: "oneCell",
       } as ExcelJS.ImagePosition & { editAs: string });
+
+      // ── Logo 2: rodapé ao lado do vendedor (colunas K-N) ──
+      const logoId2 = wb.addImage({ buffer: logoBuffer, extension: "png" });
+      ws.addImage(logoId2, {
+        tl: { col: 9.2, row: vendorLogoRow - 1 + 0.1 },
+        ext: { width: 280, height: 65 },
+        editAs: "oneCell",
+      } as ExcelJS.ImagePosition & { editAs: string });
+
+      // ── Logo 3: ao lado da assinatura (colunas K-N, mesma linha da assinatura) ──
+      // vendorLogoRow2 é a linha do contato do vendedor — logo vai 2 linhas abaixo
+      void vendorLogoRow2; // usado para referência de posição
     }
   } catch {
     // Ignorar erro de logo
