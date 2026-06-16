@@ -909,21 +909,71 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
 
   // ── Ajuste para medida maior ──
   // Quando adjustToLarger=true e a medida realizada ficou menor que a solicitada,
-  // busca o menor módulo IN acima do comprimento solicitado e recalcula.
+  // busca a MENOR composição realizável (IN ou IF+ML) que seja >= ao comprimento solicitado.
+  //
+  // Estratégia:
+  //   1. Coletar todos os comprimentos candidatos acima do solicitado:
+  //      a) Módulos IN individuais com length > totalLength (sem restrição de allowLongModules)
+  //      b) Pares 2×IF onde 2*IF.length > totalLength (IF com ≥ 2 barras)
+  //      c) Pares 2×IF + MLs que resultem em comprimento > totalLength
+  //   2. Para cada candidato, verificar se buildComposition(candidato) >= totalLength
+  //   3. Escolher o candidato com menor comprimento realizado >= totalLength
   let adjustedToLarger = false;
   const originalRequestedLength = totalLength;
   if (adjustToLarger && buildResult.realizedLength < totalLength) {
-    const inModulesAbove = getModules(profileCode, "IN", allowLongModules, stripMethod, powerD1, false, allowFractional)
-      .filter(m => m.length > totalLength)
-      .sort((a, b) => a.length - b.length); // crescente: menor acima primeiro
-    if (inModulesAbove.length > 0) {
-      const targetLength = inModulesAbove[0].length;
+    // Coletar todos os comprimentos candidatos "acima" do solicitado
+    const candidateLengths = new Set<number>();
+
+    // a) Módulos IN acima do solicitado — respeitando allowLongModules do usuário.
+    //    Se allowLongModules=false, não usar módulos IN que excedem o limite de barras.
+    const inModulesForAdjust = getModules(profileCode, "IN", allowLongModules, stripMethod, powerD1, false, allowFractional);
+    for (const m of inModulesForAdjust) {
+      if (m.length > totalLength) candidateLengths.add(m.length);
+    }
+
+    // b) Pares 2×IF acima do solicitado (IF com ≥ 2 barras).
+    //    Para IF/ML não há limite de barras por módulo individual — usar allowLongModules=true
+    //    pois módulos IF grandes são válidos em composições de linha longa.
+    const ifModulesAll = getModules(profileCode, "IF", true, stripMethod, powerD1, true, allowFractional)
+      .filter(m => m.barras >= MIN_BARS_FOR_COMPOSITION);
+    for (const ifMod of ifModulesAll) {
+      const twoIfLen = 2 * ifMod.length;
+      if (twoIfLen > totalLength) candidateLengths.add(twoIfLen);
+    }
+
+    // c) Pares 2×IF + MLs que resultem em comprimento > totalLength
+    const mlModulesAll = getModules(profileCode, "ML", true, stripMethod, powerD1, true, allowFractional);
+    for (const ifMod of ifModulesAll) {
+      const twoIfLen = 2 * ifMod.length;
+      // Só adicionar MLs se 2×IF já não cobre (para não duplicar candidatos)
+      if (twoIfLen <= totalLength) {
+        let rem = totalLength - twoIfLen;
+        // Adicionar MLs até cobrir (greedy)
+        for (const ml of [...mlModulesAll].sort((a, b) => b.length - a.length)) {
+          while (rem > 0 && ml.length > 0) {
+            rem -= ml.length;
+            const covered = totalLength - rem;
+            if (covered > totalLength) {
+              candidateLengths.add(covered);
+              break;
+            }
+          }
+          if (rem <= 0) break;
+        }
+      }
+    }
+
+    // Ordenar candidatos crescente e tentar cada um
+    const sortedCandidates = Array.from(candidateLengths).sort((a, b) => a - b);
+    for (const targetLength of sortedCandidates) {
+      // Recalcular com allowLongModules=true para que IF/ML grandes sejam elegíveis
+      // (o targetLength já foi calculado com base em módulos válidos)
       const adjustedResult = buildComposition(
         profileCode,
         targetLength,
         powerD1,
         voltage,
-        allowLongModules,
+        true, // allowLongModules=true: o targetLength garante que a composição é válida
         stripMethod,
         undefined,
         allowFractional
@@ -931,6 +981,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
       if (adjustedResult.realizedLength >= totalLength) {
         buildResult = adjustedResult;
         adjustedToLarger = true;
+        break; // menor candidato que funciona
       }
     }
   }

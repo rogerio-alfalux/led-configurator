@@ -2742,3 +2742,71 @@ describe("allowMixedIF — IFs diferentes nas pontas", () => {
     expect(r.compositionMode).not.toBe("IF_ML_MIXED");
   });
 });
+
+// ─── adjustToLarger — EASY H PLUS (LLP-4450) com IF+ML ──────────────────────
+describe("adjustToLarger — EASY H PLUS (LLP-4450) com composição IF+ML", () => {
+  // Módulos IF inteiros do EASY H PLUS: 1135 (IF-2), 1700 (IF-3), 1760 (IF-3.1), ...
+  // Para 3370mm sem ajuste: 2×IF-2 = 2270mm (IF-3 = 1700 > 3370/2 = 1685, excluído)
+  // Para 3370mm com ajuste: 2×IF-3 = 3400mm ≥ 3370mm ✓
+
+  const base: ConfigInput = {
+    profileCode: "LLP-4450",
+    application: "D1",
+    powerD1: 18,
+    cct: "3000K",
+    voltage: "220Vac",
+    allowLongModules: false,
+    allowFractional: false,
+    independentLighting: false,
+  };
+
+  it("sem adjustToLarger: 3370mm → realizedLength 2270mm (2×IF-2, pois IF-3=1700 > 3370/2)", () => {
+    const r = calculateComposition({ ...base, totalLength: 3370, adjustToLarger: false });
+    expect(r.realizedLength).toBe(2270);
+    expect(r.adjustedToLarger).toBeUndefined();
+  });
+
+  it("com adjustToLarger: 3370mm → realizedLength 3400mm (2×IF-3=1700mm)", () => {
+    const r = calculateComposition({ ...base, totalLength: 3370, adjustToLarger: true });
+    expect(r.realizedLength).toBe(3400);
+    expect(r.adjustedToLarger).toBe(true);
+    expect(r.originalRequestedLength).toBe(3370);
+  });
+
+  it("com adjustToLarger: 3400mm exato → sem ajuste (realizedLength = requestedLength)", () => {
+    const r = calculateComposition({ ...base, totalLength: 3400, adjustToLarger: true });
+    expect(r.realizedLength).toBe(3400);
+    // Não deve marcar como ajustado pois a medida já é exata
+    expect(r.adjustedToLarger).toBeUndefined();
+  });
+
+  it("com adjustToLarger: composição resultante usa 2×IF-3 (1700mm cada)", () => {
+    const r = calculateComposition({ ...base, totalLength: 3370, adjustToLarger: true });
+    const ifItems = r.composition.filter(c => c.moduleType === "IF");
+    expect(ifItems.length).toBeGreaterThan(0);
+    // Deve ter 2 módulos IF de 1700mm
+    const if1700 = ifItems.find(c => c.length === 1700);
+    expect(if1700).toBeDefined();
+    expect(if1700?.quantity).toBe(2);
+  });
+
+  it("com adjustToLarger: 3300mm → realizedLength >= 3300mm", () => {
+    const r = calculateComposition({ ...base, totalLength: 3300, adjustToLarger: true });
+    expect(r.realizedLength).toBeGreaterThanOrEqual(3300);
+    expect(r.adjustedToLarger).toBe(true);
+  });
+
+  it("com adjustToLarger: 3200mm → realizedLength >= 3200mm (pode usar 2×IF-3.1=3520 ou 2×IF-3=3400)", () => {
+    const r = calculateComposition({ ...base, totalLength: 3200, adjustToLarger: true });
+    expect(r.realizedLength).toBeGreaterThanOrEqual(3200);
+    expect(r.adjustedToLarger).toBe(true);
+  });
+
+  it("com adjustToLarger: resultado nunca é menor que o comprimento solicitado", () => {
+    const lengths = [3000, 3100, 3200, 3300, 3370, 3500, 4000, 5000];
+    for (const len of lengths) {
+      const r = calculateComposition({ ...base, totalLength: len, adjustToLarger: true });
+      expect(r.realizedLength).toBeGreaterThanOrEqual(len);
+    }
+  });
+});

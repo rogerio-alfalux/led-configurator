@@ -1234,3 +1234,11 @@
 - [x] Inverter Obra/Cliente na listagem: Obra (projectName) exibida como título principal, Cliente (clientName) como subtítulo com ícone 👤
 - [x] Aviso de obra duplicada: ao criar orçamento, verifica se já existe outro com o mesmo projectName nos últimos 6 meses; exibe toast não-bloqueante com número e cliente do orçamento existente
 - [x] Ricardo Miranda: inserido como assistente comercial no banco (email miranda@grupoalfalux.com.br)
+
+## v32.40 — Correção adjustToLarger com composição IF+ML
+
+- [x] Corrigir lógica de "ajustar para medida maior": antes buscava apenas módulos IN acima do solicitado; agora busca a menor composição realizável (IN ou 2×IF ou 2×IF+MLs) que seja >= ao comprimento solicitado
+- [x] Respeitar allowLongModules do usuário ao buscar candidatos IN (não usar módulos de 6 barras se allowLongModules=false)
+- [x] Para IF/ML: usar allowLongModules=true pois não há limite de barras por módulo individual em composições de linha longa
+- [x] Caso de uso corrigido: EASY H PLUS 3370mm com adjustToLarger → 3400mm (2×IF-3 de 1700mm), não mais 2270mm
+- [x] 523/523 testes passando (7 novos testes de regressão para EASY H PLUS adjustToLarger)
