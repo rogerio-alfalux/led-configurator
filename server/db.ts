@@ -1315,3 +1315,40 @@ export async function checkDuplicateProject(projectName: string, excludeQuoteId?
 
   return rows[0] ?? null;
 }
+
+/**
+ * Reordena os itens da versão mais recente de um orçamento sem criar nova revisão.
+ * Recebe um array de IDs de quoteItems na nova ordem desejada e atualiza o itemNumber
+ * de cada um em sequência (1, 2, 3, ...).
+ * Valida que todos os IDs pertencem ao quoteId informado antes de atualizar.
+ */
+export async function reorderQuoteItems(
+  quoteId: number,
+  orderedItemIds: number[]
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Busca todos os itens do quoteId para validar pertencimento
+  const existingItems = await db
+    .select({ id: quoteItems.id })
+    .from(quoteItems)
+    .where(eq(quoteItems.quoteId, quoteId));
+
+  const existingIds = new Set(existingItems.map(i => i.id));
+
+  // Valida que todos os IDs enviados pertencem a este orçamento
+  for (const itemId of orderedItemIds) {
+    if (!existingIds.has(itemId)) {
+      throw new Error(`Item ${itemId} não pertence ao orçamento ${quoteId}`);
+    }
+  }
+
+  // Atualiza itemNumber de cada item na nova ordem
+  for (let i = 0; i < orderedItemIds.length; i++) {
+    await db
+      .update(quoteItems)
+      .set({ itemNumber: i + 1 })
+      .where(eq(quoteItems.id, orderedItemIds[i]));
+  }
+}

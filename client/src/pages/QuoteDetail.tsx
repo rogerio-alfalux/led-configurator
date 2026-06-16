@@ -387,13 +387,24 @@ export default function QuoteDetail() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  // Mutation de reordenação automática ao soltar item no drag and drop
+  const reorderItemsMutation = trpc.quotes.reorderItems.useMutation({
+    onError: (err) => toast.error(`Erro ao salvar ordem: ${err.message}`),
+  });
+
   const handleEditItemsDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
       setEditableItems(prev => {
         const oldIndex = prev.findIndex(it => it.id === Number(active.id));
         const newIndex = prev.findIndex(it => it.id === Number(over.id));
-        return arrayMove(prev, oldIndex, newIndex);
+        const reordered = arrayMove(prev, oldIndex, newIndex);
+        // Auto-save: persiste a nova ordem imediatamente após o drag
+        reorderItemsMutation.mutate({
+          quoteId: Number(id),
+          orderedItemIds: reordered.map(it => it.id),
+        });
+        return reordered;
       });
     }
   };

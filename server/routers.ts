@@ -16,6 +16,7 @@ import {
   getMonthlyReport,
   duplicateQuote,
   checkDuplicateProject,
+  reorderQuoteItems,
 } from "./db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -545,6 +546,21 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const suggested = await suggestQuoteNumber(input.sellerId);
         return { suggested };
+      }),
+
+    /** Reordena os itens da versão atual sem criar nova revisão */
+    reorderItems: protectedProcedure
+      .input(z.object({
+        quoteId: z.number(),
+        orderedItemIds: z.array(z.number()),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const existing = await getQuoteById(input.quoteId);
+        if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
+        const canEdit = await canEditQuote(ctx.user.email, existing.quote, ctx.user.role, ctx.user.id);
+        if (!canEdit) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para editar este orçamento." });
+        await reorderQuoteItems(input.quoteId, input.orderedItemIds);
+        return { success: true };
       }),
 
     /** Registra geração de ficha de produção */
