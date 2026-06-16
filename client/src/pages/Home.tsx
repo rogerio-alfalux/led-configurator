@@ -2004,6 +2004,13 @@ export default function Home() {
       toast.error("Informe a descrição do item especial.");
       return;
     }
+    // Aviso não-bloqueante quando não há foto
+    if (!spPhotoUrl) {
+      toast("Item adicionado sem foto. Você pode adicionar a foto depois editando o item no carrinho.", {
+        icon: "📷",
+        duration: 5000,
+      });
+    }
     const unitPrice = parseFloat(spUnitPrice.replace(",", ".")) || 0;
     const item: CartItemData = {
       category: "Item Especial",

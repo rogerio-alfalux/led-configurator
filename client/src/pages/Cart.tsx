@@ -21,7 +21,7 @@ import {
   ShoppingCart, Trash2, FileSpreadsheet, ArrowLeft, Package,
   Plus, Minus, Save, ClipboardList, Factory, AlertTriangle,
   ChevronRight, Tag, Percent, Truck, Users, PlusCircle, CheckCircle2,
-  GripVertical, Pencil, Wrench, Eye,
+  GripVertical, Pencil, Wrench, Eye, Upload, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -444,6 +444,11 @@ export default function Cart() {
   // Edição inline de campos do item
   const [editItemId, setEditItemId] = useState<number | null>(null);
   const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; itemNote: string; itemObs: string; itemObsShowInExcel: boolean; itemMarginPercent: string; floorId: string; floorName: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', itemNote: '', itemObs: '', itemObsShowInExcel: false, itemMarginPercent: '', floorId: '', floorName: '' });
+  // Estados para edição de foto de Item Especial
+  const [editSpecialPhotoUrl, setEditSpecialPhotoUrl] = useState<string | null>(null);
+  const [editSpecialPhotoPreview, setEditSpecialPhotoPreview] = useState<string | null>(null);
+  const [editSpecialPhotoUploading, setEditSpecialPhotoUploading] = useState(false);
+  const uploadSpecialPhotoMutationCart = trpc.upload.specialItemPhoto.useMutation();
 
   // Pedido de Fábrica direto do carrinho
   const [orderConfirmOpen, setOrderConfirmOpen] = useState(false);
@@ -915,6 +920,14 @@ export default function Cart() {
                           floorId: data.floorId ?? '',
                           floorName: data.floorName ?? '',
                         });
+                        // Inicializar foto especial
+                        if (data.isSpecialItem) {
+                          setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null);
+                          setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null);
+                        } else {
+                          setEditSpecialPhotoUrl(null);
+                          setEditSpecialPhotoPreview(null);
+                        }
                       }}
                     />
                   ))}
@@ -1925,6 +1938,67 @@ export default function Cart() {
                     </div>
                     <p className="text-xs text-muted-foreground">Agrupa itens por pavimento no Excel</p>
                   </div>
+                  {/* Campo de foto para Item Especial */}
+                  {item?.data.isSpecialItem && (
+                    <div className="space-y-2">
+                      <Label>Foto do Item Especial</Label>
+                      {editSpecialPhotoPreview ? (
+                        <div className="relative w-full">
+                          <img
+                            src={editSpecialPhotoPreview}
+                            alt="Foto do item"
+                            className="w-full max-h-40 object-contain rounded border bg-white"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }}
+                            className="absolute top-1 right-1 bg-destructive text-white rounded-full p-0.5 hover:bg-destructive/80"
+                            title="Remover foto"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="border-2 border-dashed border-border rounded p-4 text-center">
+                          <p className="text-xs text-muted-foreground mb-2">Nenhuma foto cadastrada</p>
+                        </div>
+                      )}
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="hidden"
+                          disabled={editSpecialPhotoUploading}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            if (file.size > 5 * 1024 * 1024) { toast.error('Foto muito grande. Máximo 5MB.'); return; }
+                            setEditSpecialPhotoUploading(true);
+                            try {
+                              const reader = new FileReader();
+                              reader.onload = async (ev) => {
+                                const dataUrl = ev.target?.result as string;
+                                const base64 = dataUrl.split(',')[1];
+                                const mimeType = file.type as 'image/jpeg' | 'image/png' | 'image/webp';
+                                const result = await uploadSpecialPhotoMutationCart.mutateAsync({ base64, mimeType, fileName: file.name });
+                                setEditSpecialPhotoUrl(result.url);
+                                setEditSpecialPhotoPreview(result.url);
+                                setEditSpecialPhotoUploading(false);
+                              };
+                              reader.readAsDataURL(file);
+                            } catch {
+                              toast.error('Erro ao fazer upload da foto.');
+                              setEditSpecialPhotoUploading(false);
+                            }
+                          }}
+                        />
+                        <Button type="button" variant="outline" size="sm" className="gap-2 pointer-events-none" disabled={editSpecialPhotoUploading}>
+                          <Upload className="w-4 h-4" />
+                          {editSpecialPhotoUploading ? 'Enviando...' : editSpecialPhotoPreview ? 'Trocar foto' : 'Adicionar foto'}
+                        </Button>
+                      </label>
+                    </div>
+                  )}
                 </>
               );
             })()}
@@ -1985,6 +2059,11 @@ export default function Cart() {
               // floorId / floorName
               patch.floorId = editFields.floorId.trim() || undefined;
               patch.floorName = editFields.floorName.trim() || undefined;
+              // Foto do Item Especial
+              if (item?.data.isSpecialItem) {
+                patch.specialPhotoUrl = editSpecialPhotoUrl ?? undefined;
+                patch.photoUrl = editSpecialPhotoUrl ?? undefined;
+              }
               const totalForUpdate = isRevenda
                 ? (parseInt(editFields.qty) || 1) * (parseFloat(editFields.unitPrice.replace(',', '.')) || 0)
                 : (canEditPriceSave && editFields.unitPrice.trim() ? (item?.data.qty || 1) * (parseFloat(editFields.unitPrice.replace(',', '.')) || 0) : 0);

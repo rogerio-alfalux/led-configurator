@@ -5,6 +5,7 @@ import {
   FileSpreadsheet, History, Package, Edit, AlertTriangle,
   ChevronDown, ChevronUp, Factory, Trash2, PenLine,
   Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle, GripVertical, Wrench, Copy, Eye,
+  Upload, X as XIcon,
 } from "lucide-react";
 import {
   DndContext,
@@ -60,9 +61,11 @@ interface SortableEditItemProps {
   resolvePhoto: (sku: string | undefined, savedUrl: string | null) => string | null;
   onUpdate: (id: number, fields: Partial<CartItemData>) => void;
   onDelete: (id: number) => void;
+  onUploadSpecialPhoto: (itemId: number, base64: string, mimeType: 'image/jpeg' | 'image/png' | 'image/webp', fileName: string) => Promise<void>;
 }
 
-function SortableEditItem({ item, idx, resolvePhoto, onUpdate, onDelete }: SortableEditItemProps) {
+function SortableEditItem({ item, idx, resolvePhoto, onUpdate, onDelete, onUploadSpecialPhoto }: SortableEditItemProps) {
+  const [specialUploading, setSpecialUploading] = useState(false);
   const d = item.parsed;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style = {
@@ -219,6 +222,66 @@ function SortableEditItem({ item, idx, resolvePhoto, onUpdate, onDelete }: Sorta
           </p>
         </div>
       </div>
+
+      {/* Campo de foto para Item Especial */}
+      {d.isSpecialItem && (
+        <div className="space-y-2 pt-1 border-t">
+          <Label className="text-xs">Foto do Item Especial</Label>
+          {(d.specialPhotoUrl || d.photoUrl) ? (
+            <div className="relative w-full">
+              <img
+                src={d.specialPhotoUrl ?? d.photoUrl ?? ''}
+                alt="Foto do item"
+                className="w-full max-h-40 object-contain rounded border bg-white"
+              />
+              <button
+                type="button"
+                onClick={() => onUpdate(item.id, { specialPhotoUrl: undefined, photoUrl: undefined })}
+                className="absolute top-1 right-1 bg-destructive text-white rounded-full p-0.5 hover:bg-destructive/80"
+                title="Remover foto"
+              >
+                <XIcon className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <div className="border-2 border-dashed border-border rounded p-3 text-center">
+              <p className="text-xs text-muted-foreground">Nenhuma foto cadastrada</p>
+            </div>
+          )}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              disabled={specialUploading}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (file.size > 5 * 1024 * 1024) { toast.error('Foto muito grande. Máximo 5MB.'); return; }
+                setSpecialUploading(true);
+                try {
+                  const reader = new FileReader();
+                  reader.onload = async (ev) => {
+                    const dataUrl = ev.target?.result as string;
+                    const base64 = dataUrl.split(',')[1];
+                    const mimeType = file.type as 'image/jpeg' | 'image/png' | 'image/webp';
+                    await onUploadSpecialPhoto(item.id, base64, mimeType, file.name);
+                    setSpecialUploading(false);
+                  };
+                  reader.readAsDataURL(file);
+                } catch {
+                  toast.error('Erro ao fazer upload da foto.');
+                  setSpecialUploading(false);
+                }
+              }}
+            />
+            <Button type="button" variant="outline" size="sm" className="gap-2 pointer-events-none" disabled={specialUploading}>
+              <Upload className="w-4 h-4" />
+              {specialUploading ? 'Enviando...' : (d.specialPhotoUrl || d.photoUrl) ? 'Trocar foto' : 'Adicionar foto'}
+            </Button>
+          </label>
+        </div>
+      )}
     </div>
   );
 }
@@ -372,6 +435,7 @@ export default function QuoteDetail() {
   // Duplicar orçamento
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [duplicateClientName, setDuplicateClientName] = useState("");
+  const uploadSpecialPhotoMutationQD = trpc.upload.specialItemPhoto.useMutation();
   const duplicateMutation = trpc.quotes.duplicate.useMutation({
     onSuccess: (result) => {
       utils.quotes.list.invalidate();
@@ -811,6 +875,14 @@ export default function QuoteDetail() {
                                 const up = fields.unitPrice ?? newParsed.unitPrice;
                                 newParsed.totalPrice = up != null ? up * qty : null;
                               }
+                              return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) };
+                            }));
+                          }}
+                          onUploadSpecialPhoto={async (id, base64, mimeType, fileName) => {
+                            const result = await uploadSpecialPhotoMutationQD.mutateAsync({ base64, mimeType, fileName });
+                            setEditableItems(prev => prev.map(it => {
+                              if (it.id !== id) return it;
+                              const newParsed = { ...it.parsed, specialPhotoUrl: result.url, photoUrl: result.url };
                               return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) };
                             }));
                           }}
