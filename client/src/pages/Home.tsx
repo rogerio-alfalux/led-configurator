@@ -1695,6 +1695,7 @@ export default function Home() {
   const [bgCCT, setBgCCT] = useState<string>("3000K");
   const [bgResult, setBgResult] = useState<BageoResult | null>(null);
   // ── Estados de GLOW (perfis fixos) ─────────────────────────────────────────
+  const [glowMode, setGlowMode] = useState<boolean>(false);
   const [glowProductKey, setGlowProductKey] = useState<string | null>(null);
   const [glowVoltage, setGlowVoltage] = useState<"220V" | "Bivolt" | null>(null);
   const [glowCCT, setGlowCCT] = useState<string>("3000K");
@@ -2724,7 +2725,7 @@ export default function Home() {
                           setResult(null);
                           setError(null);
                           // Reset GLOW
-                          setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
+                          setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                           // Reset Decorativas
                           setDecFamilia(null); setDecProductKey(null); setDecCCT("3000K");
                         }}
@@ -2784,22 +2785,24 @@ export default function Home() {
                 <div>
                   <FieldLabel>Perfil</FieldLabel>
                   <Select
-                    value={bgMode === "sinuosa" ? "__BAGEO_SINUOSA__" : bgMode === "fixo" ? "__BAGEO_FIXO__" : glowProductKey ? "__GLOW__" : lbFamilia ? `__LEDBAR__${lbFamilia}` : profileName}
+                    value={bgMode === "sinuosa" ? "__BAGEO_SINUOSA__" : bgMode === "fixo" ? "__BAGEO_FIXO__" : glowMode ? "__GLOW__" : lbFamilia ? `__LEDBAR__${lbFamilia}` : profileName}
                     onValueChange={(v) => {
                       if (v === "__BAGEO_SINUOSA__") {
                         setBgMode("sinuosa");
                         setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                         setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
                         setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
+                        setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                         setProfileName(""); setInstallType(""); setResult(null); setError(null);
                       } else if (v === "__BAGEO_FIXO__") {
                         setBgMode("fixo");
                         setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                         setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
                         setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
-                        setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
+                        setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                         setProfileName(""); setInstallType(""); setResult(null); setError(null);
                       } else if (v === "__GLOW__") {
+                        setGlowMode(true);
                         setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                         setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                         setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
@@ -2813,7 +2816,7 @@ export default function Home() {
                         setLbResult(null);
                         setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                         setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
-                        setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
+                        setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                         setProfileName("");
                         setInstallType("");
                         setResult(null);
@@ -2824,7 +2827,7 @@ export default function Home() {
                         setLbResult(null);
                         setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                         setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
-                        setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
+                        setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                       }
                     }}
                   >
