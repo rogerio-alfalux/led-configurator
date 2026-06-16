@@ -5586,7 +5586,7 @@ export default function Home() {
               </div>
             </div>
 
-            {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && profileShape === "STRAIGHT" && (!result ? (
+            {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && !glowMode && profileShape === "STRAIGHT" && (!result ? (
               <Card className="shadow-sm">
                 <CardContent className="flex flex-col items-center justify-center py-20 text-center">
                   <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
@@ -5604,7 +5604,7 @@ export default function Home() {
               <ResultBlock result={result} profilePriceMap={profilePriceMap} onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined} />
             ))}
             {/* Resultado EM L */}
-            {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && profileShape !== "STRAIGHT" && (
+            {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && !glowMode && profileShape !== "STRAIGHT" && (
               !shapeResult ? (
                 <Card className="shadow-sm">
                   <CardContent className="flex flex-col items-center justify-center py-20 text-center">
@@ -6261,7 +6261,7 @@ export default function Home() {
                       return (
                         <div className={gPhoto ? "flex gap-3 items-stretch" : "grid grid-cols-2 gap-2"}>
                           {gPhoto && (
-                            <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-36 flex items-center justify-center">
+                            <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-36 h-36 flex items-center justify-center">
                               <img src={gPhoto} alt={glowResult.product.name} className="w-full h-full object-contain p-2" loading="lazy" />
                             </div>
                           )}
@@ -6286,7 +6286,12 @@ export default function Home() {
                             </div>
                             <div className="p-3 rounded-lg bg-muted/50 col-span-2">
                               <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
-                              <p className="text-sm font-semibold">{glowResult.driver.model} <span className="font-mono text-primary">({glowResult.driver.code})</span></p>
+                              <p className="text-sm font-semibold">
+                                {glowResult.driver.model}
+                                {glowResult.driver.code && (
+                                  <> <a href={`https://alfaluxprod-c8zmg2fn.manus.space/products/${glowResult.driver.code}`} target="_blank" rel="noopener noreferrer" className="font-mono text-primary hover:underline">({glowResult.driver.code})</a></>
+                                )}
+                              </p>
                             </div>
                             {glowResult.ledModuleWithCCT && (
                               <div className="p-3 rounded-lg bg-muted/50 col-span-2">
