@@ -214,6 +214,10 @@ export interface AcessorioProduct {
   dimensao: string | null;
   precoVenda: number | null;
   fotoUrl: string | null;
+  /** 'driver' = drivers/fontes; 'accessories' = acessórios físicos */
+  source: 'driver' | 'accessories' | null;
+  /** Referência do fabricante (ex: '929001402380/929001007211 - PHILIPS') */
+  observacoes: string | null;
 }
 
 interface AcessoriosCacheEntry {

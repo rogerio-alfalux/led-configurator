@@ -1830,6 +1830,8 @@ export default function Home() {
   const [acSelectedId, setAcSelectedId] = useState<number | null>(null);
   const [acFamilia, setAcFamilia] = useState<string>("");
   const [acSearch, setAcSearch] = useState<string>("");
+  // Subcategoria: 'driver' = Drivers & Fontes, 'accessories' = Acessórios Físicos, '' = todos
+  const [acSubcat, setAcSubcat] = useState<'driver' | 'accessories' | ''>('');
   // Modal de inclusão de acessório a partir do painel de resultados
   const [addAcModalOpen, setAddAcModalOpen] = useState(false);
   const [addAcModalFamilia, setAddAcModalFamilia] = useState<string>("");
@@ -1840,27 +1842,32 @@ export default function Home() {
   const acessoriosQuery = trpc.alfalux.acessoriosProducts.useQuery();
   const acessoriosProducts = acessoriosQuery.data ?? [];
 
-  // Famílias únicas para os chips de filtro
+  // Famílias únicas para os chips de filtro (filtradas pela subcategoria ativa)
   const acessoriosFamilias = useMemo(() => {
     const set = new Set<string>();
-    acessoriosProducts.forEach(p => { if (p.familia) set.add(p.familia); });
+    let base = acessoriosProducts;
+    if (acSubcat) base = base.filter(p => (p.source ?? 'accessories') === acSubcat);
+    base.forEach(p => { if (p.familia) set.add(p.familia); });
     return Array.from(set).sort();
-  }, [acessoriosProducts]);
+  }, [acessoriosProducts, acSubcat]);
 
-  // Produtos filtrados por família + busca textual
+  // Produtos filtrados por subcategoria + família + busca textual
   const filteredAcessorios = useMemo(() => {
     let list = acessoriosProducts;
+    if (acSubcat) list = list.filter(p => (p.source ?? 'accessories') === acSubcat);
     if (acFamilia) list = list.filter(p => p.familia === acFamilia);
     if (acSearch.trim()) {
       const q = acSearch.toLowerCase();
       list = list.filter(p =>
         (p.produto ?? "").toLowerCase().includes(q) ||
         (p.codigo ?? "").toLowerCase().includes(q) ||
-        (p.dimensao ?? "").toLowerCase().includes(q)
+        (p.sku ?? "").toLowerCase().includes(q) ||
+        (p.dimensao ?? "").toLowerCase().includes(q) ||
+        (p.observacoes ?? "").toLowerCase().includes(q)
       );
     }
     return list;
-  }, [acessoriosProducts, acFamilia, acSearch]);
+  }, [acessoriosProducts, acSubcat, acFamilia, acSearch]);
 
   // Filtro para o modal de inclusão de acessório no painel de resultados
   const filteredAcessoriosModal = useMemo(() => {
@@ -2728,6 +2735,8 @@ export default function Home() {
                           setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                           // Reset Decorativas
                           setDecFamilia(null); setDecProductKey(null); setDecCCT("3000K");
+                          // Reset Acessórios
+                          setAcSubcat(''); setAcFamilia(''); setAcSearch(''); setAcSelectedId(null);
                         }}
                         className={`relative flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-lg border text-xs font-medium transition-all ${
                           productCategory === value
@@ -5399,6 +5408,29 @@ export default function Home() {
                   </div>
                 ) : (
                   <>
+                    {/* Seletor de subcategoria */}
+                    <div className="flex gap-2">
+                      {([
+                        { value: '' as const, label: 'Todos', count: acessoriosProducts.length },
+                        { value: 'driver' as const, label: '⚡ Drivers & Fontes', count: acessoriosProducts.filter(p => (p.source ?? 'accessories') === 'driver').length },
+                        { value: 'accessories' as const, label: '🔧 Acessórios Físicos', count: acessoriosProducts.filter(p => (p.source ?? 'accessories') === 'accessories').length },
+                      ] as const).map(opt => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => { setAcSubcat(opt.value); setAcFamilia(''); setAcSelectedId(null); setAcSearch(''); }}
+                          className={`flex-1 px-2 py-2 rounded-lg text-xs font-medium border transition-all text-center ${
+                            acSubcat === opt.value
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-background border-border hover:border-primary/50 text-foreground'
+                          }`}
+                        >
+                          {opt.label}
+                          <span className="ml-1 opacity-60">({opt.count})</span>
+                        </button>
+                      ))}
+                    </div>
+
                     {/* Filtro por família */}
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Família</label>
@@ -5476,13 +5508,17 @@ export default function Home() {
                             <div className="flex-1 min-w-0">
                               <div className="text-sm font-medium truncate">{p.produto ?? p.codigo}</div>
                               <div className="text-xs text-muted-foreground">
-                                {p.codigo}{p.dimensao ? ` · ${p.dimensao}` : ""}
+                                <span className="font-mono">{p.sku ?? p.codigo}</span>
+                                {p.dimensao ? ` · ${p.dimensao}` : ""}
                                 {p.precoVenda != null && p.precoVenda > 0 && (
                                   <span className="ml-2 text-emerald-700 dark:text-emerald-400 font-medium">
                                     R$ {p.precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                                   </span>
                                 )}
                               </div>
+                              {p.observacoes && p.observacoes.trim() && p.observacoes.trim() !== '-' && (
+                                <div className="text-xs text-muted-foreground/70 truncate mt-0.5">{p.observacoes}</div>
+                              )}
                             </div>
                           </div>
                         ))}

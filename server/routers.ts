@@ -145,6 +145,8 @@ export const appRouter = router({
         dimensao: p.dimensao,
         precoVenda: p.precoVenda,
         fotoUrl: p.fotoUrl,
+        source: p.source ?? null,
+        observacoes: p.observacoes ?? null,
       }));
     }),
   }),

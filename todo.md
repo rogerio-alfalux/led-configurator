@@ -1254,3 +1254,9 @@
 - [x] Estado vazio Decorativas exibido quando nenhum produto está selecionado
 - [x] Reset de estados GLOW e Decorativas ao trocar de categoria
 - [x] 523/523 testes passando
+
+## v32.44 — Acessórios: Fontes e Drivers da API
+- [x] Atualizar interface AcessorioProduct para incluir campos source e observacoes
+- [x] Exibir acessórios na categoria Acessórios separados por subcategoria (Drivers/Fontes vs. Físicos)
+- [x] Filtros por família dentro da categoria Acessórios
+- [x] Botão "Enviar ao Carrinho" para acessórios individuais (já existia)
