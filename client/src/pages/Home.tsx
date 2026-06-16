@@ -785,7 +785,7 @@ type ProfilePriceMap = Record<string, {
   dimDaliD1D2: number | null;
 }>;
 
-function ResultBlock({ result, profilePriceMap, onAddToQuote }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; onAddToQuote?: (item: CartItemData) => void }) {
+function ResultBlock({ result, profilePriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void }) {
   const efficiency = result.requestedLength > 0
     ? Math.round((result.realizedLength / result.requestedLength) * 100)
     : 0;
@@ -956,7 +956,7 @@ function ResultBlock({ result, profilePriceMap, onAddToQuote }: { result: Compos
       </Card>
 
       {/* Resumo Para Orçamento — Resumo para o cliente */}
-      <QuoteSummaryCard result={result} profilePriceMap={profilePriceMap} onAddToQuote={onAddToQuote} />
+      <QuoteSummaryCard result={result} profilePriceMap={profilePriceMap} onAddToQuote={onAddToQuote} itemEmPlanta={itemEmPlanta} setItemEmPlanta={setItemEmPlanta} />
       {/* Resumo para Pedido — Ficha Comercial */}
       <OrderSummaryCard result={result} />
       {/* Composição de Módulos — bloco unificado */}
@@ -1150,7 +1150,7 @@ function ResultBlock({ result, profilePriceMap, onAddToQuote }: { result: Compos
 }
 
 //// ─── Resumo Para Orçamento (Resumo para o cliente) ──────────────────────────
-function QuoteSummaryCard({ result, profilePriceMap, onAddToQuote }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; onAddToQuote?: (item: CartItemData) => void }) {
+function QuoteSummaryCard({ result, profilePriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void }) {
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { addItem, isAdding: isAddingToCart } = useCart();
@@ -1197,7 +1197,18 @@ function QuoteSummaryCard({ result, profilePriceMap, onAddToQuote }: { result: C
             <ClipboardCheck className="w-4 h-4 text-blue-500" />
             Resumo Para Orçamento
           </CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {setItemEmPlanta && (
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                <Input
+                  className="h-7 text-xs w-28"
+                  placeholder="ex: L1, P2..."
+                  value={itemEmPlanta ?? ""}
+                  onChange={(e) => setItemEmPlanta(e.target.value)}
+                />
+              </div>
+            )}
             <Button
               size="sm"
               variant={copied ? "default" : "outline"}
@@ -1293,6 +1304,7 @@ function QuoteSummaryCard({ result, profilePriceMap, onAddToQuote }: { result: C
                   profileSegments,
                   stripMethod: result.stripMethod,
                   availableCCTs: ["2700K", "3000K", "4000K", "5000K", "A definir"],
+                  itemEmPlanta: itemEmPlanta || "",
                 };
                 if (onAddToQuote) {
                   onAddToQuote(item);
@@ -1483,10 +1495,12 @@ export default function Home() {
   const [pendingQuoteItems, setPendingQuoteItems] = useState<CartItemData[]>([]);
   // Acessórios pendentes a serem vinculados ao próximo item enviado ao carrinho
   const [pendingAccessories, setPendingAccessories] = useState<LinkedAccessory[]>([]);
+  // Campo "item em planta" global — sincronizado com o carrinho
+  const [globalItemEmPlanta, setGlobalItemEmPlanta] = useState("");
   const appendItemsMutation = trpc.quotes.appendItems.useMutation({
     onSuccess: (data) => {
-      toast.success(`${pendingQuoteItems.length} item(s) adicionado(s) ao orçamento ${data.quoteNumber}!`);
-      navigate(`/orcamentos/${appendToQuoteId}`);
+      toast.success(`Item adicionado ao orçamento ${data.quoteNumber}!`);
+      setGlobalItemEmPlanta(""); // limpa após envio
     },
     onError: (err) => {
       toast.error(`Erro ao adicionar itens: ${err.message}`);
@@ -1495,20 +1509,26 @@ export default function Home() {
 
   // Função central: adiciona ao orçamento ou ao carrinho dependendo do modo
   const handleAddItemOrToQuote = useCallback((item: CartItemData) => {
-    // Injeta acessórios pendentes no item antes de enviá-lo
-    const itemWithAcc: CartItemData = pendingAccessories.length > 0
-      ? { ...item, accessories: [...pendingAccessories] }
-      : item;
+    // Injeta acessórios pendentes e itemEmPlanta no item antes de enviá-lo
+    const itemWithAcc: CartItemData = {
+      ...(pendingAccessories.length > 0 ? { ...item, accessories: [...pendingAccessories] } : item),
+      itemEmPlanta: globalItemEmPlanta || item.itemEmPlanta || "",
+    };
     if (pendingAccessories.length > 0) {
       setPendingAccessories([]);
     }
     if (appendToQuoteId) {
-      setPendingQuoteItems(prev => [...prev, itemWithAcc]);
-      toast.success(`"${itemWithAcc.description || itemWithAcc.sku}" adicionado à lista (${pendingQuoteItems.length + 1} item(s) pendente(s)).`);
+      // Salva imediatamente ao orçamento sem confirmação
+      appendItemsMutation.mutate({
+        quoteId: appendToQuoteId,
+        newItems: [{ itemNumber: 1, itemData: JSON.stringify(itemWithAcc) }],
+        versionNotes: `+1 item adicionado via configurador`,
+      });
     } else {
       addItem(itemWithAcc);
+      setGlobalItemEmPlanta(""); // limpa após envio ao carrinho
     }
-  }, [appendToQuoteId, pendingQuoteItems.length, addItem, pendingAccessories]);
+  }, [appendToQuoteId, addItem, pendingAccessories, appendItemsMutation, globalItemEmPlanta]);
 
   const handleConfirmAddToQuote = useCallback(() => {
     if (!appendToQuoteId || pendingQuoteItems.length === 0) return;
@@ -1808,6 +1828,7 @@ export default function Home() {
       specialInternalNotes: undefined,
       corPeca: "",
       itemNote: autoNote || undefined,
+      itemEmPlanta: globalItemEmPlanta,
     };
     if (appendToQuoteId) {
       handleAddItemOrToQuote(item);
@@ -1974,6 +1995,7 @@ export default function Home() {
       quoteSummary: `${descricao}${product.dimensao ? ` (${product.dimensao})` : ""}`,
       corPeca: "",
       itemNote: product.familia ?? undefined,
+      itemEmPlanta: globalItemEmPlanta,
     };
     if (appendToQuoteId) {
       handleAddItemOrToQuote(item);
@@ -1986,7 +2008,7 @@ export default function Home() {
       }
     }
     setAcSelectedId(null);
-  }, [acSelectedId, acessoriosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, dlResult, spotResult, arandelaResult, panelResult, lbResult, bgResult, rvSelectedSku, productCategory, setPendingAccessories]);
+  }, [acSelectedId, acessoriosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, dlResult, spotResult, arandelaResult, panelResult, lbResult, bgResult, rvSelectedSku, productCategory, setPendingAccessories, globalItemEmPlanta]);
 
   const uploadSpecialPhotoMutation = trpc.upload.specialItemPhoto.useMutation({
     onSuccess: (data) => {
@@ -2051,6 +2073,7 @@ export default function Home() {
       specialUnitPrice: unitPrice || undefined,
       specialPhotoUrl: spPhotoUrl || undefined,
       specialInternalNotes: spInternalNotes.trim() || undefined,
+      itemEmPlanta: globalItemEmPlanta,
     };
     if (appendToQuoteId) {
       handleAddItemOrToQuote(item);
@@ -2058,7 +2081,7 @@ export default function Home() {
       setPendingCartItem(item);
       setColorModalOpen(true);
     }
-  }, [spDescription, spDimensions, spPower, spDim, spVoltage, spColor, spColorTemp, spUnitPrice, spPhotoUrl, spInternalNotes, appendToQuoteId, handleAddItemOrToQuote]);
+  }, [spDescription, spDimensions, spPower, spDim, spVoltage, spColor, spColorTemp, spUnitPrice, spPhotoUrl, spInternalNotes, appendToQuoteId, handleAddItemOrToQuote, globalItemEmPlanta]);
 
   const handleAddService = useCallback(() => {
     if (!svDescription.trim()) {
@@ -2660,26 +2683,15 @@ export default function Home() {
                 Modo: Adicionar Itens ao Orçamento #{appendToQuoteId}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Configure os produtos e clique em <strong>"Enviar ao Orçamento"</strong>. Ao confirmar, uma nova revisão será criada com os itens adicionados.
-                {pendingQuoteItems.length > 0 && (
+                Configure o produto e clique em <strong>"Enviar ao Orçamento"</strong>. O item será salvo imediatamente ao orçamento.
+                {appendItemsMutation.isPending && (
                   <span className="ml-2 inline-flex items-center gap-1 text-blue-400 font-semibold">
-                    · {pendingQuoteItems.length} item(s) na lista
+                    · Salvando...
                   </span>
                 )}
               </p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              {pendingQuoteItems.length > 0 && (
-                <Button
-                  size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5"
-                  onClick={handleConfirmAddToQuote}
-                  disabled={appendItemsMutation.isPending}
-                >
-                  <FileCheck className="w-3.5 h-3.5" />
-                  {appendItemsMutation.isPending ? "Salvando..." : `Confirmar (${pendingQuoteItems.length})`}
-                </Button>
-              )}
               <Button
                 size="sm"
                 variant="outline"
@@ -2687,7 +2699,7 @@ export default function Home() {
                 onClick={() => navigate(`/orcamentos/${appendToQuoteId}`)}
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                Cancelar
+                Voltar ao Orçamento
               </Button>
             </div>
           </div>
@@ -5213,6 +5225,16 @@ export default function Home() {
                     className="min-h-[72px] text-sm"
                   />
                 </div>
+                {/* Item em planta */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Item em Planta</Label>
+                  <Input
+                    value={globalItemEmPlanta}
+                    onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                    placeholder="ex: L1, P2..."
+                    className="h-9"
+                  />
+                </div>
                 {/* Botão adicionar */}
                 <Button
                   onClick={handleAddSpecialItem}
@@ -5637,7 +5659,7 @@ export default function Home() {
                 </CardContent>
               </Card>
             ) : (
-              <ResultBlock result={result} profilePriceMap={profilePriceMap} onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined} />
+              <ResultBlock result={result} profilePriceMap={profilePriceMap} onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} />
             ))}
             {/* Resultado EM L */}
             {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && !glowMode && profileShape !== "STRAIGHT" && (
@@ -5816,7 +5838,16 @@ export default function Home() {
                               {orcamento}
                             </div>
                             <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
-                            <div className="flex gap-2 mt-2">
+                            <div className="flex flex-wrap items-center gap-2 mt-2">
+                              <div className="flex items-center gap-1.5">
+                                <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                                <Input
+                                  className="h-7 text-xs w-28"
+                                  placeholder="ex: L1, P2..."
+                                  value={globalItemEmPlanta}
+                                  onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                                />
+                              </div>
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -5852,6 +5883,7 @@ export default function Home() {
                                     ledBarDriverModel: lbDriverModel,
                                     ledBarDriverCode: lbDriverCode,
                                     availableCCTs: r.product.ccts,
+                                    itemEmPlanta: globalItemEmPlanta,
                                   };
                                   if (appendToQuoteId) {
                                     handleAddItemOrToQuote(item);
@@ -6059,7 +6091,16 @@ export default function Home() {
                             </div>
                           )}
                           <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
-                          <div className="flex gap-2 mt-2">
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
+                            <div className="flex items-center gap-1.5">
+                              <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                              <Input
+                                className="h-7 text-xs w-28"
+                                placeholder="ex: L1, P2..."
+                                value={globalItemEmPlanta}
+                                onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                              />
+                            </div>
                             <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(orcamento); toast.success("Resumo copiado!"); }}>
                               <Copy className="w-3 h-3 mr-1" /> Copiar Resumo
                             </Button>
@@ -6084,6 +6125,7 @@ export default function Home() {
                                   moduloLed: r.product.ledModule ?? "",
                                   drivers: r.product.driver220?.model ?? r.product.driverBivolt?.model ?? "",
                                   availableCCTs: r.product.ccts,
+                                  itemEmPlanta: globalItemEmPlanta,
                                 };
                                   if (appendToQuoteId) {
                                     handleAddItemOrToQuote(item);
@@ -6202,7 +6244,16 @@ export default function Home() {
                       <CheckCircle2 className="w-4 h-4 text-blue-500" />
                       Resumo Para Orçamento
                     </CardTitle>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                        <Input
+                          className="h-7 text-xs w-28"
+                          placeholder="ex: L1, P2..."
+                          value={globalItemEmPlanta}
+                          onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                        />
+                      </div>
                       <Button
                         variant="outline"
                         size="sm"
@@ -6239,6 +6290,7 @@ export default function Home() {
                             moduloLed: bfResult.ledModuleWithCCT ?? "",
                             drivers: `DRIVER ${bfResult.driver.model.toUpperCase()} (${bfResult.driver.code})`,
                             availableCCTs: bfResult.product.ccts,
+                            itemEmPlanta: globalItemEmPlanta,
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -6348,7 +6400,16 @@ export default function Home() {
                       <CheckCircle2 className="w-4 h-4 text-blue-500" />
                       Resumo Para Orçamento
                     </CardTitle>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                        <Input
+                          className="h-7 text-xs w-28"
+                          placeholder="ex: L1, P2..."
+                          value={globalItemEmPlanta}
+                          onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                        />
+                      </div>
                       <Button
                         variant="outline"
                         size="sm"
@@ -6385,6 +6446,7 @@ export default function Home() {
                             moduloLed: glowResult.ledModuleWithCCT ?? "",
                             drivers: `DRIVER ${glowResult.driver.model.toUpperCase()} (${glowResult.driver.code})`,
                             availableCCTs: glowResult.product.ccts,
+                            itemEmPlanta: globalItemEmPlanta,
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -6482,7 +6544,16 @@ export default function Home() {
                         <CheckCircle2 className="w-4 h-4 text-blue-500" />
                         Resumo Para Orçamento
                       </CardTitle>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                          <Input
+                            className="h-7 text-xs w-28"
+                            placeholder="ex: L1, P2..."
+                            value={globalItemEmPlanta}
+                            onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                          />
+                        </div>
                         <Button
                           variant="outline"
                           size="sm"
@@ -6517,6 +6588,7 @@ export default function Home() {
                               moduloLed: "",
                               drivers: "",
                               availableCCTs: dProd.ccts,
+                              itemEmPlanta: globalItemEmPlanta,
                             };
                             if (appendToQuoteId) {
                               handleAddItemOrToQuote(item);
@@ -6674,7 +6746,16 @@ export default function Home() {
                       <CheckCircle2 className="w-4 h-4 text-blue-500" />
                       Resumo Para Orçamento
                     </CardTitle>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                        <Input
+                          className="h-7 text-xs w-28"
+                          placeholder="ex: L1, P2..."
+                          value={globalItemEmPlanta}
+                          onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                        />
+                      </div>
                       <Button
                         variant="outline"
                         size="sm"
@@ -6713,6 +6794,7 @@ export default function Home() {
                             moduloLed: dlResult.ledModuleWithCCT ?? "",
                             drivers: (() => { const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); return `${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: dlResult.product.ccts,
+                            itemEmPlanta: globalItemEmPlanta,
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -6914,7 +6996,16 @@ export default function Home() {
                       <CheckCircle2 className="w-4 h-4 text-blue-500" />
                       Resumo Para Orçamento
                     </CardTitle>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                        <Input
+                          className="h-7 text-xs w-28"
+                          placeholder="ex: L1, P2..."
+                          value={globalItemEmPlanta}
+                          onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                        />
+                      </div>
                       <Button
                         variant="outline" size="sm" className="h-7 text-xs gap-1.5"
                         onClick={() => {
@@ -6951,6 +7042,7 @@ export default function Home() {
                             moduloLed: panelResult.ledModuleWithCCT ?? "",
                             drivers: (() => { const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; const drvQty = driverQtyFor(panelResult.product, panelResult.controle, panelResult.tensao); return `${drvQty}x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: panelResult.product.ccts,
+                            itemEmPlanta: globalItemEmPlanta,
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -7104,7 +7196,16 @@ export default function Home() {
                       <CheckCircle2 className="w-4 h-4 text-blue-500" />
                       Resumo Para Orçamento
                     </CardTitle>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                        <Input
+                          className="h-7 text-xs w-28"
+                          placeholder="ex: L1, P2..."
+                          value={globalItemEmPlanta}
+                          onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                        />
+                      </div>
                       <Button
                         variant="outline" size="sm" className="h-7 text-xs gap-1.5"
                         onClick={() => {
@@ -7140,6 +7241,7 @@ export default function Home() {
                             moduloLed: arandelaResult.ledModuleWithCCT ?? "",
                             drivers: (() => { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); return `${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: arandelaResult.product.ccts,
+                            itemEmPlanta: globalItemEmPlanta,
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -7324,7 +7426,16 @@ export default function Home() {
                       <CheckCircle2 className="w-4 h-4 text-blue-500" />
                       Resumo Para Orçamento
                     </CardTitle>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                        <Input
+                          className="h-7 text-xs w-28"
+                          placeholder="ex: L1, P2..."
+                          value={globalItemEmPlanta}
+                          onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                        />
+                      </div>
                       <Button
                         variant="outline" size="sm" className="h-7 text-xs gap-1.5"
                         onClick={() => {
@@ -7360,6 +7471,7 @@ export default function Home() {
                             moduloLed: spotResult.ledModuleWithCCT ?? "",
                             drivers: (() => { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; const drvQty = driverQtyFor(spotResult.product, spotResult.controle, spotResult.tensao); return `${drvQty}x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: spotResult.product.ccts,
+                            itemEmPlanta: globalItemEmPlanta,
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -7534,6 +7646,17 @@ export default function Home() {
                         )}
 
                         {/* Botão adicionar */}
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-1.5 flex-1">
+                            <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                            <Input
+                              className="h-7 text-xs flex-1"
+                              placeholder="ex: L1, P2..."
+                              value={globalItemEmPlanta}
+                              onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                            />
+                          </div>
+                        </div>
                         <Button
                           className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                           onClick={() => handleAddRevendaItem(rvProduct.sku)}
