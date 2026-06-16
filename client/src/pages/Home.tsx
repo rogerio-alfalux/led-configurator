@@ -1699,6 +1699,7 @@ export default function Home() {
   const [spDim, setSpDim] = useState<string>("");
   const [spVoltage, setSpVoltage] = useState<string>("");
   const [spColor, setSpColor] = useState<string>("");
+  const [spColorTemp, setSpColorTemp] = useState<string>("");
   const [spUnitPrice, setSpUnitPrice] = useState<string>("");
   const [spInternalNotes, setSpInternalNotes] = useState<string>("");
   const [spPhotoUrl, setSpPhotoUrl] = useState<string>("");
@@ -2027,6 +2028,7 @@ export default function Home() {
       specialDim: spDim.trim() || undefined,
       specialVoltage: spVoltage.trim() || undefined,
       specialColor: spColor.trim() || undefined,
+      specialColorTemp: spColorTemp.trim() || undefined,
       specialUnitPrice: unitPrice || undefined,
       specialPhotoUrl: spPhotoUrl || undefined,
       specialInternalNotes: spInternalNotes.trim() || undefined,
@@ -2037,7 +2039,7 @@ export default function Home() {
       setPendingCartItem(item);
       setColorModalOpen(true);
     }
-  }, [spDescription, spDimensions, spPower, spDim, spVoltage, spColor, spUnitPrice, spPhotoUrl, spInternalNotes, appendToQuoteId, handleAddItemOrToQuote]);
+  }, [spDescription, spDimensions, spPower, spDim, spVoltage, spColor, spColorTemp, spUnitPrice, spPhotoUrl, spInternalNotes, appendToQuoteId, handleAddItemOrToQuote]);
 
   const handleAddService = useCallback(() => {
     if (!svDescription.trim()) {
@@ -4887,6 +4889,27 @@ export default function Home() {
                     placeholder="Ex: Branco Fosco, Preto Texturizado..."
                     className="h-10"
                   />
+                </div>
+                {/* Temperatura de Cor */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Temperatura de Cor</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {["", "2700K", "3000K", "3500K", "4000K", "5000K", "6500K"].map((ct) => (
+                      <button
+                        key={ct || "none"}
+                        type="button"
+                        onClick={() => setSpColorTemp(ct)}
+                        className={[
+                          "px-3 py-1.5 rounded-md text-xs font-medium border transition-colors",
+                          spColorTemp === ct
+                            ? "bg-amber-600 border-amber-600 text-white"
+                            : "border-border bg-muted/20 text-muted-foreground hover:border-amber-500/50 hover:bg-amber-50/10",
+                        ].join(" ")}
+                      >
+                        {ct || "N/A"}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 {/* Valor unitário */}
                 <div className="space-y-1.5">

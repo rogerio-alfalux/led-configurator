@@ -1225,3 +1225,12 @@
 - [x] Imagens de Painel (RV*): getFreshPhotoUrl agora busca em revendaProducts além de alfalux.products
 - [x] Imagens de Bageo: getFreshPhotoUrl usa fallbackUrl quando SKU não encontrado na API principal
 - [x] Configurações de impressão: printArea via wb.definedNames, sheetPr/pageSetup/pageMargins idênticos ao template
+
+## Correções v32.39 — Temperatura de cor, scroll, busca e avisos
+
+- [x] Temperatura de cor no Item Especial: seletor de CCT (N/A, 2700K, 3000K, 3500K, 4000K, 5000K, 6500K) no formulário do Home.tsx e no dialog de edição do Cart.tsx; campo specialColorTemp adicionado à interface CartItemData
+- [x] Scroll no dialog de edição do carrinho: DialogContent com max-h-[90vh] flex flex-col; área de campos com overflow-y-auto flex-1; rodapé com botões fixo (flex-shrink-0 border-t)
+- [x] Busca de orçamentos corrigida: usa TRIM(projectName) para ignorar espaços iniciais; busca também em seller1Name e assistantName além de quoteNumber, clientName, vendorName
+- [x] Inverter Obra/Cliente na listagem: Obra (projectName) exibida como título principal, Cliente (clientName) como subtítulo com ícone 👤
+- [x] Aviso de obra duplicada: ao criar orçamento, verifica se já existe outro com o mesmo projectName nos últimos 6 meses; exibe toast não-bloqueante com número e cliente do orçamento existente
+- [x] Ricardo Miranda: inserido como assistente comercial no banco (email miranda@grupoalfalux.com.br)

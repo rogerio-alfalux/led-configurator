@@ -344,6 +344,14 @@ export default function Cart() {
   const saveQuoteMutation = trpc.quotes.save.useMutation({
     onSuccess: (data) => {
       toast.success(`Orçamento ${data.quoteNumber} salvo com sucesso!`);
+      // Aviso não-bloqueante de obra duplicada
+      if (data.duplicateWarning) {
+        const { quoteNumber, clientName } = data.duplicateWarning;
+        toast(`⚠️ Atenção: já existe um orçamento recente (${quoteNumber}) para esta obra — cliente: ${clientName}`, {
+          duration: 8000,
+          icon: "📌",
+        });
+      }
       setSaveDialogOpen(false);
       // Limpar o carrinho automaticamente após salvar o orçamento
       clearCart();
@@ -443,7 +451,7 @@ export default function Cart() {
 
   // Edição inline de campos do item
   const [editItemId, setEditItemId] = useState<number | null>(null);
-  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; itemNote: string; itemObs: string; itemObsShowInExcel: boolean; itemMarginPercent: string; floorId: string; floorName: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', itemNote: '', itemObs: '', itemObsShowInExcel: false, itemMarginPercent: '', floorId: '', floorName: '' });
+  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; itemNote: string; itemObs: string; itemObsShowInExcel: boolean; itemMarginPercent: string; floorId: string; floorName: string; specialColorTemp: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', itemNote: '', itemObs: '', itemObsShowInExcel: false, itemMarginPercent: '', floorId: '', floorName: '', specialColorTemp: '' });
   // Estados para edição de foto de Item Especial
   const [editSpecialPhotoUrl, setEditSpecialPhotoUrl] = useState<string | null>(null);
   const [editSpecialPhotoPreview, setEditSpecialPhotoPreview] = useState<string | null>(null);
@@ -919,6 +927,7 @@ export default function Cart() {
                           itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '',
                           floorId: data.floorId ?? '',
                           floorName: data.floorName ?? '',
+                          specialColorTemp: data.specialColorTemp ?? '',
                         });
                         // Inicializar foto especial
                         if (data.isSpecialItem) {
@@ -1777,8 +1786,8 @@ export default function Cart() {
 
       {/* Modal de edição inline de CCT / Potência / Cor da Peça */}
       <Dialog open={editItemId !== null} onOpenChange={(open) => { if (!open) setEditItemId(null); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
+        <DialogContent className="max-w-sm max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Editar item</DialogTitle>
             <DialogDescription>
               {(() => {
@@ -1789,7 +1798,7 @@ export default function Cart() {
               })()}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="overflow-y-auto flex-1 space-y-4 py-2 pr-1">
             {(() => {
               const item = orderedEntries.find(e => e.id === editItemId);
               const isRevenda = item?.data.category === 'Revenda';
@@ -1938,6 +1947,29 @@ export default function Cart() {
                     </div>
                     <p className="text-xs text-muted-foreground">Agrupa itens por pavimento no Excel</p>
                   </div>
+                  {/* Temperatura de cor para Item Especial */}
+                  {item?.data.isSpecialItem && (
+                    <div className="space-y-1">
+                      <Label>Temperatura de Cor</Label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {["", "2700K", "3000K", "3500K", "4000K", "5000K", "6500K"].map((ct) => (
+                          <button
+                            key={ct || "none"}
+                            type="button"
+                            onClick={() => setEditFields(prev => ({ ...prev, specialColorTemp: ct }))}
+                            className={[
+                              "px-2.5 py-1 rounded-md text-xs font-medium border transition-colors",
+                              editFields.specialColorTemp === ct
+                                ? "bg-amber-600 border-amber-600 text-white"
+                                : "border-border bg-muted/20 text-muted-foreground hover:border-amber-500/50",
+                            ].join(" ")}
+                          >
+                            {ct || "N/A"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {/* Campo de foto para Item Especial */}
                   {item?.data.isSpecialItem && (
                     <div className="space-y-2">
@@ -2003,7 +2035,7 @@ export default function Cart() {
               );
             })()}
           </div>
-          <div className="flex justify-between gap-2 pt-2">
+          <div className="flex justify-between gap-2 pt-2 flex-shrink-0 border-t">
             <Button
               variant="outline"
               className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10"
@@ -2059,10 +2091,11 @@ export default function Cart() {
               // floorId / floorName
               patch.floorId = editFields.floorId.trim() || undefined;
               patch.floorName = editFields.floorName.trim() || undefined;
-              // Foto do Item Especial
+              // Foto e temperatura de cor do Item Especial
               if (item?.data.isSpecialItem) {
                 patch.specialPhotoUrl = editSpecialPhotoUrl ?? undefined;
                 patch.photoUrl = editSpecialPhotoUrl ?? undefined;
+                patch.specialColorTemp = editFields.specialColorTemp.trim() || undefined;
               }
               const totalForUpdate = isRevenda
                 ? (parseInt(editFields.qty) || 1) * (parseFloat(editFields.unitPrice.replace(',', '.')) || 0)

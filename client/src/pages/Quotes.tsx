@@ -263,9 +263,9 @@ export default function Quotes() {
 
                         {/* Dados principais */}
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold truncate">{q.clientName}</p>
+                          <p className="font-semibold truncate">{q.projectName || q.clientName}</p>
                           <div className="flex gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
-                            {q.projectName && <span>📍 {q.projectName}</span>}
+                            {q.clientName && <span>👤 {q.clientName}</span>}
                             {q.seller1Name && (
                               <span className="flex items-center gap-1">
                                 <Users className="w-3 h-3" />

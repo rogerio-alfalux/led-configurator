@@ -1,0 +1,15 @@
+{
+  "query": "SELECT quoteNumber, clientName, projectName FROM quotes WHERE projectName LIKE '%w lounge%' OR clientName LIKE '%w lounge%' OR projectName LIKE '%W LOUNGE%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT quoteNumber, clientName, projectName FROM quotes WHERE projectName LIKE '%w lounge%' OR clientName LIKE '%w lounge%' OR projectName LIKE '%W LOUNGE%';",
+  "rows": [
+    {
+      "quoteNumber": "33.0065-26",
+      "clientName": "SEMPRE ENGENHARIA",
+      "projectName": " W LOUNGE - QUARTOS"
+    }
+  ],
+  "messages": [],
+  "stdout": "quoteNumber\tclientName\tprojectName\n33.0065-26\tSEMPRE ENGENHARIA\t W LOUNGE - QUARTOS\n",
+  "stderr": "",
+  "execution_time_ms": 303
+}

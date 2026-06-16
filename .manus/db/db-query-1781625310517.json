@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO assistants (name, email, active) VALUES ('RICARDO MIRANDA', 'miranda@grupoalfalux.com.br', 1);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute INSERT INTO assistants (name, email, active) VALUES ('RICARDO MIRANDA', 'miranda@grupoalfalux.com.br', 1);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 269
+}

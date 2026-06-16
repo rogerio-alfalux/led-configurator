@@ -1,0 +1,46 @@
+{
+  "query": "SELECT id, name, email, active FROM assistants ORDER BY name;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT id, name, email, active FROM assistants ORDER BY name;",
+  "rows": [
+    {
+      "id": "5",
+      "name": "BEATRIZ CALDERON",
+      "email": "beatriz@grupoalfalux.com.br",
+      "active": "1"
+    },
+    {
+      "id": "1",
+      "name": "CAMILLE BATISTA",
+      "email": "camille.batista@grupoalfalux.com.br",
+      "active": "1"
+    },
+    {
+      "id": "6",
+      "name": "FABIANE RIBEIRO",
+      "email": "fabiane@grupoalfalux.com.br",
+      "active": "1"
+    },
+    {
+      "id": "4",
+      "name": "FRANCIELY SILVA",
+      "email": "franciely@grupoalfalux.com.br",
+      "active": "1"
+    },
+    {
+      "id": "3",
+      "name": "KEITE FAGUNDES",
+      "email": "keite.fagundes@grupoalfalux.com.br",
+      "active": "1"
+    },
+    {
+      "id": "2",
+      "name": "MARIA BARBOSA",
+      "email": "maria.barbosa@grupoalfalux.com.br",
+      "active": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\tactive\n5\tBEATRIZ CALDERON\tbeatriz@grupoalfalux.com.br\t1\n1\tCAMILLE BATISTA\tcamille.batista@grupoalfalux.com.br\t1\n6\tFABIANE RIBEIRO\tfabiane@grupoalfalux.com.br\t1\n4\tFRANCIELY SILVA\tfranciely@grupoalfalux.com.br\t1\n3\tKEITE FAGUNDES\tkeite.fagundes@grupoalfalux.com.br\t1\n2\tMARIA BARBOSA\tmaria.barbosa@grupoalfalux.com.br\t1\n",
+  "stderr": "",
+  "execution_time_ms": 481
+}

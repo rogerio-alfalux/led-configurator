@@ -1,0 +1,16 @@
+{
+  "query": "SELECT id, name, email, active FROM sellers WHERE name LIKE '%RICARDO%' ORDER BY name;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT id, name, email, active FROM sellers WHERE name LIKE '%RICARDO%' ORDER BY name;",
+  "rows": [
+    {
+      "id": "9",
+      "name": "RICARDO MIRANDA",
+      "email": "miranda@grupoalfalux.com.br",
+      "active": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\tactive\n9\tRICARDO MIRANDA\tmiranda@grupoalfalux.com.br\t1\n",
+  "stderr": "",
+  "execution_time_ms": 270
+}

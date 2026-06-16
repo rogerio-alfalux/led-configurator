@@ -535,7 +535,9 @@ export async function listQuotes(opts: {
         like(quotes.quoteNumber, s),
         like(quotes.clientName, s),
         like(quotes.vendorName, s),
-        like(quotes.projectName, s)
+        like(sql`TRIM(${quotes.projectName})`, s),
+        like(quotes.seller1Name, s),
+        like(quotes.assistantName, s)
       )
     );
   }
@@ -1271,4 +1273,36 @@ export async function duplicateQuote(
   }
 
   return { quoteId: newQuoteId, quoteNumber: newQuoteNumber };
+}
+
+/**
+ * Verifica se já existe um orçamento com o mesmo nome de obra nos últimos 6 meses.
+ * Retorna o orçamento mais recente encontrado, ou null se não houver duplicata.
+ * A comparação ignora espaços iniciais/finais (TRIM) e é case-insensitive.
+ */
+export async function checkDuplicateProject(projectName: string, excludeQuoteId?: number): Promise<{ quoteNumber: string; clientName: string; createdAt: string } | null> {
+  if (!projectName || !projectName.trim()) return null;
+  const db = await getDb();
+  if (!db) return null;
+
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  const sixMonthsAgoTs = sixMonthsAgo.getTime();
+
+  const conditions = [
+    sql`TRIM(LOWER(${quotes.projectName})) = TRIM(LOWER(${projectName}))`,
+    sql`${quotes.createdAt} >= ${sixMonthsAgoTs}`,
+  ];
+  if (excludeQuoteId) {
+    conditions.push(sql`${quotes.id} != ${excludeQuoteId}`);
+  }
+
+  const rows = await db
+    .select({ quoteNumber: quotes.quoteNumber, clientName: quotes.clientName, createdAt: quotes.createdAt })
+    .from(quotes)
+    .where(and(...conditions))
+    .orderBy(desc(quotes.createdAt))
+    .limit(1);
+
+  return rows[0] ?? null;
 }

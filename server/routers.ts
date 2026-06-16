@@ -15,6 +15,7 @@ import {
   getManagerDashboard, getSellerDashboard, getSalesGoalsByYear, upsertSalesGoal,
   getMonthlyReport,
   duplicateQuote,
+  checkDuplicateProject,
 } from "./db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -269,6 +270,14 @@ export const appRouter = router({
         commissionPercent2: z.number().min(0).max(1).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
+        // Verificar obra duplicada antes de criar
+        let duplicateWarning: { quoteNumber: string; clientName: string } | null = null;
+        if (input.projectName?.trim()) {
+          const dup = await checkDuplicateProject(input.projectName.trim());
+          if (dup) {
+            duplicateWarning = { quoteNumber: dup.quoteNumber, clientName: dup.clientName };
+          }
+        }
         const result = await createQuote({ ...input, createdByUserId: ctx.user.id });
         await insertAuditLog({
           userId: ctx.user.id,
@@ -284,7 +293,7 @@ export const appRouter = router({
             itemCount: input.items.length,
           }),
         });
-        return result;
+        return { ...result, duplicateWarning };
       }),
 
     addRevision: protectedProcedure

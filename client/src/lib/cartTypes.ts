@@ -125,6 +125,10 @@ export interface CartItemData {
    */
   specialColor?: string;
   /**
+   * Temperatura de cor do produto especial (ex: "3000K", "4000K").
+   */
+  specialColorTemp?: string;
+  /**
    * Valor unitário do produto especial (preenchido pelo usuário no formulário).
    */
   specialUnitPrice?: number;
