@@ -139,7 +139,7 @@ const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.E
   { value: "Arandelas",    label: "Arandelas",     icon: Lamp,        image: "/manus-storage/ARANDELAS_324ddfb0.webp",  available: true },
   { value: "Área Externa", label: "Área Externa",  icon: TreePine,    image: "/manus-storage/AREAEXTERNA_5811f7cb.png", available: false },
   { value: "Balizadores",  label: "Balizadores",   icon: Navigation,  image: "/manus-storage/BALIZADORES_482d54f1.png", available: false },
-  { value: "Decorativas",  label: "Decorativas",   icon: Sparkles,    image: "/manus-storage/DECORATIVAS_4ee44c0e.png", available: false },
+  { value: "Decorativas",  label: "Decorativas",   icon: Sparkles,    image: "/manus-storage/DECORATIVAS_4ee44c0e.png", available: true },
   { value: "Item Especial", label: "Item Especial",  icon: PackagePlus, image: "/manus-storage/item-especial-icon_c570c491.png", available: true  },
   { value: "Revenda",       label: "Revenda",        icon: ShoppingBag, image: "/manus-storage/revenda-icon-nobg_245d52aa.png", available: true  },
   { value: "Acessórios",    label: "Acessórios",     icon: Wrench,      image: "/manus-storage/trilho_nobg_cf2a6de2.png", available: true  },
@@ -1550,6 +1550,8 @@ export default function Home() {
   const activePanelCatalog = adaptedCatalogs?.paineis ?? PAINEL_CATALOG;
   const activeSpotCatalog = adaptedCatalogs?.spots ?? SPOT_CATALOG;
   const activeArandelaCatalog = adaptedCatalogs?.arandelas ?? ARANDELA_CATALOG;
+  const activeGlowCatalog = adaptedCatalogs?.glowProducts ?? [];
+  const activeDecorativasCatalog = adaptedCatalogs?.decorativas ?? [];
 
   // Resolve foto de painel: API primeiro, depois dicionário estático
   const resolvePainelPhoto = useCallback((familia: string | null, produto: string): string | null => {
@@ -1692,6 +1694,15 @@ export default function Home() {
   const [bgControle, setBgControle] = useState<BageoControle>("ON/OFF 220V");
   const [bgCCT, setBgCCT] = useState<string>("3000K");
   const [bgResult, setBgResult] = useState<BageoResult | null>(null);
+  // ── Estados de GLOW (perfis fixos) ─────────────────────────────────────────
+  const [glowProductKey, setGlowProductKey] = useState<string | null>(null);
+  const [glowVoltage, setGlowVoltage] = useState<"220V" | "Bivolt" | null>(null);
+  const [glowCCT, setGlowCCT] = useState<string>("3000K");
+  const [glowResult, setGlowResult] = useState<DownlightResult | null>(null);
+  // ── Estados de Decorativas ───────────────────────────────────────────────────
+  const [decFamilia, setDecFamilia] = useState<string | null>(null);
+  const [decProductKey, setDecProductKey] = useState<string | null>(null);
+  const [decCCT, setDecCCT] = useState<string>("3000K");
   // ── Estados de Item Especial ──────────────────────────────────────────────
   const [spDescription, setSpDescription] = useState<string>("");
   const [spDimensions, setSpDimensions] = useState<string>("");
@@ -2712,6 +2723,10 @@ export default function Home() {
                           setInstallType("");
                           setResult(null);
                           setError(null);
+                          // Reset GLOW
+                          setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
+                          // Reset Decorativas
+                          setDecFamilia(null); setDecProductKey(null); setDecCCT("3000K");
                         }}
                         className={`relative flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-lg border text-xs font-medium transition-all ${
                           productCategory === value
@@ -2769,7 +2784,7 @@ export default function Home() {
                 <div>
                   <FieldLabel>Perfil</FieldLabel>
                   <Select
-                    value={bgMode === "sinuosa" ? "__BAGEO_SINUOSA__" : bgMode === "fixo" ? "__BAGEO_FIXO__" : lbFamilia ? `__LEDBAR__${lbFamilia}` : profileName}
+                    value={bgMode === "sinuosa" ? "__BAGEO_SINUOSA__" : bgMode === "fixo" ? "__BAGEO_FIXO__" : glowProductKey ? "__GLOW__" : lbFamilia ? `__LEDBAR__${lbFamilia}` : profileName}
                     onValueChange={(v) => {
                       if (v === "__BAGEO_SINUOSA__") {
                         setBgMode("sinuosa");
@@ -2782,6 +2797,13 @@ export default function Home() {
                         setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                         setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
                         setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
+                        setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
+                        setProfileName(""); setInstallType(""); setResult(null); setError(null);
+                      } else if (v === "__GLOW__") {
+                        setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
+                        setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
+                        setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
+                        setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
                         setProfileName(""); setInstallType(""); setResult(null); setError(null);
                       } else if (v.startsWith("__LEDBAR__")) {
                         const fam = v.replace("__LEDBAR__", "");
@@ -2791,6 +2813,7 @@ export default function Home() {
                         setLbResult(null);
                         setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                         setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
+                        setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                         setProfileName("");
                         setInstallType("");
                         setResult(null);
@@ -2801,6 +2824,7 @@ export default function Home() {
                         setLbResult(null);
                         setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                         setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
+                        setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                       }
                     }}
                   >
@@ -2829,6 +2853,12 @@ export default function Home() {
                           <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">BAGEO</div>
                           <SelectItem value="__BAGEO_FIXO__">BAGEO</SelectItem>
                           <SelectItem value="__BAGEO_SINUOSA__">BAGEO Sinuosa</SelectItem>
+                        </>
+                      )}
+                      {activeGlowCatalog.length > 0 && (
+                        <>
+                          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">GLOW</div>
+                          <SelectItem value="__GLOW__">GLOW</SelectItem>
                         </>
                       )}
                     </SelectContent>
@@ -3134,8 +3164,119 @@ export default function Home() {
                   )}
                 </div>
                 )}
-                {/* ── Fluxo LED BAR ────────────────────────────────────────────────────────────────── */}
-                {lbFamilia && (         <div className="space-y-4">
+                {/* ── Fluxo GLOW (produto fixo, sem seleção de tamanho pelo usuário) ──────────────────────────── */}
+                {activeGlowCatalog.length > 0 && !bgMode && !lbFamilia && !profileName && (
+                  <div className="space-y-4">
+                    {/* Produto GLOW */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Produto</Label>
+                      <Select
+                        value={glowProductKey ?? ""}
+                        onValueChange={(v) => {
+                          setGlowProductKey(v);
+                          setGlowVoltage(null);
+                          setGlowResult(null);
+                          const [s, ...np] = v.split('::');
+                          const prod = activeGlowCatalog.find(p => p.sku === s && p.name === np.join('::'));
+                          const availCCTs = prod?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+                          if (!availCCTs.includes(glowCCT)) setGlowCCT(availCCTs[0] ?? "3000K");
+                        }}
+                      >
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Selecione o produto GLOW..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {activeGlowCatalog.map((p, idx) => {
+                            const key = `${p.sku ?? ""}::${p.name}`;
+                            return <SelectItem key={`${key}-${idx}`} value={key}>{p.name}</SelectItem>;
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {/* Tensão */}
+                    {glowProductKey !== null && (() => {
+                      const [_gSku, ..._gNP] = (glowProductKey ?? '::').split('::');
+                      const gSelProd = activeGlowCatalog.find(p => p.sku === _gSku && p.name === _gNP.join('::'));
+                      const hasBivolt = gSelProd?.driverBivolt != null;
+                      return (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
+                          <div className="flex gap-2">
+                            {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
+                              const disabled = v === "Bivolt" && !hasBivolt;
+                              return (
+                                <button
+                                  key={v}
+                                  disabled={disabled}
+                                  onClick={() => { setGlowVoltage(v); setGlowResult(null); }}
+                                  className={[
+                                    "flex-1 py-2 rounded-lg text-sm font-medium border transition-all",
+                                    glowVoltage === v && !disabled
+                                      ? "bg-primary text-primary-foreground border-primary"
+                                      : "bg-background text-foreground border-border hover:border-primary/50",
+                                    disabled ? "opacity-40 cursor-not-allowed" : "",
+                                  ].join(" ")}
+                                >
+                                  {v}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    {/* CCT */}
+                    {glowProductKey !== null && (() => {
+                      const [_gSku2, ..._gNP2] = (glowProductKey ?? '::').split('::');
+                      const gSelProd2 = activeGlowCatalog.find(p => p.sku === _gSku2 && p.name === _gNP2.join('::'));
+                      const gAvailCCTs = gSelProd2?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+                      return (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
+                          <div className="flex gap-2 flex-wrap">
+                            {gAvailCCTs.map((c) => (
+                              <button
+                                key={c}
+                                onClick={() => { setGlowCCT(c); setGlowResult(null); }}
+                                className={[
+                                  "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
+                                  glowCCT === c
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-background text-foreground border-border hover:border-primary/50",
+                                ].join(" ")}
+                              >
+                                {c}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    {/* Botão Calcular GLOW */}
+                    {glowProductKey !== null && (
+                      <Button
+                        variant="default"
+                        className="w-full h-12 text-base font-semibold"
+                        disabled={!glowProductKey || !glowVoltage}
+                        onClick={() => {
+                          if (!glowProductKey || !glowVoltage) { toast.error("Selecione o produto e a tensão."); return; }
+                          const [gSku, ...gNP] = glowProductKey.split('::');
+                          const gName = gNP.join('::');
+                          const gProd = activeGlowCatalog.find(p => p.sku === gSku && p.name === gName);
+                          if (!gProd) { toast.error("Produto GLOW não encontrado."); return; }
+                          const res = calculateDownlight({ productSku: gProd.sku ?? "", productName: gProd.name, cct: glowCCT, controle: "ON/OFF", tensao: glowVoltage }, activeGlowCatalog);
+                          if (!res) { toast.error("Não foi possível calcular. Verifique as opções."); return; }
+                          setGlowResult(res);
+                        }}
+                      >
+                        <Zap className="w-4 h-4 mr-2" />
+                        Calcular GLOW
+                      </Button>
+                    )}
+                  </div>
+                )}
+                {/* ── Fluxo LED BAR ────────────────────────────────────────────────────────────────────────────────────── */}
+                {lbFamilia && (<div className="space-y-4">
 
                   {/* Potência */}
                   <div>
@@ -3871,7 +4012,94 @@ export default function Home() {
 
 
                 </React.Fragment>
-                  )} {/* fim productCategory === Perfis */}                {/* ── Downlights ─────────────────────────────────────────── */}
+                  )} {/* fim productCategory === Perfis */}
+                {/* ── Decorativas ───────────────────────────────────────────────────────── */}
+                {productCategory === "Decorativas" && (
+                  <div className="space-y-4">
+                    {/* Família */}
+                    {(() => {
+                      const decFamilias = Array.from(new Set(activeDecorativasCatalog.map(p => p.familia))).sort();
+                      return decFamilias.length > 0 ? (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Família</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {decFamilias.map((fam) => (
+                              <button
+                                key={fam}
+                                onClick={() => { setDecFamilia(fam); setDecProductKey(null); }}
+                                className={[
+                                  "px-3 py-2 rounded-lg text-sm font-medium border transition-all",
+                                  decFamilia === fam
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-background text-foreground border-border hover:border-primary/50",
+                                ].join(" ")}
+                              >
+                                {fam}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
+                    {/* Produto */}
+                    {decFamilia && (() => {
+                      const decProds = activeDecorativasCatalog.filter(p => p.familia === decFamilia);
+                      return (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Produto</Label>
+                          <Select
+                            value={decProductKey ?? ""}
+                            onValueChange={(v) => {
+                              setDecProductKey(v);
+                              const [s, ...np] = v.split('::');
+                              const prod = activeDecorativasCatalog.find(p => p.sku === s && p.name === np.join('::'));
+                              const availCCTs = prod?.ccts ?? ["2700K", "3000K", "4000K"];
+                              if (!availCCTs.includes(decCCT)) setDecCCT(availCCTs[0] ?? "3000K");
+                            }}
+                          >
+                            <SelectTrigger className="h-10">
+                              <SelectValue placeholder="Selecione o produto..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {decProds.map((p, idx) => {
+                                const key = `${p.sku ?? ""}::${p.name}`;
+                                return <SelectItem key={`${key}-${idx}`} value={key}>{p.name}</SelectItem>;
+                              })}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      );
+                    })()}
+                    {/* CCT */}
+                    {decProductKey && (() => {
+                      const [_dSku, ..._dNP] = (decProductKey ?? '::').split('::');
+                      const dProd = activeDecorativasCatalog.find(p => p.sku === _dSku && p.name === _dNP.join('::'));
+                      const dAvailCCTs = dProd?.ccts ?? ["2700K", "3000K", "4000K"];
+                      return (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
+                          <div className="flex gap-2 flex-wrap">
+                            {dAvailCCTs.map((c) => (
+                              <button
+                                key={c}
+                                onClick={() => setDecCCT(c)}
+                                className={[
+                                  "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
+                                  decCCT === c
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-background text-foreground border-border hover:border-primary/50",
+                                ].join(" ")}
+                              >
+                                {c}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+                {/* ── Downlights ───────────────────────────────────────────────────────── */}
                 {productCategory === "Downlights" && (
                   <div className="space-y-4">
                     {/* Badge de status da API */}
@@ -6011,6 +6239,279 @@ export default function Home() {
                   </div>
                   <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
                   <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione instalação, família, produto, tensão e CCT, depois clique em "Calcular BAGEO".</p>
+                </CardContent>
+              </Card>
+            )}
+            {/* Resultado GLOW */}
+            {productCategory === "Perfis" && glowResult && (
+              <div className="space-y-4">
+                <Card className="shadow-sm border-amber-500/30">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-amber-500" />
+                      Resultado — GLOW
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {(() => {
+                      const gPhoto = glowResult.product.sku ? adaptedCatalogs?.glowFotos?.[glowResult.product.sku] ?? null : null;
+                      return (
+                        <div className={gPhoto ? "flex gap-3 items-stretch" : "grid grid-cols-2 gap-2"}>
+                          {gPhoto && (
+                            <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-36 flex items-center justify-center">
+                              <img src={gPhoto} alt={glowResult.product.name} className="w-full h-full object-contain p-2" loading="lazy" />
+                            </div>
+                          )}
+                          <div className={gPhoto ? "grid grid-cols-2 gap-2 flex-1" : "contents"}>
+                            {glowResult.product.sku && (
+                              <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
+                                <p className="text-sm font-mono font-semibold text-primary">{glowResult.product.sku}</p>
+                              </div>
+                            )}
+                            <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
+                              <p className="text-sm font-semibold">{glowResult.product.name}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                              <p className="text-sm font-semibold">{glowResult.cct}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                              <p className="text-sm font-semibold">{glowResult.tensao}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
+                              <p className="text-sm font-semibold">{glowResult.driver.model} <span className="font-mono text-primary">({glowResult.driver.code})</span></p>
+                            </div>
+                            {glowResult.ledModuleWithCCT && (
+                              <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
+                                <p className="text-sm font-semibold">{glowResult.ledModuleWithCCT}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
+                {/* Resumo para Orçamento */}
+                <Card className="shadow-sm border-blue-500/30">
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                      Resumo Para Orçamento
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5"
+                        onClick={() => {
+                          const preco = getPrecoForControle(glowResult.product, glowResult.controle, glowResult.tensao);
+                          const lines = [`${glowResult.product.name} ${glowResult.cct} ${glowResult.tensao}`.toUpperCase()];
+                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          navigator.clipboard.writeText(lines.join("\n"));
+                          toast.success("Copiado!");
+                        }}
+                      >
+                        <Copy className="w-3 h-3" /> Copiar Resumo
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        disabled={isAddingToCart}
+                        onClick={() => {
+                          const preco = getPrecoForControle(glowResult.product, glowResult.controle, glowResult.tensao);
+                          const item: CartItemData = {
+                            category: "Perfis",
+                            sku: glowResult.product.sku ?? "",
+                            description: `${glowResult.product.name} ${glowResult.cct} ${glowResult.tensao}`,
+                            power: "",
+                            cct: glowResult.cct,
+                            qty: 1,
+                            unitPrice: preco ?? 0,
+                            totalPrice: preco ?? 0,
+                            priceFromApi: preco != null,
+                            photoUrl: adaptedCatalogs?.glowFotos?.[glowResult.product.sku ?? ""] ?? "",
+                            orderSummary: `CÓDIGO: ${glowResult.product.sku}\n${glowResult.product.name.toUpperCase()} ${glowResult.cct} ${glowResult.tensao} COM DRIVER ${glowResult.driver.model.toUpperCase()} (${glowResult.driver.code})`,
+                            quoteSummary: `${glowResult.product.name} ${glowResult.cct} ${glowResult.tensao}`.toUpperCase(),
+                            moduloLed: glowResult.ledModuleWithCCT ?? "",
+                            drivers: `DRIVER ${glowResult.driver.model.toUpperCase()} (${glowResult.driver.code})`,
+                            availableCCTs: glowResult.product.ccts,
+                          };
+                          if (appendToQuoteId) {
+                            handleAddItemOrToQuote(item);
+                          } else {
+                            setPendingCartItem(item);
+                            setColorModalOpen(true);
+                          }
+                        }}
+                      >
+                        <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div
+                      className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
+                      onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
+                    >
+                      {(() => {
+                        const preco = getPrecoForControle(glowResult.product, glowResult.controle, glowResult.tensao);
+                        const lines = [`${glowResult.product.name} ${glowResult.cct} ${glowResult.tensao}`.toUpperCase()];
+                        if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                        return lines.join("\n");
+                      })()}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+            {/* Estado vazio GLOW */}
+            {productCategory === "Perfis" && activeGlowCatalog.length > 0 && !bgMode && !lbFamilia && !profileName && !glowResult && (
+              <Card className="shadow-sm">
+                <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                    <Zap className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione o produto GLOW, tensão e CCT, depois clique em "Calcular GLOW".</p>
+                </CardContent>
+              </Card>
+            )}
+            {/* Resultado Decorativas */}
+            {productCategory === "Decorativas" && decProductKey && (() => {
+              const [_dSku, ..._dNP] = (decProductKey ?? '::').split('::');
+              const dProd = activeDecorativasCatalog.find(p => p.sku === _dSku && p.name === _dNP.join('::'));
+              if (!dProd) return null;
+              const dPhoto = dProd.sku ? adaptedCatalogs?.decorativasFotos?.[dProd.sku] ?? null : null;
+              const dPreco = dProd.precoOnOff220 ?? null;
+              return (
+                <div className="space-y-4">
+                  <Card className="shadow-sm border-amber-500/30">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-amber-500" />
+                        Resultado — Decorativa
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className={dPhoto ? "flex gap-3 items-stretch" : "grid grid-cols-2 gap-2"}>
+                        {dPhoto && (
+                          <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-36 flex items-center justify-center">
+                            <img src={dPhoto} alt={dProd.name} className="w-full h-full object-contain p-2" loading="lazy" />
+                          </div>
+                        )}
+                        <div className={dPhoto ? "grid grid-cols-2 gap-2 flex-1" : "contents"}>
+                          {dProd.sku && (
+                            <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
+                              <p className="text-sm font-mono font-semibold text-primary">{dProd.sku}</p>
+                            </div>
+                          )}
+                          <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
+                            <p className="text-sm font-semibold">{dProd.name}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                            <p className="text-sm font-semibold">{decCCT}</p>
+                          </div>
+                          {dPreco !== null && (
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Preço Unitário</p>
+                              <p className="text-sm font-semibold text-emerald-600">{formatBRL(dPreco)}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  {/* Resumo para Orçamento */}
+                  <Card className="shadow-sm border-blue-500/30">
+                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                      <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                        Resumo Para Orçamento
+                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1.5"
+                          onClick={() => {
+                            const lines = [`${dProd.name} ${decCCT}`.toUpperCase()];
+                            if (dPreco !== null) lines.push(`PREÇO: ${formatBRL(dPreco)}`);
+                            navigator.clipboard.writeText(lines.join("\n"));
+                            toast.success("Copiado!");
+                          }}
+                        >
+                          <Copy className="w-3 h-3" /> Copiar Resumo
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                          disabled={isAddingToCart}
+                          onClick={() => {
+                            const item: CartItemData = {
+                              category: "Decorativas",
+                              sku: dProd.sku ?? "",
+                              description: `${dProd.name} ${decCCT}`,
+                              power: "",
+                              cct: decCCT,
+                              qty: 1,
+                              unitPrice: dPreco ?? 0,
+                              totalPrice: dPreco ?? 0,
+                              priceFromApi: dPreco != null,
+                              photoUrl: dPhoto ?? "",
+                              orderSummary: `${dProd.sku ? `CÓDIGO: ${dProd.sku}\n` : ""}${dProd.name.toUpperCase()} ${decCCT}`,
+                              quoteSummary: `${dProd.name} ${decCCT}`.toUpperCase(),
+                              moduloLed: "",
+                              drivers: "",
+                              availableCCTs: dProd.ccts,
+                            };
+                            if (appendToQuoteId) {
+                              handleAddItemOrToQuote(item);
+                            } else {
+                              setPendingCartItem(item);
+                              setColorModalOpen(true);
+                            }
+                          }}
+                        >
+                          <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div
+                        className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
+                        onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
+                      >
+                        {(() => {
+                          const lines = [`${dProd.name} ${decCCT}`.toUpperCase()];
+                          if (dPreco !== null) lines.push(`PREÇO: ${formatBRL(dPreco)}`);
+                          return lines.join("\n");
+                        })()}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              );
+            })()}
+            {/* Estado vazio Decorativas */}
+            {productCategory === "Decorativas" && activeDecorativasCatalog.length > 0 && !decProductKey && (
+              <Card className="shadow-sm">
+                <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                    <Sparkles className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-base font-semibold text-foreground font-display">Nenhum produto selecionado</p>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione a família, o produto e a CCT desejada para adicionar ao carrinho.</p>
                 </CardContent>
               </Card>
             )}

@@ -356,6 +356,14 @@ export interface AdaptedCatalogs {
   bageos: BageoProduct[];
   /** Produtos BAGEO com tamanhos fixos (família "BAGEO", sem sinuosa) — usam DownlightProduct */
   bageosFixos: DownlightProduct[];
+  /** Produtos GLOW (perfis fixos como downlights) — usam DownlightProduct */
+  glowProducts: DownlightProduct[];
+  /** Mapa sku → fotoUrl para GLOW */
+  glowFotos: Record<string, string>;
+  /** Produtos Decorativas (ISA, etc.) — usam DownlightProduct */
+  decorativas: DownlightProduct[];
+  /** Mapa sku → fotoUrl para Decorativas */
+  decorativasFotos: Record<string, string>;
   /** Mapa familia → CCTs disponíveis para Downlights */
   downlightCCTs: Record<string, string[]>;
   /** Mapa familia → CCTs disponíveis para Painéis */
@@ -448,6 +456,10 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
 function isLedBarProduct(p: ApiProduct): boolean {
   return /^LED BAR/i.test(p.familia ?? "");
 }
+/** Verifica se um produto PERFIS é da família GLOW */
+function isGlowProduct(p: ApiProduct): boolean {
+  return /^GLOW/i.test(p.familia ?? "");
+}
 /** Verifica se um produto PERFIS é da família BAGEO */
 function isBageoProduct(p: ApiProduct): boolean {
   return /^BAGEO/i.test(p.familia ?? "");
@@ -495,6 +507,10 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
   const ledBars: LedBarProduct[] = [];
   const bageos: BageoProduct[] = [];
   const bageosFixos: DownlightProduct[] = [];
+  const glowProducts: DownlightProduct[] = [];
+  const glowFotos: Record<string, string> = {};
+  const decorativas: DownlightProduct[] = [];
+  const decorativasFotos: Record<string, string> = {};
   const downlightCCTs: Record<string, string[]> = {};
   const painelCCTs: Record<string, string[]> = {};
   const spotCCTs: Record<string, string[]> = {};
@@ -528,6 +544,12 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
     } else if (cat === "PERFIS" && isLedBarProduct(p)) {
       const lb = toLedBarProduct(p);
       if (lb) ledBars.push(lb);
+    } else if (cat === "PERFIS" && isGlowProduct(p)) {
+      glowProducts.push(toDownlightProduct(p));
+      if (p.fotoUrl && p.sku) glowFotos[p.sku] = normalizeFotoUrl(p.fotoUrl)!;
+    } else if (cat === "DECORATIVAS") {
+      decorativas.push(toDownlightProduct(p));
+      if (p.fotoUrl && p.sku) decorativasFotos[p.sku] = normalizeFotoUrl(p.fotoUrl)!;
     } else if (cat === "PERFIS" && isBageoProduct(p)) {
       const familiaUpper = (p.familia ?? "").toUpperCase();
       if (familiaUpper === "BAGEO") {
@@ -551,6 +573,10 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
     bageos,
     bageosFixos,
     bageosFixosFotos,
+    glowProducts,
+    glowFotos,
+    decorativas,
+    decorativasFotos,
     downlightCCTs,
     painelCCTs,
     spotCCTs,

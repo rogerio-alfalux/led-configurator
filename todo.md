@@ -1242,3 +1242,15 @@
 - [x] Para IF/ML: usar allowLongModules=true pois não há limite de barras por módulo individual em composições de linha longa
 - [x] Caso de uso corrigido: EASY H PLUS 3370mm com adjustToLarger → 3400mm (2×IF-3 de 1700mm), não mais 2270mm
 - [x] 523/523 testes passando (7 novos testes de regressão para EASY H PLUS adjustToLarger)
+
+## v32.41 — GLOW e Decorativas
+- [x] Categoria Decorativas habilitada (available: true)
+- [x] Adaptador: glowProducts e decorativas populados a partir da API
+- [x] Bloco de formulário GLOW: seleção de produto fixo, tensão e CCT; botão Calcular GLOW
+- [x] Resultado GLOW: card com SKU, produto, CCT, tensão, driver; resumo para orçamento com botão Enviar ao Carrinho
+- [x] Estado vazio GLOW exibido quando nenhum produto GLOW está calculado
+- [x] Bloco de formulário Decorativas: seleção de família, produto e CCT
+- [x] Resultado Decorativas: card com SKU, produto, CCT, preço; resumo para orçamento com botão Enviar ao Carrinho
+- [x] Estado vazio Decorativas exibido quando nenhum produto está selecionado
+- [x] Reset de estados GLOW e Decorativas ao trocar de categoria
+- [x] 523/523 testes passando
