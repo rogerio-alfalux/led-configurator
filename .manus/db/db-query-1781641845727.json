@@ -1,0 +1,163 @@
+{
+  "query": "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'quotes' AND TABLE_SCHEMA = DATABASE() ORDER BY ORDINAL_POSITION;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'quotes' AND TABLE_SCHEMA = DATABASE() ORDER BY ORDINAL_POSITION;",
+  "rows": [
+    {
+      "COLUMN_NAME": "id"
+    },
+    {
+      "COLUMN_NAME": "quoteNumber"
+    },
+    {
+      "COLUMN_NAME": "clientName"
+    },
+    {
+      "COLUMN_NAME": "clientContact"
+    },
+    {
+      "COLUMN_NAME": "clientPhone"
+    },
+    {
+      "COLUMN_NAME": "clientEmail"
+    },
+    {
+      "COLUMN_NAME": "projectName"
+    },
+    {
+      "COLUMN_NAME": "projectRef"
+    },
+    {
+      "COLUMN_NAME": "vendorName"
+    },
+    {
+      "COLUMN_NAME": "assistantName"
+    },
+    {
+      "COLUMN_NAME": "createdByUserId"
+    },
+    {
+      "COLUMN_NAME": "status"
+    },
+    {
+      "COLUMN_NAME": "currentVersion"
+    },
+    {
+      "COLUMN_NAME": "totalAmount"
+    },
+    {
+      "COLUMN_NAME": "approvedAt"
+    },
+    {
+      "COLUMN_NAME": "notes"
+    },
+    {
+      "COLUMN_NAME": "createdAt"
+    },
+    {
+      "COLUMN_NAME": "updatedAt"
+    },
+    {
+      "COLUMN_NAME": "seller1Id"
+    },
+    {
+      "COLUMN_NAME": "seller1Name"
+    },
+    {
+      "COLUMN_NAME": "seller2Id"
+    },
+    {
+      "COLUMN_NAME": "seller2Name"
+    },
+    {
+      "COLUMN_NAME": "assistantId"
+    },
+    {
+      "COLUMN_NAME": "rtPercent"
+    },
+    {
+      "COLUMN_NAME": "rtDest1"
+    },
+    {
+      "COLUMN_NAME": "rtDest1Active"
+    },
+    {
+      "COLUMN_NAME": "rtDest2"
+    },
+    {
+      "COLUMN_NAME": "rtDest2Active"
+    },
+    {
+      "COLUMN_NAME": "rtDest3"
+    },
+    {
+      "COLUMN_NAME": "rtDest3Active"
+    },
+    {
+      "COLUMN_NAME": "marginPercent"
+    },
+    {
+      "COLUMN_NAME": "freteType"
+    },
+    {
+      "COLUMN_NAME": "freteIsento"
+    },
+    {
+      "COLUMN_NAME": "freteLocalidade"
+    },
+    {
+      "COLUMN_NAME": "totalFinal"
+    },
+    {
+      "COLUMN_NAME": "revisionCount"
+    },
+    {
+      "COLUMN_NAME": "deliveryDays"
+    },
+    {
+      "COLUMN_NAME": "commissionPercent"
+    },
+    {
+      "COLUMN_NAME": "paymentTerm"
+    },
+    {
+      "COLUMN_NAME": "destState"
+    },
+    {
+      "COLUMN_NAME": "difalEnabled"
+    },
+    {
+      "COLUMN_NAME": "difalPercent"
+    },
+    {
+      "COLUMN_NAME": "fcpPercent"
+    },
+    {
+      "COLUMN_NAME": "fcpEnabled"
+    },
+    {
+      "COLUMN_NAME": "difalValue"
+    },
+    {
+      "COLUMN_NAME": "fcpValue"
+    },
+    {
+      "COLUMN_NAME": "projectNumber"
+    },
+    {
+      "COLUMN_NAME": "freteValue"
+    },
+    {
+      "COLUMN_NAME": "freteState"
+    },
+    {
+      "COLUMN_NAME": "freteIncluded"
+    },
+    {
+      "COLUMN_NAME": "commissionPercent2"
+    }
+  ],
+  "messages": [],
+  "stdout": "COLUMN_NAME\nid\nquoteNumber\nclientName\nclientContact\nclientPhone\nclientEmail\nprojectName\nprojectRef\nvendorName\nassistantName\ncreatedByUserId\nstatus\ncurrentVersion\ntotalAmount\napprovedAt\nnotes\ncreatedAt\nupdatedAt\nseller1Id\nseller1Name\nseller2Id\nseller2Name\nassistantId\nrtPercent\nrtDest1\nrtDest1Active\nrtDest2\nrtDest2Active\nrtDest3\nrtDest3Active\nmarginPercent\nfreteType\nfreteIsento\nfreteLocalidade\ntotalFinal\nrevisionCount\ndeliveryDays\ncommissionPercent\npaymentTerm\ndestState\ndifalEnabled\ndifalPercent\nfcpPercent\nfcpEnabled\ndifalValue\nfcpValue\nprojectNumber\nfreteValue\nfreteState\nfreteIncluded\ncommissionPercent2\n",
+  "stderr": "",
+  "execution_time_ms": 261
+}

@@ -281,7 +281,16 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const quoteNumber = input.quoteNumber?.trim() || await generateQuoteNumber();
+  // Sempre gera o número no servidor para evitar colisão de UNIQUE constraint.
+  // O input.quoteNumber (sugerido pelo frontend) é ignorado — o servidor é a fonte
+  // de verdade para numeração sequencial.
+  // Busca o sellerCode do seller1Id para gerar o número no formato correto.
+  let sellerCodeForNumber: string | null = null;
+  if (input.seller1Id) {
+    const sellerRows = await db.select({ code: sellers.code }).from(sellers).where(eq(sellers.id, input.seller1Id)).limit(1);
+    sellerCodeForNumber = sellerRows[0]?.code ?? null;
+  }
+  const quoteNumber = await generateQuoteNumber(sellerCodeForNumber);
   const headerSnapshot = JSON.stringify({
     clientName: input.clientName,
     clientContact: input.clientContact,

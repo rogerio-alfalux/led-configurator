@@ -1,0 +1,43 @@
+{
+  "query": "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'quotes' AND TABLE_SCHEMA = DATABASE() AND ORDINAL_POSITION > 40 ORDER BY ORDINAL_POSITION;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'quotes' AND TABLE_SCHEMA = DATABASE() AND ORDINAL_POSITION > 40 ORDER BY ORDINAL_POSITION;",
+  "rows": [
+    {
+      "COLUMN_NAME": "difalEnabled"
+    },
+    {
+      "COLUMN_NAME": "difalPercent"
+    },
+    {
+      "COLUMN_NAME": "fcpPercent"
+    },
+    {
+      "COLUMN_NAME": "fcpEnabled"
+    },
+    {
+      "COLUMN_NAME": "difalValue"
+    },
+    {
+      "COLUMN_NAME": "fcpValue"
+    },
+    {
+      "COLUMN_NAME": "projectNumber"
+    },
+    {
+      "COLUMN_NAME": "freteValue"
+    },
+    {
+      "COLUMN_NAME": "freteState"
+    },
+    {
+      "COLUMN_NAME": "freteIncluded"
+    },
+    {
+      "COLUMN_NAME": "commissionPercent2"
+    }
+  ],
+  "messages": [],
+  "stdout": "COLUMN_NAME\ndifalEnabled\ndifalPercent\nfcpPercent\nfcpEnabled\ndifalValue\nfcpValue\nprojectNumber\nfreteValue\nfreteState\nfreteIncluded\ncommissionPercent2\n",
+  "stderr": "",
+  "execution_time_ms": 262
+}

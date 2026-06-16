@@ -1,0 +1,103 @@
+{
+  "query": "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'quotes' AND TABLE_SCHEMA = DATABASE() AND ORDINAL_POSITION > 20 ORDER BY ORDINAL_POSITION;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'quotes' AND TABLE_SCHEMA = DATABASE() AND ORDINAL_POSITION > 20 ORDER BY ORDINAL_POSITION;",
+  "rows": [
+    {
+      "COLUMN_NAME": "seller2Id"
+    },
+    {
+      "COLUMN_NAME": "seller2Name"
+    },
+    {
+      "COLUMN_NAME": "assistantId"
+    },
+    {
+      "COLUMN_NAME": "rtPercent"
+    },
+    {
+      "COLUMN_NAME": "rtDest1"
+    },
+    {
+      "COLUMN_NAME": "rtDest1Active"
+    },
+    {
+      "COLUMN_NAME": "rtDest2"
+    },
+    {
+      "COLUMN_NAME": "rtDest2Active"
+    },
+    {
+      "COLUMN_NAME": "rtDest3"
+    },
+    {
+      "COLUMN_NAME": "rtDest3Active"
+    },
+    {
+      "COLUMN_NAME": "marginPercent"
+    },
+    {
+      "COLUMN_NAME": "freteType"
+    },
+    {
+      "COLUMN_NAME": "freteIsento"
+    },
+    {
+      "COLUMN_NAME": "freteLocalidade"
+    },
+    {
+      "COLUMN_NAME": "totalFinal"
+    },
+    {
+      "COLUMN_NAME": "revisionCount"
+    },
+    {
+      "COLUMN_NAME": "deliveryDays"
+    },
+    {
+      "COLUMN_NAME": "commissionPercent"
+    },
+    {
+      "COLUMN_NAME": "paymentTerm"
+    },
+    {
+      "COLUMN_NAME": "destState"
+    },
+    {
+      "COLUMN_NAME": "difalEnabled"
+    },
+    {
+      "COLUMN_NAME": "difalPercent"
+    },
+    {
+      "COLUMN_NAME": "fcpPercent"
+    },
+    {
+      "COLUMN_NAME": "fcpEnabled"
+    },
+    {
+      "COLUMN_NAME": "difalValue"
+    },
+    {
+      "COLUMN_NAME": "fcpValue"
+    },
+    {
+      "COLUMN_NAME": "projectNumber"
+    },
+    {
+      "COLUMN_NAME": "freteValue"
+    },
+    {
+      "COLUMN_NAME": "freteState"
+    },
+    {
+      "COLUMN_NAME": "freteIncluded"
+    },
+    {
+      "COLUMN_NAME": "commissionPercent2"
+    }
+  ],
+  "messages": [],
+  "stdout": "COLUMN_NAME\nseller2Id\nseller2Name\nassistantId\nrtPercent\nrtDest1\nrtDest1Active\nrtDest2\nrtDest2Active\nrtDest3\nrtDest3Active\nmarginPercent\nfreteType\nfreteIsento\nfreteLocalidade\ntotalFinal\nrevisionCount\ndeliveryDays\ncommissionPercent\npaymentTerm\ndestState\ndifalEnabled\ndifalPercent\nfcpPercent\nfcpEnabled\ndifalValue\nfcpValue\nprojectNumber\nfreteValue\nfreteState\nfreteIncluded\ncommissionPercent2\n",
+  "stderr": "",
+  "execution_time_ms": 272
+}

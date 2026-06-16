@@ -1,0 +1,46 @@
+{
+  "query": "SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'quotes' AND TABLE_SCHEMA = DATABASE() AND COLUMN_NAME IN ('commissionPercent', 'commissionPercent2', 'marginPercent', 'rtPercent', 'freteValue', 'totalFinal') ORDER BY ORDINAL_POSITION;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'quotes' AND TABLE_SCHEMA = DATABASE() AND COLUMN_NAME IN ('commissionPercent', 'commissionPercent2', 'marginPercent', 'rtPercent', 'freteValue', 'totalFinal') ORDER BY ORDINAL_POSITION;",
+  "rows": [
+    {
+      "COLUMN_NAME": "rtPercent",
+      "COLUMN_TYPE": "decimal(5,4)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "0"
+    },
+    {
+      "COLUMN_NAME": "marginPercent",
+      "COLUMN_TYPE": "decimal(5,4)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "0.10"
+    },
+    {
+      "COLUMN_NAME": "totalFinal",
+      "COLUMN_TYPE": "decimal(12,2)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "0"
+    },
+    {
+      "COLUMN_NAME": "commissionPercent",
+      "COLUMN_TYPE": "decimal(5,4)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0.05"
+    },
+    {
+      "COLUMN_NAME": "freteValue",
+      "COLUMN_TYPE": "decimal(10,2)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "0"
+    },
+    {
+      "COLUMN_NAME": "commissionPercent2",
+      "COLUMN_TYPE": "decimal(5,4)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "COLUMN_NAME\tCOLUMN_TYPE\tIS_NULLABLE\tCOLUMN_DEFAULT\nrtPercent\tdecimal(5,4)\tYES\t0\nmarginPercent\tdecimal(5,4)\tYES\t0.10\ntotalFinal\tdecimal(12,2)\tYES\t0\ncommissionPercent\tdecimal(5,4)\tNO\t0.05\nfreteValue\tdecimal(10,2)\tYES\t0\ncommissionPercent2\tdecimal(5,4)\tYES\t0\n",
+  "stderr": "",
+  "execution_time_ms": 348
+}
