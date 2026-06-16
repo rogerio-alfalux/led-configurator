@@ -116,17 +116,27 @@ function normalizeCCTs(temperaturasCor: string[]): string[] {
 
 /**
  * Extrai o código EQ de um DriverInfo, se disponível.
- * Tenta primeiro o campo `code`, depois extrai do `model`.
+ * Prioridade:
+ *   1. Campo `code` separado da API (formato futuro: sempre aqui)
+ *   2. EQ embutido no `model` entre parênteses (formato legado)
+ * Retorna string vazia se não houver código.
  */
 function driverCode(d: DriverInfo): string {
-  if (d.code) return d.code;
+  // 1. Campo code separado (formato atual e futuro)
+  if (d.code && d.code.trim()) return d.code.trim();
+  // 2. Fallback legado: EQ embutido no model (ex: "PHILIPS 44W (EQ00347)")
   const match = d.model.match(/\(?(EQ\d{5})\)?/);
   return match ? match[1] : "";
 }
 
-/** Normaliza o modelo do driver removendo o código EQ do final */
+/**
+ * Normaliza o modelo do driver removendo o código EQ embutido.
+ * Suporta tanto EQ no final (legado) quanto EQ em qualquer posição entre parênteses.
+ * No formato futuro, o EQ não estará no model, então esta função retorna o model sem alterações.
+ */
 function driverModel(d: DriverInfo): string {
-  return d.model.replace(/\s*\(EQ\d{5}\)\s*$/, "").trim();
+  // Remove EQ embutido entre parênteses em qualquer posição do model
+  return d.model.replace(/\s*\(EQ\d{5}\)\s*/g, " ").trim();
 }
 
 /**

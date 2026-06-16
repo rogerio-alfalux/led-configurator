@@ -140,7 +140,8 @@ function parseCSV(csv: string): DriverEntry[] {
 
     const [code, model, inputVoltage, rawVout, rawCurrents, available, priorityStr, observations = ""] = fields;
 
-    if (!code || !code.startsWith("EQ")) continue;
+    // Aceitar qualquer código não-vazio (EQ, CP, etc.) — no futuro o EQ sempre virá no campo Código separado
+    if (!code || !code.trim()) continue;
 
     const priority = parseInt(priorityStr) || 99;
     const isAvailable = available.toUpperCase().trim() === "SIM";
@@ -197,7 +198,9 @@ export async function fetchDrivers(): Promise<DriverEntry[]> {
       console.warn("[DriverService] Usando cache antigo");
       return cache.data;
     }
-    return getFallbackDrivers();
+    // Sem fallback estático — retornar array vazio para forçar nova tentativa na próxima requisição
+    console.warn("[DriverService] Retornando array vazio (sem fallback estático)");
+    return [];
   }
 }
 
