@@ -161,6 +161,8 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
   const dBivolt = p.driverBivolt;
   const dDim110v = p.driverDim110v;
   const dDimDali = p.driverDimDali;
+  const dDimTriac110v = (p as any).driverDimTriac110v ?? null;
+  const dDimTriac220v = (p as any).driverDimTriac220v ?? null;
   const ccts = normalizeCCTs(p.temperaturasCor);
 
   return {
@@ -190,14 +192,24 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
     driverDimDali: dDimDali
       ? { model: driverModel(dDimDali), code: driverCode(dDimDali) }
       : null,
+    driverDimTriac110v: dDimTriac110v
+      ? { model: driverModel(dDimTriac110v), code: driverCode(dDimTriac110v) }
+      : null,
+    driverDimTriac220v: dDimTriac220v
+      ? { model: driverModel(dDimTriac220v), code: driverCode(dDimTriac220v) }
+      : null,
     driverQtd220: p.driverQtd220 ?? null,
     driverQtdBivolt: p.driverQtdBivolt ?? null,
     driverQtdDim110v: p.driverQtdDim110v ?? null,
     driverQtdDimDali: p.driverQtdDimDali ?? null,
+    driverQtdDimTriac110v: (p as any).driverQtdDimTriac110v ?? null,
+    driverQtdDimTriac220v: (p as any).driverQtdDimTriac220v ?? null,
     precoOnOff220: p.precoOnOff220 ?? null,
     precoOnOffBivolt: p.precoOnOffBivolt ?? null,
     precoDim110v: p.precoDim110v ?? null,
     precoDimDali: p.precoDimDali ?? null,
+    precoDimTriac110v: (p as any).precoDimTriac110v ?? null,
+    precoDimTriac220v: (p as any).precoDimTriac220v ?? null,
   };
 }
 
@@ -243,6 +255,8 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
   const dBivolt = p.driverBivolt;
   const dDim110v = p.driverDim110v;
   const dDimDali = p.driverDimDali;
+  const dDimTriac110v = (p as any).driverDimTriac110v ?? null;
+  const dDimTriac220v = (p as any).driverDimTriac220v ?? null;
 
   const driver220: PainelProduct["driver220"] = d220
     ? { model: driverModel(d220), code: driverCode(d220) }
@@ -260,6 +274,14 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
     ? { model: driverModel(dDimDali), code: driverCode(dDimDali) }
     : null;
 
+  const driverDimTriac110v: PainelProduct["driverDimTriac110v"] = dDimTriac110v
+    ? { model: driverModel(dDimTriac110v), code: driverCode(dDimTriac110v) }
+    : null;
+
+  const driverDimTriac220v: PainelProduct["driverDimTriac220v"] = dDimTriac220v
+    ? { model: driverModel(dDimTriac220v), code: driverCode(dDimTriac220v) }
+    : null;
+
   const cctsPainel = normalizeCCTs(p.temperaturasCor);
 
   return {
@@ -273,14 +295,20 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
     driverBivolt,
     driverDim110v,
     driverDimDali,
+    driverDimTriac110v,
+    driverDimTriac220v,
     driverQtd220: p.driverQtd220 ?? null,
     driverQtdBivolt: p.driverQtdBivolt ?? null,
     driverQtdDim110v: p.driverQtdDim110v ?? null,
     driverQtdDimDali: p.driverQtdDimDali ?? null,
+    driverQtdDimTriac110v: (p as any).driverQtdDimTriac110v ?? null,
+    driverQtdDimTriac220v: (p as any).driverQtdDimTriac220v ?? null,
     precoOnOff220: p.precoOnOff220 ?? null,
     precoOnOffBivolt: p.precoOnOffBivolt ?? null,
     precoDim110v: p.precoDim110v ?? null,
     precoDimDali: p.precoDimDali ?? null,
+    precoDimTriac110v: (p as any).precoDimTriac110v ?? null,
+    precoDimTriac220v: (p as any).precoDimTriac220v ?? null,
     fotoUrl: normalizeFotoUrl(p.fotoUrl ?? null),
   };
 }

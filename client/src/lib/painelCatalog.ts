@@ -32,6 +32,10 @@ export interface PainelProduct {
   driverDim110v: PainelDriver | null;
   /** Driver DIM DALI -- null se nao disponivel */
   driverDimDali: PainelDriver | null;
+  /** Driver DIM TRIAC 110V -- null se nao disponivel */
+  driverDimTriac110v?: PainelDriver | null;
+  /** Driver DIM TRIAC 220V -- null se nao disponivel */
+  driverDimTriac220v?: PainelDriver | null;
   /** Quantidade de drivers ON/OFF 220V. null = driver não existe no produto. */
   driverQtd220: number | null;
   /** Quantidade de drivers Bivolt. null = driver não existe no produto. */
@@ -40,6 +44,10 @@ export interface PainelProduct {
   driverQtdDim110v: number | null;
   /** Quantidade de drivers DIM DALI. null = driver não existe no produto. */
   driverQtdDimDali: number | null;
+  /** Quantidade de drivers DIM TRIAC 110V. null = driver não existe no produto. */
+  driverQtdDimTriac110v?: number | null;
+  /** Quantidade de drivers DIM TRIAC 220V. null = driver não existe no produto. */
+  driverQtdDimTriac220v?: number | null;
   /** Preço unitário ON/OFF 220V (R$). null = não cadastrado. */
   precoOnOff220?: number | null;
   /** Preço unitário ON/OFF Bivolt (R$). null = não cadastrado. */
@@ -48,6 +56,10 @@ export interface PainelProduct {
   precoDim110v?: number | null;
   /** Preço unitário DIM DALI (R$). null = não cadastrado. */
   precoDimDali?: number | null;
+  /** Preço unitário DIM TRIAC 110V (R$). null = não cadastrado. */
+  precoDimTriac110v?: number | null;
+  /** Preço unitário DIM TRIAC 220V (R$). null = não cadastrado. */
+  precoDimTriac220v?: number | null;
   /**
    * URL da foto do produto (vinda da API). Pode ser null se não cadastrada.
    */
@@ -930,6 +942,10 @@ export function calculatePainel(input: PainelInput, catalog?: PainelProduct[]): 
     driver = product.driverDimDali;
   } else if (input.controle === "DIM 1-10V" && product.driverDim110v) {
     driver = product.driverDim110v;
+  } else if (input.controle === "DIM TRIAC 110V" && product.driverDimTriac110v) {
+    driver = product.driverDimTriac110v;
+  } else if (input.controle === "DIM TRIAC 220V" && product.driverDimTriac220v) {
+    driver = product.driverDimTriac220v;
   } else if (input.tensao === "Bivolt" && product.driverBivolt) {
     driver = product.driverBivolt;
   } else {

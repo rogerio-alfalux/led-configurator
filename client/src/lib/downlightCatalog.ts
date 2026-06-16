@@ -9,7 +9,7 @@ export interface DownlightDriver {
   code: string;
 }
 
-export type ControleType = "ON/OFF" | "DIM 1-10V" | "DIM DALI";
+export type ControleType = "ON/OFF" | "DIM 1-10V" | "DIM DALI" | "DIM TRIAC 110V" | "DIM TRIAC 220V";
 
 export interface DownlightProduct {
   /** Tipo de instalacao: "EMBUTIR" | "NO FRAME" */
@@ -46,6 +46,10 @@ export interface DownlightProduct {
   driverDim110v: DownlightDriver | null;
   /** Driver DIM DALI -- null se nao disponivel */
   driverDimDali: DownlightDriver | null;
+  /** Driver DIM TRIAC 110V -- null se nao disponivel */
+  driverDimTriac110v?: DownlightDriver | null;
+  /** Driver DIM TRIAC 220V -- null se nao disponivel */
+  driverDimTriac220v?: DownlightDriver | null;
   /** Quantidade de drivers ON/OFF 220V. null = driver não existe no produto. */
   driverQtd220: number | null;
   /** Quantidade de drivers Bivolt. null = driver não existe no produto. */
@@ -54,6 +58,10 @@ export interface DownlightProduct {
   driverQtdDim110v: number | null;
   /** Quantidade de drivers DIM DALI. null = driver não existe no produto. */
   driverQtdDimDali: number | null;
+  /** Quantidade de drivers DIM TRIAC 110V. null = driver não existe no produto. */
+  driverQtdDimTriac110v?: number | null;
+  /** Quantidade de drivers DIM TRIAC 220V. null = driver não existe no produto. */
+  driverQtdDimTriac220v?: number | null;
   /** Preço unitário ON/OFF 220V (R$). null = não cadastrado. */
   precoOnOff220?: number | null;
   /** Preço unitário ON/OFF Bivolt (R$). null = não cadastrado. */
@@ -62,6 +70,10 @@ export interface DownlightProduct {
   precoDim110v?: number | null;
   /** Preço unitário DIM DALI (R$). null = não cadastrado. */
   precoDimDali?: number | null;
+  /** Preço unitário DIM TRIAC 110V (R$). null = não cadastrado. */
+  precoDimTriac110v?: number | null;
+  /** Preço unitário DIM TRIAC 220V (R$). null = não cadastrado. */
+  precoDimTriac220v?: number | null;
 }
 
 export interface DownlightInput {
@@ -3688,6 +3700,10 @@ export function calculateDownlight(input: DownlightInput, catalog?: DownlightPro
     driver = product.driverDimDali;
   } else if (input.controle === 'DIM 1-10V' && product.driverDim110v) {
     driver = product.driverDim110v;
+  } else if (input.controle === 'DIM TRIAC 110V' && product.driverDimTriac110v) {
+    driver = product.driverDimTriac110v;
+  } else if (input.controle === 'DIM TRIAC 220V' && product.driverDimTriac220v) {
+    driver = product.driverDimTriac220v;
   } else if (input.tensao === 'Bivolt' && product.driverBivolt) {
     driver = product.driverBivolt;
   } else {

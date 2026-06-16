@@ -5,7 +5,7 @@
  * e cacheia por 5 minutos.
  *
  * Formato do endpoint /api/products/all:
- *   - driver220, driverBivolt, driverDim110v, driverDimDali: { model: string, code: string | null } | null
+ *   - driver220, driverBivolt, driverDim110v, driverDimDali, driverDimTriac110v, driverDimTriac220v: { model: string, code: string | null } | null
  *   - temperaturasCor: string[] (array, não JSON string)
  *   - name: nome do produto (em vez de "produto")
  *   - ledModule: módulo LED (em vez de "moduloLed")
@@ -51,6 +51,10 @@ export interface AlfaluxProduct {
   driverDim110v: DriverInfo | null;
   /** Driver DIM DALI (null = não disponível) */
   driverDimDali: DriverInfo | null;
+  /** Driver DIM TRIAC 110V (null = não disponível) */
+  driverDimTriac110v: DriverInfo | null;
+  /** Driver DIM TRIAC 220V (null = não disponível) */
+  driverDimTriac220v: DriverInfo | null;
 
   /** Quantidade de drivers ON/OFF 220V. null = driver não existe no produto. */
   driverQtd220: number | null;
@@ -60,12 +64,18 @@ export interface AlfaluxProduct {
   driverQtdDim110v: number | null;
   /** Quantidade de drivers DIM DALI. null = driver não existe no produto. */
   driverQtdDimDali: number | null;
+  /** Quantidade de drivers DIM TRIAC 110V. null = driver não existe no produto. */
+  driverQtdDimTriac110v: number | null;
+  /** Quantidade de drivers DIM TRIAC 220V. null = driver não existe no produto. */
+  driverQtdDimTriac220v: number | null;
 
   custoLuminaria: number | null;
   custoDriver220: number | null;
   custoDriverBivolt: number | null;
   custoDriverDim110v: number | null;
   custoDriverDimDali: number | null;
+  custoDriverDimTriac110v: number | null;
+  custoDriverDimTriac220v: number | null;
   /** Preço por metro (D1 simples) — ON/OFF 220V */
   precoOnOff220?: number | null;
   /** Preço por metro (D1 simples) — ON/OFF Bivolt */
@@ -74,6 +84,10 @@ export interface AlfaluxProduct {
   precoDim110v?: number | null;
   /** Preço por metro (D1 simples) — DIM DALI */
   precoDimDali?: number | null;
+  /** Preço por metro (D1 simples) — DIM TRIAC 110V */
+  precoDimTriac110v?: number | null;
+  /** Preço por metro (D1 simples) — DIM TRIAC 220V */
+  precoDimTriac220v?: number | null;
   /** Preço por metro (D1 isolado) — ON/OFF 220V */
   precoOnOff220D1?: number | null;
   /** Preço por metro (D1 isolado) — ON/OFF Bivolt */
@@ -82,6 +96,10 @@ export interface AlfaluxProduct {
   precoDim110vD1?: number | null;
   /** Preço por metro (D1 isolado) — DIM DALI */
   precoDimDaliD1?: number | null;
+  /** Preço por metro (D1 isolado) — DIM TRIAC 110V */
+  precoDimTriac110vD1?: number | null;
+  /** Preço por metro (D1 isolado) — DIM TRIAC 220V */
+  precoDimTriac220vD1?: number | null;
   /** Preço por metro (D1+D2 duplo) — ON/OFF 220V */
   precoOnOff220D1D2?: number | null;
   /** Preço por metro (D1+D2 duplo) — ON/OFF Bivolt */
@@ -90,6 +108,10 @@ export interface AlfaluxProduct {
   precoDim110vD1D2?: number | null;
   /** Preço por metro (D1+D2 duplo) — DIM DALI */
   precoDimDaliD1D2?: number | null;
+  /** Preço por metro (D1+D2 duplo) — DIM TRIAC 110V */
+  precoDimTriac110vD1D2?: number | null;
+  /** Preço por metro (D1+D2 duplo) — DIM TRIAC 220V */
+  precoDimTriac220vD1D2?: number | null;
   precoMetro?: number | null;
 }
 

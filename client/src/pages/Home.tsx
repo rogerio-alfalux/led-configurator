@@ -148,12 +148,14 @@ const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.E
 
 // ─── Auxiliar: quantidade de drivers por produto/controle/tensão ─────────────
 function driverQtyFor(
-  product: { driverQtd220?: number | null; driverQtdBivolt?: number | null; driverQtdDim110v?: number | null; driverQtdDimDali?: number | null },
+  product: { driverQtd220?: number | null; driverQtdBivolt?: number | null; driverQtdDim110v?: number | null; driverQtdDimDali?: number | null; driverQtdDimTriac110v?: number | null; driverQtdDimTriac220v?: number | null },
   controle: string,
   tensao: string
 ): number {
   if (controle === 'DIM DALI') return product.driverQtdDimDali ?? 1;
   if (controle === 'DIM 1-10V') return product.driverQtdDim110v ?? 1;
+  if (controle === 'DIM TRIAC 110V') return product.driverQtdDimTriac110v ?? 1;
+  if (controle === 'DIM TRIAC 220V') return product.driverQtdDimTriac220v ?? 1;
   if (tensao === 'Bivolt') return product.driverQtdBivolt ?? 1;
   return product.driverQtd220 ?? 1;
 }
@@ -163,12 +165,14 @@ function driverQtyFor(
  * Retorna null se o preço não estiver cadastrado.
  */
 function getPrecoForControle(
-  product: { precoOnOff220?: number | null; precoOnOffBivolt?: number | null; precoDim110v?: number | null; precoDimDali?: number | null },
+  product: { precoOnOff220?: number | null; precoOnOffBivolt?: number | null; precoDim110v?: number | null; precoDimDali?: number | null; precoDimTriac110v?: number | null; precoDimTriac220v?: number | null },
   controle: string,
   tensao: string
 ): number | null {
   if (controle === 'DIM DALI') return product.precoDimDali ?? null;
   if (controle === 'DIM 1-10V') return product.precoDim110v ?? null;
+  if (controle === 'DIM TRIAC 110V') return product.precoDimTriac110v ?? null;
+  if (controle === 'DIM TRIAC 220V') return product.precoDimTriac220v ?? null;
   if (tensao === 'Bivolt') return product.precoOnOffBivolt ?? null;
   return product.precoOnOff220 ?? null;
 }
@@ -3952,12 +3956,15 @@ export default function Home() {
                       const dlSelProdCtrl = activeDlCatalog.find(p => p.sku === _dlCtrlSku && p.name === _dlCtrlName);
                       const hasDim110v = dlSelProdCtrl?.driverDim110v != null;
                       const hasDimDali = dlSelProdCtrl?.driverDimDali != null;
+                      const hasDimTriac110v = (dlSelProdCtrl as any)?.driverDimTriac110v != null;
+                      const hasDimTriac220v = (dlSelProdCtrl as any)?.driverDimTriac220v != null;
+                      const allControles: ControleType[] = ["ON/OFF", "DIM 1-10V", "DIM DALI", ...(hasDimTriac110v ? ["DIM TRIAC 110V" as ControleType] : []), ...(hasDimTriac220v ? ["DIM TRIAC 220V" as ControleType] : [])];
                       return (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Controle</Label>
-                          <div className="flex gap-2">
-                            {(["ON/OFF", "DIM 1-10V", "DIM DALI"] as ControleType[]).map((ctrl) => {
-                              const isAvailable = ctrl === "ON/OFF" || (ctrl === "DIM 1-10V" && hasDim110v) || (ctrl === "DIM DALI" && hasDimDali);
+                          <div className="flex flex-wrap gap-2">
+                            {allControles.map((ctrl) => {
+                              const isAvailable = ctrl === "ON/OFF" || (ctrl === "DIM 1-10V" && hasDim110v) || (ctrl === "DIM DALI" && hasDimDali) || (ctrl === "DIM TRIAC 110V" && hasDimTriac110v) || (ctrl === "DIM TRIAC 220V" && hasDimTriac220v);
                               return (
                                 <button
                                   key={ctrl}
@@ -3968,14 +3975,17 @@ export default function Home() {
                                     setDlResult(null);
                                     // Se DIM selecionado e driver não suporta bivolt, resetar para 220V
                                     if (ctrl !== 'ON/OFF') {
-                                      const dimDrv = ctrl === 'DIM DALI' ? dlSelProdCtrl?.driverDimDali : dlSelProdCtrl?.driverDim110v;
+                                      const dimDrv = ctrl === 'DIM DALI' ? dlSelProdCtrl?.driverDimDali
+                                        : ctrl === 'DIM 1-10V' ? dlSelProdCtrl?.driverDim110v
+                                        : ctrl === 'DIM TRIAC 110V' ? (dlSelProdCtrl as any)?.driverDimTriac110v
+                                        : (dlSelProdCtrl as any)?.driverDimTriac220v;
                                       const dimBivolt = dimDrv != null && /bivolt/i.test(dimDrv.model);
                                       if (!dimBivolt && dlVoltage === 'Bivolt') setDlVoltage('220V');
                                     }
                                   }}
                                   title={!isAvailable ? "Driver não cadastrado para este produto" : undefined}
                                   className={[
-                                    "flex-1 py-2 rounded-lg text-xs font-medium border transition-all",
+                                    "flex-1 min-w-[80px] py-2 rounded-lg text-xs font-medium border transition-all",
                                     dlControle === ctrl && isAvailable
                                       ? "bg-primary text-primary-foreground border-primary"
                                       : "bg-background text-foreground border-border hover:border-primary/50",
@@ -3987,7 +3997,7 @@ export default function Home() {
                               );
                             })}
                           </div>
-                          {!hasDim110v && !hasDimDali && (
+                          {!hasDim110v && !hasDimDali && !hasDimTriac110v && !hasDimTriac220v && (
                             <p className="text-xs text-muted-foreground">DIM 1-10V e DIM DALI serão habilitados quando os dados estiverem disponíveis.</p>
                           )}
                         </div>
@@ -4168,43 +4178,55 @@ export default function Home() {
                       {panelProductKey !== null && (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Controle</Label>
-                          <div className="flex gap-2">
-                            {(["ON/OFF", "DIM 1-10V", "DIM DALI"] as ControleType[]).map((ctrl) => {
+                          {(() => {
                               const [_pSku, ..._pNameParts] = (panelProductKey ?? '::').split('::'); const _pName = _pNameParts.join('::'); const selProd = panelProductKey !== null ? activePanelCatalog.find(p => p.sku === _pSku && p.name === _pName) : null;
-                              const isAvailable =
-                                ctrl === "ON/OFF" ||
-                                (ctrl === "DIM 1-10V" && selProd?.driverDim110v != null) ||
-                                (ctrl === "DIM DALI" && selProd?.driverDimDali != null);
+                              const hasDimTriac110v = (selProd as any)?.driverDimTriac110v != null;
+                              const hasDimTriac220v = (selProd as any)?.driverDimTriac220v != null;
+                              const panelControles: ControleType[] = ["ON/OFF", "DIM 1-10V", "DIM DALI", ...(hasDimTriac110v ? ["DIM TRIAC 110V" as ControleType] : []), ...(hasDimTriac220v ? ["DIM TRIAC 220V" as ControleType] : [])];
                               return (
-                                <button
-                                  key={ctrl}
-                                  disabled={!isAvailable}
-                                  onClick={() => {
-                                    if (isAvailable) {
-                                      setPanelControle(ctrl);
-                                      setPanelResult(null);
-                                      // Se o novo controle for DIM e o driver não suportar bivolt, forçar 220V
-                                      if (ctrl !== 'ON/OFF') {
-                                        const dimDrv = ctrl === 'DIM DALI' ? selProd?.driverDimDali : selProd?.driverDim110v;
-                                        const dimBivolt = dimDrv != null && /bivolt/i.test(dimDrv.model);
-                                        if (!dimBivolt) setPanelVoltage('220V');
-                                      }
-                                    }
-                                  }}
-                                  title={!isAvailable ? "Não disponível para este produto" : undefined}
-                                  className={[
-                                    "flex-1 py-2 rounded-lg text-xs font-medium border transition-all",
-                                    panelControle === ctrl && isAvailable
-                                      ? "bg-primary text-primary-foreground border-primary"
-                                      : "bg-background text-foreground border-border hover:border-primary/50",
-                                    !isAvailable ? "opacity-40 cursor-not-allowed" : "",
-                                  ].join(" ")}
-                                >
-                                  {ctrl}
-                                </button>
+                                <div className="flex flex-wrap gap-2">
+                                  {panelControles.map((ctrl) => {
+                                    const isAvailable =
+                                      ctrl === "ON/OFF" ||
+                                      (ctrl === "DIM 1-10V" && selProd?.driverDim110v != null) ||
+                                      (ctrl === "DIM DALI" && selProd?.driverDimDali != null) ||
+                                      (ctrl === "DIM TRIAC 110V" && hasDimTriac110v) ||
+                                      (ctrl === "DIM TRIAC 220V" && hasDimTriac220v);
+                                    return (
+                                      <button
+                                        key={ctrl}
+                                        disabled={!isAvailable}
+                                        onClick={() => {
+                                          if (isAvailable) {
+                                            setPanelControle(ctrl);
+                                            setPanelResult(null);
+                                            // Se o novo controle for DIM e o driver não suportar bivolt, forçar 220V
+                                            if (ctrl !== 'ON/OFF') {
+                                              const dimDrv = ctrl === 'DIM DALI' ? selProd?.driverDimDali
+                                                : ctrl === 'DIM 1-10V' ? selProd?.driverDim110v
+                                                : ctrl === 'DIM TRIAC 110V' ? (selProd as any)?.driverDimTriac110v
+                                                : (selProd as any)?.driverDimTriac220v;
+                                              const dimBivolt = dimDrv != null && /bivolt/i.test(dimDrv.model);
+                                              if (!dimBivolt) setPanelVoltage('220V');
+                                            }
+                                          }
+                                        }}
+                                        title={!isAvailable ? "Não disponível para este produto" : undefined}
+                                        className={[
+                                          "flex-1 min-w-[80px] py-2 rounded-lg text-xs font-medium border transition-all",
+                                          panelControle === ctrl && isAvailable
+                                            ? "bg-primary text-primary-foreground border-primary"
+                                            : "bg-background text-foreground border-border hover:border-primary/50",
+                                          !isAvailable ? "opacity-40 cursor-not-allowed" : "",
+                                        ].join(" ")}
+                                      >
+                                        {ctrl}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
                               );
-                            })}
-                          </div>
+                            })()}
                         </div>
                       )}
                       {/* Tensão */}
@@ -4212,9 +4234,11 @@ export default function Home() {
                         const [_vSku, ..._vNameParts] = (panelProductKey ?? '::').split('::');
                         const _vName = _vNameParts.join('::');
                         const selProdV = activePanelCatalog.find(p => p.sku === _vSku && p.name === _vName);
-                        // Driver DIM selecionado (DALI ou 1-10V)
+                        // Driver DIM selecionado (DALI, 1-10V ou TRIAC)
                         const dimDriver = panelControle === 'DIM DALI' ? selProdV?.driverDimDali
                           : panelControle === 'DIM 1-10V' ? selProdV?.driverDim110v
+                          : panelControle === 'DIM TRIAC 110V' ? (selProdV as any)?.driverDimTriac110v
+                          : panelControle === 'DIM TRIAC 220V' ? (selProdV as any)?.driverDimTriac220v
                           : null;
                         // Bivolt permitido no modo DIM apenas se o modelo do driver contiver "bivolt" (case-insensitive)
                         const dimSupportsBivolt = dimDriver != null && /bivolt/i.test(dimDriver.model);
