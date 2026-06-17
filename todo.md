@@ -1263,19 +1263,19 @@
 
 ## Melhorias Jun 2026 (solicitadas pelo usuário)
 
-- [ ] Frete aparece no Excel e na pré-visualização do orçamento
-- [ ] Número de orçamento escolhido pelo usuário persiste até o final (não é sobrescrito)
-- [ ] Revisão só incrementa ao clicar em "Baixar Excel" (não ao salvar/editar)
-- [ ] Campo de quantidade ao lado do botão "Enviar ao Carrinho" em todos os blocos (espelhado no carrinho)
-- [ ] Opção "A definir" de CCT disponível em todos os itens via select (não botões fixos)
-- [ ] Botão "Duplicar item" no carrinho e na edição de orçamento
+- [x] Frete aparece no Excel e na pré-visualização do orçamento
+- [x] Número de orçamento escolhido pelo usuário persiste até o final (não é sobrescrito)
+- [x] Revisão só incrementa ao clicar em "Baixar Excel" (não ao salvar/editar)
+- [x] Campo de quantidade ao lado do botão "Enviar ao Carrinho" em todos os blocos (espelhado no carrinho)
+- [x] Opção "A definir" de CCT disponível em todos os itens via select (não botões fixos)
+- [x] Botão "Duplicar item" no carrinho e na edição de orçamento
 
 ## Melhorias Jun 2026 - Lote 2
 
-- [ ] Bloquear download Excel sem orçamento salvo (Cart.tsx) — obrigar salvar antes de baixar
-- [ ] Frete cotado (freteValue) aparece no Excel e na pré-visualização para todos os tipos de frete
-- [ ] Número de orçamento digitado manualmente não é sobrescrito pela sugestão automática
-- [ ] Revisão RV0 ao salvar pela primeira vez (não incrementar ao editar sem baixar Excel)
-- [ ] Campo de quantidade ao lado do botão Enviar ao Carrinho em todos os blocos (espelhado no carrinho)
-- [ ] Opção "A definir" de CCT em todos os selects de CCT
-- [ ] Botão duplicar item no carrinho e na edição de orçamento (QuoteDetail)
+- [x] Bloquear download Excel sem orçamento salvo (Cart.tsx) — obrigar salvar antes de baixar
+- [x] Frete cotado (freteValue) aparece no Excel e na pré-visualização para todos os tipos de frete
+- [x] Número de orçamento digitado manualmente não é sobrescrito pela sugestão automática
+- [x] Revisão RV0 ao salvar pela primeira vez (não incrementar ao editar sem baixar Excel)
+- [x] Campo de quantidade ao lado do botão Enviar ao Carrinho em todos os blocos (espelhado no carrinho)
+- [x] Opção "A definir" de CCT em todos os selects de CCT
+- [x] Botão duplicar item no carrinho e na edição de orçamento (QuoteDetail)

@@ -2170,7 +2170,7 @@ export default function Home() {
 
   // Famílias que não têm seleção de difusor (MILANO, MEIA LUA — difusor fixo NF)
   const lbIsNoDifusorFamily = useMemo(() =>
-    lbFamilia ? /^(MILANO|MEIA LUA)/i.test(lbFamilia) : false,
+    lbFamilia ? /^(MILANO|MEIA LUA|PERFIL FLEXIVEL)/i.test(lbFamilia) : false,
     [lbFamilia]
   );
 
@@ -3371,7 +3371,13 @@ export default function Home() {
                   <div>
                     <FieldLabel>Potência</FieldLabel>
                     <div className="grid grid-cols-3 gap-2">
-                      {LED_BAR_POTENCIA_OPTIONS.map((opt) => {
+                      {LED_BAR_POTENCIA_OPTIONS.filter((opt) =>
+                        // Para famílias sem difusor (PERFIL FLEXIVEL, MILANO, MEIA LUA),
+                        // ocultar potências que não existem no catálogo para essa família
+                        lbIsNoDifusorFamily
+                          ? activeLedBarCatalog.some(p => p.familia === lbFamilia && p.potencia === opt.value)
+                          : true
+                      ).map((opt) => {
                         const exists = activeLedBarCatalog.some(
                           p => p.familia === lbFamilia && p.potencia === opt.value
                         );
