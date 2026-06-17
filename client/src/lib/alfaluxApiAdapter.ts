@@ -420,9 +420,14 @@ function toArandelaProduct(p: ApiProduct): ArandelaProduct {
 }
 
 /** Converte um produto da API para LedBarProduct */
+/** Famílias que usam o fluxo LED BAR mas não têm difusor no nome (ex: MILANO NF, MEIA LUA) */
+const LED_BAR_FAMILIES_NO_DIFUSOR = /^(MILANO|MEIA LUA)/i;
+
 function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
   const potencia = parsePotenciaFromName(p.name);
-  const difusor = parseDifusorFromName(p.name);
+  // Famílias sem difusor no nome usam "NF" como difusor padrão
+  const isNoDifusorFamily = LED_BAR_FAMILIES_NO_DIFUSOR.test(p.familia ?? "");
+  const difusor = parseDifusorFromName(p.name) ?? (isNoDifusorFamily ? "NF" as const : null);
   if (!potencia || !difusor) return null; // não conseguiu parsear potência ou difusor
 
   const d220 = p.driver220;
@@ -452,9 +457,9 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
   };
 }
 
-/** Verifica se um produto PERFIS é da família LED BAR */
+/** Verifica se um produto PERFIS usa o fluxo LED BAR (por metro linear com fonte de tensão) */
 function isLedBarProduct(p: ApiProduct): boolean {
-  return /^LED BAR/i.test(p.familia ?? "");
+  return /^(LED BAR|MILANO|MEIA LUA)/i.test(p.familia ?? "");
 }
 /** Verifica se um produto PERFIS é da família GLOW */
 function isGlowProduct(p: ApiProduct): boolean {

@@ -2120,13 +2120,22 @@ export default function Home() {
     [activeLedBarCatalog]
   );
 
+  // Famílias que não têm seleção de difusor (MILANO, MEIA LUA — difusor fixo NF)
+  const lbIsNoDifusorFamily = useMemo(() =>
+    lbFamilia ? /^(MILANO|MEIA LUA)/i.test(lbFamilia) : false,
+    [lbFamilia]
+  );
+
   // Produto LED BAR selecionado (potência + difusor)
   const lbSelectedProduct = useMemo<LedBarProduct | null>(() => {
-    if (!lbFamilia || !lbPotencia || !lbDifusor) return null;
+    if (!lbFamilia || !lbPotencia) return null;
+    // Para famílias sem difusor (NF), usa difusor NF diretamente
+    const difusorEfetivo = lbIsNoDifusorFamily ? "NF" : lbDifusor;
+    if (!difusorEfetivo) return null;
     return activeLedBarCatalog.find(
-      p => p.familia === lbFamilia && p.potencia === lbPotencia && p.difusor === lbDifusor
+      p => p.familia === lbFamilia && p.potencia === lbPotencia && p.difusor === difusorEfetivo
     ) ?? null;
-  }, [lbFamilia, lbPotencia, lbDifusor, activeLedBarCatalog]);
+  }, [lbFamilia, lbPotencia, lbDifusor, lbIsNoDifusorFamily, activeLedBarCatalog]);
 
   // Tensões disponíveis para o produto e controle selecionados
   const lbAvailableVoltages = useMemo<LedBarVoltage[]>(() => {
@@ -2864,10 +2873,18 @@ export default function Home() {
                           ))}
                         </>
                       )}
-                      {lbFamilias.length > 0 && (
+                      {lbFamilias.filter(f => /^LED BAR/i.test(f)).length > 0 && (
                         <>
                           <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">LED BAR</div>
-                          {lbFamilias.map((fam) => (
+                          {lbFamilias.filter(f => /^LED BAR/i.test(f)).map((fam) => (
+                            <SelectItem key={`__LEDBAR__${fam}`} value={`__LEDBAR__${fam}`}>{fam}</SelectItem>
+                          ))}
+                        </>
+                      )}
+                      {lbFamilias.filter(f => /^(MILANO|MEIA LUA)/i.test(f)).length > 0 && (
+                        <>
+                          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">MILANO / MEIA LUA</div>
+                          {lbFamilias.filter(f => /^(MILANO|MEIA LUA)/i.test(f)).map((fam) => (
                             <SelectItem key={`__LEDBAR__${fam}`} value={`__LEDBAR__${fam}`}>{fam}</SelectItem>
                           ))}
                         </>
@@ -3330,12 +3347,12 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Difusor */}
-                  {lbPotencia && (
+                  {/* Difusor — oculto para famílias NF (MILANO, MEIA LUA) */}
+                  {lbPotencia && !lbIsNoDifusorFamily && (
                   <div>
                     <FieldLabel>Difusor</FieldLabel>
                     <div className="grid grid-cols-3 gap-2">
-                      {LED_BAR_DIFUSOR_OPTIONS.map((opt) => {
+                      {LED_BAR_DIFUSOR_OPTIONS.filter(o => o.value !== "NF").map((opt) => {
                         const exists = activeLedBarCatalog.some(
                           p => p.familia === lbFamilia && p.potencia === lbPotencia && p.difusor === opt.value
                         );
@@ -3362,7 +3379,7 @@ export default function Home() {
                   )}
 
                   {/* Comprimento */}
-                  {lbDifusor && (
+                  {(lbDifusor || (lbIsNoDifusorFamily && lbPotencia)) && (
                   <div>
                     <FieldLabel>Comprimento (mm)</FieldLabel>
                     <input
@@ -3384,7 +3401,7 @@ export default function Home() {
                   )}
 
                   {/* Quantidade de Trechos */}
-                  {lbDifusor && (
+                  {(lbDifusor || (lbIsNoDifusorFamily && lbPotencia)) && (
                   <div>
                     <FieldLabel hint={lbRequiresCuts ? "obrigatório" : "opcional"}>Quantidade de Cortes</FieldLabel>
                     <input
@@ -3416,7 +3433,7 @@ export default function Home() {
                   )}
 
                   {/* Controle */}
-                  {lbDifusor && (
+                  {(lbDifusor || (lbIsNoDifusorFamily && lbPotencia)) && (
                   <div>
                     <FieldLabel>Controle</FieldLabel>
                     <div className="flex gap-2">
@@ -3456,7 +3473,7 @@ export default function Home() {
                   )}
 
                   {/* Tensão */}
-                  {lbDifusor && (
+                  {(lbDifusor || (lbIsNoDifusorFamily && lbPotencia)) && (
                   <div>
                     <FieldLabel>Tensão</FieldLabel>
                     <div className="flex gap-2">
@@ -3491,7 +3508,7 @@ export default function Home() {
                   )}
 
                   {/* CCT */}
-                  {lbDifusor && (
+                  {(lbDifusor || (lbIsNoDifusorFamily && lbPotencia)) && (
                   <div>
                     <FieldLabel>CCT</FieldLabel>
                     <div className="flex flex-wrap gap-2">
@@ -3513,14 +3530,14 @@ export default function Home() {
                   )}
 
                   {/* Botão Calcular */}
-                  {lbDifusor && (
+                  {(lbDifusor || (lbIsNoDifusorFamily && lbPotencia)) && (
                   <Button
                     className="w-full h-12 text-base font-semibold"
                     onClick={handleCalculateLedBar}
                     disabled={!lbSelectedProduct || lbComprimentoNum <= 0 || (lbRequiresCuts && lbNCortesNum < 2) || lbTrechoExcede}
                   >
                     <Zap className="w-4 h-4 mr-2" />
-                    Calcular LED BAR
+                    Calcular {lbFamilia ?? "LED BAR"}
                   </Button>
                   )}
 
@@ -5695,7 +5712,7 @@ export default function Home() {
                     </div>
                     <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
                     <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                      Selecione potência, difusor, comprimento e clique em "Calcular LED BAR".
+                      Selecione potência{lbIsNoDifusorFamily ? "" : ", difusor"}, comprimento e clique em "Calcular".
                     </p>
                   </CardContent>
                 </Card>
@@ -5706,7 +5723,7 @@ export default function Home() {
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
                         <Zap className="w-4 h-4 text-emerald-500" />
-                        Resultado — LED BAR
+                        Resultado — {lbResult.product.familia}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -5719,7 +5736,7 @@ export default function Home() {
                           <div className="flex-1 min-w-0 p-3 rounded-lg bg-muted/50 flex flex-col justify-center">
                             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
                             <p className="text-sm font-semibold">{lbResult.product.name}</p>
-                            <p className="text-xs text-muted-foreground mt-1">{lbResult.product.familia} · {lbResult.product.difusor} · {lbResult.product.potencia}W/m</p>
+                            <p className="text-sm text-muted-foreground mt-1">{lbResult.product.familia} · {lbResult.product.difusor !== "NF" ? `${lbResult.product.difusor} · ` : ""}{lbResult.product.potencia}W/m</p>
                           </div>
                         </div>
                       )}

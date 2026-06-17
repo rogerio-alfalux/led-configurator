@@ -14,8 +14,8 @@
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
-export type LedBarDifusor = "DA" | "DB" | "DC";
-export type LedBarPotencia = 5 | 10 | 25;
+export type LedBarDifusor = "DA" | "DB" | "DC" | "NF";
+export type LedBarPotencia = 5 | 10 | 20 | 25;
 export type LedBarControle = "ON/OFF" | "DIM 0-10V" | "DIM DALI";
 export type LedBarVoltage = "110V" | "220V" | "Bivolt";
 
@@ -118,6 +118,7 @@ export const LED_BAR_MAX_LENGTH_MM = 3000;
 export const LED_BAR_PRECO_POR_METRO: Record<LedBarPotencia, number> = {
   5:  106.40,
   10: 120.00,
+  20: 126.00, // MILANO / MEIA LUA — preço provisorio; atualizar quando API fornecer
   25: 133.89,
 };
 
@@ -202,6 +203,7 @@ export function calcLedBarPriceDetail(
 export const LED_BAR_POTENCIA_OPTIONS: { value: LedBarPotencia; label: string }[] = [
   { value: 5,  label: "5 W/m" },
   { value: 10, label: "10 W/m" },
+  { value: 20, label: "20 W/m" },
   { value: 25, label: "25 W/m" },
 ];
 
@@ -209,6 +211,7 @@ export const LED_BAR_DIFUSOR_OPTIONS: { value: LedBarDifusor; label: string; des
   { value: "DA", label: "DA", desc: "Difusor Alto" },
   { value: "DB", label: "DB", desc: "Difusor Baixo" },
   { value: "DC", label: "DC", desc: "Difusor Curvo" },
+  { value: "NF", label: "NF", desc: "No Frame" },
 ];
 
 export const LED_BAR_CONTROLE_OPTIONS: { value: LedBarControle; label: string }[] = [
@@ -227,7 +230,7 @@ export function parsePotenciaFromName(name: string): LedBarPotencia | null {
   const m = name.match(/(\d+)\s*W\/M/i);
   if (!m) return null;
   const v = parseInt(m[1], 10);
-  if (v === 5 || v === 10 || v === 25) return v;
+  if (v === 5 || v === 10 || v === 20 || v === 25) return v;
   return null;
 }
 
@@ -236,7 +239,7 @@ export function parsePotenciaFromName(name: string): LedBarPotencia | null {
  * Ex: "LED BAR U DB 10W/M" → "DB"
  */
 export function parseDifusorFromName(name: string): LedBarDifusor | null {
-  const m = name.match(/\b(DA|DB|DC)\b/i);
+  const m = name.match(/\b(DA|DB|DC|NF)\b/i);
   if (!m) return null;
   return m[1].toUpperCase() as LedBarDifusor;
 }
