@@ -61,10 +61,11 @@ interface SortableEditItemProps {
   resolvePhoto: (sku: string | undefined, savedUrl: string | null) => string | null;
   onUpdate: (id: number, fields: Partial<CartItemData>) => void;
   onDelete: (id: number) => void;
+  onDuplicate: (id: number) => void;
   onUploadSpecialPhoto: (itemId: number, base64: string, mimeType: 'image/jpeg' | 'image/png' | 'image/webp', fileName: string) => Promise<void>;
 }
 
-function SortableEditItem({ item, idx, resolvePhoto, onUpdate, onDelete, onUploadSpecialPhoto }: SortableEditItemProps) {
+function SortableEditItem({ item, idx, resolvePhoto, onUpdate, onDelete, onDuplicate, onUploadSpecialPhoto }: SortableEditItemProps) {
   const [specialUploading, setSpecialUploading] = useState(false);
   const d = item.parsed;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
@@ -96,6 +97,15 @@ function SortableEditItem({ item, idx, resolvePhoto, onUpdate, onDelete, onUploa
           onClick={() => onDelete(item.id)}
         >
           <Trash2 className="w-4 h-4" />
+        </button>
+        {/* Botão duplicar item */}
+        <button
+          type="button"
+          className="flex-shrink-0 text-muted-foreground/60 hover:text-blue-500 transition-colors"
+          title="Duplicar este item"
+          onClick={() => onDuplicate(item.id)}
+        >
+          <Copy className="w-4 h-4" />
         </button>
         <span className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
           {idx + 1}
@@ -876,6 +886,17 @@ export default function QuoteDetail() {
                           resolvePhoto={resolvePhoto}
                           onDelete={(id) => {
                             setEditableItems(prev => prev.filter(it => it.id !== id));
+                          }}
+                          onDuplicate={(id) => {
+                            setEditableItems(prev => {
+                              const idx = prev.findIndex(it => it.id === id);
+                              if (idx === -1) return prev;
+                              const src = prev[idx];
+                              const cloned = { ...src, id: Date.now() + Math.random(), itemData: src.itemData };
+                              const next = [...prev];
+                              next.splice(idx + 1, 0, cloned);
+                              return next;
+                            });
                           }}
                           onUpdate={(id, fields) => {
                             setEditableItems(prev => prev.map(it => {

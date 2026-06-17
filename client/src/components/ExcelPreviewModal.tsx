@@ -59,14 +59,22 @@ function buildFreteText(formData: QuoteFormData, totalBase: number): string {
     return `Frete noturno — R$ ${val}`;
   }
   if (freteType === "paid") {
+    const valorCotado = formData.freteValue && formData.freteValue > 0
+      ? ` (R$ ${formData.freteValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} cotado)`
+      : "";
     if (freteLocalidade === "sp") {
       return totalBase >= 1500
-        ? "CIF - Para faturamento acima de R$ 1.500,00 São Paulo/ SP (Capital). Demais localidades sob consulta"
-        : "Frete a cobrar — São Paulo/SP Capital (faturamento abaixo de R$ 1.500,00)";
+        ? `CIF - Para faturamento acima de R$ 1.500,00 São Paulo/ SP (Capital). Demais localidades sob consulta${valorCotado}`
+        : `Frete a cobrar — São Paulo/SP Capital (faturamento abaixo de R$ 1.500,00)${valorCotado}`;
     }
-    return "Frete sob consulta — localidade fora de São Paulo/SP Capital";
+    return `Frete sob consulta — localidade fora de São Paulo/SP Capital${valorCotado}`;
   }
-  if (freteType === "consult") return "Frete sob consulta";
+  if (freteType === "consult") {
+    const valorCotado = formData.freteValue && formData.freteValue > 0
+      ? ` — R$ ${formData.freteValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} cotado`
+      : "";
+    return `Frete sob consulta${valorCotado}`;
+  }
   return "CIF - Para faturamento acima de R$ 1.500,00 São Paulo/ SP (Capital). Demais localidades sob consulta";
 }
 

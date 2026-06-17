@@ -308,9 +308,13 @@ function DiffuserSelector({
 function ShapeResultCard({
   shapeResult,
   onAddToQuote,
+  globalQty = 1,
+  setGlobalQty,
 }: {
   shapeResult: ShapeResult;
   onAddToQuote?: (item: CartItemData) => void;
+  globalQty?: number;
+  setGlobalQty?: (v: number) => void;
 }) {
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -472,9 +476,9 @@ function ShapeResultCard({
       description,
       power: pw || undefined,
       cct: cctStr || undefined,
-      qty: 1,
+      qty: globalQty,
       unitPrice: precoTotal ?? null,
-      totalPrice: precoTotal ?? null,
+      totalPrice: precoTotal != null ? precoTotal * globalQty : null,
       priceFromApi: false,
       photoUrl: photo ?? null,
       orderSummary: summaryText,
@@ -486,6 +490,7 @@ function ShapeResultCard({
 
     if (onAddToQuote) {
       onAddToQuote(item);
+      if (setGlobalQty) setGlobalQty(1);
     } else {
       setPendingItem(item);
       setColorModalOpen(true);
@@ -504,7 +509,20 @@ function ShapeResultCard({
             <CheckCircle2 className="w-4 h-4 text-green-500" />
             Resumo — {shapeLabel}
           </CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {setGlobalQty && (
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs text-muted-foreground whitespace-nowrap">Qtd:</label>
+                <Input
+                  type="number"
+                  className="h-7 text-xs w-16"
+                  min={1}
+                  placeholder="1"
+                  value={globalQty}
+                  onChange={(e) => setGlobalQty(Math.max(1, parseInt(e.target.value) || 1))}
+                />
+              </div>
+            )}
             <Button
               size="sm"
               variant={copied ? "default" : "outline"}
@@ -764,6 +782,7 @@ function ShapeResultCard({
           if (pendingItem) addItem({ ...pendingItem, corPeca: cor });
           setColorModalOpen(false);
           setPendingItem(null);
+          if (setGlobalQty) setGlobalQty(1);
         }}
         isAdding={isAddingToCart}
         productName={shapeResult.profileName ?? "Perfil EM L"}
@@ -785,7 +804,7 @@ type ProfilePriceMap = Record<string, {
   dimDaliD1D2: number | null;
 }>;
 
-function ResultBlock({ result, profilePriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void }) {
+function ResultBlock({ result, profilePriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty, setGlobalQty }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void }) {
   const efficiency = result.requestedLength > 0
     ? Math.round((result.realizedLength / result.requestedLength) * 100)
     : 0;
@@ -956,7 +975,7 @@ function ResultBlock({ result, profilePriceMap, onAddToQuote, itemEmPlanta, setI
       </Card>
 
       {/* Resumo Para Orçamento — Resumo para o cliente */}
-      <QuoteSummaryCard result={result} profilePriceMap={profilePriceMap} onAddToQuote={onAddToQuote} itemEmPlanta={itemEmPlanta} setItemEmPlanta={setItemEmPlanta} />
+      <QuoteSummaryCard result={result} profilePriceMap={profilePriceMap} onAddToQuote={onAddToQuote} itemEmPlanta={itemEmPlanta} setItemEmPlanta={setItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} />
       {/* Resumo para Pedido — Ficha Comercial */}
       <OrderSummaryCard result={result} />
       {/* Composição de Módulos — bloco unificado */}
@@ -1150,7 +1169,7 @@ function ResultBlock({ result, profilePriceMap, onAddToQuote, itemEmPlanta, setI
 }
 
 //// ─── Resumo Para Orçamento (Resumo para o cliente) ──────────────────────────
-function QuoteSummaryCard({ result, profilePriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void }) {
+function QuoteSummaryCard({ result, profilePriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty = 1, setGlobalQty }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void }) {
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { addItem, isAdding: isAddingToCart } = useCart();
@@ -1206,6 +1225,19 @@ function QuoteSummaryCard({ result, profilePriceMap, onAddToQuote, itemEmPlanta,
                   placeholder="ex: L1, P2..."
                   value={itemEmPlanta ?? ""}
                   onChange={(e) => setItemEmPlanta(e.target.value)}
+                />
+              </div>
+            )}
+            {setItemEmPlanta && setGlobalQty && (
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs text-muted-foreground whitespace-nowrap">Qtd:</label>
+                <Input
+                  type="number"
+                  className="h-7 text-xs w-16"
+                  min={1}
+                  placeholder="1"
+                  value={globalQty}
+                  onChange={(e) => setGlobalQty(Math.max(1, parseInt(e.target.value) || 1))}
                 />
               </div>
             )}
@@ -1292,9 +1324,9 @@ function QuoteSummaryCard({ result, profilePriceMap, onAddToQuote, itemEmPlanta,
                   description: `${result.profileName} ${result.installType} ${result.powerD1}W ${result.cct} ${result.controlType === 'dimDali' ? 'DIM DALI' : result.controlType === 'dim110v' ? 'DIM 1-10V' : 'ON/OFF'} ${result.voltage} ${result.realizedLength}mm`,
                   power: `${result.powerD1}W`,
                   cct: result.cct,
-                  qty: 1,
+                  qty: globalQty,
                   unitPrice: precoTotal ?? 0,
-                  totalPrice: precoTotal ?? 0,
+                  totalPrice: (precoTotal ?? 0) * globalQty,
                   priceFromApi: precoTotal != null,
                   photoUrl: photo ?? "",
                   moduloLed: `Stripflex 562,5 x 10mm 36L ${result.cct}`,
@@ -1346,6 +1378,7 @@ function QuoteSummaryCard({ result, profilePriceMap, onAddToQuote, itemEmPlanta,
         if (pendingItem) addItem({ ...pendingItem, corPeca: cor });
         setColorModalOpen(false);
         setPendingItem(null);
+        if (setGlobalQty) setGlobalQty(1);
       }}
       isAdding={isAddingToCart}
       productName={result.profileName}
@@ -1497,6 +1530,8 @@ export default function Home() {
   const [pendingAccessories, setPendingAccessories] = useState<LinkedAccessory[]>([]);
   // Campo "item em planta" global — sincronizado com o carrinho
   const [globalItemEmPlanta, setGlobalItemEmPlanta] = useState("");
+  // Quantidade global — sincronizada com o carrinho (espelhada)
+  const [globalQty, setGlobalQty] = useState(1);
   const appendItemsMutation = trpc.quotes.appendItems.useMutation({
     onSuccess: (data) => {
       toast.success(`Item adicionado ao orçamento ${data.quoteNumber}!`);
@@ -1509,10 +1544,13 @@ export default function Home() {
 
   // Função central: adiciona ao orçamento ou ao carrinho dependendo do modo
   const handleAddItemOrToQuote = useCallback((item: CartItemData) => {
-    // Injeta acessórios pendentes e itemEmPlanta no item antes de enviá-lo
+    // Injeta acessórios pendentes, itemEmPlanta e qty global no item antes de enviá-lo
+    const effectiveQty = globalQty > 0 ? globalQty : 1;
     const itemWithAcc: CartItemData = {
       ...(pendingAccessories.length > 0 ? { ...item, accessories: [...pendingAccessories] } : item),
       itemEmPlanta: globalItemEmPlanta || item.itemEmPlanta || "",
+      qty: effectiveQty,
+      totalPrice: item.unitPrice != null ? item.unitPrice * effectiveQty : (item.totalPrice ?? 0),
     };
     if (pendingAccessories.length > 0) {
       setPendingAccessories([]);
@@ -1527,8 +1565,9 @@ export default function Home() {
     } else {
       addItem(itemWithAcc);
       setGlobalItemEmPlanta(""); // limpa após envio ao carrinho
+      setGlobalQty(1); // reseta quantidade após envio
     }
-  }, [appendToQuoteId, addItem, pendingAccessories, appendItemsMutation, globalItemEmPlanta]);
+  }, [appendToQuoteId, addItem, pendingAccessories, appendItemsMutation, globalItemEmPlanta, globalQty]);
 
   const handleConfirmAddToQuote = useCallback(() => {
     if (!appendToQuoteId || pendingQuoteItems.length === 0) return;
@@ -3075,22 +3114,15 @@ export default function Home() {
                       return (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
-                          <div className="flex gap-2 flex-wrap">
-                            {bfAvailCCTs.map((c) => (
-                              <button
-                                key={c}
-                                onClick={() => { setBfCCT(c); setBfResult(null); }}
-                                className={[
-                                  "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
-                                  bfCCT === c
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-background text-foreground border-border hover:border-primary/50",
-                                ].join(" ")}
-                              >
-                                {c}
-                              </button>
+                          <select
+                            value={bfCCT}
+                            onChange={(e) => { setBfCCT(e.target.value); setBfResult(null); }}
+                            className="h-9 rounded-md border border-border bg-background text-foreground text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
+                          >
+                            {[...bfAvailCCTs, "A definir"].map((c) => (
+                              <option key={c} value={c}>{c}</option>
                             ))}
-                          </div>
+                          </select>
                         </div>
                       );
                     })()}
@@ -3204,21 +3236,15 @@ export default function Home() {
                   {bgInstalacao && (
                   <div>
                     <FieldLabel>CCT</FieldLabel>
-                    <div className="flex flex-wrap gap-2">
-                      {bgAvailableCCTs.map((c) => (
-                        <button
-                          key={c}
-                          onClick={() => { setBgCCT(c); setBgResult(null); }}
-                          className={`px-4 py-2 rounded-md text-sm font-medium border transition-all ${
-                            bgCCT === c
-                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                              : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
-                          }`}
-                        >
-                          {c}
-                        </button>
+                    <select
+                      value={bgCCT}
+                      onChange={(e) => { setBgCCT(e.target.value); setBgResult(null); }}
+                      className="h-9 rounded-md border border-border bg-background text-foreground text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
+                    >
+                      {[...bgAvailableCCTs, "A definir"].map((c) => (
+                        <option key={c} value={c}>{c}</option>
                       ))}
-                    </div>
+                    </select>
                   </div>
                   )}
                   {/* Botão Calcular */}
@@ -3303,22 +3329,15 @@ export default function Home() {
                       return (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
-                          <div className="flex gap-2 flex-wrap">
-                            {gAvailCCTs.map((c) => (
-                              <button
-                                key={c}
-                                onClick={() => { setGlowCCT(c); setGlowResult(null); }}
-                                className={[
-                                  "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
-                                  glowCCT === c
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-background text-foreground border-border hover:border-primary/50",
-                                ].join(" ")}
-                              >
-                                {c}
-                              </button>
+                          <select
+                            value={glowCCT}
+                            onChange={(e) => { setGlowCCT(e.target.value); setGlowResult(null); }}
+                            className="h-9 rounded-md border border-border bg-background text-foreground text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
+                          >
+                            {[...gAvailCCTs, "A definir"].map((c) => (
+                              <option key={c} value={c}>{c}</option>
                             ))}
-                          </div>
+                          </select>
                         </div>
                       );
                     })()}
@@ -3540,21 +3559,15 @@ export default function Home() {
                   {(lbDifusor || (lbIsNoDifusorFamily && lbPotencia)) && (
                   <div>
                     <FieldLabel>CCT</FieldLabel>
-                    <div className="flex flex-wrap gap-2">
-                      {lbAvailableCCTs.map((c) => (
-                        <button
-                          key={c}
-                          onClick={() => { setLbCCT(c); setLbResult(null); }}
-                          className={`px-4 py-2 rounded-md text-sm font-medium border transition-all ${
-                            lbCCT === c
-                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                              : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
-                          }`}
-                        >
-                          {c}
-                        </button>
+                    <select
+                      value={lbCCT}
+                      onChange={(e) => { setLbCCT(e.target.value); setLbResult(null); }}
+                      className="h-9 rounded-md border border-border bg-background text-foreground text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
+                    >
+                      {[...lbAvailableCCTs, "A definir"].map((c) => (
+                        <option key={c} value={c}>{c}</option>
                       ))}
-                    </div>
+                    </select>
                   </div>
                   )}
 
@@ -4148,22 +4161,15 @@ export default function Home() {
                       return (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
-                          <div className="flex gap-2 flex-wrap">
-                            {dAvailCCTs.map((c) => (
-                              <button
-                                key={c}
-                                onClick={() => setDecCCT(c)}
-                                className={[
-                                  "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
-                                  decCCT === c
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-background text-foreground border-border hover:border-primary/50",
-                                ].join(" ")}
-                              >
-                                {c}
-                              </button>
+                          <select
+                            value={decCCT}
+                            onChange={(e) => setDecCCT(e.target.value)}
+                            className="h-9 rounded-md border border-border bg-background text-foreground text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
+                          >
+                            {[...dAvailCCTs, "A definir"].map((c) => (
+                              <option key={c} value={c}>{c}</option>
                             ))}
-                          </div>
+                          </select>
                         </div>
                       );
                     })()}
@@ -4361,22 +4367,15 @@ export default function Home() {
                       return (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
-                          <div className="flex gap-2 flex-wrap">
-                            {dlAvailCCTs.map((c) => (
-                              <button
-                                key={c}
-                                onClick={() => { setDlCCT(c); setDlResult(null); }}
-                                className={[
-                                  "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
-                                  dlCCT === c
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-background text-foreground border-border hover:border-primary/50",
-                                ].join(" ")}
-                              >
-                                {c}
-                              </button>
+                          <select
+                            value={dlCCT}
+                            onChange={(e) => { setDlCCT(e.target.value); setDlResult(null); }}
+                            className="h-9 rounded-md border border-border bg-background text-foreground text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
+                          >
+                            {[...dlAvailCCTs, "A definir"].map((c) => (
+                              <option key={c} value={c}>{c}</option>
                             ))}
-                          </div>
+                          </select>
                         </div>
                       );
                     })()}
@@ -4556,22 +4555,15 @@ export default function Home() {
                       return (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
-                          <div className="flex gap-2 flex-wrap">
-                            {aeAvailCCTs.map((c) => (
-                              <button
-                                key={c}
-                                onClick={() => { setAeCCT(c); setAeResult(null); }}
-                                className={[
-                                  "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
-                                  aeCCT === c
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-background text-foreground border-border hover:border-primary/50",
-                                ].join(" ")}
-                              >
-                                {c}
-                              </button>
+                          <select
+                            value={aeCCT}
+                            onChange={(e) => { setAeCCT(e.target.value); setAeResult(null); }}
+                            className="h-9 rounded-md border border-border bg-background text-foreground text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
+                          >
+                            {[...aeAvailCCTs, "A definir"].map((c) => (
+                              <option key={c} value={c}>{c}</option>
                             ))}
-                          </div>
+                          </select>
                         </div>
                       );
                     })()}
@@ -4789,22 +4781,15 @@ export default function Home() {
                         return (
                           <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
-                            <div className="flex gap-2 flex-wrap">
-                              {panelAvailCCTs.map((c) => (
-                                <button
-                                  key={c}
-                                  onClick={() => { setPanelCCT(c); setPanelResult(null); }}
-                                  className={[
-                                    "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
-                                    panelCCT === c
-                                      ? "bg-primary text-primary-foreground border-primary"
-                                      : "bg-background text-foreground border-border hover:border-primary/50",
-                                  ].join(" ")}
-                                >
-                                  {c}
-                                </button>
+                            <select
+                              value={panelCCT}
+                              onChange={(e) => { setPanelCCT(e.target.value); setPanelResult(null); }}
+                              className="h-9 rounded-md border border-border bg-background text-foreground text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
+                            >
+                              {[...panelAvailCCTs, "A definir"].map((c) => (
+                                <option key={c} value={c}>{c}</option>
                               ))}
-                            </div>
+                            </select>
                           </div>
                         );
                       })()}
@@ -4967,27 +4952,24 @@ export default function Home() {
                     </div>
                   )}
                   {/* CCT */}
-                  {spotProductKey !== null && (
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
-                      <div className="flex gap-2 flex-wrap">
-                        {(activeSpotCatalog.find(p => { const [s, ...np] = (spotProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); })?.ccts ?? ["2700K", "3000K", "4000K", "5000K"]).map((c) => (
-                          <button
-                            key={c}
-                            onClick={() => { setSpotCCT(c); setSpotResult(null); }}
-                            className={[
-                              "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
-                              spotCCT === c
-                                ? "bg-primary text-primary-foreground border-primary"
-                                : "bg-background text-foreground border-border hover:border-primary/50",
-                            ].join(" ")}
-                          >
-                            {c}
-                          </button>
-                        ))}
+                  {spotProductKey !== null && (() => {
+                    const spotSelProd = activeSpotCatalog.find(p => { const [s, ...np] = (spotProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
+                    const spotAvailCCTs = spotSelProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+                    return (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
+                        <select
+                          value={spotCCT}
+                          onChange={(e) => { setSpotCCT(e.target.value); setSpotResult(null); }}
+                          className="h-9 rounded-md border border-border bg-background text-foreground text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
+                        >
+                          {[...spotAvailCCTs, "A definir"].map((c) => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               );
             })()}
@@ -5940,7 +5922,7 @@ export default function Home() {
                 </CardContent>
               </Card>
             ) : (
-              <ResultBlock result={result} profilePriceMap={profilePriceMap} onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} />
+              <ResultBlock result={result} profilePriceMap={profilePriceMap} onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} />
             ))}
             {/* Resultado EM L */}
             {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && !glowMode && profileShape !== "STRAIGHT" && (
@@ -5962,6 +5944,8 @@ export default function Home() {
                 <ShapeResultCard
                   shapeResult={shapeResult}
                   onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined}
+                  globalQty={globalQty}
+                  setGlobalQty={setGlobalQty}
                 />
               )
             )}
@@ -6127,6 +6111,17 @@ export default function Home() {
                                   placeholder="ex: L1, P2..."
                                   value={globalItemEmPlanta}
                                   onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                                />
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <label className="text-xs text-muted-foreground whitespace-nowrap">Qtd:</label>
+                                <Input
+                                  type="number"
+                                  className="h-7 text-xs w-16"
+                                  min={1}
+                                  placeholder="1"
+                                  value={globalQty}
+                                  onChange={(e) => setGlobalQty(Math.max(1, parseInt(e.target.value) || 1))}
                                 />
                               </div>
                               <Button
@@ -6382,6 +6377,17 @@ export default function Home() {
                                 onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
                               />
                             </div>
+                            <div className="flex items-center gap-1.5">
+                              <label className="text-xs text-muted-foreground whitespace-nowrap">Qtd:</label>
+                              <Input
+                                type="number"
+                                className="h-7 text-xs w-16"
+                                min={1}
+                                placeholder="1"
+                                value={globalQty}
+                                onChange={(e) => setGlobalQty(Math.max(1, parseInt(e.target.value) || 1))}
+                              />
+                            </div>
                             <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(orcamento); toast.success("Resumo copiado!"); }}>
                               <Copy className="w-3 h-3 mr-1" /> Copiar Resumo
                             </Button>
@@ -6533,6 +6539,17 @@ export default function Home() {
                           placeholder="ex: L1, P2..."
                           value={globalItemEmPlanta}
                           onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Qtd:</label>
+                        <Input
+                          type="number"
+                          className="h-7 text-xs w-16"
+                          min={1}
+                          placeholder="1"
+                          value={globalQty}
+                          onChange={(e) => setGlobalQty(Math.max(1, parseInt(e.target.value) || 1))}
                         />
                       </div>
                       <Button
@@ -6691,6 +6708,17 @@ export default function Home() {
                           onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
                         />
                       </div>
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Qtd:</label>
+                        <Input
+                          type="number"
+                          className="h-7 text-xs w-16"
+                          min={1}
+                          placeholder="1"
+                          value={globalQty}
+                          onChange={(e) => setGlobalQty(Math.max(1, parseInt(e.target.value) || 1))}
+                        />
+                      </div>
                       <Button
                         variant="outline"
                         size="sm"
@@ -6833,6 +6861,17 @@ export default function Home() {
                             placeholder="ex: L1, P2..."
                             value={globalItemEmPlanta}
                             onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs text-muted-foreground whitespace-nowrap">Qtd:</label>
+                          <Input
+                            type="number"
+                            className="h-7 text-xs w-16"
+                            min={1}
+                            placeholder="1"
+                            value={globalQty}
+                            onChange={(e) => setGlobalQty(Math.max(1, parseInt(e.target.value) || 1))}
                           />
                         </div>
                         <Button
@@ -7035,6 +7074,17 @@ export default function Home() {
                           placeholder="ex: L1, P2..."
                           value={globalItemEmPlanta}
                           onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Qtd:</label>
+                        <Input
+                          type="number"
+                          className="h-7 text-xs w-16"
+                          min={1}
+                          placeholder="1"
+                          value={globalQty}
+                          onChange={(e) => setGlobalQty(Math.max(1, parseInt(e.target.value) || 1))}
                         />
                       </div>
                       <Button
@@ -7267,6 +7317,17 @@ export default function Home() {
                           onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
                         />
                       </div>
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Qtd:</label>
+                        <Input
+                          type="number"
+                          className="h-7 text-xs w-16"
+                          min={1}
+                          placeholder="1"
+                          value={globalQty}
+                          onChange={(e) => setGlobalQty(Math.max(1, parseInt(e.target.value) || 1))}
+                        />
+                      </div>
                       <Button
                         variant="outline"
                         size="sm"
@@ -7491,6 +7552,17 @@ export default function Home() {
                           onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
                         />
                       </div>
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Qtd:</label>
+                        <Input
+                          type="number"
+                          className="h-7 text-xs w-16"
+                          min={1}
+                          placeholder="1"
+                          value={globalQty}
+                          onChange={(e) => setGlobalQty(Math.max(1, parseInt(e.target.value) || 1))}
+                        />
+                      </div>
                       <Button
                         variant="outline" size="sm" className="h-7 text-xs gap-1.5"
                         onClick={() => {
@@ -7689,6 +7761,17 @@ export default function Home() {
                           placeholder="ex: L1, P2..."
                           value={globalItemEmPlanta}
                           onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Qtd:</label>
+                        <Input
+                          type="number"
+                          className="h-7 text-xs w-16"
+                          min={1}
+                          placeholder="1"
+                          value={globalQty}
+                          onChange={(e) => setGlobalQty(Math.max(1, parseInt(e.target.value) || 1))}
                         />
                       </div>
                       <Button
@@ -7921,6 +8004,17 @@ export default function Home() {
                           onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
                         />
                       </div>
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Qtd:</label>
+                        <Input
+                          type="number"
+                          className="h-7 text-xs w-16"
+                          min={1}
+                          placeholder="1"
+                          value={globalQty}
+                          onChange={(e) => setGlobalQty(Math.max(1, parseInt(e.target.value) || 1))}
+                        />
+                      </div>
                       <Button
                         variant="outline" size="sm" className="h-7 text-xs gap-1.5"
                         onClick={() => {
@@ -8131,7 +8225,7 @@ export default function Home() {
                         )}
 
                         {/* Botão adicionar */}
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <div className="flex items-center gap-1.5 flex-1">
                             <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
                             <Input
@@ -8139,6 +8233,17 @@ export default function Home() {
                               placeholder="ex: L1, P2..."
                               value={globalItemEmPlanta}
                               onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                            />
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <label className="text-xs text-muted-foreground whitespace-nowrap">Qtd:</label>
+                            <Input
+                              type="number"
+                              className="h-7 text-xs w-16"
+                              min={1}
+                              placeholder="1"
+                              value={globalQty}
+                              onChange={(e) => setGlobalQty(Math.max(1, parseInt(e.target.value) || 1))}
                             />
                           </div>
                         </div>

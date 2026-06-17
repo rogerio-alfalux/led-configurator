@@ -21,7 +21,7 @@ import {
   ShoppingCart, Trash2, FileSpreadsheet, ArrowLeft, Package,
   Plus, Minus, Save, ClipboardList, Factory, AlertTriangle,
   ChevronRight, Tag, Percent, Truck, Users, PlusCircle, CheckCircle2,
-  GripVertical, Pencil, Wrench, Eye, Upload, X,
+  GripVertical, Pencil, Wrench, Eye, Upload, X, Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,12 +113,13 @@ interface SortableCartItemProps {
   updateQtyMutation: { isPending: boolean };
   isRemoving: boolean;
   onEditClick: (id: number, data: CartItemData) => void;
+  onDuplicate: (data: CartItemData) => void;
   acessorioPhotoMap: Map<string, string>;
 }
 
 function SortableCartItem({
   entry, idx, itemEmPlantaMap, setItemEmPlantaMap, updateItemField,
-  handleUpdateQty, handleQtyInput, removeItem, updateQtyMutation, isRemoving, onEditClick,
+  handleUpdateQty, handleQtyInput, removeItem, updateQtyMutation, isRemoving, onEditClick, onDuplicate,
   acessorioPhotoMap,
 }: SortableCartItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: entry.id });
@@ -253,6 +254,12 @@ function SortableCartItem({
                     onClick={() => onEditClick(entry.id, entry.data)}>
                     <Pencil className="w-3 h-3" />
                   </Button>
+                  {/* Botão duplicar */}
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-blue-500"
+                    title="Duplicar item"
+                    onClick={() => onDuplicate(entry.data)}>
+                    <Copy className="w-3 h-3" />
+                  </Button>
                 </div>
               </div>
             </div>
@@ -335,7 +342,7 @@ export default function Cart() {
     { enabled: appendToQuoteIdNum != null }
   );
   const appendQuote = appendQuoteQuery.data;
-  const { entries, count, isLoading, removeItem, clearCart, isRemoving, updateItemField } = useCart();
+  const { entries, count, isLoading, removeItem, clearCart, isRemoving, updateItemField, addItem } = useCart();
   const utils = trpc.useUtils();
 
   const updateQtyMutation = trpc.cart.updateQty.useMutation({
@@ -534,12 +541,18 @@ export default function Cart() {
     { sellerId: seller1IdNum },
     { enabled: saveDialogOpen, staleTime: 0 }
   );
-  // Atualiza número automaticamente quando vendedor é selecionado
+  // Flag para saber se o usuário editou manualmente o número de orçamento
+  const [userEditedQuoteNumber, setUserEditedQuoteNumber] = React.useState(false);
+  // Atualiza número automaticamente quando vendedor é selecionado — apenas se o usuário não editou manualmente
   useEffect(() => {
-    if (saveDialogOpen && suggestQuery.data?.suggested) {
+    if (saveDialogOpen && suggestQuery.data?.suggested && !userEditedQuoteNumber) {
       setSaveForm(prev => ({ ...prev, quoteNumber: suggestQuery.data!.suggested }));
     }
-  }, [saveDialogOpen, suggestQuery.data?.suggested, saveForm.seller1Id]);
+  }, [saveDialogOpen, suggestQuery.data?.suggested, saveForm.seller1Id, userEditedQuoteNumber]);
+  // Resetar flag quando o diálogo fecha
+  useEffect(() => {
+    if (!saveDialogOpen) setUserEditedQuoteNumber(false);
+  }, [saveDialogOpen]);
 
   // Auto-preenche o estado da aba Frete quando o estado da aba Comercial muda
   // (apenas se o usuário ainda não escolheu um estado diferente na aba Frete)
@@ -913,6 +926,10 @@ export default function Cart() {
                       updateQtyMutation={updateQtyMutation}
                       isRemoving={isRemoving}
                       acessorioPhotoMap={acessorioPhotoMap}
+                      onDuplicate={(data) => {
+                        addItem({ ...data, itemEmPlanta: data.itemEmPlanta ?? '' });
+                        toast.success('Item duplicado no carrinho');
+                      }}
                       onEditClick={(id, data) => {
                         setEditItemId(id);
                         setEditFields({
@@ -1027,7 +1044,7 @@ export default function Cart() {
                                 <Input
                                   placeholder={suggestQuery.data?.suggested ?? "ORC-26-0001"}
                                   value={saveForm.quoteNumber}
-                                  onChange={e => updateSaveForm("quoteNumber", e.target.value)}
+                                   onChange={e => { setUserEditedQuoteNumber(true); updateSaveForm("quoteNumber", e.target.value); }}
                                 />
                                 <p className="text-xs text-muted-foreground mt-1">
                                   {suggestQuery.isLoading ? "Calculando número..." : suggestQuery.data?.suggested ? `Número gerado: ${suggestQuery.data.suggested}` : "Selecione o Vendedor 1 para gerar o número automaticamente"}
@@ -1629,7 +1646,14 @@ export default function Cart() {
                     <Button
                       variant="outline"
                       className="gap-2 border-amber-500/40 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950"
-                      onClick={() => setPreviewOpen(true)}
+                      onClick={() => {
+                        if (!appendToQuoteId) {
+                          toast.error("Salve o orçamento antes de pré-visualizar o Excel.");
+                          setSaveDialogOpen(true);
+                          return;
+                        }
+                        setPreviewOpen(true);
+                      }}
                     >
                       <Eye className="w-4 h-4" />
                       Pré-visualizar Excel
@@ -2128,6 +2152,7 @@ export default function Cart() {
           freteType: saveForm.freteType,
           freteIsento: saveForm.freteIsento,
           freteLocalidade: saveForm.freteStateCode === "SP" ? "sp" : "other",
+          freteValue: saveForm.freteValue ? parseFloat(saveForm.freteValue) : undefined,
           deliveryDays: parseInt(saveForm.deliveryDays) || 20,
           paymentTerm: saveForm.paymentTerm || undefined,
           revisionCount: 0,
