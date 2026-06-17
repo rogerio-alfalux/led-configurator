@@ -6751,7 +6751,7 @@ export default function Home() {
               </div>
             )}
             {/* Estado vazio GLOW */}
-            {productCategory === "Perfis" && activeGlowCatalog.length > 0 && !bgMode && !lbFamilia && !profileName && !glowResult && (
+            {productCategory === "Perfis" && glowMode && !glowResult && (
               <Card className="shadow-sm">
                 <CardContent className="flex flex-col items-center justify-center py-20 text-center">
                   <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
