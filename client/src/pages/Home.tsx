@@ -53,6 +53,7 @@ import {
   LED_BAR_DIFUSOR_OPTIONS,
   LED_BAR_CONTROLE_OPTIONS,
   LED_BAR_MAX_LENGTH_MM,
+  PERFIL_FLEXIVEL_MAX_LENGTH_MM,
   LED_BAR_PRECO_POR_METRO,
   LED_BAR_PRECO_DRIVER_60W,
   getAvailableVoltages,
@@ -2202,16 +2203,24 @@ export default function Home() {
     return isNaN(v) ? 0 : v;
   }, [lbComprimento]);
 
-  // Requer cortes obrigatórios (comprimento > 3000mm)
-  const lbRequiresCuts = lbComprimentoNum > LED_BAR_MAX_LENGTH_MM;
+  // Limite máximo por trecho segundo a família selecionada
+  const lbMaxLengthMm = useMemo(() =>
+    lbFamilia && /^PERFIL FLEXIVEL/i.test(lbFamilia)
+      ? PERFIL_FLEXIVEL_MAX_LENGTH_MM
+      : LED_BAR_MAX_LENGTH_MM,
+    [lbFamilia]
+  );
+
+  // Requer cortes obrigatórios (comprimento > limite da família)
+  const lbRequiresCuts = lbComprimentoNum > lbMaxLengthMm;
 
   // Comprimento por trecho com os cortes atuais
   const lbNCortesNum = Math.max(1, parseInt(lbNCortes) || 1);
   const lbTrechoMm = lbComprimentoNum > 0 ? Math.ceil(lbComprimentoNum / lbNCortesNum) : 0;
-  // Trecho excede 3000mm mesmo com cortes definidos
-  const lbTrechoExcede = lbTrechoMm > LED_BAR_MAX_LENGTH_MM;
-  // Quantidade mínima de cortes para que nenhum trecho ultrapasse 3000mm
-  const lbMinCortesNecessarios = lbComprimentoNum > 0 ? Math.ceil(lbComprimentoNum / LED_BAR_MAX_LENGTH_MM) : 1;
+  // Trecho excede o limite mesmo com cortes definidos
+  const lbTrechoExcede = lbTrechoMm > lbMaxLengthMm;
+  // Quantidade mínima de cortes para que nenhum trecho ultrapasse o limite
+  const lbMinCortesNecessarios = lbComprimentoNum > 0 ? Math.ceil(lbComprimentoNum / lbMaxLengthMm) : 1;
 
   // Reset tensão quando muda controle ou produto
   useEffect(() => {
@@ -2245,6 +2254,7 @@ export default function Home() {
       controle: lbControle,
       voltage: lbVoltage,
       cct: lbCCT,
+      maxLengthMm: lbMaxLengthMm,
     });
     if (res.errors.length > 0) {
       toast.error(res.errors[0]);
@@ -3448,7 +3458,7 @@ export default function Home() {
                     {lbRequiresCuts && (
                       <p className="mt-1.5 text-xs text-amber-500 flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" />
-                        Comprimento acima de {LED_BAR_MAX_LENGTH_MM}mm — informe a quantidade de cortes.
+                        Comprimento acima de {lbMaxLengthMm}mm — informe a quantidade de cortes.
                       </p>
                     )}
                   </div>
@@ -3478,7 +3488,7 @@ export default function Home() {
                       <p className="mt-1.5 text-xs text-red-500 flex items-start gap-1">
                         <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
                         <span>
-                          Com {lbNCortesNum} corte{lbNCortesNum !== 1 ? "s" : ""}, cada trecho ficaria com {lbTrechoMm}mm — acima do limite de {LED_BAR_MAX_LENGTH_MM}mm.
+                          Com {lbNCortesNum} corte{lbNCortesNum !== 1 ? "s" : ""}, cada trecho ficaria com {lbTrechoMm}mm — acima do limite de {lbMaxLengthMm}mm.
                           {" "}Mínimo necessário: <strong>{lbMinCortesNecessarios} cortes</strong>.
                         </span>
                       </p>

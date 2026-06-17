@@ -109,8 +109,11 @@ export const LED_BAR_CATALOG: LedBarProduct[] = [
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
-/** Comprimento máximo de um trecho sem corte (mm) */
+/** Comprimento máximo de um trecho sem corte para LED BAR rígido (mm) */
 export const LED_BAR_MAX_LENGTH_MM = 3000;
+
+/** Comprimento máximo de um trecho sem corte para PERFIL FLEXÍVEL (mm) */
+export const PERFIL_FLEXIVEL_MAX_LENGTH_MM = 5000;
 
 // ─── Tabela de preços LED BAR U ──────────────────────────────────────────────
 
@@ -298,6 +301,8 @@ export interface LedBarInput {
   controle: LedBarControle;
   voltage: LedBarVoltage;
   cct: string;
+  /** Comprimento máximo por trecho (mm). Padrão: LED_BAR_MAX_LENGTH_MM (3000). Para PERFIL FLEXÍVEL use PERFIL_FLEXIVEL_MAX_LENGTH_MM (5000). */
+  maxLengthMm?: number;
 }
 
 export interface LedBarTrecho {
@@ -353,22 +358,23 @@ function selectDriver(
  * Calcula a composição de um LED BAR.
  *
  * Regras:
- * - comprimento ≤ 3000mm → 1 trecho (nCortes = 1)
- * - comprimento > 3000mm → nCortes ≥ 2 obrigatório
+ * - comprimento ≤ maxLengthMm → 1 trecho (nCortes = 1)
+ * - comprimento > maxLengthMm → nCortes ≥ 2 obrigatório
  * - Cada trecho recebe sua própria fonte
  * - Comprimento por trecho = floor(comprimentoTotal / nCortes) mm
  *   (o último trecho pode ter 1mm a menos por arredondamento — aceitável)
  */
 export function calculateLedBar(input: LedBarInput): LedBarResult {
-  const { product, comprimentoMm, nCortes, controle, voltage, cct } = input;
+  const { product, comprimentoMm, nCortes, controle, voltage, cct, maxLengthMm: maxLen } = input;
+  const maxLengthMm = maxLen ?? LED_BAR_MAX_LENGTH_MM;
   const errors: string[] = [];
 
   // Validações
   if (comprimentoMm <= 0) {
     errors.push("O comprimento deve ser maior que 0mm.");
   }
-  if (comprimentoMm > LED_BAR_MAX_LENGTH_MM && nCortes < 2) {
-    errors.push(`Comprimento acima de ${LED_BAR_MAX_LENGTH_MM}mm requer pelo menos 2 cortes.`);
+  if (comprimentoMm > maxLengthMm && nCortes < 2) {
+    errors.push(`Comprimento acima de ${maxLengthMm}mm requer pelo menos 2 cortes.`);
   }
   if (nCortes < 1) {
     errors.push("A quantidade de cortes deve ser pelo menos 1.");
