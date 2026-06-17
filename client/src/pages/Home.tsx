@@ -137,7 +137,7 @@ const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.E
   { value: "Painéis",      label: "Painéis",       icon: Grid2X2,     image: "/manus-storage/PAINEIS_34c70c2f.png",     available: true },
   { value: "Spots",        label: "Spots",         icon: Focus,       image: "/manus-storage/spots-nobg_a12052bc.png",   available: true },
   { value: "Arandelas",    label: "Arandelas",     icon: Lamp,        image: "/manus-storage/ARANDELAS_324ddfb0.webp",  available: true },
-  { value: "Área Externa", label: "Área Externa",  icon: TreePine,    image: "/manus-storage/AREAEXTERNA_5811f7cb.png", available: false },
+  { value: "Área Externa", label: "Área Externa",  icon: TreePine,    image: "/manus-storage/AREAEXTERNA_5811f7cb.png", available: true },
   { value: "Balizadores",  label: "Balizadores",   icon: Navigation,  image: "/manus-storage/BALIZADORES_482d54f1.png", available: false },
   { value: "Decorativas",  label: "Decorativas",   icon: Sparkles,    image: "/manus-storage/DECORATIVAS_4ee44c0e.png", available: true },
   { value: "Item Especial", label: "Item Especial",  icon: PackagePlus, image: "/manus-storage/item-especial-icon_c570c491.png", available: true  },
@@ -1572,6 +1572,7 @@ export default function Home() {
   const activeArandelaCatalog = adaptedCatalogs?.arandelas ?? ARANDELA_CATALOG;
   const activeGlowCatalog = adaptedCatalogs?.glowProducts ?? [];
   const activeDecorativasCatalog = adaptedCatalogs?.decorativas ?? [];
+  const activeAreaExternaCatalog = adaptedCatalogs?.areaExterna ?? [];
 
   // Resolve foto de painel: API primeiro, depois dicionário estático
   const resolvePainelPhoto = useCallback((familia: string | null, produto: string): string | null => {
@@ -1664,6 +1665,14 @@ export default function Home() {
   const [dlCCT, setDlCCT] = useState<string>("3000K");
   const [dlControle, setDlControle] = useState<ControleType>("ON/OFF");
   const [dlResult, setDlResult] = useState<DownlightResult | null>(null);
+  // Estados de Área Externa (PROOF) — mesmo fluxo dos Downlights
+  const [aeInstalacao, setAeInstalacao] = useState<string | null>(null);
+  const [aeFamilia, setAeFamilia] = useState<string | null>(null);
+  const [aeProductKey, setAeProductKey] = useState<string | null>(null);
+  const [aeVoltage, setAeVoltage] = useState<"220V" | "Bivolt" | null>(null);
+  const [aeCCT, setAeCCT] = useState<string>("3000K");
+  const [aeControle, setAeControle] = useState<ControleType>("ON/OFF");
+  const [aeResult, setAeResult] = useState<DownlightResult | null>(null);
   // Estados de Painéis
   const [panelInstalacao, setPanelInstalacao] = useState<string | null>(null);
   const [panelFamilia, setPanelFamilia] = useState<string | null>(null);
@@ -1950,9 +1959,9 @@ export default function Home() {
 
     // Verifica se há um produto configurado em qualquer categoria
     // Nota: result e shapeResult são declarados depois deste callback, por isso são verificados via productCategory
-    const hasConfiguredProduct = !!(dlResult || spotResult || arandelaResult || panelResult || lbResult || bgResult || bfResult || rvSelectedSku ||
+    const hasConfiguredProduct = !!(dlResult || aeResult || spotResult || arandelaResult || panelResult || lbResult || bgResult || bfResult || rvSelectedSku ||
       (productCategory === "Perfis") || (productCategory === "Spots") || (productCategory === "Downlights") ||
-      (productCategory === "Painéis") || (productCategory === "Arandelas") || (productCategory === "Revenda") ||
+      (productCategory === "Área Externa") || (productCategory === "Painéis") || (productCategory === "Arandelas") || (productCategory === "Revenda") ||
       (productCategory === "Item Especial"));
 
     if (hasConfiguredProduct) {
@@ -2457,6 +2466,18 @@ export default function Home() {
       : [],
     [dlInstalacao, dlFamilia, activeDlCatalog]
   );
+  // Listas derivadas para filtros de Área Externa
+  const aeInstalacoes = useMemo(() => Array.from(new Set(activeAreaExternaCatalog.map(p => p.instalacao))).sort(), [activeAreaExternaCatalog]);
+  const aeFamilias = useMemo(() =>
+    aeInstalacao ? Array.from(new Set(activeAreaExternaCatalog.filter(p => p.instalacao === aeInstalacao).map(p => p.familia))).sort() : [],
+    [aeInstalacao, activeAreaExternaCatalog]
+  );
+  const aeProdutosFiltrados = useMemo(() =>
+    aeInstalacao && aeFamilia
+      ? activeAreaExternaCatalog.map((p, i) => ({ p, i })).filter(({ p }) => p.instalacao === aeInstalacao && p.familia === aeFamilia)
+      : [],
+    [aeInstalacao, aeFamilia, activeAreaExternaCatalog]
+  );
   // Step 1: Perfil
   const [profileName, setProfileName] = useState<string>("");
   // Step 2: Instalação
@@ -2497,7 +2518,7 @@ export default function Home() {
   // ── Produto configurado (habilita botão Incluir Acessório) ───────
   // Verdadeiro quando há um resultado calculado em qualquer categoria,
   // ou quando um produto de Revenda/Acessório/Item Especial está selecionado.
-  const hasResult = !!(result || shapeResult || dlResult || panelResult || spotResult || arandelaResult || lbResult || bgResult || bfResult || rvSelectedSku || acSelectedId || productCategory === "Item Especial");
+  const hasResult = !!(result || shapeResult || dlResult || aeResult || panelResult || spotResult || arandelaResult || lbResult || bgResult || bfResult || rvSelectedSku || acSelectedId || productCategory === "Item Especial");
   // ── Dados derivados ──────────────────────────────────────────────
   // Usa funções do catálogo ativo (API ou estático)
   const profileNames = activeGetProfileNames();
@@ -4353,8 +4374,203 @@ export default function Home() {
                     })()}
                   </div>
                 )}
+                {/* ── Área Externa (PROOF) ────────────────────────────────────────────────────────────────────────── */}
+                {productCategory === "Área Externa" && (
+                  <div className="space-y-4">
+                    {/* Badge de status da API */}
+                    <div className="flex items-center gap-2">
+                      {alfaluxLoading ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <span className="inline-block w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                          Carregando catálogo...
+                        </span>
+                      ) : adaptedCatalogs ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500">
+                          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+                          {activeAreaExternaCatalog.length} produtos • Dados online
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <span className="inline-block w-2 h-2 rounded-full bg-muted-foreground" />
+                          Catálogo local
+                        </span>
+                      )}
+                    </div>
+                    {/* Tipo de Instalação */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tipo de Instalação</Label>
+                      <Select
+                        value={aeInstalacao ?? ""}
+                        onValueChange={(v) => { setAeInstalacao(v); setAeFamilia(null); setAeProductKey(null); setAeVoltage(null); setAeResult(null); }}
+                      >
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Selecione o tipo de instalação..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {aeInstalacoes.map((inst) => (
+                            <SelectItem key={inst} value={inst}>{inst}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {/* Família */}
+                    {aeInstalacao && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Família</Label>
+                        <Select
+                          value={aeFamilia ?? ""}
+                          onValueChange={(v) => { setAeFamilia(v); setAeProductKey(null); setAeVoltage(null); setAeResult(null); }}
+                        >
+                          <SelectTrigger className="h-10">
+                            <SelectValue placeholder="Selecione a família..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {aeFamilias.map((fam) => (
+                              <SelectItem key={fam} value={fam}>{fam}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {/* Produto */}
+                    {aeFamilia && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Produto</Label>
+                        <Select
+                          value={aeProductKey ?? ""}
+                          onValueChange={(v) => {
+                            setAeProductKey(v);
+                            setAeVoltage(null);
+                            setAeResult(null);
+                            const [s, ...np] = v.split('::');
+                            const newProd = activeAreaExternaCatalog.find(p => p.sku === s && p.name === np.join('::'));
+                            const availCCTs = newProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+                            if (!availCCTs.includes(aeCCT)) setAeCCT(availCCTs[0] ?? "3000K");
+                          }}
+                        >
+                          <SelectTrigger className="h-10">
+                            <SelectValue placeholder="Selecione o produto..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {aeProdutosFiltrados.map(({ p }, idx) => {
+                              const key = `${p.sku ?? ""}::${p.name}`;
+                              return <SelectItem key={`${key}-${idx}`} value={key}>{p.name}</SelectItem>;
+                            })}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {/* Controle */}
+                    {aeProductKey !== null && (() => {
+                      const [_sku, ..._np] = (aeProductKey ?? '::').split('::');
+                      const _name = _np.join('::');
+                      const aeSelProd = activeAreaExternaCatalog.find(p => p.sku === _sku && p.name === _name);
+                      const hasDim110v = aeSelProd?.driverDim110v != null;
+                      const hasDimDali = aeSelProd?.driverDimDali != null;
+                      const allControles: ControleType[] = ["ON/OFF", "DIM 1-10V", "DIM DALI"];
+                      return (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Controle</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {allControles.map((ctrl) => {
+                              const isAvailable = ctrl === "ON/OFF" || (ctrl === "DIM 1-10V" && hasDim110v) || (ctrl === "DIM DALI" && hasDimDali);
+                              return (
+                                <button
+                                  key={ctrl}
+                                  disabled={!isAvailable}
+                                  onClick={() => {
+                                    if (!isAvailable) return;
+                                    setAeControle(ctrl);
+                                    setAeResult(null);
+                                    if (ctrl !== 'ON/OFF') {
+                                      const dimDrv = ctrl === 'DIM DALI' ? aeSelProd?.driverDimDali : aeSelProd?.driverDim110v;
+                                      const dimBivolt = dimDrv != null && /bivolt/i.test(dimDrv.model);
+                                      if (!dimBivolt && aeVoltage === 'Bivolt') setAeVoltage('220V');
+                                    }
+                                  }}
+                                  title={!isAvailable ? "Driver não cadastrado para este produto" : undefined}
+                                  className={[
+                                    "flex-1 min-w-[80px] py-2 rounded-lg text-xs font-medium border transition-all",
+                                    aeControle === ctrl && isAvailable
+                                      ? "bg-primary text-primary-foreground border-primary"
+                                      : "bg-background text-foreground border-border hover:border-primary/50",
+                                    !isAvailable ? "opacity-40 cursor-not-allowed" : "",
+                                  ].join(" ")}
+                                >
+                                  {ctrl}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    {/* Tensão */}
+                    {aeProductKey !== null && (() => {
+                      const [_sku, ..._np] = (aeProductKey ?? '::').split('::');
+                      const _name = _np.join('::');
+                      const aeSelProdV = activeAreaExternaCatalog.find(p => p.sku === _sku && p.name === _name);
+                      const aeDimDrv = aeControle === 'DIM DALI' ? aeSelProdV?.driverDimDali : aeControle === 'DIM 1-10V' ? aeSelProdV?.driverDim110v : null;
+                      const aeDimBivolt = aeDimDrv != null && /bivolt/i.test(aeDimDrv.model);
+                      const hasBivoltAe = aeControle !== 'ON/OFF' ? aeDimBivolt : (aeSelProdV?.driverBivolt != null);
+                      return (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
+                          <div className="flex gap-2">
+                            {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
+                              const disabled = v === "Bivolt" && !hasBivoltAe;
+                              return (
+                                <button
+                                  key={v}
+                                  disabled={disabled}
+                                  onClick={() => { setAeVoltage(v); setAeResult(null); }}
+                                  className={[
+                                    "flex-1 py-2 rounded-lg text-sm font-medium border transition-all",
+                                    aeVoltage === v && !disabled
+                                      ? "bg-primary text-primary-foreground border-primary"
+                                      : "bg-background text-foreground border-border hover:border-primary/50",
+                                    disabled ? "opacity-40 cursor-not-allowed" : "",
+                                  ].join(" ")}
+                                >
+                                  {v}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    {/* CCT */}
+                    {aeProductKey !== null && (() => {
+                      const [_s, ..._np] = (aeProductKey ?? '::').split('::');
+                      const aeSelProd = activeAreaExternaCatalog.find(p => p.sku === _s && p.name === _np.join('::'));
+                      const aeAvailCCTs = aeSelProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+                      return (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
+                          <div className="flex gap-2 flex-wrap">
+                            {aeAvailCCTs.map((c) => (
+                              <button
+                                key={c}
+                                onClick={() => { setAeCCT(c); setAeResult(null); }}
+                                className={[
+                                  "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
+                                  aeCCT === c
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-background text-foreground border-border hover:border-primary/50",
+                                ].join(" ")}
+                              >
+                                {c}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
 
-                {/* ── Painéis ───────────────────────────────────────────────────────────────────────────────────── */}
+                {/* ── Painéis ────────────────────────────────────────────────────────────────────────────────────── */}
                 {productCategory === "Painéis" && (() => {
                   const panelInstalacoes = Array.from(new Set(activePanelCatalog.map(p => p.instalacao))).sort();
                   const panelFamilias = panelInstalacao
@@ -5105,6 +5321,46 @@ export default function Home() {
                 >
                   <Zap className="w-5 h-5 mr-2" />
                   Calcular Downlight
+                </Button>
+              </div>
+            )}
+
+            {/* ── Botão Calcular Área Externa ── */}
+            {productCategory === "Área Externa" && (
+              <div className="space-y-2">
+                {!aeInstalacao && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione o tipo de instalação antes de calcular.
+                  </p>
+                )}
+                {aeInstalacao && !aeFamilia && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione a família antes de calcular.
+                  </p>
+                )}
+                {aeFamilia && aeProductKey === null && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione o produto antes de calcular.
+                  </p>
+                )}
+                {aeProductKey !== null && !aeVoltage && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
+                  </p>
+                )}
+                <Button
+                  disabled={aeProductKey === null || !aeVoltage}
+                  onClick={() => {
+                    if (aeProductKey === null || !aeVoltage) return;
+                    const [aeSku, ...aeNameParts] = (aeProductKey ?? '::').split('::');
+                    const aeName = aeNameParts.join('::');
+                    setAeResult(calculateDownlight({ productSku: aeSku, productName: aeName, tensao: aeVoltage, cct: aeCCT, controle: aeControle }, activeAreaExternaCatalog));
+                  }}
+                  className="w-full h-12 text-base font-semibold font-display"
+                  size="lg"
+                >
+                  <Zap className="w-5 h-5 mr-2" />
+                  Calcular Área Externa
                 </Button>
               </div>
             )}
@@ -6923,6 +7179,210 @@ export default function Home() {
                   </div>
                   <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
                   <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione o tipo de instalação, família, produto, tensão e CCT, depois clique em "Calcular Downlight".</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Resultado Área Externa (PROOF) */}
+            {productCategory === "Área Externa" && aeResult && (
+              <div className="space-y-4">
+                <Card className="shadow-sm border-green-700/30">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <TreePine className="w-4 h-4 text-green-600" />
+                      Resultado — Área Externa
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Foto do produto */}
+                    {(() => {
+                      const aePhoto = aeFamilia && aeResult ? (adaptedCatalogs?.areaExternaFotos?.[aeResult.product.sku ?? ""] ?? null) : null;
+                      return aePhoto ? (
+                        <div className="flex gap-3 items-stretch">
+                          <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-36 flex items-center justify-center">
+                            <img src={aePhoto} alt={aeResult.product.name} className="w-full h-full object-contain p-2" loading="lazy" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 flex-1">
+                            <div className="p-3 rounded-lg bg-muted/50"><p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p><p className="text-sm font-mono font-semibold text-primary">{aeResult.product.sku}</p></div>
+                            <div className="p-3 rounded-lg bg-muted/50"><p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p><p className="text-sm font-semibold">{aeResult.product.name}</p></div>
+                            <div className="p-3 rounded-lg bg-muted/50"><p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p><p className="text-sm font-semibold">{aeResult.tensao}</p></div>
+                            <div className="p-3 rounded-lg bg-muted/50"><p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p><p className="text-sm font-semibold">{aeResult.cct}</p></div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="p-3 rounded-lg bg-muted/50"><p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p><p className="text-sm font-mono font-semibold text-primary">{aeResult.product.sku}</p></div>
+                          <div className="p-3 rounded-lg bg-muted/50"><p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p><p className="text-sm font-semibold">{aeResult.product.name}</p></div>
+                          <div className="p-3 rounded-lg bg-muted/50"><p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p><p className="text-sm font-semibold">{aeResult.tensao}</p></div>
+                          <div className="p-3 rounded-lg bg-muted/50"><p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p><p className="text-sm font-semibold">{aeResult.cct}</p></div>
+                        </div>
+                      );
+                    })()}
+                    {/* Módulo LED */}
+                    <div className="p-3 rounded-lg bg-muted/50">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
+                      <p className="text-sm font-semibold">{aeResult.ledModuleWithCCT}</p>
+                    </div>
+                    {/* Ótica */}
+                    {(aeResult.product.oticaPrimaria || aeResult.product.otica) && (
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        {aeResult.product.oticaPrimaria ? (
+                          <><p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ótica</p><p className="text-sm font-semibold">{aeResult.product.oticaPrimaria}</p>{aeResult.product.oticaSecundaria && <p className="text-sm font-semibold">{aeResult.product.oticaSecundaria}</p>}</>
+                        ) : (
+                          <><p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ótica</p><p className="text-sm font-semibold">{aeResult.product.otica}</p></>
+                        )}
+                      </div>
+                    )}
+                    {/* Driver */}
+                    <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver ({driverQtyFor(aeResult.product, aeResult.controle, aeResult.tensao)}x)</p>
+                      <p className="text-sm font-semibold">{aeResult.driver.model}{aeResult.driver.code && <span className="font-mono text-primary"> ({aeResult.driver.code})</span>}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* QuoteSummaryCard Área Externa */}
+                {/* Resumo para Orçamento */}
+                <Card className="shadow-sm border-blue-500/30">
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                      Resumo Para Orçamento
+                    </CardTitle>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                        <Input
+                          className="h-7 text-xs w-28"
+                          placeholder="ex: L1, P2..."
+                          value={globalItemEmPlanta}
+                          onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                        />
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5"
+                        onClick={() => {
+                          const preco = getPrecoForControle(aeResult.product, aeResult.controle, aeResult.tensao);
+                          const lines = [`${aeResult.product.name} ${aeResult.cct} ${aeResult.tensao}`.toUpperCase()];
+                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          navigator.clipboard.writeText(lines.join("\n"));
+                          toast.success("Copiado!");
+                        }}
+                      >
+                        <Copy className="w-3 h-3" /> Copiar Resumo
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        disabled={isAddingToCart}
+                        onClick={() => {
+                          const preco = getPrecoForControle(aeResult.product, aeResult.controle, aeResult.tensao);
+                          const aePhoto = aeFamilia ? (adaptedCatalogs?.areaExternaFotos?.[aeResult.product.sku ?? ""] ?? null) : null;
+                          const item: CartItemData = {
+                            category: "Área Externa",
+                            sku: aeResult.product.sku ?? "",
+                            description: `${aeResult.product.name} ${aeResult.cct} ${aeResult.controle} ${aeResult.tensao}`,
+                            power: "",
+                            cct: aeResult.cct,
+                            qty: 1,
+                            unitPrice: preco ?? 0,
+                            totalPrice: preco ?? 0,
+                            priceFromApi: preco != null,
+                            photoUrl: aePhoto ?? "",
+                            orderSummary: (() => { const parts: string[] = [(aeResult.ledModuleWithCCT.toUpperCase().startsWith("MÓDULO LED") ? aeResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${aeResult.ledModuleWithCCT.toUpperCase()}`)]; if (aeResult.product.oticaPrimaria) { parts.push(aeResult.product.oticaPrimaria.toUpperCase()); if (aeResult.product.oticaSecundaria) parts.push(aeResult.product.oticaSecundaria.toUpperCase()); } else if (aeResult.product.otica) { parts.push(aeResult.product.otica.toUpperCase()); } if (aeResult.product.holder) parts.push(aeResult.product.holder.toUpperCase()); if (aeResult.product.dissipador) parts.push(aeResult.product.dissipador.toUpperCase()); const eqSuffix = aeResult.driver.code ? ` (${aeResult.driver.code})` : ""; const drvQty = driverQtyFor(aeResult.product, aeResult.controle, aeResult.tensao); parts.push(`${drvQty}x DRIVER ${aeResult.driver.model.toUpperCase()}${eqSuffix}`); return (`CÓDIGO: ${aeResult.product.sku}\n${aeResult.product.name.toUpperCase()} ${aeResult.cct} ${aeResult.controle.toUpperCase()} ${aeResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim(); })(),
+                            quoteSummary: `${aeResult.product.name} ${aeResult.cct} ${aeResult.controle} ${aeResult.tensao}`.toUpperCase(),
+                            moduloLed: aeResult.ledModuleWithCCT ?? "",
+                            drivers: (() => { const eqSuffix = aeResult.driver.code ? ` (${aeResult.driver.code})` : ""; const drvQty = driverQtyFor(aeResult.product, aeResult.controle, aeResult.tensao); return `${drvQty}x DRIVER ${aeResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
+                            availableCCTs: aeResult.product.ccts,
+                            itemEmPlanta: globalItemEmPlanta,
+                          };
+                          if (appendToQuoteId) {
+                            handleAddItemOrToQuote(item);
+                          } else {
+                            setPendingCartItem(item);
+                            setColorModalOpen(true);
+                          }
+                        }}
+                      >
+                        <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div
+                      className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
+                      onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
+                    >
+                      {(() => {
+                        const preco = getPrecoForControle(aeResult.product, aeResult.controle, aeResult.tensao);
+                        const lines = [`${aeResult.product.name} ${aeResult.cct} ${aeResult.tensao}`.toUpperCase()];
+                        if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                        return lines.join("\n");
+                      })()}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.</p>
+                  </CardContent>
+                </Card>
+
+                {/* Resumo para Pedido */}
+                <Card className="shadow-sm border-green-500/30">
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <ClipboardCheck className="w-4 h-4 text-green-500" />
+                      Resumo Para Pedido
+                    </CardTitle>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1.5"
+                      onClick={() => {
+                        const parts: string[] = [(aeResult.ledModuleWithCCT.toUpperCase().startsWith("MÓDULO LED") ? aeResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${aeResult.ledModuleWithCCT.toUpperCase()}`)];
+                        if (aeResult.product.oticaPrimaria) { parts.push(aeResult.product.oticaPrimaria.toUpperCase()); if (aeResult.product.oticaSecundaria) parts.push(aeResult.product.oticaSecundaria.toUpperCase()); } else if (aeResult.product.otica) { parts.push(aeResult.product.otica.toUpperCase()); }
+                        if (aeResult.product.holder) parts.push(aeResult.product.holder.toUpperCase());
+                        if (aeResult.product.dissipador) parts.push(aeResult.product.dissipador.toUpperCase());
+                        const eqSuffix = aeResult.driver.code ? ` (${aeResult.driver.code})` : "";
+                        const drvQty = driverQtyFor(aeResult.product, aeResult.controle, aeResult.tensao);
+                        parts.push(`${drvQty}x DRIVER ${aeResult.driver.model.toUpperCase()}${eqSuffix}`);
+                        const txt = (`CÓDIGO: ${aeResult.product.sku}\n${aeResult.product.name.toUpperCase()} ${aeResult.cct} ${aeResult.controle.toUpperCase()} ${aeResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim();
+                        navigator.clipboard.writeText(txt);
+                        toast.success("Copiado!");
+                      }}
+                    >
+                      <Copy className="w-3 h-3" /> Copiar Pedido
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div
+                      className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
+                      onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
+                    >
+                      {(() => {
+                        const parts: string[] = [(aeResult.ledModuleWithCCT.toUpperCase().startsWith("MÓDULO LED") ? aeResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${aeResult.ledModuleWithCCT.toUpperCase()}`)];
+                        if (aeResult.product.oticaPrimaria) { parts.push(aeResult.product.oticaPrimaria.toUpperCase()); if (aeResult.product.oticaSecundaria) parts.push(aeResult.product.oticaSecundaria.toUpperCase()); } else if (aeResult.product.otica) { parts.push(aeResult.product.otica.toUpperCase()); }
+                        if (aeResult.product.holder) parts.push(aeResult.product.holder.toUpperCase());
+                        if (aeResult.product.dissipador) parts.push(aeResult.product.dissipador.toUpperCase());
+                        const eqSuffix = aeResult.driver.code ? ` (${aeResult.driver.code})` : "";
+                        const drvQty = driverQtyFor(aeResult.product, aeResult.controle, aeResult.tensao);
+                        parts.push(`${drvQty}x DRIVER ${aeResult.driver.model.toUpperCase()}${eqSuffix}`);
+                        return (`CÓDIGO: ${aeResult.product.sku}\n${aeResult.product.name.toUpperCase()} ${aeResult.cct} ${aeResult.controle.toUpperCase()} ${aeResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim();
+                      })()}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Pedido" para copiar diretamente.</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+            {/* Estado vazio Área Externa */}
+            {productCategory === "Área Externa" && !aeResult && (
+              <Card className="shadow-sm">
+                <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                    <TreePine className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione o tipo de instalação, família, produto, tensão e CCT, depois clique em "Calcular Área Externa".</p>
                 </CardContent>
               </Card>
             )}

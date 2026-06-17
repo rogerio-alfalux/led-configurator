@@ -372,6 +372,12 @@ export interface AdaptedCatalogs {
   spotCCTs: Record<string, string[]>;
   /** Mapa familia → CCTs disponíveis para Arandelas */
   arandelaCCTs: Record<string, string[]>;
+  /** Produtos Área Externa (PROOF, etc.) — usam DownlightProduct */
+  areaExterna: DownlightProduct[];
+  /** Mapa sku → fotoUrl para Área Externa */
+  areaExternaFotos: Record<string, string>;
+  /** Mapa familia → CCTs disponíveis para Área Externa */
+  areaExternaCCTs: Record<string, string[]>;
   /** Mapa sku → fotoUrl para Downlights */
   downlightFotos: Record<string, string>;
   /** Mapa sku → fotoUrl para BAGEO fixo */
@@ -520,6 +526,9 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
   const painelCCTs: Record<string, string[]> = {};
   const spotCCTs: Record<string, string[]> = {};
   const arandelaCCTs: Record<string, string[]> = {};
+  const areaExterna: DownlightProduct[] = [];
+  const areaExternaFotos: Record<string, string> = {};
+  const areaExternaCCTs: Record<string, string[]> = {};
   const downlightFotos: Record<string, string> = {};
   const bageosFixosFotos: Record<string, string> = {};
   const painelFotos: Record<string, string> = {};
@@ -555,6 +564,10 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
     } else if (cat === "DECORATIVAS") {
       decorativas.push(toDownlightProduct(p));
       if (p.fotoUrl && p.sku) decorativasFotos[p.sku] = normalizeFotoUrl(p.fotoUrl)!;
+    } else if (cat === "ÁREA EXTERNA" || cat === "AREA EXTERNA") {
+      areaExterna.push(toDownlightProduct(p));
+      if (!areaExternaCCTs[p.familia]) areaExternaCCTs[p.familia] = ccts;
+      if (p.fotoUrl && p.sku) areaExternaFotos[p.sku] = normalizeFotoUrl(p.fotoUrl)!;
     } else if (cat === "PERFIS" && isBageoProduct(p)) {
       const familiaUpper = (p.familia ?? "").toUpperCase();
       if (familiaUpper === "BAGEO") {
@@ -590,5 +603,8 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
     painelFotos,
     spotFotos,
     arandelaFotos,
+    areaExterna,
+    areaExternaFotos,
+    areaExternaCCTs,
   };
 }
