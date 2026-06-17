@@ -426,8 +426,8 @@ function toArandelaProduct(p: ApiProduct): ArandelaProduct {
 }
 
 /** Converte um produto da API para LedBarProduct */
-/** Famílias que usam o fluxo LED BAR mas não têm difusor no nome (ex: MILANO NF, MEIA LUA) */
-const LED_BAR_FAMILIES_NO_DIFUSOR = /^(MILANO|MEIA LUA)/i;
+/** Famílias que usam o fluxo LED BAR mas não têm difusor no nome (ex: MILANO NF, MEIA LUA, PERFIL FLEXIVEL) */
+const LED_BAR_FAMILIES_NO_DIFUSOR = /^(MILANO|MEIA LUA|PERFIL FLEXIVEL)/i;
 
 function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
   const potencia = parsePotenciaFromName(p.name);
@@ -438,7 +438,11 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
 
   const d220 = p.driver220;
   const dBivolt = p.driverBivolt;
-  const dDim010v = p.driverDim110v; // campo da API: driverDim110v mapeia para DIM 0-10V em LED BAR
+  // driverDim110v é o campo padrão para DIM 0-10V. Para PERFIL FLEXIVEL, a API usa driverDimTriac110v/220v.
+  // Usamos driverDimTriac220v como fallback quando driverDim110v for null.
+  const dDimTriac110v = (p as any).driverDimTriac110v ?? null;
+  const dDimTriac220v = (p as any).driverDimTriac220v ?? null;
+  const dDim010v = p.driverDim110v ?? dDimTriac220v ?? dDimTriac110v;
   const dDimDali = p.driverDimDali;
   const ccts = normalizeCCTs(p.temperaturasCor);
 
@@ -465,7 +469,7 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
 
 /** Verifica se um produto PERFIS usa o fluxo LED BAR (por metro linear com fonte de tensão) */
 function isLedBarProduct(p: ApiProduct): boolean {
-  return /^(LED BAR|MILANO|MEIA LUA)/i.test(p.familia ?? "");
+  return /^(LED BAR|MILANO|MEIA LUA|PERFIL FLEXIVEL)/i.test(p.familia ?? "");
 }
 /** Verifica se um produto PERFIS é da família GLOW */
 function isGlowProduct(p: ApiProduct): boolean {

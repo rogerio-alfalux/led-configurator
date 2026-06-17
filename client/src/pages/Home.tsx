@@ -2910,6 +2910,14 @@ export default function Home() {
                           ))}
                         </>
                       )}
+                      {lbFamilias.filter(f => /^PERFIL FLEXIVEL/i.test(f)).length > 0 && (
+                        <>
+                          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">PERFIL FLEXÍVEL</div>
+                          {lbFamilias.filter(f => /^PERFIL FLEXIVEL/i.test(f)).map((fam) => (
+                            <SelectItem key={`__LEDBAR__${fam}`} value={`__LEDBAR__${fam}`}>{fam}</SelectItem>
+                          ))}
+                        </>
+                      )}
                       {activeBageoCatalog.length > 0 && (
                         <>
                           <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">BAGEO</div>
