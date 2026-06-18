@@ -5903,23 +5903,6 @@ export default function Home() {
                 </p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                {pendingAccessories.length > 0 && (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-cyan-700 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-900/30 border border-cyan-300 dark:border-cyan-700 rounded-full px-2 py-0.5">
-                    <Wrench className="w-3 h-3" />
-                    {pendingAccessories.length} acessório{pendingAccessories.length > 1 ? "s" : ""} vinculado{pendingAccessories.length > 1 ? "s" : ""}
-                  </span>
-                )}
-                {hasResult && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs gap-1.5 border-cyan-500/50 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
-                  onClick={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
-                >
-                  <Wrench className="w-3.5 h-3.5" />
-                  Incluir Acessório
-                </Button>
-                )}
               </div>
             </div>
 
@@ -6187,6 +6170,24 @@ export default function Home() {
                               >
                                 <ShoppingCart className="w-3 h-3 mr-1" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                               </Button>
+                            </div>
+                            {/* Botão Incluir Acessório — logo abaixo do Enviar ao Carrinho */}
+                            <div className="mt-2 flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-xs gap-1.5 border-cyan-500/50 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                                onClick={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
+                              >
+                                <Wrench className="w-3.5 h-3.5" />
+                                Incluir Acessório
+                              </Button>
+                              {pendingAccessories.length > 0 && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-cyan-700 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-900/30 border border-cyan-300 dark:border-cyan-700 rounded-full px-2 py-0.5">
+                                  <Wrench className="w-3 h-3" />
+                                  {pendingAccessories.length} acessório{pendingAccessories.length > 1 ? "s" : ""} vinculado{pendingAccessories.length > 1 ? "s" : ""}
+                                </span>
+                              )}
                             </div>
                           </CardContent>
                         </Card>
