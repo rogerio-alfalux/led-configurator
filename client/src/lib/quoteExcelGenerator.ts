@@ -59,8 +59,12 @@ function extractVoltage(description: string): string {
 }
 
 function extractDim(description: string): string {
-  if (/dali/i.test(description)) return "DALI";
-  if (/dim\s*110/i.test(description)) return "DIM 110V";
+  if (/dim\s*triac\s*220/i.test(description)) return "DIM TRIAC 220V";
+  if (/dim\s*triac\s*110/i.test(description)) return "DIM TRIAC 110V";
+  if (/dim\s*triac/i.test(description)) return "DIM TRIAC";
+  if (/dim\s*dali/i.test(description)) return "DIM DALI";
+  if (/dim\s*0[-\u2013]?10/i.test(description)) return "DIM 0-10V";
+  if (/dim\s*1[-\u2013]?10/i.test(description)) return "DIM 1-10V";
   if (/dim/i.test(description)) return "DIM";
   return "ON/OFF";
 }
@@ -234,7 +238,7 @@ async function _generateExcelBuffer(
     { key: "E", width: 35   },  // MODELO ALFALUX
     { key: "F", width: 14   },  // COMPRIMENTO (mm)
     { key: "G", width: 12   },  // POTÊNCIA (W)
-    { key: "H", width: 10   },  // DIM
+    { key: "H", width: 14   },  // DIM
     { key: "I", width: 10   },  // TENSÃO (V)
     { key: "J", width: 14   },  // COR
     { key: "K", width: 14   },  // TEMPERATURA DE COR (K)

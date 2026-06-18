@@ -43,8 +43,12 @@ function extractVoltage(description: string): string {
   return m ? m[1].toUpperCase() : "-";
 }
 function extractDim(description: string): string {
-  if (/dali/i.test(description)) return "DALI";
-  if (/dim\s*110/i.test(description)) return "DIM 110V";
+  if (/dim\s*triac\s*220/i.test(description)) return "DIM TRIAC 220V";
+  if (/dim\s*triac\s*110/i.test(description)) return "DIM TRIAC 110V";
+  if (/dim\s*triac/i.test(description)) return "DIM TRIAC";
+  if (/dim\s*dali/i.test(description)) return "DIM DALI";
+  if (/dim\s*0[-\u2013]?10/i.test(description)) return "DIM 0-10V";
+  if (/dim\s*1[-\u2013]?10/i.test(description)) return "DIM 1-10V";
   if (/dim/i.test(description)) return "DIM";
   return "ON/OFF";
 }
