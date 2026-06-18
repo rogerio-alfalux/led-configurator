@@ -48,7 +48,7 @@ function extractPower(description: string): string {
 }
 
 function extractLength(description: string): string {
-  const m = description.match(/(\d{3,5})\s*mm/i);
+  const m = description.match(/(\d{3,})\s*mm/i);
   return m ? m[1] : "-";
 }
 

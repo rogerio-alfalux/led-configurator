@@ -361,8 +361,9 @@ export default function Cart() {
         });
       }
       setSaveDialogOpen(false);
-      // Limpar o carrinho automaticamente após salvar o orçamento
+      // Limpar o carrinho e o rascunho do formulário após salvar o orçamento
       clearCart();
+      try { localStorage.removeItem("alfalux_cart_save_form_draft"); } catch { /* ignore */ }
       navigate(`/orcamentos/${data.quoteId}`);
     },
     onError: (err) => {
@@ -376,6 +377,7 @@ export default function Cart() {
     onSuccess: (data) => {
       toast.success(`Itens adicionados ao orçamento ${data.quoteNumber} com sucesso!`);
       clearCart();
+      try { localStorage.removeItem("alfalux_cart_save_form_draft"); } catch { /* ignore */ }
       navigate(`/orcamentos/${appendToQuoteIdNum}`);
     },
     onError: (err) => {
@@ -504,8 +506,9 @@ export default function Cart() {
     data: new Date().toLocaleDateString("pt-BR"),
   });
 
-  // Formulário para salvar no banco
-  const [saveForm, setSaveForm] = useState<SaveFormData>({
+  // Formulário para salvar no banco — persiste no localStorage para sobreviver à navegação
+  const SAVE_FORM_STORAGE_KEY = "alfalux_cart_save_form_draft";
+  const defaultSaveForm: SaveFormData = {
     quoteNumber: "",
     clientName: "",
     clientContact: "",
@@ -549,7 +552,26 @@ export default function Cart() {
     freteValue: "",
     freteState: "",
     freteIncluded: false,
+  };
+  const [saveForm, setSaveForm] = useState<SaveFormData>(() => {
+    try {
+      const stored = localStorage.getItem(SAVE_FORM_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as Partial<SaveFormData>;
+        // Mesclar com defaultSaveForm para garantir que campos novos tenham valor padrão
+        return { ...defaultSaveForm, ...parsed };
+      }
+    } catch { /* ignore */ }
+    return defaultSaveForm;
   });
+  // Persistir saveForm no localStorage sempre que mudar
+  useEffect(() => {
+    try {
+      // Não persistir versionNotes (específico de cada revisão)
+      const toPersist = { ...saveForm, versionNotes: "" };
+      localStorage.setItem(SAVE_FORM_STORAGE_KEY, JSON.stringify(toPersist));
+    } catch { /* ignore */ }
+  }, [saveForm]);
 
   // Busca sugestão de número ao abrir o diálogo (atualiza quando vendedor muda)
   const seller1IdNum = saveForm.seller1Id ? parseInt(saveForm.seller1Id) : undefined;
