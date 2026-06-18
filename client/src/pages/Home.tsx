@@ -5418,16 +5418,7 @@ export default function Home() {
                     <Input value={spVoltage} onChange={(e) => setSpVoltage(e.target.value)} placeholder="Ex: 220V" className="h-10" />
                   </div>
                 </div>
-                {/* Cor */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cor / Acabamento</Label>
-                  <Input
-                    value={spColor}
-                    onChange={(e) => setSpColor(e.target.value)}
-                    placeholder="Ex: Branco Fosco, Preto Texturizado..."
-                    className="h-10"
-                  />
-                </div>
+
                 {/* Temperatura de Cor */}
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Temperatura de Cor</Label>
