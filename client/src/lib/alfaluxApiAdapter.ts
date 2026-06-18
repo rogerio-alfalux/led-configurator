@@ -546,7 +546,8 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
     if (cat === "DOWNLIGHTS") {
       downlights.push(toDownlightProduct(p));
       if (!downlightCCTs[p.familia]) downlightCCTs[p.familia] = ccts;
-      if (p.fotoUrl && p.sku) downlightFotos[p.sku] = normalizeFotoUrl(p.fotoUrl)!;
+      // Indexar por familia|produto (como resolveDownlightPhoto busca) E por sku (para freshPhotoMap)
+      if (p.fotoUrl && p.familia && p.name) downlightFotos[`${p.familia}|${p.name}`] = normalizeFotoUrl(p.fotoUrl)!;
     } else if (cat === "PAINÉIS" || cat === "PAINEIS") {
       paineis.push(toPainelProduct(p));
       if (!painelCCTs[p.familia]) painelCCTs[p.familia] = ccts;

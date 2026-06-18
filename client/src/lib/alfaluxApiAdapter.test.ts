@@ -107,18 +107,20 @@ describe("adaptAlfaluxProducts - Downlights", () => {
     expect(result.downlightCCTs["LUNA"]).toEqual(["2700K", "3000K", "4000K"]);
   });
 
-  it("mapeia foto por SKU", () => {
-    const products = [makeProduct({ sku: "LDE-1234.567.89F", fotoUrl: "https://example.com/foto.jpg" })];
+  it("mapeia foto por familia|produto (para resolveDownlightPhoto)", () => {
+    const products = [makeProduct({ familia: "LUNA", name: "LUNA PP LED 13W", sku: "LDE-1234.567.89F", fotoUrl: "https://example.com/foto.jpg" })];
     const result = adaptAlfaluxProducts(products);
-    // URLs absolutas (CloudFront pré-assinado) são usadas diretamente pelo browser, sem proxy
-    expect(result.downlightFotos["LDE-1234.567.89F"]).toBe("https://example.com/foto.jpg");
+    // downlightFotos é indexado por 'familia|produto' (como resolveDownlightPhoto busca)
+    expect(result.downlightFotos["LUNA|LUNA PP LED 13W"]).toBe("https://example.com/foto.jpg");
+    // Não deve mais indexar por SKU (freshPhotoMap no Cart.tsx cobre isso via trpc.alfalux.products)
+    expect(result.downlightFotos["LDE-1234.567.89F"]).toBeUndefined();
   });
 
   it("usa proxy para caminhos relativos de foto (legado)", () => {
-    const products = [makeProduct({ sku: "LDE-1234.567.89F", fotoUrl: "/manus-storage/foto.jpg" })];
+    const products = [makeProduct({ familia: "LUNA", name: "LUNA PP LED 13W", sku: "LDE-1234.567.89F", fotoUrl: "/manus-storage/foto.jpg" })];
     const result = adaptAlfaluxProducts(products);
     // Caminhos relativos passam pelo proxy para evitar bloqueio de autenticação
-    expect(result.downlightFotos["LDE-1234.567.89F"]).toBe("/api/image-proxy?url=https%3A%2F%2Falfaluxprod-c8zmg2fn.manus.space%2Fmanus-storage%2Ffoto.jpg");
+    expect(result.downlightFotos["LUNA|LUNA PP LED 13W"]).toBe("/api/image-proxy?url=https%3A%2F%2Falfaluxprod-c8zmg2fn.manus.space%2Fmanus-storage%2Ffoto.jpg");
   });
 });
 

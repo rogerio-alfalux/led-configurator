@@ -6981,7 +6981,7 @@ export default function Home() {
                   <CardContent className="space-y-4">
                     {/* Foto do produto Downlight */}
                     {(() => {
-                      const dlPhoto = dlFamilia && dlResult ? getDownlightPhoto(dlFamilia, dlResult.product.name) : null;
+                      const dlPhoto = dlFamilia && dlResult ? resolveDownlightPhoto(dlFamilia, dlResult.product.name) : null;
                       return dlPhoto ? (
                         <div className="flex gap-3 items-stretch">
                           <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-36 flex items-center justify-center">
@@ -7010,7 +7010,7 @@ export default function Home() {
                     })()
                     }
                     <div className="grid grid-cols-2 gap-3">
-                      {!dlFamilia || !getDownlightPhoto(dlFamilia, dlResult.product.name) ? (
+                      {!dlFamilia || !resolveDownlightPhoto(dlFamilia, dlResult.product.name) ? (
                         <>
                           <div className="p-3 rounded-lg bg-muted/50">
                             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
@@ -7124,7 +7124,8 @@ export default function Home() {
                         disabled={isAddingToCart}
                         onClick={() => {
                           const preco = getPrecoForControle(dlResult.product, dlResult.controle, dlResult.tensao);
-                          const dlPhoto = dlFamilia ? getDownlightPhoto(dlFamilia, dlResult.product.name) : null;
+                          // Usar resolveDownlightPhoto (API primeiro) em vez de getDownlightPhoto (estático)
+                          const dlPhoto = resolveDownlightPhoto(dlFamilia, dlResult.product.name);
                           const item: CartItemData = {
                             category: "Downlights",
                             sku: dlResult.product.sku ?? "",

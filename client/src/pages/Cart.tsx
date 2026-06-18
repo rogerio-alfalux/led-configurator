@@ -403,14 +403,29 @@ export default function Cart() {
   // Todos os produtos Alfalux para resolver fotos frescas de Painéis, Spots, etc.
   // URLs CloudFront expiram em ~1h; buscamos sempre frescos com staleTime curto
   const allProductsQuery = trpc.alfalux.products.useQuery(undefined, { staleTime: 3 * 60 * 1000 });
-  /** Mapa sku -> fotoUrl fresca para substituir URLs expiradas no preview */
+  // Produtos de revenda para resolver fotos frescas (RV00050, RV00051, etc.)
+  const revendaProductsQuery = trpc.alfalux.revendaProducts.useQuery(undefined, { staleTime: 3 * 60 * 1000 });
+  /** Mapa sku -> fotoUrl fresca para substituir URLs expiradas no preview.
+   * Cobre: produtos principais (Downlights, Painéis, Spots, etc.),
+   * produtos de revenda (RV*) e acessórios (EQ*, CP*). */
   const freshPhotoMap = useMemo(() => {
     const map = new Map<string, string>(); // sku -> fotoUrl fresca
+    // Produtos principais
     for (const p of allProductsQuery.data ?? []) {
       if (p.sku && p.fotoUrl) map.set(p.sku, p.fotoUrl);
     }
+    // Produtos de revenda (sku = codigo)
+    for (const p of revendaProductsQuery.data ?? []) {
+      if (p.sku && p.fotoUrl) map.set(p.sku, p.fotoUrl);
+    }
+    // Acessórios (indexados por codigo e sku)
+    for (const p of acessoriosQuery.data ?? []) {
+      const key = p.codigo ?? p.sku;
+      if (key && p.fotoUrl) map.set(key, p.fotoUrl);
+      if (p.sku && p.sku !== key && p.fotoUrl) map.set(p.sku, p.fotoUrl);
+    }
     return map;
-  }, [allProductsQuery.data]);
+  }, [allProductsQuery.data, revendaProductsQuery.data, acessoriosQuery.data]);
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
