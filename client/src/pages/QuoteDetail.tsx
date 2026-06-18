@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import {
   ArrowLeft, CheckCircle, XCircle, Clock, TrendingDown,
@@ -342,6 +342,46 @@ export default function QuoteDetail() {
   const assistantsQuery = trpc.assistants.list.useQuery();
   const editSellers = sellersQuery.data ?? [];
   const editAssistants = assistantsQuery.data ?? [];
+
+  // IDs do orçamento pendentes de sincronização (populados quando o Dialog abre)
+  // Necessário porque sellersQuery/assistantsQuery podem terminar DEPOIS do Dialog abrir
+  const [pendingQuoteIds, setPendingQuoteIds] = useState<{
+    seller1Id?: number | null;
+    seller1Name?: string | null;
+    seller2Id?: number | null;
+    seller2Name?: string | null;
+    assistantId?: number | null;
+    assistantName?: string | null;
+  } | null>(null);
+
+  // Quando editSellers carrega e há IDs pendentes, re-sincroniza o formulário
+  useEffect(() => {
+    if (!pendingQuoteIds || !editDialogOpen) return;
+    if (editSellers.length > 0) {
+      setEditForm(f => {
+        const needsSync = (f.seller1Id === "" && !!pendingQuoteIds.seller1Id) ||
+                          (f.seller2Id === "" && !!pendingQuoteIds.seller2Id);
+        if (!needsSync) return f;
+        return {
+          ...f,
+          seller1Id: f.seller1Id === "" && pendingQuoteIds.seller1Id ? String(pendingQuoteIds.seller1Id) : f.seller1Id,
+          seller1Name: f.seller1Id === "" && pendingQuoteIds.seller1Name ? pendingQuoteIds.seller1Name : f.seller1Name,
+          seller2Id: f.seller2Id === "" && pendingQuoteIds.seller2Id ? String(pendingQuoteIds.seller2Id) : f.seller2Id,
+          seller2Name: f.seller2Id === "" && pendingQuoteIds.seller2Name ? pendingQuoteIds.seller2Name : f.seller2Name,
+        };
+      });
+    }
+    if (editAssistants.length > 0) {
+      setEditForm(f => {
+        if (f.assistantId !== "" || !pendingQuoteIds.assistantId) return f;
+        return {
+          ...f,
+          assistantId: String(pendingQuoteIds.assistantId),
+          assistantName: pendingQuoteIds.assistantName ?? f.assistantName,
+        };
+      });
+    }
+  }, [editDialogOpen, editSellers, editAssistants, pendingQuoteIds]);
 
   // Catálogo de produtos para resolver fotos atualizadas (URLs CloudFront expiram)
   const productsQuery = trpc.alfalux.products.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
@@ -1117,6 +1157,15 @@ export default function QuoteDetail() {
           {canEdit && <Dialog open={editDialogOpen} onOpenChange={(open) => {
             setEditDialogOpen(open);
             if (open) {
+              // Salvar IDs do orçamento para re-sincronização caso sellersQuery ainda esteja carregando
+              setPendingQuoteIds({
+                seller1Id: quote.seller1Id,
+                seller1Name: quote.seller1Name,
+                seller2Id: quote.seller2Id,
+                seller2Name: quote.seller2Name,
+                assistantId: quote.assistantId,
+                assistantName: quote.assistantName,
+              });
               setEditForm({
                 clientName: quote.clientName,
                 clientContact: quote.clientContact ?? "",
