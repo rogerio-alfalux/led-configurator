@@ -2127,10 +2127,23 @@ export default function Home() {
     if (appendToQuoteId) {
       handleAddItemOrToQuote(item);
     } else {
-      setPendingCartItem(item);
-      setColorModalOpen(true);
+      // Item Especial vai direto ao carrinho — cor já está no formulário, não precisa do seletor de cor
+      const effectiveQty = globalQty > 0 ? globalQty : 1;
+      const finalItem: CartItemData = {
+        ...item,
+        qty: effectiveQty,
+        totalPrice: unitPrice * effectiveQty,
+        itemEmPlanta: globalItemEmPlanta,
+      };
+      const itemWithAcc: CartItemData = pendingAccessories.length > 0
+        ? { ...finalItem, accessories: [...pendingAccessories] }
+        : finalItem;
+      if (pendingAccessories.length > 0) setPendingAccessories([]);
+      addItem(itemWithAcc);
+      setGlobalItemEmPlanta("");
+      setGlobalQty(1);
     }
-  }, [spDescription, spDimensions, spPower, spDim, spVoltage, spColor, spColorTemp, spUnitPrice, spPhotoUrl, spInternalNotes, appendToQuoteId, handleAddItemOrToQuote, globalItemEmPlanta]);
+  }, [spDescription, spDimensions, spPower, spDim, spVoltage, spColor, spColorTemp, spUnitPrice, spPhotoUrl, spInternalNotes, appendToQuoteId, handleAddItemOrToQuote, globalItemEmPlanta, globalQty, pendingAccessories, addItem]);
 
   const handleAddService = useCallback(() => {
     if (!svDescription.trim()) {
@@ -5419,6 +5432,16 @@ export default function Home() {
                   </div>
                 </div>
 
+                {/* Cor */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cor / Acabamento</Label>
+                  <Input
+                    value={spColor}
+                    onChange={(e) => setSpColor(e.target.value)}
+                    placeholder="Ex: Branco Fosco, Preto Texturizado..."
+                    className="h-10"
+                  />
+                </div>
                 {/* Temperatura de Cor */}
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Temperatura de Cor</Label>
