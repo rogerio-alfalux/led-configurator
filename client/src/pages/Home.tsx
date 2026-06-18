@@ -3505,13 +3505,14 @@ export default function Home() {
                         const prod = lbSelectedProduct;
                         const isAvail = opt.value === "ON/OFF"
                           || (opt.value === "DIM 0-10V" && prod?.driverDim010v != null)
-                          || (opt.value === "DIM DALI" && prod?.driverDimDali != null);
+                          || (opt.value === "DIM DALI" && prod?.driverDimDali != null)
+                          || (opt.value === "DIM TRIAC" && (prod?.driverDimTriac110v != null || prod?.driverDimTriac220v != null));
                         return (
                           <button
                             key={opt.value}
                             onClick={() => {
                               if (isAvail) {
-                                setLbControle(opt.value);
+                                setLbControle(opt.value as import("@/lib/ledBarCatalog").LedBarControle);
                                 setLbResult(null);
                               }
                             }}
@@ -3531,7 +3532,7 @@ export default function Home() {
                       })}
                     </div>
                     {!lbSelectedProduct && (
-                      <p className="mt-1.5 text-xs text-muted-foreground">DIM 0-10V e DIM DALI serão habilitados quando o produto estiver selecionado.</p>
+                      <p className="mt-1.5 text-xs text-muted-foreground">DIM 0-10V, DIM DALI e DIM TRIAC serão habilitados quando o produto estiver selecionado.</p>
                     )}
                   </div>
                   )}
@@ -3566,6 +3567,12 @@ export default function Home() {
                       <p className="mt-1.5 text-xs text-amber-500 flex items-center gap-1">
                         <Info className="w-3 h-3" />
                         Fonte DIM 0-10V é monovolt: escolha 110V ou 220V.
+                      </p>
+                    )}
+                    {lbControle === "DIM TRIAC" && (
+                      <p className="mt-1.5 text-xs text-amber-500 flex items-center gap-1">
+                        <Info className="w-3 h-3" />
+                        Fonte DIM TRIAC é monovolt: escolha 110V ou 220V conforme disponível.
                       </p>
                     )}
                   </div>

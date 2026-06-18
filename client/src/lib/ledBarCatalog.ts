@@ -16,7 +16,7 @@
 
 export type LedBarDifusor = "DA" | "DB" | "DC" | "NF";
 export type LedBarPotencia = 5 | 10 | 20 | 25;
-export type LedBarControle = "ON/OFF" | "DIM 0-10V" | "DIM DALI";
+export type LedBarControle = "ON/OFF" | "DIM 0-10V" | "DIM DALI" | "DIM TRIAC";
 export type LedBarVoltage = "110V" | "220V" | "Bivolt";
 
 export interface LedBarDriverInfo {
@@ -47,6 +47,10 @@ export interface LedBarProduct {
   driverDim010v: LedBarDriverInfo | null;
   /** Driver DIM DALI */
   driverDimDali: LedBarDriverInfo | null;
+  /** Driver DIM TRIAC 110V */
+  driverDimTriac110v?: LedBarDriverInfo | null;
+  /** Driver DIM TRIAC 220V */
+  driverDimTriac220v?: LedBarDriverInfo | null;
   /** URL da foto do produto */
   fotoUrl: string | null;
   /** Preço unitário ON/OFF 220V (R$). null = não cadastrado. */
@@ -221,6 +225,7 @@ export const LED_BAR_CONTROLE_OPTIONS: { value: LedBarControle; label: string }[
   { value: "ON/OFF",    label: "ON/OFF" },
   { value: "DIM 0-10V", label: "DIM 0-10V" },
   { value: "DIM DALI",  label: "DIM DALI" },
+  { value: "DIM TRIAC", label: "DIM TRIAC" },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -265,17 +270,21 @@ export function daliIsBivolt(product: LedBarProduct): boolean {
 
 /**
  * Retorna as opções de tensão disponíveis para o produto e controle selecionados.
- * - ON/OFF: 220V + Bivolt (se driverBivolt != null)
+ * - ON/OFF: 220V (se driver220 != null) + Bivolt (se driverBivolt != null)
  * - DIM 0-10V: 110V + 220V (monovolt — NÃO bivolt automático, exceto se modelo indicar)
  * - DIM DALI: 220V + Bivolt (se modelo indicar bivolt)
+ * - DIM TRIAC: 110V (se driverDimTriac110v != null) e/ou 220V (se driverDimTriac220v != null)
  */
 export function getAvailableVoltages(
   product: LedBarProduct,
   controle: LedBarControle
 ): LedBarVoltage[] {
   if (controle === "ON/OFF") {
-    const opts: LedBarVoltage[] = ["220V"];
+    const opts: LedBarVoltage[] = [];
+    if (product.driver220) opts.push("220V");
     if (product.driverBivolt) opts.push("Bivolt");
+    // Garantir pelo menos uma opção
+    if (opts.length === 0) opts.push("220V");
     return opts;
   }
   if (controle === "DIM 0-10V") {
@@ -287,6 +296,13 @@ export function getAvailableVoltages(
   if (controle === "DIM DALI") {
     const opts: LedBarVoltage[] = ["220V"];
     if (daliIsBivolt(product)) opts.push("Bivolt");
+    return opts;
+  }
+  if (controle === "DIM TRIAC") {
+    const opts: LedBarVoltage[] = [];
+    if (product.driverDimTriac110v) opts.push("110V");
+    if (product.driverDimTriac220v) opts.push("220V");
+    if (opts.length === 0) opts.push("220V");
     return opts;
   }
   return ["220V"];
@@ -350,6 +366,10 @@ function selectDriver(
   }
   if (controle === "DIM DALI") {
     return product.driverDimDali;
+  }
+  if (controle === "DIM TRIAC") {
+    if (voltage === "110V") return product.driverDimTriac110v ?? null;
+    return product.driverDimTriac220v ?? null;
   }
   return product.driver220;
 }

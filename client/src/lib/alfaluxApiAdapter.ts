@@ -459,6 +459,8 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
     driverBivolt: dBivolt ? { model: driverModel(dBivolt), code: driverCode(dBivolt) } : null,
     driverDim010v: dDim010v ? { model: driverModel(dDim010v), code: driverCode(dDim010v) } : null,
     driverDimDali: dDimDali ? { model: driverModel(dDimDali), code: driverCode(dDimDali) } : null,
+    driverDimTriac110v: dDimTriac110v ? { model: driverModel(dDimTriac110v), code: driverCode(dDimTriac110v) } : null,
+    driverDimTriac220v: dDimTriac220v ? { model: driverModel(dDimTriac220v), code: driverCode(dDimTriac220v) } : null,
     fotoUrl: normalizeFotoUrl(p.fotoUrl),
     precoOnOff220: p.precoOnOff220 ?? null,
     precoOnOffBivolt: p.precoOnOffBivolt ?? null,
