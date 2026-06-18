@@ -6161,9 +6161,9 @@ export default function Home() {
                                     description: `${r.product.name} ${r.cct} ${r.controle} ${r.voltage} ${r.comprimentoTotalMm}MM`,
                                     power: `${r.product.potencia}W/m`,
                                     cct: r.cct,
-                                    qty: 1,
+                                    qty: globalQty,
                                     unitPrice: lbPreco,
-                                    totalPrice: lbPreco,
+                                    totalPrice: lbPreco * globalQty,
                                     photoUrl: r.product.fotoUrl ?? "",
                                     orderSummary: pedido,
                                     quoteSummary: orcamento,
@@ -8582,12 +8582,22 @@ export default function Home() {
         onClose={() => { setColorModalOpen(false); setPendingCartItem(null); }}
         onConfirm={(cor: CorPeca) => {
           if (pendingCartItem) {
-            // Injeta acessórios pendentes no item antes de enviar ao carrinho
+            // Injeta acessórios pendentes, globalQty e globalItemEmPlanta no item antes de enviar ao carrinho
+            const effectiveQty = globalQty > 0 ? globalQty : 1;
+            const baseItem: CartItemData = {
+              ...pendingCartItem,
+              corPeca: cor,
+              qty: effectiveQty,
+              totalPrice: pendingCartItem.unitPrice != null ? pendingCartItem.unitPrice * effectiveQty : (pendingCartItem.totalPrice ?? 0),
+              itemEmPlanta: globalItemEmPlanta || pendingCartItem.itemEmPlanta || "",
+            };
             const itemWithAcc: CartItemData = pendingAccessories.length > 0
-              ? { ...pendingCartItem, corPeca: cor, accessories: [...pendingAccessories] }
-              : { ...pendingCartItem, corPeca: cor };
+              ? { ...baseItem, accessories: [...pendingAccessories] }
+              : baseItem;
             if (pendingAccessories.length > 0) setPendingAccessories([]);
             addItem(itemWithAcc);
+            setGlobalItemEmPlanta("");
+            setGlobalQty(1);
           }
           setColorModalOpen(false);
           setPendingCartItem(null);

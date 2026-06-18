@@ -1279,3 +1279,9 @@
 - [x] Campo de quantidade ao lado do botão Enviar ao Carrinho em todos os blocos (espelhado no carrinho)
 - [x] Opção "A definir" de CCT em todos os selects de CCT
 - [x] Botão duplicar item no carrinho e na edição de orçamento (QuoteDetail)
+
+## Correções solicitadas agora
+
+- [x] Corrigir foto do LED BAR na pré-visualização e no Excel do orçamento
+- [x] Corrigir exibição do valor de frete no orçamento, Excel e pré-visualização
+- [x] Corrigir espelhamento da quantidade configurada para o carrinho, vinculando os campos de quantidade

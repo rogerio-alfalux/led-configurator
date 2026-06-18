@@ -1,0 +1,90 @@
+{
+  "query": "SELECT id, quoteNumber, freteType, freteIsento, freteLocalidade, freteValue FROM quotes ORDER BY id DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT id, quoteNumber, freteType, freteIsento, freteLocalidade, freteValue FROM quotes ORDER BY id DESC LIMIT 10;",
+  "rows": [
+    {
+      "id": "1710001",
+      "quoteNumber": "31.0001-26",
+      "freteType": "free",
+      "freteIsento": "0",
+      "freteLocalidade": "sp",
+      "freteValue": "0.00"
+    },
+    {
+      "id": "1680001",
+      "quoteNumber": "33.0068-26",
+      "freteType": "free",
+      "freteIsento": "0",
+      "freteLocalidade": "sp",
+      "freteValue": "0.00"
+    },
+    {
+      "id": "1650001",
+      "quoteNumber": "32.0065-26",
+      "freteType": "free",
+      "freteIsento": "0",
+      "freteLocalidade": "sp",
+      "freteValue": "0.00"
+    },
+    {
+      "id": "1620001",
+      "quoteNumber": "05.0031-26",
+      "freteType": "free",
+      "freteIsento": "0",
+      "freteLocalidade": "sp",
+      "freteValue": "0.00"
+    },
+    {
+      "id": "1590001",
+      "quoteNumber": "33.0067-26",
+      "freteType": "free",
+      "freteIsento": "0",
+      "freteLocalidade": "sp",
+      "freteValue": "0.00"
+    },
+    {
+      "id": "1560001",
+      "quoteNumber": "25.0153-26",
+      "freteType": "free",
+      "freteIsento": "0",
+      "freteLocalidade": "sp",
+      "freteValue": "0.00"
+    },
+    {
+      "id": "1530001",
+      "quoteNumber": "29.0002-26",
+      "freteType": "free",
+      "freteIsento": "0",
+      "freteLocalidade": "other",
+      "freteValue": "0.00"
+    },
+    {
+      "id": "1500001",
+      "quoteNumber": "01.0002-26",
+      "freteType": "free",
+      "freteIsento": "0",
+      "freteLocalidade": "sp",
+      "freteValue": "0.00"
+    },
+    {
+      "id": "1470001",
+      "quoteNumber": "20.0002-26",
+      "freteType": "free",
+      "freteIsento": "0",
+      "freteLocalidade": "other",
+      "freteValue": "250.00"
+    },
+    {
+      "id": "1440002",
+      "quoteNumber": "29.0001-26",
+      "freteType": "free",
+      "freteIsento": "0",
+      "freteLocalidade": "sp",
+      "freteValue": "0.00"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tquoteNumber\tfreteType\tfreteIsento\tfreteLocalidade\tfreteValue\n1710001\t31.0001-26\tfree\t0\tsp\t0.00\n1680001\t33.0068-26\tfree\t0\tsp\t0.00\n1650001\t32.0065-26\tfree\t0\tsp\t0.00\n1620001\t05.0031-26\tfree\t0\tsp\t0.00\n1590001\t33.0067-26\tfree\t0\tsp\t0.00\n1560001\t25.0153-26\tfree\t0\tsp\t0.00\n1530001\t29.0002-26\tfree\t0\tother\t0.00\n1500001\t01.0002-26\tfree\t0\tsp\t0.00\n1470001\t20.0002-26\tfree\t0\tother\t250.00\n1440002\t29.0001-26\tfree\t0\tsp\t0.00\n",
+  "stderr": "",
+  "execution_time_ms": 307
+}

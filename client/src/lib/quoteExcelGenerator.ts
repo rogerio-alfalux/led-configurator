@@ -68,7 +68,12 @@ function extractDim(description: string): string {
 function buildFreteText(formData: QuoteFormData, totalBase: number): string {
   const { freteType, freteIsento, freteLocalidade } = formData;
   if (freteIsento) return "Frete isento (conforme negociação)";
-  if (freteType === "free") return "CIF - Para faturamento acima de R$ 1.500,00 São Paulo/ SP (Capital). Demais localidades sob consulta";
+  if (freteType === "free") {
+    const valorCotado = formData.freteValue && formData.freteValue > 0
+      ? ` (R$ ${formData.freteValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} cotado)`
+      : "";
+    return `CIF - Para faturamento acima de R$ 1.500,00 São Paulo/ SP (Capital). Demais localidades sob consulta${valorCotado}`;
+  }
   if (freteType === "night") {
     const val = formData.freteValue && formData.freteValue > 0
       ? formData.freteValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })

@@ -1,0 +1,8 @@
+{
+  "query": "SELECT id, quote_id, JSON_EXTRACT(item_data, '$.category') as category, JSON_EXTRACT(item_data, '$.sku') as sku, JSON_EXTRACT(item_data, '$.photoUrl') as photoUrl FROM cart_items WHERE JSON_EXTRACT(item_data, '$.category') = 'LED BAR' LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT id, quote_id, JSON_EXTRACT(item_data, '$.category') as category, JSON_EXTRACT(item_data, '$.sku') as sku, JSON_EXTRACT(item_data, '$.photoUrl') as photoUrl FROM cart_items WHERE JSON_EXTRACT(item_data, '$.category') = 'LED BAR' LIMIT 5;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'item_data' in 'where clause'"
+  ]
+}

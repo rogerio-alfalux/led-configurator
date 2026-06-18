@@ -1,0 +1,40 @@
+{
+  "query": "SELECT id, JSON_EXTRACT(itemData, '$.category') as category, JSON_EXTRACT(itemData, '$.sku') as sku, JSON_EXTRACT(itemData, '$.photoUrl') as photoUrl FROM quote_items WHERE JSON_EXTRACT(itemData, '$.category') = 'LED BAR' LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT id, JSON_EXTRACT(itemData, '$.category') as category, JSON_EXTRACT(itemData, '$.sku') as sku, JSON_EXTRACT(itemData, '$.photoUrl') as photoUrl FROM quote_items WHERE JSON_EXTRACT(itemData, '$.category') = 'LED BAR' LIMIT 5;",
+  "rows": [
+    {
+      "id": "390007",
+      "category": "\"LED BAR\"",
+      "sku": "\"LED BAR U DB\"",
+      "photoUrl": "\"https://d36hbw14aib5lz.cloudfront.net/310419663032619542/c8ZMg2fnQHfcAMKPDCkQRJ/products/photos/1779210878747-9rycwe4rbrp_6e6eaadb.png?Expires=1780328932&Signature=EhWdSlZxETyxGc9tjnSq5ZAxsrQIBtD3IFG4-kbd0YH78T7Z3RXmKhV7wGXBxICxS6ROeI-j4LEdrV6yw8X0P5dlZY6ecMG5LF3FdWUXOyCPFKEwphHtNhYNwQaCOzwE4HKLUCslw7bIC1mRtz0TOWjs2nMNIm3oT2eqHI~AHVsWUUQSV1PxZ3VGMLmGqGNBE7UEmIKyvkLLjTPfgfMcQQx2HS4-S6IOd4CMkmMjq7iXNgbTtkgx-1nxRucCoDnpRxQ3lllkS~jfvxPGaSjCjTT2vO7zeg8FPa0J2n5n8AeinyokH5hIKMA0prco6WPznNIxFoHf25xz-LQ12zq26Q__&Key-Pair-Id=K1MP89RTKNH4J\""
+    },
+    {
+      "id": "390008",
+      "category": "\"LED BAR\"",
+      "sku": "\"LED BAR U DB\"",
+      "photoUrl": "\"https://d36hbw14aib5lz.cloudfront.net/310419663032619542/c8ZMg2fnQHfcAMKPDCkQRJ/products/photos/1779210878747-9rycwe4rbrp_6e6eaadb.png?Expires=1780328932&Signature=EhWdSlZxETyxGc9tjnSq5ZAxsrQIBtD3IFG4-kbd0YH78T7Z3RXmKhV7wGXBxICxS6ROeI-j4LEdrV6yw8X0P5dlZY6ecMG5LF3FdWUXOyCPFKEwphHtNhYNwQaCOzwE4HKLUCslw7bIC1mRtz0TOWjs2nMNIm3oT2eqHI~AHVsWUUQSV1PxZ3VGMLmGqGNBE7UEmIKyvkLLjTPfgfMcQQx2HS4-S6IOd4CMkmMjq7iXNgbTtkgx-1nxRucCoDnpRxQ3lllkS~jfvxPGaSjCjTT2vO7zeg8FPa0J2n5n8AeinyokH5hIKMA0prco6WPznNIxFoHf25xz-LQ12zq26Q__&Key-Pair-Id=K1MP89RTKNH4J\""
+    },
+    {
+      "id": "390009",
+      "category": "\"LED BAR\"",
+      "sku": "\"LED BAR U DB\"",
+      "photoUrl": "\"https://d36hbw14aib5lz.cloudfront.net/310419663032619542/c8ZMg2fnQHfcAMKPDCkQRJ/products/photos/1779210878747-9rycwe4rbrp_6e6eaadb.png?Expires=1780328932&Signature=EhWdSlZxETyxGc9tjnSq5ZAxsrQIBtD3IFG4-kbd0YH78T7Z3RXmKhV7wGXBxICxS6ROeI-j4LEdrV6yw8X0P5dlZY6ecMG5LF3FdWUXOyCPFKEwphHtNhYNwQaCOzwE4HKLUCslw7bIC1mRtz0TOWjs2nMNIm3oT2eqHI~AHVsWUUQSV1PxZ3VGMLmGqGNBE7UEmIKyvkLLjTPfgfMcQQx2HS4-S6IOd4CMkmMjq7iXNgbTtkgx-1nxRucCoDnpRxQ3lllkS~jfvxPGaSjCjTT2vO7zeg8FPa0J2n5n8AeinyokH5hIKMA0prco6WPznNIxFoHf25xz-LQ12zq26Q__&Key-Pair-Id=K1MP89RTKNH4J\""
+    },
+    {
+      "id": "390010",
+      "category": "\"LED BAR\"",
+      "sku": "\"LED BAR U DB\"",
+      "photoUrl": "\"https://d36hbw14aib5lz.cloudfront.net/310419663032619542/c8ZMg2fnQHfcAMKPDCkQRJ/products/photos/1779210878747-9rycwe4rbrp_6e6eaadb.png?Expires=1780328932&Signature=EhWdSlZxETyxGc9tjnSq5ZAxsrQIBtD3IFG4-kbd0YH78T7Z3RXmKhV7wGXBxICxS6ROeI-j4LEdrV6yw8X0P5dlZY6ecMG5LF3FdWUXOyCPFKEwphHtNhYNwQaCOzwE4HKLUCslw7bIC1mRtz0TOWjs2nMNIm3oT2eqHI~AHVsWUUQSV1PxZ3VGMLmGqGNBE7UEmIKyvkLLjTPfgfMcQQx2HS4-S6IOd4CMkmMjq7iXNgbTtkgx-1nxRucCoDnpRxQ3lllkS~jfvxPGaSjCjTT2vO7zeg8FPa0J2n5n8AeinyokH5hIKMA0prco6WPznNIxFoHf25xz-LQ12zq26Q__&Key-Pair-Id=K1MP89RTKNH4J\""
+    },
+    {
+      "id": "390022",
+      "category": "\"LED BAR\"",
+      "sku": "\"LED BAR U DB\"",
+      "photoUrl": "\"https://d36hbw14aib5lz.cloudfront.net/310419663032619542/c8ZMg2fnQHfcAMKPDCkQRJ/products/photos/1779210878747-9rycwe4rbrp_6e6eaadb.png?Expires=1780328932&Signature=EhWdSlZxETyxGc9tjnSq5ZAxsrQIBtD3IFG4-kbd0YH78T7Z3RXmKhV7wGXBxICxS6ROeI-j4LEdrV6yw8X0P5dlZY6ecMG5LF3FdWUXOyCPFKEwphHtNhYNwQaCOzwE4HKLUCslw7bIC1mRtz0TOWjs2nMNIm3oT2eqHI~AHVsWUUQSV1PxZ3VGMLmGqGNBE7UEmIKyvkLLjTPfgfMcQQx2HS4-S6IOd4CMkmMjq7iXNgbTtkgx-1nxRucCoDnpRxQ3lllkS~jfvxPGaSjCjTT2vO7zeg8FPa0J2n5n8AeinyokH5hIKMA0prco6WPznNIxFoHf25xz-LQ12zq26Q__&Key-Pair-Id=K1MP89RTKNH4J\""
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tcategory\tsku\tphotoUrl\n390007\t\"LED BAR\"\t\"LED BAR U DB\"\t\"https://d36hbw14aib5lz.cloudfront.net/310419663032619542/c8ZMg2fnQHfcAMKPDCkQRJ/products/photos/1779210878747-9rycwe4rbrp_6e6eaadb.png?Expires=1780328932&Signature=EhWdSlZxETyxGc9tjnSq5ZAxsrQIBtD3IFG4-kbd0YH78T7Z3RXmKhV7wGXBxICxS6ROeI-j4LEdrV6yw8X0P5dlZY6ecMG5LF3FdWUXOyCPFKEwphHtNhYNwQaCOzwE4HKLUCslw7bIC1mRtz0TOWjs2nMNIm3oT2eqHI~AHVsWUUQSV1PxZ3VGMLmGqGNBE7UEmIKyvkLLjTPfgfMcQQx2HS4-S6IOd4CMkmMjq7iXNgbTtkgx-1nxRucCoDnpRxQ3lllkS~jfvxPGaSjCjTT2vO7zeg8FPa0J2n5n8AeinyokH5hIKMA0prco6WPznNIxFoHf25xz-LQ12zq26Q__&Key-Pair-Id=K1MP89RTKNH4J\"\n390008\t\"LED BAR\"\t\"LED BAR U DB\"\t\"https://d36hbw14aib5lz.cloudfront.net/310419663032619542/c8ZMg2fnQHfcAMKPDCkQRJ/products/photos/1779210878747-9rycwe4rbrp_6e6eaadb.png?Expires=1780328932&Signature=EhWdSlZxETyxGc9tjnSq5ZAxsrQIBtD3IFG4-kbd0YH78T7Z3RXmKhV7wGXBxICxS6ROeI-j4LEdrV6yw8X0P5dlZY6ecMG5LF3FdWUXOyCPFKEwphHtNhYNwQaCOzwE4HKLUCslw7bIC1mRtz0TOWjs2nMNIm3oT2eqHI~AHVsWUUQSV1PxZ3VGMLmGqGNBE7UEmIKyvkLLjTPfgfMcQQx2HS4-S6IOd4CMkmMjq7iXNgbTtkgx-1nxRucCoDnpRxQ3lllkS~jfvxPGaSjCjTT2vO7zeg8FPa0J2n5n8AeinyokH5hIKMA0prco6WPznNIxFoHf25xz-LQ12zq26Q__&Key-Pair-Id=K1MP89RTKNH4J\"\n390009\t\"LED BAR\"\t\"LED BAR U DB\"\t\"https://d36hbw14aib5lz.cloudfront.net/310419663032619542/c8ZMg2fnQHfcAMKPDCkQRJ/products/photos/1779210878747-9rycwe4rbrp_6e6eaadb.png?Expires=1780328932&Signature=EhWdSlZxETyxGc9tjnSq5ZAxsrQIBtD3IFG4-kbd0YH78T7Z3RXmKhV7wGXBxICxS6ROeI-j4LEdrV6yw8X0P5dlZY6ecMG5LF3FdWUXOyCPFKEwphHtNhYNwQaCOzwE4HKLUCslw7bIC1mRtz0TOWjs2nMNIm3oT2eqHI~AHVsWUUQSV1PxZ3VGMLmGqGNBE7UEmIKyvkLLjTPfgfMcQQx2HS4-S6IOd4CMkmMjq7iXNgbTtkgx-1nxRucCoDnpRxQ3lllkS~jfvxPGaSjCjTT2vO7zeg8FPa0J2n5n8AeinyokH5hIKMA0prco6WPznNIxFoHf25xz-LQ12zq26Q__&Key-Pair-Id=K1MP89RTKNH4J\"\n390010\t\"LED BAR\"\t\"LED BAR U DB\"\t\"https://d36hbw14aib5lz.cloudfront.net/310419663032619542/c8ZMg2fnQHfcAMKPDCkQRJ/products/photos/1779210878747-9rycwe4rbrp_6e6eaadb.png?Expires=1780328932&Signature=EhWdSlZxETyxGc9tjnSq5ZAxsrQIBtD3IFG4-kbd0YH78T7Z3RXmKhV7wGXBxICxS6ROeI-j4LEdrV6yw8X0P5dlZY6ecMG5LF3FdWUXOyCPFKEwphHtNhYNwQaCOzwE4HKLUCslw7bIC1mRtz0TOWjs2nMNIm3oT2eqHI~AHVsWUUQSV1PxZ3VGMLmGqGNBE7UEmIKyvkLLjTPfgfMcQQx2HS4-S6IOd4CMkmMjq7iXNgbTtkgx-1nxRucCoDnpRxQ3lllkS~jfvxPGaSjCjTT2vO7zeg8FPa0J2n5n8AeinyokH5hIKMA0prco6WPznNIxFoHf25xz-LQ12zq26Q__&Key-Pair-Id=K1MP89RTKNH4J\"\n390022\t\"LED BAR\"\t\"LED BAR U DB\"\t\"https://d36hbw14aib5lz.cloudfront.net/310419663032619542/c8ZMg2fnQHfcAMKPDCkQRJ/products/photos/1779210878747-9rycwe4rbrp_6e6eaadb.png?Expires=1780328932&Signature=EhWdSlZxETyxGc9tjnSq5ZAxsrQIBtD3IFG4-kbd0YH78T7Z3RXmKhV7wGXBxICxS6ROeI-j4LEdrV6yw8X0P5dlZY6ecMG5LF3FdWUXOyCPFKEwphHtNhYNwQaCOzwE4HKLUCslw7bIC1mRtz0TOWjs2nMNIm3oT2eqHI~AHVsWUUQSV1PxZ3VGMLmGqGNBE7UEmIKyvkLLjTPfgfMcQQx2HS4-S6IOd4CMkmMjq7iXNgbTtkgx-1nxRucCoDnpRxQ3lllkS~jfvxPGaSjCjTT2vO7zeg8FPa0J2n5n8AeinyokH5hIKMA0prco6WPznNIxFoHf25xz-LQ12zq26Q__&Key-Pair-Id=K1MP89RTKNH4J\"\n",
+  "stderr": "",
+  "execution_time_ms": 271
+}

@@ -1875,6 +1875,7 @@ export default function QuoteDetail() {
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
         items={currentItems.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null)}
+        freshPhotoMap={productPhotoMap}
         formData={{
           cliente: quote.clientName,
           contato: quote.clientContact ?? "",
