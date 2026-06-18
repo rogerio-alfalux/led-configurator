@@ -689,6 +689,7 @@ export default function Cart() {
         projectNumber: saveForm.projectNumber || undefined,
         commissionPercent2: saveForm.commissionPercent2 ? (parseFloat(saveForm.commissionPercent2) || 0) / 100 : undefined,
         freteValue: saveForm.freteValue ? parseFloat(saveForm.freteValue) : undefined,
+        freteIncluded: saveForm.freteIncluded,
       };
       // Injetar itemEmPlanta em cada item (respeitando a ordem do DnD)
       const itemsWithPlanta = orderedEntries.map((e, idx) => ({
@@ -2156,6 +2157,7 @@ export default function Cart() {
           freteIsento: saveForm.freteIsento,
           freteLocalidade: saveForm.freteStateCode === "SP" ? "sp" : "other",
           freteValue: saveForm.freteValue ? parseFloat(saveForm.freteValue) : undefined,
+          freteIncluded: saveForm.freteIncluded,
           deliveryDays: parseInt(saveForm.deliveryDays) || 20,
           paymentTerm: saveForm.paymentTerm || undefined,
           revisionCount: 0,

@@ -1285,3 +1285,7 @@
 - [x] Corrigir foto do LED BAR na pré-visualização e no Excel do orçamento
 - [x] Corrigir exibição do valor de frete no orçamento, Excel e pré-visualização
 - [x] Corrigir espelhamento da quantidade configurada para o carrinho, vinculando os campos de quantidade
+
+## Correções Jun 2026 - Lote 3
+
+- [x] Diluíção proporcional do frete nos produtos: quando freteIncluded=true, distribuir freteValue proporcionalmente ao totalPrice de cada linha (não divisão igualitária)

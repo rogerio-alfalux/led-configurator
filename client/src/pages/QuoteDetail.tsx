@@ -552,6 +552,7 @@ export default function QuoteDetail() {
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
           freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
+          freteIncluded: (quote as any).freteIncluded ?? false,
           // Usar revisionCount atual do banco (sem incrementar — revisão só muda ao Salvar)
           revisionCount: quote.revisionCount ?? 0,
           deliveryDays: quote.deliveryDays ?? 20,
@@ -1896,6 +1897,7 @@ export default function QuoteDetail() {
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
           freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
+          freteIncluded: (quote as any).freteIncluded ?? false,
           revisionCount: quote.revisionCount ?? 0,
           deliveryDays: quote.deliveryDays ?? 20,
           paymentTerm: quote.paymentTerm ?? undefined,

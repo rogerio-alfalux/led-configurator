@@ -452,6 +452,34 @@ async function _generateExcelBuffer(
   let lastFloorId: string | undefined = undefined;
   let floorHeaderCount = 0; // número de linhas de cabeçalho de pavimento inseridas
 
+  // ── Diluição proporcional do frete ──────────────────────────────────────
+  // Quando freteIncluded=true e freteValue>0, distribui o frete proporcionalmente
+  // ao totalPrice de cada item (peso = totalPrice_i / soma_totalPrice_todos).
+  const _totalBaseParaFrete = items.reduce((s, it) => s + (it.totalPrice ?? 0), 0);
+  const _freteParaDiluir = (formData.freteIncluded && formData.freteValue && formData.freteValue > 0)
+    ? formData.freteValue
+    : 0;
+  /**
+   * Retorna o preço unitário ajustado com a parcela de frete diluída (antes do markup).
+   * Distribui proporcionalmente ao totalPrice de cada linha.
+   */
+  const _unitPriceComFrete = (item: CartItemData): number | null => {
+    if (item.unitPrice === null || item.unitPrice === undefined) return null;
+    if (_freteParaDiluir <= 0 || _totalBaseParaFrete <= 0) return item.unitPrice;
+    const peso = (item.totalPrice ?? 0) / _totalBaseParaFrete;
+    const freteItem = _freteParaDiluir * peso;
+    return item.unitPrice + freteItem / Math.max(item.qty, 1);
+  };
+  /**
+   * Retorna o preço total ajustado com a parcela de frete diluída (antes do markup).
+   */
+  const _totalPriceComFrete = (item: CartItemData): number | null => {
+    if (item.totalPrice === null || item.totalPrice === undefined) return null;
+    if (_freteParaDiluir <= 0 || _totalBaseParaFrete <= 0) return item.totalPrice;
+    const peso = item.totalPrice / _totalBaseParaFrete;
+    return item.totalPrice + _freteParaDiluir * peso;
+  };
+
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     // Inserir cabeçalho de pavimento quando floorId muda
@@ -495,14 +523,16 @@ async function _generateExcelBuffer(
       const _rtPctS = Math.min(Math.max(formData.rtPercent ?? 0, 0), 0.99);
       const _mPctS = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
       const applyMarkupS = (b: number) => { const r = _rtPctS > 0 ? b / (1 - _rtPctS) : b; return _mPctS > 0 ? r / (1 - _mPctS) : r; };
-      if (item.unitPrice && item.unitPrice > 0) {
+      const _uS = _unitPriceComFrete(item);
+      const _tS = _totalPriceComFrete(item);
+      if (_uS !== null && _uS > 0) {
         const mCell = ws.getCell(`M${rowNum}`);
-        mCell.value = applyMarkupS(item.unitPrice);
+        mCell.value = applyMarkupS(_uS);
         mCell.numFmt = '"R$"#,##0.00';
       }
-      if (item.totalPrice && item.totalPrice > 0) {
+      if (_tS !== null && _tS > 0) {
         const nCell = ws.getCell(`N${rowNum}`);
-        nCell.value = applyMarkupS(item.totalPrice);
+        nCell.value = applyMarkupS(_tS);
         nCell.numFmt = '"R$"#,##0.00';
       }
       continue; // pular o restante do loop para este item
@@ -640,7 +670,7 @@ async function _generateExcelBuffer(
     cQty.value = item.qty;
     cQty.font = { name: "Calibri", size: 11, bold: true };
 
-    // M = PREÇO UNITÁRIO (já com RT e Margem aplicados — valor final ao cliente)
+    // M = PREÇO UNITÁRIO (já com RT e Margem aplicados — valor final ao cliente; frete diluído se freteIncluded)
     const _rtPct    = Math.min(Math.max(formData.rtPercent    ?? 0, 0), 0.99);
     const _marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
     const applyMarkup = (base: number) => {
@@ -649,17 +679,19 @@ async function _generateExcelBuffer(
       return final;
     };
     const cUnit = ws.getCell(`M${rowNum}`);
-    if (item.unitPrice !== null && item.unitPrice !== undefined && item.unitPrice > 0) {
-      cUnit.value = applyMarkup(item.unitPrice);
+    const _unitAdjusted = _unitPriceComFrete(item);
+    if (_unitAdjusted !== null && _unitAdjusted !== undefined && _unitAdjusted > 0) {
+      cUnit.value = applyMarkup(_unitAdjusted);
       cUnit.numFmt = '"R$"#,##0.00';
     } else {
       cUnit.value = "-";
     }
 
-    // N = PREÇO TOTAL (já com RT e Margem aplicados — valor final ao cliente)
+    // N = PREÇO TOTAL (já com RT e Margem aplicados — valor final ao cliente; frete diluído se freteIncluded)
     const cTotal = ws.getCell(`N${rowNum}`);
-    if (item.totalPrice !== null && item.totalPrice !== undefined && item.totalPrice > 0) {
-      cTotal.value = applyMarkup(item.totalPrice);
+    const _totalAdjusted = _totalPriceComFrete(item);
+    if (_totalAdjusted !== null && _totalAdjusted !== undefined && _totalAdjusted > 0) {
+      cTotal.value = applyMarkup(_totalAdjusted);
       cTotal.numFmt = '"R$"#,##0.00';
       cTotal.font = { name: "Calibri", size: 11, bold: false };
     } else {
@@ -784,8 +816,9 @@ async function _generateExcelBuffer(
     }
   }
 
-  // ── Calcular total dos produtos ──────────────────────────────────────────
-  const totalBase = items.reduce((sum, it) => sum + (it.totalPrice ?? 0), 0);
+  // -- Calcular total dos produtos --
+  // Quando frete está diluído, soma o freteValue ao totalBase para o cálculo do total final
+  const totalBase = items.reduce((sum, it) => sum + (it.totalPrice ?? 0), 0) + _freteParaDiluir;
   // Aplicar RT e Margem (mesma fórmula do Cart.tsx)
   const rtPct    = Math.min(Math.max(formData.rtPercent    ?? 0, 0), 0.99);
   const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
@@ -824,9 +857,13 @@ async function _generateExcelBuffer(
   ws.mergeCells(`C${nextRow}:D${nextRow}`);
   {
     const c = ws.getCell(`C${nextRow}`);
-    c.value = totalComDifal > totalFinal
-      ? "Subtotal dos produtos\n(sem frete, sem DIFAL/FCP):"
-      : "Valor total dos produtos\n(sem o frete):";
+    c.value = formData.freteIncluded && _freteParaDiluir > 0
+      ? (totalComDifal > totalFinal
+        ? "Subtotal dos produtos\n(frete incl., sem DIFAL/FCP):"
+        : "Valor total dos produtos\n(frete j\u00e1 inclu\u00eddo):")
+      : (totalComDifal > totalFinal
+        ? "Subtotal dos produtos\n(sem frete, sem DIFAL/FCP):"
+        : "Valor total dos produtos\n(sem o frete):");
     c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
   }
@@ -887,7 +924,9 @@ async function _generateExcelBuffer(
     ws.mergeCells(`C${nextRow}:D${nextRow}`);
     {
       const c = ws.getCell(`C${nextRow}`);
-      c.value = "TOTAL GERAL\n(com DIFAL/FCP, sem frete):";
+      c.value = formData.freteIncluded && _freteParaDiluir > 0
+      ? "TOTAL GERAL\n(com DIFAL/FCP, frete inclu\u00eddo):"
+      : "TOTAL GERAL\n(com DIFAL/FCP, sem frete):";
       c.font = { name: "Calibri", size: 12, bold: true };
       c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
     }
@@ -927,31 +966,46 @@ async function _generateExcelBuffer(
   }
   nextRow++;
 
-  // ── Frete ────────────────────────────────────────────────────────────────
-  ws.getRow(nextRow).height = 19.8;
-  ws.mergeCells(`C${nextRow}:D${nextRow}`);
-  {
-    const c = ws.getCell(`C${nextRow}`);
-    c.value = "Frete dedicado:";
-    c.font = { name: "Calibri", size: 12, bold: true };
-    c.alignment = { horizontal: "left", vertical: "middle" };
+  // Linha de frete: omitir quando frete está diluído nos produtos
+  if (!(formData.freteIncluded && _freteParaDiluir > 0)) {
+    ws.getRow(nextRow).height = 19.8;
+    ws.mergeCells(`C${nextRow}:D${nextRow}`);
+    {
+      const c = ws.getCell(`C${nextRow}`);
+      c.value = "Frete dedicado:";
+      c.font = { name: "Calibri", size: 12, bold: true };
+      c.alignment = { horizontal: "left", vertical: "middle" };
+    }
+    ws.mergeCells(`E${nextRow}:N${nextRow}`);
+    {
+      const c = ws.getCell(`E${nextRow}`);
+      c.value = buildFreteText(formData, totalFinal);
+      const isNight = formData.freteType === "night";
+      c.font = { name: "Calibri", size: 11, bold: isNight, color: isNight ? { argb: "FFCC0000" } : undefined };
+      c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+    }
+    if (formData.freteType === "night") {
+      const labelCell = ws.getCell(`C${nextRow}`);
+      labelCell.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FFCC0000" } };
+    }
+    nextRow++;
+  } else {
+    // Frete diluído: mostrar nota informativa
+    ws.getRow(nextRow).height = 19.8;
+    ws.mergeCells(`C${nextRow}:N${nextRow}`);
+    {
+      const c = ws.getCell(`C${nextRow}`);
+      const freteFormatado = _freteParaDiluir.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      c.value = { richText: [
+        { text: "Frete: ", font: { name: "Calibri", size: 11, bold: true } },
+        { text: `R$ ${freteFormatado} distribu\u00eddo proporcionalmente nos pre\u00e7os dos produtos.`, font: { name: "Calibri", size: 11, bold: false, italic: true } },
+      ]};
+      c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+    }
+    nextRow++;
   }
-  ws.mergeCells(`E${nextRow}:N${nextRow}`);
-  {
-    const c = ws.getCell(`E${nextRow}`);
-    c.value = buildFreteText(formData, totalFinal);
-    const isNight = formData.freteType === "night";
-    c.font = { name: "Calibri", size: 11, bold: isNight, color: isNight ? { argb: "FFCC0000" } : undefined };
-    c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
-  }
-  // Também colorir o label "Frete dedicado:" em vermelho quando noturno
-  if (formData.freteType === "night") {
-    const labelCell = ws.getCell(`C${nextRow}`);
-    labelCell.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FFCC0000" } };
-  }
-  nextRow++;
 
-  // ── Observação (linha única: label + texto) ──────────────────────────────
+  // -- Observacao (linha unica: label + texto) --
   ws.getRow(nextRow).height = 19.8;
   ws.mergeCells(`C${nextRow}:N${nextRow}`);
   {

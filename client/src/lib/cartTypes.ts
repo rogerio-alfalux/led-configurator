@@ -279,6 +279,12 @@ export interface QuoteFormData {
   freteValue?: number;
   /** UF do estado de entrega (ex: SP, RJ) */
   freteState?: string;
+  /**
+   * Se true, o valor do frete (freteValue) é diluído proporcionalmente
+   * ao totalPrice de cada linha de produto no orçamento.
+   * A distribuição é ponderada pelo valor de cada linha (não divisão igualitária).
+   */
+  freteIncluded?: boolean;
 }
 
 export function parseCartItemData(json: string): CartItemData | null {

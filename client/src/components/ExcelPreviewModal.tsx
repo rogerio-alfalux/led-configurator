@@ -136,7 +136,45 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   };
 
   const totalBase = useMemo(() => items.reduce((s, it) => s + (it.totalPrice ?? 0), 0), [items]);
-  const totalComRT = rtPct > 0 ? totalBase / (1 - rtPct) : totalBase;
+
+  // ── Diluição proporcional do frete ──────────────────────────────────────
+  // Quando freteIncluded=true, distribui freteValue proporcionalmente ao
+  // totalPrice de cada item (peso = totalPrice_i / totalBase).
+  // Itens sem preço (totalPrice=0 ou null) não recebem frete diluído.
+  const freteParaDiluir = (formData.freteIncluded && formData.freteValue && formData.freteValue > 0)
+    ? formData.freteValue
+    : 0;
+
+  /**
+   * Retorna o frete diluído para um item específico (em R$, sobre o totalPrice).
+   * Distribui proporcionalmente ao valor total de cada linha.
+   */
+  const getFreteItem = (item: { totalPrice: number | null }): number => {
+    if (freteParaDiluir <= 0 || totalBase <= 0) return 0;
+    const peso = (item.totalPrice ?? 0) / totalBase;
+    return freteParaDiluir * peso;
+  };
+
+  /**
+   * Preço unitário ajustado com frete diluído (antes do markup).
+   */
+  const unitPriceComFrete = (item: { unitPrice: number | null; totalPrice: number | null; qty: number }): number | null => {
+    if (item.unitPrice === null || item.unitPrice === undefined) return null;
+    if (freteParaDiluir <= 0) return item.unitPrice;
+    const freteItem = getFreteItem(item);
+    return item.unitPrice + freteItem / Math.max(item.qty, 1);
+  };
+
+  /**
+   * Preço total ajustado com frete diluído (antes do markup).
+   */
+  const totalPriceComFrete = (item: { totalPrice: number | null }): number | null => {
+    if (item.totalPrice === null || item.totalPrice === undefined) return null;
+    if (freteParaDiluir <= 0) return item.totalPrice;
+    return item.totalPrice + getFreteItem(item);
+  };
+
+  const totalComRT = rtPct > 0 ? (totalBase + freteParaDiluir) / (1 - rtPct) : (totalBase + freteParaDiluir);
   const totalFinal = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
   const difalAmt = (formData.difalEnabled && formData.difalValue && formData.difalValue > 0) ? formData.difalValue : 0;
   const fcpAmt = (formData.fcpEnabled && formData.fcpValue && formData.fcpValue > 0) ? formData.fcpValue : 0;
@@ -363,8 +401,8 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           <td style={tdStyle}>{item.itemEmPlanta || ""}</td>
                           <td colSpan={8} style={{ ...tdStyle, textAlign: "left", fontStyle: "italic" }}>{item.description || item.sku || "Serviço"}</td>
                           <td style={tdStyle}>{item.qty}</td>
-                          <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkup(item.unitPrice)) : "-"}</td>
-                          <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkup(item.totalPrice)) : "-"}</td>
+                          <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkup(unitPriceComFrete(item) ?? item.unitPrice)) : "-"}</td>
+                          <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkup(totalPriceComFrete(item) ?? item.totalPrice)) : "-"}</td>
                         </tr>
                       ) : (
                         <tr>
@@ -395,8 +433,8 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           <td style={tdStyle}>{item.category === "Item Especial" ? "-" : (item.corPeca || "-")}</td>
                           <td style={tdStyle}>{item.cct || "-"}</td>
                           <td style={{ ...tdStyle, fontWeight: "bold" }}>{item.qty}</td>
-                          <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkup(item.unitPrice)) : "-"}</td>
-                          <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkup(item.totalPrice)) : "-"}</td>
+                          <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkup(unitPriceComFrete(item) ?? item.unitPrice)) : "-"}</td>
+                          <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkup(totalPriceComFrete(item) ?? item.totalPrice)) : "-"}</td>
                         </tr>
                       )}
 
@@ -438,7 +476,9 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                   </tr>
                   <tr>
                     <td style={{ fontWeight: "bold", paddingTop: 8 }}>
-                      {totalComDifal > totalFinal ? "Subtotal dos produtos (sem frete, sem DIFAL/FCP):" : "Valor total dos produtos (sem o frete):"}
+                      {freteParaDiluir > 0
+                        ? (totalComDifal > totalFinal ? "Subtotal dos produtos (frete incl., sem DIFAL/FCP):" : "Valor total dos produtos (frete já incluído):")
+                        : (totalComDifal > totalFinal ? "Subtotal dos produtos (sem frete, sem DIFAL/FCP):" : "Valor total dos produtos (sem o frete):")}
                     </td>
                     <td>
                       <span style={{ background: TOTAL_BG, fontWeight: "bold", fontSize: 14, padding: "4px 12px", border: "2px solid #444", display: "inline-block" }}>
@@ -460,7 +500,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                   )}
                   {totalComDifal > totalFinal && (
                     <tr>
-                      <td style={{ fontWeight: "bold" }}>TOTAL GERAL (com DIFAL/FCP, sem frete):</td>
+                      <td style={{ fontWeight: "bold" }}>{freteParaDiluir > 0 ? "TOTAL GERAL (com DIFAL/FCP, frete incl.):" : "TOTAL GERAL (com DIFAL/FCP, sem frete):"}</td>
                       <td>
                         <span style={{ background: "#FCE4D6", fontWeight: "bold", fontSize: 14, padding: "4px 12px", border: "2px solid #444", display: "inline-block" }}>
                           {formatBRL(totalComDifal)}
@@ -472,12 +512,23 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                     <td style={{ fontWeight: "bold", paddingTop: 8 }}>Condição de pagto:</td>
                     <td>{formData.paymentTerm ?? "30% Sinal e 70% a 28DDF (mediante a aprovação de cadastro)"}</td>
                   </tr>
-                  <tr>
-                    <td style={{ fontWeight: "bold" }}>Frete dedicado:</td>
-                    <td style={{ color: formData.freteType === "night" ? RED : undefined, fontWeight: formData.freteType === "night" ? "bold" : undefined }}>
-                      {buildFreteText(formData, totalFinal)}
-                    </td>
-                  </tr>
+                  {/* Linha de frete: oculta quando o frete já está diluído nos preços */}
+                  {freteParaDiluir <= 0 && (
+                    <tr>
+                      <td style={{ fontWeight: "bold" }}>Frete dedicado:</td>
+                      <td style={{ color: formData.freteType === "night" ? RED : undefined, fontWeight: formData.freteType === "night" ? "bold" : undefined }}>
+                        {buildFreteText(formData, totalFinal)}
+                      </td>
+                    </tr>
+                  )}
+                  {freteParaDiluir > 0 && (
+                    <tr>
+                      <td style={{ fontWeight: "bold", color: "#1a5c1a" }}>Frete diluído nos preços:</td>
+                      <td style={{ color: "#1a5c1a", fontWeight: "bold" }}>
+                        {formatBRL(freteParaDiluir)} distribuído proporcionalmente entre os produtos
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
 
