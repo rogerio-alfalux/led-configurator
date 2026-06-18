@@ -43,6 +43,7 @@ import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
+import { PRICE_OVERRIDE_EMAILS } from "@shared/const";
 
 interface SaveFormData {
   quoteNumber: string;
@@ -1828,7 +1829,8 @@ export default function Cart() {
               const isRevenda = item?.data.category === 'Revenda';
               // Controle de preços por papel: admin e gerente podem editar preços da API
               const userRole = (user as any)?.role;
-              const canOverrideApiPrice = userRole === 'admin' || userRole === 'gerente';
+              const userEmail = (user as any)?.email?.toLowerCase() ?? "";
+              const canOverrideApiPrice = userRole === 'admin' || userRole === 'gerente' || PRICE_OVERRIDE_EMAILS.includes(userEmail);
               const canEditPrice = !item?.data.priceFromApi || canOverrideApiPrice;
               return isRevenda ? (
                 <>
@@ -2081,7 +2083,8 @@ export default function Cart() {
               const isRevenda = item?.data.category === 'Revenda';
               const patch: Record<string, unknown> = {};
               const userRoleSave = (user as any)?.role;
-              const canOverrideApiPriceSave = userRoleSave === 'admin' || userRoleSave === 'gerente';
+              const userEmailSave = (user as any)?.email?.toLowerCase() ?? "";
+              const canOverrideApiPriceSave = userRoleSave === 'admin' || userRoleSave === 'gerente' || PRICE_OVERRIDE_EMAILS.includes(userEmailSave);
               const canEditPriceSave = !item?.data.priceFromApi || canOverrideApiPriceSave;
               if (isRevenda) {
                 const qty = parseInt(editFields.qty) || 1;

@@ -1,4 +1,9 @@
 export const COOKIE_NAME = "app_session_id";
+
+/** E-mails com permissão temporária para sobrescrever preços definidos pela API */
+export const PRICE_OVERRIDE_EMAILS: string[] = [
+  "franciely@grupoalfalux.com.br",
+];
 export const ONE_YEAR_MS = 1000 * 60 * 60 * 24 * 365;
 export const AXIOS_TIMEOUT_MS = 30_000;
 export const UNAUTHED_ERR_MSG = 'Please login (10001)';

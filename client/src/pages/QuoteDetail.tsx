@@ -45,6 +45,7 @@ import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 import { toast } from "sonner";
+import { PRICE_OVERRIDE_EMAILS } from "@shared/const";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   open: { label: "Em Aberto", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: <Clock className="w-3 h-3" /> },
@@ -63,9 +64,10 @@ interface SortableEditItemProps {
   onDelete: (id: number) => void;
   onDuplicate: (id: number) => void;
   onUploadSpecialPhoto: (itemId: number, base64: string, mimeType: 'image/jpeg' | 'image/png' | 'image/webp', fileName: string) => Promise<void>;
+  canOverrideApiPrice?: boolean;
 }
 
-function SortableEditItem({ item, idx, resolvePhoto, onUpdate, onDelete, onDuplicate, onUploadSpecialPhoto }: SortableEditItemProps) {
+function SortableEditItem({ item, idx, resolvePhoto, onUpdate, onDelete, onDuplicate, onUploadSpecialPhoto, canOverrideApiPrice = false }: SortableEditItemProps) {
   const [specialUploading, setSpecialUploading] = useState(false);
   const d = item.parsed;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
@@ -196,13 +198,13 @@ function SortableEditItem({ item, idx, resolvePhoto, onUpdate, onDelete, onDupli
         </div>
       </div>
 
-      {/* Preço unitário: editável apenas quando não veio da API */}
+      {/* Preço unitário: editável quando não veio da API, ou quando o usuário tem permissão de override */}
       <div className="flex items-center gap-4">
         <div className="flex-1">
           <Label className="text-xs">
             Preço Unitário (R$)
             {d.priceFromApi && (
-              <span className="ml-1 text-muted-foreground font-normal">(API)</span>
+              <span className="ml-1 text-muted-foreground font-normal">{canOverrideApiPrice ? "(API — editável)" : "(API)"}</span>
             )}
           </Label>
           <Input
@@ -210,19 +212,22 @@ function SortableEditItem({ item, idx, resolvePhoto, onUpdate, onDelete, onDupli
             min={0}
             step={0.01}
             value={d.unitPrice ?? ""}
-            onChange={d.priceFromApi ? undefined : (e => {
+            onChange={(d.priceFromApi && !canOverrideApiPrice) ? undefined : (e => {
               const newUnitPrice = e.target.value ? parseFloat(e.target.value) : null;
               onUpdate(item.id, {
                 unitPrice: newUnitPrice,
                 totalPrice: newUnitPrice != null ? newUnitPrice * d.qty : null,
               });
             })}
-            readOnly={!!d.priceFromApi}
-            placeholder={d.priceFromApi ? "Preço da API" : "Definir preço"}
-            className={`mt-1 h-8 text-sm${d.priceFromApi ? " bg-muted text-muted-foreground cursor-not-allowed" : ""}`}
+            readOnly={!!d.priceFromApi && !canOverrideApiPrice}
+            placeholder={d.priceFromApi ? (canOverrideApiPrice ? "Sobrescrever preço da API" : "Preço da API") : "Definir preço"}
+            className={`mt-1 h-8 text-sm${(d.priceFromApi && !canOverrideApiPrice) ? " bg-muted text-muted-foreground cursor-not-allowed" : ""}`}
           />
-          {d.priceFromApi && (
+          {d.priceFromApi && !canOverrideApiPrice && (
             <p className="text-xs text-muted-foreground mt-0.5">Preço definido pela API — não editável.</p>
+          )}
+          {d.priceFromApi && canOverrideApiPrice && (
+            <p className="text-xs text-amber-500 mt-0.5">Permissão especial: preço da API pode ser sobrescrito.</p>
           )}
         </div>
         <div className="text-right">
@@ -918,6 +923,11 @@ export default function QuoteDetail() {
                               return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) };
                             }));
                           }}
+                          canOverrideApiPrice={
+                            (user as any)?.role === 'admin' ||
+                            (user as any)?.role === 'gerente' ||
+                            PRICE_OVERRIDE_EMAILS.includes(((user as any)?.email ?? "").toLowerCase())
+                          }
                         />
                       ))}
                     </div>
