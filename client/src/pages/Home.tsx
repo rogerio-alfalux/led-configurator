@@ -7052,6 +7052,13 @@ export default function Home() {
               if (!dProd) return null;
               const dPhoto = dProd.sku ? adaptedCatalogs?.decorativasFotos?.[dProd.sku] ?? null : null;
               const dPreco = dProd.precoOnOff220 ?? null;
+              // Driver por produto: bivolt se disponível, senão 220V, senão null
+              const dDriverInfo = dProd.semDriver ? null
+                : (dProd.driverBivolt?.model ? dProd.driverBivolt
+                  : (dProd.driver220?.model ? dProd.driver220 : null));
+              const dDriverStr = dDriverInfo?.model
+                ? (dDriverInfo.code ? `${dDriverInfo.model} (${dDriverInfo.code})` : dDriverInfo.model)
+                : null;
               return (
                 <div className="space-y-4">
                   <Card className="shadow-sm border-amber-500/30">
@@ -7083,6 +7090,17 @@ export default function Home() {
                             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
                             <p className="text-sm font-semibold">{decCCT}</p>
                           </div>
+                          {dDriverInfo && (
+                            <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
+                              <p className="text-sm font-semibold">
+                                {dDriverInfo.model}
+                                {dDriverInfo.code && (
+                                  <> <span className="font-mono text-primary">({dDriverInfo.code})</span></>
+                                )}
+                              </p>
+                            </div>
+                          )}
                           {dPreco !== null && (
                             <div className="p-3 rounded-lg bg-muted/50">
                               <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Preço Unitário</p>
@@ -7127,6 +7145,7 @@ export default function Home() {
                           className="h-7 text-xs gap-1.5"
                           onClick={() => {
                             const lines = [`${dProd.name} ${decCCT}`.toUpperCase()];
+                            if (dDriverStr) lines.push(`DRIVER: ${dDriverStr.toUpperCase()}`);
                             if (dPreco !== null) lines.push(`PREÇO: ${formatBRL(dPreco)}`);
                             navigator.clipboard.writeText(lines.join("\n"));
                             toast.success("Copiado!");
@@ -7145,17 +7164,19 @@ export default function Home() {
                               description: `${dProd.name} ${decCCT}`,
                               power: "",
                               cct: decCCT,
-                              qty: 1,
+                              qty: globalQty,
                               unitPrice: dPreco ?? 0,
-                              totalPrice: dPreco ?? 0,
+                              totalPrice: (dPreco ?? 0) * globalQty,
                               priceFromApi: dPreco != null,
                               photoUrl: dPhoto ?? "",
-                              orderSummary: `${dProd.sku ? `CÓDIGO: ${dProd.sku}\n` : ""}${dProd.name.toUpperCase()} ${decCCT}`,
+                              orderSummary: `${dProd.sku ? `CÓDIGO: ${dProd.sku}\n` : ""}${dProd.name.toUpperCase()} ${decCCT}${dDriverStr ? `\nDRIVER: ${dDriverStr.toUpperCase()}` : ""}`,
                               quoteSummary: `${dProd.name} ${decCCT}`.toUpperCase(),
-                              moduloLed: "",
-                              drivers: "",
+                              moduloLed: dProd.ledModule ?? "",
+                              drivers: dDriverStr ? `DRIVER ${dDriverStr.toUpperCase()}` : "",
                               availableCCTs: dProd.ccts,
                               itemEmPlanta: globalItemEmPlanta,
+                              floorName: globalPavimento || undefined,
+                              ambiente: globalAmbiente || undefined,
                             };
                             if (appendToQuoteId) {
                               handleAddItemOrToQuote(item);
@@ -7176,6 +7197,7 @@ export default function Home() {
                       >
                         {(() => {
                           const lines = [`${dProd.name} ${decCCT}`.toUpperCase()];
+                          if (dDriverStr) lines.push(`DRIVER: ${dDriverStr.toUpperCase()}`);
                           if (dPreco !== null) lines.push(`PREÇO: ${formatBRL(dPreco)}`);
                           return lines.join("\n");
                         })()}
@@ -7205,6 +7227,13 @@ export default function Home() {
               if (!bProd) return null;
               const bPhoto = bProd.sku ? adaptedCatalogs?.balizadoresFotos?.[bProd.sku] ?? null : null;
               const bPreco = bProd.precoOnOff220 ?? null;
+              // Driver por produto: bivolt se disponível, senão 220V, senão null (sem driver)
+              const bDriverInfo = bProd.semDriver ? null
+                : (bProd.driverBivolt?.model ? bProd.driverBivolt
+                  : (bProd.driver220?.model ? bProd.driver220 : null));
+              const bDriverStr = bDriverInfo?.model
+                ? (bDriverInfo.code ? `${bDriverInfo.model} (${bDriverInfo.code})` : bDriverInfo.model)
+                : null;
               return (
                 <div className="space-y-4">
                   <Card className="shadow-sm border-blue-500/30">
@@ -7236,12 +7265,24 @@ export default function Home() {
                             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
                             <p className="text-sm font-semibold">{balCCT}</p>
                           </div>
-                          {/* Informação de tensão embutida */}
+                          {/* Informação de tensão embutida (apenas produtos sem driver) */}
                           {bProd.semDriver && (
                             <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
                               <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Alimentação</p>
                               <p className="text-sm font-semibold text-blue-600">
                                 {bProd.tensaoEmbutida ? `${bProd.tensaoEmbutida} — Rede` : "Tensão de Rede"}
+                              </p>
+                            </div>
+                          )}
+                          {/* Driver (apenas produtos com driver) */}
+                          {bDriverInfo && (
+                            <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
+                              <p className="text-sm font-semibold">
+                                {bDriverInfo.model}
+                                {bDriverInfo.code && (
+                                  <> <span className="font-mono text-primary">({bDriverInfo.code})</span></>
+                                )}
                               </p>
                             </div>
                           )}
@@ -7294,6 +7335,7 @@ export default function Home() {
                           className="h-7 text-xs gap-1.5"
                           onClick={() => {
                             const lines = [`${bProd.name} ${balCCT}`.toUpperCase()];
+                            if (bDriverStr) lines.push(`DRIVER: ${bDriverStr.toUpperCase()}`);
                             if (bPreco !== null) lines.push(`PREÇO: ${formatBRL(bPreco)}`);
                             navigator.clipboard.writeText(lines.join("\n"));
                             toast.success("Copiado!");
@@ -7317,10 +7359,10 @@ export default function Home() {
                               totalPrice: (bPreco ?? 0) * globalQty,
                               priceFromApi: bPreco != null,
                               photoUrl: bPhoto ?? "",
-                              orderSummary: `${bProd.sku ? `CÓDIGO: ${bProd.sku}\n` : ""}${bProd.name.toUpperCase()} ${balCCT}`,
+                              orderSummary: `${bProd.sku ? `CÓDIGO: ${bProd.sku}\n` : ""}${bProd.name.toUpperCase()} ${balCCT}${bDriverStr ? `\nDRIVER: ${bDriverStr.toUpperCase()}` : ""}`,
                               quoteSummary: `${bProd.name} ${balCCT}`.toUpperCase(),
                               moduloLed: bProd.ledModule ?? "",
-                              drivers: "",
+                              drivers: bDriverStr ? `DRIVER ${bDriverStr.toUpperCase()}` : "",
                               availableCCTs: bProd.ccts,
                               itemEmPlanta: globalItemEmPlanta,
                               floorName: globalPavimento || undefined,
@@ -7345,6 +7387,7 @@ export default function Home() {
                       >
                         {(() => {
                           const lines = [`${bProd.name} ${balCCT}`.toUpperCase()];
+                          if (bDriverStr) lines.push(`DRIVER: ${bDriverStr.toUpperCase()}`);
                           if (bPreco !== null) lines.push(`PREÇO: ${formatBRL(bPreco)}`);
                           return lines.join("\n");
                         })()}
