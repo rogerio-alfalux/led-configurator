@@ -290,10 +290,8 @@ export function getAvailableVoltages(
     return opts;
   }
   if (controle === "DIM 0-10V") {
-    // Monovolt: 110V e 220V separados. Bivolt apenas se o modelo indicar explicitamente.
-    const opts: LedBarVoltage[] = ["110V", "220V"];
-    if (dim010vIsBivolt(product)) opts.push("Bivolt");
-    return opts;
+    // Monovolt 220V apenas (a fonte EQ00583 é 220V).
+    return ["220V"];
   }
   if (controle === "DIM DALI") {
     const opts: LedBarVoltage[] = ["220V"];
@@ -304,6 +302,8 @@ export function getAvailableVoltages(
     const opts: LedBarVoltage[] = [];
     if (product.driverDimTriac110v) opts.push("110V");
     if (product.driverDimTriac220v) opts.push("220V");
+    // Fallback: se não há drivers TRIAC específicos, usa driverDim010v (monovolt 220V)
+    if (opts.length === 0 && product.driverDim010v) opts.push("220V");
     if (opts.length === 0) opts.push("220V");
     return opts;
   }
@@ -370,8 +370,9 @@ function selectDriver(
     return product.driverDimDali;
   }
   if (controle === "DIM TRIAC") {
-    if (voltage === "110V") return product.driverDimTriac110v ?? null;
-    return product.driverDimTriac220v ?? null;
+    if (voltage === "110V") return product.driverDimTriac110v ?? product.driverDim010v ?? null;
+    // Para 220V: usa driverDimTriac220v se disponível, senão fallback para driverDim010v
+    return product.driverDimTriac220v ?? product.driverDim010v ?? null;
   }
   return product.driver220;
 }

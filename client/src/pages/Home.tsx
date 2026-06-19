@@ -3616,13 +3616,13 @@ export default function Home() {
                     {lbControle === "DIM 0-10V" && (
                       <p className="mt-1.5 text-xs text-amber-500 flex items-center gap-1">
                         <Info className="w-3 h-3" />
-                        Fonte DIM 0-10V é monovolt: escolha 110V ou 220V.
+                        Fonte DIM 0-10V é monovolt 220V.
                       </p>
                     )}
                     {lbControle === "DIM TRIAC" && (
                       <p className="mt-1.5 text-xs text-amber-500 flex items-center gap-1">
                         <Info className="w-3 h-3" />
-                        Fonte DIM TRIAC é monovolt: escolha 110V ou 220V conforme disponível.
+                        Fonte DIM TRIAC é monovolt: escolha a tensão conforme disponível.
                       </p>
                     )}
                   </div>

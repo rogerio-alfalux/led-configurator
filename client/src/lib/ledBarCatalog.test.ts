@@ -83,10 +83,10 @@ describe("getAvailableVoltages", () => {
     const voltages = getAvailableVoltages(p, "ON/OFF");
     expect(voltages).toEqual(["220V"]);
   });
-  it("DIM 0-10V: retorna 110V e 220V (monovolt)", () => {
+  it("DIM 0-10V: retorna apenas 220V (monovolt 220V)", () => {
     const voltages = getAvailableVoltages(mockProduct, "DIM 0-10V");
-    expect(voltages).toContain("110V");
-    expect(voltages).toContain("220V");
+    expect(voltages).toEqual(["220V"]);
+    expect(voltages).not.toContain("110V");
     expect(voltages).not.toContain("Bivolt");
   });
   it("DIM DALI: retorna 220V e Bivolt quando DALI é bivolt", () => {
