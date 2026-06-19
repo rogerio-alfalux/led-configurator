@@ -123,6 +123,12 @@ export const PERFIL_FLEXIVEL_MAX_LENGTH_MM = 5000;
 
 // ─── Tabela de preços LED BAR U ──────────────────────────────────────────────
 
+/**
+ * Famílias de LED BAR que ainda não têm tabela de preço cadastrada.
+ * Para essas famílias, calcLedBarPrice retorna null e o usuário preenche manualmente no carrinho.
+ */
+export const LED_BAR_FAMILIES_NO_PRICE = /^(LED BAR WW|FLOOR|LED BAR EC|MEIA LUA|MILANO|PERFIL FLEXIVEL)/i;
+
 /** Preço por metro linear (R$) por potência. Difusor não altera o valor. */
 export const LED_BAR_PRECO_POR_METRO: Record<LedBarPotencia, number> = {
   5:  106.40,
@@ -163,13 +169,17 @@ export function selectLedBarDriverPrice(
  * @param potencia  Potência em W/m
  * @param comprimentoTotalMm  Comprimento total em mm
  * @param nCortes   Número de cortes (cada corte leva 1 driver)
- * @returns Preço total em R$, arredondado para 2 casas decimais
+ * @param familia   Família do produto (opcional). Se for uma família sem preço, retorna null.
+ * @returns Preço total em R$, ou null se a família não tem tabela de preço
  */
 export function calcLedBarPrice(
   potencia: LedBarPotencia,
   comprimentoTotalMm: number,
-  nCortes: number
-): number {
+  nCortes: number,
+  familia?: string
+): number | null {
+  // Famílias sem tabela de preço: retornar null para que o usuário preencha manualmente
+  if (familia && LED_BAR_FAMILIES_NO_PRICE.test(familia)) return null;
   const precoPorMetro = LED_BAR_PRECO_POR_METRO[potencia] ?? 0;
   const comprimentoM  = comprimentoTotalMm / 1000;
   // Comprimento por trecho (igual para todos os cortes)
@@ -185,11 +195,13 @@ export function calcLedBarPrice(
 
 /**
  * Retorna o detalhamento de preço do LED BAR para exibição na UI.
+ * Retorna null se a família não tem tabela de preço.
  */
 export function calcLedBarPriceDetail(
   potencia: LedBarPotencia,
   comprimentoTotalMm: number,
-  nCortes: number
+  nCortes: number,
+  familia?: string
 ): {
   precoPerfil: number;
   precoDriverPorCorte: number;
@@ -197,7 +209,8 @@ export function calcLedBarPriceDetail(
   potenciaTrecho: number;
   totalDrivers: number;
   total: number;
-} {
+} | null {
+  if (familia && LED_BAR_FAMILIES_NO_PRICE.test(familia)) return null;
   const precoPorMetro = LED_BAR_PRECO_POR_METRO[potencia] ?? 0;
   const comprimentoM  = comprimentoTotalMm / 1000;
   const comprimentoTrechoMm = Math.floor(comprimentoTotalMm / Math.max(1, nCortes));

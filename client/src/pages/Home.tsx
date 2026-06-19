@@ -6152,12 +6152,13 @@ export default function Home() {
                     const mm = r.comprimentoPorTrechoMm;
                     const driverLine = `${r.trechos[0]?.driver.model}${r.trechos[0]?.driver.code ? ` (${r.trechos[0].driver.code})` : ""}`;
                     // Preço = (R$/m × comprimento_total_m) + driver selecionado por potência do trecho
-                    const lbPreco = calcLedBarPrice(r.product.potencia, r.comprimentoTotalMm, nT);
-                    const lbDetail = calcLedBarPriceDetail(r.product.potencia, r.comprimentoTotalMm, nT);
+                    // Famílias sem tabela de preço retornam null — usuário preenche manualmente no carrinho
+                    const lbPreco = calcLedBarPrice(r.product.potencia, r.comprimentoTotalMm, nT, r.product.familia);
+                    const lbDetail = calcLedBarPriceDetail(r.product.potencia, r.comprimentoTotalMm, nT, r.product.familia);
                     const orcamentoLines = [
                       [`${r.product.name} ${r.cct} ${r.voltage}`, nT > 1 ? `${nT} TRECHOS DE ${mm}MM` : `${mm}MM`].join(" "),
-                      `PREÇO: ${formatBRL(lbPreco)}`,
-                    ];
+                      lbPreco !== null ? `PREÇO: ${formatBRL(lbPreco)}` : null,
+                    ].filter(Boolean);
                     const orcamento = orcamentoLines.join("\n");
                     const cortesInfo = nT > 1 ? ` COM ${nT} CORTES` : "";
                     const pedido = [
@@ -6174,7 +6175,8 @@ export default function Home() {
                             </CardTitle>
                           </CardHeader>
                           <CardContent>
-                            {/* Detalhamento do preço */}
+                            {/* Detalhamento do preço (apenas para famílias com tabela de preço) */}
+                            {lbDetail !== null && (
                             <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3 mb-3 space-y-0.5">
                               <div className="flex justify-between">
                                 <span>Perfil ({r.product.potencia}W/m × {(r.comprimentoTotalMm/1000).toFixed(3)}m)</span>
@@ -6194,6 +6196,12 @@ export default function Home() {
                                 <span className="font-mono text-primary">{formatBRL(lbDetail.total)}</span>
                               </div>
                             </div>
+                            )}
+                            {lbPreco === null && (
+                              <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2 mb-3">
+                                <span className="text-amber-400 text-xs font-medium">⚠️ Preço não cadastrado — preencha manualmente no carrinho ou no orçamento.</span>
+                              </div>
+                            )}
                             <div
                               className="font-mono text-sm bg-muted/50 rounded-lg p-4 cursor-text select-all whitespace-pre-wrap"
                               onClick={(e) => { const sel = window.getSelection(); sel?.selectAllChildren(e.currentTarget); }}
@@ -6244,8 +6252,8 @@ export default function Home() {
                                     power: `${r.product.potencia}W/m`,
                                     cct: r.cct,
                                     qty: globalQty,
-                                    unitPrice: lbPreco,
-                                    totalPrice: lbPreco * globalQty,
+                                    unitPrice: lbPreco ?? null,
+                                    totalPrice: lbPreco !== null ? lbPreco * globalQty : null,
                                     photoUrl: r.product.fotoUrl ?? "",
                                     orderSummary: pedido,
                                     quoteSummary: orcamento,

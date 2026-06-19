@@ -1332,3 +1332,7 @@
 - [x] Fuso horário de Brasília (America/Sao_Paulo) em quoteExcelGenerator.ts: substituir new Date().toLocaleDateString("pt-BR") por toBrasiliaDate(new Date())
 - [x] Fuso horário de Brasília em orderExcelGenerator.ts: substituir toLocaleDateString("pt-BR") por toBrasiliaDate() em todas as ocorrências
 - [x] Versão inicial do orçamento: v0 (não v1) — alterado currentVersion e version de 1 para 0 no db.ts (createQuote e duplicateQuote)
+
+## Produtos sem preço por metro (19/06/2026)
+
+- [x] Produtos sem tabela de preço (LED BAR WW E, LED BAR WW S, FLOOR, LED BAR EC, MEIA LUA, MILANO, FLEXÍVEL): não calcular preço automaticamente — exibir aviso e enviar ao carrinho com preço null (editável manualmente)
