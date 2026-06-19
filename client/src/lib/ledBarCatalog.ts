@@ -51,6 +51,8 @@ export interface LedBarProduct {
   driverDimTriac110v?: LedBarDriverInfo | null;
   /** Driver DIM TRIAC 220V */
   driverDimTriac220v?: LedBarDriverInfo | null;
+  /** Tipo de instalação (EMBUTIR | SOBREPOR | null para outros) */
+  instalacao?: string | null;
   /** URL da foto do produto */
   fotoUrl: string | null;
   /** Preço unitário ON/OFF 220V (R$). null = não cadastrado. */

@@ -28,6 +28,8 @@ export default function Quotes() {
   const [status, setStatus] = useState<string>("all");
   const [sellerFilter, setSellerFilter] = useState<string>("all");
   const [assistantFilter, setAssistantFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(0);
   const limit = 20;
 
@@ -36,6 +38,8 @@ export default function Quotes() {
     status: status !== "all" ? (status as "open" | "approved" | "lost" | "cancelled") : undefined,
     seller1Name: sellerFilter !== "all" ? sellerFilter : undefined,
     assistantName: assistantFilter !== "all" ? assistantFilter : undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
     limit,
     offset: page * limit,
   });
@@ -72,13 +76,15 @@ export default function Quotes() {
     return { total, open, approved, lost, totalValue, approvedValue };
   }, [allData]);
 
-  const hasFilters = status !== "all" || sellerFilter !== "all" || assistantFilter !== "all" || search.trim() !== "";
+  const hasFilters = status !== "all" || sellerFilter !== "all" || assistantFilter !== "all" || search.trim() !== "" || dateFrom !== "" || dateTo !== "";
 
   const clearFilters = () => {
     setSearch("");
     setStatus("all");
     setSellerFilter("all");
     setAssistantFilter("all");
+    setDateFrom("");
+    setDateTo("");
     setPage(0);
   };
 
@@ -202,6 +208,26 @@ export default function Quotes() {
             </SelectContent>
           </Select>
 
+          {/* Data De */}
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">De:</span>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => { setDateFrom(e.target.value); setPage(0); }}
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+          {/* Data Até */}
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Até:</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => { setDateTo(e.target.value); setPage(0); }}
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
           {/* Limpar filtros */}
           {hasFilters && (
             <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={clearFilters}>

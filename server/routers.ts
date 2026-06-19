@@ -273,12 +273,30 @@ export const appRouter = router({
         commissionPercent2: z.number().min(0).max(1).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        // Verificar obra duplicada antes de criar
-        let duplicateWarning: { quoteNumber: string; clientName: string } | null = null;
+        // Verificar obra duplicada — BLOQUEIA a criação se já existir obra com mesmo nome
         if (input.projectName?.trim()) {
           const dup = await checkDuplicateProject(input.projectName.trim());
           if (dup) {
-            duplicateWarning = { quoteNumber: dup.quoteNumber, clientName: dup.clientName };
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: `Já existe um orçamento com esta obra: ${dup.quoteNumber} (${dup.clientName}). Verifique antes de continuar.`,
+            });
+          }
+        }
+        // Verificar cap de comissão (máx 5% total) — gestores e admins ficam isentos
+        const userEmail = ctx.user.email?.toLowerCase().trim() ?? "";
+        const isManagerUser = ctx.user.role === "admin" || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
+        if (!isManagerUser) {
+          const comm1 = input.commissionPercent ?? 0;
+          const comm2 = input.commissionPercent2 ?? 0;
+          // commissionPercent vem como valor 0-100 (%), commissionPercent2 como 0-1
+          const comm1Pct = comm1 > 1 ? comm1 / 100 : comm1;
+          const comm2Pct = comm2;
+          if (comm1Pct + comm2Pct > 0.05 + 0.0001) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `A soma das comissões não pode ultrapassar 5% (atual: ${((comm1Pct + comm2Pct) * 100).toFixed(1)}%).`,
+            });
           }
         }
         const result = await createQuote({ ...input, createdByUserId: ctx.user.id });
@@ -296,7 +314,7 @@ export const appRouter = router({
             itemCount: input.items.length,
           }),
         });
-        return { ...result, duplicateWarning };
+        return result;
       }),
 
     addRevision: protectedProcedure
@@ -356,6 +374,21 @@ export const appRouter = router({
         if (!existingForRevision) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
         const hasPermission = await canEditQuote(ctx.user.email, existingForRevision.quote, ctx.user.role, ctx.user.id);
         if (!hasPermission) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para editar este orçamento." });
+        // Verificar cap de comissão (máx 5% total) — gestores e admins ficam isentos
+        const userEmailRev = ctx.user.email?.toLowerCase().trim() ?? "";
+        const isManagerRev = ctx.user.role === "admin" || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(userEmailRev);
+        if (!isManagerRev) {
+          const comm1 = input.commissionPercent ?? 0;
+          const comm2 = input.commissionPercent2 ?? 0;
+          const comm1Pct = comm1 > 1 ? comm1 / 100 : comm1;
+          const comm2Pct = comm2;
+          if (comm1Pct + comm2Pct > 0.05 + 0.0001) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `A soma das comissões não pode ultrapassar 5% (atual: ${((comm1Pct + comm2Pct) * 100).toFixed(1)}%).`,
+            });
+          }
+        }
         // Garantir que 0 seja passado explicitamente (não undefined) para limpar RT/Margem
         const result = await addQuoteRevision(quoteId, {
           ...rest,
@@ -386,6 +419,8 @@ export const appRouter = router({
         status: z.enum(["open", "approved", "lost", "cancelled"]).optional(),
         seller1Name: z.string().optional(),
         assistantName: z.string().optional(),
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
         limit: z.number().optional(),
         offset: z.number().optional(),
       }))

@@ -9,6 +9,7 @@ export interface SalesReportRow {
   id: number;
   quoteNumber: string | null;
   clientName: string | null;
+  projectName?: string | null;
   seller1Name: string | null;
   seller2Name: string | null;
   assistantName: string | null;
@@ -64,7 +65,7 @@ export async function generateSalesReport(
 
   // ── Linha de cabeçalho das colunas ─────────────────────────────────────────
   const headers = [
-    "Nº Orçamento", "Data Aprovação", "Cliente",
+    "Nº Orçamento", "Data Aprovação", "Cliente", "Obra",
     "Vendedor 1", "Vendedor 2", "Assistente",
     "Valor Final (R$)", "% Comissão", "Comissão (R$)",
     "% RT", "RT (R$)", "Destinatários RT",
@@ -101,6 +102,7 @@ export async function generateSalesReport(
       r.quoteNumber ?? `#${r.id}`,
       approvedDate,
       r.clientName ?? "—",
+      r.projectName ?? "—",
       r.seller1Name ?? "—",
       r.seller2Name ?? "—",
       r.assistantName ?? "—",
@@ -153,7 +155,7 @@ export async function generateSalesReport(
   const totalRt = rows.reduce((s, r) => s + r.rtValue, 0);
 
   const totalsData = [
-    "TOTAL", "", "", "", "", "",
+    "TOTAL", "", "", "", "", "", "",
     totalFinal, "", totalCommission, "", totalRt, "",
   ];
 
@@ -277,7 +279,7 @@ export async function generateSalesReport(
 
   // ── Larguras das colunas ───────────────────────────────────────────────────
   ws.columns = [
-    { width: 16 }, { width: 14 }, { width: 28 },
+    { width: 16 }, { width: 14 }, { width: 28 }, { width: 28 },
     { width: 20 }, { width: 20 }, { width: 20 },
     { width: 16 }, { width: 12 }, { width: 16 },
     { width: 10 }, { width: 14 }, { width: 30 },

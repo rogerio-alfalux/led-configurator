@@ -281,16 +281,20 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  // Sempre gera o número no servidor para evitar colisão de UNIQUE constraint.
-  // O input.quoteNumber (sugerido pelo frontend) é ignorado — o servidor é a fonte
-  // de verdade para numeração sequencial.
-  // Busca o sellerCode do seller1Id para gerar o número no formato correto.
-  let sellerCodeForNumber: string | null = null;
-  if (input.seller1Id) {
-    const sellerRows = await db.select({ code: sellers.code }).from(sellers).where(eq(sellers.id, input.seller1Id)).limit(1);
-    sellerCodeForNumber = sellerRows[0]?.code ?? null;
+  // Se o usuário forneceu um número de orçamento, usar esse número.
+  // Caso contrário, gerar automaticamente com base no código do vendedor.
+  let quoteNumber: string;
+  if (input.quoteNumber?.trim()) {
+    quoteNumber = input.quoteNumber.trim();
+  } else {
+    // Busca o sellerCode do seller1Id para gerar o número no formato correto.
+    let sellerCodeForNumber: string | null = null;
+    if (input.seller1Id) {
+      const sellerRows = await db.select({ code: sellers.code }).from(sellers).where(eq(sellers.id, input.seller1Id)).limit(1);
+      sellerCodeForNumber = sellerRows[0]?.code ?? null;
+    }
+    quoteNumber = await generateQuoteNumber(sellerCodeForNumber);
   }
-  const quoteNumber = await generateQuoteNumber(sellerCodeForNumber);
   const headerSnapshot = JSON.stringify({
     clientName: input.clientName,
     clientContact: input.clientContact,
@@ -527,6 +531,8 @@ export async function listQuotes(opts: {
   status?: "open" | "approved" | "lost" | "cancelled";
   seller1Name?: string;
   assistantName?: string;
+  dateFrom?: string; // YYYY-MM-DD
+  dateTo?: string;   // YYYY-MM-DD
   limit?: number;
   offset?: number;
 }) {
@@ -537,6 +543,8 @@ export async function listQuotes(opts: {
   if (opts.status) conditions.push(eq(quotes.status, opts.status));
   if (opts.seller1Name) conditions.push(like(quotes.seller1Name, `%${opts.seller1Name}%`));
   if (opts.assistantName) conditions.push(like(quotes.assistantName, `%${opts.assistantName}%`));
+  if (opts.dateFrom) conditions.push(sql`DATE(createdAt) >= ${opts.dateFrom}`);
+  if (opts.dateTo) conditions.push(sql`DATE(createdAt) <= ${opts.dateTo}`);
   if (opts.search) {
     const s = `%${opts.search}%`;
     conditions.push(
@@ -1142,6 +1150,7 @@ export async function getMonthlyReport(year: number, month: number) {
     id: quotes.id,
     quoteNumber: quotes.quoteNumber,
     clientName: quotes.clientName,
+    projectName: quotes.projectName,
     seller1Name: quotes.seller1Name,
     seller2Name: quotes.seller2Name,
     assistantName: quotes.assistantName,

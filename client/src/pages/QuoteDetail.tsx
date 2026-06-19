@@ -1178,7 +1178,7 @@ export default function QuoteDetail() {
                 seller1Name: quote.seller1Name ?? "",
                 seller2Id: quote.seller2Id ? String(quote.seller2Id) : "",
                 seller2Name: quote.seller2Name ?? "",
-                assistantId: quote.assistantId ? String(quote.assistantId) : "",
+                assistantId: quote.assistantName === "VENDEDOR" ? "VENDEDOR" : (quote.assistantId ? String(quote.assistantId) : ""),
                 assistantName: quote.assistantName ?? "",
                 versionNotes: "",
                 rtPercent: quote.rtPercent ? String(parseFloat(String(quote.rtPercent)) * 100) : "0",
@@ -1268,11 +1268,18 @@ export default function QuoteDetail() {
                   <div>
                     <Label>Assistente Comercial</Label>
                     <Select value={editForm.assistantId} onValueChange={(v) => {
-                      const ast = editAssistants.find(a => String(a.id) === v);
-                      setEditForm(f => ({ ...f, assistantId: v, assistantName: ast?.name ?? "" }));
+                      if (v === "VENDEDOR") {
+                        setEditForm(f => ({ ...f, assistantId: "VENDEDOR", assistantName: "VENDEDOR" }));
+                      } else {
+                        const ast = editAssistants.find(a => String(a.id) === v);
+                        setEditForm(f => ({ ...f, assistantId: v, assistantName: ast?.name ?? "" }));
+                      }
                     }}>
                       <SelectTrigger><SelectValue placeholder="Selecione o assistente" /></SelectTrigger>
-                      <SelectContent>{editAssistants.map(a => <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>)}</SelectContent>
+                      <SelectContent>
+                        <SelectItem value="VENDEDOR">VENDEDOR (o próprio vendedor)</SelectItem>
+                        {editAssistants.map(a => <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>)}
+                      </SelectContent>
                     </Select>
                   </div>
                   <div>
@@ -1626,7 +1633,7 @@ export default function QuoteDetail() {
                       seller1Name: editForm.seller1Name || undefined,
                       seller2Id: editForm.seller2Id ? parseInt(editForm.seller2Id) : undefined,
                       seller2Name: editForm.seller2Name || undefined,
-                      assistantId: editForm.assistantId ? parseInt(editForm.assistantId) : undefined,
+                      assistantId: editForm.assistantId && editForm.assistantId !== "VENDEDOR" ? parseInt(editForm.assistantId) : undefined,
                       rtPercent: editRtPctVal,
                       rtDest1: editForm.rtDest1 || undefined,
                       rtDest1Active: editForm.rtDest1Active,

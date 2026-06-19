@@ -43,7 +43,7 @@ import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
-import { PRICE_OVERRIDE_EMAILS } from "@shared/const";
+import { PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS } from "@shared/const";
 
 interface SaveFormData {
   quoteNumber: string;
@@ -352,14 +352,6 @@ export default function Cart() {
   const saveQuoteMutation = trpc.quotes.save.useMutation({
     onSuccess: (data) => {
       toast.success(`Orçamento ${data.quoteNumber} salvo com sucesso!`);
-      // Aviso não-bloqueante de obra duplicada
-      if (data.duplicateWarning) {
-        const { quoteNumber, clientName } = data.duplicateWarning;
-        toast(`⚠️ Atenção: já existe um orçamento recente (${quoteNumber}) para esta obra — cliente: ${clientName}`, {
-          duration: 8000,
-          icon: "📌",
-        });
-      }
       setSaveDialogOpen(false);
       // Limpar o carrinho e o rascunho do formulário após salvar o orçamento
       clearCart();
@@ -655,12 +647,27 @@ export default function Cart() {
   // Cálculo de frete
   const FRETE_NOTURNO = 2000;
   const FRETE_GRATIS_MINIMO = 1500;
+  const userEmail = (user as any)?.email?.toLowerCase() ?? "";
+  const userRole = (user as any)?.role;
+  const isManagerUser = userRole === 'admin' || userRole === 'gerente' || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
+
   let freteValor = 0;
   let freteLabel = "";
   if (!saveForm.freteIsento) {
     if (saveForm.freteType === "night") {
       freteValor = FRETE_NOTURNO;
       freteLabel = `Frete noturno: ${formatBRL(FRETE_NOTURNO)}`;
+    } else if (saveForm.freteType === "paid") {
+      // Frete "A calcular": se houver valor digitado, somar ao total
+      const paidVal = saveForm.freteValue ? parseFloat(saveForm.freteValue) : 0;
+      if (paidVal > 0 && !saveForm.freteIncluded) {
+        freteValor = paidVal;
+        freteLabel = `Frete a calcular: ${formatBRL(paidVal)}`;
+      } else if (paidVal > 0) {
+        freteLabel = `Frete a calcular: ${formatBRL(paidVal)} (já incluído)`;
+      } else {
+        freteLabel = "Frete: a calcular (aguardando cotação)";
+      }
     } else if (saveForm.freteType === "consult") {
       freteLabel = "Frete: sob consulta";
     } else if (!saveForm.freteStateCode || saveForm.freteStateCode === "SP") {
@@ -696,7 +703,7 @@ export default function Cart() {
         seller2Id: saveForm.seller2Id ? Number(saveForm.seller2Id) : undefined,
         seller2Name: saveForm.seller2Name || undefined,
         seller2Phone: seller2Obj?.phone || undefined,
-        assistantId: saveForm.assistantId ? Number(saveForm.assistantId) : undefined,
+        assistantId: saveForm.assistantId && saveForm.assistantId !== "VENDEDOR" ? Number(saveForm.assistantId) : undefined,
         assistantName: saveForm.assistantName || undefined,
         rtPercent: rtPct > 0 ? rtPct : undefined,
         rtDest1: saveForm.rtDest1 || undefined,
@@ -779,7 +786,7 @@ export default function Cart() {
       seller1Name: saveForm.seller1Name || undefined,
       seller2Id: saveForm.seller2Id ? parseInt(saveForm.seller2Id) : undefined,
       seller2Name: saveForm.seller2Name || undefined,
-      assistantId: saveForm.assistantId ? parseInt(saveForm.assistantId) : undefined,
+      assistantId: saveForm.assistantId && saveForm.assistantId !== "VENDEDOR" ? parseInt(saveForm.assistantId) : undefined,
       rtPercent: rtPct,
       rtDest1: saveForm.rtDest1 || undefined,
       rtDest1Active: saveForm.rtDest1Active,
@@ -1231,15 +1238,21 @@ export default function Cart() {
                               <Select
                                 value={saveForm.assistantId}
                                 onValueChange={(v) => {
-                                  const ast = assistants.find(a => String(a.id) === v);
-                                  updateSaveForm("assistantId", v);
-                                  updateSaveForm("assistantName", ast?.name ?? "");
+                                  if (v === "VENDEDOR") {
+                                    updateSaveForm("assistantId", "VENDEDOR");
+                                    updateSaveForm("assistantName", "VENDEDOR");
+                                  } else {
+                                    const ast = assistants.find(a => String(a.id) === v);
+                                    updateSaveForm("assistantId", v);
+                                    updateSaveForm("assistantName", ast?.name ?? "");
+                                  }
                                 }}
                               >
                                 <SelectTrigger>
                                   <SelectValue placeholder="Selecione o assistente" />
                                 </SelectTrigger>
                                 <SelectContent>
+                                  <SelectItem value="VENDEDOR">VENDEDOR (o próprio vendedor)</SelectItem>
                                   {assistants.map(a => (
                                     <SelectItem key={a.id} value={String(a.id)}>
                                       {a.name}
@@ -1422,15 +1435,16 @@ export default function Cart() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <Input
-                                  type="number" min={0} max={5} step={0.5}
+                                  type="number" min={0} max={isManagerUser ? 100 : 5} step={0.5}
                                   className="w-24"
                                   value={saveForm.commissionPercent}
                                   onChange={e => {
-                                    const val = Math.min(5, Math.max(0, parseFloat(e.target.value) || 0));
+                                    const maxComm = isManagerUser ? 100 : 5;
+                                    const val = Math.min(maxComm, Math.max(0, parseFloat(e.target.value) || 0));
                                     updateSaveForm("commissionPercent", String(val));
                                   }}
                                 />
-                                <span className="text-sm text-muted-foreground">% (máx. 5%)</span>
+                                <span className="text-sm text-muted-foreground">% {isManagerUser ? "" : "(máx. 5%)"}</span>
                               </div>
                               {(() => {
                                 const commPct = parseFloat(saveForm.commissionPercent || "0") / 100;
@@ -1457,15 +1471,16 @@ export default function Cart() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <Input
-                                  type="number" min={0} max={5} step={0.5}
+                                  type="number" min={0} max={isManagerUser ? 100 : 5} step={0.5}
                                   className="w-24"
                                   value={saveForm.commissionPercent2}
                                   onChange={e => {
-                                    const val = Math.min(5, Math.max(0, parseFloat(e.target.value) || 0));
+                                    const maxComm = isManagerUser ? 100 : 5;
+                                    const val = Math.min(maxComm, Math.max(0, parseFloat(e.target.value) || 0));
                                     updateSaveForm("commissionPercent2", String(val));
                                   }}
                                 />
-                                <span className="text-sm text-muted-foreground">% (máx. 5%)</span>
+                                <span className="text-sm text-muted-foreground">% {isManagerUser ? "" : "(máx. 5%)"}</span>
                               </div>
                               <p className="text-xs text-muted-foreground">Apenas demonstrativo. Visível quando há 2º vendedor no orçamento.</p>
                             </div>

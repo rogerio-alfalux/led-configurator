@@ -1739,6 +1739,7 @@ export default function Home() {
   const [arandelaResult, setArandelaResult] = useState<ArandelaResult | null>(null);
   // ── Estados de LED BAR ───────────────────────────────────────────────────────
   const [lbFamilia, setLbFamilia] = useState<string | null>(null);
+  const [lbInstalacao, setLbInstalacao] = useState<"EMBUTIR" | "SOBREPOR" | null>(null);
   const [lbPotencia, setLbPotencia] = useState<LedBarPotencia | null>(null);
   const [lbDifusor, setLbDifusor] = useState<LedBarDifusor | null>(null);
   const [lbControle, setLbControle] = useState<LedBarControle>("ON/OFF");
@@ -1782,6 +1783,8 @@ export default function Home() {
   const [spColor, setSpColor] = useState<string>("");
   const [spColorTemp, setSpColorTemp] = useState<string>("");
   const [spUnitPrice, setSpUnitPrice] = useState<string>("");
+  const [spPriceMode, setSpPriceMode] = useState<"unit" | "meter">("unit");
+  const [spLength, setSpLength] = useState<string>(""); // comprimento em metros (modo por metro)
   const [spInternalNotes, setSpInternalNotes] = useState<string>("");
   const [spPhotoUrl, setSpPhotoUrl] = useState<string>("");
   const [spPhotoPreview, setSpPhotoPreview] = useState<string>("");
@@ -2102,7 +2105,10 @@ export default function Home() {
         duration: 5000,
       });
     }
-    const unitPrice = parseFloat(spUnitPrice.replace(",", ".")) || 0;
+    const rawPrice = parseFloat(spUnitPrice.replace(",", ".")) || 0;
+    const lengthMeters = parseFloat(spLength.replace(",", ".")) || 1;
+    // No modo "por metro", o unitPrice é o preço por metro; o total = preço/m × comprimento
+    const unitPrice = spPriceMode === "meter" ? rawPrice * lengthMeters : rawPrice;
     const item: CartItemData = {
       category: "Item Especial",
       sku: "ESPECIAL",
@@ -2188,16 +2194,23 @@ export default function Home() {
     [lbFamilia]
   );
 
-  // Produto LED BAR selecionado (potência + difusor)
+  // Produto LED BAR selecionado (potência + difusor + instalação para Perfil Flexível)
+  const lbIsPerfilFlexivel = useMemo(() =>
+    lbFamilia ? /^PERFIL FLEXIVEL/i.test(lbFamilia) : false,
+    [lbFamilia]
+  );
   const lbSelectedProduct = useMemo<LedBarProduct | null>(() => {
     if (!lbFamilia || !lbPotencia) return null;
+    // Perfil Flexível requer seleção de instalação antes de selecionar produto
+    if (lbIsPerfilFlexivel && !lbInstalacao) return null;
     // Para famílias sem difusor (NF), usa difusor NF diretamente
     const difusorEfetivo = lbIsNoDifusorFamily ? "NF" : lbDifusor;
     if (!difusorEfetivo) return null;
     return activeLedBarCatalog.find(
       p => p.familia === lbFamilia && p.potencia === lbPotencia && p.difusor === difusorEfetivo
+        && (!lbIsPerfilFlexivel || p.instalacao === lbInstalacao)
     ) ?? null;
-  }, [lbFamilia, lbPotencia, lbDifusor, lbIsNoDifusorFamily, activeLedBarCatalog]);
+  }, [lbFamilia, lbPotencia, lbDifusor, lbIsNoDifusorFamily, lbInstalacao, lbIsPerfilFlexivel, activeLedBarCatalog]);
 
   // Tensões disponíveis para o produto e controle selecionados
   const lbAvailableVoltages = useMemo<LedBarVoltage[]>(() => {
@@ -2924,6 +2937,7 @@ export default function Home() {
                       } else if (v.startsWith("__LEDBAR__")) {
                         const fam = v.replace("__LEDBAR__", "");
                         setLbFamilia(fam);
+                        setLbInstalacao(null);
                         setLbPotencia(null);
                         setLbDifusor(null);
                         setLbResult(null);
@@ -3387,22 +3401,45 @@ export default function Home() {
                     )}
                   </div>
                 )}
-                {/* ── Fluxo LED BAR ────────────────────────────────────────────────────────────────────────────────────── */}
+                {/* ── Fluxo LED BAR ──────────────────────────────────────────────────────────────────────────────────────────────────────── */}
                 {lbFamilia && (<div className="space-y-4">
-
-                  {/* Potência */}
+                  {/* Instalação (somente para Perfil Flexível) */}
+                  {lbIsPerfilFlexivel && (
                   <div>
+                    <FieldLabel>Instalação</FieldLabel>
+                    <div className="flex gap-2">
+                      {(["EMBUTIR", "SOBREPOR"] as const).map((tipo) => (
+                        <button
+                          key={tipo}
+                          onClick={() => { setLbInstalacao(tipo); setLbPotencia(null); setLbResult(null); }}
+                          className={`flex-1 px-3 py-2 rounded-md text-sm font-medium border transition-all ${
+                            lbInstalacao === tipo
+                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                              : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                          }`}
+                        >
+                          {tipo === "EMBUTIR" ? "Embutir" : "Sobrepor"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  )}
+                  {/* Potência */}            <div>
                     <FieldLabel>Potência</FieldLabel>
                     <div className="grid grid-cols-3 gap-2">
                       {LED_BAR_POTENCIA_OPTIONS.filter((opt) =>
                         // Para famílias sem difusor (PERFIL FLEXIVEL, MILANO, MEIA LUA),
                         // ocultar potências que não existem no catálogo para essa família
                         lbIsNoDifusorFamily
-                          ? activeLedBarCatalog.some(p => p.familia === lbFamilia && p.potencia === opt.value)
+                          ? activeLedBarCatalog.some(p =>
+                              p.familia === lbFamilia && p.potencia === opt.value &&
+                              (!lbIsPerfilFlexivel || !lbInstalacao || p.instalacao === lbInstalacao)
+                            )
                           : true
                       ).map((opt) => {
                         const exists = activeLedBarCatalog.some(
-                          p => p.familia === lbFamilia && p.potencia === opt.value
+                          p => p.familia === lbFamilia && p.potencia === opt.value &&
+                            (!lbIsPerfilFlexivel || !lbInstalacao || p.instalacao === lbInstalacao)
                         );
                         return (
                           <button
@@ -5463,17 +5500,58 @@ export default function Home() {
                     ))}
                   </div>
                 </div>
-                {/* Valor unitário */}
+                {/* Modo de preço: unitário ou por metro */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Valor Unitário (R$)</Label>
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tipo de Preço</Label>
+                  <div className="flex gap-2">
+                    {(["unit", "meter"] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => { setSpPriceMode(mode); }}
+                        className={[
+                          "flex-1 px-3 py-2 rounded-md text-sm font-medium border transition-all",
+                          spPriceMode === mode
+                            ? "bg-amber-600 border-amber-600 text-white shadow-sm"
+                            : "bg-background text-foreground border-border hover:border-amber-500/50 hover:bg-muted/50",
+                        ].join(" ")}
+                      >
+                        {mode === "unit" ? "Preço Unitário" : "Preço por Metro"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* Valor do preço */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    {spPriceMode === "meter" ? "Preço por Metro (R$/m)" : "Valor Unitário (R$)"}
+                  </Label>
                   <Input
                     value={spUnitPrice}
                     onChange={(e) => setSpUnitPrice(e.target.value)}
-                    placeholder="Ex: 1250,00"
+                    placeholder={spPriceMode === "meter" ? "Ex: 350,00" : "Ex: 1250,00"}
                     className="h-10"
                     inputMode="decimal"
                   />
                 </div>
+                {/* Comprimento (somente no modo por metro) */}
+                {spPriceMode === "meter" && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Comprimento (metros)</Label>
+                    <Input
+                      value={spLength}
+                      onChange={(e) => setSpLength(e.target.value)}
+                      placeholder="Ex: 3,5"
+                      className="h-10"
+                      inputMode="decimal"
+                    />
+                    {spUnitPrice && spLength && (
+                      <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+                        Total: R$ {((parseFloat(spUnitPrice.replace(",","."))||0) * (parseFloat(spLength.replace(",","."))||0)).toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2})}
+                      </p>
+                    )}
+                  </div>
+                )}
                 {/* Foto */}
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Foto do Produto</Label>
