@@ -4191,22 +4191,19 @@ export default function Home() {
                       return balFamilias.length > 0 ? (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Família</Label>
-                          <div className="flex flex-wrap gap-2">
-                            {balFamilias.map((fam) => (
-                              <button
-                                key={fam}
-                                onClick={() => { setBalFamilia(fam); setBalProductKey(null); }}
-                                className={[
-                                  "px-3 py-2 rounded-lg text-sm font-medium border transition-all",
-                                  balFamilia === fam
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-background text-foreground border-border hover:border-primary/50",
-                                ].join(" ")}
-                              >
-                                {fam}
-                              </button>
-                            ))}
-                          </div>
+                          <Select
+                            value={balFamilia ?? ""}
+                            onValueChange={(v) => { setBalFamilia(v || null); setBalProductKey(null); }}
+                          >
+                            <SelectTrigger className="h-10">
+                              <SelectValue placeholder="Selecione a família..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {balFamilias.map((fam) => (
+                                <SelectItem key={fam} value={fam}>{fam}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       ) : activeBalizadoresCatalog.length === 0 ? (
                         <p className="text-sm text-muted-foreground">Nenhum produto Balizador encontrado na API.</p>
@@ -4272,22 +4269,19 @@ export default function Home() {
                       return decFamilias.length > 0 ? (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Família</Label>
-                          <div className="flex flex-wrap gap-2">
-                            {decFamilias.map((fam) => (
-                              <button
-                                key={fam}
-                                onClick={() => { setDecFamilia(fam); setDecProductKey(null); }}
-                                className={[
-                                  "px-3 py-2 rounded-lg text-sm font-medium border transition-all",
-                                  decFamilia === fam
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-background text-foreground border-border hover:border-primary/50",
-                                ].join(" ")}
-                              >
-                                {fam}
-                              </button>
-                            ))}
-                          </div>
+                          <Select
+                            value={decFamilia ?? ""}
+                            onValueChange={(v) => { setDecFamilia(v || null); setDecProductKey(null); }}
+                          >
+                            <SelectTrigger className="h-10">
+                              <SelectValue placeholder="Selecione a família..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {decFamilias.map((fam) => (
+                                <SelectItem key={fam} value={fam}>{fam}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       ) : null;
                     })()}
