@@ -161,6 +161,8 @@ export default function Dashboard() {
 
   const [year, setYear] = useState(currentYear);
   const [month, setMonth] = useState<number | undefined>(undefined);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [showAllCommissions, setShowAllCommissions] = useState(false);
   const [showAllRt, setShowAllRt] = useState(false);
   const [exportingReport, setExportingReport] = useState(false);
@@ -171,15 +173,21 @@ export default function Dashboard() {
   const isManager = isManagerOrAdmin(user);
   const isAssist = isAssistant(user);
 
+  // Quando filtro de data está ativo, ignorar ano/mês
+  const hasDateRange = !!(dateFrom && dateTo);
+  const queryInput = hasDateRange
+    ? { year, dateFrom, dateTo }
+    : { year, month };
+
   // Dados para gerentes/admins
   const { data: managerData, isLoading: managerLoading } = trpc.dashboard.managerData.useQuery(
-    { year, month },
+    queryInput,
     { enabled: !!user && isManager }
   );
 
   // Dados do próprio vendedor
   const { data: sellerData, isLoading: sellerLoading } = trpc.dashboard.sellerData.useQuery(
-    { year, month },
+    queryInput,
     { enabled: !!user && !isManager && !isAssist }
   );
 
@@ -276,28 +284,66 @@ export default function Dashboard() {
             )}
           </div>
           {/* Filtros de período */}
-          <div className="flex items-center gap-2 ml-auto">
-            <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
-              <SelectTrigger className="h-8 w-24 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[currentYear - 1, currentYear, currentYear + 1].map(y => (
-                  <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={month ? String(month) : "all"} onValueChange={v => setMonth(v === "all" ? undefined : Number(v))}>
-              <SelectTrigger className="h-8 w-36 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Ano todo</SelectItem>
-                {MONTHS.map((m, i) => (
-                  <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-2 ml-auto flex-wrap">
+            {/* Filtro de data livre */}
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-muted-foreground">De</span>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={e => {
+                  setDateFrom(e.target.value);
+                  if (e.target.value) { setMonth(undefined); }
+                }}
+                className="h-8 px-2 text-sm rounded-md border border-input bg-background text-foreground"
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-muted-foreground">Até</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={e => {
+                  setDateTo(e.target.value);
+                  if (e.target.value) { setMonth(undefined); }
+                }}
+                className="h-8 px-2 text-sm rounded-md border border-input bg-background text-foreground"
+              />
+            </div>
+            {hasDateRange && (
+              <button
+                onClick={() => { setDateFrom(""); setDateTo(""); }}
+                className="h-8 px-2 text-xs rounded-md border border-input bg-background text-muted-foreground hover:text-foreground"
+              >
+                × Limpar
+              </button>
+            )}
+            {/* Filtro de ano/mês (desabilitado quando há range de data) */}
+            {!hasDateRange && (
+              <>
+                <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
+                  <SelectTrigger className="h-8 w-24 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[currentYear - 1, currentYear, currentYear + 1].map(y => (
+                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={month ? String(month) : "all"} onValueChange={v => setMonth(v === "all" ? undefined : Number(v))}>
+                  <SelectTrigger className="h-8 w-36 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Ano todo</SelectItem>
+                    {MONTHS.map((m, i) => (
+                      <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -407,7 +453,7 @@ export default function Dashboard() {
                   <StatCard
                     title="Orçamentos Aprovados"
                     value={Number(managerData?.periodTotals?.approvedCount ?? 0)}
-                    sub={month ? MONTHS[month - 1] : `Ano ${year}`}
+                    sub={hasDateRange ? `${dateFrom} a ${dateTo}` : month ? MONTHS[month - 1] : `Ano ${year}`}
                     icon={<CheckCircle className="w-5 h-5 text-green-600" />}
                     color="text-green-600 dark:text-green-400"
                   />
@@ -565,7 +611,7 @@ export default function Dashboard() {
                     <StatCard
                       title="Orçamentos Aprovados"
                       value={Number(sellerData.totals?.approvedCount ?? 0)}
-                      sub={month ? MONTHS[month - 1] : `Ano ${year}`}
+                      sub={hasDateRange ? `${dateFrom} a ${dateTo}` : month ? MONTHS[month - 1] : `Ano ${year}`}
                       icon={<CheckCircle className="w-5 h-5 text-green-600" />}
                       color="text-green-600 dark:text-green-400"
                     />

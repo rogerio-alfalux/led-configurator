@@ -783,23 +783,33 @@ export const appRouter = router({
   dashboard: router({
     /** Dados completos para admin/gerente */
     managerData: protectedProcedure
-      .input(z.object({ year: z.number(), month: z.number().optional() }))
+      .input(z.object({
+        year: z.number(),
+        month: z.number().optional(),
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
+      }))
       .query(async ({ ctx, input }) => {
         const email = ctx.user.email?.toLowerCase() ?? '';
         const isManager = ctx.user.role === 'admin' ||
           ctx.user.role === 'gerente' ||
           MANAGER_EMAILS.map(e => e.toLowerCase()).includes(email);
         if (!isManager) throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso restrito a gerentes e administradores.' });
-        return getManagerDashboard(input.year, input.month);
+        return getManagerDashboard(input.year, input.month, input.dateFrom, input.dateTo);
       }),
     /** Dados do próprio vendedor */
     sellerData: protectedProcedure
-      .input(z.object({ year: z.number(), month: z.number().optional() }))
+      .input(z.object({
+        year: z.number(),
+        month: z.number().optional(),
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
+      }))
       .query(async ({ ctx, input }) => {
         const role = ctx.user.role;
         if (role === 'assistente') throw new TRPCError({ code: 'FORBIDDEN', message: 'Assistentes não têm acesso ao dashboard.' });
         const email = ctx.user.email ?? '';
-        return getSellerDashboard(email, input.year, input.month);
+        return getSellerDashboard(email, input.year, input.month, input.dateFrom, input.dateTo);
       }),
     /** Metas do ano (visível para todos exceto assistentes) */
     goals: protectedProcedure

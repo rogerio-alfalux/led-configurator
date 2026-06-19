@@ -37,7 +37,7 @@ import { formatBRL, QuoteFormData, CartItemData, parseCartItemData } from "@/lib
 import type { LinkedAccessory } from "@/lib/cartTypes";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
 import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
-import { generateOrderExcel } from "@/lib/orderExcelGenerator";
+import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
@@ -99,6 +99,7 @@ interface OrderFormData {
   vendorName: string;
   quoteRef: string;
   empresa: "ALFALUX" | "LUMINEW";
+  deliveryDays: string;
 }
 
 // ── Componente sortable de item do carrinho ─────────────────────────────────
@@ -484,6 +485,7 @@ export default function Cart() {
     vendorName: "",
     quoteRef: "",
     empresa: "ALFALUX",
+    deliveryDays: "20",
   });
 
   // Formulário para gerar Excel de orçamento
@@ -843,6 +845,9 @@ export default function Cart() {
         })))
         .filter((d): d is CartItemData => d !== null);
 
+      const deliveryDaysNum = parseInt(orderForm.deliveryDays) || 20;
+      const approvedAtIso = new Date().toISOString();
+      const { displayDays, deliveryDateStr } = await calcDeliveryDate(approvedAtIso, deliveryDaysNum);
       await generateOrderExcel(items, {
         clientName: orderForm.clientName,
         projectName: orderForm.projectName,
@@ -850,6 +855,10 @@ export default function Cart() {
         vendorName: orderForm.vendorName,
         date: new Date().toLocaleDateString("pt-BR"),
         empresa: orderForm.empresa,
+        deliveryDays: deliveryDaysNum,
+        approvedAt: approvedAtIso,
+        precomputedDisplayDays: displayDays,
+        precomputedDeliveryDate: deliveryDateStr,
       });
 
       logProductionSheetMutation.mutate({
@@ -1809,13 +1818,26 @@ export default function Cart() {
                 />
               </div>
             </div>
-            <div>
-              <Label>Referência do Orçamento (opcional)</Label>
-              <Input
-                placeholder="Ex: ORC-2026-0042 ou referência interna"
-                value={orderForm.quoteRef}
-                onChange={e => updateOrderForm("quoteRef", e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Referência do Orçamento (opcional)</Label>
+                <Input
+                  placeholder="Ex: ORC-2026-0042"
+                  value={orderForm.quoteRef}
+                  onChange={e => updateOrderForm("quoteRef", e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>Prazo de Produção (dias úteis)</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="90"
+                  placeholder="20"
+                  value={orderForm.deliveryDays}
+                  onChange={e => updateOrderForm("deliveryDays", e.target.value)}
+                />
+              </div>
             </div>
             <div>
               <Label>Empresa Fabricante</Label>

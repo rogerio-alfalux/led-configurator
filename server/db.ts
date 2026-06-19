@@ -970,14 +970,16 @@ export async function upsertSalesGoal(data: { year: number; month: number | null
  * Retorna dados completos do dashboard para admins/gerentes.
  * Inclui: comissões por vendedor, ranking RT, metas e progresso.
  */
-export async function getManagerDashboard(year: number, month?: number) {
+export async function getManagerDashboard(year: number, month?: number, dateFrom?: string, dateTo?: string) {
   const db = await getDb();
   if (!db) return null;
 
-  // ── Totais gerais do período ──────────────────────────────────────────────
-  const periodCondition = month
-    ? sql`YEAR(approvedAt) = ${year} AND MONTH(approvedAt) = ${month} AND status = 'approved'`
-    : sql`YEAR(approvedAt) = ${year} AND status = 'approved'`;
+  // ── Totais gerais do período ──────────────────────────────────────────────────────────────────────────
+  const periodCondition = (dateFrom && dateTo)
+    ? sql`approvedAt >= ${dateFrom} AND approvedAt <= ${dateTo + ' 23:59:59'} AND status = 'approved'`
+    : month
+      ? sql`YEAR(approvedAt) = ${year} AND MONTH(approvedAt) = ${month} AND status = 'approved'`
+      : sql`YEAR(approvedAt) = ${year} AND status = 'approved'`;
 
   const [periodTotals] = await db.select({
     approvedCount: sql<number>`count(*)`,
@@ -1081,7 +1083,7 @@ export async function getManagerDashboard(year: number, month?: number) {
  * Retorna dados do dashboard para um vendedor específico (apenas seus orçamentos).
  * Filtra por email do vendedor na tabela sellers.
  */
-export async function getSellerDashboard(sellerEmail: string, year: number, month?: number) {
+export async function getSellerDashboard(sellerEmail: string, year: number, month?: number, dateFrom?: string, dateTo?: string) {
   const db = await getDb();
   if (!db) return null;
 
@@ -1093,15 +1095,21 @@ export async function getSellerDashboard(sellerEmail: string, year: number, mont
 
   if (!seller) return null;
 
-  const periodCondition = month
+  const sellerFilter = sql`(seller1Id = ${seller.id} OR seller2Id = ${seller.id})`;
+  const periodCondition = (dateFrom && dateTo)
     ? and(
-        sql`YEAR(approvedAt) = ${year} AND MONTH(approvedAt) = ${month} AND status = 'approved'`,
-        sql`(seller1Id = ${seller.id} OR seller2Id = ${seller.id})`
+        sql`approvedAt >= ${dateFrom} AND approvedAt <= ${dateTo + ' 23:59:59'} AND status = 'approved'`,
+        sellerFilter
       )
-    : and(
-        sql`YEAR(approvedAt) = ${year} AND status = 'approved'`,
-        sql`(seller1Id = ${seller.id} OR seller2Id = ${seller.id})`
-      );
+    : month
+      ? and(
+          sql`YEAR(approvedAt) = ${year} AND MONTH(approvedAt) = ${month} AND status = 'approved'`,
+          sellerFilter
+        )
+      : and(
+          sql`YEAR(approvedAt) = ${year} AND status = 'approved'`,
+          sellerFilter
+        );
 
   const [totals] = await db.select({
     approvedCount: sql<number>`count(*)`,
