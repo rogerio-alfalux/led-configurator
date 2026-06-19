@@ -3308,10 +3308,9 @@ export default function Home() {
                     Calcular BAGEO
                   </Button>
                   )}
-                </div>
-                )}
-                {/* ── Fluxo GLOW (produto fixo, sem seleção de tamanho pelo usuário) ──────────────────────────── */}
-                {activeGlowCatalog.length > 0 && !bgMode && !lbFamilia && !profileName && (
+                </div>)}
+                {/* ── Fluxo GLOW (produto fixo, sem seleção de tamanho pelo usuário) ── */}
+                {activeGlowCatalog.length > 0 && glowMode && !bgMode && !lbFamilia && !profileName && (
                   <div className="space-y-4">
                     {/* Produto GLOW */}
                     <div className="space-y-1.5">
