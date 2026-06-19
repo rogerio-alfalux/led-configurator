@@ -14,6 +14,7 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { formatBRL } from "@/lib/cartTypes";
+import { toBrasiliaDate } from "@/lib/dateUtils";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   open: { label: "Em Aberto", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: <Clock className="w-3 h-3" /> },
@@ -315,7 +316,7 @@ export default function Quotes() {
                             <p className="text-xs text-muted-foreground italic">A consultar</p>
                           )}
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            v{q.currentVersion}{q.revisionCount != null && q.revisionCount > 0 && <span className="ml-1 text-[10px] text-amber-500 font-medium">• {q.revisionCount} rev.</span>} · {new Date(q.createdAt).toLocaleDateString("pt-BR")}
+                            v{q.currentVersion}{q.revisionCount != null && q.revisionCount > 0 && <span className="ml-1 text-[10px] text-amber-500 font-medium">• {q.revisionCount} rev.</span>} · {toBrasiliaDate(q.createdAt)}
                           </p>
                         </div>
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
+import { toBrasiliaDate } from "@/lib/dateUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -223,9 +224,9 @@ export default function ApiKeys() {
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right text-xs text-muted-foreground hidden sm:block">
-                      <p>Criada: {new Date(k.createdAt).toLocaleDateString("pt-BR")}</p>
+                      <p>Criada: {toBrasiliaDate(k.createdAt)}</p>
                       {k.lastUsedAt && (
-                        <p>Último uso: {new Date(k.lastUsedAt).toLocaleDateString("pt-BR")}</p>
+                        <p>Último uso: {toBrasiliaDate(k.lastUsedAt)}</p>
                       )}
                     </div>
                     <Badge variant={k.active ? "default" : "secondary"}>

@@ -18,6 +18,7 @@ import { trpc } from "@/lib/trpc";
 import { CartItemData, LinkedAccessory, parseCartItemData, formatBRL } from "@/lib/cartTypes";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
+import { toBrasiliaDate } from "@/lib/dateUtils";
 import { toast } from "sonner";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -565,7 +566,7 @@ export default function FactoryOrderDetail() {
         quoteNumber: `${quote.quoteNumber} Rev.${currentOrder.revision}`,
         orderNumber: currentOrder.orderNumber ?? undefined,
         vendorName: quote.vendorName ?? "",
-        date: new Date().toLocaleDateString("pt-BR"),
+        date: toBrasiliaDate(new Date()),
         empresa: currentOrder.empresa as "ALFALUX" | "LUMINEW",
         deliveryDays,
         approvedAt: approvedAtIso,
@@ -723,7 +724,7 @@ export default function FactoryOrderDetail() {
                     )}
                     <p className="text-xs text-muted-foreground mt-0.5">{order.empresa}</p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(order.createdAt).toLocaleDateString("pt-BR")}
+                      {toBrasiliaDate(order.createdAt)}
                     </p>
                   </button>
                 );
@@ -843,7 +844,7 @@ export default function FactoryOrderDetail() {
                           Rev. {currentOrder.revision}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
-                          Criado em {new Date(currentOrder.createdAt).toLocaleDateString("pt-BR")}
+                          Criado em {toBrasiliaDate(currentOrder.createdAt)}
                         </span>
                       </div>
 

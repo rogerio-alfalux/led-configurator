@@ -1326,3 +1326,9 @@
 
 ### Busca
 - [x] Corrigir busca de orçamentos (busca por número, cliente, obra, vendedor, assistente)
+
+## Correções Jun 2026 - Lote 4 (19/06/2026)
+
+- [x] Fuso horário de Brasília (America/Sao_Paulo) em quoteExcelGenerator.ts: substituir new Date().toLocaleDateString("pt-BR") por toBrasiliaDate(new Date())
+- [x] Fuso horário de Brasília em orderExcelGenerator.ts: substituir toLocaleDateString("pt-BR") por toBrasiliaDate() em todas as ocorrências
+- [x] Versão inicial do orçamento: v0 (não v1) — alterado currentVersion e version de 1 para 0 no db.ts (createQuote e duplicateQuote)

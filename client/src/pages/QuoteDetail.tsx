@@ -32,6 +32,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { toBrasiliaDate, toBrasiliaDateTime } from "@/lib/dateUtils";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -591,7 +592,7 @@ export default function QuoteDetail() {
           obra: quote.projectName ?? "",
           referencia: quote.projectRef ?? "",
           numero: quote.quoteNumber,
-          data: new Date(quote.createdAt).toLocaleDateString("pt-BR"),
+          data: toBrasiliaDate(quote.createdAt),
           seller1Name: quote.seller1Name ?? undefined,
           seller1Phone: s1?.phone ?? undefined,
           seller2Name: quote.seller2Name ?? undefined,
@@ -648,7 +649,7 @@ export default function QuoteDetail() {
           projectName: quote.projectName ?? "",
           quoteNumber: quote.quoteNumber,
           vendorName: quote.vendorName ?? "",
-          date: new Date(quote.approvedAt ?? quote.createdAt).toLocaleDateString("pt-BR"),
+          date: toBrasiliaDate(quote.approvedAt ?? quote.createdAt),
           empresa,
           deliveryDays,
           approvedAt: approvedAtIso,
@@ -724,11 +725,11 @@ export default function QuoteDetail() {
                 <p>🧑‍💼 2º Vendedor: <span className="font-medium">{(quote as any).seller2Name}</span></p>
               )}
               {quote.assistantName && <p>✏️ Assistente: <span className="font-medium">{quote.assistantName}</span></p>}
-              <p>📅 Criado em: {new Date(quote.createdAt).toLocaleDateString("pt-BR")}</p>
+              <p>📅 Criado em: {toBrasiliaDate(quote.createdAt)}</p>
               <p>🔄 Versão atual: <span className="font-bold">v{quote.currentVersion}</span>{quote.revisionCount != null && quote.revisionCount > 0 && <span className="ml-2 text-xs text-muted-foreground">({quote.revisionCount} {quote.revisionCount !== 1 ? "Revisões" : "Revisão"})</span>}</p>
               {quote.approvedAt && (
                 <p className="text-green-600 dark:text-green-400 font-medium">
-                  ✅ Aprovado em: {new Date(quote.approvedAt).toLocaleDateString("pt-BR")}
+                  ✅ Aprovado em: {toBrasiliaDate(quote.approvedAt)}
                 </p>
               )}
               {/* Novos campos comerciais */}
@@ -1911,7 +1912,7 @@ export default function QuoteDetail() {
                             )}
                           </p>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            {new Date(v.createdAt).toLocaleString("pt-BR")}
+                            {toBrasiliaDateTime(v.createdAt)}
                             {v.assistantName && ` · ${v.assistantName}`}
                             {v.vendorName && ` · ${v.vendorName}`}
                           </p>
@@ -1982,7 +1983,7 @@ export default function QuoteDetail() {
           obra: quote.projectName ?? "",
           referencia: quote.projectRef ?? "",
           numero: quote.quoteNumber,
-          data: new Date(quote.createdAt).toLocaleDateString("pt-BR"),
+          data: toBrasiliaDate(quote.createdAt),
           seller1Name: quote.seller1Name ?? undefined,
           seller1Phone: editSellers.find(s => s.id === quote.seller1Id)?.phone ?? undefined,
           seller2Name: quote.seller2Name ?? undefined,

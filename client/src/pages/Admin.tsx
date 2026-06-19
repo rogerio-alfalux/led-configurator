@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { toBrasiliaDateTime } from "@/lib/dateUtils";
 
 const ACTION_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   quote_created: { label: "Orçamento Criado", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: <FileText className="w-3 h-3" /> },
@@ -158,7 +159,7 @@ export default function Admin() {
                         </Badge>
                       </td>
                       <td className="py-2 text-muted-foreground text-xs">
-                        {new Date(u.lastSignedIn).toLocaleString("pt-BR")}
+                        {toBrasiliaDateTime(u.lastSignedIn)}
                       </td>
                     </tr>
                   ))}
@@ -239,7 +240,7 @@ export default function Admin() {
                     return (
                       <tr key={log.id} className="border-b last:border-0 hover:bg-muted/30 align-top">
                         <td className="py-2 pr-3 text-xs text-muted-foreground whitespace-nowrap">
-                          {new Date(log.createdAt).toLocaleString("pt-BR")}
+                          {toBrasiliaDateTime(log.createdAt)}
                         </td>
                         <td className="py-2 pr-3">
                           <p className="font-medium text-xs">{log.userName ?? "—"}</p>

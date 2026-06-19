@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import { CartItemData } from "./cartTypes";
 import type { LinkedAccessory } from "./cartTypes";
+import { toBrasiliaDate } from "./dateUtils";
 
 export interface OrderFormData {
   clientName: string;
@@ -79,7 +80,7 @@ export async function calcDeliveryDate(
   ]);
   const holidays = new Set([...Array.from(h1), ...Array.from(h2)]);
   const deliveryDate = addBusinessDays(base, displayDays, holidays);
-  const deliveryDateStr = deliveryDate.toLocaleDateString("pt-BR");
+  const deliveryDateStr = toBrasiliaDate(deliveryDate);
   return { displayDays, deliveryDate, deliveryDateStr };
 }
 
@@ -322,7 +323,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     const dateStr = form.precomputedDeliveryDate
       ?? (() => {
         const base = form.approvedAt ? new Date(form.approvedAt) : new Date();
-        return addBusinessDays(base, displayDays).toLocaleDateString("pt-BR");
+        return toBrasiliaDate(addBusinessDays(base, displayDays));
       })();
     const prazoStr = `${displayDays} dias úteis → ${dateStr}`;
     ws.mergeCells("J3:K3");

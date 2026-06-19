@@ -44,6 +44,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 import { PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS } from "@shared/const";
+import { toBrasiliaDate } from "@/lib/dateUtils";
 
 interface SaveFormData {
   quoteNumber: string;
@@ -498,7 +499,7 @@ export default function Cart() {
     obra: "",
     referencia: "",
     numero: String(new Date().getFullYear()).slice(-2) + String(Date.now()).slice(-4),
-    data: new Date().toLocaleDateString("pt-BR"),
+    data: toBrasiliaDate(new Date()),
   });
 
   // Formulário para salvar no banco — persiste no localStorage para sobreviver à navegação

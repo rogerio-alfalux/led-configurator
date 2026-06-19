@@ -359,10 +359,10 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
   });
   const quoteId = (qResult as unknown as { insertId: number }[])[0]?.insertId ?? 0;
 
-  // Insert version 1
+  // Insert version 0
   const vResult = await db.insert(quoteVersions).values({
     quoteId,
-    version: 1,
+    version: 0,
     headerSnapshot,
     totalAmount: String(input.totalAmount),
     totalFinal: input.totalFinal != null ? String(input.totalFinal) : String(input.totalAmount),
@@ -1242,7 +1242,7 @@ export async function duplicateQuote(
     freteLocalidade: q.freteLocalidade as "sp" | "other" | null,
     createdByUserId,
     status: "open",
-    currentVersion: 1,
+    currentVersion: 0,
     revisionCount: 0,
     totalAmount: q.totalAmount,
     totalFinal: q.totalFinal,
@@ -1277,7 +1277,7 @@ export async function duplicateQuote(
   });
   const vResult = await db.insert(quoteVersions).values({
     quoteId: newQuoteId,
-    version: 1,
+    version: 0,
     headerSnapshot,
     totalAmount: q.totalAmount ?? '0',
     totalFinal: q.totalFinal ?? q.totalAmount ?? '0',

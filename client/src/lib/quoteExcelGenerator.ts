@@ -21,6 +21,7 @@
 
 import ExcelJS from "exceljs";
 import type { CartItemData, LinkedAccessory, QuoteFormData } from "./cartTypes";
+import { toBrasiliaDate } from "./dateUtils";
 
 // ── Cores do template ────────────────────────────────────────────────────────
 const BLUE      = "FF5B9BD5"; // Azul do template (cabeçalho tabela, número, data)
@@ -392,7 +393,7 @@ async function _generateExcelBuffer(
   ws.mergeCells("C14:D14");
   {
     const c = ws.getCell("C14");
-    c.value = formData.data || new Date().toLocaleDateString("pt-BR");
+    c.value = formData.data || toBrasiliaDate(new Date());
     c.font = { name: "Calibri", size: 16, bold: true };
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BLUE } };
     c.alignment = { horizontal: "center", vertical: "middle" };

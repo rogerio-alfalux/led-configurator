@@ -1,5 +1,7 @@
 import ExcelJS from "exceljs";
 
+import { toBrasiliaDate, toBrasiliaDateTime } from "./dateUtils";
+
 const MONTHS = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
@@ -58,7 +60,7 @@ export async function generateSalesReport(
 
   ws.mergeCells("A2:L2");
   const subCell = ws.getCell("A2");
-  subCell.value = `Gerado em ${new Date().toLocaleString("pt-BR")} | ${rows.length} orçamento${rows.length !== 1 ? "s" : ""} aprovado${rows.length !== 1 ? "s" : ""}`;
+  subCell.value = `Gerado em ${toBrasiliaDateTime(new Date())} | ${rows.length} orçamento${rows.length !== 1 ? "s" : ""} aprovado${rows.length !== 1 ? "s" : ""}`;
   subCell.font = { italic: true, size: 10, color: { argb: "FF666666" } };
   subCell.alignment = { horizontal: "center" };
   ws.getRow(2).height = 16;
@@ -95,7 +97,7 @@ export async function generateSalesReport(
     ].filter(Boolean).join(", ");
 
     const approvedDate = r.approvedAt
-      ? new Date(r.approvedAt).toLocaleDateString("pt-BR")
+      ? toBrasiliaDate(r.approvedAt)
       : "—";
 
     const rowData = [
