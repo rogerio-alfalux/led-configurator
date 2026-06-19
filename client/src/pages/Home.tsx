@@ -8088,7 +8088,7 @@ export default function Home() {
                             handleAddItemOrToQuote(item);
                           } else if (panelResult.product.corUnica) {
                             // Produto só existe em uma cor: pular modal e adicionar diretamente
-                            addItem({ ...item, corPeca: panelResult.product.corUnica });
+                            addItem({ ...item, corPeca: panelResult.product.corUnica, ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}), ...(globalAmbiente ? { ambiente: globalAmbiente } : {}) });
                           } else {
                             setPendingCartItem(item);
                             setColorModalOpen(true);
@@ -9049,7 +9049,7 @@ export default function Home() {
         onClose={() => { setColorModalOpen(false); setPendingCartItem(null); }}
         onConfirm={(cor: CorPeca) => {
           if (pendingCartItem) {
-            // Injeta acessórios pendentes, globalQty e globalItemEmPlanta no item antes de enviar ao carrinho
+            // Injeta acessórios pendentes, globalQty, globalItemEmPlanta, pavimento e ambiente no item antes de enviar ao carrinho
             const effectiveQty = globalQty > 0 ? globalQty : 1;
             const baseItem: CartItemData = {
               ...pendingCartItem,
@@ -9057,6 +9057,8 @@ export default function Home() {
               qty: effectiveQty,
               totalPrice: pendingCartItem.unitPrice != null ? pendingCartItem.unitPrice * effectiveQty : (pendingCartItem.totalPrice ?? 0),
               itemEmPlanta: globalItemEmPlanta || pendingCartItem.itemEmPlanta || "",
+              ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
+              ...(globalAmbiente ? { ambiente: globalAmbiente } : {}),
             };
             const itemWithAcc: CartItemData = pendingAccessories.length > 0
               ? { ...baseItem, accessories: [...pendingAccessories] }

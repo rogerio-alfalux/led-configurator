@@ -1359,10 +1359,10 @@
 
 ## Barras de Pavimento no Carrinho (19/06/2026)
 
-- [ ] Corrigir envio de pavimento/ambiente do configurador ao carrinho (campo não chega ao CartItemData)
-- [ ] Exibir campo Pavimento e Ambiente diretamente no card do item no carrinho (sem precisar abrir modal)
-- [ ] Implementar barras de título por pavimento no carrinho (separador visual com nome do pavimento)
-- [ ] Edição do nome do pavimento em tempo real na barra de título (inline edit)
-- [ ] Ao alterar o pavimento na barra de título, atualizar todos os itens daquele pavimento
-- [ ] Mesma lógica de barras de título no painel de edição do orçamento
-- [ ] Persistir alterações de pavimento feitas no carrinho ao salvar orçamento
+- [x] Corrigir envio de pavimento/ambiente do configurador ao carrinho (campo não chega ao CartItemData)
+- [x] Exibir campo Pavimento e Ambiente diretamente no card do item no carrinho (badge no card + edição via modal)
+- [x] Implementar barras de título por pavimento no carrinho (separador visual com nome do pavimento)
+- [x] Edição do nome do pavimento em tempo real na barra de título (inline edit)
+- [x] Ao alterar o pavimento na barra de título, atualizar todos os itens daquele pavimento
+- [x] Mesma lógica de barras de título no painel de edição do orçamento (já implementado em checkpoint anterior)
+- [x] Persistir alterações de pavimento feitas no carrinho ao salvar orçamento (itemData é persistido integralmente)
