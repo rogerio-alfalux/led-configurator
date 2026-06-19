@@ -87,6 +87,7 @@ interface SaveFormData {
   fcpValue: string;
   // v32.24
   projectNumber: string;
+  projectNoProject: boolean; // checkbox "Sem Projeto"
   commissionPercent2: string;
   freteValue: string;
   freteState: string;
@@ -542,6 +543,7 @@ export default function Cart() {
     fcpPercent: "",
     fcpValue: "",
     projectNumber: "",
+    projectNoProject: false,
     commissionPercent2: "0",
     freteValue: "",
     freteState: "",
@@ -760,6 +762,10 @@ export default function Cart() {
     }
     if (!saveForm.projectName.trim()) {
       toast.error("Informe o nome da Obra / Projeto.");
+      return;
+    }
+    if (!saveForm.projectNumber.trim()) {
+      toast.error("Informe o Número do Projeto ou marque \"Sem Projeto\".");
       return;
     }
     if (!saveForm.seller1Id) {
@@ -1142,13 +1148,31 @@ export default function Cart() {
                             </div>
                             {/* Número do Projeto */}
                             <div>
-                              <Label>Número do Projeto <span className="text-xs text-muted-foreground">(opcional)</span></Label>
-                              <Input
-                                placeholder="Ex: PRJ-2024-001"
-                                value={saveForm.projectNumber}
-                                onChange={e => updateSaveForm("projectNumber", e.target.value)}
-                              />
-                              <p className="text-xs text-muted-foreground mt-1">Campo separado do número do orçamento. Aparece no Excel.</p>
+                              <Label>Número do Projeto <span className="text-destructive">*</span></Label>
+                              <div className="flex gap-2 items-center mt-1">
+                                <Input
+                                  placeholder="Ex: ALF 00001-R1"
+                                  value={saveForm.projectNumber}
+                                  disabled={saveForm.projectNoProject}
+                                  onChange={e => updateSaveForm("projectNumber", e.target.value)}
+                                  className={!saveForm.projectNumber.trim() ? "border-destructive" : ""}
+                                />
+                                <label className="flex items-center gap-1.5 cursor-pointer whitespace-nowrap text-sm select-none">
+                                  <Checkbox
+                                    checked={saveForm.projectNoProject}
+                                    onCheckedChange={(checked) => {
+                                      const noProject = checked === true;
+                                      setSaveForm(prev => ({
+                                        ...prev,
+                                        projectNoProject: noProject,
+                                        projectNumber: noProject ? "Sem Projeto" : (prev.projectNumber === "Sem Projeto" ? "" : prev.projectNumber),
+                                      }));
+                                    }}
+                                  />
+                                  Sem Projeto
+                                </label>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">Formato: ALF xxxxx-Rx. Aparece no Excel e nas estatísticas.</p>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                               <div>

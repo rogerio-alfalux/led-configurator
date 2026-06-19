@@ -332,6 +332,7 @@ export default function QuoteDetail() {
     difalEnabled: false,
     fcpEnabled: false,
     projectNumber: "",
+    projectNoProject: false,
     freteValue: "",
     freteState: "",
     freteIncluded: false,
@@ -1200,6 +1201,7 @@ export default function QuoteDetail() {
                 difalEnabled: quote.difalEnabled ?? false,
                 fcpEnabled: quote.fcpEnabled ?? false,
                 projectNumber: quote.projectNumber ?? "",
+                projectNoProject: (quote.projectNumber ?? "") === "Sem Projeto",
                 freteValue: (quote as any).freteValue != null ? String((quote as any).freteValue) : "",
                 freteState: (quote as any).freteState ?? "",
                 freteIncluded: (quote as any).freteIncluded ?? false,
@@ -1309,9 +1311,31 @@ export default function QuoteDetail() {
                     <Input value={editForm.clientEmail} onChange={e => setEditForm(f => ({ ...f, clientEmail: e.target.value }))} placeholder="email@cliente.com" />
                   </div>
                   <div>
-                    <Label>Número do Projeto <span className="text-xs text-muted-foreground">(opcional)</span></Label>
-                    <Input value={editForm.projectNumber} onChange={e => setEditForm(f => ({ ...f, projectNumber: e.target.value }))} placeholder="Ex: PRJ-2024-001" />
-                    <p className="text-xs text-muted-foreground mt-1">Campo separado do número do orçamento. Aparece no Excel.</p>
+                    <Label>Número do Projeto <span className="text-destructive">*</span></Label>
+                    <div className="flex gap-2 items-center mt-1">
+                      <Input
+                        placeholder="Ex: ALF 00001-R1"
+                        value={editForm.projectNumber}
+                        disabled={editForm.projectNoProject}
+                        onChange={e => setEditForm(f => ({ ...f, projectNumber: e.target.value }))}
+                        className={!editForm.projectNumber.trim() ? "border-destructive" : ""}
+                      />
+                      <label className="flex items-center gap-1.5 cursor-pointer whitespace-nowrap text-sm select-none">
+                        <Checkbox
+                          checked={editForm.projectNoProject}
+                          onCheckedChange={(checked) => {
+                            const noProject = checked === true;
+                            setEditForm(f => ({
+                              ...f,
+                              projectNoProject: noProject,
+                              projectNumber: noProject ? "Sem Projeto" : (f.projectNumber === "Sem Projeto" ? "" : f.projectNumber),
+                            }));
+                          }}
+                        />
+                        Sem Projeto
+                      </label>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Formato: ALF xxxxx-Rx. Aparece no Excel e nas estatísticas.</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -1614,6 +1638,7 @@ export default function QuoteDetail() {
                 <Button
                   onClick={() => {
                     if (!editForm.clientName.trim()) { toast.error("Nome do cliente é obrigatório."); return; }
+                    if (!editForm.projectNumber.trim()) { toast.error("Informe o Número do Projeto ou marque \"Sem Projeto\"."); return; }
                     const editRtPctVal = Math.min(Math.max(parseFloat(editForm.rtPercent || "0") / 100, 0), 0.99);
                     const editMarginPctVal = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, 0), 0.99);
                     const totalComRTVal = editRtPctVal > 0 ? editTotalBase / (1 - editRtPctVal) : editTotalBase;
