@@ -427,7 +427,7 @@ function toArandelaProduct(p: ApiProduct): ArandelaProduct {
 
 /** Converte um produto da API para LedBarProduct */
 /** Famílias que usam o fluxo LED BAR mas não têm difusor no nome (ex: MILANO NF, MEIA LUA, PERFIL FLEXIVEL) */
-const LED_BAR_FAMILIES_NO_DIFUSOR = /^(MILANO|MEIA LUA|PERFIL FLEXIVEL)/i;
+const LED_BAR_FAMILIES_NO_DIFUSOR = /^(MILANO|MEIA LUA|PERFIL FLEXIVEL|LED BAR WW|FLOOR)/i;
 
 function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
   const potencia = parsePotenciaFromName(p.name);
@@ -472,7 +472,7 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
 
 /** Verifica se um produto PERFIS usa o fluxo LED BAR (por metro linear com fonte de tensão) */
 function isLedBarProduct(p: ApiProduct): boolean {
-  return /^(LED BAR|MILANO|MEIA LUA|PERFIL FLEXIVEL)/i.test(p.familia ?? "");
+  return /^(LED BAR|MILANO|MEIA LUA|PERFIL FLEXIVEL|FLOOR)/i.test(p.familia ?? "");
 }
 /** Verifica se um produto PERFIS é da família GLOW */
 function isGlowProduct(p: ApiProduct): boolean {

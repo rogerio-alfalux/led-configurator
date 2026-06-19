@@ -2190,7 +2190,7 @@ export default function Home() {
 
   // Famílias que não têm seleção de difusor (MILANO, MEIA LUA — difusor fixo NF)
   const lbIsNoDifusorFamily = useMemo(() =>
-    lbFamilia ? /^(MILANO|MEIA LUA|PERFIL FLEXIVEL)/i.test(lbFamilia) : false,
+    lbFamilia ? /^(MILANO|MEIA LUA|PERFIL FLEXIVEL|LED BAR WW|FLOOR)/i.test(lbFamilia) : false,
     [lbFamilia]
   );
 
@@ -2264,7 +2264,7 @@ export default function Home() {
 
   const handleCalculateLedBar = useCallback(() => {
     if (!lbSelectedProduct) {
-      toast.error("Selecione família, potência e difusor.");
+      toast.error(lbIsNoDifusorFamily ? "Selecione família e potência." : "Selecione família, potência e difusor.");
       return;
     }
     const comprMm = lbComprimentoNum;
