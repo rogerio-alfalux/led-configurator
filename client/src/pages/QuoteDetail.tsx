@@ -365,7 +365,6 @@ function FloorGroupBarQD({
           {...listeners}
           className="flex-shrink-0 cursor-grab active:cursor-grabbing text-indigo-400/60 hover:text-indigo-400 touch-none"
           title="Arrastar grupo de pavimento"
-          onPointerDown={e => e.stopPropagation()}
         >
           <GripVertical className="w-4 h-4" />
         </button>
@@ -1086,7 +1085,6 @@ export default function QuoteDetail() {
                     if (eid.startsWith("floor:")) setEditDraggingFloor(eid.slice(6));
                   }}
                 >
-                  <SortableContext items={editableItems.map(it => it.id)} strategy={verticalListSortingStrategy}>
                     {editGroupByFloor ? (() => {
                       const floorMap = new Map<string, typeof editableItems>();
                       for (const item of editableItems) {
@@ -1114,6 +1112,7 @@ export default function QuoteDetail() {
                               onToggleCollapse={() => toggleEditFloorCollapse(floor)}
                             >
                               {!editCollapsedFloors.has(floor) && (
+                              <SortableContext items={groupItems.map(it => it.id)} strategy={verticalListSortingStrategy}>
                               <div className="space-y-4">
                                 {groupItems.map((item, idx) => (
                                   <SortableEditItem
@@ -1129,6 +1128,7 @@ export default function QuoteDetail() {
                                   />
                                 ))}
                               </div>
+                              </SortableContext>
                               )}
                             </FloorGroupBarQD>
                           ))}
@@ -1136,6 +1136,7 @@ export default function QuoteDetail() {
                         </SortableContext>
                       );
                     })() : (
+                    <SortableContext items={editableItems.map(it => it.id)} strategy={verticalListSortingStrategy}>
                     <div className="space-y-4">
                       {editableItems.map((item, idx) => (
                         <SortableEditItem
@@ -1185,8 +1186,8 @@ export default function QuoteDetail() {
                         />
                       ))}
                     </div>
+                    </SortableContext>
                     )}
-                  </SortableContext>
                 </DndContext>
 
                 {/* Nota da revisão */}
