@@ -191,6 +191,11 @@ export interface CartItemData {
    * Nome do pavimento/zona (ex: "Térreo", "1º Andar", "Cobertura").
    */
   floorName?: string;
+  /**
+   * Ambiente do item dentro do pavimento (ex: "Sala", "Cozinha", "Quarto 01").
+   * Campo livre para organização interna e agrupamento no Excel.
+   */
+  ambiente?: string;
 }
 
 /**

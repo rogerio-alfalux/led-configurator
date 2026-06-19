@@ -21,7 +21,7 @@ import {
   ShoppingCart, Trash2, FileSpreadsheet, ArrowLeft, Package,
   Plus, Minus, Save, ClipboardList, Factory, AlertTriangle,
   ChevronRight, Tag, Percent, Truck, Users, PlusCircle, CheckCircle2,
-  GripVertical, Pencil, Wrench, Eye, Upload, X, Copy,
+  GripVertical, Pencil, Wrench, Eye, Upload, X, Copy, Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -211,6 +211,21 @@ function SortableCartItem({
                       className="text-xs border border-border rounded px-2 py-0.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary w-40"
                     />
                   </div>
+                  {/* Pavimento / Ambiente */}
+                  {(entry.data.floorName || entry.data.ambiente) && (
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      {entry.data.floorName && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">
+                          🏢 {entry.data.floorName}
+                        </span>
+                      )}
+                      {entry.data.ambiente && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-teal-500/15 text-teal-400 border border-teal-500/20">
+                          📍 {entry.data.ambiente}
+                        </span>
+                      )}
+                    </div>
+                  )}
                   {/* Observação do item */}
                   {entry.data.itemNote && (
                     <p className="text-xs text-muted-foreground italic mt-1 truncate max-w-xs" title={entry.data.itemNote}>
@@ -432,6 +447,9 @@ export default function Cart() {
   // Item em Planta — mapa local (UI imediata) + autosave via updateItemField
   const [itemEmPlantaMap, setItemEmPlantaMap] = useState<Record<number, string>>({});
 
+  // Agrupamento por pavimento
+  const [groupByFloor, setGroupByFloor] = useState(false);
+
   // Drag-and-drop: ordenação local dos IDs
   const [orderedIds, setOrderedIds] = useState<number[]>([]);
   // Sincronizar orderedIds quando entries mudam (ex: item removido ou adicionado)
@@ -471,7 +489,7 @@ export default function Cart() {
 
   // Edição inline de campos do item
   const [editItemId, setEditItemId] = useState<number | null>(null);
-  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; itemNote: string; itemObs: string; itemObsShowInExcel: boolean; itemMarginPercent: string; floorId: string; floorName: string; specialColorTemp: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', itemNote: '', itemObs: '', itemObsShowInExcel: false, itemMarginPercent: '', floorId: '', floorName: '', specialColorTemp: '' });
+  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; itemNote: string; itemObs: string; itemObsShowInExcel: boolean; itemMarginPercent: string; floorId: string; floorName: string; ambiente: string; specialColorTemp: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', itemNote: '', itemObs: '', itemObsShowInExcel: false, itemMarginPercent: '', floorId: '', floorName: '', ambiente: '', specialColorTemp: '' });
   // Estados para edição de foto de Item Especial
   const [editSpecialPhotoUrl, setEditSpecialPhotoUrl] = useState<string | null>(null);
   const [editSpecialPhotoPreview, setEditSpecialPhotoPreview] = useState<string | null>(null);
@@ -928,6 +946,16 @@ export default function Cart() {
           <span className="bg-primary text-primary-foreground text-xs font-bold px-2 py-0.5 rounded-full">
             {count}
           </span>
+          <Button
+            variant={groupByFloor ? "default" : "outline"}
+            size="sm"
+            className="ml-2 gap-1.5 text-xs h-7"
+            onClick={() => setGroupByFloor(v => !v)}
+            title={groupByFloor ? "Desagrupar por pavimento" : "Agrupar por pavimento"}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            {groupByFloor ? "Agrupado" : "Agrupar"}
+          </Button>
         </div>
       </div>
 
@@ -973,6 +1001,61 @@ export default function Cart() {
             {/* Lista de itens com Drag-and-Drop */}
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={orderedIds} strategy={verticalListSortingStrategy}>
+                {groupByFloor ? (() => {
+                  // Agrupar por pavimento
+                  const groups: { floor: string; entries: typeof orderedEntries }[] = [];
+                  const floorMap = new Map<string, typeof orderedEntries>();
+                  for (const entry of orderedEntries) {
+                    const floor = entry.data.floorName?.trim() || "Sem Pavimento";
+                    if (!floorMap.has(floor)) floorMap.set(floor, []);
+                    floorMap.get(floor)!.push(entry);
+                  }
+                  // Ordenar: pavimentos com nome primeiro (alfabético), "Sem Pavimento" por último
+                  const keys = Array.from(floorMap.keys()).sort((a, b) => {
+                    if (a === "Sem Pavimento") return 1;
+                    if (b === "Sem Pavimento") return -1;
+                    return a.localeCompare(b, "pt-BR");
+                  });
+                  for (const k of keys) groups.push({ floor: k, entries: floorMap.get(k)! });
+                  return (
+                    <div className="space-y-6">
+                      {groups.map(({ floor, entries: groupEntries }) => (
+                        <div key={floor}>
+                          <div className="flex items-center gap-2 mb-3">
+                            <Layers className="w-4 h-4 text-indigo-400" />
+                            <span className="text-sm font-semibold text-indigo-400 uppercase tracking-wide">{floor}</span>
+                            <span className="text-xs text-muted-foreground">({groupEntries.length} {groupEntries.length === 1 ? "item" : "itens"})</span>
+                            <div className="flex-1 h-px bg-indigo-500/20" />
+                          </div>
+                          <div className="space-y-3">
+                            {groupEntries.map((entry, idx) => (
+                              <SortableCartItem
+                                key={entry.id}
+                                entry={entry}
+                                idx={idx}
+                                itemEmPlantaMap={itemEmPlantaMap}
+                                setItemEmPlantaMap={setItemEmPlantaMap}
+                                updateItemField={updateItemField}
+                                handleUpdateQty={handleUpdateQty}
+                                handleQtyInput={handleQtyInput}
+                                removeItem={removeItem}
+                                updateQtyMutation={updateQtyMutation}
+                                isRemoving={isRemoving}
+                                acessorioPhotoMap={acessorioPhotoMap}
+                                onDuplicate={(data) => { addItem({ ...data, itemEmPlanta: data.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
+                                onEditClick={(id, data) => {
+                                  setEditItemId(id);
+                                  setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '' });
+                                  if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })() : (
                 <div className="space-y-3">
                   {orderedEntries.map((entry, idx) => (
                     <SortableCartItem
@@ -1006,6 +1089,7 @@ export default function Cart() {
                           itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '',
                           floorId: data.floorId ?? '',
                           floorName: data.floorName ?? '',
+                          ambiente: data.ambiente ?? '',
                           specialColorTemp: data.specialColorTemp ?? '',
                         });
                         // Inicializar foto especial
@@ -1020,6 +1104,7 @@ export default function Cart() {
                     />
                   ))}
                 </div>
+                )}
               </SortableContext>
             </DndContext>
 
@@ -2057,19 +2142,35 @@ export default function Cart() {
                       <span className="text-xs text-muted-foreground">% (vazio = usa margem global)</span>
                     </div>
                   </div>
-                  <div className="space-y-1">
-                    <Label>Pavimento / Ambiente</Label>
+                    <div className="space-y-1">
+                    <Label>Localização do Item</Label>
                     <div className="grid grid-cols-2 gap-2">
-                      <Input
-                        value={editFields.floorId}
-                        onChange={(e) => setEditFields(prev => ({ ...prev, floorId: e.target.value }))}
-                        placeholder="ID (ex: P1, P2)"
-                      />
-                      <Input
-                        value={editFields.floorName}
-                        onChange={(e) => setEditFields(prev => ({ ...prev, floorName: e.target.value }))}
-                        placeholder="Nome (ex: Térreo, 1º Andar)"
-                      />
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Pavimento</p>
+                        <Input
+                          value={editFields.floorName}
+                          onChange={(e) => setEditFields(prev => ({ ...prev, floorName: e.target.value, floorId: e.target.value }))}
+                          placeholder="ex: Térreo, 1º Andar"
+                          list="pavimento-cart-suggestions"
+                        />
+                        <datalist id="pavimento-cart-suggestions">
+                          <option value="Térreo" />
+                          <option value="1º Andar" />
+                          <option value="2º Andar" />
+                          <option value="3º Andar" />
+                          <option value="Cobertura" />
+                          <option value="Subsolo" />
+                          <option value="Mezanino" />
+                        </datalist>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Ambiente</p>
+                        <Input
+                          value={editFields.ambiente}
+                          onChange={(e) => setEditFields(prev => ({ ...prev, ambiente: e.target.value }))}
+                          placeholder="ex: Sala, Cozinha"
+                        />
+                      </div>
                     </div>
                     <p className="text-xs text-muted-foreground">Agrupa itens por pavimento no Excel</p>
                   </div>
@@ -2215,9 +2316,10 @@ export default function Cart() {
               } else if (!isRevenda) {
                 patch.itemMarginPercent = undefined;
               }
-              // floorId / floorName
+              // floorId / floorName / ambiente
               patch.floorId = editFields.floorId.trim() || undefined;
               patch.floorName = editFields.floorName.trim() || undefined;
+              patch.ambiente = editFields.ambiente.trim() || undefined;
               // Foto e temperatura de cor do Item Especial
               if (item?.data.isSpecialItem) {
                 patch.specialPhotoUrl = editSpecialPhotoUrl ?? undefined;

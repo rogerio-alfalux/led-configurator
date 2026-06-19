@@ -1336,3 +1336,13 @@
 ## Produtos sem preço por metro (19/06/2026)
 
 - [x] Produtos sem tabela de preço (LED BAR WW E, LED BAR WW S, FLOOR, LED BAR EC, MEIA LUA, MILANO, FLEXÍVEL): não calcular preço automaticamente — exibir aviso e enviar ao carrinho com preço null (editável manualmente)
+
+## Pavimento e Ambiente por item (19/06/2026)
+
+- [x] Adicionar campos `pavimento` (string) e `ambiente` (string) ao CartItemData (shared/types)
+- [x] Migrar schema DB: adicionar colunas pavimento e ambiente na tabela quote_items
+- [x] Adicionar campos pavimento/ambiente no modal de edição de itens do orçamento (QuoteEditModal)
+- [x] Adicionar campos pavimento/ambiente no carrinho (Cart.tsx) — visível por item
+- [x] Agrupamento/organização por pavimento no carrinho (botão toggle Agrupar/Agrupado)
+- [x] Agrupamento/organização por pavimento no painel de edição do orçamento (QuoteDetail)
+- [x] Exportação Excel com agrupamento por pavimento (quoteExcelGenerator.ts) + coluna Q com pavimento/ambiente

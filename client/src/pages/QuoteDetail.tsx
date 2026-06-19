@@ -5,7 +5,7 @@ import {
   FileSpreadsheet, History, Package, Edit, AlertTriangle,
   ChevronDown, ChevronUp, Factory, Trash2, PenLine,
   Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle, GripVertical, Wrench, Copy, Eye,
-  Upload, X as XIcon,
+  Upload, X as XIcon, Layers,
 } from "lucide-react";
 import {
   DndContext,
@@ -148,6 +148,38 @@ function SortableEditItem({ item, idx, resolvePhoto, onUpdate, onDelete, onDupli
             value={d.itemEmPlanta ?? ""}
             onChange={e => onUpdate(item.id, { itemEmPlanta: e.target.value })}
             placeholder="Ex: L1, EF2"
+            className="mt-1 h-8 text-sm"
+          />
+        </div>
+
+        {/* Pavimento */}
+        <div>
+          <Label className="text-xs">Pavimento</Label>
+          <Input
+            value={d.floorName ?? ""}
+            onChange={e => onUpdate(item.id, { floorName: e.target.value, floorId: e.target.value })}
+            placeholder="ex: Térreo, 1º Andar"
+            className="mt-1 h-8 text-sm"
+            list="pavimento-suggestions-edit"
+          />
+          <datalist id="pavimento-suggestions-edit">
+            <option value="Térreo" />
+            <option value="1º Andar" />
+            <option value="2º Andar" />
+            <option value="3º Andar" />
+            <option value="Cobertura" />
+            <option value="Subsolo" />
+            <option value="Mezanino" />
+          </datalist>
+        </div>
+
+        {/* Ambiente */}
+        <div>
+          <Label className="text-xs">Ambiente</Label>
+          <Input
+            value={d.ambiente ?? ""}
+            onChange={e => onUpdate(item.id, { ambiente: e.target.value })}
+            placeholder="ex: Sala, Cozinha"
             className="mt-1 h-8 text-sm"
           />
         </div>
@@ -445,6 +477,8 @@ export default function QuoteDetail() {
 
   // Edição de itens do orçamento
   const [editItemsDialogOpen, setEditItemsDialogOpen] = useState(false);
+  // Agrupamento por pavimento no painel de edição
+  const [editGroupByFloor, setEditGroupByFloor] = useState(false);
   // editableItems: cópia dos itens da versão atual para edição
   const [editableItems, setEditableItems] = useState<Array<{
     id: number;
@@ -929,10 +963,22 @@ export default function QuoteDetail() {
             </SheetTrigger>
             <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto flex flex-col p-0">
               <SheetHeader className="px-6 pt-6 pb-3 border-b">
-                <SheetTitle className="flex items-center gap-2 text-lg">
-                  <ShoppingBag className="w-5 h-5" />
-                  Editar Itens do Orçamento
-                </SheetTitle>
+                <div className="flex items-center justify-between">
+                  <SheetTitle className="flex items-center gap-2 text-lg">
+                    <ShoppingBag className="w-5 h-5" />
+                    Editar Itens do Orçamento
+                  </SheetTitle>
+                  <Button
+                    variant={editGroupByFloor ? "default" : "outline"}
+                    size="sm"
+                    className="gap-1.5 text-xs h-7"
+                    onClick={() => setEditGroupByFloor(v => !v)}
+                    title={editGroupByFloor ? "Desagrupar" : "Agrupar por pavimento"}
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    {editGroupByFloor ? "Agrupado" : "Agrupar"}
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Edite quantidades, cor, temperatura de cor e identificação em planta. Uma nova revisão será criada ao salvar.
                 </p>
@@ -941,6 +987,48 @@ export default function QuoteDetail() {
 
 <DndContext sensors={editItemsSensors} collisionDetection={closestCenter} onDragEnd={handleEditItemsDragEnd}>
                   <SortableContext items={editableItems.map(it => it.id)} strategy={verticalListSortingStrategy}>
+                    {editGroupByFloor ? (() => {
+                      const floorMap = new Map<string, typeof editableItems>();
+                      for (const item of editableItems) {
+                        const floor = item.parsed.floorName?.trim() || "Sem Pavimento";
+                        if (!floorMap.has(floor)) floorMap.set(floor, []);
+                        floorMap.get(floor)!.push(item);
+                      }
+                      const keys = Array.from(floorMap.keys()).sort((a, b) => {
+                        if (a === "Sem Pavimento") return 1;
+                        if (b === "Sem Pavimento") return -1;
+                        return a.localeCompare(b, "pt-BR");
+                      });
+                      return (
+                        <div className="space-y-6">
+                          {keys.map(floor => (
+                            <div key={floor}>
+                              <div className="flex items-center gap-2 mb-3">
+                                <Layers className="w-4 h-4 text-indigo-400" />
+                                <span className="text-sm font-semibold text-indigo-400 uppercase tracking-wide">{floor}</span>
+                                <span className="text-xs text-muted-foreground">({floorMap.get(floor)!.length} {floorMap.get(floor)!.length === 1 ? "item" : "itens"})</span>
+                                <div className="flex-1 h-px bg-indigo-500/20" />
+                              </div>
+                              <div className="space-y-4">
+                                {floorMap.get(floor)!.map((item, idx) => (
+                                  <SortableEditItem
+                                    key={item.id}
+                                    item={item}
+                                    idx={idx}
+                                    resolvePhoto={resolvePhoto}
+                                    onDelete={(id) => setEditableItems(prev => prev.filter(it => it.id !== id))}
+                                    onDuplicate={(id) => setEditableItems(prev => { const i = prev.findIndex(it => it.id === id); if (i === -1) return prev; const src = prev[i]; const cloned = { ...src, id: Date.now() + Math.random(), itemData: src.itemData }; const next = [...prev]; next.splice(i + 1, 0, cloned); return next; })}
+                                    onUpdate={(id, fields) => setEditableItems(prev => prev.map(it => { if (it.id !== id) return it; const newParsed = { ...it.parsed, ...fields }; if (fields.qty !== undefined || fields.unitPrice !== undefined) { const qty = fields.qty ?? newParsed.qty; const up = fields.unitPrice ?? newParsed.unitPrice; newParsed.totalPrice = up != null ? up * qty : null; } return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) }; }))}
+                                    onUploadSpecialPhoto={async (id, base64, mimeType, fileName) => { const result = await uploadSpecialPhotoMutationQD.mutateAsync({ base64, mimeType, fileName }); setEditableItems(prev => prev.map(it => { if (it.id !== id) return it; const newParsed = { ...it.parsed, specialPhotoUrl: result.url, photoUrl: result.url }; return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) }; })); }}
+                                    canOverrideApiPrice={true}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })() : (
                     <div className="space-y-4">
                       {editableItems.map((item, idx) => (
                         <SortableEditItem
@@ -990,6 +1078,7 @@ export default function QuoteDetail() {
                         />
                       ))}
                     </div>
+                    )}
                   </SortableContext>
                 </DndContext>
 

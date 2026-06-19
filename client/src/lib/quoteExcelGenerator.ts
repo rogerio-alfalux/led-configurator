@@ -494,7 +494,8 @@ async function _generateExcelBuffer(
       fhRowObj.height = 22;
       ws.mergeCells(`C${fhRow}:N${fhRow}`);
       const fhCell = ws.getCell(`C${fhRow}`);
-      fhCell.value = item.floorName ? `${item.floorId} — ${item.floorName}` : item.floorId;
+      const floorLabel = item.floorName || item.floorId;
+      fhCell.value = `🏢 ${floorLabel}`;
       fhCell.font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
       fhCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A3A5C' } };
       fhCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
@@ -716,6 +717,13 @@ async function _generateExcelBuffer(
     cItemNote.value = itemNote;
     cItemNote.font = { name: "Calibri", size: 10, italic: true, color: { argb: "FF4472C4" } };
     cItemNote.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+
+    // Q = AMBIENTE (não impresso — referência interna para organização por pavimento/ambiente)
+    const cAmbiente = ws.getCell(`Q${rowNum}`);
+    const ambienteVal = [item.floorName, item.ambiente].filter(Boolean).join(" / ");
+    cAmbiente.value = ambienteVal || "";
+    cAmbiente.font = { name: "Calibri", size: 10, color: { argb: "FF6B7280" } };
+    cAmbiente.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
 
     // ── Rabicho inline na coluna E (MODELO ALFALUX) ────────────────────────
     // O rabicho é exibido abaixo da descrição do produto na célula E, com separador tracejado
