@@ -74,6 +74,10 @@ export interface DownlightProduct {
   precoDimTriac110v?: number | null;
   /** Preço unitário DIM TRIAC 220V (R$). null = não cadastrado. */
   precoDimTriac220v?: number | null;
+  /** Produto sem driver: liga direto na tensão de rede ou usa lâmpada. Sem seleção de tensão/dim. */
+  semDriver?: boolean;
+  /** Tensão de rede embutida no produto (ex: "110V", "220V"). Exibida como informação, não como seleção. */
+  tensaoEmbutida?: string | null;
 }
 
 export interface DownlightInput {

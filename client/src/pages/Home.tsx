@@ -139,7 +139,7 @@ const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.E
   { value: "Spots",        label: "Spots",         icon: Focus,       image: "/manus-storage/spots-nobg_a12052bc.png",   available: true },
   { value: "Arandelas",    label: "Arandelas",     icon: Lamp,        image: "/manus-storage/ARANDELAS_324ddfb0.webp",  available: true },
   { value: "Área Externa", label: "Área Externa",  icon: TreePine,    image: "/manus-storage/AREAEXTERNA_5811f7cb.png", available: true },
-  { value: "Balizadores",  label: "Balizadores",   icon: Navigation,  image: "/manus-storage/BALIZADORES_482d54f1.png", available: false },
+  { value: "Balizadores",  label: "Balizadores",   icon: Navigation,  image: "/manus-storage/BALIZADORES_482d54f1.png", available: true },
   { value: "Decorativas",  label: "Decorativas",   icon: Sparkles,    image: "/manus-storage/DECORATIVAS_4ee44c0e.png", available: true },
   { value: "Item Especial", label: "Item Especial",  icon: PackagePlus, image: "/manus-storage/item-especial-icon_c570c491.png", available: true  },
   { value: "Revenda",       label: "Revenda",        icon: ShoppingBag, image: "/manus-storage/revenda-icon-nobg_245d52aa.png", available: true  },
@@ -1619,6 +1619,7 @@ export default function Home() {
   const activeGlowCatalog = adaptedCatalogs?.glowProducts ?? [];
   const activeDecorativasCatalog = adaptedCatalogs?.decorativas ?? [];
   const activeAreaExternaCatalog = adaptedCatalogs?.areaExterna ?? [];
+  const activeBalizadoresCatalog = adaptedCatalogs?.balizadores ?? [];
 
   // Resolve foto de painel: API primeiro, depois dicionário estático
   const resolvePainelPhoto = useCallback((familia: string | null, produto: string): string | null => {
@@ -1776,10 +1777,14 @@ export default function Home() {
   const [glowVoltage, setGlowVoltage] = useState<"220V" | "Bivolt" | null>(null);
   const [glowCCT, setGlowCCT] = useState<string>("3000K");
   const [glowResult, setGlowResult] = useState<DownlightResult | null>(null);
-  // ── Estados de Decorativas ───────────────────────────────────────────────────
+  // ──  // ── Estados de Decorativas ────────────────────────────────────────────
   const [decFamilia, setDecFamilia] = useState<string | null>(null);
   const [decProductKey, setDecProductKey] = useState<string | null>(null);
   const [decCCT, setDecCCT] = useState<string>("3000K");
+  // ── Estados de Balizadores ───────────────────────────────────────────
+  const [balFamilia, setBalFamilia] = useState<string | null>(null);
+  const [balProductKey, setBalProductKey] = useState<string | null>(null);
+  const [balCCT, setBalCCT] = useState<string>("3000K");
   // ── Estados de Item Especial ──────────────────────────────────────────────
   const [spDescription, setSpDescription] = useState<string>("");
   const [spDimensions, setSpDimensions] = useState<string>("");
@@ -2858,6 +2863,8 @@ export default function Home() {
                           setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                           // Reset Decorativas
                           setDecFamilia(null); setDecProductKey(null); setDecCCT("3000K");
+                          // Reset Balizadores
+                          setBalFamilia(null); setBalProductKey(null); setBalCCT("3000K");
                           // Reset Acessórios
                           setAcSubcat(''); setAcFamilia(''); setAcSearch(''); setAcSelectedId(null);
                         }}
@@ -4175,7 +4182,88 @@ export default function Home() {
 
                 </React.Fragment>
                   )} {/* fim productCategory === Perfis */}
-                {/* ── Decorativas ───────────────────────────────────────────────────────── */}
+                    {/* ── Balizadores ───────────────────────────────────────────────────── */}
+                {productCategory === "Balizadores" && (
+                  <div className="space-y-4">
+                    {/* Família */}
+                    {(() => {
+                      const balFamilias = Array.from(new Set(activeBalizadoresCatalog.map(p => p.familia))).sort();
+                      return balFamilias.length > 0 ? (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Família</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {balFamilias.map((fam) => (
+                              <button
+                                key={fam}
+                                onClick={() => { setBalFamilia(fam); setBalProductKey(null); }}
+                                className={[
+                                  "px-3 py-2 rounded-lg text-sm font-medium border transition-all",
+                                  balFamilia === fam
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-background text-foreground border-border hover:border-primary/50",
+                                ].join(" ")}
+                              >
+                                {fam}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : activeBalizadoresCatalog.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Nenhum produto Balizador encontrado na API.</p>
+                      ) : null;
+                    })()}
+                    {/* Produto */}
+                    {balFamilia && (() => {
+                      const balProds = activeBalizadoresCatalog.filter(p => p.familia === balFamilia);
+                      return (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Produto</Label>
+                          <Select
+                            value={balProductKey ?? ""}
+                            onValueChange={(v) => {
+                              setBalProductKey(v);
+                              const [s, ...np] = v.split('::');
+                              const prod = activeBalizadoresCatalog.find(p => p.sku === s && p.name === np.join('::'));
+                              const availCCTs = prod?.ccts ?? ["2700K", "3000K", "4000K"];
+                              if (!availCCTs.includes(balCCT)) setBalCCT(availCCTs[0] ?? "3000K");
+                            }}
+                          >
+                            <SelectTrigger className="h-10">
+                              <SelectValue placeholder="Selecione o produto..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {balProds.map((p, idx) => {
+                                const key = `${p.sku ?? ""}::${p.name}`;
+                                return <SelectItem key={`${key}-${idx}`} value={key}>{p.name}</SelectItem>;
+                              })}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      );
+                    })()}
+                    {/* CCT */}
+                    {balProductKey && (() => {
+                      const [_bSku, ..._bNP] = (balProductKey ?? '::').split('::');
+                      const bProd = activeBalizadoresCatalog.find(p => p.sku === _bSku && p.name === _bNP.join('::'));
+                      const bAvailCCTs = bProd?.ccts ?? ["2700K", "3000K", "4000K"];
+                      return (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
+                          <select
+                            value={balCCT}
+                            onChange={(e) => setBalCCT(e.target.value)}
+                            className="h-9 rounded-md border border-border bg-background text-foreground text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
+                          >
+                            {[...bAvailCCTs, "A definir"].map((c) => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+                {/* ── Decorativas ───────────────────────────────────────────────────── */}
                 {productCategory === "Decorativas" && (
                   <div className="space-y-4">
                     {/* Família */}
@@ -7113,6 +7201,187 @@ export default function Home() {
                   </div>
                   <p className="text-base font-semibold text-foreground font-display">Nenhum produto selecionado</p>
                   <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione a família, o produto e a CCT desejada para adicionar ao carrinho.</p>
+                </CardContent>
+              </Card>
+            )}
+            {/* Resultado Balizadores */}
+            {productCategory === "Balizadores" && balProductKey && (() => {
+              const [_bSku, ..._bNP] = (balProductKey ?? '::').split('::');
+              const bProd = activeBalizadoresCatalog.find(p => p.sku === _bSku && p.name === _bNP.join('::'));
+              if (!bProd) return null;
+              const bPhoto = bProd.sku ? adaptedCatalogs?.balizadoresFotos?.[bProd.sku] ?? null : null;
+              const bPreco = bProd.precoOnOff220 ?? null;
+              return (
+                <div className="space-y-4">
+                  <Card className="shadow-sm border-blue-500/30">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                        <Navigation className="w-4 h-4 text-blue-500" />
+                        Resultado — Balizador
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className={bPhoto ? "flex gap-3 items-stretch" : "grid grid-cols-2 gap-2"}>
+                        {bPhoto && (
+                          <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-36 flex items-center justify-center">
+                            <img src={bPhoto} alt={bProd.name} className="w-full h-full object-contain p-2" loading="lazy" />
+                          </div>
+                        )}
+                        <div className={bPhoto ? "grid grid-cols-2 gap-2 flex-1" : "contents"}>
+                          {bProd.sku && (
+                            <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
+                              <p className="text-sm font-mono font-semibold text-primary">{bProd.sku}</p>
+                            </div>
+                          )}
+                          <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
+                            <p className="text-sm font-semibold">{bProd.name}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                            <p className="text-sm font-semibold">{balCCT}</p>
+                          </div>
+                          {/* Informação de tensão embutida */}
+                          {bProd.semDriver && (
+                            <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Alimentação</p>
+                              <p className="text-sm font-semibold text-blue-600">
+                                {bProd.tensaoEmbutida ? `${bProd.tensaoEmbutida} — Rede` : "Tensão de Rede"}
+                              </p>
+                            </div>
+                          )}
+                          {bPreco !== null && (
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Preço Unitário</p>
+                              <p className="text-sm font-semibold text-emerald-600">{formatBRL(bPreco)}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {bProd.semDriver && (
+                        <div className="flex items-center gap-2 p-2 rounded-lg bg-blue-500/5 border border-blue-500/20">
+                          <span className="text-xs text-blue-600 font-medium">⚡ Produto sem driver — sempre ON/OFF, liga direto na tensão de rede</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                  {/* Resumo para Orçamento */}
+                  <Card className="shadow-sm border-blue-500/30">
+                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                      <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                        Resumo Para Orçamento
+                      </CardTitle>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                          <Input
+                            className="h-7 text-xs w-28"
+                            placeholder="ex: L1, P2..."
+                            value={globalItemEmPlanta}
+                            onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs text-muted-foreground whitespace-nowrap">Qtd:</label>
+                          <Input
+                            type="number"
+                            className="h-7 text-xs w-16"
+                            min={1}
+                            placeholder="1"
+                            value={globalQty}
+                            onChange={(e) => setGlobalQty(Math.max(1, parseInt(e.target.value) || 1))}
+                          />
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1.5"
+                          onClick={() => {
+                            const lines = [`${bProd.name} ${balCCT}`.toUpperCase()];
+                            if (bPreco !== null) lines.push(`PREÇO: ${formatBRL(bPreco)}`);
+                            navigator.clipboard.writeText(lines.join("\n"));
+                            toast.success("Copiado!");
+                          }}
+                        >
+                          <Copy className="w-3 h-3" /> Copiar Resumo
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                          disabled={isAddingToCart}
+                          onClick={() => {
+                            const item: CartItemData = {
+                              category: "Balizadores",
+                              sku: bProd.sku ?? "",
+                              description: `${bProd.name} ${balCCT}`,
+                              power: "",
+                              cct: balCCT,
+                              qty: globalQty,
+                              unitPrice: bPreco ?? 0,
+                              totalPrice: (bPreco ?? 0) * globalQty,
+                              priceFromApi: bPreco != null,
+                              photoUrl: bPhoto ?? "",
+                              orderSummary: `${bProd.sku ? `CÓDIGO: ${bProd.sku}\n` : ""}${bProd.name.toUpperCase()} ${balCCT}`,
+                              quoteSummary: `${bProd.name} ${balCCT}`.toUpperCase(),
+                              moduloLed: bProd.ledModule ?? "",
+                              drivers: "",
+                              availableCCTs: bProd.ccts,
+                              itemEmPlanta: globalItemEmPlanta,
+                              floorName: globalPavimento || undefined,
+                              ambiente: globalAmbiente || undefined,
+                            };
+                            if (appendToQuoteId) {
+                              handleAddItemOrToQuote(item);
+                            } else {
+                              setPendingCartItem(item);
+                              setColorModalOpen(true);
+                            }
+                          }}
+                        >
+                          <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div
+                        className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
+                        onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
+                      >
+                        {(() => {
+                          const lines = [`${bProd.name} ${balCCT}`.toUpperCase()];
+                          if (bPreco !== null) lines.push(`PREÇO: ${formatBRL(bPreco)}`);
+                          return lines.join("\n");
+                        })()}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              );
+            })()}
+            {/* Estado vazio Balizadores */}
+            {productCategory === "Balizadores" && activeBalizadoresCatalog.length > 0 && !balProductKey && (
+              <Card className="shadow-sm">
+                <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                    <Navigation className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-base font-semibold text-foreground font-display">Nenhum produto selecionado</p>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione a família, o produto e a CCT desejada para adicionar ao carrinho.</p>
+                </CardContent>
+              </Card>
+            )}
+            {/* Estado vazio Balizadores sem produtos na API */}
+            {productCategory === "Balizadores" && activeBalizadoresCatalog.length === 0 && (
+              <Card className="shadow-sm">
+                <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                    <Navigation className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-base font-semibold text-foreground font-display">Aguardando catálogo</p>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">Nenhum produto Balizador encontrado na API. Verifique se a categoria está cadastrada no sistema.</p>
                 </CardContent>
               </Card>
             )}

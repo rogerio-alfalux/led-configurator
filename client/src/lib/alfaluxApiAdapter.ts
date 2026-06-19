@@ -156,6 +156,13 @@ function resolveOtica(p: ApiProduct): string | null {
 }
 
 /** Converte um produto da API para DownlightProduct */
+/** Extrai tensão embutida do ledModule (ex: "AC 110V" → "110V", "AC 220V" → "220V") */
+function extractTensaoEmbutida(ledModule: string | null | undefined): string | null {
+  if (!ledModule) return null;
+  const m = ledModule.match(/\bAC\s*(\d{3}V)\b/i);
+  return m ? m[1].toUpperCase() : null;
+}
+
 function toDownlightProduct(p: ApiProduct): DownlightProduct {
   const d220 = p.driver220;
   const dBivolt = p.driverBivolt;
@@ -164,6 +171,9 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
   const dDimTriac110v = (p as any).driverDimTriac110v ?? null;
   const dDimTriac220v = (p as any).driverDimTriac220v ?? null;
   const ccts = normalizeCCTs(p.temperaturasCor);
+  // Produto sem driver: todos os campos de driver são null na API
+  const semDriver = !d220 && !dBivolt && !dDim110v && !dDimDali && !dDimTriac110v && !dDimTriac220v;
+  const tensaoEmbutida = semDriver ? extractTensaoEmbutida(p.ledModule) : null;
 
   return {
     instalacao: p.instalacao,
@@ -210,6 +220,8 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
     precoDimDali: p.precoDimDali ?? null,
     precoDimTriac110v: (p as any).precoDimTriac110v ?? null,
     precoDimTriac220v: (p as any).precoDimTriac220v ?? null,
+    semDriver,
+    tensaoEmbutida,
   };
 }
 
@@ -364,6 +376,12 @@ export interface AdaptedCatalogs {
   decorativas: DownlightProduct[];
   /** Mapa sku → fotoUrl para Decorativas */
   decorativasFotos: Record<string, string>;
+  /** Produtos Balizadores (FRIZZ, etc.) — usam DownlightProduct */
+  balizadores: DownlightProduct[];
+  /** Mapa sku → fotoUrl para Balizadores */
+  balizadoresFotos: Record<string, string>;
+  /** Mapa familia → CCTs disponíveis para Balizadores */
+  balizadoresCCTs: Record<string, string[]>;
   /** Mapa familia → CCTs disponíveis para Downlights */
   downlightCCTs: Record<string, string[]>;
   /** Mapa familia → CCTs disponíveis para Painéis */
@@ -529,6 +547,9 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
   const glowFotos: Record<string, string> = {};
   const decorativas: DownlightProduct[] = [];
   const decorativasFotos: Record<string, string> = {};
+  const balizadores: DownlightProduct[] = [];
+  const balizadoresFotos: Record<string, string> = {};
+  const balizadoresCCTs: Record<string, string[]> = {};
   const downlightCCTs: Record<string, string[]> = {};
   const painelCCTs: Record<string, string[]> = {};
   const spotCCTs: Record<string, string[]> = {};
@@ -572,6 +593,10 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
     } else if (cat === "DECORATIVAS") {
       decorativas.push(toDownlightProduct(p));
       if (p.fotoUrl && p.sku) decorativasFotos[p.sku] = normalizeFotoUrl(p.fotoUrl)!;
+    } else if (cat === "BALIZADORES") {
+      balizadores.push(toDownlightProduct(p));
+      if (p.fotoUrl && p.sku) balizadoresFotos[p.sku] = normalizeFotoUrl(p.fotoUrl)!;
+      if (!balizadoresCCTs[p.familia]) balizadoresCCTs[p.familia] = normalizeCCTs(p.temperaturasCor);
     } else if (cat === "ÁREA EXTERNA" || cat === "AREA EXTERNA") {
       areaExterna.push(toDownlightProduct(p));
       if (!areaExternaCCTs[p.familia]) areaExternaCCTs[p.familia] = ccts;
@@ -603,6 +628,9 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
     glowFotos,
     decorativas,
     decorativasFotos,
+    balizadores,
+    balizadoresFotos,
+    balizadoresCCTs,
     downlightCCTs,
     painelCCTs,
     spotCCTs,

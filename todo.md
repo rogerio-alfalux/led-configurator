@@ -1296,19 +1296,19 @@
 - [x] Perfil Flexível: adicionar opção de instalação Embutir ou Sobrepor (já estava implementado)
 - [x] Frete a Calcular: abrir campo para digitar valor; somar ao orçamento; ignorar caixa de seleção
 - [x] Item Especial: caixa de seleção preço por metro ou unitário com cálculo automático no carrinho e orçamento
-- [ ] Adicionar LED BAR EC ao catálogo (aguardando dados do produto - descartado neste lote)
+- [x] Adicionar LED BAR EC ao catálogo (aguardando dados do produto - descartado neste lote)
 
 ### Carrinho / Orçamento
 - [x] Assistente Comercial: incluir opção "VENDEDOR" na lista
 - [x] Número de orçamento: permitir edição manual em qualquer etapa, respeitando sempre o valor escolhido pelo usuário
-- [ ] Remover campo Ambiente do formulário de orçamento (descartado - manter por enquanto)
+- [x] Remover campo Ambiente do formulário de orçamento (descartado - manter por enquanto)
 - [x] Vendedor é campo obrigatório (bloquear salvar sem vendedor)
 - [x] Emitir alerta BLOQUEANTE ao tentar cadastrar novo orçamento com obra já existente
 
 ### Excel / Preview
 - [x] Pavimento: já implementado como cabeçalho de grupo no Excel e preview
 - [x] Prazo de produção no pedido de fábrica: corrigir data de acordo com prazo do orçamento
-- [ ] Fotos de trilhos e acessórios: tirar novas fotos melhores (não é tarefa de código - descartado)
+- [x] Fotos de trilhos e acessórios: tirar novas fotos melhores (não é tarefa de código - descartado)
 
 ### Comissão
 - [x] Comissão máxima de 5%; soma de dois vendedores não pode ultrapassar 5%
@@ -1346,3 +1346,13 @@
 - [x] Agrupamento/organização por pavimento no carrinho (botão toggle Agrupar/Agrupado)
 - [x] Agrupamento/organização por pavimento no painel de edição do orçamento (QuoteDetail)
 - [x] Exportação Excel com agrupamento por pavimento (quoteExcelGenerator.ts) + coluna Q com pavimento/ambiente
+
+## Balizadores e Decorativas sem driver (19/06/2026)
+
+- [x] Habilitar categoria Balizadores na UI (remover badge "em breve")
+- [x] Detectar produto sem driver: todos os campos driver* são null → campo semDriver=true no DownlightProduct
+- [x] Produtos sem driver: ocultar seleção de tensão e dimerização; exibir apenas CCT e quantidade
+- [x] Produtos sem driver: controle sempre ON/OFF (não exibir opções de dim)
+- [x] Balizadores com tensão embutida no nome/ledModule (ex: "AC 110V", "AC 220V"): exibir tensão como informação, não como seleção
+- [x] Ajustar Decorativas: mesma lógica de sem driver quando driver220 = null (já não exibia tensão/dim)
+- [x] Ao adicionar ao carrinho: não incluir campos de driver/tensão/dim no itemData para produtos sem driver
