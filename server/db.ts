@@ -546,15 +546,17 @@ export async function listQuotes(opts: {
   if (opts.dateFrom) conditions.push(sql`DATE(createdAt) >= ${opts.dateFrom}`);
   if (opts.dateTo) conditions.push(sql`DATE(createdAt) <= ${opts.dateTo}`);
   if (opts.search) {
-    const s = `%${opts.search}%`;
+    // Busca case-insensitive: banco usa utf8mb4_bin (case-sensitive), por isso usamos LOWER()
+    const sLower = `%${opts.search.toLowerCase()}%`;
     conditions.push(
       or(
-        like(quotes.quoteNumber, s),
-        like(quotes.clientName, s),
-        like(quotes.vendorName, s),
-        like(sql`TRIM(${quotes.projectName})`, s),
-        like(quotes.seller1Name, s),
-        like(quotes.assistantName, s)
+        sql`LOWER(${quotes.quoteNumber}) LIKE ${sLower}`,
+        sql`LOWER(${quotes.clientName}) LIKE ${sLower}`,
+        sql`LOWER(COALESCE(${quotes.vendorName}, '')) LIKE ${sLower}`,
+        sql`LOWER(TRIM(COALESCE(${quotes.projectName}, ''))) LIKE ${sLower}`,
+        sql`LOWER(COALESCE(${quotes.seller1Name}, '')) LIKE ${sLower}`,
+        sql`LOWER(COALESCE(${quotes.seller2Name}, '')) LIKE ${sLower}`,
+        sql`LOWER(COALESCE(${quotes.assistantName}, '')) LIKE ${sLower}`
       )
     );
   }

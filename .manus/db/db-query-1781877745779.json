@@ -1,0 +1,16 @@
+{
+  "query": "SELECT id, quoteNumber, clientName, projectName FROM quotes WHERE LOWER(TRIM(COALESCE(projectName, ''))) LIKE '%hospital%' LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT id, quoteNumber, clientName, projectName FROM quotes WHERE LOWER(TRIM(COALESCE(projectName, ''))) LIKE '%hospital%' LIMIT 5;",
+  "rows": [
+    {
+      "id": "2130001",
+      "quoteNumber": "25.0156-26",
+      "clientName": "TEMON ENGENHARIA",
+      "projectName": "HOSPITAL BRASIL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tquoteNumber\tclientName\tprojectName\n2130001\t25.0156-26\tTEMON ENGENHARIA\tHOSPITAL BRASIL\n",
+  "stderr": "",
+  "execution_time_ms": 265
+}
