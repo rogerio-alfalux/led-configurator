@@ -449,6 +449,8 @@ export default function Cart() {
 
   // Agrupamento por pavimento
   const [groupByFloor, setGroupByFloor] = useState(false);
+  // Renomeação inline de pavimento: mapa de nome antigo -> novo nome sendo editado
+  const [floorRenameMap, setFloorRenameMap] = useState<Record<string, string>>({});
 
   // Drag-and-drop: ordenação local dos IDs
   const [orderedIds, setOrderedIds] = useState<number[]>([]);
@@ -469,6 +471,15 @@ export default function Cart() {
     const map = new Map(entries.map(e => [e.id, e]));
     return orderedIds.map(id => map.get(id)).filter((e): e is typeof entries[0] => e !== null && e !== undefined);
   }, [entries, orderedIds]);
+
+  // Renomear todos os itens de um pavimento de uma vez
+  const renameFloor = useCallback((oldName: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName) return;
+    orderedEntries
+      .filter(e => (e.data.floorName?.trim() || "Sem Pavimento") === oldName)
+      .forEach(e => updateItemField(e.id, { floorName: trimmed, floorId: trimmed }, 0));
+  }, [orderedEntries, updateItemField]);
 
   // DnD sensors
   const sensors = useSensors(
@@ -1001,110 +1012,129 @@ export default function Cart() {
             {/* Lista de itens com Drag-and-Drop */}
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={orderedIds} strategy={verticalListSortingStrategy}>
-                {groupByFloor ? (() => {
-                  // Agrupar por pavimento
-                  const groups: { floor: string; entries: typeof orderedEntries }[] = [];
+{/* Renderização: agrupada por pavimento (com barras de título editáveis) ou lista plana */}
+                {(() => {
+                  // Calcular grupos de pavimento (sempre, para exibir barras)
                   const floorMap = new Map<string, typeof orderedEntries>();
                   for (const entry of orderedEntries) {
-                    const floor = entry.data.floorName?.trim() || "Sem Pavimento";
+                    const floor = entry.data.floorName?.trim() || "";
                     if (!floorMap.has(floor)) floorMap.set(floor, []);
                     floorMap.get(floor)!.push(entry);
                   }
-                  // Ordenar: pavimentos com nome primeiro (alfabético), "Sem Pavimento" por último
+                  const hasMultipleFloors = floorMap.size > 1 || (floorMap.size === 1 && !floorMap.has(""));
+                  const showFloorBars = groupByFloor || hasMultipleFloors;
+
+                  if (!showFloorBars) {
+                    // Lista plana sem barras de pavimento
+                    return (
+                      <div className="space-y-3">
+                        {orderedEntries.map((entry, idx) => (
+                          <SortableCartItem
+                            key={entry.id}
+                            entry={entry}
+                            idx={idx}
+                            itemEmPlantaMap={itemEmPlantaMap}
+                            setItemEmPlantaMap={setItemEmPlantaMap}
+                            updateItemField={updateItemField}
+                            handleUpdateQty={handleUpdateQty}
+                            handleQtyInput={handleQtyInput}
+                            removeItem={removeItem}
+                            updateQtyMutation={updateQtyMutation}
+                            isRemoving={isRemoving}
+                            acessorioPhotoMap={acessorioPhotoMap}
+                            onDuplicate={(data) => { addItem({ ...data, itemEmPlanta: data.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
+                            onEditClick={(id, data) => {
+                              setEditItemId(id);
+                              setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '' });
+                              if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
+                            }}
+                          />
+                        ))}
+                      </div>
+                    );
+                  }
+
+                  // Lista agrupada com barras de título de pavimento editáveis
+                  const groups: { floor: string; entries: typeof orderedEntries }[] = [];
                   const keys = Array.from(floorMap.keys()).sort((a, b) => {
-                    if (a === "Sem Pavimento") return 1;
-                    if (b === "Sem Pavimento") return -1;
+                    if (a === "") return 1;
+                    if (b === "") return -1;
                     return a.localeCompare(b, "pt-BR");
                   });
                   for (const k of keys) groups.push({ floor: k, entries: floorMap.get(k)! });
+
                   return (
                     <div className="space-y-6">
-                      {groups.map(({ floor, entries: groupEntries }) => (
-                        <div key={floor}>
-                          <div className="flex items-center gap-2 mb-3">
-                            <Layers className="w-4 h-4 text-indigo-400" />
-                            <span className="text-sm font-semibold text-indigo-400 uppercase tracking-wide">{floor}</span>
-                            <span className="text-xs text-muted-foreground">({groupEntries.length} {groupEntries.length === 1 ? "item" : "itens"})</span>
-                            <div className="flex-1 h-px bg-indigo-500/20" />
-                          </div>
-                          <div className="space-y-3">
-                            {groupEntries.map((entry, idx) => (
-                              <SortableCartItem
-                                key={entry.id}
-                                entry={entry}
-                                idx={idx}
-                                itemEmPlantaMap={itemEmPlantaMap}
-                                setItemEmPlantaMap={setItemEmPlantaMap}
-                                updateItemField={updateItemField}
-                                handleUpdateQty={handleUpdateQty}
-                                handleQtyInput={handleQtyInput}
-                                removeItem={removeItem}
-                                updateQtyMutation={updateQtyMutation}
-                                isRemoving={isRemoving}
-                                acessorioPhotoMap={acessorioPhotoMap}
-                                onDuplicate={(data) => { addItem({ ...data, itemEmPlanta: data.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
-                                onEditClick={(id, data) => {
-                                  setEditItemId(id);
-                                  setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '' });
-                                  if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
+                      {groups.map(({ floor, entries: groupEntries }) => {
+                        const displayName = floor || "Sem Pavimento";
+                        const editingName = floorRenameMap[displayName] ?? displayName;
+                        return (
+                          <div key={displayName}>
+                            {/* Barra de título do pavimento */}
+                            <div className="flex items-center gap-2 mb-3 group">
+                              <Layers className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                              <input
+                                type="text"
+                                value={editingName}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setFloorRenameMap(prev => ({ ...prev, [displayName]: val }));
                                 }}
+                                onBlur={(e) => {
+                                  const newName = e.target.value.trim();
+                                  if (newName && newName !== displayName) {
+                                    renameFloor(displayName, newName);
+                                    // Atualizar a chave do mapa após renomear
+                                    setFloorRenameMap(prev => {
+                                      const next = { ...prev };
+                                      delete next[displayName];
+                                      return next;
+                                    });
+                                  } else {
+                                    setFloorRenameMap(prev => { const next = { ...prev }; delete next[displayName]; return next; });
+                                  }
+                                }}
+                                onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                                disabled={displayName === "Sem Pavimento"}
+                                className={`text-sm font-semibold text-indigo-400 uppercase tracking-wide bg-transparent border-0 border-b border-transparent focus:border-indigo-400 focus:outline-none px-0 py-0 min-w-0 w-auto ${
+                                  displayName === "Sem Pavimento" ? "cursor-default" : "hover:border-indigo-400/50 cursor-text"
+                                }`}
+                                style={{ width: `${Math.max(editingName.length, 8)}ch` }}
+                                title={displayName !== "Sem Pavimento" ? "Clique para renomear o pavimento" : ""}
                               />
-                            ))}
+                              <span className="text-xs text-muted-foreground flex-shrink-0">({groupEntries.length} {groupEntries.length === 1 ? "item" : "itens"})</span>
+                              <div className="flex-1 h-px bg-indigo-500/20" />
+                            </div>
+                            <div className="space-y-3">
+                              {groupEntries.map((entry, idx) => (
+                                <SortableCartItem
+                                  key={entry.id}
+                                  entry={entry}
+                                  idx={idx}
+                                  itemEmPlantaMap={itemEmPlantaMap}
+                                  setItemEmPlantaMap={setItemEmPlantaMap}
+                                  updateItemField={updateItemField}
+                                  handleUpdateQty={handleUpdateQty}
+                                  handleQtyInput={handleQtyInput}
+                                  removeItem={removeItem}
+                                  updateQtyMutation={updateQtyMutation}
+                                  isRemoving={isRemoving}
+                                  acessorioPhotoMap={acessorioPhotoMap}
+                                  onDuplicate={(data) => { addItem({ ...data, itemEmPlanta: data.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
+                                  onEditClick={(id, data) => {
+                                    setEditItemId(id);
+                                    setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '' });
+                                    if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
+                                  }}
+                                />
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   );
-                })() : (
-                <div className="space-y-3">
-                  {orderedEntries.map((entry, idx) => (
-                    <SortableCartItem
-                      key={entry.id}
-                      entry={entry}
-                      idx={idx}
-                      itemEmPlantaMap={itemEmPlantaMap}
-                      setItemEmPlantaMap={setItemEmPlantaMap}
-                      updateItemField={updateItemField}
-                      handleUpdateQty={handleUpdateQty}
-                      handleQtyInput={handleQtyInput}
-                      removeItem={removeItem}
-                      updateQtyMutation={updateQtyMutation}
-                      isRemoving={isRemoving}
-                      acessorioPhotoMap={acessorioPhotoMap}
-                      onDuplicate={(data) => {
-                        addItem({ ...data, itemEmPlanta: data.itemEmPlanta ?? '' });
-                        toast.success('Item duplicado no carrinho');
-                      }}
-                      onEditClick={(id, data) => {
-                        setEditItemId(id);
-                        setEditFields({
-                          cct: data.cct ?? '',
-                          power: data.power ?? '',
-                          corPeca: data.corPeca ?? '',
-                          qty: String(data.qty ?? 1),
-                          unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '',
-                          itemNote: data.itemNote ?? '',
-                          itemObs: data.itemObs ?? '',
-                          itemObsShowInExcel: data.itemObsShowInExcel ?? false,
-                          itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '',
-                          floorId: data.floorId ?? '',
-                          floorName: data.floorName ?? '',
-                          ambiente: data.ambiente ?? '',
-                          specialColorTemp: data.specialColorTemp ?? '',
-                        });
-                        // Inicializar foto especial
-                        if (data.isSpecialItem) {
-                          setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null);
-                          setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null);
-                        } else {
-                          setEditSpecialPhotoUrl(null);
-                          setEditSpecialPhotoPreview(null);
-                        }
-                      }}
-                    />
-                  ))}
-                </div>
-                )}
+                })()}
               </SortableContext>
             </DndContext>
 

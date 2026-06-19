@@ -1356,3 +1356,13 @@
 - [x] Balizadores com tensão embutida no nome/ledModule (ex: "AC 110V", "AC 220V"): exibir tensão como informação, não como seleção
 - [x] Ajustar Decorativas: mesma lógica de sem driver quando driver220 = null (já não exibia tensão/dim)
 - [x] Ao adicionar ao carrinho: não incluir campos de driver/tensão/dim no itemData para produtos sem driver
+
+## Barras de Pavimento no Carrinho (19/06/2026)
+
+- [ ] Corrigir envio de pavimento/ambiente do configurador ao carrinho (campo não chega ao CartItemData)
+- [ ] Exibir campo Pavimento e Ambiente diretamente no card do item no carrinho (sem precisar abrir modal)
+- [ ] Implementar barras de título por pavimento no carrinho (separador visual com nome do pavimento)
+- [ ] Edição do nome do pavimento em tempo real na barra de título (inline edit)
+- [ ] Ao alterar o pavimento na barra de título, atualizar todos os itens daquele pavimento
+- [ ] Mesma lógica de barras de título no painel de edição do orçamento
+- [ ] Persistir alterações de pavimento feitas no carrinho ao salvar orçamento

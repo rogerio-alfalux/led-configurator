@@ -1896,9 +1896,14 @@ export default function Home() {
     if (appendToQuoteId) {
       handleAddItemOrToQuote(item);
     } else {
+      const itemWithFloor: CartItemData = {
+        ...item,
+        ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
+        ...(globalAmbiente ? { ambiente: globalAmbiente } : {}),
+      };
       const itemWithAcc: CartItemData = pendingAccessories.length > 0
-        ? { ...item, accessories: [...pendingAccessories] }
-        : item;
+        ? { ...itemWithFloor, accessories: [...pendingAccessories] }
+        : itemWithFloor;
       if (pendingAccessories.length > 0) setPendingAccessories([]);
       addItem(itemWithAcc);
       if (precoVenda > 0) {
@@ -2063,7 +2068,12 @@ export default function Home() {
     if (appendToQuoteId) {
       handleAddItemOrToQuote(item);
     } else {
-      addItem(item);
+      const itemWithFloor: CartItemData = {
+        ...item,
+        ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
+        ...(globalAmbiente ? { ambiente: globalAmbiente } : {}),
+      };
+      addItem(itemWithFloor);
       if (precoVenda > 0) {
         toast.success(`"${descricao}" adicionado com preço R$ ${precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.`);
       } else {
@@ -2151,6 +2161,8 @@ export default function Home() {
         qty: effectiveQty,
         totalPrice: unitPrice * effectiveQty,
         itemEmPlanta: globalItemEmPlanta,
+        ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
+        ...(globalAmbiente ? { ambiente: globalAmbiente } : {}),
       };
       const itemWithAcc: CartItemData = pendingAccessories.length > 0
         ? { ...finalItem, accessories: [...pendingAccessories] }
