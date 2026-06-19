@@ -20,7 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   ShoppingCart, Trash2, FileSpreadsheet, ArrowLeft, Package,
   Plus, Minus, Save, ClipboardList, Factory, AlertTriangle,
-  ChevronRight, Tag, Percent, Truck, Users, PlusCircle, CheckCircle2,
+  ChevronRight, ChevronDown, ChevronUp, Tag, Percent, Truck, Users, PlusCircle, CheckCircle2,
   GripVertical, Pencil, Wrench, Eye, Upload, X, Copy, Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -297,6 +297,77 @@ function SortableCartItem({
   );
 }
 
+// ─── Componente de barra de grupo de pavimento (arrastável + expandir/recolher) ──
+interface FloorGroupBarProps {
+  floorId: string;
+  displayName: string;
+  editingName: string;
+  groupEntries: { id: number; data: CartItemData; createdAt: string }[];
+  isCollapsed: boolean;
+  isDraggingThis: boolean;
+  onToggleCollapse: () => void;
+  onRenameChange: (val: string) => void;
+  onRenameBlur: (newName: string) => void;
+  children: React.ReactNode;
+}
+
+function FloorGroupBar({
+  floorId, displayName, editingName, groupEntries, isCollapsed, isDraggingThis,
+  onToggleCollapse, onRenameChange, onRenameBlur, children,
+}: FloorGroupBarProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: floorId });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      {/* Barra de título do pavimento */}
+      <div className={`flex items-center gap-2 mb-3 group rounded-lg px-2 py-1 transition-colors ${
+        isDragging ? 'bg-indigo-500/10 border border-indigo-500/30' : 'hover:bg-indigo-500/5'
+      }`}>
+        {/* Handle de drag do grupo */}
+        <button
+          {...attributes}
+          {...listeners}
+          className="flex-shrink-0 cursor-grab active:cursor-grabbing text-indigo-400/60 hover:text-indigo-400 touch-none"
+          title="Arrastar grupo de pavimento"
+          onPointerDown={e => e.stopPropagation()}
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
+        <Layers className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+        <input
+          type="text"
+          value={editingName}
+          onChange={(e) => onRenameChange(e.target.value)}
+          onBlur={(e) => onRenameBlur(e.target.value.trim())}
+          onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+          disabled={displayName === 'Sem Pavimento'}
+          className={`text-sm font-semibold text-indigo-400 uppercase tracking-wide bg-transparent border-0 border-b border-transparent focus:border-indigo-400 focus:outline-none px-0 py-0 min-w-0 w-auto ${
+            displayName === 'Sem Pavimento' ? 'cursor-default' : 'hover:border-indigo-400/50 cursor-text'
+          }`}
+          style={{ width: `${Math.max(editingName.length, 8)}ch` }}
+          title={displayName !== 'Sem Pavimento' ? 'Clique para renomear o pavimento' : ''}
+        />
+        <span className="text-xs text-muted-foreground flex-shrink-0">({groupEntries.length} {groupEntries.length === 1 ? 'item' : 'itens'})</span>
+        <div className="flex-1 h-px bg-indigo-500/20" />
+        {/* Botão expandir/recolher */}
+        <button
+          onClick={onToggleCollapse}
+          className="flex-shrink-0 text-indigo-400/60 hover:text-indigo-400 transition-colors"
+          title={isCollapsed ? 'Expandir grupo' : 'Recolher grupo'}
+        >
+          {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+        </button>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 // ─── Componente de seleção de cidade via API IBGE ───────────────────────────
 function FreteIbgeCitySelect({
   stateCode,
@@ -451,6 +522,18 @@ export default function Cart() {
   const [groupByFloor, setGroupByFloor] = useState(false);
   // Renomeação inline de pavimento: mapa de nome antigo -> novo nome sendo editado
   const [floorRenameMap, setFloorRenameMap] = useState<Record<string, string>>({});
+  // Pavimentos recolhidos (collapsed)
+  const [collapsedFloors, setCollapsedFloors] = useState<Set<string>>(new Set());
+  const toggleFloorCollapse = (floorName: string) => {
+    setCollapsedFloors(prev => {
+      const next = new Set(prev);
+      if (next.has(floorName)) next.delete(floorName);
+      else next.add(floorName);
+      return next;
+    });
+  };
+  // Drag de grupo: ID do grupo sendo arrastado
+  const [draggingFloor, setDraggingFloor] = useState<string | null>(null);
 
   // Drag-and-drop: ordenação local dos IDs
   const [orderedIds, setOrderedIds] = useState<number[]>([]);
@@ -489,13 +572,43 @@ export default function Cart() {
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    if (over && active.id !== over.id) {
+    setDraggingFloor(null);
+    if (!over || active.id === over.id) return;
+
+    const activeIdStr = String(active.id);
+    const overIdStr = String(over.id);
+
+    // Drag de grupo de pavimento: IDs com prefixo "floor:"
+    if (activeIdStr.startsWith("floor:") && overIdStr.startsWith("floor:")) {
+      const activeFloor = activeIdStr.slice(6);
+      const overFloor = overIdStr.slice(6);
       setOrderedIds(prev => {
-        const oldIndex = prev.indexOf(Number(active.id));
-        const newIndex = prev.indexOf(Number(over.id));
-        return arrayMove(prev, oldIndex, newIndex);
+        // Encontrar todos os IDs de cada grupo na ordem atual
+        const entriesMap = new Map(entries.map(e => [e.id, e]));
+        const ordered = prev.map(id => entriesMap.get(id)).filter(Boolean) as typeof entries;
+        const activeIds = ordered.filter(e => (e.data.floorName?.trim() || "Sem Pavimento") === activeFloor).map(e => e.id);
+        const overIds = ordered.filter(e => (e.data.floorName?.trim() || "Sem Pavimento") === overFloor).map(e => e.id);
+        if (activeIds.length === 0 || overIds.length === 0) return prev;
+        // Remover todos os IDs do grupo ativo
+        const withoutActive = prev.filter(id => !activeIds.includes(id));
+        // Encontrar posição do primeiro item do grupo destino
+        const firstOverIdx = withoutActive.indexOf(overIds[0]);
+        if (firstOverIdx === -1) return prev;
+        // Inserir o grupo ativo antes do grupo destino
+        const result = [...withoutActive];
+        result.splice(firstOverIdx, 0, ...activeIds);
+        return result;
       });
+      return;
     }
+
+    // Drag de item individual
+    setOrderedIds(prev => {
+      const oldIndex = prev.indexOf(Number(active.id));
+      const newIndex = prev.indexOf(Number(over.id));
+      if (oldIndex === -1 || newIndex === -1) return prev;
+      return arrayMove(prev, oldIndex, newIndex);
+    });
   };
 
   // Edição inline de campos do item
@@ -1010,7 +1123,12 @@ export default function Cart() {
         ) : (
           <>
             {/* Lista de itens com Drag-and-Drop */}
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}
+              onDragStart={(event) => {
+                const id = String(event.active.id);
+                if (id.startsWith("floor:")) setDraggingFloor(id.slice(6));
+              }}
+            >
               <SortableContext items={orderedIds} strategy={verticalListSortingStrategy}>
 {/* Renderização: agrupada por pavimento (com barras de título editáveis) ou lista plana */}
                 {(() => {
@@ -1054,85 +1172,74 @@ export default function Cart() {
                     );
                   }
 
-                  // Lista agrupada com barras de título de pavimento editáveis
+                  // Lista agrupada com barras de título de pavimento editáveis + drag de grupo + expandir/recolher
                   const groups: { floor: string; entries: typeof orderedEntries }[] = [];
-                  const keys = Array.from(floorMap.keys()).sort((a, b) => {
-                    if (a === "") return 1;
-                    if (b === "") return -1;
-                    return a.localeCompare(b, "pt-BR");
-                  });
-                  for (const k of keys) groups.push({ floor: k, entries: floorMap.get(k)! });
+                  // Manter a ordem dos grupos conforme a ordem dos itens (não alfabética)
+                  const seenFloors = new Set<string>();
+                  for (const entry of orderedEntries) {
+                    const f = entry.data.floorName?.trim() || "";
+                    if (!seenFloors.has(f)) { seenFloors.add(f); groups.push({ floor: f, entries: floorMap.get(f)! }); }
+                  }
 
                   return (
+                    <SortableContext items={groups.map(g => `floor:${g.floor || 'Sem Pavimento'}`)} strategy={verticalListSortingStrategy}>
                     <div className="space-y-6">
                       {groups.map(({ floor, entries: groupEntries }) => {
                         const displayName = floor || "Sem Pavimento";
                         const editingName = floorRenameMap[displayName] ?? displayName;
+                        const isCollapsed = collapsedFloors.has(displayName);
+                        const isDraggingThis = draggingFloor === floor;
                         return (
-                          <div key={displayName}>
-                            {/* Barra de título do pavimento */}
-                            <div className="flex items-center gap-2 mb-3 group">
-                              <Layers className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-                              <input
-                                type="text"
-                                value={editingName}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setFloorRenameMap(prev => ({ ...prev, [displayName]: val }));
-                                }}
-                                onBlur={(e) => {
-                                  const newName = e.target.value.trim();
-                                  if (newName && newName !== displayName) {
-                                    renameFloor(displayName, newName);
-                                    // Atualizar a chave do mapa após renomear
-                                    setFloorRenameMap(prev => {
-                                      const next = { ...prev };
-                                      delete next[displayName];
-                                      return next;
-                                    });
-                                  } else {
-                                    setFloorRenameMap(prev => { const next = { ...prev }; delete next[displayName]; return next; });
-                                  }
-                                }}
-                                onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-                                disabled={displayName === "Sem Pavimento"}
-                                className={`text-sm font-semibold text-indigo-400 uppercase tracking-wide bg-transparent border-0 border-b border-transparent focus:border-indigo-400 focus:outline-none px-0 py-0 min-w-0 w-auto ${
-                                  displayName === "Sem Pavimento" ? "cursor-default" : "hover:border-indigo-400/50 cursor-text"
-                                }`}
-                                style={{ width: `${Math.max(editingName.length, 8)}ch` }}
-                                title={displayName !== "Sem Pavimento" ? "Clique para renomear o pavimento" : ""}
-                              />
-                              <span className="text-xs text-muted-foreground flex-shrink-0">({groupEntries.length} {groupEntries.length === 1 ? "item" : "itens"})</span>
-                              <div className="flex-1 h-px bg-indigo-500/20" />
-                            </div>
-                            <div className="space-y-3">
-                              {groupEntries.map((entry, idx) => (
-                                <SortableCartItem
-                                  key={entry.id}
-                                  entry={entry}
-                                  idx={idx}
-                                  itemEmPlantaMap={itemEmPlantaMap}
-                                  setItemEmPlantaMap={setItemEmPlantaMap}
-                                  updateItemField={updateItemField}
-                                  handleUpdateQty={handleUpdateQty}
-                                  handleQtyInput={handleQtyInput}
-                                  removeItem={removeItem}
-                                  updateQtyMutation={updateQtyMutation}
-                                  isRemoving={isRemoving}
-                                  acessorioPhotoMap={acessorioPhotoMap}
-                                  onDuplicate={(data) => { addItem({ ...data, itemEmPlanta: data.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
-                                  onEditClick={(id, data) => {
-                                    setEditItemId(id);
-                                    setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '' });
-                                    if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
-                                  }}
-                                />
-                              ))}
-                            </div>
-                          </div>
+                          <FloorGroupBar
+                            key={displayName}
+                            floorId={`floor:${displayName}`}
+                            displayName={displayName}
+                            editingName={editingName}
+                            groupEntries={groupEntries}
+                            isCollapsed={isCollapsed}
+                            isDraggingThis={isDraggingThis}
+                            onToggleCollapse={() => toggleFloorCollapse(displayName)}
+                            onRenameChange={(val) => setFloorRenameMap(prev => ({ ...prev, [displayName]: val }))}
+                            onRenameBlur={(newName) => {
+                              if (newName && newName !== displayName) {
+                                renameFloor(displayName, newName);
+                                setFloorRenameMap(prev => { const next = { ...prev }; delete next[displayName]; return next; });
+                              } else {
+                                setFloorRenameMap(prev => { const next = { ...prev }; delete next[displayName]; return next; });
+                              }
+                            }}
+                          >
+                            {!isCollapsed && (
+                              <div className="space-y-3">
+                                {groupEntries.map((entry, idx) => (
+                                  <SortableCartItem
+                                    key={entry.id}
+                                    entry={entry}
+                                    idx={idx}
+                                    itemEmPlantaMap={itemEmPlantaMap}
+                                    setItemEmPlantaMap={setItemEmPlantaMap}
+                                    updateItemField={updateItemField}
+                                    handleUpdateQty={handleUpdateQty}
+                                    handleQtyInput={handleQtyInput}
+                                    removeItem={removeItem}
+                                    updateQtyMutation={updateQtyMutation}
+                                    isRemoving={isRemoving}
+                                    acessorioPhotoMap={acessorioPhotoMap}
+                                    onDuplicate={(data) => { addItem({ ...data, itemEmPlanta: data.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
+                                    onEditClick={(id, data) => {
+                                      setEditItemId(id);
+                                      setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '' });
+                                      if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
+                                    }}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </FloorGroupBar>
                         );
                       })}
                     </div>
+                    </SortableContext>
                   );
                 })()}
               </SortableContext>

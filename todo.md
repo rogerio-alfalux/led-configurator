@@ -1366,3 +1366,8 @@
 - [x] Ao alterar o pavimento na barra de título, atualizar todos os itens daquele pavimento
 - [x] Mesma lógica de barras de título no painel de edição do orçamento (já implementado em checkpoint anterior)
 - [x] Persistir alterações de pavimento feitas no carrinho ao salvar orçamento (itemData é persistido integralmente)
+
+- [x] Cart.tsx: Drag & drop na barra de pavimento (move todos os itens do grupo junto)
+- [x] Cart.tsx: Botão expandir/recolher por grupo de pavimento
+- [x] QuoteDetail.tsx: Drag & drop na barra de pavimento (move todos os itens do grupo junto)
+- [x] QuoteDetail.tsx: Botão expandir/recolher por grupo de pavimento

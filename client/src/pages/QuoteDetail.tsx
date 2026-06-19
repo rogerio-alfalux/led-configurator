@@ -334,6 +334,59 @@ function SortableEditItem({ item, idx, resolvePhoto, onUpdate, onDelete, onDupli
   );
 }
 
+// ─── Componente de barra de grupo de pavimento para QuoteDetail (arrastável + expandir/recolher) ──
+interface FloorGroupBarQDProps {
+  floorId: string;
+  displayName: string;
+  groupCount: number;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
+  children: React.ReactNode;
+}
+
+function FloorGroupBarQD({
+  floorId, displayName, groupCount, isCollapsed, onToggleCollapse, children,
+}: FloorGroupBarQDProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: floorId });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      <div className={`flex items-center gap-2 mb-3 rounded-lg px-2 py-1 transition-colors ${
+        isDragging ? 'bg-indigo-500/10 border border-indigo-500/30' : 'hover:bg-indigo-500/5'
+      }`}>
+        {/* Handle de drag do grupo */}
+        <button
+          {...attributes}
+          {...listeners}
+          className="flex-shrink-0 cursor-grab active:cursor-grabbing text-indigo-400/60 hover:text-indigo-400 touch-none"
+          title="Arrastar grupo de pavimento"
+          onPointerDown={e => e.stopPropagation()}
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
+        <Layers className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+        <span className="text-sm font-semibold text-indigo-400 uppercase tracking-wide">{displayName}</span>
+        <span className="text-xs text-muted-foreground flex-shrink-0">({groupCount} {groupCount === 1 ? 'item' : 'itens'})</span>
+        <div className="flex-1 h-px bg-indigo-500/20" />
+        {/* Botão expandir/recolher */}
+        <button
+          onClick={onToggleCollapse}
+          className="flex-shrink-0 text-indigo-400/60 hover:text-indigo-400 transition-colors"
+          title={isCollapsed ? 'Expandir grupo' : 'Recolher grupo'}
+        >
+          {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+        </button>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 export default function QuoteDetail() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
@@ -475,10 +528,22 @@ export default function QuoteDetail() {
   const [empresaDialogOpen, setEmpresaDialogOpen] = useState(false);
   const [empresaSelecionada, setEmpresaSelecionada] = useState<"ALFALUX" | "LUMINEW">("ALFALUX");
 
-  // Edição de itens do orçamento
+  // Editação de itens do orçamento
   const [editItemsDialogOpen, setEditItemsDialogOpen] = useState(false);
   // Agrupamento por pavimento no painel de edição
   const [editGroupByFloor, setEditGroupByFloor] = useState(false);
+  // Pavimentos recolhidos no editor
+  const [editCollapsedFloors, setEditCollapsedFloors] = useState<Set<string>>(new Set());
+  const toggleEditFloorCollapse = (floorName: string) => {
+    setEditCollapsedFloors(prev => {
+      const next = new Set(prev);
+      if (next.has(floorName)) next.delete(floorName);
+      else next.add(floorName);
+      return next;
+    });
+  };
+  // Drag de grupo no editor
+  const [editDraggingFloor, setEditDraggingFloor] = useState<string | null>(null);
   // editableItems: cópia dos itens da versão atual para edição
   const [editableItems, setEditableItems] = useState<Array<{
     id: number;
@@ -501,19 +566,49 @@ export default function QuoteDetail() {
 
   const handleEditItemsDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    if (over && active.id !== over.id) {
+    setEditDraggingFloor(null);
+    if (!over || active.id === over.id) return;
+
+    const activeIdStr = String(active.id);
+    const overIdStr = String(over.id);
+
+    // Drag de grupo de pavimento: IDs com prefixo "floor:"
+    if (activeIdStr.startsWith("floor:") && overIdStr.startsWith("floor:")) {
+      const activeFloor = activeIdStr.slice(6);
+      const overFloor = overIdStr.slice(6);
       setEditableItems(prev => {
-        const oldIndex = prev.findIndex(it => it.id === Number(active.id));
-        const newIndex = prev.findIndex(it => it.id === Number(over.id));
-        const reordered = arrayMove(prev, oldIndex, newIndex);
-        // Auto-save: persiste a nova ordem imediatamente após o drag
+        const activeIds = prev.filter(it => (it.parsed.floorName?.trim() || "Sem Pavimento") === activeFloor).map(it => it.id);
+        const overIds = prev.filter(it => (it.parsed.floorName?.trim() || "Sem Pavimento") === overFloor).map(it => it.id);
+        if (activeIds.length === 0 || overIds.length === 0) return prev;
+        const withoutActive = prev.filter(it => !activeIds.includes(it.id));
+        const firstOverIdx = withoutActive.findIndex(it => overIds.includes(it.id));
+        if (firstOverIdx === -1) return prev;
+        const result = [...withoutActive];
+        const activeItems = prev.filter(it => activeIds.includes(it.id));
+        result.splice(firstOverIdx, 0, ...activeItems);
+        // Auto-save: persiste a nova ordem
         reorderItemsMutation.mutate({
           quoteId: Number(id),
-          orderedItemIds: reordered.map(it => it.id),
+          orderedItemIds: result.map(it => it.id),
         });
-        return reordered;
+        return result;
       });
+      return;
     }
+
+    // Drag de item individual
+    setEditableItems(prev => {
+      const oldIndex = prev.findIndex(it => it.id === Number(active.id));
+      const newIndex = prev.findIndex(it => it.id === Number(over.id));
+      if (oldIndex === -1 || newIndex === -1) return prev;
+      const reordered = arrayMove(prev, oldIndex, newIndex);
+      // Auto-save: persiste a nova ordem imediatamente após o drag
+      reorderItemsMutation.mutate({
+        quoteId: Number(id),
+        orderedItemIds: reordered.map(it => it.id),
+      });
+      return reordered;
+    });
   };
 
   const { data, isLoading, error } = trpc.quotes.getById.useQuery({ id: Number(id) });
@@ -985,7 +1080,12 @@ export default function QuoteDetail() {
               </SheetHeader>
               <div className="flex-1 overflow-y-auto px-6 py-4">
 
-<DndContext sensors={editItemsSensors} collisionDetection={closestCenter} onDragEnd={handleEditItemsDragEnd}>
+<DndContext sensors={editItemsSensors} collisionDetection={closestCenter} onDragEnd={handleEditItemsDragEnd}
+                  onDragStart={(event) => {
+                    const eid = String(event.active.id);
+                    if (eid.startsWith("floor:")) setEditDraggingFloor(eid.slice(6));
+                  }}
+                >
                   <SortableContext items={editableItems.map(it => it.id)} strategy={verticalListSortingStrategy}>
                     {editGroupByFloor ? (() => {
                       const floorMap = new Map<string, typeof editableItems>();
@@ -994,23 +1094,28 @@ export default function QuoteDetail() {
                         if (!floorMap.has(floor)) floorMap.set(floor, []);
                         floorMap.get(floor)!.push(item);
                       }
-                      const keys = Array.from(floorMap.keys()).sort((a, b) => {
-                        if (a === "Sem Pavimento") return 1;
-                        if (b === "Sem Pavimento") return -1;
-                        return a.localeCompare(b, "pt-BR");
-                      });
+                      // Manter a ordem dos grupos conforme a ordem dos itens
+                      const seenEditFloors = new Set<string>();
+                      const editGroups: { floor: string; items: typeof editableItems }[] = [];
+                      for (const item of editableItems) {
+                        const f = item.parsed.floorName?.trim() || "Sem Pavimento";
+                        if (!seenEditFloors.has(f)) { seenEditFloors.add(f); editGroups.push({ floor: f, items: floorMap.get(f)! }); }
+                      }
                       return (
+                        <SortableContext items={editGroups.map(g => `floor:${g.floor}`)} strategy={verticalListSortingStrategy}>
                         <div className="space-y-6">
-                          {keys.map(floor => (
-                            <div key={floor}>
-                              <div className="flex items-center gap-2 mb-3">
-                                <Layers className="w-4 h-4 text-indigo-400" />
-                                <span className="text-sm font-semibold text-indigo-400 uppercase tracking-wide">{floor}</span>
-                                <span className="text-xs text-muted-foreground">({floorMap.get(floor)!.length} {floorMap.get(floor)!.length === 1 ? "item" : "itens"})</span>
-                                <div className="flex-1 h-px bg-indigo-500/20" />
-                              </div>
+                          {editGroups.map(({ floor, items: groupItems }) => (
+                            <FloorGroupBarQD
+                              key={floor}
+                              floorId={`floor:${floor}`}
+                              displayName={floor}
+                              groupCount={groupItems.length}
+                              isCollapsed={editCollapsedFloors.has(floor)}
+                              onToggleCollapse={() => toggleEditFloorCollapse(floor)}
+                            >
+                              {!editCollapsedFloors.has(floor) && (
                               <div className="space-y-4">
-                                {floorMap.get(floor)!.map((item, idx) => (
+                                {groupItems.map((item, idx) => (
                                   <SortableEditItem
                                     key={item.id}
                                     item={item}
@@ -1024,9 +1129,11 @@ export default function QuoteDetail() {
                                   />
                                 ))}
                               </div>
-                            </div>
+                              )}
+                            </FloorGroupBarQD>
                           ))}
                         </div>
+                        </SortableContext>
                       );
                     })() : (
                     <div className="space-y-4">
