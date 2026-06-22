@@ -34,7 +34,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCart } from "@/hooks/useCart";
 import { formatBRL, QuoteFormData, CartItemData, parseCartItemData } from "@/lib/cartTypes";
-import type { LinkedAccessory } from "@/lib/cartTypes";
+import type { LinkedAccessory, SpecialEquipment } from "@/lib/cartTypes";
+import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
 import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
@@ -612,7 +613,7 @@ export default function Cart() {
 
   // Edição inline de campos do item
   const [editItemId, setEditItemId] = useState<number | null>(null);
-  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; itemNote: string; itemObs: string; itemObsShowInExcel: boolean; itemMarginPercent: string; floorId: string; floorName: string; ambiente: string; specialColorTemp: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', itemNote: '', itemObs: '', itemObsShowInExcel: false, itemMarginPercent: '', floorId: '', floorName: '', ambiente: '', specialColorTemp: '' });
+  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; itemNote: string; itemObs: string; itemObsShowInExcel: boolean; itemMarginPercent: string; floorId: string; floorName: string; ambiente: string; specialColorTemp: string; specialEquipments: SpecialEquipment[] }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', itemNote: '', itemObs: '', itemObsShowInExcel: false, itemMarginPercent: '', floorId: '', floorName: '', ambiente: '', specialColorTemp: '', specialEquipments: [] });
   // Estados para edição de foto de Item Especial
   const [editSpecialPhotoUrl, setEditSpecialPhotoUrl] = useState<string | null>(null);
   const [editSpecialPhotoPreview, setEditSpecialPhotoPreview] = useState<string | null>(null);
@@ -1162,7 +1163,7 @@ export default function Cart() {
                           onDuplicate={(data) => { addItem({ ...data, itemEmPlanta: data.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
                           onEditClick={(id, data) => {
                             setEditItemId(id);
-                            setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '' });
+                            setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [] });
                             if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
                           }}
                         />
@@ -1231,7 +1232,7 @@ export default function Cart() {
                                   onDuplicate={(data) => { addItem({ ...data, itemEmPlanta: data.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
                                   onEditClick={(id, data) => {
                                     setEditItemId(id);
-                                    setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '' });
+                                    setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [] });
                                     if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
                                   }}
                                 />
@@ -2337,6 +2338,15 @@ export default function Cart() {
                       </div>
                     </div>
                   )}
+                  {/* Equipamentos do Item Especial */}
+                  {item?.data.isSpecialItem && (
+                    <div className="space-y-1">
+                      <SpecialEquipmentsEditor
+                        value={editFields.specialEquipments ?? item?.data.specialEquipments ?? []}
+                        onChange={(equips: SpecialEquipment[]) => setEditFields(prev => ({ ...prev, specialEquipments: equips }))}
+                      />
+                    </div>
+                  )}
                   {/* Campo de foto para Item Especial */}
                   {item?.data.isSpecialItem && (
                     <div className="space-y-2">
@@ -2460,11 +2470,12 @@ export default function Cart() {
               patch.floorId = editFields.floorId.trim() || undefined;
               patch.floorName = editFields.floorName.trim() || undefined;
               patch.ambiente = editFields.ambiente.trim() || undefined;
-              // Foto e temperatura de cor do Item Especial
+              // Foto, temperatura de cor e equipamentos do Item Especial
               if (item?.data.isSpecialItem) {
                 patch.specialPhotoUrl = editSpecialPhotoUrl ?? undefined;
                 patch.photoUrl = editSpecialPhotoUrl ?? undefined;
                 patch.specialColorTemp = editFields.specialColorTemp.trim() || undefined;
+                patch.specialEquipments = editFields.specialEquipments.length > 0 ? editFields.specialEquipments : undefined;
               }
               const totalForUpdate = isRevenda
                 ? (parseInt(editFields.qty) || 1) * (parseFloat(editFields.unitPrice.replace(',', '.')) || 0)

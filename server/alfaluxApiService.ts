@@ -248,3 +248,57 @@ export async function fetchAcessoriosProducts(): Promise<AcessorioProduct[]> {
   acessoriosCache = { data: all, fetchedAt: now };
   return all;
 }
+
+// ── Componentes (drivers, módulos LED, ópticas, holders, dissipadores) ────────
+export interface ComponenteProduct {
+  codigo: string | null;
+  descricao: string;
+  tipo: string;
+  familia: string | null;
+  potencia: string | null;
+  tensaoEntrada: string | null;
+  corrente: string | null;
+  precoVenda: number | null;
+  fotoUrl: string | null;
+  observacoes: string | null;
+  disponivel: boolean;
+}
+
+interface ComponentesApiResponse {
+  total: number;
+  tipos: string[];
+  items: ComponenteProduct[];
+  byTipo: Record<string, ComponenteProduct[]>;
+}
+
+interface ComponentesCacheEntry {
+  data: ComponenteProduct[];
+  tipos: string[];
+  fetchedAt: number;
+}
+
+let componentesCache: ComponentesCacheEntry | null = null;
+
+export async function fetchComponentes(): Promise<{ items: ComponenteProduct[]; tipos: string[] }> {
+  const now = Date.now();
+  if (componentesCache && now - componentesCache.fetchedAt < CACHE_TTL_MS) {
+    return { items: componentesCache.data, tipos: componentesCache.tipos };
+  }
+  console.log("[AlfaluxAPI] Buscando componentes via /api/componentes/all...");
+  const url = `${ALFALUX_BASE}/api/componentes/all`;
+  const res = await fetch(url, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) throw new Error(`Alfalux Componentes API error: ${res.status}`);
+  const body = await res.json() as ComponentesApiResponse;
+  const items = body.items ?? [];
+  const tipos = body.tipos ?? [];
+  console.log(`[AlfaluxAPI] ${items.length} componentes carregados (${tipos.length} tipos).`);
+  componentesCache = { data: items, tipos, fetchedAt: now };
+  return { items, tipos };
+}
+
+export function invalidateComponentesCache(): void {
+  componentesCache = null;
+}

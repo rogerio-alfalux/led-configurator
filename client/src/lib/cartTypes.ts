@@ -24,6 +24,27 @@ export interface ProfileSegment {
   driverCode: string;
 }
 
+/**
+ * Um equipamento vinculado a um Item Especial (driver, módulo LED, etc.).
+ * Selecionado pelo usuário a partir da API de acessórios/componentes.
+ */
+export interface SpecialEquipment {
+  /** Código do componente (ex: "EQ00347", "CP00526") */
+  codigo: string;
+  /** Descrição completa do componente */
+  descricao: string;
+  /** Quantidade de unidades deste componente por item especial */
+  qty: number;
+  /** Preço unitário do componente (null = a definir) */
+  unitPrice: number | null;
+  /** Família do componente (ex: "DRIVERS", "MÓDULOS LED") */
+  familia?: string;
+  /** URL da foto do componente */
+  fotoUrl?: string | null;
+  /** Observações adicionais (ex: referência do fabricante) */
+  observacoes?: string | null;
+}
+
 export interface CartItemData {
   /** Categoria do produto: perfil, downlight, painel, spot, arandela, ledbar, bageo */
   category: string;
@@ -141,6 +162,14 @@ export interface CartItemData {
    * Aparece no Excel fora da área de impressão, na mesma linha do item.
    */
   specialInternalNotes?: string;
+
+  /**
+   * Lista de equipamentos do item especial (drivers, módulos LED, etc.).
+   * Cada entrada é um componente com código, descrição, quantidade e preço unitário.
+   * Aparece na coluna EQUIPAMENTOS da Ficha de Produção.
+   * Quando a API de componentes (/api/componentes/all) for publicada, migrar fetchComponentes para ela.
+   */
+  specialEquipments?: SpecialEquipment[];
 
   /**
    * Indica se o preço unitário veio da API (true) ou foi definido manualmente (false/undefined).

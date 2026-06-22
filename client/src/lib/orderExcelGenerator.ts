@@ -429,9 +429,16 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     applyBorder(fCell);
 
     // EQUIPAMENTOS (G) — LED BAR: QTY x driver; perfis: multi-segmento
-    // Para Item Especial: observações internas (não aparecem no orçamento)
+    // Para Item Especial: lista de equipamentos definidos (drivers, módulos LED, etc.)
+    const buildSpecialEquipText = () => {
+      const equips = (item as any).specialEquipments as Array<{ codigo?: string; descricao: string; qty: number; familia?: string }> | undefined;
+      if (equips && equips.length > 0) {
+        return equips.map(e => `${e.qty}x ${e.descricao}${e.codigo ? ` (${e.codigo})` : ''}`).join('\n');
+      }
+      return item.specialInternalNotes || "A DEFINIR";
+    };
     const equipText = item.category === "Item Especial"
-      ? (item.specialInternalNotes || "")
+      ? buildSpecialEquipText()
       : isLedBar(item)
         ? buildLedBarEquipamentosText(item)
         : buildProfileEquipamentosText(item);

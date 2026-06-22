@@ -15,7 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { trpc } from "@/lib/trpc";
-import { CartItemData, LinkedAccessory, parseCartItemData, formatBRL } from "@/lib/cartTypes";
+import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, formatBRL } from "@/lib/cartTypes";
+import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
 import { toBrasiliaDate } from "@/lib/dateUtils";
@@ -271,6 +272,16 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove }: Editabl
               />
             </div>
           </div>
+
+          {/* Equipamentos do Item Especial */}
+          {isSpecial && (
+            <div>
+              <SpecialEquipmentsEditor
+                value={parsed.specialEquipments ?? []}
+                onChange={(equips: SpecialEquipment[]) => update({ specialEquipments: equips })}
+              />
+            </div>
+          )}
 
           {/* Acessórios vinculados */}
           <div>

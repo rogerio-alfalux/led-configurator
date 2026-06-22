@@ -1371,3 +1371,18 @@
 - [x] Cart.tsx: Botão expandir/recolher por grupo de pavimento
 - [x] QuoteDetail.tsx: Drag & drop na barra de pavimento (move todos os itens do grupo junto)
 - [x] QuoteDetail.tsx: Botão expandir/recolher por grupo de pavimento
+## Equipamentos do Item Especial (22/06/2026)
+- [ ] cartTypes.ts: Adicionar campo specialEquipments (lista de equipamentos) ao CartItemData
+- [ ] routers.ts: Criar endpoint trpc.led.componentes para buscar acessórios (drivers + acessórios físicos) da API
+- [ ] FactoryOrderDetail.tsx: UI para adicionar/remover equipamentos no item especial (busca da API de acessórios)
+- [ ] Cart.tsx: Exibir equipamentos do item especial no modal de edição
+- [ ] QuoteDetail.tsx: Exibir equipamentos do item especial no editor do orçamento
+- [ ] orderExcelGenerator.ts: Incluir specialEquipments na coluna EQUIPAMENTOS do pedido de fábrica
+
+## Equipamentos do Item Especial (22/06/2026)
+- [ ] cartTypes.ts: Adicionar campo specialEquipments (lista de equipamentos) ao CartItemData
+- [ ] routers.ts: Criar endpoint trpc.led.componentes para buscar acessórios (drivers + acessórios físicos) da API
+- [ ] FactoryOrderDetail.tsx: UI para adicionar/remover equipamentos no item especial (busca da API de acessórios)
+- [ ] Cart.tsx: Exibir equipamentos do item especial no modal de edição
+- [ ] QuoteDetail.tsx: Exibir equipamentos do item especial no editor do orçamento
+- [ ] orderExcelGenerator.ts: Incluir specialEquipments na coluna EQUIPAMENTOS do pedido de fábrica

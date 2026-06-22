@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { fetchDrivers, invalidateDriverCache } from "./driverService";
-import { fetchAllAlfaluxProducts, invalidateAlfaluxCache, fetchRevendaProducts, fetchAcessoriosProducts } from "./alfaluxApiService";
+import { fetchAllAlfaluxProducts, invalidateAlfaluxCache, fetchRevendaProducts, fetchAcessoriosProducts, fetchComponentes } from "./alfaluxApiService";
 import {
   addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty, updateCartItemData,
   createQuote, addQuoteRevision, listQuotes, getQuoteById, approveQuote,
@@ -149,6 +149,30 @@ export const appRouter = router({
         source: p.source ?? null,
         observacoes: p.observacoes ?? null,
       }));
+    }),
+
+    /**
+     * Componentes para Item Especial: drivers, módulos LED, ópticas, holders, dissipadores.
+     * Fonte: /api/componentes/all da API Alfalux (publicado em Jun/2026).
+     */
+    componentes: publicProcedure.query(async () => {
+      const { items, tipos } = await fetchComponentes();
+      return {
+        tipos,
+        items: items.map(p => ({
+          codigo: p.codigo ?? "",
+          descricao: p.descricao,
+          tipo: p.tipo,
+          familia: p.familia ?? null,
+          potencia: p.potencia ?? null,
+          tensaoEntrada: p.tensaoEntrada ?? null,
+          corrente: p.corrente ?? null,
+          precoVenda: p.precoVenda ?? null,
+          fotoUrl: p.fotoUrl ?? null,
+          observacoes: p.observacoes ?? null,
+          disponivel: p.disponivel,
+        })),
+      };
     }),
   }),
 

@@ -39,7 +39,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { CartItemData, formatBRL, parseCartItemData } from "@/lib/cartTypes";
-import type { LinkedAccessory } from "@/lib/cartTypes";
+import type { LinkedAccessory, SpecialEquipment } from "@/lib/cartTypes";
+import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
 import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
@@ -270,6 +271,16 @@ function SortableEditItem({ item, idx, resolvePhoto, onUpdate, onDelete, onDupli
           </p>
         </div>
       </div>
+
+      {/* Equipamentos do Item Especial */}
+      {d.isSpecialItem && (
+        <div className="pt-1 border-t">
+          <SpecialEquipmentsEditor
+            value={d.specialEquipments ?? []}
+            onChange={(equips: SpecialEquipment[]) => onUpdate(item.id, { specialEquipments: equips })}
+          />
+        </div>
+      )}
 
       {/* Campo de foto para Item Especial */}
       {d.isSpecialItem && (
