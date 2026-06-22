@@ -48,6 +48,15 @@ export interface ApiProduct {
   ledModule: string | null;
   /** Quantidade numérica de módulos LED. null quando não retornado pela API. */
   ledModuleQtd: number | null;
+  /** Módulo LED específico por CCT (novos campos da API) */
+  ledModule2700?: string | null;
+  ledModule3000?: string | null;
+  ledModule4000?: string | null;
+  ledModule5000?: string | null;
+  ledModuleQtd2700?: number | null;
+  ledModuleQtd3000?: number | null;
+  ledModuleQtd4000?: number | null;
+  ledModuleQtd5000?: number | null;
   otica: string | null;
   /** Ótica primária com quantidade embutida. null quando não retornado pela API. */
   oticaPrimaria: string | null;
@@ -186,9 +195,18 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
     oticaPrimaria: p.oticaPrimaria ?? null,
     oticaSecundaria: p.oticaSecundaria ?? null,
     dissipador: p.dissipador ?? null,
-    // Remove [CCT] do ledModule — substituído pela CCT selecionada pelo usuário na UI
+    // Remove [CCT] do ledModule — substituído pela CCT selecionada pelo usuário na UI (campo legado)
     ledModule: p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : "",
     ledModuleQtd: p.ledModuleQtd ?? null,
+    // Campos por CCT (novos campos da API) — [CCT] será substituído pelo CCT selecionado em calculateDownlight
+    ledModule2700: p.ledModule2700 ?? null,
+    ledModule3000: p.ledModule3000 ?? null,
+    ledModule4000: p.ledModule4000 ?? null,
+    ledModule5000: p.ledModule5000 ?? null,
+    ledModuleQtd2700: p.ledModuleQtd2700 ?? null,
+    ledModuleQtd3000: p.ledModuleQtd3000 ?? null,
+    ledModuleQtd4000: p.ledModuleQtd4000 ?? null,
+    ledModuleQtd5000: p.ledModuleQtd5000 ?? null,
     ccts,
     driver220: d220
       ? { model: driverModel(d220), code: driverCode(d220) }
@@ -238,6 +256,14 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
     name: p.name,
     ledModule: p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : null,
     ledModuleQtd: p.ledModuleQtd ?? null,
+    ledModule2700: p.ledModule2700 ?? null,
+    ledModule3000: p.ledModule3000 ?? null,
+    ledModule4000: p.ledModule4000 ?? null,
+    ledModule5000: p.ledModule5000 ?? null,
+    ledModuleQtd2700: p.ledModuleQtd2700 ?? null,
+    ledModuleQtd3000: p.ledModuleQtd3000 ?? null,
+    ledModuleQtd4000: p.ledModuleQtd4000 ?? null,
+    ledModuleQtd5000: p.ledModuleQtd5000 ?? null,
     otica: resolveOtica(p),
     oticaPrimaria: p.oticaPrimaria ?? null,
     oticaSecundaria: p.oticaSecundaria ?? null,
@@ -420,6 +446,14 @@ function toArandelaProduct(p: ApiProduct): ArandelaProduct {
     name: p.name,
     ledModule: p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : null,
     ledModuleQtd: p.ledModuleQtd ?? null,
+    ledModule2700: p.ledModule2700 ?? null,
+    ledModule3000: p.ledModule3000 ?? null,
+    ledModule4000: p.ledModule4000 ?? null,
+    ledModule5000: p.ledModule5000 ?? null,
+    ledModuleQtd2700: p.ledModuleQtd2700 ?? null,
+    ledModuleQtd3000: p.ledModuleQtd3000 ?? null,
+    ledModuleQtd4000: p.ledModuleQtd4000 ?? null,
+    ledModuleQtd5000: p.ledModuleQtd5000 ?? null,
     otica: resolveOtica(p),
     oticaPrimaria: p.oticaPrimaria ?? null,
     oticaSecundaria: p.oticaSecundaria ?? null,
@@ -470,8 +504,16 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
     name: p.name,
     potencia,
     difusor,
-    // Remover [CCT] do ledModule
+    // Remover [CCT] do ledModule (campo legado)
     ledModule: p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : "",
+    ledModule2700: p.ledModule2700 ?? null,
+    ledModule3000: p.ledModule3000 ?? null,
+    ledModule4000: p.ledModule4000 ?? null,
+    ledModule5000: p.ledModule5000 ?? null,
+    ledModuleQtd2700: p.ledModuleQtd2700 ?? null,
+    ledModuleQtd3000: p.ledModuleQtd3000 ?? null,
+    ledModuleQtd4000: p.ledModuleQtd4000 ?? null,
+    ledModuleQtd5000: p.ledModuleQtd5000 ?? null,
     ccts,
     driver220: d220 ? { model: driverModel(d220), code: driverCode(d220) } : null,
     driverBivolt: dBivolt ? { model: driverModel(dBivolt), code: driverCode(dBivolt) } : null,

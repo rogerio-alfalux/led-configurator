@@ -32,10 +32,19 @@ export interface DownlightProduct {
   oticaSecundaria: string | null;
   /** Dissipador -- null se NAO APLICAVEL */
   dissipador: string | null;
-  /** Modulo LED (sem [CCT]) */
+  /** Modulo LED (sem [CCT]) — campo legado */
   ledModule: string;
   /** Quantidade numérica de módulos LED (ex: 3). null quando não retornado pela API. */
   ledModuleQtd: number | null;
+  /** Módulo LED específico por CCT (novos campos da API) */
+  ledModule2700?: string | null;
+  ledModule3000?: string | null;
+  ledModule4000?: string | null;
+  ledModule5000?: string | null;
+  ledModuleQtd2700?: number | null;
+  ledModuleQtd3000?: number | null;
+  ledModuleQtd4000?: number | null;
+  ledModuleQtd5000?: number | null;
   /** CCTs disponíveis para este produto (ex: ["3000K", "4000K"]) */
   ccts: string[];
   /** Driver para 220Vac */
@@ -97,6 +106,8 @@ export interface DownlightResult {
   controle: ControleType;
   driver: DownlightDriver;
   ledModuleWithCCT: string;
+  /** Quantidade de módulos LED resolvida para o CCT selecionado */
+  ledModuleQtd: number | null;
 }
 
 export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
@@ -3714,7 +3725,17 @@ export function calculateDownlight(input: DownlightInput, catalog?: DownlightPro
     driver = product.driver220;
   }
 
-  const ledModuleWithCCT = product.ledModule + " " + input.cct;
+  // Usar módulo LED específico por CCT quando disponível (novos campos da API)
+  const cctKey = input.cct.replace("K", "") as "2700" | "3000" | "4000" | "5000";
+  const cctModuleField = `ledModule${cctKey}` as keyof typeof product;
+  const cctModuleQtdField = `ledModuleQtd${cctKey}` as keyof typeof product;
+  const cctSpecificModule = product[cctModuleField] as string | null | undefined;
+  const cctSpecificQtd = product[cctModuleQtdField] as number | null | undefined;
+  // Se o módulo por CCT está disponível, usá-lo; senão, usar legado + CCT
+  const ledModuleWithCCT = cctSpecificModule
+    ? cctSpecificModule.replace(/\[CCT\]/gi, input.cct).trim()
+    : product.ledModule + " " + input.cct;
+  const resolvedLedModuleQtd = cctSpecificQtd ?? product.ledModuleQtd;
 
   return {
     product,
@@ -3723,5 +3744,6 @@ export function calculateDownlight(input: DownlightInput, catalog?: DownlightPro
     controle: input.controle,
     driver,
     ledModuleWithCCT,
+    ledModuleQtd: resolvedLedModuleQtd,
   };
 }

@@ -19,10 +19,19 @@ export interface SpotProduct {
   sku: string | null;
   /** Nome comercial do produto */
   name: string;
-  /** Módulo LED (sem [CCT]) */
+  /** Módulo LED (sem [CCT]) — campo legado */
   ledModule: string | null;
   /** Quantidade numérica de módulos LED. null quando não retornado pela API. */
   ledModuleQtd: number | null;
+  /** Módulo LED específico por CCT (novos campos da API) */
+  ledModule2700?: string | null;
+  ledModule3000?: string | null;
+  ledModule4000?: string | null;
+  ledModule5000?: string | null;
+  ledModuleQtd2700?: number | null;
+  ledModuleQtd3000?: number | null;
+  ledModuleQtd4000?: number | null;
+  ledModuleQtd5000?: number | null;
   /** Ótica legado (primaria + secundaria concatenadas) — null se não aplicável */
   otica: string | null;
   /** Ótica primária com quantidade embutida. null quando não retornado pela API. */
@@ -154,9 +163,14 @@ export function calculateSpot(catalog: SpotProduct[], input: SpotInput): SpotRes
     ? product.driverBivolt
     : product.driver220;
 
-  const ledModuleWithCCT = product.ledModule
-    ? product.ledModule.replace(/\[CCT\]/gi, input.cct)
-    : null;
+  // Usar módulo LED específico por CCT quando disponível
+  const cctKey = input.cct.replace("K", "") as "2700" | "3000" | "4000" | "5000";
+  const cctSpecificModule = (product as any)[`ledModule${cctKey}`] as string | null | undefined;
+  const ledModuleWithCCT = cctSpecificModule
+    ? cctSpecificModule.replace(/\[CCT\]/gi, input.cct).trim()
+    : product.ledModule
+      ? product.ledModule.replace(/\[CCT\]/gi, input.cct)
+      : null;
 
   return {
     product,

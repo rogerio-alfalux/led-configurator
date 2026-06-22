@@ -35,8 +35,17 @@ export interface LedBarProduct {
   potencia: LedBarPotencia;
   /** Tipo de difusor */
   difusor: LedBarDifusor;
-  /** Módulo LED (sem [CCT]) */
+  /** Módulo LED (sem [CCT]) — campo legado */
   ledModule: string;
+  /** Módulo LED específico por CCT (novos campos da API) */
+  ledModule2700?: string | null;
+  ledModule3000?: string | null;
+  ledModule4000?: string | null;
+  ledModule5000?: string | null;
+  ledModuleQtd2700?: number | null;
+  ledModuleQtd3000?: number | null;
+  ledModuleQtd4000?: number | null;
+  ledModuleQtd5000?: number | null;
   /** Temperaturas de cor disponíveis */
   ccts: string[];
   /** Driver ON/OFF 220V */
@@ -436,8 +445,12 @@ export function calculateLedBar(input: LedBarInput): LedBarResult {
     });
   }
 
-  // Substituir [CCT] no ledModule pelo CCT selecionado
-  const ledModuleWithCCT = product.ledModule.replace(/\[CCT\]/gi, cct).trim();
+  // Usar módulo LED específico por CCT quando disponível (novos campos da API)
+  const cctKeyLB = cct.replace("K", "") as "2700" | "3000" | "4000" | "5000";
+  const cctSpecificModuleLB = (product as any)[`ledModule${cctKeyLB}`] as string | null | undefined;
+  const ledModuleWithCCT = cctSpecificModuleLB
+    ? cctSpecificModuleLB.replace(/\[CCT\]/gi, cct).trim()
+    : product.ledModule.replace(/\[CCT\]/gi, cct).trim();
 
   return {
     product,
