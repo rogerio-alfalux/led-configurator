@@ -136,7 +136,14 @@ export const PERFIL_FLEXIVEL_MAX_LENGTH_MM = 5000;
  * Famílias de LED BAR que ainda não têm tabela de preço cadastrada.
  * Para essas famílias, calcLedBarPrice retorna null e o usuário preenche manualmente no carrinho.
  */
-export const LED_BAR_FAMILIES_NO_PRICE = /^(LED BAR WW|FLOOR|LED BAR EC|MEIA LUA|MILANO|PERFIL FLEXIVEL)/i;
+export const LED_BAR_FAMILIES_NO_PRICE = /^(LED BAR WW|FLOOR|LED BAR EC|MEIA LUA|MILANO)/i;
+
+/**
+ * Preço temporário do PERFIL FLEXÍVEL por metro linear (R$).
+ * Valor: R$ 157,00/m — apenas o perfil, sem drivers/fontes.
+ * TODO: remover quando a API Alfalux fornecer o preço automaticamente.
+ */
+export const PERFIL_FLEXIVEL_PRECO_POR_METRO_TEMP = 157.00;
 
 /** Preço por metro linear (R$) por potência. Difusor não altera o valor. */
 export const LED_BAR_PRECO_POR_METRO: Record<LedBarPotencia, number> = {
@@ -189,6 +196,11 @@ export function calcLedBarPrice(
 ): number | null {
   // Famílias sem tabela de preço: retornar null para que o usuário preencha manualmente
   if (familia && LED_BAR_FAMILIES_NO_PRICE.test(familia)) return null;
+  // PERFIL FLEXÍVEL: preço temporário fixo por metro (independente de potência), sem drivers
+  if (familia && /^PERFIL FLEXIVEL/i.test(familia)) {
+    const comprimentoM = comprimentoTotalMm / 1000;
+    return Math.round(PERFIL_FLEXIVEL_PRECO_POR_METRO_TEMP * comprimentoM * 100) / 100;
+  }
   const precoPorMetro = LED_BAR_PRECO_POR_METRO[potencia] ?? 0;
   const comprimentoM  = comprimentoTotalMm / 1000;
   // Comprimento por trecho (igual para todos os cortes)
@@ -218,8 +230,23 @@ export function calcLedBarPriceDetail(
   potenciaTrecho: number;
   totalDrivers: number;
   total: number;
+  perfilFlexivelTemp?: boolean; // indica que o preço é temporário e não inclui drivers
 } | null {
   if (familia && LED_BAR_FAMILIES_NO_PRICE.test(familia)) return null;
+  // PERFIL FLEXÍVEL: preço temporário fixo por metro, sem drivers
+  if (familia && /^PERFIL FLEXIVEL/i.test(familia)) {
+    const comprimentoM = comprimentoTotalMm / 1000;
+    const precoPerfil = Math.round(PERFIL_FLEXIVEL_PRECO_POR_METRO_TEMP * comprimentoM * 100) / 100;
+    return {
+      precoPerfil,
+      precoDriverPorCorte: 0,
+      wattsDriver: 60,
+      potenciaTrecho: 0,
+      totalDrivers: 0,
+      total: precoPerfil,
+      perfilFlexivelTemp: true,
+    };
+  }
   const precoPorMetro = LED_BAR_PRECO_POR_METRO[potencia] ?? 0;
   const comprimentoM  = comprimentoTotalMm / 1000;
   const comprimentoTrechoMm = Math.floor(comprimentoTotalMm / Math.max(1, nCortes));

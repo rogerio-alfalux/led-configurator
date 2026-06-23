@@ -6289,9 +6289,14 @@ export default function Home() {
                     // Famílias sem tabela de preço retornam null — usuário preenche manualmente no carrinho
                     const lbPreco = calcLedBarPrice(r.product.potencia, r.comprimentoTotalMm, nT, r.product.familia);
                     const lbDetail = calcLedBarPriceDetail(r.product.potencia, r.comprimentoTotalMm, nT, r.product.familia);
+                    const isPerfilFlex = /^PERFIL FLEXIVEL/i.test(r.product.familia ?? "");
                     const orcamentoLines = [
                       [`${r.product.name} ${r.cct} ${r.voltage}`, nT > 1 ? `${nT} TRECHOS DE ${mm}MM` : `${mm}MM`].join(" "),
-                      lbPreco !== null ? `PREÇO: ${formatBRL(lbPreco)}` : null,
+                      lbPreco !== null
+                        ? isPerfilFlex
+                          ? `PREÇO PERFIL: ${formatBRL(lbPreco)} (drivers não incluídos)`
+                          : `PREÇO: ${formatBRL(lbPreco)}`
+                        : null,
                     ].filter(Boolean);
                     const orcamento = orcamentoLines.join("\n");
                     const cortesInfo = nT > 1 ? ` COM ${nT} CORTES` : "";
@@ -6312,23 +6317,41 @@ export default function Home() {
                             {/* Detalhamento do preço (apenas para famílias com tabela de preço) */}
                             {lbDetail !== null && (
                             <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3 mb-3 space-y-0.5">
-                              <div className="flex justify-between">
-                                <span>Perfil ({r.product.potencia}W/m × {(r.comprimentoTotalMm/1000).toFixed(3)}m)</span>
-                                <span className="font-mono">{formatBRL(lbDetail.precoPerfil)}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>
-                                  Driver {lbDetail.wattsDriver}W × {nT} corte{nT > 1 ? "s" : ""}
-                                  {lbDetail.wattsDriver === 100 && (
-                                    <span className="ml-1 text-amber-500 font-medium">(potência {lbDetail.potenciaTrecho.toFixed(1)}W — driver 60W insuficiente)</span>
-                                  )}
-                                </span>
-                                <span className="font-mono">{formatBRL(lbDetail.totalDrivers)}</span>
-                              </div>
-                              <div className="flex justify-between font-semibold border-t border-border pt-1 mt-1">
-                                <span>Total</span>
-                                <span className="font-mono text-primary">{formatBRL(lbDetail.total)}</span>
-                              </div>
+                              {lbDetail.perfilFlexivelTemp ? (
+                                // PERFIL FLEXÍVEL: preço temporário — apenas perfil, sem drivers
+                                <>
+                                  <div className="flex justify-between">
+                                    <span>Perfil Flexível × {(r.comprimentoTotalMm/1000).toFixed(3)}m</span>
+                                    <span className="font-mono">{formatBRL(lbDetail.precoPerfil)}</span>
+                                  </div>
+                                  <div className="flex justify-between font-semibold border-t border-border pt-1 mt-1">
+                                    <span>Total (somente perfil)</span>
+                                    <span className="font-mono text-primary">{formatBRL(lbDetail.total)}</span>
+                                  </div>
+                                  <p className="text-[10px] text-amber-500 mt-1">⚠️ Preço temporário (R$ 157,00/m). Drivers/fontes não incluídos — serão adicionados separadamente.</p>
+                                </>
+                              ) : (
+                                // LED BAR padrão: perfil + drivers
+                                <>
+                                  <div className="flex justify-between">
+                                    <span>Perfil ({r.product.potencia}W/m × {(r.comprimentoTotalMm/1000).toFixed(3)}m)</span>
+                                    <span className="font-mono">{formatBRL(lbDetail.precoPerfil)}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>
+                                      Driver {lbDetail.wattsDriver}W × {nT} corte{nT > 1 ? "s" : ""}
+                                      {lbDetail.wattsDriver === 100 && (
+                                        <span className="ml-1 text-amber-500 font-medium">(potência {lbDetail.potenciaTrecho.toFixed(1)}W — driver 60W insuficiente)</span>
+                                      )}
+                                    </span>
+                                    <span className="font-mono">{formatBRL(lbDetail.totalDrivers)}</span>
+                                  </div>
+                                  <div className="flex justify-between font-semibold border-t border-border pt-1 mt-1">
+                                    <span>Total</span>
+                                    <span className="font-mono text-primary">{formatBRL(lbDetail.total)}</span>
+                                  </div>
+                                </>
+                              )}
                             </div>
                             )}
                             {lbPreco === null && (
