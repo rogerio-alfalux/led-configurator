@@ -119,7 +119,11 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
           <Copy className="w-4 h-4" />
         </button>
         {/* Número de sequência editável */}
-        <div className="flex-shrink-0 relative" title="Clique para alterar a ordem">
+        <div
+          className="flex-shrink-0 relative"
+          title="Clique para alterar a ordem"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           {seqInputVal === "" ? (
             <div
               className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center cursor-text select-none"
@@ -607,6 +611,10 @@ export default function QuoteDetail() {
 
   // Mutation de reordenação automática ao soltar item no drag and drop
   const reorderItemsMutation = trpc.quotes.reorderItems.useMutation({
+    onSuccess: () => {
+      // Invalida a query para que currentItems (Excel/pré-visualização) reflita a nova ordem
+      utils.quotes.getById.invalidate({ id: Number(id) });
+    },
     onError: (err) => toast.error(`Erro ao salvar ordem: ${err.message}`),
   });
 
