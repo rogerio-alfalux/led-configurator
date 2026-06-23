@@ -1307,6 +1307,15 @@ export default function QuoteDetail() {
                       const marginPct = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;
                       const totalComRT = rtPct > 0 ? totalBase / (1 - rtPct) : totalBase;
                       const totalFinal = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
+                      // Incluir frete, DIFAL e FCP do orçamento existente no totalFinal salvo
+                      const itemsFreteValor = (quote as any).freteIncluded && (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : 0;
+                      const itemsDifalVal = quote.difalEnabled && quote.difalValue ? parseFloat(String(quote.difalValue)) : 0;
+                      const itemsFcpVal = quote.fcpEnabled && quote.fcpValue ? parseFloat(String(quote.fcpValue)) : 0;
+                      // Recalcular DIFAL/FCP com base no novo totalFinal (os percentuais ficam os mesmos)
+                      const itemsStateInfo = quote.destState ? getStateInfo(quote.destState) : undefined;
+                      const itemsDifalValRecalc = itemsStateInfo && quote.difalEnabled ? (totalFinal * itemsStateInfo.difal) / 100 : itemsDifalVal;
+                      const itemsFcpValRecalc = itemsStateInfo && quote.fcpEnabled ? (totalFinal * itemsStateInfo.fcp) / 100 : itemsFcpVal;
+                      const totalFinalCompleto = totalFinal + itemsFreteValor + itemsDifalValRecalc + itemsFcpValRecalc;
                       addRevisionForItemsMutation.mutate({
                         quoteId: Number(id),
                         clientName: quote.clientName,
@@ -1336,7 +1345,7 @@ export default function QuoteDetail() {
                         freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
                         versionNotes: editItemsNotes || undefined,
                         totalAmount: totalFinal,
-                        totalFinal,
+                        totalFinal: totalFinalCompleto,
                         items: editableItems.map((it, i) => ({ itemNumber: i + 1, itemData: it.itemData })),
                         bumpVersion: false,
                       });
@@ -1927,6 +1936,12 @@ export default function QuoteDetail() {
                     const editMarginPctVal = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, 0), 0.99);
                     const totalComRTVal = editRtPctVal > 0 ? editTotalBase / (1 - editRtPctVal) : editTotalBase;
                     const totalFinalVal = editMarginPctVal > 0 ? totalComRTVal / (1 - editMarginPctVal) : totalComRTVal;
+                    // Calcular frete, DIFAL e FCP para incluir no totalFinal salvo
+                    const editFreteValor = editForm.freteIncluded && editForm.freteValue ? parseFloat(editForm.freteValue) : 0;
+                    const editStateInfo = editForm.destState ? getStateInfo(editForm.destState) : undefined;
+                    const editDifalVal = editStateInfo && editForm.difalEnabled ? (totalFinalVal * editStateInfo.difal) / 100 : 0;
+                    const editFcpVal = editStateInfo && editForm.fcpEnabled ? (totalFinalVal * editStateInfo.fcp) / 100 : 0;
+                    const totalFinalCompleto = totalFinalVal + editFreteValor + editDifalVal + editFcpVal;
                     addRevisionMutation.mutate({
                       quoteId: Number(id),
                       clientName: editForm.clientName.trim(),
@@ -1956,7 +1971,7 @@ export default function QuoteDetail() {
                       freteLocalidade: editForm.freteLocalidade,
                       versionNotes: editForm.versionNotes || undefined,
                       totalAmount: totalFinalVal,
-                      totalFinal: totalFinalVal,
+                      totalFinal: totalFinalCompleto,
                       items: currentItems.map((i, idx) => ({ itemNumber: idx + 1, itemData: i.itemData })),
                       bumpVersion: false,
                       deliveryDays: parseInt(editForm.deliveryDays || "20") || 20,

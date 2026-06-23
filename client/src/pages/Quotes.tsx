@@ -72,8 +72,10 @@ export default function Quotes() {
     const open = rows.filter(q => q.status === "open").length;
     const approved = rows.filter(q => q.status === "approved").length;
     const lost = rows.filter(q => q.status === "lost").length;
-    const totalValue = rows.reduce((sum, q) => sum + (Number(q.totalAmount) || 0), 0);
-    const approvedValue = rows.filter(q => q.status === "approved").reduce((sum, q) => sum + (Number(q.totalAmount) || 0), 0);
+    // Usar totalFinal (inclui RT + margem + frete + DIFAL + FCP) com fallback para totalAmount
+    const getQuoteValue = (q: typeof rows[0]) => Number(q.totalFinal) > 0 ? Number(q.totalFinal) : (Number(q.totalAmount) || 0);
+    const totalValue = rows.reduce((sum, q) => sum + getQuoteValue(q), 0);
+    const approvedValue = rows.filter(q => q.status === "approved").reduce((sum, q) => sum + getQuoteValue(q), 0);
     return { total, open, approved, lost, totalValue, approvedValue };
   }, [allData]);
 
@@ -310,8 +312,8 @@ export default function Quotes() {
 
                         {/* Valor e data */}
                         <div className="text-right flex-shrink-0">
-                          {q.totalAmount && Number(q.totalAmount) > 0 ? (
-                            <p className="font-bold text-primary">{formatBRL(Number(q.totalAmount))}</p>
+                          {(q.totalFinal && Number(q.totalFinal) > 0) || (q.totalAmount && Number(q.totalAmount) > 0) ? (
+                            <p className="font-bold text-primary">{formatBRL(Number(q.totalFinal) > 0 ? Number(q.totalFinal) : Number(q.totalAmount))}</p>
                           ) : (
                             <p className="text-xs text-muted-foreground italic">A consultar</p>
                           )}

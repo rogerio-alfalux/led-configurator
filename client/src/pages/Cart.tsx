@@ -1017,7 +1017,10 @@ export default function Cart() {
       freteCity: saveForm.freteCity || undefined,
       freteIncluded: saveForm.freteIncluded,
       totalAmount: totalGeral,
-      totalFinal: totalFinal + freteValor,
+      // totalFinal deve incluir TODOS os acréscimos: RT + margem + frete + DIFAL + FCP
+      totalFinal: totalFinal + freteValor
+        + (saveForm.difalEnabled && saveForm.difalValue ? parseFloat(saveForm.difalValue) : 0)
+        + (saveForm.fcpEnabled && saveForm.fcpValue ? parseFloat(saveForm.fcpValue) : 0),
       items: orderedEntries.map((e, idx) => ({
         itemNumber: idx + 1,
         itemData: JSON.stringify({
