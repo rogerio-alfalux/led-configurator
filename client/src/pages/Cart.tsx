@@ -109,6 +109,10 @@ interface OrderFormData {
 interface SortableCartItemProps {
   entry: { id: number; data: CartItemData; createdAt: string };
   idx: number;
+  /** Número de sequência global do item (1-based, calculado pelo pai) */
+  globalSeq: number;
+  /** Total de itens no carrinho (para validação do input) */
+  totalItems: number;
   itemEmPlantaMap: Record<number, string>;
   setItemEmPlantaMap: React.Dispatch<React.SetStateAction<Record<number, string>>>;
   updateItemField: (id: number, patch: Record<string, unknown>, debounceMs?: number) => void;
@@ -120,13 +124,16 @@ interface SortableCartItemProps {
   onEditClick: (id: number, data: CartItemData) => void;
   onDuplicate: (data: CartItemData) => void;
   acessorioPhotoMap: Map<string, string>;
+  /** Callback para reordenar: move o item da posição atual para a nova posição (1-based global) */
+  onReorderToSeq: (itemId: number, newSeq: number) => void;
 }
 
 function SortableCartItem({
-  entry, idx, itemEmPlantaMap, setItemEmPlantaMap, updateItemField,
+  entry, idx, globalSeq, totalItems, itemEmPlantaMap, setItemEmPlantaMap, updateItemField,
   handleUpdateQty, handleQtyInput, removeItem, updateQtyMutation, isRemoving, onEditClick, onDuplicate,
-  acessorioPhotoMap,
+  acessorioPhotoMap, onReorderToSeq,
 }: SortableCartItemProps) {
+  const [seqInputVal, setSeqInputVal] = React.useState<string>("");
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: entry.id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -149,9 +156,37 @@ function SortableCartItem({
               <GripVertical className="w-5 h-5" />
             </button>
 
-            {/* Número do item */}
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">
-              {idx + 1}
+            {/* Número de sequência editável */}
+            <div className="flex-shrink-0 relative group" title="Clique para alterar a ordem">
+              {seqInputVal === "" ? (
+                <div
+                  className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold cursor-text select-none"
+                  onClick={() => setSeqInputVal(String(globalSeq))}
+                >
+                  {globalSeq}
+                </div>
+              ) : (
+                <input
+                  type="number"
+                  min={1}
+                  max={totalItems}
+                  value={seqInputVal}
+                  autoFocus
+                  className="w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold text-center border-2 border-primary-foreground/50 focus:outline-none focus:border-primary-foreground [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  onChange={(e) => setSeqInputVal(e.target.value)}
+                  onBlur={() => {
+                    const n = parseInt(seqInputVal, 10);
+                    if (!isNaN(n) && n >= 1 && n <= totalItems && n !== globalSeq) {
+                      onReorderToSeq(entry.id, n);
+                    }
+                    setSeqInputVal("");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                    if (e.key === "Escape") setSeqInputVal("");
+                  }}
+                />
+              )}
             </div>
 
             {/* Foto */}
@@ -610,6 +645,20 @@ export default function Cart() {
       return arrayMove(prev, oldIndex, newIndex);
     });
   };
+
+  /**
+   * Reordena o item para a posição global `newSeq` (1-based).
+   * Move o item na lista `orderedIds` e salva `sequenceOrder` em todos os itens.
+   */
+  const handleReorderToSeq = React.useCallback((itemId: number, newSeq: number) => {
+    setOrderedIds(prev => {
+      const oldIndex = prev.indexOf(itemId);
+      if (oldIndex === -1) return prev;
+      const targetIndex = Math.max(0, Math.min(newSeq - 1, prev.length - 1));
+      if (oldIndex === targetIndex) return prev;
+      return arrayMove(prev, oldIndex, targetIndex);
+    });
+  }, []);
 
   // Edição inline de campos do item
   const [editItemId, setEditItemId] = useState<number | null>(null);
@@ -1151,6 +1200,9 @@ export default function Cart() {
                           key={entry.id}
                           entry={entry}
                           idx={idx}
+                          globalSeq={idx + 1}
+                          totalItems={orderedEntries.length}
+                          onReorderToSeq={handleReorderToSeq}
                           itemEmPlantaMap={itemEmPlantaMap}
                           setItemEmPlantaMap={setItemEmPlantaMap}
                           updateItemField={updateItemField}
@@ -1215,11 +1267,17 @@ export default function Cart() {
                           {!isCollapsed && (
                             <SortableContext items={groupEntries.map(e => e.id)} strategy={verticalListSortingStrategy}>
                             <div className="space-y-3">
-                              {groupEntries.map((entry, idx) => (
+                              {groupEntries.map((entry, idx) => {
+                                // Calcular a sequência global do item (posição em orderedEntries)
+                                const globalIdx = orderedEntries.findIndex(e => e.id === entry.id);
+                                return (
                                 <SortableCartItem
                                   key={entry.id}
                                   entry={entry}
                                   idx={idx}
+                                  globalSeq={globalIdx + 1}
+                                  totalItems={orderedEntries.length}
+                                  onReorderToSeq={handleReorderToSeq}
                                   itemEmPlantaMap={itemEmPlantaMap}
                                   setItemEmPlantaMap={setItemEmPlantaMap}
                                   updateItemField={updateItemField}
@@ -1236,7 +1294,8 @@ export default function Cart() {
                                     if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
                                   }}
                                 />
-                              ))}
+                                );
+                              })}
                             </div>
                             </SortableContext>
                           )}

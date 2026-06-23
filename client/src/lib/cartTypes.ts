@@ -225,6 +225,13 @@ export interface CartItemData {
    * Campo livre para organização interna e agrupamento no Excel.
    */
   ambiente?: string;
+  /**
+   * Número de sequência editável pelo usuário (ex: 1, 2, 3...).
+   * Controla a ordem de exibição no carrinho, orçamento, Excel e Pedido de Fábrica.
+   * Quando definido, sobrescreve a ordem de inserção. Dentro de cada pavimento,
+   * os itens são ordenados por este campo.
+   */
+  sequenceOrder?: number;
 }
 
 /**

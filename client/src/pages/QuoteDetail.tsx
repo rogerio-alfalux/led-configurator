@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import {
   ArrowLeft, CheckCircle, XCircle, Clock, TrendingDown,
@@ -61,6 +61,12 @@ const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.
 interface SortableEditItemProps {
   item: { id: number; itemNumber: number; itemData: string; parsed: CartItemData };
   idx: number;
+  /** Número de sequência global do item (1-based) */
+  globalSeq: number;
+  /** Total de itens no orçamento */
+  totalItems: number;
+  /** Callback para reordenar o item para a nova posição global (1-based) */
+  onReorderToSeq: (itemId: number, newSeq: number) => void;
   resolvePhoto: (sku: string | undefined, savedUrl: string | null) => string | null;
   onUpdate: (id: number, fields: Partial<CartItemData>) => void;
   onDelete: (id: number) => void;
@@ -69,8 +75,9 @@ interface SortableEditItemProps {
   canOverrideApiPrice?: boolean;
 }
 
-function SortableEditItem({ item, idx, resolvePhoto, onUpdate, onDelete, onDuplicate, onUploadSpecialPhoto, canOverrideApiPrice = false }: SortableEditItemProps) {
+function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, resolvePhoto, onUpdate, onDelete, onDuplicate, onUploadSpecialPhoto, canOverrideApiPrice = false }: SortableEditItemProps) {
   const [specialUploading, setSpecialUploading] = useState(false);
+  const [seqInputVal, setSeqInputVal] = useState<string>("");
   const d = item.parsed;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style = {
@@ -111,9 +118,38 @@ function SortableEditItem({ item, idx, resolvePhoto, onUpdate, onDelete, onDupli
         >
           <Copy className="w-4 h-4" />
         </button>
-        <span className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
-          {idx + 1}
-        </span>
+        {/* Número de sequência editável */}
+        <div className="flex-shrink-0 relative" title="Clique para alterar a ordem">
+          {seqInputVal === "" ? (
+            <div
+              className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center cursor-text select-none"
+              onClick={() => setSeqInputVal(String(globalSeq))}
+            >
+              {globalSeq}
+            </div>
+          ) : (
+            <input
+              type="number"
+              min={1}
+              max={totalItems}
+              value={seqInputVal}
+              autoFocus
+              className="w-7 h-7 rounded-full bg-primary/20 text-primary text-xs font-bold text-center border-2 border-primary/50 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              onChange={(e) => setSeqInputVal(e.target.value)}
+              onBlur={() => {
+                const n = parseInt(seqInputVal, 10);
+                if (!isNaN(n) && n >= 1 && n <= totalItems && n !== globalSeq) {
+                  onReorderToSeq(item.id, n);
+                }
+                setSeqInputVal("");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                if (e.key === "Escape") setSeqInputVal("");
+              }}
+            />
+          )}
+        </div>
         {resolvePhoto(d.sku, d.photoUrl) ? (
           <img src={resolvePhoto(d.sku, d.photoUrl)!} alt={d.description} className="w-12 h-12 object-contain rounded border bg-white flex-shrink-0" />
         ) : (
@@ -621,6 +657,25 @@ export default function QuoteDetail() {
     });
   };
 
+  /**
+   * Reordena o item para a posição global `newSeq` (1-based) e persiste no banco.
+   */
+  const handleEditReorderToSeq = useCallback((itemId: number, newSeq: number) => {
+    setEditableItems(prev => {
+      const oldIndex = prev.findIndex(it => it.id === itemId);
+      if (oldIndex === -1) return prev;
+      const targetIndex = Math.max(0, Math.min(newSeq - 1, prev.length - 1));
+      if (oldIndex === targetIndex) return prev;
+      const reordered = arrayMove(prev, oldIndex, targetIndex);
+      // Auto-save: persiste a nova ordem imediatamente
+      reorderItemsMutation.mutate({
+        quoteId: Number(id),
+        orderedItemIds: reordered.map(it => it.id),
+      });
+      return reordered;
+    });
+  }, [id, reorderItemsMutation]);
+
   const { data, isLoading, error } = trpc.quotes.getById.useQuery({ id: Number(id) });
 
   const addRevisionForItemsMutation = trpc.quotes.addRevision.useMutation({
@@ -1125,11 +1180,16 @@ export default function QuoteDetail() {
                               {!editCollapsedFloors.has(floor) && (
                               <SortableContext items={groupItems.map(it => it.id)} strategy={verticalListSortingStrategy}>
                               <div className="space-y-4">
-                                {groupItems.map((item, idx) => (
+                                {groupItems.map((item, idx) => {
+                                  const globalIdx = editableItems.findIndex(it => it.id === item.id);
+                                  return (
                                   <SortableEditItem
                                     key={item.id}
                                     item={item}
                                     idx={idx}
+                                    globalSeq={globalIdx + 1}
+                                    totalItems={editableItems.length}
+                                    onReorderToSeq={handleEditReorderToSeq}
                                     resolvePhoto={resolvePhoto}
                                     onDelete={(id) => setEditableItems(prev => prev.filter(it => it.id !== id))}
                                     onDuplicate={(id) => setEditableItems(prev => { const i = prev.findIndex(it => it.id === id); if (i === -1) return prev; const src = prev[i]; const cloned = { ...src, id: Date.now() + Math.random(), itemData: src.itemData }; const next = [...prev]; next.splice(i + 1, 0, cloned); return next; })}
@@ -1137,7 +1197,8 @@ export default function QuoteDetail() {
                                     onUploadSpecialPhoto={async (id, base64, mimeType, fileName) => { const result = await uploadSpecialPhotoMutationQD.mutateAsync({ base64, mimeType, fileName }); setEditableItems(prev => prev.map(it => { if (it.id !== id) return it; const newParsed = { ...it.parsed, specialPhotoUrl: result.url, photoUrl: result.url }; return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) }; })); }}
                                     canOverrideApiPrice={true}
                                   />
-                                ))}
+                                  );
+                                })}
                               </div>
                               </SortableContext>
                               )}
@@ -1154,6 +1215,9 @@ export default function QuoteDetail() {
                           key={item.id}
                           item={item}
                           idx={idx}
+                          globalSeq={idx + 1}
+                          totalItems={editableItems.length}
+                          onReorderToSeq={handleEditReorderToSeq}
                           resolvePhoto={resolvePhoto}
                           onDelete={(id) => {
                             setEditableItems(prev => prev.filter(it => it.id !== id));
