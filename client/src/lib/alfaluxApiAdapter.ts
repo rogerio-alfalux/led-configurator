@@ -527,6 +527,7 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
     precoOnOffBivolt: p.precoOnOffBivolt ?? null,
     precoDim110v: p.precoDim110v ?? null,
     precoDimDali: p.precoDimDali ?? null,
+    precoMetro: p.precoMetro ?? null,
   };
 }
 

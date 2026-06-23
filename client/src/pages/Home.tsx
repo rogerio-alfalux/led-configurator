@@ -54,8 +54,6 @@ import {
   LED_BAR_CONTROLE_OPTIONS,
   LED_BAR_MAX_LENGTH_MM,
   PERFIL_FLEXIVEL_MAX_LENGTH_MM,
-  LED_BAR_PRECO_POR_METRO,
-  LED_BAR_PRECO_DRIVER_60W,
   getAvailableVoltages,
   calculateLedBar,
   calcLedBarPrice,
@@ -6287,8 +6285,8 @@ export default function Home() {
                     const driverLine = `${r.trechos[0]?.driver.model}${r.trechos[0]?.driver.code ? ` (${r.trechos[0].driver.code})` : ""}`;
                     // Preço = (R$/m × comprimento_total_m) + driver selecionado por potência do trecho
                     // Famílias sem tabela de preço retornam null — usuário preenche manualmente no carrinho
-                    const lbPreco = calcLedBarPrice(r.product.potencia, r.comprimentoTotalMm, nT, r.product.familia);
-                    const lbDetail = calcLedBarPriceDetail(r.product.potencia, r.comprimentoTotalMm, nT, r.product.familia);
+                    const lbPreco = calcLedBarPrice(r.product.potencia, r.comprimentoTotalMm, nT, r.product.familia, r.product.precoMetro);
+                    const lbDetail = calcLedBarPriceDetail(r.product.potencia, r.comprimentoTotalMm, nT, r.product.familia, r.product.precoMetro);
                     const isPerfilFlex = /^PERFIL FLEXIVEL/i.test(r.product.familia ?? "");
                     const orcamentoLines = [
                       [`${r.product.name} ${r.cct} ${r.voltage}`, nT > 1 ? `${nT} TRECHOS DE ${mm}MM` : `${mm}MM`].join(" "),
@@ -6328,7 +6326,7 @@ export default function Home() {
                                     <span>Total (somente perfil)</span>
                                     <span className="font-mono text-primary">{formatBRL(lbDetail.total)}</span>
                                   </div>
-                                  <p className="text-[10px] text-amber-500 mt-1">⚠️ Preço temporário (R$ 157,00/m). Drivers/fontes não incluídos — serão adicionados separadamente.</p>
+                                  <p className="text-[10px] text-amber-500 mt-1">⚠️ Preço somente do perfil (R$ {r.product.precoMetro?.toFixed(2).replace('.', ',')}/m). Drivers/fontes não incluídos — serão adicionados separadamente.</p>
                                 </>
                               ) : (
                                 // LED BAR padrão: perfil + drivers

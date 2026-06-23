@@ -72,6 +72,11 @@ export interface LedBarProduct {
   precoDim110v?: number | null;
   /** Preço unitário DIM DALI (R$). null = não cadastrado. */
   precoDimDali?: number | null;
+  /**
+   * Preço por metro linear do perfil (R$) vindo diretamente da API.
+   * Quando presente, substitui a tabela estática LED_BAR_PRECO_POR_METRO.
+   */
+  precoMetro?: number | null;
 }
 
 // ─── Catálogo estático de fallback ───────────────────────────────────────────
@@ -135,21 +140,19 @@ export const PERFIL_FLEXIVEL_MAX_LENGTH_MM = 5000;
 /**
  * Famílias de LED BAR que ainda não têm tabela de preço cadastrada.
  * Para essas famílias, calcLedBarPrice retorna null e o usuário preenche manualmente no carrinho.
+ * Nota: quando a API retornar precoMetro para um produto, esse campo tem prioridade sobre esta lista.
  */
 export const LED_BAR_FAMILIES_NO_PRICE = /^(LED BAR WW|FLOOR|LED BAR EC|MEIA LUA|MILANO)/i;
 
 /**
- * Preço temporário do PERFIL FLEXÍVEL por metro linear (R$).
- * Valor: R$ 157,00/m — apenas o perfil, sem drivers/fontes.
- * TODO: remover quando a API Alfalux fornecer o preço automaticamente.
+ * Tabela de preços estáticos por metro linear (R$) por potência.
+ * Usada apenas como fallback quando a API não retornar precoMetro.
+ * @deprecated Preferir precoMetro vindo da API.
  */
-export const PERFIL_FLEXIVEL_PRECO_POR_METRO_TEMP = 157.00;
-
-/** Preço por metro linear (R$) por potência. Difusor não altera o valor. */
 export const LED_BAR_PRECO_POR_METRO: Record<LedBarPotencia, number> = {
   5:  106.40,
   10: 120.00,
-  20: 126.00, // MILANO / MEIA LUA — preço provisorio; atualizar quando API fornecer
+  20: 126.00,
   25: 133.89,
 };
 
@@ -178,30 +181,35 @@ export function selectLedBarDriverPrice(
 
 /**
  * Calcula o preço total de um LED BAR:
- *   preço = (R$/m × comprimentoTotalMm / 1000) + soma(preço_driver_por_trecho)
+ *   preço = (precoMetro_da_api ?? tabela_estatica) × comprimento_m + soma(drivers)
  *
- * Cada trecho tem seu driver selecionado individualmente com base na potência.
+ * Para PERFIL FLEXÍVEL: apenas o perfil (sem drivers), usando precoMetro da API.
+ * Para LED BAR U e similares: perfil + drivers por trecho.
  *
  * @param potencia  Potência em W/m
  * @param comprimentoTotalMm  Comprimento total em mm
  * @param nCortes   Número de cortes (cada corte leva 1 driver)
  * @param familia   Família do produto (opcional). Se for uma família sem preço, retorna null.
+ * @param precoMetroApi  Preço por metro vindo da API (tem prioridade sobre tabela estática).
  * @returns Preço total em R$, ou null se a família não tem tabela de preço
  */
 export function calcLedBarPrice(
   potencia: LedBarPotencia,
   comprimentoTotalMm: number,
   nCortes: number,
-  familia?: string
+  familia?: string,
+  precoMetroApi?: number | null
 ): number | null {
   // Famílias sem tabela de preço: retornar null para que o usuário preencha manualmente
   if (familia && LED_BAR_FAMILIES_NO_PRICE.test(familia)) return null;
-  // PERFIL FLEXÍVEL: preço temporário fixo por metro (independente de potência), sem drivers
+  // PERFIL FLEXÍVEL: apenas o perfil, sem drivers
   if (familia && /^PERFIL FLEXIVEL/i.test(familia)) {
+    if (precoMetroApi == null) return null; // sem preço na API → preencher manualmente
     const comprimentoM = comprimentoTotalMm / 1000;
-    return Math.round(PERFIL_FLEXIVEL_PRECO_POR_METRO_TEMP * comprimentoM * 100) / 100;
+    return Math.round(precoMetroApi * comprimentoM * 100) / 100;
   }
-  const precoPorMetro = LED_BAR_PRECO_POR_METRO[potencia] ?? 0;
+  // Preço por metro: API tem prioridade, tabela estática como fallback
+  const precoPorMetro = precoMetroApi ?? LED_BAR_PRECO_POR_METRO[potencia] ?? 0;
   const comprimentoM  = comprimentoTotalMm / 1000;
   // Comprimento por trecho (igual para todos os cortes)
   const comprimentoTrechoMm = Math.floor(comprimentoTotalMm / Math.max(1, nCortes));
@@ -222,7 +230,8 @@ export function calcLedBarPriceDetail(
   potencia: LedBarPotencia,
   comprimentoTotalMm: number,
   nCortes: number,
-  familia?: string
+  familia?: string,
+  precoMetroApi?: number | null
 ): {
   precoPerfil: number;
   precoDriverPorCorte: number;
@@ -230,13 +239,15 @@ export function calcLedBarPriceDetail(
   potenciaTrecho: number;
   totalDrivers: number;
   total: number;
-  perfilFlexivelTemp?: boolean; // indica que o preço é temporário e não inclui drivers
+  /** true quando o preço vem da API e não inclui drivers (PERFIL FLEXÍVEL) */
+  perfilFlexivel?: boolean;
 } | null {
   if (familia && LED_BAR_FAMILIES_NO_PRICE.test(familia)) return null;
-  // PERFIL FLEXÍVEL: preço temporário fixo por metro, sem drivers
+  // PERFIL FLEXÍVEL: apenas o perfil, sem drivers
   if (familia && /^PERFIL FLEXIVEL/i.test(familia)) {
+    if (precoMetroApi == null) return null; // sem preço na API → preencher manualmente
     const comprimentoM = comprimentoTotalMm / 1000;
-    const precoPerfil = Math.round(PERFIL_FLEXIVEL_PRECO_POR_METRO_TEMP * comprimentoM * 100) / 100;
+    const precoPerfil = Math.round(precoMetroApi * comprimentoM * 100) / 100;
     return {
       precoPerfil,
       precoDriverPorCorte: 0,
@@ -244,10 +255,11 @@ export function calcLedBarPriceDetail(
       potenciaTrecho: 0,
       totalDrivers: 0,
       total: precoPerfil,
-      perfilFlexivelTemp: true,
+      perfilFlexivel: true,
     };
   }
-  const precoPorMetro = LED_BAR_PRECO_POR_METRO[potencia] ?? 0;
+  // Preço por metro: API tem prioridade, tabela estática como fallback
+  const precoPorMetro = precoMetroApi ?? LED_BAR_PRECO_POR_METRO[potencia] ?? 0;
   const comprimentoM  = comprimentoTotalMm / 1000;
   const comprimentoTrechoMm = Math.floor(comprimentoTotalMm / Math.max(1, nCortes));
   const { preco: precoDriverPorCorte, wattsDriver, potenciaTrecho } = selectLedBarDriverPrice(potencia, comprimentoTrechoMm);
