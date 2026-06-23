@@ -803,7 +803,14 @@ type ProfilePriceMap = Record<string, {
   dimDaliD1D2: number | null;
 }>;
 
-type SkuPriceMap = Record<string, { onoff220: number|null; onoffBivolt: number|null; dim110v: number|null; dimDali: number|null; dimTriac110v: number|null; dimTriac220v: number|null; onoff220D1D2: number|null; onoffBivoltD1D2: number|null; dim110vD1D2: number|null; dimDaliD1D2: number|null; dimTriac110vD1D2: number|null; dimTriac220vD1D2: number|null; markupPadraoOnoff220v: number|null; markupMinimoOnoff220v: number|null; markupPadraoDim110v: number|null; markupMinimoDim110v: number|null; markupPadraoDimDali: number|null; markupMinimoDimDali: number|null; }>;
+type SkuPriceMap = Record<string, {
+  custoOnoff220: number|null; custoOnoffBivolt: number|null; custoDim110v: number|null; custoDimDali: number|null; custoDimTriac110v: number|null; custoDimTriac220v: number|null;
+  custoOnoff220D1D2: number|null; custoOnoffBivoltD1D2: number|null; custoDim110vD1D2: number|null; custoDimDaliD1D2: number|null; custoDimTriac110vD1D2: number|null; custoDimTriac220vD1D2: number|null;
+  markupPadraoOnoff220v: number|null; markupPadraoOnoffBivolt: number|null; markupPadraoDim110v: number|null; markupPadraoDimDali: number|null; markupPadraoDimTriac110v: number|null; markupPadraoDimTriac220v: number|null;
+  markupMinimoOnoff220v: number|null; markupMinimoOnoffBivolt: number|null; markupMinimoDim110v: number|null; markupMinimoDimDali: number|null; markupMinimoDimTriac110v: number|null; markupMinimoDimTriac220v: number|null;
+  custoDriver220: number|null; custoDriverBivolt: number|null; custoDriverDim110v: number|null; custoDriverDimDali: number|null; custoDriverDimTriac110v: number|null; custoDriverDimTriac220v: number|null;
+  markupMinimoDriver: number|null;
+}>;
 
 function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty, setGlobalQty }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void }) {
   const efficiency = result.requestedLength > 0
@@ -1189,25 +1196,34 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
   const isD1D2 = result.application === 'D1+D2';
   const nModules = result.composition.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Função auxiliar: extrai o preço de venda do SKU para o controle/aplicação selecionados
-  function getSkuPreco(sku: string): number | null {
+  // Função auxiliar: calcula preço de venda = custoCorpo × markupPadrao para o controle/aplicação selecionados
+  function getSkuPreco(sku: string, markupOverride?: number | null): number | null {
     const entry = skuPriceMap?.[sku];
     if (!entry) return null;
+
+    // Selecionar custo bruto e markup padrão conforme controle e aplicação
+    let custo: number | null = null;
+    let markupPadrao: number | null = null;
+
     if (isD1D2) {
-      if (result.controlType === 'dimDali') return entry.dimDaliD1D2;
-      if (result.controlType === 'dim110v') return entry.dim110vD1D2;
-      if (result.controlType === 'dimTriac110v') return entry.dimTriac110vD1D2;
-      if (result.controlType === 'dimTriac220v') return entry.dimTriac220vD1D2;
-      // ON/OFF: discriminar por tensão
-      if (/bivolt/i.test(result.voltage)) return entry.onoffBivoltD1D2;
-      return entry.onoff220D1D2;
+      if (result.controlType === 'dimDali') { custo = entry.custoDimDaliD1D2; markupPadrao = entry.markupPadraoDimDali; }
+      else if (result.controlType === 'dim110v') { custo = entry.custoDim110vD1D2; markupPadrao = entry.markupPadraoDim110v; }
+      else if (result.controlType === 'dimTriac110v') { custo = entry.custoDimTriac110vD1D2; markupPadrao = entry.markupPadraoDimTriac110v; }
+      else if (result.controlType === 'dimTriac220v') { custo = entry.custoDimTriac220vD1D2; markupPadrao = entry.markupPadraoDimTriac220v; }
+      else if (/bivolt/i.test(result.voltage)) { custo = entry.custoOnoffBivoltD1D2; markupPadrao = entry.markupPadraoOnoffBivolt; }
+      else { custo = entry.custoOnoff220D1D2; markupPadrao = entry.markupPadraoOnoff220v; }
+    } else {
+      if (result.controlType === 'dimDali') { custo = entry.custoDimDali; markupPadrao = entry.markupPadraoDimDali; }
+      else if (result.controlType === 'dim110v') { custo = entry.custoDim110v; markupPadrao = entry.markupPadraoDim110v; }
+      else if (result.controlType === 'dimTriac110v') { custo = entry.custoDimTriac110v; markupPadrao = entry.markupPadraoDimTriac110v; }
+      else if (result.controlType === 'dimTriac220v') { custo = entry.custoDimTriac220v; markupPadrao = entry.markupPadraoDimTriac220v; }
+      else if (/bivolt/i.test(result.voltage)) { custo = entry.custoOnoffBivolt; markupPadrao = entry.markupPadraoOnoffBivolt; }
+      else { custo = entry.custoOnoff220; markupPadrao = entry.markupPadraoOnoff220v; }
     }
-    if (result.controlType === 'dimDali') return entry.dimDali;
-    if (result.controlType === 'dim110v') return entry.dim110v;
-    if (result.controlType === 'dimTriac110v') return entry.dimTriac110v;
-    if (result.controlType === 'dimTriac220v') return entry.dimTriac220v;
-    if (/bivolt/i.test(result.voltage)) return entry.onoffBivolt;
-    return entry.onoff220;
+
+    if (custo == null) return null;
+    const mk = markupOverride ?? markupPadrao ?? 1;
+    return Math.round(custo * mk * 100) / 100;
   }
 
   // Calcular preço total somando preço de cada SKU × quantidade
@@ -1218,23 +1234,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
     const hasAnySkuPrice = result.composition.some(item => skuPriceMap[item.sku] != null);
     if (!hasAnySkuPrice) return null;
 
-    let totalLuminaria = 0;
-    let allHavePrice = true;
-    const breakdown: Array<{ sku: string; quantity: number; precoUnit: number; subtotal: number }> = [];
-
-    for (const item of result.composition) {
-      const precoUnit = getSkuPreco(item.sku);
-      if (precoUnit == null) { allHavePrice = false; break; }
-      const subtotal = Math.round(precoUnit * item.quantity * 100) / 100;
-      totalLuminaria += subtotal;
-      breakdown.push({ sku: item.sku, quantity: item.quantity, precoUnit, subtotal });
-    }
-
-    if (!allHavePrice) return null;
-
-    totalLuminaria = Math.round(totalLuminaria * 100) / 100;
-
-    // Markup padrão/mínimo: pegar do primeiro SKU com dados
+    // Extrair markup padrão/mínimo do primeiro SKU com dados
     const firstSkuEntry = skuPriceMap[result.composition[0]?.sku];
     let markupPadrao = 2;
     let markupMinimo = 1;
@@ -1245,20 +1245,57 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
       } else if (result.controlType === 'dim110v') {
         markupPadrao = firstSkuEntry.markupPadraoDim110v ?? 3;
         markupMinimo = firstSkuEntry.markupMinimoDim110v ?? 2;
+      } else if (result.controlType === 'dimTriac110v' || result.controlType === 'dimTriac220v') {
+        markupPadrao = firstSkuEntry.markupPadraoDimTriac110v ?? firstSkuEntry.markupPadraoDimTriac220v ?? 3;
+        markupMinimo = firstSkuEntry.markupMinimoDimTriac110v ?? firstSkuEntry.markupMinimoDimTriac220v ?? 2;
+      } else if (/bivolt/i.test(result.voltage)) {
+        markupPadrao = firstSkuEntry.markupPadraoOnoffBivolt ?? 2;
+        markupMinimo = firstSkuEntry.markupMinimoOnoffBivolt ?? 1;
       } else {
         markupPadrao = firstSkuEntry.markupPadraoOnoff220v ?? 2;
         markupMinimo = firstSkuEntry.markupMinimoOnoff220v ?? 1;
       }
     }
 
+    const mkOverride = markupLuminariaOverride;
+    let totalLuminaria = 0;
+    let allHavePrice = true;
+    const breakdown: Array<{ sku: string; quantity: number; precoUnit: number; subtotal: number }> = [];
+
+    for (const item of result.composition) {
+      const precoUnit = getSkuPreco(item.sku, mkOverride);
+      if (precoUnit == null) { allHavePrice = false; break; }
+      const subtotal = Math.round(precoUnit * item.quantity * 100) / 100;
+      totalLuminaria += subtotal;
+      breakdown.push({ sku: item.sku, quantity: item.quantity, precoUnit, subtotal });
+    }
+
+    if (!allHavePrice) return null;
+
+    totalLuminaria = Math.round(totalLuminaria * 100) / 100;
+
+    // Custo do driver (quando disponibilizado pela API)
+    let precoDriverTotal = 0;
+    if (firstSkuEntry) {
+      let custoDriver: number | null = null;
+      if (result.controlType === 'dimDali') custoDriver = firstSkuEntry.custoDriverDimDali;
+      else if (result.controlType === 'dim110v') custoDriver = firstSkuEntry.custoDriverDim110v;
+      else if (result.controlType === 'dimTriac110v') custoDriver = firstSkuEntry.custoDriverDimTriac110v;
+      else if (result.controlType === 'dimTriac220v') custoDriver = firstSkuEntry.custoDriverDimTriac220v;
+      else if (/bivolt/i.test(result.voltage)) custoDriver = firstSkuEntry.custoDriverBivolt;
+      else custoDriver = firstSkuEntry.custoDriver220;
+      const mkDriver = firstSkuEntry.markupMinimoDriver ?? 3;
+      if (custoDriver != null) precoDriverTotal = Math.round(custoDriver * nModules * mkDriver * 100) / 100;
+    }
+
     return {
       precoLuminariaTotal: totalLuminaria,
-      precoDriverTotal: 0, // custo do driver ainda não disponibilizado pela API
-      total: totalLuminaria,
-      markupLuminariaAplicado: markupLuminariaOverride ?? markupPadrao,
+      precoDriverTotal,
+      total: Math.round((totalLuminaria + precoDriverTotal) * 100) / 100,
+      markupLuminariaAplicado: mkOverride ?? markupPadrao,
       markupPadrao,
       markupMinimo,
-      markupDriverAplicado: 3,
+      markupDriverAplicado: firstSkuEntry?.markupMinimoDriver ?? 3,
       breakdown,
       fromApi: true,
     };
@@ -1756,30 +1793,48 @@ export default function Home() {
     return apiCatalog !== null && Object.keys(apiCatalog).length > 0;
   }, [alfaluxApiProducts]);
 
-  // Mapa de preços por SKU individual (extraído dos produtos PERFIS da API)
-  // Estrutura: { [sku]: { onoff220, onoffBivolt, dim110v, dimDali, ... } }
-  // Usado pelo novo método de cálculo (BLAZE H e futuros) — preço de venda por SKU × quantidade
+  // Mapa de custo+markup por SKU individual (extraído dos produtos PERFIS da API)
+  // Armazena custoCorpo (bruto) e markups por tipo de controle
+  // Preço de venda = custoCorpo[controle] × markupPadrao[controle]
   const skuPriceMap = useMemo(() => {
     if (!alfaluxApiProducts || alfaluxApiProducts.length === 0) return {};
     const map: Record<string, {
-      onoff220: number | null;
-      onoffBivolt: number | null;
-      dim110v: number | null;
-      dimDali: number | null;
-      dimTriac110v: number | null;
-      dimTriac220v: number | null;
-      onoff220D1D2: number | null;
-      onoffBivoltD1D2: number | null;
-      dim110vD1D2: number | null;
-      dimDaliD1D2: number | null;
-      dimTriac110vD1D2: number | null;
-      dimTriac220vD1D2: number | null;
+      // Custos brutos por controle (D1 simples)
+      custoOnoff220: number | null;
+      custoOnoffBivolt: number | null;
+      custoDim110v: number | null;
+      custoDimDali: number | null;
+      custoDimTriac110v: number | null;
+      custoDimTriac220v: number | null;
+      // Custos brutos por controle (D1+D2)
+      custoOnoff220D1D2: number | null;
+      custoOnoffBivoltD1D2: number | null;
+      custoDim110vD1D2: number | null;
+      custoDimDaliD1D2: number | null;
+      custoDimTriac110vD1D2: number | null;
+      custoDimTriac220vD1D2: number | null;
+      // Markups padrão por controle
       markupPadraoOnoff220v: number | null;
-      markupMinimoOnoff220v: number | null;
+      markupPadraoOnoffBivolt: number | null;
       markupPadraoDim110v: number | null;
-      markupMinimoDim110v: number | null;
       markupPadraoDimDali: number | null;
+      markupPadraoDimTriac110v: number | null;
+      markupPadraoDimTriac220v: number | null;
+      // Markups mínimos por controle
+      markupMinimoOnoff220v: number | null;
+      markupMinimoOnoffBivolt: number | null;
+      markupMinimoDim110v: number | null;
       markupMinimoDimDali: number | null;
+      markupMinimoDimTriac110v: number | null;
+      markupMinimoDimTriac220v: number | null;
+      // Custo do driver por controle
+      custoDriver220: number | null;
+      custoDriverBivolt: number | null;
+      custoDriverDim110v: number | null;
+      custoDriverDimDali: number | null;
+      custoDriverDimTriac110v: number | null;
+      custoDriverDimTriac220v: number | null;
+      markupMinimoDriver: number | null;
     }> = {};
     for (const p of alfaluxApiProducts) {
       const cat = (p.categoria ?? "").toUpperCase();
@@ -1787,24 +1842,37 @@ export default function Home() {
       const sku = p.sku ?? "";
       if (!sku) continue;
       map[sku] = {
-        onoff220: p.precoOnOff220 ?? null,
-        onoffBivolt: p.precoOnOffBivolt ?? null,
-        dim110v: p.precoDim110v ?? null,
-        dimDali: p.precoDimDali ?? null,
-        dimTriac110v: p.precoDimTriac110v ?? null,
-        dimTriac220v: p.precoDimTriac220v ?? null,
-        onoff220D1D2: p.precoOnOff220D1D2 ?? null,
-        onoffBivoltD1D2: p.precoOnOffBivoltD1D2 ?? null,
-        dim110vD1D2: p.precoDim110vD1D2 ?? null,
-        dimDaliD1D2: p.precoDimDaliD1D2 ?? null,
-        dimTriac110vD1D2: p.precoDimTriac110vD1D2 ?? null,
-        dimTriac220vD1D2: p.precoDimTriac220vD1D2 ?? null,
+        custoOnoff220: p.custoCorpoOnoff220v ?? null,
+        custoOnoffBivolt: p.custoCorpoOnoffBivolt ?? null,
+        custoDim110v: p.custoCorpoDim110v ?? null,
+        custoDimDali: p.custoCorpoDimDali ?? null,
+        custoDimTriac110v: p.custoCorpoDimTriac110v ?? null,
+        custoDimTriac220v: p.custoCorpoDimTriac220v ?? null,
+        custoOnoff220D1D2: p.custoCorpoOnoff220vD1D2 ?? null,
+        custoOnoffBivoltD1D2: p.custoCorpoOnoffBivoltD1D2 ?? null,
+        custoDim110vD1D2: p.custoCorpoDim110vD1D2 ?? null,
+        custoDimDaliD1D2: p.custoCorpoDimDaliD1D2 ?? null,
+        custoDimTriac110vD1D2: p.custoCorpoDimTriac110vD1D2 ?? null,
+        custoDimTriac220vD1D2: p.custoCorpoDimTriac220vD1D2 ?? null,
         markupPadraoOnoff220v: p.markupPadraoOnoff220v ?? null,
-        markupMinimoOnoff220v: p.markupMinimoOnoff220v ?? null,
+        markupPadraoOnoffBivolt: p.markupPadraoOnoffBivolt ?? null,
         markupPadraoDim110v: p.markupPadraoDim110v ?? null,
-        markupMinimoDim110v: p.markupMinimoDim110v ?? null,
         markupPadraoDimDali: p.markupPadraoDimDali ?? null,
+        markupPadraoDimTriac110v: p.markupPadraoDimTriac110v ?? null,
+        markupPadraoDimTriac220v: p.markupPadraoDimTriac220v ?? null,
+        markupMinimoOnoff220v: p.markupMinimoOnoff220v ?? null,
+        markupMinimoOnoffBivolt: p.markupMinimoOnoffBivolt ?? null,
+        markupMinimoDim110v: p.markupMinimoDim110v ?? null,
         markupMinimoDimDali: p.markupMinimoDimDali ?? null,
+        markupMinimoDimTriac110v: p.markupMinimoDimTriac110v ?? null,
+        markupMinimoDimTriac220v: p.markupMinimoDimTriac220v ?? null,
+        custoDriver220: p.custoDriver220 ?? null,
+        custoDriverBivolt: p.custoDriverBivolt ?? null,
+        custoDriverDim110v: p.custoDriverDim110v ?? null,
+        custoDriverDimDali: p.custoDriverDimDali ?? null,
+        custoDriverDimTriac110v: p.custoDriverDimTriac110v ?? null,
+        custoDriverDimTriac220v: p.custoDriverDimTriac220v ?? null,
+        markupMinimoDriver: p.markupMinimoDriver ?? null,
       };
     }
     return map;
