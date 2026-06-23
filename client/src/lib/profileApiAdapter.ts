@@ -119,7 +119,41 @@ export function adaptProfileProducts(
   // Acumula módulos por código de perfil
   const variantMap: Record<
     string,
-    { rule: ProfileRule; installType: InstallType; modules: ProfileModules; driverDimDali: { model: string; code: string | null } | null; driverDim110v: { model: string; code: string | null } | null; ledModuleStripflex: string | null; ledModuleStripline: string | null }
+    {
+      rule: ProfileRule;
+      installType: InstallType;
+      modules: ProfileModules;
+      driverDimDali: { model: string; code: string | null } | null;
+      driverDim110v: { model: string; code: string | null } | null;
+      ledModuleStripflex: string | null;
+      ledModuleStripline: string | null;
+      // Campos de custo e markup por controle (novo método — BLAZE H e futuros)
+      custoCorpoOnoff220v: number | null;
+      custoCorpoOnoffBivolt: number | null;
+      custoCorpoDim110v: number | null;
+      custoCorpoDimDali: number | null;
+      custoCorpoDimTriac110v: number | null;
+      custoCorpoDimTriac220v: number | null;
+      custoCorpoOnoff220vD1D2: number | null;
+      custoCorpoOnoffBivoltD1D2: number | null;
+      custoCorpoDim110vD1D2: number | null;
+      custoCorpoDimDaliD1D2: number | null;
+      custoCorpoDimTriac110vD1D2: number | null;
+      custoCorpoDimTriac220vD1D2: number | null;
+      markupPadraoOnoff220v: number | null;
+      markupMinimoOnoff220v: number | null;
+      markupPadraoOnoffBivolt: number | null;
+      markupMinimoOnoffBivolt: number | null;
+      markupPadraoDim110v: number | null;
+      markupMinimoDim110v: number | null;
+      markupPadraoDimDali: number | null;
+      markupMinimoDimDali: number | null;
+      markupPadraoDimTriac110v: number | null;
+      markupMinimoDimTriac110v: number | null;
+      markupPadraoDimTriac220v: number | null;
+      markupMinimoDimTriac220v: number | null;
+      markupMinimoDriver: number | null;
+    }
   > = {};
 
   for (const p of perfisProducts) {
@@ -135,6 +169,7 @@ export function adaptProfileProducts(
     const parsed = parseModuleName(p.name);
     if (!parsed) continue;
 
+      const pa = p as any;
       if (!variantMap[profileCode]) {
       variantMap[profileCode] = {
         rule,
@@ -144,6 +179,32 @@ export function adaptProfileProducts(
         driverDim110v: p.driverDim110v ?? null,
         ledModuleStripflex: null,
         ledModuleStripline: null,
+        // Custo e markup — usar o primeiro produto que tiver valor preenchido
+        custoCorpoOnoff220v: pa.custoCorpoOnoff220v ?? null,
+        custoCorpoOnoffBivolt: pa.custoCorpoOnoffBivolt ?? null,
+        custoCorpoDim110v: pa.custoCorpoDim110v ?? null,
+        custoCorpoDimDali: pa.custoCorpoDimDali ?? null,
+        custoCorpoDimTriac110v: pa.custoCorpoDimTriac110v ?? null,
+        custoCorpoDimTriac220v: pa.custoCorpoDimTriac220v ?? null,
+        custoCorpoOnoff220vD1D2: pa.custoCorpoOnoff220vD1D2 ?? null,
+        custoCorpoOnoffBivoltD1D2: pa.custoCorpoOnoffBivoltD1D2 ?? null,
+        custoCorpoDim110vD1D2: pa.custoCorpoDim110vD1D2 ?? null,
+        custoCorpoDimDaliD1D2: pa.custoCorpoDimDaliD1D2 ?? null,
+        custoCorpoDimTriac110vD1D2: pa.custoCorpoDimTriac110vD1D2 ?? null,
+        custoCorpoDimTriac220vD1D2: pa.custoCorpoDimTriac220vD1D2 ?? null,
+        markupPadraoOnoff220v: pa.markupPadraoOnoff220v ?? null,
+        markupMinimoOnoff220v: pa.markupMinimoOnoff220v ?? null,
+        markupPadraoOnoffBivolt: pa.markupPadraoOnoffBivolt ?? null,
+        markupMinimoOnoffBivolt: pa.markupMinimoOnoffBivolt ?? null,
+        markupPadraoDim110v: pa.markupPadraoDim110v ?? null,
+        markupMinimoDim110v: pa.markupMinimoDim110v ?? null,
+        markupPadraoDimDali: pa.markupPadraoDimDali ?? null,
+        markupMinimoDimDali: pa.markupMinimoDimDali ?? null,
+        markupPadraoDimTriac110v: pa.markupPadraoDimTriac110v ?? null,
+        markupMinimoDimTriac110v: pa.markupMinimoDimTriac110v ?? null,
+        markupPadraoDimTriac220v: pa.markupPadraoDimTriac220v ?? null,
+        markupMinimoDimTriac220v: pa.markupMinimoDimTriac220v ?? null,
+        markupMinimoDriver: pa.markupMinimoDriver ?? null,
       };
     } else {
       // Atualizar drivers DIM se ainda não preenchidos (usar o primeiro produto que tiver)
@@ -180,7 +241,8 @@ export function adaptProfileProducts(
 
   // Monta o Record<string, ProfileVariant> final
   const catalog: Record<string, ProfileVariant> = {};
-  for (const [code, { rule, installType, modules, driverDimDali, driverDim110v, ledModuleStripflex, ledModuleStripline }] of Object.entries(variantMap)) {
+  for (const [code, entry] of Object.entries(variantMap)) {
+    const { rule, installType, modules, driverDimDali, driverDim110v, ledModuleStripflex, ledModuleStripline } = entry;
     catalog[code] = {
       name: rule.name,
       code,
@@ -195,6 +257,32 @@ export function adaptProfileProducts(
       ledModuleStripflex: ledModuleStripflex ?? null,
       ledModuleStripline: ledModuleStripline ?? null,
       modules,
+      // Custo e markup por controle
+      custoCorpoOnoff220v: entry.custoCorpoOnoff220v,
+      custoCorpoOnoffBivolt: entry.custoCorpoOnoffBivolt,
+      custoCorpoDim110v: entry.custoCorpoDim110v,
+      custoCorpoDimDali: entry.custoCorpoDimDali,
+      custoCorpoDimTriac110v: entry.custoCorpoDimTriac110v,
+      custoCorpoDimTriac220v: entry.custoCorpoDimTriac220v,
+      custoCorpoOnoff220vD1D2: entry.custoCorpoOnoff220vD1D2,
+      custoCorpoOnoffBivoltD1D2: entry.custoCorpoOnoffBivoltD1D2,
+      custoCorpoDim110vD1D2: entry.custoCorpoDim110vD1D2,
+      custoCorpoDimDaliD1D2: entry.custoCorpoDimDaliD1D2,
+      custoCorpoDimTriac110vD1D2: entry.custoCorpoDimTriac110vD1D2,
+      custoCorpoDimTriac220vD1D2: entry.custoCorpoDimTriac220vD1D2,
+      markupPadraoOnoff220v: entry.markupPadraoOnoff220v,
+      markupMinimoOnoff220v: entry.markupMinimoOnoff220v,
+      markupPadraoOnoffBivolt: entry.markupPadraoOnoffBivolt,
+      markupMinimoOnoffBivolt: entry.markupMinimoOnoffBivolt,
+      markupPadraoDim110v: entry.markupPadraoDim110v,
+      markupMinimoDim110v: entry.markupMinimoDim110v,
+      markupPadraoDimDali: entry.markupPadraoDimDali,
+      markupMinimoDimDali: entry.markupMinimoDimDali,
+      markupPadraoDimTriac110v: entry.markupPadraoDimTriac110v,
+      markupMinimoDimTriac110v: entry.markupMinimoDimTriac110v,
+      markupPadraoDimTriac220v: entry.markupPadraoDimTriac220v,
+      markupMinimoDimTriac220v: entry.markupMinimoDimTriac220v,
+      markupMinimoDriver: entry.markupMinimoDriver,
     };
   }
 

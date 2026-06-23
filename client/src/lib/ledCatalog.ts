@@ -41,6 +41,58 @@ export interface ProfileVariant {
   /** Nome da barra Stripline vindo da API, ex: "STRIPLINE 562,5 X 15MM 108L" */
   ledModuleStripline?: string | null;
   modules: ProfileModules;
+
+  // ── Precificação por módulo (novo método — BLAZE H e futuros perfis) ──────────
+  /** Custo do corpo/luminária para ON/OFF 220V (D1 simples). null = não cadastrado. */
+  custoCorpoOnoff220v?: number | null;
+  /** Custo do corpo/luminária para ON/OFF Bivolt (D1 simples). null = não cadastrado. */
+  custoCorpoOnoffBivolt?: number | null;
+  /** Custo do corpo/luminária para DIM 1-10V (D1 simples). null = não cadastrado. */
+  custoCorpoDim110v?: number | null;
+  /** Custo do corpo/luminária para DIM DALI (D1 simples). null = não cadastrado. */
+  custoCorpoDimDali?: number | null;
+  /** Custo do corpo/luminária para DIM TRIAC 110V (D1 simples). null = não cadastrado. */
+  custoCorpoDimTriac110v?: number | null;
+  /** Custo do corpo/luminária para DIM TRIAC 220V (D1 simples). null = não cadastrado. */
+  custoCorpoDimTriac220v?: number | null;
+  /** Custo do corpo/luminária para ON/OFF 220V (D1+D2 duplo). null = não cadastrado. */
+  custoCorpoOnoff220vD1D2?: number | null;
+  /** Custo do corpo/luminária para ON/OFF Bivolt (D1+D2 duplo). null = não cadastrado. */
+  custoCorpoOnoffBivoltD1D2?: number | null;
+  /** Custo do corpo/luminária para DIM 1-10V (D1+D2 duplo). null = não cadastrado. */
+  custoCorpoDim110vD1D2?: number | null;
+  /** Custo do corpo/luminária para DIM DALI (D1+D2 duplo). null = não cadastrado. */
+  custoCorpoDimDaliD1D2?: number | null;
+  /** Custo do corpo/luminária para DIM TRIAC 110V (D1+D2 duplo). null = não cadastrado. */
+  custoCorpoDimTriac110vD1D2?: number | null;
+  /** Custo do corpo/luminária para DIM TRIAC 220V (D1+D2 duplo). null = não cadastrado. */
+  custoCorpoDimTriac220vD1D2?: number | null;
+  /** Markup padrão da luminária para ON/OFF 220V. null = não cadastrado. */
+  markupPadraoOnoff220v?: number | null;
+  /** Markup mínimo da luminária para ON/OFF 220V. null = não cadastrado. */
+  markupMinimoOnoff220v?: number | null;
+  /** Markup padrão da luminária para ON/OFF Bivolt. null = não cadastrado. */
+  markupPadraoOnoffBivolt?: number | null;
+  /** Markup mínimo da luminária para ON/OFF Bivolt. null = não cadastrado. */
+  markupMinimoOnoffBivolt?: number | null;
+  /** Markup padrão da luminária para DIM 1-10V. null = não cadastrado. */
+  markupPadraoDim110v?: number | null;
+  /** Markup mínimo da luminária para DIM 1-10V. null = não cadastrado. */
+  markupMinimoDim110v?: number | null;
+  /** Markup padrão da luminária para DIM DALI. null = não cadastrado. */
+  markupPadraoDimDali?: number | null;
+  /** Markup mínimo da luminária para DIM DALI. null = não cadastrado. */
+  markupMinimoDimDali?: number | null;
+  /** Markup padrão da luminária para DIM TRIAC 110V. null = não cadastrado. */
+  markupPadraoDimTriac110v?: number | null;
+  /** Markup mínimo da luminária para DIM TRIAC 110V. null = não cadastrado. */
+  markupMinimoDimTriac110v?: number | null;
+  /** Markup padrão da luminária para DIM TRIAC 220V. null = não cadastrado. */
+  markupPadraoDimTriac220v?: number | null;
+  /** Markup mínimo da luminária para DIM TRIAC 220V. null = não cadastrado. */
+  markupMinimoDimTriac220v?: number | null;
+  /** Markup mínimo do driver (padrão = 3). */
+  markupMinimoDriver?: number | null;
 }
 
 export type ModuleType = 'IN' | 'IF' | 'ML';

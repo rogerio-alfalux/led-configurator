@@ -29,7 +29,7 @@ import { generateProductionTemplate } from "@/lib/productionTemplate";
 import { generateOrderSummary } from "@/lib/orderSummary";
 import { generateQuoteSummary } from "@/lib/quoteSummary";
 // import { calculateTotalPrice } from "@/lib/priceCatalog"; // Oculto temporariamente
-import { getStaticPricePerMeter } from "@/lib/profilePriceCatalog";
+import { getStaticPricePerMeter, calcModulePrice, usesModulePricing, toModuleControlType } from "@/lib/profilePriceCatalog";
 import { getProfilePhoto, getDownlightPhoto, getPainelPhoto } from "@/lib/profilePhotos";
 import {
   DOWNLIGHT_CATALOG,
@@ -803,7 +803,7 @@ type ProfilePriceMap = Record<string, {
   dimDaliD1D2: number | null;
 }>;
 
-function ResultBlock({ result, profilePriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty, setGlobalQty }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void }) {
+function ResultBlock({ result, profilePriceMap, profileVariant, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty, setGlobalQty }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void }) {
   const efficiency = result.requestedLength > 0
     ? Math.round((result.realizedLength / result.requestedLength) * 100)
     : 0;
@@ -974,7 +974,7 @@ function ResultBlock({ result, profilePriceMap, onAddToQuote, itemEmPlanta, setI
       </Card>
 
       {/* Resumo Para Orçamento — Resumo para o cliente */}
-      <QuoteSummaryCard result={result} profilePriceMap={profilePriceMap} onAddToQuote={onAddToQuote} itemEmPlanta={itemEmPlanta} setItemEmPlanta={setItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} />
+      <QuoteSummaryCard result={result} profilePriceMap={profilePriceMap} profileVariant={profileVariant} onAddToQuote={onAddToQuote} itemEmPlanta={itemEmPlanta} setItemEmPlanta={setItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} />
       {/* Resumo para Pedido — Ficha Comercial */}
       <OrderSummaryCard result={result} />
       {/* Composição de Módulos — bloco unificado */}
@@ -1168,27 +1168,50 @@ function ResultBlock({ result, profilePriceMap, onAddToQuote, itemEmPlanta, setI
 }
 
 //// ─── Resumo Para Orçamento (Resumo para o cliente) ──────────────────────────
-function QuoteSummaryCard({ result, profilePriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty = 1, setGlobalQty }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void }) {
+function QuoteSummaryCard({ result, profilePriceMap, profileVariant, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty = 1, setGlobalQty }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void }) {
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { addItem, isAdding: isAddingToCart } = useCart();
+  const { user } = useAuth();
   const [colorModalOpen, setColorModalOpen] = useState(false);
   const [pendingItem, setPendingItem] = useState<CartItemData | null>(null);
 
-  // Calcular preço total a partir do catálogo estático (planilha Comparativolineares)
-  const precoTotal = (() => {
-    const isD1D2 = result.application === 'D1+D2';
-    // Mapear controlType do engine para o tipo do catálogo estático
+  // Emails autorizados a editar markup
+  const MARKUP_EDITORS = ["vivian@grupoalfalux.com.br", "dennis@grupoalfalux.com.br"];
+  const canEditMarkup = MARKUP_EDITORS.includes((user?.email ?? "").toLowerCase());
+
+  // Estado do markup editável (apenas para Dennis e Vivian)
+  const [markupLuminariaOverride, setMarkupLuminariaOverride] = useState<number | null>(null);
+
+  // ── Novo método: cálculo por módulo via custo × markup da API ──────────────
+  const isD1D2 = result.application === 'D1+D2';
+  const nModules = result.composition.reduce((sum, item) => sum + item.quantity, 0);
+  const moduleControlType = toModuleControlType(result.controlType, result.voltage);
+
+  const modulePriceResult = profileVariant && usesModulePricing(profileVariant)
+    ? calcModulePrice({
+        variant: profileVariant,
+        controlType: moduleControlType,
+        isD1D2,
+        nModules,
+        markupLuminaria: markupLuminariaOverride,
+      })
+    : null;
+
+  // ── Método antigo: preço por metro (catálogo estático) ─────────────────────
+  const precoTotalStatico = (() => {
+    if (modulePriceResult) return null; // novo método tem prioridade
     const ctStatic: 'onoff' | 'dimDali' | 'dim110v' =
       result.controlType === 'dimDali' ? 'dimDali'
       : result.controlType === 'dim110v' ? 'dim110v'
-      : 'onoff'; // ON/OFF 220V e Bivolt têm mesmo preço
-    // Usar a potência D1 como referência (powerD1 está sempre definido)
+      : 'onoff';
     const powerW = result.powerD1 ?? 18;
     const precoPerMeter = getStaticPricePerMeter(result.profileCode, powerW, ctStatic, isD1D2);
     if (precoPerMeter == null) return null;
     return Math.round(precoPerMeter * (result.realizedLength / 1000) * 100) / 100;
   })();
+
+  const precoTotal = modulePriceResult ? modulePriceResult.total : precoTotalStatico;
 
   const summary = generateQuoteSummary(result, precoTotal);
 
@@ -1359,7 +1382,57 @@ function QuoteSummaryCard({ result, profilePriceMap, onAddToQuote, itemEmPlanta,
           rows={Math.max(summary.split('\n').length + 1, 3)}
           onClick={(e) => (e.target as HTMLTextAreaElement).select()}
         />
-        {precoTotal !== null && precoTotal !== undefined && (
+        {/* Detalhamento: novo método por módulo (BLAZE H e futuros) */}
+        {modulePriceResult && (
+          <div className="rounded-lg bg-muted/30 border border-border p-3 space-y-1.5 text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Luminária ({nModules} módulo{nModules !== 1 ? 's' : ''} × markup {modulePriceResult.markupLuminariaAplicado.toFixed(4)})</span>
+              <span className="font-mono">{formatBRL(modulePriceResult.precoLuminariaTotal)}</span>
+            </div>
+            {modulePriceResult.precoDriverTotal > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Driver ({nModules} módulo{nModules !== 1 ? 's' : ''} × markup {modulePriceResult.markupDriverAplicado.toFixed(1)})</span>
+                <span className="font-mono">{formatBRL(modulePriceResult.precoDriverTotal)}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-semibold border-t border-border pt-1 mt-1">
+              <span>Total</span>
+              <span className="font-mono text-primary">{formatBRL(modulePriceResult.total)}</span>
+            </div>
+            {/* Controle de markup — visível apenas para Dennis e Vivian */}
+            {canEditMarkup && (
+              <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
+                <p className="text-[10px] text-amber-400 font-medium uppercase tracking-wide">⚠️ Ajuste de Markup (Dennis / Vivian)</p>
+                <div className="flex items-center gap-2">
+                  <label className="text-muted-foreground whitespace-nowrap">Markup luminária:</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={modulePriceResult.markupMinimo}
+                    max={modulePriceResult.markupPadrao}
+                    value={markupLuminariaOverride ?? modulePriceResult.markupPadrao}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value);
+                      if (!isNaN(v)) setMarkupLuminariaOverride(Math.max(modulePriceResult.markupMinimo, Math.min(modulePriceResult.markupPadrao, v)));
+                    }}
+                    className="h-6 w-20 text-xs rounded border border-border bg-background px-1.5 font-mono"
+                  />
+                  <span className="text-muted-foreground">(mín: {modulePriceResult.markupMinimo.toFixed(2)} / padrão: {modulePriceResult.markupPadrao.toFixed(2)})</span>
+                  {markupLuminariaOverride !== null && (
+                    <button
+                      onClick={() => setMarkupLuminariaOverride(null)}
+                      className="text-[10px] text-muted-foreground hover:text-foreground underline"
+                    >
+                      Resetar
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {/* Preço total — método antigo (catálogo estático) */}
+        {!modulePriceResult && precoTotal !== null && precoTotal !== undefined && (
           <div className="flex items-center justify-between rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-3">
             <span className="text-sm font-semibold text-blue-400 uppercase tracking-wide">Preço Total</span>
             <span className="text-lg font-bold text-blue-300">{formatBRL(precoTotal)}</span>
@@ -6152,7 +6225,7 @@ export default function Home() {
                 </CardContent>
               </Card>
             ) : (
-              <ResultBlock result={result} profilePriceMap={profilePriceMap} onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} />
+              <ResultBlock result={result} profilePriceMap={profilePriceMap} profileVariant={activeProfileCatalog[result.profileCode]} onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} />
             ))}
             {/* Resultado EM L */}
             {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && !glowMode && profileShape !== "STRAIGHT" && (
