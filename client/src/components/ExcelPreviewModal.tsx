@@ -139,7 +139,23 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
     return marginPct > 0 ? comRT / (1 - marginPct) : comRT;
   };
 
-  const totalBase = useMemo(() => items.reduce((s, it) => s + (it.totalPrice ?? 0), 0), [items]);
+  // Ordenar itens por pavimento (mesma logica do gerador Excel)
+  // Garante que itens do mesmo pavimento ficam consecutivos na pre-visualizacao
+  const sortedItems = useMemo(() => {
+    const nk = (s: string | undefined) => (s ?? "").trim().toLowerCase();
+    const floorOrder: string[] = [];
+    for (const item of items) {
+      const key = nk(item.floorId);
+      if (!floorOrder.includes(key)) floorOrder.push(key);
+    }
+    return [...items].sort((a, b) => {
+      const ia = floorOrder.indexOf(nk(a.floorId));
+      const ib = floorOrder.indexOf(nk(b.floorId));
+      return ia - ib;
+    });
+  }, [items]);
+
+  const totalBase = useMemo(() => sortedItems.reduce((s, it) => s + (it.totalPrice ?? 0), 0), [sortedItems]);
 
   // ── Diluição proporcional do frete ──────────────────────────────────────
   // Quando freteIncluded=true, distribui freteValue proporcionalmente ao
@@ -384,7 +400,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                 </tr>
               </thead>
               <tbody>
-                {items.map((item, idx) => {
+                {sortedItems.map((item, idx) => {
                   const isService = item.category === "Serviços";
                   const nonRabichoAcc = item.accessories?.filter(a => !a.familia?.toLowerCase().includes("rabicho")) ?? [];
                   const rabichoAcc = item.accessories?.find(a => a.familia?.toLowerCase().includes("rabicho"));
@@ -392,10 +408,15 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                   return (
                     <Fragment key={`row-group-${idx}`}>
                       {/* Cabeçalho de pavimento */}
-                      {item.floorId && (idx === 0 || items[idx - 1]?.floorId !== item.floorId) && (
+                      {item.floorId && (
+                        idx === 0 ||
+                        (sortedItems[idx - 1]?.floorId ?? "").trim().toLowerCase() !== (item.floorId ?? "").trim().toLowerCase()
+                      ) && (
                         <tr>
                           <td colSpan={12} style={{ background: "#1A3A5C", color: WHITE, fontWeight: "bold", fontSize: 12, padding: "4px 8px", border: "2px solid #444" }}>
-                            {item.floorName ? `${item.floorId} — ${item.floorName}` : item.floorId}
+                            {item.floorName && item.floorName.trim().toLowerCase() !== item.floorId.trim().toLowerCase()
+                              ? `${item.floorId} — ${item.floorName}`
+                              : item.floorName || item.floorId}
                           </td>
                         </tr>
                       )}

@@ -194,6 +194,20 @@ async function _generateExcelBuffer(
   items: CartItemData[],
   formData: QuoteFormData
 ): Promise<ArrayBuffer> {
+  // Ordenar itens por pavimento (floorId normalizado), mantendo a ordem original dentro de cada grupo
+  // Isso garante que itens do mesmo pavimento ficam consecutivos no Excel
+  const normalizeFloorKey = (s: string | undefined) => (s ?? "").trim().toLowerCase();
+  const floorOrder: string[] = [];
+  for (const item of items) {
+    const key = normalizeFloorKey(item.floorId);
+    if (!floorOrder.includes(key)) floorOrder.push(key);
+  }
+  items = [...items].sort((a, b) => {
+    const ia = floorOrder.indexOf(normalizeFloorKey(a.floorId));
+    const ib = floorOrder.indexOf(normalizeFloorKey(b.floorId));
+    return ia - ib;
+  });
+
   const wb = new ExcelJS.Workbook();
   wb.creator = "Configurador Alfalux";
   wb.created = new Date();
@@ -456,6 +470,8 @@ async function _generateExcelBuffer(
   // Rastrear pavimento atual para inserir cabeçalho quando mudar
   let lastFloorId: string | undefined = undefined;
   let floorHeaderCount = 0; // número de linhas de cabeçalho de pavimento inseridas
+  // Normaliza floorId para comparacao de agrupamento (trim + lowercase)
+  const normalizeFloor = (s: string | undefined) => (s ?? "").trim().toLowerCase();
 
   // ── Diluição proporcional do frete ──────────────────────────────────────
   // Quando freteIncluded=true e freteValue>0, distribui o frete proporcionalmente
@@ -487,15 +503,18 @@ async function _generateExcelBuffer(
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-    // Inserir cabeçalho de pavimento quando floorId muda
-    if (item.floorId && item.floorId !== lastFloorId) {
+    // Inserir cabeçalho de pavimento quando floorId muda (comparacao normalizada)
+    if (item.floorId && normalizeFloor(item.floorId) !== normalizeFloor(lastFloorId)) {
       const fhRow = currentRow + i + floorHeaderCount;
       const fhRowObj = ws.getRow(fhRow);
       fhRowObj.height = 22;
       ws.mergeCells(`C${fhRow}:N${fhRow}`);
       const fhCell = ws.getCell(`C${fhRow}`);
-      const floorLabel = item.floorName || item.floorId;
-      fhCell.value = `🏢 ${floorLabel}`;
+      // Exibir apenas floorName (ou floorId se não houver floorName diferente)
+      const floorLabel = (item.floorName && normalizeFloor(item.floorName) !== normalizeFloor(item.floorId))
+        ? `${item.floorId} — ${item.floorName}`
+        : (item.floorName || item.floorId);
+      fhCell.value = floorLabel;
       fhCell.font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
       fhCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A3A5C' } };
       fhCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };

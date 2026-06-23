@@ -198,7 +198,10 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
           <Label className="text-xs">Pavimento</Label>
           <Input
             value={d.floorName ?? ""}
-            onChange={e => onUpdate(item.id, { floorName: e.target.value, floorId: e.target.value })}
+            onChange={e => {
+              const v = e.target.value;
+              onUpdate(item.id, { floorName: v, floorId: v.trim() });
+            }}
             placeholder="ex: Térreo, 1º Andar"
             className="mt-1 h-8 text-sm"
             list="pavimento-suggestions-edit"

@@ -2349,7 +2349,7 @@ export default function Cart() {
                         <p className="text-xs text-muted-foreground mb-1">Pavimento</p>
                         <Input
                           value={editFields.floorName}
-                          onChange={(e) => setEditFields(prev => ({ ...prev, floorName: e.target.value, floorId: e.target.value }))}
+                          onChange={(e) => setEditFields(prev => ({ ...prev, floorName: e.target.value, floorId: e.target.value.trim() }))}
                           placeholder="ex: Térreo, 1º Andar"
                           list="pavimento-cart-suggestions"
                         />
