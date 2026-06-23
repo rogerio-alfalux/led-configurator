@@ -803,7 +803,9 @@ type ProfilePriceMap = Record<string, {
   dimDaliD1D2: number | null;
 }>;
 
-function ResultBlock({ result, profilePriceMap, profileVariant, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty, setGlobalQty }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void }) {
+type SkuPriceMap = Record<string, { onoff220: number|null; onoffBivolt: number|null; dim110v: number|null; dimDali: number|null; dimTriac110v: number|null; dimTriac220v: number|null; onoff220D1D2: number|null; onoffBivoltD1D2: number|null; dim110vD1D2: number|null; dimDaliD1D2: number|null; dimTriac110vD1D2: number|null; dimTriac220vD1D2: number|null; markupPadraoOnoff220v: number|null; markupMinimoOnoff220v: number|null; markupPadraoDim110v: number|null; markupMinimoDim110v: number|null; markupPadraoDimDali: number|null; markupMinimoDimDali: number|null; }>;
+
+function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty, setGlobalQty }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void }) {
   const efficiency = result.requestedLength > 0
     ? Math.round((result.realizedLength / result.requestedLength) * 100)
     : 0;
@@ -974,7 +976,7 @@ function ResultBlock({ result, profilePriceMap, profileVariant, onAddToQuote, it
       </Card>
 
       {/* Resumo Para Orçamento — Resumo para o cliente */}
-      <QuoteSummaryCard result={result} profilePriceMap={profilePriceMap} profileVariant={profileVariant} onAddToQuote={onAddToQuote} itemEmPlanta={itemEmPlanta} setItemEmPlanta={setItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} />
+      <QuoteSummaryCard result={result} profilePriceMap={profilePriceMap} profileVariant={profileVariant} skuPriceMap={skuPriceMap} onAddToQuote={onAddToQuote} itemEmPlanta={itemEmPlanta} setItemEmPlanta={setItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} />
       {/* Resumo para Pedido — Ficha Comercial */}
       <OrderSummaryCard result={result} />
       {/* Composição de Módulos — bloco unificado */}
@@ -1168,7 +1170,7 @@ function ResultBlock({ result, profilePriceMap, profileVariant, onAddToQuote, it
 }
 
 //// ─── Resumo Para Orçamento (Resumo para o cliente) ──────────────────────────
-function QuoteSummaryCard({ result, profilePriceMap, profileVariant, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty = 1, setGlobalQty }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void }) {
+function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty = 1, setGlobalQty }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void }) {
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { addItem, isAdding: isAddingToCart } = useCart();
@@ -1183,20 +1185,84 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, onAddToQuot
   // Estado do markup editável (apenas para Dennis e Vivian)
   const [markupLuminariaOverride, setMarkupLuminariaOverride] = useState<number | null>(null);
 
-  // ── Novo método: cálculo por módulo via custo × markup da API ──────────────
+  // ── Novo método: preço por SKU individual × quantidade (BLAZE H e futuros) ──────
   const isD1D2 = result.application === 'D1+D2';
   const nModules = result.composition.reduce((sum, item) => sum + item.quantity, 0);
-  const moduleControlType = toModuleControlType(result.controlType, result.voltage);
 
-  const modulePriceResult = profileVariant && usesModulePricing(profileVariant)
-    ? calcModulePrice({
-        variant: profileVariant,
-        controlType: moduleControlType,
-        isD1D2,
-        nModules,
-        markupLuminaria: markupLuminariaOverride,
-      })
-    : null;
+  // Função auxiliar: extrai o preço de venda do SKU para o controle/aplicação selecionados
+  function getSkuPreco(sku: string): number | null {
+    const entry = skuPriceMap?.[sku];
+    if (!entry) return null;
+    if (isD1D2) {
+      if (result.controlType === 'dimDali') return entry.dimDaliD1D2;
+      if (result.controlType === 'dim110v') return entry.dim110vD1D2;
+      if (result.controlType === 'dimTriac110v') return entry.dimTriac110vD1D2;
+      if (result.controlType === 'dimTriac220v') return entry.dimTriac220vD1D2;
+      // ON/OFF: discriminar por tensão
+      if (/bivolt/i.test(result.voltage)) return entry.onoffBivoltD1D2;
+      return entry.onoff220D1D2;
+    }
+    if (result.controlType === 'dimDali') return entry.dimDali;
+    if (result.controlType === 'dim110v') return entry.dim110v;
+    if (result.controlType === 'dimTriac110v') return entry.dimTriac110v;
+    if (result.controlType === 'dimTriac220v') return entry.dimTriac220v;
+    if (/bivolt/i.test(result.voltage)) return entry.onoffBivolt;
+    return entry.onoff220;
+  }
+
+  // Calcular preço total somando preço de cada SKU × quantidade
+  // Só usa o novo método se TODOS os SKUs da composição tiverem preço no mapa
+  const modulePriceResult = (() => {
+    if (!skuPriceMap || result.composition.length === 0) return null;
+    // Verificar se algum SKU da composição tem preço no mapa
+    const hasAnySkuPrice = result.composition.some(item => skuPriceMap[item.sku] != null);
+    if (!hasAnySkuPrice) return null;
+
+    let totalLuminaria = 0;
+    let allHavePrice = true;
+    const breakdown: Array<{ sku: string; quantity: number; precoUnit: number; subtotal: number }> = [];
+
+    for (const item of result.composition) {
+      const precoUnit = getSkuPreco(item.sku);
+      if (precoUnit == null) { allHavePrice = false; break; }
+      const subtotal = Math.round(precoUnit * item.quantity * 100) / 100;
+      totalLuminaria += subtotal;
+      breakdown.push({ sku: item.sku, quantity: item.quantity, precoUnit, subtotal });
+    }
+
+    if (!allHavePrice) return null;
+
+    totalLuminaria = Math.round(totalLuminaria * 100) / 100;
+
+    // Markup padrão/mínimo: pegar do primeiro SKU com dados
+    const firstSkuEntry = skuPriceMap[result.composition[0]?.sku];
+    let markupPadrao = 2;
+    let markupMinimo = 1;
+    if (firstSkuEntry) {
+      if (result.controlType === 'dimDali') {
+        markupPadrao = firstSkuEntry.markupPadraoDimDali ?? 3;
+        markupMinimo = firstSkuEntry.markupMinimoDimDali ?? 2;
+      } else if (result.controlType === 'dim110v') {
+        markupPadrao = firstSkuEntry.markupPadraoDim110v ?? 3;
+        markupMinimo = firstSkuEntry.markupMinimoDim110v ?? 2;
+      } else {
+        markupPadrao = firstSkuEntry.markupPadraoOnoff220v ?? 2;
+        markupMinimo = firstSkuEntry.markupMinimoOnoff220v ?? 1;
+      }
+    }
+
+    return {
+      precoLuminariaTotal: totalLuminaria,
+      precoDriverTotal: 0, // custo do driver ainda não disponibilizado pela API
+      total: totalLuminaria,
+      markupLuminariaAplicado: markupLuminariaOverride ?? markupPadrao,
+      markupPadrao,
+      markupMinimo,
+      markupDriverAplicado: 3,
+      breakdown,
+      fromApi: true,
+    };
+  })();
 
   // ── Método antigo: preço por metro (catálogo estático) ─────────────────────
   const precoTotalStatico = (() => {
@@ -1382,53 +1448,26 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, onAddToQuot
           rows={Math.max(summary.split('\n').length + 1, 3)}
           onClick={(e) => (e.target as HTMLTextAreaElement).select()}
         />
-        {/* Detalhamento: novo método por módulo (BLAZE H e futuros) */}
+        {/* Detalhamento: novo método por SKU (BLAZE H e futuros) */}
         {modulePriceResult && (
-          <div className="rounded-lg bg-muted/30 border border-border p-3 space-y-1.5 text-xs">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Luminária ({nModules} módulo{nModules !== 1 ? 's' : ''} × markup {modulePriceResult.markupLuminariaAplicado.toFixed(4)})</span>
-              <span className="font-mono">{formatBRL(modulePriceResult.precoLuminariaTotal)}</span>
-            </div>
+          <div className="rounded-lg bg-muted/30 border border-border p-3 space-y-1 text-xs">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Detalhamento de Preço</p>
+            {modulePriceResult.breakdown.map((b, i) => (
+              <div key={i} className="flex justify-between">
+                <span className="text-muted-foreground">{b.quantity} × {b.sku} ({formatBRL(b.precoUnit)} cada)</span>
+                <span className="font-mono">{formatBRL(b.subtotal)}</span>
+              </div>
+            ))}
             {modulePriceResult.precoDriverTotal > 0 && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Driver ({nModules} módulo{nModules !== 1 ? 's' : ''} × markup {modulePriceResult.markupDriverAplicado.toFixed(1)})</span>
                 <span className="font-mono">{formatBRL(modulePriceResult.precoDriverTotal)}</span>
               </div>
             )}
-            <div className="flex justify-between font-semibold border-t border-border pt-1 mt-1">
+            <div className="flex justify-between font-semibold border-t border-border pt-1.5 mt-1">
               <span>Total</span>
               <span className="font-mono text-primary">{formatBRL(modulePriceResult.total)}</span>
             </div>
-            {/* Controle de markup — visível apenas para Dennis e Vivian */}
-            {canEditMarkup && (
-              <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
-                <p className="text-[10px] text-amber-400 font-medium uppercase tracking-wide">⚠️ Ajuste de Markup (Dennis / Vivian)</p>
-                <div className="flex items-center gap-2">
-                  <label className="text-muted-foreground whitespace-nowrap">Markup luminária:</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min={modulePriceResult.markupMinimo}
-                    max={modulePriceResult.markupPadrao}
-                    value={markupLuminariaOverride ?? modulePriceResult.markupPadrao}
-                    onChange={(e) => {
-                      const v = parseFloat(e.target.value);
-                      if (!isNaN(v)) setMarkupLuminariaOverride(Math.max(modulePriceResult.markupMinimo, Math.min(modulePriceResult.markupPadrao, v)));
-                    }}
-                    className="h-6 w-20 text-xs rounded border border-border bg-background px-1.5 font-mono"
-                  />
-                  <span className="text-muted-foreground">(mín: {modulePriceResult.markupMinimo.toFixed(2)} / padrão: {modulePriceResult.markupPadrao.toFixed(2)})</span>
-                  {markupLuminariaOverride !== null && (
-                    <button
-                      onClick={() => setMarkupLuminariaOverride(null)}
-                      className="text-[10px] text-muted-foreground hover:text-foreground underline"
-                    >
-                      Resetar
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         )}
         {/* Preço total — método antigo (catálogo estático) */}
@@ -1715,6 +1754,60 @@ export default function Home() {
     if (!alfaluxApiProducts || alfaluxApiProducts.length === 0) return false;
     const apiCatalog = adaptProfileProducts(alfaluxApiProducts);
     return apiCatalog !== null && Object.keys(apiCatalog).length > 0;
+  }, [alfaluxApiProducts]);
+
+  // Mapa de preços por SKU individual (extraído dos produtos PERFIS da API)
+  // Estrutura: { [sku]: { onoff220, onoffBivolt, dim110v, dimDali, ... } }
+  // Usado pelo novo método de cálculo (BLAZE H e futuros) — preço de venda por SKU × quantidade
+  const skuPriceMap = useMemo(() => {
+    if (!alfaluxApiProducts || alfaluxApiProducts.length === 0) return {};
+    const map: Record<string, {
+      onoff220: number | null;
+      onoffBivolt: number | null;
+      dim110v: number | null;
+      dimDali: number | null;
+      dimTriac110v: number | null;
+      dimTriac220v: number | null;
+      onoff220D1D2: number | null;
+      onoffBivoltD1D2: number | null;
+      dim110vD1D2: number | null;
+      dimDaliD1D2: number | null;
+      dimTriac110vD1D2: number | null;
+      dimTriac220vD1D2: number | null;
+      markupPadraoOnoff220v: number | null;
+      markupMinimoOnoff220v: number | null;
+      markupPadraoDim110v: number | null;
+      markupMinimoDim110v: number | null;
+      markupPadraoDimDali: number | null;
+      markupMinimoDimDali: number | null;
+    }> = {};
+    for (const p of alfaluxApiProducts) {
+      const cat = (p.categoria ?? "").toUpperCase();
+      if (cat !== "PERFIS") continue;
+      const sku = p.sku ?? "";
+      if (!sku) continue;
+      map[sku] = {
+        onoff220: p.precoOnOff220 ?? null,
+        onoffBivolt: p.precoOnOffBivolt ?? null,
+        dim110v: p.precoDim110v ?? null,
+        dimDali: p.precoDimDali ?? null,
+        dimTriac110v: p.precoDimTriac110v ?? null,
+        dimTriac220v: p.precoDimTriac220v ?? null,
+        onoff220D1D2: p.precoOnOff220D1D2 ?? null,
+        onoffBivoltD1D2: p.precoOnOffBivoltD1D2 ?? null,
+        dim110vD1D2: p.precoDim110vD1D2 ?? null,
+        dimDaliD1D2: p.precoDimDaliD1D2 ?? null,
+        dimTriac110vD1D2: p.precoDimTriac110vD1D2 ?? null,
+        dimTriac220vD1D2: p.precoDimTriac220vD1D2 ?? null,
+        markupPadraoOnoff220v: p.markupPadraoOnoff220v ?? null,
+        markupMinimoOnoff220v: p.markupMinimoOnoff220v ?? null,
+        markupPadraoDim110v: p.markupPadraoDim110v ?? null,
+        markupMinimoDim110v: p.markupMinimoDim110v ?? null,
+        markupPadraoDimDali: p.markupPadraoDimDali ?? null,
+        markupMinimoDimDali: p.markupMinimoDimDali ?? null,
+      };
+    }
+    return map;
   }, [alfaluxApiProducts]);
 
   // Mapa de preços por metro por profileCode (extraído dos produtos PERFIS da API)
@@ -6225,7 +6318,7 @@ export default function Home() {
                 </CardContent>
               </Card>
             ) : (
-              <ResultBlock result={result} profilePriceMap={profilePriceMap} profileVariant={activeProfileCatalog[result.profileCode]} onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} />
+              <ResultBlock result={result} profilePriceMap={profilePriceMap} profileVariant={activeProfileCatalog[result.profileCode]} skuPriceMap={skuPriceMap} onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} />
             ))}
             {/* Resultado EM L */}
             {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && !glowMode && profileShape !== "STRAIGHT" && (
