@@ -1386,3 +1386,9 @@
 - [x] Cart.tsx: Exibir equipamentos do item especial no modal de edição
 - [x] QuoteDetail.tsx: Exibir equipamentos do item especial no editor do orçamento
 - [x] orderExcelGenerator.ts: Incluir specialEquipments na coluna EQUIPAMENTOS do pedido de fábrica
+
+## Sprint — Markup restrito + Dashboard gerencial
+- [ ] Ocultar markup na UI do configurador (QuoteSummaryCard) para usuários não autorizados
+- [ ] Restringir botão de edição de markup no QuoteDetail (só Dennis, Vivian e owner)
+- [ ] Implementar métricas gerenciais no backend: lucro bruto, margem, famílias mais orçadas
+- [ ] Construir painel gerencial no Dashboard com KPIs estratégicos (visível só para autorizados)

@@ -1057,6 +1057,56 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     .groupBy(quotes.seller1Name)
     .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)))`));
 
+  // ── Lucro bruto estimado e margem média (aprovados no período) ─────────────
+  const [profitMetrics] = await db.select({
+    totalAmount: sql<number>`sum(cast(totalAmount as decimal(14,2)))`,
+    totalFinal: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
+    lucroEstimado: sql<number>`sum(cast(totalAmount as decimal(14,2)) * cast(marginPercent as decimal(5,4)))`,
+    margemMedia: sql<number>`avg(cast(marginPercent as decimal(5,4)))`,
+    totalCount: sql<number>`count(*)`,
+  }).from(quotes).where(periodCondition);
+
+  // ── Taxa de conversão (total criado no período vs aprovados) ─────────────────
+  const createdCondition = (dateFrom && dateTo)
+    ? sql`createdAt >= ${dateFrom} AND createdAt <= ${dateTo + ' 23:59:59'}`
+    : month
+      ? sql`YEAR(createdAt) = ${year} AND MONTH(createdAt) = ${month}`
+      : sql`YEAR(createdAt) = ${year}`;
+
+  const [conversionMetrics] = await db.select({
+    totalCreated: sql<number>`count(*)`,
+    totalApproved: sql<number>`sum(case when status = 'approved' then 1 else 0 end)`,
+    totalLost: sql<number>`sum(case when status = 'lost' then 1 else 0 end)`,
+    totalOpen: sql<number>`sum(case when status = 'open' then 1 else 0 end)`,
+    totalCancelled: sql<number>`sum(case when status = 'cancelled' then 1 else 0 end)`,
+    ticketMedioAprovado: sql<number>`avg(case when status = 'approved' then cast(totalFinal as decimal(14,2)) else null end)`,
+  }).from(quotes).where(createdCondition);
+
+  // ── Famílias mais orçadas (por itens aprovados no período) ────────────────────
+  // Extrai category do JSON itemData de cada item vinculado a orçamentos aprovados
+  const familyRanking = await db.execute(sql`
+    SELECT
+      JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.category')) AS categoria,
+      COUNT(*) AS qtdItens,
+      SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.qty')) AS DECIMAL(10,0))) AS qtdUnidades,
+      SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.totalPrice')) AS DECIMAL(14,2))) AS valorTotal
+    FROM quote_items qi
+    INNER JOIN quotes q ON q.id = qi.quoteId
+    WHERE q.status = 'approved'
+      AND ${
+        (dateFrom && dateTo)
+          ? sql`q.approvedAt >= ${dateFrom} AND q.approvedAt <= ${dateTo + ' 23:59:59'}`
+          : month
+            ? sql`YEAR(q.approvedAt) = ${year} AND MONTH(q.approvedAt) = ${month}`
+            : sql`YEAR(q.approvedAt) = ${year}`
+      }
+      AND JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.category')) IS NOT NULL
+      AND JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.totalPrice')) IS NOT NULL
+    GROUP BY JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.category'))
+    ORDER BY valorTotal DESC
+    LIMIT 10
+  `);
+
   // ── Progresso mensal (todos os meses do ano) ──────────────────────────────
   const monthlyProgress = await db.select({
     month: sql<number>`MONTH(approvedAt)`,
@@ -1078,6 +1128,14 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     salesRanking,
     monthlyProgress,
     goals,
+    profitMetrics,
+    conversionMetrics,
+    familyRanking: (familyRanking as any[])[0] as Array<{
+      categoria: string;
+      qtdItens: number;
+      qtdUnidades: number;
+      valorTotal: number;
+    }>,
   };
 }
 

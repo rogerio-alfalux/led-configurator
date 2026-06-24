@@ -1497,7 +1497,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
             ))}
             {modulePriceResult.precoDriverTotal > 0 && (
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Driver ({nModules} módulo{nModules !== 1 ? 's' : ''} × markup {modulePriceResult.markupDriverAplicado.toFixed(1)})</span>
+                <span className="text-muted-foreground">Driver ({nModules} módulo{nModules !== 1 ? 's' : ''})</span>
                 <span className="font-mono">{formatBRL(modulePriceResult.precoDriverTotal)}</span>
               </div>
             )}

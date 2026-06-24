@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   ArrowLeft, ClipboardList, CheckCircle, DollarSign, BarChart2, Target,
   Award, Percent, Edit2, Save, X, ShieldAlert, ChevronDown, ChevronUp, Coins,
-  Users, FileDown,
+  Users, FileDown, TrendingUp, Package, PieChart, AlertCircle, Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -258,6 +258,30 @@ export default function Dashboard() {
   const commissions = managerData?.commissionBySeller ?? [];
   const rtRanking = managerData?.rtRanking ?? [];
   const salesRanking = managerData?.salesRanking ?? [];
+
+  // Métricas gerenciais (novas)
+  const profitMetrics = managerData?.profitMetrics;
+  const conversionMetrics = managerData?.conversionMetrics;
+  const familyRanking = ((managerData as any)?.familyRanking as Array<{ categoria: string; qtdItens: number; qtdUnidades: number; valorTotal: number }> | undefined) ?? [];
+  const lucroEstimado = Number(profitMetrics?.lucroEstimado ?? 0);
+  const margemMedia = Number(profitMetrics?.margemMedia ?? 0) * 100;
+  const taxaConversao = conversionMetrics
+    ? (Number(conversionMetrics.totalApproved ?? 0) / Math.max(Number(conversionMetrics.totalCreated ?? 1), 1)) * 100
+    : 0;
+  const ticketMedio = Number(conversionMetrics?.ticketMedioAprovado ?? 0);
+  const totalAbertos = Number(conversionMetrics?.totalOpen ?? 0);
+  const totalPerdidos = Number(conversionMetrics?.totalLost ?? 0);
+  const CATEGORY_LABELS: Record<string, string> = {
+    perfil: 'Perfis LED',
+    downlight: 'Downlights',
+    painel: 'Painéis',
+    spot: 'Spots',
+    arandela: 'Arandelas',
+    ledbar: 'LED BAR',
+    bageo: 'Bagéo',
+    especial: 'Itens Especiais',
+    revenda: 'Revenda',
+  };
 
   const visibleCommissions = showAllCommissions ? commissions : commissions.slice(0, 5);
   const visibleRt = showAllRt ? rtRanking : rtRanking.slice(0, 5);
@@ -600,6 +624,149 @@ export default function Dashboard() {
                     )}
                   </CardContent>
                 </Card>
+              </>
+            )}
+
+            {/* ── Painel Gerencial: Lucro, Conversão e Famílias ─────────────── */}
+            {isManager && (
+              <>
+                {/* KPIs de Lucratividade e Conversão */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <StatCard
+                    title="Lucro Bruto Estimado"
+                    value={formatBRL(lucroEstimado)}
+                    sub="margem aplicada sobre base"
+                    icon={<TrendingUp className="w-5 h-5 text-emerald-600" />}
+                    color="text-emerald-600 dark:text-emerald-400"
+                  />
+                  <StatCard
+                    title="Margem Média"
+                    value={`${margemMedia.toFixed(1)}%`}
+                    sub="dos orçamentos aprovados"
+                    icon={<Percent className="w-5 h-5 text-teal-600" />}
+                    color="text-teal-600 dark:text-teal-400"
+                  />
+                  <StatCard
+                    title="Taxa de Conversão"
+                    value={`${taxaConversao.toFixed(1)}%`}
+                    sub={`${Number(conversionMetrics?.totalApproved ?? 0)} de ${Number(conversionMetrics?.totalCreated ?? 0)} orçamentos`}
+                    icon={<Activity className="w-5 h-5 text-blue-600" />}
+                    color="text-blue-600 dark:text-blue-400"
+                  />
+                  <StatCard
+                    title="Ticket Médio"
+                    value={formatBRL(ticketMedio)}
+                    sub="por orçamento aprovado"
+                    icon={<DollarSign className="w-5 h-5 text-violet-600" />}
+                    color="text-violet-600 dark:text-violet-400"
+                  />
+                </div>
+
+                {/* Funil de orçamentos + Famílias mais orçadas */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Funil de status */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <PieChart className="w-4 h-4 text-slate-600" />
+                        Funil de Orçamentos
+                        <Badge variant="outline" className="text-xs ml-auto">Período selecionado</Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {!conversionMetrics ? (
+                        <p className="text-sm text-muted-foreground text-center py-4">Nenhum dado no período</p>
+                      ) : (() => {
+                        const total = Number(conversionMetrics.totalCreated ?? 0);
+                        const approved = Number(conversionMetrics.totalApproved ?? 0);
+                        const open = Number(conversionMetrics.totalOpen ?? 0);
+                        const lost = Number(conversionMetrics.totalLost ?? 0);
+                        const cancelled = Number(conversionMetrics.totalCancelled ?? 0);
+                        const items = [
+                          { label: 'Criados', value: total, color: 'bg-slate-400', text: 'text-slate-600 dark:text-slate-400' },
+                          { label: 'Em aberto', value: open, color: 'bg-blue-400', text: 'text-blue-600 dark:text-blue-400' },
+                          { label: 'Aprovados', value: approved, color: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
+                          { label: 'Perdidos', value: lost, color: 'bg-red-400', text: 'text-red-600 dark:text-red-400' },
+                          { label: 'Cancelados', value: cancelled, color: 'bg-gray-300', text: 'text-gray-500' },
+                        ];
+                        return items.map(({ label, value, color, text }) => (
+                          <div key={label} className="space-y-1">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">{label}</span>
+                              <span className={`font-bold ${text}`}>{value}</span>
+                            </div>
+                            <div className="h-2 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${color} transition-all`}
+                                style={{ width: total > 0 ? `${Math.min(100, (value / total) * 100)}%` : '0%' }}
+                              />
+                            </div>
+                          </div>
+                        ));
+                      })()}
+                    </CardContent>
+                  </Card>
+
+                  {/* Famílias mais orçadas */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Package className="w-4 h-4 text-orange-600" />
+                        Famílias Mais Orçadas
+                        <Badge variant="outline" className="text-xs ml-auto">Por valor aprovado</Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {familyRanking.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-4">Nenhum dado no período</p>
+                      ) : (() => {
+                        const maxVal = Math.max(...familyRanking.map(f => Number(f.valorTotal ?? 0)), 1);
+                        return familyRanking.map((f, i) => (
+                          <div key={i} className="space-y-0.5">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="font-medium truncate max-w-[55%]">
+                                {CATEGORY_LABELS[f.categoria?.toLowerCase()] ?? f.categoria ?? '—'}
+                              </span>
+                              <div className="text-right shrink-0">
+                                <span className="font-bold text-orange-600 dark:text-orange-400">{formatBRL(Number(f.valorTotal ?? 0))}</span>
+                                <span className="text-xs text-muted-foreground ml-2">{Number(f.qtdUnidades ?? 0)} un.</span>
+                              </div>
+                            </div>
+                            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-orange-400 transition-all"
+                                style={{ width: `${(Number(f.valorTotal ?? 0) / maxVal) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                        ));
+                      })()}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Alerta de orçamentos em aberto */}
+                {totalAbertos > 0 && (
+                  <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                          {totalAbertos} orçamento{totalAbertos !== 1 ? 's' : ''} em aberto no período
+                        </p>
+                        <p className="text-xs text-amber-700 dark:text-amber-400">
+                          {totalPerdidos > 0 && `${totalPerdidos} perdido${totalPerdidos !== 1 ? 's' : ''} · `}
+                          Taxa de conversão atual: {taxaConversao.toFixed(1)}%
+                        </p>
+                      </div>
+                      <Link href="/orcamentos">
+                        <Button size="sm" variant="outline" className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100">
+                          Ver orçamentos
+                        </Button>
+                      </Link>
+                    </CardContent>
+                  </Card>
+                )}
               </>
             )}
 
