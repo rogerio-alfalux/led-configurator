@@ -5,9 +5,9 @@
  * Exibe marca d'água "RASCUNHO" em diagonal para deixar claro que não é versão oficial.
  * Usa createPortal para garantir tela cheia real sem interferência do Dialog do shadcn.
  */
-import { Fragment, useMemo, useEffect } from "react";
+import { Fragment, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { X, FileDown } from "lucide-react";
 import type { CartItemData, QuoteFormData } from "@/lib/cartTypes";
 import { formatBRL } from "@/lib/cartTypes";
 
@@ -235,6 +235,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
       }}
       aria-modal="true"
       role="dialog"
+      data-print-modal
     >
       {/* ── Barra de topo fixa ── */}
       <div
@@ -273,6 +274,24 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
             Esta visualização é apenas para conferência. Nenhuma revisão foi criada.
           </span>
           <button
+            onClick={() => window.print()}
+            style={{
+              background: "#1e40af",
+              border: "1px solid #3b82f6",
+              borderRadius: 6,
+              color: "#fff",
+              cursor: "pointer",
+              padding: "6px 12px",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 13,
+              fontWeight: "bold",
+            }}
+          >
+            <FileDown size={16} /> Baixar PDF
+          </button>
+          <button
             onClick={onClose}
             style={{
               background: "transparent",
@@ -294,6 +313,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
 
       {/* ── Área de scroll (horizontal + vertical) ── */}
       <div
+        data-print-content
         style={{
           flex: 1,
           overflow: "auto",
@@ -369,7 +389,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                   ["CLIENTE", formData.cliente || ""],
                   ["CONTATO/TEL", contactText],
                   ["E-MAIL", formData.email || ""],
-                  ["ARQUITETURA/LD", ""],
+                  ["ARQUITETURA/LD", [formData.arquiteto ? `ARQUITETO: ${formData.arquiteto}` : "", formData.lightDesigner ? `LD: ${formData.lightDesigner}` : ""].filter(Boolean).join("   |   ")],
                   ["REFERÊNCIA", formData.referencia || "FORNECIMENTO DE LUMINÁRIAS"],
                 ].map(([label, value]) => (
                   <tr key={label}>
@@ -414,9 +434,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                       ) && (
                         <tr>
                           <td colSpan={12} style={{ background: "#1A3A5C", color: WHITE, fontWeight: "bold", fontSize: 12, padding: "4px 8px", border: "2px solid #444" }}>
-                            {item.floorName && item.floorName.trim().toLowerCase() !== item.floorId.trim().toLowerCase()
-                              ? `${item.floorId} — ${item.floorName}`
-                              : item.floorName || item.floorId}
+                            {item.floorName || item.floorId}
                           </td>
                         </tr>
                       )}
@@ -451,11 +469,11 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                               </div>
                             )}
                           </td>
-                          <td style={tdStyle}>{item.category === "Item Especial" && item.specialDimensions ? item.specialDimensions : extractLength(item.description)}</td>
+                          <td style={tdStyle}>{item.category === "Item Especial" && item.specialDimensions ? item.specialDimensions : item.shapeTotalLengthMm ? `${item.shapeTotalLengthMm}mm total` : extractLength(item.description)}</td>
                           <td style={tdStyle}>{item.category === "Item Especial" && item.specialPower ? item.specialPower : (item.power?.trim() || extractPower(item.description))}</td>
                           <td style={tdStyle}>{item.category === "Item Especial" && item.specialDim ? item.specialDim : extractDim(item.description)}</td>
                           <td style={tdStyle}>{item.category === "Item Especial" && item.specialVoltage ? item.specialVoltage : extractVoltage(item.description)}</td>
-                          <td style={tdStyle}>{item.category === "Item Especial" ? "-" : (item.corPeca || "-")}</td>
+                          <td style={tdStyle}>{item.category === "Item Especial" ? (item.specialColor || item.corPeca || "-") : (item.corPeca || "-")}</td>
                           <td style={tdStyle}>{item.cct || "-"}</td>
                           <td style={{ ...tdStyle, fontWeight: "bold" }}>{item.qty}</td>
                           <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkup(unitPriceComFrete(item) ?? item.unitPrice)) : "-"}</td>

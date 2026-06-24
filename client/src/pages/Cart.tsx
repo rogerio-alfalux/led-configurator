@@ -94,6 +94,8 @@ interface SaveFormData {
   freteValue: string;
   freteState: string;
   freteIncluded: boolean;
+  arquiteto: string;
+  lightDesigner: string;
 }
 
 interface OrderFormData {
@@ -740,6 +742,8 @@ export default function Cart() {
     freteValue: "",
     freteState: "",
     freteIncluded: false,
+    arquiteto: "",
+    lightDesigner: "",
   };
   const [saveForm, setSaveForm] = useState<SaveFormData>(() => {
     try {
@@ -779,6 +783,11 @@ export default function Cart() {
   useEffect(() => {
     if (!saveDialogOpen) setUserEditedQuoteNumber(false);
   }, [saveDialogOpen]);
+  // Verificar se o número de orçamento já existe
+  const checkNumberQuery = trpc.quotes.checkNumber.useQuery(
+    { quoteNumber: saveForm.quoteNumber.trim() },
+    { enabled: saveDialogOpen && !!saveForm.quoteNumber.trim(), staleTime: 2000 }
+  );
 
   // Auto-preenche o estado da aba Frete quando o estado da aba Comercial muda
   // (apenas se o usuário ainda não escolheu um estado diferente na aba Frete)
@@ -1016,6 +1025,8 @@ export default function Cart() {
       freteState: saveForm.freteStateCode || undefined,
       freteCity: saveForm.freteCity || undefined,
       freteIncluded: saveForm.freteIncluded,
+      arquiteto: saveForm.arquiteto || undefined,
+      lightDesigner: saveForm.lightDesigner || undefined,
       totalAmount: totalGeral,
       // totalFinal deve incluir TODOS os acréscimos: RT + margem + frete + DIFAL + FCP
       totalFinal: totalFinal + freteValor
@@ -1395,10 +1406,18 @@ export default function Cart() {
                                   placeholder={suggestQuery.data?.suggested ?? "ORC-26-0001"}
                                   value={saveForm.quoteNumber}
                                    onChange={e => { setUserEditedQuoteNumber(true); updateSaveForm("quoteNumber", e.target.value); }}
+                                  className={checkNumberQuery.data?.exists ? "border-orange-500 focus-visible:ring-orange-500" : ""}
                                 />
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {suggestQuery.isLoading ? "Calculando número..." : suggestQuery.data?.suggested ? `Número gerado: ${suggestQuery.data.suggested}` : "Selecione o Vendedor 1 para gerar o número automaticamente"}
-                                </p>
+                                {checkNumberQuery.data?.exists && (
+                                  <p className="text-xs text-orange-600 font-medium mt-1">
+                                    ⚠️ Este número já está em uso pelo orçamento de {checkNumberQuery.data.existingQuote?.clientName}. Você pode continuar, mas verifique antes.
+                                  </p>
+                                )}
+                                {!checkNumberQuery.data?.exists && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {suggestQuery.isLoading ? "Calculando número..." : suggestQuery.data?.suggested ? `Número gerado: ${suggestQuery.data.suggested}` : "Selecione o Vendedor 1 para gerar o número automaticamente"}
+                                  </p>
+                                )}
                               </div>
                             </div>
                             <div>
@@ -1586,6 +1605,26 @@ export default function Cart() {
                                 O assistente é quem está elaborando este orçamento.
                               </p>
                             </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label>Arquiteto</Label>
+                                <Input
+                                  placeholder="Nome do arquiteto"
+                                  value={saveForm.arquiteto}
+                                  onChange={e => updateSaveForm("arquiteto", e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <Label>Light Designer</Label>
+                                <Input
+                                  placeholder="Nome do light designer"
+                                  value={saveForm.lightDesigner}
+                                  onChange={e => {
+                                    updateSaveForm("lightDesigner", e.target.value);
+                                  }}
+                                />
+                              </div>
+                            </div>
                             <div>
                               <Label>Observações desta versão</Label>
                               <Input
@@ -1643,7 +1682,13 @@ export default function Cart() {
                                       <Input
                                         placeholder={`Destino ${n} (ex: Engenharia)`}
                                         value={saveForm[destKey] as string}
-                                        onChange={e => updateSaveForm(destKey, e.target.value as SaveFormData[typeof destKey])}
+                                        onChange={e => {
+                                          updateSaveForm(destKey, e.target.value as SaveFormData[typeof destKey]);
+                                          // Auto-preenche Light Designer com o Destino 1 da RT
+                                          if (n === 1 && !saveForm.lightDesigner) {
+                                            updateSaveForm("lightDesigner", e.target.value);
+                                          }
+                                        }}
                                         disabled={!saveForm[activeKey]}
                                         className="flex-1"
                                       />
@@ -2346,10 +2391,8 @@ export default function Cart() {
                     </div>
                   </div>
                     <div className="space-y-1">
-                    <Label>Localização do Item</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Pavimento</p>
+                    <Label>Pavimento</Label>
+                    <div>
                         <Input
                           value={editFields.floorName}
                           onChange={(e) => setEditFields(prev => ({ ...prev, floorName: e.target.value, floorId: e.target.value.trim() }))}
@@ -2365,15 +2408,6 @@ export default function Cart() {
                           <option value="Subsolo" />
                           <option value="Mezanino" />
                         </datalist>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Ambiente</p>
-                        <Input
-                          value={editFields.ambiente}
-                          onChange={(e) => setEditFields(prev => ({ ...prev, ambiente: e.target.value }))}
-                          placeholder="ex: Sala, Cozinha"
-                        />
-                      </div>
                     </div>
                     <p className="text-xs text-muted-foreground">Agrupa itens por pavimento no Excel</p>
                   </div>

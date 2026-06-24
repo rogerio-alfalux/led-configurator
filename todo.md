@@ -1392,3 +1392,47 @@
 - [x] Restringir botão de edição de markup no QuoteDetail (só Dennis, Vivian e owner)
 - [x] Implementar métricas gerenciais no backend: lucro bruto, margem, famílias mais orçadas
 - [x] Construir painel gerencial no Dashboard com KPIs estratégicos (visível só para autorizados)
+
+## Lote 5 — 10 Alterações em Massa (24/06/2026)
+
+### DB Schema
+- [x] Adicionar colunas `arquiteto` e `lightDesigner` na tabela `quotes`
+- [x] Remover campo `ambiente` do sistema (manter coluna no DB por compatibilidade, mas ocultar da UI)
+
+### Backend
+- [x] Atualizar createQuote/updateQuote para salvar arquiteto e lightDesigner
+- [x] Atualizar getQuoteById para retornar arquiteto e lightDesigner
+- [x] Verificar duplicidade de número de orçamento no backend (retornar erro ou aviso)
+- [x] Atualizar data do orçamento (updatedAt) ao editar/adicionar revisão
+
+### UI — Carrinho (Cart.tsx)
+- [x] Adicionar campos Arquiteto e Light Designer no formulário do carrinho
+- [x] Quando RT for selecionado/inserido, auto-preencher Light Designer com o nome da RT
+- [x] Número do orçamento: tornar editável manualmente, exibir alerta se número já existe
+- [x] Remover campo Ambiente do formulário do carrinho
+- [x] Corrigir tela de seleção de cor ao clicar "enviar ao orçamento" (deve aparecer a tela de cor)
+
+### UI — QuoteDetail.tsx
+- [x] Adicionar campos Arquiteto e Light Designer no editor do orçamento
+- [x] Quando RT for selecionado/inserido, auto-preencher Light Designer com o nome da RT
+- [x] Preservar todos os campos preenchidos (vendedor, assistente, RT, margem, DIFAL, etc.) ao adicionar novos itens
+- [x] Remover campo Ambiente do editor do orçamento
+- [x] Corrigir separador de pavimento: exibir apenas o nome do pavimento (nunca "Térreo - Térreo")
+- [x] Número do orçamento editável com alerta de duplicidade
+
+### Excel (quoteExcelGenerator.ts)
+- [x] Adicionar Arquiteto e Light Designer no cabeçalho do Excel
+- [x] Remover coluna Ambiente do Excel
+- [x] Mostrar cor do Item Especial na coluna correta do Excel
+- [x] Padrão de nome do arquivo: `{número} ({RVx}) - {obra} - {cliente}.xlsx`
+- [x] Corrigir separador de pavimento: apenas nome do pavimento (sem duplicação)
+
+### PDF Preview
+- [x] Adicionar Arquiteto e Light Designer na pré-visualização do PDF
+- [x] Mostrar cor do Item Especial na pré-visualização
+- [x] Botão para baixar PDF da pré-visualização SEM gerar nova revisão
+- [x] Corrigir separador de pavimento: apenas nome do pavimento (sem duplicação)
+
+### Metragem L/Retangular/Quadrado
+- [x] Corrigir cálculo de metragem total para formas L, retangular e quadrado: somar TODAS as arestas
+- [x] Exibir metragem total correta no resultado e no carrinho

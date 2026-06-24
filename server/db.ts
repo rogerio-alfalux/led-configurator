@@ -274,6 +274,10 @@ export interface SaveQuoteInput {
   freteIncluded?: boolean;
   /** Comissão do vendedor 2 (0-1) */
   commissionPercent2?: number;
+  /** Nome do arquiteto responsável pelo projeto */
+  arquiteto?: string;
+  /** Nome do light designer responsável pelo projeto */
+  lightDesigner?: string;
 }
 
 /** Cria um novo orçamento com versão 1 */
@@ -356,6 +360,8 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
     freteState: input.freteState ?? null,
     freteIncluded: input.freteIncluded ?? false,
     commissionPercent2: input.commissionPercent2 != null ? String(input.commissionPercent2) : '0',
+    arquiteto: input.arquiteto ?? null,
+    lightDesigner: input.lightDesigner ?? null,
   });
   const quoteId = (qResult as unknown as { insertId: number }[])[0]?.insertId ?? 0;
 
@@ -463,6 +469,12 @@ export async function addQuoteRevision(
     freteState: input.freteState ?? null,
     freteIncluded: input.freteIncluded ?? false,
     commissionPercent2: input.commissionPercent2 != null ? String(input.commissionPercent2) : '0',
+    arquiteto: input.arquiteto ?? null,
+    lightDesigner: input.lightDesigner ?? null,
+    // Atualiza o número do orçamento se fornecido
+    ...(input.quoteNumber ? { quoteNumber: input.quoteNumber } : {}),
+    // Atualiza a data de modificação para a data atual
+    updatedAt: sql`NOW()`,
   }).where(eq(quotes.id, quoteId));
 
   if (!bumpVersion) {
@@ -1428,4 +1440,34 @@ export async function reorderQuoteItems(
       .set({ itemNumber: i + 1 })
       .where(eq(quoteItems.id, orderedItemIds[i]));
   }
+}
+
+/**
+ * Verifica se um número de orçamento já está em uso.
+ * Retorna o orçamento existente se encontrado, ou null se disponível.
+ * @param quoteNumber - Número a verificar
+ * @param excludeQuoteId - ID do orçamento atual (para não conflitar consigo mesmo em edições)
+ */
+export async function checkDuplicateQuoteNumber(
+  quoteNumber: string,
+  excludeQuoteId?: number
+): Promise<{ id: number; quoteNumber: string; clientName: string; createdAt: string } | null> {
+  if (!quoteNumber?.trim()) return null;
+  const db = await getDb();
+  if (!db) return null;
+
+  const conditions: ReturnType<typeof eq>[] = [
+    eq(quotes.quoteNumber, quoteNumber.trim()) as ReturnType<typeof eq>,
+  ];
+  if (excludeQuoteId) {
+    conditions.push(sql`${quotes.id} != ${excludeQuoteId}` as unknown as ReturnType<typeof eq>);
+  }
+
+  const rows = await db
+    .select({ id: quotes.id, quoteNumber: quotes.quoteNumber, clientName: quotes.clientName, createdAt: quotes.createdAt })
+    .from(quotes)
+    .where(and(...conditions))
+    .limit(1);
+
+  return rows[0] ?? null;
 }

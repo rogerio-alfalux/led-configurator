@@ -232,6 +232,11 @@ export interface CartItemData {
    * os itens são ordenados por este campo.
    */
   sequenceOrder?: number;
+  /**
+   * Comprimento linear total em mm para formas EM L, Quadrado ou Retangular.
+   * Soma de todos os lados realizados. Usado na coluna COMPRIMENTO do Excel/Preview.
+   */
+  shapeTotalLengthMm?: number;
 }
 
 /**
@@ -326,6 +331,10 @@ export interface QuoteFormData {
    * A distribuição é ponderada pelo valor de cada linha (não divisão igualitária).
    */
   freteIncluded?: boolean;
+  /** Nome do arquiteto responsável pelo projeto */
+  arquiteto?: string;
+  /** Nome do light designer responsável pelo projeto */
+  lightDesigner?: string;
 }
 
 export function parseCartItemData(json: string): CartItemData | null {

@@ -485,6 +485,7 @@ function ShapeResultCard({
       profileSegments,
       stripMethod: shapeResult.stripMethod,
       availableCCTs: ["2700K", "3000K", "4000K", "5000K", "A definir"],
+      shapeTotalLengthMm: shapeResult.totalLengthMm,
     };
 
     if (onAddToQuote) {
@@ -1709,33 +1710,12 @@ export default function Home() {
   });
 
   // Função central: adiciona ao orçamento ou ao carrinho dependendo do modo
+  // Sempre abre o modal de cor antes de enviar (seja ao carrinho ou ao orçamento)
   const handleAddItemOrToQuote = useCallback((item: CartItemData) => {
-    // Injeta acessórios pendentes, itemEmPlanta, pavimento, ambiente e qty global no item antes de enviá-lo
-    const effectiveQty = globalQty > 0 ? globalQty : 1;
-    const itemWithAcc: CartItemData = {
-      ...(pendingAccessories.length > 0 ? { ...item, accessories: [...pendingAccessories] } : item),
-      itemEmPlanta: globalItemEmPlanta || item.itemEmPlanta || "",
-      qty: effectiveQty,
-      totalPrice: item.unitPrice != null ? item.unitPrice * effectiveQty : (item.totalPrice ?? 0),
-      ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
-      ...(globalAmbiente ? { ambiente: globalAmbiente } : {}),
-    };
-    if (pendingAccessories.length > 0) {
-      setPendingAccessories([]);
-    }
-    if (appendToQuoteId) {
-      // Salva imediatamente ao orçamento sem confirmação
-      appendItemsMutation.mutate({
-        quoteId: appendToQuoteId,
-        newItems: [{ itemNumber: 1, itemData: JSON.stringify(itemWithAcc) }],
-        versionNotes: `+1 item adicionado via configurador`,
-      });
-    } else {
-      addItem(itemWithAcc);
-      setGlobalItemEmPlanta(""); // limpa após envio ao carrinho
-      setGlobalQty(1); // reseta quantidade após envio
-    }
-  }, [appendToQuoteId, addItem, pendingAccessories, appendItemsMutation, globalItemEmPlanta, globalQty, globalPavimento, globalAmbiente]);
+    // Abre o modal de seleção de cor — o onConfirm abaixo decide o destino
+    setPendingCartItem(item);
+    setColorModalOpen(true);
+  }, []);
 
   const handleConfirmAddToQuote = useCallback(() => {
     if (!appendToQuoteId || pendingQuoteItems.length === 0) return;
@@ -6281,11 +6261,10 @@ export default function Home() {
               </div>
             )}
 
-            {/* Campos globais: Pavimento e Ambiente */}
+            {/* Campo global: Pavimento */}
             <div className="border border-border/50 rounded-lg p-3 bg-muted/20 space-y-2">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Localização do Item</p>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
+              <div>
                   <label className="text-xs text-muted-foreground">Pavimento</label>
                   <Input
                     className="h-8 text-sm mt-1"
@@ -6303,16 +6282,6 @@ export default function Home() {
                     <option value="Subsolo" />
                     <option value="Mezanino" />
                   </datalist>
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">Ambiente</label>
-                  <Input
-                    className="h-8 text-sm mt-1"
-                    placeholder="ex: Sala, Cozinha..."
-                    value={globalAmbiente}
-                    onChange={(e) => setGlobalAmbiente(e.target.value)}
-                  />
-                </div>
               </div>
             </div>
 
@@ -9426,7 +9395,7 @@ export default function Home() {
         onClose={() => { setColorModalOpen(false); setPendingCartItem(null); }}
         onConfirm={(cor: CorPeca) => {
           if (pendingCartItem) {
-            // Injeta acessórios pendentes, globalQty, globalItemEmPlanta, pavimento e ambiente no item antes de enviar ao carrinho
+            // Injeta acessórios pendentes, globalQty, globalItemEmPlanta, pavimento e ambiente no item antes de enviar
             const effectiveQty = globalQty > 0 ? globalQty : 1;
             const baseItem: CartItemData = {
               ...pendingCartItem,
@@ -9441,14 +9410,25 @@ export default function Home() {
               ? { ...baseItem, accessories: [...pendingAccessories] }
               : baseItem;
             if (pendingAccessories.length > 0) setPendingAccessories([]);
-            addItem(itemWithAcc);
-            setGlobalItemEmPlanta("");
-            setGlobalQty(1);
+            if (appendToQuoteId) {
+              // Modo append: envia diretamente ao orçamento após selecionar cor
+              appendItemsMutation.mutate({
+                quoteId: appendToQuoteId,
+                newItems: [{ itemNumber: 1, itemData: JSON.stringify(itemWithAcc) }],
+                versionNotes: `+1 item adicionado via configurador`,
+              });
+              setGlobalItemEmPlanta("");
+              setGlobalQty(1);
+            } else {
+              addItem(itemWithAcc);
+              setGlobalItemEmPlanta("");
+              setGlobalQty(1);
+            }
           }
           setColorModalOpen(false);
           setPendingCartItem(null);
         }}
-        isAdding={isAddingToCart}
+        isAdding={appendToQuoteId ? appendItemsMutation.isPending : isAddingToCart}
         productName={pendingCartItem?.sku ?? ""}
       />
     </div>

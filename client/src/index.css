@@ -214,3 +214,41 @@
     }
   }
 }
+/* ── Impressão / PDF via window.print() ──────────────────────────────────── */
+@media print {
+  /* Ocultar tudo exceto o modal de pré-visualização */
+  body > *:not([data-print-target]) {
+    display: none !important;
+  }
+  /* Mostrar apenas o conteúdo da página branca dentro do modal */
+  [data-print-modal] {
+    position: static !important;
+    background: white !important;
+    overflow: visible !important;
+  }
+  [data-print-modal] > *:not([data-print-content]) {
+    display: none !important;
+  }
+  [data-print-content] {
+    display: block !important;
+    overflow: visible !important;
+    background: white !important;
+    padding: 0 !important;
+  }
+  /* Remover marca d'água na impressão */
+  [aria-hidden="true"] {
+    display: none !important;
+  }
+  /* Garantir que a tabela seja impressa corretamente */
+  table {
+    page-break-inside: auto;
+  }
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+}

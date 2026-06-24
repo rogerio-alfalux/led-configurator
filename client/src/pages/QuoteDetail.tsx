@@ -217,17 +217,6 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
           </datalist>
         </div>
 
-        {/* Ambiente */}
-        <div>
-          <Label className="text-xs">Ambiente</Label>
-          <Input
-            value={d.ambiente ?? ""}
-            onChange={e => onUpdate(item.id, { ambiente: e.target.value })}
-            placeholder="ex: Sala, Cozinha"
-            className="mt-1 h-8 text-sm"
-          />
-        </div>
-
         {/* Temperatura de Cor */}
         <div>
           <Label className="text-xs">Temperatura de Cor</Label>
@@ -475,6 +464,9 @@ export default function QuoteDetail() {
     freteValue: "",
     freteState: "",
     freteIncluded: false,
+    arquiteto: "",
+    lightDesigner: "",
+    quoteNumber: "",
   });
 
   // Sellers & Assistants for edit dialog
@@ -721,6 +713,12 @@ export default function QuoteDetail() {
 
   const logProductionSheetMutation = trpc.quotes.logProductionSheet.useMutation();
 
+  // Verificar se o número de orçamento já existe (excluindo o próprio orçamento atual)
+  const checkEditNumberQuery = trpc.quotes.checkNumber.useQuery(
+    { quoteNumber: editForm.quoteNumber.trim(), excludeQuoteId: Number(id) },
+    { enabled: editDialogOpen && !!editForm.quoteNumber.trim(), staleTime: 2000 }
+  );
+
   // Duplicar orçamento
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [duplicateClientName, setDuplicateClientName] = useState("");
@@ -797,7 +795,9 @@ export default function QuoteDetail() {
           obra: quote.projectName ?? "",
           referencia: quote.projectRef ?? "",
           numero: quote.quoteNumber,
-          data: toBrasiliaDate(quote.createdAt),
+          data: toBrasiliaDate(quote.updatedAt ?? quote.createdAt),
+          arquiteto: (quote as any).arquiteto ?? undefined,
+          lightDesigner: (quote as any).lightDesigner ?? undefined,
           seller1Name: quote.seller1Name ?? undefined,
           seller1Phone: s1?.phone ?? undefined,
           seller2Name: quote.seller2Name ?? undefined,
@@ -1347,6 +1347,8 @@ export default function QuoteDetail() {
                         totalAmount: totalFinal,
                         totalFinal: totalFinalCompleto,
                         items: editableItems.map((it, i) => ({ itemNumber: i + 1, itemData: it.itemData })),
+                        arquiteto: (quote as any).arquiteto ?? undefined,
+                        lightDesigner: (quote as any).lightDesigner ?? undefined,
                         bumpVersion: false,
                       });
                     }}
@@ -1498,6 +1500,9 @@ export default function QuoteDetail() {
                 freteValue: (quote as any).freteValue != null ? String((quote as any).freteValue) : "",
                 freteState: (quote as any).freteState ?? "",
                 freteIncluded: (quote as any).freteIncluded ?? false,
+                arquiteto: (quote as any).arquiteto ?? "",
+                lightDesigner: (quote as any).lightDesigner ?? "",
+                quoteNumber: quote.quoteNumber ?? "",
               });
             }
           }}>
@@ -1576,6 +1581,40 @@ export default function QuoteDetail() {
                         {editAssistants.map(a => <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Arquiteto</Label>
+                      <Input
+                        value={editForm.arquiteto}
+                        onChange={e => setEditForm(f => ({ ...f, arquiteto: e.target.value }))}
+                        placeholder="Nome do arquiteto"
+                      />
+                    </div>
+                    <div>
+                      <Label>Light Designer</Label>
+                      <Input
+                        value={editForm.lightDesigner}
+                        onChange={e => setEditForm(f => ({ ...f, lightDesigner: e.target.value }))}
+                        placeholder="Nome do light designer"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Número do Orçamento</Label>
+                    <Input
+                      value={editForm.quoteNumber}
+                      onChange={e => setEditForm(f => ({ ...f, quoteNumber: e.target.value }))}
+                      placeholder="Ex: 33.0068-26"
+                      className={checkEditNumberQuery.data?.exists ? "border-orange-500 focus-visible:ring-orange-500" : ""}
+                    />
+                    {checkEditNumberQuery.data?.exists ? (
+                      <p className="text-xs text-orange-600 font-medium mt-1">
+                        ⚠️ Este número já está em uso pelo orçamento de {checkEditNumberQuery.data.existingQuote?.clientName}. Você pode continuar, mas verifique antes.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground mt-1">Você pode alterar o número manualmente. Um alerta será exibido se o número já existir.</p>
+                    )}
                   </div>
                   <div>
                     <Label>Notas desta revisão</Label>
@@ -1985,6 +2024,9 @@ export default function QuoteDetail() {
                       freteValue: editForm.freteValue ? parseFloat(editForm.freteValue) : undefined,
                       freteState: editForm.freteState || undefined,
                       freteIncluded: editForm.freteIncluded,
+                      arquiteto: editForm.arquiteto || undefined,
+                      lightDesigner: editForm.lightDesigner || undefined,
+                      quoteNumber: editForm.quoteNumber.trim() || undefined,
                       ...(() => {
                         const info = editForm.destState ? getStateInfo(editForm.destState) : undefined;
                         return {
@@ -2281,7 +2323,9 @@ export default function QuoteDetail() {
           obra: quote.projectName ?? "",
           referencia: quote.projectRef ?? "",
           numero: quote.quoteNumber,
-          data: toBrasiliaDate(quote.createdAt),
+          data: toBrasiliaDate(quote.updatedAt ?? quote.createdAt),
+          arquiteto: (quote as any).arquiteto ?? undefined,
+          lightDesigner: (quote as any).lightDesigner ?? undefined,
           seller1Name: quote.seller1Name ?? undefined,
           seller1Phone: editSellers.find(s => s.id === quote.seller1Id)?.phone ?? undefined,
           seller2Name: quote.seller2Name ?? undefined,

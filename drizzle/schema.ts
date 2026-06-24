@@ -119,6 +119,10 @@ export const quotes = mysqlTable("quotes", {
 	freteState: varchar({ length: 2 }),
 	/** Se true, o frete é diluído nos produtos e sai zerado/"incluso" no Excel */
 	freteIncluded: boolean().default(false).notNull(),
+	/** Nome do arquiteto responsável pelo projeto */
+	arquiteto: varchar({ length: 256 }),
+	/** Nome do light designer responsável pelo projeto */
+	lightDesigner: varchar({ length: 256 }),
 },
 (table) => [
 	index("quotes_quoteNumber_unique").on(table.quoteNumber),

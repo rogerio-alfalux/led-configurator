@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE `quotes` ADD `arquiteto` varchar(256); ALTER TABLE `quotes` ADD `lightDesigner` varchar(256);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute ALTER TABLE `quotes` ADD `arquiteto` varchar(256); ALTER TABLE `quotes` ADD `lightDesigner` varchar(256);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 906
+}

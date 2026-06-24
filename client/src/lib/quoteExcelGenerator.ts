@@ -384,11 +384,14 @@ async function _generateExcelBuffer(
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
 
-  // ── Linha 12: ARQUITEURA/LD ──────────────────────────────────────────────
+  // ── Linha 12: ARQUITETO/LD ────────────────────────────────────────────────────────────────
   ws.getRow(12).height = 19.8;
   {
     const c = ws.getCell("C12");
-    c.value = "ARQUITEURA/LD:";
+    const arqParts: string[] = [];
+    if (formData.arquiteto) arqParts.push(`ARQUITETO: ${formData.arquiteto}`);
+    if (formData.lightDesigner) arqParts.push(`LD: ${formData.lightDesigner}`);
+    c.value = arqParts.length > 0 ? arqParts.join("   |   ") : "ARQUITETO/LD:";
     c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
@@ -510,10 +513,8 @@ async function _generateExcelBuffer(
       fhRowObj.height = 22;
       ws.mergeCells(`C${fhRow}:N${fhRow}`);
       const fhCell = ws.getCell(`C${fhRow}`);
-      // Exibir apenas floorName (ou floorId se não houver floorName diferente)
-      const floorLabel = (item.floorName && normalizeFloor(item.floorName) !== normalizeFloor(item.floorId))
-        ? `${item.floorId} — ${item.floorName}`
-        : (item.floorName || item.floorId);
+      // Exibir apenas floorName (nunca repetir floorId - floorName quando são iguais)
+      const floorLabel = item.floorName || item.floorId;
       fhCell.value = floorLabel;
       fhCell.font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
       fhCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A3A5C' } };
@@ -665,9 +666,12 @@ async function _generateExcelBuffer(
     cSku.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
 
     // F = COMPRIMENTO (mm) — usa dimensões do item especial se disponível
+    // Para formas EM L/Quadrado/Retangular, exibe o comprimento linear total (soma de todos os lados)
     ws.getCell(`F${rowNum}`).value = (item.category === "Item Especial" && item.specialDimensions)
       ? item.specialDimensions
-      : extractLength(item.description);
+      : item.shapeTotalLengthMm
+        ? `${item.shapeTotalLengthMm}mm total`
+        : extractLength(item.description);
 
     // G = POTÊNCIA (W) — usa campo especial se disponível
     ws.getCell(`G${rowNum}`).value = (item.category === "Item Especial" && item.specialPower)
@@ -684,8 +688,10 @@ async function _generateExcelBuffer(
       ? item.specialVoltage
       : extractVoltage(item.description);
 
-    // J = COR — usa corPeca (item especial não exibe cor)
-    ws.getCell(`J${rowNum}`).value = item.category === "Item Especial" ? "-" : (item.corPeca || "-");
+    // J = COR — usa corPeca ou specialColor (Item Especial usa specialColor)
+    ws.getCell(`J${rowNum}`).value = item.category === "Item Especial"
+      ? (item.specialColor || item.corPeca || "-")
+      : (item.corPeca || "-");
 
     // K = TEMPERATURA DE COR (K)
     ws.getCell(`K${rowNum}`).value = item.cct || "-";
@@ -737,10 +743,9 @@ async function _generateExcelBuffer(
     cItemNote.font = { name: "Calibri", size: 10, italic: true, color: { argb: "FF4472C4" } };
     cItemNote.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
 
-    // Q = AMBIENTE (não impresso — referência interna para organização por pavimento/ambiente)
+    // Q = PAVIMENTO (não impresso — referência interna para organização por pavimento)
     const cAmbiente = ws.getCell(`Q${rowNum}`);
-    const ambienteVal = [item.floorName, item.ambiente].filter(Boolean).join(" / ");
-    cAmbiente.value = ambienteVal || "";
+    cAmbiente.value = item.floorName || item.floorId || "";
     cAmbiente.font = { name: "Calibri", size: 10, color: { argb: "FF6B7280" } };
     cAmbiente.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
 
@@ -1271,12 +1276,17 @@ export async function generateQuoteExcel(
   });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  const numero = formData.numero ? `_${formData.numero}` : "";
-  const clienteSlug = formData.cliente
-    ? `_${formData.cliente.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 20)}`
-    : "";
+  // Padrão: Número (RVx) - Obra - Cliente
+  const revCount2 = formData.revisionCount ?? 0;
+  const rvSuffix2 = `(RV${revCount2})`;
+  const numPart = formData.numero ? `${formData.numero} ${rvSuffix2}` : rvSuffix2;
+  const obraPart = formData.obra ? ` - ${formData.obra.toUpperCase()}` : "";
+  const clientePart = formData.cliente ? ` - ${formData.cliente.toUpperCase()}` : "";
+  const fileName = `${numPart}${obraPart}${clientePart}`
+    .replace(/[\\/:*?"<>|]/g, "-") // substituir chars inválidos
+    .substring(0, 200);
   a.href = url;
-  a.download = `Orcamento${numero}${clienteSlug}.xlsx`;
+  a.download = `${fileName}.xlsx`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
