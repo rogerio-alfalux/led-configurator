@@ -543,6 +543,20 @@ function ShapeResultCard({
               <ShoppingCart className="w-3.5 h-3.5" />
               {onAddToQuote ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
             </Button>
+            {onOpenAccessoryModal && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 text-xs h-7 border-cyan-500/50 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                onClick={onOpenAccessoryModal}
+              >
+                <Wrench className="w-3.5 h-3.5" />
+                Incluir Acessório
+                {pendingAccessoriesCount != null && pendingAccessoriesCount > 0 && (
+                  <span className="ml-1 bg-cyan-600 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">{pendingAccessoriesCount}</span>
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -812,7 +826,7 @@ type SkuPriceMap = Record<string, {
   markupMinimoDriver: number|null;
 }>;
 
-function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty, setGlobalQty }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void }) {
+function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty, setGlobalQty, onOpenAccessoryModal, pendingAccessoriesCount }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void; onOpenAccessoryModal?: () => void; pendingAccessoriesCount?: number }) {
   const efficiency = result.requestedLength > 0
     ? Math.round((result.realizedLength / result.requestedLength) * 100)
     : 0;
@@ -983,7 +997,7 @@ function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onA
       </Card>
 
       {/* Resumo Para Orçamento — Resumo para o cliente */}
-      <QuoteSummaryCard result={result} profilePriceMap={profilePriceMap} profileVariant={profileVariant} skuPriceMap={skuPriceMap} onAddToQuote={onAddToQuote} itemEmPlanta={itemEmPlanta} setItemEmPlanta={setItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} />
+      <QuoteSummaryCard result={result} profilePriceMap={profilePriceMap} profileVariant={profileVariant} skuPriceMap={skuPriceMap} onAddToQuote={onAddToQuote} itemEmPlanta={itemEmPlanta} setItemEmPlanta={setItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} onOpenAccessoryModal={onOpenAccessoryModal} pendingAccessoriesCount={pendingAccessoriesCount} />
       {/* Resumo para Pedido — Ficha Comercial */}
       <OrderSummaryCard result={result} />
       {/* Composição de Módulos — bloco unificado */}
@@ -1177,7 +1191,7 @@ function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onA
 }
 
 //// ─── Resumo Para Orçamento (Resumo para o cliente) ──────────────────────────
-function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty = 1, setGlobalQty }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void }) {
+function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty = 1, setGlobalQty, onOpenAccessoryModal, pendingAccessoriesCount }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void; onOpenAccessoryModal?: () => void; pendingAccessoriesCount?: number }) {
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { addItem, isAdding: isAddingToCart } = useCart();
@@ -6386,7 +6400,7 @@ export default function Home() {
                 </CardContent>
               </Card>
             ) : (
-              <ResultBlock result={result} profilePriceMap={profilePriceMap} profileVariant={activeProfileCatalog[result.profileCode]} skuPriceMap={skuPriceMap} onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} />
+              <ResultBlock result={result} profilePriceMap={profilePriceMap} profileVariant={activeProfileCatalog[result.profileCode]} skuPriceMap={skuPriceMap} onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }} pendingAccessoriesCount={pendingAccessories.length} />
             ))}
             {/* Resultado EM L */}
             {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && !glowMode && profileShape !== "STRAIGHT" && (
@@ -7113,6 +7127,18 @@ export default function Home() {
                       >
                         <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                       </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 border-cyan-500/50 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                        onClick={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
+                      >
+                        <Wrench className="w-3 h-3" />
+                        Incluir Acessório
+                        {pendingAccessories.length > 0 && (
+                          <span className="ml-1 bg-cyan-600 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">{pendingAccessories.length}</span>
+                        )}
+                      </Button>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -7279,6 +7305,18 @@ export default function Home() {
                         }}
                       >
                         <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 border-cyan-500/50 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                        onClick={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
+                      >
+                        <Wrench className="w-3 h-3" />
+                        Incluir Acessório
+                        {pendingAccessories.length > 0 && (
+                          <span className="ml-1 bg-cyan-600 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">{pendingAccessories.length}</span>
+                        )}
                       </Button>
                     </div>
                   </CardHeader>
@@ -7453,6 +7491,18 @@ export default function Home() {
                           }}
                         >
                           <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1.5 border-cyan-500/50 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                          onClick={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
+                        >
+                          <Wrench className="w-3 h-3" />
+                          Incluir Acessório
+                          {pendingAccessories.length > 0 && (
+                            <span className="ml-1 bg-cyan-600 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">{pendingAccessories.length}</span>
+                          )}
                         </Button>
                       </div>
                     </CardHeader>
@@ -7643,6 +7693,18 @@ export default function Home() {
                           }}
                         >
                           <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1.5 border-cyan-500/50 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                          onClick={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
+                        >
+                          <Wrench className="w-3 h-3" />
+                          Incluir Acessório
+                          {pendingAccessories.length > 0 && (
+                            <span className="ml-1 bg-cyan-600 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">{pendingAccessories.length}</span>
+                          )}
                         </Button>
                       </div>
                     </CardHeader>
@@ -7874,6 +7936,18 @@ export default function Home() {
                         }}
                       >
                         <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 border-cyan-500/50 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                        onClick={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
+                      >
+                        <Wrench className="w-3 h-3" />
+                        Incluir Acessório
+                        {pendingAccessories.length > 0 && (
+                          <span className="ml-1 bg-cyan-600 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">{pendingAccessories.length}</span>
+                        )}
                       </Button>
                     </div>
                   </CardHeader>
@@ -8115,6 +8189,18 @@ export default function Home() {
                       >
                         <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                       </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 border-cyan-500/50 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                        onClick={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
+                      >
+                        <Wrench className="w-3 h-3" />
+                        Incluir Acessório
+                        {pendingAccessories.length > 0 && (
+                          <span className="ml-1 bg-cyan-600 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">{pendingAccessories.length}</span>
+                        )}
+                      </Button>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -8352,6 +8438,18 @@ export default function Home() {
                       >
                         <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                       </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 border-cyan-500/50 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                        onClick={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
+                      >
+                        <Wrench className="w-3 h-3" />
+                        Incluir Acessório
+                        {pendingAccessories.length > 0 && (
+                          <span className="ml-1 bg-cyan-600 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">{pendingAccessories.length}</span>
+                        )}
+                      </Button>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -8558,6 +8656,18 @@ export default function Home() {
                         }}
                       >
                         <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 border-cyan-500/50 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                        onClick={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
+                      >
+                        <Wrench className="w-3 h-3" />
+                        Incluir Acessório
+                        {pendingAccessories.length > 0 && (
+                          <span className="ml-1 bg-cyan-600 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">{pendingAccessories.length}</span>
+                        )}
                       </Button>
                     </div>
                   </CardHeader>
@@ -8799,6 +8909,18 @@ export default function Home() {
                         }}
                       >
                         <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 border-cyan-500/50 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                        onClick={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
+                      >
+                        <Wrench className="w-3 h-3" />
+                        Incluir Acessório
+                        {pendingAccessories.length > 0 && (
+                          <span className="ml-1 bg-cyan-600 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">{pendingAccessories.length}</span>
+                        )}
                       </Button>
                     </div>
                   </CardHeader>
