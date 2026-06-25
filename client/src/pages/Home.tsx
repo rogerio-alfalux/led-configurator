@@ -7376,8 +7376,20 @@ export default function Home() {
                     >
                       {(() => {
                         const preco = getPrecoForControle(bfResult.product, bfResult.controle, bfResult.tensao);
+                        const drvLines = buildLumDriverLines(bfResult.product.sku ?? "", bfResult.controle, bfResult.tensao, globalQty, bfResult.driver.model, bfResult.driver.code, lumPriceMap);
                         const lines = [`${bfResult.product.name} ${bfResult.cct} ${bfResult.tensao}`.toUpperCase()];
-                        if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                        if (drvLines) {
+                          if (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) {
+                            lines.push(`LUMINÁRIAS: ${formatBRL(drvLines.priceWithoutDriver)}`);
+                          } else {
+                            lines.push(`LUMINÁRIAS: A DEFINIR`);
+                          }
+                          const totalDrv = drvLines.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
+                          if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
+                          if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                        } else if (preco !== null) {
+                          lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
+                        }
                         return lines.join("\n");
                       })()}
                     </div>
@@ -7555,8 +7567,20 @@ export default function Home() {
                     >
                       {(() => {
                         const preco = getPrecoForControle(glowResult.product, glowResult.controle, glowResult.tensao);
+                        const drvLines = buildLumDriverLines(glowResult.product.sku ?? "", glowResult.controle, glowResult.tensao, globalQty, glowResult.driver.model, glowResult.driver.code, lumPriceMap);
                         const lines = [`${glowResult.product.name} ${glowResult.cct} ${glowResult.tensao}`.toUpperCase()];
-                        if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                        if (drvLines) {
+                          if (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) {
+                            lines.push(`LUMINÁRIAS: ${formatBRL(drvLines.priceWithoutDriver)}`);
+                          } else {
+                            lines.push(`LUMINÁRIAS: A DEFINIR`);
+                          }
+                          const totalDrv = drvLines.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
+                          if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
+                          if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                        } else if (preco !== null) {
+                          lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
+                        }
                         return lines.join("\n");
                       })()}
                     </div>
@@ -8200,8 +8224,20 @@ export default function Home() {
                     >
                       {(() => {
                           const preco = getPrecoForControle(dlResult.product, dlResult.controle, dlResult.tensao);
+                          const drvLines = buildLumDriverLines(dlResult.product.sku ?? "", dlResult.controle, dlResult.tensao, globalQty, dlResult.driver.model, dlResult.driver.code, lumPriceMap);
                           const lines = [`${dlResult.product.name} ${dlResult.cct} ${dlResult.tensao}`.toUpperCase()];
-                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          if (drvLines) {
+                            if (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) {
+                              lines.push(`LUMINÁRIAS: ${formatBRL(drvLines.priceWithoutDriver)}`);
+                            } else {
+                              lines.push(`LUMINÁRIAS: A DEFINIR`);
+                            }
+                            const totalDrv = drvLines.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
+                            if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
+                            if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                          } else if (preco !== null) {
+                            lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
+                          }
                           return lines.join("\n");
                         })()}
                     </div>
@@ -8448,8 +8484,20 @@ export default function Home() {
                     >
                       {(() => {
                           const preco = getPrecoForControle(aeResult.product, aeResult.controle, aeResult.tensao);
+                          const drvLines = buildLumDriverLines(aeResult.product.sku ?? "", aeResult.controle, aeResult.tensao, globalQty, aeResult.driver.model, aeResult.driver.code, lumPriceMap);
                           const lines = [`${aeResult.product.name} ${aeResult.cct} ${aeResult.tensao}`.toUpperCase()];
-                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          if (drvLines) {
+                            if (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) {
+                              lines.push(`LUMINÁRIAS: ${formatBRL(drvLines.priceWithoutDriver)}`);
+                            } else {
+                              lines.push(`LUMINÁRIAS: A DEFINIR`);
+                            }
+                            const totalDrv = drvLines.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
+                            if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
+                            if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                          } else if (preco !== null) {
+                            lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
+                          }
                         return lines.join("\n");
                       })()}
                     </div>
@@ -8699,8 +8747,20 @@ export default function Home() {
                     >
                       {(() => {
                           const preco = getPrecoForControle(panelResult.product, panelResult.controle, panelResult.tensao);
+                          const drvLines = buildLumDriverLines(panelResult.product.sku ?? "", panelResult.controle, panelResult.tensao, globalQty, panelResult.driver.model, panelResult.driver.code, lumPriceMap);
                           const lines = [`${panelResult.product.name} ${panelResult.cct} ${panelResult.tensao}`.toUpperCase()];
-                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          if (drvLines) {
+                            if (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) {
+                              lines.push(`LUMINÁRIAS: ${formatBRL(drvLines.priceWithoutDriver)}`);
+                            } else {
+                              lines.push(`LUMINÁRIAS: A DEFINIR`);
+                            }
+                            const totalDrv = drvLines.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
+                            if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
+                            if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                          } else if (preco !== null) {
+                            lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
+                          }
                           return lines.join("\n");
                         })()
                       }</div>
@@ -8920,8 +8980,20 @@ export default function Home() {
                     >
                       {(() => {
                           const preco = getPrecoForControle(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao);
+                          const drvLines = buildLumDriverLines(arandelaResult.product.sku ?? "", arandelaResult.controle, arandelaResult.tensao, globalQty, arandelaResult.driver.model, arandelaResult.driver.code, lumPriceMap);
                           const lines = [`${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.tensao}`.toUpperCase()];
-                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          if (drvLines) {
+                            if (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) {
+                              lines.push(`LUMINÁRIAS: ${formatBRL(drvLines.priceWithoutDriver)}`);
+                            } else {
+                              lines.push(`LUMINÁRIAS: A DEFINIR`);
+                            }
+                            const totalDrv = drvLines.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
+                            if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
+                            if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                          } else if (preco !== null) {
+                            lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
+                          }
                           return lines.join("\n");
                         })()}
                     </div>
@@ -9175,8 +9247,20 @@ export default function Home() {
                     >
                       {(() => {
                           const preco = getPrecoForControle(spotResult.product, spotResult.controle, spotResult.tensao);
+                          const drvLines = buildLumDriverLines(spotResult.product.sku ?? "", spotResult.controle, spotResult.tensao, globalQty, spotResult.driver.model, spotResult.driver.code, lumPriceMap);
                           const lines = [`${spotResult.product.name} ${spotResult.cct} ${spotResult.tensao}`.toUpperCase()];
-                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          if (drvLines) {
+                            if (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) {
+                              lines.push(`LUMINÁRIAS: ${formatBRL(drvLines.priceWithoutDriver)}`);
+                            } else {
+                              lines.push(`LUMINÁRIAS: A DEFINIR`);
+                            }
+                            const totalDrv = drvLines.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
+                            if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
+                            if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                          } else if (preco !== null) {
+                            lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
+                          }
                           return lines.join("\n");
                         })()}
                     </div>

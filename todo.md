@@ -1495,3 +1495,10 @@
 - [x] Excel: linha principal mostra preço da luminária, sub-linha mostra driver com preço
 - [x] Pré-visualização: linha principal mostra preço da luminária, sub-linha mostra driver com preço
 - [x] Totais "Total sem driver" e "Total drivers" no rodapé do Excel e da pré-visualização
+
+## Lote 14 — Exibição de totais luminária/driver no carrinho e configurador (25/06/2026)
+
+- [x] Corrigir exibição do driver no carrinho: mostrar total (qty × unitPrice) em vez de preço unitário
+- [x] Exibir subtotais "Luminárias" e "Drivers" no rodapé do carrinho
+- [x] Exibir totais luminária/driver/geral no card de resultado do configurador (Downlight, Área Externa, Painel, Arandela, Spot, Balizador Fixo, Decorativa) antes de enviar ao carrinho
+- [x] Mostrar "LUMINÁRIAS: A DEFINIR" quando API não retorna custo do corpo

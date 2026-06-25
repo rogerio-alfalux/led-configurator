@@ -300,23 +300,23 @@ function SortableCartItem({
                   {/* Exibição desmembrada: luminária + driver */}
                   {entry.data.driverLines && entry.data.driverLines.length > 0 ? (
                     <>
-                      {/* Preço da luminária */}
-                      {entry.data.luminariaHasApiPrice && entry.data.unitPriceLuminaria != null ? (
+                      {/* Total luminária (qty × unitPriceLuminaria) */}
+                      {entry.data.luminariaHasApiPrice && entry.data.priceWithoutDriver != null ? (
                         <p className="text-xs text-muted-foreground">
-                          Lum: {formatBRL(entry.data.unitPriceLuminaria)} / un
+                          Lum: {formatBRL(entry.data.priceWithoutDriver)}
                         </p>
                       ) : (
                         <p className="text-xs text-amber-600 italic cursor-pointer hover:underline" onClick={() => onEditClick(entry.id, entry.data)}>
                           Lum: Definir preço →
                         </p>
                       )}
-                      {/* Preço do driver */}
-                      {entry.data.unitPriceDriver != null && entry.data.unitPriceDriver > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          Driver: {formatBRL(entry.data.unitPriceDriver)} / un
+                      {/* Total driver (driverTotalPrice já inclui qty) */}
+                      {entry.data.driverLines[0]?.driverTotalPrice != null && entry.data.driverLines[0].driverTotalPrice > 0 && (
+                        <p className="text-xs text-orange-600">
+                          Driver: {formatBRL(entry.data.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0))}
                         </p>
                       )}
-                      {/* Total */}
+                      {/* Total geral */}
                       {entry.data.totalPrice != null && entry.data.totalPrice > 0 ? (
                         <p className="font-bold text-primary text-base">{formatBRL(entry.data.totalPrice)}</p>
                       ) : (
@@ -1360,6 +1360,29 @@ export default function Cart() {
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <div>
                     <p className="text-sm text-muted-foreground">{count} {count === 1 ? "item" : "itens"} no carrinho</p>
+                    {/* Subtotais desmembrados luminária / driver */}
+                    {(() => {
+                      const totalLum = entries.reduce((s, e) => {
+                        if (e.data.driverLines && e.data.driverLines.length > 0) {
+                          return s + (e.data.priceWithoutDriver ?? 0);
+                        }
+                        return s + (e.data.totalPrice ?? 0);
+                      }, 0);
+                      const totalDrv = entries.reduce((s, e) =>
+                        s + (e.data.driverLines?.reduce((d, dl) => d + (dl.driverTotalPrice ?? 0), 0) ?? 0), 0);
+                      const hasDriverBreakdown = entries.some(e => e.data.driverLines && e.data.driverLines.length > 0);
+                      if (!hasDriverBreakdown) return null;
+                      return (
+                        <div className="flex flex-col gap-0.5 mt-1">
+                          {totalLum > 0 && (
+                            <p className="text-xs text-muted-foreground">Luminárias: {formatBRL(totalLum)}</p>
+                          )}
+                          {totalDrv > 0 && (
+                            <p className="text-xs text-orange-600">Drivers: {formatBRL(totalDrv)}</p>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {totalGeral > 0 && (
                       <p className="text-2xl font-bold text-primary">{formatBRL(totalGeral)}</p>
                     )}
