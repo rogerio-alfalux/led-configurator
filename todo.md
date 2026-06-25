@@ -1502,3 +1502,10 @@
 - [x] Exibir subtotais "Luminárias" e "Drivers" no rodapé do carrinho
 - [x] Exibir totais luminária/driver/geral no card de resultado do configurador (Downlight, Área Externa, Painel, Arandela, Spot, Balizador Fixo, Decorativa) antes de enviar ao carrinho
 - [x] Mostrar "LUMINÁRIAS: A DEFINIR" quando API não retorna custo do corpo
+
+## Lote 15 — Correção de preço BAGEO SINUOSA P D1 40W/M (25/06/2026)
+
+- [x] Adicionar BAGEO SINUOSA P D1 40W/M ao catálogo estático (bageoCatalog.ts) com precoOnOff220: 1140 (R$1.140,00/m)
+- [x] Todos os controles (ON/OFF 220V, ON/OFF Bivolt, DIM 1-10V, DIM DALI) com preço R$1.140,00/m
+- [x] Drivers configurados: EQ00112 (ON/OFF), EQ00583 (DIM TRIAC), EQ00666 (DIM DALI)
+- [x] Preço estático sobrescreve o valor incorreto R$910,00 retornado pela API até correção no backend
