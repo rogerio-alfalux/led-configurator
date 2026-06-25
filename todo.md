@@ -1461,3 +1461,10 @@
 - [x] Corrigir cálculo de DIFAL/FCP no QuoteDetail.tsx com a mesma fórmula
 - [x] Corrigir o totalFinal salvo no banco ao criar/editar orçamento para incluir DIFAL/FCP por dentro
 - [x] Corrigir exibição do total com DIFAL/FCP na pré-visualização e Excel
+
+## Lote 10 — Acessório, Fallback de Preço e Edição Manual (25/06/2026)
+
+- [x] Corrigir botão "Incluir Acessório" que não aparece na UI
+- [x] Fallback para preço por metro linear quando API não retornar custo/markup para perfis
+- [x] Permitir edição manual de preço no carrinho para produtos sem preço na API nem no banco estático (não-perfis)
+- [x] Permitir edição manual de preço no editor de orçamento salvo para os mesmos produtos

@@ -309,11 +309,15 @@ function ShapeResultCard({
   onAddToQuote,
   globalQty = 1,
   setGlobalQty,
+  onOpenAccessoryModal,
+  pendingAccessoriesCount,
 }: {
   shapeResult: ShapeResult;
   onAddToQuote?: (item: CartItemData) => void;
   globalQty?: number;
   setGlobalQty?: (v: number) => void;
+  onOpenAccessoryModal?: () => void;
+  pendingAccessoriesCount?: number;
 }) {
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1467,7 +1471,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                   qty: globalQty,
                   unitPrice: precoTotal ?? 0,
                   totalPrice: (precoTotal ?? 0) * globalQty,
-                  priceFromApi: precoTotal != null,
+                  priceFromApi: modulePriceResult != null && precoTotal != null,
                   photoUrl: photo ?? "",
                   moduloLed: `Stripflex 562,5 x 10mm 36L ${result.cct}`,
                   drivers: "",
@@ -6464,6 +6468,8 @@ export default function Home() {
                   onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined}
                   globalQty={globalQty}
                   setGlobalQty={setGlobalQty}
+                  onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
+                  pendingAccessoriesCount={pendingAccessories.length}
                 />
               )
             )}
