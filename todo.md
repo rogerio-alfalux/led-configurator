@@ -1445,3 +1445,11 @@
 - [x] Seleção de CCT no editor de orçamento (QuoteDetail.tsx): mesma lógica — select com CCTs disponíveis
 - [x] Ao alterar CCT no QuoteDetail: atualizar descrição, SKU e profileSegments do item
 - [x] Garantir que a ficha de produção (productionSheet) usa o módulo LED do CCT atualizado
+
+## Lote 8 — Seletor de Formato Downlight (25/06/2026)
+
+- [x] Adicionar estado `downlightShape: 'R' | 'Q' | null` na configuração de Downlights
+- [x] Renderizar botões visuais Redondo (R) / Quadrado (Q) antes dos outros filtros de Downlight
+- [x] Filtrar produtos de Downlight pela letra R ou Q no nome do produto
+- [x] Limpar seleção de produto ao trocar o formato
+- [x] Garantir que o seletor de formato aparece logo após selecionar a categoria Downlights

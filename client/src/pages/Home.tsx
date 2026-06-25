@@ -1931,6 +1931,7 @@ export default function Home() {
    // Categoria de produto
   const [productCategory, setProductCategory] = useState<ProductCategory>("Perfis");
   // Estados de Downlights
+  const [dlShape, setDlShape] = useState<'R' | 'Q' | null>(null);
   const [dlInstalacao, setDlInstalacao] = useState<string | null>(null);
   const [dlFamilia, setDlFamilia] = useState<string | null>(null);
   const [dlProductKey, setDlProductKey] = useState<string | null>(null);
@@ -2779,16 +2780,30 @@ export default function Home() {
   }, [activeGetInstallTypesForProfile, activeBageoCatalog, activeDlCatalog, activePanelCatalog, activeSpotCatalog, activeArandelaCatalog, acessoriosProducts]);
 
   // Listas derivadas para filtros de Downlightss (usando catálogo dinâmico da API ou fallback estático)
-  const dlInstalacoes = useMemo(() => Array.from(new Set(activeDlCatalog.map(p => p.instalacao))).sort(), [activeDlCatalog]);
+  // Filtra o catálogo de Downlights pelo formato selecionado (R=Redondo, Q=Quadrado)
+  // Detecta pelo sufixo RE/QE ou pela letra R/Q antes do espaço no nome do produto
+  const dlShapeFilter = useCallback((name: string) => {
+    if (!dlShape) return true;
+    // Verifica se o nome contém a letra do formato (ex: "LUNA G 17W QE" ou "LUNA G 17W RE")
+    const upper = name.toUpperCase();
+    if (dlShape === 'Q') return /\bQ[A-Z]?\b/.test(upper) || upper.includes(' Q ');
+    if (dlShape === 'R') return /\bR[A-Z]?\b/.test(upper) || upper.includes(' R ');
+    return true;
+  }, [dlShape]);
+  const dlCatalogFiltered = useMemo(() =>
+    dlShape ? activeDlCatalog.filter(p => dlShapeFilter(p.name)) : activeDlCatalog,
+    [activeDlCatalog, dlShape, dlShapeFilter]
+  );
+  const dlInstalacoes = useMemo(() => Array.from(new Set(dlCatalogFiltered.map(p => p.instalacao))).sort(), [dlCatalogFiltered]);
   const dlFamilias = useMemo(() =>
-    dlInstalacao ? Array.from(new Set(activeDlCatalog.filter(p => p.instalacao === dlInstalacao).map(p => p.familia))).sort() : [],
-    [dlInstalacao, activeDlCatalog]
+    dlInstalacao ? Array.from(new Set(dlCatalogFiltered.filter(p => p.instalacao === dlInstalacao).map(p => p.familia))).sort() : [],
+    [dlInstalacao, dlCatalogFiltered]
   );
   const dlProdutosFiltrados = useMemo(() =>
     dlInstalacao && dlFamilia
-      ? activeDlCatalog.map((p, i) => ({ p, i })).filter(({ p }) => p.instalacao === dlInstalacao && p.familia === dlFamilia)
+      ? dlCatalogFiltered.map((p, i) => ({ p, i })).filter(({ p }) => p.instalacao === dlInstalacao && p.familia === dlFamilia)
       : [],
-    [dlInstalacao, dlFamilia, activeDlCatalog]
+    [dlInstalacao, dlFamilia, dlCatalogFiltered]
   );
   // Listas derivadas para filtros de Área Externa
   const aeInstalacoes = useMemo(() => Array.from(new Set(activeAreaExternaCatalog.map(p => p.instalacao))).sort(), [activeAreaExternaCatalog]);
@@ -4586,7 +4601,7 @@ export default function Home() {
                       ) : adaptedCatalogs ? (
                         <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500">
                           <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-                          {activeDlCatalog.length} produtos • Dados online
+                          {dlCatalogFiltered.length} produtos • Dados online
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -4595,6 +4610,53 @@ export default function Home() {
                         </span>
                       )}
                     </div>
+
+                    {/* Seletor de Formato: Redondo / Quadrado */}
+                    <div>
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Formato</Label>
+                      <div className="grid grid-cols-2 gap-2 mt-1.5">
+                        {([
+                          { value: 'R' as const, label: 'Redondo', icon: (
+                            <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none">
+                              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" fill="none" />
+                              <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.5" />
+                            </svg>
+                          )},
+                          { value: 'Q' as const, label: 'Quadrado', icon: (
+                            <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none">
+                              <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2.5" fill="none" />
+                              <rect x="8" y="8" width="8" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.5" />
+                            </svg>
+                          )},
+                        ]).map(({ value, label, icon }) => (
+                          <button
+                            key={value}
+                            onClick={() => {
+                              setDlShape(prev => prev === value ? null : value);
+                              setDlInstalacao(null);
+                              setDlFamilia(null);
+                              setDlProductKey(null);
+                              setDlVoltage(null);
+                              setDlResult(null);
+                            }}
+                            className={`flex flex-col items-center gap-1.5 px-3 py-3 rounded-md text-xs font-medium border transition-all ${
+                              dlShape === value
+                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                            }`}
+                          >
+                            {icon}
+                            <span>{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                      {dlShape && (
+                        <p className="mt-1.5 text-xs text-muted-foreground">
+                          Exibindo apenas luminarias {dlShape === 'R' ? 'redondas' : 'quadradas'} ({dlCatalogFiltered.length} produtos)
+                        </p>
+                      )}
+                    </div>
+
                     {/* Tipo de Instalação */}
                     <div className="space-y-1.5">
                       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tipo de Instalação</Label>
