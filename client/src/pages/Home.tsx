@@ -3679,8 +3679,8 @@ export default function Home() {
                         <SelectValue placeholder="Selecione o modelo..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {bgProductsByInstalacao.map((p) => (
-                          <SelectItem key={`${p.sku}__${p.aplicacao}`} value={`${p.sku}__${p.aplicacao}`}>
+                        {bgProductsByInstalacao.map((p, i) => (
+                          <SelectItem key={`${p.sku}__${p.aplicacao}__${i}`} value={`${p.sku}__${p.aplicacao}`}>
                             {p.name}
                           </SelectItem>
                         ))}
