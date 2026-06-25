@@ -1518,3 +1518,10 @@
 - [x] Atualizar chamadas em Home.tsx para passar custo do driver da API (por controle selecionado)
 - [x] Adicionar LED BAR E, LED BAR 45, LED BAR EC à lista LED_BAR_FAMILIES_NO_PRICE (sem preço de perfil cadastrado)
 - [x] Corrigir referência perfilFlexivelTemp → perfilFlexivel na UI
+
+## Lote 17 — Correção do download da pré-visualização (25/06/2026)
+
+- [x] Corrigir download em branco: substituir window.print() por abertura de nova janela com HTML serializado do conteúdo
+- [x] Nome do arquivo segue padrão do Excel: "{numero} (RVx) - {obra} - {cliente} rascunho"
+- [x] Imagens aguardam carregamento (800ms) antes de acionar print na nova janela
+- [x] Fallback de 2500ms caso onload não dispare

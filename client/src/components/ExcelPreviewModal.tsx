@@ -5,7 +5,7 @@
  * Exibe marca d'água "RASCUNHO" em diagonal para deixar claro que não é versão oficial.
  * Usa createPortal para garantir tela cheia real sem interferência do Dialog do shadcn.
  */
-import { Fragment, useMemo, useEffect, useRef } from "react";
+import { Fragment, useMemo, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { X, FileDown } from "lucide-react";
 import type { CartItemData, QuoteFormData } from "@/lib/cartTypes";
@@ -111,6 +111,67 @@ interface Props {
 }
 
 export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMap }: Props) {
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Gera nome do arquivo no mesmo padrão do Excel + sufixo "rascunho"
+  const buildFileName = useCallback(() => {
+    const revCount = formData.revisionCount ?? 0;
+    const rvSuffix = `(RV${revCount})`;
+    const numPart = formData.numero ? `${formData.numero} ${rvSuffix}` : rvSuffix;
+    const obraPart = formData.obra ? ` - ${formData.obra.toUpperCase()}` : "";
+    const clientePart = formData.cliente ? ` - ${formData.cliente.toUpperCase()}` : "";
+    return `${numPart}${obraPart}${clientePart} rascunho`
+      .replace(/[\\/:*?"<>|]/g, "-")
+      .substring(0, 200);
+  }, [formData]);
+
+  // Abre nova janela com o HTML do conteúdo e aciona print
+  const handleDownloadPDF = useCallback(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const fileName = buildFileName();
+    const htmlContent = el.innerHTML;
+    const printWindow = window.open("", "_blank", "width=1200,height=900");
+    if (!printWindow) { alert("Permita popups para baixar o PDF."); return; }
+    printWindow.document.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>${fileName}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #525659; font-family: Calibri, Arial, sans-serif; }
+    @media print {
+      body { background: #fff; }
+      @page { size: A4 landscape; margin: 8mm; }
+    }
+  </style>
+</head>
+<body>
+${htmlContent}
+</body>
+</html>`);
+    printWindow.document.close();
+    // Aguardar imagens carregarem antes de imprimir
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+      }, 800);
+    };
+    // Fallback caso onload não dispare
+    setTimeout(() => {
+      try {
+        if (!printWindow.closed) {
+          printWindow.focus();
+          printWindow.print();
+          printWindow.close();
+        }
+      } catch { /* janela já fechada */ }
+    }, 2500);
+  }, [buildFileName]);
+
   // Bloqueia scroll do body quando aberto
   useEffect(() => {
     if (open) {
@@ -287,7 +348,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
             Esta visualização é apenas para conferência. Nenhuma revisão foi criada.
           </span>
           <button
-            onClick={() => window.print()}
+            onClick={handleDownloadPDF}
             style={{
               background: "#1e40af",
               border: "1px solid #3b82f6",
@@ -326,6 +387,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
 
       {/* ── Área de scroll (horizontal + vertical) ── */}
       <div
+        ref={contentRef}
         data-print-content
         style={{
           flex: 1,
