@@ -2779,32 +2779,40 @@ export default function Home() {
     }, 100);
   }, [activeGetInstallTypesForProfile, activeBageoCatalog, activeDlCatalog, activePanelCatalog, activeSpotCatalog, activeArandelaCatalog, acessoriosProducts]);
 
-  // Listas derivadas para filtros de Downlightss (usando catálogo dinâmico da API ou fallback estático)
-  // Filtra o catálogo de Downlights pelo formato selecionado (R=Redondo, Q=Quadrado)
-  // Detecta pelo sufixo RE/QE ou pela letra R/Q antes do espaço no nome do produto
-  const dlShapeFilter = useCallback((name: string) => {
-    if (!dlShape) return true;
-    // Verifica se o nome contém a letra do formato (ex: "LUNA G 17W QE" ou "LUNA G 17W RE")
+  // Listas derivadas para filtros de Downlights (usando catálogo dinâmico da API ou fallback estático)
+  // Detecta se um produto tem formato R ou Q no nome
+  const dlShapeFilter = useCallback((name: string, shape: 'R' | 'Q') => {
     const upper = name.toUpperCase();
-    if (dlShape === 'Q') return /\bQ[A-Z]?\b/.test(upper) || upper.includes(' Q ');
-    if (dlShape === 'R') return /\bR[A-Z]?\b/.test(upper) || upper.includes(' R ');
+    if (shape === 'Q') return /\bQ[A-Z]?\b/.test(upper);
+    if (shape === 'R') return /\bR[A-Z]?\b/.test(upper);
     return true;
-  }, [dlShape]);
-  const dlCatalogFiltered = useMemo(() =>
-    dlShape ? activeDlCatalog.filter(p => dlShapeFilter(p.name)) : activeDlCatalog,
-    [activeDlCatalog, dlShape, dlShapeFilter]
-  );
-  const dlInstalacoes = useMemo(() => Array.from(new Set(dlCatalogFiltered.map(p => p.instalacao))).sort(), [dlCatalogFiltered]);
+  }, []);
+  const dlInstalacoes = useMemo(() => Array.from(new Set(activeDlCatalog.map(p => p.instalacao))).sort(), [activeDlCatalog]);
   const dlFamilias = useMemo(() =>
-    dlInstalacao ? Array.from(new Set(dlCatalogFiltered.filter(p => p.instalacao === dlInstalacao).map(p => p.familia))).sort() : [],
-    [dlInstalacao, dlCatalogFiltered]
+    dlInstalacao ? Array.from(new Set(activeDlCatalog.filter(p => p.instalacao === dlInstalacao).map(p => p.familia))).sort() : [],
+    [dlInstalacao, activeDlCatalog]
   );
-  const dlProdutosFiltrados = useMemo(() =>
-    dlInstalacao && dlFamilia
-      ? dlCatalogFiltered.map((p, i) => ({ p, i })).filter(({ p }) => p.instalacao === dlInstalacao && p.familia === dlFamilia)
-      : [],
-    [dlInstalacao, dlFamilia, dlCatalogFiltered]
-  );
+  // Verifica se a família atual tem produtos com ambos os formatos R e Q
+  const dlFamiliaHasFormats = useMemo(() => {
+    if (!dlInstalacao || !dlFamilia) return false;
+    const prods = activeDlCatalog.filter(p => p.instalacao === dlInstalacao && p.familia === dlFamilia);
+    const hasR = prods.some(p => dlShapeFilter(p.name, 'R'));
+    const hasQ = prods.some(p => dlShapeFilter(p.name, 'Q'));
+    return hasR && hasQ;
+  }, [dlInstalacao, dlFamilia, activeDlCatalog, dlShapeFilter]);
+  const dlProdutosFiltrados = useMemo(() => {
+    if (!dlInstalacao || !dlFamilia) return [];
+    const base = activeDlCatalog
+      .map((p, i) => ({ p, i }))
+      .filter(({ p }) => p.instalacao === dlInstalacao && p.familia === dlFamilia);
+    // Só aplica filtro de formato se a família tem formatos E o usuário selecionou um
+    if (dlFamiliaHasFormats && dlShape) {
+      return base.filter(({ p }) => dlShapeFilter(p.name, dlShape));
+    }
+    return base;
+  }, [dlInstalacao, dlFamilia, activeDlCatalog, dlFamiliaHasFormats, dlShape, dlShapeFilter]);
+  // dlCatalogFiltered mantido por compatibilidade (não usado no render, mas pode ser referenciado)
+  const dlCatalogFiltered = activeDlCatalog;
   // Listas derivadas para filtros de Área Externa
   const aeInstalacoes = useMemo(() => Array.from(new Set(activeAreaExternaCatalog.map(p => p.instalacao))).sort(), [activeAreaExternaCatalog]);
   const aeFamilias = useMemo(() =>
@@ -4601,7 +4609,7 @@ export default function Home() {
                       ) : adaptedCatalogs ? (
                         <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500">
                           <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-                          {dlCatalogFiltered.length} produtos • Dados online
+                          {activeDlCatalog.length} produtos • Dados online
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -4611,58 +4619,12 @@ export default function Home() {
                       )}
                     </div>
 
-                    {/* Seletor de Formato: Redondo / Quadrado */}
-                    <div>
-                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Formato</Label>
-                      <div className="grid grid-cols-2 gap-2 mt-1.5">
-                        {([
-                          { value: 'R' as const, label: 'Redondo', icon: (
-                            <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none">
-                              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" fill="none" />
-                              <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.5" />
-                            </svg>
-                          )},
-                          { value: 'Q' as const, label: 'Quadrado', icon: (
-                            <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none">
-                              <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2.5" fill="none" />
-                              <rect x="8" y="8" width="8" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.5" />
-                            </svg>
-                          )},
-                        ]).map(({ value, label, icon }) => (
-                          <button
-                            key={value}
-                            onClick={() => {
-                              setDlShape(prev => prev === value ? null : value);
-                              setDlInstalacao(null);
-                              setDlFamilia(null);
-                              setDlProductKey(null);
-                              setDlVoltage(null);
-                              setDlResult(null);
-                            }}
-                            className={`flex flex-col items-center gap-1.5 px-3 py-3 rounded-md text-xs font-medium border transition-all ${
-                              dlShape === value
-                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                                : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
-                            }`}
-                          >
-                            {icon}
-                            <span>{label}</span>
-                          </button>
-                        ))}
-                      </div>
-                      {dlShape && (
-                        <p className="mt-1.5 text-xs text-muted-foreground">
-                          Exibindo apenas luminarias {dlShape === 'R' ? 'redondas' : 'quadradas'} ({dlCatalogFiltered.length} produtos)
-                        </p>
-                      )}
-                    </div>
-
                     {/* Tipo de Instalação */}
                     <div className="space-y-1.5">
                       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tipo de Instalação</Label>
                       <Select
                         value={dlInstalacao ?? ""}
-                        onValueChange={(v) => { setDlInstalacao(v); setDlFamilia(null); setDlProductKey(null); setDlVoltage(null); setDlResult(null); }}
+                        onValueChange={(v) => { setDlInstalacao(v); setDlFamilia(null); setDlShape(null); setDlProductKey(null); setDlVoltage(null); setDlResult(null); }}
                       >
                         <SelectTrigger className="h-10">
                           <SelectValue placeholder="Selecione o tipo de instalação..." />
@@ -4674,13 +4636,14 @@ export default function Home() {
                         </SelectContent>
                       </Select>
                     </div>
+
                     {/* Família */}
                     {dlInstalacao && (
                       <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Família</Label>
                         <Select
                           value={dlFamilia ?? ""}
-                          onValueChange={(v) => { setDlFamilia(v); setDlProductKey(null); setDlVoltage(null); setDlResult(null); }}
+                          onValueChange={(v) => { setDlFamilia(v); setDlShape(null); setDlProductKey(null); setDlVoltage(null); setDlResult(null); }}
                         >
                           <SelectTrigger className="h-10">
                             <SelectValue placeholder="Selecione a família..." />
@@ -4693,35 +4656,81 @@ export default function Home() {
                         </Select>
                       </div>
                     )}
-                    {/* Produto */}
-                    {dlFamilia && (
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Produto</Label>
-                        <Select
-                          value={dlProductKey ?? ""}
-                          onValueChange={(v) => {
-                            setDlProductKey(v);
-                            setDlVoltage(null);
-                            setDlResult(null);
-                            // Reset CCT para primeiro valor disponível do produto
-                            const [s, ...np] = v.split('::');
-                            const newProd = activeDlCatalog.find(p => p.sku === s && p.name === np.join('::'));
-                            const availCCTs = newProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
-                            if (!availCCTs.includes(dlCCT)) setDlCCT(availCCTs[0] ?? "3000K");
-                          }}
-                        >
-                          <SelectTrigger className="h-10">
-                            <SelectValue placeholder="Selecione o produto..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {dlProdutosFiltrados.map(({ p }, idx) => {
-                              const key = `${p.sku ?? ""}::${p.name}`;
-                              return <SelectItem key={`${key}-${idx}`} value={key}>{p.name}</SelectItem>;
-                            })}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
+
+                    {/* Seletor de Formato: Redondo / Quadrado — só aparece quando a família tem produtos com R/Q no nome */}
+                    {dlFamilia && dlFamiliaHasFormats && (() => {
+                      return (
+                        <div>
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Formato</Label>
+                          <div className="grid grid-cols-2 gap-2 mt-1.5">
+                            {([
+                              { value: 'R' as const, label: 'Redondo', icon: (
+                                <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none">
+                                  <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" fill="none" />
+                                  <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.5" />
+                                </svg>
+                              )},
+                              { value: 'Q' as const, label: 'Quadrado', icon: (
+                                <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none">
+                                  <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2.5" fill="none" />
+                                  <rect x="8" y="8" width="8" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.5" />
+                                </svg>
+                              )},
+                            ]).map(({ value, label, icon }) => (
+                              <button
+                                key={value}
+                                onClick={() => {
+                                  setDlShape(prev => prev === value ? null : value);
+                                  setDlProductKey(null);
+                                  setDlVoltage(null);
+                                  setDlResult(null);
+                                }}
+                                className={`flex flex-col items-center gap-1.5 px-3 py-3 rounded-md text-xs font-medium border transition-all ${
+                                  dlShape === value
+                                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                    : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                                }`}
+                              >
+                                {icon}
+                                <span>{label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Produto — aparece quando não há formatos (sem R/Q) OU quando formato já foi selecionado */}
+                    {dlFamilia && (!dlFamiliaHasFormats || dlShape) && (() => {
+                      return (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Produto</Label>
+                          <Select
+                            value={dlProductKey ?? ""}
+                            onValueChange={(v) => {
+                              setDlProductKey(v);
+                              setDlVoltage(null);
+                              setDlResult(null);
+                              // Reset CCT para primeiro valor disponível do produto
+                              const [s, ...np] = v.split('::');
+                              const newProd = activeDlCatalog.find(p => p.sku === s && p.name === np.join('::'));
+                              const availCCTs = newProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+                              if (!availCCTs.includes(dlCCT)) setDlCCT(availCCTs[0] ?? "3000K");
+                            }}
+                          >
+                            <SelectTrigger className="h-10">
+                              <SelectValue placeholder="Selecione o produto..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {dlProdutosFiltrados.map(({ p }, idx) => {
+                                const key = `${p.sku ?? ""}::${p.name}`;
+                                return <SelectItem key={`${key}-${idx}`} value={key}>{p.name}</SelectItem>;
+                              })}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      );
+                    })()}
                     {/* Controle */}
                     {dlProductKey !== null && (() => {
                       const [_dlCtrlSku, ..._dlCtrlNameParts] = (dlProductKey ?? '::').split('::');
