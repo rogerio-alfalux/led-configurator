@@ -46,6 +46,7 @@ import { toast } from "sonner";
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 import { PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS } from "@shared/const";
 import { toBrasiliaDate } from "@/lib/dateUtils";
+import { applyCCTChange } from "@/lib/cctUtils";
 
 interface SaveFormData {
   quoteNumber: string;
@@ -2314,11 +2315,34 @@ export default function Cart() {
                 <>
                   <div className="space-y-1">
                     <Label>CCT (temperatura de cor)</Label>
-                    <Input
-                      value={editFields.cct}
-                      onChange={(e) => setEditFields(prev => ({ ...prev, cct: e.target.value }))}
-                      placeholder="ex: 3000K, 4000K"
-                    />
+                    {(() => {
+                      const curItem = orderedEntries.find(e => e.id === editItemId);
+                      const avail = curItem?.data.availableCCTs;
+                      if (avail && avail.length > 0) {
+                        return (
+                          <Select
+                            value={editFields.cct}
+                            onValueChange={(v) => setEditFields(prev => ({ ...prev, cct: v }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione o CCT" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {avail.map(c => (
+                                <SelectItem key={c} value={c}>{c}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        );
+                      }
+                      return (
+                        <Input
+                          value={editFields.cct}
+                          onChange={(e) => setEditFields(prev => ({ ...prev, cct: e.target.value }))}
+                          placeholder="ex: 3000K, 4000K"
+                        />
+                      );
+                    })()}
                   </div>
                   <div className="space-y-1">
                     <Label>Potência</Label>
@@ -2540,7 +2564,16 @@ export default function Cart() {
                 patch.unitPrice = unitPrice;
                 patch.totalPrice = qty * unitPrice;
               } else {
-                if (editFields.cct.trim()) patch.cct = editFields.cct.trim();
+                const newCCT = editFields.cct.trim();
+                if (newCCT) {
+                  // Se o CCT mudou, atualizar description, moduloLed, orderSummary, quoteSummary
+                  if (item?.data && newCCT !== (item.data.cct ?? '')) {
+                    const cctPatch = applyCCTChange(item.data, newCCT);
+                    Object.assign(patch, cctPatch);
+                  } else {
+                    patch.cct = newCCT;
+                  }
+                }
                 if (editFields.power.trim()) patch.power = editFields.power.trim();
                 if (editFields.corPeca.trim()) patch.corPeca = editFields.corPeca.trim();
                 // Salvar preço manual apenas quando não veio da API

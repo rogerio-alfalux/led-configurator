@@ -1436,3 +1436,12 @@
 ### Metragem L/Retangular/Quadrado
 - [x] Corrigir cálculo de metragem total para formas L, retangular e quadrado: somar TODAS as arestas
 - [x] Exibir metragem total correta no resultado e no carrinho
+
+## Lote 6 — Troca de CCT no Carrinho e Orçamento (24/06/2026)
+
+- [x] Seleção de CCT no carrinho: usar `<select>` com apenas os CCTs disponíveis para o produto (availableCCTs)
+- [x] Ao alterar CCT no carrinho: atualizar descrição/nome do produto para refletir o novo CCT
+- [x] Ao alterar CCT no carrinho: atualizar o SKU do módulo LED e os profileSegments para o novo CCT
+- [x] Seleção de CCT no editor de orçamento (QuoteDetail.tsx): mesma lógica — select com CCTs disponíveis
+- [x] Ao alterar CCT no QuoteDetail: atualizar descrição, SKU e profileSegments do item
+- [x] Garantir que a ficha de produção (productionSheet) usa o módulo LED do CCT atualizado

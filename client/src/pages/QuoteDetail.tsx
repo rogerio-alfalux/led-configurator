@@ -48,6 +48,7 @@ import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator"
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 import { toast } from "sonner";
 import { PRICE_OVERRIDE_EMAILS } from "@shared/const";
+import { applyCCTChange } from "@/lib/cctUtils";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   open: { label: "Em Aberto", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: <Clock className="w-3 h-3" /> },
@@ -1204,7 +1205,7 @@ export default function QuoteDetail() {
                                     resolvePhoto={resolvePhoto}
                                     onDelete={(id) => setEditableItems(prev => prev.filter(it => it.id !== id))}
                                     onDuplicate={(id) => setEditableItems(prev => { const i = prev.findIndex(it => it.id === id); if (i === -1) return prev; const src = prev[i]; const cloned = { ...src, id: Date.now() + Math.random(), itemData: src.itemData }; const next = [...prev]; next.splice(i + 1, 0, cloned); return next; })}
-                                    onUpdate={(id, fields) => setEditableItems(prev => prev.map(it => { if (it.id !== id) return it; const newParsed = { ...it.parsed, ...fields }; if (fields.qty !== undefined || fields.unitPrice !== undefined) { const qty = fields.qty ?? newParsed.qty; const up = fields.unitPrice ?? newParsed.unitPrice; newParsed.totalPrice = up != null ? up * qty : null; } return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) }; }))}
+                                    onUpdate={(id, fields) => { let mergedFields = { ...fields }; if (fields.cct !== undefined && fields.cct !== undefined) { const curItem = editableItems.find(it => it.id === id); if (curItem && fields.cct !== curItem.parsed.cct) { mergedFields = { ...applyCCTChange(curItem.parsed, fields.cct), ...fields }; } } setEditableItems(prev => prev.map(it => { if (it.id !== id) return it; const newParsed = { ...it.parsed, ...mergedFields }; if (fields.qty !== undefined || fields.unitPrice !== undefined) { const qty = fields.qty ?? newParsed.qty; const up = fields.unitPrice ?? newParsed.unitPrice; newParsed.totalPrice = up != null ? up * qty : null; } return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) }; })); }}
                                     onUploadSpecialPhoto={async (id, base64, mimeType, fileName) => { const result = await uploadSpecialPhotoMutationQD.mutateAsync({ base64, mimeType, fileName }); setEditableItems(prev => prev.map(it => { if (it.id !== id) return it; const newParsed = { ...it.parsed, specialPhotoUrl: result.url, photoUrl: result.url }; return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) }; })); }}
                                     canOverrideApiPrice={true}
                                   />
@@ -1247,7 +1248,11 @@ export default function QuoteDetail() {
                           onUpdate={(id, fields) => {
                             setEditableItems(prev => prev.map(it => {
                               if (it.id !== id) return it;
-                              const newParsed = { ...it.parsed, ...fields };
+                              let mergedFields = { ...fields };
+                              if (fields.cct !== undefined && fields.cct !== it.parsed.cct) {
+                                mergedFields = { ...applyCCTChange(it.parsed, fields.cct), ...fields };
+                              }
+                              const newParsed = { ...it.parsed, ...mergedFields };
                               if (fields.qty !== undefined || fields.unitPrice !== undefined) {
                                 const qty = fields.qty ?? newParsed.qty;
                                 const up = fields.unitPrice ?? newParsed.unitPrice;
