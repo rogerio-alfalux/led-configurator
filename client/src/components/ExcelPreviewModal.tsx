@@ -140,10 +140,48 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   <title>${fileName}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #525659; font-family: Calibri, Arial, sans-serif; }
+    html, body {
+      font-family: Calibri, Arial, sans-serif;
+      background: #fff;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    /* Remover fundo cinza do wrapper de scroll */
+    [data-print-content] {
+      background: #fff !important;
+      padding: 0 !important;
+      overflow: visible !important;
+    }
+    /* Ocultar marca d'agua no PDF */
+    [aria-hidden="true"] {
+      display: none !important;
+    }
+    /* Container relativo da página */
+    [data-print-content] > div {
+      position: static !important;
+    }
+    /* Página branca: zoom para caber em A4 paisagem sem quebrar layout */
+    [data-print-content] > div > div {
+      zoom: 0.88;
+      width: 1100px !important;
+      min-width: 1100px !important;
+      margin: 0 !important;
+      box-shadow: none !important;
+    }
     @media print {
-      body { background: #fff; }
-      @page { size: A4 landscape; margin: 8mm; }
+      html, body {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        background: #fff !important;
+      }
+      @page {
+        size: A4 landscape;
+        margin: 6mm;
+      }
+      /* Evitar quebra de página dentro de linhas da tabela */
+      tr, td, th { page-break-inside: avoid; }
     }
   </style>
 </head>
