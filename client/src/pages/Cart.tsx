@@ -1894,8 +1894,12 @@ export default function Cart() {
                                 const info = getStateInfo(saveForm.destState);
                                 if (!info) return null;
                                 const base = totalFinal;
-                                const difalVal = base * (info.difal / 100);
-                                const fcpVal = base * (info.fcp / 100);
+                                // Fórmula por dentro (igual a RT/Margem): acréscimo = base / (1 - %) - base
+                                const difalPct = info.difal / 100;
+                                const fcpPct = info.fcp / 100;
+                                const difalVal = difalPct > 0 ? base / (1 - difalPct) - base : 0;
+                                const totalComDifal = base + (saveForm.difalEnabled ? difalVal : 0);
+                                const fcpVal = fcpPct > 0 ? totalComDifal / (1 - fcpPct) - totalComDifal : 0;
                                 return (
                                   <div className="space-y-2">
                                     <div className="flex items-center gap-2">

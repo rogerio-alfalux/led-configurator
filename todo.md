@@ -1453,3 +1453,11 @@
 - [x] Filtrar produtos de Downlight pela letra R ou Q no nome do produto
 - [x] Limpar seleção de produto ao trocar o formato
 - [x] Garantir que o seletor de formato aparece logo após selecionar a categoria Downlights
+
+## Lote 9 — Fórmula DIFAL/FCP por dentro (25/06/2026)
+
+- [x] Corrigir cálculo de DIFAL no Cart.tsx para usar fórmula por dentro: `difalAcrescimo = totalFinal / (1 - DIFAL%) - totalFinal`
+- [x] Corrigir cálculo de FCP no Cart.tsx para usar fórmula por dentro: `fcpAcrescimo = totalComDifal / (1 - FCP%) - totalComDifal`
+- [x] Corrigir cálculo de DIFAL/FCP no QuoteDetail.tsx com a mesma fórmula
+- [x] Corrigir o totalFinal salvo no banco ao criar/editar orçamento para incluir DIFAL/FCP por dentro
+- [x] Corrigir exibição do total com DIFAL/FCP na pré-visualização e Excel

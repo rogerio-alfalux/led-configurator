@@ -1316,10 +1316,13 @@ export default function QuoteDetail() {
                       const itemsFreteValor = (quote as any).freteIncluded && (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : 0;
                       const itemsDifalVal = quote.difalEnabled && quote.difalValue ? parseFloat(String(quote.difalValue)) : 0;
                       const itemsFcpVal = quote.fcpEnabled && quote.fcpValue ? parseFloat(String(quote.fcpValue)) : 0;
-                      // Recalcular DIFAL/FCP com base no novo totalFinal (os percentuais ficam os mesmos)
+                      // Recalcular DIFAL/FCP com base no novo totalFinal usando fórmula por dentro
                       const itemsStateInfo = quote.destState ? getStateInfo(quote.destState) : undefined;
-                      const itemsDifalValRecalc = itemsStateInfo && quote.difalEnabled ? (totalFinal * itemsStateInfo.difal) / 100 : itemsDifalVal;
-                      const itemsFcpValRecalc = itemsStateInfo && quote.fcpEnabled ? (totalFinal * itemsStateInfo.fcp) / 100 : itemsFcpVal;
+                      const itemsDifalPct = itemsStateInfo ? itemsStateInfo.difal / 100 : 0;
+                      const itemsFcpPct = itemsStateInfo ? itemsStateInfo.fcp / 100 : 0;
+                      const itemsDifalValRecalc = itemsStateInfo && quote.difalEnabled && itemsDifalPct > 0 ? totalFinal / (1 - itemsDifalPct) - totalFinal : itemsDifalVal;
+                      const itemsTotalComDifal = totalFinal + itemsDifalValRecalc;
+                      const itemsFcpValRecalc = itemsStateInfo && quote.fcpEnabled && itemsFcpPct > 0 ? itemsTotalComDifal / (1 - itemsFcpPct) - itemsTotalComDifal : itemsFcpVal;
                       const totalFinalCompleto = totalFinal + itemsFreteValor + itemsDifalValRecalc + itemsFcpValRecalc;
                       addRevisionForItemsMutation.mutate({
                         quoteId: Number(id),
@@ -1924,8 +1927,12 @@ export default function QuoteDetail() {
                     {editForm.destState && editForm.destState !== "none" && editForm.destState !== "SP" && (() => {
                       const info = getStateInfo(editForm.destState);
                       if (!info) return null;
-                      const difalVal = (editTotalFinal * info.difal) / 100;
-                      const fcpVal = (editTotalFinal * info.fcp) / 100;
+                      // Fórmula por dentro (igual a RT/Margem): acréscimo = base / (1 - %) - base
+                      const difalPct = info.difal / 100;
+                      const fcpPct = info.fcp / 100;
+                      const difalVal = difalPct > 0 ? editTotalFinal / (1 - difalPct) - editTotalFinal : 0;
+                      const totalComDifal = editTotalFinal + (editForm.difalEnabled ? difalVal : 0);
+                      const fcpVal = fcpPct > 0 ? totalComDifal / (1 - fcpPct) - totalComDifal : 0;
                       return (
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
@@ -1983,8 +1990,12 @@ export default function QuoteDetail() {
                     // Calcular frete, DIFAL e FCP para incluir no totalFinal salvo
                     const editFreteValor = editForm.freteIncluded && editForm.freteValue ? parseFloat(editForm.freteValue) : 0;
                     const editStateInfo = editForm.destState ? getStateInfo(editForm.destState) : undefined;
-                    const editDifalVal = editStateInfo && editForm.difalEnabled ? (totalFinalVal * editStateInfo.difal) / 100 : 0;
-                    const editFcpVal = editStateInfo && editForm.fcpEnabled ? (totalFinalVal * editStateInfo.fcp) / 100 : 0;
+                    // Fórmula por dentro (igual a RT/Margem): acréscimo = base / (1 - %) - base
+                    const editDifalPct = editStateInfo ? editStateInfo.difal / 100 : 0;
+                    const editFcpPct = editStateInfo ? editStateInfo.fcp / 100 : 0;
+                    const editDifalVal = editStateInfo && editForm.difalEnabled && editDifalPct > 0 ? totalFinalVal / (1 - editDifalPct) - totalFinalVal : 0;
+                    const editTotalComDifal = totalFinalVal + editDifalVal;
+                    const editFcpVal = editStateInfo && editForm.fcpEnabled && editFcpPct > 0 ? editTotalComDifal / (1 - editFcpPct) - editTotalComDifal : 0;
                     const totalFinalCompleto = totalFinalVal + editFreteValor + editDifalVal + editFcpVal;
                     addRevisionMutation.mutate({
                       quoteId: Number(id),
@@ -2037,8 +2048,8 @@ export default function QuoteDetail() {
                         return {
                           difalPercent: info ? info.difal : 0,
                           fcpPercent: info ? info.fcp : 0,
-                          difalValue: info && editForm.difalEnabled ? (totalFinalVal * info.difal) / 100 : 0,
-                          fcpValue: info && editForm.fcpEnabled ? (totalFinalVal * info.fcp) / 100 : 0,
+                          difalValue: editDifalVal,
+                          fcpValue: editFcpVal,
                         };
                       })(),
                     });
