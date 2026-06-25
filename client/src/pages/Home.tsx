@@ -177,7 +177,99 @@ function getPrecoForControle(
 }
 
 
-// ─── Componentes Auxiliares ────────────────────────────────────────────────────
+/**
+ * Calcula as linhas de driver desmembradas e o preço sem driver para luminárias.
+ * Retorna null se não houver dados de custo/markup na API para o produto.
+ * Usado apenas para itens novos (a partir desta versão).
+ */
+function buildLumDriverLines(
+  sku: string,
+  controle: string,
+  tensao: string,
+  itemQty: number,
+  driverModel: string,
+  driverCode: string,
+  lumPriceMap: Record<string, {
+    custoCorpoOnoff220v: number | null; custoCorpoOnoffBivolt: number | null;
+    custoCorpoDim110v: number | null; custoCorpoDimDali: number | null;
+    custoCorpoDimTriac110v: number | null; custoCorpoDimTriac220v: number | null;
+    custoDriver220: number | null; custoDriverBivolt: number | null;
+    custoDriverDim110v: number | null; custoDriverDimDali: number | null;
+    custoDriverDimTriac110v: number | null; custoDriverDimTriac220v: number | null;
+    markupPadraoOnoff220v: number | null; markupPadraoOnoffBivolt: number | null;
+    markupPadraoDim110v: number | null; markupPadraoDimDali: number | null;
+    markupPadraoDimTriac110v: number | null; markupPadraoDimTriac220v: number | null;
+    markupPadraoDriverOnoff220v: number | null; markupPadraoDriverOnoffBivolt: number | null;
+    markupPadraoDriverDim110v: number | null; markupPadraoDriverDimDali: number | null;
+    markupPadraoDriverDimTriac110v: number | null; markupPadraoDriverDimTriac220v: number | null;
+    markupMinimoDriver: number | null;
+    driverQtd220: number | null; driverQtdBivolt: number | null;
+    driverQtdDim110v: number | null; driverQtdDimDali: number | null;
+    driverQtdDimTriac110v: number | null; driverQtdDimTriac220v: number | null;
+  }>
+): { driverLines: import("@/lib/cartTypes").DriverLine[]; priceWithoutDriver: number | null } | null {
+  const entry = lumPriceMap[sku];
+  if (!entry) return null;
+
+  // Selecionar custo do corpo e custo do driver pelo controle/tensão
+  let custoCorpo: number | null = null;
+  let custoDriver: number | null = null;
+  let markupCorpo: number | null = null;
+  let markupDriver: number | null = null;
+  let drvQtyPerUnit: number = 1;
+
+  if (controle === 'DIM DALI') {
+    custoCorpo = entry.custoCorpoDimDali; custoDriver = entry.custoDriverDimDali;
+    markupCorpo = entry.markupPadraoDimDali; markupDriver = entry.markupPadraoDriverDimDali;
+    drvQtyPerUnit = entry.driverQtdDimDali ?? 1;
+  } else if (controle === 'DIM 1-10V') {
+    custoCorpo = entry.custoCorpoDim110v; custoDriver = entry.custoDriverDim110v;
+    markupCorpo = entry.markupPadraoDim110v; markupDriver = entry.markupPadraoDriverDim110v;
+    drvQtyPerUnit = entry.driverQtdDim110v ?? 1;
+  } else if (controle === 'DIM TRIAC 110V') {
+    custoCorpo = entry.custoCorpoDimTriac110v; custoDriver = entry.custoDriverDimTriac110v;
+    markupCorpo = entry.markupPadraoDimTriac110v; markupDriver = entry.markupPadraoDriverDimTriac110v;
+    drvQtyPerUnit = entry.driverQtdDimTriac110v ?? 1;
+  } else if (controle === 'DIM TRIAC 220V') {
+    custoCorpo = entry.custoCorpoDimTriac220v; custoDriver = entry.custoDriverDimTriac220v;
+    markupCorpo = entry.markupPadraoDimTriac220v; markupDriver = entry.markupPadraoDriverDimTriac220v;
+    drvQtyPerUnit = entry.driverQtdDimTriac220v ?? 1;
+  } else if (tensao === 'Bivolt') {
+    custoCorpo = entry.custoCorpoOnoffBivolt; custoDriver = entry.custoDriverBivolt;
+    markupCorpo = entry.markupPadraoOnoffBivolt; markupDriver = entry.markupPadraoDriverOnoffBivolt;
+    drvQtyPerUnit = entry.driverQtdBivolt ?? 1;
+  } else {
+    custoCorpo = entry.custoCorpoOnoff220v; custoDriver = entry.custoDriver220;
+    markupCorpo = entry.markupPadraoOnoff220v; markupDriver = entry.markupPadraoDriverOnoff220v;
+    drvQtyPerUnit = entry.driverQtd220 ?? 1;
+  }
+
+  // Se não há custo do driver, não é possível desmembrar
+  if (custoDriver == null || custoDriver === 0) return null;
+
+  const mkDriver = markupDriver ?? entry.markupMinimoDriver ?? 3;
+  const totalDrvQty = drvQtyPerUnit * itemQty;
+  const driverUnitPrice = Math.round(custoDriver * mkDriver * 100) / 100;
+  const driverTotalPrice = Math.round(driverUnitPrice * totalDrvQty * 100) / 100;
+
+  // Preço sem driver = preço do corpo × markup do corpo × qty
+  let priceWithoutDriver: number | null = null;
+  if (custoCorpo != null && markupCorpo != null) {
+    priceWithoutDriver = Math.round(custoCorpo * markupCorpo * itemQty * 100) / 100;
+  }
+
+  const driverLines: import("@/lib/cartTypes").DriverLine[] = [{
+    driverModel,
+    driverCode,
+    driverQty: totalDrvQty,
+    driverUnitPrice,
+    driverTotalPrice,
+  }];
+
+  return { driverLines, priceWithoutDriver };
+}
+
+// ─── Componentes Auxiliares ──────────────────────────────────────────────────────────────────────────────
 function FieldLabel({ children, hint }: { children: React.ReactNode; hint?: string }) {
   return (
     <div className="flex items-center gap-1.5 mb-1.5">
@@ -1904,6 +1996,86 @@ export default function Home() {
         if (map[code].dim110vD1D2 == null && p.precoDim110vD1D2 != null) map[code].dim110vD1D2 = p.precoDim110vD1D2;
         if (map[code].dimDaliD1D2 == null && p.precoDimDaliD1D2 != null) map[code].dimDaliD1D2 = p.precoDimDaliD1D2;
       }
+    }
+    return map;
+  }, [alfaluxApiProducts]);
+
+  // Mapa de custo+markup por SKU para luminárias (Downlights, Spots, Painéis, Arandelas, Área Externa, Balizadores, Decorativas, Glow)
+  // Usado para calcular driverLines e priceWithoutDriver ao criar itens novos
+  const lumPriceMap = useMemo(() => {
+    if (!alfaluxApiProducts || alfaluxApiProducts.length === 0) return {};
+    const map: Record<string, {
+      custoCorpoOnoff220v: number | null;
+      custoCorpoOnoffBivolt: number | null;
+      custoCorpoDim110v: number | null;
+      custoCorpoDimDali: number | null;
+      custoCorpoDimTriac110v: number | null;
+      custoCorpoDimTriac220v: number | null;
+      custoDriver220: number | null;
+      custoDriverBivolt: number | null;
+      custoDriverDim110v: number | null;
+      custoDriverDimDali: number | null;
+      custoDriverDimTriac110v: number | null;
+      custoDriverDimTriac220v: number | null;
+      markupPadraoOnoff220v: number | null;
+      markupPadraoOnoffBivolt: number | null;
+      markupPadraoDim110v: number | null;
+      markupPadraoDimDali: number | null;
+      markupPadraoDimTriac110v: number | null;
+      markupPadraoDimTriac220v: number | null;
+      markupPadraoDriverOnoff220v: number | null;
+      markupPadraoDriverOnoffBivolt: number | null;
+      markupPadraoDriverDim110v: number | null;
+      markupPadraoDriverDimDali: number | null;
+      markupPadraoDriverDimTriac110v: number | null;
+      markupPadraoDriverDimTriac220v: number | null;
+      markupMinimoDriver: number | null;
+      driverQtd220: number | null;
+      driverQtdBivolt: number | null;
+      driverQtdDim110v: number | null;
+      driverQtdDimDali: number | null;
+      driverQtdDimTriac110v: number | null;
+      driverQtdDimTriac220v: number | null;
+    }> = {};
+    const NON_PROFILE_CATS = ["DOWNLIGHTS", "SPOTS", "PAINÉIS", "PAINEIS", "ARANDELAS", "ÁREA EXTERNA", "AREA EXTERNA", "BALIZADORES", "DECORATIVAS", "GLOW"];
+    for (const p of alfaluxApiProducts) {
+      const cat = (p.categoria ?? "").toUpperCase();
+      if (!NON_PROFILE_CATS.includes(cat)) continue;
+      const sku = p.sku ?? "";
+      if (!sku) continue;
+      map[sku] = {
+        custoCorpoOnoff220v: p.custoCorpoOnoff220v ?? null,
+        custoCorpoOnoffBivolt: p.custoCorpoOnoffBivolt ?? null,
+        custoCorpoDim110v: p.custoCorpoDim110v ?? null,
+        custoCorpoDimDali: p.custoCorpoDimDali ?? null,
+        custoCorpoDimTriac110v: p.custoCorpoDimTriac110v ?? null,
+        custoCorpoDimTriac220v: p.custoCorpoDimTriac220v ?? null,
+        custoDriver220: p.custoDriver220 ?? null,
+        custoDriverBivolt: p.custoDriverBivolt ?? null,
+        custoDriverDim110v: p.custoDriverDim110v ?? null,
+        custoDriverDimDali: p.custoDriverDimDali ?? null,
+        custoDriverDimTriac110v: p.custoDriverDimTriac110v ?? null,
+        custoDriverDimTriac220v: p.custoDriverDimTriac220v ?? null,
+        markupPadraoOnoff220v: p.markupPadraoOnoff220v ?? null,
+        markupPadraoOnoffBivolt: p.markupPadraoOnoffBivolt ?? null,
+        markupPadraoDim110v: p.markupPadraoDim110v ?? null,
+        markupPadraoDimDali: p.markupPadraoDimDali ?? null,
+        markupPadraoDimTriac110v: p.markupPadraoDimTriac110v ?? null,
+        markupPadraoDimTriac220v: p.markupPadraoDimTriac220v ?? null,
+        markupPadraoDriverOnoff220v: p.markupPadraoDriverOnoff220v ?? null,
+        markupPadraoDriverOnoffBivolt: p.markupPadraoDriverOnoffBivolt ?? null,
+        markupPadraoDriverDim110v: p.markupPadraoDriverDim110v ?? null,
+        markupPadraoDriverDimDali: p.markupPadraoDriverDimDali ?? null,
+        markupPadraoDriverDimTriac110v: p.markupPadraoDriverDimTriac110v ?? null,
+        markupPadraoDriverDimTriac220v: p.markupPadraoDriverDimTriac220v ?? null,
+        markupMinimoDriver: p.markupMinimoDriver ?? null,
+        driverQtd220: p.driverQtd220 ?? null,
+        driverQtdBivolt: p.driverQtdBivolt ?? null,
+        driverQtdDim110v: p.driverQtdDim110v ?? null,
+        driverQtdDimDali: p.driverQtdDimDali ?? null,
+        driverQtdDimTriac110v: p.driverQtdDimTriac110v ?? null,
+        driverQtdDimTriac220v: p.driverQtdDimTriac220v ?? null,
+      };
     }
     return map;
   }, [alfaluxApiProducts]);
@@ -7508,6 +7680,8 @@ export default function Home() {
                           className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                           disabled={isAddingToCart}
                           onClick={() => {
+                            const dTensao = dProd.driverBivolt?.model ? 'Bivolt' : '220V';
+                            const dDrvLines = dDriverInfo ? buildLumDriverLines(dProd.sku ?? "", 'ON/OFF', dTensao, globalQty, dDriverInfo.model, dDriverInfo.code ?? "", lumPriceMap) : null;
                             const item: CartItemData = {
                               category: "Decorativas",
                               sku: dProd.sku ?? "",
@@ -7527,6 +7701,7 @@ export default function Home() {
                               itemEmPlanta: globalItemEmPlanta,
                               floorName: globalPavimento || undefined,
                               ambiente: globalAmbiente || undefined,
+                              ...(dDrvLines ? { driverLines: dDrvLines.driverLines, priceWithoutDriver: dDrvLines.priceWithoutDriver } : {}),
                             };
                             if (appendToQuoteId) {
                               handleAddItemOrToQuote(item);
@@ -7710,6 +7885,8 @@ export default function Home() {
                           className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                           disabled={isAddingToCart}
                           onClick={() => {
+                            const bTensao = bProd.driverBivolt?.model ? 'Bivolt' : '220V';
+                            const bDrvLines = bDriverInfo ? buildLumDriverLines(bProd.sku ?? "", 'ON/OFF', bTensao, globalQty, bDriverInfo.model, bDriverInfo.code ?? "", lumPriceMap) : null;
                             const item: CartItemData = {
                               category: "Balizadores",
                               sku: bProd.sku ?? "",
@@ -7729,6 +7906,7 @@ export default function Home() {
                               itemEmPlanta: globalItemEmPlanta,
                               floorName: globalPavimento || undefined,
                               ambiente: globalAmbiente || undefined,
+                              ...(bDrvLines ? { driverLines: bDrvLines.driverLines, priceWithoutDriver: bDrvLines.priceWithoutDriver } : {}),
                             };
                             if (appendToQuoteId) {
                               handleAddItemOrToQuote(item);
@@ -7955,6 +8133,7 @@ export default function Home() {
                           const preco = getPrecoForControle(dlResult.product, dlResult.controle, dlResult.tensao);
                           // Usar resolveDownlightPhoto (API primeiro) em vez de getDownlightPhoto (estático)
                           const dlPhoto = resolveDownlightPhoto(dlFamilia, dlResult.product.name);
+                          const dlDrvLines = buildLumDriverLines(dlResult.product.sku ?? "", dlResult.controle, dlResult.tensao, 1, dlResult.driver.model, dlResult.driver.code, lumPriceMap);
                           const item: CartItemData = {
                             category: "Downlights",
                             sku: dlResult.product.sku ?? "",
@@ -7972,6 +8151,7 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); return `${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: dlResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
+                            ...(dlDrvLines ? { driverLines: dlDrvLines.driverLines, priceWithoutDriver: dlDrvLines.priceWithoutDriver } : {}),
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -8207,6 +8387,7 @@ export default function Home() {
                         onClick={() => {
                           const preco = getPrecoForControle(aeResult.product, aeResult.controle, aeResult.tensao);
                           const aePhoto = aeFamilia ? (adaptedCatalogs?.areaExternaFotos?.[aeResult.product.sku ?? ""] ?? null) : null;
+                          const aeDrvLines = buildLumDriverLines(aeResult.product.sku ?? "", aeResult.controle, aeResult.tensao, 1, aeResult.driver.model, aeResult.driver.code, lumPriceMap);
                           const item: CartItemData = {
                             category: "Área Externa",
                             sku: aeResult.product.sku ?? "",
@@ -8224,6 +8405,7 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = aeResult.driver.code ? ` (${aeResult.driver.code})` : ""; const drvQty = driverQtyFor(aeResult.product, aeResult.controle, aeResult.tensao); return `${drvQty}x DRIVER ${aeResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: aeResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
+                            ...(aeDrvLines ? { driverLines: aeDrvLines.driverLines, priceWithoutDriver: aeDrvLines.priceWithoutDriver } : {}),
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -8255,9 +8437,9 @@ export default function Home() {
                       onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
                     >
                       {(() => {
-                        const preco = getPrecoForControle(aeResult.product, aeResult.controle, aeResult.tensao);
-                        const lines = [`${aeResult.product.name} ${aeResult.cct} ${aeResult.tensao}`.toUpperCase()];
-                        if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          const preco = getPrecoForControle(aeResult.product, aeResult.controle, aeResult.tensao);
+                          const lines = [`${aeResult.product.name} ${aeResult.cct} ${aeResult.tensao}`.toUpperCase()];
+                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
                         return lines.join("\n");
                       })()}
                     </div>
@@ -8453,6 +8635,7 @@ export default function Home() {
                         onClick={() => {
                           const preco = getPrecoForControle(panelResult.product, panelResult.controle, panelResult.tensao);
                           const pPhoto = panelFamilia ? resolvePainelPhoto(panelFamilia, panelResult.product.name) : null;
+                          const panelDrvLines = buildLumDriverLines(panelResult.product.sku ?? "", panelResult.controle, panelResult.tensao, 1, panelResult.driver.model, panelResult.driver.code, lumPriceMap);
                           const item: CartItemData = {
                             category: "Painéis",
                             sku: panelResult.product.sku ?? "",
@@ -8470,6 +8653,7 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; const drvQty = driverQtyFor(panelResult.product, panelResult.controle, panelResult.tensao); return `${drvQty}x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: panelResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
+                            ...(panelDrvLines ? { driverLines: panelDrvLines.driverLines, priceWithoutDriver: panelDrvLines.priceWithoutDriver } : {}),
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -8675,6 +8859,7 @@ export default function Home() {
                         disabled={isAddingToCart}
                         onClick={() => {
                           const preco = getPrecoForControle(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao);
+                          const arandelaDrvLines = buildLumDriverLines(arandelaResult.product.sku ?? "", arandelaResult.controle, arandelaResult.tensao, 1, arandelaResult.driver.model, arandelaResult.driver.code, lumPriceMap);
                           const item: CartItemData = {
                             category: "Arandelas",
                             sku: arandelaResult.product.sku ?? "",
@@ -8692,6 +8877,7 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); return `${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: arandelaResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
+                            ...(arandelaDrvLines ? { driverLines: arandelaDrvLines.driverLines, priceWithoutDriver: arandelaDrvLines.priceWithoutDriver } : {}),
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -8928,6 +9114,7 @@ export default function Home() {
                         disabled={isAddingToCart}
                         onClick={() => {
                           const preco = getPrecoForControle(spotResult.product, spotResult.controle, spotResult.tensao);
+                          const spotDrvLines = buildLumDriverLines(spotResult.product.sku ?? "", spotResult.controle, spotResult.tensao, 1, spotResult.driver.model, spotResult.driver.code, lumPriceMap);
                           const item: CartItemData = {
                             category: "Spots",
                             sku: spotResult.product.sku ?? "",
@@ -8945,6 +9132,7 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; const drvQty = driverQtyFor(spotResult.product, spotResult.controle, spotResult.tensao); return `${drvQty}x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: spotResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
+                            ...(spotDrvLines ? { driverLines: spotDrvLines.driverLines, priceWithoutDriver: spotDrvLines.priceWithoutDriver } : {}),
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);

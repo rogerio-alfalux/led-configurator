@@ -90,6 +90,35 @@ export interface ApiProduct {
   custoDriverBivolt: number | null;
   custoDriverDim110v: number | null;
   custoDriverDimDali: number | null;
+  // Campos de custo do corpo da luminária por tipo de controle (Downlights, Spots, Painéis, etc.)
+  custoCorpoOnoff220v?: number | null;
+  custoCorpoOnoffBivolt?: number | null;
+  custoCorpoDim110v?: number | null;
+  custoCorpoDimDali?: number | null;
+  custoCorpoDimTriac110v?: number | null;
+  custoCorpoDimTriac220v?: number | null;
+  // Markup padrão da luminária por tipo de controle
+  markupPadraoOnoff220v?: number | null;
+  markupPadraoOnoffBivolt?: number | null;
+  markupPadraoDim110v?: number | null;
+  markupPadraoDimDali?: number | null;
+  markupPadraoDimTriac110v?: number | null;
+  markupPadraoDimTriac220v?: number | null;
+  // Markup mínimo da luminária por tipo de controle
+  markupMinimoOnoff220v?: number | null;
+  markupMinimoOnoffBivolt?: number | null;
+  markupMinimoDim110v?: number | null;
+  markupMinimoDimDali?: number | null;
+  markupMinimoDimTriac110v?: number | null;
+  markupMinimoDimTriac220v?: number | null;
+  // Markup do driver
+  markupMinimoDriver?: number | null;
+  markupPadraoDriverOnoff220v?: number | null;
+  markupPadraoDriverOnoffBivolt?: number | null;
+  markupPadraoDriverDim110v?: number | null;
+  markupPadraoDriverDimDali?: number | null;
+  markupPadraoDriverDimTriac110v?: number | null;
+  markupPadraoDriverDimTriac220v?: number | null;
   /** Preço por metro (D1 simples) — ON/OFF 220V */
   precoOnOff220?: number | null;
   /** Preço por metro (D1 simples) — ON/OFF Bivolt */

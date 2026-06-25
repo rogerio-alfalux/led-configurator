@@ -1468,3 +1468,15 @@
 - [x] Fallback para preço por metro linear quando API não retornar custo/markup para perfis
 - [x] Permitir edição manual de preço no carrinho para produtos sem preço na API nem no banco estático (não-perfis)
 - [x] Permitir edição manual de preço no editor de orçamento salvo para os mesmos produtos
+
+## Lote 11 — Desmembramento de Drivers no Excel/Pré-visualização (25/06/2026)
+
+- [x] Adicionar interface DriverLine ao CartItemData (cartTypes.ts)
+- [x] Criar lumPriceMap para mapear custo/markup de Downlights, Spots, Painéis, Arandelas, Área Externa, Balizadores e Decorativas via API
+- [x] Criar função buildLumDriverLines para calcular driverLines e priceWithoutDriver
+- [x] Popular driverLines nos itens Downlight, Spot, Painel, Arandela, Área Externa, Balizador, Decorativa
+- [x] Renderizar sub-linhas de driver no quoteExcelGenerator.ts (fundo laranja claro, modelo, código, qtd, preço)
+- [x] Adicionar totais "Total sem driver" e "Total drivers" no rodapé do Excel
+- [x] Renderizar sub-linhas de driver no ExcelPreviewModal.tsx (fundo laranja claro, modelo, código, qtd, preço)
+- [x] Adicionar totais "Total sem driver" e "Total drivers" no rodapé da pré-visualização
+- [x] Garantir retrocompatibilidade: orçamentos sem driverLines não são afetados

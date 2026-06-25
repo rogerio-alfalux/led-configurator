@@ -200,6 +200,19 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   const fcpAmt = (formData.fcpEnabled && formData.fcpValue && formData.fcpValue > 0) ? formData.fcpValue : 0;
   const totalComDifal = totalFinal + difalAmt + fcpAmt;
 
+  // Totais com/sem driver (apenas para orçamentos novos com driverLines)
+  const hasDriverBreakdown = sortedItems.some(it => it.driverLines && it.driverLines.length > 0);
+  const applyMarkupFn = (base: number) => {
+    const comRT  = rtPct    > 0 ? base   / (1 - rtPct)    : base;
+    return marginPct > 0 ? comRT  / (1 - marginPct) : comRT;
+  };
+  const totalDriverRaw = hasDriverBreakdown
+    ? sortedItems.reduce((sum, it) => sum + (it.driverLines?.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0) ?? 0), 0)
+    : 0;
+  const totalSemDriverRaw = hasDriverBreakdown ? (totalBase - totalDriverRaw) : 0;
+  const totalDriverFinal = applyMarkupFn(totalDriverRaw);
+  const totalSemDriverFinal = applyMarkupFn(totalSemDriverRaw);
+
   const vendedorText = [formData.seller1Name, formData.seller2Name].filter(Boolean).join(" / ") || "";
   const contactText = [formData.contato, formData.tel].filter(Boolean).join(" — ");
 
@@ -503,6 +516,27 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice * acc.qty) : "-"}</td>
                         </tr>
                       ))}
+                      {/* Sub-linhas de drivers (apenas para itens novos com driverLines) */}
+                      {item.driverLines && item.driverLines.map((drv, drvIdx) => (
+                        <tr key={`drv-${idx}-${drvIdx}`} style={{ background: "#FFF3E0" }}>
+                          <td style={{ ...tdStyle, fontSize: 9 }}></td>
+                          <td style={{ ...tdStyle, fontSize: 9 }}></td>
+                          <td style={{ ...tdStyle, fontSize: 9, color: "#E65100", fontStyle: "italic", textAlign: "left" }}>
+                            {drv.driverCode && <div style={{ fontFamily: "monospace", fontSize: 9, color: "#888" }}>{drv.driverCode}</div>}
+                            <div>↳ Driver: {drv.driverModel}</div>
+                          </td>
+                          {["", "", "", "", "", "", ""].map((_, i) => (
+                            <td key={i} style={{ ...tdStyle, fontSize: 9 }}></td>
+                          ))}
+                          <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold", color: "#E65100" }}>{drv.driverQty}</td>
+                          <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
+                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupFn(drv.driverUnitPrice)) : "-"}
+                          </td>
+                          <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
+                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupFn(drv.driverUnitPrice * drv.driverQty)) : "-"}
+                          </td>
+                        </tr>
+                      ))}
                     </Fragment>
                   );
                 })}
@@ -550,6 +584,27 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                         </span>
                       </td>
                     </tr>
+                  )}
+                  {/* Totais com/sem driver — apenas para orçamentos novos */}
+                  {hasDriverBreakdown && totalDriverRaw > 0 && (
+                    <>
+                      <tr>
+                        <td style={{ fontWeight: "bold", color: "#E65100", paddingTop: 8 }}>Total sem driver:</td>
+                        <td>
+                          <span style={{ background: "#FFF3E0", fontWeight: "bold", fontSize: 13, padding: "3px 10px", border: "1px solid #FFCC80", display: "inline-block", color: "#E65100" }}>
+                            {formatBRL(totalSemDriverFinal)}
+                          </span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style={{ fontWeight: "bold", color: "#E65100" }}>Total drivers:</td>
+                        <td>
+                          <span style={{ background: "#FFF3E0", fontWeight: "bold", fontSize: 13, padding: "3px 10px", border: "1px solid #FFCC80", display: "inline-block", color: "#E65100" }}>
+                            {formatBRL(totalDriverFinal)}
+                          </span>
+                        </td>
+                      </tr>
+                    </>
                   )}
                   <tr>
                     <td style={{ fontWeight: "bold", paddingTop: 8 }}>Condição de pagto:</td>

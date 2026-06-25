@@ -237,6 +237,39 @@ export interface CartItemData {
    * Soma de todos os lados realizados. Usado na coluna COMPRIMENTO do Excel/Preview.
    */
   shapeTotalLengthMm?: number;
+
+  // ─── Campos de desmembramento de driver (a partir da versão que introduziu este campo) ─
+  /**
+   * Linhas de driver desmembradas para exibição separada no Excel e na pré-visualização.
+   * Apenas itens criados a partir desta versão terão este campo populado.
+   * Itens antigos (sem o campo) continuam funcionando normalmente sem desmembramento.
+   */
+  driverLines?: DriverLine[];
+
+  /**
+   * Preço total da luminaria sem os drivers (null se não calculado).
+   * Usado para calcular os totais "com driver" e "sem driver" no Excel/preview.
+   */
+  priceWithoutDriver?: number | null;
+}
+
+/**
+ * Linha de driver desmembrada de um item do carrinho.
+ * Armazena os dados do driver para exibição separada no Excel e na pré-visualização.
+ * ATENÇÃO: apenas itens criados a partir da versão que introduziu este campo terão
+ * driverLines populado. Itens antigos (sem o campo) continuam funcionando normalmente.
+ */
+export interface DriverLine {
+  /** Modelo do driver (ex: "LIFUD 13W 350MA BIVOLT") */
+  driverModel: string;
+  /** Código do driver (ex: "EQ00236") */
+  driverCode: string;
+  /** Quantidade total de drivers para este item (qty_item × drivers_por_luminaria) */
+  driverQty: number;
+  /** Preço unitário do driver (null se não disponível na API) */
+  driverUnitPrice: number | null;
+  /** Preço total dos drivers = driverUnitPrice × driverQty (null se unitPrice for null) */
+  driverTotalPrice: number | null;
 }
 
 /**

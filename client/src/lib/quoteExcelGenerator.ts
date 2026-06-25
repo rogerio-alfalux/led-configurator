@@ -851,11 +851,67 @@ async function _generateExcelBuffer(
       // Avançar currentRow para compensar as sub-linhas inseridas
       currentRow += nonRabichoAcc.length;
     }
+
+    // ── Sub-linhas de drivers (apenas para itens novos com driverLines) ──────────
+    if (item.driverLines && item.driverLines.length > 0) {
+      for (let drvIdx = 0; drvIdx < item.driverLines.length; drvIdx++) {
+        const drv = item.driverLines[drvIdx];
+        const drvRowNum = rowNum + (nonRabichoAcc?.length ?? 0) + drvIdx + 1;
+        ws.spliceRows(drvRowNum, 0, []);
+        const drvRow = ws.getRow(drvRowNum);
+        drvRow.height = 36;
+        const DRV_BG = "FFFFF3E0"; // laranja muito claro
+        const DRV_COLOR = "FFE65100"; // laranja escuro
+        const thinOrange: Partial<ExcelJS.Border> = { style: "thin", color: { argb: "FFFFCC80" } };
+        const drvBorder = { top: thinOrange, bottom: thinOrange, left: thinOrange, right: thinOrange };
+        const fillDrv = (cell: ExcelJS.Cell, value: string | number | null, bold = false) => {
+          cell.value = value ?? "";
+          cell.font = { name: "Calibri", size: 9, bold, italic: true, color: { argb: DRV_COLOR } };
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: DRV_BG } };
+          cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+          cell.border = drvBorder;
+        };
+        fillDrv(ws.getCell(`C${drvRowNum}`), "");
+        fillDrv(ws.getCell(`D${drvRowNum}`), "");
+        fillDrv(ws.getCell(`E${drvRowNum}`), `\u21B3 Driver: ${drv.driverModel}${drv.driverCode ? ` (${drv.driverCode})` : ""}`);
+        for (const col of ["F", "G", "H", "I", "J", "K"]) {
+          fillDrv(ws.getCell(`${col}${drvRowNum}`), "");
+        }
+        fillDrv(ws.getCell(`L${drvRowNum}`), drv.driverQty, true);
+        if (drv.driverUnitPrice != null && drv.driverUnitPrice > 0) {
+          const drvUnitAdjusted = applyMarkup(drv.driverUnitPrice);
+          const mCell = ws.getCell(`M${drvRowNum}`);
+          mCell.value = drvUnitAdjusted;
+          mCell.numFmt = '"R$"#,##0.00';
+          mCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: DRV_COLOR } };
+          mCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: DRV_BG } };
+          mCell.alignment = { horizontal: "center", vertical: "middle" };
+          mCell.border = drvBorder;
+          const nCell = ws.getCell(`N${drvRowNum}`);
+          nCell.value = applyMarkup(drv.driverUnitPrice * drv.driverQty);
+          nCell.numFmt = '"R$"#,##0.00';
+          nCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: DRV_COLOR } };
+          nCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: DRV_BG } };
+          nCell.alignment = { horizontal: "center", vertical: "middle" };
+          nCell.border = drvBorder;
+        } else {
+          fillDrv(ws.getCell(`M${drvRowNum}`), "-");
+          fillDrv(ws.getCell(`N${drvRowNum}`), "-");
+        }
+      }
+      currentRow += item.driverLines.length;
+    }
   }
 
   // -- Calcular total dos produtos --
   // Quando frete está diluído, soma o freteValue ao totalBase para o cálculo do total final
   const totalBase = items.reduce((sum, it) => sum + (it.totalPrice ?? 0), 0) + _freteParaDiluir;
+  // Totais com/sem driver (apenas para orçamentos novos com driverLines)
+  const hasDriverBreakdown = items.some(it => it.driverLines && it.driverLines.length > 0);
+  const totalDriverRaw = hasDriverBreakdown
+    ? items.reduce((sum, it) => sum + (it.driverLines?.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0) ?? 0), 0)
+    : 0;
+  const totalSemDriverRaw = hasDriverBreakdown ? (totalBase - _freteParaDiluir - totalDriverRaw) : 0;
   // Aplicar RT e Margem (mesma fórmula do Cart.tsx)
   const rtPct    = Math.min(Math.max(formData.rtPercent    ?? 0, 0), 0.99);
   const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
@@ -915,6 +971,55 @@ async function _generateExcelBuffer(
     mediumBorder(c);
   }
   nextRow++;
+
+  // ── Totais com/sem driver (apenas para orçamentos novos com driverLines) ──────────────────────
+  if (hasDriverBreakdown && totalDriverRaw > 0) {
+    const applyMarkupLocal = (base: number) => {
+      const comRT  = rtPct    > 0 ? base   / (1 - rtPct)    : base;
+      const final  = marginPct > 0 ? comRT  / (1 - marginPct) : comRT;
+      return final;
+    };
+    const totalSemDriverFinal = applyMarkupLocal(totalSemDriverRaw);
+    const totalDriverFinal = applyMarkupLocal(totalDriverRaw);
+    // Linha: Total sem driver
+    ws.getRow(nextRow).height = 28;
+    ws.mergeCells(`C${nextRow}:D${nextRow}`);
+    {
+      const c = ws.getCell(`C${nextRow}`);
+      c.value = "Total sem driver:";
+      c.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FFE65100" } };
+      c.alignment = { horizontal: "left", vertical: "middle" };
+    }
+    ws.mergeCells(`E${nextRow}:N${nextRow}`);
+    {
+      const c = ws.getCell(`E${nextRow}`);
+      c.value = totalSemDriverFinal;
+      c.numFmt = '"R$"#,##0.00';
+      c.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FFE65100" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFF3E0" } };
+      c.alignment = { horizontal: "left", vertical: "middle" };
+    }
+    nextRow++;
+    // Linha: Total driver
+    ws.getRow(nextRow).height = 28;
+    ws.mergeCells(`C${nextRow}:D${nextRow}`);
+    {
+      const c = ws.getCell(`C${nextRow}`);
+      c.value = "Total drivers:";
+      c.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FFE65100" } };
+      c.alignment = { horizontal: "left", vertical: "middle" };
+    }
+    ws.mergeCells(`E${nextRow}:N${nextRow}`);
+    {
+      const c = ws.getCell(`E${nextRow}`);
+      c.value = totalDriverFinal;
+      c.numFmt = '"R$"#,##0.00';
+      c.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FFE65100" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFF3E0" } };
+      c.alignment = { horizontal: "left", vertical: "middle" };
+    }
+    nextRow++;
+  }
 
   // ── Linhas de DIFAL e FCP (quando aplicáveis) ──────────────────────────
   if (difalAmt > 0) {
