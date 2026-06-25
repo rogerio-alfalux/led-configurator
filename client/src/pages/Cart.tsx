@@ -310,12 +310,28 @@ function SortableCartItem({
                           Lum: Definir preço →
                         </p>
                       )}
-                      {/* Total driver (driverTotalPrice já inclui qty) */}
-                      {entry.data.driverLines[0]?.driverTotalPrice != null && entry.data.driverLines[0].driverTotalPrice > 0 && (
-                        <p className="text-xs text-orange-600">
-                          Driver: {formatBRL(entry.data.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0))}
-                        </p>
-                      )}
+                      {/* Total driver: recalculado dinamicamente para cobrir itens antigos */}
+                      {(() => {
+                        const qty = entry.data.qty ?? 1;
+                        // driverQty armazenado pode ser unitário (itens antigos) ou total (itens novos)
+                        // Usamos driverUnitPrice × driverQty como base unitária se driverQty <= qty,
+                        // caso contrário driverQty já é o total
+                        const drvTotal = entry.data.driverLines.reduce((s, d) => {
+                          const storedQty = d.driverQty ?? 1;
+                          const unitPrice = d.driverUnitPrice ?? 0;
+                          // Se storedQty <= qty, provavelmente é por unidade (item antigo com qty=1)
+                          // Calculamos sempre como unitPrice × storedQty × (qty / storedQty se storedQty < qty)
+                          // Forma mais segura: unitPrice × (storedQty <= 1 ? qty : storedQty)
+                          const effectiveQty = storedQty <= 1 ? qty : storedQty;
+                          return s + Math.round(unitPrice * effectiveQty * 100) / 100;
+                        }, 0);
+                        if (drvTotal <= 0) return null;
+                        return (
+                          <p className="text-xs text-orange-600">
+                            Driver: {formatBRL(drvTotal)}
+                          </p>
+                        );
+                      })()}
                       {/* Total geral */}
                       {entry.data.totalPrice != null && entry.data.totalPrice > 0 ? (
                         <p className="font-bold text-primary text-base">{formatBRL(entry.data.totalPrice)}</p>
@@ -1368,8 +1384,16 @@ export default function Cart() {
                         }
                         return s + (e.data.totalPrice ?? 0);
                       }, 0);
-                      const totalDrv = entries.reduce((s, e) =>
-                        s + (e.data.driverLines?.reduce((d, dl) => d + (dl.driverTotalPrice ?? 0), 0) ?? 0), 0);
+                      const totalDrv = entries.reduce((s, e) => {
+                        if (!e.data.driverLines || e.data.driverLines.length === 0) return s;
+                        const qty = e.data.qty ?? 1;
+                        return s + e.data.driverLines.reduce((d, dl) => {
+                          const storedQty = dl.driverQty ?? 1;
+                          const unitPrice = dl.driverUnitPrice ?? 0;
+                          const effectiveQty = storedQty <= 1 ? qty : storedQty;
+                          return d + Math.round(unitPrice * effectiveQty * 100) / 100;
+                        }, 0);
+                      }, 0);
                       const hasDriverBreakdown = entries.some(e => e.data.driverLines && e.data.driverLines.length > 0);
                       if (!hasDriverBreakdown) return null;
                       return (
