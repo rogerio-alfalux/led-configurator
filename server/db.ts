@@ -133,8 +133,31 @@ export async function updateCartItemQty(id: number, userId: number, qty: number)
   const item = rows[0];
   if (item.userId !== userId) throw new Error("Forbidden");
   const data = JSON.parse(item.itemData);
+  const oldQty: number = data.qty ?? 1;
   data.qty = qty;
-  data.totalPrice = (data.unitPrice ?? 0) * qty;
+
+  // Recalcular driverLines com a nova quantidade
+  if (data.driverLines && Array.isArray(data.driverLines) && data.driverLines.length > 0) {
+    // Cada driverLine tem driverUnitPrice e driverQty original (para 1 unidade = drvQtyPerUnit)
+    // drvQtyPerUnit = driverQty / oldQty
+    data.driverLines = data.driverLines.map((dl: any) => {
+      const drvQtyPerUnit = oldQty > 0 ? (dl.driverQty ?? 1) / oldQty : (dl.driverQty ?? 1);
+      const newDrvQty = Math.round(drvQtyPerUnit * qty);
+      const newDrvTotal = Math.round((dl.driverUnitPrice ?? 0) * newDrvQty * 100) / 100;
+      return { ...dl, driverQty: newDrvQty, driverTotalPrice: newDrvTotal };
+    });
+    // Recalcular priceWithoutDriver (unitPriceLuminaria × qty)
+    if (data.unitPriceLuminaria != null) {
+      data.priceWithoutDriver = Math.round((data.unitPriceLuminaria ?? 0) * qty * 100) / 100;
+    }
+    // totalPrice = priceWithoutDriver + soma dos driverTotalPrice
+    const drvSum = data.driverLines.reduce((s: number, dl: any) => s + (dl.driverTotalPrice ?? 0), 0);
+    const lumTotal = data.priceWithoutDriver ?? Math.round((data.unitPriceLuminaria ?? 0) * qty * 100) / 100;
+    data.totalPrice = Math.round((lumTotal + drvSum) * 100) / 100;
+  } else {
+    data.totalPrice = Math.round((data.unitPrice ?? 0) * qty * 100) / 100;
+  }
+
   await db.update(cartItems).set({ itemData: JSON.stringify(data) }).where(eq(cartItems.id, id));
 }
 
