@@ -234,7 +234,7 @@ function buildLumDriverLines(
     custoCorpo = entry.custoCorpoDimTriac220v; custoDriver = entry.custoDriverDimTriac220v;
     markupCorpo = entry.markupPadraoDimTriac220v; markupDriver = entry.markupPadraoDriverDimTriac220v;
     drvQtyPerUnit = entry.driverQtdDimTriac220v ?? 1;
-  } else if (tensão === 'Bivolt') {
+  } else if (tensao === 'Bivolt') {
     custoCorpo = entry.custoCorpoOnoffBivolt; custoDriver = entry.custoDriverBivolt;
     markupCorpo = entry.markupPadraoOnoffBivolt; markupDriver = entry.markupPadraoDriverOnoffBivolt;
     drvQtyPerUnit = entry.driverQtdBivolt ?? 1;
