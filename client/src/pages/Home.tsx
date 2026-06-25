@@ -3886,16 +3886,19 @@ export default function Home() {
                   {/* Potência */}            <div>
                     <FieldLabel>Potência</FieldLabel>
                     <div className="grid grid-cols-3 gap-2">
-                      {LED_BAR_POTENCIA_OPTIONS.filter((opt) =>
+                      {LED_BAR_POTENCIA_OPTIONS.filter((opt) => {
+                        // 20 W/m exclusivo da família MEIA LUA
+                        if (opt.value === 20 && !(/^MEIA LUA/i.test(lbFamilia ?? ""))) return false;
                         // Para famílias sem difusor (PERFIL FLEXIVEL, MILANO, MEIA LUA),
                         // ocultar potências que não existem no catálogo para essa família
-                        lbIsNoDifusorFamily
-                          ? activeLedBarCatalog.some(p =>
-                              p.familia === lbFamilia && p.potencia === opt.value &&
-                              (!lbIsPerfilFlexivel || !lbInstalacao || p.instalacao === lbInstalacao)
-                            )
-                          : true
-                      ).map((opt) => {
+                        if (lbIsNoDifusorFamily) {
+                          return activeLedBarCatalog.some(p =>
+                            p.familia === lbFamilia && p.potencia === opt.value &&
+                            (!lbIsPerfilFlexivel || !lbInstalacao || p.instalacao === lbInstalacao)
+                          );
+                        }
+                        return true;
+                      }).map((opt) => {
                         const exists = activeLedBarCatalog.some(
                           p => p.familia === lbFamilia && p.potencia === opt.value &&
                             (!lbIsPerfilFlexivel || !lbInstalacao || p.instalacao === lbInstalacao)
