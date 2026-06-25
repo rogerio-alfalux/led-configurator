@@ -1480,3 +1480,7 @@
 - [x] Renderizar sub-linhas de driver no ExcelPreviewModal.tsx (fundo laranja claro, modelo, código, qtd, preço)
 - [x] Adicionar totais "Total sem driver" e "Total drivers" no rodapé da pré-visualização
 - [x] Garantir retrocompatibilidade: orçamentos sem driverLines não são afetados
+
+## Lote 12 — Fator de Correção de Potência para Perfis (25/06/2026)
+
+- [x] Aplicar fator de correção de potência na função getSkuPreco: 26W = +5%, 36W = +10% sobre o custo antes do markup

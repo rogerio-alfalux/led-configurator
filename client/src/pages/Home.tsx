@@ -1334,7 +1334,11 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
 
     if (custo == null) return null;
     const mk = markupOverride ?? markupPadrao ?? 1;
-    return Math.round(custo * mk * 100) / 100;
+    // Fator de correção de potência: API fornece custo base para 18W;
+    // 26W recebe +5% e 36W recebe +10% sobre o custo antes do markup
+    const powerW = result.powerD1 ?? 18;
+    const powerFactor = powerW === 26 ? 1.05 : powerW === 36 ? 1.10 : 1.0;
+    return Math.round(custo * powerFactor * mk * 100) / 100;
   }
 
   // Calcular preço total somando preço de cada SKU × quantidade
