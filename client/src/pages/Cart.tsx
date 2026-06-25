@@ -297,15 +297,45 @@ function SortableCartItem({
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  {entry.data.unitPrice != null && entry.data.unitPrice > 0 && (
-                    <p className="text-xs text-muted-foreground">{formatBRL(entry.data.unitPrice)} / un</p>
-                  )}
-                  {entry.data.totalPrice != null && entry.data.totalPrice > 0 ? (
-                    <p className="font-bold text-primary text-base">{formatBRL(entry.data.totalPrice)}</p>
-                  ) : !entry.data.priceFromApi ? (
-                    <p className="text-xs text-amber-600 italic cursor-pointer hover:underline" onClick={() => onEditClick(entry.id, entry.data)}>Definir preço →</p>
+                  {/* Exibição desmembrada: luminária + driver */}
+                  {entry.data.driverLines && entry.data.driverLines.length > 0 ? (
+                    <>
+                      {/* Preço da luminária */}
+                      {entry.data.luminariaHasApiPrice && entry.data.unitPriceLuminaria != null ? (
+                        <p className="text-xs text-muted-foreground">
+                          Lum: {formatBRL(entry.data.unitPriceLuminaria)} / un
+                        </p>
+                      ) : (
+                        <p className="text-xs text-amber-600 italic cursor-pointer hover:underline" onClick={() => onEditClick(entry.id, entry.data)}>
+                          Lum: Definir preço →
+                        </p>
+                      )}
+                      {/* Preço do driver */}
+                      {entry.data.unitPriceDriver != null && entry.data.unitPriceDriver > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Driver: {formatBRL(entry.data.unitPriceDriver)} / un
+                        </p>
+                      )}
+                      {/* Total */}
+                      {entry.data.totalPrice != null && entry.data.totalPrice > 0 ? (
+                        <p className="font-bold text-primary text-base">{formatBRL(entry.data.totalPrice)}</p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic">Total a calcular</p>
+                      )}
+                    </>
                   ) : (
-                    <p className="text-xs text-muted-foreground italic">Preço a consultar</p>
+                    <>
+                      {entry.data.unitPrice != null && entry.data.unitPrice > 0 && (
+                        <p className="text-xs text-muted-foreground">{formatBRL(entry.data.unitPrice)} / un</p>
+                      )}
+                      {entry.data.totalPrice != null && entry.data.totalPrice > 0 ? (
+                        <p className="font-bold text-primary text-base">{formatBRL(entry.data.totalPrice)}</p>
+                      ) : !entry.data.priceFromApi ? (
+                        <p className="text-xs text-amber-600 italic cursor-pointer hover:underline" onClick={() => onEditClick(entry.id, entry.data)}>Definir preço →</p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic">Preço a consultar</p>
+                      )}
+                    </>
                   )}
                   {/* Botão editar */}
                   <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground"
@@ -2366,23 +2396,55 @@ export default function Cart() {
                       </SelectContent>
                     </Select>
                   </div>
-                  {/* Campo de preço: editável se não veio da API, bloqueado se veio */}
-                  <div className="space-y-1">
-                    <Label>Preço unitário (R$)</Label>
-                    <Input
-                      value={editFields.unitPrice}
-                      onChange={canEditPrice ? (e) => setEditFields(prev => ({ ...prev, unitPrice: e.target.value })) : undefined}
-                      readOnly={!canEditPrice}
-                      placeholder={canEditPrice ? "Definir preço" : "Preço da API"}
-                      className={!canEditPrice ? "bg-muted text-muted-foreground cursor-not-allowed" : ""}
-                    />
-                    {!canEditPrice && (
-                      <p className="text-xs text-muted-foreground">Preço definido pela API. Apenas admin/gerente podem alterar.</p>
-                    )}
-                    {canEditPrice && item?.data.priceFromApi && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400">Preço da API — você pode alterar (admin/gerente).</p>
-                    )}
-                  </div>
+                  {/* Campo de preço: desmembrado (luminária + driver) ou unitário */}
+                  {item?.data.driverLines && item.data.driverLines.length > 0 ? (
+                    <>
+                      <div className="space-y-1">
+                        <Label>Preço unitário da luminária (R$)</Label>
+                        <Input
+                          value={editFields.unitPrice}
+                          onChange={(e) => setEditFields(prev => ({ ...prev, unitPrice: e.target.value }))}
+                          placeholder={item.data.luminariaHasApiPrice ? String(item.data.unitPriceLuminaria ?? '') : "Definir preço da luminária"}
+                          className={item.data.luminariaHasApiPrice && !canOverrideApiPrice ? "bg-muted text-muted-foreground cursor-not-allowed" : ""}
+                          readOnly={item.data.luminariaHasApiPrice && !canOverrideApiPrice}
+                        />
+                        {!item.data.luminariaHasApiPrice && (
+                          <p className="text-xs text-amber-600 dark:text-amber-400">API não retornou custo do corpo — informe o preço da luminária manualmente.</p>
+                        )}
+                        {item.data.luminariaHasApiPrice && !canOverrideApiPrice && (
+                          <p className="text-xs text-muted-foreground">Preço da luminária definido pela API. Apenas admin/gerente podem alterar.</p>
+                        )}
+                      </div>
+                      {item.data.unitPriceDriver != null && item.data.unitPriceDriver > 0 && (
+                        <div className="space-y-1">
+                          <Label>Preço unitário do driver (R$)</Label>
+                          <Input
+                            value={formatBRL(item.data.unitPriceDriver)}
+                            readOnly
+                            className="bg-muted text-muted-foreground cursor-not-allowed"
+                          />
+                          <p className="text-xs text-muted-foreground">Preço do driver calculado pela API — não editável.</p>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="space-y-1">
+                      <Label>Preço unitário (R$)</Label>
+                      <Input
+                        value={editFields.unitPrice}
+                        onChange={canEditPrice ? (e) => setEditFields(prev => ({ ...prev, unitPrice: e.target.value })) : undefined}
+                        readOnly={!canEditPrice}
+                        placeholder={canEditPrice ? "Definir preço" : "Preço da API"}
+                        className={!canEditPrice ? "bg-muted text-muted-foreground cursor-not-allowed" : ""}
+                      />
+                      {!canEditPrice && (
+                        <p className="text-xs text-muted-foreground">Preço definido pela API. Apenas admin/gerente podem alterar.</p>
+                      )}
+                      {canEditPrice && item?.data.priceFromApi && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400">Preço da API — você pode alterar (admin/gerente).</p>
+                      )}
+                    </div>
+                  )}
                   <div className="space-y-1">
                     <Label>Observação (interna)</Label>
                     <Input
@@ -2582,8 +2644,22 @@ export default function Cart() {
                 }
                 if (editFields.corPeca && editFields.corPeca !== 'A Definir') patch.corPeca = editFields.corPeca;
                 else if (editFields.corPeca === 'A Definir') patch.corPeca = '';
-                // Salvar preço manual apenas quando não veio da API
-                if (canEditPriceSave && editFields.unitPrice.trim()) {
+                // Salvar preço manual
+                if (item?.data.driverLines && item.data.driverLines.length > 0) {
+                  // Item com driver desmembrado: editFields.unitPrice é o preço da luminária
+                  const canEditLuminaria = !item.data.luminariaHasApiPrice || canOverrideApiPriceSave;
+                  if (canEditLuminaria && editFields.unitPrice.trim()) {
+                    const qty = parseInt(editFields.qty) || item?.data.qty || 1;
+                    const lumUnitPrice = parseFloat(editFields.unitPrice.replace(',', '.')) || 0;
+                    const drvTotal = item.data.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
+                    patch.unitPriceLuminaria = lumUnitPrice;
+                    patch.priceWithoutDriver = Math.round(lumUnitPrice * qty * 100) / 100;
+                    // totalPrice = preço luminária total + preço driver total
+                    patch.totalPrice = Math.round((lumUnitPrice * qty + drvTotal) * 100) / 100;
+                    patch.unitPrice = Math.round((lumUnitPrice + (item.data.unitPriceDriver ?? 0) * (item.data.driverLines[0]?.driverQty ?? 1) / qty) * 100) / 100;
+                    patch.luminariaHasApiPrice = item.data.luminariaHasApiPrice;
+                  }
+                } else if (canEditPriceSave && editFields.unitPrice.trim()) {
                   const qty = parseInt(editFields.qty) || item?.data.qty || 1;
                   const unitPrice = parseFloat(editFields.unitPrice.replace(',', '.')) || 0;
                   patch.unitPrice = unitPrice;

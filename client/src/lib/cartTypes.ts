@@ -251,6 +251,27 @@ export interface CartItemData {
    * Usado para calcular os totais "com driver" e "sem driver" no Excel/preview.
    */
   priceWithoutDriver?: number | null;
+
+  /**
+   * Preço unitário da luminária (corpo) sem o driver, por unidade.
+   * null quando a API não retorna custo do corpo (usuário deve preencher manualmente).
+   * Apenas para itens com driverLines populado.
+   */
+  unitPriceLuminaria?: number | null;
+
+  /**
+   * Preço unitário do driver, por unidade de driver.
+   * null quando a API não retorna custo do driver.
+   * Apenas para itens com driverLines populado.
+   */
+  unitPriceDriver?: number | null;
+
+  /**
+   * Se true, a API retornou custo do corpo da luminária e o preço de luminária foi calculado.
+   * Se false/undefined, o usuário deve informar manualmente o preço da luminária.
+   * Apenas para itens com driverLines populado.
+   */
+  luminariaHasApiPrice?: boolean;
 }
 
 /**

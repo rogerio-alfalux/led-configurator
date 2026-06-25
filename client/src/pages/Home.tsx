@@ -207,7 +207,7 @@ function buildLumDriverLines(
     driverQtdDim110v: number | null; driverQtdDimDali: number | null;
     driverQtdDimTriac110v: number | null; driverQtdDimTriac220v: number | null;
   }>
-): { driverLines: import("@/lib/cartTypes").DriverLine[]; priceWithoutDriver: number | null } | null {
+): { driverLines: import("@/lib/cartTypes").DriverLine[]; priceWithoutDriver: number | null; unitPriceLuminaria: number | null; unitPriceDriver: number | null; luminariaHasApiPrice: boolean } | null {
   const entry = lumPriceMap[sku];
   if (!entry) return null;
 
@@ -234,7 +234,7 @@ function buildLumDriverLines(
     custoCorpo = entry.custoCorpoDimTriac220v; custoDriver = entry.custoDriverDimTriac220v;
     markupCorpo = entry.markupPadraoDimTriac220v; markupDriver = entry.markupPadraoDriverDimTriac220v;
     drvQtyPerUnit = entry.driverQtdDimTriac220v ?? 1;
-  } else if (tensao === 'Bivolt') {
+  } else if (tensão === 'Bivolt') {
     custoCorpo = entry.custoCorpoOnoffBivolt; custoDriver = entry.custoDriverBivolt;
     markupCorpo = entry.markupPadraoOnoffBivolt; markupDriver = entry.markupPadraoDriverOnoffBivolt;
     drvQtyPerUnit = entry.driverQtdBivolt ?? 1;
@@ -253,10 +253,16 @@ function buildLumDriverLines(
   const driverTotalPrice = Math.round(driverUnitPrice * totalDrvQty * 100) / 100;
 
   // Preço sem driver = preço do corpo × markup do corpo × qty
+  // Se custoCorpo é null, o usuário deverá informar manualmente
+  const luminariaHasApiPrice = custoCorpo != null && markupCorpo != null;
   let priceWithoutDriver: number | null = null;
-  if (custoCorpo != null && markupCorpo != null) {
-    priceWithoutDriver = Math.round(custoCorpo * markupCorpo * itemQty * 100) / 100;
+  let unitPriceLuminaria: number | null = null;
+  if (luminariaHasApiPrice && custoCorpo != null && markupCorpo != null) {
+    unitPriceLuminaria = Math.round(custoCorpo * markupCorpo * 100) / 100;
+    priceWithoutDriver = Math.round(unitPriceLuminaria * itemQty * 100) / 100;
   }
+
+  const unitPriceDriver = driverUnitPrice;
 
   const driverLines: import("@/lib/cartTypes").DriverLine[] = [{
     driverModel,
@@ -266,7 +272,7 @@ function buildLumDriverLines(
     driverTotalPrice,
   }];
 
-  return { driverLines, priceWithoutDriver };
+  return { driverLines, priceWithoutDriver, unitPriceLuminaria, unitPriceDriver, luminariaHasApiPrice };
 }
 
 // ─── Componentes Auxiliares ──────────────────────────────────────────────────────────────────────────────
@@ -7705,7 +7711,7 @@ export default function Home() {
                               itemEmPlanta: globalItemEmPlanta,
                               floorName: globalPavimento || undefined,
                               ambiente: globalAmbiente || undefined,
-                              ...(dDrvLines ? { driverLines: dDrvLines.driverLines, priceWithoutDriver: dDrvLines.priceWithoutDriver } : {}),
+                              ...(dDrvLines ? { driverLines: dDrvLines.driverLines, priceWithoutDriver: dDrvLines.priceWithoutDriver, unitPriceLuminaria: dDrvLines.unitPriceLuminaria, unitPriceDriver: dDrvLines.unitPriceDriver, luminariaHasApiPrice: dDrvLines.luminariaHasApiPrice } : {}),
                             };
                             if (appendToQuoteId) {
                               handleAddItemOrToQuote(item);
@@ -7910,7 +7916,7 @@ export default function Home() {
                               itemEmPlanta: globalItemEmPlanta,
                               floorName: globalPavimento || undefined,
                               ambiente: globalAmbiente || undefined,
-                              ...(bDrvLines ? { driverLines: bDrvLines.driverLines, priceWithoutDriver: bDrvLines.priceWithoutDriver } : {}),
+                              ...(bDrvLines ? { driverLines: bDrvLines.driverLines, priceWithoutDriver: bDrvLines.priceWithoutDriver, unitPriceLuminaria: bDrvLines.unitPriceLuminaria, unitPriceDriver: bDrvLines.unitPriceDriver, luminariaHasApiPrice: bDrvLines.luminariaHasApiPrice } : {}),
                             };
                             if (appendToQuoteId) {
                               handleAddItemOrToQuote(item);
@@ -8155,7 +8161,7 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); return `${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: dlResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
-                            ...(dlDrvLines ? { driverLines: dlDrvLines.driverLines, priceWithoutDriver: dlDrvLines.priceWithoutDriver } : {}),
+                            ...(dlDrvLines ? { driverLines: dlDrvLines.driverLines, priceWithoutDriver: dlDrvLines.priceWithoutDriver, unitPriceLuminaria: dlDrvLines.unitPriceLuminaria, unitPriceDriver: dlDrvLines.unitPriceDriver, luminariaHasApiPrice: dlDrvLines.luminariaHasApiPrice } : {}),
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -8409,7 +8415,7 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = aeResult.driver.code ? ` (${aeResult.driver.code})` : ""; const drvQty = driverQtyFor(aeResult.product, aeResult.controle, aeResult.tensao); return `${drvQty}x DRIVER ${aeResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: aeResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
-                            ...(aeDrvLines ? { driverLines: aeDrvLines.driverLines, priceWithoutDriver: aeDrvLines.priceWithoutDriver } : {}),
+                            ...(aeDrvLines ? { driverLines: aeDrvLines.driverLines, priceWithoutDriver: aeDrvLines.priceWithoutDriver, unitPriceLuminaria: aeDrvLines.unitPriceLuminaria, unitPriceDriver: aeDrvLines.unitPriceDriver, luminariaHasApiPrice: aeDrvLines.luminariaHasApiPrice } : {}),
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -8657,7 +8663,7 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; const drvQty = driverQtyFor(panelResult.product, panelResult.controle, panelResult.tensao); return `${drvQty}x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: panelResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
-                            ...(panelDrvLines ? { driverLines: panelDrvLines.driverLines, priceWithoutDriver: panelDrvLines.priceWithoutDriver } : {}),
+                            ...(panelDrvLines ? { driverLines: panelDrvLines.driverLines, priceWithoutDriver: panelDrvLines.priceWithoutDriver, unitPriceLuminaria: panelDrvLines.unitPriceLuminaria, unitPriceDriver: panelDrvLines.unitPriceDriver, luminariaHasApiPrice: panelDrvLines.luminariaHasApiPrice } : {}),
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -8881,7 +8887,7 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); return `${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: arandelaResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
-                            ...(arandelaDrvLines ? { driverLines: arandelaDrvLines.driverLines, priceWithoutDriver: arandelaDrvLines.priceWithoutDriver } : {}),
+                            ...(arandelaDrvLines ? { driverLines: arandelaDrvLines.driverLines, priceWithoutDriver: arandelaDrvLines.priceWithoutDriver, unitPriceLuminaria: arandelaDrvLines.unitPriceLuminaria, unitPriceDriver: arandelaDrvLines.unitPriceDriver, luminariaHasApiPrice: arandelaDrvLines.luminariaHasApiPrice } : {}),
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -9136,7 +9142,7 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; const drvQty = driverQtyFor(spotResult.product, spotResult.controle, spotResult.tensao); return `${drvQty}x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: spotResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
-                            ...(spotDrvLines ? { driverLines: spotDrvLines.driverLines, priceWithoutDriver: spotDrvLines.priceWithoutDriver } : {}),
+                            ...(spotDrvLines ? { driverLines: spotDrvLines.driverLines, priceWithoutDriver: spotDrvLines.priceWithoutDriver, unitPriceLuminaria: spotDrvLines.unitPriceLuminaria, unitPriceDriver: spotDrvLines.unitPriceDriver, luminariaHasApiPrice: spotDrvLines.luminariaHasApiPrice } : {}),
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);

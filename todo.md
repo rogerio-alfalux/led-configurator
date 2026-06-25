@@ -1484,3 +1484,14 @@
 ## Lote 12 — Fator de Correção de Potência para Perfis (25/06/2026)
 
 - [x] Aplicar fator de correção de potência na função getSkuPreco: 26W = +5%, 36W = +10% sobre o custo antes do markup
+
+## Lote 13 — Separação completa de preços luminária/driver (25/06/2026)
+
+- [x] Adicionar campos unitPriceLuminaria, unitPriceDriver, luminariaHasApiPrice ao CartItemData
+- [x] Atualizar buildLumDriverLines para calcular priceWithoutDriver mesmo quando custoCorpo é null
+- [x] Popular campos em todos os blocos de criação de item (Downlight, Spot, Painel, Arandela, Área Externa, Balizador, Decorativa)
+- [x] Exibir preços separados de luminária e driver no carrinho com campo editável para luminária sem preço API
+- [x] Modal de edição: campo separado para preço da luminária (editável) e driver (somente leitura)
+- [x] Excel: linha principal mostra preço da luminária, sub-linha mostra driver com preço
+- [x] Pré-visualização: linha principal mostra preço da luminária, sub-linha mostra driver com preço
+- [x] Totais "Total sem driver" e "Total drivers" no rodapé do Excel e da pré-visualização

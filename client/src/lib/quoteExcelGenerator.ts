@@ -702,6 +702,7 @@ async function _generateExcelBuffer(
     cQty.font = { name: "Calibri", size: 11, bold: true };
 
     // M = PREÇO UNITÁRIO (já com RT e Margem aplicados — valor final ao cliente; frete diluído se freteIncluded)
+    // Quando há driverLines, mostra apenas o preço da luminária (sem driver) na linha principal
     const _rtPct    = Math.min(Math.max(formData.rtPercent    ?? 0, 0), 0.99);
     const _marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
     const applyMarkup = (base: number) => {
@@ -709,22 +710,35 @@ async function _generateExcelBuffer(
       const final  = _marginPct > 0 ? comRT  / (1 - _marginPct) : comRT;
       return final;
     };
+    const hasDriverBreakdownItem = item.driverLines && item.driverLines.length > 0;
     const cUnit = ws.getCell(`M${rowNum}`);
-    const _unitAdjusted = _unitPriceComFrete(item);
-    if (_unitAdjusted !== null && _unitAdjusted !== undefined && _unitAdjusted > 0) {
-      cUnit.value = applyMarkup(_unitAdjusted);
+    // Para itens com driver desmembrado: usar unitPriceLuminaria; caso contrário: usar unitPrice normal
+    const _unitForLuminaria = hasDriverBreakdownItem && item.unitPriceLuminaria != null
+      ? item.unitPriceLuminaria
+      : _unitPriceComFrete(item);
+    if (_unitForLuminaria !== null && _unitForLuminaria !== undefined && _unitForLuminaria > 0) {
+      cUnit.value = applyMarkup(_unitForLuminaria);
       cUnit.numFmt = '"R$"#,##0.00';
+    } else if (hasDriverBreakdownItem && !item.luminariaHasApiPrice) {
+      cUnit.value = "A definir";
+      cUnit.font = { name: "Calibri", size: 9, italic: true, color: { argb: "FFE65100" } };
     } else {
       cUnit.value = "-";
     }
 
     // N = PREÇO TOTAL (já com RT e Margem aplicados — valor final ao cliente; frete diluído se freteIncluded)
+    // Para itens com driver desmembrado: usar priceWithoutDriver; caso contrário: usar totalPrice normal
     const cTotal = ws.getCell(`N${rowNum}`);
-    const _totalAdjusted = _totalPriceComFrete(item);
-    if (_totalAdjusted !== null && _totalAdjusted !== undefined && _totalAdjusted > 0) {
-      cTotal.value = applyMarkup(_totalAdjusted);
+    const _totalForLuminaria = hasDriverBreakdownItem && item.priceWithoutDriver != null
+      ? item.priceWithoutDriver
+      : _totalPriceComFrete(item);
+    if (_totalForLuminaria !== null && _totalForLuminaria !== undefined && _totalForLuminaria > 0) {
+      cTotal.value = applyMarkup(_totalForLuminaria);
       cTotal.numFmt = '"R$"#,##0.00';
       cTotal.font = { name: "Calibri", size: 11, bold: false };
+    } else if (hasDriverBreakdownItem && !item.luminariaHasApiPrice) {
+      cTotal.value = "A definir";
+      cTotal.font = { name: "Calibri", size: 9, italic: true, color: { argb: "FFE65100" } };
     } else {
       cTotal.value = "-";
     }

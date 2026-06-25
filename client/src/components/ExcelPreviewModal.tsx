@@ -460,6 +460,49 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkup(unitPriceComFrete(item) ?? item.unitPrice)) : "-"}</td>
                           <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkup(totalPriceComFrete(item) ?? item.totalPrice)) : "-"}</td>
                         </tr>
+                      ) : item.driverLines && item.driverLines.length > 0 ? (
+                        <tr>
+                          <td style={{ ...tdStyle, fontWeight: "bold", fontSize: 18 }}>{item.itemEmPlanta || ""}</td>
+                          <td style={{ ...tdStyle, width: 80, minHeight: 80 }}>
+                            {getProxiedPhotoSrc(freshPhotoMap?.get(item.sku ?? "") ?? item.photoUrl) ? (
+                              <img src={getProxiedPhotoSrc(freshPhotoMap?.get(item.sku ?? "") ?? item.photoUrl)!} alt={item.description} style={{ width: 64, height: 64, objectFit: "contain" }}
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                            ) : (
+                              <span style={{ color: "#aaa", fontSize: 10 }}>—</span>
+                            )}
+                          </td>
+                          <td style={{ ...tdStyle, textAlign: "left" }}>
+                            {item.sku && <div style={{ fontFamily: "monospace", fontSize: 10, color: "#666" }}>{item.sku}</div>}
+                            <div>{item.description}</div>
+                            {rabichoAcc && (
+                              <div style={{ fontSize: 9, color: "#006064", fontStyle: "italic", marginTop: 4, borderTop: "1px dashed #ccc", paddingTop: 2 }}>
+                                ↳ Rabicho: {rabichoAcc.descricao}{rabichoAcc.dimensao ? ` ${rabichoAcc.dimensao}` : ""}
+                              </div>
+                            )}
+                          </td>
+                          <td style={tdStyle}>{item.shapeTotalLengthMm ? `${item.shapeTotalLengthMm}mm total` : extractLength(item.description)}</td>
+                          <td style={tdStyle}>{item.power?.trim() || extractPower(item.description)}</td>
+                          <td style={tdStyle}>{extractDim(item.description)}</td>
+                          <td style={tdStyle}>{extractVoltage(item.description)}</td>
+                          <td style={tdStyle}>{item.corPeca || "-"}</td>
+                          <td style={tdStyle}>{item.cct || "-"}</td>
+                          <td style={{ ...tdStyle, fontWeight: "bold" }}>{item.qty}</td>
+                          {/* Preço da luminária (sem driver) */}
+                          <td style={tdStyle}>
+                            {item.unitPriceLuminaria && item.unitPriceLuminaria > 0
+                              ? formatBRL(applyMarkup(item.unitPriceLuminaria))
+                              : item.luminariaHasApiPrice === false
+                                ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
+                                : "-"}
+                          </td>
+                          <td style={tdStyle}>
+                            {item.priceWithoutDriver && item.priceWithoutDriver > 0
+                              ? formatBRL(applyMarkup(item.priceWithoutDriver))
+                              : item.luminariaHasApiPrice === false
+                                ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
+                                : "-"}
+                          </td>
+                        </tr>
                       ) : (
                         <tr>
                           <td style={{ ...tdStyle, fontWeight: "bold", fontSize: 18 }}>{item.itemEmPlanta || ""}</td>
