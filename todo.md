@@ -1509,3 +1509,12 @@
 - [x] Todos os controles (ON/OFF 220V, ON/OFF Bivolt, DIM 1-10V, DIM DALI) com preço R$1.140,00/m
 - [x] Drivers configurados: EQ00112 (ON/OFF), EQ00583 (DIM TRIAC), EQ00666 (DIM DALI)
 - [x] Preço estático sobrescreve o valor incorreto R$910,00 retornado pela API até correção no backend
+
+## Lote 16 — Correção de precificação LED BAR (25/06/2026)
+
+- [x] Adicionar campos custoDriver220/Bivolt/Dim010v/DimDali/DimTriac110v/DimTriac220v/markupMinimoDriver à interface LedBarProduct
+- [x] Populá-los no toLedBarProduct no alfaluxApiAdapter.ts
+- [x] Atualizar calcLedBarPrice e calcLedBarPriceDetail para aceitar custoDriverApi e markupDriver
+- [x] Atualizar chamadas em Home.tsx para passar custo do driver da API (por controle selecionado)
+- [x] Adicionar LED BAR E, LED BAR 45, LED BAR EC à lista LED_BAR_FAMILIES_NO_PRICE (sem preço de perfil cadastrado)
+- [x] Corrigir referência perfilFlexivelTemp → perfilFlexivel na UI

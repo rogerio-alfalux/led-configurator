@@ -557,6 +557,14 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
     precoDim110v: p.precoDim110v ?? null,
     precoDimDali: p.precoDimDali ?? null,
     precoMetro: p.precoMetro ?? null,
+    // Custos brutos do driver por controle (custo × markup = preço de venda)
+    custoDriver220: (p as any).custoDriver220 ?? null,
+    custoDriverBivolt: (p as any).custoDriverBivolt ?? null,
+    custoDriverDim010v: (p as any).custoDriverDim110v ?? (p as any).custoDriverDimTriac220v ?? null,
+    custoDriverDimDali: (p as any).custoDriverDimDali ?? null,
+    custoDriverDimTriac110v: (p as any).custoDriverDimTriac110v ?? null,
+    custoDriverDimTriac220v: (p as any).custoDriverDimTriac220v ?? null,
+    markupMinimoDriver: (p as any).markupMinimoDriver ?? null,
   };
 }
 

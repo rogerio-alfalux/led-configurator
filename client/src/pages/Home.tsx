@@ -6764,8 +6764,19 @@ export default function Home() {
                     const driverLine = `${r.trechos[0]?.driver.model}${r.trechos[0]?.driver.code ? ` (${r.trechos[0].driver.code})` : ""}`;
                     // Preço = (R$/m × comprimento_total_m) + driver selecionado por potência do trecho
                     // Famílias sem tabela de preço retornam null — usuário preenche manualmente no carrinho
-                    const lbPreco = calcLedBarPrice(r.product.potencia, r.comprimentoTotalMm, nT, r.product.familia, r.product.precoMetro);
-                    const lbDetail = calcLedBarPriceDetail(r.product.potencia, r.comprimentoTotalMm, nT, r.product.familia, r.product.precoMetro);
+                    // Selecionar custo do driver da API conforme controle selecionado
+                    const lbCustoDriver = (() => {
+                      const p = r.product;
+                      const ct = r.controle;
+                      if (ct === 'DIM DALI') return p.custoDriverDimDali ?? null;
+                      if (ct === 'DIM 0-10V') return p.custoDriverDim010v ?? null;
+                      if (ct === 'DIM TRIAC') return p.custoDriverDimTriac220v ?? p.custoDriverDimTriac110v ?? null;
+                      if (/bivolt/i.test(r.voltage)) return p.custoDriverBivolt ?? null;
+                      return p.custoDriver220 ?? null;
+                    })();
+                    const lbMarkupDriver = r.product.markupMinimoDriver ?? 3;
+                    const lbPreco = calcLedBarPrice(r.product.potencia, r.comprimentoTotalMm, nT, r.product.familia, r.product.precoMetro, lbCustoDriver, lbMarkupDriver);
+                    const lbDetail = calcLedBarPriceDetail(r.product.potencia, r.comprimentoTotalMm, nT, r.product.familia, r.product.precoMetro, lbCustoDriver, lbMarkupDriver);
                     const isPerfilFlex = /^PERFIL FLEXIVEL/i.test(r.product.familia ?? "");
                     const orcamentoLines = [
                       [`${r.product.name} ${r.cct} ${r.voltage}`, nT > 1 ? `${nT} TRECHOS DE ${mm}MM` : `${mm}MM`].join(" "),
@@ -6794,7 +6805,7 @@ export default function Home() {
                             {/* Detalhamento do preço (apenas para famílias com tabela de preço) */}
                             {lbDetail !== null && (
                             <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3 mb-3 space-y-0.5">
-                              {lbDetail.perfilFlexivelTemp ? (
+                              {lbDetail.perfilFlexivel ? (
                                 // PERFIL FLEXÍVEL: preço temporário — apenas perfil, sem drivers
                                 <>
                                   <div className="flex justify-between">
@@ -6816,8 +6827,8 @@ export default function Home() {
                                   </div>
                                   <div className="flex justify-between">
                                     <span>
-                                      Driver {lbDetail.wattsDriver}W × {nT} corte{nT > 1 ? "s" : ""}
-                                      {lbDetail.wattsDriver === 100 && (
+                                      Driver {lbDetail.driverFromApi ? '' : `${lbDetail.wattsDriver}W `}× {nT} corte{nT > 1 ? "s" : ""}
+                                      {!lbDetail.driverFromApi && lbDetail.wattsDriver === 100 && (
                                         <span className="ml-1 text-amber-500 font-medium">(potência {lbDetail.potenciaTrecho.toFixed(1)}W — driver 60W insuficiente)</span>
                                       )}
                                     </span>

@@ -77,6 +77,20 @@ export interface LedBarProduct {
    * Quando presente, substitui a tabela estática LED_BAR_PRECO_POR_METRO.
    */
   precoMetro?: number | null;
+  /** Custo bruto do driver ON/OFF 220V (R$) — multiplicar pelo markup para obter preço de venda */
+  custoDriver220?: number | null;
+  /** Custo bruto do driver ON/OFF Bivolt (R$) */
+  custoDriverBivolt?: number | null;
+  /** Custo bruto do driver DIM 0-10V (R$) */
+  custoDriverDim010v?: number | null;
+  /** Custo bruto do driver DIM DALI (R$) */
+  custoDriverDimDali?: number | null;
+  /** Custo bruto do driver DIM TRIAC 110V (R$) */
+  custoDriverDimTriac110v?: number | null;
+  /** Custo bruto do driver DIM TRIAC 220V (R$) */
+  custoDriverDimTriac220v?: number | null;
+  /** Markup mínimo do driver — padrão 3 quando não informado */
+  markupMinimoDriver?: number | null;
 }
 
 // ─── Catálogo estático de fallback ───────────────────────────────────────────
@@ -142,7 +156,7 @@ export const PERFIL_FLEXIVEL_MAX_LENGTH_MM = 5000;
  * Para essas famílias, calcLedBarPrice retorna null e o usuário preenche manualmente no carrinho.
  * Nota: quando a API retornar precoMetro para um produto, esse campo tem prioridade sobre esta lista.
  */
-export const LED_BAR_FAMILIES_NO_PRICE = /^(LED BAR WW|FLOOR|LED BAR EC|MEIA LUA|MILANO)/i;
+export const LED_BAR_FAMILIES_NO_PRICE = /^(LED BAR WW|FLOOR|LED BAR EC|LED BAR E\b|LED BAR 45|MEIA LUA|MILANO)/i;
 
 /**
  * Tabela de preços estáticos por metro linear (R$) por potência.
@@ -191,6 +205,8 @@ export function selectLedBarDriverPrice(
  * @param nCortes   Número de cortes (cada corte leva 1 driver)
  * @param familia   Família do produto (opcional). Se for uma família sem preço, retorna null.
  * @param precoMetroApi  Preço por metro vindo da API (tem prioridade sobre tabela estática).
+ * @param custoDriverApi  Custo bruto do driver por corte vindo da API (custo × markup = preço de venda).
+ * @param markupDriver    Markup do driver (padrão 3 quando não informado).
  * @returns Preço total em R$, ou null se a família não tem tabela de preço
  */
 export function calcLedBarPrice(
@@ -198,7 +214,9 @@ export function calcLedBarPrice(
   comprimentoTotalMm: number,
   nCortes: number,
   familia?: string,
-  precoMetroApi?: number | null
+  precoMetroApi?: number | null,
+  custoDriverApi?: number | null,
+  markupDriver?: number | null
 ): number | null {
   // Famílias sem tabela de preço: retornar null para que o usuário preencha manualmente
   if (familia && LED_BAR_FAMILIES_NO_PRICE.test(familia)) return null;
@@ -213,11 +231,16 @@ export function calcLedBarPrice(
   const comprimentoM  = comprimentoTotalMm / 1000;
   // Comprimento por trecho (igual para todos os cortes)
   const comprimentoTrechoMm = Math.floor(comprimentoTotalMm / Math.max(1, nCortes));
-  // Soma dos drivers (cada trecho pode ter driver diferente)
-  let totalDrivers = 0;
-  for (let i = 0; i < Math.max(1, nCortes); i++) {
-    totalDrivers += selectLedBarDriverPrice(potencia, comprimentoTrechoMm).preco;
+  const nT = Math.max(1, nCortes);
+  // Preço do driver: API (custo × markup) tem prioridade sobre tabela estática
+  let precoDriverPorCorte: number;
+  if (custoDriverApi != null) {
+    const mk = markupDriver ?? 3;
+    precoDriverPorCorte = Math.round(custoDriverApi * mk * 100) / 100;
+  } else {
+    precoDriverPorCorte = selectLedBarDriverPrice(potencia, comprimentoTrechoMm).preco;
   }
+  const totalDrivers = Math.round(precoDriverPorCorte * nT * 100) / 100;
   const total = precoPorMetro * comprimentoM + totalDrivers;
   return Math.round(total * 100) / 100;
 }
@@ -231,16 +254,21 @@ export function calcLedBarPriceDetail(
   comprimentoTotalMm: number,
   nCortes: number,
   familia?: string,
-  precoMetroApi?: number | null
+  precoMetroApi?: number | null,
+  custoDriverApi?: number | null,
+  markupDriver?: number | null
 ): {
   precoPerfil: number;
   precoDriverPorCorte: number;
+  /** Watts do driver (60 ou 100). Quando custo vem da API, sempre 60 como placeholder. */
   wattsDriver: 60 | 100;
   potenciaTrecho: number;
   totalDrivers: number;
   total: number;
   /** true quando o preço vem da API e não inclui drivers (PERFIL FLEXÍVEL) */
   perfilFlexivel?: boolean;
+  /** true quando o preço do driver vem da API (custo × markup) */
+  driverFromApi?: boolean;
 } | null {
   if (familia && LED_BAR_FAMILIES_NO_PRICE.test(familia)) return null;
   // PERFIL FLEXÍVEL: apenas o perfil, sem drivers
@@ -262,12 +290,28 @@ export function calcLedBarPriceDetail(
   const precoPorMetro = precoMetroApi ?? LED_BAR_PRECO_POR_METRO[potencia] ?? 0;
   const comprimentoM  = comprimentoTotalMm / 1000;
   const comprimentoTrechoMm = Math.floor(comprimentoTotalMm / Math.max(1, nCortes));
-  const { preco: precoDriverPorCorte, wattsDriver, potenciaTrecho } = selectLedBarDriverPrice(potencia, comprimentoTrechoMm);
   const nT = Math.max(1, nCortes);
+  // Preço do driver: API (custo × markup) tem prioridade sobre tabela estática
+  let precoDriverPorCorte: number;
+  let wattsDriver: 60 | 100;
+  let potenciaTrecho: number;
+  let driverFromApi = false;
+  if (custoDriverApi != null) {
+    const mk = markupDriver ?? 3;
+    precoDriverPorCorte = Math.round(custoDriverApi * mk * 100) / 100;
+    wattsDriver = 60; // placeholder — não relevante quando custo vem da API
+    potenciaTrecho = potencia * (comprimentoTrechoMm / 1000);
+    driverFromApi = true;
+  } else {
+    const sel = selectLedBarDriverPrice(potencia, comprimentoTrechoMm);
+    precoDriverPorCorte = sel.preco;
+    wattsDriver = sel.wattsDriver;
+    potenciaTrecho = sel.potenciaTrecho;
+  }
   const precoPerfil = Math.round(precoPorMetro * comprimentoM * 100) / 100;
   const totalDrivers = Math.round(precoDriverPorCorte * nT * 100) / 100;
   const total = Math.round((precoPerfil + totalDrivers) * 100) / 100;
-  return { precoPerfil, precoDriverPorCorte, wattsDriver, potenciaTrecho, totalDrivers, total };
+  return { precoPerfil, precoDriverPorCorte, wattsDriver, potenciaTrecho, totalDrivers, total, driverFromApi };
 }
 
 export const LED_BAR_POTENCIA_OPTIONS: { value: LedBarPotencia; label: string }[] = [
