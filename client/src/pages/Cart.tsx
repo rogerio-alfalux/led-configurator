@@ -37,6 +37,7 @@ import { formatBRL, QuoteFormData, CartItemData, parseCartItemData } from "@/lib
 import type { LinkedAccessory, SpecialEquipment } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
+import { CORES_PECA } from "@/components/ColorPickerModal";
 import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -2345,20 +2346,21 @@ export default function Cart() {
                     })()}
                   </div>
                   <div className="space-y-1">
-                    <Label>Potência</Label>
-                    <Input
-                      value={editFields.power}
-                      onChange={(e) => setEditFields(prev => ({ ...prev, power: e.target.value }))}
-                      placeholder="ex: 10W/m, 20W"
-                    />
-                  </div>
-                  <div className="space-y-1">
                     <Label>Cor da peça</Label>
-                    <Input
-                      value={editFields.corPeca}
-                      onChange={(e) => setEditFields(prev => ({ ...prev, corPeca: e.target.value }))}
-                      placeholder="ex: Branco, Preto, Anodizado"
-                    />
+                    <Select
+                      value={editFields.corPeca || "A Definir"}
+                      onValueChange={(v) => setEditFields(prev => ({ ...prev, corPeca: v }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a cor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="A Definir">A Definir</SelectItem>
+                        {CORES_PECA.map(c => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   {/* Campo de preço: editável se não veio da API, bloqueado se veio */}
                   <div className="space-y-1">
@@ -2574,8 +2576,8 @@ export default function Cart() {
                     patch.cct = newCCT;
                   }
                 }
-                if (editFields.power.trim()) patch.power = editFields.power.trim();
-                if (editFields.corPeca.trim()) patch.corPeca = editFields.corPeca.trim();
+                if (editFields.corPeca && editFields.corPeca !== 'A Definir') patch.corPeca = editFields.corPeca;
+                else if (editFields.corPeca === 'A Definir') patch.corPeca = '';
                 // Salvar preço manual apenas quando não veio da API
                 if (canEditPriceSave && editFields.unitPrice.trim()) {
                   const qty = parseInt(editFields.qty) || item?.data.qty || 1;
