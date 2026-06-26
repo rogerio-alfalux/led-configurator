@@ -1545,3 +1545,14 @@
 - [x] Todos os 15 call sites de `buildLumDriverLines` atualizados para passar `productName`
 - [x] Todos os 7 `PriceBreakdownBlock` atualizados para passar `productName`
 - [x] `tsc --noEmit` passa com zero erros reais
+
+## Lote 20 — 8 bugs reportados (26/06/2026)
+
+- [ ] Trilhos e acessórios: substituir "Vincular ao Produto" por "Enviar ao Carrinho" (criar item independente)
+- [ ] Carrinho: mostrar montante total de luminária (qty × preço unitário), não só o unitário
+- [ ] Pavimento: permitir renomear (campo editável inline)
+- [ ] Drag-and-drop: melhorar fluidez, especialmente arrastar de baixo para cima
+- [ ] Versão inicial deve ser RV0 (não RV1 ou v1)
+- [ ] Excel: frete preenchido (ex: R$2.000,00 para RJ) não aparece na folha
+- [ ] Excel: driver com coluna deslocada (quantidade na coluna de preço unitário), quantidade não condiz com luminárias, preço total errado
+- [ ] Excel: BLAZE H sem destaque de driver na linha do carrinho (Lum/Driver separados)

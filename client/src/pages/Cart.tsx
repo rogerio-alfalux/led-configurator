@@ -3,6 +3,7 @@ import { Link, useLocation, useSearch } from "wouter";
 import {
   DndContext,
   closestCenter,
+  pointerWithin,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -300,10 +301,13 @@ function SortableCartItem({
                   {/* Exibição desmembrada: luminária + driver */}
                   {entry.data.driverLines && entry.data.driverLines.length > 0 ? (
                     <>
-                      {/* Total luminária (qty × unitPriceLuminaria) */}
-                      {entry.data.luminariaHasApiPrice && entry.data.priceWithoutDriver != null ? (
+                      {/* Luminária: preço unitário + total (qty × unit) */}
+                      {entry.data.luminariaHasApiPrice && entry.data.unitPriceLuminaria != null ? (
                         <p className="text-xs text-muted-foreground">
-                          Lum: {formatBRL(entry.data.priceWithoutDriver)}
+                          Lum: {formatBRL(entry.data.unitPriceLuminaria)}/un
+                          {(entry.data.qty ?? 1) > 1 && (
+                            <> × {entry.data.qty} = <span className="font-medium">{formatBRL(entry.data.priceWithoutDriver ?? 0)}</span></>
+                          )}
                         </p>
                       ) : (
                         <p className="text-xs text-amber-600 italic cursor-pointer hover:underline" onClick={() => onEditClick(entry.id, entry.data)}>
@@ -401,6 +405,8 @@ function FloorGroupBar({
   floorId, displayName, editingName, groupEntries, isCollapsed, isDraggingThis,
   onToggleCollapse, onRenameChange, onRenameBlur, children,
 }: FloorGroupBarProps) {
+  const [localName, setLocalName] = React.useState<string | null>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: floorId });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -425,16 +431,25 @@ function FloorGroupBar({
         </button>
         <Layers className="w-4 h-4 text-indigo-400 flex-shrink-0" />
         <input
+          ref={inputRef}
           type="text"
-          value={editingName}
-          onChange={(e) => onRenameChange(e.target.value)}
-          onBlur={(e) => onRenameBlur(e.target.value.trim())}
-          onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+          value={localName !== null ? localName : editingName}
+          onChange={(e) => { setLocalName(e.target.value); onRenameChange(e.target.value); }}
+          onFocus={() => { if (localName === null) setLocalName(editingName); }}
+          onBlur={(e) => {
+            const val = e.target.value.trim();
+            onRenameBlur(val);
+            setLocalName(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.currentTarget.blur(); }
+            if (e.key === 'Escape') { setLocalName(null); onRenameChange(displayName); e.currentTarget.blur(); }
+          }}
           disabled={displayName === 'Sem Pavimento'}
           className={`text-sm font-semibold text-indigo-400 uppercase tracking-wide bg-transparent border-0 border-b border-transparent focus:border-indigo-400 focus:outline-none px-0 py-0 min-w-0 w-auto ${
             displayName === 'Sem Pavimento' ? 'cursor-default' : 'hover:border-indigo-400/50 cursor-text'
           }`}
-          style={{ width: `${Math.max(editingName.length, 8)}ch` }}
+          style={{ width: `${Math.max((localName !== null ? localName : editingName).length, 8)}ch` }}
           title={displayName !== 'Sem Pavimento' ? 'Clique para renomear o pavimento' : ''}
         />
         <span className="text-xs text-muted-foreground flex-shrink-0">({groupEntries.length} {groupEntries.length === 1 ? 'item' : 'itens'})</span>
@@ -649,9 +664,9 @@ export default function Cart() {
       .forEach(e => updateItemField(e.id, { floorName: trimmed, floorId: trimmed }, 0));
   }, [orderedEntries, updateItemField]);
 
-  // DnD sensors
+  // DnD sensors — distância de ativação reduzida para melhor responsividade ao arrastar para cima
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -1234,7 +1249,7 @@ export default function Cart() {
         ) : (
           <>
             {/* Lista de itens com Drag-and-Drop */}
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}
+            <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}
               onDragStart={(event) => {
                 const id = String(event.active.id);
                 if (id.startsWith("floor:")) setDraggingFloor(id.slice(6));

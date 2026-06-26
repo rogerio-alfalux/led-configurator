@@ -555,7 +555,8 @@ ${htmlContent}
                       {isService ? (
                         <tr style={{ background: "#F5F5F5" }}>
                           <td style={tdStyle}>{item.itemEmPlanta || ""}</td>
-                          <td colSpan={8} style={{ ...tdStyle, textAlign: "left", fontStyle: "italic" }}>{item.description || item.sku || "Serviço"}</td>
+                          <td style={tdStyle}></td>{/* FOTO vazia */}
+                          <td colSpan={7} style={{ ...tdStyle, textAlign: "left", fontStyle: "italic" }}>{item.description || item.sku || "Serviço"}</td>
                           <td style={tdStyle}>{item.qty}</td>
                           <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkup(unitPriceComFrete(item) ?? item.unitPrice)) : "-"}</td>
                           <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkup(totalPriceComFrete(item) ?? item.totalPrice)) : "-"}</td>
@@ -660,7 +661,12 @@ ${htmlContent}
                         </tr>
                       ))}
                       {/* Sub-linhas de drivers (apenas para itens novos com driverLines) */}
-                      {item.driverLines && item.driverLines.map((drv, drvIdx) => (
+                      {item.driverLines && item.driverLines.map((drv, drvIdx) => {
+                        // Mesma lógica do Cart.tsx: effectiveQty = storedQty <= 1 ? itemQty : storedQty
+                        const _iqty = item.qty ?? 1;
+                        const _storedDrvQty = drv.driverQty ?? 1;
+                        const _effectiveDrvQty = _storedDrvQty <= 1 ? _iqty : _storedDrvQty;
+                        return (
                         <tr key={`drv-${idx}-${drvIdx}`} style={{ background: "#FFF3E0" }}>
                           <td style={{ ...tdStyle, fontSize: 9 }}></td>
                           <td style={{ ...tdStyle, fontSize: 9 }}></td>
@@ -671,15 +677,16 @@ ${htmlContent}
                           {["", "", "", "", "", "", ""].map((_, i) => (
                             <td key={i} style={{ ...tdStyle, fontSize: 9 }}></td>
                           ))}
-                          <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold", color: "#E65100" }}>{drv.driverQty}</td>
+                          <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold", color: "#E65100" }}>{_effectiveDrvQty}</td>
                           <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
                             {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupFn(drv.driverUnitPrice)) : "-"}
                           </td>
                           <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
-                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupFn(drv.driverUnitPrice * drv.driverQty)) : "-"}
+                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupFn(drv.driverUnitPrice * _effectiveDrvQty)) : "-"}
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </Fragment>
                   );
                 })}
@@ -755,12 +762,22 @@ ${htmlContent}
                   </tr>
                   {/* Linha de frete: oculta quando o frete já está diluído nos preços */}
                   {freteParaDiluir <= 0 && (
-                    <tr>
-                      <td style={{ fontWeight: "bold" }}>Frete dedicado:</td>
-                      <td style={{ color: formData.freteType === "night" ? RED : undefined, fontWeight: formData.freteType === "night" ? "bold" : undefined }}>
-                        {buildFreteText(formData, totalFinal)}
-                      </td>
-                    </tr>
+                    <>
+                      <tr>
+                        <td style={{ fontWeight: "bold" }}>Frete dedicado:</td>
+                        <td style={{ color: formData.freteType === "night" ? RED : undefined, fontWeight: formData.freteType === "night" ? "bold" : undefined }}>
+                          {buildFreteText(formData, totalFinal)}
+                        </td>
+                      </tr>
+                      {formData.freteValue && formData.freteValue > 0 && !formData.freteIsento && (
+                        <tr>
+                          <td style={{ fontWeight: "bold" }}>Valor do frete:</td>
+                          <td style={{ fontWeight: "bold", color: "#CC0000" }}>
+                            {formatBRL(formData.freteValue)}
+                          </td>
+                        </tr>
+                      )}
+                    </>
                   )}
                   {freteParaDiluir > 0 && (
                     <tr>

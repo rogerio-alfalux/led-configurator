@@ -539,9 +539,9 @@ async function _generateExcelBuffer(
         cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       }
       ws.getCell(`C${rowNum}`).value = item.itemEmPlanta || '';
-      // Mesclar D:K para descrição
-      ws.mergeCells(`D${rowNum}:K${rowNum}`);
-      const dCell = ws.getCell(`D${rowNum}`);
+      // Mesclar E:K para descrição (D é coluna FOTO — não deve ser mesclada)
+      ws.mergeCells(`E${rowNum}:K${rowNum}`);
+      const dCell = ws.getCell(`E${rowNum}`);
       dCell.value = item.description || item.sku || 'Serviço';
       dCell.font = { name: 'Calibri', size: 11, italic: true, color: { argb: SERV_COLOR } };
       dCell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
@@ -891,18 +891,22 @@ async function _generateExcelBuffer(
         for (const col of ["F", "G", "H", "I", "J", "K"]) {
           fillDrv(ws.getCell(`${col}${drvRowNum}`), "");
         }
-        fillDrv(ws.getCell(`L${drvRowNum}`), drv.driverQty, true);
+        // Calcular qty efetiva do driver (mesma lógica do Cart.tsx para compatibilidade com itens antigos)
+        const _itemQty = item.qty ?? 1;
+        const _storedDrvQty = drv.driverQty ?? 1;
+        const _effectiveDrvQty = _storedDrvQty <= 1 ? _itemQty : _storedDrvQty;
+        fillDrv(ws.getCell(`L${drvRowNum}`), _effectiveDrvQty, true);
         if (drv.driverUnitPrice != null && drv.driverUnitPrice > 0) {
           const drvUnitAdjusted = applyMarkup(drv.driverUnitPrice);
           const mCell = ws.getCell(`M${drvRowNum}`);
           mCell.value = drvUnitAdjusted;
           mCell.numFmt = '"R$"#,##0.00';
-          mCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: DRV_COLOR } };
-          mCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: DRV_BG } };
-          mCell.alignment = { horizontal: "center", vertical: "middle" };
+          mCell.font = { name: 'Calibri', size: 9, italic: true, color: { argb: DRV_COLOR } };
+          mCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: DRV_BG } };
+          mCell.alignment = { horizontal: 'center', vertical: 'middle' };
           mCell.border = drvBorder;
           const nCell = ws.getCell(`N${drvRowNum}`);
-          nCell.value = applyMarkup(drv.driverUnitPrice * drv.driverQty);
+          nCell.value = applyMarkup(drv.driverUnitPrice * _effectiveDrvQty);
           nCell.numFmt = '"R$"#,##0.00';
           nCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: DRV_COLOR } };
           nCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: DRV_BG } };
@@ -921,9 +925,17 @@ async function _generateExcelBuffer(
   // Quando frete está diluído, soma o freteValue ao totalBase para o cálculo do total final
   const totalBase = items.reduce((sum, it) => sum + (it.totalPrice ?? 0), 0) + _freteParaDiluir;
   // Totais com/sem driver (apenas para orçamentos novos com driverLines)
+  // Usa mesma lógica do Cart.tsx: effectiveQty = storedQty <= 1 ? itemQty : storedQty
   const hasDriverBreakdown = items.some(it => it.driverLines && it.driverLines.length > 0);
   const totalDriverRaw = hasDriverBreakdown
-    ? items.reduce((sum, it) => sum + (it.driverLines?.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0) ?? 0), 0)
+    ? items.reduce((sum, it) => {
+        const iqty = it.qty ?? 1;
+        return sum + (it.driverLines?.reduce((s, d) => {
+          const storedQty = d.driverQty ?? 1;
+          const effectiveQty = storedQty <= 1 ? iqty : storedQty;
+          return s + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
+        }, 0) ?? 0);
+      }, 0)
     : 0;
   const totalSemDriverRaw = hasDriverBreakdown ? (totalBase - _freteParaDiluir - totalDriverRaw) : 0;
   // Aplicar RT e Margem (mesma fórmula do Cart.tsx)
@@ -1145,6 +1157,29 @@ async function _generateExcelBuffer(
       labelCell.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FFCC0000" } };
     }
     nextRow++;
+    // Linha adicional: valor numérico do frete (quando freteValue > 0 e não é frete isento)
+    const _freteValorNum = formData.freteValue && formData.freteValue > 0 && !formData.freteIsento
+      ? formData.freteValue
+      : 0;
+    if (_freteValorNum > 0) {
+      ws.getRow(nextRow).height = 19.8;
+      ws.mergeCells(`C${nextRow}:D${nextRow}`);
+      {
+        const c = ws.getCell(`C${nextRow}`);
+        c.value = "Valor do frete:";
+        c.font = { name: "Calibri", size: 12, bold: true };
+        c.alignment = { horizontal: "left", vertical: "middle" };
+      }
+      ws.mergeCells(`E${nextRow}:N${nextRow}`);
+      {
+        const c = ws.getCell(`E${nextRow}`);
+        c.value = _freteValorNum;
+        c.numFmt = '"R$"#,##0.00';
+        c.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FFCC0000" } };
+        c.alignment = { horizontal: "left", vertical: "middle" };
+      }
+      nextRow++;
+    }
   } else {
     // Frete diluído: mostrar nota informativa
     ws.getRow(nextRow).height = 19.8;

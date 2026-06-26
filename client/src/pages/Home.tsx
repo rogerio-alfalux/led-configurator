@@ -1712,25 +1712,44 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
           rows={Math.max(summary.split('\n').length + 1, 3)}
           onClick={(e) => (e.target as HTMLTextAreaElement).select()}
         />
-        {/* Detalhamento: novo método por SKU (BLAZE H e futuros) */}
+        {/* Detalhamento: novo método por SKU (BLAZE H e futuros) — com destaque visual amber/blue/green */}
         {modulePriceResult && (
-          <div className="rounded-lg bg-muted/30 border border-border p-3 space-y-1 text-xs">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Detalhamento de Preço</p>
-            {modulePriceResult.breakdown.map((b, i) => (
-              <div key={i} className="flex justify-between">
-                <span className="text-muted-foreground">{b.quantity} × {b.sku} ({formatBRL(b.precoUnit)} cada)</span>
-                <span className="font-mono">{formatBRL(b.subtotal)}</span>
+          <div className="mt-3 rounded-xl border border-border overflow-hidden">
+            {/* Linha luminária (amber) */}
+            <div className="flex flex-col px-4 py-2.5 bg-amber-500/8 border-b border-border">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                  <span className="text-sm font-medium text-foreground">Luminária</span>
+                </div>
+                <span className="text-sm font-bold text-amber-600 dark:text-amber-400">{formatBRL(modulePriceResult.precoLuminariaTotal)}</span>
               </div>
-            ))}
+              {/* Detalhamento por SKU */}
+              <div className="mt-1.5 space-y-0.5 pl-4">
+                {modulePriceResult.breakdown.map((b, i) => (
+                  <div key={i} className="flex justify-between text-xs text-muted-foreground">
+                    <span>{b.quantity} × {b.sku} ({formatBRL(b.precoUnit)} cada)</span>
+                    <span className="font-mono">{formatBRL(b.subtotal)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Linha driver (blue) */}
             {modulePriceResult.precoDriverTotal > 0 && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Driver ({nModules} módulo{nModules !== 1 ? 's' : ''})</span>
-                <span className="font-mono">{formatBRL(modulePriceResult.precoDriverTotal)}</span>
+              <div className="flex items-center justify-between px-4 py-2.5 bg-blue-500/8 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+                  <span className="text-sm font-medium text-foreground">
+                    Driver × {nModules}
+                  </span>
+                </div>
+                <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{formatBRL(modulePriceResult.precoDriverTotal)}</span>
               </div>
             )}
-            <div className="flex justify-between font-semibold border-t border-border pt-1.5 mt-1">
-              <span>Total</span>
-              <span className="font-mono text-primary">{formatBRL(modulePriceResult.total)}</span>
+            {/* Total (green) */}
+            <div className="flex items-center justify-between px-4 py-3 bg-emerald-500/10">
+              <span className="text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Total</span>
+              <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{formatBRL(modulePriceResult.total)}</span>
             </div>
           </div>
         )}
@@ -9722,20 +9741,14 @@ export default function Home() {
                             </p>
                           </div>
                         )}
-                        {/* Botão adicionar */}
-                        {(() => {
-                          const hasProd = !!(dlResult || spotResult || arandelaResult || panelResult || lbResult || bgResult || rvSelectedSku ||
-                            (productCategory !== "Acessórios"));
-                          return (
-                            <Button
-                              className={`w-full text-white ${hasProd ? "bg-cyan-600 hover:bg-cyan-700" : "bg-emerald-600 hover:bg-emerald-700"}`}
-                              onClick={() => handleAddAcessorioItem()}
-                            >
-                              {hasProd ? <Wrench className="w-4 h-4 mr-2" /> : <ShoppingCart className="w-4 h-4 mr-2" />}
-                              {hasProd ? "Vincular ao Produto" : (appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho")}
-                            </Button>
-                          );
-                        })()}
+                        {/* Botão adicionar — sempre envia ao carrinho como item independente */}
+                        <Button
+                          className="w-full text-white bg-emerald-600 hover:bg-emerald-700"
+                          onClick={() => handleAddAcessorioItem()}
+                        >
+                          <ShoppingCart className="w-4 h-4 mr-2" />
+                          {appendToQuoteId ? "Enviar ao Orçamento" : "Adicionar ao Carrinho"}
+                        </Button>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center py-16 text-center">

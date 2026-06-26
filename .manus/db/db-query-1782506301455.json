@@ -1,0 +1,55 @@
+{
+  "query": "SELECT id, quoteNumber, freteType, freteIsento, freteLocalidade, freteValue, freteIncluded FROM quotes ORDER BY id DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT id, quoteNumber, freteType, freteIsento, freteLocalidade, freteValue, freteIncluded FROM quotes ORDER BY id DESC LIMIT 5;",
+  "rows": [
+    {
+      "id": "4050001",
+      "quoteNumber": "33.0099-26",
+      "freteType": "paid",
+      "freteIsento": "0",
+      "freteLocalidade": "other",
+      "freteValue": "2000.00",
+      "freteIncluded": "0"
+    },
+    {
+      "id": "4020001",
+      "quoteNumber": "04.0242-26",
+      "freteType": "paid",
+      "freteIsento": "0",
+      "freteLocalidade": "other",
+      "freteValue": "5200.00",
+      "freteIncluded": "0"
+    },
+    {
+      "id": "3990001",
+      "quoteNumber": "ORC-26-0007",
+      "freteType": "consult",
+      "freteIsento": "0",
+      "freteLocalidade": "other",
+      "freteValue": "2900.00",
+      "freteIncluded": "0"
+    },
+    {
+      "id": "3960001",
+      "quoteNumber": "20.0354-26",
+      "freteType": "free",
+      "freteIsento": "0",
+      "freteLocalidade": "other",
+      "freteValue": "0.00",
+      "freteIncluded": "0"
+    },
+    {
+      "id": "3930003",
+      "quoteNumber": "ORC-26-0006",
+      "freteType": "consult",
+      "freteIsento": "0",
+      "freteLocalidade": "other",
+      "freteValue": "2900.00",
+      "freteIncluded": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tquoteNumber\tfreteType\tfreteIsento\tfreteLocalidade\tfreteValue\tfreteIncluded\n4050001\t33.0099-26\tpaid\t0\tother\t2000.00\t0\n4020001\t04.0242-26\tpaid\t0\tother\t5200.00\t0\n3990001\tORC-26-0007\tconsult\t0\tother\t2900.00\t0\n3960001\t20.0354-26\tfree\t0\tother\t0.00\t0\n3930003\tORC-26-0006\tconsult\t0\tother\t2900.00\t0\n",
+  "stderr": "",
+  "execution_time_ms": 320
+}

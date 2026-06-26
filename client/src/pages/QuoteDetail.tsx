@@ -932,7 +932,7 @@ export default function QuoteDetail() {
               )}
               {quote.assistantName && <p>✏️ Assistente: <span className="font-medium">{quote.assistantName}</span></p>}
               <p>📅 Criado em: {toBrasiliaDate(quote.createdAt)}</p>
-              <p>🔄 Versão atual: <span className="font-bold">v{quote.currentVersion}</span>{quote.revisionCount != null && quote.revisionCount > 0 && <span className="ml-2 text-xs text-muted-foreground">({quote.revisionCount} {quote.revisionCount !== 1 ? "Revisões" : "Revisão"})</span>}</p>
+              <p>🔄 Versão: <span className="font-bold font-mono">RV{quote.revisionCount ?? 0}</span><span className="ml-2 text-xs text-muted-foreground">(v{quote.currentVersion})</span></p>
               {quote.approvedAt && (
                 <p className="text-green-600 dark:text-green-400 font-medium">
                   ✅ Aprovado em: {toBrasiliaDate(quote.approvedAt)}

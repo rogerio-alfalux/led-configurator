@@ -318,7 +318,7 @@ export default function Quotes() {
                             <p className="text-xs text-muted-foreground italic">A consultar</p>
                           )}
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            v{q.currentVersion}{q.revisionCount != null && q.revisionCount > 0 && <span className="ml-1 text-[10px] text-amber-500 font-medium">• {q.revisionCount} rev.</span>} · {toBrasiliaDate(q.createdAt)}
+                            <span className="font-mono font-semibold text-foreground/70">RV{q.revisionCount ?? 0}</span> · v{q.currentVersion} · {toBrasiliaDate(q.createdAt)}
                           </p>
                         </div>
 
