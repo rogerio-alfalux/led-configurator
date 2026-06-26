@@ -27,7 +27,7 @@ export type Application = "D1" | "D2" | "D1+D2";
 export type ModuleType = "IN" | "IF" | "ML";
 export type DiffuserType = "DA" | "DB" | "DC";
 export type StripMethod = "STRIPFLEX" | "STRIPLINE";
-export type ControlType = "onoff" | "dimDali" | "dim110v";
+export type ControlType = "onoff" | "dimDali" | "dim110v" | "dimTriac110v" | "dimTriac220v";
 
 export type { InstallType };
 

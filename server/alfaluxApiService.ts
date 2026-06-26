@@ -77,6 +77,28 @@ export interface AlfaluxProduct {
   custoDriverDimTriac110v: number | null;
   custoDriverDimTriac220v: number | null;
 
+  // Custo do corpo da luminária por tipo de controle
+  custoCorpoOnoff220v?: number | null;
+  custoCorpoOnoffBivolt?: number | null;
+  custoCorpoDim110v?: number | null;
+  custoCorpoDimDali?: number | null;
+  custoCorpoDimTriac110v?: number | null;
+  custoCorpoDimTriac220v?: number | null;
+  custoCorpoOnoff220vD1D2?: number | null;
+  custoCorpoOnoffBivoltD1D2?: number | null;
+  custoCorpoDim110vD1D2?: number | null;
+  custoCorpoDimDaliD1D2?: number | null;
+  custoCorpoDimTriac110vD1D2?: number | null;
+  custoCorpoDimTriac220vD1D2?: number | null;
+
+  // Markup padrão do driver por tipo de controle
+  markupPadraoDriverOnoff220v?: number | null;
+  markupPadraoDriverOnoffBivolt?: number | null;
+  markupPadraoDriverDim110v?: number | null;
+  markupPadraoDriverDimDali?: number | null;
+  markupPadraoDriverDimTriac110v?: number | null;
+  markupPadraoDriverDimTriac220v?: number | null;
+
   /** Markup padrão da luminária por tipo de controle */
   markupPadraoOnoff220v?: number | null;
   markupPadraoOnoffBivolt?: number | null;

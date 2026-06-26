@@ -275,6 +275,105 @@ function buildLumDriverLines(
   return { driverLines, priceWithoutDriver, unitPriceLuminaria, unitPriceDriver, luminariaHasApiPrice };
 }
 
+// ─── Componente de Breakdown de Preço ────────────────────────────────────────────────────────────────────
+/**
+ * Exibe o breakdown de preço (luminária + driver) calculado via API.
+ * Mostra luminária e driver como linhas separadas com destaque visual.
+ */
+function PriceBreakdownBlock({
+  sku,
+  controle,
+  tensao,
+  qty,
+  driverModel: drvModel,
+  driverCode: drvCode,
+  lumPriceMap,
+  staticPreco,
+}: {
+  sku: string;
+  controle: string;
+  tensao: string;
+  qty: number;
+  driverModel: string;
+  driverCode: string;
+  lumPriceMap: Parameters<typeof buildLumDriverLines>[6];
+  /** Preço de venda pronto da API (campo precoOnOff220 etc.) — fallback quando custo/markup não disponíveis */
+  staticPreco?: number | null;
+}) {
+  const drvLines = buildLumDriverLines(sku, controle, tensao, qty, drvModel, drvCode, lumPriceMap);
+
+  if (drvLines) {
+    const totalDriver = drvLines.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
+    const totalLuminaria = drvLines.priceWithoutDriver ?? null;
+    const total = totalLuminaria != null ? Math.round((totalLuminaria + totalDriver) * 100) / 100 : null;
+    const unitLum = drvLines.unitPriceLuminaria;
+    const unitDrv = drvLines.unitPriceDriver;
+    const drvQtyTotal = drvLines.driverLines.reduce((s, d) => s + (d.driverQty ?? 0), 0);
+
+    return (
+      <div className="mt-3 rounded-xl border border-border overflow-hidden">
+        {/* Linha luminária */}
+        <div className="flex items-center justify-between px-4 py-2.5 bg-amber-500/8 border-b border-border">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+            <span className="text-sm font-medium text-foreground">
+              Luminária{qty > 1 ? ` × ${qty}` : ""}
+            </span>
+            {unitLum != null && qty > 1 && (
+              <span className="text-xs text-muted-foreground">({formatBRL(unitLum)} cada)</span>
+            )}
+          </div>
+          <span className="text-sm font-bold text-amber-600 dark:text-amber-400">
+            {totalLuminaria != null ? formatBRL(totalLuminaria) : <span className="text-muted-foreground font-normal text-xs">A definir</span>}
+          </span>
+        </div>
+        {/* Linha driver */}
+        {totalDriver > 0 && (
+          <div className="flex items-center justify-between px-4 py-2.5 bg-blue-500/8 border-b border-border">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+              <span className="text-sm font-medium text-foreground">
+                Driver{drvQtyTotal > 1 ? ` × ${drvQtyTotal}` : ""}
+              </span>
+              {unitDrv != null && drvQtyTotal > 1 && (
+                <span className="text-xs text-muted-foreground">({formatBRL(unitDrv)} cada)</span>
+              )}
+            </div>
+            <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{formatBRL(totalDriver)}</span>
+          </div>
+        )}
+        {/* Total */}
+        {total != null && (
+          <div className="flex items-center justify-between px-4 py-3 bg-emerald-500/10">
+            <span className="text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Total</span>
+            <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{formatBRL(total)}</span>
+          </div>
+        )}
+        {total == null && totalLuminaria == null && (
+          <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
+            <span className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Total</span>
+            <span className="text-sm text-muted-foreground">Luminária a definir</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Fallback: preço de venda pronto (campo precoOnOff220 etc.)
+  if (staticPreco != null) {
+    return (
+      <div className="mt-3 rounded-xl border border-border overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 bg-blue-500/10">
+          <span className="text-sm font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-400">Preço Total</span>
+          <span className="text-lg font-bold text-blue-700 dark:text-blue-400">{formatBRL(staticPreco * qty)}</span>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 // ─── Componentes Auxiliares ──────────────────────────────────────────────────────────────────────────────
 function FieldLabel({ children, hint }: { children: React.ReactNode; hint?: string }) {
   return (
@@ -7407,6 +7506,16 @@ export default function Home() {
                         return lines.join("\n");
                       })()}
                     </div>
+                    <PriceBreakdownBlock
+                      sku={bfResult.product.sku ?? ""}
+                      controle={bfResult.controle}
+                      tensao={bfResult.tensao}
+                      qty={globalQty}
+                      driverModel={bfResult.driver.model}
+                      driverCode={bfResult.driver.code}
+                      lumPriceMap={lumPriceMap}
+                      staticPreco={getPrecoForControle(bfResult.product, bfResult.controle, bfResult.tensao)}
+                    />
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.</p>
                   </CardContent>
                 </Card>
@@ -7598,6 +7707,16 @@ export default function Home() {
                         return lines.join("\n");
                       })()}
                     </div>
+                    <PriceBreakdownBlock
+                      sku={glowResult.product.sku ?? ""}
+                      controle={glowResult.controle}
+                      tensao={glowResult.tensao}
+                      qty={globalQty}
+                      driverModel={glowResult.driver.model}
+                      driverCode={glowResult.driver.code}
+                      lumPriceMap={lumPriceMap}
+                      staticPreco={getPrecoForControle(glowResult.product, glowResult.controle, glowResult.tensao)}
+                    />
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.</p>
                   </CardContent>
                 </Card>
@@ -8255,6 +8374,16 @@ export default function Home() {
                           return lines.join("\n");
                         })()}
                     </div>
+                    <PriceBreakdownBlock
+                      sku={dlResult.product.sku ?? ""}
+                      controle={dlResult.controle}
+                      tensao={dlResult.tensao}
+                      qty={globalQty}
+                      driverModel={dlResult.driver.model}
+                      driverCode={dlResult.driver.code}
+                      lumPriceMap={lumPriceMap}
+                      staticPreco={getPrecoForControle(dlResult.product, dlResult.controle, dlResult.tensao)}
+                    />
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.</p>
                   </CardContent>
                 </Card>
@@ -8515,6 +8644,16 @@ export default function Home() {
                         return lines.join("\n");
                       })()}
                     </div>
+                    <PriceBreakdownBlock
+                      sku={aeResult.product.sku ?? ""}
+                      controle={aeResult.controle}
+                      tensao={aeResult.tensao}
+                      qty={globalQty}
+                      driverModel={aeResult.driver.model}
+                      driverCode={aeResult.driver.code}
+                      lumPriceMap={lumPriceMap}
+                      staticPreco={getPrecoForControle(aeResult.product, aeResult.controle, aeResult.tensao)}
+                    />
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.</p>
                   </CardContent>
                 </Card>
@@ -8778,6 +8917,16 @@ export default function Home() {
                           return lines.join("\n");
                         })()
                       }</div>
+                    <PriceBreakdownBlock
+                      sku={panelResult.product.sku ?? ""}
+                      controle={panelResult.controle}
+                      tensao={panelResult.tensao}
+                      qty={globalQty}
+                      driverModel={panelResult.driver.model}
+                      driverCode={panelResult.driver.code}
+                      lumPriceMap={lumPriceMap}
+                      staticPreco={getPrecoForControle(panelResult.product, panelResult.controle, panelResult.tensao)}
+                    />
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
                   </CardContent>
                 </Card>
@@ -9011,6 +9160,16 @@ export default function Home() {
                           return lines.join("\n");
                         })()}
                     </div>
+                    <PriceBreakdownBlock
+                      sku={arandelaResult.product.sku ?? ""}
+                      controle={arandelaResult.controle}
+                      tensao={arandelaResult.tensao}
+                      qty={globalQty}
+                      driverModel={arandelaResult.driver.model}
+                      driverCode={arandelaResult.driver.code}
+                      lumPriceMap={lumPriceMap}
+                      staticPreco={getPrecoForControle(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao)}
+                    />
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
                   </CardContent>
                 </Card>
@@ -9278,6 +9437,16 @@ export default function Home() {
                           return lines.join("\n");
                         })()}
                     </div>
+                    <PriceBreakdownBlock
+                      sku={spotResult.product.sku ?? ""}
+                      controle={spotResult.controle}
+                      tensao={spotResult.tensao}
+                      qty={globalQty}
+                      driverModel={spotResult.driver.model}
+                      driverCode={spotResult.driver.code}
+                      lumPriceMap={lumPriceMap}
+                      staticPreco={getPrecoForControle(spotResult.product, spotResult.controle, spotResult.tensao)}
+                    />
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
                   </CardContent>
                 </Card>

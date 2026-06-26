@@ -1525,3 +1525,12 @@
 - [x] Nome do arquivo segue padrão do Excel: "{numero} (RVx) - {obra} - {cliente} rascunho"
 - [x] Imagens aguardam carregamento (800ms) antes de acionar print na nova janela
 - [x] Fallback de 2500ms caso onload não dispare
+
+## Lote 18 — Preços via API em todas as categorias (26/06/2026)
+
+- [x] Adicionar campos custoCorpo* e markupPadraoDriver* à interface AlfaluxProduct no servidor
+- [x] Adicionar dimTriac110v e dimTriac220v ao tipo ControlType no ledEngine
+- [x] Corrigir índice do parâmetro lumPriceMap no PriceBreakdownBlock (de [5] para [6])
+- [x] Criar componente PriceBreakdownBlock reutilizável (luminária amber + driver blue + total emerald)
+- [x] Inserir PriceBreakdownBlock em Downlights, Área Externa, Painéis, Arandelas, Spots, GLOW e BAGEO fixo
+- [x] Zero erros TypeScript reais (tsc --noEmit passa limpo)
