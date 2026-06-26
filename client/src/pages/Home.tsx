@@ -206,9 +206,13 @@ function buildLumDriverLines(
     driverQtd220: number | null; driverQtdBivolt: number | null;
     driverQtdDim110v: number | null; driverQtdDimDali: number | null;
     driverQtdDimTriac110v: number | null; driverQtdDimTriac220v: number | null;
-  }>
+  }>,
+  /** Nome do produto — usado para desambiguar SKUs duplicados na API */
+  productName?: string
 ): { driverLines: import("@/lib/cartTypes").DriverLine[]; priceWithoutDriver: number | null; unitPriceLuminaria: number | null; unitPriceDriver: number | null; luminariaHasApiPrice: boolean } | null {
-  const entry = lumPriceMap[sku];
+  // Usar chave composta sku||name para evitar colisão com SKUs duplicados na API
+  const compositeKey = productName ? `${sku}||${productName}` : sku;
+  const entry = lumPriceMap[compositeKey] ?? lumPriceMap[sku];
   if (!entry) return null;
 
   // Selecionar custo do corpo e custo do driver pelo controle/tensão
@@ -289,6 +293,7 @@ function PriceBreakdownBlock({
   driverCode: drvCode,
   lumPriceMap,
   staticPreco,
+  productName,
 }: {
   sku: string;
   controle: string;
@@ -299,8 +304,10 @@ function PriceBreakdownBlock({
   lumPriceMap: Parameters<typeof buildLumDriverLines>[6];
   /** Preço de venda pronto da API (campo precoOnOff220 etc.) — fallback quando custo/markup não disponíveis */
   staticPreco?: number | null;
+  /** Nome do produto — usado para desambiguar SKUs duplicados na API */
+  productName?: string;
 }) {
-  const drvLines = buildLumDriverLines(sku, controle, tensao, qty, drvModel, drvCode, lumPriceMap);
+  const drvLines = buildLumDriverLines(sku, controle, tensao, qty, drvModel, drvCode, lumPriceMap, productName);
 
   if (drvLines) {
     const totalDriver = drvLines.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
@@ -2152,7 +2159,11 @@ export default function Home() {
       if (!NON_PROFILE_CATS.includes(cat)) continue;
       const sku = p.sku ?? "";
       if (!sku) continue;
-      map[sku] = {
+      const name = p.name ?? "";
+      // Usar chave composta sku||name para evitar colisão com SKUs duplicados na API.
+      // O fallback para sku simples é mantido em buildLumDriverLines para compatibilidade.
+      const compositeKey = name ? `${sku}||${name}` : sku;
+      const entryData = {
         custoCorpoOnoff220v: p.custoCorpoOnoff220v ?? null,
         custoCorpoOnoffBivolt: p.custoCorpoOnoffBivolt ?? null,
         custoCorpoDim110v: p.custoCorpoDim110v ?? null,
@@ -2185,6 +2196,10 @@ export default function Home() {
         driverQtdDimTriac110v: p.driverQtdDimTriac110v ?? null,
         driverQtdDimTriac220v: p.driverQtdDimTriac220v ?? null,
       };
+      // Registrar com chave composta (preferência) e chave simples (fallback)
+      map[compositeKey] = entryData;
+      // Só registrar chave simples se ainda não existir (evita sobrescrever com produto errado)
+      if (!map[sku]) map[sku] = entryData;
     }
     return map;
   }, [alfaluxApiProducts]);
@@ -7489,7 +7504,7 @@ export default function Home() {
                     >
                       {(() => {
                         const preco = getPrecoForControle(bfResult.product, bfResult.controle, bfResult.tensao);
-                        const drvLines = buildLumDriverLines(bfResult.product.sku ?? "", bfResult.controle, bfResult.tensao, globalQty, bfResult.driver.model, bfResult.driver.code, lumPriceMap);
+                        const drvLines = buildLumDriverLines(bfResult.product.sku ?? "", bfResult.controle, bfResult.tensao, globalQty, bfResult.driver.model, bfResult.driver.code, lumPriceMap, bfResult.product.name ?? undefined);
                         const lines = [`${bfResult.product.name} ${bfResult.cct} ${bfResult.tensao}`.toUpperCase()];
                         if (drvLines) {
                           if (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) {
@@ -7515,6 +7530,7 @@ export default function Home() {
                       driverCode={bfResult.driver.code}
                       lumPriceMap={lumPriceMap}
                       staticPreco={getPrecoForControle(bfResult.product, bfResult.controle, bfResult.tensao)}
+                      productName={bfResult.product.name ?? undefined}
                     />
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.</p>
                   </CardContent>
@@ -7690,7 +7706,7 @@ export default function Home() {
                     >
                       {(() => {
                         const preco = getPrecoForControle(glowResult.product, glowResult.controle, glowResult.tensao);
-                        const drvLines = buildLumDriverLines(glowResult.product.sku ?? "", glowResult.controle, glowResult.tensao, globalQty, glowResult.driver.model, glowResult.driver.code, lumPriceMap);
+                        const drvLines = buildLumDriverLines(glowResult.product.sku ?? "", glowResult.controle, glowResult.tensao, globalQty, glowResult.driver.model, glowResult.driver.code, lumPriceMap, glowResult.product.name ?? undefined);
                         const lines = [`${glowResult.product.name} ${glowResult.cct} ${glowResult.tensao}`.toUpperCase()];
                         if (drvLines) {
                           if (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) {
@@ -7716,6 +7732,7 @@ export default function Home() {
                       driverCode={glowResult.driver.code}
                       lumPriceMap={lumPriceMap}
                       staticPreco={getPrecoForControle(glowResult.product, glowResult.controle, glowResult.tensao)}
+                      productName={glowResult.product.name ?? undefined}
                     />
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.</p>
                   </CardContent>
@@ -7848,7 +7865,7 @@ export default function Home() {
                           disabled={isAddingToCart}
                           onClick={() => {
                             const dTensao = dProd.driverBivolt?.model ? 'Bivolt' : '220V';
-                            const dDrvLines = dDriverInfo ? buildLumDriverLines(dProd.sku ?? "", 'ON/OFF', dTensao, globalQty, dDriverInfo.model, dDriverInfo.code ?? "", lumPriceMap) : null;
+                            const dDrvLines = dDriverInfo ? buildLumDriverLines(dProd.sku ?? "", 'ON/OFF', dTensao, globalQty, dDriverInfo.model, dDriverInfo.code ?? "", lumPriceMap, dProd.name ?? undefined) : null;
                             const item: CartItemData = {
                               category: "Decorativas",
                               sku: dProd.sku ?? "",
@@ -8053,7 +8070,7 @@ export default function Home() {
                           disabled={isAddingToCart}
                           onClick={() => {
                             const bTensao = bProd.driverBivolt?.model ? 'Bivolt' : '220V';
-                            const bDrvLines = bDriverInfo ? buildLumDriverLines(bProd.sku ?? "", 'ON/OFF', bTensao, globalQty, bDriverInfo.model, bDriverInfo.code ?? "", lumPriceMap) : null;
+                            const bDrvLines = bDriverInfo ? buildLumDriverLines(bProd.sku ?? "", 'ON/OFF', bTensao, globalQty, bDriverInfo.model, bDriverInfo.code ?? "", lumPriceMap, bProd.name ?? undefined) : null;
                             const item: CartItemData = {
                               category: "Balizadores",
                               sku: bProd.sku ?? "",
@@ -8300,7 +8317,7 @@ export default function Home() {
                           const preco = getPrecoForControle(dlResult.product, dlResult.controle, dlResult.tensao);
                           // Usar resolveDownlightPhoto (API primeiro) em vez de getDownlightPhoto (estático)
                           const dlPhoto = resolveDownlightPhoto(dlFamilia, dlResult.product.name);
-                          const dlDrvLines = buildLumDriverLines(dlResult.product.sku ?? "", dlResult.controle, dlResult.tensao, 1, dlResult.driver.model, dlResult.driver.code, lumPriceMap);
+                          const dlDrvLines = buildLumDriverLines(dlResult.product.sku ?? "", dlResult.controle, dlResult.tensao, 1, dlResult.driver.model, dlResult.driver.code, lumPriceMap, dlResult.product.name ?? undefined);
                           const item: CartItemData = {
                             category: "Downlights",
                             sku: dlResult.product.sku ?? "",
@@ -8357,7 +8374,7 @@ export default function Home() {
                     >
                       {(() => {
                           const preco = getPrecoForControle(dlResult.product, dlResult.controle, dlResult.tensao);
-                          const drvLines = buildLumDriverLines(dlResult.product.sku ?? "", dlResult.controle, dlResult.tensao, globalQty, dlResult.driver.model, dlResult.driver.code, lumPriceMap);
+                          const drvLines = buildLumDriverLines(dlResult.product.sku ?? "", dlResult.controle, dlResult.tensao, globalQty, dlResult.driver.model, dlResult.driver.code, lumPriceMap, dlResult.product.name ?? undefined);
                           const lines = [`${dlResult.product.name} ${dlResult.cct} ${dlResult.tensao}`.toUpperCase()];
                           if (drvLines) {
                             if (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) {
@@ -8383,6 +8400,7 @@ export default function Home() {
                       driverCode={dlResult.driver.code}
                       lumPriceMap={lumPriceMap}
                       staticPreco={getPrecoForControle(dlResult.product, dlResult.controle, dlResult.tensao)}
+                      productName={dlResult.product.name ?? undefined}
                     />
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.</p>
                   </CardContent>
@@ -8576,7 +8594,7 @@ export default function Home() {
                         onClick={() => {
                           const preco = getPrecoForControle(aeResult.product, aeResult.controle, aeResult.tensao);
                           const aePhoto = aeFamilia ? (adaptedCatalogs?.areaExternaFotos?.[aeResult.product.sku ?? ""] ?? null) : null;
-                          const aeDrvLines = buildLumDriverLines(aeResult.product.sku ?? "", aeResult.controle, aeResult.tensao, 1, aeResult.driver.model, aeResult.driver.code, lumPriceMap);
+                          const aeDrvLines = buildLumDriverLines(aeResult.product.sku ?? "", aeResult.controle, aeResult.tensao, 1, aeResult.driver.model, aeResult.driver.code, lumPriceMap, aeResult.product.name ?? undefined);
                           const item: CartItemData = {
                             category: "Área Externa",
                             sku: aeResult.product.sku ?? "",
@@ -8627,7 +8645,7 @@ export default function Home() {
                     >
                       {(() => {
                           const preco = getPrecoForControle(aeResult.product, aeResult.controle, aeResult.tensao);
-                          const drvLines = buildLumDriverLines(aeResult.product.sku ?? "", aeResult.controle, aeResult.tensao, globalQty, aeResult.driver.model, aeResult.driver.code, lumPriceMap);
+                          const drvLines = buildLumDriverLines(aeResult.product.sku ?? "", aeResult.controle, aeResult.tensao, globalQty, aeResult.driver.model, aeResult.driver.code, lumPriceMap, aeResult.product.name ?? undefined);
                           const lines = [`${aeResult.product.name} ${aeResult.cct} ${aeResult.tensao}`.toUpperCase()];
                           if (drvLines) {
                             if (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) {
@@ -8653,6 +8671,7 @@ export default function Home() {
                       driverCode={aeResult.driver.code}
                       lumPriceMap={lumPriceMap}
                       staticPreco={getPrecoForControle(aeResult.product, aeResult.controle, aeResult.tensao)}
+                      productName={aeResult.product.name ?? undefined}
                     />
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.</p>
                   </CardContent>
@@ -8846,7 +8865,7 @@ export default function Home() {
                         onClick={() => {
                           const preco = getPrecoForControle(panelResult.product, panelResult.controle, panelResult.tensao);
                           const pPhoto = panelFamilia ? resolvePainelPhoto(panelFamilia, panelResult.product.name) : null;
-                          const panelDrvLines = buildLumDriverLines(panelResult.product.sku ?? "", panelResult.controle, panelResult.tensao, 1, panelResult.driver.model, panelResult.driver.code, lumPriceMap);
+                          const panelDrvLines = buildLumDriverLines(panelResult.product.sku ?? "", panelResult.controle, panelResult.tensao, 1, panelResult.driver.model, panelResult.driver.code, lumPriceMap, panelResult.product.name ?? undefined);
                           const item: CartItemData = {
                             category: "Painéis",
                             sku: panelResult.product.sku ?? "",
@@ -8900,7 +8919,7 @@ export default function Home() {
                     >
                       {(() => {
                           const preco = getPrecoForControle(panelResult.product, panelResult.controle, panelResult.tensao);
-                          const drvLines = buildLumDriverLines(panelResult.product.sku ?? "", panelResult.controle, panelResult.tensao, globalQty, panelResult.driver.model, panelResult.driver.code, lumPriceMap);
+                          const drvLines = buildLumDriverLines(panelResult.product.sku ?? "", panelResult.controle, panelResult.tensao, globalQty, panelResult.driver.model, panelResult.driver.code, lumPriceMap, panelResult.product.name ?? undefined);
                           const lines = [`${panelResult.product.name} ${panelResult.cct} ${panelResult.tensao}`.toUpperCase()];
                           if (drvLines) {
                             if (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) {
@@ -8926,6 +8945,7 @@ export default function Home() {
                       driverCode={panelResult.driver.code}
                       lumPriceMap={lumPriceMap}
                       staticPreco={getPrecoForControle(panelResult.product, panelResult.controle, panelResult.tensao)}
+                      productName={panelResult.product.name ?? undefined}
                     />
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
                   </CardContent>
@@ -9092,7 +9112,7 @@ export default function Home() {
                         disabled={isAddingToCart}
                         onClick={() => {
                           const preco = getPrecoForControle(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao);
-                          const arandelaDrvLines = buildLumDriverLines(arandelaResult.product.sku ?? "", arandelaResult.controle, arandelaResult.tensao, 1, arandelaResult.driver.model, arandelaResult.driver.code, lumPriceMap);
+                          const arandelaDrvLines = buildLumDriverLines(arandelaResult.product.sku ?? "", arandelaResult.controle, arandelaResult.tensao, 1, arandelaResult.driver.model, arandelaResult.driver.code, lumPriceMap, arandelaResult.product.name ?? undefined);
                           const item: CartItemData = {
                             category: "Arandelas",
                             sku: arandelaResult.product.sku ?? "",
@@ -9143,7 +9163,7 @@ export default function Home() {
                     >
                       {(() => {
                           const preco = getPrecoForControle(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao);
-                          const drvLines = buildLumDriverLines(arandelaResult.product.sku ?? "", arandelaResult.controle, arandelaResult.tensao, globalQty, arandelaResult.driver.model, arandelaResult.driver.code, lumPriceMap);
+                          const drvLines = buildLumDriverLines(arandelaResult.product.sku ?? "", arandelaResult.controle, arandelaResult.tensao, globalQty, arandelaResult.driver.model, arandelaResult.driver.code, lumPriceMap, arandelaResult.product.name ?? undefined);
                           const lines = [`${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.tensao}`.toUpperCase()];
                           if (drvLines) {
                             if (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) {
@@ -9169,6 +9189,7 @@ export default function Home() {
                       driverCode={arandelaResult.driver.code}
                       lumPriceMap={lumPriceMap}
                       staticPreco={getPrecoForControle(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao)}
+                      productName={arandelaResult.product.name ?? undefined}
                     />
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
                   </CardContent>
@@ -9369,7 +9390,7 @@ export default function Home() {
                         disabled={isAddingToCart}
                         onClick={() => {
                           const preco = getPrecoForControle(spotResult.product, spotResult.controle, spotResult.tensao);
-                          const spotDrvLines = buildLumDriverLines(spotResult.product.sku ?? "", spotResult.controle, spotResult.tensao, 1, spotResult.driver.model, spotResult.driver.code, lumPriceMap);
+                          const spotDrvLines = buildLumDriverLines(spotResult.product.sku ?? "", spotResult.controle, spotResult.tensao, 1, spotResult.driver.model, spotResult.driver.code, lumPriceMap, spotResult.product.name ?? undefined);
                           const item: CartItemData = {
                             category: "Spots",
                             sku: spotResult.product.sku ?? "",
@@ -9420,7 +9441,7 @@ export default function Home() {
                     >
                       {(() => {
                           const preco = getPrecoForControle(spotResult.product, spotResult.controle, spotResult.tensao);
-                          const drvLines = buildLumDriverLines(spotResult.product.sku ?? "", spotResult.controle, spotResult.tensao, globalQty, spotResult.driver.model, spotResult.driver.code, lumPriceMap);
+                          const drvLines = buildLumDriverLines(spotResult.product.sku ?? "", spotResult.controle, spotResult.tensao, globalQty, spotResult.driver.model, spotResult.driver.code, lumPriceMap, spotResult.product.name ?? undefined);
                           const lines = [`${spotResult.product.name} ${spotResult.cct} ${spotResult.tensao}`.toUpperCase()];
                           if (drvLines) {
                             if (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) {
@@ -9446,6 +9467,7 @@ export default function Home() {
                       driverCode={spotResult.driver.code}
                       lumPriceMap={lumPriceMap}
                       staticPreco={getPrecoForControle(spotResult.product, spotResult.controle, spotResult.tensao)}
+                      productName={spotResult.product.name ?? undefined}
                     />
                     <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
                   </CardContent>

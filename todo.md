@@ -1534,3 +1534,14 @@
 - [x] Criar componente PriceBreakdownBlock reutilizável (luminária amber + driver blue + total emerald)
 - [x] Inserir PriceBreakdownBlock em Downlights, Área Externa, Painéis, Arandelas, Spots, GLOW e BAGEO fixo
 - [x] Zero erros TypeScript reais (tsc --noEmit passa limpo)
+
+## Lote 19 — Correção definitiva de preço de luminária (SKU duplicado na API)
+
+- [x] Identificado: SKU `LDE 6450.140.18B` atribuído a dois produtos distintos (LUNA G LED 17W RE e 26W RE) na API
+- [x] Causa raiz: `lumPriceMap` usava SKU simples como chave → segundo produto sobrescrevia o primeiro
+- [x] Correção: `lumPriceMap` agora usa chave composta `sku||name` para cada entrada
+- [x] Fallback: chave simples `sku` mantida apenas para o PRIMEIRO produto com aquele SKU (não sobrescreve)
+- [x] `buildLumDriverLines` atualizado para aceitar `productName` e usar chave composta no lookup
+- [x] Todos os 15 call sites de `buildLumDriverLines` atualizados para passar `productName`
+- [x] Todos os 7 `PriceBreakdownBlock` atualizados para passar `productName`
+- [x] `tsc --noEmit` passa com zero erros reais
