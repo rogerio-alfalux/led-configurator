@@ -164,16 +164,35 @@ function driverQtyFor(
  * Retorna null se o preço não estiver cadastrado.
  */
 function getPrecoForControle(
-  product: { precoOnOff220?: number | null; precoOnOffBivolt?: number | null; precoDim110v?: number | null; precoDimDali?: number | null; precoDimTriac110v?: number | null; precoDimTriac220v?: number | null },
+  product: {
+    precoOnOff220?: number | null; precoOnOffBivolt?: number | null;
+    precoDim110v?: number | null; precoDimDali?: number | null;
+    precoDimTriac110v?: number | null; precoDimTriac220v?: number | null;
+    // Campos de custo+markup para calcular preço quando precoOnOff220 etc. são null
+    custoCorpoOnoff220v?: number | null; custoCorpoOnoffBivolt?: number | null;
+    custoCorpoDim110v?: number | null; custoCorpoDimDali?: number | null;
+    custoCorpoDimTriac110v?: number | null; custoCorpoDimTriac220v?: number | null;
+    markupPadraoOnoff220v?: number | null; markupPadraoOnoffBivolt?: number | null;
+    markupPadraoDim110v?: number | null; markupPadraoDimDali?: number | null;
+    markupPadraoDimTriac110v?: number | null; markupPadraoDimTriac220v?: number | null;
+  },
   controle: string,
   tensao: string
 ): number | null {
-  if (controle === 'DIM DALI') return product.precoDimDali ?? null;
-  if (controle === 'DIM 1-10V') return product.precoDim110v ?? null;
-  if (controle === 'DIM TRIAC 110V') return product.precoDimTriac110v ?? null;
-  if (controle === 'DIM TRIAC 220V') return product.precoDimTriac220v ?? null;
-  if (tensao === 'Bivolt') return product.precoOnOffBivolt ?? null;
-  return product.precoOnOff220 ?? null;
+  // Helper: calcula custo * markup se preco direto for null
+  function calcPreco(preco: number | null | undefined, custo: number | null | undefined, markup: number | null | undefined): number | null {
+    if (preco != null && preco > 0) return preco;
+    if (custo != null && custo > 0 && markup != null && markup > 0) {
+      return Math.round(custo * markup * 100) / 100;
+    }
+    return null;
+  }
+  if (controle === 'DIM DALI') return calcPreco(product.precoDimDali, product.custoCorpoDimDali, product.markupPadraoDimDali);
+  if (controle === 'DIM 1-10V') return calcPreco(product.precoDim110v, product.custoCorpoDim110v, product.markupPadraoDim110v);
+  if (controle === 'DIM TRIAC 110V') return calcPreco(product.precoDimTriac110v, product.custoCorpoDimTriac110v, product.markupPadraoDimTriac110v);
+  if (controle === 'DIM TRIAC 220V') return calcPreco(product.precoDimTriac220v, product.custoCorpoDimTriac220v, product.markupPadraoDimTriac220v);
+  if (tensao === 'Bivolt') return calcPreco(product.precoOnOffBivolt, product.custoCorpoOnoffBivolt, product.markupPadraoOnoffBivolt);
+  return calcPreco(product.precoOnOff220, product.custoCorpoOnoff220v, product.markupPadraoOnoff220v);
 }
 
 
@@ -8885,6 +8904,12 @@ export default function Home() {
                           const preco = getPrecoForControle(panelResult.product, panelResult.controle, panelResult.tensao);
                           const pPhoto = panelFamilia ? resolvePainelPhoto(panelFamilia, panelResult.product.name) : null;
                           const panelDrvLines = buildLumDriverLines(panelResult.product.sku ?? "", panelResult.controle, panelResult.tensao, 1, panelResult.driver.model, panelResult.driver.code, lumPriceMap, panelResult.product.name ?? undefined);
+                          const panelDriverTotal = panelDrvLines
+                            ? panelDrvLines.driverLines.reduce((sum, line) => sum + (line.driverTotalPrice ?? 0), 0)
+                            : 0;
+                          const panelTotalPrice = panelDrvLines
+                            ? Math.round((((panelDrvLines.priceWithoutDriver ?? (preco ?? 0)) + panelDriverTotal)) * 100) / 100
+                            : (preco ?? 0);
                           const item: CartItemData = {
                             category: "Painéis",
                             sku: panelResult.product.sku ?? "",
@@ -8893,8 +8918,8 @@ export default function Home() {
                             cct: panelResult.cct,
                             qty: 1,
                             unitPrice: preco ?? 0,
-                            totalPrice: preco ?? 0,
-                            priceFromApi: preco != null,
+                            totalPrice: panelTotalPrice,
+                            priceFromApi: preco != null || !!panelDrvLines,
                             photoUrl: pPhoto ?? panelResult.product.fotoUrl ?? "",
                             orderSummary: (() => { const parts: string[] = []; if (panelResult.ledModuleWithCCT) parts.push(panelResult.ledModuleWithCCT.toUpperCase()); const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; const drvQty = driverQtyFor(panelResult.product, panelResult.controle, panelResult.tensao); parts.push(`${drvQty}x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`); const skuLine = panelResult.product.sku ? `CÓDIGO: ${panelResult.product.sku}\n` : ""; const isOrbit = panelResult.product.familia.toUpperCase().startsWith("ORBIT"); const orbitObs = isOrbit ? "\nOBS: programar driver em 200mA" : ""; return `${skuLine}${panelResult.product.name.toUpperCase()} ${panelResult.cct} ${panelResult.controle.toUpperCase()} ${panelResult.tensao} MONTADA COM ${parts.join(" + ")}${orbitObs}`; })(),
                             quoteSummary: `${panelResult.product.name} ${panelResult.cct} ${panelResult.controle} ${panelResult.tensao}`.toUpperCase(),

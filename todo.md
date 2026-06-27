@@ -1548,11 +1548,15 @@
 
 ## Lote 20 — 8 bugs reportados (26/06/2026)
 
-- [ ] Trilhos e acessórios: substituir "Vincular ao Produto" por "Enviar ao Carrinho" (criar item independente)
-- [ ] Carrinho: mostrar montante total de luminária (qty × preço unitário), não só o unitário
-- [ ] Pavimento: permitir renomear (campo editável inline)
-- [ ] Drag-and-drop: melhorar fluidez, especialmente arrastar de baixo para cima
-- [ ] Versão inicial deve ser RV0 (não RV1 ou v1)
-- [ ] Excel: frete preenchido (ex: R$2.000,00 para RJ) não aparece na folha
-- [ ] Excel: driver com coluna deslocada (quantidade na coluna de preço unitário), quantidade não condiz com luminárias, preço total errado
-- [ ] Excel: BLAZE H sem destaque de driver na linha do carrinho (Lum/Driver separados)
+- [x] Trilhos e acessórios: substituir "Vincular ao Produto" por "Enviar ao Carrinho" (criar item independente)
+- [x] Carrinho: mostrar montante total de luminária (qty × preço unitário), não só o unitário
+- [x] Pavimento: permitir renomear (campo editável inline)
+- [x] Drag-and-drop: melhorar fluidez, especialmente arrastar de baixo para cima
+- [x] Versão inicial deve ser RV0 (não RV1 ou v1)
+- [x] Excel: frete preenchido (ex: R$2.000,00 para RJ) não aparece na folha
+- [x] Excel: driver com coluna deslocada (quantidade na coluna de preço unitário), quantidade não condiz com luminárias, preço total errado
+- [x] Excel: BLAZE H sem destaque de driver na linha do carrinho (Lum/Driver separados)
+
+## Lote 21 — Bug de preço zerado em Painéis (26/06/2026)
+
+- [x] Painéis com preço definido aparecem com preço 0 no carrinho e "A consultar" no total — não entram no orçamento Excel (corrigido: getPrecoForControle usa custo × markup como fallback quando precoOnOff220 = null)

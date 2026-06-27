@@ -1,0 +1,100 @@
+{
+  "query": "SELECT id, quoteNumber, freteType, freteValue, freteIsento, freteIncluded, freteState FROM quotes ORDER BY id DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT id, quoteNumber, freteType, freteValue, freteIsento, freteIncluded, freteState FROM quotes ORDER BY id DESC LIMIT 10;",
+  "rows": [
+    {
+      "id": "4080001",
+      "quoteNumber": "33.0100-26",
+      "freteType": "paid",
+      "freteValue": "0.00",
+      "freteIsento": "0",
+      "freteIncluded": "0",
+      "freteState": "NULL"
+    },
+    {
+      "id": "4050001",
+      "quoteNumber": "33.0099-26",
+      "freteType": "paid",
+      "freteValue": "2000.00",
+      "freteIsento": "0",
+      "freteIncluded": "0",
+      "freteState": "RJ"
+    },
+    {
+      "id": "4020001",
+      "quoteNumber": "04.0242-26",
+      "freteType": "paid",
+      "freteValue": "5200.00",
+      "freteIsento": "0",
+      "freteIncluded": "0",
+      "freteState": "SC"
+    },
+    {
+      "id": "3990001",
+      "quoteNumber": "ORC-26-0007",
+      "freteType": "consult",
+      "freteValue": "2900.00",
+      "freteIsento": "0",
+      "freteIncluded": "0",
+      "freteState": "RJ"
+    },
+    {
+      "id": "3960001",
+      "quoteNumber": "20.0354-26",
+      "freteType": "free",
+      "freteValue": "0.00",
+      "freteIsento": "0",
+      "freteIncluded": "0",
+      "freteState": "NULL"
+    },
+    {
+      "id": "3930003",
+      "quoteNumber": "ORC-26-0006",
+      "freteType": "consult",
+      "freteValue": "2900.00",
+      "freteIsento": "0",
+      "freteIncluded": "0",
+      "freteState": "RJ"
+    },
+    {
+      "id": "3930002",
+      "quoteNumber": "ORC-26-0005",
+      "freteType": "consult",
+      "freteValue": "2900.00",
+      "freteIsento": "0",
+      "freteIncluded": "0",
+      "freteState": "RJ"
+    },
+    {
+      "id": "3930001",
+      "quoteNumber": "04.0231-26",
+      "freteType": "consult",
+      "freteValue": "2900.00",
+      "freteIsento": "0",
+      "freteIncluded": "0",
+      "freteState": "RJ"
+    },
+    {
+      "id": "3900001",
+      "quoteNumber": "25.0167-26",
+      "freteType": "free",
+      "freteValue": "0.00",
+      "freteIsento": "0",
+      "freteIncluded": "0",
+      "freteState": "NULL"
+    },
+    {
+      "id": "3870001",
+      "quoteNumber": "ORC-26-0004",
+      "freteType": "paid",
+      "freteValue": "2500.00",
+      "freteIsento": "0",
+      "freteIncluded": "0",
+      "freteState": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tquoteNumber\tfreteType\tfreteValue\tfreteIsento\tfreteIncluded\tfreteState\n4080001\t33.0100-26\tpaid\t0.00\t0\t0\tNULL\n4050001\t33.0099-26\tpaid\t2000.00\t0\t0\tRJ\n4020001\t04.0242-26\tpaid\t5200.00\t0\t0\tSC\n3990001\tORC-26-0007\tconsult\t2900.00\t0\t0\tRJ\n3960001\t20.0354-26\tfree\t0.00\t0\t0\tNULL\n3930003\tORC-26-0006\tconsult\t2900.00\t0\t0\tRJ\n3930002\tORC-26-0005\tconsult\t2900.00\t0\t0\tRJ\n3930001\t04.0231-26\tconsult\t2900.00\t0\t0\tRJ\n3900001\t25.0167-26\tfree\t0.00\t0\t0\tNULL\n3870001\tORC-26-0004\tpaid\t2500.00\t0\t0\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 1116
+}

@@ -60,6 +60,20 @@ export interface PainelProduct {
   precoDimTriac110v?: number | null;
   /** Preço unitário DIM TRIAC 220V (R$). null = não cadastrado. */
   precoDimTriac220v?: number | null;
+  // Custo do corpo por controle (para calcular preço via custo × markup quando precoOnOff220 etc. são null)
+  custoCorpoOnoff220v?: number | null;
+  custoCorpoOnoffBivolt?: number | null;
+  custoCorpoDim110v?: number | null;
+  custoCorpoDimDali?: number | null;
+  custoCorpoDimTriac110v?: number | null;
+  custoCorpoDimTriac220v?: number | null;
+  // Markup padrão do corpo por controle
+  markupPadraoOnoff220v?: number | null;
+  markupPadraoOnoffBivolt?: number | null;
+  markupPadraoDim110v?: number | null;
+  markupPadraoDimDali?: number | null;
+  markupPadraoDimTriac110v?: number | null;
+  markupPadraoDimTriac220v?: number | null;
   /**
    * URL da foto do produto (vinda da API). Pode ser null se não cadastrada.
    */

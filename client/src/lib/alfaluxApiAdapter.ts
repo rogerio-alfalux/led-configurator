@@ -376,6 +376,19 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
     precoDimDali: p.precoDimDali ?? null,
     precoDimTriac110v: (p as any).precoDimTriac110v ?? null,
     precoDimTriac220v: (p as any).precoDimTriac220v ?? null,
+    // Custo e markup do corpo (para calcular preço quando precoOnOff220 etc. são null)
+    custoCorpoOnoff220v: p.custoCorpoOnoff220v ?? null,
+    custoCorpoOnoffBivolt: p.custoCorpoOnoffBivolt ?? null,
+    custoCorpoDim110v: p.custoCorpoDim110v ?? null,
+    custoCorpoDimDali: p.custoCorpoDimDali ?? null,
+    custoCorpoDimTriac110v: p.custoCorpoDimTriac110v ?? null,
+    custoCorpoDimTriac220v: p.custoCorpoDimTriac220v ?? null,
+    markupPadraoOnoff220v: p.markupPadraoOnoff220v ?? null,
+    markupPadraoOnoffBivolt: p.markupPadraoOnoffBivolt ?? null,
+    markupPadraoDim110v: p.markupPadraoDim110v ?? null,
+    markupPadraoDimDali: p.markupPadraoDimDali ?? null,
+    markupPadraoDimTriac110v: p.markupPadraoDimTriac110v ?? null,
+    markupPadraoDimTriac220v: p.markupPadraoDimTriac220v ?? null,
     fotoUrl: normalizeFotoUrl(p.fotoUrl ?? null),
   };
 }
