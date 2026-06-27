@@ -58,6 +58,22 @@ export interface BageoProduct {
   precoDim110v: number | null;
   /** Preço por metro linear (R$) — DIM DALI */
   precoDimDali: number | null;
+  /** Custo do corpo ON/OFF 220V (para cálculo custo×markup) */
+  custoCorpoOnoff220v?: number | null;
+  /** Custo do corpo ON/OFF Bivolt */
+  custoCorpoOnoffBivolt?: number | null;
+  /** Custo do corpo DIM 1-10V */
+  custoCorpoDim110v?: number | null;
+  /** Custo do corpo DIM DALI */
+  custoCorpoDimDali?: number | null;
+  /** Markup padrão ON/OFF 220V */
+  markupPadraoOnoff220v?: number | null;
+  /** Markup padrão ON/OFF Bivolt */
+  markupPadraoOnoffBivolt?: number | null;
+  /** Markup padrão DIM 1-10V */
+  markupPadraoDim110v?: number | null;
+  /** Markup padrão DIM DALI */
+  markupPadraoDimDali?: number | null;
   /** URL da foto do produto */
   fotoUrl: string | null;
 }
@@ -159,7 +175,8 @@ export function getBageoProductsByInstalacao(
 /** Retorna os controles disponíveis para um produto */
 export function getBageoAvailableControles(product: BageoProduct): BageoControle[] {
   const opts: BageoControle[] = [];
-  if (product.driver220) opts.push("ON/OFF 220V");
+  // ON/OFF 220V: disponível se driver220 existe OU se driverBivolt existe como fallback (BAGEO SINUOSA)
+  if (product.driver220 || product.driverBivolt) opts.push("ON/OFF 220V");
   if (product.driverBivolt) opts.push("ON/OFF Bivolt");
   if (product.driverDim110v) opts.push("DIM 1-10V");
   if (product.driverDimDali) opts.push("DIM DALI");
@@ -201,20 +218,43 @@ export interface BageoResult {
 
 /**
  * Seleciona o driver e o preço por metro para o controle selecionado.
+ * Para BAGEO SINUOSA (driver220=null), usa driverBivolt como fallback em ON/OFF 220V.
+ * Calcula preço via custo×markup quando precoOnOff220 etc. são null.
  */
 function selectBageoDriverAndPrice(
   product: BageoProduct,
   controle: BageoControle
 ): { driver: BageoDriverInfo | null; precoPorMetro: number | null } {
+  // Helper: calcula custo * markup se preco direto for null
+  function calcPreco(preco: number | null | undefined, custo: number | null | undefined, markup: number | null | undefined): number | null {
+    if (preco != null && preco > 0) return preco;
+    if (custo != null && custo > 0 && markup != null && markup > 0) {
+      return Math.round(custo * markup * 100) / 100;
+    }
+    return null;
+  }
   switch (controle) {
     case "ON/OFF 220V":
-      return { driver: product.driver220, precoPorMetro: product.precoOnOff220 };
+      return {
+        // BAGEO SINUOSA: driver220 pode ser null, usa driverBivolt como fallback
+        driver: product.driver220 ?? product.driverBivolt,
+        precoPorMetro: calcPreco(product.precoOnOff220, product.custoCorpoOnoff220v, product.markupPadraoOnoff220v)
+      };
     case "ON/OFF Bivolt":
-      return { driver: product.driverBivolt, precoPorMetro: product.precoOnOffBivolt };
+      return {
+        driver: product.driverBivolt,
+        precoPorMetro: calcPreco(product.precoOnOffBivolt, product.custoCorpoOnoffBivolt, product.markupPadraoOnoffBivolt)
+      };
     case "DIM 1-10V":
-      return { driver: product.driverDim110v, precoPorMetro: product.precoDim110v };
+      return {
+        driver: product.driverDim110v,
+        precoPorMetro: calcPreco(product.precoDim110v, product.custoCorpoDim110v, product.markupPadraoDim110v)
+      };
     case "DIM DALI":
-      return { driver: product.driverDimDali, precoPorMetro: product.precoDimDali };
+      return {
+        driver: product.driverDimDali,
+        precoPorMetro: calcPreco(product.precoDimDali, product.custoCorpoDimDali, product.markupPadraoDimDali)
+      };
   }
 }
 

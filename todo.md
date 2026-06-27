@@ -1560,3 +1560,13 @@
 ## Lote 21 — Bug de preço zerado em Painéis (26/06/2026)
 
 - [x] Painéis com preço definido aparecem com preço 0 no carrinho e "A consultar" no total — não entram no orçamento Excel (corrigido: getPrecoForControle usa custo × markup como fallback quando precoOnOff220 = null)
+
+## Lote 22 — Bugs reportados (26/06/2026)
+
+- [ ] BAGEO: não puxa driver e não mostra preço (luminária nem driver)
+- [ ] Downlights com preço definido: mostram R$0 no modal de edição e "A consultar" no total
+- [ ] Carrinho: total de drivers não é multiplicado pela quantidade (mostra só unitário)
+- [ ] Perfis: driver não separado no orçamento Excel (linha de driver sem destaque)
+- [ ] Pré-visualização Excel: colunas deslocadas na linha de driver (QTD na coluna errada, linha de obra azul ganha coluna extra)
+- [ ] Carrinho: não permite renomear pavimento diretamente no carrinho
+- [ ] Markup mínimo e máximo: onde editar no sistema?

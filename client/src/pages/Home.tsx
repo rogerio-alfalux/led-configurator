@@ -1732,6 +1732,35 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
           onClick={(e) => (e.target as HTMLTextAreaElement).select()}
         />
         {/* Detalhamento: novo método por SKU (BLAZE H e futuros) — com destaque visual amber/blue/green */}
+        {/* Controle de markup (apenas para Dennis e Vivian) */}
+        {canEditMarkup && modulePriceResult && (
+          <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
+            <span className="text-xs text-amber-700 dark:text-amber-400 font-medium whitespace-nowrap">
+              Markup: {modulePriceResult.markupMinimo.toFixed(2)}× mín — {modulePriceResult.markupPadrao?.toFixed(2) ?? '?'}× padrão
+            </span>
+            <input
+              type="number"
+              step="0.01"
+              min={modulePriceResult.markupMinimo}
+              max={99}
+              value={markupLuminariaOverride ?? modulePriceResult.markupLuminariaAplicado ?? ''}
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                setMarkupLuminariaOverride(isNaN(v) ? null : v);
+              }}
+              className="h-7 w-20 text-xs border border-amber-400/50 rounded px-2 bg-background text-foreground"
+              placeholder="markup"
+            />
+            <span className="text-xs text-muted-foreground">×</span>
+            {markupLuminariaOverride !== null && (
+              <button
+                onClick={() => setMarkupLuminariaOverride(null)}
+                className="text-xs text-muted-foreground hover:text-foreground"
+                title="Restaurar markup padrão"
+              >Reset</button>
+            )}
+          </div>
+        )}
         {modulePriceResult && (
           <div className="mt-3 rounded-xl border border-border overflow-hidden">
             {/* Linha luminária (amber) */}

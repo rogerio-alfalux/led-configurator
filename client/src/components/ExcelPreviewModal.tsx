@@ -674,7 +674,7 @@ ${htmlContent}
                             {drv.driverCode && <div style={{ fontFamily: "monospace", fontSize: 9, color: "#888" }}>{drv.driverCode}</div>}
                             <div>↳ Driver: {drv.driverModel}</div>
                           </td>
-                          {["", "", "", "", "", "", ""].map((_, i) => (
+                          {["", "", "", "", "", ""].map((_, i) => (
                             <td key={i} style={{ ...tdStyle, fontSize: 9 }}></td>
                           ))}
                           <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold", color: "#E65100" }}>{_effectiveDrvQty}</td>

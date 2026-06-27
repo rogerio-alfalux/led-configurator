@@ -87,6 +87,30 @@ export interface DownlightProduct {
   semDriver?: boolean;
   /** Tensão de rede embutida no produto (ex: "110V", "220V"). Exibida como informação, não como seleção. */
   tensaoEmbutida?: string | null;
+  /** Custo do corpo ON/OFF 220V (para cálculo custo×markup) */
+  custoCorpoOnoff220v?: number | null;
+  /** Custo do corpo ON/OFF Bivolt */
+  custoCorpoOnoffBivolt?: number | null;
+  /** Custo do corpo DIM 1-10V */
+  custoCorpoDim110v?: number | null;
+  /** Custo do corpo DIM DALI */
+  custoCorpoDimDali?: number | null;
+  /** Custo do corpo DIM TRIAC 110V */
+  custoCorpoDimTriac110v?: number | null;
+  /** Custo do corpo DIM TRIAC 220V */
+  custoCorpoDimTriac220v?: number | null;
+  /** Markup padrão ON/OFF 220V */
+  markupPadraoOnoff220v?: number | null;
+  /** Markup padrão ON/OFF Bivolt */
+  markupPadraoOnoffBivolt?: number | null;
+  /** Markup padrão DIM 1-10V */
+  markupPadraoDim110v?: number | null;
+  /** Markup padrão DIM DALI */
+  markupPadraoDimDali?: number | null;
+  /** Markup padrão DIM TRIAC 110V */
+  markupPadraoDimTriac110v?: number | null;
+  /** Markup padrão DIM TRIAC 220V */
+  markupPadraoDimTriac220v?: number | null;
 }
 
 export interface DownlightInput {

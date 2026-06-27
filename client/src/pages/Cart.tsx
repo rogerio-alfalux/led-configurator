@@ -452,6 +452,9 @@ function FloorGroupBar({
           style={{ width: `${Math.max((localName !== null ? localName : editingName).length, 8)}ch` }}
           title={displayName !== 'Sem Pavimento' ? 'Clique para renomear o pavimento' : ''}
         />
+        {displayName !== 'Sem Pavimento' && (
+          <span title="Clique no nome para renomear"><Pencil className="w-3 h-3 text-indigo-400/50 flex-shrink-0" /></span>
+        )}
         <span className="text-xs text-muted-foreground flex-shrink-0">({groupEntries.length} {groupEntries.length === 1 ? 'item' : 'itens'})</span>
         <div className="flex-1 h-px bg-indigo-500/20" />
         {/* Botão expandir/recolher */}

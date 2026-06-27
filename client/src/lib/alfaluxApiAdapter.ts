@@ -267,6 +267,19 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
     precoDimDali: p.precoDimDali ?? null,
     precoDimTriac110v: (p as any).precoDimTriac110v ?? null,
     precoDimTriac220v: (p as any).precoDimTriac220v ?? null,
+    // Custo e markup do corpo (para calcular preço quando precoOnOff220 etc. são null)
+    custoCorpoOnoff220v: p.custoCorpoOnoff220v ?? null,
+    custoCorpoOnoffBivolt: p.custoCorpoOnoffBivolt ?? null,
+    custoCorpoDim110v: p.custoCorpoDim110v ?? null,
+    custoCorpoDimDali: p.custoCorpoDimDali ?? null,
+    custoCorpoDimTriac110v: p.custoCorpoDimTriac110v ?? null,
+    custoCorpoDimTriac220v: p.custoCorpoDimTriac220v ?? null,
+    markupPadraoOnoff220v: p.markupPadraoOnoff220v ?? null,
+    markupPadraoOnoffBivolt: p.markupPadraoOnoffBivolt ?? null,
+    markupPadraoDim110v: p.markupPadraoDim110v ?? null,
+    markupPadraoDimDali: p.markupPadraoDimDali ?? null,
+    markupPadraoDimTriac110v: p.markupPadraoDimTriac110v ?? null,
+    markupPadraoDimTriac220v: p.markupPadraoDimTriac220v ?? null,
     semDriver,
     tensaoEmbutida,
   };
@@ -309,13 +322,20 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
     driverQtdBivolt: p.driverQtdBivolt ?? null,
     ccts,
     fotoUrl: normalizeFotoUrl(p.fotoUrl),
-    precoOnOff220: p.precoOnOff220 ?? null,
+     precoOnOff220: p.precoOnOff220 ?? null,
     precoOnOffBivolt: p.precoOnOffBivolt ?? null,
     precoDim110v: p.precoDim110v ?? null,
     precoDimDali: p.precoDimDali ?? null,
+    custoCorpoOnoff220v: p.custoCorpoOnoff220v ?? null,
+    custoCorpoOnoffBivolt: p.custoCorpoOnoffBivolt ?? null,
+    custoCorpoDim110v: p.custoCorpoDim110v ?? null,
+    custoCorpoDimDali: p.custoCorpoDimDali ?? null,
+    markupPadraoOnoff220v: p.markupPadraoOnoff220v ?? null,
+    markupPadraoOnoffBivolt: p.markupPadraoOnoffBivolt ?? null,
+    markupPadraoDim110v: p.markupPadraoDim110v ?? null,
+    markupPadraoDimDali: p.markupPadraoDimDali ?? null,
   };
 }
-
 /** Converte um produto da API para PainelProduct */
 function toPainelProduct(p: ApiProduct): PainelProduct {
   const d220 = p.driver220;
@@ -516,6 +536,15 @@ function toArandelaProduct(p: ApiProduct): ArandelaProduct {
     precoOnOffBivolt: p.precoOnOffBivolt ?? null,
     precoDim110v: p.precoDim110v ?? null,
     precoDimDali: p.precoDimDali ?? null,
+    // Custo e markup do corpo (para calcular preço quando precoOnOff220 etc. são null)
+    custoCorpoOnoff220v: p.custoCorpoOnoff220v ?? null,
+    custoCorpoOnoffBivolt: p.custoCorpoOnoffBivolt ?? null,
+    custoCorpoDim110v: p.custoCorpoDim110v ?? null,
+    custoCorpoDimDali: p.custoCorpoDimDali ?? null,
+    markupPadraoOnoff220v: p.markupPadraoOnoff220v ?? null,
+    markupPadraoOnoffBivolt: p.markupPadraoOnoffBivolt ?? null,
+    markupPadraoDim110v: p.markupPadraoDim110v ?? null,
+    markupPadraoDimDali: p.markupPadraoDimDali ?? null,
   };
 }
 
@@ -623,6 +652,15 @@ function toBageoProduct(p: ApiProduct): BageoProduct | null {
     precoOnOffBivolt: p.precoOnOffBivolt ?? p.custoDriverBivolt ?? null,
     precoDim110v: p.precoDim110v ?? p.custoDriverDim110v ?? null,
     precoDimDali: p.precoDimDali ?? p.custoDriverDimDali ?? null,
+    // Custo e markup do corpo (para calcular preço via custo×markup quando precoOnOff220 etc. são null)
+    custoCorpoOnoff220v: p.custoCorpoOnoff220v ?? null,
+    custoCorpoOnoffBivolt: p.custoCorpoOnoffBivolt ?? null,
+    custoCorpoDim110v: p.custoCorpoDim110v ?? null,
+    custoCorpoDimDali: p.custoCorpoDimDali ?? null,
+    markupPadraoOnoff220v: p.markupPadraoOnoff220v ?? null,
+    markupPadraoOnoffBivolt: p.markupPadraoOnoffBivolt ?? null,
+    markupPadraoDim110v: p.markupPadraoDim110v ?? null,
+    markupPadraoDimDali: p.markupPadraoDimDali ?? null,
     fotoUrl: normalizeFotoUrl(p.fotoUrl),
   };
 }
