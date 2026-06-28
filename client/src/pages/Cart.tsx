@@ -330,9 +330,20 @@ function SortableCartItem({
                           return s + Math.round(unitPrice * effectiveQty * 100) / 100;
                         }, 0);
                         if (drvTotal <= 0) return null;
+                        // Calcular preço unitário do driver (por luminária)
+                        const drvUnitTotal = entry.data.driverLines.reduce((s, d) => {
+                          const unitPrice = d.driverUnitPrice ?? 0;
+                          const storedQty = d.driverQty ?? 1;
+                          // driverQty por peça (não multiplicado pela qty de luminárias)
+                          const qtyPerPiece = storedQty <= 1 ? 1 : Math.round(storedQty / qty);
+                          return s + Math.round(unitPrice * qtyPerPiece * 100) / 100;
+                        }, 0);
                         return (
                           <p className="text-xs text-orange-600">
-                            Driver: {formatBRL(drvTotal)}
+                            Driver: {formatBRL(drvUnitTotal)}/un
+                            {qty > 1 && (
+                              <> × {qty} = <span className="font-medium">{formatBRL(drvTotal)}</span></>
+                            )}
                           </p>
                         );
                       })()}
