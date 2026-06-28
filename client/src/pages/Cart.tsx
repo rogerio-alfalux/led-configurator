@@ -547,6 +547,7 @@ export default function Cart() {
   const updateQtyMutation = trpc.cart.updateQty.useMutation({
     onSuccess: () => utils.cart.list.invalidate(),
   });
+  const reorderMutation = trpc.cart.reorder.useMutation();
   const saveQuoteMutation = trpc.quotes.save.useMutation({
     onSuccess: (data) => {
       toast.success(`Orçamento ${data.quoteNumber} salvo com sucesso!`);
@@ -716,7 +717,9 @@ export default function Cart() {
       const oldIndex = prev.indexOf(Number(active.id));
       const newIndex = prev.indexOf(Number(over.id));
       if (oldIndex === -1 || newIndex === -1) return prev;
-      return arrayMove(prev, oldIndex, newIndex);
+      const newOrder = arrayMove(prev, oldIndex, newIndex);
+      reorderMutation.mutate({ orderedIds: newOrder });
+      return newOrder;
     });
   };
 

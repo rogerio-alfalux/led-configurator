@@ -5,8 +5,7 @@ import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { fetchDrivers, invalidateDriverCache } from "./driverService";
 import { fetchAllAlfaluxProducts, invalidateAlfaluxCache, fetchRevendaProducts, fetchAcessoriosProducts, fetchComponentes } from "./alfaluxApiService";
 import {
-  addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty, updateCartItemData,
-  createQuote, addQuoteRevision, listQuotes, getQuoteById, approveQuote,
+  addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty, updateCartItemData, updateCartItemsSortOrder, createQuote, addQuoteRevision, listQuotes, getQuoteById, approveQuote,
   updateQuoteStatus, getQuoteStats, deleteQuote, suggestQuoteNumber,
   insertAuditLog, getAuditLogs, listSellers, listAssistants,
   createFactoryOrder, getFactoryOrdersByQuoteId, getFactoryOrderById,
@@ -213,6 +212,12 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    reorder: protectedProcedure
+      .input(z.object({ orderedIds: z.array(z.number()) }))
+      .mutation(async ({ ctx, input }) => {
+        await updateCartItemsSortOrder(ctx.user.id, input.orderedIds);
+        return { success: true };
+      }),
     updateItemData: protectedProcedure
       .input(z.object({
         id: z.number(),

@@ -25,6 +25,7 @@ export const cartItems = mysqlTable("cart_items", {
 	id: int().autoincrement().notNull(),
 	userId: int().notNull(),
 	itemData: text().notNull(),
+	sortOrder: int().default(0).notNull(),
 	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 });
 

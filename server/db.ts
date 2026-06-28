@@ -109,7 +109,15 @@ export async function addCartItem(data: InsertCartItem): Promise<number> {
 export async function getCartItems(userId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(cartItems).where(eq(cartItems.userId, userId));
+  return db.select().from(cartItems).where(eq(cartItems.userId, userId)).orderBy(cartItems.sortOrder, cartItems.id);
+}
+export async function updateCartItemsSortOrder(userId: number, orderedIds: number[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Atualizar sortOrder de cada item em paralelo
+  await Promise.all(orderedIds.map((id, idx) =>
+    db.update(cartItems).set({ sortOrder: idx }).where(eq(cartItems.id, id))
+  ));
 }
 
 export async function removeCartItem(id: number, userId: number) {
