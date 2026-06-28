@@ -534,6 +534,7 @@ function ShapeResultCard({
   setGlobalQty,
   onOpenAccessoryModal,
   pendingAccessoriesCount,
+  globalPavimento,
 }: {
   shapeResult: ShapeResult;
   onAddToQuote?: (item: CartItemData) => void;
@@ -541,6 +542,7 @@ function ShapeResultCard({
   setGlobalQty?: (v: number) => void;
   onOpenAccessoryModal?: () => void;
   pendingAccessoriesCount?: number;
+  globalPavimento?: string;
 }) {
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -713,6 +715,7 @@ function ShapeResultCard({
       stripMethod: shapeResult.stripMethod,
       availableCCTs: ["2700K", "3000K", "4000K", "5000K", "A definir"],
       shapeTotalLengthMm: shapeResult.totalLengthMm,
+      ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
     };
 
     if (onAddToQuote) {
@@ -1018,9 +1021,9 @@ function ShapeResultCard({
     {pendingItem && (
       <ColorPickerModal
         open={colorModalOpen}
-        onClose={() => { setColorModalOpen(false); setPendingItem(null); }}
-        onConfirm={(cor: CorPeca) => {
-          if (pendingItem) addItem({ ...pendingItem, corPeca: cor });
+      onClose={() => { setColorModalOpen(false); setPendingItem(null); }}
+      onConfirm={(cor: CorPeca) => {
+          if (pendingItem) addItem({ ...pendingItem, corPeca: cor, ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}) });
           setColorModalOpen(false);
           setPendingItem(null);
           if (setGlobalQty) setGlobalQty(1);
@@ -1054,7 +1057,7 @@ type SkuPriceMap = Record<string, {
   markupMinimoDriver: number|null;
 }>;
 
-function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty, setGlobalQty, onOpenAccessoryModal, pendingAccessoriesCount }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void; onOpenAccessoryModal?: () => void; pendingAccessoriesCount?: number }) {
+function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty, setGlobalQty, onOpenAccessoryModal, pendingAccessoriesCount, globalPavimento }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void; onOpenAccessoryModal?: () => void; pendingAccessoriesCount?: number; globalPavimento?: string }) {
   const efficiency = result.requestedLength > 0
     ? Math.round((result.realizedLength / result.requestedLength) * 100)
     : 0;
@@ -1225,7 +1228,7 @@ function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onA
       </Card>
 
       {/* Resumo Para Orçamento — Resumo para o cliente */}
-      <QuoteSummaryCard result={result} profilePriceMap={profilePriceMap} profileVariant={profileVariant} skuPriceMap={skuPriceMap} onAddToQuote={onAddToQuote} itemEmPlanta={itemEmPlanta} setItemEmPlanta={setItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} onOpenAccessoryModal={onOpenAccessoryModal} pendingAccessoriesCount={pendingAccessoriesCount} />
+      <QuoteSummaryCard result={result} profilePriceMap={profilePriceMap} profileVariant={profileVariant} skuPriceMap={skuPriceMap} onAddToQuote={onAddToQuote} itemEmPlanta={itemEmPlanta} setItemEmPlanta={setItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} onOpenAccessoryModal={onOpenAccessoryModal} pendingAccessoriesCount={pendingAccessoriesCount} globalPavimento={globalPavimento} />
       {/* Resumo para Pedido — Ficha Comercial */}
       <OrderSummaryCard result={result} />
       {/* Composição de Módulos — bloco unificado */}
@@ -1419,7 +1422,7 @@ function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onA
 }
 
 //// ─── Resumo Para Orçamento (Resumo para o cliente) ──────────────────────────
-function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty = 1, setGlobalQty, onOpenAccessoryModal, pendingAccessoriesCount }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void; onOpenAccessoryModal?: () => void; pendingAccessoriesCount?: number }) {
+function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty = 1, setGlobalQty, onOpenAccessoryModal, pendingAccessoriesCount, globalPavimento }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void; onOpenAccessoryModal?: () => void; pendingAccessoriesCount?: number; globalPavimento?: string }) {
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { addItem, isAdding: isAddingToCart } = useCart();
@@ -1722,6 +1725,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                   stripMethod: result.stripMethod,
                   availableCCTs: ["2700K", "3000K", "4000K", "5000K", "A definir"],
                   itemEmPlanta: itemEmPlanta || "",
+                  ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
                   ...(perfilDrvLines ? {
                     driverLines: perfilDrvLines,
                     priceWithoutDriver: perfilPrecoSemDriver,
@@ -1838,7 +1842,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
       open={colorModalOpen}
       onClose={() => { setColorModalOpen(false); setPendingItem(null); }}
       onConfirm={(cor: CorPeca) => {
-        if (pendingItem) addItem({ ...pendingItem, corPeca: cor });
+        if (pendingItem) addItem({ ...pendingItem, corPeca: cor, ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}) });
         setColorModalOpen(false);
         setPendingItem(null);
         if (setGlobalQty) setGlobalQty(1);
@@ -6831,7 +6835,7 @@ export default function Home() {
                 </CardContent>
               </Card>
             ) : (
-              <ResultBlock result={result} profilePriceMap={profilePriceMap} profileVariant={activeProfileCatalog[result.profileCode]} skuPriceMap={skuPriceMap} onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }} pendingAccessoriesCount={pendingAccessories.length} />
+              <ResultBlock result={result} profilePriceMap={profilePriceMap} profileVariant={activeProfileCatalog[result.profileCode]} skuPriceMap={skuPriceMap} onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }} pendingAccessoriesCount={pendingAccessories.length} globalPavimento={globalPavimento} />
             ))}
             {/* Resultado EM L */}
             {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && !glowMode && profileShape !== "STRAIGHT" && (
@@ -6857,6 +6861,7 @@ export default function Home() {
                   setGlobalQty={setGlobalQty}
                   onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
                   pendingAccessoriesCount={pendingAccessories.length}
+                  globalPavimento={globalPavimento}
                 />
               )
             )}
