@@ -1709,7 +1709,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                 const item: CartItemData = {
                   category: "Perfis",
                   sku: result.profileCode,
-                  description: `${result.profileName} ${result.installType} ${result.powerD1}W ${result.cct} ${result.controlType === 'dimDali' ? 'DIM DALI' : result.controlType === 'dim110v' ? 'DIM 1-10V' : 'ON/OFF'} ${result.voltage} ${result.realizedLength}mm`,
+                  description: `${result.profileName} ${INSTALL_LABELS[result.installType]} ${result.application !== 'D1' ? result.application + ' ' : ''}${result.powerD1}W ${result.cct} ${result.controlType === 'dimDali' ? 'DIM DALI' : result.controlType === 'dim110v' ? 'DIM 1-10V' : 'ON/OFF'} ${result.voltage} ${result.realizedLength}mm`,
                   power: `${result.powerD1}W`,
                   cct: result.cct,
                   qty: globalQty,
@@ -7375,7 +7375,7 @@ export default function Home() {
                                 const item: CartItemData = {
                                   category: "BAGEO",
                                   sku: r.product.sku ?? "",
-                                  description: `${r.product.name} ${r.cct} ${r.controle} ${r.comprimento}MM`,
+                                  description: `${r.product.name} ${r.product.aplicacao !== 'D1' ? r.product.aplicacao + ' ' : ''}${r.cct} ${r.controle} ${r.comprimento}MM`,
                                   power: "",
                                   cct: r.cct,
                                   qty: 1,
