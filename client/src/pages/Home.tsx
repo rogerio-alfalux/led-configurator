@@ -1689,6 +1689,20 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                   };
                 });
 
+                // Separar driver quando modulePriceResult tem custo de driver
+                const perfilDrvLines: import("@/lib/cartTypes").DriverLine[] | undefined =
+                  modulePriceResult && modulePriceResult.precoDriverTotal > 0
+                    ? [{
+                        driverModel: profileSegments[0]?.driverModel || "Driver",
+                        driverCode: profileSegments[0]?.driverCode || "",
+                        driverQty: nModules * globalQty,
+                        driverUnitPrice: Math.round(modulePriceResult.precoDriverTotal / nModules * 100) / 100,
+                        driverTotalPrice: Math.round(modulePriceResult.precoDriverTotal * globalQty * 100) / 100,
+                      }]
+                    : undefined;
+                const perfilPrecoSemDriver = modulePriceResult && modulePriceResult.precoDriverTotal > 0
+                  ? Math.round(modulePriceResult.precoLuminariaTotal * globalQty * 100) / 100
+                  : null;
                 const item: CartItemData = {
                   category: "Perfis",
                   sku: result.profileCode,
@@ -1708,6 +1722,13 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                   stripMethod: result.stripMethod,
                   availableCCTs: ["2700K", "3000K", "4000K", "5000K", "A definir"],
                   itemEmPlanta: itemEmPlanta || "",
+                  ...(perfilDrvLines ? {
+                    driverLines: perfilDrvLines,
+                    priceWithoutDriver: perfilPrecoSemDriver,
+                    unitPriceLuminaria: modulePriceResult ? Math.round(modulePriceResult.precoLuminariaTotal * 100) / 100 : null,
+                    unitPriceDriver: perfilDrvLines[0]?.driverUnitPrice ?? null,
+                    luminariaHasApiPrice: true,
+                  } : {}),
                 };
                 if (onAddToQuote) {
                   onAddToQuote(item);
