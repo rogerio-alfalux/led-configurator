@@ -1749,6 +1749,20 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
             >
               <ShoppingCart className="w-3.5 h-3.5" /> {onAddToQuote ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
             </Button>
+            {onOpenAccessoryModal && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 text-xs h-7 border-cyan-500/50 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                onClick={onOpenAccessoryModal}
+              >
+                <Wrench className="w-3.5 h-3.5" />
+                Incluir Acessório
+                {pendingAccessoriesCount != null && pendingAccessoriesCount > 0 && (
+                  <span className="ml-1 bg-cyan-600 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">{pendingAccessoriesCount}</span>
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
