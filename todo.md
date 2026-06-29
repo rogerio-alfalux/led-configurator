@@ -1603,3 +1603,11 @@
 - [x] QuoteDetail.tsx: exibir orderNumber e billingCompany no cabeçalho do orçamento
 - [x] Ficha de produção (orderSummary.ts): campo Pedido usa orderNumber em vez do número do orçamento
 - [ ] Dashboard: exibir breakdown de faturamento por empresa (billingCompany)
+
+## Pré-visualização do Pedido de Fábrica (29/06/2026)
+
+- [x] Criar lib/orderPreviewGenerator.ts: gera HTML da ficha técnica de produção (mesmo layout do Excel)
+- [x] Criar components/OrderPreviewModal.tsx: modal com iframe/HTML renderizado + botão Imprimir
+- [x] QuoteDetail.tsx: botão "Pré-visualizar Pedido" abre modal de pré-visualização antes de gerar Excel
+- [x] Seleção de empresa (ALFALUX/LUMINEW) integrada ao fluxo de pré-visualização
+- [x] Botão "Gerar Excel" disponível dentro do modal de pré-visualização para oficializar

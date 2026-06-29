@@ -5,7 +5,7 @@ import {
   FileSpreadsheet, History, Package, Edit, AlertTriangle,
   ChevronDown, ChevronUp, Factory, Trash2, PenLine,
   Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle, GripVertical, Wrench, Copy, Eye,
-  Upload, X as XIcon, Layers, Receipt,
+  Upload, X as XIcon, Layers, Receipt, Printer,
 } from "lucide-react";
 import {
   DndContext,
@@ -44,6 +44,7 @@ import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
 import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
+import { OrderPreviewModal } from "@/components/OrderPreviewModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 import { toast } from "sonner";
@@ -576,6 +577,9 @@ export default function QuoteDetail() {
   // Seleção de empresa para Ficha de Produção
   const [empresaDialogOpen, setEmpresaDialogOpen] = useState(false);
   const [empresaSelecionada, setEmpresaSelecionada] = useState<"ALFALUX" | "LUMINEW">("ALFALUX");
+  // Pré-visualização do pedido de fábrica
+  const [orderPreviewOpen, setOrderPreviewOpen] = useState(false);
+  const [orderPreviewForm, setOrderPreviewForm] = useState<(import("@/lib/orderExcelGenerator").OrderFormData & { prazoStr?: string }) | null>(null);
 
   // Editação de itens do orçamento
   const [editItemsDialogOpen, setEditItemsDialogOpen] = useState(false);
@@ -845,6 +849,37 @@ export default function QuoteDetail() {
       toast.success("Orçamento Excel gerado!");
     } catch (err) {
       toast.error("Erro ao gerar orçamento.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  /** Abre o modal de pré-visualização com os dados do pedido de fábrica */
+  const handleOpenOrderPreview = async (empresa: "ALFALUX" | "LUMINEW") => {
+    setEmpresaDialogOpen(false);
+    setIsGenerating(true);
+    try {
+      const deliveryDays = quote.deliveryDays ?? 20;
+      const approvedAtIso = quote.approvedAt ? new Date(quote.approvedAt).toISOString() : new Date().toISOString();
+      const { displayDays, deliveryDateStr } = await calcDeliveryDate(approvedAtIso, deliveryDays);
+      const prazoStr = `${displayDays} dias úteis → ${deliveryDateStr}`;
+      setOrderPreviewForm({
+        clientName: quote.clientName,
+        projectName: quote.projectName ?? "",
+        quoteNumber: quote.quoteNumber,
+        orderNumber: (quote as any).orderNumber || undefined,
+        vendorName: quote.vendorName ?? "",
+        date: toBrasiliaDate(quote.approvedAt ?? quote.createdAt),
+        empresa,
+        deliveryDays,
+        approvedAt: approvedAtIso,
+        precomputedDisplayDays: displayDays,
+        precomputedDeliveryDate: deliveryDateStr,
+        prazoStr,
+      });
+      setOrderPreviewOpen(true);
+    } catch {
+      toast.error("Erro ao preparar pré-visualização.");
     } finally {
       setIsGenerating(false);
     }
@@ -1179,15 +1214,27 @@ export default function QuoteDetail() {
                       <span className="font-semibold text-sm">2 — LUMINEW</span>
                     </button>
                   </div>
-                  <div className="flex justify-end gap-2 pt-2">
+                  <div className="flex justify-between items-center gap-2 pt-2">
                     <Button variant="outline" onClick={() => setEmpresaDialogOpen(false)}>Cancelar</Button>
-                    <Button
-                      className="bg-orange-600 hover:bg-orange-700 text-white"
-                      onClick={() => handleGenerateOrder(empresaSelecionada)}
-                    >
-                      <Factory className="w-4 h-4 mr-2" />
-                      Gerar Ficha
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="gap-2 border-blue-400 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                        onClick={() => handleOpenOrderPreview(empresaSelecionada)}
+                        disabled={isGenerating}
+                      >
+                        <Printer className="w-4 h-4" />
+                        Pré-visualizar
+                      </Button>
+                      <Button
+                        className="bg-orange-600 hover:bg-orange-700 text-white gap-2"
+                        onClick={() => handleGenerateOrder(empresaSelecionada)}
+                        disabled={isGenerating}
+                      >
+                        <Factory className="w-4 h-4" />
+                        Gerar Excel
+                      </Button>
+                    </div>
                   </div>
                 </DialogContent>
               </Dialog>
@@ -2752,6 +2799,23 @@ export default function QuoteDetail() {
           fcpValue: quote.fcpValue ? parseFloat(String(quote.fcpValue)) : undefined,
         }}
       />
+
+      {/* Pré-visualização do Pedido de Fábrica */}
+      {orderPreviewForm && (
+        <OrderPreviewModal
+          open={orderPreviewOpen}
+          onOpenChange={setOrderPreviewOpen}
+          items={currentItems.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null)}
+          form={orderPreviewForm}
+          onExcelGenerated={() => {
+            logProductionSheetMutation.mutate({
+              quoteId: quote.id,
+              quoteNumber: quote.quoteNumber,
+              empresa: (orderPreviewForm.empresa ?? "ALFALUX") as "ALFALUX" | "LUMINEW",
+            });
+          }}
+        />
+      )}
     </div>
   );
 }
