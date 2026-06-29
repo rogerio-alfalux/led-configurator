@@ -86,7 +86,8 @@ export function generateOrderSummary(result: CompositionResult): string {
     : result.stripMethod === "STRIPFLEX"
       ? "STRIPFLEX 562,5 X 10MM"
       : "STRIPLINE 562,5 X 15MM";
-  const barTypeName = `BARRAS ${barTypeBase}`;
+  const barEqSuffix = result.stripflexEq ? ` (${result.stripflexEq})` : "";
+  const barTypeName = `BARRAS ${barTypeBase}${barEqSuffix}`;
 
   const isDual = result.application === "D1+D2";
   const isIndependent = isDual && (result.independentLighting || result.forcedIndependent);

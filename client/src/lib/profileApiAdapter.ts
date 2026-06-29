@@ -127,6 +127,22 @@ export function adaptProfileProducts(
       driverDim110v: { model: string; code: string | null } | null;
       ledModuleStripflex: string | null;
       ledModuleStripline: string | null;
+      ledModuleStripflex2700: string | null;
+      ledModuleStripflex3000: string | null;
+      ledModuleStripflex4000: string | null;
+      ledModuleStripflex5000: string | null;
+      ledModuleStripline2700: string | null;
+      ledModuleStripline3000: string | null;
+      ledModuleStripline4000: string | null;
+      ledModuleStripline5000: string | null;
+      ledModuleStripflexEq2700: string | null;
+      ledModuleStripflexEq3000: string | null;
+      ledModuleStripflexEq4000: string | null;
+      ledModuleStripflexEq5000: string | null;
+      ledModuleStriplineEq2700: string | null;
+      ledModuleStriplineEq3000: string | null;
+      ledModuleStriplineEq4000: string | null;
+      ledModuleStriplineEq5000: string | null;
       // Campos de custo e markup por controle (novo método — BLAZE H e futuros)
       custoCorpoOnoff220v: number | null;
       custoCorpoOnoffBivolt: number | null;
@@ -179,6 +195,22 @@ export function adaptProfileProducts(
         driverDim110v: p.driverDim110v ?? null,
         ledModuleStripflex: null,
         ledModuleStripline: null,
+        ledModuleStripflex2700: null,
+        ledModuleStripflex3000: null,
+        ledModuleStripflex4000: null,
+        ledModuleStripflex5000: null,
+        ledModuleStripline2700: null,
+        ledModuleStripline3000: null,
+        ledModuleStripline4000: null,
+        ledModuleStripline5000: null,
+        ledModuleStripflexEq2700: null,
+        ledModuleStripflexEq3000: null,
+        ledModuleStripflexEq4000: null,
+        ledModuleStripflexEq5000: null,
+        ledModuleStriplineEq2700: null,
+        ledModuleStriplineEq3000: null,
+        ledModuleStriplineEq4000: null,
+        ledModuleStriplineEq5000: null,
         // Custo e markup — usar o primeiro produto que tiver valor preenchido
         custoCorpoOnoff220v: pa.custoCorpoOnoff220v ?? null,
         custoCorpoOnoffBivolt: pa.custoCorpoOnoffBivolt ?? null,
@@ -216,16 +248,31 @@ export function adaptProfileProducts(
       }
     }
     // Atualizar ledModule por tipo (Stripflex vs Stripline) — independente de ser novo ou existente
+    const pa2 = p as any;
     if (p.ledModule) {
       const lmClean = p.ledModule.replace(/\[CCT\]/gi, "").trim();
-      if (lmClean.toUpperCase().includes("STRIPLINE")) {
-        if (!variantMap[profileCode].ledModuleStripline) {
-          variantMap[profileCode].ledModuleStripline = lmClean;
-        }
-      } else if (lmClean.toUpperCase().includes("STRIPFLEX")) {
-        if (!variantMap[profileCode].ledModuleStripflex) {
-          variantMap[profileCode].ledModuleStripflex = lmClean;
-        }
+      const isStripline = lmClean.toUpperCase().includes("STRIPLINE");
+      const isStripflex = lmClean.toUpperCase().includes("STRIPFLEX");
+      if (isStripline) {
+        if (!variantMap[profileCode].ledModuleStripline) variantMap[profileCode].ledModuleStripline = lmClean;
+        if (pa2.ledModule2700 && !variantMap[profileCode].ledModuleStripline2700) variantMap[profileCode].ledModuleStripline2700 = pa2.ledModule2700;
+        if (pa2.ledModule3000 && !variantMap[profileCode].ledModuleStripline3000) variantMap[profileCode].ledModuleStripline3000 = pa2.ledModule3000;
+        if (pa2.ledModule4000 && !variantMap[profileCode].ledModuleStripline4000) variantMap[profileCode].ledModuleStripline4000 = pa2.ledModule4000;
+        if (pa2.ledModule5000 && !variantMap[profileCode].ledModuleStripline5000) variantMap[profileCode].ledModuleStripline5000 = pa2.ledModule5000;
+        if (pa2.ledModuleEq2700 && !variantMap[profileCode].ledModuleStriplineEq2700) variantMap[profileCode].ledModuleStriplineEq2700 = pa2.ledModuleEq2700;
+        if (pa2.ledModuleEq3000 && !variantMap[profileCode].ledModuleStriplineEq3000) variantMap[profileCode].ledModuleStriplineEq3000 = pa2.ledModuleEq3000;
+        if (pa2.ledModuleEq4000 && !variantMap[profileCode].ledModuleStriplineEq4000) variantMap[profileCode].ledModuleStriplineEq4000 = pa2.ledModuleEq4000;
+        if (pa2.ledModuleEq5000 && !variantMap[profileCode].ledModuleStriplineEq5000) variantMap[profileCode].ledModuleStriplineEq5000 = pa2.ledModuleEq5000;
+      } else if (isStripflex) {
+        if (!variantMap[profileCode].ledModuleStripflex) variantMap[profileCode].ledModuleStripflex = lmClean;
+        if (pa2.ledModule2700 && !variantMap[profileCode].ledModuleStripflex2700) variantMap[profileCode].ledModuleStripflex2700 = pa2.ledModule2700;
+        if (pa2.ledModule3000 && !variantMap[profileCode].ledModuleStripflex3000) variantMap[profileCode].ledModuleStripflex3000 = pa2.ledModule3000;
+        if (pa2.ledModule4000 && !variantMap[profileCode].ledModuleStripflex4000) variantMap[profileCode].ledModuleStripflex4000 = pa2.ledModule4000;
+        if (pa2.ledModule5000 && !variantMap[profileCode].ledModuleStripflex5000) variantMap[profileCode].ledModuleStripflex5000 = pa2.ledModule5000;
+        if (pa2.ledModuleEq2700 && !variantMap[profileCode].ledModuleStripflexEq2700) variantMap[profileCode].ledModuleStripflexEq2700 = pa2.ledModuleEq2700;
+        if (pa2.ledModuleEq3000 && !variantMap[profileCode].ledModuleStripflexEq3000) variantMap[profileCode].ledModuleStripflexEq3000 = pa2.ledModuleEq3000;
+        if (pa2.ledModuleEq4000 && !variantMap[profileCode].ledModuleStripflexEq4000) variantMap[profileCode].ledModuleStripflexEq4000 = pa2.ledModuleEq4000;
+        if (pa2.ledModuleEq5000 && !variantMap[profileCode].ledModuleStripflexEq5000) variantMap[profileCode].ledModuleStripflexEq5000 = pa2.ledModuleEq5000;
       }
     }
     
@@ -256,6 +303,22 @@ export function adaptProfileProducts(
       driverDim110v: driverDim110v ?? null,
       ledModuleStripflex: ledModuleStripflex ?? null,
       ledModuleStripline: ledModuleStripline ?? null,
+      ledModuleStripflex2700: entry.ledModuleStripflex2700,
+      ledModuleStripflex3000: entry.ledModuleStripflex3000,
+      ledModuleStripflex4000: entry.ledModuleStripflex4000,
+      ledModuleStripflex5000: entry.ledModuleStripflex5000,
+      ledModuleStripline2700: entry.ledModuleStripline2700,
+      ledModuleStripline3000: entry.ledModuleStripline3000,
+      ledModuleStripline4000: entry.ledModuleStripline4000,
+      ledModuleStripline5000: entry.ledModuleStripline5000,
+      ledModuleStripflexEq2700: entry.ledModuleStripflexEq2700,
+      ledModuleStripflexEq3000: entry.ledModuleStripflexEq3000,
+      ledModuleStripflexEq4000: entry.ledModuleStripflexEq4000,
+      ledModuleStripflexEq5000: entry.ledModuleStripflexEq5000,
+      ledModuleStriplineEq2700: entry.ledModuleStriplineEq2700,
+      ledModuleStriplineEq3000: entry.ledModuleStriplineEq3000,
+      ledModuleStriplineEq4000: entry.ledModuleStriplineEq4000,
+      ledModuleStriplineEq5000: entry.ledModuleStriplineEq5000,
       modules,
       // Custo e markup por controle
       custoCorpoOnoff220v: entry.custoCorpoOnoff220v,

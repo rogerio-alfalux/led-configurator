@@ -92,6 +92,8 @@ export interface CompositionResult {
   /** Lista consolidada de drivers D2 (por SKU) — apenas D1+D2 independente */
   driversD2: SkuDriverEntry[];
   stripflexName: string;
+  /** Código EQ da barra (Stripflex ou Stripline) para a CCT selecionada */
+  stripflexEq?: string | null;
   engineeringNotes: string[];
   hasAlert: boolean;
   alertMessage?: string;
@@ -153,6 +155,26 @@ export interface ConfigInput {
    * Quando presente, substitui o nome hardcoded para método STRIPLINE.
    */
   ledModuleStripline?: string | null;
+  /** Nome completo da barra Stripflex por CCT (da API) — tem prioridade sobre ledModuleStripflex + CCT */
+  ledModuleStripflex2700?: string | null;
+  ledModuleStripflex3000?: string | null;
+  ledModuleStripflex4000?: string | null;
+  ledModuleStripflex5000?: string | null;
+  /** Nome completo da barra Stripline por CCT (da API) */
+  ledModuleStripline2700?: string | null;
+  ledModuleStripline3000?: string | null;
+  ledModuleStripline4000?: string | null;
+  ledModuleStripline5000?: string | null;
+  /** Código EQ da barra Stripflex por CCT */
+  ledModuleStripflexEq2700?: string | null;
+  ledModuleStripflexEq3000?: string | null;
+  ledModuleStripflexEq4000?: string | null;
+  ledModuleStripflexEq5000?: string | null;
+  /** Código EQ da barra Stripline por CCT */
+  ledModuleStriplineEq2700?: string | null;
+  ledModuleStriplineEq3000?: string | null;
+  ledModuleStriplineEq4000?: string | null;
+  ledModuleStriplineEq5000?: string | null;
   /**
    * Catálogo de perfis dinâmico (da API). Quando fornecido, substitui o LED_CATALOG estático.
    */
@@ -1080,15 +1102,25 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     ? totalBarsD1 + totalBarsD2
     : totalBarsD1;
 
-  // Usar nome da barra da API quando disponível; fallback para nome estático
-  const apiBarName = stripMethod === "STRIPLINE"
+  // Usar nome da barra da API quando disponível; prioridade: campo específico por CCT > genérico + CCT > fallback estático
+  const cctKey = cct.replace("K", "") as "2700" | "3000" | "4000" | "5000";
+  const apiBarNameByCCT = stripMethod === "STRIPLINE"
+    ? (input[`ledModuleStripline${cctKey}` as keyof typeof input] as string | null | undefined)
+    : (input[`ledModuleStripflex${cctKey}` as keyof typeof input] as string | null | undefined);
+  const apiBarNameGeneric = stripMethod === "STRIPLINE"
     ? input.ledModuleStripline
     : input.ledModuleStripflex;
-  const stripflexName = apiBarName
-    ? `${apiBarName} ${cct}`.trim()
-    : stripMethod === "STRIPLINE"
-      ? getStriplineName(cct)
-      : getStripflexName(cct);
+  const stripflexName = apiBarNameByCCT
+    ? apiBarNameByCCT
+    : apiBarNameGeneric
+      ? `${apiBarNameGeneric} ${cct}`.trim()
+      : stripMethod === "STRIPLINE"
+        ? getStriplineName(cct)
+        : getStripflexName(cct);
+  // Código EQ da barra para a CCT selecionada
+  const stripflexEq = stripMethod === "STRIPLINE"
+    ? (input[`ledModuleStriplineEq${cctKey}` as keyof typeof input] as string | null | undefined) ?? null
+    : (input[`ledModuleStripflexEq${cctKey}` as keyof typeof input] as string | null | undefined) ?? null;
 
   // Drivers combinados para D1+D2 conjunto
   // Quando D1+D2 simultâneo: barras × 2 para dimensionar o driver (as duas fileiras compartilham o mesmo driver)
@@ -1145,6 +1177,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     driversD2: finalDriversD2,
     combinedDrivers: finalCombinedDrivers,
     stripflexName,
+    stripflexEq,
     engineeringNotes,
     hasAlert,
     alertMessage,

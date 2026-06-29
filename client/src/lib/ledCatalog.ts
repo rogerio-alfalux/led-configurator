@@ -36,10 +36,30 @@ export interface ProfileVariant {
   driverDimDali?: { model: string; code: string | null } | null;
   /** Driver DIM 1-10V disponível para este perfil (vindo da API) */
   driverDim110v?: { model: string; code: string | null } | null;
-  /** Nome da barra Stripflex vindo da API, ex: "STRIPFLEX 562,5 X 10MM 36L" */
+  /** Nome da barra Stripflex vindo da API, ex: "STRIPFLEX 562,5 X 10MM 36L" (genérico sem CCT) */
   ledModuleStripflex?: string | null;
-  /** Nome da barra Stripline vindo da API, ex: "STRIPLINE 562,5 X 15MM 108L" */
+  /** Nome da barra Stripline vindo da API, ex: "STRIPLINE 562,5 X 15MM 108L" (genérico sem CCT) */
   ledModuleStripline?: string | null;
+  /** Nome completo da barra Stripflex por CCT (da API, ex: "STRIPFLEX 562.5 X 10MM - 36 LEDS 830 - 3000K (LC) 25V") */
+  ledModuleStripflex2700?: string | null;
+  ledModuleStripflex3000?: string | null;
+  ledModuleStripflex4000?: string | null;
+  ledModuleStripflex5000?: string | null;
+  /** Nome completo da barra Stripline por CCT (da API) */
+  ledModuleStripline2700?: string | null;
+  ledModuleStripline3000?: string | null;
+  ledModuleStripline4000?: string | null;
+  ledModuleStripline5000?: string | null;
+  /** Código EQ da barra Stripflex por CCT */
+  ledModuleStripflexEq2700?: string | null;
+  ledModuleStripflexEq3000?: string | null;
+  ledModuleStripflexEq4000?: string | null;
+  ledModuleStripflexEq5000?: string | null;
+  /** Código EQ da barra Stripline por CCT */
+  ledModuleStriplineEq2700?: string | null;
+  ledModuleStriplineEq3000?: string | null;
+  ledModuleStriplineEq4000?: string | null;
+  ledModuleStriplineEq5000?: string | null;
   modules: ProfileModules;
 
   // ── Precificação por módulo (novo método — BLAZE H e futuros perfis) ──────────

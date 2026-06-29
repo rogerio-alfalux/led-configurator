@@ -1201,7 +1201,12 @@ function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onA
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
               {result.stripMethod === "STRIPLINE" ? "Barra Stripline" : "Barra Stripflex"}
             </p>
-            <p className="text-sm font-medium text-foreground font-mono">{result.stripflexName}</p>
+            <p className="text-sm font-medium text-foreground font-mono">
+              {result.stripflexName}
+              {result.stripflexEq && (
+                <span className="ml-2 text-xs text-muted-foreground font-mono">({result.stripflexEq})</span>
+              )}
+            </p>
           </div>
 
           {/* Difusor SHARP */}
@@ -3365,6 +3370,22 @@ export default function Home() {
       driverDim110v: selectedVariant?.driverDim110v ?? null,
       ledModuleStripflex: selectedVariant?.ledModuleStripflex ?? null,
       ledModuleStripline: selectedVariant?.ledModuleStripline ?? null,
+      ledModuleStripflex2700: selectedVariant?.ledModuleStripflex2700 ?? null,
+      ledModuleStripflex3000: selectedVariant?.ledModuleStripflex3000 ?? null,
+      ledModuleStripflex4000: selectedVariant?.ledModuleStripflex4000 ?? null,
+      ledModuleStripflex5000: selectedVariant?.ledModuleStripflex5000 ?? null,
+      ledModuleStripline2700: selectedVariant?.ledModuleStripline2700 ?? null,
+      ledModuleStripline3000: selectedVariant?.ledModuleStripline3000 ?? null,
+      ledModuleStripline4000: selectedVariant?.ledModuleStripline4000 ?? null,
+      ledModuleStripline5000: selectedVariant?.ledModuleStripline5000 ?? null,
+      ledModuleStripflexEq2700: selectedVariant?.ledModuleStripflexEq2700 ?? null,
+      ledModuleStripflexEq3000: selectedVariant?.ledModuleStripflexEq3000 ?? null,
+      ledModuleStripflexEq4000: selectedVariant?.ledModuleStripflexEq4000 ?? null,
+      ledModuleStripflexEq5000: selectedVariant?.ledModuleStripflexEq5000 ?? null,
+      ledModuleStriplineEq2700: selectedVariant?.ledModuleStriplineEq2700 ?? null,
+      ledModuleStriplineEq3000: selectedVariant?.ledModuleStriplineEq3000 ?? null,
+      ledModuleStriplineEq4000: selectedVariant?.ledModuleStriplineEq4000 ?? null,
+      ledModuleStriplineEq5000: selectedVariant?.ledModuleStriplineEq5000 ?? null,
     };
 
     try {
