@@ -3,6 +3,9 @@ export const COOKIE_NAME = "app_session_id";
 /** E-mails com permissão temporária para sobrescrever preços definidos pela API */
 export const PRICE_OVERRIDE_EMAILS: string[] = [
   "franciely@grupoalfalux.com.br",
+  "camille.batista@grupoalfalux.com.br",
+  "vivian@grupoalfalux.com.br",
+  "dennis@grupoalfalux.com.br",
 ];
 /**
  * E-mails de gerentes/diretores que:
