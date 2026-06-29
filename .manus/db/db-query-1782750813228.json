@@ -1,0 +1,146 @@
+{
+  "query": "SELECT id, quoteNumber, clientName, seller1Id, seller1Name, createdAt \nFROM quotes \nWHERE quoteNumber NOT REGEXP '^[0-9]+\\\\.[0-9]{4}-[0-9]{2}$'\nORDER BY createdAt ASC;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT id, quoteNumber, clientName, seller1Id, seller1Name, createdAt \nFROM quotes \nWHERE quoteNumber NOT REGEXP '^[0-9]+\\\\.[0-9]{4}-[0-9]{2}$'\nORDER BY createdAt ASC;",
+  "rows": [
+    {
+      "id": "1200001",
+      "quoteNumber": "01.00323-26",
+      "clientName": "REALIGHT",
+      "seller1Id": "10",
+      "seller1Name": "EDVALDO LIMA",
+      "createdAt": "2026-06-16 12:33:02"
+    },
+    {
+      "id": "1230001",
+      "quoteNumber": "01.00321-26",
+      "clientName": "SUPRILED",
+      "seller1Id": "NULL",
+      "seller1Name": "NULL",
+      "createdAt": "2026-06-16 13:41:47"
+    },
+    {
+      "id": "1290001",
+      "quoteNumber": "01.00326-26",
+      "clientName": "LADY ACUSTICA",
+      "seller1Id": "10",
+      "seller1Name": "EDVALDO LIMA",
+      "createdAt": "2026-06-16 20:07:25"
+    },
+    {
+      "id": "2580001",
+      "quoteNumber": "ORC-26-0001",
+      "clientName": "BEFIVE",
+      "seller1Id": "5",
+      "seller1Name": "FABÍOLA MARTINEZ",
+      "createdAt": "2026-06-22 14:36:12"
+    },
+    {
+      "id": "2640001",
+      "quoteNumber": "01.00334-26",
+      "clientName": "LUMICENTER",
+      "seller1Id": "10",
+      "seller1Name": "EDVALDO LIMA",
+      "createdAt": "2026-06-22 17:26:17"
+    },
+    {
+      "id": "2700001",
+      "quoteNumber": "01.00336-26",
+      "clientName": "CONSTELUZ",
+      "seller1Id": "10",
+      "seller1Name": "EDVALDO LIMA",
+      "createdAt": "2026-06-22 17:45:42"
+    },
+    {
+      "id": "2850001",
+      "quoteNumber": "01-00337-26",
+      "clientName": "OPLUS LED",
+      "seller1Id": "9",
+      "seller1Name": "RICARDO MIRANDA",
+      "createdAt": "2026-06-23 13:13:28"
+    },
+    {
+      "id": "2910001",
+      "quoteNumber": "01.00338-26",
+      "clientName": "OPLUS LED ",
+      "seller1Id": "9",
+      "seller1Name": "RICARDO MIRANDA",
+      "createdAt": "2026-06-23 13:40:40"
+    },
+    {
+      "id": "3000001",
+      "quoteNumber": "ORC-26-0002",
+      "clientName": "Flow",
+      "seller1Id": "10",
+      "seller1Name": "EDVALDO LIMA",
+      "createdAt": "2026-06-23 19:20:48"
+    },
+    {
+      "id": "3330001",
+      "quoteNumber": "ORC-26-0003",
+      "clientName": "SUPRILED",
+      "seller1Id": "NULL",
+      "seller1Name": "NULL",
+      "createdAt": "2026-06-24 15:09:16"
+    },
+    {
+      "id": "3360001",
+      "quoteNumber": "04.0219-26 (RV1)",
+      "clientName": "META ARQUITETURA ",
+      "seller1Id": "2",
+      "seller1Name": "DANIEL PUGLIESE",
+      "createdAt": "2026-06-24 17:07:49"
+    },
+    {
+      "id": "3870001",
+      "quoteNumber": "ORC-26-0004",
+      "clientName": "SEMAX ENGENHARIA",
+      "seller1Id": "2",
+      "seller1Name": "DANIEL PUGLIESE",
+      "createdAt": "2026-06-25 21:46:55"
+    },
+    {
+      "id": "3930002",
+      "quoteNumber": "ORC-26-0005",
+      "clientName": "LAR CONSTRUTORA",
+      "seller1Id": "2",
+      "seller1Name": "DANIEL PUGLIESE",
+      "createdAt": "2026-06-26 13:42:11"
+    },
+    {
+      "id": "3930003",
+      "quoteNumber": "ORC-26-0006",
+      "clientName": "SAENG",
+      "seller1Id": "2",
+      "seller1Name": "DANIEL PUGLIESE",
+      "createdAt": "2026-06-26 13:43:25"
+    },
+    {
+      "id": "3990001",
+      "quoteNumber": "ORC-26-0007",
+      "clientName": "ATHIE WOHNRATH",
+      "seller1Id": "5",
+      "seller1Name": "FABÍOLA MARTINEZ",
+      "createdAt": "2026-06-26 14:48:48"
+    },
+    {
+      "id": "4230001",
+      "quoteNumber": "ORC-26-0008",
+      "clientName": "ZENITE ARQUITETURA & CONSTRUÇÃO",
+      "seller1Id": "5",
+      "seller1Name": "FABÍOLA MARTINEZ",
+      "createdAt": "2026-06-29 15:47:22"
+    },
+    {
+      "id": "4230002",
+      "quoteNumber": "ORC-26-0009",
+      "clientName": "SPIRANDELLI ENGENHARIA",
+      "seller1Id": "5",
+      "seller1Name": "FABÍOLA MARTINEZ",
+      "createdAt": "2026-06-29 15:50:25"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tquoteNumber\tclientName\tseller1Id\tseller1Name\tcreatedAt\n1200001\t01.00323-26\tREALIGHT\t10\tEDVALDO LIMA\t2026-06-16 12:33:02\n1230001\t01.00321-26\tSUPRILED\tNULL\tNULL\t2026-06-16 13:41:47\n1290001\t01.00326-26\tLADY ACUSTICA\t10\tEDVALDO LIMA\t2026-06-16 20:07:25\n2580001\tORC-26-0001\tBEFIVE\t5\tFABÍOLA MARTINEZ\t2026-06-22 14:36:12\n2640001\t01.00334-26\tLUMICENTER\t10\tEDVALDO LIMA\t2026-06-22 17:26:17\n2700001\t01.00336-26\tCONSTELUZ\t10\tEDVALDO LIMA\t2026-06-22 17:45:42\n2850001\t01-00337-26\tOPLUS LED\t9\tRICARDO MIRANDA\t2026-06-23 13:13:28\n2910001\t01.00338-26\tOPLUS LED \t9\tRICARDO MIRANDA\t2026-06-23 13:40:40\n3000001\tORC-26-0002\tFlow\t10\tEDVALDO LIMA\t2026-06-23 19:20:48\n3330001\tORC-26-0003\tSUPRILED\tNULL\tNULL\t2026-06-24 15:09:16\n3360001\t04.0219-26 (RV1)\tMETA ARQUITETURA \t2\tDANIEL PUGLIESE\t2026-06-24 17:07:49\n3870001\tORC-26-0004\tSEMAX ENGENHARIA\t2\tDANIEL PUGLIESE\t2026-06-25 21:46:55\n3930002\tORC-26-0005\tLAR CONSTRUTORA\t2\tDANIEL PUGLIESE\t2026-06-26 13:42:11\n3930003\tORC-26-0006\tSAENG\t2\tDANIEL PUGLIESE\t2026-06-26 13:43:25\n3990001\tORC-26-0007\tATHIE WOHNRATH\t5\tFABÍOLA MARTINEZ\t2026-06-26 14:48:48\n4230001\tORC-26-0008\tZENITE ARQUITETURA & CONSTRUÇÃO\t5\tFABÍOLA MARTINEZ\t2026-06-29 15:47:22\n4230002\tORC-26-0009\tSPIRANDELLI ENGENHARIA\t5\tFABÍOLA MARTINEZ\t2026-06-29 15:50:25\n",
+  "stderr": "",
+  "execution_time_ms": 283
+}

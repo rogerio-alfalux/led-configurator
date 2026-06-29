@@ -1509,21 +1509,18 @@ export default function Cart() {
                               <Label>Número do Orçamento</Label>
                               <div className="relative">
                                 <Input
-                                  placeholder={suggestQuery.data?.suggested ?? "ORC-26-0001"}
+                                  readOnly
                                   value={saveForm.quoteNumber}
-                                   onChange={e => { setUserEditedQuoteNumber(true); updateSaveForm("quoteNumber", e.target.value); }}
-                                  className={checkNumberQuery.data?.exists ? "border-orange-500 focus-visible:ring-orange-500" : ""}
+                                  placeholder={suggestQuery.isLoading ? "Calculando..." : "Selecione o Vendedor 1"}
+                                  className="bg-muted cursor-not-allowed font-mono"
                                 />
-                                {checkNumberQuery.data?.exists && (
-                                  <p className="text-xs text-orange-600 font-medium mt-1">
-                                    ⚠️ Este número já está em uso pelo orçamento de {checkNumberQuery.data.existingQuote?.clientName}. Você pode continuar, mas verifique antes.
-                                  </p>
-                                )}
-                                {!checkNumberQuery.data?.exists && (
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    {suggestQuery.isLoading ? "Calculando número..." : suggestQuery.data?.suggested ? `Número gerado: ${suggestQuery.data.suggested}` : "Selecione o Vendedor 1 para gerar o número automaticamente"}
-                                  </p>
-                                )}
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {suggestQuery.isLoading
+                                    ? "Calculando número..."
+                                    : saveForm.quoteNumber
+                                    ? `✓ Gerado automaticamente no formato XX.NNNN-AA`
+                                    : "Selecione o Vendedor 1 para gerar o número automaticamente"}
+                                </p>
                               </div>
                             </div>
                             <div>

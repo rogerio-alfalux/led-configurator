@@ -1320,7 +1320,13 @@ export async function duplicateQuote(
   const itemRows = await db.select().from(quoteItems)
     .where(and(eq(quoteItems.quoteId, sourceQuoteId), eq(quoteItems.quoteVersionId, currentVersionId)));
 
-  const newQuoteNumber = await generateQuoteNumber();
+  // Buscar o código do vendedor para gerar número no formato correto
+  let sellerCodeForDup: string | null = null;
+  if (source.quote.seller1Id) {
+    const sellerRows = await db.select({ code: sellers.code }).from(sellers).where(eq(sellers.id, source.quote.seller1Id)).limit(1);
+    sellerCodeForDup = sellerRows[0]?.code ?? null;
+  }
+  const newQuoteNumber = await generateQuoteNumber(sellerCodeForDup);
   const q = source.quote;
 
   const qResult = await db.insert(quotes).values({

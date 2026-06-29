@@ -1679,18 +1679,11 @@ export default function QuoteDetail() {
                   <div>
                     <Label>Número do Orçamento</Label>
                     <Input
+                      readOnly
                       value={editForm.quoteNumber}
-                      onChange={e => setEditForm(f => ({ ...f, quoteNumber: e.target.value }))}
-                      placeholder="Ex: 33.0068-26"
-                      className={checkEditNumberQuery.data?.exists ? "border-orange-500 focus-visible:ring-orange-500" : ""}
+                      className="bg-muted cursor-not-allowed font-mono"
                     />
-                    {checkEditNumberQuery.data?.exists ? (
-                      <p className="text-xs text-orange-600 font-medium mt-1">
-                        ⚠️ Este número já está em uso pelo orçamento de {checkEditNumberQuery.data.existingQuote?.clientName}. Você pode continuar, mas verifique antes.
-                      </p>
-                    ) : (
-                      <p className="text-xs text-muted-foreground mt-1">Você pode alterar o número manualmente. Um alerta será exibido se o número já existir.</p>
-                    )}
+                    <p className="text-xs text-muted-foreground mt-1">O número é gerado automaticamente no formato XX.NNNN-AA e não pode ser alterado manualmente.</p>
                   </div>
                   <div>
                     <Label>Notas desta revisão</Label>
