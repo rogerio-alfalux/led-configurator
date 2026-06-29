@@ -1,14 +1,10 @@
 /**
  * useAlfaluxProducts
- * Busca os produtos Alfalux diretamente do browser (client-side fetch),
- * evitando restrições de rede do servidor sandbox.
- * Em produção, o servidor também consegue buscar normalmente.
+ * Busca os produtos Alfalux via servidor (tRPC), que enriquece os produtos
+ * com campos calculados como ledModuleEq (código EQ do módulo por CCT).
  */
 import { useEffect, useRef, useState } from "react";
 import type { AlfaluxProduct } from "../../../server/alfaluxApiService";
-
-const ALFALUX_BASE = "https://alfaluxprod-c8zmg2fn.manus.space";
-const CACHE_KEY = "alfalux_products_cache";
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 
 interface CacheEntry {
@@ -48,15 +44,16 @@ export function useAlfaluxProducts(): UseAlfaluxProductsResult {
     const currentFetch = ++fetchCountRef.current;
 
     try {
-      const res = await fetch(`${ALFALUX_BASE}/api/products/all`, {
+      // Buscar via servidor tRPC — o servidor enriquece com ledModuleEq (lookup de componentes)
+      const res = await fetch(`/api/trpc/alfalux.products?input=${encodeURIComponent(JSON.stringify({ json: null }))}`, {
         headers: { Accept: "application/json" },
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(30_000),
       });
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      const body = await res.json() as { count: number; available: number; products: AlfaluxProduct[] };
-      const all = body.products ?? [];
+      const body = await res.json() as { result?: { data?: { json?: AlfaluxProduct[] } } };
+      const all = body?.result?.data?.json ?? [];
 
       // Ignorar resultado se um fetch mais recente já foi iniciado
       if (currentFetch !== fetchCountRef.current) return;
