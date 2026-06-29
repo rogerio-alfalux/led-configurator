@@ -272,6 +272,38 @@ export interface CartItemData {
    * Apenas para itens com driverLines populado.
    */
   luminariaHasApiPrice?: boolean;
+  /**
+   * Custo base do corpo da luminária (sem markup), vindo da API.
+   * Usado para recalcular o preço quando o markup é alterado manualmente.
+   * Apenas para itens com preço calculado via custo×markup.
+   */
+  custoCorpoBase?: number | null;
+  /**
+   * Custo base do driver (sem markup), vindo da API.
+   * Usado para recalcular o preço do driver quando o markup é alterado.
+   */
+  custoDriverBase?: number | null;
+  /**
+   * Markup padrão da luminaria para o controle/tensão selecionados, vindo da API.
+   */
+  markupPadraoApi?: number | null;
+  /**
+   * Markup mínimo da luminaria para o controle/tensão selecionados, vindo da API.
+   */
+  markupMinimoApi?: number | null;
+  /**
+   * Markup mínimo do driver, vindo da API.
+   */
+  markupMinimoDriverApi?: number | null;
+  /**
+   * Markup customizado aplicado pelo usuário (Vivian/Dennis) neste item.
+   * Quando definido, sobrescreve o markupPadraoApi para cálculo do preço.
+   */
+  mkpCustom?: number | null;
+  /**
+   * Quantidade de drivers por luminaria (para recalcular preço do driver ao mudar mkp).
+   */
+  driverQtyPerUnit?: number | null;
 }
 
 /**

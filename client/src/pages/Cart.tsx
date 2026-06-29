@@ -739,7 +739,7 @@ export default function Cart() {
 
   // Edição inline de campos do item
   const [editItemId, setEditItemId] = useState<number | null>(null);
-  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; itemNote: string; itemObs: string; itemObsShowInExcel: boolean; itemMarginPercent: string; floorId: string; floorName: string; ambiente: string; specialColorTemp: string; specialEquipments: SpecialEquipment[] }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', itemNote: '', itemObs: '', itemObsShowInExcel: false, itemMarginPercent: '', floorId: '', floorName: '', ambiente: '', specialColorTemp: '', specialEquipments: [] });
+  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; itemNote: string; itemObs: string; itemObsShowInExcel: boolean; itemMarginPercent: string; floorId: string; floorName: string; ambiente: string; specialColorTemp: string; specialEquipments: SpecialEquipment[]; mkpCustom: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', itemNote: '', itemObs: '', itemObsShowInExcel: false, itemMarginPercent: '', floorId: '', floorName: '', ambiente: '', specialColorTemp: '', specialEquipments: [], mkpCustom: '' });
   // Estados para edição de foto de Item Especial
   const [editSpecialPhotoUrl, setEditSpecialPhotoUrl] = useState<string | null>(null);
   const [editSpecialPhotoPreview, setEditSpecialPhotoPreview] = useState<string | null>(null);
@@ -1304,7 +1304,7 @@ export default function Cart() {
                           onDuplicate={(data) => { addItem({ ...data, itemEmPlanta: data.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
                           onEditClick={(id, data) => {
                             setEditItemId(id);
-                            setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [] });
+                            setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '' });
                             if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
                           }}
                         />
@@ -1379,7 +1379,7 @@ export default function Cart() {
                                   onDuplicate={(data) => { addItem({ ...data, itemEmPlanta: data.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
                                   onEditClick={(id, data) => {
                                     setEditItemId(id);
-                                    setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [] });
+                                    setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '' });
                                     if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
                                   }}
                                 />
@@ -2372,6 +2372,8 @@ export default function Cart() {
               const userEmail = (user as any)?.email?.toLowerCase() ?? "";
               const canOverrideApiPrice = userRole === 'admin' || userRole === 'gerente' || PRICE_OVERRIDE_EMAILS.includes(userEmail);
               const canEditPrice = !item?.data.priceFromApi || canOverrideApiPrice;
+              const canEditMkp = userRole === 'admin' || userRole === 'gerente' || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
+              const hasMkpData = canEditMkp && item?.data.custoCorpoBase != null && item.data.custoCorpoBase > 0;
               return isRevenda ? (
                 <>
                   <div className="space-y-1">
@@ -2516,6 +2518,62 @@ export default function Cart() {
                       )}
                     </div>
                   )}
+                  {/* Campo de MKP — apenas para gerentes/admin quando custo base disponível */}
+                  {hasMkpData && (() => {
+                    const custoCorpo = item!.data.custoCorpoBase!;
+                    const mkpMin = item!.data.markupMinimoApi ?? 1;
+                    const mkpPad = item!.data.markupPadraoApi ?? mkpMin;
+                    const mkpMax = Math.max(mkpPad, mkpMin + 2);
+                    const currentMkp = editFields.mkpCustom !== '' ? parseFloat(editFields.mkpCustom.replace(',', '.')) : mkpPad;
+                    const previewPrice = isNaN(currentMkp) ? null : Math.round(custoCorpo * currentMkp * 100) / 100;
+                    return (
+                      <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-50/30 dark:bg-amber-900/10 p-3">
+                        <div className="flex items-center gap-2">
+                          <Label className="text-amber-700 dark:text-amber-400 font-semibold text-xs uppercase tracking-wide">MKP (Markup)</Label>
+                          <span className="text-xs text-muted-foreground">Apenas gerentes</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="range"
+                            min={mkpMin}
+                            max={mkpMax}
+                            step={0.01}
+                            value={currentMkp}
+                            onChange={(e) => {
+                              const v = parseFloat(e.target.value);
+                              const newPrice = Math.round(custoCorpo * v * 100) / 100;
+                              setEditFields(prev => ({ ...prev, mkpCustom: String(v), unitPrice: String(newPrice).replace('.', ',') }));
+                            }}
+                            className="flex-1 accent-amber-600"
+                          />
+                          <Input
+                            type="number"
+                            min={mkpMin}
+                            max={mkpMax}
+                            step={0.01}
+                            value={editFields.mkpCustom !== '' ? editFields.mkpCustom : mkpPad}
+                            onChange={(e) => {
+                              const v = parseFloat(e.target.value);
+                              if (!isNaN(v)) {
+                                const clamped = Math.min(Math.max(v, mkpMin), mkpMax);
+                                const newPrice = Math.round(custoCorpo * clamped * 100) / 100;
+                                setEditFields(prev => ({ ...prev, mkpCustom: String(clamped), unitPrice: String(newPrice).replace('.', ',') }));
+                              } else {
+                                setEditFields(prev => ({ ...prev, mkpCustom: e.target.value }));
+                              }
+                            }}
+                            className="w-20 text-center"
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Mín: {mkpMin.toFixed(2)}</span>
+                          <span>Padrão: {mkpPad.toFixed(2)}</span>
+                          <span>Preço: {previewPrice != null ? `R$ ${previewPrice.toFixed(2).replace('.', ',')}` : '—'}</span>
+                        </div>
+                        <p className="text-xs text-amber-600 dark:text-amber-400">Custo base: R$ {custoCorpo.toFixed(2).replace('.', ',')} · Alteração reflete no campo de preço acima.</p>
+                      </div>
+                    );
+                  })()}
                   <div className="space-y-1">
                     <Label>Observação (interna)</Label>
                     <Input
@@ -2747,6 +2805,11 @@ export default function Cart() {
                 patch.itemMarginPercent = parseFloat(editFields.itemMarginPercent) || undefined;
               } else if (!isRevenda) {
                 patch.itemMarginPercent = undefined;
+              }
+              // mkpCustom (markup personalizado por gerentes)
+              if (editFields.mkpCustom.trim()) {
+                const mkpVal = parseFloat(editFields.mkpCustom.replace(',', '.'));
+                if (!isNaN(mkpVal) && mkpVal > 0) patch.mkpCustom = mkpVal;
               }
               // floorId / floorName / ambiente
               patch.floorId = editFields.floorId.trim() || undefined;

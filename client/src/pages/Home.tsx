@@ -221,6 +221,9 @@ function buildLumDriverLines(
     markupPadraoDriverOnoff220v: number | null; markupPadraoDriverOnoffBivolt: number | null;
     markupPadraoDriverDim110v: number | null; markupPadraoDriverDimDali: number | null;
     markupPadraoDriverDimTriac110v: number | null; markupPadraoDriverDimTriac220v: number | null;
+    markupMinimoOnoff220v?: number | null; markupMinimoOnoffBivolt?: number | null;
+    markupMinimoDim110v?: number | null; markupMinimoDimDali?: number | null;
+    markupMinimoDimTriac110v?: number | null; markupMinimoDimTriac220v?: number | null;
     markupMinimoDriver: number | null;
     driverQtd220: number | null; driverQtdBivolt: number | null;
     driverQtdDim110v: number | null; driverQtdDimDali: number | null;
@@ -228,7 +231,7 @@ function buildLumDriverLines(
   }>,
   /** Nome do produto — usado para desambiguar SKUs duplicados na API */
   productName?: string
-): { driverLines: import("@/lib/cartTypes").DriverLine[]; priceWithoutDriver: number | null; unitPriceLuminaria: number | null; unitPriceDriver: number | null; luminariaHasApiPrice: boolean } | null {
+): { driverLines: import("@/lib/cartTypes").DriverLine[]; priceWithoutDriver: number | null; unitPriceLuminaria: number | null; unitPriceDriver: number | null; luminariaHasApiPrice: boolean; custoCorpoBase: number | null; custoDriverBase: number | null; markupPadraoApi: number | null; markupMinimoApi: number | null; markupMinimoDriverApi: number | null; drvQtyPerUnit: number } | null {
   // Usar chave composta sku||name para evitar colisão com SKUs duplicados na API
   const compositeKey = productName ? `${sku}||${productName}` : sku;
   const entry = lumPriceMap[compositeKey] ?? lumPriceMap[sku];
@@ -295,7 +298,15 @@ function buildLumDriverLines(
     driverTotalPrice,
   }];
 
-  return { driverLines, priceWithoutDriver, unitPriceLuminaria, unitPriceDriver, luminariaHasApiPrice };
+  const markupMinimoCorpo: number | null = (() => {
+    if (controle === 'DIM DALI') return entry.markupMinimoDimDali ?? null;
+    if (controle === 'DIM 1-10V') return entry.markupMinimoDim110v ?? null;
+    if (controle === 'DIM TRIAC 110V') return entry.markupMinimoDimTriac110v ?? null;
+    if (controle === 'DIM TRIAC 220V') return entry.markupMinimoDimTriac220v ?? null;
+    if (tensao === 'Bivolt') return entry.markupMinimoOnoffBivolt ?? null;
+    return entry.markupMinimoOnoff220v ?? null;
+  })();
+  return { driverLines, priceWithoutDriver, unitPriceLuminaria, unitPriceDriver, luminariaHasApiPrice, custoCorpoBase: custoCorpo, custoDriverBase: custoDriver, markupPadraoApi: markupCorpo, markupMinimoApi: markupMinimoCorpo, markupMinimoDriverApi: entry.markupMinimoDriver, drvQtyPerUnit };
 }
 
 // ─── Componente de Breakdown de Preço ────────────────────────────────────────────────────────────────────
@@ -2256,6 +2267,12 @@ export default function Home() {
       markupPadraoDriverDimDali: number | null;
       markupPadraoDriverDimTriac110v: number | null;
       markupPadraoDriverDimTriac220v: number | null;
+      markupMinimoOnoff220v: number | null;
+      markupMinimoOnoffBivolt: number | null;
+      markupMinimoDim110v: number | null;
+      markupMinimoDimDali: number | null;
+      markupMinimoDimTriac110v: number | null;
+      markupMinimoDimTriac220v: number | null;
       markupMinimoDriver: number | null;
       driverQtd220: number | null;
       driverQtdBivolt: number | null;
@@ -2299,6 +2316,12 @@ export default function Home() {
         markupPadraoDriverDimDali: p.markupPadraoDriverDimDali ?? null,
         markupPadraoDriverDimTriac110v: p.markupPadraoDriverDimTriac110v ?? null,
         markupPadraoDriverDimTriac220v: p.markupPadraoDriverDimTriac220v ?? null,
+        markupMinimoOnoff220v: p.markupMinimoOnoff220v ?? null,
+        markupMinimoOnoffBivolt: p.markupMinimoOnoffBivolt ?? null,
+        markupMinimoDim110v: p.markupMinimoDim110v ?? null,
+        markupMinimoDimDali: p.markupMinimoDimDali ?? null,
+        markupMinimoDimTriac110v: p.markupMinimoDimTriac110v ?? null,
+        markupMinimoDimTriac220v: p.markupMinimoDimTriac220v ?? null,
         markupMinimoDriver: p.markupMinimoDriver ?? null,
         driverQtd220: p.driverQtd220 ?? null,
         driverQtdBivolt: p.driverQtdBivolt ?? null,
@@ -8046,7 +8069,7 @@ export default function Home() {
                               itemEmPlanta: globalItemEmPlanta,
                               floorName: globalPavimento || undefined,
                               ambiente: globalAmbiente || undefined,
-                              ...(dDrvLines ? { driverLines: dDrvLines.driverLines, priceWithoutDriver: dDrvLines.priceWithoutDriver, unitPriceLuminaria: dDrvLines.unitPriceLuminaria, unitPriceDriver: dDrvLines.unitPriceDriver, luminariaHasApiPrice: dDrvLines.luminariaHasApiPrice } : {}),
+                              ...(dDrvLines ? { driverLines: dDrvLines.driverLines, priceWithoutDriver: dDrvLines.priceWithoutDriver, unitPriceLuminaria: dDrvLines.unitPriceLuminaria, unitPriceDriver: dDrvLines.unitPriceDriver, luminariaHasApiPrice: dDrvLines.luminariaHasApiPrice, custoCorpoBase: dDrvLines.custoCorpoBase, custoDriverBase: dDrvLines.custoDriverBase, markupPadraoApi: dDrvLines.markupPadraoApi, markupMinimoApi: dDrvLines.markupMinimoApi, markupMinimoDriverApi: dDrvLines.markupMinimoDriverApi, driverQtyPerUnit: dDrvLines.drvQtyPerUnit } : {}),
                             };
                             if (appendToQuoteId) {
                               handleAddItemOrToQuote(item);
@@ -8496,7 +8519,7 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); return `${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: dlResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
-                            ...(dlDrvLines ? { driverLines: dlDrvLines.driverLines, priceWithoutDriver: dlDrvLines.priceWithoutDriver, unitPriceLuminaria: dlDrvLines.unitPriceLuminaria, unitPriceDriver: dlDrvLines.unitPriceDriver, luminariaHasApiPrice: dlDrvLines.luminariaHasApiPrice } : {}),
+                            ...(dlDrvLines ? { driverLines: dlDrvLines.driverLines, priceWithoutDriver: dlDrvLines.priceWithoutDriver, unitPriceLuminaria: dlDrvLines.unitPriceLuminaria, unitPriceDriver: dlDrvLines.unitPriceDriver, luminariaHasApiPrice: dlDrvLines.luminariaHasApiPrice, custoCorpoBase: dlDrvLines.custoCorpoBase, custoDriverBase: dlDrvLines.custoDriverBase, markupPadraoApi: dlDrvLines.markupPadraoApi, markupMinimoApi: dlDrvLines.markupMinimoApi, markupMinimoDriverApi: dlDrvLines.markupMinimoDriverApi, driverQtyPerUnit: dlDrvLines.drvQtyPerUnit } : {}),
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -8773,7 +8796,7 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = aeResult.driver.code ? ` (${aeResult.driver.code})` : ""; const drvQty = driverQtyFor(aeResult.product, aeResult.controle, aeResult.tensao); return `${drvQty}x DRIVER ${aeResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: aeResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
-                            ...(aeDrvLines ? { driverLines: aeDrvLines.driverLines, priceWithoutDriver: aeDrvLines.priceWithoutDriver, unitPriceLuminaria: aeDrvLines.unitPriceLuminaria, unitPriceDriver: aeDrvLines.unitPriceDriver, luminariaHasApiPrice: aeDrvLines.luminariaHasApiPrice } : {}),
+                            ...(aeDrvLines ? { driverLines: aeDrvLines.driverLines, priceWithoutDriver: aeDrvLines.priceWithoutDriver, unitPriceLuminaria: aeDrvLines.unitPriceLuminaria, unitPriceDriver: aeDrvLines.unitPriceDriver, luminariaHasApiPrice: aeDrvLines.luminariaHasApiPrice, custoCorpoBase: aeDrvLines.custoCorpoBase, custoDriverBase: aeDrvLines.custoDriverBase, markupPadraoApi: aeDrvLines.markupPadraoApi, markupMinimoApi: aeDrvLines.markupMinimoApi, markupMinimoDriverApi: aeDrvLines.markupMinimoDriverApi, driverQtyPerUnit: aeDrvLines.drvQtyPerUnit } : {}),
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -9054,7 +9077,7 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; const drvQty = driverQtyFor(panelResult.product, panelResult.controle, panelResult.tensao); return `${drvQty}x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: panelResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
-                            ...(panelDrvLines ? { driverLines: panelDrvLines.driverLines, priceWithoutDriver: panelDrvLines.priceWithoutDriver, unitPriceLuminaria: panelDrvLines.unitPriceLuminaria, unitPriceDriver: panelDrvLines.unitPriceDriver, luminariaHasApiPrice: panelDrvLines.luminariaHasApiPrice } : {}),
+                            ...(panelDrvLines ? { driverLines: panelDrvLines.driverLines, priceWithoutDriver: panelDrvLines.priceWithoutDriver, unitPriceLuminaria: panelDrvLines.unitPriceLuminaria, unitPriceDriver: panelDrvLines.unitPriceDriver, luminariaHasApiPrice: panelDrvLines.luminariaHasApiPrice, custoCorpoBase: panelDrvLines.custoCorpoBase, custoDriverBase: panelDrvLines.custoDriverBase, markupPadraoApi: panelDrvLines.markupPadraoApi, markupMinimoApi: panelDrvLines.markupMinimoApi, markupMinimoDriverApi: panelDrvLines.markupMinimoDriverApi, driverQtyPerUnit: panelDrvLines.drvQtyPerUnit } : {}),
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -9301,7 +9324,7 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); return `${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: arandelaResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
-                            ...(arandelaDrvLines ? { driverLines: arandelaDrvLines.driverLines, priceWithoutDriver: arandelaDrvLines.priceWithoutDriver, unitPriceLuminaria: arandelaDrvLines.unitPriceLuminaria, unitPriceDriver: arandelaDrvLines.unitPriceDriver, luminariaHasApiPrice: arandelaDrvLines.luminariaHasApiPrice } : {}),
+                            ...(arandelaDrvLines ? { driverLines: arandelaDrvLines.driverLines, priceWithoutDriver: arandelaDrvLines.priceWithoutDriver, unitPriceLuminaria: arandelaDrvLines.unitPriceLuminaria, unitPriceDriver: arandelaDrvLines.unitPriceDriver, luminariaHasApiPrice: arandelaDrvLines.luminariaHasApiPrice, custoCorpoBase: arandelaDrvLines.custoCorpoBase, custoDriverBase: arandelaDrvLines.custoDriverBase, markupPadraoApi: arandelaDrvLines.markupPadraoApi, markupMinimoApi: arandelaDrvLines.markupMinimoApi, markupMinimoDriverApi: arandelaDrvLines.markupMinimoDriverApi, driverQtyPerUnit: arandelaDrvLines.drvQtyPerUnit } : {}),
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -9579,7 +9602,7 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; const drvQty = driverQtyFor(spotResult.product, spotResult.controle, spotResult.tensao); return `${drvQty}x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: spotResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
-                            ...(spotDrvLines ? { driverLines: spotDrvLines.driverLines, priceWithoutDriver: spotDrvLines.priceWithoutDriver, unitPriceLuminaria: spotDrvLines.unitPriceLuminaria, unitPriceDriver: spotDrvLines.unitPriceDriver, luminariaHasApiPrice: spotDrvLines.luminariaHasApiPrice } : {}),
+                            ...(spotDrvLines ? { driverLines: spotDrvLines.driverLines, priceWithoutDriver: spotDrvLines.priceWithoutDriver, unitPriceLuminaria: spotDrvLines.unitPriceLuminaria, unitPriceDriver: spotDrvLines.unitPriceDriver, luminariaHasApiPrice: spotDrvLines.luminariaHasApiPrice, custoCorpoBase: spotDrvLines.custoCorpoBase, custoDriverBase: spotDrvLines.custoDriverBase, markupPadraoApi: spotDrvLines.markupPadraoApi, markupMinimoApi: spotDrvLines.markupMinimoApi, markupMinimoDriverApi: spotDrvLines.markupMinimoDriverApi, driverQtyPerUnit: spotDrvLines.drvQtyPerUnit } : {}),
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
