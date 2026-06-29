@@ -453,6 +453,16 @@ export async function addQuoteRevision(
     notes: input.notes,
   });
 
+  // Quando bumpVersion=false (ex: appendItems), apenas atualiza totalAmount e updatedAt
+  // para não sobrescrever campos de cabeçalho (frete, DIFAL, FCP, projectNumber, etc.)
+  if (!bumpVersion) {
+    await db.update(quotes).set({
+      currentVersion: newVersion,
+      totalAmount: String(input.totalAmount),
+      totalFinal: input.totalFinal != null ? String(input.totalFinal) : String(input.totalAmount),
+      updatedAt: sql`NOW()`,
+    }).where(eq(quotes.id, quoteId));
+  } else {
   // Update quote header — incrementa revisionCount a cada edição/salvamento
   await db.update(quotes).set({
     clientName: input.clientName,
@@ -507,6 +517,7 @@ export async function addQuoteRevision(
     // Atualiza a data de modificação para a data atual
     updatedAt: sql`NOW()`,
   }).where(eq(quotes.id, quoteId));
+  } // fim do else (bumpVersion=true)
 
   if (!bumpVersion) {
     // Atualiza in-place: busca a versão atual e substitui seus itens
