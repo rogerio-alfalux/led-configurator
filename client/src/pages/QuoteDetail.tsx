@@ -2151,96 +2151,188 @@ export default function QuoteDetail() {
         {/* Itens da versão atual */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Itens do Orçamento (v{quote.currentVersion})</CardTitle>
+            <CardTitle className="text-sm">Itens do Orçamento (RV{quote.revisionCount ?? 0})</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="divide-y">
-              {currentItems.map((item, idx) => {
+            {(() => {
+              const rtPct = quote.rtPercent ? parseFloat(String(quote.rtPercent)) : 0;
+              const mPct = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;
+              const applyMkup = (base: number) => {
+                const comRT = rtPct > 0 ? base / (1 - rtPct) : base;
+                return mPct > 0 ? comRT / (1 - mPct) : comRT;
+              };
+              const hasMarkup = rtPct > 0 || mPct > 0;
+
+              // Agrupar itens por pavimento preservando a ordem de inserção
+              const floorOrder: string[] = [];
+              const floorMap = new Map<string, typeof currentItems>();
+              for (const item of currentItems) {
                 const d = parseCartItemData(item.itemData);
-                if (!d) return null;
-                return (
-                  <div key={item.id} className="flex items-center gap-3 px-4 py-3">
-                    <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
-                      {idx + 1}
-                    </span>
-                    {resolvePhoto(d.sku, d.photoUrl) ? (
-                      <img src={resolvePhoto(d.sku, d.photoUrl)!} alt={d.description} className="w-12 h-12 object-contain rounded border bg-white flex-shrink-0" />
-                    ) : (
-                      <div className="w-12 h-12 rounded border bg-muted flex items-center justify-center flex-shrink-0">
-                        <Package className="w-5 h-5 text-muted-foreground" />
+                const fid = d?.floorId?.trim() || '__sem_pavimento__';
+                if (!floorMap.has(fid)) { floorMap.set(fid, []); floorOrder.push(fid); }
+                floorMap.get(fid)!.push(item);
+              }
+              const hasFloors = floorOrder.some(fid => fid !== '__sem_pavimento__');
+
+              // Calcular totais globais
+              let totalLuminaria = 0;
+              let totalDriver = 0;
+              let totalGeral = 0;
+              let hasDriverBreakdown = false;
+              for (const item of currentItems) {
+                const d = parseCartItemData(item.itemData);
+                if (!d) continue;
+                const tot = d.totalPrice != null && d.totalPrice > 0 ? (hasMarkup ? applyMkup(d.totalPrice) : d.totalPrice) : 0;
+                totalGeral += tot;
+                if (d.driverLines && d.driverLines.length > 0 && d.priceWithoutDriver != null) {
+                  hasDriverBreakdown = true;
+                  totalLuminaria += hasMarkup ? applyMkup(d.priceWithoutDriver) : d.priceWithoutDriver;
+                  totalDriver += d.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice != null ? (hasMarkup ? applyMkup(dl.driverTotalPrice) : dl.driverTotalPrice) : 0), 0);
+                } else {
+                  totalLuminaria += tot;
+                }
+              }
+
+              let globalIdx = 0;
+              return (
+                <>
+                  {floorOrder.map((fid) => {
+                    const fitems = floorMap.get(fid)!;
+                    const d0 = parseCartItemData(fitems[0].itemData);
+                    const floorLabel = d0?.floorName?.trim() || (fid !== '__sem_pavimento__' ? fid : '');
+                    return (
+                      <div key={fid}>
+                        {hasFloors && floorLabel && (
+                          <div className="px-4 py-2 bg-muted/60 border-b border-t">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{floorLabel}</p>
+                          </div>
+                        )}
+                        <div className="divide-y">
+                          {fitems.map((item) => {
+                            const d = parseCartItemData(item.itemData);
+                            if (!d) return null;
+                            const itemIdx = ++globalIdx;
+                            const unitDisplay = d.unitPrice != null && d.unitPrice > 0
+                              ? (hasMarkup ? applyMkup(d.unitPrice) : d.unitPrice)
+                              : null;
+                            const totalDisplay = d.totalPrice != null && d.totalPrice > 0
+                              ? (hasMarkup ? applyMkup(d.totalPrice) : d.totalPrice)
+                              : null;
+                            const hasBreakdown = !!(d.driverLines && d.driverLines.length > 0 && d.priceWithoutDriver != null);
+                            const lumTotalDisplay = hasBreakdown
+                              ? (hasMarkup ? applyMkup(d.priceWithoutDriver!) : d.priceWithoutDriver!)
+                              : null;
+                            const lumUnitDisplay = hasBreakdown && d.unitPriceLuminaria != null
+                              ? (hasMarkup ? applyMkup(d.unitPriceLuminaria) : d.unitPriceLuminaria)
+                              : null;
+                            return (
+                              <div key={item.id} className="flex items-start gap-3 px-4 py-3">
+                                <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                                  {itemIdx}
+                                </span>
+                                {resolvePhoto(d.sku, d.photoUrl) ? (
+                                  <img src={resolvePhoto(d.sku, d.photoUrl)!} alt={d.description} className="w-12 h-12 object-contain rounded border bg-white flex-shrink-0" />
+                                ) : (
+                                  <div className="w-12 h-12 rounded border bg-muted flex items-center justify-center flex-shrink-0">
+                                    <Package className="w-5 h-5 text-muted-foreground" />
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs text-muted-foreground font-mono">{d.sku}</p>
+                                  <p className="text-sm font-medium leading-tight">{d.description}</p>
+                                  <div className="flex gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
+                                    {d.power && <span>⚡ {d.power}</span>}
+                                    {d.cct && <span>{d.cct}</span>}
+                                    <span>{d.category}</span>
+                                  </div>
+                                  {d.accessories && (d.accessories as LinkedAccessory[]).length > 0 && (
+                                    <div className="mt-1.5 border-l-2 border-cyan-500/40 pl-2 space-y-0.5">
+                                      {(d.accessories as LinkedAccessory[]).map((acc, i) => (
+                                        <div key={i} className="flex items-center gap-1.5 text-xs">
+                                          {resolveAccPhoto(acc.codigo, acc.fotoUrl) ? (
+                                            <img src={resolveAccPhoto(acc.codigo, acc.fotoUrl)!} alt={acc.descricao} className="w-5 h-5 object-contain rounded bg-white border border-border flex-shrink-0" />
+                                          ) : (
+                                            <Wrench className="w-3 h-3 flex-shrink-0 text-cyan-500" />
+                                          )}
+                                          <span className="font-mono text-[10px] text-muted-foreground">{acc.codigo}</span>
+                                          <span className="text-cyan-700 dark:text-cyan-400 truncate">{acc.descricao}</span>
+                                          {acc.qty > 1 && <span className="text-muted-foreground">x{acc.qty}</span>}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="text-right flex-shrink-0 min-w-[110px]">
+                                  <p className="text-xs text-muted-foreground mb-1">Qtd: {d.qty}</p>
+                                  {hasBreakdown ? (
+                                    <>
+                                      <div className="mb-1">
+                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Luminária</p>
+                                        {lumUnitDisplay != null && <p className="text-xs text-muted-foreground">{formatBRL(lumUnitDisplay)}/un</p>}
+                                        {lumTotalDisplay != null
+                                          ? <p className="font-semibold text-foreground text-sm">{formatBRL(lumTotalDisplay)}</p>
+                                          : <p className="text-xs italic text-muted-foreground">A consultar</p>}
+                                      </div>
+                                      {d.driverLines!.map((dl, di) => {
+                                        const drvUnit = dl.driverUnitPrice != null ? (hasMarkup ? applyMkup(dl.driverUnitPrice) : dl.driverUnitPrice) : null;
+                                        const drvTotal = dl.driverTotalPrice != null ? (hasMarkup ? applyMkup(dl.driverTotalPrice) : dl.driverTotalPrice) : null;
+                                        return (
+                                          <div key={di} className="mb-1">
+                                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Driver{d.driverLines!.length > 1 ? ` ${di + 1}` : ''}</p>
+                                            <p className="text-[10px] font-mono text-muted-foreground">{dl.driverCode}</p>
+                                            {drvUnit != null && <p className="text-xs text-muted-foreground">{formatBRL(drvUnit)}/un</p>}
+                                            {drvTotal != null
+                                              ? <p className="font-semibold text-foreground text-sm">{formatBRL(drvTotal)}</p>
+                                              : <p className="text-xs italic text-muted-foreground">A consultar</p>}
+                                          </div>
+                                        );
+                                      })}
+                                      <div className="pt-1 border-t border-border/50">
+                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Total item</p>
+                                        {totalDisplay != null
+                                          ? <p className="font-bold text-primary text-sm">{formatBRL(totalDisplay)}</p>
+                                          : <p className="text-xs italic text-muted-foreground">A consultar</p>}
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {unitDisplay != null && <p className="text-xs text-muted-foreground">{formatBRL(unitDisplay)}/un</p>}
+                                      {totalDisplay != null
+                                        ? <p className="font-bold text-primary text-sm">{formatBRL(totalDisplay)}</p>
+                                        : <p className="text-xs italic text-muted-foreground">A consultar</p>}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-muted-foreground font-mono">{d.sku}</p>
-                      <p className="text-sm font-medium leading-tight">{d.description}</p>
-                      <div className="flex gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
-                        {d.power && <span>⚡ {d.power}</span>}
-                        {d.cct && <span>🌡 {d.cct}</span>}
-                        <span>{d.category}</span>
-                      </div>
-                      {/* Acessórios vinculados */}
-                      {d.accessories && d.accessories.length > 0 && (
-                        <div className="mt-1.5 border-l-2 border-cyan-500/40 pl-2 space-y-0.5">
-                          {(d.accessories as LinkedAccessory[]).map((acc, i) => (
-                            <div key={i} className="flex items-center gap-1.5 text-xs">
-                              {resolveAccPhoto(acc.codigo, acc.fotoUrl) ? (
-                                <img src={resolveAccPhoto(acc.codigo, acc.fotoUrl)!} alt={acc.descricao} className="w-5 h-5 object-contain rounded bg-white border border-border flex-shrink-0" />
-                              ) : (
-                                <Wrench className="w-3 h-3 flex-shrink-0 text-cyan-500" />
-                              )}
-                              <span className="font-mono text-[10px] text-muted-foreground">{acc.codigo}</span>
-                              <span className="text-cyan-700 dark:text-cyan-400 truncate">{acc.descricao}</span>
-                              {acc.qty > 1 && <span className="text-muted-foreground">x{acc.qty}</span>}
-                            </div>
-                          ))}
+                    );
+                  })}
+                  {totalGeral > 0 && (
+                    <div className="border-t bg-primary/5">
+                      {hasDriverBreakdown && (
+                        <div className="px-4 pt-3 pb-1 space-y-1">
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Subtotal Luminárias</span>
+                            <span className="font-medium">{formatBRL(totalLuminaria)}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Subtotal Drivers</span>
+                            <span className="font-medium">{formatBRL(totalDriver)}</span>
+                          </div>
                         </div>
                       )}
+                      <div className="px-4 py-3 flex justify-between items-center border-t border-primary/10">
+                        <span className="text-sm font-medium">Total</span>
+                        <span className="text-xl font-bold text-primary">{formatBRL(totalGeral)}</span>
+                      </div>
                     </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-xs text-muted-foreground">Qtd: {d.qty}</p>
-                      {(() => {
-                        const rtPct = quote.rtPercent ? parseFloat(String(quote.rtPercent)) : 0;
-                        const mPct = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;
-                        const applyMkup = (base: number) => {
-                          const comRT = rtPct > 0 ? base / (1 - rtPct) : base;
-                          return mPct > 0 ? comRT / (1 - mPct) : comRT;
-                        };
-                        const hasMarkup = rtPct > 0 || mPct > 0;
-                        const unitDisplay = d.unitPrice != null && d.unitPrice > 0
-                          ? (hasMarkup ? applyMkup(d.unitPrice) : d.unitPrice)
-                          : null;
-                        const totalDisplay = d.totalPrice != null && d.totalPrice > 0
-                          ? (hasMarkup ? applyMkup(d.totalPrice) : d.totalPrice)
-                          : null;
-                        return (
-                          <>
-                            {unitDisplay != null && (
-                              <p className="text-xs text-muted-foreground">{formatBRL(unitDisplay)}/un</p>
-                            )}
-                            {totalDisplay != null ? (
-                              <p className="font-bold text-primary text-sm">{formatBRL(totalDisplay)}</p>
-                            ) : (
-                              <p className="text-xs italic text-muted-foreground">A consultar</p>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-{(() => {
-                const displayTotal = quote.totalFinal && Number(quote.totalFinal) > 0
-                  ? Number(quote.totalFinal)
-                  : (quote.totalAmount ? Number(quote.totalAmount) : 0);
-                return displayTotal > 0 ? (
-                  <div className="px-4 py-3 border-t bg-primary/5 flex justify-between items-center">
-                    <span className="text-sm font-medium">Total</span>
-                    <span className="text-xl font-bold text-primary">{formatBRL(displayTotal)}</span>
-                  </div>
-                ) : null;
-              })()}
+                  )}
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
 
