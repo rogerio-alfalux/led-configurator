@@ -32,6 +32,11 @@ export interface SpotProduct {
   ledModuleQtd3000?: number | null;
   ledModuleQtd4000?: number | null;
   ledModuleQtd5000?: number | null;
+  /** Código EQ do módulo por CCT — enriquecido pelo servidor */
+  ledModuleEq2700?: string | null;
+  ledModuleEq3000?: string | null;
+  ledModuleEq4000?: string | null;
+  ledModuleEq5000?: string | null;
   /** Ótica legado (primaria + secundaria concatenadas) — null se não aplicável */
   otica: string | null;
   /** Ótica primária com quantidade embutida. null quando não retornado pela API. */
@@ -99,6 +104,8 @@ export interface SpotResult {
   controle: ControleType;
   driver: SpotDriver;
   ledModuleWithCCT: string | null;
+  /** Código EQ do módulo resolvido para o CCT selecionado. null se não encontrado. */
+  ledModuleEq: string | null;
 }
 
 /** Catálogo estático de fallback — será sobreposto pelos dados da API */
@@ -187,6 +194,7 @@ export function calculateSpot(catalog: SpotProduct[], input: SpotInput): SpotRes
     : product.ledModule
       ? product.ledModule.replace(/\[CCT\]/gi, input.cct)
       : null;
+  const ledModuleEq = ((product as any)[`ledModuleEq${cctKey}`] as string | null | undefined) ?? null;
 
   return {
     product,
@@ -195,5 +203,6 @@ export function calculateSpot(catalog: SpotProduct[], input: SpotInput): SpotRes
     controle: input.controle,
     driver,
     ledModuleWithCCT,
+    ledModuleEq,
   };
 }

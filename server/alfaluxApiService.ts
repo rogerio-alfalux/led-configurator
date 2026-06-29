@@ -41,6 +41,11 @@ export interface AlfaluxProduct {
   ledModuleQtd3000?: number | null;
   ledModuleQtd4000?: number | null;
   ledModuleQtd5000?: number | null;
+  /** Código EQ do módulo por CCT — enriquecido via lookup em /api/componentes/all */
+  ledModuleEq2700?: string | null;
+  ledModuleEq3000?: string | null;
+  ledModuleEq4000?: string | null;
+  ledModuleEq5000?: string | null;
   otica: string | null;
   /** Ótica primária com quantidade embutida (ex: "9x LENTE DARKOO..."). null quando não retornado pela API. */
   oticaPrimaria: string | null;

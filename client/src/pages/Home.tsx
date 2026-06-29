@@ -8315,7 +8315,7 @@ export default function Home() {
                       ) : null}
                       <div className="p-3 rounded-lg bg-muted/50 col-span-2">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
-                        <p className="text-sm font-semibold">{dlResult.ledModuleWithCCT}</p>
+                        <p className="text-sm font-semibold">{dlResult.ledModuleWithCCT}{dlResult.ledModuleEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({dlResult.ledModuleEq})</span> : null}</p>
                       </div>
                       {/* Ótica: exibir primária/secundária separadas quando disponíveis, senão legado */}
                       {(dlResult.product.oticaPrimaria || dlResult.product.otica) && (
@@ -8422,7 +8422,7 @@ export default function Home() {
                             totalPrice: preco ?? 0,
                             priceFromApi: preco != null,
                             photoUrl: dlPhoto ?? "",
-                            orderSummary: (() => { const parts: string[] = [(dlResult.ledModuleWithCCT.toUpperCase().toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") || dlResult.ledModuleWithCCT.toUpperCase().startsWith("MÓDULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`)]; if (dlResult.product.oticaPrimaria) { parts.push(dlResult.product.oticaPrimaria.toUpperCase()); if (dlResult.product.oticaSecundaria) parts.push(dlResult.product.oticaSecundaria.toUpperCase()); } else if (dlResult.product.otica) { parts.push(dlResult.product.otica.toUpperCase()); } if (dlResult.product.holder) parts.push(dlResult.product.holder.toUpperCase()); if (dlResult.product.dissipador) parts.push(dlResult.product.dissipador.toUpperCase()); const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); parts.push(`${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`); return (`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.controle.toUpperCase()} ${dlResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim(); })(),
+                             orderSummary: (() => { const modEqSuffix = dlResult.ledModuleEq ? ` (${dlResult.ledModuleEq})` : ""; const modName = dlResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") || dlResult.ledModuleWithCCT.toUpperCase().startsWith("ÉDULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`; const parts: string[] = [`${modName}${modEqSuffix}`]; if (dlResult.product.oticaPrimaria) { parts.push(dlResult.product.oticaPrimaria.toUpperCase()); if (dlResult.product.oticaSecundaria) parts.push(dlResult.product.oticaSecundaria.toUpperCase()); } else if (dlResult.product.otica) { parts.push(dlResult.product.otica.toUpperCase()); } if (dlResult.product.holder) parts.push(dlResult.product.holder.toUpperCase()); if (dlResult.product.dissipador) parts.push(dlResult.product.dissipador.toUpperCase()); const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); parts.push(`${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`); return (`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.controle.toUpperCase()} ${dlResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim(); })(),
                             quoteSummary: `${dlResult.product.name} ${dlResult.cct} ${dlResult.controle} ${dlResult.tensao}`.toUpperCase(),
                             moduloLed: dlResult.ledModuleWithCCT ?? "",
                             drivers: (() => { const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); return `${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
@@ -8511,9 +8511,9 @@ export default function Home() {
                       size="sm"
                       className="h-7 text-xs gap-1.5"
                       onClick={() => {
-                          const parts: string[] = [
-                              (dlResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`),
-                            ];
+                          const modEqSuffix = dlResult.ledModuleEq ? ` (${dlResult.ledModuleEq})` : "";
+                          const modName = dlResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`;
+                          const parts: string[] = [`${modName}${modEqSuffix}`];
                             // Ótica: usar primária+secundária separadas se disponíveis, senão legado
                             if (dlResult.product.oticaPrimaria) {
                               parts.push(dlResult.product.oticaPrimaria.toUpperCase());
@@ -8544,9 +8544,9 @@ export default function Home() {
                       }}
                     >
                       {(() => {
-                          const parts: string[] = [
-                            (dlResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`),
-                          ];
+                          const modEqSuffix2 = dlResult.ledModuleEq ? ` (${dlResult.ledModuleEq})` : "";
+                          const modName2 = dlResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`;
+                          const parts: string[] = [`${modName2}${modEqSuffix2}`];
                           // Ótica: usar primária+secundária separadas se disponíveis, senão legado
                           if (dlResult.product.oticaPrimaria) {
                             parts.push(dlResult.product.oticaPrimaria.toUpperCase());
@@ -8617,7 +8617,7 @@ export default function Home() {
                     {/* Módulo LED */}
                     <div className="p-3 rounded-lg bg-muted/50">
                       <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
-                      <p className="text-sm font-semibold">{aeResult.ledModuleWithCCT}</p>
+                      <p className="text-sm font-semibold">{aeResult.ledModuleWithCCT}{aeResult.ledModuleEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({aeResult.ledModuleEq})</span> : null}</p>
                     </div>
                     {/* Ótica */}
                     {(aeResult.product.oticaPrimaria || aeResult.product.otica) && (
@@ -8699,7 +8699,7 @@ export default function Home() {
                             totalPrice: preco ?? 0,
                             priceFromApi: preco != null,
                             photoUrl: aePhoto ?? "",
-                            orderSummary: (() => { const parts: string[] = [(aeResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") ? aeResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${aeResult.ledModuleWithCCT.toUpperCase()}`)]; if (aeResult.product.oticaPrimaria) { parts.push(aeResult.product.oticaPrimaria.toUpperCase()); if (aeResult.product.oticaSecundaria) parts.push(aeResult.product.oticaSecundaria.toUpperCase()); } else if (aeResult.product.otica) { parts.push(aeResult.product.otica.toUpperCase()); } if (aeResult.product.holder) parts.push(aeResult.product.holder.toUpperCase()); if (aeResult.product.dissipador) parts.push(aeResult.product.dissipador.toUpperCase()); const eqSuffix = aeResult.driver.code ? ` (${aeResult.driver.code})` : ""; const drvQty = driverQtyFor(aeResult.product, aeResult.controle, aeResult.tensao); parts.push(`${drvQty}x DRIVER ${aeResult.driver.model.toUpperCase()}${eqSuffix}`); return (`CÓDIGO: ${aeResult.product.sku}\n${aeResult.product.name.toUpperCase()} ${aeResult.cct} ${aeResult.controle.toUpperCase()} ${aeResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim(); })(),
+                            orderSummary: (() => { const aeModEq = aeResult.ledModuleEq ? ` (${aeResult.ledModuleEq})` : ""; const aeModName = aeResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") ? aeResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${aeResult.ledModuleWithCCT.toUpperCase()}`; const parts: string[] = [`${aeModName}${aeModEq}`]; if (aeResult.product.oticaPrimaria) { parts.push(aeResult.product.oticaPrimaria.toUpperCase()); if (aeResult.product.oticaSecundaria) parts.push(aeResult.product.oticaSecundaria.toUpperCase()); } else if (aeResult.product.otica) { parts.push(aeResult.product.otica.toUpperCase()); } if (aeResult.product.holder) parts.push(aeResult.product.holder.toUpperCase()); if (aeResult.product.dissipador) parts.push(aeResult.product.dissipador.toUpperCase()); const eqSuffix = aeResult.driver.code ? ` (${aeResult.driver.code})` : ""; const drvQty = driverQtyFor(aeResult.product, aeResult.controle, aeResult.tensao); parts.push(`${drvQty}x DRIVER ${aeResult.driver.model.toUpperCase()}${eqSuffix}`); return (`CÓDIGO: ${aeResult.product.sku}\n${aeResult.product.name.toUpperCase()} ${aeResult.cct} ${aeResult.controle.toUpperCase()} ${aeResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim(); })(),
                             quoteSummary: `${aeResult.product.name} ${aeResult.cct} ${aeResult.controle} ${aeResult.tensao}`.toUpperCase(),
                             moduloLed: aeResult.ledModuleWithCCT ?? "",
                             drivers: (() => { const eqSuffix = aeResult.driver.code ? ` (${aeResult.driver.code})` : ""; const drvQty = driverQtyFor(aeResult.product, aeResult.controle, aeResult.tensao); return `${drvQty}x DRIVER ${aeResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
@@ -8782,7 +8782,9 @@ export default function Home() {
                       size="sm"
                       className="h-7 text-xs gap-1.5"
                       onClick={() => {
-                        const parts: string[] = [(aeResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") ? aeResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${aeResult.ledModuleWithCCT.toUpperCase()}`)];
+                        const aeModEq2 = aeResult.ledModuleEq ? ` (${aeResult.ledModuleEq})` : "";
+                        const aeModName2 = aeResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") ? aeResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${aeResult.ledModuleWithCCT.toUpperCase()}`;
+                        const parts: string[] = [`${aeModName2}${aeModEq2}`];
                         if (aeResult.product.oticaPrimaria) { parts.push(aeResult.product.oticaPrimaria.toUpperCase()); if (aeResult.product.oticaSecundaria) parts.push(aeResult.product.oticaSecundaria.toUpperCase()); } else if (aeResult.product.otica) { parts.push(aeResult.product.otica.toUpperCase()); }
                         if (aeResult.product.holder) parts.push(aeResult.product.holder.toUpperCase());
                         if (aeResult.product.dissipador) parts.push(aeResult.product.dissipador.toUpperCase());
@@ -8803,7 +8805,9 @@ export default function Home() {
                       onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
                     >
                       {(() => {
-                        const parts: string[] = [(aeResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") ? aeResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${aeResult.ledModuleWithCCT.toUpperCase()}`)];
+                        const aeModEq3 = aeResult.ledModuleEq ? ` (${aeResult.ledModuleEq})` : "";
+                        const aeModName3 = aeResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") ? aeResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${aeResult.ledModuleWithCCT.toUpperCase()}`;
+                        const parts: string[] = [`${aeModName3}${aeModEq3}`];
                         if (aeResult.product.oticaPrimaria) { parts.push(aeResult.product.oticaPrimaria.toUpperCase()); if (aeResult.product.oticaSecundaria) parts.push(aeResult.product.oticaSecundaria.toUpperCase()); } else if (aeResult.product.otica) { parts.push(aeResult.product.otica.toUpperCase()); }
                         if (aeResult.product.holder) parts.push(aeResult.product.holder.toUpperCase());
                         if (aeResult.product.dissipador) parts.push(aeResult.product.dissipador.toUpperCase());
@@ -8899,7 +8903,7 @@ export default function Home() {
                       {panelResult.ledModuleWithCCT && (
                         <div className="p-3 rounded-lg bg-muted/50 col-span-2">
                           <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
-                          <p className="text-sm font-semibold">{panelResult.ledModuleWithCCT}</p>
+                          <p className="text-sm font-semibold">{panelResult.ledModuleWithCCT}{panelResult.ledModuleEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({panelResult.ledModuleEq})</span> : null}</p>
                         </div>
                       )}
                       <div className="p-3 rounded-lg bg-muted/50 col-span-2">
@@ -8976,7 +8980,7 @@ export default function Home() {
                             totalPrice: panelTotalPrice,
                             priceFromApi: preco != null || !!panelDrvLines,
                             photoUrl: pPhoto ?? panelResult.product.fotoUrl ?? "",
-                            orderSummary: (() => { const parts: string[] = []; if (panelResult.ledModuleWithCCT) parts.push(panelResult.ledModuleWithCCT.toUpperCase()); const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; const drvQty = driverQtyFor(panelResult.product, panelResult.controle, panelResult.tensao); parts.push(`${drvQty}x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`); const skuLine = panelResult.product.sku ? `CÓDIGO: ${panelResult.product.sku}\n` : ""; const isOrbit = panelResult.product.familia.toUpperCase().startsWith("ORBIT"); const orbitObs = isOrbit ? "\nOBS: programar driver em 200mA" : ""; return `${skuLine}${panelResult.product.name.toUpperCase()} ${panelResult.cct} ${panelResult.controle.toUpperCase()} ${panelResult.tensao} MONTADA COM ${parts.join(" + ")}${orbitObs}`; })(),
+                            orderSummary: (() => { const parts: string[] = []; if (panelResult.ledModuleWithCCT) { const pModEq = panelResult.ledModuleEq ? ` (${panelResult.ledModuleEq})` : ""; parts.push(`${panelResult.ledModuleWithCCT.toUpperCase()}${pModEq}`); } const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; const drvQty = driverQtyFor(panelResult.product, panelResult.controle, panelResult.tensao); parts.push(`${drvQty}x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`); const skuLine = panelResult.product.sku ? `CÓDIGO: ${panelResult.product.sku}\n` : ""; const isOrbit = panelResult.product.familia.toUpperCase().startsWith("ORBIT"); const orbitObs = isOrbit ? "\nOBS: programar driver em 200mA" : ""; return `${skuLine}${panelResult.product.name.toUpperCase()} ${panelResult.cct} ${panelResult.controle.toUpperCase()} ${panelResult.tensao} MONTADA COM ${parts.join(" + ")}${orbitObs}`; })(),
                             quoteSummary: `${panelResult.product.name} ${panelResult.cct} ${panelResult.controle} ${panelResult.tensao}`.toUpperCase(),
                             moduloLed: panelResult.ledModuleWithCCT ?? "",
                             drivers: (() => { const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; const drvQty = driverQtyFor(panelResult.product, panelResult.controle, panelResult.tensao); return `${drvQty}x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
@@ -9061,7 +9065,7 @@ export default function Home() {
                       variant="outline" size="sm" className="h-7 text-xs gap-1.5"
                       onClick={() => {
                         const parts: string[] = [];
-                        if (panelResult.ledModuleWithCCT) parts.push(panelResult.ledModuleWithCCT.toUpperCase());
+                        if (panelResult.ledModuleWithCCT) { const pEq = panelResult.ledModuleEq ? ` (${panelResult.ledModuleEq})` : ""; parts.push(`${panelResult.ledModuleWithCCT.toUpperCase()}${pEq}`); }
                         { const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; const drvQty = driverQtyFor(panelResult.product, panelResult.controle, panelResult.tensao); parts.push(`${drvQty}x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`); }
                         const skuLine = panelResult.product.sku ? `CÓDIGO: ${panelResult.product.sku}\n` : "";
                         const isOrbitFamily = panelResult.product.familia.toUpperCase().startsWith("ORBIT");
@@ -9081,7 +9085,7 @@ export default function Home() {
                     >
                       {(() => {
                         const parts: string[] = [];
-                        if (panelResult.ledModuleWithCCT) parts.push(panelResult.ledModuleWithCCT.toUpperCase());
+                        if (panelResult.ledModuleWithCCT) { const pEq2 = panelResult.ledModuleEq ? ` (${panelResult.ledModuleEq})` : ""; parts.push(`${panelResult.ledModuleWithCCT.toUpperCase()}${pEq2}`); }
                         { const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; const drvQty = driverQtyFor(panelResult.product, panelResult.controle, panelResult.tensao); parts.push(`${drvQty}x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`); }
                         const skuLine = panelResult.product.sku ? `CÓDIGO: ${panelResult.product.sku}\n` : "";
                         const isOrbitFamily = panelResult.product.familia.toUpperCase().startsWith("ORBIT");
@@ -9154,7 +9158,7 @@ export default function Home() {
                     {arandelaResult.ledModuleWithCCT && (
                       <div className="p-3 rounded-lg bg-muted/50">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
-                        <p className="text-sm font-semibold">{arandelaResult.ledModuleWithCCT}</p>
+                        <p className="text-sm font-semibold">{arandelaResult.ledModuleWithCCT}{arandelaResult.ledModuleEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({arandelaResult.ledModuleEq})</span> : null}</p>
                       </div>
                     )}
                     {/* Driver */}
@@ -9223,7 +9227,7 @@ export default function Home() {
                             totalPrice: preco ?? 0,
                             priceFromApi: preco != null,
                             photoUrl: arandelaResult.product.fotoUrl ?? "",
-                            orderSummary: (() => { const parts: string[] = []; if (arandelaResult.ledModuleWithCCT) { const mQtd = arandelaResult.product.ledModuleQtd; const mPrefix = mQtd != null ? `${mQtd}x ` : ""; parts.push(`${mPrefix}${arandelaResult.ledModuleWithCCT.toUpperCase()}`); } const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); parts.push(`${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`); const skuLine = arandelaResult.product.sku ? `CÓDIGO: ${arandelaResult.product.sku}\n` : ""; return `${skuLine}${arandelaResult.product.name.toUpperCase()} ${arandelaResult.cct} ${arandelaResult.controle.toUpperCase()} ${arandelaResult.tensao} MONTADA COM ${parts.join(" + ")}`; })(),
+                            orderSummary: (() => { const parts: string[] = []; if (arandelaResult.ledModuleWithCCT) { const mQtd = arandelaResult.product.ledModuleQtd; const mPrefix = mQtd != null ? `${mQtd}x ` : ""; const arModEq = arandelaResult.ledModuleEq ? ` (${arandelaResult.ledModuleEq})` : ""; parts.push(`${mPrefix}${arandelaResult.ledModuleWithCCT.toUpperCase()}${arModEq}`); } const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); parts.push(`${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`); const skuLine = arandelaResult.product.sku ? `CÓDIGO: ${arandelaResult.product.sku}\n` : ""; return `${skuLine}${arandelaResult.product.name.toUpperCase()} ${arandelaResult.cct} ${arandelaResult.controle.toUpperCase()} ${arandelaResult.tensao} MONTADA COM ${parts.join(" + ")}`; })(),
                             quoteSummary: `${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.controle} ${arandelaResult.tensao}`.toUpperCase(),
                             moduloLed: arandelaResult.ledModuleWithCCT ?? "",
                             drivers: (() => { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); return `${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
@@ -9304,7 +9308,7 @@ export default function Home() {
                       variant="outline" size="sm" className="h-7 text-xs gap-1.5"
                       onClick={() => {
                         const parts: string[] = [];
-                        if (arandelaResult.ledModuleWithCCT) { const mQtd = arandelaResult.product.ledModuleQtd; const mPrefix = mQtd != null ? `${mQtd}x ` : ""; parts.push(`${mPrefix}${arandelaResult.ledModuleWithCCT.toUpperCase()}`); }
+                        if (arandelaResult.ledModuleWithCCT) { const mQtd = arandelaResult.product.ledModuleQtd; const mPrefix = mQtd != null ? `${mQtd}x ` : ""; const arEq = arandelaResult.ledModuleEq ? ` (${arandelaResult.ledModuleEq})` : ""; parts.push(`${mPrefix}${arandelaResult.ledModuleWithCCT.toUpperCase()}${arEq}`); }
                         { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); parts.push(`${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`); }
                         const skuLine = arandelaResult.product.sku ? `CÓDIGO: ${arandelaResult.product.sku}\n` : "";
                         const txt = `${skuLine}${arandelaResult.product.name.toUpperCase()} ${arandelaResult.cct} ${arandelaResult.controle.toUpperCase()} ${arandelaResult.tensao} MONTADA COM ${parts.join(" + ")}`;
@@ -9322,7 +9326,7 @@ export default function Home() {
                     >
                       {(() => {
                         const parts: string[] = [];
-                        if (arandelaResult.ledModuleWithCCT) { const mQtd = arandelaResult.product.ledModuleQtd; const mPrefix = mQtd != null ? `${mQtd}x ` : ""; parts.push(`${mPrefix}${arandelaResult.ledModuleWithCCT.toUpperCase()}`); }
+                        if (arandelaResult.ledModuleWithCCT) { const mQtd = arandelaResult.product.ledModuleQtd; const mPrefix = mQtd != null ? `${mQtd}x ` : ""; const arEq2 = arandelaResult.ledModuleEq ? ` (${arandelaResult.ledModuleEq})` : ""; parts.push(`${mPrefix}${arandelaResult.ledModuleWithCCT.toUpperCase()}${arEq2}`); }
                         { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); parts.push(`${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`); }
                         const skuLine = arandelaResult.product.sku ? `CÓDIGO: ${arandelaResult.product.sku}\n` : "";
                         return `${skuLine}${arandelaResult.product.name.toUpperCase()} ${arandelaResult.cct} ${arandelaResult.controle.toUpperCase()} ${arandelaResult.tensao} MONTADA COM ${parts.join(" + ")}`;
@@ -9403,7 +9407,7 @@ export default function Home() {
                     {spotResult.ledModuleWithCCT && (
                       <div className="p-3 rounded-lg bg-muted/50">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
-                        <p className="text-sm font-semibold">{spotResult.ledModuleWithCCT}</p>
+                        <p className="text-sm font-semibold">{spotResult.ledModuleWithCCT}{spotResult.ledModuleEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({spotResult.ledModuleEq})</span> : null}</p>
                       </div>
                     )}
                     {/* Ótica: exibir primária/secundária separadas quando disponíveis, senão legado */}
@@ -9501,7 +9505,7 @@ export default function Home() {
                             totalPrice: preco ?? 0,
                             priceFromApi: preco != null,
                             photoUrl: spotResult.product.fotoUrl ?? "",
-                            orderSummary: (() => { const parts: string[] = []; if (spotResult.ledModuleWithCCT) parts.push(spotResult.ledModuleWithCCT.toUpperCase()); if (spotResult.product.oticaPrimaria) { parts.push(spotResult.product.oticaPrimaria.toUpperCase()); if (spotResult.product.oticaSecundaria) parts.push(spotResult.product.oticaSecundaria.toUpperCase()); } else if (spotResult.product.otica) { parts.push(spotResult.product.otica.toUpperCase()); } if (spotResult.product.holder) parts.push(spotResult.product.holder.toUpperCase()); const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; const drvQty = driverQtyFor(spotResult.product, spotResult.controle, spotResult.tensao); parts.push(`${drvQty}x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`); const skuLine = spotResult.product.sku ? `CÓDIGO: ${spotResult.product.sku}\n` : ""; return `${skuLine}${spotResult.product.name.toUpperCase()} ${spotResult.cct} ${spotResult.controle.toUpperCase()} ${spotResult.tensao} MONTADA COM ${parts.join(" + ")}`; })(),
+                            orderSummary: (() => { const parts: string[] = []; if (spotResult.ledModuleWithCCT) { const spModEq = spotResult.ledModuleEq ? ` (${spotResult.ledModuleEq})` : ""; parts.push(`${spotResult.ledModuleWithCCT.toUpperCase()}${spModEq}`); } if (spotResult.product.oticaPrimaria) { parts.push(spotResult.product.oticaPrimaria.toUpperCase()); if (spotResult.product.oticaSecundaria) parts.push(spotResult.product.oticaSecundaria.toUpperCase()); } else if (spotResult.product.otica) { parts.push(spotResult.product.otica.toUpperCase()); } if (spotResult.product.holder) parts.push(spotResult.product.holder.toUpperCase()); const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; const drvQty = driverQtyFor(spotResult.product, spotResult.controle, spotResult.tensao); parts.push(`${drvQty}x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`); const skuLine = spotResult.product.sku ? `CÓDIGO: ${spotResult.product.sku}\n` : ""; return `${skuLine}${spotResult.product.name.toUpperCase()} ${spotResult.cct} ${spotResult.controle.toUpperCase()} ${spotResult.tensao} MONTADA COM ${parts.join(" + ")}`; })(),
                             quoteSummary: `${spotResult.product.name} ${spotResult.cct} ${spotResult.controle} ${spotResult.tensao}`.toUpperCase(),
                             moduloLed: spotResult.ledModuleWithCCT ?? "",
                             drivers: (() => { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; const drvQty = driverQtyFor(spotResult.product, spotResult.controle, spotResult.tensao); return `${drvQty}x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
@@ -9582,7 +9586,7 @@ export default function Home() {
                       variant="outline" size="sm" className="h-7 text-xs gap-1.5"
                       onClick={() => {
                         const parts: string[] = [];
-                         if (spotResult.ledModuleWithCCT) parts.push(spotResult.ledModuleWithCCT.toUpperCase());
+                         if (spotResult.ledModuleWithCCT) { const spEq = spotResult.ledModuleEq ? ` (${spotResult.ledModuleEq})` : ""; parts.push(`${spotResult.ledModuleWithCCT.toUpperCase()}${spEq}`); }
                          // Ótica: usar primária+secundária separadas se disponíveis, senão legado
                          if (spotResult.product.oticaPrimaria) {
                            parts.push(spotResult.product.oticaPrimaria.toUpperCase());
@@ -9608,7 +9612,7 @@ export default function Home() {
                     >
                       {(() => {
                         const parts: string[] = [];
-                         if (spotResult.ledModuleWithCCT) parts.push(spotResult.ledModuleWithCCT.toUpperCase());
+                         if (spotResult.ledModuleWithCCT) { const spEq2 = spotResult.ledModuleEq ? ` (${spotResult.ledModuleEq})` : ""; parts.push(`${spotResult.ledModuleWithCCT.toUpperCase()}${spEq2}`); }
                          // Ótica: usar primária+secundária separadas se disponíveis, senão legado
                          if (spotResult.product.oticaPrimaria) {
                            parts.push(spotResult.product.oticaPrimaria.toUpperCase());

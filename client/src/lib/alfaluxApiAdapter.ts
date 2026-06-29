@@ -57,6 +57,11 @@ export interface ApiProduct {
   ledModuleQtd3000?: number | null;
   ledModuleQtd4000?: number | null;
   ledModuleQtd5000?: number | null;
+  /** Código EQ do módulo por CCT — enriquecido pelo servidor via lookup em /api/componentes/all */
+  ledModuleEq2700?: string | null;
+  ledModuleEq3000?: string | null;
+  ledModuleEq4000?: string | null;
+  ledModuleEq5000?: string | null;
   otica: string | null;
   /** Ótica primária com quantidade embutida. null quando não retornado pela API. */
   oticaPrimaria: string | null;
@@ -236,6 +241,10 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
     ledModuleQtd3000: p.ledModuleQtd3000 ?? null,
     ledModuleQtd4000: p.ledModuleQtd4000 ?? null,
     ledModuleQtd5000: p.ledModuleQtd5000 ?? null,
+    ledModuleEq2700: p.ledModuleEq2700 ?? null,
+    ledModuleEq3000: p.ledModuleEq3000 ?? null,
+    ledModuleEq4000: p.ledModuleEq4000 ?? null,
+    ledModuleEq5000: p.ledModuleEq5000 ?? null,
     ccts,
     driver220: d220
       ? { model: driverModel(d220), code: driverCode(d220) }
@@ -306,6 +315,10 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
     ledModuleQtd3000: p.ledModuleQtd3000 ?? null,
     ledModuleQtd4000: p.ledModuleQtd4000 ?? null,
     ledModuleQtd5000: p.ledModuleQtd5000 ?? null,
+    ledModuleEq2700: p.ledModuleEq2700 ?? null,
+    ledModuleEq3000: p.ledModuleEq3000 ?? null,
+    ledModuleEq4000: p.ledModuleEq4000 ?? null,
+    ledModuleEq5000: p.ledModuleEq5000 ?? null,
     otica: resolveOtica(p),
     oticaPrimaria: p.oticaPrimaria ?? null,
     oticaSecundaria: p.oticaSecundaria ?? null,
@@ -386,6 +399,10 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
     ledModuleQtd3000: p.ledModuleQtd3000 ?? null,
     ledModuleQtd4000: p.ledModuleQtd4000 ?? null,
     ledModuleQtd5000: p.ledModuleQtd5000 ?? null,
+    ledModuleEq2700: p.ledModuleEq2700 ?? null,
+    ledModuleEq3000: p.ledModuleEq3000 ?? null,
+    ledModuleEq4000: p.ledModuleEq4000 ?? null,
+    ledModuleEq5000: p.ledModuleEq5000 ?? null,
     ccts: cctsPainel,
     driver220,
     driverBivolt,
@@ -525,6 +542,10 @@ function toArandelaProduct(p: ApiProduct): ArandelaProduct {
     ledModuleQtd3000: p.ledModuleQtd3000 ?? null,
     ledModuleQtd4000: p.ledModuleQtd4000 ?? null,
     ledModuleQtd5000: p.ledModuleQtd5000 ?? null,
+    ledModuleEq2700: p.ledModuleEq2700 ?? null,
+    ledModuleEq3000: p.ledModuleEq3000 ?? null,
+    ledModuleEq4000: p.ledModuleEq4000 ?? null,
+    ledModuleEq5000: p.ledModuleEq5000 ?? null,
     otica: resolveOtica(p),
     oticaPrimaria: p.oticaPrimaria ?? null,
     oticaSecundaria: p.oticaSecundaria ?? null,

@@ -45,6 +45,11 @@ export interface DownlightProduct {
   ledModuleQtd3000?: number | null;
   ledModuleQtd4000?: number | null;
   ledModuleQtd5000?: number | null;
+  /** Código EQ do módulo por CCT — enriquecido pelo servidor */
+  ledModuleEq2700?: string | null;
+  ledModuleEq3000?: string | null;
+  ledModuleEq4000?: string | null;
+  ledModuleEq5000?: string | null;
   /** CCTs disponíveis para este produto (ex: ["3000K", "4000K"]) */
   ccts: string[];
   /** Driver para 220Vac */
@@ -132,6 +137,8 @@ export interface DownlightResult {
   ledModuleWithCCT: string;
   /** Quantidade de módulos LED resolvida para o CCT selecionado */
   ledModuleQtd: number | null;
+  /** Código EQ do módulo resolvido para o CCT selecionado (ex: "EQ00643"). null se não encontrado. */
+  ledModuleEq: string | null;
 }
 
 export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
@@ -3760,6 +3767,8 @@ export function calculateDownlight(input: DownlightInput, catalog?: DownlightPro
     ? cctSpecificModule.replace(/\[CCT\]/gi, input.cct).trim()
     : product.ledModule + " " + input.cct;
   const resolvedLedModuleQtd = cctSpecificQtd ?? product.ledModuleQtd;
+  const cctEqField = `ledModuleEq${cctKey}` as keyof typeof product;
+  const ledModuleEq = (product[cctEqField] as string | null | undefined) ?? null;
 
   return {
     product,
@@ -3769,5 +3778,6 @@ export function calculateDownlight(input: DownlightInput, catalog?: DownlightPro
     driver,
     ledModuleWithCCT,
     ledModuleQtd: resolvedLedModuleQtd,
+    ledModuleEq,
   };
 }

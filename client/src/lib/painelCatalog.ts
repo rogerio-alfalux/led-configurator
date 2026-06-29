@@ -33,6 +33,11 @@ export interface PainelProduct {
   ledModuleQtd3000?: number | null;
   ledModuleQtd4000?: number | null;
   ledModuleQtd5000?: number | null;
+  /** Código EQ do módulo por CCT — enriquecido pelo servidor */
+  ledModuleEq2700?: string | null;
+  ledModuleEq3000?: string | null;
+  ledModuleEq4000?: string | null;
+  ledModuleEq5000?: string | null;
   /** CCTs disponíveis para este produto (ex: ["3000K", "4000K"]) */
   ccts: string[];
   /** Driver para 220Vac */
@@ -114,6 +119,8 @@ export interface PainelResult {
   controle: ControleType;
   driver: PainelDriver;
   ledModuleWithCCT: string | null;
+  /** Código EQ do módulo resolvido para o CCT selecionado. null se não encontrado. */
+  ledModuleEq: string | null;
 }
 
 export const PAINEL_CATALOG: PainelProduct[] = [
@@ -985,6 +992,7 @@ export function calculatePainel(input: PainelInput, catalog?: PainelProduct[]): 
     : product.ledModule
     ? `${product.ledModule} ${input.cct}`
     : null;
+  const ledModuleEq = ((product as any)[`ledModuleEq${cctKey}`] as string | null | undefined) ?? null;
 
   return {
     product,
@@ -993,5 +1001,6 @@ export function calculatePainel(input: PainelInput, catalog?: PainelProduct[]): 
     controle: input.controle,
     driver,
     ledModuleWithCCT,
+    ledModuleEq,
   };
 }
