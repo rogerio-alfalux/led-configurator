@@ -1,0 +1,14 @@
+{
+  "query": "SELECT \n  SUM(CAST(totalAmount AS DECIMAL(14,2))) as soma_totalAmount,\n  SUM(CASE WHEN CAST(totalFinal AS DECIMAL(14,2)) > 0 THEN CAST(totalFinal AS DECIMAL(14,2)) ELSE CAST(totalAmount AS DECIMAL(12,2)) END) as soma_totalFinal\nFROM quotes;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT \n  SUM(CAST(totalAmount AS DECIMAL(14,2))) as soma_totalAmount,\n  SUM(CASE WHEN CAST(totalFinal AS DECIMAL(14,2)) > 0 THEN CAST(totalFinal AS DECIMAL(14,2)) ELSE CAST(totalAmount AS DECIMAL(12,2)) END) as soma_totalFinal\nFROM quotes;",
+  "rows": [
+    {
+      "soma_totalAmount": "10082776.79",
+      "soma_totalFinal": "10418737.53"
+    }
+  ],
+  "messages": [],
+  "stdout": "soma_totalAmount\tsoma_totalFinal\n10082776.79\t10418737.53\n",
+  "stderr": "",
+  "execution_time_ms": 259
+}

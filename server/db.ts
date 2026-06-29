@@ -689,23 +689,21 @@ export async function getQuoteStats() {
       approved: sql<number>`sum(case when status = 'approved' then 1 else 0 end)`,
       lost: sql<number>`sum(case when status = 'lost' then 1 else 0 end)`,
       cancelled: sql<number>`sum(case when status = 'cancelled' then 1 else 0 end)`,
-      totalAmount: sql<number>`sum(cast(totalAmount as decimal(12,2)))`,
-      approvedAmount: sql<number>`sum(case when status = 'approved' then cast(totalAmount as decimal(12,2)) else 0 end)`,
+        totalAmount: sql<number>`sum(case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end)`,
+      approvedAmount: sql<number>`sum(case when status = 'approved' then (case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end) else 0 end)`,
     })
     .from(quotes);
-
   // Top vendedores
   const topVendors = await db
     .select({
       name: quotes.vendorName,
       count: sql<number>`count(*)`,
-      amount: sql<number>`sum(cast(totalAmount as decimal(12,2)))`,
+      amount: sql<number>`sum(case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end)`,
     })
     .from(quotes)
     .groupBy(quotes.vendorName)
     .orderBy(desc(sql`count(*)`))
     .limit(10);
-
   // Top assistentes
   const topAssistants = await db
     .select({
@@ -716,13 +714,12 @@ export async function getQuoteStats() {
     .groupBy(quotes.assistantName)
     .orderBy(desc(sql`count(*)`))
     .limit(10);
-
   // Orçamentos por mês (últimos 12 meses)
   const byMonth = await db
     .select({
       month: sql<string>`DATE_FORMAT(createdAt, '%Y-%m')`,
       count: sql<number>`count(*)`,
-      amount: sql<number>`sum(cast(totalAmount as decimal(12,2)))`,
+      amount: sql<number>`sum(case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end)`,
     })
     .from(quotes)
     .where(sql`createdAt >= DATE_SUB(NOW(), INTERVAL 12 MONTH)`)
