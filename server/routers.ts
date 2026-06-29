@@ -631,7 +631,7 @@ export const appRouter = router({
           totalAmount,
           items: allItems,
           createdByUserId: ctx.user.id,
-        });
+        }, false /* bumpVersion=false: adicionar itens não gera nova revisão */);
         await insertAuditLog({
           userId: ctx.user.id,
           userEmail: ctx.user.email,
