@@ -3273,6 +3273,25 @@ export default function Home() {
     ? activeGetVariant(profileName, installType as InstallType) ?? null
     : null;
 
+  // Auto-selecionar a primeira CCT disponível quando a variante muda
+  useEffect(() => {
+    if (!selectedVariant) return;
+    const stripMethod = selectedVariant.stripMethod ?? "STRIPFLEX";
+    const isStripline = stripMethod === "STRIPLINE";
+    const hasCCT = (cctVal: string) => {
+      if (cctVal === "A definir") return true;
+      const key = `ledModule${isStripline ? "Stripline" : "Stripflex"}${cctVal.replace("K", "")}` as keyof typeof selectedVariant;
+      const val = selectedVariant[key];
+      return typeof val === "string" && val.trim().length > 0;
+    };
+    const cctValues = ["2700K", "3000K", "4000K", "5000K"] as CCT[];
+    if (!hasCCT(cct)) {
+      const firstAvailable = cctValues.find(hasCCT);
+      if (firstAvailable) setCct(firstAvailable);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedVariant?.code]);
+
   const profileCode = selectedVariant?.code ?? "";
 
   // Embutir: sempre D1, sem aplicação visível, sem acendimento independente
@@ -4596,16 +4615,30 @@ export default function Home() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <FieldLabel>CCT</FieldLabel>
-                      <Select value={cct} onValueChange={(v) => setCct(v as CCT)}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {CCT_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {(() => {
+                        // Filtrar CCTs disponíveis com base nos módulos da variante selecionada
+                        const stripMethod = selectedVariant.stripMethod ?? "STRIPFLEX";
+                        const isStripline = stripMethod === "STRIPLINE";
+                        const hasCCT = (cctVal: string) => {
+                          if (cctVal === "A definir") return true;
+                          const key = `ledModule${isStripline ? "Stripline" : "Stripflex"}${cctVal.replace("K", "")}` as keyof typeof selectedVariant;
+                          const val = selectedVariant[key];
+                          return typeof val === "string" && val.trim().length > 0;
+                        };
+                        const filteredCCTs = CCT_OPTIONS.filter((opt) => hasCCT(opt.value));
+                        return (
+                          <Select value={cct} onValueChange={(v) => setCct(v as CCT)}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {filteredCCTs.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        );
+                      })()}
                     </div>
                     <div>
                       <FieldLabel>Tensão</FieldLabel>
