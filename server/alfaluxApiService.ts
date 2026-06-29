@@ -207,6 +207,35 @@ export async function fetchAllAlfaluxProducts(): Promise<AlfaluxProduct[]> {
     for (const [sku, n] of dups) console.warn(`  ${sku}: ${n}x`);
   }
 
+  // Enriquecer produtos com código EQ do módulo via lookup em /api/componentes/all
+  try {
+    const { items: componentes } = await fetchComponentes();
+    // Construir mapa descricao.toUpperCase() -> codigo
+    const eqMap = new Map<string, string>();
+    for (const c of componentes) {
+      if (c.tipo === 'MODULO_LED' && c.codigo && c.descricao) {
+        eqMap.set(c.descricao.toUpperCase().trim(), c.codigo);
+      }
+    }
+    const cctKeys = ['2700', '3000', '4000', '5000'] as const;
+    for (const p of all) {
+      for (const cct of cctKeys) {
+        const modField = `ledModule${cct}` as keyof typeof p;
+        const eqField = `ledModuleEq${cct}` as keyof typeof p;
+        const modName = p[modField] as string | null | undefined;
+        if (modName) {
+          // Remover prefixo de quantidade (ex: '10x ') antes de buscar
+          const cleanName = modName.replace(/^\d+x\s+/i, '').trim().toUpperCase();
+          const eq = eqMap.get(cleanName) ?? null;
+          (p as unknown as Record<string, unknown>)[eqField] = eq;
+        }
+      }
+    }
+    console.log(`[AlfaluxAPI] Lookup de EQ do módulo concluído.`);
+  } catch (err) {
+    console.warn(`[AlfaluxAPI] Falha no lookup de EQ do módulo:`, err);
+  }
+
   console.log(`[AlfaluxAPI] ${all.length} produtos carregados.`);
   cache = { data: all, fetchedAt: now };
   return all;
