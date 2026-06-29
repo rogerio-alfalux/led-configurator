@@ -141,22 +141,21 @@ export default function Quotes() {
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-5">
 
         {/* Cards de estatísticas */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
-            { label: "Total", value: stats.total, color: "text-foreground", icon: <ClipboardList className="w-4 h-4" /> },
-            { label: "Em Aberto", value: stats.open, color: "text-blue-600", icon: <Clock className="w-4 h-4 text-blue-500" /> },
-            { label: "Aprovados", value: stats.approved, color: "text-green-600", icon: <CheckCircle className="w-4 h-4 text-green-500" /> },
-            { label: "Perdidos", value: stats.lost, color: "text-red-600", icon: <TrendingDown className="w-4 h-4 text-red-500" /> },
-            { label: "Faturados", value: stats.invoiced, color: "text-purple-600", icon: <Receipt className="w-4 h-4 text-purple-500" /> },
-            { label: "Valor Total", value: formatBRL(stats.totalValue), color: "text-primary", icon: <BarChart2 className="w-4 h-4 text-primary" /> },
-            { label: "Faturado R$", value: formatBRL(stats.invoicedValue), color: "text-purple-600", icon: <Receipt className="w-4 h-4 text-purple-500" /> },
+            { label: "Total", value: stats.total, color: "text-foreground", icon: <ClipboardList className="w-4 h-4" />, isValue: false },
+            { label: "Em Aberto", value: stats.open, color: "text-blue-600", icon: <Clock className="w-4 h-4 text-blue-500" />, isValue: false },
+            { label: "Aprovados", value: stats.approved, color: "text-green-600", icon: <CheckCircle className="w-4 h-4 text-green-500" />, isValue: false },
+            { label: "Perdidos", value: stats.lost, color: "text-red-600", icon: <TrendingDown className="w-4 h-4 text-red-500" />, isValue: false },
+            { label: "Faturados", value: stats.invoiced, color: "text-purple-600", icon: <Receipt className="w-4 h-4 text-purple-500" />, isValue: false },
+            { label: "Valor Total", value: formatBRL(stats.totalValue), color: "text-primary", icon: <BarChart2 className="w-4 h-4 text-primary" />, isValue: true },
           ].map(s => (
-            <Card key={s.label} className="p-3">
-              <div className="flex items-center gap-2 mb-1">
-                {s.icon}
-                <span className="text-xs text-muted-foreground">{s.label}</span>
+            <Card key={s.label} className="p-3 min-w-0">
+              <div className="flex items-center gap-1.5 mb-1 min-w-0">
+                <span className="shrink-0">{s.icon}</span>
+                <span className="text-xs text-muted-foreground truncate">{s.label}</span>
               </div>
-              <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+              <p className={`font-bold ${s.color} ${s.isValue ? "text-sm leading-tight break-all" : "text-2xl"}`}>{s.value}</p>
             </Card>
           ))}
         </div>
