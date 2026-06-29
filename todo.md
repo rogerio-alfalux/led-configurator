@@ -1611,3 +1611,18 @@
 - [x] QuoteDetail.tsx: botão "Pré-visualizar Pedido" abre modal de pré-visualização antes de gerar Excel
 - [x] Seleção de empresa (ALFALUX/LUMINEW) integrada ao fluxo de pré-visualização
 - [x] Botão "Gerar Excel" disponível dentro do modal de pré-visualização para oficializar
+
+## Categoria "Customizados" (29/06/2026)
+
+- [x] Home.tsx: faixa horizontal "Customizados" abaixo das categorias existentes
+- [x] Home.tsx: ao clicar na faixa, exibir painel de configuração de produto customizado
+- [x] Home.tsx: buscar produtos com category="Customizados" da API e listar para seleção
+- [ ] Home.tsx: formulário de configuração (produto, qty, cor, observações, cliente específico)
+- [ ] cartTypes.ts: suporte a category="Customizados" no CartItemData
+- [ ] Excel/ficha de produção: tratar itens Customizados corretamente
+
+## Correção de Duplicação de Orçamento (29/06/2026)
+
+- [x] Ao duplicar orçamento, gerar novo número sequencial no formato correto (sem prefixo ORC...)
+- [x] Campo de número do orçamento editável pelo usuário dentro do formato especificado
+- [x] Validação de unicidade: impedir salvar dois orçamentos com o mesmo número, avisar imediatamente

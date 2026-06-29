@@ -3,7 +3,14 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { fetchDrivers, invalidateDriverCache } from "./driverService";
-import { fetchAllAlfaluxProducts, invalidateAlfaluxCache, fetchRevendaProducts, fetchAcessoriosProducts, fetchComponentes } from "./alfaluxApiService";
+import {
+  fetchAllAlfaluxProducts,
+  invalidateAlfaluxCache,
+  fetchRevendaProducts,
+  fetchAcessoriosProducts,
+  fetchCustomizadosProducts,
+  fetchComponentes,
+} from "./alfaluxApiService";
 import {
   addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty, updateCartItemData, updateCartItemsSortOrder, createQuote, addQuoteRevision, listQuotes, getQuoteById, approveQuote, getRevisionItems,
   updateQuoteStatus, getQuoteStats, deleteQuote, suggestQuoteNumber,
@@ -131,6 +138,21 @@ export const appRouter = router({
         fornecedor: p.fornecedor,
         fotoUrl: p.fotoUrl,
         precoVenda: p.precoVenda,
+      }));
+    }),
+
+    // Produtos Customizados: produtos não-catálogo para clientes específicos
+    customizadosProducts: publicProcedure.query(async () => {
+      const products = await fetchCustomizadosProducts();
+      return products.map(p => ({
+        sku: p.sku,
+        name: p.name,
+        descricao: p.descricao,
+        familia: p.familia,
+        fotoUrl: p.fotoUrl,
+        precoVenda: p.precoVenda,
+        clienteEspecifico: p.clienteEspecifico,
+        observacoes: p.observacoes,
       }));
     }),
 
@@ -492,9 +514,20 @@ export const appRouter = router({
       .input(z.object({
         id: z.number(),
         newClientName: z.string().optional(),
+        newQuoteNumber: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const result = await duplicateQuote(input.id, ctx.user.id, input.newClientName);
+        // Validar unicidade do número personalizado antes de duplicar
+        if (input.newQuoteNumber) {
+          const dup = await checkDuplicateQuoteNumber(input.newQuoteNumber);
+          if (dup) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: `O número "${input.newQuoteNumber}" já está em uso pelo orçamento do cliente "${dup.clientName}". Por favor, escolha outro número.`,
+            });
+          }
+        }
+        const result = await duplicateQuote(input.id, ctx.user.id, input.newClientName, input.newQuoteNumber);
         await insertAuditLog({
           userId: ctx.user.id,
           userEmail: ctx.user.email,

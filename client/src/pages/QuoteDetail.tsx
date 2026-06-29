@@ -738,7 +738,22 @@ export default function QuoteDetail() {
   // Duplicar orçamento
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [duplicateClientName, setDuplicateClientName] = useState("");
+  const [duplicateQuoteNumber, setDuplicateQuoteNumber] = useState("");
+  const [duplicateNumberError, setDuplicateNumberError] = useState("");
   const uploadSpecialPhotoMutationQD = trpc.upload.specialItemPhoto.useMutation();
+
+  // Verificação de unicidade do número em tempo real
+  const checkNumberQuery = trpc.quotes.checkNumber.useQuery(
+    { quoteNumber: duplicateQuoteNumber },
+    { enabled: duplicateDialogOpen && duplicateQuoteNumber.trim().length > 0 }
+  );
+
+  // Sugestão automática de número ao abrir o dialog (seller1Id será preenchido no onOpenChange)
+  const suggestNumberQuery = trpc.quotes.suggestNumber.useQuery(
+    { sellerId: undefined },
+    { enabled: duplicateDialogOpen }
+  );
+
   const duplicateMutation = trpc.quotes.duplicate.useMutation({
     onSuccess: (result) => {
       utils.quotes.list.invalidate();
@@ -1512,22 +1527,65 @@ export default function QuoteDetail() {
           </Sheet>}
 
           {/* Duplicar Orçamento */}
-          <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
+          <Dialog open={duplicateDialogOpen} onOpenChange={(open) => {
+            setDuplicateDialogOpen(open);
+            if (open) {
+              setDuplicateClientName(quote.clientName ?? "");
+              setDuplicateQuoteNumber("");
+              setDuplicateNumberError("");
+            }
+          }}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="gap-2" onClick={() => setDuplicateClientName(quote.clientName ?? "")}>
+              <Button variant="outline" className="gap-2">
                 <Copy className="w-4 h-4" />
                 Duplicar
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-sm">
+            <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Duplicar Orçamento</DialogTitle>
               </DialogHeader>
-              <div className="space-y-3 py-2">
+              <div className="space-y-4 py-2">
                 <p className="text-sm text-muted-foreground">
                   Será criado um novo orçamento com todos os itens e configurações do <strong>{quote.quoteNumber}</strong>.
                 </p>
-                <div>
+
+                {/* Número do novo orçamento */}
+                <div className="space-y-1.5">
+                  <Label>Número do Novo Orçamento</Label>
+                  <div className="relative">
+                    <Input
+                      value={duplicateQuoteNumber}
+                      onChange={e => {
+                        setDuplicateQuoteNumber(e.target.value);
+                        setDuplicateNumberError("");
+                      }}
+                      placeholder={suggestNumberQuery.data?.suggested ?? "Gerando sugestão..."}
+                      className={checkNumberQuery.data?.exists ? "border-destructive focus-visible:ring-destructive" : ""}
+                    />
+                    {duplicateQuoteNumber.trim() && checkNumberQuery.isFetching && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">verificando...</span>
+                    )}
+                  </div>
+                  {checkNumberQuery.data?.exists && (
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      Número já em uso pelo orçamento de <strong>{checkNumberQuery.data.existingQuote?.clientName}</strong>. Escolha outro.
+                    </p>
+                  )}
+                  {!checkNumberQuery.data?.exists && duplicateQuoteNumber.trim() && !checkNumberQuery.isFetching && (
+                    <p className="text-xs text-emerald-600 flex items-center gap-1">
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      Número disponível.
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Deixe em branco para usar o próximo número sugerido ({suggestNumberQuery.data?.suggested ?? "..."}).
+                  </p>
+                </div>
+
+                {/* Nome do cliente */}
+                <div className="space-y-1.5">
                   <Label>Nome do Cliente (novo orçamento)</Label>
                   <Input
                     value={duplicateClientName}
@@ -1539,8 +1597,12 @@ export default function QuoteDetail() {
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setDuplicateDialogOpen(false)}>Cancelar</Button>
                 <Button
-                  onClick={() => duplicateMutation.mutate({ id: Number(id), newClientName: duplicateClientName || undefined })}
-                  disabled={duplicateMutation.isPending}
+                  onClick={() => duplicateMutation.mutate({
+                    id: Number(id),
+                    newClientName: duplicateClientName || undefined,
+                    newQuoteNumber: duplicateQuoteNumber.trim() || undefined,
+                  })}
+                  disabled={duplicateMutation.isPending || (duplicateQuoteNumber.trim().length > 0 && !!checkNumberQuery.data?.exists)}
                   className="gap-2"
                 >
                   <Copy className="w-4 h-4" />

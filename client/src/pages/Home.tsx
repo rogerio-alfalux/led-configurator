@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench, Briefcase } from "lucide-react";
+import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench, Briefcase, Star, Package2, Search as SearchIcon } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -128,7 +128,8 @@ type ProductCategory =
   | "Item Especial"
   | "Revenda"
   | "Acessórios"
-  | "Serviços";
+  | "Serviços"
+  | "Customizados";
 
 const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.ElementType; image?: string; available: boolean }[] = [
   { value: "Perfis",       label: "Perfis",        icon: Layers,      image: "/manus-storage/PERFIS_e65318d1.png",      available: true  },
@@ -144,6 +145,9 @@ const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.E
   { value: "Acessórios",    label: "Acessórios",     icon: Wrench,      image: "/manus-storage/trilho_nobg_cf2a6de2.png", available: true  },
   { value: "Serviços",       label: "Serviços",        icon: Briefcase,   available: true  },
 ];
+
+// Categoria Customizados — exibida separadamente como faixa horizontal
+const CUSTOMIZADOS_CATEGORY = { value: "Customizados" as ProductCategory, label: "Customizados", icon: Star };
 
 // ─── Auxiliar: quantidade de drivers por produto/controle/tensão ─────────────
 function driverQtyFor(
@@ -2468,13 +2472,23 @@ export default function Home() {
   const [svUnitPrice, setSvUnitPrice] = useState<string>("");
   const [svNotes, setSvNotes] = useState<string>("");
 
-  // ── Estados de Revenda ──────────────────────────────────────────────
+  // ── Estados de Revenda ──────────────────────────────────────────────────────────────────
   const [rvSelectedSku, setRvSelectedSku] = useState<string>("");
   const [rvFornecedor, setRvFornecedor] = useState<string>("");
   const [rvSearch, setRvSearch] = useState<string>("");
 
   const revendaProductsQuery = trpc.alfalux.revendaProducts.useQuery();
   const revendaProducts = revendaProductsQuery.data ?? [];
+
+  // ── Estados de Customizados ──────────────────────────────────────────────────────
+  const [czSelectedSku, setCzSelectedSku] = useState<string>("");
+  const [czSearch, setCzSearch] = useState<string>("");
+  const [czQty, setCzQty] = useState<string>("1");
+  const [czUnitPrice, setCzUnitPrice] = useState<string>("");
+  const [czNotes, setCzNotes] = useState<string>("");
+
+  const customizadosQuery = trpc.alfalux.customizadosProducts.useQuery();
+  const customizadosProducts = customizadosQuery.data ?? [];
 
   // Regras de agrupamento de fornecedores
   const FORNECEDOR_IGNORE: string[] = []; // Nenhum fornecedor ignorado — exibir todos
@@ -2576,7 +2590,101 @@ export default function Home() {
     setRvSelectedSku("");
   }, [rvSelectedSku, revendaProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, pendingAccessories]);
 
-  // ── Estados de Acessórios ────────────────────────────────────
+  const handleAddCustomizadoItem = useCallback(() => {
+    // Modo API: produto selecionado da lista
+    if (czSelectedSku && customizadosProducts.length > 0) {
+      const product = customizadosProducts.find(p => p.sku === czSelectedSku);
+      if (!product) return;
+      const qty = parseInt(czQty) || 1;
+      const unitPrice = czUnitPrice ? parseFloat(czUnitPrice) : (product.precoVenda ?? 0);
+      const total = qty * unitPrice;
+      const item: CartItemData = {
+        category: "Customizados",
+        sku: product.sku,
+        description: product.name,
+        photoUrl: product.fotoUrl ?? "",
+        qty,
+        unitPrice,
+        totalPrice: total,
+        priceFromApi: false,
+        power: "",
+        cct: "",
+        orderSummary: `${product.name} (${product.sku})`,
+        quoteSummary: `${product.name} (${product.sku})`,
+        specialInternalNotes: undefined,
+        corPeca: "",
+        itemNote: czNotes || undefined,
+        itemEmPlanta: globalItemEmPlanta,
+      };
+      if (appendToQuoteId) {
+        handleAddItemOrToQuote(item);
+      } else {
+        const itemWithFloor: CartItemData = {
+          ...item,
+          ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
+          ...(globalAmbiente ? { ambiente: globalAmbiente } : {}),
+        };
+        const itemWithAcc = pendingAccessories.length > 0
+          ? { ...itemWithFloor, accessories: [...pendingAccessories] }
+          : itemWithFloor;
+        if (pendingAccessories.length > 0) setPendingAccessories([]);
+        addItem(itemWithAcc);
+        toast.success(`"${product.name}" adicionado!`);
+      }
+      setCzSelectedSku("");
+      setCzQty("1");
+      setCzUnitPrice("");
+      setCzNotes("");
+      return;
+    }
+    // Modo manual: sem produtos da API
+    if (!czSearch.trim()) {
+      toast.error("Informe a descrição do produto.");
+      return;
+    }
+    const qty = parseInt(czQty) || 1;
+    const unitPrice = parseFloat(czUnitPrice) || 0;
+    const total = qty * unitPrice;
+    const item: CartItemData = {
+      category: "Customizados",
+      sku: `CZ-${Date.now()}`,
+      description: czSearch.trim(),
+      photoUrl: "",
+      qty,
+      unitPrice,
+      totalPrice: total,
+      priceFromApi: false,
+      power: "",
+      cct: "",
+      orderSummary: czSearch.trim(),
+      quoteSummary: czSearch.trim(),
+      specialInternalNotes: undefined,
+      corPeca: "",
+      itemNote: czNotes || undefined,
+      itemEmPlanta: globalItemEmPlanta,
+    };
+    if (appendToQuoteId) {
+      handleAddItemOrToQuote(item);
+    } else {
+      const itemWithFloor: CartItemData = {
+        ...item,
+        ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
+        ...(globalAmbiente ? { ambiente: globalAmbiente } : {}),
+      };
+      const itemWithAcc = pendingAccessories.length > 0
+        ? { ...itemWithFloor, accessories: [...pendingAccessories] }
+        : itemWithFloor;
+      if (pendingAccessories.length > 0) setPendingAccessories([]);
+      addItem(itemWithAcc);
+      toast.success(`"${czSearch.trim()}" adicionado ao carrinho!`);
+    }
+    setCzSearch("");
+    setCzQty("1");
+    setCzUnitPrice("");
+    setCzNotes("");
+  }, [czSelectedSku, czSearch, czQty, czUnitPrice, czNotes, customizadosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, pendingAccessories, globalItemEmPlanta, globalPavimento, globalAmbiente]);
+
+  // ── Estados de Acessórios ──────────────────────────────────────────────
   const [acSelectedId, setAcSelectedId] = useState<number | null>(null);
   const [acFamilia, setAcFamilia] = useState<string>("");
   const [acSearch, setAcSearch] = useState<string>("");
@@ -3299,7 +3407,7 @@ export default function Home() {
   // ── Produto configurado (habilita botão Incluir Acessório) ───────
   // Verdadeiro quando há um resultado calculado em qualquer categoria,
   // ou quando um produto de Revenda/Acessório/Item Especial está selecionado.
-  const hasResult = !!(result || shapeResult || dlResult || aeResult || panelResult || spotResult || arandelaResult || lbResult || bgResult || bfResult || rvSelectedSku || acSelectedId || productCategory === "Item Especial");
+  const hasResult = !!(result || shapeResult || dlResult || aeResult || panelResult || spotResult || arandelaResult || lbResult || bgResult || bfResult || rvSelectedSku || acSelectedId || czSelectedSku || productCategory === "Item Especial");
   // ── Dados derivados ──────────────────────────────────────────────
   // Usa funções do catálogo ativo (API ou estático)
   const profileNames = activeGetProfileNames();
@@ -3627,6 +3735,41 @@ export default function Home() {
                       </button>
                     ))}
                   </div>
+                </div>
+
+                {/* ── Faixa horizontal: Customizados ── */}
+                <div>
+                  <button
+                    onClick={() => {
+                      setProductCategory(productCategory === "Customizados" ? "Perfis" : "Customizados");
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-sm font-medium transition-all ${
+                      productCategory === "Customizados"
+                        ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500 shadow-sm ring-1 ring-purple-500/30"
+                        : "bg-background text-foreground border-border hover:border-purple-400/60 hover:bg-purple-50/50 dark:hover:bg-purple-900/10"
+                    }`}
+                  >
+                    <Package2 className={`w-5 h-5 shrink-0 ${
+                      productCategory === "Customizados" ? "text-purple-500" : "text-muted-foreground"
+                    }`} />
+                    <div className="flex-1 text-left">
+                      <span className="font-semibold">Customizados</span>
+                      <span className="ml-2 text-xs text-muted-foreground font-normal">Produtos não-catálogo para clientes específicos</span>
+                    </div>
+                    {customizadosProducts.length > 0 && (
+                      <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full font-medium">
+                        {customizadosProducts.length} produto{customizadosProducts.length !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                    {customizadosProducts.length === 0 && (
+                      <span className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full font-medium">
+                        Cadastro manual
+                      </span>
+                    )}
+                    <span className={`text-muted-foreground transition-transform ${
+                      productCategory === "Customizados" ? "rotate-90" : ""
+                    }`}>›</span>
+                  </button>
                 </div>
 
                 {productCategory === "Perfis" && (
@@ -6678,9 +6821,168 @@ export default function Home() {
               </div>
             )}
 
-            {/* ── Formulário de Acessórios ────────────────────────────────────── */}
-            {productCategory === "Acessórios" && (
+            {/* ── Formulário de Customizados ────────────────────────────────────────────── */}
+            {productCategory === "Customizados" && (
               <div className="space-y-4">
+                {customizadosQuery.isLoading ? (
+                  <div className="text-sm text-muted-foreground py-4 text-center">Carregando produtos customizados...</div>
+                ) : customizadosProducts.length === 0 ? (
+                  <div className="space-y-4">
+                    <div className="text-sm text-muted-foreground py-3 flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md px-3">
+                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                      <span>Nenhum produto customizado disponível na API no momento. Você pode cadastrar manualmente abaixo.</span>
+                    </div>
+                    {/* Formulário manual quando API não tem produtos */}
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium">Descrição do produto *</label>
+                        <Input
+                          placeholder="Ex: Perfil LED Customizado 2m - Cliente XYZ"
+                          value={czSearch}
+                          onChange={e => setCzSearch(e.target.value)}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-sm font-medium">Qtd *</label>
+                          <Input
+                            type="number" min="1"
+                            placeholder="1"
+                            value={czQty}
+                            onChange={e => setCzQty(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-sm font-medium">Preço unitário (R$) *</label>
+                          <Input
+                            type="number" min="0" step="0.01"
+                            placeholder="0,00"
+                            value={czUnitPrice}
+                            onChange={e => setCzUnitPrice(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium">Observações</label>
+                        <Input
+                          placeholder="Especificações técnicas, cliente, etc."
+                          value={czNotes}
+                          onChange={e => setCzNotes(e.target.value)}
+                        />
+                      </div>
+                      {czSearch.trim() && czQty && czUnitPrice && (
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                          Total: R$ {(parseFloat(czQty || "1") * parseFloat(czUnitPrice || "0")).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Busca textual */}
+                    <div className="relative">
+                      <Input
+                        placeholder="Buscar por nome, código ou referência..."
+                        value={czSearch}
+                        onChange={e => { setCzSearch(e.target.value); setCzSelectedSku(""); }}
+                        className="pr-8"
+                      />
+                      {czSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setCzSearch("")}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-lg leading-none"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Lista de produtos */}
+                    <div className="border rounded-md divide-y max-h-72 overflow-y-auto">
+                      {customizadosProducts
+                        .filter(p => !czSearch.trim() || p.name.toLowerCase().includes(czSearch.toLowerCase()) || p.sku.toLowerCase().includes(czSearch.toLowerCase()))
+                        .length === 0 ? (
+                        <div className="text-sm text-muted-foreground p-4 text-center">Nenhum produto encontrado.</div>
+                      ) : customizadosProducts
+                        .filter(p => !czSearch.trim() || p.name.toLowerCase().includes(czSearch.toLowerCase()) || p.sku.toLowerCase().includes(czSearch.toLowerCase()))
+                        .map(p => (
+                          <div
+                            key={p.sku}
+                            onClick={() => setCzSelectedSku(prev => prev === p.sku ? "" : p.sku)}
+                            className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors ${
+                              czSelectedSku === p.sku
+                                ? "bg-purple-50 dark:bg-purple-900/20 border-l-2 border-purple-500"
+                                : "hover:bg-muted/50"
+                            }`}
+                          >
+                            <div className="shrink-0 w-9 h-9 rounded border border-border bg-muted/30 flex items-center justify-center overflow-hidden">
+                              {p.fotoUrl ? (
+                                <img src={p.fotoUrl} alt={p.name} className="w-full h-full object-contain p-0.5" loading="lazy" />
+                              ) : (
+                                <Package2 className="w-4 h-4 text-muted-foreground/40" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium truncate">{p.name}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {p.sku}
+                                {p.precoVenda != null && p.precoVenda > 0 && (
+                                  <span className="ml-2 text-purple-700 dark:text-purple-400 font-medium">
+                                    R$ {p.precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            {czSelectedSku === p.sku && (
+                              <div className="shrink-0">
+                                <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
+                                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+
+                    {/* Campos de quantidade e preço para produto selecionado */}
+                    {czSelectedSku && (
+                      <div className="grid grid-cols-2 gap-3 pt-1">
+                        <div className="space-y-1">
+                          <label className="text-sm font-medium">Qtd *</label>
+                          <Input
+                            type="number" min="1"
+                            placeholder="1"
+                            value={czQty}
+                            onChange={e => setCzQty(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-sm font-medium">Preço unitário (R$)</label>
+                          <Input
+                            type="number" min="0" step="0.01"
+                            placeholder="0,00"
+                            value={czUnitPrice}
+                            onChange={e => setCzUnitPrice(e.target.value)}
+                          />
+                        </div>
+                        <div className="col-span-2 space-y-1">
+                          <label className="text-sm font-medium">Observações</label>
+                          <Input
+                            placeholder="Especificações, cliente, etc."
+                            value={czNotes}
+                            onChange={e => setCzNotes(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* ── Formulário de Acessórios ────────────────────────────────────────────────── */}
+            {productCategory === "Acessórios" && (       <div className="space-y-4">
                 {acessoriosQuery.isLoading ? (
                   <div className="text-sm text-muted-foreground py-4 text-center">Carregando acessórios...</div>
                 ) : acessoriosProducts.length === 0 ? (
@@ -9855,6 +10157,111 @@ export default function Home() {
                 </Card>
               );
             })()}
+            {/* ── Customizados: painel de resumo do item selecionado ── */}
+            {productCategory === "Customizados" && (() => {
+              const czProduct = czSelectedSku
+                ? customizadosProducts.find(p => p.sku === czSelectedSku)
+                : null;
+              const isManualMode = customizadosProducts.length === 0;
+              const canAdd = isManualMode
+                ? czSearch.trim().length > 0
+                : czSelectedSku.length > 0;
+              return (
+                <Card className="shadow-sm border-purple-500/30">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <Package2 className="w-4 h-4 text-purple-500" />
+                      {czProduct ? "Produto Customizado" : isManualMode ? "Customizados (Manual)" : "Customizados"}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {czProduct ? (
+                      <div className="space-y-3">
+                        <div className="flex gap-3 items-stretch">
+                          <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-28 flex items-center justify-center">
+                            {czProduct.fotoUrl ? (
+                              <img src={czProduct.fotoUrl} alt={czProduct.name} className="w-full h-full object-contain p-2" loading="lazy" />
+                            ) : (
+                              <Package2 className="w-8 h-8 text-muted-foreground/30" />
+                            )}
+                          </div>
+                          <div className="grid grid-cols-1 gap-2 flex-1">
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Código</p>
+                              <p className="text-sm font-mono font-semibold text-primary">{czProduct.sku}</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Descrição</p>
+                          <p className="text-sm font-semibold leading-snug">{czProduct.name}</p>
+                        </div>
+                        {czProduct.precoVenda != null && czProduct.precoVenda > 0 && (
+                          <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700/40">
+                            <p className="text-xs text-purple-700 dark:text-purple-400 uppercase tracking-wide mb-1">Preço de Venda</p>
+                            <p className="text-lg font-bold text-purple-700 dark:text-purple-400">
+                              R$ {czProduct.precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                        )}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-xs text-muted-foreground">Qtd</label>
+                            <Input type="number" min="1" className="h-7 text-xs" value={czQty} onChange={e => setCzQty(e.target.value)} />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-xs text-muted-foreground">Preço unitário (R$)</label>
+                            <Input type="number" min="0" step="0.01" className="h-7 text-xs" placeholder={czProduct.precoVenda?.toFixed(2) ?? "0,00"} value={czUnitPrice} onChange={e => setCzUnitPrice(e.target.value)} />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                          <Input className="h-7 text-xs flex-1" placeholder="ex: L1, P2..." value={globalItemEmPlanta} onChange={(e) => setGlobalItemEmPlanta(e.target.value)} />
+                        </div>
+                        <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white" onClick={handleAddCustomizadoItem}>
+                          <ShoppingCart className="w-4 h-4 mr-2" />
+                          {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                        </Button>
+                      </div>
+                    ) : isManualMode && czSearch.trim() ? (
+                      <div className="space-y-3">
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
+                          <p className="text-sm font-semibold">{czSearch.trim()}</p>
+                        </div>
+                        {czUnitPrice && (
+                          <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700/40">
+                            <p className="text-xs text-purple-700 dark:text-purple-400 uppercase tracking-wide mb-1">Total</p>
+                            <p className="text-lg font-bold text-purple-700 dark:text-purple-400">
+                              R$ {(parseFloat(czQty || "1") * parseFloat(czUnitPrice || "0")).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                          <Input className="h-7 text-xs flex-1" placeholder="ex: L1, P2..." value={globalItemEmPlanta} onChange={(e) => setGlobalItemEmPlanta(e.target.value)} />
+                        </div>
+                        <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white" onClick={handleAddCustomizadoItem}>
+                          <ShoppingCart className="w-4 h-4 mr-2" />
+                          {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-16 text-center">
+                        <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                          <Package2 className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                        <p className="text-base font-semibold text-foreground font-display">Nenhum produto selecionado</p>
+                        <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+                          {isManualMode ? "Preencha a descrição do produto no formulário ao lado." : "Busque e selecione um produto customizado."}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
             {/* ── Acessórios: painel de resumo do item selecionado ── */}
             {productCategory === "Acessórios" && (() => {
               const acProduct = acSelectedId

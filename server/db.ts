@@ -1350,7 +1350,8 @@ export async function getMonthlyReport(year: number, month: number) {
 export async function duplicateQuote(
   sourceQuoteId: number,
   createdByUserId: number,
-  newClientName?: string
+  newClientName?: string,
+  overrideQuoteNumber?: string
 ): Promise<{ quoteId: number; quoteNumber: string }> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -1368,17 +1369,22 @@ export async function duplicateQuote(
   const itemRows = await db.select().from(quoteItems)
     .where(and(eq(quoteItems.quoteId, sourceQuoteId), eq(quoteItems.quoteVersionId, currentVersionId)));
 
-  // Buscar o código do vendedor para gerar número no formato correto
-  let sellerCodeForDup: string | null = null;
-  if (source.quote.seller1Id) {
-    const sellerRows = await db.select({ code: sellers.code }).from(sellers).where(eq(sellers.id, source.quote.seller1Id)).limit(1);
-    sellerCodeForDup = sellerRows[0]?.code ?? null;
+  // Usar número fornecido pelo usuário ou gerar automaticamente
+  let finalQuoteNumber: string;
+  if (overrideQuoteNumber) {
+    finalQuoteNumber = overrideQuoteNumber;
+  } else {
+    let sellerCodeForDup: string | null = null;
+    if (source.quote.seller1Id) {
+      const sellerRows = await db.select({ code: sellers.code }).from(sellers).where(eq(sellers.id, source.quote.seller1Id)).limit(1);
+      sellerCodeForDup = sellerRows[0]?.code ?? null;
+    }
+    finalQuoteNumber = await generateQuoteNumber(sellerCodeForDup);
   }
-  const newQuoteNumber = await generateQuoteNumber(sellerCodeForDup);
   const q = source.quote;
 
   const qResult = await db.insert(quotes).values({
-    quoteNumber: newQuoteNumber,
+    quoteNumber: finalQuoteNumber,
     clientName: newClientName ?? q.clientName,
     clientContact: q.clientContact,
     clientPhone: q.clientPhone,
@@ -1463,7 +1469,7 @@ export async function duplicateQuote(
     );
   }
 
-  return { quoteId: newQuoteId, quoteNumber: newQuoteNumber };
+  return { quoteId: newQuoteId, quoteNumber: finalQuoteNumber };
 }
 
 /**

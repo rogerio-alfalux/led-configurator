@@ -331,6 +331,55 @@ export async function fetchAcessoriosProducts(): Promise<AcessorioProduct[]> {
   return all;
 }
 
+// ── Customizados ─────────────────────────────────────────────────────────────
+
+export interface CustomizadoProduct {
+  sku: string;
+  name: string;
+  descricao: string | null;
+  familia: string | null;
+  fotoUrl: string | null;
+  precoVenda: number | null;
+  clienteEspecifico: string | null;
+  observacoes: string | null;
+}
+
+interface CustomizadosCacheEntry {
+  data: CustomizadoProduct[];
+  fetchedAt: number;
+}
+
+let customizadosCache: CustomizadosCacheEntry | null = null;
+
+export async function fetchCustomizadosProducts(): Promise<CustomizadoProduct[]> {
+  const now = Date.now();
+  if (customizadosCache && now - customizadosCache.fetchedAt < CACHE_TTL_MS) {
+    return customizadosCache.data;
+  }
+
+  console.log("[AlfaluxAPI] Buscando produtos customizados via /api/customizados/all...");
+  try {
+    const url = `${ALFALUX_BASE}/api/customizados/all`;
+    const res = await fetch(url, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) throw new Error(`Alfalux Customizados API error: ${res.status}`);
+    const body = await res.json() as { count?: number; products?: CustomizadoProduct[]; items?: CustomizadoProduct[] } | CustomizadoProduct[];
+    const all: CustomizadoProduct[] = Array.isArray(body)
+      ? body
+      : (body as any).products ?? (body as any).items ?? [];
+    console.log(`[AlfaluxAPI] ${all.length} produtos customizados carregados.`);
+    customizadosCache = { data: all, fetchedAt: now };
+    return all;
+  } catch (err) {
+    console.warn(`[AlfaluxAPI] Endpoint /api/customizados/all indisponível:`, err instanceof Error ? err.message : err);
+    // Endpoint ainda não existe — retornar lista vazia sem lançar erro
+    customizadosCache = { data: [], fetchedAt: now };
+    return [];
+  }
+}
+
 // ── Componentes (drivers, módulos LED, ópticas, holders, dissipadores) ────────
 export interface ComponenteProduct {
   codigo: string | null;
