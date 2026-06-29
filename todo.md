@@ -1578,3 +1578,15 @@
 - [x] Modal de visualização de itens de revisão histórica com total calculado
 - [x] Download de Excel de qualquer revisão histórica com dados corretos (RV, data, cabeçalho)
 - [x] Revisões antigas já salvas no banco são acessíveis automaticamente (itens já estavam armazenados)
+
+## Status "Faturado" e painel de metas (29/06/2026)
+
+- [x] Adicionar valor `invoiced` ao enum de status no schema (migração 0014)
+- [x] Adicionar coluna `invoicedAt` na tabela quotes (migração 0015)
+- [x] `getManagerDashboard` retorna `invoicedTotals`, `monthlyInvoiced`, `invoicedBySeller`
+- [x] routers.ts: enum de status inclui `invoiced`
+- [x] Quotes.tsx: badge roxo "Faturado", filtro e card de estatística
+- [x] QuoteDetail.tsx: opção "Faturado" no seletor de status + exibição de `invoicedAt`
+- [x] Dashboard.tsx: `annualInvoiced` calculado a partir de `monthlyInvoiced`
+- [x] Dashboard: meta anual baseada em faturado (NF), aprovado como info secundária
+- [x] Dashboard: metas mensais mostram faturado (NF) + aprovado por mês

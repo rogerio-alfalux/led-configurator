@@ -223,6 +223,14 @@ export default function Dashboard() {
     return 0;
   }, [isManager, managerData, sellerData]);
 
+  // Calcular faturamento anual (orçamentos com status 'invoiced')
+  const annualInvoiced = useMemo(() => {
+    if (isManager && (managerData as any)?.monthlyInvoiced) {
+      return (managerData as any).monthlyInvoiced.reduce((s: number, m: any) => s + Number(m.amount ?? 0), 0);
+    }
+    return 0;
+  }, [isManager, managerData]);
+
   const annualGoal = goalsData.find(g => g.month == null);
 
   const isLoading = authLoading || (isManager ? managerLoading : (!isAssist && sellerLoading));
@@ -407,17 +415,31 @@ export default function Dashboard() {
                     )}
                   </div>
                   {annualGoal ? (
-                    <GoalProgress
-                      label={`Faturado em ${year}`}
-                      current={annualApproved}
-                      goal={Number(annualGoal.goalAmount)}
-                    />
+                    <div className="space-y-3">
+                      <GoalProgress
+                        label={`Faturado (NF emitida) em ${year}`}
+                        current={annualInvoiced}
+                        goal={Number(annualGoal.goalAmount)}
+                      />
+                      <div className="text-xs text-muted-foreground flex items-center gap-2">
+                        <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
+                        Aprovado (pedido fechado): <span className="font-medium text-foreground">{formatBRL(annualApproved)}</span>
+                      </div>
+                    </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground italic">
-                      {user?.role === "admin"
-                        ? "Nenhuma meta anual definida. Clique em Editar para definir."
-                        : "Meta anual não definida."}
-                    </p>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground italic">
+                        {user?.role === "admin"
+                          ? "Nenhuma meta anual definida. Clique em Editar para definir."
+                          : "Meta anual não definida."}
+                      </p>
+                      {annualInvoiced > 0 && (
+                        <div className="text-sm">
+                          <span className="font-medium text-purple-600 dark:text-purple-400">Faturado: {formatBRL(annualInvoiced)}</span>
+                          <span className="ml-3 text-muted-foreground">Aprovado: {formatBRL(annualApproved)}</span>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -433,7 +455,12 @@ export default function Dashboard() {
                       const progress = isManager
                         ? managerData?.monthlyProgress?.find(p => Number(p.month) === mNum)
                         : sellerData?.monthlyProgress?.find(p => Number(p.month) === mNum);
-                      const currentAmt = Number(progress?.amount ?? 0);
+                      const invoicedProgress = isManager
+                        ? (managerData as any)?.monthlyInvoiced?.find((p: any) => Number(p.month) === mNum)
+                        : null;
+                      const approvedAmt = Number(progress?.amount ?? 0);
+                      const invoicedAmt = Number(invoicedProgress?.amount ?? 0);
+                      const currentAmt = invoicedAmt; // meta é baseada em faturado (NF emitida)
                       const goalAmt = Number(goal?.goalAmount ?? 0);
                       const isCurrentMonth = mNum === currentMonth && year === currentYear;
 
@@ -454,11 +481,20 @@ export default function Dashboard() {
                             )}
                           </div>
                           {goalAmt > 0 ? (
-                            <GoalProgress label="" current={currentAmt} goal={goalAmt} />
+                            <div className="space-y-1">
+                              <GoalProgress label="" current={currentAmt} goal={goalAmt} />
+                              {approvedAmt > 0 && (
+                                <div className="text-xs text-muted-foreground">
+                                  Aprovado: {formatBRL(approvedAmt)}
+                                </div>
+                              )}
+                            </div>
                           ) : (
-                            <div className="text-xs text-muted-foreground">
-                              {formatBRL(currentAmt)} faturado
-                              {user?.role !== "admin" && " · sem meta"}
+                            <div className="text-xs text-muted-foreground space-y-0.5">
+                              {invoicedAmt > 0 && <div className="text-purple-600 dark:text-purple-400 font-medium">NF: {formatBRL(invoicedAmt)}</div>}
+                              {approvedAmt > 0 && <div>Aprovado: {formatBRL(approvedAmt)}</div>}
+                              {invoicedAmt === 0 && approvedAmt === 0 && <div>Sem movimentação</div>}
+                              {user?.role !== "admin" && goalAmt === 0 && " · sem meta"}
                             </div>
                           )}
                         </div>

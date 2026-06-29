@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   Search, Plus, ClipboardList, CheckCircle, XCircle, Clock,
   TrendingDown, ArrowLeft, BarChart2, ShoppingCart, Eye,
-  Users, UserCheck, Filter, X,
+  Users, UserCheck, Filter, X, Receipt,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.
   approved: { label: "Aprovado", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300", icon: <CheckCircle className="w-3 h-3" /> },
   lost: { label: "Perdido", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300", icon: <TrendingDown className="w-3 h-3" /> },
   cancelled: { label: "Cancelado", color: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400", icon: <XCircle className="w-3 h-3" /> },
+  invoiced: { label: "Faturado", color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300", icon: <Receipt className="w-3 h-3" /> },
 };
 
 export default function Quotes() {
@@ -36,7 +37,7 @@ export default function Quotes() {
 
   const { data, isLoading } = trpc.quotes.list.useQuery({
     search: search || undefined,
-    status: status !== "all" ? (status as "open" | "approved" | "lost" | "cancelled") : undefined,
+    status: status !== "all" ? (status as "open" | "approved" | "lost" | "cancelled" | "invoiced") : undefined,
     seller1Name: sellerFilter !== "all" ? sellerFilter : undefined,
     assistantName: assistantFilter !== "all" ? assistantFilter : undefined,
     dateFrom: dateFrom || undefined,
@@ -72,11 +73,13 @@ export default function Quotes() {
     const open = rows.filter(q => q.status === "open").length;
     const approved = rows.filter(q => q.status === "approved").length;
     const lost = rows.filter(q => q.status === "lost").length;
+    const invoiced = rows.filter(q => q.status === "invoiced").length;
     // Usar totalFinal (inclui RT + margem + frete + DIFAL + FCP) com fallback para totalAmount
     const getQuoteValue = (q: typeof rows[0]) => Number(q.totalFinal) > 0 ? Number(q.totalFinal) : (Number(q.totalAmount) || 0);
     const totalValue = rows.reduce((sum, q) => sum + getQuoteValue(q), 0);
     const approvedValue = rows.filter(q => q.status === "approved").reduce((sum, q) => sum + getQuoteValue(q), 0);
-    return { total, open, approved, lost, totalValue, approvedValue };
+    const invoicedValue = rows.filter(q => q.status === "invoiced").reduce((sum, q) => sum + getQuoteValue(q), 0);
+    return { total, open, approved, lost, invoiced, totalValue, approvedValue, invoicedValue };
   }, [allData]);
 
   const hasFilters = status !== "all" || sellerFilter !== "all" || assistantFilter !== "all" || search.trim() !== "" || dateFrom !== "" || dateTo !== "";
@@ -138,14 +141,15 @@ export default function Quotes() {
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-5">
 
         {/* Cards de estatísticas */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
           {[
             { label: "Total", value: stats.total, color: "text-foreground", icon: <ClipboardList className="w-4 h-4" /> },
             { label: "Em Aberto", value: stats.open, color: "text-blue-600", icon: <Clock className="w-4 h-4 text-blue-500" /> },
             { label: "Aprovados", value: stats.approved, color: "text-green-600", icon: <CheckCircle className="w-4 h-4 text-green-500" /> },
             { label: "Perdidos", value: stats.lost, color: "text-red-600", icon: <TrendingDown className="w-4 h-4 text-red-500" /> },
+            { label: "Faturados", value: stats.invoiced, color: "text-purple-600", icon: <Receipt className="w-4 h-4 text-purple-500" /> },
             { label: "Valor Total", value: formatBRL(stats.totalValue), color: "text-primary", icon: <BarChart2 className="w-4 h-4 text-primary" /> },
-            { label: "Aprovados R$", value: formatBRL(stats.approvedValue), color: "text-green-600", icon: <CheckCircle className="w-4 h-4 text-green-500" /> },
+            { label: "Faturado R$", value: formatBRL(stats.invoicedValue), color: "text-purple-600", icon: <Receipt className="w-4 h-4 text-purple-500" /> },
           ].map(s => (
             <Card key={s.label} className="p-3">
               <div className="flex items-center gap-2 mb-1">
@@ -180,6 +184,7 @@ export default function Quotes() {
               <SelectItem value="approved">Aprovados</SelectItem>
               <SelectItem value="lost">Perdidos</SelectItem>
               <SelectItem value="cancelled">Cancelados</SelectItem>
+              <SelectItem value="invoiced">Faturados</SelectItem>
             </SelectContent>
           </Select>
 

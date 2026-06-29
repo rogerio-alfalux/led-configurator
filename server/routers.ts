@@ -451,7 +451,7 @@ export const appRouter = router({
     list: protectedProcedure
       .input(z.object({
         search: z.string().optional(),
-        status: z.enum(["open", "approved", "lost", "cancelled"]).optional(),
+        status: z.enum(["open", "approved", "lost", "cancelled", "invoiced"]).optional(),
         seller1Name: z.string().optional(),
         assistantName: z.string().optional(),
         dateFrom: z.string().optional(),
@@ -509,7 +509,7 @@ export const appRouter = router({
     updateStatus: protectedProcedure
       .input(z.object({
         id: z.number(),
-        status: z.enum(["open", "approved", "lost", "cancelled"]),
+        status: z.enum(["open", "approved", "lost", "cancelled", "invoiced"]),
         quoteNumber: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {

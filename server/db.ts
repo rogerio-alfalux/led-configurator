@@ -582,7 +582,7 @@ export async function addQuoteRevision(
 /** Lista orçamentos com busca e paginação */
 export async function listQuotes(opts: {
   search?: string;
-  status?: "open" | "approved" | "lost" | "cancelled";
+  status?: "open" | "approved" | "lost" | "cancelled" | "invoiced";
   seller1Name?: string;
   assistantName?: string;
   dateFrom?: string; // YYYY-MM-DD
@@ -669,11 +669,12 @@ export async function approveQuote(id: number) {
 }
 
 /** Atualiza o status de um orçamento */
-export async function updateQuoteStatus(id: number, status: "open" | "approved" | "lost" | "cancelled") {
+export async function updateQuoteStatus(id: number, status: "open" | "approved" | "lost" | "cancelled" | "invoiced") {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const updateData: Record<string, unknown> = { status };
   if (status === "approved") updateData.approvedAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  if (status === "invoiced") updateData.invoicedAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
   await db.update(quotes).set(updateData).where(eq(quotes.id, id));
 }
 
@@ -689,6 +690,8 @@ export async function getQuoteStats() {
       approved: sql<number>`sum(case when status = 'approved' then 1 else 0 end)`,
       lost: sql<number>`sum(case when status = 'lost' then 1 else 0 end)`,
       cancelled: sql<number>`sum(case when status = 'cancelled' then 1 else 0 end)`,
+      invoiced: sql<number>`sum(case when status = 'invoiced' then 1 else 0 end)`,
+      invoicedValue: sql<number>`sum(case when status = 'invoiced' then (case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end) else 0 end)`,
         totalAmount: sql<number>`sum(case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end)`,
       approvedAmount: sql<number>`sum(case when status = 'approved' then (case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end) else 0 end)`,
     })
@@ -1169,6 +1172,40 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     .groupBy(sql`MONTH(approvedAt)`)
     .orderBy(sql`MONTH(approvedAt)`);
 
+  // ── Faturamento (invoiced) ────────────────────────────────────────────────
+  const invoicedCondition = (dateFrom && dateTo)
+    ? sql`invoicedAt >= ${dateFrom} AND invoicedAt <= ${dateTo + ' 23:59:59'} AND status = 'invoiced'`
+    : month
+      ? sql`YEAR(invoicedAt) = ${year} AND MONTH(invoicedAt) = ${month} AND status = 'invoiced'`
+      : sql`YEAR(invoicedAt) = ${year} AND status = 'invoiced'`;
+
+  const [invoicedTotals] = await db.select({
+    invoicedCount: sql<number>`count(*)`,
+    invoicedAmount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
+  }).from(quotes).where(invoicedCondition);
+
+  // Progresso mensal de faturamento
+  const monthlyInvoiced = await db.select({
+    month: sql<number>`MONTH(invoicedAt)`,
+    count: sql<number>`count(*)`,
+    amount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
+  })
+    .from(quotes)
+    .where(sql`YEAR(invoicedAt) = ${year} AND status = 'invoiced'`)
+    .groupBy(sql`MONTH(invoicedAt)`)
+    .orderBy(sql`MONTH(invoicedAt)`);
+
+  // Faturamento por vendedor
+  const invoicedBySeller = await db.select({
+    sellerName: quotes.seller1Name,
+    count: sql<number>`count(*)`,
+    totalAmount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
+  })
+    .from(quotes)
+    .where(and(invoicedCondition, sql`seller1Name IS NOT NULL`))
+    .groupBy(quotes.seller1Name)
+    .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)))`));
+
   // ── Metas ─────────────────────────────────────────────────────────────────
   const goals = await getSalesGoalsByYear(year);
 
@@ -1181,6 +1218,9 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     goals,
     profitMetrics,
     conversionMetrics,
+    invoicedTotals,
+    monthlyInvoiced,
+    invoicedBySeller,
     familyRanking: (familyRanking as any[])[0] as Array<{
       categoria: string;
       qtdItens: number;

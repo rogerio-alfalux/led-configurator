@@ -5,7 +5,7 @@ import {
   FileSpreadsheet, History, Package, Edit, AlertTriangle,
   ChevronDown, ChevronUp, Factory, Trash2, PenLine,
   Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle, GripVertical, Wrench, Copy, Eye,
-  Upload, X as XIcon, Layers,
+  Upload, X as XIcon, Layers, Receipt,
 } from "lucide-react";
 import {
   DndContext,
@@ -55,6 +55,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.
   approved: { label: "Aprovado", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300", icon: <CheckCircle className="w-3 h-3" /> },
   lost: { label: "Perdido", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300", icon: <TrendingDown className="w-3 h-3" /> },
   cancelled: { label: "Cancelado", color: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400", icon: <XCircle className="w-3 h-3" /> },
+  invoiced: { label: "Faturado", color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300", icon: <Receipt className="w-3 h-3" /> },
 };
 
 // Componente separado para cada item editável com drag-and-drop
@@ -1006,6 +1007,11 @@ export default function QuoteDetail() {
                   ✅ Aprovado em: {toBrasiliaDate(quote.approvedAt)}
                 </p>
               )}
+              {(quote as any).invoicedAt && (
+                <p className="text-purple-600 dark:text-purple-400 font-medium">
+                  <Receipt className="w-3.5 h-3.5 inline mr-1" />Faturado em: {toBrasiliaDate((quote as any).invoicedAt)}
+                </p>
+              )}
               {/* Novos campos comerciais */}
               {quote.deliveryDays != null && (
                 <p>🚚 Prazo: <span className="font-medium">{quote.deliveryDays} dias úteis</span></p>
@@ -1500,9 +1506,16 @@ export default function QuoteDetail() {
                       <SelectItem value="approved">Aprovado pelo Cliente</SelectItem>
                       <SelectItem value="lost">Perdido</SelectItem>
                       <SelectItem value="cancelled">Cancelado</SelectItem>
+                      <SelectItem value="invoiced">Faturado (NF emitida)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                {newStatus === "invoiced" && (
+                  <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg text-sm text-purple-700 dark:text-purple-400">
+                    <Receipt className="w-4 h-4 inline mr-1" />
+                    Faturado indica que a nota fiscal foi emitida. Esta é a métrica de faturamento real do negócio.
+                  </div>
+                )}
                 {newStatus === "approved" && (
                   <div className="p-3 bg-green-50 dark:bg-green-950/30 rounded-lg text-sm text-green-700 dark:text-green-400">
                     <CheckCircle className="w-4 h-4 inline mr-1" />
@@ -1515,7 +1528,7 @@ export default function QuoteDetail() {
                 <Button
                   onClick={() => {
                     if (!newStatus) return;
-                    updateStatusMutation.mutate({ id: Number(id), status: newStatus as "open" | "approved" | "lost" | "cancelled" });
+                    updateStatusMutation.mutate({ id: Number(id), status: newStatus as "open" | "approved" | "lost" | "cancelled" | "invoiced" });
                   }}
                   disabled={!newStatus || updateStatusMutation.isPending}
                 >
