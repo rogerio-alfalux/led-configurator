@@ -1570,3 +1570,11 @@
 - [ ] Pré-visualização Excel: colunas deslocadas na linha de driver (QTD na coluna errada, linha de obra azul ganha coluna extra)
 - [ ] Carrinho: não permite renomear pavimento diretamente no carrinho
 - [ ] Markup mínimo e máximo: onde editar no sistema?
+
+## Histórico completo de revisões (29/06/2026)
+- [x] Endpoint tRPC `quotes.getRevisionItems` para buscar itens de uma revisão específica
+- [x] Função `getRevisionItems(versionId)` no db.ts
+- [x] Seção "Histórico de Revisões" exibe botões "Ver" e "Excel" em cada linha
+- [x] Modal de visualização de itens de revisão histórica com total calculado
+- [x] Download de Excel de qualquer revisão histórica com dados corretos (RV, data, cabeçalho)
+- [x] Revisões antigas já salvas no banco são acessíveis automaticamente (itens já estavam armazenados)

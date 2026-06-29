@@ -1,0 +1,190 @@
+{
+  "query": "SELECT qv.id, qv.quoteId, qv.version, qv.totalAmount, qv.totalFinal, qv.createdAt, LEFT(qv.headerSnapshot, 300) as snapshotPreview, COUNT(qi.id) as itemCount FROM quote_versions qv LEFT JOIN quote_items qi ON qi.quoteVersionId = qv.id WHERE qv.quoteId = 4140001 GROUP BY qv.id ORDER BY qv.version;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT qv.id, qv.quoteId, qv.version, qv.totalAmount, qv.totalFinal, qv.createdAt, LEFT(qv.headerSnapshot, 300) as snapshotPreview, COUNT(qi.id) as itemCount FROM quote_versions qv LEFT JOIN quote_items qi ON qi.quoteVersionId = qv.id WHERE qv.quoteId = 4140001 GROUP BY qv.id ORDER BY qv.version;",
+  "rows": [
+    {
+      "id": "7200001",
+      "quoteId": "4140001",
+      "version": "0",
+      "totalAmount": "125531.24",
+      "totalFinal": "125531.24",
+      "createdAt": "2026-06-29 05:01:18",
+      "snapshotPreview": "{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}",
+      "itemCount": "45"
+    },
+    {
+      "id": "7260001",
+      "quoteId": "4140001",
+      "version": "2",
+      "totalAmount": "128449.40",
+      "totalFinal": "128449.40",
+      "createdAt": "2026-06-29 13:42:08",
+      "snapshotPreview": "{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}",
+      "itemCount": "46"
+    },
+    {
+      "id": "7290001",
+      "quoteId": "4140001",
+      "version": "3",
+      "totalAmount": "131170.29",
+      "totalFinal": "131170.29",
+      "createdAt": "2026-06-29 13:49:55",
+      "snapshotPreview": "{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}",
+      "itemCount": "47"
+    },
+    {
+      "id": "7290002",
+      "quoteId": "4140001",
+      "version": "4",
+      "totalAmount": "131170.29",
+      "totalFinal": "131170.29",
+      "createdAt": "2026-06-29 13:51:19",
+      "snapshotPreview": "{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}",
+      "itemCount": "46"
+    },
+    {
+      "id": "7350001",
+      "quoteId": "4140001",
+      "version": "5",
+      "totalAmount": "132232.49",
+      "totalFinal": "132232.49",
+      "createdAt": "2026-06-29 14:32:01",
+      "snapshotPreview": "{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}",
+      "itemCount": "47"
+    },
+    {
+      "id": "7380001",
+      "quoteId": "4140001",
+      "version": "6",
+      "totalAmount": "131170.29",
+      "totalFinal": "131170.29",
+      "createdAt": "2026-06-29 14:36:09",
+      "snapshotPreview": "{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}",
+      "itemCount": "46"
+    },
+    {
+      "id": "7410001",
+      "quoteId": "4140001",
+      "version": "7",
+      "totalAmount": "132582.79",
+      "totalFinal": "132582.79",
+      "createdAt": "2026-06-29 14:40:17",
+      "snapshotPreview": "{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}",
+      "itemCount": "47"
+    },
+    {
+      "id": "7410002",
+      "quoteId": "4140001",
+      "version": "8",
+      "totalAmount": "134282.79",
+      "totalFinal": "134282.79",
+      "createdAt": "2026-06-29 14:40:46",
+      "snapshotPreview": "{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}",
+      "itemCount": "48"
+    },
+    {
+      "id": "7410003",
+      "quoteId": "4140001",
+      "version": "9",
+      "totalAmount": "134570.29",
+      "totalFinal": "134570.29",
+      "createdAt": "2026-06-29 14:41:29",
+      "snapshotPreview": "{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}",
+      "itemCount": "49"
+    },
+    {
+      "id": "7410004",
+      "quoteId": "4140001",
+      "version": "10",
+      "totalAmount": "136270.29",
+      "totalFinal": "136270.29",
+      "createdAt": "2026-06-29 14:42:23",
+      "snapshotPreview": "{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}",
+      "itemCount": "50"
+    },
+    {
+      "id": "7410005",
+      "quoteId": "4140001",
+      "version": "11",
+      "totalAmount": "136837.79",
+      "totalFinal": "136837.79",
+      "createdAt": "2026-06-29 14:43:13",
+      "snapshotPreview": "{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}",
+      "itemCount": "51"
+    },
+    {
+      "id": "7440001",
+      "quoteId": "4140001",
+      "version": "12",
+      "totalAmount": "143708.66",
+      "totalFinal": "143708.66",
+      "createdAt": "2026-06-29 14:46:53",
+      "snapshotPreview": "{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}",
+      "itemCount": "50"
+    },
+    {
+      "id": "7470001",
+      "quoteId": "4140001",
+      "version": "13",
+      "totalAmount": "130750.29",
+      "totalFinal": "130750.29",
+      "createdAt": "2026-06-29 14:58:45",
+      "snapshotPreview": "{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}",
+      "itemCount": "51"
+    },
+    {
+      "id": "7470002",
+      "quoteId": "4140001",
+      "version": "14",
+      "totalAmount": "132450.29",
+      "totalFinal": "132450.29",
+      "createdAt": "2026-06-29 14:59:14",
+      "snapshotPreview": "{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}",
+      "itemCount": "52"
+    },
+    {
+      "id": "7470003",
+      "quoteId": "4140001",
+      "version": "15",
+      "totalAmount": "132737.79",
+      "totalFinal": "132737.79",
+      "createdAt": "2026-06-29 14:59:32",
+      "snapshotPreview": "{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}",
+      "itemCount": "53"
+    },
+    {
+      "id": "7470004",
+      "quoteId": "4140001",
+      "version": "16",
+      "totalAmount": "134437.79",
+      "totalFinal": "134437.79",
+      "createdAt": "2026-06-29 15:00:01",
+      "snapshotPreview": "{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}",
+      "itemCount": "54"
+    },
+    {
+      "id": "7470005",
+      "quoteId": "4140001",
+      "version": "17",
+      "totalAmount": "135005.29",
+      "totalFinal": "135005.29",
+      "createdAt": "2026-06-29 15:00:13",
+      "snapshotPreview": "{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}",
+      "itemCount": "55"
+    },
+    {
+      "id": "7470006",
+      "quoteId": "4140001",
+      "version": "18",
+      "totalAmount": "143708.66",
+      "totalFinal": "143708.66",
+      "createdAt": "2026-06-29 15:01:59",
+      "snapshotPreview": "{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}",
+      "itemCount": "50"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tquoteId\tversion\ttotalAmount\ttotalFinal\tcreatedAt\tsnapshotPreview\titemCount\n7200001\t4140001\t0\t125531.24\t125531.24\t2026-06-29 05:01:18\t{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}\t45\n7260001\t4140001\t2\t128449.40\t128449.40\t2026-06-29 13:42:08\t{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}\t46\n7290001\t4140001\t3\t131170.29\t131170.29\t2026-06-29 13:49:55\t{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}\t47\n7290002\t4140001\t4\t131170.29\t131170.29\t2026-06-29 13:51:19\t{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}\t46\n7350001\t4140001\t5\t132232.49\t132232.49\t2026-06-29 14:32:01\t{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}\t47\n7380001\t4140001\t6\t131170.29\t131170.29\t2026-06-29 14:36:09\t{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}\t46\n7410001\t4140001\t7\t132582.79\t132582.79\t2026-06-29 14:40:17\t{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}\t47\n7410002\t4140001\t8\t134282.79\t134282.79\t2026-06-29 14:40:46\t{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}\t48\n7410003\t4140001\t9\t134570.29\t134570.29\t2026-06-29 14:41:29\t{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}\t49\n7410004\t4140001\t10\t136270.29\t136270.29\t2026-06-29 14:42:23\t{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}\t50\n7410005\t4140001\t11\t136837.79\t136837.79\t2026-06-29 14:43:13\t{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}\t51\n7440001\t4140001\t12\t143708.66\t143708.66\t2026-06-29 14:46:53\t{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}\t50\n7470001\t4140001\t13\t130750.29\t130750.29\t2026-06-29 14:58:45\t{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}\t51\n7470002\t4140001\t14\t132450.29\t132450.29\t2026-06-29 14:59:14\t{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}\t52\n7470003\t4140001\t15\t132737.79\t132737.79\t2026-06-29 14:59:32\t{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}\t53\n7470004\t4140001\t16\t134437.79\t134437.79\t2026-06-29 15:00:01\t{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}\t54\n7470005\t4140001\t17\t135005.29\t135005.29\t2026-06-29 15:00:13\t{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}\t55\n7470006\t4140001\t18\t143708.66\t143708.66\t2026-06-29 15:01:59\t{\"clientName\":\"NEXUS ENGENHARIA E CONSTRUÇÃO\",\"clientContact\":\"Wendel P. Cordeiro\",\"clientPhone\":\"(11) 97442-7728 \",\"projectName\":\"FLEURY CHÁCARA KLABIN\",\"vendorName\":\"FABÍOLA MARTINEZ\",\"assistantName\":\"KEITE FAGUNDES\"}\t50\n",
+  "stderr": "",
+  "execution_time_ms": 294
+}

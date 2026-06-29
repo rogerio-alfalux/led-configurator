@@ -1,0 +1,90 @@
+{
+  "query": "SELECT q.id, q.quoteNumber, q.clientName, q.currentVersion, q.revisionCount, COUNT(qv.id) as numVersions FROM quotes q LEFT JOIN quote_versions qv ON qv.quoteId = q.id GROUP BY q.id ORDER BY q.id DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT q.id, q.quoteNumber, q.clientName, q.currentVersion, q.revisionCount, COUNT(qv.id) as numVersions FROM quotes q LEFT JOIN quote_versions qv ON qv.quoteId = q.id GROUP BY q.id ORDER BY q.id DESC LIMIT 10;",
+  "rows": [
+    {
+      "id": "4200001",
+      "quoteNumber": "33.9999-26",
+      "clientName": "ALFALUX ILUMINAÇÃO",
+      "currentVersion": "2",
+      "revisionCount": "1",
+      "numVersions": "2"
+    },
+    {
+      "id": "4170001",
+      "quoteNumber": "25.0168-26",
+      "clientName": "SENAC",
+      "currentVersion": "1",
+      "revisionCount": "0",
+      "numVersions": "1"
+    },
+    {
+      "id": "4140001",
+      "quoteNumber": "20.0355-26",
+      "clientName": "NEXUS ENGENHARIA E CONSTRUÇÃO",
+      "currentVersion": "18",
+      "revisionCount": "17",
+      "numVersions": "18"
+    },
+    {
+      "id": "4080001",
+      "quoteNumber": "33.0100-26",
+      "clientName": "SEMPRE ENGENHARIA",
+      "currentVersion": "1",
+      "revisionCount": "0",
+      "numVersions": "1"
+    },
+    {
+      "id": "4020001",
+      "quoteNumber": "04.0242-26",
+      "clientName": "YLAB",
+      "currentVersion": "1",
+      "revisionCount": "0",
+      "numVersions": "1"
+    },
+    {
+      "id": "3990001",
+      "quoteNumber": "ORC-26-0007",
+      "clientName": "ATHIE WOHNRATH",
+      "currentVersion": "0",
+      "revisionCount": "0",
+      "numVersions": "1"
+    },
+    {
+      "id": "3960001",
+      "quoteNumber": "20.0354-26",
+      "clientName": "INNOVENT ENGENHARIA",
+      "currentVersion": "1",
+      "revisionCount": "0",
+      "numVersions": "1"
+    },
+    {
+      "id": "3930003",
+      "quoteNumber": "ORC-26-0006",
+      "clientName": "SAENG",
+      "currentVersion": "0",
+      "revisionCount": "0",
+      "numVersions": "1"
+    },
+    {
+      "id": "3930002",
+      "quoteNumber": "ORC-26-0005",
+      "clientName": "LAR CONSTRUTORA",
+      "currentVersion": "0",
+      "revisionCount": "0",
+      "numVersions": "1"
+    },
+    {
+      "id": "3930001",
+      "quoteNumber": "04.0231-26",
+      "clientName": "SUM ENGENHARIA",
+      "currentVersion": "1",
+      "revisionCount": "0",
+      "numVersions": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tquoteNumber\tclientName\tcurrentVersion\trevisionCount\tnumVersions\n4200001\t33.9999-26\tALFALUX ILUMINAÇÃO\t2\t1\t2\n4170001\t25.0168-26\tSENAC\t1\t0\t1\n4140001\t20.0355-26\tNEXUS ENGENHARIA E CONSTRUÇÃO\t18\t17\t18\n4080001\t33.0100-26\tSEMPRE ENGENHARIA\t1\t0\t1\n4020001\t04.0242-26\tYLAB\t1\t0\t1\n3990001\tORC-26-0007\tATHIE WOHNRATH\t0\t0\t1\n3960001\t20.0354-26\tINNOVENT ENGENHARIA\t1\t0\t1\n3930003\tORC-26-0006\tSAENG\t0\t0\t1\n3930002\tORC-26-0005\tLAR CONSTRUTORA\t0\t0\t1\n3930001\t04.0231-26\tSUM ENGENHARIA\t1\t0\t1\n",
+  "stderr": "",
+  "execution_time_ms": 823
+}

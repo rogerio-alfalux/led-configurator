@@ -5,7 +5,7 @@ import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { fetchDrivers, invalidateDriverCache } from "./driverService";
 import { fetchAllAlfaluxProducts, invalidateAlfaluxCache, fetchRevendaProducts, fetchAcessoriosProducts, fetchComponentes } from "./alfaluxApiService";
 import {
-  addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty, updateCartItemData, updateCartItemsSortOrder, createQuote, addQuoteRevision, listQuotes, getQuoteById, approveQuote,
+  addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty, updateCartItemData, updateCartItemsSortOrder, createQuote, addQuoteRevision, listQuotes, getQuoteById, approveQuote, getRevisionItems,
   updateQuoteStatus, getQuoteStats, deleteQuote, suggestQuoteNumber,
   insertAuditLog, getAuditLogs, listSellers, listAssistants,
   createFactoryOrder, getFactoryOrdersByQuoteId, getFactoryOrderById,
@@ -677,6 +677,23 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    /** Retorna os itens de uma revisão específica */
+    getRevisionItems: protectedProcedure
+      .input(z.object({
+        quoteId: z.number(),
+        versionId: z.number(),
+      }))
+      .query(async ({ ctx, input }) => {
+        const existing = await getQuoteById(input.quoteId);
+        if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
+        const canEdit = await canEditQuote(ctx.user.email, existing.quote, ctx.user.role, ctx.user.id);
+        if (!canEdit) throw new TRPCError({ code: "FORBIDDEN", message: "Acesso negado" });
+        // Verificar que a versão pertence ao orçamento
+        const version = existing.versions.find(v => v.id === input.versionId);
+        if (!version) throw new TRPCError({ code: "NOT_FOUND", message: "Revisão não encontrada" });
+        const revItems = await getRevisionItems(input.versionId);
+        return { version, items: revItems };
+      }),
     /** Registra geração de ficha de produção */
     logProductionSheet: protectedProcedure
       .input(z.object({

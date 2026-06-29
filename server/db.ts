@@ -1513,3 +1513,14 @@ export async function checkDuplicateQuoteNumber(
 
   return rows[0] ?? null;
 }
+
+/** Retorna os itens de uma revisão específica (quoteVersionId) */
+export async function getRevisionItems(versionId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(quoteItems)
+    .where(eq(quoteItems.quoteVersionId, versionId))
+    .orderBy(quoteItems.itemNumber);
+}

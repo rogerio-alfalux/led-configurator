@@ -720,6 +720,14 @@ export default function QuoteDetail() {
     { enabled: editDialogOpen && !!editForm.quoteNumber.trim(), staleTime: 2000 }
   );
 
+  // Modal de visualização de revisão histórica
+  const [revisionModalVersionId, setRevisionModalVersionId] = useState<number | null>(null);
+  const [revisionPreviewOpen, setRevisionPreviewOpen] = useState(false);
+  const revisionItemsQuery = trpc.quotes.getRevisionItems.useQuery(
+    { quoteId: Number(id), versionId: revisionModalVersionId ?? 0 },
+    { enabled: revisionModalVersionId != null && revisionPreviewOpen }
+  );
+
   // Duplicar orçamento
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [duplicateClientName, setDuplicateClientName] = useState("");
@@ -878,6 +886,66 @@ export default function QuoteDetail() {
   };
 
   const visibleVersions = showAllVersions ? versions : versions.slice(0, 3);
+
+  /** Gera Excel para uma revisão histórica específica */
+  const handleGenerateRevisionExcel = async (v: typeof versions[0], revItems: { itemData: string }[]) => {
+    try {
+      const snap = (() => { try { return JSON.parse(v.headerSnapshot ?? '{}'); } catch { return {}; } })();
+      const s1 = quote.seller1Id ? editSellers.find(s => s.id === quote.seller1Id) : undefined;
+      const s2 = quote.seller2Id ? editSellers.find(s => s.id === quote.seller2Id) : undefined;
+      // revisionCount = v.version (versão interna) mapeado para RV
+      // A revisão RV0 = versão 0, RV1 = versão 1, etc.
+      // Mas o revisionCount no cabeçalho do Excel deve refletir o número da revisão da versão
+      const revCount = v.version; // versão 0 = RV0, versão 1 = RV1, etc.
+      await generateQuoteExcel(
+        revItems.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null),
+        {
+          cliente: snap.clientName ?? quote.clientName,
+          contato: snap.clientContact ?? quote.clientContact ?? "",
+          tel: snap.clientPhone ?? quote.clientPhone ?? "",
+          email: snap.clientEmail ?? quote.clientEmail ?? "",
+          obra: snap.projectName ?? quote.projectName ?? "",
+          referencia: snap.projectRef ?? quote.projectRef ?? "",
+          numero: quote.quoteNumber,
+          data: toBrasiliaDate(v.createdAt),
+          arquiteto: snap.arquiteto ?? (quote as any).arquiteto ?? undefined,
+          lightDesigner: snap.lightDesigner ?? (quote as any).lightDesigner ?? undefined,
+          seller1Name: snap.vendorName ?? quote.seller1Name ?? undefined,
+          seller1Phone: s1?.phone ?? undefined,
+          seller2Name: quote.seller2Name ?? undefined,
+          seller2Phone: s2?.phone ?? undefined,
+          assistantName: snap.assistantName ?? quote.assistantName ?? undefined,
+          rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) : undefined,
+          rtDest1: quote.rtDest1 ?? undefined,
+          rtDest1Active: quote.rtDest1Active ?? false,
+          rtDest2: quote.rtDest2 ?? undefined,
+          rtDest2Active: quote.rtDest2Active ?? false,
+          rtDest3: quote.rtDest3 ?? undefined,
+          rtDest3Active: quote.rtDest3Active ?? false,
+          marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
+          freteType: (quote.freteType as "free" | "paid" | "night" | "consult") ?? "free",
+          freteIsento: quote.freteIsento ?? false,
+          freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
+          freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
+          freteIncluded: (quote as any).freteIncluded ?? false,
+          revisionCount: revCount,
+          deliveryDays: quote.deliveryDays ?? 20,
+          commissionPercent: quote.commissionPercent ? parseFloat(String(quote.commissionPercent)) : undefined,
+          paymentTerm: quote.paymentTerm ?? undefined,
+          destState: quote.destState ?? undefined,
+          difalEnabled: quote.difalEnabled ?? false,
+          difalPercent: quote.difalPercent ? parseFloat(String(quote.difalPercent)) : undefined,
+          difalValue: quote.difalValue ? parseFloat(String(quote.difalValue)) : undefined,
+          fcpEnabled: quote.fcpEnabled ?? false,
+          fcpPercent: quote.fcpPercent ? parseFloat(String(quote.fcpPercent)) : undefined,
+          fcpValue: quote.fcpValue ? parseFloat(String(quote.fcpValue)) : undefined,
+        }
+      );
+      toast.success(`Excel da RV${revCount} gerado!`);
+    } catch (err) {
+      toast.error("Erro ao gerar Excel da revisão.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -2349,13 +2417,17 @@ export default function QuoteDetail() {
               <div className="divide-y">
                 {visibleVersions.map(v => {
                   const vItems = items.filter(i => i.quoteVersionId === v.id);
+                  const isCurrentVersion = v.version === quote.currentVersion;
+                  const vTotal = v.totalFinal && Number(v.totalFinal) > 0
+                    ? Number(v.totalFinal)
+                    : (v.totalAmount ? Number(v.totalAmount) : 0);
                   return (
-                    <div key={v.id} className="px-4 py-3">
+                    <div key={v.id} className={`px-4 py-3 ${isCurrentVersion ? 'bg-primary/5' : ''}`}>
                       <div className="flex items-start justify-between gap-3">
-                        <div>
+                        <div className="flex-1 min-w-0">
                           <p className="font-semibold text-sm">
-                            Revisão v{v.version}
-                            {v.version === quote.currentVersion && (
+                            RV{v.version}
+                            {isCurrentVersion && (
                               <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">Atual</span>
                             )}
                           </p>
@@ -2367,17 +2439,55 @@ export default function QuoteDetail() {
                           {v.versionNotes && (
                             <p className="text-xs text-muted-foreground mt-1 italic">"{v.versionNotes}"</p>
                           )}
+                          <p className="text-xs text-muted-foreground mt-0.5">{vItems.length} iten{vItems.length !== 1 ? "s" : ""}</p>
                         </div>
-                        <div className="text-right flex-shrink-0">
+                        <div className="flex flex-col items-end gap-2 flex-shrink-0">
                           <p className="text-sm font-bold text-primary">
-                            {(() => {
-                              const vTotal = v.totalFinal && Number(v.totalFinal) > 0
-                                ? Number(v.totalFinal)
-                                : (v.totalAmount ? Number(v.totalAmount) : 0);
-                              return vTotal > 0 ? formatBRL(vTotal) : "—";
-                            })()}
+                            {vTotal > 0 ? formatBRL(vTotal) : "—"}
                           </p>
-                          <p className="text-xs text-muted-foreground">{vItems.length} iten{vItems.length !== 1 ? "s" : ""}</p>
+                          <div className="flex gap-1">
+                            {/* Botão Visualizar itens da revisão */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1 text-xs h-7 px-2"
+                              onClick={() => {
+                                setRevisionModalVersionId(v.id);
+                                setRevisionPreviewOpen(true);
+                              }}
+                              title="Visualizar itens desta revisão"
+                            >
+                              <Eye className="w-3 h-3" />
+                              Ver
+                            </Button>
+                            {/* Botão Baixar Excel da revisão */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1 text-xs h-7 px-2 border-green-500/40 text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950"
+                              onClick={async () => {
+                                setRevisionModalVersionId(v.id);
+                                // Buscar itens e gerar Excel diretamente
+                                try {
+                                  // Se os itens já estão no cache local (vItems), usar diretamente
+                                  if (vItems.length > 0) {
+                                    await handleGenerateRevisionExcel(v, vItems);
+                                  } else {
+                                    // Caso contrário, buscar via API
+                                    toast.info("Carregando itens da revisão...");
+                                    const result = await utils.quotes.getRevisionItems.fetch({ quoteId: Number(id), versionId: v.id });
+                                    await handleGenerateRevisionExcel(v, result.items);
+                                  }
+                                } catch (err) {
+                                  toast.error("Erro ao carregar itens da revisão.");
+                                }
+                              }}
+                              title="Baixar Excel desta revisão"
+                            >
+                              <FileSpreadsheet className="w-3 h-3" />
+                              Excel
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -2403,6 +2513,110 @@ export default function QuoteDetail() {
             </CardContent>
           </Card>
         )}
+
+        {/* Modal de visualização de revisão histórica */}
+        <Dialog open={revisionPreviewOpen} onOpenChange={(open) => { if (!open) { setRevisionPreviewOpen(false); } }}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <History className="w-4 h-4" />
+                {revisionModalVersionId != null && (() => {
+                  const v = versions.find(vv => vv.id === revisionModalVersionId);
+                  return v ? `Revisão RV${v.version} — ${toBrasiliaDate(v.createdAt)}` : 'Revisão';
+                })()}
+              </DialogTitle>
+            </DialogHeader>
+            {revisionItemsQuery.isLoading && (
+              <div className="flex items-center justify-center py-8">
+                <p className="text-muted-foreground text-sm">Carregando itens...</p>
+              </div>
+            )}
+            {revisionItemsQuery.data && (() => {
+              const { version: rv, items: rvItems } = revisionItemsQuery.data;
+              const snap = (() => { try { return JSON.parse(rv.headerSnapshot ?? '{}'); } catch { return {}; } })();
+              const rtPct = quote.rtPercent ? parseFloat(String(quote.rtPercent)) : 0;
+              const mPct = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;
+              const applyMkup = (base: number) => {
+                const comRT = rtPct > 0 ? base / (1 - rtPct) : base;
+                return mPct > 0 ? comRT / (1 - mPct) : comRT;
+              };
+              const hasMarkup = rtPct > 0 || mPct > 0;
+              let totalGeral = 0;
+              for (const item of rvItems) {
+                const d = parseCartItemData(item.itemData);
+                if (!d) continue;
+                const tot = d.totalPrice != null && d.totalPrice > 0 ? (hasMarkup ? applyMkup(d.totalPrice) : d.totalPrice) : 0;
+                totalGeral += tot;
+              }
+              return (
+                <div className="space-y-3">
+                  {/* Info da revisão */}
+                  <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3 space-y-1">
+                    {snap.clientName && <p><span className="font-medium">Cliente:</span> {snap.clientName}</p>}
+                    {snap.projectName && <p><span className="font-medium">Obra:</span> {snap.projectName}</p>}
+                    {snap.vendorName && <p><span className="font-medium">Vendedor:</span> {snap.vendorName}</p>}
+                    {snap.assistantName && <p><span className="font-medium">Assistente:</span> {snap.assistantName}</p>}
+                    {rv.versionNotes && <p className="italic">"{rv.versionNotes}"</p>}
+                  </div>
+                  {/* Lista de itens */}
+                  <div className="divide-y border rounded-lg overflow-hidden">
+                    {rvItems.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-6">Nenhum item nesta revisão.</p>
+                    )}
+                    {rvItems.map((item: { itemData: string }, idx: number) => {
+                      const d = parseCartItemData(item.itemData);
+                      if (!d) return null;
+                      const tot = d.totalPrice != null && d.totalPrice > 0 ? (hasMarkup ? applyMkup(d.totalPrice) : d.totalPrice) : null;
+                      return (
+                        <div key={idx} className="px-3 py-2 flex items-center gap-3">
+                          <div className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
+                            {idx + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-mono text-muted-foreground">{d.sku}</p>
+                            <p className="text-sm font-medium leading-tight truncate">{d.description}</p>
+                            {d.floorName && <p className="text-xs text-muted-foreground">{d.floorName}</p>}
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-xs text-muted-foreground">Qtd: {d.qty}</p>
+                            {tot != null ? (
+                              <p className="text-sm font-bold text-primary">{formatBRL(tot)}</p>
+                            ) : (
+                              <p className="text-xs italic text-muted-foreground">A consultar</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Total */}
+                  {totalGeral > 0 && (
+                    <div className="flex justify-between items-center border-t pt-3">
+                      <span className="text-sm font-medium">Total</span>
+                      <span className="text-lg font-bold text-primary">{formatBRL(totalGeral)}</span>
+                    </div>
+                  )}
+                  {/* Botões de ação */}
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      className="flex-1 gap-2"
+                      onClick={() => handleGenerateRevisionExcel(rv, rvItems)}
+                    >
+                      <FileSpreadsheet className="w-4 h-4" />
+                      Baixar Excel RV{rv.version}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setRevisionPreviewOpen(false)}
+                    >
+                      Fechar
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
+          </DialogContent>
+        </Dialog>
 
         {/* Observações */}
         {quote.notes && (
