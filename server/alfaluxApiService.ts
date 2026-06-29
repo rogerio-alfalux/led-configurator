@@ -32,6 +32,15 @@ export interface AlfaluxProduct {
   ledModule: string | null;
   /** Quantidade numérica de módulos LED (ex: 3 para produto 3X3). null quando não retornado pela API. */
   ledModuleQtd: number | null;
+  /** Módulo LED específico por CCT (novos campos da API — usam [CCT] como placeholder quando genérico) */
+  ledModule2700?: string | null;
+  ledModule3000?: string | null;
+  ledModule4000?: string | null;
+  ledModule5000?: string | null;
+  ledModuleQtd2700?: number | null;
+  ledModuleQtd3000?: number | null;
+  ledModuleQtd4000?: number | null;
+  ledModuleQtd5000?: number | null;
   otica: string | null;
   /** Ótica primária com quantidade embutida (ex: "9x LENTE DARKOO..."). null quando não retornado pela API. */
   oticaPrimaria: string | null;

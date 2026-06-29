@@ -22,6 +22,17 @@ export interface PainelProduct {
   name: string;
   /** Modulo LED (sem [CCT]) -- null se NAO APLICAVEL */
   ledModule: string | null;
+  /** Quantidade numérica de módulos LED */
+  ledModuleQtd?: number | null;
+  /** Módulo LED específico por CCT (novos campos da API) */
+  ledModule2700?: string | null;
+  ledModule3000?: string | null;
+  ledModule4000?: string | null;
+  ledModule5000?: string | null;
+  ledModuleQtd2700?: number | null;
+  ledModuleQtd3000?: number | null;
+  ledModuleQtd4000?: number | null;
+  ledModuleQtd5000?: number | null;
   /** CCTs disponíveis para este produto (ex: ["3000K", "4000K"]) */
   ccts: string[];
   /** Driver para 220Vac */
@@ -966,8 +977,12 @@ export function calculatePainel(input: PainelInput, catalog?: PainelProduct[]): 
     driver = product.driver220;
   }
 
-  // Concatenar CCT ao ledModule (ex: "4x Stripflex 562,5 x 10mm 36L 3000K")
-  const ledModuleWithCCT = product.ledModule
+  // Usar módulo LED específico por CCT quando disponível (novos campos da API)
+  const cctKey = input.cct.replace("K", "") as "2700" | "3000" | "4000" | "5000";
+  const cctSpecificModule = (product as any)[`ledModule${cctKey}`] as string | null | undefined;
+  const ledModuleWithCCT = cctSpecificModule
+    ? cctSpecificModule.replace(/\[CCT\]/gi, input.cct).trim()
+    : product.ledModule
     ? `${product.ledModule} ${input.cct}`
     : null;
 
