@@ -2305,6 +2305,11 @@ export default function QuoteDetail() {
                                     {d.power && <span>⚡ {d.power}</span>}
                                     {d.cct && <span>{d.cct}</span>}
                                     <span>{d.category}</span>
+                                    {d.itemEmPlanta && (
+                                      <span className="inline-flex items-center gap-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded px-1.5 py-0.5 font-medium">
+                                        📍 {d.itemEmPlanta}
+                                      </span>
+                                    )}
                                   </div>
                                   {d.accessories && (d.accessories as LinkedAccessory[]).length > 0 && (
                                     <div className="mt-1.5 border-l-2 border-cyan-500/40 pl-2 space-y-0.5">
