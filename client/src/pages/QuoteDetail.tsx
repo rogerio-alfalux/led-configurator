@@ -439,6 +439,8 @@ export default function QuoteDetail() {
   const [showAllVersions, setShowAllVersions] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<string>("");
+  const [orderNumberInput, setOrderNumberInput] = useState("");
+  const [billingCompanyInput, setBillingCompanyInput] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
@@ -863,6 +865,8 @@ export default function QuoteDetail() {
           clientName: quote.clientName,
           projectName: quote.projectName ?? "",
           quoteNumber: quote.quoteNumber,
+          // Se há número de pedido registrado, usar no campo PEDIDO da ficha de produção
+          orderNumber: (quote as any).orderNumber || undefined,
           vendorName: quote.vendorName ?? "",
           date: toBrasiliaDate(quote.approvedAt ?? quote.createdAt),
           empresa,
@@ -1010,6 +1014,23 @@ export default function QuoteDetail() {
               {(quote as any).invoicedAt && (
                 <p className="text-purple-600 dark:text-purple-400 font-medium">
                   <Receipt className="w-3.5 h-3.5 inline mr-1" />Faturado em: {toBrasiliaDate((quote as any).invoicedAt)}
+                </p>
+              )}
+              {/* Número do pedido e empresa faturadora */}
+              {(quote as any).orderNumber && (
+                <p className="text-green-700 dark:text-green-400 font-semibold">
+                  📋 Pedido: <span className="font-mono">{(quote as any).orderNumber}</span>
+                  {(quote as any).billingCompany && (
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      ({{
+                        alfalux: 'Alfalux',
+                        primelux: 'Prime Lux',
+                        decada: 'Década',
+                        primelase: 'Prime Lase',
+                        luminew: 'Luminew',
+                      }[(quote as any).billingCompany as string] ?? (quote as any).billingCompany})
+                    </span>
+                  )}
                 </p>
               )}
               {/* Novos campos comerciais */}
@@ -1483,43 +1504,82 @@ export default function QuoteDetail() {
           </Dialog>
 
           {/* Alterar Status */}
-          {canEdit && <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
+          {canEdit && <Dialog open={statusDialogOpen} onOpenChange={(open) => {
+            setStatusDialogOpen(open);
+            if (!open) { setNewStatus(""); setOrderNumberInput(""); setBillingCompanyInput(""); }
+          }}>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2">
                 <Edit className="w-4 h-4" />
                 Alterar Status
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-sm">
+            <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Alterar Status do Orçamento</DialogTitle>
               </DialogHeader>
-              <div className="space-y-3 py-2">
+              <div className="space-y-4 py-2">
                 <div>
                   <Label>Novo Status</Label>
-                  <Select value={newStatus} onValueChange={setNewStatus}>
+                  <Select value={newStatus} onValueChange={(v) => { setNewStatus(v); setOrderNumberInput(""); setBillingCompanyInput(""); }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o status" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="open">Em Aberto</SelectItem>
-                      <SelectItem value="approved">Aprovado pelo Cliente</SelectItem>
+                      <SelectItem value="approved">Aprovado (Pedido Fechado)</SelectItem>
                       <SelectItem value="lost">Perdido</SelectItem>
                       <SelectItem value="cancelled">Cancelado</SelectItem>
-                      <SelectItem value="invoiced">Faturado (NF emitida)</SelectItem>
+                      <SelectItem
+                        value="invoiced"
+                        disabled={quote.status !== "approved"}
+                      >
+                        Faturado (NF emitida)
+                        {quote.status !== "approved" && " — exige status Aprovado"}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Campos obrigatórios ao fechar (approved) */}
+                {newStatus === "approved" && (
+                  <div className="space-y-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                    <p className="text-sm font-semibold text-green-700 dark:text-green-400 flex items-center gap-1">
+                      <CheckCircle className="w-4 h-4" /> Pedido Fechado — preencha os dados abaixo
+                    </p>
+                    <div>
+                      <Label className="text-sm">Número do Pedido <span className="text-red-500">*</span></Label>
+                      <Input
+                        placeholder="Ex: 102030"
+                        maxLength={6}
+                        value={orderNumberInput}
+                        onChange={e => setOrderNumberInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        className="font-mono mt-1"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">6 dígitos numéricos sequenciais</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm">Empresa Faturadora <span className="text-red-500">*</span></Label>
+                      <Select value={billingCompanyInput} onValueChange={setBillingCompanyInput}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Selecione a empresa" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="alfalux">Alfalux (Lucro Presumido)</SelectItem>
+                          <SelectItem value="primelux">Prime Lux (Lucro Real)</SelectItem>
+                          <SelectItem value="decada">Década (Simples Nacional)</SelectItem>
+                          <SelectItem value="primelase">Prime Lase (Simples Nacional)</SelectItem>
+                          <SelectItem value="luminew">Luminew (Simples Nacional)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
                 {newStatus === "invoiced" && (
                   <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg text-sm text-purple-700 dark:text-purple-400">
                     <Receipt className="w-4 h-4 inline mr-1" />
                     Faturado indica que a nota fiscal foi emitida. Esta é a métrica de faturamento real do negócio.
-                  </div>
-                )}
-                {newStatus === "approved" && (
-                  <div className="p-3 bg-green-50 dark:bg-green-950/30 rounded-lg text-sm text-green-700 dark:text-green-400">
-                    <CheckCircle className="w-4 h-4 inline mr-1" />
-                    Ao aprovar, o botão "Gerar Pedido de Fábrica" ficará disponível.
                   </div>
                 )}
               </div>
@@ -1528,7 +1588,16 @@ export default function QuoteDetail() {
                 <Button
                   onClick={() => {
                     if (!newStatus) return;
-                    updateStatusMutation.mutate({ id: Number(id), status: newStatus as "open" | "approved" | "lost" | "cancelled" | "invoiced" });
+                    if (newStatus === "approved") {
+                      if (orderNumberInput.length !== 6) { toast.error("Número do pedido deve ter exatamente 6 dígitos."); return; }
+                      if (!billingCompanyInput) { toast.error("Selecione a empresa faturadora."); return; }
+                    }
+                    updateStatusMutation.mutate({
+                      id: Number(id),
+                      status: newStatus as "open" | "approved" | "lost" | "cancelled" | "invoiced",
+                      orderNumber: newStatus === "approved" ? orderNumberInput : undefined,
+                      billingCompany: newStatus === "approved" ? billingCompanyInput as "alfalux" | "primelux" | "decada" | "primelase" | "luminew" : undefined,
+                    });
                   }}
                   disabled={!newStatus || updateStatusMutation.isPending}
                 >

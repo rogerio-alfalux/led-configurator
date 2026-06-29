@@ -125,6 +125,10 @@ export const quotes = mysqlTable("quotes", {
 	arquiteto: varchar({ length: 256 }),
 	/** Nome do light designer responsável pelo projeto */
 	lightDesigner: varchar({ length: 256 }),
+	/** Número do pedido de venda (6 dígitos, ex: 102030) — obrigatório ao fechar o orçamento */
+	orderNumber: varchar({ length: 6 }),
+	/** Empresa do grupo Alfalux que irá faturar este pedido */
+	billingCompany: mysqlEnum(['alfalux','primelux','decada','primelase','luminew']),
 },
 (table) => [
 	index("quotes_quoteNumber_unique").on(table.quoteNumber),

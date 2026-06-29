@@ -669,11 +669,19 @@ export async function approveQuote(id: number) {
 }
 
 /** Atualiza o status de um orçamento */
-export async function updateQuoteStatus(id: number, status: "open" | "approved" | "lost" | "cancelled" | "invoiced") {
+export async function updateQuoteStatus(
+  id: number,
+  status: "open" | "approved" | "lost" | "cancelled" | "invoiced",
+  opts?: { orderNumber?: string; billingCompany?: "alfalux" | "primelux" | "decada" | "primelase" | "luminew" }
+) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const updateData: Record<string, unknown> = { status };
-  if (status === "approved") updateData.approvedAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  if (status === "approved") {
+    updateData.approvedAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    if (opts?.orderNumber) updateData.orderNumber = opts.orderNumber;
+    if (opts?.billingCompany) updateData.billingCompany = opts.billingCompany;
+  }
   if (status === "invoiced") updateData.invoicedAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
   await db.update(quotes).set(updateData).where(eq(quotes.id, id));
 }

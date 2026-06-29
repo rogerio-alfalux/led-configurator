@@ -511,13 +511,27 @@ export const appRouter = router({
         id: z.number(),
         status: z.enum(["open", "approved", "lost", "cancelled", "invoiced"]),
         quoteNumber: z.string().optional(),
+        orderNumber: z.string().regex(/^\d{6}$/, "Número do pedido deve ter exatamente 6 dígitos").optional(),
+        billingCompany: z.enum(["alfalux", "primelux", "decada", "primelase", "luminew"]).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const qForStatus = await getQuoteById(input.id);
         if (!qForStatus) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
         const canEditStatus = await canEditQuote(ctx.user.email, qForStatus.quote, ctx.user.role, ctx.user.id);
         if (!canEditStatus) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para alterar o status deste orçamento." });
-        await updateQuoteStatus(input.id, input.status);
+        // Ao fechar (approved), número de pedido e empresa são obrigatórios
+        if (input.status === "approved") {
+          if (!input.orderNumber) throw new TRPCError({ code: "BAD_REQUEST", message: "Número do pedido é obrigatório ao fechar o orçamento." });
+          if (!input.billingCompany) throw new TRPCError({ code: "BAD_REQUEST", message: "Empresa faturadora é obrigatória ao fechar o orçamento." });
+        }
+        // Faturado só pode ser acionado a partir de um pedido fechado (approved)
+        if (input.status === "invoiced" && qForStatus.quote.status !== "approved") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "O status 'Faturado' só pode ser definido a partir de um pedido fechado (Aprovado)." });
+        }
+        await updateQuoteStatus(input.id, input.status, {
+          orderNumber: input.orderNumber,
+          billingCompany: input.billingCompany,
+        });
         await insertAuditLog({
           userId: ctx.user.id,
           userEmail: ctx.user.email,
@@ -528,6 +542,8 @@ export const appRouter = router({
           details: JSON.stringify({
             newStatus: input.status,
             quoteNumber: input.quoteNumber,
+            orderNumber: input.orderNumber,
+            billingCompany: input.billingCompany,
           }),
         });
         return { success: true };

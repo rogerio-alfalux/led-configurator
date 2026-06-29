@@ -1590,3 +1590,16 @@
 - [x] Dashboard.tsx: `annualInvoiced` calculado a partir de `monthlyInvoiced`
 - [x] Dashboard: meta anual baseada em faturado (NF), aprovado como info secundária
 - [x] Dashboard: metas mensais mostram faturado (NF) + aprovado por mês
+
+## Número de Pedido e Empresa Faturadora (29/06/2026)
+
+- [x] Migração: adicionar coluna `orderNumber` (varchar 6) na tabela quotes
+- [x] Migração: adicionar coluna `billingCompany` (enum: alfalux, primelux, decada, primelase, luminew) na tabela quotes
+- [x] Schema Drizzle: orderNumber + billingCompany
+- [x] routers.ts: updateQuoteStatus aceita orderNumber + billingCompany ao fechar (approved)
+- [x] routers.ts: validação — orderNumber obrigatório ao mudar para approved; billingCompany obrigatório
+- [x] QuoteDetail.tsx: modal obrigatório ao selecionar status "Fechado" com campo orderNumber + billingCompany
+- [x] QuoteDetail.tsx: trava — status "Faturado" só habilitado se status atual for "approved"
+- [x] QuoteDetail.tsx: exibir orderNumber e billingCompany no cabeçalho do orçamento
+- [x] Ficha de produção (orderSummary.ts): campo Pedido usa orderNumber em vez do número do orçamento
+- [ ] Dashboard: exibir breakdown de faturamento por empresa (billingCompany)
