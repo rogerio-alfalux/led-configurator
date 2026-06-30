@@ -739,6 +739,9 @@ export default function QuoteDetail() {
   // Duplicar orçamento
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [duplicateClientName, setDuplicateClientName] = useState("");
+  const [duplicateClientContact, setDuplicateClientContact] = useState("");
+  const [duplicateClientPhone, setDuplicateClientPhone] = useState("");
+  const [duplicateClientEmail, setDuplicateClientEmail] = useState("");
   const [duplicateQuoteNumber, setDuplicateQuoteNumber] = useState("");
   const [duplicateNumberError, setDuplicateNumberError] = useState("");
   const uploadSpecialPhotoMutationQD = trpc.upload.specialItemPhoto.useMutation();
@@ -1588,6 +1591,9 @@ export default function QuoteDetail() {
             setDuplicateDialogOpen(open);
             if (open) {
               setDuplicateClientName(quote.clientName ?? "");
+              setDuplicateClientContact(quote.clientContact ?? "");
+              setDuplicateClientPhone(quote.clientPhone ?? "");
+              setDuplicateClientEmail(quote.clientEmail ?? "");
               setDuplicateQuoteNumber("");
               setDuplicateNumberError("");
             }
@@ -1643,11 +1649,41 @@ export default function QuoteDetail() {
 
                 {/* Nome do cliente */}
                 <div className="space-y-1.5">
-                  <Label>Nome do Cliente (novo orçamento)</Label>
+                  <Label>Nome do Cliente</Label>
                   <Input
                     value={duplicateClientName}
                     onChange={e => setDuplicateClientName(e.target.value)}
-                    placeholder="Deixe em branco para manter o mesmo cliente"
+                    placeholder="Nome do cliente"
+                  />
+                </div>
+
+                {/* Contato */}
+                <div className="space-y-1.5">
+                  <Label>Nome do Contato</Label>
+                  <Input
+                    value={duplicateClientContact}
+                    onChange={e => setDuplicateClientContact(e.target.value)}
+                    placeholder="Nome do contato"
+                  />
+                </div>
+
+                {/* Telefone */}
+                <div className="space-y-1.5">
+                  <Label>Telefone</Label>
+                  <Input
+                    value={duplicateClientPhone}
+                    onChange={e => setDuplicateClientPhone(e.target.value)}
+                    placeholder="Telefone"
+                  />
+                </div>
+
+                {/* E-mail */}
+                <div className="space-y-1.5">
+                  <Label>E-mail</Label>
+                  <Input
+                    value={duplicateClientEmail}
+                    onChange={e => setDuplicateClientEmail(e.target.value)}
+                    placeholder="E-mail"
                   />
                 </div>
               </div>
@@ -1658,6 +1694,9 @@ export default function QuoteDetail() {
                     id: Number(id),
                     newClientName: duplicateClientName || undefined,
                     newQuoteNumber: duplicateQuoteNumber.trim() || undefined,
+                    newClientContact: duplicateClientContact,
+                    newClientPhone: duplicateClientPhone,
+                    newClientEmail: duplicateClientEmail,
                   })}
                   disabled={duplicateMutation.isPending || (duplicateQuoteNumber.trim().length > 0 && !!checkNumberQuery.data?.exists)}
                   className="gap-2"

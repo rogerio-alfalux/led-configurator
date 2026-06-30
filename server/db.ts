@@ -1351,7 +1351,10 @@ export async function duplicateQuote(
   sourceQuoteId: number,
   createdByUserId: number,
   newClientName?: string,
-  overrideQuoteNumber?: string
+  overrideQuoteNumber?: string,
+  newClientContact?: string,
+  newClientPhone?: string,
+  newClientEmail?: string
 ): Promise<{ quoteId: number; quoteNumber: string }> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -1386,9 +1389,9 @@ export async function duplicateQuote(
   const qResult = await db.insert(quotes).values({
     quoteNumber: finalQuoteNumber,
     clientName: newClientName ?? q.clientName,
-    clientContact: q.clientContact,
-    clientPhone: q.clientPhone,
-    clientEmail: q.clientEmail,
+    clientContact: newClientContact !== undefined ? (newClientContact || null) : q.clientContact,
+    clientPhone: newClientPhone !== undefined ? (newClientPhone || null) : q.clientPhone,
+    clientEmail: newClientEmail !== undefined ? (newClientEmail || null) : q.clientEmail,
     projectName: q.projectName,
     projectRef: q.projectRef,
     vendorName: q.vendorName,
@@ -1437,7 +1440,7 @@ export async function duplicateQuote(
   // Inserir versão 1
   const headerSnapshot = JSON.stringify({
     clientName: newClientName ?? q.clientName,
-    clientContact: q.clientContact,
+    clientContact: newClientContact !== undefined ? (newClientContact || null) : q.clientContact,
     projectName: q.projectName,
     projectRef: q.projectRef,
     vendorName: q.vendorName,

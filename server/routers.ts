@@ -515,6 +515,9 @@ export const appRouter = router({
         id: z.number(),
         newClientName: z.string().optional(),
         newQuoteNumber: z.string().optional(),
+        newClientContact: z.string().optional(),
+        newClientPhone: z.string().optional(),
+        newClientEmail: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         // Validar unicidade do número personalizado antes de duplicar
@@ -527,7 +530,15 @@ export const appRouter = router({
             });
           }
         }
-        const result = await duplicateQuote(input.id, ctx.user.id, input.newClientName, input.newQuoteNumber);
+        const result = await duplicateQuote(
+          input.id,
+          ctx.user.id,
+          input.newClientName,
+          input.newQuoteNumber,
+          input.newClientContact,
+          input.newClientPhone,
+          input.newClientEmail,
+        );
         await insertAuditLog({
           userId: ctx.user.id,
           userEmail: ctx.user.email,
