@@ -1662,11 +1662,11 @@
 
 ## Backup Automático Diário (30/06/2026)
 
-- [ ] Ler skill de agendamento (automation-and-scheduling) antes de implementar
-- [ ] Backend: job agendado diário que gera export SQL completo do banco
-- [ ] Backend: job agendado diário que gera Excel com todos os orçamentos + itens
-- [ ] Backend: salvar arquivos de backup no S3 com timestamp no nome
-- [ ] Backend: tabela `backups` no banco para registrar histórico (data, tipo, tamanho, url)
-- [ ] Frontend: página /backup (admin only) com lista de backups disponíveis e botão de download
-- [ ] Frontend: link para /backup no menu lateral (apenas admins)
-- [ ] Frontend: indicador de último backup bem-sucedido no dashboard
+- [x] Ler skill de agendamento (automation-and-scheduling) antes de implementar
+- [x] Backend: job agendado diário que gera export SQL completo do banco
+- [x] Backend: job agendado diário que gera Excel com todos os orçamentos + itens
+- [x] Backend: salvar arquivos de backup no S3 com timestamp no nome
+- [x] Backend: tabela `backups` no banco para registrar histórico (data, tipo, tamanho, url)
+- [x] Frontend: página /backup (admin only) com lista de backups disponíveis e botão de download
+- [x] Frontend: link para /backup no menu lateral (apenas admins)
+- [x] Frontend: indicador de último backup bem-sucedido no dashboard

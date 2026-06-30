@@ -240,6 +240,32 @@ export type FactoryOrder = InferSelectModel<typeof factoryOrders>;
 export type InsertFactoryOrder = InferInsertModel<typeof factoryOrders>;
 export type FactoryOrderItem = InferSelectModel<typeof factoryOrderItems>;
 export type InsertFactoryOrderItem = InferInsertModel<typeof factoryOrderItems>;
+// ─── Backups Automáticos ─────────────────────────────────────────────────────
+export const backups = mysqlTable("backups", {
+	id: int().autoincrement().notNull(),
+	/** Tipo do backup: 'sql' ou 'excel' */
+	type: mysqlEnum(['sql', 'excel']).notNull(),
+	/** Nome do arquivo gerado */
+	fileName: varchar({ length: 256 }).notNull(),
+	/** URL de acesso ao arquivo no S3 */
+	fileUrl: text().notNull(),
+	/** Chave S3 do arquivo */
+	fileKey: varchar({ length: 512 }).notNull(),
+	/** Tamanho em bytes */
+	fileSizeBytes: int().default(0).notNull(),
+	/** Status do backup */
+	status: mysqlEnum(['success', 'error']).default('success').notNull(),
+	/** Mensagem de erro (se houver) */
+	errorMessage: text(),
+	/** Contagem de registros exportados (JSON) */
+	recordCounts: text(),
+	/** ID da tarefa cron que gerou este backup */
+	cronTaskUid: varchar({ length: 65 }),
+	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+});
+export type Backup = InferSelectModel<typeof backups>;
+export type InsertBackup = InferInsertModel<typeof backups>;
+
 // ─── Metas de Faturamento ─────────────────────────────────────────────────────
 export const salesGoals = mysqlTable("sales_goals", {
 	id: int().autoincrement().notNull(),

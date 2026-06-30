@@ -10,6 +10,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import apiV1Router from "../apiV1Router";
+import { dailyBackupHandler } from "../backupHandler";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -39,6 +40,8 @@ async function startServer() {
   registerStorageProxy(app);
   registerImageProxy(app);
   registerOAuthRoutes(app);
+  // Heartbeat: backup automático diário
+  app.post("/api/scheduled/daily-backup", dailyBackupHandler);
   // API REST v1 — somente leitura, autenticada por API Key
   app.use("/api/v1", apiV1Router);
   // tRPC API

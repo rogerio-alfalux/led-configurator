@@ -1020,6 +1020,16 @@ export const appRouter = router({
   }),
   // ─── Backup / Exportação ──────────────────────────────────────────────────
   backup: router({
+    // Listar histórico de backups automáticos
+    list: adminProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+      const { backups } = await import("../drizzle/schema");
+      const { desc } = await import("drizzle-orm");
+      const rows = await db.select().from(backups).orderBy(desc(backups.createdAt)).limit(100);
+      return rows;
+    }),
+
     exportSQL: adminProcedure.query(async () => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
