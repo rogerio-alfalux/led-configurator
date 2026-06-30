@@ -1,6 +1,6 @@
 {
   "name": "led-configurator",
-  "version": "32.61",
+  "version": "32.62",
   "type": "module",
   "license": "MIT",
   "scripts": {

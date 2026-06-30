@@ -544,6 +544,7 @@ function DiffuserSelector({
 // ─── ShapeResultCard: Card de resultado para formatos EM L ──────────────────────
 function ShapeResultCard({
   shapeResult,
+  skuPriceMap,
   onAddToQuote,
   globalQty = 1,
   setGlobalQty,
@@ -552,6 +553,7 @@ function ShapeResultCard({
   globalPavimento,
 }: {
   shapeResult: ShapeResult;
+  skuPriceMap?: SkuPriceMap;
   onAddToQuote?: (item: CartItemData) => void;
   globalQty?: number;
   setGlobalQty?: (v: number) => void;
@@ -577,15 +579,34 @@ function ShapeResultCard({
     return getStripflexName(cct);
   }, [shapeResult.cct, shapeResult.stripMethod]);
 
-  // Calcular preço por metro linear usando catálogo estático
-  const precoTotal = useMemo(() => {
+  // Calcular preço total somando custo × markup de cada peça (API) ou fallback estático
+  const { precoTotal, precoFromApi } = useMemo(() => {
+    // Método 1: preço por SKU individual via API (inclui cantos EM L)
+    if (skuPriceMap && shapeResult.pieces.length > 0) {
+      // Para composições em L, a tensão é sempre ON/OFF 220V (sem controle dim)
+      let total = 0;
+      let allHavePrice = true;
+      for (const piece of shapeResult.pieces) {
+        const entry = skuPriceMap[piece.sku];
+        if (!entry) { allHavePrice = false; break; }
+        const custo = entry.custoOnoff220;
+        const markup = entry.markupPadraoOnoff220v;
+        if (custo == null || markup == null) { allHavePrice = false; break; }
+        const precoUnit = Math.round(custo * markup * 100) / 100;
+        total += precoUnit * piece.quantity;
+      }
+      if (allHavePrice) {
+        return { precoTotal: Math.round(total * 100) / 100, precoFromApi: true };
+      }
+    }
+    // Método 2: fallback — preço por metro linear via catálogo estático
     const power = shapeResult.power;
     const totalMm = shapeResult.totalLengthMm;
-    if (!profileCode || !power || !totalMm) return null;
+    if (!profileCode || !power || !totalMm) return { precoTotal: null, precoFromApi: false };
     const pricePerMeter = getStaticPricePerMeter(profileCode, power, "onoff", false);
-    if (pricePerMeter == null) return null;
-    return Math.round(pricePerMeter * (totalMm / 1000) * 100) / 100;
-  }, [profileCode, shapeResult.power, shapeResult.totalLengthMm]);
+    if (pricePerMeter == null) return { precoTotal: null, precoFromApi: false };
+    return { precoTotal: Math.round(pricePerMeter * (totalMm / 1000) * 100) / 100, precoFromApi: false };
+  }, [skuPriceMap, shapeResult.pieces, profileCode, shapeResult.power, shapeResult.totalLengthMm]);
 
   const shapeLabel =
     shapeResult.shape === "L_SHAPE" ? "Formato L" :
@@ -722,7 +743,7 @@ function ShapeResultCard({
       qty: globalQty,
       unitPrice: precoTotal ?? null,
       totalPrice: precoTotal != null ? precoTotal * globalQty : null,
-      priceFromApi: false,
+      priceFromApi: precoFromApi,
       photoUrl: photo ?? null,
       orderSummary: summaryText,
       quoteSummary: summaryText,
@@ -890,7 +911,7 @@ function ShapeResultCard({
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Preço estimado:</span>
             <span className="text-lg font-bold text-blue-400">{formatBRL(precoTotal)}</span>
-            <span className="text-xs text-muted-foreground">(ON/OFF 220V)</span>
+            <span className="text-xs text-muted-foreground">(ON/OFF 220V{precoFromApi ? " · via API" : " · catálogo"})</span>
           </div>
         )}
       </CardContent>
@@ -7202,6 +7223,7 @@ export default function Home() {
               ) : (
                 <ShapeResultCard
                   shapeResult={shapeResult}
+                  skuPriceMap={skuPriceMap}
                   onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined}
                   globalQty={globalQty}
                   setGlobalQty={setGlobalQty}

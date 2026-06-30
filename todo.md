@@ -1640,3 +1640,15 @@
 - [x] Backend: retornar erro claro quando domínio não permitido
 - [x] Frontend: guard de autenticação em todas as rotas (redirecionar para login se não autenticado)
 - [x] Frontend: tela de "Acesso Negado" para usuários com domínio inválido
+
+## Correção de Preço para Composições EM L (30/06/2026)
+
+- [x] Investigar categoria dos cantos EM L na API (confirmado: categoria=PERFIS, SKUs com padrão 1L1)
+- [x] Identificar bug: ShapeResultCard não recebia prop skuPriceMap — usava apenas catálogo estático
+- [x] Adicionar prop skuPriceMap ao ShapeResultCard
+- [x] Substituir cálculo estático (getStaticPricePerMeter) por cálculo por SKU individual via API
+- [x] Calcular preço de cada peça (incluindo cantos EM L) como custoCorpoOnoff220v × markupPadraoOnoff220v
+- [x] Fallback para catálogo estático quando algum SKU não tem dados na API
+- [x] Indicar na UI se o preço veio da API ou do catálogo estático
+- [x] Passar skuPriceMap na chamada de ShapeResultCard (linha ~7224 do Home.tsx)
+- [x] Atualizar priceFromApi no CartItemData para refletir a fonte do preço
