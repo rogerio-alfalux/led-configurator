@@ -669,7 +669,10 @@ function ShapeResultCard({
     if (shapeResult.totalLengthMm) {
       lines.push(`Comprimento linear total: ${shapeResult.totalLengthMm}mm = ${(shapeResult.totalLengthMm / 1000).toFixed(3)}m`);
     }
-    if (stripBarName) lines.push(`Barra: ${stripBarName}`);
+    if (stripBarName) {
+      const eqSuffix = shapeResult.stripflexEq ? ` (${shapeResult.stripflexEq})` : "";
+      lines.push(`Barra: ${stripBarName}${eqSuffix}`);
+    }
     lines.push("");
     for (const piece of shapeResult.pieces) {
       const driverStr = piece.driver
@@ -911,7 +914,12 @@ function ShapeResultCard({
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
               {shapeResult.stripMethod === "STRIPLINE" ? "Barra Stripline" : "Barra Stripflex"}
             </p>
-            <p className="text-sm font-medium text-foreground font-mono">{stripBarName}</p>
+            <p className="text-sm font-medium text-foreground font-mono">
+              {stripBarName}
+              {shapeResult.stripflexEq && (
+                <span className="ml-2 text-xs text-muted-foreground font-mono">({shapeResult.stripflexEq})</span>
+              )}
+            </p>
           </div>
         )}
 
@@ -7226,14 +7234,29 @@ export default function Home() {
                 onClick={() => {
                   const code = profileCode;
                   let sr: ShapeResult | null = null;
+                  const effectiveStripMethod = powerD1 === 36 ? stripMethod : "STRIPFLEX";
+                  // Derivar nome e EQ da barra para a CCT selecionada
+                  const cctSuffix = cct === "2700K" ? "2700" : cct === "3000K" ? "3000" : cct === "4000K" ? "4000" : "5000";
+                  const sfNameKey = `ledModuleStripflex${cctSuffix}` as keyof typeof selectedVariant;
+                  const slNameKey = `ledModuleStripline${cctSuffix}` as keyof typeof selectedVariant;
+                  const sfEqKey = `ledModuleStripflexEq${cctSuffix}` as keyof typeof selectedVariant;
+                  const slEqKey = `ledModuleStriplineEq${cctSuffix}` as keyof typeof selectedVariant;
+                  const shapeStripflexName = effectiveStripMethod === "STRIPLINE"
+                    ? (selectedVariant?.[slNameKey] as string | null | undefined) ?? null
+                    : (selectedVariant?.[sfNameKey] as string | null | undefined) ?? null;
+                  const shapeStripflexEq = effectiveStripMethod === "STRIPLINE"
+                    ? (selectedVariant?.[slEqKey] as string | null | undefined) ?? null
+                    : (selectedVariant?.[sfEqKey] as string | null | undefined) ?? null;
                   const dp: ShapeDriverParams = {
                     power: powerD1,
                     voltage,
-                    stripMethod: powerD1 === 36 ? stripMethod : "STRIPFLEX",
+                    stripMethod: effectiveStripMethod,
                     allowLongModules,
                     allowFractionalBars: allowFractional,
                     cct,
                     profileName,
+                    stripflexName: shapeStripflexName,
+                    stripflexEq: shapeStripflexEq,
                   };
                   if (profileShape === "L_SHAPE") {
                     sr = calculateLShape(code, parseInt(shapeSideH) || 2000, parseInt(shapeSideV) || 1200, dp);

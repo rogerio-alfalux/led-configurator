@@ -503,6 +503,10 @@ export type ShapeResult = {
   profileCode?: string;
   /** Comprimento total de todos os lados em mm (para cálculo de preço por metro linear) */
   totalLengthMm?: number;
+  /** Nome da barra Stripflex/Stripline com CCT (ex: "STRIPFLEX 562.5 X 10MM - 36 LEDS 830 - 3000K (LC) 25V") */
+  stripflexName?: string | null;
+  /** Código EQ da barra Stripflex/Stripline para a CCT selecionada (ex: "EQ00125") */
+  stripflexEq?: string | null;
 };
 
 export type ShapePiece = {

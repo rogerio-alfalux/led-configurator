@@ -53,6 +53,10 @@ export interface ShapeDriverParams {
   allowFractionalBars?: boolean;
   cct?: string;
   profileName?: string;
+  /** Nome da barra Stripflex/Stripline com CCT para exibição (ex: "STRIPFLEX 562.5 X 10MM - 36 LEDS 830 - 3000K (LC) 25V") */
+  stripflexName?: string | null;
+  /** Código EQ da barra Stripflex/Stripline para a CCT selecionada (ex: "EQ00125") */
+  stripflexEq?: string | null;
 }
 
 /** Uma peça dentro de um segmento reto (pode haver múltiplas peças diferentes) */
@@ -356,6 +360,8 @@ export function calculateLShape(
     profileName: driverParams?.profileName,
     profileCode,
     totalLengthMm,
+    stripflexName: driverParams?.stripflexName,
+    stripflexEq: driverParams?.stripflexEq,
   };
 }
 
@@ -449,6 +455,8 @@ export function calculateSquare(
     profileName: driverParams?.profileName,
     profileCode,
     totalLengthMm,
+    stripflexName: driverParams?.stripflexName,
+    stripflexEq: driverParams?.stripflexEq,
   };
 }
 
@@ -580,6 +588,8 @@ export function calculateRectangle(
     profileName: driverParams?.profileName,
     profileCode,
     totalLengthMm,
+    stripflexName: driverParams?.stripflexName,
+    stripflexEq: driverParams?.stripflexEq,
   };
 }
 
@@ -736,6 +746,8 @@ export function calculateUShape(
     profileName: driverParams?.profileName,
     profileCode,
     totalLengthMm,
+    stripflexName: driverParams?.stripflexName,
+    stripflexEq: driverParams?.stripflexEq,
   };
 }
 
