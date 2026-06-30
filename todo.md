@@ -1670,3 +1670,11 @@
 - [x] Frontend: página /backup (admin only) com lista de backups disponíveis e botão de download
 - [x] Frontend: link para /backup no menu lateral (apenas admins)
 - [x] Frontend: indicador de último backup bem-sucedido no dashboard
+
+## Formato em U e Corre\u00e7\u00e3o de Barras Quebradas em Formas (30/06/2026)
+
+- [x] Corrigir buildShapeComposition: barras quebradas devem vir dos ML, não dos cantos (cantos sempre inteiros)
+- [x] Implementar formato em U na UI (novo botão de forma ao lado de L/quadrado/retangular)
+- [x] Implementar cálculo de composição em U: 2 cantos EM L + ML para 3 lados (lado1 + base + lado2)
+- [x] Exibir resultado do formato em U no ShapeResultCard com peças detalhadas
+- [x] Adicionar formato U ao carrinho (handleAddToCart) — já funciona via shapeLabel/dimensionLabel/totalLengthMm

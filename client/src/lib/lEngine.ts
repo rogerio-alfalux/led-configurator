@@ -283,23 +283,24 @@ export function calculateLShape(
   });
 
   // Módulos retos horizontais (algoritmo greedy, múltiplos tipos possíveis)
+  // v4.1: usa ML (não IF) — barras quebradas só nos MLs, cantos sempre inteiros
   for (const sp of segH.pieces) {
     const hDriver = driverParams ? calcPieceDriver(sp.bars, driverParams) : undefined;
     const hDesc = sp.qty > 1
-      ? `${sp.qty}× IF ${sp.bars} barras (${sp.length}mm) — horizontal`
-      : `IF ${sp.bars} barras (${sp.length}mm) — horizontal`;
+      ? `${sp.qty}× ML ${sp.bars} barras (${sp.length}mm) — horizontal`
+      : `ML ${sp.bars} barras (${sp.length}mm) — horizontal`;
     // Agrupar com peça vertical de mesmo SKU, se existir
-    const existing = pieces.find(p => p.sku === sp.sku && p.type === "STRAIGHT_IF");
+    const existing = pieces.find(p => p.sku === sp.sku && p.type === "STRAIGHT_ML");
     if (existing) {
       existing.quantity += sp.qty;
-      existing.description = `IF ${sp.bars} barras (${sp.length}mm) — horizontal e vertical`;
+      existing.description = `ML ${sp.bars} barras (${sp.length}mm) — horizontal e vertical`;
     } else {
       pieces.push({
         sku: sp.sku,
         quantity: sp.qty,
         description: hDesc,
         length: sp.length,
-        type: "STRAIGHT_IF",
+        type: "STRAIGHT_ML",
         bars: sp.bars,
         driver: hDriver,
       });
@@ -307,22 +308,23 @@ export function calculateLShape(
   }
 
   // Módulos retos verticais (algoritmo greedy, múltiplos tipos possíveis)
+  // v4.1: usa ML (não IF) — barras quebradas só nos MLs, cantos sempre inteiros
   for (const sp of segV.pieces) {
     const vDriver = driverParams ? calcPieceDriver(sp.bars, driverParams) : undefined;
     const vDesc = sp.qty > 1
-      ? `${sp.qty}× IF ${sp.bars} barras (${sp.length}mm) — vertical`
-      : `IF ${sp.bars} barras (${sp.length}mm) — vertical`;
-    const existing = pieces.find(p => p.sku === sp.sku && p.type === "STRAIGHT_IF");
+      ? `${sp.qty}× ML ${sp.bars} barras (${sp.length}mm) — vertical`
+      : `ML ${sp.bars} barras (${sp.length}mm) — vertical`;
+    const existing = pieces.find(p => p.sku === sp.sku && p.type === "STRAIGHT_ML");
     if (existing) {
       existing.quantity += sp.qty;
-      existing.description = `IF ${sp.bars} barras (${sp.length}mm) — horizontal e vertical`;
+      existing.description = `ML ${sp.bars} barras (${sp.length}mm) — horizontal e vertical`;
     } else {
       pieces.push({
         sku: sp.sku,
         quantity: sp.qty,
         description: vDesc,
         length: sp.length,
-        type: "STRAIGHT_IF",
+        type: "STRAIGHT_ML",
         bars: sp.bars,
         driver: vDriver,
       });
@@ -333,9 +335,9 @@ export function calculateLShape(
     `Formato L: ${actualH}mm × ${actualV}mm`,
     `1× canto ${corner.sku} (${cornerLen}mm)`,
   ];
-  for (const sp of segH.pieces) summaryLines.push(`${sp.qty}× IF ${sp.sku} (${sp.length}mm) — horizontal`);
+  for (const sp of segH.pieces) summaryLines.push(`${sp.qty}× ML ${sp.sku} (${sp.length}mm) — horizontal`);
   if (cabH > 0) summaryLines.push(`+ ${cabH}mm cabeceira (lado horizontal, canto isolado)`);
-  for (const sp of segV.pieces) summaryLines.push(`${sp.qty}× IF ${sp.sku} (${sp.length}mm) — vertical`);
+  for (const sp of segV.pieces) summaryLines.push(`${sp.qty}× ML ${sp.sku} (${sp.length}mm) — vertical`);
   if (cabV > 0) summaryLines.push(`+ ${cabV}mm cabeceira (lado vertical, canto isolado)`);
   const summary = summaryLines.join("\n") + "\n";
 
@@ -569,6 +571,162 @@ export function calculateRectangle(
   return {
     shape: "RECTANGLE",
     dimensions: [actualWidth, actualHeight],
+    pieces,
+    summary,
+    power: driverParams?.power,
+    voltage: driverParams?.voltage,
+    stripMethod: driverParams?.stripMethod,
+    cct: driverParams?.cct,
+    profileName: driverParams?.profileName,
+    profileCode,
+    totalLengthMm,
+  };
+}
+
+/**
+ * Calcula a composição para o formato em U.
+ *
+ * O formato em U tem 3 lados:
+ *   - 2 lados paralelos (profundidade), cada um com 1 canto EM L nas extremidades
+ *   - 1 lado de base (largura), conectando os dois cantos
+ *
+ * Estrutura:
+ *   Canto1 + ML(profundidade) ... Canto2 + ML(base) ... (sem canto na abertura)
+ *
+ * Montagem:
+ *   - 2 cantos EM L 1x1 (um em cada canto fechado do U)
+ *   - Lado esquerdo (profundidade): canto + ML retos
+ *   - Base (largura): canto + ML retos + canto (os dois cantos já contam acima)
+ *   - Lado direito (profundidade): canto + ML retos
+ *
+ * @param profileCode - Código do perfil
+ * @param depth - Comprimento dos lados paralelos (profundidade do U) em mm
+ * @param width - Comprimento da base do U em mm
+ * @param driverParams - Parâmetros para cálculo de drivers (opcional)
+ */
+export function calculateUShape(
+  profileCode: string,
+  depth: number,
+  width: number,
+  driverParams?: ShapeDriverParams
+): ShapeResult | null {
+  const lConfig = getLConfig(profileCode);
+  if (!lConfig) return null;
+
+  const corner = getCorner1x1(profileCode);
+  if (!corner) return null;
+
+  const profileEntry = LED_CATALOG[profileCode];
+  if (!profileEntry) return null;
+
+  const allowLongModules = driverParams?.allowLongModules ?? false;
+  const allowFractionalBars = driverParams?.allowFractionalBars ?? false;
+  const cornerLen = corner.lengthLong;
+
+  // Comprimento disponível para ML em cada segmento:
+  // - Lados de profundidade: canto + ML (abertura livre, sem canto na ponta)
+  //   disponível = depth - cornerLen
+  // - Base: canto + ML + canto
+  //   disponível = width - 2 * cornerLen
+  const availDepth = depth - cornerLen;
+  const availBase = width - 2 * cornerLen;
+
+  const segDepth = findBestMLModule(
+    profileEntry as unknown as ProfileVariant,
+    availDepth,
+    allowLongModules,
+    allowFractionalBars
+  );
+  const segBase = findBestMLModule(
+    profileEntry as unknown as ProfileVariant,
+    availBase,
+    allowLongModules,
+    allowFractionalBars
+  );
+
+  const actualDepth = cornerLen + segDepth.actualLength;
+  const actualBase = 2 * cornerLen + segBase.actualLength;
+
+  const pieces: ShapePiece[] = [];
+
+  // Calcular driver do canto
+  const cornerBars = corner.barsLong + corner.barsShort;
+  const cornerDriver = driverParams ? calcPieceDriver(cornerBars, driverParams) : undefined;
+
+  // 2 cantos EM L
+  pieces.push({
+    sku: corner.sku,
+    quantity: 2,
+    description: `Canto EM L 1×1 (${cornerLen}×${cornerLen}mm)`,
+    type: "CORNER",
+    bars: cornerBars,
+    driver: cornerDriver,
+  });
+
+  // ML dos lados de profundidade (2 lados idênticos)
+  const summaryDepthLines: string[] = [];
+  for (const sp of segDepth.pieces) {
+    const spDriver = driverParams ? calcPieceDriver(sp.bars, driverParams) : undefined;
+    const totalQty = 2 * sp.qty; // 2 lados de profundidade
+    const desc = sp.qty > 1
+      ? `${sp.qty}× ML ${sp.bars} barras (${sp.length}mm) por lado de profundidade`
+      : `ML ${sp.bars} barras (${sp.length}mm) — lados de profundidade`;
+    const existing = pieces.find(p => p.sku === sp.sku && p.type === "STRAIGHT_ML");
+    if (existing) {
+      existing.quantity += totalQty;
+      existing.description = `ML ${sp.bars} barras (${sp.length}mm) — todos os lados`;
+    } else {
+      pieces.push({
+        sku: sp.sku,
+        quantity: totalQty,
+        description: desc,
+        length: sp.length,
+        type: "STRAIGHT_ML",
+        bars: sp.bars,
+        driver: spDriver,
+      });
+    }
+    summaryDepthLines.push(`${totalQty}× ML ${sp.sku} (${sp.length}mm) — profundidade`);
+  }
+
+  // ML da base
+  const summaryBaseLines: string[] = [];
+  for (const sp of segBase.pieces) {
+    const spDriver = driverParams ? calcPieceDriver(sp.bars, driverParams) : undefined;
+    const totalQty = sp.qty; // 1 base
+    const desc = sp.qty > 1
+      ? `${sp.qty}× ML ${sp.bars} barras (${sp.length}mm) na base`
+      : `ML ${sp.bars} barras (${sp.length}mm) — base`;
+    const existing = pieces.find(p => p.sku === sp.sku && p.type === "STRAIGHT_ML");
+    if (existing) {
+      existing.quantity += totalQty;
+      existing.description = `ML ${sp.bars} barras (${sp.length}mm) — todos os lados`;
+    } else {
+      pieces.push({
+        sku: sp.sku,
+        quantity: totalQty,
+        description: desc,
+        length: sp.length,
+        type: "STRAIGHT_ML",
+        bars: sp.bars,
+        driver: spDriver,
+      });
+    }
+    summaryBaseLines.push(`${totalQty}× ML ${sp.sku} (${sp.length}mm) — base`);
+  }
+
+  const summary =
+    `Formato U: profundidade ${actualDepth}mm × base ${actualBase}mm\n` +
+    `2× canto ${corner.sku} (${cornerLen}mm)\n` +
+    [...summaryDepthLines, ...summaryBaseLines].join("\n") +
+    ([...summaryDepthLines, ...summaryBaseLines].length ? "\n" : "");
+
+  // Comprimento total = 2 lados de profundidade + 1 base
+  const totalLengthMm = 2 * actualDepth + actualBase;
+
+  return {
+    shape: "U_SHAPE",
+    dimensions: [actualBase, actualDepth],
     pieces,
     summary,
     power: driverParams?.power,

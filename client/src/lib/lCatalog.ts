@@ -462,7 +462,7 @@ export function getCabeceiraMm(profileCode: string): number {
 /**
  * Tipos de formato de perfil disponíveis.
  */
-export type ProfileShape = "STRAIGHT" | "L_SHAPE" | "SQUARE" | "RECTANGLE";
+export type ProfileShape = "STRAIGHT" | "L_SHAPE" | "SQUARE" | "RECTANGLE" | "U_SHAPE";
 
 /**
  * Driver calculado para uma peça da composição EM L.

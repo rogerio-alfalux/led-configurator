@@ -23,7 +23,7 @@ import {
 import { adaptProfileProducts } from "@/lib/profileApiAdapter";
 import type { InstallType } from "@/lib/ledCatalog";
 import { calculateComposition, getStripflexName, getStriplineName } from "@/lib/ledEngine";
-import { profileSupportsLShape, calculateLShape, calculateSquare, calculateRectangle, type ShapeDriverParams } from "@/lib/lEngine";
+import { profileSupportsLShape, calculateLShape, calculateSquare, calculateRectangle, calculateUShape, type ShapeDriverParams } from "@/lib/lEngine";
 import type { ProfileShape, ShapeResult, ShapePiece } from "@/lib/lCatalog";
 import { generateProductionTemplate } from "@/lib/productionTemplate";
 import { generateOrderSummary } from "@/lib/orderSummary";
@@ -617,12 +617,15 @@ function ShapeResultCard({
   const shapeLabel =
     shapeResult.shape === "L_SHAPE" ? "Formato L" :
     shapeResult.shape === "SQUARE" ? "Quadrado" :
+    shapeResult.shape === "U_SHAPE" ? "Formato U" :
     "Retangular";
 
   const dimensionLabel =
     shapeResult.shape === "SQUARE"
       ? `${shapeResult.dimensions[0]}mm × ${shapeResult.dimensions[0]}mm`
-      : `${shapeResult.dimensions[0]}mm × ${shapeResult.dimensions[1]}mm`;
+      : shapeResult.shape === "U_SHAPE"
+        ? `Base ${shapeResult.dimensions[0]}mm × Prof. ${shapeResult.dimensions[1]}mm`
+        : `${shapeResult.dimensions[0]}mm × ${shapeResult.dimensions[1]}mm`;
 
   // Consolidar drivers por SKU (agrupando peças com mesmo SKU e mesmo driver)
   const driversBySku: Array<{ sku: string; quantity: number; driver: NonNullable<ShapePiece["driver"]>; bars: number }> = useMemo(() => {
@@ -4689,6 +4692,11 @@ export default function Home() {
                             <rect x="2" y="2" width="28" height="16" rx="1" stroke="currentColor" strokeWidth="2.5" fill="none" />
                           </svg>
                         )},
+                        { value: "U_SHAPE" as ProfileShape, label: "Em U", icon: (
+                          <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none">
+                            <path d="M4 4 L4 20 L20 20 L20 4" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                          </svg>
+                        )},
                       ]).map(({ value, label, icon }) => (
                         <button
                           key={value}
@@ -5036,6 +5044,34 @@ export default function Home() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                )}
+                {/* 7e. Dimensões para formato em U */}
+                {selectedVariant && profileShape === "U_SHAPE" && (
+                  <div className="space-y-3">
+                    <FieldLabel>Dimensões do U</FieldLabel>
+                    <p className="text-xs text-muted-foreground">2 cantos EM L + módulos retos nos 3 lados</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Base (largura) (mm)</p>
+                        <div className="relative">
+                          <input type="number" value={shapeWidth} onChange={(e) => { setShapeWidth(e.target.value); setShapeResult(null); }} min={100} max={20000} step={1}
+                            className="w-full h-10 px-3 pr-10 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                            placeholder="ex: 2000" />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">mm</span>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Profundidade (lados) (mm)</p>
+                        <div className="relative">
+                          <input type="number" value={shapeHeight} onChange={(e) => { setShapeHeight(e.target.value); setShapeResult(null); }} min={100} max={20000} step={1}
+                            className="w-full h-10 px-3 pr-10 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                            placeholder="ex: 1200" />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">mm</span>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">⬆ Base conecta os dois cantos. Profundidade = cada lado paralelo.</p>
                   </div>
                 )}
 
@@ -7205,6 +7241,8 @@ export default function Home() {
                     sr = calculateSquare(code, parseInt(shapeSide) || 1200, dp);
                   } else if (profileShape === "RECTANGLE") {
                     sr = calculateRectangle(code, parseInt(shapeWidth) || 2000, parseInt(shapeHeight) || 1200, dp);
+                  } else if (profileShape === "U_SHAPE") {
+                    sr = calculateUShape(code, parseInt(shapeHeight) || 1200, parseInt(shapeWidth) || 2000, dp);
                   }
                   if (sr) {
                     setShapeResult(sr);
@@ -7218,7 +7256,7 @@ export default function Home() {
                 size="lg"
               >
                 <Zap className="w-5 h-5 mr-2" />
-                Calcular Formato EM L
+                {profileShape === "U_SHAPE" ? "Calcular Formato EM U" : "Calcular Formato EM L"}
               </Button>
             )}
 

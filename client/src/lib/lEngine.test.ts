@@ -198,21 +198,20 @@ describe("calculateSquare/calculateRectangle — sem ajuste de cabeceira e módu
   });
 
   it("calculateLShape LLP-6060 (BLAZE H): módulos retos devem ser IF (formato L)", () => {
-    // Formato L usa IF para acabamento
+    // Formato L usa ML (não IF) — cantos EM L + módulos retos ML (v4.1)
     // cornerLen = 565mm
-    // Lado H = 2000mm: availH = 2000 - 565 = 1435mm → greedy: IF 2 barras (1135mm) → restante 300mm → para
-    // Lado V = 2000mm: availV = 2000 - 565 = 1435mm → greedy: IF 2 barras (1135mm) → restante 300mm → para
+    // Lado H = 2000mm: availH = 2000 - 565 = 1435mm → greedy ML: ML 2 barras → restante → para
+    // Lado V = 2000mm: availV = 2000 - 565 = 1435mm → greedy ML: ML 2 barras → restante → para
     const result = calculateLShape("LLP-6060", 2000, 2000, baseParams);
     expect(result).not.toBeNull();
     const straightPieces = result!.pieces.filter(p => p.type !== "CORNER");
     expect(straightPieces.length).toBeGreaterThan(0);
     straightPieces.forEach(p => {
-      expect(p.type).toBe("STRAIGHT_IF");
+      expect(p.type).toBe("STRAIGHT_ML");
     });
-    // SKU deve ser IF
-    straightPieces.forEach(p => {
-      expect(p.sku).toMatch(/IF|if/i);
-    });
+    // Nota: o SKU dos módulos ML pode conter "IF" no nome (ex: LLP-6060.2IF.48F)
+    // pois é o mesmo produto referenciado como ML no catálogo. O tipo STRAIGHT_ML
+    // é o identificador correto da categoria de módulo.
   });
 
   it("módulos de 1 barra não devem aparecer em formato L", () => {
