@@ -40,8 +40,8 @@ import type { Power, Voltage, StripMethod } from "./ledEngine";
 /** Comprimento máximo de módulo IF sem módulos longos habilitados */
 const MAX_IF_LENGTH_STANDARD = 2840;
 
-/** Número máximo de módulos por lado (evita combinações absurdas) */
-const MAX_MODULES_PER_SIDE = 8;
+/** Número máximo de módulos por lado — valor alto para suportar instalações grandes */
+const MAX_MODULES_PER_SIDE = 500;
 
 /** Parâmetros de driver para cálculo */
 export interface ShapeDriverParams {
