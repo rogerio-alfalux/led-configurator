@@ -1018,6 +1018,69 @@ export const appRouter = router({
       }).from(users).orderBy(desc(users.lastSignedIn));
     }),
   }),
+  // ─── Backup / Exportação ──────────────────────────────────────────────────
+  backup: router({
+    exportSQL: adminProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+      const { quotes, quoteVersions, quoteItems, sellers, assistants, users, salesGoals, factoryOrders, factoryOrderItems } = await import("../drizzle/schema");
+      const allQuotes = await db.select().from(quotes);
+      const allVersions = await db.select().from(quoteVersions);
+      const allItems = await db.select().from(quoteItems);
+      const allSellers = await db.select().from(sellers);
+      const allAssistants = await db.select().from(assistants);
+      const allUsers = await db.select().from(users);
+      const allGoals = await db.select().from(salesGoals);
+      const allOrders = await db.select().from(factoryOrders);
+      const allOrderItems = await db.select().from(factoryOrderItems);
+
+      const escape = (v: unknown): string => {
+        if (v === null || v === undefined) return "NULL";
+        if (typeof v === "number" || typeof v === "bigint") return String(v);
+        if (typeof v === "boolean") return v ? "1" : "0";
+        return `'${String(v).replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n").replace(/\r/g, "\\r")}'`;
+      };
+
+      const tableToSQL = (tableName: string, rows: Record<string, unknown>[]): string => {
+        if (!rows.length) return `-- ${tableName}: sem dados\n`;
+        const cols = Object.keys(rows[0]);
+        const header = `-- Tabela: ${tableName} (${rows.length} registros)\nINSERT INTO \`${tableName}\` (${cols.map(c => `\`${c}\``).join(", ")}) VALUES\n`;
+        const values = rows.map(row => `  (${cols.map(c => escape(row[c])).join(", ")})`).join(",\n");
+        return header + values + ";\n\n";
+      };
+
+      const now = new Date().toISOString();
+      let sql = `-- Backup completo do Sistema Luna\n-- Gerado em: ${now}\n-- Grupo Alfalux Iluminação\n\nSET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\n\n`;
+      sql += tableToSQL("quotes", allQuotes as Record<string, unknown>[]);
+      sql += tableToSQL("quote_versions", allVersions as Record<string, unknown>[]);
+      sql += tableToSQL("quote_items", allItems as Record<string, unknown>[]);
+      sql += tableToSQL("sellers", allSellers as Record<string, unknown>[]);
+      sql += tableToSQL("assistants", allAssistants as Record<string, unknown>[]);
+      sql += tableToSQL("users", allUsers as Record<string, unknown>[]);
+      sql += tableToSQL("sales_goals", allGoals as Record<string, unknown>[]);
+      sql += tableToSQL("factory_orders", allOrders as Record<string, unknown>[]);
+      sql += tableToSQL("factory_order_items", allOrderItems as Record<string, unknown>[]);
+      sql += `\nSET FOREIGN_KEY_CHECKS=1;\n`;
+
+      return { sql, generatedAt: now, counts: {
+        quotes: allQuotes.length, versions: allVersions.length, items: allItems.length,
+        sellers: allSellers.length, users: allUsers.length, goals: allGoals.length,
+        orders: allOrders.length, orderItems: allOrderItems.length,
+      }};
+    }),
+
+    exportQuotesExcel: adminProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+      const { quotes, quoteVersions, quoteItems } = await import("../drizzle/schema");
+      const { desc } = await import("drizzle-orm");
+      const allQuotes = await db.select().from(quotes).orderBy(desc(quotes.createdAt));
+      const allVersions = await db.select().from(quoteVersions);
+      const allItems = await db.select().from(quoteItems);
+      return { quotes: allQuotes, versions: allVersions, items: allItems, generatedAt: new Date().toISOString() };
+    }),
+  }),
+
   // ─── Painel ADM ──────────────────────────────────────────────────────
   admin: router({
     getLogs: adminProcedure

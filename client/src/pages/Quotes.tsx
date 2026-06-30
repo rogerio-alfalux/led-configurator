@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   Search, Plus, ClipboardList, CheckCircle, XCircle, Clock,
   TrendingDown, ArrowLeft, BarChart2, ShoppingCart, Eye,
-  Users, UserCheck, Filter, X, Receipt,
+  Users, UserCheck, Filter, X, Receipt, Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -127,6 +127,14 @@ export default function Quotes() {
               Dashboard
             </Button>
           </Link>
+          {user?.role === "admin" && (
+            <Link href="/backup">
+              <Button variant="ghost" size="sm" className="gap-2">
+                <Download className="w-4 h-4" />
+                Backup
+              </Button>
+            </Link>
+          )}
           <Link href="/carrinho">
             <Button variant="ghost" size="sm" className="gap-2">
               <ShoppingCart className="w-4 h-4" />

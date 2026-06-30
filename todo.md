@@ -1626,3 +1626,10 @@
 - [x] Ao duplicar orçamento, gerar novo número sequencial no formato correto (sem prefixo ORC...)
 - [x] Campo de número do orçamento editável pelo usuário dentro do formato especificado
 - [x] Validação de unicidade: impedir salvar dois orçamentos com o mesmo número, avisar imediatamente
+
+## Exportação / Backup (30/06/2026)
+
+- [x] Backend: endpoint admin para exportar banco de dados completo em SQL
+- [x] Backend: endpoint admin para exportar orçamentos + itens em Excel
+- [x] Frontend: página /backup acessível apenas para admin com botões de exportação
+- [x] Menu lateral: link para /backup visível apenas para admins

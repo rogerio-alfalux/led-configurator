@@ -12,6 +12,7 @@ import FactoryOrderDetail from "./pages/FactoryOrderDetail";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import ApiKeys from "./pages/ApiKeys";
+import Backup from "./pages/Backup";
 
 function Router() {
   return (
@@ -24,6 +25,7 @@ function Router() {
       <Route path={"/dashboard"} component={Dashboard} />
       <Route path={"/admin"} component={Admin} />
       <Route path={"/api-keys"} component={ApiKeys} />
+      <Route path={"/backup"} component={Backup} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>
