@@ -6776,9 +6776,9 @@ export default function Home() {
                       <div className="border rounded-md divide-y max-h-72 overflow-y-auto">
                         {filteredRevendaProducts.length === 0 ? (
                           <div className="text-sm text-muted-foreground p-4 text-center">Nenhum produto encontrado.</div>
-                        ) : filteredRevendaProducts.map(p => (
+                        ) : filteredRevendaProducts.map((p, idx) => (
                           <div
-                            key={p.sku}
+                            key={`${p.sku}-${idx}`}
                             onClick={() => setRvSelectedSku(prev => prev === p.sku ? "" : p.sku)}
                             className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors ${
                               rvSelectedSku === p.sku
@@ -6859,9 +6859,9 @@ export default function Home() {
                         <div className="text-sm text-muted-foreground p-4 text-center">Nenhum produto encontrado.</div>
                       ) : customizadosProducts
                         .filter(p => !czSearch.trim() || p.name.toLowerCase().includes(czSearch.toLowerCase()) || p.sku.toLowerCase().includes(czSearch.toLowerCase()))
-                        .map(p => (
+                        .map((p, idx) => (
                           <div
-                            key={p.sku}
+                            key={`${p.sku}-${idx}`}
                             onClick={() => setCzSelectedSku(prev => prev === p.sku ? "" : p.sku)}
                             className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors ${
                               czSelectedSku === p.sku
