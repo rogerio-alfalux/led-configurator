@@ -357,24 +357,27 @@ export async function fetchCustomizadosProducts(): Promise<CustomizadoProduct[]>
     return customizadosCache.data;
   }
 
-  console.log("[AlfaluxAPI] Buscando produtos customizados via /api/customizados/all...");
+  console.log("[AlfaluxAPI] Buscando produtos customizados do endpoint principal /api/products/all...");
   try {
-    const url = `${ALFALUX_BASE}/api/customizados/all`;
-    const res = await fetch(url, {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!res.ok) throw new Error(`Alfalux Customizados API error: ${res.status}`);
-    const body = await res.json() as { count?: number; products?: CustomizadoProduct[]; items?: CustomizadoProduct[] } | CustomizadoProduct[];
-    const all: CustomizadoProduct[] = Array.isArray(body)
-      ? body
-      : (body as any).products ?? (body as any).items ?? [];
-    console.log(`[AlfaluxAPI] ${all.length} produtos customizados carregados.`);
-    customizadosCache = { data: all, fetchedAt: now };
-    return all;
+    // Customizados são filtrados do endpoint principal com categoria === 'CUSTOMIZADOS'
+    const allProducts = await fetchAllAlfaluxProducts();
+    const customizados: CustomizadoProduct[] = allProducts
+      .filter(p => p.categoria?.toUpperCase() === 'CUSTOMIZADOS')
+      .map(p => ({
+        sku: p.sku,
+        name: p.name,
+        descricao: null,
+        fotoUrl: p.fotoUrl ?? null,
+        familia: p.familia ?? null,
+        precoVenda: null,
+        clienteEspecifico: null,
+        observacoes: null,
+      }));
+    console.log(`[AlfaluxAPI] ${customizados.length} produtos customizados encontrados.`);
+    customizadosCache = { data: customizados, fetchedAt: now };
+    return customizados;
   } catch (err) {
-    console.warn(`[AlfaluxAPI] Endpoint /api/customizados/all indisponível:`, err instanceof Error ? err.message : err);
-    // Endpoint ainda não existe — retornar lista vazia sem lançar erro
+    console.warn(`[AlfaluxAPI] Erro ao buscar produtos customizados:`, err instanceof Error ? err.message : err);
     customizadosCache = { data: [], fetchedAt: now };
     return [];
   }

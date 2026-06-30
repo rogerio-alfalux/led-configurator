@@ -3761,9 +3761,9 @@ export default function Home() {
                         {customizadosProducts.length} produto{customizadosProducts.length !== 1 ? "s" : ""}
                       </span>
                     )}
-                    {customizadosProducts.length === 0 && (
-                      <span className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full font-medium">
-                        Cadastro manual
+                    {customizadosProducts.length === 0 && !customizadosQuery.isLoading && (
+                      <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium">
+                        Indisponível
                       </span>
                     )}
                     <span className={`text-muted-foreground transition-transform ${
@@ -6827,55 +6827,8 @@ export default function Home() {
                 {customizadosQuery.isLoading ? (
                   <div className="text-sm text-muted-foreground py-4 text-center">Carregando produtos customizados...</div>
                 ) : customizadosProducts.length === 0 ? (
-                  <div className="space-y-4">
-                    <div className="text-sm text-muted-foreground py-3 flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md px-3">
-                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                      <span>Nenhum produto customizado disponível na API no momento. Você pode cadastrar manualmente abaixo.</span>
-                    </div>
-                    {/* Formulário manual quando API não tem produtos */}
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        <label className="text-sm font-medium">Descrição do produto *</label>
-                        <Input
-                          placeholder="Ex: Perfil LED Customizado 2m - Cliente XYZ"
-                          value={czSearch}
-                          onChange={e => setCzSearch(e.target.value)}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium">Qtd *</label>
-                          <Input
-                            type="number" min="1"
-                            placeholder="1"
-                            value={czQty}
-                            onChange={e => setCzQty(e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium">Preço unitário (R$) *</label>
-                          <Input
-                            type="number" min="0" step="0.01"
-                            placeholder="0,00"
-                            value={czUnitPrice}
-                            onChange={e => setCzUnitPrice(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-sm font-medium">Observações</label>
-                        <Input
-                          placeholder="Especificações técnicas, cliente, etc."
-                          value={czNotes}
-                          onChange={e => setCzNotes(e.target.value)}
-                        />
-                      </div>
-                      {czSearch.trim() && czQty && czUnitPrice && (
-                        <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                          Total: R$ {(parseFloat(czQty || "1") * parseFloat(czUnitPrice || "0")).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                        </p>
-                      )}
-                    </div>
+                  <div className="text-sm text-muted-foreground py-6 text-center">
+                    Nenhum produto customizado disponível no momento.
                   </div>
                 ) : (
                   <>
