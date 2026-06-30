@@ -5,7 +5,7 @@ import {
   FileSpreadsheet, History, Package, Edit, AlertTriangle,
   ChevronDown, ChevronUp, Factory, Trash2, PenLine,
   Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle, GripVertical, Wrench, Copy, Eye,
-  Upload, X as XIcon, Layers, Receipt, Printer,
+  Upload, X as XIcon, Layers, Receipt, Printer, Search,
 } from "lucide-react";
 import {
   DndContext,
@@ -605,6 +605,7 @@ export default function QuoteDetail() {
     parsed: CartItemData;
   }>>([]);
   const [editItemsNotes, setEditItemsNotes] = useState("");
+  const [editItemsSearch, setEditItemsSearch] = useState("");
 
   // DnD sensors para reordenação de itens
   const editItemsSensors = useSensors(
@@ -1282,6 +1283,7 @@ export default function QuoteDetail() {
                 };
               }));
               setEditItemsNotes("");
+              setEditItemsSearch("");
             }
           }}>
             <SheetTrigger asChild>
@@ -1311,6 +1313,26 @@ export default function QuoteDetail() {
                 <p className="text-xs text-muted-foreground">
                   Edite quantidades, cor, temperatura de cor e identificação em planta. Uma nova revisão será criada ao salvar.
                 </p>
+                {/* Campo de busca */}
+                <div className="relative mt-2">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Buscar por SKU, descrição, item em planta, pavimento..."
+                    value={editItemsSearch}
+                    onChange={e => setEditItemsSearch(e.target.value)}
+                    className="w-full pl-9 pr-8 py-2 text-sm rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  {editItemsSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setEditItemsSearch("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-lg leading-none"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               </SheetHeader>
               <div className="flex-1 overflow-y-auto px-6 py-4">
 
@@ -1321,8 +1343,23 @@ export default function QuoteDetail() {
                   }}
                 >
                     {editGroupByFloor ? (() => {
+                      // Aplicar filtro de busca
+                      const searchLower = editItemsSearch.toLowerCase().trim();
+                      const filteredForGroup = searchLower
+                        ? editableItems.filter(item => {
+                            const p = item.parsed;
+                            return (
+                              (p.sku ?? "").toLowerCase().includes(searchLower) ||
+                              (p.description ?? "").toLowerCase().includes(searchLower) ||
+                              (p.itemEmPlanta ?? "").toLowerCase().includes(searchLower) ||
+                              (p.floorName ?? "").toLowerCase().includes(searchLower) ||
+                              (p.ambiente ?? "").toLowerCase().includes(searchLower) ||
+                              (p.category ?? "").toLowerCase().includes(searchLower)
+                            );
+                          })
+                        : editableItems;
                       const floorMap = new Map<string, typeof editableItems>();
-                      for (const item of editableItems) {
+                      for (const item of filteredForGroup) {
                         const floor = item.parsed.floorName?.trim() || "Sem Pavimento";
                         if (!floorMap.has(floor)) floorMap.set(floor, []);
                         floorMap.get(floor)!.push(item);
@@ -1330,7 +1367,7 @@ export default function QuoteDetail() {
                       // Manter a ordem dos grupos conforme a ordem dos itens
                       const seenEditFloors = new Set<string>();
                       const editGroups: { floor: string; items: typeof editableItems }[] = [];
-                      for (const item of editableItems) {
+                      for (const item of filteredForGroup) {
                         const f = item.parsed.floorName?.trim() || "Sem Pavimento";
                         if (!seenEditFloors.has(f)) { seenEditFloors.add(f); editGroups.push({ floor: f, items: floorMap.get(f)! }); }
                       }
@@ -1376,10 +1413,29 @@ export default function QuoteDetail() {
                         </div>
                         </SortableContext>
                       );
-                    })() : (
-                    <SortableContext items={editableItems.map(it => it.id)} strategy={verticalListSortingStrategy}>
+                    })() : (() => {
+                      const searchLower = editItemsSearch.toLowerCase().trim();
+                      const filteredItems = searchLower
+                        ? editableItems.filter(item => {
+                            const p = item.parsed;
+                            return (
+                              (p.sku ?? "").toLowerCase().includes(searchLower) ||
+                              (p.description ?? "").toLowerCase().includes(searchLower) ||
+                              (p.itemEmPlanta ?? "").toLowerCase().includes(searchLower) ||
+                              (p.floorName ?? "").toLowerCase().includes(searchLower) ||
+                              (p.ambiente ?? "").toLowerCase().includes(searchLower) ||
+                              (p.category ?? "").toLowerCase().includes(searchLower)
+                            );
+                          })
+                        : editableItems;
+                      return filteredItems.length === 0 ? (
+                        <div className="text-sm text-muted-foreground py-8 text-center">
+                          Nenhum item encontrado para “{editItemsSearch}”
+                        </div>
+                      ) : (
+                    <SortableContext items={filteredItems.map(it => it.id)} strategy={verticalListSortingStrategy}>
                     <div className="space-y-4">
-                      {editableItems.map((item, idx) => (
+                      {filteredItems.map((item, idx) => (
                         <SortableEditItem
                           key={item.id}
                           item={item}
@@ -1435,7 +1491,8 @@ export default function QuoteDetail() {
                       ))}
                     </div>
                     </SortableContext>
-                    )}
+                      );
+                    })()}
                 </DndContext>
 
                 {/* Nota da revisão */}
