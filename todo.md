@@ -1652,3 +1652,21 @@
 - [x] Indicar na UI se o preço veio da API ou do catálogo estático
 - [x] Passar skuPriceMap na chamada de ShapeResultCard (linha ~7224 do Home.tsx)
 - [x] Atualizar priceFromApi no CartItemData para refletir a fonte do preço
+
+## Edição Manual de Preço para Produtos sem Custo na API (30/06/2026)
+
+- [x] Cart.tsx: quando unitPrice=null e priceFromApi=false → campo editável com destaque e mensagem clara para todos os usuários
+- [x] ShapeResultCard (Home.tsx): quando precoTotal=null → campo de entrada de preço manual visível para todos
+- [x] Resultados de downlight/painel/spot/arandela/LED BAR (Home.tsx): quando preço=null → unitPrice preservado como null (editável no carrinho para todos os usuários)
+- [ ] QuoteDetail.tsx: quando totalPrice=null → campo manual editável para todos (não apenas admin/gerente)
+
+## Backup Automático Diário (30/06/2026)
+
+- [ ] Ler skill de agendamento (automation-and-scheduling) antes de implementar
+- [ ] Backend: job agendado diário que gera export SQL completo do banco
+- [ ] Backend: job agendado diário que gera Excel com todos os orçamentos + itens
+- [ ] Backend: salvar arquivos de backup no S3 com timestamp no nome
+- [ ] Backend: tabela `backups` no banco para registrar histórico (data, tipo, tamanho, url)
+- [ ] Frontend: página /backup (admin only) com lista de backups disponíveis e botão de download
+- [ ] Frontend: link para /backup no menu lateral (apenas admins)
+- [ ] Frontend: indicador de último backup bem-sucedido no dashboard

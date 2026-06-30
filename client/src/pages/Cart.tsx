@@ -2507,11 +2507,17 @@ export default function Cart() {
                         value={editFields.unitPrice}
                         onChange={canEditPrice ? (e) => setEditFields(prev => ({ ...prev, unitPrice: e.target.value })) : undefined}
                         readOnly={!canEditPrice}
-                        placeholder={canEditPrice ? "Definir preço" : "Preço da API"}
-                        className={!canEditPrice ? "bg-muted text-muted-foreground cursor-not-allowed" : ""}
+                        placeholder={canEditPrice ? (item?.data.unitPrice == null && !item?.data.priceFromApi ? "Informe o preço manualmente" : "Definir preço") : "Preço da API"}
+                        className={[
+                          !canEditPrice ? "bg-muted text-muted-foreground cursor-not-allowed" : "",
+                          canEditPrice && item?.data.unitPrice == null && !item?.data.priceFromApi ? "border-amber-500 focus:ring-amber-500" : ""
+                        ].join(" ")}
                       />
                       {!canEditPrice && (
                         <p className="text-xs text-muted-foreground">Preço definido pela API. Apenas admin/gerente podem alterar.</p>
+                      )}
+                      {canEditPrice && item?.data.unitPrice == null && !item?.data.priceFromApi && (
+                        <p className="text-xs font-medium text-amber-600 dark:text-amber-400">⚠️ API sem custo cadastrado — informe o preço manualmente para incluir no orçamento.</p>
                       )}
                       {canEditPrice && item?.data.priceFromApi && (
                         <p className="text-xs text-amber-600 dark:text-amber-400">Preço da API — você pode alterar (admin/gerente).</p>

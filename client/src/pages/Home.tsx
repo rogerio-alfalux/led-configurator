@@ -566,6 +566,7 @@ function ShapeResultCard({
   const { addItem, isAdding: isAddingToCart } = useCart();
   const [colorModalOpen, setColorModalOpen] = useState(false);
   const [pendingItem, setPendingItem] = useState<CartItemData | null>(null);
+  const [manualPreco, setManualPreco] = useState<string>("");
 
   const profileCode = shapeResult.profileCode ?? "";
   const profileEntry = LED_CATALOG[profileCode];
@@ -607,6 +608,11 @@ function ShapeResultCard({
     if (pricePerMeter == null) return { precoTotal: null, precoFromApi: false };
     return { precoTotal: Math.round(pricePerMeter * (totalMm / 1000) * 100) / 100, precoFromApi: false };
   }, [skuPriceMap, shapeResult.pieces, profileCode, shapeResult.power, shapeResult.totalLengthMm]);
+
+  // Preço efetivo: API > catálogo > manual
+  const manualPrecoNum = manualPreco !== "" ? parseFloat(manualPreco.replace(",", ".")) : null;
+  const precoEfetivo = precoTotal ?? (manualPrecoNum != null && !isNaN(manualPrecoNum) && manualPrecoNum > 0 ? manualPrecoNum : null);
+  const precoEfetivoFromApi = precoEfetivo === precoTotal ? precoFromApi : false;
 
   const shapeLabel =
     shapeResult.shape === "L_SHAPE" ? "Formato L" :
@@ -673,12 +679,12 @@ function ShapeResultCard({
       lines.push(`${piece.quantity}× ${piece.sku}${lenStr}${barsStr}`);
       if (driverStr) lines.push(`   Driver por peça: ${driverStr}`);
     }
-    if (precoTotal !== null) {
+    if (precoEfetivo !== null) {
       lines.push("");
-      lines.push(`PREÇO ESTIMADO: ${formatBRL(precoTotal)} (ON/OFF 220V)`);
+      lines.push(`PREÇO ESTIMADO: ${formatBRL(precoEfetivo)} (ON/OFF 220V)`);
     }
     return lines.join("\n");
-  }, [shapeResult, shapeLabel, dimensionLabel, stripBarName, precoTotal]);
+  }, [shapeResult, shapeLabel, dimensionLabel, stripBarName, precoEfetivo]);
 
   const handleCopy = async () => {
     try {
@@ -741,9 +747,9 @@ function ShapeResultCard({
       power: pw || undefined,
       cct: cctStr || undefined,
       qty: globalQty,
-      unitPrice: precoTotal ?? null,
-      totalPrice: precoTotal != null ? precoTotal * globalQty : null,
-      priceFromApi: precoFromApi,
+      unitPrice: precoEfetivo ?? null,
+      totalPrice: precoEfetivo != null ? precoEfetivo * globalQty : null,
+      priceFromApi: precoEfetivoFromApi,
       photoUrl: photo ?? null,
       orderSummary: summaryText,
       quoteSummary: summaryText,
@@ -906,12 +912,34 @@ function ShapeResultCard({
           </div>
         )}
 
-        {/* Preço estimado */}
-        {precoTotal !== null && (
+        {/* Preço estimado ou entrada manual */}
+        {precoTotal !== null ? (
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Preço estimado:</span>
             <span className="text-lg font-bold text-blue-400">{formatBRL(precoTotal)}</span>
             <span className="text-xs text-muted-foreground">(ON/OFF 220V{precoFromApi ? " · via API" : " · catálogo"})</span>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-amber-600 dark:text-amber-400">⚠️ API sem custo — informe o preço manualmente:</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">R$</span>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0,00"
+                value={manualPreco}
+                onChange={(e) => setManualPreco(e.target.value)}
+                className="h-8 w-36 text-sm"
+              />
+              {precoEfetivo !== null && (
+                <span className="text-sm font-bold text-blue-400">{formatBRL(precoEfetivo)}</span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Este preço será usado no orçamento (ON/OFF 220V).</p>
           </div>
         )}
       </CardContent>
@@ -1470,6 +1498,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
   const { user } = useAuth();
   const [colorModalOpen, setColorModalOpen] = useState(false);
   const [pendingItem, setPendingItem] = useState<CartItemData | null>(null);
+  const [manualPreco, setManualPreco] = useState<string>("");
 
   // Emails autorizados a editar markup
   const MARKUP_EDITORS = ["vivian@grupoalfalux.com.br", "dennis@grupoalfalux.com.br"];
@@ -1606,7 +1635,11 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
 
   const precoTotal = modulePriceResult ? modulePriceResult.total : precoTotalStatico;
 
-  const summary = generateQuoteSummary(result, precoTotal);
+  // Preço efetivo: API/catálogo > manual
+  const manualPrecoNum = manualPreco !== "" ? parseFloat(manualPreco.replace(",", ".")) : null;
+  const precoEfetivo = precoTotal ?? (manualPrecoNum != null && !isNaN(manualPrecoNum) && manualPrecoNum > 0 ? manualPrecoNum : null);
+
+  const summary = generateQuoteSummary(result, precoEfetivo);
 
   const handleCopy = async () => {
     try {
@@ -1754,8 +1787,8 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                   power: `${result.powerD1}W`,
                   cct: result.cct,
                   qty: globalQty,
-                  unitPrice: precoTotal ?? 0,
-                  totalPrice: (precoTotal ?? 0) * globalQty,
+                  unitPrice: precoEfetivo ?? null,
+                  totalPrice: precoEfetivo != null ? precoEfetivo * globalQty : null,
                   priceFromApi: modulePriceResult != null && precoTotal != null,
                   photoUrl: photo ?? "",
                   moduloLed: `Stripflex 562,5 x 10mm 36L ${result.cct}`,
@@ -1886,6 +1919,28 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
           <div className="flex items-center justify-between rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-3">
             <span className="text-sm font-semibold text-blue-400 uppercase tracking-wide">Preço Total</span>
             <span className="text-lg font-bold text-blue-300">{formatBRL(precoTotal)}</span>
+          </div>
+        )}
+        {/* Campo de preço manual quando API e catálogo não retornam custo */}
+        {!modulePriceResult && precoTotal == null && (
+          <div className="space-y-1 rounded-lg border border-amber-500/30 bg-amber-50/30 dark:bg-amber-900/10 px-3 py-2">
+            <span className="text-xs font-medium text-amber-600 dark:text-amber-400">⚠️ API sem custo — informe o preço manualmente:</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">R$</span>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0,00"
+                value={manualPreco}
+                onChange={(e) => setManualPreco(e.target.value)}
+                className="h-8 w-36 text-sm"
+              />
+              {precoEfetivo !== null && (
+                <span className="text-sm font-bold text-blue-400">{formatBRL(precoEfetivo)}</span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Este preço será usado no orçamento.</p>
           </div>
         )}
         <p className="text-xs text-muted-foreground">
@@ -2457,6 +2512,7 @@ export default function Home() {
   const [bgControle, setBgControle] = useState<BageoControle>("ON/OFF 220V");
   const [bgCCT, setBgCCT] = useState<string>("3000K");
   const [bgResult, setBgResult] = useState<BageoResult | null>(null);
+  const [bgManualPreco, setBgManualPreco] = useState<string>("");
   // ── Estados de GLOW (perfis fixos) ─────────────────────────────────────────
   const [glowMode, setGlowMode] = useState<boolean>(false);
   const [glowProductKey, setGlowProductKey] = useState<string | null>(null);
@@ -7704,10 +7760,28 @@ export default function Home() {
                           >
                             {orcamento}
                           </div>
-                          {r.precoTotal !== null && r.precoTotal !== undefined && (
+                          {r.precoTotal !== null && r.precoTotal !== undefined ? (
                             <div className="flex items-center justify-between rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-3 mt-3">
                               <span className="text-sm font-semibold text-blue-400 uppercase tracking-wide">Preço Total</span>
                               <span className="text-lg font-bold text-blue-300">{formatBRL(r.precoTotal)}</span>
+                            </div>
+                          ) : (
+                            <div className="space-y-1 rounded-lg border border-amber-500/30 bg-amber-50/30 dark:bg-amber-900/10 px-3 py-2 mt-3">
+                              <span className="text-xs font-medium text-amber-600 dark:text-amber-400">⚠️ API sem custo — informe o preço manualmente:</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">R$</span>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="0,00"
+                                  value={bgManualPreco}
+                                  onChange={(e) => setBgManualPreco(e.target.value)}
+                                  className="h-8 w-36 text-sm"
+                                />
+                                {(() => { const n = bgManualPreco !== "" ? parseFloat(bgManualPreco.replace(",",".")) : null; return n != null && !isNaN(n) && n > 0 ? <span className="text-sm font-bold text-blue-400">{formatBRL(n)}</span> : null; })()}
+                              </div>
+                              <p className="text-xs text-muted-foreground">Este preço será usado no orçamento.</p>
                             </div>
                           )}
                           <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
@@ -7740,6 +7814,8 @@ export default function Home() {
                               className="bg-emerald-600 hover:bg-emerald-700 text-white"
                               disabled={isAddingToCart}
                               onClick={() => {
+                                const bgManualNum = bgManualPreco !== "" ? parseFloat(bgManualPreco.replace(",", ".")) : null;
+                                const bgPrecoEfetivo = r.precoTotal ?? (bgManualNum != null && !isNaN(bgManualNum) && bgManualNum > 0 ? bgManualNum : null);
                                 const item: CartItemData = {
                                   category: "BAGEO",
                                   sku: r.product.sku ?? "",
@@ -7747,8 +7823,8 @@ export default function Home() {
                                   power: "",
                                   cct: r.cct,
                                   qty: 1,
-                                  unitPrice: r.precoTotal ?? 0,
-                                  totalPrice: r.precoTotal ?? 0,
+                                  unitPrice: bgPrecoEfetivo ?? null,
+                                  totalPrice: bgPrecoEfetivo ?? null,
                                   priceFromApi: false, // BAGEO sempre permite edição manual de preço
                                   photoUrl: r.product.fotoUrl ?? "",
                                   orderSummary: pedido,
@@ -7923,8 +7999,8 @@ export default function Home() {
                             power: "",
                             cct: bfResult.cct,
                             qty: 1,
-                            unitPrice: preco ?? 0,
-                            totalPrice: preco ?? 0,
+                            unitPrice: preco ?? null,
+                            totalPrice: preco ?? null,
                             priceFromApi: preco != null,
                             photoUrl: "",
                             orderSummary: `CÓDIGO: ${bfResult.product.sku}\n${bfResult.product.name.toUpperCase()} ${bfResult.cct} ${bfResult.controle.toUpperCase()} ${bfResult.tensao} COM DRIVER ${bfResult.driver.model.toUpperCase()} (${bfResult.driver.code})`,
@@ -8125,8 +8201,8 @@ export default function Home() {
                             power: "",
                             cct: glowResult.cct,
                             qty: 1,
-                            unitPrice: preco ?? 0,
-                            totalPrice: preco ?? 0,
+                            unitPrice: preco ?? null,
+                            totalPrice: preco ?? null,
                             priceFromApi: preco != null,
                             photoUrl: adaptedCatalogs?.glowFotos?.[glowResult.product.sku ?? ""] ?? "",
                             orderSummary: `CÓDIGO: ${glowResult.product.sku}\n${glowResult.product.name.toUpperCase()} ${glowResult.cct} ${glowResult.tensao} COM DRIVER ${glowResult.driver.model.toUpperCase()} (${glowResult.driver.code})`,
@@ -8334,8 +8410,8 @@ export default function Home() {
                               power: "",
                               cct: decCCT,
                               qty: globalQty,
-                              unitPrice: dPreco ?? 0,
-                              totalPrice: (dPreco ?? 0) * globalQty,
+                              unitPrice: dPreco ?? null,
+                              totalPrice: dPreco != null ? dPreco * globalQty : null,
                               priceFromApi: dPreco != null,
                               photoUrl: dPhoto ?? "",
                               orderSummary: `${dProd.sku ? `CÓDIGO: ${dProd.sku}\n` : ""}${dProd.name.toUpperCase()} ${decCCT}${dDriverStr ? `\nDRIVER: ${dDriverStr.toUpperCase()}` : ""}`,
@@ -8539,8 +8615,8 @@ export default function Home() {
                               power: "",
                               cct: balCCT,
                               qty: globalQty,
-                              unitPrice: bPreco ?? 0,
-                              totalPrice: (bPreco ?? 0) * globalQty,
+                              unitPrice: bPreco ?? null,
+                              totalPrice: bPreco != null ? bPreco * globalQty : null,
                               priceFromApi: bPreco != null,
                               photoUrl: bPhoto ?? "",
                               orderSummary: `${bProd.sku ? `CÓDIGO: ${bProd.sku}\n` : ""}${bProd.name.toUpperCase()} ${balCCT}${bDriverStr ? `\nDRIVER: ${bDriverStr.toUpperCase()}` : ""}`,
@@ -8786,8 +8862,8 @@ export default function Home() {
                             power: "",
                             cct: dlResult.cct,
                             qty: 1,
-                            unitPrice: preco ?? 0,
-                            totalPrice: preco ?? 0,
+                            unitPrice: preco ?? null,
+                            totalPrice: preco ?? null,
                             priceFromApi: preco != null,
                             photoUrl: dlPhoto ?? "",
                              orderSummary: (() => { const modEqSuffix = dlResult.ledModuleEq ? ` (${dlResult.ledModuleEq})` : ""; const modName = dlResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") || dlResult.ledModuleWithCCT.toUpperCase().startsWith("ÉDULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`; const parts: string[] = [`${modName}${modEqSuffix}`]; if (dlResult.product.oticaPrimaria) { parts.push(dlResult.product.oticaPrimaria.toUpperCase()); if (dlResult.product.oticaSecundaria) parts.push(dlResult.product.oticaSecundaria.toUpperCase()); } else if (dlResult.product.otica) { parts.push(dlResult.product.otica.toUpperCase()); } if (dlResult.product.holder) parts.push(dlResult.product.holder.toUpperCase()); if (dlResult.product.dissipador) parts.push(dlResult.product.dissipador.toUpperCase()); const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); parts.push(`${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`); return (`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.controle.toUpperCase()} ${dlResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim(); })(),
@@ -9063,8 +9139,8 @@ export default function Home() {
                             power: "",
                             cct: aeResult.cct,
                             qty: 1,
-                            unitPrice: preco ?? 0,
-                            totalPrice: preco ?? 0,
+                            unitPrice: preco ?? null,
+                            totalPrice: preco ?? null,
                             priceFromApi: preco != null,
                             photoUrl: aePhoto ?? "",
                             orderSummary: (() => { const aeModEq = aeResult.ledModuleEq ? ` (${aeResult.ledModuleEq})` : ""; const aeModName = aeResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") ? aeResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${aeResult.ledModuleWithCCT.toUpperCase()}`; const parts: string[] = [`${aeModName}${aeModEq}`]; if (aeResult.product.oticaPrimaria) { parts.push(aeResult.product.oticaPrimaria.toUpperCase()); if (aeResult.product.oticaSecundaria) parts.push(aeResult.product.oticaSecundaria.toUpperCase()); } else if (aeResult.product.otica) { parts.push(aeResult.product.otica.toUpperCase()); } if (aeResult.product.holder) parts.push(aeResult.product.holder.toUpperCase()); if (aeResult.product.dissipador) parts.push(aeResult.product.dissipador.toUpperCase()); const eqSuffix = aeResult.driver.code ? ` (${aeResult.driver.code})` : ""; const drvQty = driverQtyFor(aeResult.product, aeResult.controle, aeResult.tensao); parts.push(`${drvQty}x DRIVER ${aeResult.driver.model.toUpperCase()}${eqSuffix}`); return (`CÓDIGO: ${aeResult.product.sku}\n${aeResult.product.name.toUpperCase()} ${aeResult.cct} ${aeResult.controle.toUpperCase()} ${aeResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim(); })(),
@@ -9335,8 +9411,10 @@ export default function Home() {
                             ? panelDrvLines.driverLines.reduce((sum, line) => sum + (line.driverTotalPrice ?? 0), 0)
                             : 0;
                           const panelTotalPrice = panelDrvLines
-                            ? Math.round((((panelDrvLines.priceWithoutDriver ?? (preco ?? 0)) + panelDriverTotal)) * 100) / 100
-                            : (preco ?? 0);
+                            ? (panelDrvLines.priceWithoutDriver != null || panelDriverTotal > 0
+                                ? Math.round(((panelDrvLines.priceWithoutDriver ?? (preco ?? 0)) + panelDriverTotal) * 100) / 100
+                                : preco ?? null)
+                            : (preco ?? null);
                           const item: CartItemData = {
                             category: "Painéis",
                             sku: panelResult.product.sku ?? "",
@@ -9344,7 +9422,7 @@ export default function Home() {
                             power: "",
                             cct: panelResult.cct,
                             qty: 1,
-                            unitPrice: preco ?? 0,
+                            unitPrice: preco ?? null,
                             totalPrice: panelTotalPrice,
                             priceFromApi: preco != null || !!panelDrvLines,
                             photoUrl: pPhoto ?? panelResult.product.fotoUrl ?? "",
@@ -9591,8 +9669,8 @@ export default function Home() {
                             power: "",
                             cct: arandelaResult.cct,
                             qty: 1,
-                            unitPrice: preco ?? 0,
-                            totalPrice: preco ?? 0,
+                            unitPrice: preco ?? null,
+                            totalPrice: preco ?? null,
                             priceFromApi: preco != null,
                             photoUrl: arandelaResult.product.fotoUrl ?? "",
                             orderSummary: (() => { const parts: string[] = []; if (arandelaResult.ledModuleWithCCT) { const mQtd = arandelaResult.product.ledModuleQtd; const mPrefix = mQtd != null ? `${mQtd}x ` : ""; const arModEq = arandelaResult.ledModuleEq ? ` (${arandelaResult.ledModuleEq})` : ""; parts.push(`${mPrefix}${arandelaResult.ledModuleWithCCT.toUpperCase()}${arModEq}`); } const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); parts.push(`${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`); const skuLine = arandelaResult.product.sku ? `CÓDIGO: ${arandelaResult.product.sku}\n` : ""; return `${skuLine}${arandelaResult.product.name.toUpperCase()} ${arandelaResult.cct} ${arandelaResult.controle.toUpperCase()} ${arandelaResult.tensao} MONTADA COM ${parts.join(" + ")}`; })(),
@@ -9869,8 +9947,8 @@ export default function Home() {
                             power: "",
                             cct: spotResult.cct,
                             qty: 1,
-                            unitPrice: preco ?? 0,
-                            totalPrice: preco ?? 0,
+                            unitPrice: preco ?? null,
+                            totalPrice: preco ?? null,
                             priceFromApi: preco != null,
                             photoUrl: spotResult.product.fotoUrl ?? "",
                             orderSummary: (() => { const parts: string[] = []; if (spotResult.ledModuleWithCCT) { const spModEq = spotResult.ledModuleEq ? ` (${spotResult.ledModuleEq})` : ""; parts.push(`${spotResult.ledModuleWithCCT.toUpperCase()}${spModEq}`); } if (spotResult.product.oticaPrimaria) { parts.push(spotResult.product.oticaPrimaria.toUpperCase()); if (spotResult.product.oticaSecundaria) parts.push(spotResult.product.oticaSecundaria.toUpperCase()); } else if (spotResult.product.otica) { parts.push(spotResult.product.otica.toUpperCase()); } if (spotResult.product.holder) parts.push(spotResult.product.holder.toUpperCase()); const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; const drvQty = driverQtyFor(spotResult.product, spotResult.controle, spotResult.tensao); parts.push(`${drvQty}x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`); const skuLine = spotResult.product.sku ? `CÓDIGO: ${spotResult.product.sku}\n` : ""; return `${skuLine}${spotResult.product.name.toUpperCase()} ${spotResult.cct} ${spotResult.controle.toUpperCase()} ${spotResult.tensao} MONTADA COM ${parts.join(" + ")}`; })(),
