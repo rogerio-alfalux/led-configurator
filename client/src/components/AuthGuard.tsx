@@ -6,9 +6,20 @@ import { Button } from "@/components/ui/button";
 
 const ALLOWED_DOMAIN = "grupoalfalux";
 
+// Mesma lista do backend (server/db.ts → ADMIN_EMAILS)
+// Esses e-mails têm acesso total independente do domínio
+const ADMIN_EMAILS = [
+  "rogeriojohnwayne@gmail.com",
+  "rogerio@grupoalfalux.com.br",
+];
+
 function isEmailAllowed(email: string | null | undefined): boolean {
   if (!email) return false;
-  return email.toLowerCase().includes(`@${ALLOWED_DOMAIN}`);
+  const lower = email.toLowerCase();
+  // Admins explícitos sempre têm acesso
+  if (ADMIN_EMAILS.includes(lower)) return true;
+  // Qualquer e-mail do domínio grupoalfalux tem acesso
+  return /@grupoalfalux\b/.test(lower);
 }
 
 interface AuthGuardProps {
