@@ -1633,3 +1633,10 @@
 - [x] Backend: endpoint admin para exportar orçamentos + itens em Excel
 - [x] Frontend: página /backup acessível apenas para admin com botões de exportação
 - [x] Menu lateral: link para /backup visível apenas para admins
+
+## Restrição de Acesso por Domínio (30/06/2026)
+
+- [x] Backend: bloquear login de e-mails fora do domínio @grupoalfalux.com.br no callback OAuth
+- [x] Backend: retornar erro claro quando domínio não permitido
+- [x] Frontend: guard de autenticação em todas as rotas (redirecionar para login se não autenticado)
+- [x] Frontend: tela de "Acesso Negado" para usuários com domínio inválido
