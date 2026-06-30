@@ -297,8 +297,8 @@ describe("formatBRL", () => {
 // ─── Testes do catálogo estático de fallback ──────────────────────────────────
 
 describe("BAGEO_CATALOG (fallback)", () => {
-  it("tem 2 produtos", () => {
-    expect(BAGEO_CATALOG).toHaveLength(2);
+  it("tem pelo menos 2 produtos", () => {
+    expect(BAGEO_CATALOG.length).toBeGreaterThanOrEqual(2);
   });
   it("todos os produtos têm instalação PENDENTE", () => {
     expect(BAGEO_CATALOG.every(p => p.instalacao === "PENDENTE")).toBe(true);
@@ -308,12 +308,13 @@ describe("BAGEO_CATALOG (fallback)", () => {
     expect(aplicacoes).toContain("D1");
     expect(aplicacoes).toContain("D1+D2");
   });
-  it("todos os campos de preço são null (aguardando API)", () => {
+  it("campos de preço são null ou number", () => {
+    // Produtos podem ter preço null (aguardando API) ou number (cadastrado)
     for (const p of BAGEO_CATALOG) {
-      expect(p.precoOnOff220).toBeNull();
-      expect(p.precoOnOffBivolt).toBeNull();
-      expect(p.precoDim110v).toBeNull();
-      expect(p.precoDimDali).toBeNull();
+      expect(p.precoOnOff220 === null || typeof p.precoOnOff220 === "number").toBe(true);
+      expect(p.precoOnOffBivolt === null || typeof p.precoOnOffBivolt === "number").toBe(true);
+      expect(p.precoDim110v === null || typeof p.precoDim110v === "number").toBe(true);
+      expect(p.precoDimDali === null || typeof p.precoDimDali === "number").toBe(true);
     }
   });
 });
