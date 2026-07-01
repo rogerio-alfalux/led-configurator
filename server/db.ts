@@ -6,7 +6,8 @@ import {
   auditLogs, InsertAuditLog,
   factoryOrders, factoryOrderItems, InsertFactoryOrder, InsertFactoryOrderItem,
   factoryOrderExcels,
-  salesGoals, InsertSalesGoal
+  salesGoals, InsertSalesGoal,
+  quoteNumberSequences
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 // ─── Utilitários de data no fuso de Brasília ────────────────────────────────
@@ -212,23 +213,38 @@ export async function generateQuoteNumber(sellerCode?: string | null): Promise<s
   if (!db) throw new Error("Database not available");
   const year = nowBrasiliaYear2(); // ex: "26" — usa fuso de Brasília
 
-  // Formato final: "XX.NNNN-AA"
-  // XX   = código do vendedor (2 dígitos, ex: "33")
-  // NNNN = sequencial 4 dígitos com zero à esquerda, zera a cada virada de ano
-  // AA   = ano vigente 2 dígitos (ex: "26")
-  //
-  // O campo code do vendedor pode ser "33.0XXX-26" ou "33.0XXX" —
-  // extraimos apenas os dígitos antes do ponto como código do vendedor.
-
+  // Extrai o prefixo do vendedor: "33.0XXX-26" → "33"
   let vendorCode: string | null = null;
   if (sellerCode) {
-    // Extrai os dígitos antes do primeiro ponto: "33.0XXX-26" → "33"
     const m = sellerCode.match(/^(\d+)/);
     if (m) vendorCode = m[1];
   }
 
   if (vendorCode) {
-    // Padrão do ano vigente: "33.XXXX-26"
+    // Busca a linha de sequência para este vendedor/ano na tabela de controle
+    const seqRows = await db
+      .select()
+      .from(quoteNumberSequences)
+      .where(and(
+        eq(quoteNumberSequences.vendorPrefix, vendorCode),
+        eq(quoteNumberSequences.year, year)
+      ))
+      .limit(1);
+
+    if (seqRows.length > 0) {
+      // Usa o nextSeq da tabela e incrementa
+      const currentSeq = seqRows[0].nextSeq;
+      await db
+        .update(quoteNumberSequences)
+        .set({ nextSeq: currentSeq + 1 })
+        .where(and(
+          eq(quoteNumberSequences.vendorPrefix, vendorCode),
+          eq(quoteNumberSequences.year, year)
+        ));
+      return `${vendorCode}.${String(currentSeq).padStart(4, "0")}-${year}`;
+    }
+
+    // Sem entrada na tabela: fallback varrendo orçamentos existentes e criando entrada
     const pattern = `${vendorCode}.%-${year}`;
     const rows = await db
       .select({ quoteNumber: quotes.quoteNumber })
@@ -236,8 +252,6 @@ export async function generateQuoteNumber(sellerCode?: string | null): Promise<s
       .where(like(quotes.quoteNumber, pattern))
       .orderBy(desc(quotes.quoteNumber))
       .limit(100);
-
-    // Extrai o sequencial de cada número no formato "XX.NNNN-AA"
     let maxSeq = 0;
     const re = new RegExp(`^${vendorCode}\\.(\\d{4})-${year}$`);
     for (const r of rows) {
@@ -248,6 +262,12 @@ export async function generateQuoteNumber(sellerCode?: string | null): Promise<s
       }
     }
     const nextSeq = maxSeq + 1;
+    // Cria entrada na tabela para próxima vez
+    await db.insert(quoteNumberSequences).values({
+      vendorPrefix: vendorCode,
+      year,
+      nextSeq: nextSeq + 1,
+    }).onDuplicateKeyUpdate({ set: { nextSeq: nextSeq + 1 } });
     return `${vendorCode}.${String(nextSeq).padStart(4, "0")}-${year}`;
   }
 
@@ -338,13 +358,9 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  // Se o usuário forneceu um número de orçamento, usar esse número.
-  // Caso contrário, gerar automaticamente com base no código do vendedor.
+  // Número sempre gerado automaticamente pela tabela de sequências — não aceitar número manual do frontend.
   let quoteNumber: string;
-  if (input.quoteNumber?.trim()) {
-    quoteNumber = input.quoteNumber.trim();
-  } else {
-    // Busca o sellerCode do seller1Id para gerar o número no formato correto.
+  {
     let sellerCodeForNumber: string | null = null;
     if (input.seller1Id) {
       const sellerRows = await db.select({ code: sellers.code }).from(sellers).where(eq(sellers.id, input.seller1Id)).limit(1);

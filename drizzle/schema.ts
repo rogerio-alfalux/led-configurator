@@ -1,4 +1,4 @@
-import { mysqlTable, mysqlSchema, AnyMySqlColumn, int, varchar, timestamp, text, decimal, index, mysqlEnum, tinyint, boolean } from "drizzle-orm/mysql-core"
+import { mysqlTable, mysqlSchema, AnyMySqlColumn, int, varchar, timestamp, text, decimal, index, mysqlEnum, tinyint, boolean, unique } from "drizzle-orm/mysql-core"
 import { sql } from "drizzle-orm"
 
 export const assistants = mysqlTable("assistants", {
@@ -250,6 +250,19 @@ export type InsertAssistant = InferInsertModel<typeof assistants>;
 
 export type ApiKey = InferSelectModel<typeof apiKeys>;
 export type InsertApiKey = InferInsertModel<typeof apiKeys>;
+// Tabela de controle de sequência de numeração de orçamentos por vendedor/ano
+export const quoteNumberSequences = mysqlTable("quote_number_sequences", {
+	id: int().autoincrement().notNull().primaryKey(),
+	vendorPrefix: varchar({ length: 10 }).notNull(), // ex: "33"
+	year: varchar({ length: 4 }).notNull(),           // ex: "26"
+	nextSeq: int().notNull().default(1),              // próximo número a usar
+	updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+	unique("uq_vendor_year").on(table.vendorPrefix, table.year),
+]);
+
+export type QuoteNumberSequence = InferSelectModel<typeof quoteNumberSequences>;
+
 export type FactoryOrder = InferSelectModel<typeof factoryOrders>;
 export type InsertFactoryOrder = InferInsertModel<typeof factoryOrders>;
 export type FactoryOrderItem = InferSelectModel<typeof factoryOrderItems>;
