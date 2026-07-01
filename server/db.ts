@@ -791,16 +791,75 @@ export async function deleteQuote(id: number): Promise<void> {
 }
 
 /** Gera sugestão de próximo número de orçamento sem criar nada no banco */
+/**
+ * Apenas consulta o próximo número sem incrementar o contador.
+ * Use para exibição no dialog de salvar — o incremento real ocorre em generateQuoteNumber.
+ */
+export async function peekQuoteNumber(sellerCode?: string | null): Promise<string> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const year = nowBrasiliaYear2();
+  let vendorCode: string | null = null;
+  if (sellerCode) {
+    const m = sellerCode.match(/^(\d+)/);
+    if (m) vendorCode = m[1];
+  }
+  if (vendorCode) {
+    const seqRows = await db
+      .select()
+      .from(quoteNumberSequences)
+      .where(and(
+        eq(quoteNumberSequences.vendorPrefix, vendorCode),
+        eq(quoteNumberSequences.year, year)
+      ))
+      .limit(1);
+    if (seqRows.length > 0) {
+      const currentSeq = seqRows[0].nextSeq;
+      return `${vendorCode}.${String(currentSeq).padStart(4, "0")}-${year}`;
+    }
+    // Fallback: varrer orçamentos sem incrementar
+    const pattern = `${vendorCode}.%-${year}`;
+    const rows = await db
+      .select({ quoteNumber: quotes.quoteNumber })
+      .from(quotes)
+      .where(like(quotes.quoteNumber, pattern))
+      .orderBy(desc(quotes.quoteNumber))
+      .limit(100);
+    let maxSeq = 0;
+    const re = new RegExp(`^${vendorCode}\\.(\\d{4})-${year}$`);
+    for (const r of rows) {
+      const m2 = r.quoteNumber.match(re);
+      if (m2) {
+        const n = parseInt(m2[1], 10);
+        if (n > maxSeq) maxSeq = n;
+      }
+    }
+    return `${vendorCode}.${String(maxSeq + 1).padStart(4, "0")}-${year}`;
+  }
+  // Fallback sem vendedor
+  const prefix = `ORC-${year}-`;
+  const rows = await db
+    .select({ quoteNumber: quotes.quoteNumber })
+    .from(quotes)
+    .where(like(quotes.quoteNumber, `${prefix}%`))
+    .orderBy(desc(quotes.quoteNumber))
+    .limit(1);
+  if (!rows.length) return `${prefix}0001`;
+  const last = rows[0].quoteNumber;
+  const seq = parseInt(last.replace(prefix, ""), 10) + 1;
+  return `${prefix}${String(seq).padStart(4, "0")}`;
+}
+
 export async function suggestQuoteNumber(sellerId?: number | null): Promise<string> {
   if (sellerId) {
     const db = await getDb();
     if (db) {
       const sellerRows = await db.select().from(sellers).where(eq(sellers.id, sellerId)).limit(1);
       const sellerCode = sellerRows[0]?.code ?? null;
-      return generateQuoteNumber(sellerCode);
+      return peekQuoteNumber(sellerCode);
     }
   }
-  return generateQuoteNumber();
+  return peekQuoteNumber();
 }
 
 // ─── Auditoria ────────────────────────────────────────────────────────────────

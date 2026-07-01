@@ -1,0 +1,8 @@
+{
+  "query": "UPDATE quote_number_sequences SET next_seq = 127 WHERE vendor_prefix = '31' AND year = 26;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute UPDATE quote_number_sequences SET next_seq = 127 WHERE vendor_prefix = '31' AND year = 26;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'vendor_prefix' in 'where clause'"
+  ]
+}

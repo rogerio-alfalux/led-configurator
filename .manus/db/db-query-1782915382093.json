@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE quote_number_sequences SET nextSeq = 127 WHERE vendorPrefix = '31' AND year = '26';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute UPDATE quote_number_sequences SET nextSeq = 127 WHERE vendorPrefix = '31' AND year = '26';",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 268
+}
