@@ -882,8 +882,13 @@ export default function FactoryOrderDetail() {
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <Factory className="w-5 h-5 text-orange-500 shrink-0" />
             <div className="min-w-0">
-              <h1 className="text-sm font-semibold truncate">
+              <h1 className="text-sm font-semibold truncate flex items-center gap-2">
                 Pedido de Fábrica — Orç. {quote.quoteNumber}
+                {currentOrder?.orderNumber && /^\d{6}$/.test(currentOrder.orderNumber) && (
+                  <span className="text-xs font-mono bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 px-1.5 py-0.5 rounded border border-orange-200 dark:border-orange-800 shrink-0">
+                    Ped. {currentOrder.orderNumber}
+                  </span>
+                )}
               </h1>
               <p className="text-xs text-muted-foreground truncate">{quote.clientName}</p>
             </div>
