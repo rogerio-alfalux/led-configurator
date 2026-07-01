@@ -1745,4 +1745,4 @@
 - [x] Resumo para Orçamento SPACE com botão copiar e enviar ao carrinho
 - [x] Resumo para Pedido SPACE com todos os dados técnicos
 - [x] Estado vazio de Painéis atualizado para mencionar SPACE genérico
-- [ ] Verificar exibição no browser e testar fluxo completo
+- [x] Verificar exibição no browser e testar fluxo completo
