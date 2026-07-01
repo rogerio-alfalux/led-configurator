@@ -1759,3 +1759,10 @@
 - [x] Substituir produtos SPACE genéricos no dropdown por opção única "SPACE Customizada"
 - [x] Ao selecionar "SPACE Customizada", ativar modo de cálculo SPACE (igual ao fluxo atual com genéricas)
 - [x] Corrigir bug de duplicação com troca de vendedor (staleTime: 0 no suggestNumberQuery)
+
+## Correções de Duplicação — Assistente e RV0 (Jul 2026)
+
+- [x] Adicionar seletor de assistente no dialog de duplicação (QuoteDetail.tsx)
+- [x] Corrigir RV0 do histórico de revisões: usar vendorName/assistantName do novo orçamento (não do original)
+- [x] Atualizar routers.ts: aceitar newAssistantId e newAssistantName no input do duplicate
+- [x] Atualizar db.ts: duplicateQuote aceita newAssistantId/newAssistantName e usa no RV0

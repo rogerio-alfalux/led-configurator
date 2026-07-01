@@ -1476,7 +1476,9 @@ export async function duplicateQuote(
   newClientContact?: string,
   newClientPhone?: string,
   newClientEmail?: string,
-  newSellerId?: number
+  newSellerId?: number,
+  newAssistantId?: number,
+  newAssistantName?: string
 ): Promise<{ quoteId: number; quoteNumber: string }> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -1525,12 +1527,12 @@ export async function duplicateQuote(
     projectName: q.projectName,
     projectRef: q.projectRef,
     vendorName: newSellerId ? (effectiveSellerName ?? q.vendorName) : q.vendorName,
-    assistantName: newSellerId ? null : q.assistantName,
+    assistantName: newAssistantName !== undefined ? (newAssistantName || null) : (newSellerId ? null : q.assistantName),
     seller1Id: effectiveSellerId,
     seller1Name: effectiveSellerName,
     seller2Id: q.seller2Id,
     seller2Name: q.seller2Name,
-    assistantId: newSellerId ? null : q.assistantId,
+    assistantId: newAssistantId !== undefined ? (newAssistantId === -1 ? null : newAssistantId) : (newSellerId ? null : q.assistantId),
     rtPercent: q.rtPercent,
     rtDest1: q.rtDest1,
     rtDest1Active: q.rtDest1Active,
@@ -1568,13 +1570,19 @@ export async function duplicateQuote(
   const newQuoteId = (qResult as unknown as { insertId: number }[])[0]?.insertId ?? 0;
 
   // Inserir versão 1
+  // Resolver assistente efetivo para o RV0
+  const effectiveAssistantName = newAssistantName !== undefined
+    ? (newAssistantName || null)
+    : (newSellerId ? null : q.assistantName);
+  const effectiveVendorName = newSellerId ? (effectiveSellerName ?? q.vendorName) : q.vendorName;
+
   const headerSnapshot = JSON.stringify({
     clientName: newClientName ?? q.clientName,
     clientContact: newClientContact !== undefined ? (newClientContact || null) : q.clientContact,
     projectName: q.projectName,
     projectRef: q.projectRef,
-    vendorName: q.vendorName,
-    assistantName: q.assistantName,
+    vendorName: effectiveVendorName,
+    assistantName: effectiveAssistantName,
     notes: q.notes,
   });
   const vResult = await db.insert(quoteVersions).values({
@@ -1584,8 +1592,8 @@ export async function duplicateQuote(
     totalAmount: q.totalAmount ?? '0',
     totalFinal: q.totalFinal ?? q.totalAmount ?? '0',
     createdByUserId,
-    assistantName: q.assistantName,
-    vendorName: q.vendorName,
+    assistantName: effectiveAssistantName,
+    vendorName: effectiveVendorName,
     versionNotes: `Duplicado do orçamento ${q.quoteNumber}`,
   });
   const newVersionId = (vResult as unknown as { insertId: number }[])[0]?.insertId ?? 0;

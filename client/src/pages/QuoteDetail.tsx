@@ -802,6 +802,7 @@ export default function QuoteDetail() {
   const [duplicateQuoteNumber, setDuplicateQuoteNumber] = useState("");
   const [duplicateNumberError, setDuplicateNumberError] = useState("");
   const [duplicateSellerId, setDuplicateSellerId] = useState<string>("");
+  const [duplicateAssistantId, setDuplicateAssistantId] = useState<string>("");
   const uploadSpecialPhotoMutationQD = trpc.upload.specialItemPhoto.useMutation();
 
   // Verificação de unicidade do número em tempo real
@@ -1700,6 +1701,7 @@ export default function QuoteDetail() {
               setDuplicateQuoteNumber("");
               setDuplicateNumberError("");
               setDuplicateSellerId(""); // reset para usar o vendedor original
+              setDuplicateAssistantId(""); // reset assistente
             }
           }}>
             <DialogTrigger asChild>
@@ -1728,6 +1730,21 @@ export default function QuoteDetail() {
                     <SelectContent>
                       <SelectItem value="_original">Manter vendedor original ({quote.seller1Name ?? "—"})</SelectItem>
                       {editSellers.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Assistente (opcional) */}
+                <div className="space-y-1.5">
+                  <Label>Assistente <span className="text-muted-foreground font-normal">(opcional — limpa se não selecionar)</span></Label>
+                  <Select value={duplicateAssistantId || "_none"} onValueChange={v => {
+                    setDuplicateAssistantId(v === "_none" ? "" : v);
+                  }}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">Sem assistente</SelectItem>
+                      <SelectItem value="VENDEDOR">VENDEDOR</SelectItem>
+                      {editAssistants.map(a => <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1817,6 +1834,8 @@ export default function QuoteDetail() {
                     newClientPhone: duplicateClientPhone,
                     newClientEmail: duplicateClientEmail,
                     newSellerId: duplicateSellerId ? parseInt(duplicateSellerId) : undefined,
+                    newAssistantId: duplicateAssistantId === "VENDEDOR" ? -1 : (duplicateAssistantId ? parseInt(duplicateAssistantId) : undefined),
+                    newAssistantName: duplicateAssistantId === "VENDEDOR" ? "VENDEDOR" : (duplicateAssistantId ? (editAssistants.find(a => String(a.id) === duplicateAssistantId)?.name ?? undefined) : undefined),
                   })}
                   disabled={duplicateMutation.isPending || (duplicateQuoteNumber.trim().length > 0 && !!checkNumberQuery.data?.exists)}
                   className="gap-2"
