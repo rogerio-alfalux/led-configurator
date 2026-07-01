@@ -520,6 +520,7 @@ export const appRouter = router({
         newClientContact: z.string().optional(),
         newClientPhone: z.string().optional(),
         newClientEmail: z.string().optional(),
+        newSellerId: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         // Validar unicidade do número personalizado antes de duplicar
@@ -540,6 +541,7 @@ export const appRouter = router({
           input.newClientContact,
           input.newClientPhone,
           input.newClientEmail,
+          input.newSellerId,
         );
         await insertAuditLog({
           userId: ctx.user.id,

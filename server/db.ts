@@ -479,6 +479,14 @@ export async function addQuoteRevision(
   // Se bumpVersion=false, mantém a versão atual (atualiza in-place)
   const newVersion = bumpVersion ? quote.currentVersion + 1 : quote.currentVersion;
 
+  // Se o vendedor principal mudou e não foi fornecido um quoteNumber explícito,
+  // gera automaticamente um novo número com o prefixo do novo vendedor.
+  if (bumpVersion && input.seller1Id && input.seller1Id !== quote.seller1Id && !input.quoteNumber) {
+    const sellerRows = await db.select({ code: sellers.code }).from(sellers).where(eq(sellers.id, input.seller1Id)).limit(1);
+    const newSellerCode = sellerRows[0]?.code ?? null;
+    input = { ...input, quoteNumber: await generateQuoteNumber(newSellerCode) };
+  }
+
   const headerSnapshot = JSON.stringify({
     clientName: input.clientName,
     clientContact: input.clientContact,
@@ -1467,7 +1475,8 @@ export async function duplicateQuote(
   overrideQuoteNumber?: string,
   newClientContact?: string,
   newClientPhone?: string,
-  newClientEmail?: string
+  newClientEmail?: string,
+  newSellerId?: number
 ): Promise<{ quoteId: number; quoteNumber: string }> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -1485,14 +1494,22 @@ export async function duplicateQuote(
   const itemRows = await db.select().from(quoteItems)
     .where(and(eq(quoteItems.quoteId, sourceQuoteId), eq(quoteItems.quoteVersionId, currentVersionId)));
 
-  // Usar número fornecido pelo usuário ou gerar automaticamente
+  // Resolver o vendedor efetivo (novo ou original)
+  const effectiveSellerId = newSellerId ?? source.quote.seller1Id ?? null;
+  let effectiveSellerName = source.quote.seller1Name ?? null;
+  if (newSellerId) {
+    const sellerRowsNew = await db.select({ name: sellers.name, code: sellers.code }).from(sellers).where(eq(sellers.id, newSellerId)).limit(1);
+    effectiveSellerName = sellerRowsNew[0]?.name ?? null;
+  }
+
+  // Usar número fornecido pelo usuário ou gerar automaticamente com prefixo do vendedor efetivo
   let finalQuoteNumber: string;
   if (overrideQuoteNumber) {
     finalQuoteNumber = overrideQuoteNumber;
   } else {
     let sellerCodeForDup: string | null = null;
-    if (source.quote.seller1Id) {
-      const sellerRows = await db.select({ code: sellers.code }).from(sellers).where(eq(sellers.id, source.quote.seller1Id)).limit(1);
+    if (effectiveSellerId) {
+      const sellerRows = await db.select({ code: sellers.code }).from(sellers).where(eq(sellers.id, effectiveSellerId)).limit(1);
       sellerCodeForDup = sellerRows[0]?.code ?? null;
     }
     finalQuoteNumber = await generateQuoteNumber(sellerCodeForDup);
@@ -1509,8 +1526,8 @@ export async function duplicateQuote(
     projectRef: q.projectRef,
     vendorName: q.vendorName,
     assistantName: q.assistantName,
-    seller1Id: q.seller1Id,
-    seller1Name: q.seller1Name,
+    seller1Id: effectiveSellerId,
+    seller1Name: effectiveSellerName,
     seller2Id: q.seller2Id,
     seller2Name: q.seller2Name,
     assistantId: q.assistantId,

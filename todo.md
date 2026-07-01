@@ -1746,3 +1746,10 @@
 - [x] Resumo para Pedido SPACE com todos os dados técnicos
 - [x] Estado vazio de Painéis atualizado para mencionar SPACE genérico
 - [x] Verificar exibição no browser e testar fluxo completo
+
+## Correções de Vendedor e Número de Orçamento
+
+- [x] Corrigir bumpVersion=false→true no dialog de edição do QuoteDetail (vendedor/assistente não salvava)
+- [x] Gerar novo número automaticamente no servidor quando seller1Id muda (prefixo do novo vendedor)
+- [x] Liberar campo de número do orçamento para edição manual no dialog de edição do QuoteDetail (orçamentos já salvos)
+- [x] Corrigir duplicação: permitir alterar vendedor e gerar novo número com prefixo correto

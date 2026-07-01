@@ -801,6 +801,7 @@ export default function QuoteDetail() {
   const [duplicateClientEmail, setDuplicateClientEmail] = useState("");
   const [duplicateQuoteNumber, setDuplicateQuoteNumber] = useState("");
   const [duplicateNumberError, setDuplicateNumberError] = useState("");
+  const [duplicateSellerId, setDuplicateSellerId] = useState<string>("");
   const uploadSpecialPhotoMutationQD = trpc.upload.specialItemPhoto.useMutation();
 
   // Verificação de unicidade do número em tempo real
@@ -809,9 +810,13 @@ export default function QuoteDetail() {
     { enabled: duplicateDialogOpen && duplicateQuoteNumber.trim().length > 0 }
   );
 
-  // Sugestão automática de número ao abrir o dialog (seller1Id será preenchido no onOpenChange)
+  // Sugestão automática de número ao abrir o dialog — usa o vendedor selecionado (ou o original)
+  // Nota: data?.quote.seller1Id é usado aqui pois 'quote' ainda não foi declarado neste ponto
+  const duplicateEffectiveSellerId = duplicateSellerId
+    ? parseInt(duplicateSellerId)
+    : (data?.quote.seller1Id ?? undefined);
   const suggestNumberQuery = trpc.quotes.suggestNumber.useQuery(
-    { sellerId: undefined },
+    { sellerId: duplicateEffectiveSellerId },
     { enabled: duplicateDialogOpen }
   );
 
@@ -1653,6 +1658,7 @@ export default function QuoteDetail() {
               setDuplicateClientEmail(quote.clientEmail ?? "");
               setDuplicateQuoteNumber("");
               setDuplicateNumberError("");
+              setDuplicateSellerId(""); // reset para usar o vendedor original
             }
           }}>
             <DialogTrigger asChild>
@@ -1669,6 +1675,21 @@ export default function QuoteDetail() {
                 <p className="text-sm text-muted-foreground">
                   Será criado um novo orçamento com todos os itens e configurações do <strong>{quote.quoteNumber}</strong>.
                 </p>
+
+                {/* Vendedor (opcional — para mudar o vendedor na duplicação) */}
+                <div className="space-y-1.5">
+                  <Label>Vendedor 1 <span className="text-muted-foreground font-normal">(opcional — mantém o original se não alterar)</span></Label>
+                  <Select value={duplicateSellerId || "_original"} onValueChange={v => {
+                    setDuplicateSellerId(v === "_original" ? "" : v);
+                    setDuplicateQuoteNumber(""); // limpa número manual ao trocar vendedor
+                  }}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_original">Manter vendedor original ({quote.seller1Name ?? "—"})</SelectItem>
+                      {editSellers.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 {/* Número do novo orçamento */}
                 <div className="space-y-1.5">
@@ -1754,6 +1775,7 @@ export default function QuoteDetail() {
                     newClientContact: duplicateClientContact,
                     newClientPhone: duplicateClientPhone,
                     newClientEmail: duplicateClientEmail,
+                    newSellerId: duplicateSellerId ? parseInt(duplicateSellerId) : undefined,
                   })}
                   disabled={duplicateMutation.isPending || (duplicateQuoteNumber.trim().length > 0 && !!checkNumberQuery.data?.exists)}
                   className="gap-2"
@@ -2023,11 +2045,12 @@ export default function QuoteDetail() {
                   <div>
                     <Label>Número do Orçamento</Label>
                     <Input
-                      readOnly
                       value={editForm.quoteNumber}
-                      className="bg-muted cursor-not-allowed font-mono"
+                      onChange={e => setEditForm(f => ({ ...f, quoteNumber: e.target.value }))}
+                      className="font-mono"
+                      placeholder="Ex: 31.0127-26"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">O número é gerado automaticamente no formato XX.NNNN-AA e não pode ser alterado manualmente.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Você pode editar o número manualmente. Se o Vendedor 1 for alterado, um novo número será gerado automaticamente ao salvar.</p>
                   </div>
                   <div>
                     <Label>Notas desta revisão</Label>
@@ -2433,7 +2456,7 @@ export default function QuoteDetail() {
                       totalAmount: totalFinalVal,
                       totalFinal: totalFinalCompleto,
                       items: currentItems.map((i, idx) => ({ itemNumber: idx + 1, itemData: i.itemData })),
-                      bumpVersion: false,
+                      bumpVersion: true,
                       deliveryDays: parseInt(editForm.deliveryDays || "20") || 20,
                       commissionPercent: Math.min(Math.max(parseFloat(editForm.commissionPercent || "5") / 100, 0), 1),
                       commissionPercent2: editForm.commissionPercent2 ? Math.min(Math.max(parseFloat(editForm.commissionPercent2) / 100, 0), 1) : undefined,
