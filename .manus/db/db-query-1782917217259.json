@@ -1,0 +1,35 @@
+{
+  "query": "\nSELECT quoteNumber, clientName, createdAt FROM quotes WHERE quoteNumber LIKE '31.%' ORDER BY quoteNumber DESC LIMIT 5;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute \nSELECT quoteNumber, clientName, createdAt FROM quotes WHERE quoteNumber LIKE '31.%' ORDER BY quoteNumber DESC LIMIT 5;\n",
+  "rows": [
+    {
+      "quoteNumber": "31.0126-26",
+      "clientName": "SUPERA ENGENHARIA",
+      "createdAt": "2026-06-25 16:54:59"
+    },
+    {
+      "quoteNumber": "31.0125-26",
+      "clientName": "SUPERA ENGENHARIA",
+      "createdAt": "2026-06-23 19:22:46"
+    },
+    {
+      "quoteNumber": "31.0124-26",
+      "clientName": "SUPERA ENGENHARIA",
+      "createdAt": "2026-06-22 19:11:12"
+    },
+    {
+      "quoteNumber": "31.0123-26",
+      "clientName": "Guavirá Wissenbach",
+      "createdAt": "2026-06-22 13:41:17"
+    },
+    {
+      "quoteNumber": "31.0002-26",
+      "clientName": "VERTICE INVESTIMENTOS",
+      "createdAt": "2026-06-18 15:50:30"
+    }
+  ],
+  "messages": [],
+  "stdout": "quoteNumber\tclientName\tcreatedAt\n31.0126-26\tSUPERA ENGENHARIA\t2026-06-25 16:54:59\n31.0125-26\tSUPERA ENGENHARIA\t2026-06-23 19:22:46\n31.0124-26\tSUPERA ENGENHARIA\t2026-06-22 19:11:12\n31.0123-26\tGuavirá Wissenbach\t2026-06-22 13:41:17\n31.0002-26\tVERTICE INVESTIMENTOS\t2026-06-18 15:50:30\n",
+  "stderr": "",
+  "execution_time_ms": 266
+}

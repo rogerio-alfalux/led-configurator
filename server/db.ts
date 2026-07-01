@@ -790,10 +790,13 @@ export async function deleteQuote(id: number): Promise<void> {
   await db.delete(quotes).where(eq(quotes.id, id));
 }
 
-/** Gera sugestão de próximo número de orçamento sem criar nada no banco */
 /**
  * Apenas consulta o próximo número sem incrementar o contador.
  * Use para exibição no dialog de salvar — o incremento real ocorre em generateQuoteNumber.
+ *
+ * IMPORTANTE: sempre baseia o número sugerido no maior número EXISTENTE nos orçamentos
+ * salvos (não no nextSeq da tabela de sequências), para evitar lacunas quando o usuário
+ * abre o modal e cancela sem salvar.
  */
 export async function peekQuoteNumber(sellerCode?: string | null): Promise<string> {
   const db = await getDb();
@@ -805,19 +808,7 @@ export async function peekQuoteNumber(sellerCode?: string | null): Promise<strin
     if (m) vendorCode = m[1];
   }
   if (vendorCode) {
-    const seqRows = await db
-      .select()
-      .from(quoteNumberSequences)
-      .where(and(
-        eq(quoteNumberSequences.vendorPrefix, vendorCode),
-        eq(quoteNumberSequences.year, year)
-      ))
-      .limit(1);
-    if (seqRows.length > 0) {
-      const currentSeq = seqRows[0].nextSeq;
-      return `${vendorCode}.${String(currentSeq).padStart(4, "0")}-${year}`;
-    }
-    // Fallback: varrer orçamentos sem incrementar
+    // Sempre varre os orçamentos salvos para encontrar o maior número existente
     const pattern = `${vendorCode}.%-${year}`;
     const rows = await db
       .select({ quoteNumber: quotes.quoteNumber })

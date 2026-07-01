@@ -6156,7 +6156,7 @@ export default function Home() {
                                 onChange={(e) => { setSpaceCCT(e.target.value); setSpaceResult(null); }}
                                 className="h-9 rounded-md border border-border bg-background text-foreground text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
                               >
-                                {(_spProd?.ccts?.length ? _spProd.ccts.map(c => `${c}K`) : ["2700K", "3000K", "4000K", "5000K"]).concat(["A definir"]).map((c) => (
+                                {(_spProd?.ccts?.length ? _spProd.ccts.map(c => String(c).endsWith('K') ? String(c) : `${c}K`) : ["2700K", "3000K", "4000K", "5000K"]).concat(["A definir"]).map((c) => (
                                   <option key={c} value={c}>{c}</option>
                                 ))}
                               </select>

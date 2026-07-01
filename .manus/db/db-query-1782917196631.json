@@ -1,0 +1,80 @@
+{
+  "query": "\nSELECT * FROM quote_number_sequences;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute \nSELECT * FROM quote_number_sequences;\n",
+  "rows": [
+    {
+      "id": "1",
+      "vendorPrefix": "01",
+      "year": "26",
+      "nextSeq": "360",
+      "updatedAt": "2026-07-01 14:39:59"
+    },
+    {
+      "id": "2",
+      "vendorPrefix": "25",
+      "year": "26",
+      "nextSeq": "169",
+      "updatedAt": "2026-07-01 13:49:10"
+    },
+    {
+      "id": "3",
+      "vendorPrefix": "20",
+      "year": "26",
+      "nextSeq": "360",
+      "updatedAt": "2026-07-01 13:49:10"
+    },
+    {
+      "id": "4",
+      "vendorPrefix": "31",
+      "year": "26",
+      "nextSeq": "128",
+      "updatedAt": "2026-07-01 14:17:38"
+    },
+    {
+      "id": "5",
+      "vendorPrefix": "32",
+      "year": "26",
+      "nextSeq": "76",
+      "updatedAt": "2026-07-01 13:49:10"
+    },
+    {
+      "id": "6",
+      "vendorPrefix": "04",
+      "year": "26",
+      "nextSeq": "249",
+      "updatedAt": "2026-07-01 13:49:10"
+    },
+    {
+      "id": "7",
+      "vendorPrefix": "33",
+      "year": "26",
+      "nextSeq": "80",
+      "updatedAt": "2026-07-01 13:49:10"
+    },
+    {
+      "id": "8",
+      "vendorPrefix": "05",
+      "year": "26",
+      "nextSeq": "3",
+      "updatedAt": "2026-07-01 13:49:10"
+    },
+    {
+      "id": "9",
+      "vendorPrefix": "27",
+      "year": "26",
+      "nextSeq": "18",
+      "updatedAt": "2026-07-01 13:49:10"
+    },
+    {
+      "id": "10",
+      "vendorPrefix": "29",
+      "year": "26",
+      "nextSeq": "1",
+      "updatedAt": "2026-07-01 13:49:10"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tvendorPrefix\tyear\tnextSeq\tupdatedAt\n1\t01\t26\t360\t2026-07-01 14:39:59\n2\t25\t26\t169\t2026-07-01 13:49:10\n3\t20\t26\t360\t2026-07-01 13:49:10\n4\t31\t26\t128\t2026-07-01 14:17:38\n5\t32\t26\t76\t2026-07-01 13:49:10\n6\t04\t26\t249\t2026-07-01 13:49:10\n7\t33\t26\t80\t2026-07-01 13:49:10\n8\t05\t26\t3\t2026-07-01 13:49:10\n9\t27\t26\t18\t2026-07-01 13:49:10\n10\t29\t26\t1\t2026-07-01 13:49:10\n",
+  "stderr": "",
+  "execution_time_ms": 263
+}
