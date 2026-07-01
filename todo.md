@@ -1766,3 +1766,13 @@
 - [x] Corrigir RV0 do histórico de revisões: usar vendorName/assistantName do novo orçamento (não do original)
 - [x] Atualizar routers.ts: aceitar newAssistantId e newAssistantName no input do duplicate
 - [x] Atualizar db.ts: duplicateQuote aceita newAssistantId/newAssistantName e usa no RV0
+
+## Corrente de Programação do Driver (Jul 2026)
+
+- [x] Adicionar campo corrente às interfaces PainelDriver, ArandelaDriver e SpotDriver
+- [x] Adicionar campo corrente às interfaces DownlightDriver, BageoDriverInfo (já existia em DownlightDriver)
+- [x] Adicionar campo markupMinimo à interface DownlightProduct para compatibilidade com getCustoForControle
+- [x] Passar driverCorrente nas chamadas de buildLumDriverLines para Decorativas, Balizadores, Perfis BAGEO/GLOW
+- [x] orderPreviewGenerator.ts: exibir corrente como "PROGRAMAÇÃO: XXX" em itálico na coluna de equipamentos da ficha de produção (somente)
+- [x] orderExcelGenerator.ts: exibir corrente como "PROGRAMAÇÃO: XXX" na célula de equipamentos do Excel (somente)
+- [x] Confirmar que corrente NÃO aparece em nenhum outro lugar (orçamento, preview de orçamento, etc.)

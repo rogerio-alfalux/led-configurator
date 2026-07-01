@@ -37,9 +37,27 @@ function buildProfileFonteLuzText(item: CartItemData): string {
     .join("<br>");
 }
 
+function buildLuminariaEquipamentosText(item: CartItemData): string {
+  if (!item.driverLines || item.driverLines.length === 0) {
+    return esc(item.drivers ?? "");
+  }
+  return item.driverLines.map(dl => {
+    const codeSuffix = dl.driverCode ? ` (${esc(dl.driverCode)})` : "";
+    const linha = `${dl.driverQty}x ${esc(dl.driverModel)}${codeSuffix}`;
+    if (dl.corrente) {
+      return `${linha}<br><span style="color:#555;font-style:italic">PROGRAMAÇÃO: ${esc(dl.corrente)}</span>`;
+    }
+    return linha;
+  }).join("<br>");
+}
+
 function buildProfileEquipamentosText(item: CartItemData): string {
   if (!item.profileSegments || item.profileSegments.length === 0) {
-    return item.drivers ?? "";
+    // Se tem driverLines (luminária com driver desmembrado), usar buildLuminariaEquipamentosText
+    if (item.driverLines && item.driverLines.length > 0) {
+      return buildLuminariaEquipamentosText(item);
+    }
+    return esc(item.drivers ?? "");
   }
   return item.profileSegments
     .map((seg) => {

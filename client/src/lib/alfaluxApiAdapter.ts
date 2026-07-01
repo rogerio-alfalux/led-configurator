@@ -32,6 +32,8 @@ import { parseAplicacaoFromName, parseInstalacaoFromApi } from "./bageoCatalog";
 export interface DriverInfo {
   model: string;
   code: string | null;
+  /** Corrente de programação do driver (ex: "350MA", "700MA"). Enriquecido pelo servidor. */
+  corrente?: string | null;
 }
 
 /**
@@ -247,22 +249,22 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
     ledModuleEq5000: p.ledModuleEq5000 ?? null,
     ccts,
     driver220: d220
-      ? { model: driverModel(d220), code: driverCode(d220) }
+      ? { model: driverModel(d220), code: driverCode(d220), corrente: d220.corrente ?? null }
       : { model: "", code: "" },
     driverBivolt: dBivolt
-      ? { model: driverModel(dBivolt), code: driverCode(dBivolt) }
+      ? { model: driverModel(dBivolt), code: driverCode(dBivolt), corrente: dBivolt.corrente ?? null }
       : null,
     driverDim110v: dDim110v
-      ? { model: driverModel(dDim110v), code: driverCode(dDim110v) }
+      ? { model: driverModel(dDim110v), code: driverCode(dDim110v), corrente: dDim110v.corrente ?? null }
       : null,
     driverDimDali: dDimDali
-      ? { model: driverModel(dDimDali), code: driverCode(dDimDali) }
+      ? { model: driverModel(dDimDali), code: driverCode(dDimDali), corrente: dDimDali.corrente ?? null }
       : null,
     driverDimTriac110v: dDimTriac110v
-      ? { model: driverModel(dDimTriac110v), code: driverCode(dDimTriac110v) }
+      ? { model: driverModel(dDimTriac110v), code: driverCode(dDimTriac110v), corrente: dDimTriac110v.corrente ?? null }
       : null,
     driverDimTriac220v: dDimTriac220v
-      ? { model: driverModel(dDimTriac220v), code: driverCode(dDimTriac220v) }
+      ? { model: driverModel(dDimTriac220v), code: driverCode(dDimTriac220v), corrente: dDimTriac220v.corrente ?? null }
       : null,
     driverQtd220: p.driverQtd220 ?? null,
     driverQtdBivolt: p.driverQtdBivolt ?? null,

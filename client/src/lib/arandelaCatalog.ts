@@ -9,6 +9,8 @@ import type { ControleType } from "./downlightCatalog";
 export interface ArandelaDriver {
   model: string;
   code: string;
+  /** Corrente de programação do driver (ex: "350MA", "700MA"). null se não disponível. */
+  corrente?: string | null;
 }
 
 export interface ArandelaProduct {

@@ -323,6 +323,8 @@ export interface DriverLine {
   driverUnitPrice: number | null;
   /** Preço total dos drivers = driverUnitPrice × driverQty (null se unitPrice for null) */
   driverTotalPrice: number | null;
+  /** Corrente de programação do driver (ex: "350MA", "700MA"). null se não disponível. */
+  corrente?: string | null;
 }
 
 /**

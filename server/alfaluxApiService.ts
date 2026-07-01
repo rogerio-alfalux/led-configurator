@@ -20,6 +20,8 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 export interface DriverInfo {
   model: string;
   code: string | null;
+  /** Corrente de programação do driver (ex: "350MA", "700MA"). Enriquecido via lookup em /api/componentes/all. */
+  corrente?: string | null;
 }
 
 export interface AlfaluxProduct {
@@ -234,6 +236,31 @@ export async function fetchAllAlfaluxProducts(): Promise<AlfaluxProduct[]> {
     console.log(`[AlfaluxAPI] Lookup de EQ do módulo concluído.`);
   } catch (err) {
     console.warn(`[AlfaluxAPI] Falha no lookup de EQ do módulo:`, err);
+  }
+
+  // Enriquecer drivers com campo corrente via lookup em /api/componentes/all
+  try {
+    const { items: componentes } = await fetchComponentes();
+    // Construir mapa codigo.toUpperCase() -> corrente para componentes do tipo DRIVER
+    const driverCorrenteMap = new Map<string, string | null>();
+    for (const c of componentes) {
+      if (c.codigo) {
+        driverCorrenteMap.set(c.codigo.toUpperCase().trim(), c.corrente ?? null);
+      }
+    }
+    const driverFields = ['driver220', 'driverBivolt', 'driverDim110v', 'driverDimDali', 'driverDimTriac110v', 'driverDimTriac220v'] as const;
+    for (const p of all) {
+      for (const field of driverFields) {
+        const d = p[field] as DriverInfo | null | undefined;
+        if (d && d.code) {
+          const corrente = driverCorrenteMap.get(d.code.toUpperCase().trim()) ?? null;
+          (d as DriverInfo).corrente = corrente;
+        }
+      }
+    }
+    console.log(`[AlfaluxAPI] Lookup de corrente do driver concluído.`);
+  } catch (err) {
+    console.warn(`[AlfaluxAPI] Falha no lookup de corrente do driver:`, err);
   }
 
   console.log(`[AlfaluxAPI] ${all.length} produtos carregados.`);

@@ -7,6 +7,8 @@
 export interface DownlightDriver {
   model: string;
   code: string;
+  /** Corrente de programação do driver (ex: "350MA", "700MA"). null se não disponível. */
+  corrente?: string | null;
 }
 
 export type ControleType = "ON/OFF" | "DIM 1-10V" | "DIM DALI" | "DIM TRIAC 110V" | "DIM TRIAC 220V";
@@ -116,6 +118,18 @@ export interface DownlightProduct {
   markupPadraoDimTriac110v?: number | null;
   /** Markup padrão DIM TRIAC 220V */
   markupPadraoDimTriac220v?: number | null;
+  /** Markup mínimo ON/OFF 220V */
+  markupMinimoOnoff220v?: number | null;
+  /** Markup mínimo ON/OFF Bivolt */
+  markupMinimoOnoffBivolt?: number | null;
+  /** Markup mínimo DIM 1-10V */
+  markupMinimoDim110v?: number | null;
+  /** Markup mínimo DIM DALI */
+  markupMinimoDimDali?: number | null;
+  /** Markup mínimo DIM TRIAC 110V */
+  markupMinimoDimTriac110v?: number | null;
+  /** Markup mínimo DIM TRIAC 220V */
+  markupMinimoDimTriac220v?: number | null;
 }
 
 export interface DownlightInput {

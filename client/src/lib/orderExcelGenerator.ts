@@ -174,6 +174,25 @@ function buildProfileFonteLuzText(item: CartItemData): string {
 }
 
 /**
+ * Gera o texto da coluna EQUIPAMENTOS para luminárias (downlights, spots, etc.)
+ * com driverLines — inclui a corrente de programação do driver logo após o nome.
+ * Formato: "1x DRIVER PHILIPS CERTADRIVE 20W 500MA (EQ00353)\nPROGRAMAÇÃO: 500MA"
+ */
+function buildLuminariaEquipamentosText(item: CartItemData): string {
+  if (!item.driverLines || item.driverLines.length === 0) {
+    return item.drivers ?? "";
+  }
+  return item.driverLines.map(dl => {
+    const codeSuffix = dl.driverCode ? ` (${dl.driverCode})` : "";
+    const linha = `${dl.driverQty}x ${dl.driverModel}${codeSuffix}`;
+    if (dl.corrente) {
+      return `${linha}\nPROGRAMAÇÃO: ${dl.corrente}`;
+    }
+    return linha;
+  }).join("\n");
+}
+
+/**
  * Gera o texto da coluna EQUIPAMENTOS para composições de perfis.
  *
  * Formato por segmento:
@@ -184,6 +203,10 @@ function buildProfileFonteLuzText(item: CartItemData): string {
  */
 function buildProfileEquipamentosText(item: CartItemData): string {
   if (!item.profileSegments || item.profileSegments.length === 0) {
+    // Se tem driverLines (luminária com driver desmembrado), usar buildLuminariaEquipamentosText
+    if (item.driverLines && item.driverLines.length > 0) {
+      return buildLuminariaEquipamentosText(item);
+    }
     return item.drivers ?? "";
   }
 
