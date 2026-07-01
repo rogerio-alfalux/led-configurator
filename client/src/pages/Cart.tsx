@@ -1014,6 +1014,8 @@ export default function Cart() {
         commissionPercent2: saveForm.commissionPercent2 ? (parseFloat(saveForm.commissionPercent2) || 0) / 100 : undefined,
         freteValue: saveForm.freteValue ? parseFloat(saveForm.freteValue) : undefined,
         freteIncluded: saveForm.freteIncluded,
+        // Usar o número do orçamento do saveForm (não o gerado aleatoriamente no form)
+        numero: saveForm.quoteNumber.trim() || form.numero,
       };
       // Injetar itemEmPlanta em cada item (respeitando a ordem do DnD)
       const itemsWithPlanta = orderedEntries.map((e, idx) => ({
@@ -1513,10 +1515,13 @@ export default function Cart() {
                               <Label>Número do Orçamento</Label>
                               <div className="relative">
                                 <Input
-                                  readOnly
                                   value={saveForm.quoteNumber}
                                   placeholder={suggestQuery.isLoading ? "Calculando..." : "Selecione o Vendedor 1"}
-                                  className="bg-muted cursor-not-allowed font-mono"
+                                  className="font-mono"
+                                  onChange={e => {
+                                    setUserEditedQuoteNumber(true);
+                                    updateSaveForm("quoteNumber", e.target.value);
+                                  }}
                                 />
                                 <p className="text-xs text-muted-foreground mt-1">
                                   {suggestQuery.isLoading
