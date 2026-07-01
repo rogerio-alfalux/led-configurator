@@ -3,7 +3,7 @@ import { Link, useParams, useLocation } from "wouter";
 import {
   ArrowLeft, Factory, Plus, Trash2, FileSpreadsheet,
   ChevronDown, ChevronUp, Wrench, X, Search, Package,
-  CheckCircle, Clock, Truck, AlertTriangle, Edit2, Save,
+  CheckCircle, Clock, Truck, AlertTriangle, Edit2, Save, Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,8 @@ import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, for
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
+import { OrderPreviewModal } from "@/components/OrderPreviewModal";
+import type { OrderFormData } from "@/lib/orderExcelGenerator";
 import { toBrasiliaDate } from "@/lib/dateUtils";
 import { toast } from "sonner";
 
@@ -489,6 +491,10 @@ export default function FactoryOrderDetail() {
   // Dialog de aviso antes de gerar Excel
   const [showExcelWarningDialog, setShowExcelWarningDialog] = useState(false);
   const [pendingExcelWarnings, setPendingExcelWarnings] = useState<string[]>([]);
+  // Pré-visualização do pedido de fábrica
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewForm, setPreviewForm] = useState<(OrderFormData & { prazoStr?: string }) | null>(null);
+  const [previewItems, setPreviewItems] = useState<CartItemData[]>([]);
 
   // Dados do orçamento
   const { data: quoteData, isLoading: quoteLoading } = trpc.quotes.getById.useQuery({ id: Number(quoteId) });
@@ -887,6 +893,43 @@ export default function FactoryOrderDetail() {
               <>
                 <Button
                   size="sm"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={async () => {
+                    if (!quoteData) return;
+                    const { quote } = quoteData;
+                    const deliveryDays = currentOrder.deliveryDays ?? 19;
+                    const approvedAtIso = quote.approvedAt
+                      ? new Date(quote.approvedAt).toISOString()
+                      : new Date().toISOString();
+                    const { displayDays, deliveryDateStr } = await calcDeliveryDate(approvedAtIso, deliveryDays);
+                    const items = currentOrder.items
+                      .map(i => parseCartItemData(i.itemData))
+                      .filter((d): d is CartItemData => d !== null);
+                    setPreviewItems(items);
+                    setPreviewForm({
+                      clientName: quote.clientName,
+                      projectName: quote.projectName ?? "",
+                      quoteNumber: `${quote.quoteNumber} Rev.${currentOrder.revision}`,
+                      orderNumber: currentOrder.orderNumber ?? "",
+                      vendorName: quote.vendorName ?? "",
+                      date: toBrasiliaDate(new Date()),
+                      empresa: currentOrder.empresa as "ALFALUX" | "LUMINEW",
+                      deliveryDays,
+                      approvedAt: approvedAtIso,
+                      precomputedDisplayDays: displayDays,
+                      precomputedDeliveryDate: deliveryDateStr,
+                      prazoStr: `${displayDays} dias úteis → ${deliveryDateStr}`,
+                    });
+                    setPreviewOpen(true);
+                  }}
+                  disabled={isGenerating}
+                >
+                  <Eye className="w-4 h-4" />
+                  Pré-visualizar
+                </Button>
+                <Button
+                  size="sm"
                   className="gap-2 bg-green-600 hover:bg-green-700 text-white"
                   onClick={handleGenerateExcel}
                   disabled={isGenerating}
@@ -1267,6 +1310,16 @@ export default function FactoryOrderDetail() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Modal: Pré-visualização do Pedido de Fábrica */}
+      {previewForm && (
+        <OrderPreviewModal
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+          items={previewItems}
+          form={previewForm}
+        />
+      )}
 
       {/* Dialog: Editar observações */}
       <Dialog open={showNotesEdit} onOpenChange={setShowNotesEdit}>
