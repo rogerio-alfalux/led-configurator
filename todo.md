@@ -1725,3 +1725,10 @@
 
 - [x] Investigar por que LED BAR, Perfil Flexível, Meia Lua e Milano não separam drivers no orçamento
 - [x] Corrigir lógica de separação de drivers para essas linhas (igual aos demais produtos)
+
+## Correções de Orçamento — Preço Perfil Flexível / Margem / Frete (01/07/2026)
+
+- [x] Perfil Flexível: aplicar preço fixo R$157,00/m para 5W/m e 10W/m (sem driver, sem API)
+- [x] Verificar e corrigir margem individual por produto (itemMarginPercent) no Excel e Preview
+- [x] Verificar diluição proporcional do frete (estava correta)
+- [x] Corrigir total do orçamento para incluir o frete (sistema, preview e Excel)

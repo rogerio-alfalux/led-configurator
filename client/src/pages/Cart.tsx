@@ -1438,6 +1438,9 @@ export default function Cart() {
                     {totalGeral > 0 && (
                       <p className="text-2xl font-bold text-primary">{formatBRL(totalGeral)}</p>
                     )}
+                    {freteValor > 0 && !saveForm.freteIncluded && (
+                      <p className="text-xs text-muted-foreground">+ Frete: <span className="text-red-600 font-medium">{formatBRL(freteValor)}</span></p>
+                    )}
                   </div>
                   <div className="flex gap-2 flex-wrap">
                     <Button
@@ -1841,10 +1844,27 @@ export default function Cart() {
                                   <span>{formatBRL(totalFinal - totalComRT)}</span>
                                 </div>
                               )}
-                              <div className="flex justify-between font-bold border-t pt-1">
-                                <span>Total final</span>
-                                <span className="text-primary">{formatBRL(totalFinal)}</span>
-                              </div>
+                              {freteValor > 0 && !saveForm.freteIncluded ? (
+                                <>
+                                  <div className="flex justify-between border-t pt-1">
+                                    <span className="text-muted-foreground">Subtotal (sem frete)</span>
+                                    <span className="font-bold">{formatBRL(totalFinal)}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">+ Frete</span>
+                                    <span className="text-red-600 font-medium">{formatBRL(freteValor)}</span>
+                                  </div>
+                                  <div className="flex justify-between font-bold border-t pt-1">
+                                    <span>Total geral</span>
+                                    <span className="text-primary">{formatBRL(totalFinal + freteValor)}</span>
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="flex justify-between font-bold border-t pt-1">
+                                  <span>Total final</span>
+                                  <span className="text-primary">{formatBRL(totalFinal)}</span>
+                                </div>
+                              )}
                             </div>
                           </TabsContent>
 

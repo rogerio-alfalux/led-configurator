@@ -233,9 +233,17 @@ ${htmlContent}
 
   const rtPct = Math.min(Math.max(formData.rtPercent ?? 0, 0), 0.99);
   const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
+  // applyMarkup global (sem margem individual) — usado para totais
   const applyMarkup = (base: number) => {
     const comRT = rtPct > 0 ? base / (1 - rtPct) : base;
     return marginPct > 0 ? comRT / (1 - marginPct) : comRT;
+  };
+  // applyMarkupItem — aplica margem global + margem individual do item
+  const applyMarkupItem = (base: number, itemMarginPercent?: number | null) => {
+    const itemMPct = itemMarginPercent != null ? Math.min(Math.max(itemMarginPercent / 100, 0), 0.99) : 0;
+    const comRT = rtPct > 0 ? base / (1 - rtPct) : base;
+    const comMargem = marginPct > 0 ? comRT / (1 - marginPct) : comRT;
+    return itemMPct > 0 ? comMargem / (1 - itemMPct) : comMargem;
   };
 
   // Ordenar itens por pavimento (mesma logica do gerador Excel)
@@ -558,8 +566,8 @@ ${htmlContent}
                           <td style={tdStyle}></td>{/* FOTO vazia */}
                           <td colSpan={7} style={{ ...tdStyle, textAlign: "left", fontStyle: "italic" }}>{item.description || item.sku || "Serviço"}</td>
                           <td style={tdStyle}>{item.qty}</td>
-                          <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkup(unitPriceComFrete(item) ?? item.unitPrice)) : "-"}</td>
-                          <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkup(totalPriceComFrete(item) ?? item.totalPrice)) : "-"}</td>
+                          <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent)) : "-"}</td>
+                          <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkupItem(totalPriceComFrete(item) ?? item.totalPrice, item.itemMarginPercent)) : "-"}</td>
                         </tr>
                       ) : item.driverLines && item.driverLines.length > 0 ? (
                         <tr>
@@ -633,8 +641,8 @@ ${htmlContent}
                           <td style={tdStyle}>{item.category === "Item Especial" ? (item.specialColor || item.corPeca || "-") : (item.corPeca || "-")}</td>
                           <td style={tdStyle}>{item.cct || "-"}</td>
                           <td style={{ ...tdStyle, fontWeight: "bold" }}>{item.qty}</td>
-                          <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkup(unitPriceComFrete(item) ?? item.unitPrice)) : "-"}</td>
-                          <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkup(totalPriceComFrete(item) ?? item.totalPrice)) : "-"}</td>
+                          <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent)) : "-"}</td>
+                          <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkupItem(totalPriceComFrete(item) ?? item.totalPrice, item.itemMarginPercent)) : "-"}</td>
                         </tr>
                       )}
 
@@ -770,12 +778,22 @@ ${htmlContent}
                         </td>
                       </tr>
                       {formData.freteValue && formData.freteValue > 0 && !formData.freteIsento && (
-                        <tr>
-                          <td style={{ fontWeight: "bold" }}>Valor do frete:</td>
-                          <td style={{ fontWeight: "bold", color: "#CC0000" }}>
-                            {formatBRL(formData.freteValue)}
-                          </td>
-                        </tr>
+                        <>
+                          <tr>
+                            <td style={{ fontWeight: "bold" }}>Valor do frete:</td>
+                            <td style={{ fontWeight: "bold", color: "#CC0000" }}>
+                              {formatBRL(formData.freteValue)}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style={{ fontWeight: "bold" }}>TOTAL GERAL (produtos + frete):</td>
+                            <td>
+                              <span style={{ background: "#D9EAD3", fontWeight: "bold", fontSize: 14, padding: "4px 12px", border: "2px solid #444", display: "inline-block" }}>
+                                {formatBRL((totalComDifal > totalFinal ? totalComDifal : totalFinal) + formData.freteValue)}
+                              </span>
+                            </td>
+                          </tr>
+                        </>
                       )}
                     </>
                   )}

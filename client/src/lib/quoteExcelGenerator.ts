@@ -548,7 +548,8 @@ async function _generateExcelBuffer(
       ws.getCell(`L${rowNum}`).value = item.qty;
       const _rtPctS = Math.min(Math.max(formData.rtPercent ?? 0, 0), 0.99);
       const _mPctS = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
-      const applyMarkupS = (b: number) => { const r = _rtPctS > 0 ? b / (1 - _rtPctS) : b; return _mPctS > 0 ? r / (1 - _mPctS) : r; };
+      const _itemMPctS = item.itemMarginPercent != null ? Math.min(Math.max(item.itemMarginPercent / 100, 0), 0.99) : 0;
+      const applyMarkupS = (b: number) => { const r = _rtPctS > 0 ? b / (1 - _rtPctS) : b; const m = _mPctS > 0 ? r / (1 - _mPctS) : r; return _itemMPctS > 0 ? m / (1 - _itemMPctS) : m; };
       const _uS = _unitPriceComFrete(item);
       const _tS = _totalPriceComFrete(item);
       if (_uS !== null && _uS > 0) {
@@ -705,10 +706,15 @@ async function _generateExcelBuffer(
     // Quando há driverLines, mostra apenas o preço da luminária (sem driver) na linha principal
     const _rtPct    = Math.min(Math.max(formData.rtPercent    ?? 0, 0), 0.99);
     const _marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
+    // Margem individual do item (acréscimo adicional sobre a margem global)
+    const _itemMarginPct = item.itemMarginPercent != null
+      ? Math.min(Math.max(item.itemMarginPercent / 100, 0), 0.99)
+      : 0;
     const applyMarkup = (base: number) => {
       const comRT  = _rtPct    > 0 ? base   / (1 - _rtPct)    : base;
-      const final  = _marginPct > 0 ? comRT  / (1 - _marginPct) : comRT;
-      return final;
+      const comMargem = _marginPct > 0 ? comRT  / (1 - _marginPct) : comRT;
+      const comItemMargem = _itemMarginPct > 0 ? comMargem / (1 - _itemMarginPct) : comMargem;
+      return comItemMargem;
     };
     const hasDriverBreakdownItem = item.driverLines && item.driverLines.length > 0;
     const cUnit = ws.getCell(`M${rowNum}`);
@@ -1177,6 +1183,26 @@ async function _generateExcelBuffer(
         c.numFmt = '"R$"#,##0.00';
         c.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FFCC0000" } };
         c.alignment = { horizontal: "left", vertical: "middle" };
+      }
+      nextRow++;
+      // Linha TOTAL GERAL COM FRETE
+      ws.getRow(nextRow).height = 42.6;
+      ws.mergeCells(`C${nextRow}:D${nextRow}`);
+      {
+        const c = ws.getCell(`C${nextRow}`);
+        c.value = "TOTAL GERAL\n(produtos + frete):";
+        c.font = { name: "Calibri", size: 12, bold: true };
+        c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+      }
+      ws.mergeCells(`E${nextRow}:N${nextRow}`);
+      {
+        const c = ws.getCell(`E${nextRow}`);
+        c.value = (totalComDifal > totalFinal ? totalComDifal : totalFinal) + _freteValorNum;
+        c.numFmt = '"R$"#,##0.00';
+        c.font = { name: "Calibri", size: 14, bold: true };
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9EAD3" } }; // verde claro
+        c.alignment = { horizontal: "left", vertical: "middle" };
+        mediumBorder(c);
       }
       nextRow++;
     }

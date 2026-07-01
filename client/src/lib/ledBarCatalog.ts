@@ -221,10 +221,13 @@ export function calcLedBarPrice(
   // Famílias sem tabela de preço: retornar null para que o usuário preencha manualmente
   if (familia && LED_BAR_FAMILIES_NO_PRICE.test(familia)) return null;
   // PERFIL FLEXÍVEL: apenas o perfil, sem drivers
+  // Fallback: R$157,00/m para 5W/m e 10W/m quando API não retorna precoMetro
   if (familia && /^PERFIL FLEXIVEL/i.test(familia)) {
-    if (precoMetroApi == null) return null; // sem preço na API → preencher manualmente
+    const PERFIL_FLEX_PRECO_METRO_FALLBACK: Partial<Record<LedBarPotencia, number>> = { 5: 157.00, 10: 157.00 };
+    const precoMetroEfetivo = precoMetroApi ?? PERFIL_FLEX_PRECO_METRO_FALLBACK[potencia] ?? null;
+    if (precoMetroEfetivo == null) return null; // sem preço → preencher manualmente
     const comprimentoM = comprimentoTotalMm / 1000;
-    return Math.round(precoMetroApi * comprimentoM * 100) / 100;
+    return Math.round(precoMetroEfetivo * comprimentoM * 100) / 100;
   }
   // Preço por metro: API tem prioridade, tabela estática como fallback
   const precoPorMetro = precoMetroApi ?? LED_BAR_PRECO_POR_METRO[potencia] ?? 0;
@@ -272,10 +275,13 @@ export function calcLedBarPriceDetail(
 } | null {
   if (familia && LED_BAR_FAMILIES_NO_PRICE.test(familia)) return null;
   // PERFIL FLEXÍVEL: apenas o perfil, sem drivers
+  // Fallback: R$157,00/m para 5W/m e 10W/m quando API não retorna precoMetro
   if (familia && /^PERFIL FLEXIVEL/i.test(familia)) {
-    if (precoMetroApi == null) return null; // sem preço na API → preencher manualmente
+    const PERFIL_FLEX_PRECO_METRO_FALLBACK: Partial<Record<LedBarPotencia, number>> = { 5: 157.00, 10: 157.00 };
+    const precoMetroEfetivo = precoMetroApi ?? PERFIL_FLEX_PRECO_METRO_FALLBACK[potencia] ?? null;
+    if (precoMetroEfetivo == null) return null; // sem preço → preencher manualmente
     const comprimentoM = comprimentoTotalMm / 1000;
-    const precoPerfil = Math.round(precoMetroApi * comprimentoM * 100) / 100;
+    const precoPerfil = Math.round(precoMetroEfetivo * comprimentoM * 100) / 100;
     return {
       precoPerfil,
       precoDriverPorCorte: 0,
