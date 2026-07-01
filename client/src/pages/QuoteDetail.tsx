@@ -1043,8 +1043,10 @@ export default function QuoteDetail() {
       const snap = (() => { try { return JSON.parse(v.headerSnapshot ?? '{}'); } catch { return {}; } })();
       const s1 = quote.seller1Id ? editSellers.find(s => s.id === quote.seller1Id) : undefined;
       const s2 = quote.seller2Id ? editSellers.find(s => s.id === quote.seller2Id) : undefined;
-      // O número de revisão é baseado na posição da versão na lista (RV0 = mais antigo)
-      const revCount = versionToRV(v.id);
+      // O número de revisão: versão atual usa quote.revisionCount (controlado manualmente pela Vivian)
+      // Versões anteriores (snapshots) usam a posição na lista
+      const isCurrentVer = v.version === quote.currentVersion;
+      const revCount = isCurrentVer ? (quote.revisionCount ?? 0) : versionToRV(v.id);
       await generateQuoteExcel(
         revItems.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null),
         {
@@ -2850,7 +2852,10 @@ export default function QuoteDetail() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-sm">
-                            RV{versionToRV(v.id)}
+                            {isCurrentVersion
+                              ? `RV${quote.revisionCount ?? 0}`
+                              : `Snapshot ${versionToRV(v.id)}`
+                            }
                             {isCurrentVersion && (
                               <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">Atual</span>
                             )}
@@ -2946,7 +2951,10 @@ export default function QuoteDetail() {
                 <History className="w-4 h-4" />
                 {revisionModalVersionId != null && (() => {
                   const v = versions.find(vv => vv.id === revisionModalVersionId);
-                  return v ? `Revisão RV${versionToRV(v.id)} — ${toBrasiliaDate(v.createdAt)}` : 'Revisão';
+                  if (!v) return 'Revisão';
+                  const isCurrentV = v.version === quote.currentVersion;
+                  const label = isCurrentV ? `RV${quote.revisionCount ?? 0}` : `Snapshot ${versionToRV(v.id)}`;
+                  return `${label} — ${toBrasiliaDate(v.createdAt)}`;
                 })()}
               </DialogTitle>
             </DialogHeader>
@@ -3027,7 +3035,7 @@ export default function QuoteDetail() {
                       onClick={() => handleGenerateRevisionExcel(rv, rvItems)}
                     >
                       <FileSpreadsheet className="w-4 h-4" />
-                      Baixar Excel RV{versionToRV(rv.id)}
+                      Baixar Excel {rv.version === quote.currentVersion ? `RV${quote.revisionCount ?? 0}` : `Snapshot ${versionToRV(rv.id)}`}
                     </Button>
                     <Button
                       variant="outline"

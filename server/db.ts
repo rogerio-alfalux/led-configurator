@@ -499,17 +499,8 @@ export async function addQuoteRevision(
     notes: input.notes,
   });
 
-  // Quando bumpVersion=false (ex: appendItems), apenas atualiza totalAmount e updatedAt
-  // para não sobrescrever campos de cabeçalho (frete, DIFAL, FCP, projectNumber, etc.)
-  if (!bumpVersion) {
-    await db.update(quotes).set({
-      currentVersion: newVersion,
-      totalAmount: String(input.totalAmount),
-      totalFinal: input.totalFinal != null ? String(input.totalFinal) : String(input.totalAmount),
-      updatedAt: sql`NOW()`,
-    }).where(eq(quotes.id, quoteId));
-  } else {
-  // Update quote header — incrementa revisionCount a cada edição/salvamento
+  // Atualiza o cabeçalho do orçamento com TODOS os campos
+  // revisionCount só incrementa quando bumpVersion=true (ao baixar Excel ou criar nova revisão)
   await db.update(quotes).set({
     clientName: input.clientName,
     clientContact: input.clientContact ?? null,
@@ -529,7 +520,6 @@ export async function addQuoteRevision(
     totalAmount: String(input.totalAmount),
     totalFinal: input.totalFinal != null ? String(input.totalFinal) : String(input.totalAmount),
     rtPercent: input.rtPercent != null ? String(input.rtPercent) : '0',
-    // Não incrementa revisionCount quando atualiza in-place
     rtDest1: input.rtDest1 ?? null,
     rtDest1Active: input.rtDest1Active ?? false,
     rtDest2: input.rtDest2 ?? null,
@@ -540,7 +530,9 @@ export async function addQuoteRevision(
     freteType: input.freteType ?? null,
     freteIsento: input.freteIsento ?? false,
     freteLocalidade: input.freteLocalidade ?? null,
-    revisionCount: bumpVersion ? sql`revisionCount + 1` : sql`revisionCount`,
+    // revisionCount só incrementa ao baixar Excel (bumpVersion=true)
+    // Editar o orçamento (bumpVersion=false) não altera o revisionCount
+    ...(bumpVersion ? { revisionCount: sql`revisionCount + 1` } : {}),
     deliveryDays: input.deliveryDays ?? 20,
     commissionPercent: input.commissionPercent != null ? String(input.commissionPercent) : '0.05',
     paymentTerm: input.paymentTerm ?? '30% Sinal e 70% a 28DDF (mediante aprovação de cadastro)',
@@ -558,12 +550,9 @@ export async function addQuoteRevision(
     commissionPercent2: input.commissionPercent2 != null ? String(input.commissionPercent2) : '0',
     arquiteto: input.arquiteto ?? null,
     lightDesigner: input.lightDesigner ?? null,
-    // Atualiza o número do orçamento se fornecido
     ...(input.quoteNumber ? { quoteNumber: input.quoteNumber } : {}),
-    // Atualiza a data de modificação para a data atual
     updatedAt: sql`NOW()`,
   }).where(eq(quotes.id, quoteId));
-  } // fim do else (bumpVersion=true)
 
   if (!bumpVersion) {
     // Atualiza in-place: busca a versão atual e substitui seus itens
