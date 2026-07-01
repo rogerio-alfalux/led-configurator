@@ -7582,6 +7582,28 @@ export default function Home() {
                                   const lbDriverInfo = r.trechos[0]?.driver;
                                   const lbDriverCode = lbDriverInfo?.code ?? "";
                                   const lbDriverModel = lbDriverInfo?.model ?? "";
+                                  // Construir driverLines para separar driver no orçamento
+                                  // LED BAR: nCortes drivers por unidade (cada trecho tem 1 driver)
+                                  const isPerfilFlexLb = /^PERFIL FLEXIVEL/i.test(r.product.familia ?? "");
+                                  const lbDrvLines: import("@/lib/cartTypes").DriverLine[] | undefined =
+                                    !isPerfilFlexLb && lbDriverModel && lbDetail !== null && lbDetail.precoDriverPorCorte > 0
+                                      ? [{
+                                          driverModel: lbDriverModel,
+                                          driverCode: lbDriverCode,
+                                          driverQty: r.nCortes * globalQty,
+                                          driverUnitPrice: lbDetail.precoDriverPorCorte,
+                                          driverTotalPrice: Math.round(lbDetail.precoDriverPorCorte * r.nCortes * globalQty * 100) / 100,
+                                        }]
+                                      : undefined;
+                                  const lbPrecoSemDriver = lbDrvLines && lbDetail
+                                    ? Math.round(lbDetail.precoPerfil * globalQty * 100) / 100
+                                    : null;
+                                  const lbUnitPriceLuminaria = lbDrvLines && lbDetail
+                                    ? lbDetail.precoPerfil
+                                    : null;
+                                  const lbUnitPriceDriver = lbDrvLines
+                                    ? lbDetail?.precoDriverPorCorte ?? null
+                                    : null;
                                   const item: CartItemData = {
                                     category: "LED BAR",
                                     sku: r.product.sku ?? "",
@@ -7603,6 +7625,13 @@ export default function Home() {
                                     ledBarDriverCode: lbDriverCode,
                                     availableCCTs: r.product.ccts,
                                     itemEmPlanta: globalItemEmPlanta,
+                                    ...(lbDrvLines ? {
+                                      driverLines: lbDrvLines,
+                                      priceWithoutDriver: lbPrecoSemDriver,
+                                      unitPriceLuminaria: lbUnitPriceLuminaria,
+                                      unitPriceDriver: lbUnitPriceDriver,
+                                      luminariaHasApiPrice: lbPreco !== null,
+                                    } : {}),
                                   };
                                   if (appendToQuoteId) {
                                     handleAddItemOrToQuote(item);
