@@ -1,7 +1,7 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import {
-  ArrowLeft, Factory, Plus, Trash2, RefreshCw, FileSpreadsheet,
+  ArrowLeft, Factory, Plus, Trash2, FileSpreadsheet,
   ChevronDown, ChevronUp, Wrench, X, Search, Package,
   CheckCircle, Clock, Truck, AlertTriangle, Edit2, Save,
 } from "lucide-react";
@@ -178,15 +178,11 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove }: Editabl
             </div>
 
             {/* Temperatura de Cor */}
-            <div>
-              <Label className="text-xs">Temperatura de Cor</Label>
-              <Input
-                value={parsed.cct ?? ""}
-                onChange={e => update({ cct: e.target.value })}
-                placeholder="Ex: 3000K"
-                className="mt-1 h-8 text-sm"
-              />
-            </div>
+            <CctSelector
+              value={parsed.cct ?? ""}
+              availableCCTs={isSpecial ? undefined : (parsed.availableCCTs ?? [])}
+              onChange={v => update({ cct: v })}
+            />
 
             {/* Item em Planta */}
             <div>
@@ -410,6 +406,63 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove }: Editabl
   );
 }
 
+// ─── Seletor de CCT ─────────────────────────────────────────────────────────
+const STANDARD_CCTS = ["2700K", "3000K", "4000K", "5000K"];
+
+function CctSelector({ value, availableCCTs, onChange }: {
+  value: string;
+  availableCCTs: string[] | undefined; // undefined = especial (todas as opções); [] = sem restrição da API
+  onChange: (v: string) => void;
+}) {
+  // Opções a mostrar no dropdown
+  // - Se availableCCTs tem itens: usar apenas essas + "Outra"
+  // - Se availableCCTs é undefined (especial) ou []: mostrar todas as padrão + "Outra"
+  const options = (availableCCTs && availableCCTs.length > 0)
+    ? availableCCTs
+    : STANDARD_CCTS;
+
+  const isOther = value !== "" && !options.includes(value);
+  const selectValue = isOther ? "__outra__" : (value || "");
+
+  return (
+    <div>
+      <Label className="text-xs">Temperatura de Cor</Label>
+      <Select
+        value={selectValue}
+        onValueChange={v => {
+          if (v === "__outra__") {
+            // Manter o valor atual se já era "outra", senão limpar para o usuário digitar
+            if (!isOther) onChange("");
+          } else {
+            onChange(v);
+          }
+        }}
+      >
+        <SelectTrigger className="mt-1 h-8 text-sm">
+          <SelectValue placeholder="Selecionar CCT..." />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="">— A Definir —</SelectItem>
+          {options.map(c => (
+            <SelectItem key={c} value={c}>{c}</SelectItem>
+          ))}
+          <Separator className="my-1" />
+          <SelectItem value="__outra__">Outra...</SelectItem>
+        </SelectContent>
+      </Select>
+      {(selectValue === "__outra__" || isOther) && (
+        <Input
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder="Ex: 2200K, Tunable White..."
+          className="mt-1.5 h-8 text-sm"
+          autoFocus
+        />
+      )}
+    </div>
+  );
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 export default function FactoryOrderDetail() {
   const { quoteId } = useParams<{ quoteId: string }>();
@@ -420,12 +473,19 @@ export default function FactoryOrderDetail() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
   const [newOrderEmpresa, setNewOrderEmpresa] = useState<"ALFALUX" | "LUMINEW">("ALFALUX");
-  const [showRevisionDialog, setShowRevisionDialog] = useState(false);
+
   const [notesEdit, setNotesEdit] = useState("");
   const [showNotesEdit, setShowNotesEdit] = useState(false);
   // Número do pedido de fábrica (editável manualmente)
   const [orderNumberEdit, setOrderNumberEdit] = useState("");
   const [editingOrderNumber, setEditingOrderNumber] = useState(false);
+  // Rastrear se há alterações não publicadas (desde o último Excel gerado ou criação do pedido)
+  const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState(false);
+  // Snapshot dos itens no momento do último Excel gerado (para detectar alterações)
+  const lastPublishedSnapshotRef = useRef<string | null>(null);
+  // Dialog de aviso antes de gerar Excel
+  const [showExcelWarningDialog, setShowExcelWarningDialog] = useState(false);
+  const [pendingExcelWarnings, setPendingExcelWarnings] = useState<string[]>([]);
 
   // Dados do orçamento
   const { data: quoteData, isLoading: quoteLoading } = trpc.quotes.getById.useQuery({ id: Number(quoteId) });
@@ -440,6 +500,12 @@ export default function FactoryOrderDetail() {
     { enabled: effectiveOrderId !== null }
   );
 
+  // Histórico de Excels gerados para o pedido selecionado
+  const { data: excelHistory = [] } = trpc.factoryOrders.listExcels.useQuery(
+    { factoryOrderId: effectiveOrderId! },
+    { enabled: effectiveOrderId !== null }
+  );
+
   // Sincronizar orderNumberEdit quando o pedido carrega
   useEffect(() => {
     if (currentOrder) {
@@ -447,11 +513,26 @@ export default function FactoryOrderDetail() {
     }
   }, [currentOrder?.id, currentOrder?.orderNumber]);
 
-  // Histórico de Excels gerados para o pedido selecionado
-  const { data: excelHistory = [] } = trpc.factoryOrders.listExcels.useQuery(
-    { factoryOrderId: effectiveOrderId! },
-    { enabled: effectiveOrderId !== null }
-  );
+  // Detectar alterações não publicadas: comparar snapshot atual com o último publicado
+  useEffect(() => {
+    if (!currentOrder) return;
+    const currentSnapshot = JSON.stringify(
+      currentOrder.items.map(i => ({ id: i.itemNumber, data: i.itemData }))
+    );
+    // Se ainda não temos snapshot (primeiro carregamento), inicializar sem alterações pendentes
+    if (lastPublishedSnapshotRef.current === null) {
+      lastPublishedSnapshotRef.current = currentSnapshot;
+      setHasUnpublishedChanges(false);
+      return;
+    }
+    setHasUnpublishedChanges(currentSnapshot !== lastPublishedSnapshotRef.current);
+  }, [currentOrder?.items, excelHistory.length]);
+
+  // Resetar snapshot quando muda de revisão
+  useEffect(() => {
+    lastPublishedSnapshotRef.current = null;
+    setHasUnpublishedChanges(false);
+  }, [effectiveOrderId]);
 
   // Drivers da API
   const { data: driversData = [] } = trpc.led.drivers.useQuery();
@@ -512,8 +593,6 @@ export default function FactoryOrderDetail() {
     onSuccess: (result) => {
       utils.factoryOrders.list.invalidate({ quoteId: Number(quoteId) });
       setSelectedOrderId(result.id);
-      setShowRevisionDialog(false);
-      toast.success("Nova revisão criada!");
     },
     onError: (err) => toast.error(`Erro: ${err.message}`),
   });
@@ -538,14 +617,17 @@ export default function FactoryOrderDetail() {
 
   const handleUpdateItem = useCallback((itemId: number, newData: CartItemData) => {
     updateItemMutation.mutate({ itemId, itemData: JSON.stringify(newData) });
+    setHasUnpublishedChanges(true);
   }, [updateItemMutation]);
 
   const handleRemoveItem = useCallback((itemId: number) => {
     removeItemMutation.mutate({ itemId });
+    setHasUnpublishedChanges(true);
   }, [removeItemMutation]);
 
   const handleAddBlankItem = useCallback(() => {
     if (!effectiveOrderId) return;
+    setHasUnpublishedChanges(true);
     const maxNum = (currentOrder?.items ?? []).reduce((m, i) => Math.max(m, i.itemNumber), 0);
     const blankItem: CartItemData = {
       category: "especial",
@@ -571,51 +653,80 @@ export default function FactoryOrderDetail() {
     toast.success("Número do pedido salvo");
   }, [effectiveOrderId, orderNumberEdit, updateOrderMutation]);
 
-  const handleGenerateExcel = useCallback(async () => {
-    if (!currentOrder || !quoteData) return;
-    // Validar número do pedido: exatamente 6 dígitos numéricos
-    const orderNum = currentOrder.orderNumber ?? "";
-    if (!/^\d{6}$/.test(orderNum)) {
-      toast.error("Informe o número do pedido (6 dígitos numéricos) antes de gerar o Excel.");
-      setEditingOrderNumber(true);
-      return;
+  // Verifica pendências nos itens e retorna lista de avisos
+  const checkPendingWarnings = useCallback((items: Array<{ id: number; itemNumber: number; itemData: string }>): string[] => {
+    if (!items) return [];
+    const warnings: string[] = [];
+    let semEquipamento = 0;
+    let semCor = 0;
+    let semCct = 0;
+    for (const item of items) {
+      const d = parseCartItemData(item.itemData);
+      if (!d) continue;
+      // Verificar equipamentos pendentes em itens especiais
+      if (d.isSpecialItem) {
+        const equips = d.specialEquipments ?? [];
+        if (equips.length === 0) semEquipamento++;
+      } else {
+        // Para itens normais, verificar se driver está definido
+        if (!d.drivers || d.drivers.trim() === "") semEquipamento++;
+      }
+      // Verificar cor da peça
+      if (!d.corPeca || d.corPeca.trim() === "" || d.corPeca === "A Definir") semCor++;
+      // Verificar CCT
+      if (!d.cct || d.cct.trim() === "") semCct++;
     }
+    if (semEquipamento > 0) warnings.push(`${semEquipamento} item(ns) sem equipamento/driver definido`);
+    if (semCor > 0) warnings.push(`${semCor} item(ns) com cor da peça "A Definir" ou em branco`);
+    if (semCct > 0) warnings.push(`${semCct} item(ns) sem temperatura de cor (CCT) definida`);
+    return warnings;
+  }, []);
+
+  // Executa a geração do Excel de fato (após confirmação de avisos)
+  const doGenerateExcel = useCallback(async (orderToUse: NonNullable<typeof currentOrder>) => {
+    if (!quoteData) return;
+    const orderNum = orderToUse.orderNumber ?? "";
     setIsGenerating(true);
     try {
       const { quote } = quoteData;
-      const deliveryDays = currentOrder.deliveryDays ?? 19;
+      const deliveryDays = orderToUse.deliveryDays ?? 19;
       const approvedAtIso = quote.approvedAt
         ? new Date(quote.approvedAt).toISOString()
         : new Date().toISOString();
       const { displayDays, deliveryDateStr } = await calcDeliveryDate(approvedAtIso, deliveryDays);
-      const itemsData = currentOrder.items
+      const itemsData = orderToUse.items
         .map(i => parseCartItemData(i.itemData))
         .filter((d): d is CartItemData => d !== null);
       const fileName = `PEDIDO-FABRICA-${orderNum}-${quote.clientName.replace(/\s+/g, "_")}.xlsx`;
       const buffer = await generateOrderExcel(itemsData, {
         clientName: quote.clientName,
         projectName: quote.projectName ?? "",
-        quoteNumber: `${quote.quoteNumber} Rev.${currentOrder.revision}`,
+        quoteNumber: `${quote.quoteNumber} Rev.${orderToUse.revision}`,
         orderNumber: orderNum,
         vendorName: quote.vendorName ?? "",
         date: toBrasiliaDate(new Date()),
-        empresa: currentOrder.empresa as "ALFALUX" | "LUMINEW",
+        empresa: orderToUse.empresa as "ALFALUX" | "LUMINEW",
         deliveryDays,
         approvedAt: approvedAtIso,
         precomputedDisplayDays: displayDays,
         precomputedDeliveryDate: deliveryDateStr,
       });
-      toast.success("Excel do pedido de fábrica gerado!");
-      // Salvar no S3 e registrar no histórico (em background, sem bloquear o usuário)
+      toast.success(`Excel Rev. ${orderToUse.revision} gerado com sucesso!`);
+      // Atualizar snapshot — a partir daqui não há mais alterações pendentes
+      lastPublishedSnapshotRef.current = JSON.stringify(
+        orderToUse.items.map(i => ({ id: i.itemNumber, data: i.itemData }))
+      );
+      setHasUnpublishedChanges(false);
+      // Salvar no S3 e registrar no histórico
       try {
         const uint8 = new Uint8Array(buffer);
         let binary = "";
         for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
         const base64 = btoa(binary);
         saveExcelMutation.mutate({
-          factoryOrderId: currentOrder.id,
+          factoryOrderId: orderToUse.id,
           orderNumber: orderNum,
-          revision: currentOrder.revision,
+          revision: orderToUse.revision,
           excelBase64: base64,
           fileName,
         });
@@ -627,7 +738,93 @@ export default function FactoryOrderDetail() {
     } finally {
       setIsGenerating(false);
     }
-  }, [currentOrder, quoteData, saveExcelMutation]);
+  }, [quoteData, saveExcelMutation]);
+
+  const handleGenerateExcel = useCallback(async () => {
+    if (!currentOrder || !quoteData) return;
+    // Validar número do pedido: exatamente 6 dígitos numéricos
+    const orderNum = currentOrder.orderNumber ?? "";
+    if (!/^\d{6}$/.test(orderNum)) {
+      toast.error("Informe o número do pedido (6 dígitos numéricos) antes de gerar o Excel.");
+      setEditingOrderNumber(true);
+      return;
+    }
+    // Verificar pendências nos itens
+    const warnings = checkPendingWarnings(currentOrder.items);
+    if (warnings.length > 0) {
+      setPendingExcelWarnings(warnings);
+      setShowExcelWarningDialog(true);
+      return;
+    }
+    // Sem pendências: verificar se precisa criar nova revisão
+    if (hasUnpublishedChanges && excelHistory.length > 0) {
+      // Há alterações e já foi publicado antes — criar nova revisão automaticamente
+      setIsGenerating(true);
+      try {
+        const newId = await new Promise<number>((resolve, reject) => {
+          createRevisionMutation.mutate(
+            { sourceOrderId: currentOrder.id },
+            {
+              onSuccess: (r) => resolve(r.id),
+              onError: (e) => reject(e),
+            }
+          );
+        });
+        // Aguardar a nova revisão carregar e gerar o Excel dela
+        // A invalidação do cache vai atualizar currentOrder via useEffect
+        setSelectedOrderId(newId);
+        toast.info("Nova revisão criada automaticamente com as alterações.");
+        // O Excel será gerado após o currentOrder atualizar — usamos um flag
+        setPendingAutoGenerate(true);
+      } catch {
+        toast.error("Erro ao criar nova revisão.");
+        setIsGenerating(false);
+      }
+      return;
+    }
+    // Sem alterações pendentes ou primeira geração: gerar diretamente
+    await doGenerateExcel(currentOrder);
+  }, [currentOrder, quoteData, hasUnpublishedChanges, excelHistory.length, checkPendingWarnings, doGenerateExcel, createRevisionMutation]);
+
+  // Flag para gerar Excel automaticamente após criar nova revisão
+  const [pendingAutoGenerate, setPendingAutoGenerate] = useState(false);
+
+  // Quando currentOrder muda e há pendingAutoGenerate, gerar o Excel
+  useEffect(() => {
+    if (pendingAutoGenerate && currentOrder && !isGenerating) {
+      setPendingAutoGenerate(false);
+      doGenerateExcel(currentOrder);
+    }
+  }, [pendingAutoGenerate, currentOrder, isGenerating, doGenerateExcel]);
+
+  // Confirmar geração do Excel mesmo com pendências
+  const handleConfirmExcelWithWarnings = useCallback(async () => {
+    setShowExcelWarningDialog(false);
+    if (!currentOrder) return;
+    // Verificar se precisa criar nova revisão
+    if (hasUnpublishedChanges && excelHistory.length > 0) {
+      setIsGenerating(true);
+      try {
+        const newId = await new Promise<number>((resolve, reject) => {
+          createRevisionMutation.mutate(
+            { sourceOrderId: currentOrder.id },
+            {
+              onSuccess: (r) => resolve(r.id),
+              onError: (e) => reject(e),
+            }
+          );
+        });
+        setSelectedOrderId(newId);
+        toast.info("Nova revisão criada automaticamente com as alterações.");
+        setPendingAutoGenerate(true);
+      } catch {
+        toast.error("Erro ao criar nova revisão.");
+        setIsGenerating(false);
+      }
+      return;
+    }
+    await doGenerateExcel(currentOrder);
+  }, [currentOrder, hasUnpublishedChanges, excelHistory.length, doGenerateExcel, createRevisionMutation]);
 
   const handleSaveNotes = useCallback(() => {
     if (!effectiveOrderId) return;
@@ -686,22 +883,13 @@ export default function FactoryOrderDetail() {
             {currentOrder && (
               <>
                 <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 text-orange-600 border-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/30"
-                  onClick={() => setShowRevisionDialog(true)}
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Nova Revisão
-                </Button>
-                <Button
                   size="sm"
                   className="gap-2 bg-green-600 hover:bg-green-700 text-white"
                   onClick={handleGenerateExcel}
                   disabled={isGenerating}
                 >
                   <FileSpreadsheet className="w-4 h-4" />
-                  {isGenerating ? "Gerando..." : "Gerar Excel"}
+                  {isGenerating ? "Gerando..." : hasUnpublishedChanges ? "Gerar Excel (com alterações)" : "Gerar Excel"}
                 </Button>
               </>
             )}
@@ -1038,25 +1226,40 @@ export default function FactoryOrderDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Nova revisão */}
-      <Dialog open={showRevisionDialog} onOpenChange={setShowRevisionDialog}>
+      {/* Dialog: Aviso antes de gerar Excel */}
+      <Dialog open={showExcelWarningDialog} onOpenChange={setShowExcelWarningDialog}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Nova Revisão</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="w-5 h-5" />
+              Atenção antes de gerar o Excel
+            </DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Será criada uma cópia da revisão atual (Rev. {currentOrder?.revision}) com todos os itens.
-            Você poderá editar a nova revisão sem alterar a anterior.
-          </p>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setShowRevisionDialog(false)}>Cancelar</Button>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Foram encontrados itens com informações pendentes. Você pode gerar o Excel mesmo assim, mas revise com atenção:
+            </p>
+            <ul className="space-y-1.5">
+              {pendingExcelWarnings.map((w, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  <span>{w}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-muted-foreground border-t pt-2">
+              Verifique se não há equipamentos, cor da peça ou temperatura de cor a definir antes de enviar à fábrica.
+            </p>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setShowExcelWarningDialog(false)}>Revisar itens</Button>
             <Button
-              className="bg-orange-600 hover:bg-orange-700 text-white"
-              onClick={() => effectiveOrderId && createRevisionMutation.mutate({ sourceOrderId: effectiveOrderId })}
-              disabled={createRevisionMutation.isPending}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+              onClick={handleConfirmExcelWithWarnings}
+              disabled={isGenerating}
             >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              {createRevisionMutation.isPending ? "Criando..." : "Criar Revisão"}
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Gerar mesmo assim
             </Button>
           </div>
         </DialogContent>

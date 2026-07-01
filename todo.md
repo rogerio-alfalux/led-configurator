@@ -1692,3 +1692,14 @@
 - [x] FactoryOrderDetail.tsx: histórico de Excels gerados com data e botão de download
 - [x] FactoryOrderDetail.tsx: placeholder e validação visual (borda vermelha) para campo orderNumber
 - [x] FactoryOrderDetail.tsx: input só aceita dígitos numéricos (máximo 6)
+
+## Melhorias no Pedido de Fábrica — CCT, Revisões e Alertas (01/07/2026)
+
+- [x] FactoryOrderDetail.tsx: campo CCT como dropdown (2700K, 3000K, 4000K, 5000K + "Outra" com input livre)
+- [x] FactoryOrderDetail.tsx: para itens não-especiais, filtrar CCTs disponíveis via availableCCTs da API
+- [x] FactoryOrderDetail.tsx: para itens especiais, sempre mostrar todas as opções de CCT
+- [x] FactoryOrderDetail.tsx: remover botão "Nova Revisão" manual do header
+- [x] FactoryOrderDetail.tsx: nova revisão criada automaticamente ao gerar Excel quando há alterações
+- [x] FactoryOrderDetail.tsx: nova revisão herda o mesmo orderNumber da revisão anterior
+- [x] db.ts: createFactoryOrderRevision propaga orderNumber da revisão anterior
+- [x] FactoryOrderDetail.tsx: aviso de confirmação antes de gerar Excel alertando sobre itens pendentes (equipamentos/cor/CCT a definir)

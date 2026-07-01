@@ -977,6 +977,7 @@ export async function createFactoryOrderRevision(sourceOrderId: number) {
   if (!source) throw new Error('Pedido não encontrado');
   const [result] = await db.insert(factoryOrders).values({
     quoteId: source.quoteId,
+    orderNumber: source.orderNumber ?? null,
     revision: source.revision + 1,
     empresa: source.empresa,
     status: 'draft',
