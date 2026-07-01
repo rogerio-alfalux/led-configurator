@@ -114,7 +114,11 @@ function escNl(str: string | null | undefined): string {
  */
 export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormData & { prazoStr?: string }): string {
   const isLuminew = form.empresa === "LUMINEW";
-  const pedidoDisplay = form.orderNumber || form.quoteNumber;
+  // Campo PEDIDO: mostra o número do pedido de fábrica (6 dígitos) se informado,
+  // caso contrário mostra "NÃO INFORMADO" para deixar claro que falta o número
+  const pedidoDisplay = form.orderNumber && /^\d{6}$/.test(form.orderNumber)
+    ? form.orderNumber
+    : "NÃO INFORMADO";
   const displayDays = form.precomputedDisplayDays ?? (form.deliveryDays ?? 20) - 1;
   const prazoStr = form.prazoStr ?? `${displayDays} dias úteis`;
 
@@ -251,13 +255,30 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
       padding: 4px 8px;
       border: 1px solid #8ea9c1;
     }
+    /* Marca d'água RASCUNHO */
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-35deg);
+      font-size: 110px;
+      font-weight: 900;
+      color: rgba(220, 38, 38, 0.13);
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 9999;
+      letter-spacing: 10px;
+      font-family: Arial, sans-serif;
+    }
     @media print {
       body { padding: 4px; }
       @page { size: A4 landscape; margin: 10mm; }
+      .watermark { color: rgba(220, 38, 38, 0.10); }
     }
   </style>
 </head>
 <body>
+  <div class="watermark" aria-hidden="true">RASCUNHO</div>
   <h1>FICHA TÉCNICA DE PRODUÇÃO</h1>
 
   <!-- Cabeçalho -->
