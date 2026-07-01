@@ -567,11 +567,7 @@ export const appRouter = router({
         if (!qForStatus) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
         const canEditStatus = await canEditQuote(ctx.user.email, qForStatus.quote, ctx.user.role, ctx.user.id);
         if (!canEditStatus) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para alterar o status deste orçamento." });
-        // Ao fechar (approved), número de pedido e empresa são obrigatórios
-        if (input.status === "approved") {
-          if (!input.orderNumber) throw new TRPCError({ code: "BAD_REQUEST", message: "Número do pedido é obrigatório ao fechar o orçamento." });
-          if (!input.billingCompany) throw new TRPCError({ code: "BAD_REQUEST", message: "Empresa faturadora é obrigatória ao fechar o orçamento." });
-        }
+        // Número de pedido e empresa faturadora são solicitados apenas ao gerar o Pedido de Fábrica, não ao aprovar
         // Faturado só pode ser acionado a partir de um pedido fechado (approved)
         if (input.status === "invoiced" && qForStatus.quote.status !== "approved") {
           throw new TRPCError({ code: "BAD_REQUEST", message: "O status 'Faturado' só pode ser definido a partir de um pedido fechado (Aprovado)." });
