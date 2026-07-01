@@ -1,0 +1,1 @@
+ALTER TABLE `factory_orders` MODIFY COLUMN `revision` int NOT NULL DEFAULT 0;

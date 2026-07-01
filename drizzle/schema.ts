@@ -181,7 +181,7 @@ export const factoryOrders = mysqlTable("factory_orders", {
 	id: int().autoincrement().notNull(),
 	quoteId: int().notNull(),
 	orderNumber: varchar({ length: 6 }),
-	revision: int().default(1).notNull(),
+	revision: int().default(0).notNull(),
 	empresa: mysqlEnum(['ALFALUX','LUMINEW']).default('ALFALUX').notNull(),
 	status: mysqlEnum(['draft','sent','in_production','completed']).default('draft').notNull(),
 	deliveryDays: int().default(19),

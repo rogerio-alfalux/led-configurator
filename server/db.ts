@@ -917,7 +917,7 @@ export async function createFactoryOrder(data: {
   if (!db) throw new Error('DB não disponível');
   const [result] = await db.insert(factoryOrders).values({
     quoteId: data.quoteId,
-    revision: 1,
+    revision: 0,
     empresa: data.empresa,
     status: 'draft',
     deliveryDays: data.deliveryDays ?? 19,
@@ -999,7 +999,7 @@ export async function createFactoryOrderRevision(sourceOrderId: number) {
   const [result] = await db.insert(factoryOrders).values({
     quoteId: source.quoteId,
     orderNumber: source.orderNumber ?? null,
-    revision: source.revision + 1,
+    revision: source.revision + 1, // RV0 → RV1 → RV2...
     empresa: source.empresa,
     status: 'draft',
     deliveryDays: source.deliveryDays,
