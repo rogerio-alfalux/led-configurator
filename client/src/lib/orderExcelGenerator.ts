@@ -251,7 +251,7 @@ function buildLedBarEquipamentosText(item: CartItemData): string {
   return `${nCortes}x ${model}${codeSuffix}`;
 }
 
-export async function generateOrderExcel(items: CartItemData[], form: OrderFormData): Promise<void> {
+export async function generateOrderExcel(items: CartItemData[], form: OrderFormData): Promise<ArrayBuffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = "Configurador Alfalux";
   wb.created = new Date();
@@ -504,7 +504,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   ws.mergeCells(`D${obsRow}:J${obsRow}`);
   valueCell(ws.getCell(`D${obsRow}`), "");
 
-  // ─── Gerar e baixar ──────────────────────────────────────────────────────
+  // ─── Gerar, baixar e retornar buffer ─────────────────────────────────────────────────────────────────────────────
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -517,4 +517,5 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  return buffer as ArrayBuffer;
 }

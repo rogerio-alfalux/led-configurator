@@ -1678,3 +1678,17 @@
 - [x] Implementar cálculo de composição em U: 2 cantos EM L + ML para 3 lados (lado1 + base + lado2)
 - [x] Exibir resultado do formato em U no ShapeResultCard com peças detalhadas
 - [x] Adicionar formato U ao carrinho (handleAddToCart) — já funciona via shapeLabel/dimensionLabel/totalLengthMm
+
+## Refinamento do Pedido de Fábrica (30/06/2026)
+
+- [x] Schema: tabela `factory_order_excels` para histórico de Excels gerados
+- [x] Schema: `orderNumber` alterado para varchar(6) na tabela `factory_orders`
+- [x] `generateOrderExcel` retorna ArrayBuffer além de fazer download
+- [x] `createFactoryOrderExcel` e `listFactoryOrderExcels` adicionados ao db.ts
+- [x] Endpoints `factoryOrders.saveExcel` e `factoryOrders.listExcels` adicionados ao routers.ts
+- [x] FactoryOrderDetail.tsx: validação 6 dígitos numéricos para campo orderNumber
+- [x] FactoryOrderDetail.tsx: botão Gerar Excel bloqueado até número de 6 dígitos ser preenchido
+- [x] FactoryOrderDetail.tsx: upload automático do Excel para S3 após geração
+- [x] FactoryOrderDetail.tsx: histórico de Excels gerados com data e botão de download
+- [x] FactoryOrderDetail.tsx: placeholder e validação visual (borda vermelha) para campo orderNumber
+- [x] FactoryOrderDetail.tsx: input só aceita dígitos numéricos (máximo 6)

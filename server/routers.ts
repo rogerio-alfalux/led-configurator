@@ -18,6 +18,7 @@ import {
   createFactoryOrder, getFactoryOrdersByQuoteId, getFactoryOrderById,
   updateFactoryOrder, addFactoryOrderItem, updateFactoryOrderItem,
   deleteFactoryOrderItem, createFactoryOrderRevision,
+  createFactoryOrderExcel, listFactoryOrderExcels,
   getManagerDashboard, getSellerDashboard, getSalesGoalsByYear, upsertSalesGoal,
   getMonthlyReport,
   duplicateQuote,
@@ -932,6 +933,37 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const newOrderId = await createFactoryOrderRevision(input.sourceOrderId);
         return { id: newOrderId };
+      }),
+
+    /** Salva um Excel gerado no S3 e registra no histórico */
+    saveExcel: protectedProcedure
+      .input(z.object({
+        factoryOrderId: z.number(),
+        orderNumber: z.string().regex(/^\d{6}$/, 'Número do pedido deve ter exatamente 6 dígitos numéricos'),
+        revision: z.number(),
+        excelBase64: z.string(), // ArrayBuffer serializado como base64
+        fileName: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const buffer = Buffer.from(input.excelBase64, 'base64');
+        const key = `factory-orders/${input.factoryOrderId}/rev${input.revision}/${Date.now()}-${input.fileName}`;
+        const { url } = await storagePut(key, buffer, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        const id = await createFactoryOrderExcel({
+          factoryOrderId: input.factoryOrderId,
+          orderNumber: input.orderNumber,
+          revision: input.revision,
+          excelKey: key,
+          excelUrl: url,
+          generatedByUserId: ctx.user.id,
+        });
+        return { id, url };
+      }),
+
+    /** Lista os Excels gerados para um pedido de fábrica */
+    listExcels: protectedProcedure
+      .input(z.object({ factoryOrderId: z.number() }))
+      .query(async ({ input }) => {
+        return listFactoryOrderExcels(input.factoryOrderId);
       }),
   }),
 

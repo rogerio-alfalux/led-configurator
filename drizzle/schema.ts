@@ -180,7 +180,7 @@ export const users = mysqlTable("users", {
 export const factoryOrders = mysqlTable("factory_orders", {
 	id: int().autoincrement().notNull(),
 	quoteId: int().notNull(),
-	orderNumber: varchar({ length: 100 }),
+	orderNumber: varchar({ length: 6 }),
 	revision: int().default(1).notNull(),
 	empresa: mysqlEnum(['ALFALUX','LUMINEW']).default('ALFALUX').notNull(),
 	status: mysqlEnum(['draft','sent','in_production','completed']).default('draft').notNull(),
@@ -193,6 +193,20 @@ export const factoryOrders = mysqlTable("factory_orders", {
 },
 (table) => [
 	index("factory_orders_quoteId_idx").on(table.quoteId),
+]);
+
+export const factoryOrderExcels = mysqlTable("factory_order_excels", {
+	id: int().autoincrement().notNull(),
+	factoryOrderId: int().notNull(),
+	orderNumber: varchar({ length: 6 }).notNull(),
+	revision: int().notNull(),
+	excelKey: text().notNull(),
+	excelUrl: text().notNull(),
+	generatedByUserId: int(),
+	generatedAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("factory_order_excels_orderId_idx").on(table.factoryOrderId),
 ]);
 
 export const factoryOrderItems = mysqlTable("factory_order_items", {
@@ -240,6 +254,8 @@ export type FactoryOrder = InferSelectModel<typeof factoryOrders>;
 export type InsertFactoryOrder = InferInsertModel<typeof factoryOrders>;
 export type FactoryOrderItem = InferSelectModel<typeof factoryOrderItems>;
 export type InsertFactoryOrderItem = InferInsertModel<typeof factoryOrderItems>;
+export type FactoryOrderExcel = InferSelectModel<typeof factoryOrderExcels>;
+export type InsertFactoryOrderExcel = InferInsertModel<typeof factoryOrderExcels>;
 // ─── Backups Automáticos ─────────────────────────────────────────────────────
 export const backups = mysqlTable("backups", {
 	id: int().autoincrement().notNull(),

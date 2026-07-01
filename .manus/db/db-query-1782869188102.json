@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE `factory_order_excels` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`factoryOrderId` int NOT NULL,\n\t`orderNumber` varchar(6) NOT NULL,\n\t`revision` int NOT NULL,\n\t`excelKey` text NOT NULL,\n\t`excelUrl` text NOT NULL,\n\t`generatedByUserId` int,\n\t`generatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n\tPRIMARY KEY (`id`)\n);\n\nALTER TABLE `factory_orders` MODIFY COLUMN `orderNumber` varchar(6);\n\nCREATE INDEX `factory_order_excels_orderId_idx` ON `factory_order_excels` (`factoryOrderId`);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute CREATE TABLE `factory_order_excels` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`factoryOrderId` int NOT NULL,\n\t`orderNumber` varchar(6) NOT NULL,\n\t`revision` int NOT NULL,\n\t`excelKey` text NOT NULL,\n\t`excelUrl` text NOT NULL,\n\t`generatedByUserId` int,\n\t`generatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n\tPRIMARY KEY (`id`)\n);\n\nALTER TABLE `factory_orders` MODIFY COLUMN `orderNumber` varchar(6);\n\nCREATE INDEX `factory_order_excels_orderId_idx` ON `factory_order_excels` (`factoryOrderId`);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 823
+}

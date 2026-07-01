@@ -5,6 +5,7 @@ import {
   quotes, quoteVersions, quoteItems, InsertQuote, InsertQuoteVersion, InsertQuoteItem,
   auditLogs, InsertAuditLog,
   factoryOrders, factoryOrderItems, InsertFactoryOrder, InsertFactoryOrderItem,
+  factoryOrderExcels,
   salesGoals, InsertSalesGoal
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -992,7 +993,32 @@ export async function createFactoryOrderRevision(sourceOrderId: number) {
   return newOrderId;
 }
 
-// ─── Metas de Faturamento ─────────────────────────────────────────────────────
+// ─── Histórico de Excels do Pedido de Fábrica ─────────────────────────────────────────────────────────────────────────────
+/** Registra um Excel gerado para um pedido de fábrica */
+export async function createFactoryOrderExcel(data: {
+  factoryOrderId: number;
+  orderNumber: string;
+  revision: number;
+  excelKey: string;
+  excelUrl: string;
+  generatedByUserId?: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error('DB não disponível');
+  const [result] = await db.insert(factoryOrderExcels).values(data);
+  return (result as any).insertId as number;
+}
+
+/** Lista os Excels gerados para um pedido de fábrica (mais recente primeiro) */
+export async function listFactoryOrderExcels(factoryOrderId: number) {
+  const db = await getDb();
+  if (!db) throw new Error('DB não disponível');
+  return db.select().from(factoryOrderExcels)
+    .where(eq(factoryOrderExcels.factoryOrderId, factoryOrderId))
+    .orderBy(desc(factoryOrderExcels.generatedAt));
+}
+
+// ─── Metas de Faturamento ─────────────────────────────────────────────────────────────────────────────
 /** Retorna todas as metas de um ano */
 export async function getSalesGoalsByYear(year: number) {
   const db = await getDb();
@@ -1038,7 +1064,6 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
   const db = await getDb();
   if (!db) return null;
 
-  // ── Totais gerais do período ──────────────────────────────────────────────────────────────────────────
   const periodCondition = (dateFrom && dateTo)
     ? sql`approvedAt >= ${dateFrom} AND approvedAt <= ${dateTo + ' 23:59:59'} AND status = 'approved'`
     : month

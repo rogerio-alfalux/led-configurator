@@ -447,6 +447,12 @@ export default function FactoryOrderDetail() {
     }
   }, [currentOrder?.id, currentOrder?.orderNumber]);
 
+  // Histórico de Excels gerados para o pedido selecionado
+  const { data: excelHistory = [] } = trpc.factoryOrders.listExcels.useQuery(
+    { factoryOrderId: effectiveOrderId! },
+    { enabled: effectiveOrderId !== null }
+  );
+
   // Drivers da API
   const { data: driversData = [] } = trpc.led.drivers.useQuery();
 
@@ -493,6 +499,13 @@ export default function FactoryOrderDetail() {
       toast.success("Item adicionado");
     },
     onError: (err) => toast.error(`Erro: ${err.message}`),
+  });
+
+  const saveExcelMutation = trpc.factoryOrders.saveExcel.useMutation({
+    onSuccess: () => {
+      utils.factoryOrders.listExcels.invalidate({ factoryOrderId: effectiveOrderId! });
+    },
+    onError: (err) => toast.error(`Erro ao salvar histórico do Excel: ${err.message}`),
   });
 
   const createRevisionMutation = trpc.factoryOrders.createRevision.useMutation({
@@ -560,6 +573,13 @@ export default function FactoryOrderDetail() {
 
   const handleGenerateExcel = useCallback(async () => {
     if (!currentOrder || !quoteData) return;
+    // Validar número do pedido: exatamente 6 dígitos numéricos
+    const orderNum = currentOrder.orderNumber ?? "";
+    if (!/^\d{6}$/.test(orderNum)) {
+      toast.error("Informe o número do pedido (6 dígitos numéricos) antes de gerar o Excel.");
+      setEditingOrderNumber(true);
+      return;
+    }
     setIsGenerating(true);
     try {
       const { quote } = quoteData;
@@ -571,11 +591,12 @@ export default function FactoryOrderDetail() {
       const itemsData = currentOrder.items
         .map(i => parseCartItemData(i.itemData))
         .filter((d): d is CartItemData => d !== null);
-      await generateOrderExcel(itemsData, {
+      const fileName = `PEDIDO-FABRICA-${orderNum}-${quote.clientName.replace(/\s+/g, "_")}.xlsx`;
+      const buffer = await generateOrderExcel(itemsData, {
         clientName: quote.clientName,
         projectName: quote.projectName ?? "",
         quoteNumber: `${quote.quoteNumber} Rev.${currentOrder.revision}`,
-        orderNumber: currentOrder.orderNumber ?? undefined,
+        orderNumber: orderNum,
         vendorName: quote.vendorName ?? "",
         date: toBrasiliaDate(new Date()),
         empresa: currentOrder.empresa as "ALFALUX" | "LUMINEW",
@@ -585,12 +606,28 @@ export default function FactoryOrderDetail() {
         precomputedDeliveryDate: deliveryDateStr,
       });
       toast.success("Excel do pedido de fábrica gerado!");
+      // Salvar no S3 e registrar no histórico (em background, sem bloquear o usuário)
+      try {
+        const uint8 = new Uint8Array(buffer);
+        let binary = "";
+        for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+        const base64 = btoa(binary);
+        saveExcelMutation.mutate({
+          factoryOrderId: currentOrder.id,
+          orderNumber: orderNum,
+          revision: currentOrder.revision,
+          excelBase64: base64,
+          fileName,
+        });
+      } catch {
+        // Falha silenciosa no histórico não impede o download
+      }
     } catch (err) {
       toast.error("Erro ao gerar Excel.");
     } finally {
       setIsGenerating(false);
     }
-  }, [currentOrder, quoteData]);
+  }, [currentOrder, quoteData, saveExcelMutation]);
 
   const handleSaveNotes = useCallback(() => {
     if (!effectiveOrderId) return;
@@ -758,15 +795,16 @@ export default function FactoryOrderDetail() {
                         <div className="sm:col-span-3">
                           <Label className="text-xs">Número do Pedido de Fábrica</Label>
                           <p className="text-xs text-muted-foreground mb-1">
-                            Número interno da fábrica (diferente do número do orçamento). Será usado na ficha de produção.
+                            Número interno da fábrica com exatamente <strong>6 dígitos numéricos</strong> (ex: 250042). Obrigatório para gerar o Excel.
                           </p>
                           {editingOrderNumber ? (
                             <div className="flex gap-2 mt-1">
                               <Input
                                 value={orderNumberEdit}
-                                onChange={e => setOrderNumberEdit(e.target.value)}
-                                placeholder="Ex: 2025-0042"
-                                className="h-8 text-sm font-mono flex-1"
+                                onChange={e => setOrderNumberEdit(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                placeholder="Ex: 250042"
+                                maxLength={6}
+                                className={`h-8 text-sm font-mono flex-1 ${orderNumberEdit && !/^\d{6}$/.test(orderNumberEdit) ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
                                 autoFocus
                                 onKeyDown={e => { if (e.key === "Enter") handleSaveOrderNumber(); if (e.key === "Escape") setEditingOrderNumber(false); }}
                               />
@@ -858,6 +896,35 @@ export default function FactoryOrderDetail() {
                           Criado em {toBrasiliaDate(currentOrder.createdAt)}
                         </span>
                       </div>
+
+                      {/* Histórico de Excels Gerados */}
+                      {excelHistory.length > 0 && (
+                        <div className="mt-4 border-t pt-3">
+                          <Label className="text-xs font-semibold flex items-center gap-1.5 mb-2">
+                            <FileSpreadsheet className="w-3.5 h-3.5 text-green-600" />
+                            Histórico de Excels Gerados
+                          </Label>
+                          <div className="space-y-1.5">
+                            {excelHistory.map((ex: any) => (
+                              <div key={ex.id} className="flex items-center justify-between gap-2 bg-muted/40 rounded px-2.5 py-1.5 text-xs">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="font-mono font-semibold text-orange-700 dark:text-orange-400">{ex.orderNumber}</span>
+                                  <span className="text-muted-foreground">Rev. {ex.revision}</span>
+                                  <span className="text-muted-foreground truncate">{new Date(ex.generatedAt).toLocaleString('pt-BR')}</span>
+                                </div>
+                                <a
+                                  href={ex.excelUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="shrink-0 text-green-700 dark:text-green-400 hover:underline font-medium"
+                                >
+                                  Baixar
+                                </a>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Observações */}
                       <div className="mt-3">
