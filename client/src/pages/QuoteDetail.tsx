@@ -937,6 +937,8 @@ export default function QuoteDetail() {
 
   /** Abre o modal de pré-visualização com os dados do pedido de fábrica */
   const handleOpenOrderPreview = async (empresa: "ALFALUX" | "LUMINEW") => {
+    if (orderNumberInput.length !== 6) { toast.error("Número do pedido deve ter exatamente 6 dígitos."); return; }
+    if (!billingCompanyInput) { toast.error("Selecione a empresa faturadora."); return; }
     setEmpresaDialogOpen(false);
     setIsGenerating(true);
     try {
@@ -967,6 +969,15 @@ export default function QuoteDetail() {
   };
 
   const handleGenerateOrder = async (empresa: "ALFALUX" | "LUMINEW") => {
+    if (orderNumberInput.length !== 6) { toast.error("Número do pedido deve ter exatamente 6 dígitos."); return; }
+    if (!billingCompanyInput) { toast.error("Selecione a empresa faturadora."); return; }
+    // Salvar número do pedido e empresa faturadora no orçamento
+    updateStatusMutation.mutate({
+      id: Number(id),
+      status: quote.status as "open" | "approved" | "lost" | "cancelled" | "invoiced",
+      orderNumber: orderNumberInput,
+      billingCompany: billingCompanyInput as "alfalux" | "primelux" | "decada" | "primelase" | "luminew",
+    });
     setIsGenerating(true);
     setEmpresaDialogOpen(false);
     try {
@@ -982,7 +993,7 @@ export default function QuoteDetail() {
           projectName: quote.projectName ?? "",
           quoteNumber: quote.quoteNumber,
           // Se há número de pedido registrado, usar no campo PEDIDO da ficha de produção
-          orderNumber: (quote as any).orderNumber || undefined,
+          orderNumber: orderNumberInput || (quote as any).orderNumber || undefined,
           vendorName: quote.vendorName ?? "",
           date: toBrasiliaDate(quote.approvedAt ?? quote.createdAt),
           empresa,
@@ -1262,7 +1273,37 @@ export default function QuoteDetail() {
                   <DialogHeader>
                     <DialogTitle>Empresa Fabricante</DialogTitle>
                   </DialogHeader>
-                  <p className="text-sm text-muted-foreground">Selecione a empresa que irá fabricar este pedido. A seleção aparecerá marcada na Ficha Técnica de Produção.</p>
+                  <p className="text-sm text-muted-foreground">Selecione a empresa fabricante e preencha os dados do pedido.</p>
+                  {/* Número do Pedido e Empresa Faturadora */}
+                  <div className="space-y-3 p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-200 dark:border-orange-800">
+                    <div>
+                      <Label className="text-sm">Número do Pedido <span className="text-red-500">*</span></Label>
+                      <Input
+                        placeholder="Ex: 102030"
+                        maxLength={6}
+                        value={orderNumberInput}
+                        onChange={e => setOrderNumberInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        className="font-mono mt-1"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">6 dígitos numéricos sequenciais</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm">Empresa Faturadora <span className="text-red-500">*</span></Label>
+                      <Select value={billingCompanyInput} onValueChange={setBillingCompanyInput}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Selecione a empresa" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="alfalux">Alfalux (Lucro Presumido)</SelectItem>
+                          <SelectItem value="primelux">Prime Lux (Lucro Real)</SelectItem>
+                          <SelectItem value="decada">Década (Simples Nacional)</SelectItem>
+                          <SelectItem value="primelase">Prime Lase (Simples Nacional)</SelectItem>
+                          <SelectItem value="luminew">Luminew (Simples Nacional)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <p className="text-sm font-medium">Empresa Fabricante</p>
                   <div className="flex flex-col gap-3 py-2">
                     <button
                       onClick={() => setEmpresaSelecionada("ALFALUX")}
@@ -1825,38 +1866,11 @@ export default function QuoteDetail() {
                   </Select>
                 </div>
 
-                {/* Campos obrigatórios ao fechar (approved) */}
                 {newStatus === "approved" && (
-                  <div className="space-y-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
-                    <p className="text-sm font-semibold text-green-700 dark:text-green-400 flex items-center gap-1">
-                      <CheckCircle className="w-4 h-4" /> Pedido Fechado — preencha os dados abaixo
+                  <div className="p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                    <p className="text-sm text-green-700 dark:text-green-400 flex items-center gap-1">
+                      <CheckCircle className="w-4 h-4" /> O orçamento será marcado como <strong>Aprovado</strong>. O número de pedido e empresa faturadora serão solicitados ao gerar o Pedido de Fábrica.
                     </p>
-                    <div>
-                      <Label className="text-sm">Número do Pedido <span className="text-red-500">*</span></Label>
-                      <Input
-                        placeholder="Ex: 102030"
-                        maxLength={6}
-                        value={orderNumberInput}
-                        onChange={e => setOrderNumberInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                        className="font-mono mt-1"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">6 dígitos numéricos sequenciais</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm">Empresa Faturadora <span className="text-red-500">*</span></Label>
-                      <Select value={billingCompanyInput} onValueChange={setBillingCompanyInput}>
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Selecione a empresa" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="alfalux">Alfalux (Lucro Presumido)</SelectItem>
-                          <SelectItem value="primelux">Prime Lux (Lucro Real)</SelectItem>
-                          <SelectItem value="decada">Década (Simples Nacional)</SelectItem>
-                          <SelectItem value="primelase">Prime Lase (Simples Nacional)</SelectItem>
-                          <SelectItem value="luminew">Luminew (Simples Nacional)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
                   </div>
                 )}
 
@@ -1872,15 +1886,9 @@ export default function QuoteDetail() {
                 <Button
                   onClick={() => {
                     if (!newStatus) return;
-                    if (newStatus === "approved") {
-                      if (orderNumberInput.length !== 6) { toast.error("Número do pedido deve ter exatamente 6 dígitos."); return; }
-                      if (!billingCompanyInput) { toast.error("Selecione a empresa faturadora."); return; }
-                    }
                     updateStatusMutation.mutate({
                       id: Number(id),
                       status: newStatus as "open" | "approved" | "lost" | "cancelled" | "invoiced",
-                      orderNumber: newStatus === "approved" ? orderNumberInput : undefined,
-                      billingCompany: newStatus === "approved" ? billingCompanyInput as "alfalux" | "primelux" | "decada" | "primelase" | "luminew" : undefined,
                     });
                   }}
                   disabled={!newStatus || updateStatusMutation.isPending}
