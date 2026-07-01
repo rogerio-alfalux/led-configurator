@@ -70,6 +70,15 @@ import {
 } from "@/lib/bageoCatalog";
 import type { BageoProduct, BageoInstalacao, BageoControle, BageoResult } from "@/lib/bageoCatalog";
 import { ProductSearch } from "@/components/ProductSearch";
+import {
+  calculateSpaceR,
+  calculateSpaceQ,
+  getSpaceCartDescription,
+  SPACE_FORMAT_LABELS,
+  type SpaceFormat,
+  type SpacePotencia,
+  type SpaceCalculationResult,
+} from "@/lib/spaceCalculator";
 import type { SearchSuggestion, ProductSearchCatalogs } from "@/components/ProductSearch";
 import ColorPickerModal from "@/components/ColorPickerModal";
 import type { CorPeca } from "@/components/ColorPickerModal";
@@ -2507,6 +2516,21 @@ export default function Home() {
   const [lbComprimento, setLbComprimento] = useState<string>("");
   const [lbNCortes, setLbNCortes] = useState<string>("1");
   const [lbResult, setLbResult] = useState<LedBarResult | null>(null);
+  // ── Estados de SPACE Genérico ─────────────────────────────────────────────────
+  /** Formato selecionado: R=Redondo, Q=Quadrado, Ret=Retangular */
+  const [spaceFormat, setSpaceFormat] = useState<SpaceFormat>("R");
+  /** Diâmetro em mm (Space R) */
+  const [spaceDiametro, setSpaceDiametro] = useState<string>("1000");
+  /** Largura em mm (Space Q / Space Ret) */
+  const [spaceLargura, setSpaceLargura] = useState<string>("1000");
+  /** Comprimento em mm (Space Ret) */
+  const [spaceComprimento, setSpaceComprimento] = useState<string>("1000");
+  /** Potência da fita: 5W/m ou 10W/m */
+  const [spacePotencia, setSpacePotencia] = useState<SpacePotencia>("5W/m");
+  /** CCT selecionado para o SPACE genérico */
+  const [spaceCCT, setSpaceCCT] = useState<string>("3000K");
+  /** Resultado do cálculo SPACE */
+  const [spaceResult, setSpaceResult] = useState<SpaceCalculationResult | null>(null);
   // ── Estados de BAGEO ─────────────────────────────────────────────────────────
   const [bgMode, setBgMode] = useState<"sinuosa" | "fixo" | false>(false); // modo BAGEO selecionado no dropdown
   // ── Estados de BAGEO fixo (tamanhos fixos, fluxo igual a Downlights) ─────────
@@ -6012,6 +6036,134 @@ export default function Home() {
                           </div>
                         );
                       })()}
+
+                      {/* ── Configurador SPACE Genérico ─────────────────────────────────────── */}
+                      {(() => {
+                        // Detectar se o produto selecionado é um SPACE genérico
+                        const [_spSku, ..._spNP] = (panelProductKey ?? '::').split('::');
+                        const _spProd = panelProductKey ? activePanelCatalog.find(p => p.sku === _spSku && p.name === _spNP.join('::')) : null;
+                        const isSpaceGeneric = _spProd?.familia === 'SPACE' && _spProd?.name?.toUpperCase().includes('GENÉRICA');
+                        if (!isSpaceGeneric) return null;
+                        return (
+                          <div className="space-y-4 mt-2 p-3 rounded-lg border border-teal-500/30 bg-teal-50/20 dark:bg-teal-900/10">
+                            <p className="text-xs font-semibold text-teal-700 dark:text-teal-400 uppercase tracking-wide flex items-center gap-1.5">
+                              <Grid2X2 className="w-3.5 h-3.5" />
+                              Configurador SPACE — Dimensões Personalizadas
+                            </p>
+                            {/* Formato */}
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Formato</Label>
+                              <div className="flex gap-2">
+                                {(["R", "Q", "Ret"] as SpaceFormat[]).map((fmt) => (
+                                  <button
+                                    key={fmt}
+                                    onClick={() => { setSpaceFormat(fmt); setSpaceResult(null); }}
+                                    className={[
+                                      "flex-1 py-2 rounded-lg text-xs font-medium border transition-all",
+                                      spaceFormat === fmt
+                                        ? "bg-teal-600 text-white border-teal-600"
+                                        : "bg-background text-foreground border-border hover:border-teal-500/50",
+                                    ].join(" ")}
+                                  >
+                                    {SPACE_FORMAT_LABELS[fmt]}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            {/* Dimensões */}
+                            {spaceFormat === "R" ? (
+                              <div className="space-y-1.5">
+                                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Diâmetro (mm)</Label>
+                                <Input
+                                  type="number"
+                                  min={51}
+                                  step={10}
+                                  value={spaceDiametro}
+                                  onChange={(e) => { setSpaceDiametro(e.target.value); setSpaceResult(null); }}
+                                  className="h-10 max-w-xs"
+                                  placeholder="Ex: 1000"
+                                />
+                                <p className="text-xs text-muted-foreground">Diâmetro externo do painel em milímetros (mín. 51mm)</p>
+                              </div>
+                            ) : spaceFormat === "Q" ? (
+                              <div className="space-y-1.5">
+                                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Lado (mm)</Label>
+                                <Input
+                                  type="number"
+                                  min={51}
+                                  step={10}
+                                  value={spaceLargura}
+                                  onChange={(e) => { setSpaceLargura(e.target.value); setSpaceComprimento(e.target.value); setSpaceResult(null); }}
+                                  className="h-10 max-w-xs"
+                                  placeholder="Ex: 1000"
+                                />
+                                <p className="text-xs text-muted-foreground">Lado do painel quadrado em milímetros (mín. 51mm)</p>
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Largura (mm)</Label>
+                                  <Input
+                                    type="number"
+                                    min={51}
+                                    step={10}
+                                    value={spaceLargura}
+                                    onChange={(e) => { setSpaceLargura(e.target.value); setSpaceResult(null); }}
+                                    className="h-10"
+                                    placeholder="Ex: 600"
+                                  />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Comprimento (mm)</Label>
+                                  <Input
+                                    type="number"
+                                    min={51}
+                                    step={10}
+                                    value={spaceComprimento}
+                                    onChange={(e) => { setSpaceComprimento(e.target.value); setSpaceResult(null); }}
+                                    className="h-10"
+                                    placeholder="Ex: 1200"
+                                  />
+                                </div>
+                                <p className="text-xs text-muted-foreground col-span-2">Dimensões externas do painel retangular em milímetros (mín. 51mm cada)</p>
+                              </div>
+                            )}
+                            {/* Potência da fita */}
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Potência da Fita</Label>
+                              <div className="flex gap-2">
+                                {(["5W/m", "10W/m"] as SpacePotencia[]).map((pot) => (
+                                  <button
+                                    key={pot}
+                                    onClick={() => { setSpacePotencia(pot); setSpaceResult(null); }}
+                                    className={[
+                                      "flex-1 py-2 rounded-lg text-sm font-medium border transition-all",
+                                      spacePotencia === pot
+                                        ? "bg-primary text-primary-foreground border-primary"
+                                        : "bg-background text-foreground border-border hover:border-primary/50",
+                                    ].join(" ")}
+                                  >
+                                    {pot}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            {/* CCT do SPACE genérico */}
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
+                              <select
+                                value={spaceCCT}
+                                onChange={(e) => { setSpaceCCT(e.target.value); setSpaceResult(null); }}
+                                className="h-9 rounded-md border border-border bg-background text-foreground text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
+                              >
+                                {(_spProd?.ccts?.length ? _spProd.ccts.map(c => `${c}K`) : ["2700K", "3000K", "4000K", "5000K"]).concat(["A definir"]).map((c) => (
+                                  <option key={c} value={c}>{c}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })()}
@@ -6453,46 +6605,83 @@ export default function Home() {
             )}
 
             {/* Botão Calcular — Painéis */}
-            {productCategory === "Painéis" && (
-              <div className="space-y-2">
-                {!panelInstalacao && (
-                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione o tipo de instalação antes de calcular.
-                  </p>
-                )}
-                {panelInstalacao && !panelFamilia && (
-                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione a família antes de calcular.
-                  </p>
-                )}
-                {panelFamilia && panelProductKey === null && (
-                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione o produto antes de calcular.
-                  </p>
-                )}
-                {panelProductKey !== null && !panelVoltage && (
-                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
-                  </p>
-                )}
-                <Button
-                  disabled={panelProductKey === null || !panelVoltage}
-                  onClick={() => {
-                    if (panelProductKey === null || !panelVoltage) return;
-                    const [panelSku, ...panelNameParts] = (panelProductKey ?? '::').split('::');
-                    const panelName = panelNameParts.join('::');
-                    const selPainel = activePanelCatalog.find(p => p.sku === panelSku && p.name === panelName);
-                    if (!selPainel) return;
-                    setPanelResult(calculatePainel({ productSku: panelSku, productName: panelName, tensao: panelVoltage, cct: panelCCT, controle: panelControle }, activePanelCatalog));
-                  }}
-                  className="w-full h-12 text-base font-semibold font-display"
-                  size="lg"
-                >
-                  <Zap className="w-5 h-5 mr-2" />
-                  Calcular Painél
-                </Button>
-              </div>
-            )}
+            {productCategory === "Painéis" && (() => {
+              // Detectar se o produto selecionado é SPACE genérico
+              const [_btnSpSku, ..._btnSpNP] = (panelProductKey ?? '::').split('::');
+              const _btnSpProd = panelProductKey ? activePanelCatalog.find(p => p.sku === _btnSpSku && p.name === _btnSpNP.join('::')) : null;
+              const _isSpaceGenericBtn = _btnSpProd?.familia === 'SPACE' && _btnSpProd?.name?.toUpperCase().includes('GEN\u00c9RICA');
+              return (
+                <div className="space-y-2">
+                  {!panelInstalacao && (
+                    <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Selecione o tipo de instalação antes de calcular.
+                    </p>
+                  )}
+                  {panelInstalacao && !panelFamilia && (
+                    <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Selecione a família antes de calcular.
+                    </p>
+                  )}
+                  {panelFamilia && panelProductKey === null && (
+                    <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Selecione o produto antes de calcular.
+                    </p>
+                  )}
+                  {panelProductKey !== null && !_isSpaceGenericBtn && !panelVoltage && (
+                    <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
+                    </p>
+                  )}
+                  {_isSpaceGenericBtn ? (
+                    // Botão para SPACE genérico
+                    <Button
+                      disabled={panelProductKey === null}
+                      onClick={() => {
+                        if (!panelProductKey) return;
+                        const diametro = parseInt(spaceDiametro) || 0;
+                        const largura = parseInt(spaceLargura) || 0;
+                        const comprimento = parseInt(spaceComprimento) || 0;
+                        let result: SpaceCalculationResult;
+                        if (spaceFormat === 'R') {
+                          result = calculateSpaceR({ diametro });
+                        } else {
+                          result = calculateSpaceQ({ largura, comprimento: spaceFormat === 'Q' ? largura : comprimento });
+                        }
+                        setSpaceResult(result);
+                        setPanelResult(null);
+                        if (!result.valido) {
+                          toast.error('Dimensões inválidas. Verifique os valores informados.');
+                        }
+                      }}
+                      className="w-full h-12 text-base font-semibold font-display bg-teal-600 hover:bg-teal-700 text-white"
+                      size="lg"
+                    >
+                      <Zap className="w-5 h-5 mr-2" />
+                      Calcular SPACE
+                    </Button>
+                  ) : (
+                    // Botão para painel normal
+                    <Button
+                      disabled={panelProductKey === null || !panelVoltage}
+                      onClick={() => {
+                        if (panelProductKey === null || !panelVoltage) return;
+                        const [panelSku, ...panelNameParts] = (panelProductKey ?? '::').split('::');
+                        const panelName = panelNameParts.join('::');
+                        const selPainel = activePanelCatalog.find(p => p.sku === panelSku && p.name === panelName);
+                        if (!selPainel) return;
+                        setSpaceResult(null);
+                        setPanelResult(calculatePainel({ productSku: panelSku, productName: panelName, tensao: panelVoltage, cct: panelCCT, controle: panelControle }, activePanelCatalog));
+                      }}
+                      className="w-full h-12 text-base font-semibold font-display"
+                      size="lg"
+                    >
+                      <Zap className="w-5 h-5 mr-2" />
+                      Calcular Painél
+                    </Button>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Botão Calcular — Downlights */}
             {productCategory === "Downlights" && (
@@ -9369,6 +9558,201 @@ export default function Home() {
               </Card>
             )}
 
+            {/* Resultado SPACE Genérico */}
+            {productCategory === "Painéis" && spaceResult && (() => {
+              const [_srSku, ..._srNP] = (panelProductKey ?? '::').split('::');
+              const _srProd = panelProductKey ? activePanelCatalog.find(p => p.sku === _srSku && p.name === _srNP.join('::')) : null;
+              const potAtiva = spacePotencia;
+              const potTotal = potAtiva === '5W/m' ? spaceResult.potencia5w : spaceResult.potencia10w;
+              const fluxoAtivo = potAtiva === '5W/m' ? spaceResult.fluxoUtil5w : spaceResult.fluxoUtil10w;
+              const dimLabel = spaceFormat === 'R'
+                ? `Ø${spaceDiametro}mm`
+                : spaceFormat === 'Q'
+                  ? `${spaceLargura}x${spaceLargura}mm`
+                  : `${spaceLargura}x${spaceComprimento}mm`;
+              const spaceLabel = `SPACE ${spaceFormat === 'R' ? 'R' : spaceFormat === 'Q' ? 'Q' : 'RET'} ${dimLabel}`;
+              const driverInfo = _srProd?.driverBivolt;
+              // Quantidade de drivers necessária: 1 por painel (fita 12V, fonte 72W)
+              const driverQty = 1;
+              const orderText = [
+                `${spaceLabel} ${potAtiva} ${spaceCCT}`.toUpperCase(),
+                `METRAGEM: ${spaceResult.metragem}m de fita LED`,
+                `POTÊNCIA TOTAL: ${potTotal}W`,
+                `FLUXO ÚTIL: ${fluxoAtivo}lm`,
+                `ÁREA DA TELA: ${spaceResult.areaTela.toFixed(2)}m²`,
+                driverInfo ? `DRIVER: 1x ${driverInfo.model} (${driverInfo.code})` : '',
+                _srProd?.sku ? `CÓDIGO BASE: ${_srProd.sku}` : '',
+              ].filter(Boolean).join('\n');
+              return (
+                <div className="space-y-4">
+                  <Card className="shadow-sm border-teal-500/30">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                        <Grid2X2 className="w-4 h-4 text-teal-500" />
+                        Resultado — SPACE {spaceFormat === 'R' ? 'Redondo' : spaceFormat === 'Q' ? 'Quadrado' : 'Retangular'}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
+                          <p className="text-sm font-semibold">{spaceLabel} {potAtiva} {spaceCCT}</p>
+                        </div>
+                        {_srProd?.sku && (
+                          <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Código Base (Genérico)</p>
+                            <p className="text-sm font-mono font-semibold text-primary">{_srProd.sku}</p>
+                          </div>
+                        )}
+                        <div className="p-3 rounded-lg bg-teal-50 dark:bg-teal-900/20 border border-teal-500/30">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Metragem de Fita</p>
+                          <p className="text-lg font-bold text-teal-700 dark:text-teal-400">{spaceResult.metragem}m</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Área da Tela</p>
+                          <p className="text-lg font-bold">{spaceResult.areaTela.toFixed(2)}m²</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Potência Total ({potAtiva})</p>
+                          <p className="text-sm font-semibold">{potTotal}W</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-muted/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fluxo Útil</p>
+                          <p className="text-sm font-semibold">{fluxoAtivo.toLocaleString('pt-BR')} lm</p>
+                        </div>
+                        {driverInfo && (
+                          <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
+                            <p className="text-sm font-semibold">{driverInfo.model} <span className="font-mono text-primary">({driverInfo.code})</span></p>
+                          </div>
+                        )}
+                        <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Potência Comparativa</p>
+                          <p className="text-xs text-muted-foreground">Com fita 5W/m: <span className="font-semibold text-foreground">{spaceResult.potencia5w}W</span> ({spaceResult.fluxoUtil5w.toLocaleString('pt-BR')} lm) &nbsp;|&nbsp; Com fita 10W/m: <span className="font-semibold text-foreground">{spaceResult.potencia10w}W</span> ({spaceResult.fluxoUtil10w.toLocaleString('pt-BR')} lm)</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Resumo para Orçamento SPACE */}
+                  <Card className="shadow-sm border-blue-500/30">
+                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                      <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                        Resumo Para Orçamento
+                      </CardTitle>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                          <Input
+                            className="h-7 text-xs w-28"
+                            placeholder="ex: L1, P2..."
+                            value={globalItemEmPlanta}
+                            onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs text-muted-foreground whitespace-nowrap">Qtd:</label>
+                          <Input
+                            type="number"
+                            className="h-7 text-xs w-16"
+                            min={1}
+                            placeholder="1"
+                            value={globalQty}
+                            onChange={(e) => setGlobalQty(Math.max(1, parseInt(e.target.value) || 1))}
+                          />
+                        </div>
+                        <Button
+                          variant="outline" size="sm" className="h-7 text-xs gap-1.5"
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${spaceLabel} ${potAtiva} ${spaceCCT}`.toUpperCase());
+                            toast.success('Copiado!');
+                          }}
+                        >
+                          <Copy className="w-3 h-3" /> Copiar Resumo
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                          disabled={isAddingToCart}
+                          onClick={() => {
+                            const desc = getSpaceCartDescription(
+                              spaceFormat,
+                              { diametro: parseInt(spaceDiametro), largura: parseInt(spaceLargura), comprimento: parseInt(spaceComprimento) },
+                              potAtiva,
+                              spaceCCT
+                            );
+                            const item: CartItemData = {
+                              category: 'Painéis',
+                              sku: _srProd?.sku ?? '',
+                              description: desc,
+                              power: `${potTotal}W`,
+                              cct: spaceCCT,
+                              qty: globalQty,
+                              unitPrice: null,
+                              totalPrice: null,
+                              priceFromApi: false,
+                              photoUrl: _srProd?.fotoUrl ?? '',
+                              orderSummary: orderText,
+                              quoteSummary: `${spaceLabel} ${potAtiva} ${spaceCCT}`.toUpperCase(),
+                              moduloLed: '',
+                              drivers: driverInfo ? `${driverQty}x DRIVER ${driverInfo.model} (${driverInfo.code})` : '',
+                              availableCCTs: _srProd?.ccts,
+                              itemEmPlanta: globalItemEmPlanta,
+                              ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
+                              ...(globalAmbiente ? { ambiente: globalAmbiente } : {}),
+                            };
+                            if (appendToQuoteId) {
+                              handleAddItemOrToQuote(item);
+                            } else {
+                              setPendingCartItem(item);
+                              setColorModalOpen(true);
+                            }
+                          }}
+                        >
+                          <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? 'Enviar ao Orçamento' : 'Enviar ao Carrinho'}
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div
+                        className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
+                        onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
+                      >
+                        {`${spaceLabel} ${potAtiva} ${spaceCCT}`.toUpperCase()}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
+                    </CardContent>
+                  </Card>
+
+                  {/* Resumo para Pedido SPACE */}
+                  <Card className="shadow-sm border-green-500/30">
+                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                      <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                        <ClipboardCheck className="w-4 h-4 text-green-500" />
+                        Resumo Para Pedido
+                      </CardTitle>
+                      <Button
+                        variant="outline" size="sm" className="h-7 text-xs gap-1.5"
+                        onClick={() => { navigator.clipboard.writeText(orderText); toast.success('Copiado!'); }}
+                      >
+                        <Copy className="w-3 h-3" /> Copiar Pedido
+                      </Button>
+                    </CardHeader>
+                    <CardContent>
+                      <div
+                        className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
+                        onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
+                      >
+                        {orderText}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              );
+            })()}
+
             {/* Resultado Painéis */}
             {productCategory === "Painéis" && panelResult && (
               <div className="space-y-4">
@@ -10182,14 +10566,14 @@ export default function Home() {
             )}
 
             {/* Estado vazio Painéis */}
-            {productCategory === "Painéis" && !panelResult && (
+            {productCategory === "Painéis" && !panelResult && !spaceResult && (
               <Card className="shadow-sm">
                 <CardContent className="flex flex-col items-center justify-center py-20 text-center">
                   <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
                     <Grid2X2 className="w-8 h-8 text-muted-foreground" />
                   </div>
                   <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
-                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione a instalação, família, produto, tensão e CCT, depois clique em "Calcular Painél".</p>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione a instalação, família e produto. Para SPACE genérico, informe as dimensões e clique em "Calcular SPACE". Para outros painéis, selecione tensão e CCT e clique em "Calcular Painél".</p>
                 </CardContent>
               </Card>
             )}

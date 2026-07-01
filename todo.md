@@ -1732,3 +1732,17 @@
 - [x] Verificar e corrigir margem individual por produto (itemMarginPercent) no Excel e Preview
 - [x] Verificar diluição proporcional do frete (estava correta)
 - [x] Corrigir total do orçamento para incluir o frete (sistema, preview e Excel)
+
+## Configurador SPACE Genérico — Painéis Tensionados (01/07/2026)
+
+- [x] Criar biblioteca spaceCalculator.ts com fórmulas de cálculo SPACE (Space R, Space Q, Space Ret)
+- [x] Importar spaceCalculator no Home.tsx
+- [x] Adicionar estados do configurador SPACE (formato, diâmetro, largura, comprimento, potência, CCT, resultado)
+- [x] Detectar produtos SPACE genéricos no catálogo de Painéis (família SPACE + nome contém GENÉRICA)
+- [x] Inserir UI do configurador SPACE na seção de Painéis (formato, dimensões, potência, CCT)
+- [x] Botão "Calcular SPACE" para produtos genéricos (substitui "Calcular Painél" quando SPACE genérico selecionado)
+- [x] Bloco de resultado SPACE com metragem, área da tela, potência total, fluxo útil e driver
+- [x] Resumo para Orçamento SPACE com botão copiar e enviar ao carrinho
+- [x] Resumo para Pedido SPACE com todos os dados técnicos
+- [x] Estado vazio de Painéis atualizado para mencionar SPACE genérico
+- [ ] Verificar exibição no browser e testar fluxo completo
