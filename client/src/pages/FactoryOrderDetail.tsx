@@ -422,7 +422,8 @@ function CctSelector({ value, availableCCTs, onChange }: {
     : STANDARD_CCTS;
 
   const isOther = value !== "" && !options.includes(value);
-  const selectValue = isOther ? "__outra__" : (value || "");
+  // Mapear valor para o que o Select entende (nunca string vazia)
+  const selectValue = isOther ? "__outra__" : (value || "__a_definir__");
 
   return (
     <div>
@@ -430,7 +431,9 @@ function CctSelector({ value, availableCCTs, onChange }: {
       <Select
         value={selectValue}
         onValueChange={v => {
-          if (v === "__outra__") {
+          if (v === "__a_definir__") {
+            onChange("");
+          } else if (v === "__outra__") {
             // Manter o valor atual se já era "outra", senão limpar para o usuário digitar
             if (!isOther) onChange("");
           } else {
@@ -442,7 +445,7 @@ function CctSelector({ value, availableCCTs, onChange }: {
           <SelectValue placeholder="Selecionar CCT..." />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">— A Definir —</SelectItem>
+          <SelectItem value="__a_definir__">— A Definir —</SelectItem>
           {options.map(c => (
             <SelectItem key={c} value={c}>{c}</SelectItem>
           ))}
