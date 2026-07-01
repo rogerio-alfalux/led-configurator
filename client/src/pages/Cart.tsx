@@ -2478,6 +2478,7 @@ export default function Cart() {
                       );
                     })()}
                   </div>
+                  {!item?.data.isSpecialItem && (
                   <div className="space-y-1">
                     <Label>Cor da peça</Label>
                     <Select
@@ -2495,6 +2496,7 @@ export default function Cart() {
                       </SelectContent>
                     </Select>
                   </div>
+                  )}
                   {/* Campo de preço: desmembrado (luminária + driver) ou unitário */}
                   {item?.data.driverLines && item.data.driverLines.length > 0 ? (
                     <>

@@ -90,7 +90,7 @@ function buildSpecialEquipText(item: CartItemData): string {
   if (equips && equips.length > 0) {
     return equips.map(e => `${e.qty}x ${e.descricao}${e.codigo ? ` (${e.codigo})` : ''}`).join('<br>');
   }
-  return item.specialInternalNotes || "A DEFINIR";
+  return "A DEFINIR";
 }
 
 function esc(str: string | number | null | undefined): string {
@@ -163,7 +163,7 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
         <td style="text-align:left;font-size:9px">${equipText}</td>
         <td style="text-align:center;font-weight:bold">${esc(item.qty)}</td>
         <td style="text-align:center">${esc(corPecaValue)}</td>
-        <td></td>
+        <td style="text-align:left;font-size:9px">${item.category === "Item Especial" ? escNl(item.specialInternalNotes) : ""}</td>
       </tr>`;
 
     // Sub-linhas de acessórios

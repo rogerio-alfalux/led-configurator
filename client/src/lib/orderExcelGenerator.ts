@@ -435,7 +435,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
       if (equips && equips.length > 0) {
         return equips.map(e => `${e.qty}x ${e.descricao}${e.codigo ? ` (${e.codigo})` : ''}`).join('\n');
       }
-      return item.specialInternalNotes || "A DEFINIR";
+      return "A DEFINIR";
     };
     const equipText = item.category === "Item Especial"
       ? buildSpecialEquipText()
@@ -459,8 +459,9 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
       : (item.corPeca ?? "A Definir");
     fillRow(ws.getCell(`I${rowNum}`), corPecaValue);
 
-    // OBSERVAÇÕES (J) — deixar em branco
-    fillRow(ws.getCell(`J${rowNum}`), "");
+    // OBSERVAÇÕES (J) — para Item Especial: observações internas; para outros: deixar em branco
+    const obsValue = item.category === "Item Especial" ? (item.specialInternalNotes || "") : "";
+    fillRow(ws.getCell(`J${rowNum}`), obsValue);
     // ── Sub-linhas de acessórios vinculados ──────────────────────────────
     if (item.accessories && item.accessories.length > 0) {
       (item.accessories as LinkedAccessory[]).forEach((acc) => {

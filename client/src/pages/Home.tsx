@@ -209,6 +209,30 @@ function getPrecoForControle(
 }
 
 
+/** Extrai custo base e markup padrão para um produto de Perfis/Balizadores conforme controle/tensão */
+function getCustoForControle(
+  product: {
+    custoCorpoOnoff220v?: number | null; custoCorpoOnoffBivolt?: number | null;
+    custoCorpoDim110v?: number | null; custoCorpoDimDali?: number | null;
+    custoCorpoDimTriac110v?: number | null; custoCorpoDimTriac220v?: number | null;
+    markupPadraoOnoff220v?: number | null; markupPadraoOnoffBivolt?: number | null;
+    markupPadraoDim110v?: number | null; markupPadraoDimDali?: number | null;
+    markupPadraoDimTriac110v?: number | null; markupPadraoDimTriac220v?: number | null;
+    markupMinimoOnoff220v?: number | null; markupMinimoOnoffBivolt?: number | null;
+    markupMinimoDim110v?: number | null; markupMinimoDimDali?: number | null;
+    markupMinimoDimTriac110v?: number | null; markupMinimoDimTriac220v?: number | null;
+  },
+  controle: string,
+  tensao: string
+): { custoCorpoBase: number | null; markupPadraoApi: number | null; markupMinimoApi: number | null } {
+  if (controle === 'DIM DALI') return { custoCorpoBase: product.custoCorpoDimDali ?? null, markupPadraoApi: product.markupPadraoDimDali ?? null, markupMinimoApi: product.markupMinimoDimDali ?? null };
+  if (controle === 'DIM 1-10V') return { custoCorpoBase: product.custoCorpoDim110v ?? null, markupPadraoApi: product.markupPadraoDim110v ?? null, markupMinimoApi: product.markupMinimoDim110v ?? null };
+  if (controle === 'DIM TRIAC 110V') return { custoCorpoBase: product.custoCorpoDimTriac110v ?? null, markupPadraoApi: product.markupPadraoDimTriac110v ?? null, markupMinimoApi: product.markupMinimoDimTriac110v ?? null };
+  if (controle === 'DIM TRIAC 220V') return { custoCorpoBase: product.custoCorpoDimTriac220v ?? null, markupPadraoApi: product.markupPadraoDimTriac220v ?? null, markupMinimoApi: product.markupMinimoDimTriac220v ?? null };
+  if (tensao === 'Bivolt') return { custoCorpoBase: product.custoCorpoOnoffBivolt ?? null, markupPadraoApi: product.markupPadraoOnoffBivolt ?? null, markupMinimoApi: product.markupMinimoOnoffBivolt ?? null };
+  return { custoCorpoBase: product.custoCorpoOnoff220v ?? null, markupPadraoApi: product.markupPadraoOnoff220v ?? null, markupMinimoApi: product.markupMinimoOnoff220v ?? null };
+}
+
 /**
  * Calcula as linhas de driver desmembradas e o preço sem driver para luminárias.
  * Retorna null se não houver dados de custo/markup na API para o produto.
@@ -8294,6 +8318,7 @@ export default function Home() {
                             drivers: `DRIVER ${bfResult.driver.model.toUpperCase()} (${bfResult.driver.code})`,
                             availableCCTs: bfResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
+                            ...getCustoForControle(bfResult.product, bfResult.controle, bfResult.tensao),
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -8496,6 +8521,7 @@ export default function Home() {
                             drivers: `DRIVER ${glowResult.driver.model.toUpperCase()} (${glowResult.driver.code})`,
                             availableCCTs: glowResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
+                            ...getCustoForControle(glowResult.product, glowResult.controle, glowResult.tensao),
                           };
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -8912,7 +8938,7 @@ export default function Home() {
                               itemEmPlanta: globalItemEmPlanta,
                               floorName: globalPavimento || undefined,
                               ambiente: globalAmbiente || undefined,
-                              ...(bDrvLines ? { driverLines: bDrvLines.driverLines, priceWithoutDriver: bDrvLines.priceWithoutDriver, unitPriceLuminaria: bDrvLines.unitPriceLuminaria, unitPriceDriver: bDrvLines.unitPriceDriver, luminariaHasApiPrice: bDrvLines.luminariaHasApiPrice } : {}),
+                              ...(bDrvLines ? { driverLines: bDrvLines.driverLines, priceWithoutDriver: bDrvLines.priceWithoutDriver, unitPriceLuminaria: bDrvLines.unitPriceLuminaria, unitPriceDriver: bDrvLines.unitPriceDriver, luminariaHasApiPrice: bDrvLines.luminariaHasApiPrice, custoCorpoBase: bDrvLines.custoCorpoBase, markupPadraoApi: bDrvLines.markupPadraoApi, markupMinimoApi: bDrvLines.markupMinimoApi } : {}),
                             };
                             if (appendToQuoteId) {
                               handleAddItemOrToQuote(item);
