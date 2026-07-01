@@ -307,9 +307,66 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
         </div>
       </div>
 
-      {/* Equipamentos do Item Especial */}
+      {/* Campos editáveis do Item Especial */}
       {d.isSpecialItem && (
-        <div className="pt-1 border-t">
+        <div className="pt-2 border-t space-y-3">
+          <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wide">Dados do Item Especial</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
+              <Label className="text-xs">Descrição</Label>
+              <Input
+                value={d.specialDescription ?? d.description ?? ""}
+                onChange={e => onUpdate(item.id, { specialDescription: e.target.value, description: e.target.value })}
+                placeholder="Descrição do item especial"
+                className="mt-1 h-8 text-sm"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Dimensões</Label>
+              <Input
+                value={d.specialDimensions ?? ""}
+                onChange={e => onUpdate(item.id, { specialDimensions: e.target.value })}
+                placeholder="ex: 620 x 620 x 100mm"
+                className="mt-1 h-8 text-sm"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Potência</Label>
+              <Input
+                value={d.specialPower ?? ""}
+                onChange={e => onUpdate(item.id, { specialPower: e.target.value })}
+                placeholder="ex: 36W"
+                className="mt-1 h-8 text-sm"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Acionamento / DIM</Label>
+              <Input
+                value={d.specialDim ?? ""}
+                onChange={e => onUpdate(item.id, { specialDim: e.target.value })}
+                placeholder="ex: ON/OFF, DALI, DIM"
+                className="mt-1 h-8 text-sm"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Tensão</Label>
+              <Input
+                value={d.specialVoltage ?? ""}
+                onChange={e => onUpdate(item.id, { specialVoltage: e.target.value })}
+                placeholder="ex: BIVOLT, 220V"
+                className="mt-1 h-8 text-sm"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Cor da Peça (Especial)</Label>
+              <Input
+                value={d.specialColor ?? ""}
+                onChange={e => onUpdate(item.id, { specialColor: e.target.value })}
+                placeholder="ex: Branco, Preto"
+                className="mt-1 h-8 text-sm"
+              />
+            </div>
+          </div>
           <SpecialEquipmentsEditor
             value={d.specialEquipments ?? []}
             onChange={(equips: SpecialEquipment[]) => onUpdate(item.id, { specialEquipments: equips })}
