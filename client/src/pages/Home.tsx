@@ -5820,8 +5820,9 @@ export default function Home() {
                     ? Array.from(new Set(activePanelCatalog.filter(p => p.instalacao === panelInstalacao).map(p => p.familia))).sort()
                     : [];
                   const panelProdutos = panelInstalacao && panelFamilia
-                    ? activePanelCatalog.map((p, i) => ({ p, i })).filter(({ p }) => p.instalacao === panelInstalacao && p.familia === panelFamilia)
+                    ? activePanelCatalog.map((p, i) => ({ p, i })).filter(({ p }) => p.instalacao === panelInstalacao && p.familia === panelFamilia && !(p.familia === 'SPACE' && p.name?.toUpperCase().includes('GENÉRICA')))
                     : [];
+                  const isSpaceFamily = panelFamilia === 'SPACE';
                   return (
                     <div className="space-y-4">
                       {/* Badge de status da API */}
@@ -5903,6 +5904,9 @@ export default function Home() {
                           >
                             <SelectTrigger className="h-10"><SelectValue placeholder="Selecione o produto..." /></SelectTrigger>
                             <SelectContent>
+                              {isSpaceFamily && (
+                                <SelectItem value="SPACE_CUSTOMIZADA">✦ SPACE Customizada</SelectItem>
+                              )}
                               {panelProdutos.map(({ p, i }) => {
                                 const key = `${p.sku ?? ''}::${p.name}`;
                                 return <SelectItem key={`${key}-${i}`} value={key}>{p.name}</SelectItem>;
@@ -6039,10 +6043,11 @@ export default function Home() {
 
                       {/* ── Configurador SPACE Genérico ─────────────────────────────────────── */}
                       {(() => {
-                        // Detectar se o produto selecionado é um SPACE genérico
+                        // Detectar se o produto selecionado é SPACE Customizada ou genérico legado
+                        const isSpaceCustomizada = panelProductKey === 'SPACE_CUSTOMIZADA';
                         const [_spSku, ..._spNP] = (panelProductKey ?? '::').split('::');
-                        const _spProd = panelProductKey ? activePanelCatalog.find(p => p.sku === _spSku && p.name === _spNP.join('::')) : null;
-                        const isSpaceGeneric = _spProd?.familia === 'SPACE' && _spProd?.name?.toUpperCase().includes('GENÉRICA');
+                        const _spProd = (!isSpaceCustomizada && panelProductKey) ? activePanelCatalog.find(p => p.sku === _spSku && p.name === _spNP.join('::')) : null;
+                        const isSpaceGeneric = isSpaceCustomizada || (_spProd?.familia === 'SPACE' && _spProd?.name?.toUpperCase().includes('GENÉRICA'));
                         if (!isSpaceGeneric) return null;
                         return (
                           <div className="space-y-4 mt-2 p-3 rounded-lg border border-teal-500/30 bg-teal-50/20 dark:bg-teal-900/10">
@@ -6606,10 +6611,11 @@ export default function Home() {
 
             {/* Botão Calcular — Painéis */}
             {productCategory === "Painéis" && (() => {
-              // Detectar se o produto selecionado é SPACE genérico
+              // Detectar se o produto selecionado é SPACE Customizada ou genérico legado
+              const _isSpaceCustomizadaBtn = panelProductKey === 'SPACE_CUSTOMIZADA';
               const [_btnSpSku, ..._btnSpNP] = (panelProductKey ?? '::').split('::');
-              const _btnSpProd = panelProductKey ? activePanelCatalog.find(p => p.sku === _btnSpSku && p.name === _btnSpNP.join('::')) : null;
-              const _isSpaceGenericBtn = _btnSpProd?.familia === 'SPACE' && _btnSpProd?.name?.toUpperCase().includes('GEN\u00c9RICA');
+              const _btnSpProd = (!_isSpaceCustomizadaBtn && panelProductKey) ? activePanelCatalog.find(p => p.sku === _btnSpSku && p.name === _btnSpNP.join('::')) : null;
+              const _isSpaceGenericBtn = _isSpaceCustomizadaBtn || (_btnSpProd?.familia === 'SPACE' && _btnSpProd?.name?.toUpperCase().includes('GENÉRICA'));
               return (
                 <div className="space-y-2">
                   {!panelInstalacao && (
@@ -9560,8 +9566,15 @@ export default function Home() {
 
             {/* Resultado SPACE Genérico */}
             {productCategory === "Painéis" && spaceResult && (() => {
-              const [_srSku, ..._srNP] = (panelProductKey ?? '::').split('::');
-              const _srProd = panelProductKey ? activePanelCatalog.find(p => p.sku === _srSku && p.name === _srNP.join('::')) : null;
+              // Quando SPACE_CUSTOMIZADA: buscar produto base pelo SKU correto (R→LDS-6078, Q/Ret→LDS-6079)
+              let _srProd: typeof activePanelCatalog[0] | null | undefined = null;
+              if (panelProductKey === 'SPACE_CUSTOMIZADA') {
+                const baseSku = spaceFormat === 'R' ? 'LDS-6078' : 'LDS-6079';
+                _srProd = activePanelCatalog.find(p => p.sku === baseSku) ?? null;
+              } else {
+                const [_srSku, ..._srNP] = (panelProductKey ?? '::').split('::');
+                _srProd = panelProductKey ? activePanelCatalog.find(p => p.sku === _srSku && p.name === _srNP.join('::')) : null;
+              }
               const potAtiva = spacePotencia;
               const potTotal = potAtiva === '5W/m' ? spaceResult.potencia5w : spaceResult.potencia10w;
               const fluxoAtivo = potAtiva === '5W/m' ? spaceResult.fluxoUtil5w : spaceResult.fluxoUtil10w;

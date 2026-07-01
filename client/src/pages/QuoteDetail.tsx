@@ -817,7 +817,7 @@ export default function QuoteDetail() {
     : (data?.quote.seller1Id ?? undefined);
   const suggestNumberQuery = trpc.quotes.suggestNumber.useQuery(
     { sellerId: duplicateEffectiveSellerId },
-    { enabled: duplicateDialogOpen }
+    { enabled: duplicateDialogOpen, staleTime: 0 }
   );
 
   const duplicateMutation = trpc.quotes.duplicate.useMutation({

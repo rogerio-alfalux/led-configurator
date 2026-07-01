@@ -1753,3 +1753,9 @@
 - [x] Gerar novo número automaticamente no servidor quando seller1Id muda (prefixo do novo vendedor)
 - [x] Liberar campo de número do orçamento para edição manual no dialog de edição do QuoteDetail (orçamentos já salvos)
 - [x] Corrigir duplicação: permitir alterar vendedor e gerar novo número com prefixo correto
+
+## Correções SPACE e Duplicação (Jul 2026)
+
+- [x] Substituir produtos SPACE genéricos no dropdown por opção única "SPACE Customizada"
+- [x] Ao selecionar "SPACE Customizada", ativar modo de cálculo SPACE (igual ao fluxo atual com genéricas)
+- [x] Corrigir bug de duplicação com troca de vendedor (staleTime: 0 no suggestNumberQuery)
