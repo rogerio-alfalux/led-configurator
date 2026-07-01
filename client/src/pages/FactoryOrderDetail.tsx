@@ -969,15 +969,6 @@ export default function FactoryOrderDetail() {
             <div className="lg:col-span-1 space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold">Revisões</h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs gap-1"
-                  onClick={() => setShowNewOrderDialog(true)}
-                >
-                  <Plus className="w-3 h-3" />
-                  Novo
-                </Button>
               </div>
               {orders.map(order => {
                 const st = STATUS_LABELS[order.status] ?? STATUS_LABELS.draft;
