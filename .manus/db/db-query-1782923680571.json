@@ -1,0 +1,40 @@
+{
+  "query": "SELECT id, quoteNumber, currentVersion, revisionCount FROM quotes WHERE quoteNumber LIKE '33.%' ORDER BY id DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT id, quoteNumber, currentVersion, revisionCount FROM quotes WHERE quoteNumber LIKE '33.%' ORDER BY id DESC LIMIT 5;",
+  "rows": [
+    {
+      "id": "4740001",
+      "quoteNumber": "33.0077-26",
+      "currentVersion": "3",
+      "revisionCount": "2"
+    },
+    {
+      "id": "4080001",
+      "quoteNumber": "33.0100-26",
+      "currentVersion": "1",
+      "revisionCount": "0"
+    },
+    {
+      "id": "3630001",
+      "quoteNumber": "33.0079-26",
+      "currentVersion": "1",
+      "revisionCount": "0"
+    },
+    {
+      "id": "3510002",
+      "quoteNumber": "33.0030-26",
+      "currentVersion": "1",
+      "revisionCount": "0"
+    },
+    {
+      "id": "3450004",
+      "quoteNumber": "33.0050-26",
+      "currentVersion": "1",
+      "revisionCount": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tquoteNumber\tcurrentVersion\trevisionCount\n4740001\t33.0077-26\t3\t2\n4080001\t33.0100-26\t1\t0\n3630001\t33.0079-26\t1\t0\n3510002\t33.0030-26\t1\t0\n3450004\t33.0050-26\t1\t0\n",
+  "stderr": "",
+  "execution_time_ms": 282
+}

@@ -48,7 +48,7 @@ import { OrderPreviewModal } from "@/components/OrderPreviewModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 import { toast } from "sonner";
-import { PRICE_OVERRIDE_EMAILS } from "@shared/const";
+import { PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS } from "@shared/const";
 import { applyCCTChange } from "@/lib/cctUtils";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -640,6 +640,9 @@ export default function QuoteDetail() {
 
   // Editação de itens do orçamento
   const [editItemsDialogOpen, setEditItemsDialogOpen] = useState(false);
+  // Dialog de edição manual de revisão (somente gestores)
+  const [setRevisionDialogOpen, setSetRevisionDialogOpen] = useState(false);
+  const [manualRevisionValue, setManualRevisionValue] = useState("");
   // Agrupamento por pavimento no painel de edição
   const [editGroupByFloor, setEditGroupByFloor] = useState(false);
   // Pavimentos recolhidos no editor
@@ -778,6 +781,14 @@ export default function QuoteDetail() {
   });
 
   const logProductionSheetMutation = trpc.quotes.logProductionSheet.useMutation();
+  const setRevisionMutation = trpc.quotes.setRevision.useMutation({
+    onSuccess: () => {
+      utils.quotes.getById.invalidate({ id: Number(id) });
+      setSetRevisionDialogOpen(false);
+      toast.success("Revisão atualizada com sucesso!");
+    },
+    onError: (err) => toast.error(`Erro ao atualizar revisão: ${err.message}`),
+  });
 
   // Verificar se o número de orçamento já existe (excluindo o próprio orçamento atual)
   const checkEditNumberQuery = trpc.quotes.checkNumber.useQuery(
@@ -914,7 +925,7 @@ export default function QuoteDetail() {
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
           freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
           freteIncluded: (quote as any).freteIncluded ?? false,
-          // Usar revisionCount atual do banco (sem incrementar — revisão só muda ao Salvar)
+          // O número de revisão do Excel é o revisionCount do banco (controlado pela Vivian)
           revisionCount: quote.revisionCount ?? 0,
           deliveryDays: quote.deliveryDays ?? 20,
           commissionPercent: quote.commissionPercent ? parseFloat(String(quote.commissionPercent)) : undefined,
@@ -935,7 +946,6 @@ export default function QuoteDetail() {
       setIsGenerating(false);
     }
   };
-
   /** Abre o modal de pré-visualização com os dados do pedido de fábrica */
   const handleOpenOrderPreview = async (empresa: "ALFALUX" | "LUMINEW") => {
     if (orderNumberInput.length !== 6) { toast.error("Número do pedido deve ter exatamente 6 dígitos."); return; }
@@ -1019,6 +1029,13 @@ export default function QuoteDetail() {
   };
 
   const visibleVersions = showAllVersions ? versions : versions.slice(0, 3);
+  // Mapeia cada quoteVersion para o número de revisão exibido (RV0 = mais antigo, RV{n-1} = mais recente)
+  // versions está ordenado por version DESC (mais recente primeiro)
+  const versionToRV = (vId: number): number => {
+    const idx = versions.findIndex(vv => vv.id === vId);
+    if (idx === -1) return 0;
+    return versions.length - 1 - idx;
+  };
 
   /** Gera Excel para uma revisão histórica específica */
   const handleGenerateRevisionExcel = async (v: typeof versions[0], revItems: { itemData: string }[]) => {
@@ -1026,10 +1043,8 @@ export default function QuoteDetail() {
       const snap = (() => { try { return JSON.parse(v.headerSnapshot ?? '{}'); } catch { return {}; } })();
       const s1 = quote.seller1Id ? editSellers.find(s => s.id === quote.seller1Id) : undefined;
       const s2 = quote.seller2Id ? editSellers.find(s => s.id === quote.seller2Id) : undefined;
-      // revisionCount = v.version (versão interna) mapeado para RV
-      // A revisão RV0 = versão 0, RV1 = versão 1, etc.
-      // Mas o revisionCount no cabeçalho do Excel deve refletir o número da revisão da versão
-      const revCount = v.version; // versão 0 = RV0, versão 1 = RV1, etc.
+      // O número de revisão é baseado na posição da versão na lista (RV0 = mais antigo)
+      const revCount = versionToRV(v.id);
       await generateQuoteExcel(
         revItems.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null),
         {
@@ -1133,7 +1148,7 @@ export default function QuoteDetail() {
               )}
               {quote.assistantName && <p>✏️ Assistente: <span className="font-medium">{quote.assistantName}</span></p>}
               <p>📅 Criado em: {toBrasiliaDate(quote.createdAt)}</p>
-              <p>🔄 Versão: <span className="font-bold font-mono">RV{quote.revisionCount ?? 0}</span><span className="ml-2 text-xs text-muted-foreground">(v{quote.currentVersion})</span></p>
+              <p>🔄 Versão: <span className="font-bold font-mono">RV{quote.revisionCount ?? 0}</span></p>
               {quote.approvedAt && (
                 <p className="text-green-600 dark:text-green-400 font-medium">
                   ✅ Aprovado em: {toBrasiliaDate(quote.approvedAt)}
@@ -2483,7 +2498,7 @@ export default function QuoteDetail() {
                       totalAmount: totalFinalVal,
                       totalFinal: totalFinalCompleto,
                       items: currentItems.map((i, idx) => ({ itemNumber: idx + 1, itemData: i.itemData })),
-                      bumpVersion: true,
+                      bumpVersion: false,
                       deliveryDays: parseInt(editForm.deliveryDays || "20") || 20,
                       commissionPercent: Math.min(Math.max(parseFloat(editForm.commissionPercent || "5") / 100, 0), 1),
                       commissionPercent2: editForm.commissionPercent2 ? Math.min(Math.max(parseFloat(editForm.commissionPercent2) / 100, 0), 1) : undefined,
@@ -2800,10 +2815,27 @@ export default function QuoteDetail() {
         {versions.length > 0 && (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <History className="w-4 h-4" />
-                Histórico de Revisões ({versions.length})
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <History className="w-4 h-4" />
+                  Histórico de Revisões ({versions.length})
+                </CardTitle>
+                {/* Botão de edição manual de revisão — somente gestores */}
+                {((user as any)?.role === 'admin' || (user as any)?.role === 'gerente' || MANAGER_EMAILS.includes(((user as any)?.email ?? "").toLowerCase())) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => {
+                      setManualRevisionValue(String(quote.revisionCount ?? 0));
+                      setSetRevisionDialogOpen(true);
+                    }}
+                  >
+                    <Pencil className="w-3 h-3" />
+                    Alterar RV
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               <div className="divide-y">
@@ -2818,7 +2850,7 @@ export default function QuoteDetail() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-sm">
-                            RV{v.version}
+                            RV{versionToRV(v.id)}
                             {isCurrentVersion && (
                               <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">Atual</span>
                             )}
@@ -2914,7 +2946,7 @@ export default function QuoteDetail() {
                 <History className="w-4 h-4" />
                 {revisionModalVersionId != null && (() => {
                   const v = versions.find(vv => vv.id === revisionModalVersionId);
-                  return v ? `Revisão RV${v.version} — ${toBrasiliaDate(v.createdAt)}` : 'Revisão';
+                  return v ? `Revisão RV${versionToRV(v.id)} — ${toBrasiliaDate(v.createdAt)}` : 'Revisão';
                 })()}
               </DialogTitle>
             </DialogHeader>
@@ -2995,7 +3027,7 @@ export default function QuoteDetail() {
                       onClick={() => handleGenerateRevisionExcel(rv, rvItems)}
                     >
                       <FileSpreadsheet className="w-4 h-4" />
-                      Baixar Excel RV{rv.version}
+                      Baixar Excel RV{versionToRV(rv.id)}
                     </Button>
                     <Button
                       variant="outline"
@@ -3064,6 +3096,47 @@ export default function QuoteDetail() {
           fcpValue: quote.fcpValue ? parseFloat(String(quote.fcpValue)) : undefined,
         }}
       />
+
+      {/* Dialog de edição manual de revisão (somente gestores) */}
+      <Dialog open={setRevisionDialogOpen} onOpenChange={setSetRevisionDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-4 h-4" />
+              Alterar Número de Revisão
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Altere manualmente o número de revisão exibido neste orçamento.
+              O valor atual é <strong>RV{quote.revisionCount ?? 0}</strong>.
+            </p>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Novo número de revisão</label>
+              <Input
+                type="number"
+                min={0}
+                value={manualRevisionValue}
+                onChange={e => setManualRevisionValue(e.target.value)}
+                placeholder="Ex: 0, 1, 2..."
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setSetRevisionDialogOpen(false)}>Cancelar</Button>
+            <Button
+              disabled={setRevisionMutation.isPending || manualRevisionValue === ""}
+              onClick={() => {
+                const val = parseInt(manualRevisionValue, 10);
+                if (isNaN(val) || val < 0) { toast.error("Valor inválido."); return; }
+                setRevisionMutation.mutate({ id: Number(id), revisionCount: val });
+              }}
+            >
+              {setRevisionMutation.isPending ? "Salvando..." : "Salvar"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Pré-visualização do Pedido de Fábrica */}
       {orderPreviewForm && (

@@ -1,0 +1,9 @@
+{
+  "query": "SELECT id, quoteNumber, currentVersion, revisionCount FROM quotes WHERE quoteNumber = '33.0202-26' LIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT id, quoteNumber, currentVersion, revisionCount FROM quotes WHERE quoteNumber = '33.0202-26' LIMIT 1;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 324
+}

@@ -1722,3 +1722,25 @@ export async function getRevisionItems(versionId: number) {
     .where(eq(quoteItems.quoteVersionId, versionId))
     .orderBy(quoteItems.itemNumber);
 }
+
+/** Incrementa o revisionCount do orçamento (chamado ao baixar o Excel) */
+export async function bumpQuoteRevision(quoteId: number): Promise<{ revisionCount: number }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(quotes).set({
+    revisionCount: sql`revisionCount + 1`,
+    updatedAt: sql`NOW()`,
+  }).where(eq(quotes.id, quoteId));
+  const rows = await db.select({ revisionCount: quotes.revisionCount }).from(quotes).where(eq(quotes.id, quoteId)).limit(1);
+  return { revisionCount: rows[0]?.revisionCount ?? 0 };
+}
+
+/** Define manualmente o revisionCount do orçamento (somente gestores) */
+export async function setQuoteRevisionCount(quoteId: number, revisionCount: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(quotes).set({
+    revisionCount,
+    updatedAt: sql`NOW()`,
+  }).where(eq(quotes.id, quoteId));
+}

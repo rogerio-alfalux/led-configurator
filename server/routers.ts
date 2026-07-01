@@ -26,6 +26,8 @@ import {
   checkDuplicateQuoteNumber,
   reorderQuoteItems,
   nowBrasiliaStr,
+  bumpQuoteRevision,
+  setQuoteRevisionCount,
 } from "./db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -758,6 +760,47 @@ export const appRouter = router({
         const revItems = await getRevisionItems(input.versionId);
         return { version, items: revItems };
       }),
+    /** Incrementa revisionCount ao baixar Excel (chamado pelo frontend) */
+    bumpRevision: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const q = await getQuoteById(input.id);
+        if (!q) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
+        const canBump = await canEditQuote(ctx.user.email, q.quote, ctx.user.role, ctx.user.id);
+        if (!canBump) throw new TRPCError({ code: "FORBIDDEN", message: "Sem permissão" });
+        const result = await bumpQuoteRevision(input.id);
+        await insertAuditLog({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+          userName: ctx.user.name,
+          action: "quote_revision_bumped",
+          entityType: "quote",
+          entityId: input.id,
+          details: JSON.stringify({ newRevisionCount: result.revisionCount }),
+        });
+        return result;
+      }),
+
+    /** Define manualmente o revisionCount (somente gestores) */
+    setRevision: protectedProcedure
+      .input(z.object({ id: z.number(), revisionCount: z.number().int().min(0) }))
+      .mutation(async ({ ctx, input }) => {
+        const userEmail = ctx.user.email?.toLowerCase().trim() ?? "";
+        const isManager = ctx.user.role === "admin" || ctx.user.role === "gerente" || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
+        if (!isManager) throw new TRPCError({ code: "FORBIDDEN", message: "Somente gestores podem alterar a revisão manualmente." });
+        await setQuoteRevisionCount(input.id, input.revisionCount);
+        await insertAuditLog({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+          userName: ctx.user.name,
+          action: "quote_revision_set",
+          entityType: "quote",
+          entityId: input.id,
+          details: JSON.stringify({ revisionCount: input.revisionCount }),
+        });
+        return { success: true };
+      }),
+
     /** Registra geração de ficha de produção */
     logProductionSheet: protectedProcedure
       .input(z.object({

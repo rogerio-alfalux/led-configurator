@@ -1,0 +1,70 @@
+{
+  "query": "SELECT id, quoteNumber, currentVersion, revisionCount FROM quotes WHERE revisionCount > 0 ORDER BY revisionCount DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT id, quoteNumber, currentVersion, revisionCount FROM quotes WHERE revisionCount > 0 ORDER BY revisionCount DESC LIMIT 10;",
+  "rows": [
+    {
+      "id": "2130001",
+      "quoteNumber": "25.0156-26",
+      "currentVersion": "88",
+      "revisionCount": "87"
+    },
+    {
+      "id": "2820002",
+      "quoteNumber": "33.0074-26",
+      "currentVersion": "82",
+      "revisionCount": "81"
+    },
+    {
+      "id": "1260001",
+      "quoteNumber": "04.0218-26",
+      "currentVersion": "20",
+      "revisionCount": "19"
+    },
+    {
+      "id": "1800001",
+      "quoteNumber": "01.0003-26",
+      "currentVersion": "18",
+      "revisionCount": "17"
+    },
+    {
+      "id": "4140001",
+      "quoteNumber": "20.0355-26",
+      "currentVersion": "18",
+      "revisionCount": "17"
+    },
+    {
+      "id": "3660001",
+      "quoteNumber": "31.0126-26",
+      "currentVersion": "15",
+      "revisionCount": "14"
+    },
+    {
+      "id": "2610001",
+      "quoteNumber": "04.0223-26",
+      "currentVersion": "9",
+      "revisionCount": "8"
+    },
+    {
+      "id": "2040001",
+      "quoteNumber": "04.0220-26",
+      "currentVersion": "6",
+      "revisionCount": "5"
+    },
+    {
+      "id": "1860001",
+      "quoteNumber": "31.0002-26",
+      "currentVersion": "6",
+      "revisionCount": "5"
+    },
+    {
+      "id": "900001",
+      "quoteNumber": "01.0001-26",
+      "currentVersion": "4",
+      "revisionCount": "3"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tquoteNumber\tcurrentVersion\trevisionCount\n2130001\t25.0156-26\t88\t87\n2820002\t33.0074-26\t82\t81\n1260001\t04.0218-26\t20\t19\n1800001\t01.0003-26\t18\t17\n4140001\t20.0355-26\t18\t17\n3660001\t31.0126-26\t15\t14\n2610001\t04.0223-26\t9\t8\n2040001\t04.0220-26\t6\t5\n1860001\t31.0002-26\t6\t5\n900001\t01.0001-26\t4\t3\n",
+  "stderr": "",
+  "execution_time_ms": 276
+}
