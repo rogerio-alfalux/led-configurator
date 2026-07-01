@@ -1133,14 +1133,15 @@ export default function Cart() {
         .filter((d): d is CartItemData => d !== null);
 
       const deliveryDaysNum = parseInt(orderForm.deliveryDays) || 20;
-      const approvedAtIso = new Date().toISOString();
+      // Usar data/hora de Brasília para calcular prazo de entrega
+      const approvedAtIso = new Date(toBrasiliaDate(new Date()).split('/').reverse().join('-') + 'T12:00:00-03:00').toISOString();
       const { displayDays, deliveryDateStr } = await calcDeliveryDate(approvedAtIso, deliveryDaysNum);
       await generateOrderExcel(items, {
         clientName: orderForm.clientName,
         projectName: orderForm.projectName,
         quoteNumber: orderForm.quoteRef || "SEM-ORC",
         vendorName: orderForm.vendorName,
-        date: new Date().toLocaleDateString("pt-BR"),
+        date: toBrasiliaDate(new Date()),
         empresa: orderForm.empresa,
         deliveryDays: deliveryDaysNum,
         approvedAt: approvedAtIso,

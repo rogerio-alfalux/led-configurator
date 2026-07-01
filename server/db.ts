@@ -9,6 +9,27 @@ import {
   salesGoals, InsertSalesGoal
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
+// ─── Utilitários de data no fuso de Brasília ────────────────────────────────
+const BRASILIA_TZ = "America/Sao_Paulo";
+
+/** Retorna a data/hora atual no fuso de Brasília como string MySQL (YYYY-MM-DD HH:MM:SS) */
+export function nowBrasiliaStr(): string {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: BRASILIA_TZ,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+  const get = (t: string) => parts.find(p => p.type === t)?.value ?? "00";
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")}`;
+}
+
+/** Retorna o ano atual no fuso de Brasília (2 dígitos, ex: "26") */
+export function nowBrasiliaYear2(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: BRASILIA_TZ, year: "2-digit" }).format(new Date());
+}
+
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -68,11 +89,11 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     }
 
     if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      values.lastSignedIn = nowBrasiliaStr();
     }
 
     if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      updateSet.lastSignedIn = nowBrasiliaStr();
     }
 
     await db.insert(users).values(values).onDuplicateKeyUpdate({
@@ -189,7 +210,7 @@ export async function updateCartItemData(id: number, userId: number, patch: Reco
 export async function generateQuoteNumber(sellerCode?: string | null): Promise<string> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const year = new Date().getFullYear().toString().slice(-2); // ex: "26"
+  const year = nowBrasiliaYear2(); // ex: "26" — usa fuso de Brasília
 
   // Formato final: "XX.NNNN-AA"
   // XX   = código do vendedor (2 dígitos, ex: "33")
@@ -665,7 +686,7 @@ export async function approveQuote(id: number) {
   if (!db) throw new Error("Database not available");
   await db.update(quotes).set({
     status: "approved",
-    approvedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
+    approvedAt: nowBrasiliaStr(),
   }).where(eq(quotes.id, id));
 }
 
@@ -679,11 +700,11 @@ export async function updateQuoteStatus(
   if (!db) throw new Error("Database not available");
   const updateData: Record<string, unknown> = { status };
   if (status === "approved") {
-    updateData.approvedAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    updateData.approvedAt = nowBrasiliaStr();
     if (opts?.orderNumber) updateData.orderNumber = opts.orderNumber;
     if (opts?.billingCompany) updateData.billingCompany = opts.billingCompany;
   }
-  if (status === "invoiced") updateData.invoicedAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  if (status === "invoiced") updateData.invoicedAt = nowBrasiliaStr();
   await db.update(quotes).set(updateData).where(eq(quotes.id, id));
 }
 

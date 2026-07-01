@@ -25,6 +25,7 @@ import {
   checkDuplicateProject,
   checkDuplicateQuoteNumber,
   reorderQuoteItems,
+  nowBrasiliaStr,
 } from "./db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -1102,7 +1103,7 @@ export const appRouter = router({
         return header + values + ";\n\n";
       };
 
-      const now = new Date().toISOString();
+      const now = nowBrasiliaStr();
       let sql = `-- Backup completo do Sistema Luna\n-- Gerado em: ${now}\n-- Grupo Alfalux Iluminação\n\nSET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\n\n`;
       sql += tableToSQL("quotes", allQuotes as Record<string, unknown>[]);
       sql += tableToSQL("quote_versions", allVersions as Record<string, unknown>[]);
@@ -1130,7 +1131,7 @@ export const appRouter = router({
       const allQuotes = await db.select().from(quotes).orderBy(desc(quotes.createdAt));
       const allVersions = await db.select().from(quoteVersions);
       const allItems = await db.select().from(quoteItems);
-      return { quotes: allQuotes, versions: allVersions, items: allItems, generatedAt: new Date().toISOString() };
+      return { quotes: allQuotes, versions: allVersions, items: allItems, generatedAt: nowBrasiliaStr() };
     }),
   }),
 

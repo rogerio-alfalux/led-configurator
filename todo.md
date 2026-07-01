@@ -1703,3 +1703,12 @@
 - [x] FactoryOrderDetail.tsx: nova revisão herda o mesmo orderNumber da revisão anterior
 - [x] db.ts: createFactoryOrderRevision propaga orderNumber da revisão anterior
 - [x] FactoryOrderDetail.tsx: aviso de confirmação antes de gerar Excel alertando sobre itens pendentes (equipamentos/cor/CCT a definir)
+
+## Correção de Timezone — Sempre Horário de Brasília (UTC-3) (30/06/2026)
+
+- [x] Identificar todos os pontos onde new Date() ou CURRENT_TIMESTAMP geram datas no sistema
+- [x] Criar/atualizar utilitário nowBrasilia() que retorna a data/hora atual no fuso de Brasília
+- [x] Corrigir dateUtils.ts: toBrasiliaDate e funções relacionadas para usar timezone correto
+- [x] Corrigir geração de quoteNumber (ano/mês) para usar data de Brasília
+- [x] Corrigir todos os campos de data exibidos no frontend para usar horário de Brasília
+- [x] Garantir que createdAt exibido em orçamentos, pedidos e histórico use Brasília
