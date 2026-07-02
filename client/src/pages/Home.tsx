@@ -2219,6 +2219,8 @@ export default function Home() {
   const activeSpotCatalog = adaptedCatalogs?.spots ?? SPOT_CATALOG;
   const activeArandelaCatalog = adaptedCatalogs?.arandelas ?? ARANDELA_CATALOG;
   const activeGlowCatalog = adaptedCatalogs?.glowProducts ?? [];
+  const activeTubeLightCatalog = adaptedCatalogs?.tubeLights ?? [];
+  const activePerfisFixes = adaptedCatalogs?.perfisFixes ?? [];
   const activeDecorativasCatalog = adaptedCatalogs?.decorativas ?? [];
   const activeAreaExternaCatalog = adaptedCatalogs?.areaExterna ?? [];
   const activeBalizadoresCatalog = adaptedCatalogs?.balizadores ?? [];
@@ -2574,14 +2576,18 @@ export default function Home() {
   const [bgControle, setBgControle] = useState<BageoControle>("ON/OFF 220V");
   const [bgCCT, setBgCCT] = useState<string>("3000K");
   const [bgResult, setBgResult] = useState<BageoResult | null>(null);
-  const [bgManualPreco, setBgManualPreco] = useState<string>("");
-  // ── Estados de GLOW (perfis fixos) ─────────────────────────────────────────
+  const [bgManualPreco, setBgManualPreco] = useState<string>("");  // ── Estados de GLOW (perfis fixos) ───────────────────────────────────────────
   const [glowMode, setGlowMode] = useState<boolean>(false);
   const [glowProductKey, setGlowProductKey] = useState<string | null>(null);
   const [glowVoltage, setGlowVoltage] = useState<"220V" | "Bivolt" | null>(null);
   const [glowCCT, setGlowCCT] = useState<string>("3000K");
   const [glowResult, setGlowResult] = useState<DownlightResult | null>(null);
-  // ──  // ── Estados de Decorativas ────────────────────────────────────────────
+  // ── Estados de TUBE LIGHT (perfil fixo, sem composição) ────────────────────────────
+  const [tubeLightMode, setTubeLightMode] = useState<boolean>(false);
+  const [tubeLightProductKey, setTubeLightProductKey] = useState<string | null>(null);
+  const [tubeLightVoltage, setTubeLightVoltage] = useState<"220V" | "Bivolt" | null>(null);
+  const [tubeLightCCT, setTubeLightCCT] = useState<string>("3000K");
+  const [tubeLightResult, setTubeLightResult] = useState<DownlightResult | null>(null);  // ──  // ── Estados de Decorativas ────────────────────────────────────────────
   const [decFamilia, setDecFamilia] = useState<string | null>(null);
   const [decProductKey, setDecProductKey] = useState<string | null>(null);
   const [decCCT, setDecCCT] = useState<string>("3000K");
@@ -3936,7 +3942,7 @@ export default function Home() {
                 <div>
                   <FieldLabel>Perfil</FieldLabel>
                   <Select
-                    value={bgMode === "sinuosa" ? "__BAGEO_SINUOSA__" : bgMode === "fixo" ? "__BAGEO_FIXO__" : glowMode ? "__GLOW__" : lbFamilia ? `__LEDBAR__${lbFamilia}` : profileName}
+                    value={bgMode === "sinuosa" ? "__BAGEO_SINUOSA__" : bgMode === "fixo" ? "__BAGEO_FIXO__" : glowMode ? "__GLOW__" : tubeLightMode ? "__TUBE_LIGHT__" : lbFamilia ? `__LEDBAR__${lbFamilia}` : profileName}
                     onValueChange={(v) => {
                       if (v === "__BAGEO_SINUOSA__") {
                         setBgMode("sinuosa");
@@ -3955,6 +3961,15 @@ export default function Home() {
                       } else if (v === "__GLOW__") {
                         setGlowMode(true);
                         setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
+                        setTubeLightMode(false); setTubeLightProductKey(null); setTubeLightVoltage(null); setTubeLightResult(null);
+                        setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
+                        setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
+                        setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
+                        setProfileName(""); setInstallType(""); setResult(null); setError(null);
+                      } else if (v === "__TUBE_LIGHT__") {
+                        setTubeLightMode(true);
+                        setTubeLightProductKey(null); setTubeLightVoltage(null); setTubeLightResult(null);
+                        setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                         setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                         setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
                         setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
@@ -3980,6 +3995,7 @@ export default function Home() {
                         setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                         setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
                         setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
+                        setTubeLightMode(false); setTubeLightProductKey(null); setTubeLightVoltage(null); setTubeLightResult(null);
                       }
                     }}
                   >
@@ -4030,6 +4046,12 @@ export default function Home() {
                         <>
                           <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">GLOW</div>
                           <SelectItem value="__GLOW__">GLOW</SelectItem>
+                        </>
+                      )}
+                      {activeTubeLightCatalog.length > 0 && (
+                        <>
+                          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">TUBE LIGHT</div>
+                          <SelectItem value="__TUBE_LIGHT__">TUBE LIGHT</SelectItem>
                         </>
                       )}
                     </SelectContent>
@@ -4425,8 +4447,111 @@ export default function Home() {
                     )}
                   </div>
                 )}
-                {/* ── Fluxo LED BAR ──────────────────────────────────────────────────────────────────────────────────────────────────────── */}
-                {lbFamilia && (<div className="space-y-4">
+                {/* ── Fluxo TUBE LIGHT (produto fixo, sem composição) ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */}
+                {activeTubeLightCatalog.length > 0 && tubeLightMode && !bgMode && !lbFamilia && !profileName && !glowMode && (
+                  <div className="space-y-4">
+                    {/* Produto TUBE LIGHT */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Produto</Label>
+                      <Select
+                        value={tubeLightProductKey ?? ""}
+                        onValueChange={(v) => {
+                          setTubeLightProductKey(v);
+                          setTubeLightVoltage(null);
+                          setTubeLightResult(null);
+                          const [s, ...np] = v.split('::');
+                          const prod = activeTubeLightCatalog.find(p => p.sku === s && p.name === np.join('::'));
+                          const availCCTs = prod?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+                          if (!availCCTs.includes(tubeLightCCT)) setTubeLightCCT(availCCTs[0] ?? "3000K");
+                        }}
+                      >
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Selecione o produto TUBE LIGHT..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {activeTubeLightCatalog.map((p, idx) => {
+                            const key = `${p.sku ?? ""}::${p.name}`;
+                            return <SelectItem key={`${key}-${idx}`} value={key}>{p.name}</SelectItem>;
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {/* Tensão */}
+                    {tubeLightProductKey !== null && (() => {
+                      const [_tSku, ..._tNP] = (tubeLightProductKey ?? '::').split('::');
+                      const tSelProd = activeTubeLightCatalog.find(p => p.sku === _tSku && p.name === _tNP.join('::'));
+                      const hasBivolt = tSelProd?.driverBivolt != null;
+                      return (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
+                          <div className="flex gap-2">
+                            {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
+                              const disabled = v === "Bivolt" && !hasBivolt;
+                              return (
+                                <button
+                                  key={v}
+                                  disabled={disabled}
+                                  onClick={() => { setTubeLightVoltage(v); setTubeLightResult(null); }}
+                                  className={[
+                                    "flex-1 py-2 rounded-lg text-sm font-medium border transition-all",
+                                    tubeLightVoltage === v && !disabled
+                                      ? "bg-primary text-primary-foreground border-primary"
+                                      : "bg-background text-foreground border-border hover:border-primary/50",
+                                    disabled ? "opacity-40 cursor-not-allowed" : "",
+                                  ].join(" ")}
+                                >
+                                  {v}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    {/* CCT */}
+                    {tubeLightProductKey !== null && (() => {
+                      const [_tSku2, ..._tNP2] = (tubeLightProductKey ?? '::').split('::');
+                      const tSelProd2 = activeTubeLightCatalog.find(p => p.sku === _tSku2 && p.name === _tNP2.join('::'));
+                      const tAvailCCTs = tSelProd2?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+                      return (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
+                          <select
+                            value={tubeLightCCT}
+                            onChange={(e) => { setTubeLightCCT(e.target.value); setTubeLightResult(null); }}
+                            className="h-9 rounded-md border border-border bg-background text-foreground text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
+                          >
+                            {[...tAvailCCTs, "A definir"].map((c) => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })()}
+                    {/* Botão Calcular TUBE LIGHT */}
+                    {tubeLightProductKey !== null && (
+                      <Button
+                        variant="default"
+                        className="w-full h-12 text-base font-semibold"
+                        disabled={!tubeLightProductKey || !tubeLightVoltage}
+                        onClick={() => {
+                          if (!tubeLightProductKey || !tubeLightVoltage) { toast.error("Selecione o produto e a tensão."); return; }
+                          const [tSku, ...tNP] = tubeLightProductKey.split('::');
+                          const tName = tNP.join('::');
+                          const tProd = activeTubeLightCatalog.find(p => p.sku === tSku && p.name === tName);
+                          if (!tProd) { toast.error("Produto TUBE LIGHT não encontrado."); return; }
+                          const res = calculateDownlight({ productSku: tProd.sku ?? "", productName: tProd.name, cct: tubeLightCCT, controle: "ON/OFF", tensao: tubeLightVoltage }, activeTubeLightCatalog);
+                          if (!res) { toast.error("Não foi possível calcular. Verifique as opções."); return; }
+                          setTubeLightResult(res);
+                        }}
+                      >
+                        <Zap className="w-4 h-4 mr-2" />
+                        Calcular TUBE LIGHT
+                      </Button>
+                    )}
+                  </div>
+                )}
+                {/* ── Fluxo LED BAR ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */}          {lbFamilia && (<div className="space-y-4">
                   {/* Instalação (somente para Perfil Flexível) */}
                   {lbIsPerfilFlexivel && (
                   <div>
@@ -8599,6 +8724,209 @@ export default function Home() {
                   </div>
                   <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
                   <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione o produto GLOW, tensão e CCT, depois clique em "Calcular GLOW".</p>
+                </CardContent>
+              </Card>
+            )}
+            {/* Resultado TUBE LIGHT */}
+            {productCategory === "Perfis" && tubeLightResult && (
+              <div className="space-y-4">
+                <Card className="shadow-sm border-sky-500/30">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-sky-500" />
+                      Resultado — TUBE LIGHT
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {(() => {
+                      const tPhoto = tubeLightResult.product.sku ? adaptedCatalogs?.tubeLightFotos?.[tubeLightResult.product.sku] ?? null : null;
+                      return (
+                        <div className={tPhoto ? "flex gap-3 items-stretch" : "grid grid-cols-2 gap-2"}>
+                          {tPhoto && (
+                            <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-36 h-36 flex items-center justify-center">
+                              <img src={tPhoto} alt={tubeLightResult.product.name} className="w-full h-full object-contain p-2" loading="lazy" />
+                            </div>
+                          )}
+                          <div className={tPhoto ? "grid grid-cols-2 gap-2 flex-1" : "contents"}>
+                            {tubeLightResult.product.sku && (
+                              <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">SKU</p>
+                                <p className="text-sm font-mono font-semibold text-primary">{tubeLightResult.product.sku}</p>
+                              </div>
+                            )}
+                            <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
+                              <p className="text-sm font-semibold">{tubeLightResult.product.name}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                              <p className="text-sm font-semibold">{tubeLightResult.cct}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-muted/50">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                              <p className="text-sm font-semibold">{tubeLightResult.tensao}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
+                              <p className="text-sm font-semibold">
+                                {tubeLightResult.driver.model}
+                                {tubeLightResult.driver.code && (
+                                  <> <a href={`https://alfaluxprod-c8zmg2fn.manus.space/products/${tubeLightResult.driver.code}`} target="_blank" rel="noopener noreferrer" className="font-mono text-primary hover:underline">({tubeLightResult.driver.code})</a></>
+                                )}
+                              </p>
+                            </div>
+                            {tubeLightResult.ledModuleWithCCT && (
+                              <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
+                                <p className="text-sm font-semibold">{tubeLightResult.ledModuleWithCCT}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
+                {/* Resumo para Orçamento TUBE LIGHT */}
+                <Card className="shadow-sm border-blue-500/30">
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                      Resumo Para Orçamento
+                    </CardTitle>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                        <Input
+                          className="h-7 text-xs w-28"
+                          placeholder="ex: L1, P2..."
+                          value={globalItemEmPlanta}
+                          onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Qtd:</label>
+                        <Input
+                          type="number"
+                          className="h-7 text-xs w-16"
+                          min={1}
+                          placeholder="1"
+                          value={globalQty}
+                          onChange={(e) => setGlobalQty(Math.max(1, parseInt(e.target.value) || 1))}
+                        />
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5"
+                        onClick={() => {
+                          const preco = getPrecoForControle(tubeLightResult.product, tubeLightResult.controle, tubeLightResult.tensao);
+                          const lines = [`${tubeLightResult.product.name} ${tubeLightResult.cct} ${tubeLightResult.tensao}`.toUpperCase()];
+                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          navigator.clipboard.writeText(lines.join("\n"));
+                          toast.success("Copiado!");
+                        }}
+                      >
+                        <Copy className="w-3 h-3" /> Copiar Resumo
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        disabled={isAddingToCart}
+                        onClick={() => {
+                          const preco = getPrecoForControle(tubeLightResult.product, tubeLightResult.controle, tubeLightResult.tensao);
+                          const item: CartItemData = {
+                            category: "Perfis",
+                            sku: tubeLightResult.product.sku ?? "",
+                            description: `${tubeLightResult.product.name} ${tubeLightResult.cct} ${tubeLightResult.tensao}`,
+                            power: "",
+                            cct: tubeLightResult.cct,
+                            qty: 1,
+                            unitPrice: preco ?? null,
+                            totalPrice: preco ?? null,
+                            priceFromApi: preco != null,
+                            photoUrl: adaptedCatalogs?.tubeLightFotos?.[tubeLightResult.product.sku ?? ""] ?? "",
+                            orderSummary: `CÓDIGO: ${tubeLightResult.product.sku}\n${tubeLightResult.product.name.toUpperCase()} ${tubeLightResult.cct} ${tubeLightResult.tensao} COM DRIVER ${tubeLightResult.driver.model.toUpperCase()} (${tubeLightResult.driver.code})`,
+                            quoteSummary: `${tubeLightResult.product.name} ${tubeLightResult.cct} ${tubeLightResult.tensao}`.toUpperCase(),
+                            moduloLed: tubeLightResult.ledModuleWithCCT ?? "",
+                            drivers: `DRIVER ${tubeLightResult.driver.model.toUpperCase()} (${tubeLightResult.driver.code})`,
+                            availableCCTs: tubeLightResult.product.ccts,
+                            itemEmPlanta: globalItemEmPlanta,
+                            ...getCustoForControle(tubeLightResult.product, tubeLightResult.controle, tubeLightResult.tensao),
+                          };
+                          if (appendToQuoteId) {
+                            handleAddItemOrToQuote(item);
+                          } else {
+                            setPendingCartItem(item);
+                            setColorModalOpen(true);
+                          }
+                        }}
+                      >
+                        <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 border-cyan-500/50 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                        onClick={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
+                      >
+                        <Wrench className="w-3 h-3" />
+                        Incluir Acessório
+                        {pendingAccessories.length > 0 && (
+                          <span className="ml-1 bg-cyan-600 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">{pendingAccessories.length}</span>
+                        )}
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div
+                      className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
+                      onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
+                    >
+                      {(() => {
+                        const preco = getPrecoForControle(tubeLightResult.product, tubeLightResult.controle, tubeLightResult.tensao);
+                        const drvLines = buildLumDriverLines(tubeLightResult.product.sku ?? "", tubeLightResult.controle, tubeLightResult.tensao, globalQty, tubeLightResult.driver.model, tubeLightResult.driver.code, lumPriceMap, tubeLightResult.product.name ?? undefined, tubeLightResult.driver.corrente ?? null);
+                        const lines = [`${tubeLightResult.product.name} ${tubeLightResult.cct} ${tubeLightResult.tensao}`.toUpperCase()];
+                        if (drvLines) {
+                          if (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) {
+                            lines.push(`LUMINÁRIAS: ${formatBRL(drvLines.priceWithoutDriver)}`);
+                          } else {
+                            lines.push(`LUMINÁRIAS: A DEFINIR`);
+                          }
+                          const totalDrv = drvLines.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
+                          if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
+                          if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                        } else if (preco !== null) {
+                          lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
+                        }
+                        return lines.join("\n");
+                      })()}
+                    </div>
+                    <PriceBreakdownBlock
+                      sku={tubeLightResult.product.sku ?? ""}
+                      controle={tubeLightResult.controle}
+                      tensao={tubeLightResult.tensao}
+                      qty={globalQty}
+                      driverModel={tubeLightResult.driver.model}
+                      driverCode={tubeLightResult.driver.code}
+                      lumPriceMap={lumPriceMap}
+                      staticPreco={getPrecoForControle(tubeLightResult.product, tubeLightResult.controle, tubeLightResult.tensao)}
+                      productName={tubeLightResult.product.name ?? undefined}
+                    />
+                    <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+            {/* Estado vazio TUBE LIGHT */}
+            {productCategory === "Perfis" && tubeLightMode && !tubeLightResult && (
+              <Card className="shadow-sm">
+                <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                    <Zap className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione o produto TUBE LIGHT, tensão e CCT, depois clique em "Calcular TUBE LIGHT".</p>
                 </CardContent>
               </Card>
             )}

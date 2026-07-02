@@ -488,6 +488,14 @@ export interface AdaptedCatalogs {
   glowProducts: DownlightProduct[];
   /** Mapa sku → fotoUrl para GLOW */
   glowFotos: Record<string, string>;
+  /** Produtos TUBE LIGHT (perfil fixo, sem composição) — usam DownlightProduct */
+  tubeLights: DownlightProduct[];
+  /** Mapa sku → fotoUrl para TUBE LIGHT */
+  tubeLightFotos: Record<string, string>;
+  /** Perfis fixos (ALDA, LEAVE, MINI BAGEO, ALS-3103) — usam DownlightProduct, agrupados por família */
+  perfisFixes: DownlightProduct[];
+  /** Mapa sku → fotoUrl para Perfis Fixos */
+  perfisFixesFotos: Record<string, string>;
   /** Produtos Decorativas (ISA, etc.) — usam DownlightProduct */
   decorativas: DownlightProduct[];
   /** Mapa sku → fotoUrl para Decorativas */
@@ -646,9 +654,19 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
 function isLedBarProduct(p: ApiProduct): boolean {
   return /^(LED BAR|MILANO|MEIA LUA|PERFIL FLEXIVEL|FLOOR)/i.test(p.familia ?? "");
 }
-/** Verifica se um produto PERFIS é da família GLOW */
+/** Verifica se um produto PERFIS é da família GLOW (excluindo TUBE LIGHT que tem família própria) */
 function isGlowProduct(p: ApiProduct): boolean {
+  // TUBE LIGHT tem família própria agora — não deve cair no bucket GLOW
+  if (isTubeLightProduct(p)) return false;
   return /^GLOW/i.test(p.familia ?? "");
+}
+/** Verifica se um produto é TUBE LIGHT (família TUBE LIGHT na API) */
+function isTubeLightProduct(p: ApiProduct): boolean {
+  return /^TUBE LIGHT/i.test(p.familia ?? "") || /^TUBE LIGHT/i.test(p.name ?? "");
+}
+/** Verifica se um produto PERFIS é um perfil fixo sem composição (ALDA, LEAVE, MINI BAGEO, ALS-3103) */
+function isPerfisFixesProduct(p: ApiProduct): boolean {
+  return /^(ALDA|LEAVE|MINI BAGEO|ALS-3103)/i.test(p.familia ?? "");
 }
 /** Verifica se um produto PERFIS é da família BAGEO */
 function isBageoProduct(p: ApiProduct): boolean {
@@ -708,6 +726,10 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
   const bageosFixos: DownlightProduct[] = [];
   const glowProducts: DownlightProduct[] = [];
   const glowFotos: Record<string, string> = {};
+  const tubeLights: DownlightProduct[] = [];
+  const tubeLightFotos: Record<string, string> = {};
+  const perfisFixes: DownlightProduct[] = [];
+  const perfisFixesFotos: Record<string, string> = {};
   const decorativas: DownlightProduct[] = [];
   const decorativasFotos: Record<string, string> = {};
   const balizadores: DownlightProduct[] = [];
@@ -750,9 +772,15 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
     } else if (cat === "PERFIS" && isLedBarProduct(p)) {
       const lb = toLedBarProduct(p);
       if (lb) ledBars.push(lb);
+    } else if (cat === "PERFIS" && isTubeLightProduct(p)) {
+      tubeLights.push(toDownlightProduct(p));
+      if (p.fotoUrl && p.sku) tubeLightFotos[p.sku] = normalizeFotoUrl(p.fotoUrl)!;
     } else if (cat === "PERFIS" && isGlowProduct(p)) {
       glowProducts.push(toDownlightProduct(p));
       if (p.fotoUrl && p.sku) glowFotos[p.sku] = normalizeFotoUrl(p.fotoUrl)!;
+    } else if (cat === "PERFIS" && isPerfisFixesProduct(p)) {
+      perfisFixes.push(toDownlightProduct(p));
+      if (p.fotoUrl && p.sku) perfisFixesFotos[p.sku] = normalizeFotoUrl(p.fotoUrl)!;
     } else if (cat === "DECORATIVAS") {
       decorativas.push(toDownlightProduct(p));
       if (p.fotoUrl && p.sku) decorativasFotos[p.sku] = normalizeFotoUrl(p.fotoUrl)!;
@@ -789,6 +817,10 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
     bageosFixosFotos,
     glowProducts,
     glowFotos,
+    tubeLights,
+    tubeLightFotos,
+    perfisFixes,
+    perfisFixesFotos,
     decorativas,
     decorativasFotos,
     balizadores,
