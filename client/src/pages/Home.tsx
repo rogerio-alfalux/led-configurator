@@ -2410,10 +2410,15 @@ export default function Home() {
       driverQtdDimTriac110v: number | null;
       driverQtdDimTriac220v: number | null;
     }> = {};
-    const NON_PROFILE_CATS = ["DOWNLIGHTS", "SPOTS", "PAINÉIS", "PAINEIS", "ARANDELAS", "ÁREA EXTERNA", "AREA EXTERNA", "BALIZADORES", "DECORATIVAS", "GLOW", "TUBE LIGHT"];
+    const NON_PROFILE_CATS = ["DOWNLIGHTS", "SPOTS", "PAINÉIS", "PAINEIS", "ARANDELAS", "ÁREA EXTERNA", "AREA EXTERNA", "BALIZADORES", "DECORATIVAS"];
+    // Famílias de perfis fixos (categoria PERFIS) que também precisam de preço
+    const FAMILIA_PRICE_INCLUDE = ["GLOW", "TUBE LIGHT"];
     for (const p of alfaluxApiProducts) {
       const cat = (p.categoria ?? "").toUpperCase();
-      if (!NON_PROFILE_CATS.includes(cat)) continue;
+      const fam = (p.familia ?? "").toUpperCase();
+      const inCat = NON_PROFILE_CATS.includes(cat);
+      const inFam = FAMILIA_PRICE_INCLUDE.includes(fam);
+      if (!inCat && !inFam) continue;
       const sku = p.sku ?? "";
       if (!sku) continue;
       const name = p.name ?? "";
@@ -8655,8 +8660,9 @@ export default function Home() {
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
                           } else {
-                            setPendingCartItem(item);
-                            setColorModalOpen(true);
+                            // GLOW só existe em BRANCO — pular modal de cor
+                            addItem({ ...item, corPeca: "BRANCO", ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}) });
+                            if (setGlobalQty) setGlobalQty(1);
                           }
                         }}
                       >
@@ -8858,8 +8864,9 @@ export default function Home() {
                           if (appendToQuoteId) {
                             handleAddItemOrToQuote(item);
                           } else {
-                            setPendingCartItem(item);
-                            setColorModalOpen(true);
+                            // TUBE LIGHT só existe em BRANCO — pular modal de cor
+                            addItem({ ...item, corPeca: "BRANCO", ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}) });
+                            if (setGlobalQty) setGlobalQty(1);
                           }
                         }}
                       >

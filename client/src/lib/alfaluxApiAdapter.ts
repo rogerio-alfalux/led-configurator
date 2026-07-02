@@ -250,7 +250,7 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
     ccts,
     driver220: d220
       ? { model: driverModel(d220), code: driverCode(d220), corrente: d220.corrente ?? null }
-      : { model: "", code: "" },
+      : null,
     driverBivolt: dBivolt
       ? { model: driverModel(dBivolt), code: driverCode(dBivolt), corrente: dBivolt.corrente ?? null }
       : null,

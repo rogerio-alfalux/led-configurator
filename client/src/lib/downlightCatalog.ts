@@ -54,8 +54,8 @@ export interface DownlightProduct {
   ledModuleEq5000?: string | null;
   /** CCTs disponíveis para este produto (ex: ["3000K", "4000K"]) */
   ccts: string[];
-  /** Driver para 220Vac */
-  driver220: DownlightDriver;
+  /** Driver para 220Vac -- null se nao houver opcao 220V */
+  driver220: DownlightDriver | null;
   /** Driver para Bivolt -- null se nao houver opcao */
   driverBivolt: DownlightDriver | null;
   /** Driver DIM 1-10V -- null se nao disponivel */
@@ -3755,7 +3755,7 @@ export function calculateDownlight(input: DownlightInput, catalog?: DownlightPro
   if (!product) return null;
 
   // Selecionar driver de acordo com o controle e a tensão
-  let driver: DownlightDriver;
+  let driver: DownlightDriver | null;
   if (input.controle === 'DIM DALI' && product.driverDimDali) {
     driver = product.driverDimDali;
   } else if (input.controle === 'DIM 1-10V' && product.driverDim110v) {
@@ -3767,8 +3767,9 @@ export function calculateDownlight(input: DownlightInput, catalog?: DownlightPro
   } else if (input.tensao === 'Bivolt' && product.driverBivolt) {
     driver = product.driverBivolt;
   } else {
-    driver = product.driver220;
+    driver = product.driver220 ?? null;
   }
+  if (!driver) return null;
 
   // Usar módulo LED específico por CCT quando disponível (novos campos da API)
   const cctKey = input.cct.replace("K", "") as "2700" | "3000" | "4000" | "5000";
