@@ -1,7 +1,7 @@
 import ExcelJS from "exceljs";
 import { CartItemData } from "./cartTypes";
 import type { LinkedAccessory } from "./cartTypes";
-import { toBrasiliaDate } from "./dateUtils";
+import { toBrasiliaDate, toBrasiliaDateTime } from "./dateUtils";
 
 export interface OrderFormData {
   clientName: string;
@@ -528,7 +528,15 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   ws.mergeCells(`D${obsRow}:J${obsRow}`);
   valueCell(ws.getCell(`D${obsRow}`), "");
 
-  // ─── Gerar, baixar e retornar buffer ─────────────────────────────────────────────────────────────────────────────
+  // ─── Rodapé com data/hora/revisão em todas as páginas ──────────────────────────────────────────────────────────────
+  const emitidoEm = toBrasiliaDateTime(Date.now());
+  const pedidoFooter = form.orderNumber || form.quoteNumber;
+  ws.headerFooter = {
+    oddFooter: `&L&8Ficha T\u00e9cnica de Produ\u00e7\u00e3o \u2014 ${pedidoFooter}&R&8Emitido em: ${emitidoEm} (Hor\u00e1rio de Bras\u00edlia) | ${form.quoteNumber}`,
+    evenFooter: `&L&8Ficha T\u00e9cnica de Produ\u00e7\u00e3o \u2014 ${pedidoFooter}&R&8Emitido em: ${emitidoEm} (Hor\u00e1rio de Bras\u00edlia) | ${form.quoteNumber}`,
+  };
+
+  // ─── Gerar, baixar e retornar buffer ──────────────────────────────────────────────────────────────
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

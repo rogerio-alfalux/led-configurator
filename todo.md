@@ -1776,3 +1776,8 @@
 - [x] orderPreviewGenerator.ts: exibir corrente como "PROGRAMAÇÃO: XXX" em itálico na coluna de equipamentos da ficha de produção (somente)
 - [x] orderExcelGenerator.ts: exibir corrente como "PROGRAMAÇÃO: XXX" na célula de equipamentos do Excel (somente)
 - [x] Confirmar que corrente NÃO aparece em nenhum outro lugar (orçamento, preview de orçamento, etc.)
+
+## Rodapé da Ficha de Produção — Data/Hora/Revisão (Jul 2026)
+
+- [x] orderPreviewGenerator.ts: adicionar rodapé fixo em todas as páginas com data, hora (Brasília) e revisão do pedido no momento do download
+- [x] orderExcelGenerator.ts: adicionar rodapé (headerFooter) com data, hora (Brasília) e revisão do pedido em todas as páginas do Excel

@@ -6,7 +6,7 @@
 
 import type { CartItemData, LinkedAccessory } from "./cartTypes";
 import type { OrderFormData } from "./orderExcelGenerator";
-import { toBrasiliaDate } from "./dateUtils";
+import { toBrasiliaDateTime } from "./dateUtils";
 
 function fmtQty(n: number): string {
   return String(n).padStart(2, "0");
@@ -288,10 +288,26 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
       letter-spacing: 10px;
       font-family: Arial, sans-serif;
     }
+    /* Rodapé fixo em todas as páginas */
+    .page-footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      font-size: 8px;
+      color: #555;
+      background: #fff;
+      border-top: 1px solid #bbb;
+      padding: 3px 10px;
+      display: none;
+      justify-content: space-between;
+      align-items: center;
+    }
     @media print {
-      body { padding: 4px; }
-      @page { size: A4 landscape; margin: 10mm; }
+      body { padding: 4px; padding-bottom: 18px; }
+      @page { size: A4 landscape; margin: 10mm 10mm 16mm 10mm; }
       .watermark { color: rgba(220, 38, 38, 0.10); }
+      .page-footer { display: flex; }
     }
   </style>
 </head>
@@ -357,8 +373,10 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
     </tbody>
   </table>
 
-  <div style="margin-top:8px;font-size:8px;color:#666;text-align:right">
-    Gerado em: ${toBrasiliaDate(Date.now())} &nbsp;|&nbsp; PRÉ-VISUALIZAÇÃO — não é o documento oficial
+  <!-- Rodapé fixo em todas as páginas (visível apenas na impressão/PDF) -->
+  <div class="page-footer">
+    <span>Ficha Técnica de Produção &mdash; ${esc(pedidoDisplay)}</span>
+    <span>Emitido em: ${toBrasiliaDateTime(Date.now())} (Horário de Brasília) &nbsp;|&nbsp; ${esc(form.quoteNumber)}</span>
   </div>
 </body>
 </html>`;
