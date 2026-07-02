@@ -201,6 +201,22 @@ function resolveOtica(p: ApiProduct): string | null {
 }
 
 /** Converte um produto da API para DownlightProduct */
+/**
+ * Converte quantidades de fita LED em metros para milímetros no texto do módulo LED.
+ * Ex: "2.5x FITA LED 2835 ..." → "2500mm FITA LED 2835 ..."
+ * Ex: "1x FITA LED ..." → "1000mm FITA LED ..."
+ * Aplica-se a qualquer padrão "<número>x FITA" onde o número representa metros.
+ */
+function convertLedModuleMetrosToMm(text: string | null | undefined): string | null {
+  if (!text) return text ?? null;
+  // Padrão: número (inteiro ou decimal) seguido de "x" e depois "FITA" (case-insensitive)
+  // Ex: "2.5x FITA" → "2500mm FITA", "1x FITA" → "1000mm FITA"
+  return text.replace(/(\d+(?:\.\d+)?)x\s*(FITA)/gi, (_, metros, fita) => {
+    const mm = Math.round(parseFloat(metros) * 1000);
+    return `${mm}mm ${fita}`;
+  });
+}
+
 /** Extrai tensão embutida do ledModule (ex: "AC 110V" → "110V", "AC 220V" → "220V") */
 function extractTensaoEmbutida(ledModule: string | null | undefined): string | null {
   if (!ledModule) return null;
@@ -232,13 +248,13 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
     oticaSecundaria: p.oticaSecundaria ?? null,
     dissipador: p.dissipador ?? null,
     // Remove [CCT] do ledModule — substituído pela CCT selecionada pelo usuário na UI (campo legado)
-    ledModule: p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : "",
+    ledModule: convertLedModuleMetrosToMm(p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : "") ?? "",
     ledModuleQtd: p.ledModuleQtd ?? null,
     // Campos por CCT (novos campos da API) — [CCT] será substituído pelo CCT selecionado em calculateDownlight
-    ledModule2700: p.ledModule2700 ?? null,
-    ledModule3000: p.ledModule3000 ?? null,
-    ledModule4000: p.ledModule4000 ?? null,
-    ledModule5000: p.ledModule5000 ?? null,
+    ledModule2700: convertLedModuleMetrosToMm(p.ledModule2700 ?? null),
+    ledModule3000: convertLedModuleMetrosToMm(p.ledModule3000 ?? null),
+    ledModule4000: convertLedModuleMetrosToMm(p.ledModule4000 ?? null),
+    ledModule5000: convertLedModuleMetrosToMm(p.ledModule5000 ?? null),
     ledModuleQtd2700: p.ledModuleQtd2700 ?? null,
     ledModuleQtd3000: p.ledModuleQtd3000 ?? null,
     ledModuleQtd4000: p.ledModuleQtd4000 ?? null,
@@ -307,12 +323,12 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
     familia: p.familia,
     sku: p.sku || null,
     name: p.name,
-    ledModule: p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : null,
+    ledModule: convertLedModuleMetrosToMm(p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : null),
     ledModuleQtd: p.ledModuleQtd ?? null,
-    ledModule2700: p.ledModule2700 ?? null,
-    ledModule3000: p.ledModule3000 ?? null,
-    ledModule4000: p.ledModule4000 ?? null,
-    ledModule5000: p.ledModule5000 ?? null,
+    ledModule2700: convertLedModuleMetrosToMm(p.ledModule2700 ?? null),
+    ledModule3000: convertLedModuleMetrosToMm(p.ledModule3000 ?? null),
+    ledModule4000: convertLedModuleMetrosToMm(p.ledModule4000 ?? null),
+    ledModule5000: convertLedModuleMetrosToMm(p.ledModule5000 ?? null),
     ledModuleQtd2700: p.ledModuleQtd2700 ?? null,
     ledModuleQtd3000: p.ledModuleQtd3000 ?? null,
     ledModuleQtd4000: p.ledModuleQtd4000 ?? null,
@@ -391,12 +407,12 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
     familia: p.familia,
     sku: p.sku || null,
     name: p.name,
-    ledModule: p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : null,
+    ledModule: convertLedModuleMetrosToMm(p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : null),
     ledModuleQtd: p.ledModuleQtd ?? null,
-    ledModule2700: p.ledModule2700 ?? null,
-    ledModule3000: p.ledModule3000 ?? null,
-    ledModule4000: p.ledModule4000 ?? null,
-    ledModule5000: p.ledModule5000 ?? null,
+    ledModule2700: convertLedModuleMetrosToMm(p.ledModule2700 ?? null),
+    ledModule3000: convertLedModuleMetrosToMm(p.ledModule3000 ?? null),
+    ledModule4000: convertLedModuleMetrosToMm(p.ledModule4000 ?? null),
+    ledModule5000: convertLedModuleMetrosToMm(p.ledModule5000 ?? null),
     ledModuleQtd2700: p.ledModuleQtd2700 ?? null,
     ledModuleQtd3000: p.ledModuleQtd3000 ?? null,
     ledModuleQtd4000: p.ledModuleQtd4000 ?? null,
@@ -542,12 +558,12 @@ function toArandelaProduct(p: ApiProduct): ArandelaProduct {
     familia: p.familia,
     sku: p.sku || null,
     name: p.name,
-    ledModule: p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : null,
+    ledModule: convertLedModuleMetrosToMm(p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : null),
     ledModuleQtd: p.ledModuleQtd ?? null,
-    ledModule2700: p.ledModule2700 ?? null,
-    ledModule3000: p.ledModule3000 ?? null,
-    ledModule4000: p.ledModule4000 ?? null,
-    ledModule5000: p.ledModule5000 ?? null,
+    ledModule2700: convertLedModuleMetrosToMm(p.ledModule2700 ?? null),
+    ledModule3000: convertLedModuleMetrosToMm(p.ledModule3000 ?? null),
+    ledModule4000: convertLedModuleMetrosToMm(p.ledModule4000 ?? null),
+    ledModule5000: convertLedModuleMetrosToMm(p.ledModule5000 ?? null),
     ledModuleQtd2700: p.ledModuleQtd2700 ?? null,
     ledModuleQtd3000: p.ledModuleQtd3000 ?? null,
     ledModuleQtd4000: p.ledModuleQtd4000 ?? null,
@@ -616,11 +632,11 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
     potencia,
     difusor,
     // Remover [CCT] do ledModule (campo legado)
-    ledModule: p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : "",
-    ledModule2700: p.ledModule2700 ?? null,
-    ledModule3000: p.ledModule3000 ?? null,
-    ledModule4000: p.ledModule4000 ?? null,
-    ledModule5000: p.ledModule5000 ?? null,
+    ledModule: convertLedModuleMetrosToMm(p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : "") ?? "",
+    ledModule2700: convertLedModuleMetrosToMm(p.ledModule2700 ?? null),
+    ledModule3000: convertLedModuleMetrosToMm(p.ledModule3000 ?? null),
+    ledModule4000: convertLedModuleMetrosToMm(p.ledModule4000 ?? null),
+    ledModule5000: convertLedModuleMetrosToMm(p.ledModule5000 ?? null),
     ledModuleQtd2700: p.ledModuleQtd2700 ?? null,
     ledModuleQtd3000: p.ledModuleQtd3000 ?? null,
     ledModuleQtd4000: p.ledModuleQtd4000 ?? null,
@@ -688,7 +704,7 @@ function toBageoProduct(p: ApiProduct): BageoProduct | null {
     name: p.name,
     instalacao,
     aplicacao,
-    ledModule: p.ledModule ?? "",
+    ledModule: convertLedModuleMetrosToMm(p.ledModule ?? "") ?? "",
     ledModuleQtd: p.ledModuleQtd ?? 1,
     ccts,
     driver220: d220 ? { model: driverModel(d220), code: driverCode(d220) } : null,
