@@ -2410,7 +2410,7 @@ export default function Home() {
       driverQtdDimTriac110v: number | null;
       driverQtdDimTriac220v: number | null;
     }> = {};
-    const NON_PROFILE_CATS = ["DOWNLIGHTS", "SPOTS", "PAINÉIS", "PAINEIS", "ARANDELAS", "ÁREA EXTERNA", "AREA EXTERNA", "BALIZADORES", "DECORATIVAS", "GLOW"];
+    const NON_PROFILE_CATS = ["DOWNLIGHTS", "SPOTS", "PAINÉIS", "PAINEIS", "ARANDELAS", "ÁREA EXTERNA", "AREA EXTERNA", "BALIZADORES", "DECORATIVAS", "GLOW", "TUBE LIGHT"];
     for (const p of alfaluxApiProducts) {
       const cat = (p.categoria ?? "").toUpperCase();
       if (!NON_PROFILE_CATS.includes(cat)) continue;
@@ -4480,18 +4480,19 @@ export default function Home() {
                     {tubeLightProductKey !== null && (() => {
                       const [_tSku, ..._tNP] = (tubeLightProductKey ?? '::').split('::');
                       const tSelProd = activeTubeLightCatalog.find(p => p.sku === _tSku && p.name === _tNP.join('::'));
+                      const has220 = tSelProd?.driver220 != null;
                       const hasBivolt = tSelProd?.driverBivolt != null;
                       return (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
                           <div className="flex gap-2">
                             {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
-                              const disabled = v === "Bivolt" && !hasBivolt;
+                              const disabled = (v === "220V" && !has220) || (v === "Bivolt" && !hasBivolt);
                               return (
                                 <button
                                   key={v}
                                   disabled={disabled}
-                                  onClick={() => { setTubeLightVoltage(v); setTubeLightResult(null); }}
+                                  onClick={() => { if (!disabled) { setTubeLightVoltage(v); setTubeLightResult(null); } }}
                                   className={[
                                     "flex-1 py-2 rounded-lg text-sm font-medium border transition-all",
                                     tubeLightVoltage === v && !disabled
@@ -7651,7 +7652,7 @@ export default function Home() {
               </div>
             </div>
 
-            {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && !glowMode && profileShape === "STRAIGHT" && (!result ? (
+            {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && !glowMode && !tubeLightMode && !tubeLightResult && profileShape === "STRAIGHT" && (!result ? (
               <Card className="shadow-sm">
                 <CardContent className="flex flex-col items-center justify-center py-20 text-center">
                   <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
@@ -7669,7 +7670,7 @@ export default function Home() {
               <ResultBlock result={result} profilePriceMap={profilePriceMap} profileVariant={activeProfileCatalog[result.profileCode]} skuPriceMap={skuPriceMap} onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }} pendingAccessoriesCount={pendingAccessories.length} globalPavimento={globalPavimento} />
             ))}
             {/* Resultado EM L */}
-            {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && !glowMode && profileShape !== "STRAIGHT" && (
+            {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && !glowMode && !tubeLightMode && !tubeLightResult && profileShape !== "STRAIGHT" && (
               !shapeResult ? (
                 <Card className="shadow-sm">
                   <CardContent className="flex flex-col items-center justify-center py-20 text-center">
