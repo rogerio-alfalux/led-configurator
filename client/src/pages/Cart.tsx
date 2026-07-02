@@ -305,9 +305,15 @@ function SortableCartItem({
                       {entry.data.luminariaHasApiPrice && entry.data.unitPriceLuminaria != null ? (
                         <p className="text-xs text-muted-foreground">
                           Lum: {formatBRL(entry.data.unitPriceLuminaria)}/un
-                          {(entry.data.qty ?? 1) > 1 && (
-                            <> × {entry.data.qty} = <span className="font-medium">{formatBRL(entry.data.priceWithoutDriver ?? 0)}</span></>
-                          )}
+                          {(entry.data.qty ?? 1) > 1 && (() => {
+                            // Corrigir itens antigos onde priceWithoutDriver foi salvo como valor unitário
+                            const _pwd = entry.data.priceWithoutDriver ?? 0;
+                            const _upl = entry.data.unitPriceLuminaria ?? 0;
+                            const _qty = entry.data.qty ?? 1;
+                            const _isUnit = _upl > 0 && Math.abs(_pwd - _upl) < 0.02 && _qty > 1;
+                            const _corrected = _isUnit ? _upl * _qty : _pwd;
+                            return <> × {_qty} = <span className="font-medium">{formatBRL(_corrected)}</span></>;
+                          })()}
                         </p>
                       ) : (
                         <p className="text-xs text-amber-600 italic cursor-pointer hover:underline" onClick={() => onEditClick(entry.id, entry.data)}>
@@ -1410,7 +1416,12 @@ export default function Cart() {
                     {(() => {
                       const totalLum = entries.reduce((s, e) => {
                         if (e.data.driverLines && e.data.driverLines.length > 0) {
-                          return s + (e.data.priceWithoutDriver ?? 0);
+                          // Corrigir itens antigos onde priceWithoutDriver foi salvo como valor unitário
+                          const _pwd = e.data.priceWithoutDriver ?? 0;
+                          const _upl = e.data.unitPriceLuminaria ?? 0;
+                          const _qty = e.data.qty ?? 1;
+                          const _isUnit = _upl > 0 && Math.abs(_pwd - _upl) < 0.02 && _qty > 1;
+                          return s + (_isUnit ? _upl * _qty : _pwd);
                         }
                         return s + (e.data.totalPrice ?? 0);
                       }, 0);

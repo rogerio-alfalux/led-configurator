@@ -605,11 +605,19 @@ ${htmlContent}
                                 : "-"}
                           </td>
                           <td style={tdStyle}>
-                            {item.priceWithoutDriver && item.priceWithoutDriver > 0
-                              ? formatBRL(applyMarkup(item.priceWithoutDriver))
-                              : item.luminariaHasApiPrice === false
-                                ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
-                                : "-"}
+                            {(() => {
+                              // Corrigir itens antigos onde priceWithoutDriver foi salvo como valor unitário
+                              const _pwd = item.priceWithoutDriver ?? 0;
+                              const _upl = item.unitPriceLuminaria ?? 0;
+                              const _qty = item.qty ?? 1;
+                              const _isUnit = _upl > 0 && Math.abs(_pwd - _upl) < 0.02 && _qty > 1;
+                              const _corrected = _isUnit ? _upl * _qty : _pwd;
+                              return _corrected > 0
+                                ? formatBRL(applyMarkup(_corrected))
+                                : item.luminariaHasApiPrice === false
+                                  ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
+                                  : "-";
+                            })()}
                           </td>
                         </tr>
                       ) : (

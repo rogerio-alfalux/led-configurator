@@ -2658,7 +2658,10 @@ export default function QuoteDetail() {
                 totalGeral += tot;
                 if (d.driverLines && d.driverLines.length > 0 && d.priceWithoutDriver != null) {
                   hasDriverBreakdown = true;
-                  totalLuminaria += hasMarkup ? applyMkup(d.priceWithoutDriver) : d.priceWithoutDriver;
+                  // Corrigir itens antigos onde priceWithoutDriver foi salvo como valor unitário
+                  const isUnitOnly = d.unitPriceLuminaria != null && Math.abs(d.priceWithoutDriver - d.unitPriceLuminaria) < 0.02 && d.qty > 1;
+                  const correctedPriceWithoutDriver = isUnitOnly ? d.unitPriceLuminaria! * d.qty : d.priceWithoutDriver;
+                  totalLuminaria += hasMarkup ? applyMkup(correctedPriceWithoutDriver) : correctedPriceWithoutDriver;
                   totalDriver += d.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice != null ? (hasMarkup ? applyMkup(dl.driverTotalPrice) : dl.driverTotalPrice) : 0), 0);
                 } else {
                   totalLuminaria += tot;
@@ -2691,8 +2694,11 @@ export default function QuoteDetail() {
                               ? (hasMarkup ? applyMkup(d.totalPrice) : d.totalPrice)
                               : null;
                             const hasBreakdown = !!(d.driverLines && d.driverLines.length > 0 && d.priceWithoutDriver != null);
-                            const lumTotalDisplay = hasBreakdown
-                              ? (hasMarkup ? applyMkup(d.priceWithoutDriver!) : d.priceWithoutDriver!)
+                            // Corrigir itens antigos onde priceWithoutDriver foi salvo como valor unitário
+                            const _isUnitOnly = hasBreakdown && d.unitPriceLuminaria != null && Math.abs(d.priceWithoutDriver! - d.unitPriceLuminaria) < 0.02 && d.qty > 1;
+                            const _correctedPWD = hasBreakdown ? (_isUnitOnly ? d.unitPriceLuminaria! * d.qty : d.priceWithoutDriver!) : null;
+                            const lumTotalDisplay = _correctedPWD != null
+                              ? (hasMarkup ? applyMkup(_correctedPWD) : _correctedPWD)
                               : null;
                             const lumUnitDisplay = hasBreakdown && d.unitPriceLuminaria != null
                               ? (hasMarkup ? applyMkup(d.unitPriceLuminaria) : d.unitPriceLuminaria)

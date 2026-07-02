@@ -733,10 +733,22 @@ async function _generateExcelBuffer(
     }
 
     // N = PREÇO TOTAL (já com RT e Margem aplicados — valor final ao cliente; frete diluído se freteIncluded)
-    // Para itens com driver desmembrado: usar priceWithoutDriver; caso contrário: usar totalPrice normal
+    // Para itens com driver desmembrado: usar priceWithoutDriver × qty.
+    // Itens antigos podem ter salvo apenas o valor unitário em priceWithoutDriver;
+    // detectamos isso comparando com unitPriceLuminaria e corrigimos multiplicando por qty.
     const cTotal = ws.getCell(`N${rowNum}`);
-    const _totalForLuminaria = hasDriverBreakdownItem && item.priceWithoutDriver != null
-      ? item.priceWithoutDriver
+    let _correctedPriceWithoutDriver: number | null = null;
+    if (hasDriverBreakdownItem && item.priceWithoutDriver != null) {
+      const isUnitValueOnly =
+        item.unitPriceLuminaria != null &&
+        Math.abs(item.priceWithoutDriver - item.unitPriceLuminaria) < 0.02 &&
+        item.qty > 1;
+      _correctedPriceWithoutDriver = isUnitValueOnly
+        ? item.unitPriceLuminaria! * item.qty
+        : item.priceWithoutDriver;
+    }
+    const _totalForLuminaria = _correctedPriceWithoutDriver != null
+      ? _correctedPriceWithoutDriver
       : _totalPriceComFrete(item);
     if (_totalForLuminaria !== null && _totalForLuminaria !== undefined && _totalForLuminaria > 0) {
       cTotal.value = applyMarkup(_totalForLuminaria);

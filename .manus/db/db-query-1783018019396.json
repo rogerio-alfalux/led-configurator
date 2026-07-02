@@ -1,0 +1,94 @@
+{
+  "query": "SELECT id, JSON_UNQUOTE(JSON_EXTRACT(itemData, '$.category')) AS category, JSON_UNQUOTE(JSON_EXTRACT(itemData, '$.qty')) AS qty, JSON_UNQUOTE(JSON_EXTRACT(itemData, '$.unitPrice')) AS unitPrice, JSON_UNQUOTE(JSON_EXTRACT(itemData, '$.totalPrice')) AS totalPrice FROM cart_items ORDER BY id DESC LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT id, JSON_UNQUOTE(JSON_EXTRACT(itemData, '$.category')) AS category, JSON_UNQUOTE(JSON_EXTRACT(itemData, '$.qty')) AS qty, JSON_UNQUOTE(JSON_EXTRACT(itemData, '$.unitPrice')) AS unitPrice, JSON_UNQUOTE(JSON_EXTRACT(itemData, '$.totalPrice')) AS totalPrice FROM cart_items ORDER BY id DESC LIMIT 20;",
+  "rows": [
+    {
+      "id": "28110001",
+      "category": "Downlights",
+      "qty": "1",
+      "unitPrice": "285.56",
+      "totalPrice": "285.56"
+    },
+    {
+      "id": "28080002",
+      "category": "Downlights",
+      "qty": "1",
+      "unitPrice": "220.59",
+      "totalPrice": "220.59"
+    },
+    {
+      "id": "28050002",
+      "category": "Downlights",
+      "qty": "1",
+      "unitPrice": "344.71",
+      "totalPrice": "344.71"
+    },
+    {
+      "id": "28050001",
+      "category": "Downlights",
+      "qty": "1",
+      "unitPrice": "272.77",
+      "totalPrice": "272.77"
+    },
+    {
+      "id": "27960002",
+      "category": "Revenda",
+      "qty": "1",
+      "unitPrice": "0",
+      "totalPrice": "0"
+    },
+    {
+      "id": "26580002",
+      "category": "Perfis",
+      "qty": "1",
+      "unitPrice": "4973.94",
+      "totalPrice": "4973.94"
+    },
+    {
+      "id": "26580001",
+      "category": "Perfis",
+      "qty": "1",
+      "unitPrice": "4973.94",
+      "totalPrice": "4973.94"
+    },
+    {
+      "id": "20100001",
+      "category": "Perfis",
+      "qty": "1",
+      "unitPrice": "2112",
+      "totalPrice": "2112"
+    },
+    {
+      "id": "2580001",
+      "category": "Perfis",
+      "qty": "1",
+      "unitPrice": "1056",
+      "totalPrice": "1056"
+    },
+    {
+      "id": "2550001",
+      "category": "Downlights",
+      "qty": "1",
+      "unitPrice": "0",
+      "totalPrice": "0"
+    },
+    {
+      "id": "1560001",
+      "category": "Perfis",
+      "qty": "1",
+      "unitPrice": "887.3",
+      "totalPrice": "887.3"
+    },
+    {
+      "id": "1530001",
+      "category": "Arandelas",
+      "qty": "1",
+      "unitPrice": "0",
+      "totalPrice": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tcategory\tqty\tunitPrice\ttotalPrice\n28110001\tDownlights\t1\t285.56\t285.56\n28080002\tDownlights\t1\t220.59\t220.59\n28050002\tDownlights\t1\t344.71\t344.71\n28050001\tDownlights\t1\t272.77\t272.77\n27960002\tRevenda\t1\t0\t0\n26580002\tPerfis\t1\t4973.94\t4973.94\n26580001\tPerfis\t1\t4973.94\t4973.94\n20100001\tPerfis\t1\t2112\t2112\n2580001\tPerfis\t1\t1056\t1056\n2550001\tDownlights\t1\t0\t0\n1560001\tPerfis\t1\t887.3\t887.3\n1530001\tArandelas\t1\t0\t0\n",
+  "stderr": "",
+  "execution_time_ms": 273
+}

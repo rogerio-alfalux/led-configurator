@@ -1,0 +1,150 @@
+{
+  "query": "SELECT qi.id, JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.category')) AS category, JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.qty')) AS qty, JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.unitPrice')) AS unitPrice, JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.totalPrice')) AS totalPrice FROM quote_items qi WHERE CAST(JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.qty')) AS UNSIGNED) > 1 ORDER BY qi.id DESC LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT qi.id, JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.category')) AS category, JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.qty')) AS qty, JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.unitPrice')) AS unitPrice, JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.totalPrice')) AS totalPrice FROM quote_items qi WHERE CAST(JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.qty')) AS UNSIGNED) > 1 ORDER BY qi.id DESC LIMIT 20;",
+  "rows": [
+    {
+      "id": "19050017",
+      "category": "Item Especial",
+      "qty": "4",
+      "unitPrice": "120",
+      "totalPrice": "480"
+    },
+    {
+      "id": "19050015",
+      "category": "Downlights",
+      "qty": "5",
+      "unitPrice": "163.61",
+      "totalPrice": "818.0500000000001"
+    },
+    {
+      "id": "19050014",
+      "category": "Painéis",
+      "qty": "6",
+      "unitPrice": "369.03",
+      "totalPrice": "2214.18"
+    },
+    {
+      "id": "19050013",
+      "category": "Painéis",
+      "qty": "3",
+      "unitPrice": "369.03",
+      "totalPrice": "1107.09"
+    },
+    {
+      "id": "19050012",
+      "category": "Downlights",
+      "qty": "20",
+      "unitPrice": "166.5",
+      "totalPrice": "3330"
+    },
+    {
+      "id": "18960054",
+      "category": "Revenda",
+      "qty": "50",
+      "unitPrice": "149.67",
+      "totalPrice": "7483.499999999999"
+    },
+    {
+      "id": "18960053",
+      "category": "Item Especial",
+      "qty": "108",
+      "unitPrice": "0",
+      "totalPrice": "0"
+    },
+    {
+      "id": "18960052",
+      "category": "Item Especial",
+      "qty": "131",
+      "unitPrice": "0",
+      "totalPrice": "0"
+    },
+    {
+      "id": "18960051",
+      "category": "Item Especial",
+      "qty": "33",
+      "unitPrice": "0",
+      "totalPrice": "0"
+    },
+    {
+      "id": "18960050",
+      "category": "Item Especial",
+      "qty": "70",
+      "unitPrice": "0",
+      "totalPrice": "0"
+    },
+    {
+      "id": "18960044",
+      "category": "Item Especial",
+      "qty": "2",
+      "unitPrice": "0",
+      "totalPrice": "0"
+    },
+    {
+      "id": "18960041",
+      "category": "Item Especial",
+      "qty": "4",
+      "unitPrice": "0",
+      "totalPrice": "0"
+    },
+    {
+      "id": "18960040",
+      "category": "Item Especial",
+      "qty": "8",
+      "unitPrice": "1048.13",
+      "totalPrice": "8385.04"
+    },
+    {
+      "id": "18960039",
+      "category": "Item Especial",
+      "qty": "8",
+      "unitPrice": "0",
+      "totalPrice": "0"
+    },
+    {
+      "id": "18960038",
+      "category": "Item Especial",
+      "qty": "15",
+      "unitPrice": "0",
+      "totalPrice": "0"
+    },
+    {
+      "id": "18960037",
+      "category": "Item Especial",
+      "qty": "6",
+      "unitPrice": "0",
+      "totalPrice": "0"
+    },
+    {
+      "id": "18960036",
+      "category": "Item Especial",
+      "qty": "87",
+      "unitPrice": "0",
+      "totalPrice": "0"
+    },
+    {
+      "id": "18960035",
+      "category": "Item Especial",
+      "qty": "6",
+      "unitPrice": "0",
+      "totalPrice": "0"
+    },
+    {
+      "id": "18960030",
+      "category": "Perfis",
+      "qty": "14",
+      "unitPrice": "12581.34",
+      "totalPrice": "176138.76"
+    },
+    {
+      "id": "18960029",
+      "category": "Perfis",
+      "qty": "72",
+      "unitPrice": "345.21",
+      "totalPrice": "24855.12"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tcategory\tqty\tunitPrice\ttotalPrice\n19050017\tItem Especial\t4\t120\t480\n19050015\tDownlights\t5\t163.61\t818.0500000000001\n19050014\tPainéis\t6\t369.03\t2214.18\n19050013\tPainéis\t3\t369.03\t1107.09\n19050012\tDownlights\t20\t166.5\t3330\n18960054\tRevenda\t50\t149.67\t7483.499999999999\n18960053\tItem Especial\t108\t0\t0\n18960052\tItem Especial\t131\t0\t0\n18960051\tItem Especial\t33\t0\t0\n18960050\tItem Especial\t70\t0\t0\n18960044\tItem Especial\t2\t0\t0\n18960041\tItem Especial\t4\t0\t0\n18960040\tItem Especial\t8\t1048.13\t8385.04\n18960039\tItem Especial\t8\t0\t0\n18960038\tItem Especial\t15\t0\t0\n18960037\tItem Especial\t6\t0\t0\n18960036\tItem Especial\t87\t0\t0\n18960035\tItem Especial\t6\t0\t0\n18960030\tPerfis\t14\t12581.34\t176138.76\n18960029\tPerfis\t72\t345.21\t24855.12\n",
+  "stderr": "",
+  "execution_time_ms": 287
+}

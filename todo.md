@@ -1781,3 +1781,12 @@
 
 - [x] orderPreviewGenerator.ts: adicionar rodapé fixo em todas as páginas com data, hora (Brasília) e revisão do pedido no momento do download
 - [x] orderExcelGenerator.ts: adicionar rodapé (headerFooter) com data, hora (Brasília) e revisão do pedido em todas as páginas do Excel
+
+## Correção de Subtotal (qty × valor unitário) — Jul 2026
+
+- [x] Investigar onde subtotal é calculado no Excel, carrinho, orçamento e preview
+- [x] Corrigir subtotal no Excel do orçamento (quoteExcelGenerator.ts): priceWithoutDriver × qty para itens com driverLines
+- [x] Corrigir subtotal no carrinho (Cart.tsx): exibição e soma total com priceWithoutDriver × qty
+- [x] Corrigir subtotal na tela do orçamento (QuoteDetail.tsx): lumTotalDisplay e totalLuminaria com priceWithoutDriver × qty
+- [x] Corrigir subtotal na pré-visualização do Excel (ExcelPreviewModal.tsx): priceWithoutDriver × qty
+- [x] Corrigir ColorPickerModal (Home.tsx): recalcular priceWithoutDriver e driverLines com effectiveQty ao salvar novos itens

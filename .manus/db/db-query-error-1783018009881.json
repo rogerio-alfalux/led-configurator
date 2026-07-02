@@ -1,0 +1,8 @@
+{
+  "query": "SELECT id, JSON_UNQUOTE(JSON_EXTRACT(item_data, '$.category')) AS category, JSON_UNQUOTE(JSON_EXTRACT(item_data, '$.qty')) AS qty, JSON_UNQUOTE(JSON_EXTRACT(item_data, '$.unitPrice')) AS unitPrice, JSON_UNQUOTE(JSON_EXTRACT(item_data, '$.totalPrice')) AS totalPrice FROM cart_items ORDER BY id DESC LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT id, JSON_UNQUOTE(JSON_EXTRACT(item_data, '$.category')) AS category, JSON_UNQUOTE(JSON_EXTRACT(item_data, '$.qty')) AS qty, JSON_UNQUOTE(JSON_EXTRACT(item_data, '$.unitPrice')) AS unitPrice, JSON_UNQUOTE(JSON_EXTRACT(item_data, '$.totalPrice')) AS totalPrice FROM cart_items ORDER BY id DESC LIMIT 20;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'item_data' in 'field list'"
+  ]
+}

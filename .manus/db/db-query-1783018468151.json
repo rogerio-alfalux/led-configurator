@@ -1,0 +1,80 @@
+{
+  "query": "SELECT qi.id, JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.qty')) AS qty, JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.unitPriceLuminaria')) AS unitPriceLuminaria, JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.priceWithoutDriver')) AS priceWithoutDriver, JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.totalPrice')) AS totalPrice FROM quote_items qi WHERE JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.description')) LIKE '%LUMIGRID%' ORDER BY qi.id DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4QE1i3LPsxu4CUm.root --database emCAipNpTbMAUBXoZXdNuB --execute SELECT qi.id, JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.qty')) AS qty, JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.unitPriceLuminaria')) AS unitPriceLuminaria, JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.priceWithoutDriver')) AS priceWithoutDriver, JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.totalPrice')) AS totalPrice FROM quote_items qi WHERE JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.description')) LIKE '%LUMIGRID%' ORDER BY qi.id DESC LIMIT 10;",
+  "rows": [
+    {
+      "id": "18960025",
+      "qty": "391",
+      "unitPriceLuminaria": "127.18",
+      "priceWithoutDriver": "127.18",
+      "totalPrice": "49727.380000000005"
+    },
+    {
+      "id": "18960024",
+      "qty": "24",
+      "unitPriceLuminaria": "null",
+      "priceWithoutDriver": "null",
+      "totalPrice": "115.5"
+    },
+    {
+      "id": "18750007",
+      "qty": "3",
+      "unitPriceLuminaria": "127.18",
+      "priceWithoutDriver": "127.18",
+      "totalPrice": "381.54"
+    },
+    {
+      "id": "18720002",
+      "qty": "9",
+      "unitPriceLuminaria": "127.18",
+      "priceWithoutDriver": "127.18",
+      "totalPrice": "1144.6200000000001"
+    },
+    {
+      "id": "18270070",
+      "qty": "10",
+      "unitPriceLuminaria": "NULL",
+      "priceWithoutDriver": "NULL",
+      "totalPrice": "5200"
+    },
+    {
+      "id": "18060013",
+      "qty": "58",
+      "unitPriceLuminaria": "127.18",
+      "priceWithoutDriver": "127.18",
+      "totalPrice": "7376.4400000000005"
+    },
+    {
+      "id": "17820001",
+      "qty": "90",
+      "unitPriceLuminaria": "127.18",
+      "priceWithoutDriver": "11446.2",
+      "totalPrice": "11561.7"
+    },
+    {
+      "id": "17460036",
+      "qty": "10",
+      "unitPriceLuminaria": "127.18",
+      "priceWithoutDriver": "127.18",
+      "totalPrice": "1271.8000000000002"
+    },
+    {
+      "id": "17460027",
+      "qty": "10",
+      "unitPriceLuminaria": "127.18",
+      "priceWithoutDriver": "127.18",
+      "totalPrice": "1271.8000000000002"
+    },
+    {
+      "id": "17250021",
+      "qty": "10",
+      "unitPriceLuminaria": "NULL",
+      "priceWithoutDriver": "NULL",
+      "totalPrice": "5200"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tqty\tunitPriceLuminaria\tpriceWithoutDriver\ttotalPrice\n18960025\t391\t127.18\t127.18\t49727.380000000005\n18960024\t24\tnull\tnull\t115.5\n18750007\t3\t127.18\t127.18\t381.54\n18720002\t9\t127.18\t127.18\t1144.6200000000001\n18270070\t10\tNULL\tNULL\t5200\n18060013\t58\t127.18\t127.18\t7376.4400000000005\n17820001\t90\t127.18\t11446.2\t11561.7\n17460036\t10\t127.18\t127.18\t1271.8000000000002\n17460027\t10\t127.18\t127.18\t1271.8000000000002\n17250021\t10\tNULL\tNULL\t5200\n",
+  "stderr": "",
+  "execution_time_ms": 284
+}
