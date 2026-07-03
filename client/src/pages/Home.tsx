@@ -499,7 +499,7 @@ function SkuDriverList({ entries, label }: { entries: SkuDriverEntry[]; label?: 
             <th className="text-left px-3 py-2 font-semibold text-muted-foreground">SKU do Módulo</th>
             <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Qtd</th>
             <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Driver por Peça</th>
-            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Cód. EQ</th>
+            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Código</th>
           </tr>
         </thead>
         <tbody>
@@ -9589,18 +9589,18 @@ export default function Home() {
                           {dlResult.product.oticaPrimaria ? (
                             <>
                               <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ótica Primária</p>
-                              <p className="text-sm font-semibold">{dlResult.product.oticaPrimaria}</p>
+                              <p className="text-sm font-semibold">{dlResult.product.oticaPrimaria}{dlResult.oticaPrimariaEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({dlResult.oticaPrimariaEq})</span> : null}</p>
                               {dlResult.product.oticaSecundaria && (
                                 <>
                                   <p className="text-xs text-muted-foreground uppercase tracking-wide mt-2 mb-1">Ótica Secundária</p>
-                                  <p className="text-sm font-semibold">{dlResult.product.oticaSecundaria}</p>
+                                  <p className="text-sm font-semibold">{dlResult.product.oticaSecundaria}{dlResult.oticaSecundariaEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({dlResult.oticaSecundariaEq})</span> : null}</p>
                                 </>
                               )}
                             </>
                           ) : (
                             <>
                               <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ótica</p>
-                              <p className="text-sm font-semibold">{dlResult.product.otica}</p>
+                              <p className="text-sm font-semibold">{dlResult.product.otica}{dlResult.oticaEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({dlResult.oticaEq})</span> : null}</p>
                             </>
                           )}
                         </div>
@@ -9608,13 +9608,13 @@ export default function Home() {
                       {dlResult.product.holder && (
                         <div className="p-3 rounded-lg bg-muted/50 col-span-2">
                           <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Holder</p>
-                          <p className="text-sm font-semibold">{dlResult.product.holder}</p>
+                          <p className="text-sm font-semibold">{dlResult.product.holder}{dlResult.holderEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({dlResult.holderEq})</span> : null}</p>
                         </div>
                       )}
                       {dlResult.product.dissipador && (
                         <div className="p-3 rounded-lg bg-muted/50 col-span-2">
                           <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Dissipador</p>
-                          <p className="text-sm font-semibold">{dlResult.product.dissipador}</p>
+                          <p className="text-sm font-semibold">{dlResult.product.dissipador}{dlResult.dissipadorEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({dlResult.dissipadorEq})</span> : null}</p>
                         </div>
                       )}
                       {!dlResult.product.isLamp && dlResult.driver.model && (
@@ -9910,9 +9910,13 @@ export default function Home() {
                     {(aeResult.product.oticaPrimaria || aeResult.product.otica) && (
                       <div className="p-3 rounded-lg bg-muted/50">
                         {aeResult.product.oticaPrimaria ? (
-                          <><p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ótica</p><p className="text-sm font-semibold">{aeResult.product.oticaPrimaria}</p>{aeResult.product.oticaSecundaria && <p className="text-sm font-semibold">{aeResult.product.oticaSecundaria}</p>}</>
+                          <>
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ótica Primária</p>
+                            <p className="text-sm font-semibold">{aeResult.product.oticaPrimaria}{aeResult.oticaPrimariaEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({aeResult.oticaPrimariaEq})</span> : null}</p>
+                            {aeResult.product.oticaSecundaria && <><p className="text-xs text-muted-foreground uppercase tracking-wide mt-2 mb-1">Ótica Secundária</p><p className="text-sm font-semibold">{aeResult.product.oticaSecundaria}{aeResult.oticaSecundariaEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({aeResult.oticaSecundariaEq})</span> : null}</p></>}
+                          </>
                         ) : (
-                          <><p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ótica</p><p className="text-sm font-semibold">{aeResult.product.otica}</p></>
+                          <><p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ótica</p><p className="text-sm font-semibold">{aeResult.product.otica}{aeResult.oticaEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({aeResult.oticaEq})</span> : null}</p></>
                         )}
                       </div>
                     )}
@@ -10723,6 +10727,42 @@ export default function Home() {
                         <p className="text-sm font-semibold">{arandelaResult.ledModuleWithCCT}{arandelaResult.ledModuleEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({arandelaResult.ledModuleEq})</span> : null}</p>
                       </div>
                     )}
+                    {/* Ótica */}
+                    {(arandelaResult.product.oticaPrimaria || arandelaResult.product.otica) && (
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        {arandelaResult.product.oticaPrimaria ? (
+                          <>
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ótica Primária</p>
+                            <p className="text-sm font-semibold">{arandelaResult.product.oticaPrimaria}{arandelaResult.oticaPrimariaEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({arandelaResult.oticaPrimariaEq})</span> : null}</p>
+                            {arandelaResult.product.oticaSecundaria && (
+                              <>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide mt-2 mb-1">Ótica Secundária</p>
+                                <p className="text-sm font-semibold">{arandelaResult.product.oticaSecundaria}{arandelaResult.oticaSecundariaEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({arandelaResult.oticaSecundariaEq})</span> : null}</p>
+                              </>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ótica</p>
+                            <p className="text-sm font-semibold">{arandelaResult.product.otica}{arandelaResult.oticaEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({arandelaResult.oticaEq})</span> : null}</p>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    {/* Holder */}
+                    {arandelaResult.product.holder && (
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Holder</p>
+                        <p className="text-sm font-semibold">{arandelaResult.product.holder}{arandelaResult.holderEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({arandelaResult.holderEq})</span> : null}</p>
+                      </div>
+                    )}
+                    {/* Dissipador */}
+                    {arandelaResult.product.dissipador && (
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Dissipador</p>
+                        <p className="text-sm font-semibold">{arandelaResult.product.dissipador}{arandelaResult.dissipadorEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({arandelaResult.dissipadorEq})</span> : null}</p>
+                      </div>
+                    )}
                     {/* Driver */}
                     {!arandelaResult.product.isLamp && arandelaResult.driver.model && (
                     <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
@@ -11000,18 +11040,18 @@ export default function Home() {
                         {spotResult.product.oticaPrimaria ? (
                           <>
                             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ótica Primária</p>
-                            <p className="text-sm font-semibold">{spotResult.product.oticaPrimaria}</p>
+                            <p className="text-sm font-semibold">{spotResult.product.oticaPrimaria}{spotResult.oticaPrimariaEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({spotResult.oticaPrimariaEq})</span> : null}</p>
                             {spotResult.product.oticaSecundaria && (
                               <>
                                 <p className="text-xs text-muted-foreground uppercase tracking-wide mt-2 mb-1">Ótica Secundária</p>
-                                <p className="text-sm font-semibold">{spotResult.product.oticaSecundaria}</p>
+                                <p className="text-sm font-semibold">{spotResult.product.oticaSecundaria}{spotResult.oticaSecundariaEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({spotResult.oticaSecundariaEq})</span> : null}</p>
                               </>
                             )}
                           </>
                         ) : (
                           <>
                             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ótica</p>
-                            <p className="text-sm font-semibold">{spotResult.product.otica}</p>
+                            <p className="text-sm font-semibold">{spotResult.product.otica}{spotResult.oticaEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({spotResult.oticaEq})</span> : null}</p>
                           </>
                         )}
                       </div>
@@ -11020,7 +11060,7 @@ export default function Home() {
                     {spotResult.product.holder && (
                       <div className="p-3 rounded-lg bg-muted/50">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Holder</p>
-                        <p className="text-sm font-semibold">{spotResult.product.holder}</p>
+                        <p className="text-sm font-semibold">{spotResult.product.holder}{spotResult.holderEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({spotResult.holderEq})</span> : null}</p>
                       </div>
                     )}
                     {/* Driver */}
