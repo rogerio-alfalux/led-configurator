@@ -209,7 +209,13 @@ export function calculateSpot(catalog: SpotProduct[], input: SpotInput): SpotRes
   let ledModuleWithCCT: string | null;
   let ledModuleEq: string | null;
   if (product.isRgbw) {
-    ledModuleWithCCT = product.ledModule || null;
+    // Para produtos RGBW, o módulo pode estar em ledModule genérico ou em um dos campos por CCT
+    ledModuleWithCCT = product.ledModule
+      || ((product as any).ledModule2700 as string | null | undefined)
+      || ((product as any).ledModule3000 as string | null | undefined)
+      || ((product as any).ledModule4000 as string | null | undefined)
+      || ((product as any).ledModule5000 as string | null | undefined)
+      || null;
     ledModuleEq = null;
   } else {
     // Usar módulo LED específico por CCT quando disponível

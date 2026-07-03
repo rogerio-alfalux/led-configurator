@@ -3795,8 +3795,20 @@ export function calculateDownlight(input: DownlightInput, catalog?: DownlightPro
   let resolvedLedModuleQtd: number | null;
   let ledModuleEq: string | null;
   if (product.isRgbw) {
-    ledModuleWithCCT = product.ledModule || "";
-    resolvedLedModuleQtd = product.ledModuleQtd;
+    // Para produtos RGBW, o módulo pode estar em ledModule genérico ou em um dos campos por CCT
+    const rgbwModule = product.ledModule
+      || product.ledModule2700
+      || product.ledModule3000
+      || product.ledModule4000
+      || product.ledModule5000
+      || "";
+    ledModuleWithCCT = rgbwModule;
+    resolvedLedModuleQtd = product.ledModuleQtd
+      ?? product.ledModuleQtd2700
+      ?? product.ledModuleQtd3000
+      ?? product.ledModuleQtd4000
+      ?? product.ledModuleQtd5000
+      ?? null;
     ledModuleEq = null;
   } else {
     // Usar módulo LED específico por CCT quando disponível (novos campos da API)
