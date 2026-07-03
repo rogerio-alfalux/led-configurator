@@ -85,6 +85,13 @@ export interface PainelProduct {
   custoCorpoDimDali?: number | null;
   custoCorpoDimTriac110v?: number | null;
   custoCorpoDimTriac220v?: number | null;
+  // Custo do driver por controle
+  custoDriver220?: number | null;
+  custoDriverBivolt?: number | null;
+  custoDriverDim110v?: number | null;
+  custoDriverDimDali?: number | null;
+  custoDriverDimTriac110v?: number | null;
+  custoDriverDimTriac220v?: number | null;
   // Markup padrão do corpo por controle
   markupPadraoOnoff220v?: number | null;
   markupPadraoOnoffBivolt?: number | null;
@@ -92,6 +99,22 @@ export interface PainelProduct {
   markupPadraoDimDali?: number | null;
   markupPadraoDimTriac110v?: number | null;
   markupPadraoDimTriac220v?: number | null;
+  // Markup padrão do driver por controle
+  markupPadraoDriverOnoff220v?: number | null;
+  markupPadraoDriverOnoffBivolt?: number | null;
+  markupPadraoDriverDim110v?: number | null;
+  markupPadraoDriverDimDali?: number | null;
+  markupPadraoDriverDimTriac110v?: number | null;
+  markupPadraoDriverDimTriac220v?: number | null;
+  // Markup mínimo do driver
+  markupMinimoDriver?: number | null;
+  // Markup mínimo do corpo por controle
+  markupMinimoOnoff220v?: number | null;
+  markupMinimoOnoffBivolt?: number | null;
+  markupMinimoDim110v?: number | null;
+  markupMinimoDimDali?: number | null;
+  markupMinimoDimTriac110v?: number | null;
+  markupMinimoDimTriac220v?: number | null;
   /**
    * URL da foto do produto (vinda da API). Pode ser null se não cadastrada.
    */

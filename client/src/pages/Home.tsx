@@ -3343,9 +3343,12 @@ export default function Home() {
     paineis: activePanelCatalog,
     spots: activeSpotCatalog,
     arandelas: activeArandelaCatalog,
+    areaExterna: activeAreaExternaCatalog,
+    balizadores: activeBalizadoresCatalog,
+    decorativas: activeDecorativasCatalog,
     revenda: revendaProducts,
     acessorios: acessoriosProducts,
-  }), [activeProfileCatalog, activeLedBarCatalog, activeBageoCatalog, activeDlCatalog, activePanelCatalog, activeSpotCatalog, activeArandelaCatalog, revendaProducts, acessoriosProducts]);
+  }), [activeProfileCatalog, activeLedBarCatalog, activeBageoCatalog, activeDlCatalog, activePanelCatalog, activeSpotCatalog, activeArandelaCatalog, activeAreaExternaCatalog, activeBalizadoresCatalog, activeDecorativasCatalog, revendaProducts, acessoriosProducts]);
 
   const handleSearchSelect = useCallback((suggestion: SearchSuggestion) => {
     const cat = suggestion.category;
@@ -3452,6 +3455,49 @@ export default function Home() {
       }
       setArandelaVoltage(null);
       setArandelaResult(null);
+    } else if (cat === "Área Externa") {
+      setProductCategory("Área Externa");
+      const aeProd = activeAreaExternaCatalog.find(p => p.sku === suggestion.code || p.familia === suggestion.familia);
+      if (aeProd) {
+        setAeInstalacao(aeProd.instalacao);
+        setAeFamilia(aeProd.familia);
+        const key = `${aeProd.sku ?? ""}::${aeProd.name}`;
+        setAeProductKey(key);
+        const availCCTs = aeProd.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+        setAeCCT(availCCTs[0] ?? "3000K");
+      } else {
+        setAeInstalacao(suggestion.instalacao ?? null);
+        setAeFamilia(suggestion.familia);
+        setAeProductKey(null);
+      }
+      setAeVoltage(null);
+      setAeResult(null);
+    } else if (cat === "Balizadores") {
+      setProductCategory("Balizadores");
+      const balProd = activeBalizadoresCatalog.find(p => p.sku === suggestion.code || p.familia === suggestion.familia);
+      if (balProd) {
+        setBalFamilia(balProd.familia);
+        const key = `${balProd.sku ?? ""}::${balProd.name}`;
+        setBalProductKey(key);
+        const availCCTs = balProd.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+        setBalCCT(availCCTs[0] ?? "3000K");
+      } else {
+        setBalFamilia(suggestion.familia);
+        setBalProductKey(null);
+      }
+    } else if (cat === "Decorativas") {
+      setProductCategory("Decorativas");
+      const decProd = activeDecorativasCatalog.find(p => p.sku === suggestion.code || p.familia === suggestion.familia);
+      if (decProd) {
+        setDecFamilia(decProd.familia);
+        const key = `${decProd.sku ?? ""}::${decProd.name}`;
+        setDecProductKey(key);
+        const availCCTs = decProd.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+        setDecCCT(availCCTs[0] ?? "3000K");
+      } else {
+        setDecFamilia(suggestion.familia);
+        setDecProductKey(null);
+      }
     } else if (cat === "Revenda") {
       setProductCategory("Revenda");
       if (suggestion.code) {
@@ -3470,7 +3516,7 @@ export default function Home() {
     setTimeout(() => {
       document.getElementById("configurador-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
-  }, [activeGetInstallTypesForProfile, activeBageoCatalog, activeDlCatalog, activePanelCatalog, activeSpotCatalog, activeArandelaCatalog, acessoriosProducts]);
+  }, [activeGetInstallTypesForProfile, activeBageoCatalog, activeDlCatalog, activePanelCatalog, activeSpotCatalog, activeArandelaCatalog, activeAreaExternaCatalog, activeBalizadoresCatalog, activeDecorativasCatalog, acessoriosProducts]);
 
   // Listas derivadas para filtros de Downlights (usando catálogo dinâmico da API ou fallback estático)
   // Detecta se um produto tem formato R ou Q no nome
@@ -8658,7 +8704,9 @@ export default function Home() {
                           }
                           const totalDrv = drvLines.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
                           if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
-                          if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                          const totalCalc = (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) ? drvLines.priceWithoutDriver + totalDrv : null;
+                          if (totalCalc !== null) lines.push(`TOTAL: ${formatBRL(totalCalc)}`);
+                          else if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
                         } else if (preco !== null) {
                           lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
                         }
@@ -8862,7 +8910,9 @@ export default function Home() {
                           }
                           const totalDrv = drvLines.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
                           if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
-                          if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                          const totalCalc = (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) ? drvLines.priceWithoutDriver + totalDrv : null;
+                          if (totalCalc !== null) lines.push(`TOTAL: ${formatBRL(totalCalc)}`);
+                          else if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
                         } else if (preco !== null) {
                           lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
                         }
@@ -9066,7 +9116,9 @@ export default function Home() {
                           }
                           const totalDrv = drvLines.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
                           if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
-                          if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                          const totalCalc = (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) ? drvLines.priceWithoutDriver + totalDrv : null;
+                          if (totalCalc !== null) lines.push(`TOTAL: ${formatBRL(totalCalc)}`);
+                          else if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
                         } else if (preco !== null) {
                           lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
                         }
@@ -9760,7 +9812,9 @@ export default function Home() {
                             }
                             const totalDrv = drvLines.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
                             if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
-                            if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                            const totalCalc = (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) ? drvLines.priceWithoutDriver + totalDrv : null;
+                            if (totalCalc !== null) lines.push(`TOTAL: ${formatBRL(totalCalc)}`);
+                            else if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
                           } else if (preco !== null) {
                             lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
                           }
@@ -10054,7 +10108,9 @@ export default function Home() {
                             }
                             const totalDrv = drvLines.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
                             if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
-                            if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                            const totalCalc = (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) ? drvLines.priceWithoutDriver + totalDrv : null;
+                            if (totalCalc !== null) lines.push(`TOTAL: ${formatBRL(totalCalc)}`);
+                            else if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
                           } else if (preco !== null) {
                             lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
                           }
@@ -10258,7 +10314,7 @@ export default function Home() {
                             )}
                           </div>
                         )}
-                        {spaceDrvLines && (
+                        {spaceDrvLines ? (
                           <div className="col-span-2">
                             <PriceBreakdownBlock
                               sku={_srProd?.sku ?? ''}
@@ -10270,6 +10326,22 @@ export default function Home() {
                               lumPriceMap={lumPriceMap}
                               productName={_srProd?.name}
                             />
+                          </div>
+                        ) : (
+                          <div className="col-span-2 grid grid-cols-3 gap-2">
+                            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-500/30">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Luminária</p>
+                              <p className="text-sm font-bold text-amber-700 dark:text-amber-400">A DEFINIR</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-500/30">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
+                              <p className="text-sm font-bold text-blue-700 dark:text-blue-400">A DEFINIR</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-500/30">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Total</p>
+                              <p className="text-sm font-bold text-green-700 dark:text-green-400">A DEFINIR</p>
+                            </div>
+                            <p className="col-span-3 text-xs text-muted-foreground">Produto customizado — preço calculado sob consulta.</p>
                           </div>
                         )}
                         <div className="p-3 rounded-lg bg-muted/50 col-span-2">
@@ -10598,13 +10670,15 @@ export default function Home() {
                             }
                             const totalDrv = drvLines.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
                             if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
-                            if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                            const totalCalc = (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) ? drvLines.priceWithoutDriver + totalDrv : null;
+                            if (totalCalc !== null) lines.push(`TOTAL: ${formatBRL(totalCalc)}`);
+                            else if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
                           } else if (preco !== null) {
                             lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
                           }
                           return lines.join("\n");
-                        })()
-                      }</div>
+                        })()}
+                    </div>
                     <PriceBreakdownBlock
                       sku={panelResult.product.sku ?? ""}
                       controle={panelResult.controle}
@@ -10894,7 +10968,9 @@ export default function Home() {
                             }
                             const totalDrv = drvLines.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
                             if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
-                            if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                            const totalCalc = (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) ? drvLines.priceWithoutDriver + totalDrv : null;
+                            if (totalCalc !== null) lines.push(`TOTAL: ${formatBRL(totalCalc)}`);
+                            else if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
                           } else if (preco !== null) {
                             lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
                           }
@@ -11194,7 +11270,9 @@ export default function Home() {
                             }
                             const totalDrv = drvLines.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
                             if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
-                            if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                            const totalCalc = (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) ? drvLines.priceWithoutDriver + totalDrv : null;
+                            if (totalCalc !== null) lines.push(`TOTAL: ${formatBRL(totalCalc)}`);
+                            else if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
                           } else if (preco !== null) {
                             lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
                           }

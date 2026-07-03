@@ -490,12 +490,35 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
     custoCorpoDimDali: p.custoCorpoDimDali ?? null,
     custoCorpoDimTriac110v: p.custoCorpoDimTriac110v ?? null,
     custoCorpoDimTriac220v: p.custoCorpoDimTriac220v ?? null,
+    // Custo e markup do driver
+    custoDriver220: p.custoDriver220 ?? null,
+    custoDriverBivolt: p.custoDriverBivolt ?? null,
+    custoDriverDim110v: p.custoDriverDim110v ?? null,
+    custoDriverDimDali: p.custoDriverDimDali ?? null,
+    custoDriverDimTriac110v: (p as any).custoDriverDimTriac110v ?? null,
+    custoDriverDimTriac220v: (p as any).custoDriverDimTriac220v ?? null,
     markupPadraoOnoff220v: p.markupPadraoOnoff220v ?? null,
     markupPadraoOnoffBivolt: p.markupPadraoOnoffBivolt ?? null,
     markupPadraoDim110v: p.markupPadraoDim110v ?? null,
     markupPadraoDimDali: p.markupPadraoDimDali ?? null,
     markupPadraoDimTriac110v: p.markupPadraoDimTriac110v ?? null,
     markupPadraoDimTriac220v: p.markupPadraoDimTriac220v ?? null,
+    // Markup padrão do driver
+    markupPadraoDriverOnoff220v: p.markupPadraoDriverOnoff220v ?? null,
+    markupPadraoDriverOnoffBivolt: p.markupPadraoDriverOnoffBivolt ?? null,
+    markupPadraoDriverDim110v: p.markupPadraoDriverDim110v ?? null,
+    markupPadraoDriverDimDali: p.markupPadraoDriverDimDali ?? null,
+    markupPadraoDriverDimTriac110v: (p as any).markupPadraoDriverDimTriac110v ?? null,
+    markupPadraoDriverDimTriac220v: (p as any).markupPadraoDriverDimTriac220v ?? null,
+    // Markup mínimo do driver
+    markupMinimoDriver: p.markupMinimoDriver ?? null,
+    // Markup mínimo do corpo
+    markupMinimoOnoff220v: p.markupMinimoOnoff220v ?? null,
+    markupMinimoOnoffBivolt: p.markupMinimoOnoffBivolt ?? null,
+    markupMinimoDim110v: p.markupMinimoDim110v ?? null,
+    markupMinimoDimDali: p.markupMinimoDimDali ?? null,
+    markupMinimoDimTriac110v: p.markupMinimoDimTriac110v ?? null,
+    markupMinimoDimTriac220v: p.markupMinimoDimTriac220v ?? null,
     fotoUrl: normalizeFotoUrl(p.fotoUrl ?? null),
   };
 }

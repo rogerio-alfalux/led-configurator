@@ -24,6 +24,9 @@ export type ProductCategory =
   | "Painéis"
   | "Spots"
   | "Arandelas"
+  | "Área Externa"
+  | "Balizadores"
+  | "Decorativas"
   | "Revenda"
   | "Acessórios";
 
@@ -69,6 +72,9 @@ export interface ProductSearchCatalogs {
   paineis: PainelProduct[];
   spots: SpotProduct[];
   arandelas: ArandelaProduct[];
+  areaExterna: DownlightProduct[];
+  balizadores: DownlightProduct[];
+  decorativas: DownlightProduct[];
   revenda: RevendaSearchItem[];
   acessorios: AcessorioSearchItem[];
 }
@@ -94,6 +100,9 @@ function CategoryIcon({ category }: { category: ProductCategory }) {
     case "Spots":
       return <Focus className={cls} />;
     case "Arandelas":
+    case "Área Externa":
+    case "Balizadores":
+    case "Decorativas":
       return <Lamp className={cls} />;
     case "Revenda":
       return <ShoppingBag className={cls} />;
@@ -110,6 +119,9 @@ const CATEGORY_COLORS: Record<ProductCategory, string> = {
   "Painéis": "text-emerald-500",
   Spots: "text-orange-500",
   Arandelas: "text-pink-500",
+  "Área Externa": "text-lime-500",
+  Balizadores: "text-yellow-500",
+  Decorativas: "text-rose-500",
   Revenda: "text-teal-500",
   "Acessórios": "text-cyan-500",
 };
@@ -242,6 +254,54 @@ function buildSuggestions(catalogs: ProductSearchCatalogs): SearchSuggestion[] {
     });
   }
 
+  // Área Externa — deduplica por família
+  const seenAe = new Set<string>();
+  for (const p of catalogs.areaExterna) {
+    if (!seenAe.has(p.familia)) {
+      seenAe.add(p.familia);
+      suggestions.push({
+        category: "Área Externa",
+        name: p.name,
+        familia: p.familia,
+        code: p.sku,
+        fotoUrl: (p as any).fotoUrl ?? null,
+        instalacao: p.instalacao,
+      });
+    }
+  }
+
+  // Balizadores — deduplica por família
+  const seenBal = new Set<string>();
+  for (const p of catalogs.balizadores) {
+    if (!seenBal.has(p.familia)) {
+      seenBal.add(p.familia);
+      suggestions.push({
+        category: "Balizadores",
+        name: p.name,
+        familia: p.familia,
+        code: p.sku,
+        fotoUrl: (p as any).fotoUrl ?? null,
+        instalacao: p.instalacao,
+      });
+    }
+  }
+
+  // Decorativas — deduplica por família
+  const seenDec = new Set<string>();
+  for (const p of catalogs.decorativas) {
+    if (!seenDec.has(p.familia)) {
+      seenDec.add(p.familia);
+      suggestions.push({
+        category: "Decorativas",
+        name: p.name,
+        familia: p.familia,
+        code: p.sku,
+        fotoUrl: (p as any).fotoUrl ?? null,
+        instalacao: p.instalacao,
+      });
+    }
+  }
+
   // Acessórios — cada produto individualmente
   for (const p of catalogs.acessorios) {
     const nome = p.produto ?? p.sku ?? p.codigo ?? "";
@@ -296,6 +356,9 @@ export function ProductSearch({ catalogs, onSelect }: ProductSearchProps) {
       catalogs.paineis,
       catalogs.spots,
       catalogs.arandelas,
+      catalogs.areaExterna,
+      catalogs.balizadores,
+      catalogs.decorativas,
       catalogs.revenda,
       catalogs.acessorios,
     ]
