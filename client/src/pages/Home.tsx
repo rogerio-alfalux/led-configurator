@@ -9934,8 +9934,10 @@ export default function Home() {
               // Quando SPACE_CUSTOMIZADA: buscar produto base pelo SKU correto (R→LDS-6078, Q/Ret→LDS-6079)
               let _srProd: typeof activePanelCatalog[0] | null | undefined = null;
               if (panelProductKey === 'SPACE_CUSTOMIZADA') {
-                const baseSku = spaceFormat === 'R' ? 'LDS-6078' : 'LDS-6079';
-                _srProd = activePanelCatalog.find(p => p.sku === baseSku) ?? null;
+                // EMBUTIR usa LDE-60xx, PENDENTE e SOBREPOR usam LDS-60xx
+                const skuPrefix = panelInstalacao === 'EMBUTIR' ? 'LDE' : 'LDS';
+                const baseSku = spaceFormat === 'R' ? `${skuPrefix}-6078` : `${skuPrefix}-6079`;
+                _srProd = activePanelCatalog.find(p => p.sku === baseSku && p.instalacao === panelInstalacao) ?? activePanelCatalog.find(p => p.sku === baseSku) ?? null;
               } else {
                 const [_srSku, ..._srNP] = (panelProductKey ?? '::').split('::');
                 _srProd = panelProductKey ? activePanelCatalog.find(p => p.sku === _srSku && p.name === _srNP.join('::')) : null;
@@ -9948,15 +9950,17 @@ export default function Home() {
                 : spaceFormat === 'Q'
                   ? `${spaceLargura}x${spaceLargura}mm`
                   : `${spaceLargura}x${spaceComprimento}mm`;
-              const spaceLabel = `SPACE ${spaceFormat === 'R' ? 'R' : spaceFormat === 'Q' ? 'Q' : 'RET'} ${dimLabel}`;
+              const spaceInstLabel = panelInstalacao === 'SOBREPOR' ? 'S' : panelInstalacao === 'EMBUTIR' ? 'E' : 'P';
+              const spaceLabel = `SPACE ${spaceInstLabel} ${spaceFormat === 'R' ? 'R' : spaceFormat === 'Q' ? 'Q' : 'RET'} ${dimLabel}`;
               const driverInfo = _srProd?.driverBivolt;
-              // Foto correta por formato: R → foto da redonda (LDS-6078), Q/Ret → foto da quadrada (LDS-6079)
+              // Foto correta por formato e instalação
               const spacePhotoUrl = (() => {
+                const skuPrefix = panelInstalacao === 'EMBUTIR' ? 'LDE' : 'LDS';
                 if (spaceFormat === 'R') {
-                  const rProd = activePanelCatalog.find(p => p.sku === 'LDS-6078');
+                  const rProd = activePanelCatalog.find(p => p.sku === `${skuPrefix}-6078`);
                   return rProd?.fotoUrl ?? _srProd?.fotoUrl ?? '';
                 } else {
-                  const qProd = activePanelCatalog.find(p => p.sku === 'LDS-6079');
+                  const qProd = activePanelCatalog.find(p => p.sku === `${skuPrefix}-6079`);
                   return qProd?.fotoUrl ?? _srProd?.fotoUrl ?? '';
                 }
               })();
@@ -9994,7 +9998,7 @@ export default function Home() {
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
                         <Grid2X2 className="w-4 h-4 text-teal-500" />
-                        Resultado — SPACE {spaceFormat === 'R' ? 'Redondo' : spaceFormat === 'Q' ? 'Quadrado' : 'Retangular'}
+                        Resultado — SPACE {panelInstalacao === 'SOBREPOR' ? 'Sobrepor' : panelInstalacao === 'EMBUTIR' ? 'Embutir' : 'Pendente'} {spaceFormat === 'R' ? 'Redondo' : spaceFormat === 'Q' ? 'Quadrado' : 'Retangular'}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
