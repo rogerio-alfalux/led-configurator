@@ -14,7 +14,7 @@
 // 36W: Stripflex dupla (25V, 350mA) OU Stripline única (75V, 250mA)
 //   Stripline: apenas barras inteiras (1, 2, 3, 4, 5) — sem medidas fracionadas
 
-import { LED_CATALOG, MODULE_TYPE_LABELS } from "./ledCatalog";
+import { LED_CATALOG, MODULE_TYPE_LABELS, getActiveCatalog } from "./ledCatalog";
 import type { InstallType } from "./ledCatalog";
 import type { SheetDriver, DriverSelectionContext } from "./driverSelector";
 import { selectDriverFromSheet, selectDriverFallback, calcVOut, splitDriverForDualSimultaneous } from "./driverSelector";
@@ -389,7 +389,7 @@ interface RawModule {
 const MIN_BARS_FOR_COMPOSITION = 2;
 
 function getModules(profileCode: string, type: ModuleType, allowLongModules: boolean, stripMethod?: StripMethod, power?: Power, forComposition = false, allowFractional = false): RawModule[] {
-  const profile = LED_CATALOG[profileCode];
+  const profile = getActiveCatalog()[profileCode];
   if (!profile) return [];
   const mods = profile.modules[type];
   if (!mods) return [];
@@ -805,7 +805,7 @@ export function buildComposition(
   remainingLength: number;
   compositionMode: "IN_SINGLE" | "IF_ML_LINE" | "IF_ML_MIXED";
 } {
-  const profile = LED_CATALOG[profileCode];
+  const profile = getActiveCatalog()[profileCode];
   if (!profile) {
     return { composition: [], realizedLength: 0, remainingLength: requestedLength, compositionMode: "IF_ML_LINE" };
   }

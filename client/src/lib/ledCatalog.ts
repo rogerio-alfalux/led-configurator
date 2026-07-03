@@ -668,6 +668,7 @@ export const LED_CATALOG: Record<string, ProfileVariant> = {
     "allowD1D2": true,
     "modules": {
       "IN": {
+        "1": { "length": 575, "sku": "LLP-6060.1IN.48F" },
         "2": { "length": 1135, "sku": "LLP-6060.2IN.48F" },
         "2.2": { "length": 1260, "sku": "LLP-6060.22I.48F" },
         "3": { "length": 1700, "sku": "LLP-6060.3IN.48F" },
@@ -1378,4 +1379,34 @@ export function getInstallTypesForProfile(profileName: string): InstallType[] {
  */
 export function getVariant(profileName: string, installType: InstallType): ProfileVariant | undefined {
   return Object.values(LED_CATALOG).find(v => v.name === profileName && v.installType === installType);
+}
+
+// ── Catálogo ativo (pode ser sobrescrito pelo catálogo dinâmico da API) ────────
+// O ledEngine.ts usa ACTIVE_CATALOG em vez de LED_CATALOG diretamente,
+// permitindo que o catálogo dinâmico da API seja injetado sem alterar o estático.
+let _activeCatalog: Record<string, ProfileVariant> = LED_CATALOG;
+
+/**
+ * Retorna o catálogo ativo (estático ou dinâmico, se injetado via setActiveCatalog).
+ */
+export function getActiveCatalog(): Record<string, ProfileVariant> {
+  return _activeCatalog;
+}
+
+/**
+ * Injeta um catálogo dinâmico (ex: vindo da API Alfalux) como catálogo ativo.
+ * O motor de cálculo usará este catálogo para todos os cálculos subsequentes.
+ * Deve ser chamado assim que os dados da API estiverem disponíveis.
+ *
+ * @param catalog - Catálogo dinâmico retornado por adaptProfileProducts()
+ */
+export function setActiveCatalog(catalog: Record<string, ProfileVariant>): void {
+  _activeCatalog = catalog;
+}
+
+/**
+ * Restaura o catálogo ativo para o catálogo estático padrão.
+ */
+export function resetActiveCatalog(): void {
+  _activeCatalog = LED_CATALOG;
 }

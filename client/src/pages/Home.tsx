@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import {
   LED_CATALOG,
   MODULE_TYPE_LABELS,
+  setActiveCatalog,
 } from "@/lib/ledCatalog";
 import { adaptProfileProducts } from "@/lib/profileApiAdapter";
 import type { InstallType } from "@/lib/ledCatalog";
@@ -2249,6 +2250,13 @@ export default function Home() {
     const apiCatalog = adaptProfileProducts(alfaluxApiProducts);
     return apiCatalog !== null && Object.keys(apiCatalog).length > 0;
   }, [alfaluxApiProducts]);
+
+  // Injetar catálogo dinâmico no motor de cálculo (ledEngine) assim que disponível.
+  // Isso garante que módulos adicionados na API (ex: BLAZE H IN 1B) sejam reconhecidos
+  // pelo motor sem precisar atualizar o catálogo estático manualmente.
+  useEffect(() => {
+    setActiveCatalog(activeProfileCatalog);
+  }, [activeProfileCatalog]);
 
   // Mapa de custo+markup por SKU individual (extraído dos produtos PERFIS da API)
   // Armazena custoCorpo (bruto) e markups por tipo de controle

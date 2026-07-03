@@ -33,7 +33,7 @@
  */
 
 import { getLConfig, getCorner1x1, getCabeceiraMm, type LCornerModule, type ShapeResult, type ShapePiece, type ShapePieceDriver } from "./lCatalog";
-import { LED_CATALOG, type ProfileVariant } from "./ledCatalog";
+import { LED_CATALOG, getActiveCatalog, type ProfileVariant } from "./ledCatalog";
 import { selectDriverFallback } from "./driverSelector";
 import type { Power, Voltage, StripMethod } from "./ledEngine";
 
@@ -241,7 +241,7 @@ export function calculateLShape(
   const corner = getCorner1x1(profileCode);
   if (!corner) return null;
 
-  const profileEntry = LED_CATALOG[profileCode];
+  const profileEntry = getActiveCatalog()[profileCode];
   if (!profileEntry) return null;
 
   const allowLongModules = driverParams?.allowLongModules ?? false;
@@ -383,7 +383,7 @@ export function calculateSquare(
   const corner = getCorner1x1(profileCode);
   if (!corner) return null;
 
-  const profileEntry = LED_CATALOG[profileCode];
+  const profileEntry = getActiveCatalog()[profileCode];
   if (!profileEntry) return null;
 
   const allowLongModules = driverParams?.allowLongModules ?? false;
@@ -480,7 +480,7 @@ export function calculateRectangle(
   const corner = getCorner1x1(profileCode);
   if (!corner) return null;
 
-  const profileEntry = LED_CATALOG[profileCode];
+  const profileEntry = getActiveCatalog()[profileCode];
   if (!profileEntry) return null;
 
   const allowLongModules = driverParams?.allowLongModules ?? false;
@@ -626,7 +626,7 @@ export function calculateUShape(
   const corner = getCorner1x1(profileCode);
   if (!corner) return null;
 
-  const profileEntry = LED_CATALOG[profileCode];
+  const profileEntry = getActiveCatalog()[profileCode];
   if (!profileEntry) return null;
 
   const allowLongModules = driverParams?.allowLongModules ?? false;
