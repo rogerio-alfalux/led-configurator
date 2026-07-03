@@ -5682,11 +5682,16 @@ export default function Home() {
                             value={dlProductKey ?? ""}
                             onValueChange={(v) => {
                               setDlProductKey(v);
-                              setDlVoltage(null);
                               setDlResult(null);
                               // Reset CCT para primeiro valor disponível do produto
                               const [s, ...np] = v.split('::');
                               const newProd = activeDlCatalog.find(p => p.sku === s && p.name === np.join('::'));
+                              // Auto-selecionar tensão quando só há uma opção disponível
+                              const newHas220Dl = newProd?.driver220 != null;
+                              const newHasBivoltDl = newProd?.driverBivolt != null;
+                              if (!newHas220Dl && newHasBivoltDl) setDlVoltage("Bivolt");
+                              else if (newHas220Dl && !newHasBivoltDl) setDlVoltage("220V");
+                              else setDlVoltage(null);
                               if (newProd?.isRgbw) { setDlCCT("RGBW"); }
                               else if (newProd?.isLamp) { /* sem CCT */ }
                               else {
@@ -5771,12 +5776,13 @@ export default function Home() {
                       const dlDimDrv = dlControle === 'DIM DALI' ? dlSelProdV?.driverDimDali : dlControle === 'DIM 1-10V' ? dlSelProdV?.driverDim110v : null;
                       const dlDimBivolt = dlDimDrv != null && /bivolt/i.test(dlDimDrv.model);
                       const hasBivoltDl = dlControle !== 'ON/OFF' ? dlDimBivolt : (dlSelProdV?.driverBivolt != null);
+                      const has220Dl = dlControle !== 'ON/OFF' ? (dlDimDrv != null && !/bivolt/i.test(dlDimDrv.model)) : (dlSelProdV?.driver220 != null);
                       return (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
                           <div className="flex gap-2">
                             {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
-                              const disabled = v === "Bivolt" && !hasBivoltDl;
+                              const disabled = (v === "Bivolt" && !hasBivoltDl) || (v === "220V" && !has220Dl);
                               return (
                                 <button
                                   key={v}
@@ -5903,10 +5909,15 @@ export default function Home() {
                           value={aeProductKey ?? ""}
                           onValueChange={(v) => {
                             setAeProductKey(v);
-                            setAeVoltage(null);
                             setAeResult(null);
                             const [s, ...np] = v.split('::');
                             const newProd = activeAreaExternaCatalog.find(p => p.sku === s && p.name === np.join('::'));
+                            // Auto-selecionar tensão quando só há uma opção disponível
+                            const newHas220 = newProd?.driver220 != null;
+                            const newHasBivolt = newProd?.driverBivolt != null;
+                            if (!newHas220 && newHasBivolt) setAeVoltage("Bivolt");
+                            else if (newHas220 && !newHasBivolt) setAeVoltage("220V");
+                            else setAeVoltage(null);
                             if (newProd?.isRgbw) { setAeCCT("RGBW"); }
                             else if (newProd?.isLamp) { /* sem CCT */ }
                             else {
@@ -5980,12 +5991,13 @@ export default function Home() {
                       const aeDimDrv = aeControle === 'DIM DALI' ? aeSelProdV?.driverDimDali : aeControle === 'DIM 1-10V' ? aeSelProdV?.driverDim110v : null;
                       const aeDimBivolt = aeDimDrv != null && /bivolt/i.test(aeDimDrv.model);
                       const hasBivoltAe = aeControle !== 'ON/OFF' ? aeDimBivolt : (aeSelProdV?.driverBivolt != null);
+                      const has220Ae = aeControle !== 'ON/OFF' ? (aeDimDrv != null && !/bivolt/i.test(aeDimDrv.model)) : (aeSelProdV?.driver220 != null);
                       return (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
                           <div className="flex gap-2">
                             {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
-                              const disabled = v === "Bivolt" && !hasBivoltAe;
+                              const disabled = (v === "Bivolt" && !hasBivoltAe) || (v === "220V" && !has220Ae);
                               return (
                                 <button
                                   key={v}
@@ -6472,11 +6484,16 @@ export default function Home() {
                         value={spotProductKey ?? ""}
                         onValueChange={(v) => {
                           setSpotProductKey(v);
-                          setSpotVoltage(null);
                           setSpotResult(null);
                           // Reset CCT para primeiro valor disponível do produto
                           const [s, ...np] = v.split('::');
                           const newProd = activeSpotCatalog.find(p => p.sku === s && p.name === np.join('::'));
+                          // Auto-selecionar tensão quando só há uma opção disponível
+                          const newHas220Sp = newProd?.driver220 != null;
+                          const newHasBivoltSp = newProd?.driverBivolt != null;
+                          if (!newHas220Sp && newHasBivoltSp) setSpotVoltage("Bivolt");
+                          else if (newHas220Sp && !newHasBivoltSp) setSpotVoltage("220V");
+                          else setSpotVoltage(null);
                           if (newProd?.isRgbw) { setSpotCCT("RGBW"); }
                           else if (newProd?.isLamp) { /* sem CCT */ }
                           else {
@@ -6530,8 +6547,8 @@ export default function Home() {
                       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
                       <div className="flex gap-2">
                         {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
-                          const [_sSku, ..._sNameParts] = (spotProductKey ?? '::').split('::'); const _sName = _sNameParts.join('::'); const hasBivolt = activeSpotCatalog.find(p => p.sku === _sSku && p.name === _sName)?.driverBivolt !== null;
-                          const disabled = v === "Bivolt" && !hasBivolt;
+                          const [_sSku, ..._sNameParts] = (spotProductKey ?? '::').split('::'); const _sName = _sNameParts.join('::'); const _sProd = activeSpotCatalog.find(p => p.sku === _sSku && p.name === _sName); const hasBivolt = _sProd?.driverBivolt !== null; const has220Spot = _sProd?.driver220 !== null;
+                          const disabled = (v === "Bivolt" && !hasBivolt) || (v === "220V" && !has220Spot);
                           return (
                             <button
                               key={v}
@@ -6668,7 +6685,12 @@ export default function Home() {
                           const newName = newNameParts.join('::');
                           const newProd = activeArandelaCatalog.find(p => p.sku === newSku && p.name === newName);
                           if (newProd) {
-                            setArandelaVoltage(null);
+                            // Auto-selecionar tensão quando só há uma opção disponível
+                            const newHas220Ar = newProd.driver220 != null;
+                            const newHasBivoltAr = newProd.driverBivolt != null;
+                            if (!newHas220Ar && newHasBivoltAr) setArandelaVoltage("Bivolt");
+                            else if (newHas220Ar && !newHasBivoltAr) setArandelaVoltage("220V");
+                            else setArandelaVoltage(null);
                             if (newProd.isRgbw) { setArandelaCCT("RGBW"); }
                             else if (!newProd.isLamp) {
                               const availCCTs = newProd.ccts?.length ? newProd.ccts : ["2700K", "3000K", "4000K", "5000K"];
@@ -6727,8 +6749,8 @@ export default function Home() {
                       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
                       <div className="flex gap-2">
                         {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
-                          const [_aSku, ..._aNameParts] = (arandelaProductKey ?? '::').split('::'); const _aName = _aNameParts.join('::'); const hasBivolt = activeArandelaCatalog.find(p => p.sku === _aSku && p.name === _aName)?.driverBivolt !== null;
-                          const disabled = v === "Bivolt" && !hasBivolt;
+                          const [_aSku, ..._aNameParts] = (arandelaProductKey ?? '::').split('::'); const _aName = _aNameParts.join('::'); const _aProd = activeArandelaCatalog.find(p => p.sku === _aSku && p.name === _aName); const hasBivolt = _aProd?.driverBivolt !== null; const has220Arandela = _aProd?.driver220 !== null;
+                          const disabled = (v === "Bivolt" && !hasBivolt) || (v === "220V" && !has220Arandela);
                           return (
                             <button
                               key={v}
