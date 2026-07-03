@@ -9998,39 +9998,41 @@ export default function Home() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="p-3 rounded-lg bg-muted/50 col-span-2">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
-                          <p className="text-sm font-semibold">{spaceLabel} {potAtiva} {spaceCCT}</p>
-                        </div>
-                        {_srProd?.sku && (
-                          <div className="p-3 rounded-lg bg-muted/50 col-span-2">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Código Base (Genérico)</p>
-                            <p className="text-sm font-mono font-semibold text-primary">{_srProd.sku}</p>
-                          </div>
-                        )}
-                        {/* Foto do produto */}
+                      {/* Layout: foto à esquerda + dados à direita (igual downlights) */}
+                      <div className="flex gap-3 items-start">
+                        {/* Foto quadrada */}
                         {spacePhotoUrl && (
-                          <div className="p-2 rounded-lg bg-muted/30 col-span-2 flex justify-center">
-                            <img src={spacePhotoUrl} alt={spaceLabel} className="h-24 object-contain rounded" />
+                          <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-36 h-36 flex items-center justify-center">
+                            <img src={spacePhotoUrl} alt={spaceLabel} className="w-full h-full object-contain p-2" loading="lazy" />
                           </div>
                         )}
-                        <div className="p-3 rounded-lg bg-teal-50 dark:bg-teal-900/20 border border-teal-500/30">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Metragem de Fita</p>
-                          <p className="text-lg font-bold text-teal-700 dark:text-teal-400">{metragemMm}mm</p>
+                        {/* Dados principais à direita */}
+                        <div className="grid grid-cols-2 gap-2 flex-1">
+                          <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
+                            <p className="text-sm font-semibold">{spaceLabel} {potAtiva} {spaceCCT}</p>
+                            {_srProd?.sku && <p className="text-xs font-mono text-primary mt-0.5">{_srProd.sku}</p>}
+                          </div>
+                          <div className="p-3 rounded-lg bg-teal-50 dark:bg-teal-900/20 border border-teal-500/30">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Metragem de Fita</p>
+                            <p className="text-lg font-bold text-teal-700 dark:text-teal-400">{metragemMm}mm</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Área da Tela</p>
+                            <p className="text-lg font-bold">{spaceResult.areaTela.toFixed(2)}m²</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Potência Total ({potAtiva})</p>
+                            <p className="text-sm font-semibold">{potTotal}W</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fluxo ÚTIL</p>
+                            <p className="text-sm font-semibold">{fluxoAtivo.toLocaleString('pt-BR')} lm</p>
+                          </div>
                         </div>
-                        <div className="p-3 rounded-lg bg-muted/50">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Área da Tela</p>
-                          <p className="text-lg font-bold">{spaceResult.areaTela.toFixed(2)}m²</p>
-                        </div>
-                        <div className="p-3 rounded-lg bg-muted/50">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Potência Total ({potAtiva})</p>
-                          <p className="text-sm font-semibold">{potTotal}W</p>
-                        </div>
-                        <div className="p-3 rounded-lg bg-muted/50">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fluxo Útil</p>
-                          <p className="text-sm font-semibold">{fluxoAtivo.toLocaleString('pt-BR')} lm</p>
-                        </div>
+                      </div>
+                      {/* Driver e preços abaixo */}
+                      <div className="grid grid-cols-2 gap-3">
                         {driverInfo && (
                           <div className="p-3 rounded-lg bg-muted/50 col-span-2">
                             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver{driverQty > 1 ? ` (${driverQty}x)` : ''}</p>
@@ -10054,7 +10056,7 @@ export default function Home() {
                             />
                           </div>
                         )}
-                      <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                        <div className="p-3 rounded-lg bg-muted/50 col-span-2">
                           <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Potência Comparativa</p>
                           <p className="text-xs text-muted-foreground">Com fita 5W/m: <span className="font-semibold text-foreground">{spaceResult.potencia5w}W</span> ({spaceResult.fluxoUtil5w.toLocaleString('pt-BR')} lm) &nbsp;|&nbsp; Com fita 10W/m: <span className="font-semibold text-foreground">{spaceResult.potencia10w}W</span> ({spaceResult.fluxoUtil10w.toLocaleString('pt-BR')} lm)</p>
                         </div>
