@@ -3790,19 +3790,29 @@ export function calculateDownlight(input: DownlightInput, catalog?: DownlightPro
   }
   if (!driver) return null;
 
-  // Usar módulo LED específico por CCT quando disponível (novos campos da API)
-  const cctKey = input.cct.replace("K", "") as "2700" | "3000" | "4000" | "5000";
-  const cctModuleField = `ledModule${cctKey}` as keyof typeof product;
-  const cctModuleQtdField = `ledModuleQtd${cctKey}` as keyof typeof product;
-  const cctSpecificModule = product[cctModuleField] as string | null | undefined;
-  const cctSpecificQtd = product[cctModuleQtdField] as number | null | undefined;
-  // Se o módulo por CCT está disponível, usá-lo; senão, usar legado + CCT
-  const ledModuleWithCCT = cctSpecificModule
-    ? cctSpecificModule.replace(/\[CCT\]/gi, input.cct).trim()
-    : product.ledModule + " " + input.cct;
-  const resolvedLedModuleQtd = cctSpecificQtd ?? product.ledModuleQtd;
-  const cctEqField = `ledModuleEq${cctKey}` as keyof typeof product;
-  const ledModuleEq = (product[cctEqField] as string | null | undefined) ?? null;
+  // Produto RGBW: usar ledModule diretamente sem adicionar CCT
+  let ledModuleWithCCT: string;
+  let resolvedLedModuleQtd: number | null;
+  let ledModuleEq: string | null;
+  if (product.isRgbw) {
+    ledModuleWithCCT = product.ledModule || "";
+    resolvedLedModuleQtd = product.ledModuleQtd;
+    ledModuleEq = null;
+  } else {
+    // Usar módulo LED específico por CCT quando disponível (novos campos da API)
+    const cctKey = input.cct.replace("K", "") as "2700" | "3000" | "4000" | "5000";
+    const cctModuleField = `ledModule${cctKey}` as keyof typeof product;
+    const cctModuleQtdField = `ledModuleQtd${cctKey}` as keyof typeof product;
+    const cctSpecificModule = product[cctModuleField] as string | null | undefined;
+    const cctSpecificQtd = product[cctModuleQtdField] as number | null | undefined;
+    // Se o módulo por CCT está disponível, usá-lo; senão, usar legado + CCT
+    ledModuleWithCCT = cctSpecificModule
+      ? cctSpecificModule.replace(/\[CCT\]/gi, input.cct).trim()
+      : product.ledModule + " " + input.cct;
+    resolvedLedModuleQtd = cctSpecificQtd ?? product.ledModuleQtd;
+    const cctEqField = `ledModuleEq${cctKey}` as keyof typeof product;
+    ledModuleEq = (product[cctEqField] as string | null | undefined) ?? null;
+  }
 
   return {
     product,

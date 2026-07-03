@@ -5687,8 +5687,12 @@ export default function Home() {
                               // Reset CCT para primeiro valor disponível do produto
                               const [s, ...np] = v.split('::');
                               const newProd = activeDlCatalog.find(p => p.sku === s && p.name === np.join('::'));
-                              const availCCTs = newProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
-                              if (!availCCTs.includes(dlCCT)) setDlCCT(availCCTs[0] ?? "3000K");
+                              if (newProd?.isRgbw) { setDlCCT("RGBW"); }
+                              else if (newProd?.isLamp) { /* sem CCT */ }
+                              else {
+                                const availCCTs = newProd?.ccts?.length ? newProd.ccts : ["2700K", "3000K", "4000K", "5000K"];
+                                if (!availCCTs.includes(dlCCT)) setDlCCT(availCCTs[0] ?? "3000K");
+                              }
                             }}
                           >
                             <SelectTrigger className="h-10">
@@ -5808,7 +5812,7 @@ export default function Home() {
                       // Produto com lâmpada: sem seleção de CCT
                       if (dlSelProd?.isLamp) return null;
                       // Produto RGBW: mostrar apenas opção RGBW
-                      const dlAvailCCTs = dlSelProd?.isRgbw ? ["RGBW"] : (dlSelProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"]);
+                      const dlAvailCCTs = dlSelProd?.isRgbw ? ["RGBW"] : (dlSelProd?.ccts?.length ? dlSelProd.ccts : ["2700K", "3000K", "4000K", "5000K"]);
                       return (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
@@ -5903,8 +5907,12 @@ export default function Home() {
                             setAeResult(null);
                             const [s, ...np] = v.split('::');
                             const newProd = activeAreaExternaCatalog.find(p => p.sku === s && p.name === np.join('::'));
-                            const availCCTs = newProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
-                            if (!availCCTs.includes(aeCCT)) setAeCCT(availCCTs[0] ?? "3000K");
+                            if (newProd?.isRgbw) { setAeCCT("RGBW"); }
+                            else if (newProd?.isLamp) { /* sem CCT */ }
+                            else {
+                              const availCCTs = newProd?.ccts?.length ? newProd.ccts : ["2700K", "3000K", "4000K", "5000K"];
+                              if (!availCCTs.includes(aeCCT)) setAeCCT(availCCTs[0] ?? "3000K");
+                            }
                           }}
                         >
                           <SelectTrigger className="h-10">
@@ -6003,10 +6011,18 @@ export default function Home() {
                     {aeProductKey !== null && (() => {
                       const [_s, ..._np] = (aeProductKey ?? '::').split('::');
                       const aeSelProd = activeAreaExternaCatalog.find(p => p.sku === _s && p.name === _np.join('::'));
-                      const aeAvailCCTs = aeSelProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+                      // Produto com lâmpada: sem seleção de CCT
+                      if (aeSelProd?.isLamp) return null;
+                      const aeAvailCCTs = aeSelProd?.isRgbw ? ["RGBW"] : (aeSelProd?.ccts?.length ? aeSelProd.ccts : ["2700K", "3000K", "4000K", "5000K"]);
                       return (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
+                          {aeSelProd?.isRgbw ? (
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-muted/40 text-sm font-medium text-foreground">
+                              <span className="inline-block w-2 h-2 rounded-full bg-gradient-to-r from-red-400 via-green-400 to-blue-400" />
+                              RGBW
+                            </div>
+                          ) : (
                           <select
                             value={aeCCT}
                             onChange={(e) => { setAeCCT(e.target.value); setAeResult(null); }}
@@ -6016,6 +6032,7 @@ export default function Home() {
                               <option key={c} value={c}>{c}</option>
                             ))}
                           </select>
+                          )}
                         </div>
                       );
                     })()}
@@ -6460,8 +6477,12 @@ export default function Home() {
                           // Reset CCT para primeiro valor disponível do produto
                           const [s, ...np] = v.split('::');
                           const newProd = activeSpotCatalog.find(p => p.sku === s && p.name === np.join('::'));
-                          const availCCTs = newProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
-                          if (!availCCTs.includes(spotCCT)) setSpotCCT(availCCTs[0] ?? "3000K");
+                          if (newProd?.isRgbw) { setSpotCCT("RGBW"); }
+                          else if (newProd?.isLamp) { /* sem CCT */ }
+                          else {
+                            const availCCTs = newProd?.ccts?.length ? newProd.ccts : ["2700K", "3000K", "4000K", "5000K"];
+                            if (!availCCTs.includes(spotCCT)) setSpotCCT(availCCTs[0] ?? "3000K");
+                          }
                         }}
                       >
                         <SelectTrigger className="h-10"><SelectValue placeholder="Selecione o produto..." /></SelectTrigger>
@@ -6542,7 +6563,7 @@ export default function Home() {
                     // Produto com lâmpada: sem seleção de CCT
                     if (spotSelProd?.isLamp) return null;
                     // Produto RGBW: mostrar apenas opção RGBW
-                    const spotAvailCCTs = spotSelProd?.isRgbw ? ["RGBW"] : (spotSelProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"]);
+                    const spotAvailCCTs = spotSelProd?.isRgbw ? ["RGBW"] : (spotSelProd?.ccts?.length ? spotSelProd.ccts : ["2700K", "3000K", "4000K", "5000K"]);
                     return (
                       <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
@@ -6648,8 +6669,12 @@ export default function Home() {
                           const newProd = activeArandelaCatalog.find(p => p.sku === newSku && p.name === newName);
                           if (newProd) {
                             setArandelaVoltage(null);
-                            const defaultCCT = newProd.ccts.includes("3000K") ? "3000K" : newProd.ccts[0];
-                            setArandelaCCT(defaultCCT);
+                            if (newProd.isRgbw) { setArandelaCCT("RGBW"); }
+                            else if (!newProd.isLamp) {
+                              const availCCTs = newProd.ccts?.length ? newProd.ccts : ["2700K", "3000K", "4000K", "5000K"];
+                              const defaultCCT = availCCTs.includes("3000K") ? "3000K" : availCCTs[0];
+                              setArandelaCCT(defaultCCT ?? "3000K");
+                            }
                           }
                           setArandelaResult(null);
                         }}
@@ -6730,7 +6755,7 @@ export default function Home() {
                     // Produto com lâmpada: sem seleção de CCT
                     if (arandelaSelProd?.isLamp) return null;
                     // Produto RGBW: mostrar apenas opção RGBW
-                    const arandelaAvailCCTs = arandelaSelProd?.isRgbw ? ["RGBW"] : (arandelaSelProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"]);
+                    const arandelaAvailCCTs = arandelaSelProd?.isRgbw ? ["RGBW"] : (arandelaSelProd?.ccts?.length ? arandelaSelProd.ccts : ["2700K", "3000K", "4000K", "5000K"]);
                     return (
                       <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
@@ -7010,18 +7035,29 @@ export default function Home() {
                     <AlertTriangle className="w-3.5 h-3.5" /> Selecione o produto antes de calcular.
                   </p>
                 )}
-                {aeProductKey !== null && !aeVoltage && (
-                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
-                  </p>
-                )}
+                {aeProductKey !== null && !aeVoltage && (() => {
+                  const [_aeSku2, ..._aeNP2] = (aeProductKey ?? '::').split('::');
+                  const _aeProd2 = activeAreaExternaCatalog.find(p => p.sku === _aeSku2 && p.name === _aeNP2.join('::'));
+                  if (_aeProd2?.isLamp) return null;
+                  return (
+                    <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
+                    </p>
+                  );
+                })()}
                 <Button
-                  disabled={aeProductKey === null || !aeVoltage}
+                  disabled={aeProductKey === null || (() => {
+                    const [_aeSku3, ..._aeNP3] = (aeProductKey ?? '::').split('::');
+                    const _aeProd3 = activeAreaExternaCatalog.find(p => p.sku === _aeSku3 && p.name === _aeNP3.join('::'));
+                    return !_aeProd3?.isLamp && !aeVoltage;
+                  })()}
                   onClick={() => {
-                    if (aeProductKey === null || !aeVoltage) return;
                     const [aeSku, ...aeNameParts] = (aeProductKey ?? '::').split('::');
                     const aeName = aeNameParts.join('::');
-                    setAeResult(calculateDownlight({ productSku: aeSku, productName: aeName, tensao: aeVoltage, cct: aeCCT, controle: aeControle }, activeAreaExternaCatalog));
+                    const _aeProdCalc = activeAreaExternaCatalog.find(p => p.sku === aeSku && p.name === aeName);
+                    const tensaoToUse = _aeProdCalc?.isLamp ? "220V" : aeVoltage!;
+                    if (aeProductKey === null || (!_aeProdCalc?.isLamp && !aeVoltage)) return;
+                    setAeResult(calculateDownlight({ productSku: aeSku, productName: aeName, tensao: tensaoToUse, cct: aeCCT, controle: aeControle }, activeAreaExternaCatalog));
                   }}
                   className="w-full h-12 text-base font-semibold font-display"
                   size="lg"
@@ -9569,6 +9605,21 @@ export default function Home() {
                   </CardContent>
                 </Card>
 
+                {/* Aviso de acessórios obrigatórios para produtos RGBW */}
+                {dlResult.product.isRgbw && (
+                  <div className="rounded-lg border border-amber-400/60 bg-amber-50 dark:bg-amber-900/20 p-4 flex gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                    <div className="space-y-1.5">
+                      <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Acessórios obrigatórios para produto RGBW</p>
+                      <p className="text-xs text-amber-700 dark:text-amber-400">Adicione obrigatoriamente os seguintes acessórios ao orçamento:</p>
+                      <ul className="text-xs text-amber-700 dark:text-amber-400 list-disc list-inside space-y-0.5">
+                        <li><span className="font-mono font-semibold">EQ00825</span> — LED DRIVER 6 CANAIS 30V/6A POR CANAL RDM <span className="opacity-70">(alimenta até 6 peças)</span></li>
+                        <li><span className="font-mono font-semibold">EQ00791</span> — CONTROLADOR LUMIKIT ARQ 2 COM ROTEADOR WIFI 190X115X60MM 1500V BIV</li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
+
                 {/* Resumo para Orçamento */}
                 <Card className="shadow-sm border-blue-500/30">
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">
@@ -9846,6 +9897,21 @@ export default function Home() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Aviso de acessórios obrigatórios para produtos RGBW */}
+                {aeResult.product.isRgbw && (
+                  <div className="rounded-lg border border-amber-400/60 bg-amber-50 dark:bg-amber-900/20 p-4 flex gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                    <div className="space-y-1.5">
+                      <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Acessórios obrigatórios para produto RGBW</p>
+                      <p className="text-xs text-amber-700 dark:text-amber-400">Adicione obrigatoriamente os seguintes acessórios ao orçamento:</p>
+                      <ul className="text-xs text-amber-700 dark:text-amber-400 list-disc list-inside space-y-0.5">
+                        <li><span className="font-mono font-semibold">EQ00825</span> — LED DRIVER 6 CANAIS 30V/6A POR CANAL RDM <span className="opacity-70">(alimenta até 6 peças)</span></li>
+                        <li><span className="font-mono font-semibold">EQ00791</span> — CONTROLADOR LUMIKIT ARQ 2 COM ROTEADOR WIFI 190X115X60MM 1500V BIV</li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
 
                 {/* QuoteSummaryCard Área Externa */}
                 {/* Resumo para Orçamento */}
@@ -10640,6 +10706,20 @@ export default function Home() {
                     )}
                   </CardContent>
                 </Card>
+                {/* Aviso de acessórios obrigatórios para produtos RGBW */}
+                {arandelaResult.product.isRgbw && (
+                  <div className="rounded-lg border border-amber-400/60 bg-amber-50 dark:bg-amber-900/20 p-4 flex gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                    <div className="space-y-1.5">
+                      <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Acessórios obrigatórios para produto RGBW</p>
+                      <p className="text-xs text-amber-700 dark:text-amber-400">Adicione obrigatoriamente os seguintes acessórios ao orçamento:</p>
+                      <ul className="text-xs text-amber-700 dark:text-amber-400 list-disc list-inside space-y-0.5">
+                        <li><span className="font-mono font-semibold">EQ00825</span> — LED DRIVER 6 CANAIS 30V/6A POR CANAL RDM <span className="opacity-70">(alimenta até 6 peças)</span></li>
+                        <li><span className="font-mono font-semibold">EQ00791</span> — CONTROLADOR LUMIKIT ARQ 2 COM ROTEADOR WIFI 190X115X60MM 1500V BIV</li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
                 {/* Resumo para Orçamento */}
                 <Card className="shadow-sm border-blue-500/30">
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">
@@ -10920,6 +11000,20 @@ export default function Home() {
                     )}
                   </CardContent>
                 </Card>
+                {/* Aviso de acessórios obrigatórios para produtos RGBW */}
+                {spotResult.product.isRgbw && (
+                  <div className="rounded-lg border border-amber-400/60 bg-amber-50 dark:bg-amber-900/20 p-4 flex gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                    <div className="space-y-1.5">
+                      <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Acessórios obrigatórios para produto RGBW</p>
+                      <p className="text-xs text-amber-700 dark:text-amber-400">Adicione obrigatoriamente os seguintes acessórios ao orçamento:</p>
+                      <ul className="text-xs text-amber-700 dark:text-amber-400 list-disc list-inside space-y-0.5">
+                        <li><span className="font-mono font-semibold">EQ00825</span> — LED DRIVER 6 CANAIS 30V/6A POR CANAL RDM <span className="opacity-70">(alimenta até 6 peças)</span></li>
+                        <li><span className="font-mono font-semibold">EQ00791</span> — CONTROLADOR LUMIKIT ARQ 2 COM ROTEADOR WIFI 190X115X60MM 1500V BIV</li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
                 {/* Resumo para Orçamento */}
                 <Card className="shadow-sm border-blue-500/30">
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">

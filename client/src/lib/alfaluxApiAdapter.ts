@@ -153,10 +153,15 @@ export interface ApiProduct {
   precoMetro?: number | null;
 }
 
-/** Normaliza CCTs: garante sufixo "K" */
+/** Normaliza CCTs: garante sufixo "K" exceto para valores especiais como RGBW */
 function normalizeCCTs(temperaturasCor: string[]): string[] {
-  if (!Array.isArray(temperaturasCor) || temperaturasCor.length === 0) return ["3000K"];
-  return temperaturasCor.map((k) => (k.endsWith("K") ? k : `${k}K`));
+  if (!Array.isArray(temperaturasCor) || temperaturasCor.length === 0) return [];
+  return temperaturasCor.map((k) => {
+    const upper = k.toUpperCase();
+    // Valores especiais: não adicionar "K"
+    if (upper === "RGBW" || upper === "RGB" || upper === "TW" || upper === "A DEFINIR") return upper;
+    return k.endsWith("K") ? k : `${k}K`;
+  });
 }
 
 /**

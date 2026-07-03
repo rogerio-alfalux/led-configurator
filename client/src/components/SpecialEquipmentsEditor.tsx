@@ -229,7 +229,7 @@ export function SpecialEquipmentsEditor({ value, onChange, readOnly = false }: P
                               {item.tensaoEntrada && (
                                 <span className="text-xs text-muted-foreground">{item.tensaoEntrada}</span>
                               )}
-                              {item.corrente && (
+                              {item.corrente && !item.descricao.toUpperCase().includes("FONTE 24V") && (
                                 <span className="text-xs text-muted-foreground">{item.corrente}</span>
                               )}
                             </div>

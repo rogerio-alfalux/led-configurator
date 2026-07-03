@@ -166,15 +166,23 @@ export function calculateArandela(catalog: ArandelaProduct[], input: ArandelaInp
     };
   }
 
-  // Usar módulo LED específico por CCT quando disponível
-  const cctKey = input.cct.replace("K", "") as "2700" | "3000" | "4000" | "5000";
-  const cctSpecificModule = (product as any)[`ledModule${cctKey}`] as string | null | undefined;
-  const ledModuleWithCCT = cctSpecificModule
-    ? cctSpecificModule.replace(/\[CCT\]/gi, input.cct).trim()
-    : product.ledModule
-      ? product.ledModule.replace(/\[CCT\]/gi, input.cct)
-      : null;
-  const ledModuleEq = ((product as any)[`ledModuleEq${cctKey}`] as string | null | undefined) ?? null;
+  // Produto RGBW: usar ledModule diretamente sem adicionar CCT
+  let ledModuleWithCCT: string | null;
+  let ledModuleEq: string | null;
+  if (product.isRgbw) {
+    ledModuleWithCCT = product.ledModule || null;
+    ledModuleEq = null;
+  } else {
+    // Usar módulo LED específico por CCT quando disponível
+    const cctKey = input.cct.replace("K", "") as "2700" | "3000" | "4000" | "5000";
+    const cctSpecificModule = (product as any)[`ledModule${cctKey}`] as string | null | undefined;
+    ledModuleWithCCT = cctSpecificModule
+      ? cctSpecificModule.replace(/\[CCT\]/gi, input.cct).trim()
+      : product.ledModule
+        ? product.ledModule.replace(/\[CCT\]/gi, input.cct)
+        : null;
+    ledModuleEq = ((product as any)[`ledModuleEq${cctKey}`] as string | null | undefined) ?? null;
+  }
 
   return {
     product,

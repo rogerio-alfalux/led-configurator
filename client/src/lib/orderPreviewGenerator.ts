@@ -44,7 +44,7 @@ function buildLuminariaEquipamentosText(item: CartItemData): string {
   return item.driverLines.map(dl => {
     const codeSuffix = dl.driverCode ? ` (${esc(dl.driverCode)})` : "";
     const linha = `${dl.driverQty}x ${esc(dl.driverModel)}${codeSuffix}`;
-    if (dl.corrente) {
+    if (dl.corrente && !dl.driverModel.toUpperCase().includes("FONTE 24V")) {
       return `${linha}<br><span style="color:#555;font-style:italic">PROGRAMAÇÃO: ${esc(dl.corrente)}</span>`;
     }
     return linha;

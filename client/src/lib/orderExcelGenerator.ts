@@ -185,7 +185,7 @@ function buildLuminariaEquipamentosText(item: CartItemData): string {
   return item.driverLines.map(dl => {
     const codeSuffix = dl.driverCode ? ` (${dl.driverCode})` : "";
     const linha = `${dl.driverQty}x ${dl.driverModel}${codeSuffix}`;
-    if (dl.corrente) {
+    if (dl.corrente && !dl.driverModel.toUpperCase().includes("FONTE 24V")) {
       return `${linha}\nPROGRAMAÇÃO: ${dl.corrente}`;
     }
     return linha;
