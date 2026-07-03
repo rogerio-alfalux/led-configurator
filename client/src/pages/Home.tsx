@@ -3735,6 +3735,8 @@ export default function Home() {
       diffuserD2: hasDiffuser && isDual ? diffuserD2 : undefined,
       sheetDrivers: sheetDrivers ?? [],
       controlType,
+      driver220: selectedVariant?.driver220 ?? null,
+      driverBivolt: selectedVariant?.driverBivolt ?? null,
       driverDimDali: selectedVariant?.driverDimDali ?? null,
       driverDim110v: selectedVariant?.driverDim110v ?? null,
       ledModuleStripflex: selectedVariant?.ledModuleStripflex ?? null,
@@ -7828,6 +7830,11 @@ export default function Home() {
                     profileName,
                     stripflexName: shapeStripflexName,
                     stripflexEq: shapeStripflexEq,
+                    controlType,
+                    driver220: selectedVariant?.driver220 ?? null,
+                    driverBivolt: selectedVariant?.driverBivolt ?? null,
+                    driverDimDali: selectedVariant?.driverDimDali ?? null,
+                    driverDim110v: selectedVariant?.driverDim110v ?? null,
                   };
                   if (profileShape === "L_SHAPE") {
                     sr = calculateLShape(code, parseInt(shapeSideH) || 2000, parseInt(shapeSideV) || 1200, dp);

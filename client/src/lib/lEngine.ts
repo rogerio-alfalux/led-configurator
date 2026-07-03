@@ -57,6 +57,16 @@ export interface ShapeDriverParams {
   stripflexName?: string | null;
   /** Código EQ da barra Stripflex/Stripline para a CCT selecionada (ex: "EQ00125") */
   stripflexEq?: string | null;
+  /** Tipo de controle selecionado pelo usuário */
+  controlType?: import("./ledEngine").ControlType;
+  /** Driver ON/OFF 220V da API (substitui banco estático quando disponível) */
+  driver220?: { model: string; code: string | null } | null;
+  /** Driver ON/OFF Bivolt da API (substitui banco estático quando disponível) */
+  driverBivolt?: { model: string; code: string | null } | null;
+  /** Driver DIM DALI da API */
+  driverDimDali?: { model: string; code: string | null } | null;
+  /** Driver DIM 1-10V da API */
+  driverDim110v?: { model: string; code: string | null } | null;
 }
 
 /** Uma peça dentro de um segmento reto (pode haver múltiplas peças diferentes) */
@@ -87,6 +97,23 @@ function calcPieceDriver(
   totalBars: number,
   params: ShapeDriverParams
 ): ShapePieceDriver {
+  // Verificar se a API fornece o driver exato para este controle/tensão
+  const apiDriver = params.controlType === "dimDali"
+    ? (params.driverDimDali ?? null)
+    : params.controlType === "dim110v"
+      ? (params.driverDim110v ?? null)
+      : params.voltage === "220Vac"
+        ? (params.driver220 ?? null)
+        : (params.driverBivolt ?? null);
+
+  if (apiDriver) {
+    return {
+      code: apiDriver.code ?? undefined,
+      model: apiDriver.model,
+      quantity: 1,
+    };
+  }
+
   const d = selectDriverFallback(
     totalBars,
     params.power,

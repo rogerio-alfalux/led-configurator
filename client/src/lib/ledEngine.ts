@@ -142,6 +142,10 @@ export interface ConfigInput {
    * "onoff" = padrão (driver On/Off), "dimDali" = DIM DALI, "dim110v" = DIM 1-10V.
    */
   controlType?: ControlType;
+  /** Driver ON/OFF 220V disponível para este perfil (da API) */
+  driver220?: { model: string; code: string | null } | null;
+  /** Driver ON/OFF Bivolt disponível para este perfil (da API) */
+  driverBivolt?: { model: string; code: string | null } | null;
   /** Driver DIM DALI disponível para este perfil (da API) */
   driverDimDali?: { model: string; code: string | null } | null;
   /** Driver DIM 1-10V disponível para este perfil (da API) */
@@ -1171,20 +1175,23 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
       ? buildSkuDriverList(composition, powerD1, voltage, stripMethod, input.sheetDrivers, driverCtx, true)
       : undefined;
 
-  // ── Driver DIM: substitui o driver ON/OFF em cada SKU (1 driver DIM por módulo) ──
-  const dimDriverInfo = input.controlType === "dimDali"
+  // ── Driver da API: substitui o driver estático quando a API fornece o driver exato ──
+  // Para DIM DALI / DIM 1-10V usa os campos dim; para ON/OFF usa driver220 ou driverBivolt
+  const apiDriverInfo = input.controlType === "dimDali"
     ? (input.driverDimDali ?? null)
     : input.controlType === "dim110v"
       ? (input.driverDim110v ?? null)
-      : null;
+      : voltage === "220Vac"
+        ? (input.driver220 ?? null)
+        : (input.driverBivolt ?? null);
 
   function applyDimDriver(entries: SkuDriverEntry[]): SkuDriverEntry[] {
-    if (!dimDriverInfo) return entries;
+    if (!apiDriverInfo) return entries;
     return entries.map(e => ({
       ...e,
       driver: {
-        code: dimDriverInfo.code ?? undefined,
-        model: dimDriverInfo.model,
+        code: apiDriverInfo.code ?? undefined,
+        model: apiDriverInfo.model,
         power: 0,
         current: "",
         quantity: 1,
@@ -1229,6 +1236,6 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     adjustedToLarger: adjustedToLarger || undefined,
     originalRequestedLength: adjustedToLarger ? originalRequestedLength : undefined,
     controlType: input.controlType ?? "onoff",
-    driverDimSelected: dimDriverInfo,
+    driverDimSelected: apiDriverInfo,
   };
 }

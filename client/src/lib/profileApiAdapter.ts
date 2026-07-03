@@ -123,6 +123,8 @@ export function adaptProfileProducts(
       rule: ProfileRule;
       installType: InstallType;
       modules: ProfileModules;
+      driver220: { model: string; code: string | null } | null;
+      driverBivolt: { model: string; code: string | null } | null;
       driverDimDali: { model: string; code: string | null } | null;
       driverDim110v: { model: string; code: string | null } | null;
       ledModuleStripflex: string | null;
@@ -191,6 +193,8 @@ export function adaptProfileProducts(
         rule,
         installType,
         modules: { IN: {}, IF: {}, ML: {} },
+        driver220: p.driver220 ?? null,
+        driverBivolt: p.driverBivolt ?? null,
         driverDimDali: p.driverDimDali ?? null,
         driverDim110v: p.driverDim110v ?? null,
         ledModuleStripflex: null,
@@ -239,7 +243,13 @@ export function adaptProfileProducts(
         markupMinimoDriver: pa.markupMinimoDriver ?? null,
       };
     } else {
-      // Atualizar drivers DIM se ainda não preenchidos (usar o primeiro produto que tiver)
+      // Atualizar drivers se ainda não preenchidos (usar o primeiro produto que tiver)
+      if (!variantMap[profileCode].driver220 && p.driver220) {
+        variantMap[profileCode].driver220 = p.driver220;
+      }
+      if (!variantMap[profileCode].driverBivolt && p.driverBivolt) {
+        variantMap[profileCode].driverBivolt = p.driverBivolt;
+      }
       if (!variantMap[profileCode].driverDimDali && p.driverDimDali) {
         variantMap[profileCode].driverDimDali = p.driverDimDali;
       }
@@ -289,7 +299,7 @@ export function adaptProfileProducts(
   // Monta o Record<string, ProfileVariant> final
   const catalog: Record<string, ProfileVariant> = {};
   for (const [code, entry] of Object.entries(variantMap)) {
-    const { rule, installType, modules, driverDimDali, driverDim110v, ledModuleStripflex, ledModuleStripline } = entry;
+    const { rule, installType, modules, driver220, driverBivolt, driverDimDali, driverDim110v, ledModuleStripflex, ledModuleStripline } = entry;
     catalog[code] = {
       name: rule.name,
       code,
@@ -299,6 +309,8 @@ export function adaptProfileProducts(
       allowD1D2: rule.allowD1D2,
       ...(rule.hasDiffuser !== undefined ? { hasDiffuser: rule.hasDiffuser } : {}),
       ...(rule.requiresRemoteDriver ? { requiresRemoteDriver: true } : {}),
+      driver220: driver220 ?? null,
+      driverBivolt: driverBivolt ?? null,
       driverDimDali: driverDimDali ?? null,
       driverDim110v: driverDim110v ?? null,
       ledModuleStripflex: ledModuleStripflex ?? null,
