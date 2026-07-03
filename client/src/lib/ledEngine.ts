@@ -2,8 +2,9 @@
 // Regras de módulos:
 //   IN (Módulo Inteiro): apenas quando a composição é uma peça única (≤ 5 barras; ≤ 6 com módulos longos)
 //                        OU quando a medida é tão curta que 2x IF de ≥ 2 barras não cabe (fallback)
+//   Módulos IN de 1 barra: APENAS como peça individual (IN_SINGLE). NUNCA em composições mistas com IF/ML.
 //   IF + ML: para linhas longas — sempre 2 IFs iguais nas pontas + MLs no meio
-//            NUNCA usar IF ou ML de 1 barra em composições (MIN_BARS_FOR_COMPOSITION = 2)
+//            NUNCA usar IF, ML ou IN de 1 barra em composições (MIN_BARS_FOR_COMPOSITION = 2)
 //
 // Regras de driver remoto:
 //   Sempre remoto: todos os de embutir, BLAZE H D1+D2, SKYLINE Pendente, MINI BLAZE, SHARP, SOFT
@@ -858,8 +859,11 @@ export function buildComposition(
 
   // Fallback: algoritmo guloso genérico
   // IF e ML com forComposition=true: excluir módulos < 2 barras (evitar emendas muito próximas)
+  // Módulos IN: excluir os de 1 barra — módulos IN de 1 barra só são permitidos como peça única (IN_SINGLE),
+  //             nunca em composições mistas com IF/ML (regra: IN de 1 barra = peça individual apenas)
   const allModules: RawModule[] = [
-    ...getModules(profileCode, "IN", allowLongModules, stripMethod, power, false, allowFractional),
+    ...getModules(profileCode, "IN", allowLongModules, stripMethod, power, false, allowFractional)
+      .filter(m => m.barras >= MIN_BARS_FOR_COMPOSITION),
     ...getModules(profileCode, "IF", allowLongModules, stripMethod, power, true, allowFractional),
     ...getModules(profileCode, "ML", allowLongModules, stripMethod, power, true, allowFractional),
   ].sort((a, b) => b.length - a.length);

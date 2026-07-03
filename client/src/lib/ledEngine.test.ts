@@ -169,6 +169,31 @@ describe("buildComposition — linha longa → deve usar IF+ML, nunca IN", () =>
     expect(totalIfQty).toBe(2);
     expect(ifItems.length).toBe(1);
   });
+
+  it("módulos IN de 1 barra não devem aparecer em composições mistas com IF/ML", () => {
+    // Regra: módulos IN de 1 barra (barras=1) só são permitidos como peça única (IN_SINGLE).
+    // Em linhas compostas por IF+ML, nenhum módulo IN de 1 barra deve aparecer.
+    const lengths = [3000, 5000, 7500, 10000, 15000];
+    for (const len of lengths) {
+      const r = buildComposition("LLP-4251", len, 18, "220Vac", false, "STRIPFLEX");
+      if (r.compositionMode !== "IN_SINGLE") {
+        const inItems = r.composition.filter(i => i.moduleType === "IN");
+        const has1BarIN = inItems.some(i => i.barras === 1);
+        expect(has1BarIN).toBe(false);
+      }
+    }
+  });
+
+  it("módulos IN de 1 barra são permitidos como peça única (IN_SINGLE)", () => {
+    // Para medidas curtas (ex: 600mm), o motor deve usar IN_SINGLE com módulo de 1 barra
+    const r = buildComposition("LLP-4251", 600, 18, "220Vac", false, "STRIPFLEX");
+    expect(r.compositionMode).toBe("IN_SINGLE");
+    expect(r.composition.length).toBe(1);
+    expect(r.composition[0].moduleType).toBe("IN");
+    // O módulo IN de 1 barra (575mm) deve ser o escolhido para 600mm
+    expect(r.composition[0].barras).toBe(1);
+    expect(r.realizedLength).toBeLessThanOrEqual(600);
+  });
 });
 
 describe("buildComposition — regras gerais", () => {
