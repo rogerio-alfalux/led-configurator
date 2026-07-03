@@ -1790,3 +1790,11 @@
 - [x] Corrigir subtotal na tela do orçamento (QuoteDetail.tsx): lumTotalDisplay e totalLuminaria com priceWithoutDriver × qty
 - [x] Corrigir subtotal na pré-visualização do Excel (ExcelPreviewModal.tsx): priceWithoutDriver × qty
 - [x] Corrigir ColorPickerModal (Home.tsx): recalcular priceWithoutDriver e driverLines com effectiveQty ao salvar novos itens
+
+## Correção de Drivers de Perfis via API — Jul 2026
+
+- [x] ProfileVariant: adicionar campos driver220/driverBivolt/driverDimDali/driverDim110v à interface
+- [x] profileApiAdapter.ts: incluir driver220/driverBivolt no variantMap e catálogo final
+- [x] ledEngine.ts: CompositionInput recebe driver220/driverBivolt; applyDimDriver usa driver da API para ON/OFF e DIM
+- [x] lEngine.ts: ShapeDriverParams recebe controlType e campos driver; calcPieceDriver usa driver da API
+- [x] Home.tsx: calculateComposition e ShapeDriverParams passam driver220/driverBivolt/controlType
