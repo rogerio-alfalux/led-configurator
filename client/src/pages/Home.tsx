@@ -1820,9 +1820,9 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                     ? [{
                         driverModel: profileSegments[0]?.driverModel || "Driver",
                         driverCode: profileSegments[0]?.driverCode || "",
-                        driverQty: nModules * globalQty,
+                        driverQty: nModules,
                         driverUnitPrice: Math.round(modulePriceResult.precoDriverTotal / nModules * 100) / 100,
-                        driverTotalPrice: Math.round(modulePriceResult.precoDriverTotal * globalQty * 100) / 100,
+                        driverTotalPrice: Math.round(modulePriceResult.precoDriverTotal * 100) / 100,
                       }]
                     : undefined;
                 const perfilPrecoSemDriver = modulePriceResult && modulePriceResult.precoDriverTotal > 0
@@ -8168,9 +8168,9 @@ export default function Home() {
                                       ? [{
                                           driverModel: lbDriverModel,
                                           driverCode: lbDriverCode,
-                                          driverQty: r.nCortes * globalQty,
+                                          driverQty: r.nCortes,
                                           driverUnitPrice: lbDetail.precoDriverPorCorte,
-                                          driverTotalPrice: Math.round(lbDetail.precoDriverPorCorte * r.nCortes * globalQty * 100) / 100,
+                                          driverTotalPrice: Math.round(lbDetail.precoDriverPorCorte * r.nCortes * 100) / 100,
                                         }]
                                       : undefined;
                                   const lbPrecoSemDriver = lbDrvLines && lbDetail

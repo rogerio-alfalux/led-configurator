@@ -1798,3 +1798,10 @@
 - [x] ledEngine.ts: CompositionInput recebe driver220/driverBivolt; applyDimDriver usa driver da API para ON/OFF e DIM
 - [x] lEngine.ts: ShapeDriverParams recebe controlType e campos driver; calcPieceDriver usa driver da API
 - [x] Home.tsx: calculateComposition e ShapeDriverParams passam driver220/driverBivolt/controlType
+
+## Bug: Multiplicação incorreta do preço do driver no orçamento — Jul 2026
+
+- [x] Investigar: driver EQ00346 mostra R$93,33/un mas total R$58.333,33 (25 × 25 × 93,33 = qty²)
+- [x] Causa raiz: driverQty e driverTotalPrice em perfis lineares e LED BAR eram calculados com globalQty incluído, mas ColorPickerModal reescalava novamente por effectiveQty
+- [x] Corrigir Home.tsx: driverQty = nModules (por luminária), driverTotalPrice = precoDriverTotal (por luminária) — ColorPickerModal escala corretamente
+- [x] Corrigir Home.tsx LED BAR: driverQty = r.nCortes (por unidade), driverTotalPrice = precoDriverPorCorte × r.nCortes (por unidade)
