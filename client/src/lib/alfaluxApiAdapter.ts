@@ -64,6 +64,18 @@ export interface ApiProduct {
   ledModuleEq3000?: string | null;
   ledModuleEq4000?: string | null;
   ledModuleEq5000?: string | null;
+  /** Código EQ do módulo LED genérico (para RGBW e legados) — enriquecido pelo servidor */
+  ledModuleEq?: string | null;
+  /** Código EQ da ótica genérica — enriquecido pelo servidor */
+  oticaEq?: string | null;
+  /** Código EQ da ótica primária — enriquecido pelo servidor */
+  oticaPrimariaEq?: string | null;
+  /** Código EQ da ótica secundária — enriquecido pelo servidor */
+  oticaSecundariaEq?: string | null;
+  /** Código EQ do dissipador — enriquecido pelo servidor */
+  dissipadorEq?: string | null;
+  /** Código EQ do holder — enriquecido pelo servidor */
+  holderEq?: string | null;
   otica: string | null;
   /** Ótica primária com quantidade embutida. null quando não retornado pela API. */
   oticaPrimaria: string | null;
@@ -274,6 +286,12 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
     ledModuleEq3000: p.ledModuleEq3000 ?? null,
     ledModuleEq4000: p.ledModuleEq4000 ?? null,
     ledModuleEq5000: p.ledModuleEq5000 ?? null,
+    ledModuleEq: p.ledModuleEq ?? null,
+    oticaEq: p.oticaEq ?? null,
+    oticaPrimariaEq: p.oticaPrimariaEq ?? null,
+    oticaSecundariaEq: p.oticaSecundariaEq ?? null,
+    dissipadorEq: p.dissipadorEq ?? null,
+    holderEq: p.holderEq ?? null,
     ccts,
     driver220: d220
       ? { model: driverModel(d220), code: driverCode(d220), corrente: d220.corrente ?? null }
@@ -354,6 +372,12 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
     ledModuleEq3000: p.ledModuleEq3000 ?? null,
     ledModuleEq4000: p.ledModuleEq4000 ?? null,
     ledModuleEq5000: p.ledModuleEq5000 ?? null,
+    ledModuleEq: p.ledModuleEq ?? null,
+    oticaEq: p.oticaEq ?? null,
+    oticaPrimariaEq: p.oticaPrimariaEq ?? null,
+    oticaSecundariaEq: p.oticaSecundariaEq ?? null,
+    dissipadorEq: p.dissipadorEq ?? null,
+    holderEq: p.holderEq ?? null,
     otica: resolveOtica(p),
     oticaPrimaria: p.oticaPrimaria ?? null,
     oticaSecundaria: p.oticaSecundaria ?? null,
@@ -370,7 +394,7 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
     driverQtdBivolt: p.driverQtdBivolt ?? null,
     ccts,
     fotoUrl: normalizeFotoUrl(p.fotoUrl),
-     precoOnOff220: p.precoOnOff220 ?? null,
+    precoOnOff220: p.precoOnOff220 ?? null,
     precoOnOffBivolt: p.precoOnOffBivolt ?? null,
     precoDim110v: p.precoDim110v ?? null,
     precoDimDali: p.precoDimDali ?? null,
@@ -594,6 +618,12 @@ function toArandelaProduct(p: ApiProduct): ArandelaProduct {
     ledModuleEq3000: p.ledModuleEq3000 ?? null,
     ledModuleEq4000: p.ledModuleEq4000 ?? null,
     ledModuleEq5000: p.ledModuleEq5000 ?? null,
+    ledModuleEq: p.ledModuleEq ?? null,
+    oticaEq: p.oticaEq ?? null,
+    oticaPrimariaEq: p.oticaPrimariaEq ?? null,
+    oticaSecundariaEq: p.oticaSecundariaEq ?? null,
+    dissipadorEq: p.dissipadorEq ?? null,
+    holderEq: p.holderEq ?? null,
     otica: resolveOtica(p),
     oticaPrimaria: p.oticaPrimaria ?? null,
     oticaSecundaria: p.oticaSecundaria ?? null,

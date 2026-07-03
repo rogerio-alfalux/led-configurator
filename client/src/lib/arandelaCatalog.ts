@@ -40,6 +40,18 @@ export interface ArandelaProduct {
   ledModuleEq3000?: string | null;
   ledModuleEq4000?: string | null;
   ledModuleEq5000?: string | null;
+  /** Código EQ do módulo LED genérico (para RGBW e legados) — enriquecido pelo servidor */
+  ledModuleEq?: string | null;
+  /** Código EQ da ótica genérica — enriquecido pelo servidor */
+  oticaEq?: string | null;
+  /** Código EQ da ótica primária — enriquecido pelo servidor */
+  oticaPrimariaEq?: string | null;
+  /** Código EQ da ótica secundária — enriquecido pelo servidor */
+  oticaSecundariaEq?: string | null;
+  /** Código EQ do dissipador — enriquecido pelo servidor */
+  dissipadorEq?: string | null;
+  /** Código EQ do holder — enriquecido pelo servidor */
+  holderEq?: string | null;
   /** Ótica legado (primaria + secundaria concatenadas) — null se não aplicável */
   otica: string | null;
   /** Ótica primária com quantidade embutida. null quando não retornado pela API. */
@@ -113,6 +125,16 @@ export interface ArandelaResult {
   ledModuleWithCCT: string | null;
   /** Código EQ do módulo resolvido para o CCT selecionado. null se não encontrado. */
   ledModuleEq: string | null;
+  /** Código EQ da ótica (resolvida para o produto) */
+  oticaEq: string | null;
+  /** Código EQ da ótica primária */
+  oticaPrimariaEq: string | null;
+  /** Código EQ da ótica secundária */
+  oticaSecundariaEq: string | null;
+  /** Código EQ do dissipador */
+  dissipadorEq: string | null;
+  /** Código EQ do holder */
+  holderEq: string | null;
 }
 
 /** Catálogo estático de fallback — será sobreposto pelos dados da API */
@@ -198,5 +220,10 @@ export function calculateArandela(catalog: ArandelaProduct[], input: ArandelaInp
     driver: driver ?? { model: "", code: "" },
     ledModuleWithCCT,
     ledModuleEq,
+    oticaEq: product.oticaEq ?? product.oticaPrimariaEq ?? null,
+    oticaPrimariaEq: product.oticaPrimariaEq ?? null,
+    oticaSecundariaEq: product.oticaSecundariaEq ?? null,
+    dissipadorEq: product.dissipadorEq ?? null,
+    holderEq: product.holderEq ?? null,
   };
 }

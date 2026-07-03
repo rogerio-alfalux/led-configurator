@@ -48,6 +48,18 @@ export interface AlfaluxProduct {
   ledModuleEq3000?: string | null;
   ledModuleEq4000?: string | null;
   ledModuleEq5000?: string | null;
+  /** Código EQ do módulo LED genérico (para RGBW e legados) — enriquecido via lookup */
+  ledModuleEq?: string | null;
+  /** Código EQ da ótica genérica — enriquecido via lookup */
+  oticaEq?: string | null;
+  /** Código EQ da ótica primária — enriquecido via lookup */
+  oticaPrimariaEq?: string | null;
+  /** Código EQ da ótica secundária — enriquecido via lookup */
+  oticaSecundariaEq?: string | null;
+  /** Código EQ do dissipador — enriquecido via lookup */
+  dissipadorEq?: string | null;
+  /** Código EQ do holder — enriquecido via lookup */
+  holderEq?: string | null;
   otica: string | null;
   /** Ótica primária com quantidade embutida (ex: "9x LENTE DARKOO..."). null quando não retornado pela API. */
   oticaPrimaria: string | null;
@@ -233,9 +245,39 @@ export async function fetchAllAlfaluxProducts(): Promise<AlfaluxProduct[]> {
         }
       }
     }
+    // Também enriquecer ledModule genérico (para RGBW e legados)
+    for (const p of all) {
+      if (p.ledModule) {
+        const cleanName = p.ledModule.replace(/^\d+x\s+/i, '').trim().toUpperCase();
+        const eq = eqMap.get(cleanName) ?? null;
+        (p as unknown as Record<string, unknown>)['ledModuleEq'] = eq;
+      }
+    }
     console.log(`[AlfaluxAPI] Lookup de EQ do módulo concluído.`);
   } catch (err) {
     console.warn(`[AlfaluxAPI] Falha no lookup de EQ do módulo:`, err);
+  }
+
+  // Enriquecer ótica, dissipador e holder com código EQ via lookup em /api/componentes/all
+  try {
+    const { items: componentes } = await fetchComponentes();
+    const allEqMap = new Map<string, string>();
+    for (const c of componentes) {
+      if (c.codigo && c.descricao) {
+        allEqMap.set(c.descricao.toUpperCase().trim(), c.codigo);
+      }
+    }
+    for (const p of all) {
+      const pr = p as unknown as Record<string, unknown>;
+      if (p.otica) pr['oticaEq'] = allEqMap.get(p.otica.replace(/^\d+x\s+/i, '').trim().toUpperCase()) ?? null;
+      if (p.oticaPrimaria) pr['oticaPrimariaEq'] = allEqMap.get(p.oticaPrimaria.replace(/^\d+x\s+/i, '').trim().toUpperCase()) ?? null;
+      if (p.oticaSecundaria) pr['oticaSecundariaEq'] = allEqMap.get(p.oticaSecundaria.replace(/^\d+x\s+/i, '').trim().toUpperCase()) ?? null;
+      if (p.dissipador) pr['dissipadorEq'] = allEqMap.get(p.dissipador.replace(/^\d+x\s+/i, '').trim().toUpperCase()) ?? null;
+      if (p.holder) pr['holderEq'] = allEqMap.get(p.holder.replace(/^\d+x\s+/i, '').trim().toUpperCase()) ?? null;
+    }
+    console.log(`[AlfaluxAPI] Lookup de EQ de ótica/dissipador/holder concluído.`);
+  } catch (err) {
+    console.warn(`[AlfaluxAPI] Falha no lookup de EQ de ótica/dissipador/holder:`, err);
   }
 
   // Enriquecer drivers com campo corrente via lookup em /api/componentes/all

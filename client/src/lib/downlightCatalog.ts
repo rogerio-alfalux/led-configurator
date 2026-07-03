@@ -52,6 +52,18 @@ export interface DownlightProduct {
   ledModuleEq3000?: string | null;
   ledModuleEq4000?: string | null;
   ledModuleEq5000?: string | null;
+  /** Código EQ do módulo LED genérico (para RGBW e legados) — enriquecido pelo servidor */
+  ledModuleEq?: string | null;
+  /** Código EQ da ótica genérica — enriquecido pelo servidor */
+  oticaEq?: string | null;
+  /** Código EQ da ótica primária — enriquecido pelo servidor */
+  oticaPrimariaEq?: string | null;
+  /** Código EQ da ótica secundária — enriquecido pelo servidor */
+  oticaSecundariaEq?: string | null;
+  /** Código EQ do dissipador — enriquecido pelo servidor */
+  dissipadorEq?: string | null;
+  /** Código EQ do holder — enriquecido pelo servidor */
+  holderEq?: string | null;
   /** CCTs disponíveis para este produto (ex: ["3000K", "4000K"]) */
   ccts: string[];
   /** Driver para 220Vac -- null se nao houver opcao 220V */
@@ -159,6 +171,16 @@ export interface DownlightResult {
   ledModuleQtd: number | null;
   /** Código EQ do módulo resolvido para o CCT selecionado (ex: "EQ00643"). null se não encontrado. */
   ledModuleEq: string | null;
+  /** Código EQ da ótica (resolvida para o produto) */
+  oticaEq: string | null;
+  /** Código EQ da ótica primária */
+  oticaPrimariaEq: string | null;
+  /** Código EQ da ótica secundária */
+  oticaSecundariaEq: string | null;
+  /** Código EQ do dissipador */
+  dissipadorEq: string | null;
+  /** Código EQ do holder */
+  holderEq: string | null;
 }
 
 export const DOWNLIGHT_CATALOG: DownlightProduct[] = [
@@ -3835,5 +3857,10 @@ export function calculateDownlight(input: DownlightInput, catalog?: DownlightPro
     ledModuleWithCCT,
     ledModuleQtd: resolvedLedModuleQtd,
     ledModuleEq,
+    oticaEq: product.oticaEq ?? product.oticaPrimariaEq ?? null,
+    oticaPrimariaEq: product.oticaPrimariaEq ?? null,
+    oticaSecundariaEq: product.oticaSecundariaEq ?? null,
+    dissipadorEq: product.dissipadorEq ?? null,
+    holderEq: product.holderEq ?? null,
   };
 }
