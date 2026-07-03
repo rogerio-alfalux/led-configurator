@@ -4216,12 +4216,13 @@ export default function Home() {
                       const bfDimDrv = bfControle === 'DIM DALI' ? bfSelProdV?.driverDimDali : bfControle === 'DIM 1-10V' ? bfSelProdV?.driverDim110v : null;
                       const bfDimBivolt = bfDimDrv != null && /bivolt/i.test(bfDimDrv.model);
                       const hasBivoltBf = bfControle !== 'ON/OFF' ? bfDimBivolt : (bfSelProdV?.driverBivolt != null);
+                      const has220Bf = bfSelProdV == null ? false : bfControle !== 'ON/OFF' ? (bfDimDrv != null && !bfDimBivolt) : (bfSelProdV.driver220 != null);
                       return (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
                           <div className="flex gap-2">
                             {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
-                              const disabled = v === "Bivolt" && !hasBivoltBf;
+                              const disabled = (v === "Bivolt" && !hasBivoltBf) || (v === "220V" && !has220Bf);
                               return (
                                 <button
                                   key={v}
