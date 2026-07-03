@@ -130,6 +130,12 @@ export interface DownlightProduct {
   markupMinimoDimTriac110v?: number | null;
   /** Markup mínimo DIM TRIAC 220V */
   markupMinimoDimTriac220v?: number | null;
+  /** Produto com módulo RGBW (não tem CCT convencional 2700K-5000K). Exibe apenas opção "RGBW". */
+  isRgbw?: boolean;
+  /** Produto com lâmpada (sem módulo LED e sem driver). Não exibe seleção de CCT nem módulo LED. */
+  isLamp?: boolean;
+  /** Foto URL do produto */
+  fotoUrl?: string | null;
 }
 
 export interface DownlightInput {
@@ -3768,6 +3774,19 @@ export function calculateDownlight(input: DownlightInput, catalog?: DownlightPro
     driver = product.driverBivolt;
   } else {
     driver = product.driver220 ?? null;
+  }
+  // Produto com lâmpada (sem driver, sem módulo LED): retornar resultado sem driver
+  if (!driver && product.isLamp) {
+    return {
+      product,
+      tensao: input.tensao,
+      cct: input.cct,
+      controle: input.controle,
+      driver: { model: "", code: "" },
+      ledModuleWithCCT: "",
+      ledModuleQtd: null,
+      ledModuleEq: null,
+    };
   }
   if (!driver) return null;
 

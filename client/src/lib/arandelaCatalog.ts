@@ -88,6 +88,10 @@ export interface ArandelaProduct {
   markupPadraoDim110v?: number | null;
   /** Markup padrão DIM DALI */
   markupPadraoDimDali?: number | null;
+  /** Produto com módulo RGBW (não tem CCT convencional). Exibe apenas opção "RGBW". */
+  isRgbw?: boolean;
+  /** Produto com lâmpada (sem módulo LED e sem driver). Não exibe seleção de CCT. */
+  isLamp?: boolean;
 }
 
 export interface ArandelaInput {
@@ -149,6 +153,19 @@ export function calculateArandela(catalog: ArandelaProduct[], input: ArandelaInp
     ? product.driverBivolt
     : product.driver220;
 
+  // Produto com lâmpada (sem driver, sem módulo LED): retornar resultado sem driver
+  if (!driver && product.isLamp) {
+    return {
+      product,
+      tensao: input.tensao,
+      cct: input.cct,
+      controle: input.controle,
+      driver: { model: "", code: "" },
+      ledModuleWithCCT: null,
+      ledModuleEq: null,
+    };
+  }
+
   // Usar módulo LED específico por CCT quando disponível
   const cctKey = input.cct.replace("K", "") as "2700" | "3000" | "4000" | "5000";
   const cctSpecificModule = (product as any)[`ledModule${cctKey}`] as string | null | undefined;
@@ -164,7 +181,7 @@ export function calculateArandela(catalog: ArandelaProduct[], input: ArandelaInp
     tensao: input.tensao,
     cct: input.cct,
     controle: input.controle,
-    driver,
+    driver: driver ?? { model: "", code: "" },
     ledModuleWithCCT,
     ledModuleEq,
   };

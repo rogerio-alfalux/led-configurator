@@ -2596,6 +2596,7 @@ export default function Home() {
   const [decFamilia, setDecFamilia] = useState<string | null>(null);
   const [decProductKey, setDecProductKey] = useState<string | null>(null);
   const [decCCT, setDecCCT] = useState<string>("3000K");
+  const [decVoltage, setDecVoltage] = useState<"220V" | "Bivolt">("Bivolt");
   // ── Estados de Balizadores ───────────────────────────────────────────
   const [balFamilia, setBalFamilia] = useState<string | null>(null);
   const [balProductKey, setBalProductKey] = useState<string | null>(null);
@@ -3850,7 +3851,7 @@ export default function Home() {
                           // Reset GLOW
                           setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                           // Reset Decorativas
-                          setDecFamilia(null); setDecProductKey(null); setDecCCT("3000K");
+                          setDecFamilia(null); setDecProductKey(null); setDecCCT("3000K"); setDecVoltage("Bivolt");
                           // Reset Balizadores
                           setBalFamilia(null); setBalProductKey(null); setBalCCT("3000K");
                           // Reset Acessórios
@@ -5491,6 +5492,11 @@ export default function Home() {
                               const prod = activeDecorativasCatalog.find(p => p.sku === s && p.name === np.join('::'));
                               const availCCTs = prod?.ccts ?? ["2700K", "3000K", "4000K"];
                               if (!availCCTs.includes(decCCT)) setDecCCT(availCCTs[0] ?? "3000K");
+                              // Auto-selecionar tensão com base no que está disponível
+                              const hasBivolt = !!(prod?.driverBivolt?.model);
+                              const has220 = !!(prod?.driver220?.model);
+                              if (hasBivolt) setDecVoltage("Bivolt");
+                              else if (has220) setDecVoltage("220V");
                             }}
                           >
                             <SelectTrigger className="h-10">
@@ -5503,6 +5509,41 @@ export default function Home() {
                               })}
                             </SelectContent>
                           </Select>
+                        </div>
+                      );
+                    })()}
+                    {/* Tensão */}
+                    {decProductKey && (() => {
+                      const [_dSku2, ..._dNP2] = (decProductKey ?? '::').split('::');
+                      const dProd2 = activeDecorativasCatalog.find(p => p.sku === _dSku2 && p.name === _dNP2.join('::'));
+                      const has220 = !!(dProd2?.driver220?.model);
+                      const hasBivolt = !!(dProd2?.driverBivolt?.model);
+                      // Se só tem um tipo, selecionar automaticamente
+                      const voltages: Array<"220V" | "Bivolt"> = ["220V", "Bivolt"];
+                      return (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
+                          <div className="flex gap-2">
+                            {voltages.map((v) => {
+                              const disabled = v === "220V" ? !has220 : !hasBivolt;
+                              return (
+                                <button
+                                  key={v}
+                                  disabled={disabled}
+                                  onClick={() => { if (!disabled) setDecVoltage(v); }}
+                                  className={[
+                                    "flex-1 py-2 rounded-lg text-sm font-medium border transition-all",
+                                    decVoltage === v && !disabled
+                                      ? "bg-primary text-primary-foreground border-primary"
+                                      : "bg-background text-foreground border-border hover:border-primary/50",
+                                    disabled ? "opacity-40 cursor-not-allowed" : "",
+                                  ].join(" ")}
+                                >
+                                  {v}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       );
                     })()}
@@ -5764,19 +5805,29 @@ export default function Home() {
                     {/* CCT */}
                     {dlProductKey !== null && (() => {
                       const dlSelProd = activeDlCatalog.find(p => { const [s, ...np] = (dlProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
-                      const dlAvailCCTs = dlSelProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+                      // Produto com lâmpada: sem seleção de CCT
+                      if (dlSelProd?.isLamp) return null;
+                      // Produto RGBW: mostrar apenas opção RGBW
+                      const dlAvailCCTs = dlSelProd?.isRgbw ? ["RGBW"] : (dlSelProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"]);
                       return (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
-                          <select
-                            value={dlCCT}
-                            onChange={(e) => { setDlCCT(e.target.value); setDlResult(null); }}
-                            className="h-9 rounded-md border border-border bg-background text-foreground text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
-                          >
-                            {[...dlAvailCCTs, "A definir"].map((c) => (
-                              <option key={c} value={c}>{c}</option>
-                            ))}
-                          </select>
+                          {dlSelProd?.isRgbw ? (
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-muted/40 text-sm font-medium text-foreground">
+                              <span className="inline-block w-2 h-2 rounded-full bg-gradient-to-r from-red-400 via-green-400 to-blue-400" />
+                              RGBW
+                            </div>
+                          ) : (
+                            <select
+                              value={dlCCT}
+                              onChange={(e) => { setDlCCT(e.target.value); setDlResult(null); }}
+                              className="h-9 rounded-md border border-border bg-background text-foreground text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
+                            >
+                              {[...dlAvailCCTs, "A definir"].map((c) => (
+                                <option key={c} value={c}>{c}</option>
+                              ))}
+                            </select>
+                          )}
                         </div>
                       );
                     })()}
@@ -6488,19 +6539,29 @@ export default function Home() {
                   {/* CCT */}
                   {spotProductKey !== null && (() => {
                     const spotSelProd = activeSpotCatalog.find(p => { const [s, ...np] = (spotProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
-                    const spotAvailCCTs = spotSelProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+                    // Produto com lâmpada: sem seleção de CCT
+                    if (spotSelProd?.isLamp) return null;
+                    // Produto RGBW: mostrar apenas opção RGBW
+                    const spotAvailCCTs = spotSelProd?.isRgbw ? ["RGBW"] : (spotSelProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"]);
                     return (
                       <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
-                        <select
-                          value={spotCCT}
-                          onChange={(e) => { setSpotCCT(e.target.value); setSpotResult(null); }}
-                          className="h-9 rounded-md border border-border bg-background text-foreground text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
-                        >
-                          {[...spotAvailCCTs, "A definir"].map((c) => (
-                            <option key={c} value={c}>{c}</option>
-                          ))}
-                        </select>
+                        {spotSelProd?.isRgbw ? (
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-muted/40 text-sm font-medium text-foreground">
+                            <span className="inline-block w-2 h-2 rounded-full bg-gradient-to-r from-red-400 via-green-400 to-blue-400" />
+                            RGBW
+                          </div>
+                        ) : (
+                          <select
+                            value={spotCCT}
+                            onChange={(e) => { setSpotCCT(e.target.value); setSpotResult(null); }}
+                            className="h-9 rounded-md border border-border bg-background text-foreground text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
+                          >
+                            {[...spotAvailCCTs, "A definir"].map((c) => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
+                        )}
                       </div>
                     );
                   })()}
@@ -6664,27 +6725,41 @@ export default function Home() {
                     </div>
                   )}
                   {/* CCT */}
-                  {arandelaProductKey !== null && (
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
-                      <div className="flex gap-2 flex-wrap">
-                        {(activeArandelaCatalog.find(p => { const [s, ...np] = (arandelaProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); })?.ccts ?? ["2700K", "3000K", "4000K", "5000K"]).map((c) => (
-                          <button
-                            key={c}
-                            onClick={() => { setArandelaCCT(c); setArandelaResult(null); }}
-                            className={[
-                              "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
-                              arandelaCCT === c
-                                ? "bg-primary text-primary-foreground border-primary"
-                                : "bg-background text-foreground border-border hover:border-primary/50",
-                            ].join(" ")}
-                          >
-                            {c}
-                          </button>
-                        ))}
+                  {arandelaProductKey !== null && (() => {
+                    const arandelaSelProd = activeArandelaCatalog.find(p => { const [s, ...np] = (arandelaProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
+                    // Produto com lâmpada: sem seleção de CCT
+                    if (arandelaSelProd?.isLamp) return null;
+                    // Produto RGBW: mostrar apenas opção RGBW
+                    const arandelaAvailCCTs = arandelaSelProd?.isRgbw ? ["RGBW"] : (arandelaSelProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"]);
+                    return (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
+                        {arandelaSelProd?.isRgbw ? (
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-muted/40 text-sm font-medium text-foreground">
+                            <span className="inline-block w-2 h-2 rounded-full bg-gradient-to-r from-red-400 via-green-400 to-blue-400" />
+                            RGBW
+                          </div>
+                        ) : (
+                          <div className="flex gap-2 flex-wrap">
+                            {arandelaAvailCCTs.map((c) => (
+                              <button
+                                key={c}
+                                onClick={() => { setArandelaCCT(c); setArandelaResult(null); }}
+                                className={[
+                                  "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
+                                  arandelaCCT === c
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-background text-foreground border-border hover:border-primary/50",
+                                ].join(" ")}
+                              >
+                                {c}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               );
             })()}
@@ -6706,18 +6781,28 @@ export default function Home() {
                     <AlertTriangle className="w-3.5 h-3.5" /> Selecione o produto antes de calcular.
                   </p>
                 )}
-                {arandelaProductKey !== null && !arandelaVoltage && (
-                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
-                  </p>
-                )}
+                {arandelaProductKey !== null && !arandelaVoltage && (() => {
+                  const arSelProdBtn = activeArandelaCatalog.find(p => { const [s, ...np] = (arandelaProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
+                  if (arSelProdBtn?.isLamp) return null;
+                  return (
+                    <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
+                    </p>
+                  );
+                })()}
                 <Button
-                  disabled={arandelaProductKey === null || !arandelaVoltage}
+                  disabled={arandelaProductKey === null || (() => {
+                    const arSelProdBtn2 = activeArandelaCatalog.find(p => { const [s, ...np] = (arandelaProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
+                    return !arSelProdBtn2?.isLamp && !arandelaVoltage;
+                  })()}
                   onClick={() => {
-                    if (arandelaProductKey === null || !arandelaVoltage) return;
+                    if (arandelaProductKey === null) return;
                     const [arandelaSku, ...arandelaNameParts] = (arandelaProductKey ?? '::').split('::');
                     const arandelaName = arandelaNameParts.join('::');
-                    setArandelaResult(calculateArandela(activeArandelaCatalog, { productSku: arandelaSku, productName: arandelaName, tensao: arandelaVoltage, cct: arandelaCCT, controle: arandelaControle }));
+                    const arSelProdBtn3 = activeArandelaCatalog.find(p => p.sku === arandelaSku && p.name === arandelaName);
+                    const arTensaoToUse = (arSelProdBtn3?.isLamp ? "220V" : arandelaVoltage) as "220V" | "Bivolt";
+                    if (!arTensaoToUse) return;
+                    setArandelaResult(calculateArandela(activeArandelaCatalog, { productSku: arandelaSku, productName: arandelaName, tensao: arTensaoToUse, cct: arandelaCCT, controle: arandelaControle }));
                   }}
                   className="w-full h-12 text-base font-semibold font-display"
                   size="lg"
@@ -6745,18 +6830,28 @@ export default function Home() {
                     <AlertTriangle className="w-3.5 h-3.5" /> Selecione o produto antes de calcular.
                   </p>
                 )}
-                {spotProductKey !== null && !spotVoltage && (
-                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
-                  </p>
-                )}
+                {spotProductKey !== null && !spotVoltage && (() => {
+                  const spotSelProdBtn = activeSpotCatalog.find(p => { const [s, ...np] = (spotProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
+                  if (spotSelProdBtn?.isLamp) return null;
+                  return (
+                    <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
+                    </p>
+                  );
+                })()}
                 <Button
-                  disabled={spotProductKey === null || !spotVoltage}
+                  disabled={spotProductKey === null || (() => {
+                    const spotSelProdBtn2 = activeSpotCatalog.find(p => { const [s, ...np] = (spotProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
+                    return !spotSelProdBtn2?.isLamp && !spotVoltage;
+                  })()}
                   onClick={() => {
-                    if (spotProductKey === null || !spotVoltage) return;
+                    if (spotProductKey === null) return;
                     const [spotSku, ...spotNameParts] = (spotProductKey ?? '::').split('::');
                     const spotName = spotNameParts.join('::');
-                    setSpotResult(calculateSpot(activeSpotCatalog, { productSku: spotSku, productName: spotName, tensao: spotVoltage, cct: spotCCT, controle: spotControle }));
+                    const spotSelProdBtn3 = activeSpotCatalog.find(p => p.sku === spotSku && p.name === spotName);
+                    const spotTensaoToUse = (spotSelProdBtn3?.isLamp ? "220V" : spotVoltage) as "220V" | "Bivolt";
+                    if (!spotTensaoToUse) return;
+                    setSpotResult(calculateSpot(activeSpotCatalog, { productSku: spotSku, productName: spotName, tensao: spotTensaoToUse, cct: spotCCT, controle: spotControle }));
                   }}
                   className="w-full h-12 text-base font-semibold font-display"
                   size="lg"
@@ -6865,18 +6960,28 @@ export default function Home() {
                     <AlertTriangle className="w-3.5 h-3.5" /> Selecione o produto antes de calcular.
                   </p>
                 )}
-                {dlProductKey !== null && !dlVoltage && (
-                  <p className="text-xs text-amber-500 flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
-                  </p>
-                )}
+                {dlProductKey !== null && !dlVoltage && (() => {
+                  const dlSelProd2 = activeDlCatalog.find(p => { const [s, ...np] = (dlProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
+                  if (dlSelProd2?.isLamp) return null;
+                  return (
+                    <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
+                    </p>
+                  );
+                })()}
                 <Button
-                  disabled={dlProductKey === null || !dlVoltage}
+                  disabled={dlProductKey === null || (() => {
+                    const dlSelProd3 = activeDlCatalog.find(p => { const [s, ...np] = (dlProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
+                    return !dlSelProd3?.isLamp && !dlVoltage;
+                  })()}
                   onClick={() => {
-                    if (dlProductKey === null || !dlVoltage) return;
+                    if (dlProductKey === null) return;
                     const [dlSku, ...dlNameParts] = (dlProductKey ?? '::').split('::');
                     const dlName = dlNameParts.join('::');
-                    setDlResult(calculateDownlight({ productSku: dlSku, productName: dlName, tensao: dlVoltage, cct: dlCCT, controle: dlControle }, activeDlCatalog));
+                    const dlSelProd4 = activeDlCatalog.find(p => p.sku === dlSku && p.name === dlName);
+                    const tensaoToUse = (dlSelProd4?.isLamp ? "220V" : dlVoltage) as "220V" | "Bivolt";
+                    if (!tensaoToUse) return;
+                    setDlResult(calculateDownlight({ productSku: dlSku, productName: dlName, tensao: tensaoToUse, cct: dlCCT, controle: dlControle }, activeDlCatalog));
                   }}
                   className="w-full h-12 text-base font-semibold font-display"
                   size="lg"
@@ -8945,10 +9050,12 @@ export default function Home() {
               if (!dProd) return null;
               const dPhoto = dProd.sku ? adaptedCatalogs?.decorativasFotos?.[dProd.sku] ?? null : null;
               const dPreco = dProd.precoOnOff220 ?? null;
-              // Driver por produto: bivolt se disponível, senão 220V, senão null
+              // Driver baseado na tensão selecionada pelo usuário
               const dDriverInfo = dProd.semDriver ? null
-                : (dProd.driverBivolt?.model ? dProd.driverBivolt
-                  : (dProd.driver220?.model ? dProd.driver220 : null));
+                : (decVoltage === "Bivolt" && dProd.driverBivolt?.model ? dProd.driverBivolt
+                  : (dProd.driver220?.model ? dProd.driver220
+                    : (dProd.driverBivolt?.model ? dProd.driverBivolt : null)));
+              const dTensaoEfetiva: "220V" | "Bivolt" = (decVoltage === "Bivolt" && dProd.driverBivolt?.model) ? "Bivolt" : "220V";
               const dDriverStr = dDriverInfo?.model
                 ? (dDriverInfo.code ? `${dDriverInfo.model} (${dDriverInfo.code})` : dDriverInfo.model)
                 : null;
@@ -8983,6 +9090,12 @@ export default function Home() {
                             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
                             <p className="text-sm font-semibold">{decCCT}</p>
                           </div>
+                          {!dProd.semDriver && (dProd.driver220?.model || dProd.driverBivolt?.model) && (
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                            <p className="text-sm font-semibold">{dTensaoEfetiva}</p>
+                          </div>
+                          )}
                           {dDriverInfo && (
                             <div className="p-3 rounded-lg bg-muted/50 col-span-2">
                               <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
@@ -9051,8 +9164,7 @@ export default function Home() {
                           className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                           disabled={isAddingToCart}
                           onClick={() => {
-                            const dTensao = dProd.driverBivolt?.model ? 'Bivolt' : '220V';
-                            const dDrvLines = dDriverInfo ? buildLumDriverLines(dProd.sku ?? "", 'ON/OFF', dTensao, globalQty, dDriverInfo.model, dDriverInfo.code ?? "", lumPriceMap, dProd.name ?? undefined, dDriverInfo.corrente ?? null) : null;
+                            const dDrvLines = dDriverInfo ? buildLumDriverLines(dProd.sku ?? "", 'ON/OFF', dTensaoEfetiva, globalQty, dDriverInfo.model, dDriverInfo.code ?? "", lumPriceMap, dProd.name ?? undefined, dDriverInfo.corrente ?? null) : null;
                             const item: CartItemData = {
                               category: "Decorativas",
                               sku: dProd.sku ?? "",
@@ -9407,10 +9519,12 @@ export default function Home() {
                           </div>
                         </>
                       ) : null}
+                      {!dlResult.product.isLamp && (
                       <div className="p-3 rounded-lg bg-muted/50 col-span-2">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
                         <p className="text-sm font-semibold">{dlResult.ledModuleWithCCT}{dlResult.ledModuleEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({dlResult.ledModuleEq})</span> : null}</p>
                       </div>
+                      )}
                       {/* Ótica: exibir primária/secundária separadas quando disponíveis, senão legado */}
                       {(dlResult.product.oticaPrimaria || dlResult.product.otica) && (
                         <div className="p-3 rounded-lg bg-muted/50 col-span-2">
@@ -9445,10 +9559,12 @@ export default function Home() {
                           <p className="text-sm font-semibold">{dlResult.product.dissipador}</p>
                         </div>
                       )}
+                      {!dlResult.product.isLamp && dlResult.driver.model && (
                       <div className="p-3 rounded-lg bg-muted/50 col-span-2">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
                         <p className="text-sm font-semibold">{dlResult.driver.model} <span className="font-mono text-primary">({dlResult.driver.code})</span></p>
                       </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -10509,17 +10625,19 @@ export default function Home() {
                       );
                     })()}
                     {/* Módulo LED */}
-                    {arandelaResult.ledModuleWithCCT && (
+                    {arandelaResult.ledModuleWithCCT && !arandelaResult.product.isLamp && (
                       <div className="p-3 rounded-lg bg-muted/50">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
                         <p className="text-sm font-semibold">{arandelaResult.ledModuleWithCCT}{arandelaResult.ledModuleEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({arandelaResult.ledModuleEq})</span> : null}</p>
                       </div>
                     )}
                     {/* Driver */}
+                    {!arandelaResult.product.isLamp && arandelaResult.driver.model && (
                     <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
                       <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
                       <p className="text-sm font-bold">{arandelaResult.driver.model} <span className="font-mono text-primary">({arandelaResult.driver.code})</span></p>
                     </div>
+                    )}
                   </CardContent>
                 </Card>
                 {/* Resumo para Orçamento */}
@@ -10758,7 +10876,7 @@ export default function Home() {
                       );
                     })()}
                     {/* Módulo LED */}
-                    {spotResult.ledModuleWithCCT && (
+                    {spotResult.ledModuleWithCCT && !spotResult.product.isLamp && (
                       <div className="p-3 rounded-lg bg-muted/50">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
                         <p className="text-sm font-semibold">{spotResult.ledModuleWithCCT}{spotResult.ledModuleEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({spotResult.ledModuleEq})</span> : null}</p>
@@ -10794,10 +10912,12 @@ export default function Home() {
                       </div>
                     )}
                     {/* Driver */}
+                    {!spotResult.product.isLamp && spotResult.driver.model && (
                     <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
                       <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
                       <p className="text-sm font-bold">{spotResult.driver.model} <span className="font-mono text-primary">({spotResult.driver.code})</span></p>
                     </div>
+                    )}
                   </CardContent>
                 </Card>
                 {/* Resumo para Orçamento */}

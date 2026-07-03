@@ -235,6 +235,12 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
   // Produto sem driver: todos os campos de driver são null na API
   const semDriver = !d220 && !dBivolt && !dDim110v && !dDimDali && !dDimTriac110v && !dDimTriac220v;
   const tensaoEmbutida = semDriver ? extractTensaoEmbutida(p.ledModule) : null;
+  // Detectar produto RGBW: algum ledModule* contém "RGBW" no texto
+  const allLedModules = [p.ledModule, p.ledModule2700, p.ledModule3000, p.ledModule4000, p.ledModule5000].filter(Boolean);
+  const isRgbw = allLedModules.some(m => /RGBW/i.test(m ?? ''));
+  // Detectar produto com lâmpada: nenhum módulo LED e sem driver
+  const hasAnyLedModule = allLedModules.length > 0;
+  const isLamp = !hasAnyLedModule && semDriver;
 
   return {
     instalacao: p.instalacao,
@@ -309,6 +315,9 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
     markupPadraoDimTriac220v: p.markupPadraoDimTriac220v ?? null,
     semDriver,
     tensaoEmbutida,
+    isRgbw,
+    isLamp,
+    fotoUrl: p.fotoUrl ?? null,
   };
 }
 
@@ -317,6 +326,9 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
   const d220 = p.driver220;
   const dBivolt = p.driverBivolt;
   const ccts = normalizeCCTs(p.temperaturasCor);
+  const allLedModulesSpot = [p.ledModule, p.ledModule2700, p.ledModule3000, p.ledModule4000, p.ledModule5000].filter(Boolean);
+  const isRgbwSpot = allLedModulesSpot.some(m => /RGBW/i.test(m ?? ''));
+  const isLampSpot = allLedModulesSpot.length === 0 && !d220 && !dBivolt;
 
   return {
     instalacao: p.instalacao,
@@ -365,6 +377,8 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
     markupPadraoOnoffBivolt: p.markupPadraoOnoffBivolt ?? null,
     markupPadraoDim110v: p.markupPadraoDim110v ?? null,
     markupPadraoDimDali: p.markupPadraoDimDali ?? null,
+    isRgbw: isRgbwSpot,
+    isLamp: isLampSpot,
   };
 }
 /** Converte um produto da API para PainelProduct */
@@ -553,6 +567,9 @@ function toArandelaProduct(p: ApiProduct): ArandelaProduct {
   const d220 = p.driver220;
   const dBivolt = p.driverBivolt;
   const ccts = normalizeCCTs(p.temperaturasCor);
+  const allLedModulesAr = [p.ledModule, p.ledModule2700, p.ledModule3000, p.ledModule4000, p.ledModule5000].filter(Boolean);
+  const isRgbwAr = allLedModulesAr.some(m => /RGBW/i.test(m ?? ''));
+  const isLampAr = allLedModulesAr.length === 0 && !d220 && !dBivolt;
   return {
     instalacao: p.instalacao,
     familia: p.familia,
@@ -601,6 +618,8 @@ function toArandelaProduct(p: ApiProduct): ArandelaProduct {
     markupPadraoOnoffBivolt: p.markupPadraoOnoffBivolt ?? null,
     markupPadraoDim110v: p.markupPadraoDim110v ?? null,
     markupPadraoDimDali: p.markupPadraoDimDali ?? null,
+    isRgbw: isRgbwAr,
+    isLamp: isLampAr,
   };
 }
 
