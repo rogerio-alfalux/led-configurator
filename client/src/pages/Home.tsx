@@ -9950,15 +9950,42 @@ export default function Home() {
                   : `${spaceLargura}x${spaceComprimento}mm`;
               const spaceLabel = `SPACE ${spaceFormat === 'R' ? 'R' : spaceFormat === 'Q' ? 'Q' : 'RET'} ${dimLabel}`;
               const driverInfo = _srProd?.driverBivolt;
-              // Quantidade de drivers necessária: 1 por painel (fita 12V, fonte 72W)
-              const driverQty = 1;
+              // Foto correta por formato: R → foto da redonda (LDS-6078), Q/Ret → foto da quadrada (LDS-6079)
+              const spacePhotoUrl = (() => {
+                if (spaceFormat === 'R') {
+                  const rProd = activePanelCatalog.find(p => p.sku === 'LDS-6078');
+                  return rProd?.fotoUrl ?? _srProd?.fotoUrl ?? '';
+                } else {
+                  const qProd = activePanelCatalog.find(p => p.sku === 'LDS-6079');
+                  return qProd?.fotoUrl ?? _srProd?.fotoUrl ?? '';
+                }
+              })();
+              // Quantidade de fontes calculada pela metragem de fita:
+              // ≤ 5000mm → 1 fonte (ligação padrão)
+              // ≤ 10000mm → 1 fonte (alimentação diferenciada, até 10m por fonte)
+              // > 10000mm → Math.ceil(metragemMm / 10000) fontes
+              const metragemMm = Math.round(spaceResult.metragem * 1000);
+              const driverQty = metragemMm <= 10000 ? 1 : Math.ceil(metragemMm / 10000);
+              const driverAlimentacaoDiferenciada = metragemMm > 5000 && metragemMm <= 10000;
+              // PriceBreakdownBlock para SPACE
+              const spaceDrvLines = (driverInfo && _srProd) ? buildLumDriverLines(
+                _srProd.sku ?? '',
+                'ON/OFF',
+                'Bivolt',
+                driverQty,
+                driverInfo.model,
+                driverInfo.code ?? '',
+                lumPriceMap,
+                _srProd.name ?? undefined,
+                (driverInfo as any).corrente ?? null
+              ) : null;
               const orderText = [
                 `${spaceLabel} ${potAtiva} ${spaceCCT}`.toUpperCase(),
-                `METRAGEM: ${spaceResult.metragem}m de fita LED`,
+                `METRAGEM: ${metragemMm}mm de fita LED`,
                 `POTÊNCIA TOTAL: ${potTotal}W`,
                 `FLUXO ÚTIL: ${fluxoAtivo}lm`,
                 `ÁREA DA TELA: ${spaceResult.areaTela.toFixed(2)}m²`,
-                driverInfo ? `DRIVER: 1x ${driverInfo.model} (${driverInfo.code})` : '',
+                driverInfo ? `DRIVER: ${driverQty}x ${driverInfo.model} (${driverInfo.code})${driverAlimentacaoDiferenciada ? ' — alimentação diferenciada' : ''}` : '',
                 _srProd?.sku ? `CÓDIGO BASE: ${_srProd.sku}` : '',
               ].filter(Boolean).join('\n');
               return (
@@ -9982,9 +10009,15 @@ export default function Home() {
                             <p className="text-sm font-mono font-semibold text-primary">{_srProd.sku}</p>
                           </div>
                         )}
+                        {/* Foto do produto */}
+                        {spacePhotoUrl && (
+                          <div className="p-2 rounded-lg bg-muted/30 col-span-2 flex justify-center">
+                            <img src={spacePhotoUrl} alt={spaceLabel} className="h-24 object-contain rounded" />
+                          </div>
+                        )}
                         <div className="p-3 rounded-lg bg-teal-50 dark:bg-teal-900/20 border border-teal-500/30">
                           <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Metragem de Fita</p>
-                          <p className="text-lg font-bold text-teal-700 dark:text-teal-400">{spaceResult.metragem}m</p>
+                          <p className="text-lg font-bold text-teal-700 dark:text-teal-400">{metragemMm}mm</p>
                         </div>
                         <div className="p-3 rounded-lg bg-muted/50">
                           <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Área da Tela</p>
@@ -10000,11 +10033,28 @@ export default function Home() {
                         </div>
                         {driverInfo && (
                           <div className="p-3 rounded-lg bg-muted/50 col-span-2">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver{driverQty > 1 ? ` (${driverQty}x)` : ''}</p>
                             <p className="text-sm font-semibold">{driverInfo.model} <span className="font-mono text-primary">({driverInfo.code})</span></p>
+                            {driverAlimentacaoDiferenciada && (
+                              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">⚡ Alimentação diferenciada — até 10.000mm por fonte</p>
+                            )}
                           </div>
                         )}
-                        <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                        {spaceDrvLines && (
+                          <div className="col-span-2">
+                            <PriceBreakdownBlock
+                              sku={_srProd?.sku ?? ''}
+                              controle="ON/OFF"
+                              tensao="Bivolt"
+                              qty={globalQty}
+                              drvModel={driverInfo?.model ?? ''}
+                              drvCode={driverInfo?.code ?? ''}
+                              lumPriceMap={lumPriceMap}
+                              productName={_srProd?.name}
+                            />
+                          </div>
+                        )}
+                      <div className="p-3 rounded-lg bg-muted/50 col-span-2">
                           <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Potência Comparativa</p>
                           <p className="text-xs text-muted-foreground">Com fita 5W/m: <span className="font-semibold text-foreground">{spaceResult.potencia5w}W</span> ({spaceResult.fluxoUtil5w.toLocaleString('pt-BR')} lm) &nbsp;|&nbsp; Com fita 10W/m: <span className="font-semibold text-foreground">{spaceResult.potencia10w}W</span> ({spaceResult.fluxoUtil10w.toLocaleString('pt-BR')} lm)</p>
                         </div>
@@ -10070,7 +10120,7 @@ export default function Home() {
                               unitPrice: null,
                               totalPrice: null,
                               priceFromApi: false,
-                              photoUrl: _srProd?.fotoUrl ?? '',
+                              photoUrl: spacePhotoUrl ?? _srProd?.fotoUrl ?? '',
                               orderSummary: orderText,
                               quoteSummary: `${spaceLabel} ${potAtiva} ${spaceCCT}`.toUpperCase(),
                               moduloLed: '',
