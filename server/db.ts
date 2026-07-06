@@ -358,9 +358,11 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  // Número sempre gerado automaticamente pela tabela de sequências — não aceitar número manual do frontend.
+  // Número do orçamento: usar o número informado pelo usuário (soberano) ou gerar automaticamente se não fornecido.
   let quoteNumber: string;
-  {
+  if (input.quoteNumber && input.quoteNumber.trim()) {
+    quoteNumber = input.quoteNumber.trim();
+  } else {
     let sellerCodeForNumber: string | null = null;
     if (input.seller1Id) {
       const sellerRows = await db.select({ code: sellers.code }).from(sellers).where(eq(sellers.id, input.seller1Id)).limit(1);

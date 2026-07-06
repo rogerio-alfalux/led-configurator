@@ -430,6 +430,43 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
         </div>
       )}
 
+      {/* Observação no Orçamento e Margem por item */}
+      <div className="pt-2 border-t space-y-3">
+        <div className="space-y-1">
+          <Label className="text-xs">Obs. no Orçamento (Excel)</Label>
+          <Input
+            value={d.itemObs ?? ""}
+            onChange={e => onUpdate(item.id, { itemObs: e.target.value })}
+            placeholder="Obs. que aparece no Excel abaixo do item"
+            className="mt-1 h-8 text-sm"
+          />
+          <div className="flex items-center gap-2 mt-1">
+            <Checkbox
+              id={`itemObsShowInExcel-${item.id}`}
+              checked={!!d.itemObsShowInExcel}
+              onCheckedChange={(v) => onUpdate(item.id, { itemObsShowInExcel: Boolean(v) })}
+            />
+            <label htmlFor={`itemObsShowInExcel-${item.id}`} className="text-xs cursor-pointer">Exibir no Excel do orçamento</label>
+          </div>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Margem por item (%)</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number" min={0} max={99} step={0.5}
+              className="w-24 h-8 text-sm"
+              value={d.itemMarginPercent != null ? String(d.itemMarginPercent) : ""}
+              onChange={e => {
+                const v = e.target.value;
+                onUpdate(item.id, { itemMarginPercent: v ? parseFloat(v) : undefined });
+              }}
+              placeholder="Global"
+            />
+            <span className="text-xs text-muted-foreground">% (vazio = usa margem global)</span>
+          </div>
+        </div>
+      </div>
+
       {/* Campo de foto para Item Especial */}
       {d.isSpecialItem && (
         <div className="space-y-2 pt-1 border-t">

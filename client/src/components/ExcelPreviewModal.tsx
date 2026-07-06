@@ -676,6 +676,16 @@ ${htmlContent}
                           <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice * acc.qty) : "-"}</td>
                         </tr>
                       ))}
+                      {/* Sub-linha de observação do item (quando itemObsShowInExcel=true) */}
+                      {item.itemObs && item.itemObsShowInExcel && (
+                        <tr key={`obs-${idx}`} style={{ background: "#F0FFF4" }}>
+                          <td style={{ ...tdStyle, fontSize: 9 }}></td>
+                          <td style={{ ...tdStyle, fontSize: 9 }}></td>
+                          <td colSpan={10} style={{ ...tdStyle, fontSize: 9, color: "#166534", fontStyle: "italic", textAlign: "left", paddingLeft: 8 }}>
+                            ⚠️ Obs.: {item.itemObs}
+                          </td>
+                        </tr>
+                      )}
                       {/* Sub-linhas de drivers (apenas para itens novos com driverLines) */}
                       {item.driverLines && item.driverLines.map((drv, drvIdx) => {
                         // Mesma lógica do Cart.tsx: effectiveQty = storedQty <= 1 ? itemQty : storedQty

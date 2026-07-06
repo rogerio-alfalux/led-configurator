@@ -1857,3 +1857,13 @@
 - [x] BAGEO: ledModule por CCT da API agora usado diretamente (sem substituição de [CCT]) quando disponível
 - [x] BAGEO: driverQtdBivolt=2 para D1 40W/M (2 fontes por corte) já funcionava via API — confirmado
 - [x] BAGEO: 4 novos testes vitest cobrindo D1 40W/M com ledModuleQtd por CCT e não-colisão de SKU
+
+## Bugs reportados (06/07/2026)
+- [x] Orçamento: campo de observação não aparecia no preview/Excel — corrigido: adicionado em ExcelPreviewModal e quoteExcelGenerator
+- [x] Orçamento: número digitado pelo usuário era substituído pelo sequencial automático — corrigido: createQuote agora usa o número do usuário quando fornecido
+
+## Bugs reportados — edição no orçamento salvo (06/07/2026)
+- [x] QuoteDetail: campo itemObs (observação por item) não era editável após orçamento salvo — corrigido: adicionado ao SortableEditItem
+- [x] QuoteDetail: checkbox itemObsShowInExcel não era editável após orçamento salvo — corrigido: adicionado ao SortableEditItem
+- [x] QuoteDetail: barra de markup (itemMarginPercent) não era editável após orçamento salvo — corrigido: adicionado ao SortableEditItem
+- [x] QuoteDetail: todos os campos editáveis do Cart.tsx devem ser editáveis também no QuoteDetail — corrigido

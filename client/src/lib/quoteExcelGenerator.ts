@@ -973,6 +973,36 @@ async function _generateExcelBuffer(
       }
       currentRow += item.driverLines.length;
     }
+    // ── Sub-linha de observação do item (quando itemObsShowInExcel=true) ────────────────────────
+    if (item.itemObs && item.itemObsShowInExcel) {
+      const obsOffset = (nonRabichoAcc?.length ?? 0) + (item.driverLines?.length ?? 0);
+      const obsRowNum = rowNum + obsOffset + 1;
+      ws.spliceRows(obsRowNum, 0, []);
+      const obsRow = ws.getRow(obsRowNum);
+      obsRow.height = 28;
+      const OBS_BG = "FFF0FFF4"; // verde muito claro
+      const OBS_COLOR = "FF166534"; // verde escuro
+      const thinGreen: Partial<ExcelJS.Border> = { style: "thin", color: { argb: "FF86EFAC" } };
+      const obsBorder = { top: thinGreen, bottom: thinGreen, left: thinGreen, right: thinGreen };
+      const fillObsCell = (cell: ExcelJS.Cell, value: string | number | null) => {
+        cell.value = value ?? "";
+        cell.font = { name: "Calibri", size: 9, italic: true, color: { argb: OBS_COLOR } };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: OBS_BG } };
+        cell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+        cell.border = obsBorder;
+      };
+      fillObsCell(ws.getCell(`C${obsRowNum}`), "");
+      fillObsCell(ws.getCell(`D${obsRowNum}`), "");
+      // Mesclar colunas E até N para a observação
+      ws.mergeCells(`E${obsRowNum}:N${obsRowNum}`);
+      const obsCell = ws.getCell(`E${obsRowNum}`);
+      obsCell.value = `⚠ Obs.: ${item.itemObs}`;
+      obsCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: OBS_COLOR } };
+      obsCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: OBS_BG } };
+      obsCell.alignment = { horizontal: "left", vertical: "middle", wrapText: true, indent: 1 };
+      obsCell.border = obsBorder;
+      currentRow += 1;
+    }
   }
 
   // -- Calcular total dos produtos --
