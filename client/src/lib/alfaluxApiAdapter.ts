@@ -788,13 +788,22 @@ function toBageoProduct(p: ApiProduct): BageoProduct | null {
     driverBivolt: dBivolt ? { model: driverModel(dBivolt), code: driverCode(dBivolt) } : null,
     driverDim110v: dDim110v ? { model: driverModel(dDim110v), code: driverCode(dDim110v) } : null,
     driverDimDali: dDimDali ? { model: driverModel(dDimDali), code: driverCode(dDimDali) } : null,
-    // Preços por metro linear — a API pode enviar os campos com nomes diferentes.
-    // Tentamos os nomes explícitos primeiro (precoOnOff220, etc.) e depois os campos custo*.
-    // Isso garante compatibilidade enquanto a API não padroniza os nomes.
-    precoOnOff220: p.precoOnOff220 ?? p.custoLuminaria ?? p.custoDriver220 ?? null,
-    precoOnOffBivolt: p.precoOnOffBivolt ?? p.custoDriverBivolt ?? null,
-    precoDim110v: p.precoDim110v ?? p.custoDriverDim110v ?? null,
-    precoDimDali: p.precoDimDali ?? p.custoDriverDimDali ?? null,
+    // Preços por metro linear — a API é soberana.
+    // Para D1+D2: usa campos D1D2 da API (precoOnOff220D1D2 etc.)
+    // Para D1: usa campos D1 da API (precoOnOff220D1 etc.) com fallback para precoOnOff220
+    // Não inferir nem calcular — apenas ler da API.
+    precoOnOff220: aplicacao === "D1+D2"
+      ? (p.precoOnOff220D1D2 ?? null)
+      : (p.precoOnOff220D1 ?? p.precoOnOff220 ?? null),
+    precoOnOffBivolt: aplicacao === "D1+D2"
+      ? (p.precoOnOffBivoltD1D2 ?? null)
+      : (p.precoOnOffBivoltD1 ?? p.precoOnOffBivolt ?? null),
+    precoDim110v: aplicacao === "D1+D2"
+      ? (p.precoDim110vD1D2 ?? null)
+      : (p.precoDim110vD1 ?? p.precoDim110v ?? null),
+    precoDimDali: aplicacao === "D1+D2"
+      ? (p.precoDimDaliD1D2 ?? null)
+      : (p.precoDimDaliD1 ?? p.precoDimDali ?? null),
     // Custo e markup do corpo (para calcular preço via custo×markup quando precoOnOff220 etc. são null)
     custoCorpoOnoff220v: p.custoCorpoOnoff220v ?? null,
     custoCorpoOnoffBivolt: p.custoCorpoOnoffBivolt ?? null,
@@ -813,6 +822,11 @@ function toBageoProduct(p: ApiProduct): BageoProduct | null {
     markupPadraoDriverOnoffBivolt: (p as any).markupPadraoDriverOnoffBivolt ?? null,
     markupPadraoDriverDim110v: (p as any).markupPadraoDriverDim110v ?? null,
     markupPadraoDriverDimDali: (p as any).markupPadraoDriverDimDali ?? null,
+    // Quantidade de drivers por corte (da API — soberana)
+    driverQtd220: p.driverQtd220 ?? null,
+    driverQtdBivolt: p.driverQtdBivolt ?? null,
+    driverQtdDim110v: p.driverQtdDim110v ?? null,
+    driverQtdDimDali: p.driverQtdDimDali ?? null,
     fotoUrl: normalizeFotoUrl(p.fotoUrl),
   };
 }

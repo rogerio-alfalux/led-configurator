@@ -1834,3 +1834,6 @@
 - [x] QuoteDetail.tsx: driverLines já tratado genericamente — funciona para BAGEO sem alteração
 - [x] quoteExcelGenerator.ts: driverLines já tratado genericamente — funciona para BAGEO sem alteração
 - [x] bageoCatalog.test.ts: testes atualizados para cobrir nCortes automático e precoTotal com driver
+- [x] bageoCatalog.ts: remover DRIVER_INTERVAL_MM estático; usar driverQtd220/Bivolt/Dim110v/DimDali da API (soberana) para driverQtdPorCorte; fallback conservador = 1 quando API não tem o campo
+- [x] alfaluxApiAdapter.ts: toBageoProduct mapeia driverQtd220/Bivolt/Dim110v/DimDali da API para BageoProduct
+- [x] alfaluxApiAdapter.ts: toBageoProduct usa precoOnOff220D1D2 para D1+D2 e precoOnOff220D1 para D1 (API soberana nos preços por aplicação)

@@ -97,6 +97,15 @@ export interface BageoProduct {
   markupPadraoDriverDimDali?: number | null;
   /** URL da foto do produto */
   fotoUrl: string | null;
+  // ─── Quantidade de drivers por corte (da API) ───
+  /** Qtd de drivers por corte — ON/OFF 220V (da API; null = não cadastrado) */
+  driverQtd220?: number | null;
+  /** Qtd de drivers por corte — ON/OFF Bivolt */
+  driverQtdBivolt?: number | null;
+  /** Qtd de drivers por corte — DIM 1-10V */
+  driverQtdDim110v?: number | null;
+  /** Qtd de drivers por corte — DIM DALI */
+  driverQtdDimDali?: number | null;
 }
 
 // ─── Catálogo estático de fallback ───────────────────────────────────────────
@@ -265,7 +274,8 @@ function calcPreco(
 }
 
 /**
- * Seleciona o driver, preço do corpo por metro e preço do driver por unidade.
+ * Seleciona o driver, preço do corpo por metro, preço do driver por unidade
+ * e quantidade de drivers por corte (da API).
  * Para BAGEO SINUOSA (driver220=null), usa driverBivolt como fallback em ON/OFF 220V.
  */
 function selectBageoDriverAndPrice(
@@ -275,6 +285,8 @@ function selectBageoDriverAndPrice(
   driver: BageoDriverInfo | null;
   precoPorMetro: number | null;
   precoDriverPorUnidade: number | null;
+  /** Quantidade de drivers por corte conforme cadastrado na API (null = não cadastrado) */
+  apiDriverQtdPorCorte: number | null;
 } {
   switch (controle) {
     case "ON/OFF 220V":
@@ -282,33 +294,34 @@ function selectBageoDriverAndPrice(
         driver: product.driver220 ?? product.driverBivolt,
         precoPorMetro: calcPreco(product.precoOnOff220, product.custoCorpoOnoff220v, product.markupPadraoOnoff220v),
         precoDriverPorUnidade: calcPreco(null, product.custoDriver220 ?? product.custoDriverBivolt, product.markupPadraoDriverOnoff220v ?? product.markupPadraoDriverOnoffBivolt),
+        apiDriverQtdPorCorte: product.driverQtd220 ?? product.driverQtdBivolt ?? null,
       };
     case "ON/OFF Bivolt":
       return {
         driver: product.driverBivolt,
         precoPorMetro: calcPreco(product.precoOnOffBivolt, product.custoCorpoOnoffBivolt, product.markupPadraoOnoffBivolt),
         precoDriverPorUnidade: calcPreco(null, product.custoDriverBivolt, product.markupPadraoDriverOnoffBivolt),
+        apiDriverQtdPorCorte: product.driverQtdBivolt ?? null,
       };
     case "DIM 1-10V":
       return {
         driver: product.driverDim110v,
         precoPorMetro: calcPreco(product.precoDim110v, product.custoCorpoDim110v, product.markupPadraoDim110v),
         precoDriverPorUnidade: calcPreco(null, product.custoDriverDim110v, product.markupPadraoDriverDim110v),
+        apiDriverQtdPorCorte: product.driverQtdDim110v ?? null,
       };
     case "DIM DALI":
       return {
         driver: product.driverDimDali,
         precoPorMetro: calcPreco(product.precoDimDali, product.custoCorpoDimDali, product.markupPadraoDimDali),
         precoDriverPorUnidade: calcPreco(null, product.custoDriverDimDali, product.markupPadraoDriverDimDali),
+        apiDriverQtdPorCorte: product.driverQtdDimDali ?? null,
       };
   }
 }
 
 /** Comprimento máximo por corte em mm (BAGEO sinuosa) */
 export const BAGEO_MAX_LENGTH_MM = 2000;
-
-/** Intervalo máximo entre fontes em mm */
-const DRIVER_INTERVAL_MM = 2300;
 
 /**
  * Calcula o resultado de configuração de um BAGEO com base no comprimento.
@@ -331,7 +344,7 @@ export function calculateBageo(catalog: BageoProduct[], input: BageoInput): Bage
   );
   if (!product) return null;
 
-  const { driver, precoPorMetro, precoDriverPorUnidade } = selectBageoDriverAndPrice(product, input.controle);
+  const { driver, precoPorMetro, precoDriverPorUnidade, apiDriverQtdPorCorte } = selectBageoDriverAndPrice(product, input.controle);
   if (!driver) return null;
 
   const comprimentoMetros = input.comprimento / 1000;
@@ -344,8 +357,9 @@ export function calculateBageo(catalog: BageoProduct[], input: BageoInput): Bage
   // Valida que cada corte não ultrapassa o limite (segurança extra)
   if (comprimentoPorCorte > BAGEO_MAX_LENGTH_MM) return null;
 
-  // Quantidade de fontes: 1 a cada 2300mm por corte × nCortes
-  const driverQtdPorCorte = Math.ceil(comprimentoPorCorte / DRIVER_INTERVAL_MM);
+  // Quantidade de drivers por corte: usa o valor da API (soberano).
+  // Se a API não tiver o campo cadastrado, usa 1 como fallback conservador (não calcula estaticamente).
+  const driverQtdPorCorte = apiDriverQtdPorCorte != null && apiDriverQtdPorCorte > 0 ? apiDriverQtdPorCorte : 1;
   const driverQtd = driverQtdPorCorte * nCortes;
 
   // Metragem total de fita LED: ledModuleQtd (por metro) × comprimento em metros
