@@ -2659,7 +2659,9 @@ export default function QuoteDetail() {
                 if (d.driverLines && d.driverLines.length > 0) {
                   hasDriverBreakdown = true;
                   // Resolver priceWithoutDriver: campo dedicado ou fallback para unitPrice × qty
-                  const _resolvedUnitLum2 = d.unitPriceLuminaria ?? d.unitPrice ?? null;
+                  // Fallback: quando unitPrice é null mas totalPrice > 0, derivar unitPrice = totalPrice / qty
+                  const _derivedUnitLum2 = (d.unitPrice == null && d.totalPrice != null && d.totalPrice > 0 && d.qty > 0) ? d.totalPrice / d.qty : null;
+                  const _resolvedUnitLum2 = d.unitPriceLuminaria ?? d.unitPrice ?? _derivedUnitLum2 ?? null;
                   let correctedPriceWithoutDriver: number | null = null;
                   if (d.priceWithoutDriver != null) {
                     const isUnitOnly = d.unitPriceLuminaria != null && Math.abs(d.priceWithoutDriver - d.unitPriceLuminaria) < 0.02 && d.qty > 1;
@@ -2704,9 +2706,14 @@ export default function QuoteDetail() {
                               ? (hasMarkup ? applyMkup(d.totalPrice) : d.totalPrice)
                               : null;
                             const hasBreakdown = !!(d.driverLines && d.driverLines.length > 0);
-                            // Resolver unitPriceLuminaria: usa o campo dedicado ou cai para unitPrice
+                            // Fallback: quando unitPrice é null mas totalPrice > 0, derivar unitPrice = totalPrice / qty
+                            const _derivedUnitPricePreview = (d.unitPrice == null && d.totalPrice != null && d.totalPrice > 0 && d.qty > 0)
+                              ? d.totalPrice / d.qty
+                              : null;
+                            const _effectiveUnitPricePreview = d.unitPrice ?? _derivedUnitPricePreview;
+                            // Resolver unitPriceLuminaria: usa o campo dedicado ou cai para unitPrice (ou derivado)
                             const _resolvedUnitLum = hasBreakdown
-                              ? (d.unitPriceLuminaria ?? d.unitPrice ?? null)
+                              ? (d.unitPriceLuminaria ?? _effectiveUnitPricePreview ?? null)
                               : null;
                             // Corrigir itens antigos onde priceWithoutDriver foi salvo como valor unitário
                             let _correctedPWD: number | null = null;

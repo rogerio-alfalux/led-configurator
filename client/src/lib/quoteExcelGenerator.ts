@@ -718,9 +718,21 @@ async function _generateExcelBuffer(
     };
     const hasDriverBreakdownItem = item.driverLines && item.driverLines.length > 0;
     const cUnit = ws.getCell(`M${rowNum}`);
+    // Fallback: quando unitPrice é null mas totalPrice > 0, derivar unitPrice = totalPrice / qty
+    const _derivedUnitPrice = (item.unitPrice == null && item.totalPrice != null && item.totalPrice > 0 && item.qty > 0)
+      ? item.totalPrice / item.qty
+      : null;
+    const _effectiveUnitPrice = item.unitPrice ?? _derivedUnitPrice;
+    const _unitPriceComFreteEffective = (it: CartItemData): number | null => {
+      if (_effectiveUnitPrice == null) return null;
+      if (_freteParaDiluir <= 0 || _totalBaseParaFrete <= 0) return _effectiveUnitPrice;
+      const peso = (it.totalPrice ?? 0) / _totalBaseParaFrete;
+      const freteItem = _freteParaDiluir * peso;
+      return _effectiveUnitPrice + freteItem / Math.max(it.qty, 1);
+    };
     // Para itens com driver desmembrado: usar unitPriceLuminaria; fallback para unitPrice quando editado manualmente
     const _unitForLuminaria = hasDriverBreakdownItem
-      ? (item.unitPriceLuminaria ?? _unitPriceComFrete(item))
+      ? (item.unitPriceLuminaria ?? _unitPriceComFreteEffective(item))
       : _unitPriceComFrete(item);
     if (_unitForLuminaria !== null && _unitForLuminaria !== undefined && _unitForLuminaria > 0) {
       cUnit.value = applyMarkup(_unitForLuminaria);
