@@ -8477,7 +8477,11 @@ export default function Home() {
                   // Remove prefixo de quantidade do nome do módulo (ex: "2x FITA LED..." → "FITA LED...")
                   // para evitar duplicação com o "Nx VOLTAS" que construímos aqui
                   const ledModuleRaw = r.ledModuleWithCCT.toUpperCase();
-                  const ledModuleName = ledModuleRaw.replace(/^\d+[Xx]\s+/, "");
+                  // Remove prefixo de quantidade (ex: "2x ") e prefixo de comprimento em mm (ex: "2000MM ")
+                  // que resulta da conversão de metros para mm feita pelo adaptador da API
+                  const ledModuleName = ledModuleRaw
+                    .replace(/^\d+[Xx]\s+/, "")      // "2x FITA..." → "FITA..."
+                    .replace(/^\d+MM\s+/, "");         // "2000MM FITA..." → "FITA..."
                   let fitaLine: string;
                   let drvLine: string;
                   // Para cortes: cada trecho tem comprimentoPorCorte mm
