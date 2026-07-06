@@ -44,6 +44,8 @@ export default function Admin() {
   );
 
   const usersQuery = trpc.admin.getUsers.useQuery(undefined, { enabled: isAdmin });
+  const recalcMutation = trpc.admin.recalcDriverTotals.useMutation();
+  const [recalcResult, setRecalcResult] = useState<{ updated: number; errors: string[] } | null>(null);
 
   if (loading) {
     return (
@@ -99,6 +101,53 @@ export default function Admin() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        {/* Manutenção: Recalcular totais com drivers */}
+        <Card className="border-amber-500/40 bg-amber-50/10 dark:bg-amber-900/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <RefreshCw className="w-4 h-4" />
+              Manutenção: Recalcular Totais com Drivers
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Recalcula o <strong>totalFinal</strong> e <strong>totalAmount</strong> de todos os orçamentos existentes,
+              somando corretamente os valores dos drivers de cada item. Execute uma vez após o deploy da correção.
+            </p>
+            <div className="flex items-center gap-3">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2 border-amber-500/60 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                disabled={recalcMutation.isPending}
+                onClick={() => {
+                  setRecalcResult(null);
+                  recalcMutation.mutate(undefined, {
+                    onSuccess: (data) => setRecalcResult(data),
+                    onError: (err) => setRecalcResult({ updated: 0, errors: [err.message] }),
+                  });
+                }}
+              >
+                <RefreshCw className={`w-3 h-3 ${recalcMutation.isPending ? "animate-spin" : ""}`} />
+                {recalcMutation.isPending ? "Recalculando..." : "Executar Recalculo"}
+              </Button>
+              {recalcResult && (
+                <div className="text-xs">
+                  {recalcResult.errors.length === 0 ? (
+                    <span className="text-green-600 dark:text-green-400 font-medium">
+                      ✓ {recalcResult.updated} orçamento(s) atualizado(s) com sucesso.
+                    </span>
+                  ) : (
+                    <span className="text-destructive">
+                      {recalcResult.updated} atualizado(s). Erros: {recalcResult.errors.join("; ")}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Resumo de usuários */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>

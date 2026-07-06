@@ -922,7 +922,28 @@ export default function Cart() {
     );
   }
 
-  const totalGeral = entries.reduce((acc, e) => acc + (e.data.totalPrice ?? 0), 0);
+  // totalGeral inclui luminária + drivers de cada item
+  const totalGeral = entries.reduce((acc, e) => {
+    let itemTotal = 0;
+    if (e.data.driverLines && e.data.driverLines.length > 0) {
+      // Calcular total da luminária corretamente
+      const lumTotal = (() => {
+        if (e.data.priceWithoutDriver != null) {
+          const isUnitOnly = e.data.unitPriceLuminaria != null &&
+            Math.abs(e.data.priceWithoutDriver - e.data.unitPriceLuminaria) < 0.02 &&
+            (e.data.qty ?? 1) > 1;
+          return isUnitOnly ? e.data.unitPriceLuminaria! * (e.data.qty ?? 1) : e.data.priceWithoutDriver;
+        }
+        const unitLum = e.data.unitPriceLuminaria ?? e.data.unitPrice ?? null;
+        return unitLum != null ? unitLum * (e.data.qty ?? 1) : (e.data.totalPrice ?? 0);
+      })();
+      const drvTotal = e.data.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
+      itemTotal = lumTotal + drvTotal;
+    } else {
+      itemTotal = e.data.totalPrice ?? 0;
+    }
+    return acc + itemTotal;
+  }, 0);
 
   // Cálculo de RT e Margem
   const rtPct = Math.min(Math.max(parseFloat(saveForm.rtPercent || "0") / 100, 0), 0.99);

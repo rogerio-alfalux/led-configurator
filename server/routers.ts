@@ -1202,6 +1202,145 @@ export const appRouter = router({
       if (!db) return [];
       return db.select().from(users).orderBy(desc(users.lastSignedIn));
     }),
+
+    /**
+     * Recalcula totalFinal e totalAmount de todos os orçamentos existentes
+     * para incluir os drivers que antes não eram somados.
+     * Deve ser executado UMA vez após o deploy da correção.
+     */
+    recalcDriverTotals: adminProcedure.mutation(async () => {
+      const { getDb } = await import("./db");
+      const { quotes, quoteVersions, quoteItems } = await import("../drizzle/schema");
+      const { eq, inArray } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) return { updated: 0, errors: [] };
+
+      // Função auxiliar: calcula total de um item (luminaria + drivers)
+      function calcItemTotal(itemData: string): number {
+        try {
+          const d = JSON.parse(itemData) as any;
+          if (!d) return 0;
+          if (d.driverLines && Array.isArray(d.driverLines) && d.driverLines.length > 0) {
+            // Calcular total da luminaria corretamente
+            let lumTotal = 0;
+            if (d.priceWithoutDriver != null) {
+              const isUnitOnly = d.unitPriceLuminaria != null &&
+                Math.abs(d.priceWithoutDriver - d.unitPriceLuminaria) < 0.02 &&
+                (d.qty ?? 1) > 1;
+              lumTotal = isUnitOnly ? d.unitPriceLuminaria * (d.qty ?? 1) : d.priceWithoutDriver;
+            } else {
+              const unitLum = d.unitPriceLuminaria ?? d.unitPrice ?? null;
+              lumTotal = unitLum != null ? unitLum * (d.qty ?? 1) : (d.totalPrice ?? 0);
+            }
+            const drvTotal = d.driverLines.reduce((s: number, dl: any) => s + (dl.driverTotalPrice ?? 0), 0);
+            return lumTotal + drvTotal;
+          }
+          return d.totalPrice ?? 0;
+        } catch { return 0; }
+      }
+
+      // Buscar todos os orçamentos
+      const allQuotes = await db.select().from(quotes);
+      let updatedCount = 0;
+      const errors: string[] = [];
+
+      for (const q of allQuotes) {
+        try {
+          // Buscar a versão atual do orçamento
+          const versions = await db.select().from(quoteVersions)
+            .where(eq(quoteVersions.quoteId, q.id))
+            .orderBy(quoteVersions.version);
+          if (versions.length === 0) continue;
+
+          // Recalcular para cada versão
+          for (const v of versions) {
+            const vItems = await db.select().from(quoteItems)
+              .where(eq(quoteItems.quoteVersionId, v.id));
+
+            // Verificar se algum item tem driverLines
+            const hasDrivers = vItems.some(it => {
+              try {
+                const d = JSON.parse(it.itemData) as any;
+                return d?.driverLines && d.driverLines.length > 0;
+              } catch { return false; }
+            });
+            if (!hasDrivers) continue;
+
+            // Calcular novo totalBase (luminaria + drivers)
+            const newTotalBase = vItems.reduce((s, it) => s + calcItemTotal(it.itemData), 0);
+
+            // Recuperar RT e margem do header snapshot
+            let rtPct = 0, marginPct = 0;
+            try {
+              const snap = JSON.parse(v.headerSnapshot) as any;
+              rtPct = snap.rtPercent ? parseFloat(String(snap.rtPercent)) : 0;
+              marginPct = snap.marginPercent ? parseFloat(String(snap.marginPercent)) : 0;
+            } catch {}
+
+            const totalComRT = rtPct > 0 ? newTotalBase / (1 - rtPct) : newTotalBase;
+            const totalFinalCalc = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
+
+            // Recuperar frete, DIFAL e FCP do snapshot
+            let freteValor = 0, difalVal = 0, fcpVal = 0;
+            try {
+              const snap = JSON.parse(v.headerSnapshot) as any;
+              freteValor = (snap.freteIncluded && snap.freteValue) ? parseFloat(String(snap.freteValue)) : 0;
+              difalVal = (snap.difalEnabled && snap.difalValue) ? parseFloat(String(snap.difalValue)) : 0;
+              fcpVal = (snap.fcpEnabled && snap.fcpValue) ? parseFloat(String(snap.fcpValue)) : 0;
+            } catch {}
+
+            const newTotalFinal = totalFinalCalc + freteValor + difalVal + fcpVal;
+
+            // Atualizar versão
+            await db.update(quoteVersions)
+              .set({
+                totalAmount: String(Math.round(newTotalBase * 100) / 100),
+                totalFinal: String(Math.round(newTotalFinal * 100) / 100),
+              })
+              .where(eq(quoteVersions.id, v.id));
+          }
+
+          // Atualizar o orçamento principal com os valores da versão mais recente
+          const latestVersion = versions[versions.length - 1];
+          const latestItems = await db.select().from(quoteItems)
+            .where(eq(quoteItems.quoteVersionId, latestVersion.id));
+          const hasDriversLatest = latestItems.some(it => {
+            try {
+              const d = JSON.parse(it.itemData) as any;
+              return d?.driverLines && d.driverLines.length > 0;
+            } catch { return false; }
+          });
+          if (!hasDriversLatest) continue;
+
+          const newTotalBaseLatest = latestItems.reduce((s, it) => s + calcItemTotal(it.itemData), 0);
+          let rtPctQ = 0, marginPctQ = 0, freteValorQ = 0, difalValQ = 0, fcpValQ = 0;
+          try {
+            const snap = JSON.parse(latestVersion.headerSnapshot) as any;
+            rtPctQ = snap.rtPercent ? parseFloat(String(snap.rtPercent)) : 0;
+            marginPctQ = snap.marginPercent ? parseFloat(String(snap.marginPercent)) : 0;
+            freteValorQ = (snap.freteIncluded && snap.freteValue) ? parseFloat(String(snap.freteValue)) : 0;
+            difalValQ = (snap.difalEnabled && snap.difalValue) ? parseFloat(String(snap.difalValue)) : 0;
+            fcpValQ = (snap.fcpEnabled && snap.fcpValue) ? parseFloat(String(snap.fcpValue)) : 0;
+          } catch {}
+          const totalComRTQ = rtPctQ > 0 ? newTotalBaseLatest / (1 - rtPctQ) : newTotalBaseLatest;
+          const totalFinalQ = marginPctQ > 0 ? totalComRTQ / (1 - marginPctQ) : totalComRTQ;
+          const newTotalFinalQ = totalFinalQ + freteValorQ + difalValQ + fcpValQ;
+
+          await db.update(quotes)
+            .set({
+              totalAmount: String(Math.round(newTotalBaseLatest * 100) / 100),
+              totalFinal: String(Math.round(newTotalFinalQ * 100) / 100),
+            })
+            .where(eq(quotes.id, q.id));
+
+          updatedCount++;
+        } catch (e: any) {
+          errors.push(`Quote ${q.id}: ${e?.message ?? String(e)}`);
+        }
+      }
+
+      return { updated: updatedCount, errors };
+    }),
   }),
 });
 

@@ -937,15 +937,25 @@ export default function QuoteDetail() {
   const currentItems = items.filter(i => i.quoteVersionId === currentVersionId);
 
   // RT/Margem calc for edit form
-  // Para itens com driverLines, totalPrice contém apenas luminaria; incluir drivers no total base
+  // Para itens com driverLines, calcular total correto (luminaria + drivers)
   const editTotalBase = currentItems.reduce((s, i) => {
     const d = parseCartItemData(i.itemData);
     if (!d) return s;
-    const lumT = d.totalPrice ?? 0;
-    const drvT = (d.driverLines && d.driverLines.length > 0)
-      ? d.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0)
-      : 0;
-    return s + lumT + drvT;
+    if (d.driverLines && d.driverLines.length > 0) {
+      const lumT = (() => {
+        if (d.priceWithoutDriver != null) {
+          const isUnitOnly = d.unitPriceLuminaria != null &&
+            Math.abs(d.priceWithoutDriver - d.unitPriceLuminaria) < 0.02 &&
+            (d.qty ?? 1) > 1;
+          return isUnitOnly ? d.unitPriceLuminaria! * (d.qty ?? 1) : d.priceWithoutDriver;
+        }
+        const unitLum = d.unitPriceLuminaria ?? d.unitPrice ?? null;
+        return unitLum != null ? unitLum * (d.qty ?? 1) : (d.totalPrice ?? 0);
+      })();
+      const drvT = d.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0);
+      return s + lumT + drvT;
+    }
+    return s + (d.totalPrice ?? 0);
   }, 0);
   const editRtPct = Math.min(Math.max(parseFloat(editForm.rtPercent || "0") / 100, 0), 0.99);
   const editMarginPct = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, 0), 0.99);
@@ -1716,13 +1726,24 @@ export default function QuoteDetail() {
                   <Button
                     className="flex-1"
                     onClick={() => {
-                      // Para itens com driverLines, totalPrice contém apenas luminaria; incluir drivers
+                      // Para itens com driverLines, calcular total correto (luminaria + drivers)
                       const totalBase = editableItems.reduce((s, it) => {
-                        const lumT = it.parsed.totalPrice ?? 0;
-                        const drvT = (it.parsed.driverLines && it.parsed.driverLines.length > 0)
-                          ? it.parsed.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0)
-                          : 0;
-                        return s + lumT + drvT;
+                        const p = it.parsed;
+                        if (p.driverLines && p.driverLines.length > 0) {
+                          const lumT = (() => {
+                            if (p.priceWithoutDriver != null) {
+                              const isUnitOnly = p.unitPriceLuminaria != null &&
+                                Math.abs(p.priceWithoutDriver - p.unitPriceLuminaria) < 0.02 &&
+                                (p.qty ?? 1) > 1;
+                              return isUnitOnly ? p.unitPriceLuminaria! * (p.qty ?? 1) : p.priceWithoutDriver;
+                            }
+                            const unitLum = p.unitPriceLuminaria ?? p.unitPrice ?? null;
+                            return unitLum != null ? unitLum * (p.qty ?? 1) : (p.totalPrice ?? 0);
+                          })();
+                          const drvT = p.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0);
+                          return s + lumT + drvT;
+                        }
+                        return s + (p.totalPrice ?? 0);
                       }, 0);
                       const rtPct = quote.rtPercent ? parseFloat(String(quote.rtPercent)) : 0;
                       const marginPct = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;
