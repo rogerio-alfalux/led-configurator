@@ -8485,8 +8485,8 @@ export default function Home() {
                   if (aplicacao === "D1+D2") {
                     // D1+D2: dois circuitos independentes (D1 e D2), cada um com 2 voltas por trecho
                     const voltasPorLado = 2;
-                    const fitaD1 = `D1: ${r.nCortes * voltasPorLado}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleName}`;
-                    const fitaD2 = `D2: ${r.nCortes * voltasPorLado}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleName}`;
+                    const fitaD1 = `D1: ${voltasPorLado}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleName}`;
+                    const fitaD2 = `D2: ${voltasPorLado}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleName}`;
                     const drvModel = r.driver.model.toUpperCase();
                     const drvCode = r.driver.code ? ` (${r.driver.code})` : "";
                     const drvD1 = `D1: ${r.driverQtd}x FONTE DE TENSÃO ${drvModel}${drvCode}`;
@@ -8494,11 +8494,11 @@ export default function Home() {
                     fitaLine = `${fitaD1} | ${fitaD2}`;
                     drvLine = `${drvD1} | ${drvD2}`;
                   } else {
-                    // D1: ledModuleQtd voltas por trecho × nCortes trechos
+                    // D1: ledModuleQtd voltas por trecho (não multiplicar por nCortes)
                     const voltas = r.ledModuleQtd;
                     const drvModel = r.driver.model.toUpperCase();
                     const drvCode = r.driver.code ? ` (${r.driver.code})` : "";
-                    fitaLine = `${r.nCortes * voltas}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleName}`;
+                    fitaLine = `${voltas}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleName}`;
                     drvLine = `${r.driverQtd}x FONTE DE TENSÃO ${drvModel}${drvCode}`;
                   }
                   const pedido = [
