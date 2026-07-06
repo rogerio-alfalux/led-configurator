@@ -260,16 +260,18 @@ export interface BageoResult {
   precoTotal: number | null;
 }
 
-/** Helper: calcula custo × markup se preço direto for null */
+/** Helper: calcula preço. Prioridade: custo×markup (API) > preço estático do catálogo */
 function calcPreco(
   preco: number | null | undefined,
   custo: number | null | undefined,
   markup: number | null | undefined
 ): number | null {
-  if (preco != null && preco > 0) return preco;
+  // API sempre tem prioridade: custo × markup
   if (custo != null && custo > 0 && markup != null && markup > 0) {
     return Math.round(custo * markup * 100) / 100;
   }
+  // Fallback: preço estático do catálogo (apenas quando API não tem custo/markup)
+  if (preco != null && preco > 0) return preco;
   return null;
 }
 
