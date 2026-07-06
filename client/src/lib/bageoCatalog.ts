@@ -12,6 +12,10 @@
  *
  * Drivers são fontes de tensão 24V (não drivers de corrente constante como nos perfis lineares).
  * Preços são por metro linear (campo custoLuminaria na API).
+ *
+ * Para BAGEO SINUOSA: cortes obrigatórios com máx BAGEO_MAX_LENGTH_MM por trecho.
+ * Cada trecho tem seu(s) driver(s) — igual à família LED BAR.
+ * O preço é separado em: precoPerfil (corpo × metros) + precoDriverTotal (driver × driverQtd).
  */
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -50,7 +54,7 @@ export interface BageoProduct {
   driverDim110v: BageoDriverInfo | null;
   /** Driver DIM DALI */
   driverDimDali: BageoDriverInfo | null;
-  /** Preço por metro linear (R$) — ON/OFF 220V */
+  /** Preço por metro linear (R$) — ON/OFF 220V (somente corpo, sem driver) */
   precoOnOff220: number | null;
   /** Preço por metro linear (R$) — ON/OFF Bivolt */
   precoOnOffBivolt: number | null;
@@ -74,6 +78,23 @@ export interface BageoProduct {
   markupPadraoDim110v?: number | null;
   /** Markup padrão DIM DALI */
   markupPadraoDimDali?: number | null;
+  // ─── Custo do driver separado (para cálculo custo×markup do driver) ───
+  /** Custo do driver ON/OFF 220V (por unidade) */
+  custoDriver220?: number | null;
+  /** Custo do driver ON/OFF Bivolt (por unidade) */
+  custoDriverBivolt?: number | null;
+  /** Custo do driver DIM 1-10V (por unidade) */
+  custoDriverDim110v?: number | null;
+  /** Custo do driver DIM DALI (por unidade) */
+  custoDriverDimDali?: number | null;
+  /** Markup padrão do driver ON/OFF 220V */
+  markupPadraoDriverOnoff220v?: number | null;
+  /** Markup padrão do driver ON/OFF Bivolt */
+  markupPadraoDriverOnoffBivolt?: number | null;
+  /** Markup padrão do driver DIM 1-10V */
+  markupPadraoDriverDim110v?: number | null;
+  /** Markup padrão do driver DIM DALI */
+  markupPadraoDriverDimDali?: number | null;
   /** URL da foto do produto */
   fotoUrl: string | null;
 }
@@ -90,10 +111,10 @@ export const BAGEO_CATALOG: BageoProduct[] = [
     ledModule: "2x FITA LED HOPELUMI 24V 10W/M [CCT]",
     ledModuleQtd: 2,
     ccts: ["2700K", "3000K", "4000K", "5000K"],
-    driver220: { model: "FONTE DE TENSÃO 60W 24V IP20 BIV DIP SLIM (EQ00112)", code: "EQ00112" },
-    driverBivolt: { model: "FONTE DE TENSÃO 60W 24V IP20 BIV DIP SLIM (EQ00112)", code: "EQ00112" },
-    driverDim110v: { model: "FONTE DE TENSÃO 60W 24V IP20 220V DIM TRIAC 0-10V (EQ00583)", code: "EQ00583" },
-    driverDimDali: { model: "FONTE DE TENSÃO 72W 24V IP67 BIV DIM DALI/0-10V/1-10V/PUSH DT6 (EQ00666)", code: "EQ00666" },
+    driver220: null,
+    driverBivolt: { model: "FONTE DE TENSÃO 60W 24V IP20 BIV DIP SLIM", code: "EQ00112" },
+    driverDim110v: null,
+    driverDimDali: { model: "FONTE DE TENSÃO 72W 24V IP67 BIV DIM DALI/0-10V/1-10V/PUSH DT6", code: "EQ00666" },
     precoOnOff220: null,
     precoOnOffBivolt: null,
     precoDim110v: null,
@@ -109,10 +130,10 @@ export const BAGEO_CATALOG: BageoProduct[] = [
     ledModule: "2x FITA LED HOPELUMI 24V 20W/M [CCT]",
     ledModuleQtd: 2,
     ccts: ["2700K", "3000K", "4000K", "5000K"],
-    driver220: { model: "FONTE DE TENSÃO 60W 24V IP20 BIV DIP SLIM (EQ00112)", code: "EQ00112" },
-    driverBivolt: { model: "FONTE DE TENSÃO 60W 24V IP20 BIV DIP SLIM (EQ00112)", code: "EQ00112" },
-    driverDim110v: { model: "FONTE DE TENSÃO 60W 24V IP20 220V DIM TRIAC 0-10V (EQ00583)", code: "EQ00583" },
-    driverDimDali: { model: "FONTE DE TENSÃO 72W 24V IP67 BIV DIM DALI/0-10V/1-10V/PUSH DT6 (EQ00666)", code: "EQ00666" },
+    driver220: null,
+    driverBivolt: { model: "FONTE DE TENSÃO 60W 24V IP20 BIV DIP SLIM", code: "EQ00112" },
+    driverDim110v: null,
+    driverDimDali: { model: "FONTE DE TENSÃO 72W 24V IP67 BIV DIM DALI/0-10V/1-10V/PUSH DT6", code: "EQ00666" },
     precoOnOff220: 1140,
     precoOnOffBivolt: 1140,
     precoDim110v: 1140,
@@ -128,10 +149,10 @@ export const BAGEO_CATALOG: BageoProduct[] = [
     ledModule: "FITA LED HOPELUMI 24V 10W/M [CCT]",
     ledModuleQtd: 1,
     ccts: ["2700K", "3000K", "4000K", "5000K"],
-    driver220: { model: "FONTE DE TENSÃO 60W 24V IP20 BIV DIP SLIM (EQ00112)", code: "EQ00112" },
-    driverBivolt: { model: "FONTE DE TENSÃO 60W 24V IP20 BIV DIP SLIM (EQ00112)", code: "EQ00112" },
-    driverDim110v: { model: "FONTE DE TENSÃO 60W 24V IP20 220V DIM TRIAC 0-10V (EQ00583)", code: "EQ00583" },
-    driverDimDali: { model: "FONTE DE TENSÃO 72W 24V IP67 BIV DIM DALI/0-10V/1-10V/PUSH DT6 (EQ00666)", code: "EQ00666" },
+    driver220: null,
+    driverBivolt: { model: "FONTE DE TENSÃO 60W 24V IP20 BIV DIP SLIM", code: "EQ00112" },
+    driverDim110v: null,
+    driverDimDali: { model: "FONTE DE TENSÃO 72W 24V IP67 BIV DIM DALI/0-10V/1-10V/PUSH DT6", code: "EQ00666" },
     precoOnOff220: null,
     precoOnOffBivolt: null,
     precoDim110v: null,
@@ -191,7 +212,7 @@ export interface BageoInput {
   cct: string;
   /** Comprimento desejado em mm */
   comprimento: number;
-  /** Número de cortes (padrão 1; obrigatório quando comprimento > BAGEO_MAX_LENGTH_MM) */
+  /** Número de cortes (mínimo = ceil(comprimento / BAGEO_MAX_LENGTH_MM)); se omitido, usa o mínimo obrigatório */
   nCortes?: number;
 }
 
@@ -208,58 +229,77 @@ export interface BageoResult {
   nCortes: number;
   /** Comprimento por corte em mm (ceil(comprimento / nCortes)) */
   comprimentoPorCorte: number;
-  /** Quantidade de fontes (1 a cada 2300mm por corte) */
+  /** Quantidade de fontes total (driverQtdPorCorte × nCortes) */
   driverQtd: number;
+  /** Quantidade de fontes por corte */
+  driverQtdPorCorte: number;
   /** Módulo LED com CCT substituído (ex: FITA LED HOPELUMI 24V 10W/M 3000K) */
   ledModuleWithCCT: string;
   /** Quantidade de módulos LED por metro (do produto) */
   ledModuleQtd: number;
   /** Metragem total de fita LED (ledModuleQtd × comprimentoMetros) */
   fitaMetros: number;
-  /** Preço por metro (R$) — null se não cadastrado */
+  /** Preço por metro do corpo (R$) — null se não cadastrado */
   precoPorMetro: number | null;
-  /** Preço total da linha (R$) — null se não cadastrado */
+  /** Preço do corpo total (precoPorMetro × comprimentoMetros) — null se não cadastrado */
+  precoPerfil: number | null;
+  /** Preço por unidade de driver (R$) — null se não cadastrado */
+  precoDriverPorUnidade: number | null;
+  /** Preço total dos drivers (precoDriverPorUnidade × driverQtd) — null se não cadastrado */
+  precoDriverTotal: number | null;
+  /** Preço total da linha = precoPerfil + precoDriverTotal — null se algum não cadastrado */
   precoTotal: number | null;
 }
 
+/** Helper: calcula custo × markup se preço direto for null */
+function calcPreco(
+  preco: number | null | undefined,
+  custo: number | null | undefined,
+  markup: number | null | undefined
+): number | null {
+  if (preco != null && preco > 0) return preco;
+  if (custo != null && custo > 0 && markup != null && markup > 0) {
+    return Math.round(custo * markup * 100) / 100;
+  }
+  return null;
+}
+
 /**
- * Seleciona o driver e o preço por metro para o controle selecionado.
+ * Seleciona o driver, preço do corpo por metro e preço do driver por unidade.
  * Para BAGEO SINUOSA (driver220=null), usa driverBivolt como fallback em ON/OFF 220V.
- * Calcula preço via custo×markup quando precoOnOff220 etc. são null.
  */
 function selectBageoDriverAndPrice(
   product: BageoProduct,
   controle: BageoControle
-): { driver: BageoDriverInfo | null; precoPorMetro: number | null } {
-  // Helper: calcula custo * markup se preco direto for null
-  function calcPreco(preco: number | null | undefined, custo: number | null | undefined, markup: number | null | undefined): number | null {
-    if (preco != null && preco > 0) return preco;
-    if (custo != null && custo > 0 && markup != null && markup > 0) {
-      return Math.round(custo * markup * 100) / 100;
-    }
-    return null;
-  }
+): {
+  driver: BageoDriverInfo | null;
+  precoPorMetro: number | null;
+  precoDriverPorUnidade: number | null;
+} {
   switch (controle) {
     case "ON/OFF 220V":
       return {
-        // BAGEO SINUOSA: driver220 pode ser null, usa driverBivolt como fallback
         driver: product.driver220 ?? product.driverBivolt,
-        precoPorMetro: calcPreco(product.precoOnOff220, product.custoCorpoOnoff220v, product.markupPadraoOnoff220v)
+        precoPorMetro: calcPreco(product.precoOnOff220, product.custoCorpoOnoff220v, product.markupPadraoOnoff220v),
+        precoDriverPorUnidade: calcPreco(null, product.custoDriver220 ?? product.custoDriverBivolt, product.markupPadraoDriverOnoff220v ?? product.markupPadraoDriverOnoffBivolt),
       };
     case "ON/OFF Bivolt":
       return {
         driver: product.driverBivolt,
-        precoPorMetro: calcPreco(product.precoOnOffBivolt, product.custoCorpoOnoffBivolt, product.markupPadraoOnoffBivolt)
+        precoPorMetro: calcPreco(product.precoOnOffBivolt, product.custoCorpoOnoffBivolt, product.markupPadraoOnoffBivolt),
+        precoDriverPorUnidade: calcPreco(null, product.custoDriverBivolt, product.markupPadraoDriverOnoffBivolt),
       };
     case "DIM 1-10V":
       return {
         driver: product.driverDim110v,
-        precoPorMetro: calcPreco(product.precoDim110v, product.custoCorpoDim110v, product.markupPadraoDim110v)
+        precoPorMetro: calcPreco(product.precoDim110v, product.custoCorpoDim110v, product.markupPadraoDim110v),
+        precoDriverPorUnidade: calcPreco(null, product.custoDriverDim110v, product.markupPadraoDriverDim110v),
       };
     case "DIM DALI":
       return {
         driver: product.driverDimDali,
-        precoPorMetro: calcPreco(product.precoDimDali, product.custoCorpoDimDali, product.markupPadraoDimDali)
+        precoPorMetro: calcPreco(product.precoDimDali, product.custoCorpoDimDali, product.markupPadraoDimDali),
+        precoDriverPorUnidade: calcPreco(null, product.custoDriverDimDali, product.markupPadraoDriverDimDali),
       };
   }
 }
@@ -275,9 +315,10 @@ const DRIVER_INTERVAL_MM = 2300;
  *
  * Regras:
  * - Comprimento mínimo: 100mm
- * - Fontes: 1 a cada 2300mm (arredondado para cima)
+ * - nCortes obrigatório: mínimo ceil(comprimento / BAGEO_MAX_LENGTH_MM)
+ * - Fontes: 1 a cada 2300mm por corte × nCortes
  * - Fita LED: ledModuleQtd (por metro) × comprimento em metros
- * - Preço total = preço por metro × comprimento em metros
+ * - Preço separado: corpo (precoPorMetro × metros) + driver (precoDriverPorUnidade × driverQtd)
  */
 export function calculateBageo(catalog: BageoProduct[], input: BageoInput): BageoResult | null {
   if (!input.product || input.comprimento < 100) return null;
@@ -290,15 +331,17 @@ export function calculateBageo(catalog: BageoProduct[], input: BageoInput): Bage
   );
   if (!product) return null;
 
-  const { driver, precoPorMetro } = selectBageoDriverAndPrice(product, input.controle);
+  const { driver, precoPorMetro, precoDriverPorUnidade } = selectBageoDriverAndPrice(product, input.controle);
   if (!driver) return null;
 
   const comprimentoMetros = input.comprimento / 1000;
 
-  // Cortes: obrigatório quando comprimento > BAGEO_MAX_LENGTH_MM
-  const nCortes = Math.max(1, input.nCortes ?? 1);
+  // Cortes: obrigatório, mínimo ceil(comprimento / BAGEO_MAX_LENGTH_MM)
+  const minCortes = Math.ceil(input.comprimento / BAGEO_MAX_LENGTH_MM);
+  const nCortes = Math.max(minCortes, input.nCortes ?? minCortes);
   const comprimentoPorCorte = Math.ceil(input.comprimento / nCortes);
-  // Valida que cada corte não ultrapassa o limite
+
+  // Valida que cada corte não ultrapassa o limite (segurança extra)
   if (comprimentoPorCorte > BAGEO_MAX_LENGTH_MM) return null;
 
   // Quantidade de fontes: 1 a cada 2300mm por corte × nCortes
@@ -308,11 +351,15 @@ export function calculateBageo(catalog: BageoProduct[], input: BageoInput): Bage
   // Metragem total de fita LED: ledModuleQtd (por metro) × comprimento em metros
   const fitaMetros = product.ledModuleQtd * comprimentoMetros;
 
-  // ledModuleQtd no resultado representa a quantidade por metro (do produto)
   const ledModuleWithCCT = product.ledModule.replace(/\[CCT\]/gi, input.cct).trim();
 
-  // Preço total
-  const precoTotal = precoPorMetro !== null ? precoPorMetro * comprimentoMetros : null;
+  // Preços separados
+  const precoPerfil = precoPorMetro !== null ? Math.round(precoPorMetro * comprimentoMetros * 100) / 100 : null;
+  const precoDriverTotal = precoDriverPorUnidade !== null ? Math.round(precoDriverPorUnidade * driverQtd * 100) / 100 : null;
+  // precoTotal: soma corpo + driver quando ambos disponíveis; usa apenas corpo quando driver não tem preço cadastrado
+  const precoTotal = precoPerfil !== null
+    ? Math.round((precoPerfil + (precoDriverTotal ?? 0)) * 100) / 100
+    : null;
 
   return {
     product,
@@ -324,10 +371,14 @@ export function calculateBageo(catalog: BageoProduct[], input: BageoInput): Bage
     comprimentoPorCorte,
     driver,
     driverQtd,
+    driverQtdPorCorte,
     ledModuleWithCCT,
     ledModuleQtd: product.ledModuleQtd,
     fitaMetros,
     precoPorMetro,
+    precoPerfil,
+    precoDriverPorUnidade,
+    precoDriverTotal,
     precoTotal,
   };
 }

@@ -1817,3 +1817,19 @@
 - [ ] Home.tsx: atualizar orderSummary/quoteSummary para incluir informação de cortes
 - [ ] Home.tsx: atualizar CartItemData para incluir ledBarNCortes (reutilizar campo existente)
 - [ ] Atualizar testes bageoCatalog.test.ts para cobrir lógica de cortes
+
+## BAGEO Sinuosa — Driver Separado (Jul 2026)
+
+- [x] bageoCatalog.ts: BAGEO_MAX_LENGTH_MM = 2000; nCortes e comprimentoPorCorte no BageoResult
+- [x] bageoCatalog.ts: calculateBageo recebe nCortes opcional; calcula minCortes automaticamente; comprimentoPorCorte = ceil(comprimento / nCortes)
+- [x] bageoCatalog.ts: precoTotal = precoPerfil + precoDriverTotal (corpo separado do driver)
+- [x] bageoCatalog.ts: precoDriverPorUnidade e precoDriverTotal calculados via custoDriver × markupDriver
+- [x] alfaluxApiAdapter.ts: toBageoProduct inclui custoDriver220/Bivolt/DimDali e markupDriver* fields
+- [x] Home.tsx: campo "Quantidade de Cortes" sempre visível para BAGEO sinuosa (obrigatório)
+- [x] Home.tsx: bloco de resultado mostra cortes sempre visíveis com nCortes e comprimentoPorCorte
+- [x] Home.tsx: driver exibe precoDriverPorUnidade × driverQtd = precoDriverTotal
+- [x] Home.tsx: resumo de preço exibe Corpo + Driver separados (igual LED BAR)
+- [x] Home.tsx: CartItemData com driverLines para BAGEO sinuosa quando API tem custo de driver
+- [x] QuoteDetail.tsx: driverLines já tratado genericamente — funciona para BAGEO sem alteração
+- [x] quoteExcelGenerator.ts: driverLines já tratado genericamente — funciona para BAGEO sem alteração
+- [x] bageoCatalog.test.ts: testes atualizados para cobrir nCortes automático e precoTotal com driver

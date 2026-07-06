@@ -176,15 +176,18 @@ describe("calculateBageo", () => {
     expect(result!.driverQtd).toBe(1); // ceil(1000 / 2300) = 1
   });
 
-  it("retorna null para 2500mm sem cortes (trecho > 2000mm)", () => {
-    // 2500mm > 2000mm (BAGEO_MAX_LENGTH_MM) sem cortes → null
+  it("2500mm sem nCortes: calcula 2 cortes automaticamente (ceil(2500/2000)=2)", () => {
+    // Sem nCortes, engine usa minCortes = ceil(2500/2000) = 2
     const result = calculateBageo(mockCatalog, {
       product: mockCatalog[0],
       controle: "ON/OFF 220V",
       cct: "3000K",
       comprimento: 2500,
     });
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.nCortes).toBe(2);
+    expect(result!.comprimentoPorCorte).toBe(1250); // ceil(2500/2)
+    expect(result!.precoTotal).toBe(750); // 300 × 2.5
   });
 
   it("calcula corretamente para 2500mm com 2 cortes", () => {
@@ -262,15 +265,18 @@ describe("calculateBageo", () => {
     expect(result!.ledModuleWithCCT).not.toContain("[CCT]");
   });
 
-  it("retorna null para 10000mm sem cortes (trecho excede 2000mm)", () => {
-    // Sem nCortes, comprimentoPorCorte = 10000 > 2000 → deve retornar null
+  it("10000mm sem nCortes: calcula 5 cortes automaticamente (ceil(10000/2000)=5)", () => {
+    // Sem nCortes, engine usa minCortes = ceil(10000/2000) = 5
     const result = calculateBageo(mockCatalog, {
       product: mockCatalog[0],
       controle: "ON/OFF Bivolt",
       cct: "3000K",
       comprimento: 10000,
     });
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.nCortes).toBe(5);
+    expect(result!.comprimentoPorCorte).toBe(2000); // ceil(10000/5)
+    expect(result!.precoTotal).toBe(3200); // 320 × 10
   });
 
   it("calcula corretamente para 10000mm com 5 cortes obrigatórios", () => {
@@ -294,15 +300,18 @@ describe("calculateBageo", () => {
     expect(result!.driverQtd).toBe(5);
   });
 
-  it("retorna null para 56000mm sem cortes suficientes", () => {
-    // Sem nCortes, comprimentoPorCorte = 56000 > 2000 → null
+  it("56000mm sem nCortes: calcula 28 cortes automaticamente (ceil(56000/2000)=28)", () => {
+    // Sem nCortes, engine usa minCortes = ceil(56000/2000) = 28
     const result = calculateBageo(mockCatalog, {
       product: mockCatalog[0],
       controle: "ON/OFF 220V",
       cct: "3000K",
       comprimento: 56000,
     });
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.nCortes).toBe(28);
+    expect(result!.comprimentoPorCorte).toBe(2000);
+    expect(result!.precoTotal).toBe(16800); // 300 × 56
   });
 
   it("calcula corretamente para 56000mm com 28 cortes", () => {
@@ -324,8 +333,8 @@ describe("calculateBageo", () => {
     expect(result!.precoTotal).toBe(16800); // 300 × 56
   });
 
-  it("retorna null quando trecho excede 2000mm mesmo com cortes", () => {
-    // 10000mm ÷ 4 cortes = 2500mm por trecho > 2000mm → null
+  it("nCortes insuficiente é ajustado para o mínimo necessário (10000mm, nCortes=4 → usa 5)", () => {
+    // 10000mm com nCortes=4: minCortes=5, engine usa max(5,4)=5
     const result = calculateBageo(mockCatalog, {
       product: mockCatalog[0],
       controle: "ON/OFF 220V",
@@ -333,7 +342,9 @@ describe("calculateBageo", () => {
       comprimento: 10000,
       nCortes: 4,
     });
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.nCortes).toBe(5); // ajustado para minCortes
+    expect(result!.comprimentoPorCorte).toBe(2000); // ceil(10000/5)
   });
 
   it("nCortes=1 funciona para comprimento <= 2000mm", () => {
@@ -350,14 +361,16 @@ describe("calculateBageo", () => {
     expect(result!.driverQtd).toBe(1); // ceil(2000/2300) = 1
   });
 
-  it("2500mm sem cortes retorna null (trecho > 2000mm)", () => {
+  it("2500mm sem nCortes: usa minCortes=2 automaticamente", () => {
     const result = calculateBageo(mockCatalog, {
       product: mockCatalog[0],
       controle: "ON/OFF 220V",
       cct: "3000K",
       comprimento: 2500,
     });
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.nCortes).toBe(2);
+    expect(result!.comprimentoPorCorte).toBe(1250);
   });
 
   it("2500mm com 2 cortes: trechos de 1250mm", () => {

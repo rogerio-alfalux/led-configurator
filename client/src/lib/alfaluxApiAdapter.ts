@@ -804,6 +804,15 @@ function toBageoProduct(p: ApiProduct): BageoProduct | null {
     markupPadraoOnoffBivolt: p.markupPadraoOnoffBivolt ?? null,
     markupPadraoDim110v: p.markupPadraoDim110v ?? null,
     markupPadraoDimDali: p.markupPadraoDimDali ?? null,
+    // Custo e markup do driver separado (para calcular preço do driver por unidade)
+    custoDriver220: p.custoDriver220 ?? null,
+    custoDriverBivolt: p.custoDriverBivolt ?? null,
+    custoDriverDim110v: p.custoDriverDim110v ?? null,
+    custoDriverDimDali: p.custoDriverDimDali ?? null,
+    markupPadraoDriverOnoff220v: (p as any).markupPadraoDriverOnoff220v ?? null,
+    markupPadraoDriverOnoffBivolt: (p as any).markupPadraoDriverOnoffBivolt ?? null,
+    markupPadraoDriverDim110v: (p as any).markupPadraoDriverDim110v ?? null,
+    markupPadraoDriverDimDali: (p as any).markupPadraoDriverDimDali ?? null,
     fotoUrl: normalizeFotoUrl(p.fotoUrl),
   };
 }

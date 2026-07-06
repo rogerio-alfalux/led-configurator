@@ -3276,11 +3276,11 @@ export default function Home() {
   }, [bgAvailableCCTs, bgCCT]);
   // Cortes BAGEO sinuosa
   const bgComprimentoNum = parseInt(bgComprimento) || 0;
-  const bgRequiresCuts = bgComprimentoNum > BAGEO_MAX_LENGTH_MM;
-  const bgNCortesNum = Math.max(1, parseInt(bgNCortes) || 1);
+  // BAGEO sinuosa: cortes SEMPRE obrigatórios (mín 1 corte, máx 2000mm por trecho)
+  const bgMinCortesNecessarios = bgComprimentoNum > 0 ? Math.ceil(bgComprimentoNum / BAGEO_MAX_LENGTH_MM) : 1;
+  const bgNCortesNum = Math.max(bgMinCortesNecessarios, parseInt(bgNCortes) || bgMinCortesNecessarios);
   const bgTrechoMm = bgComprimentoNum > 0 ? Math.ceil(bgComprimentoNum / bgNCortesNum) : 0;
   const bgTrechoExcede = bgTrechoMm > BAGEO_MAX_LENGTH_MM;
-  const bgMinCortesNecessarios = bgComprimentoNum > 0 ? Math.ceil(bgComprimentoNum / BAGEO_MAX_LENGTH_MM) : 1;
 
   const handleCalculateBageo = useCallback(() => {
     if (!bgProduct) {
@@ -3296,7 +3296,7 @@ export default function Home() {
       toast.error(`Com ${bgNCortesNum} corte${bgNCortesNum !== 1 ? "s" : ""}, cada trecho ficaria com ${bgTrechoMm}mm — acima do limite de ${BAGEO_MAX_LENGTH_MM}mm. Mínimo necessário: ${bgMinCortesNecessarios} cortes.`);
       return;
     }
-    const nCortes = bgRequiresCuts ? Math.max(2, bgNCortesNum) : 1;
+    const nCortes = bgNCortesNum;
     const res = calculateBageo(activeBageoCatalog, {
       product: bgProduct,
       controle: bgControle,
@@ -3309,7 +3309,7 @@ export default function Home() {
       return;
     }
     setBgResult(res);
-  }, [bgProduct, activeBageoCatalog, bgControle, bgCCT, bgComprimento, bgNCortes, bgRequiresCuts, bgNCortesNum, bgTrechoExcede, bgTrechoMm, bgMinCortesNecessarios]);
+  }, [bgProduct, activeBageoCatalog, bgControle, bgCCT, bgComprimento, bgNCortes, bgNCortesNum, bgTrechoExcede, bgTrechoMm, bgMinCortesNecessarios]);
 
   // Catalógo ativo de BAGEO fixo (API ou vazio)
   const activeBageoFixoCatalog = useMemo(() => {
@@ -4374,30 +4374,24 @@ export default function Home() {
                     )}
                   </div>
                   )}
-                  {/* Quantidade de Cortes */}
+                  {/* Quantidade de Cortes — OBRIGATÓRIO para BAGEO sinuosa */}
                   {bgInstalacao && (
                   <div>
-                    <FieldLabel hint={bgRequiresCuts ? "obrigatório" : "opcional"}>Quantidade de Cortes</FieldLabel>
+                    <FieldLabel hint="obrigatório">Quantidade de Cortes</FieldLabel>
                     <input
                       type="number"
-                      min={1}
+                      min={bgMinCortesNecessarios}
                       max={99}
                       value={bgNCortes}
                       onChange={(e) => { setBgNCortes(e.target.value); setBgResult(null); }}
-                      placeholder="1"
+                      placeholder={String(bgMinCortesNecessarios)}
                       className={`w-full h-10 px-3 rounded-md border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 ${
-                        bgRequiresCuts ? "border-amber-500" : "border-border"
+                        bgTrechoExcede ? "border-red-500" : "border-border"
                       }`}
                     />
-                    {bgRequiresCuts && (
-                      <p className="mt-1.5 text-xs text-amber-500 flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3" />
-                        Comprimento acima de {BAGEO_MAX_LENGTH_MM}mm — informe a quantidade de cortes.
-                      </p>
-                    )}
-                    {bgComprimentoNum > 0 && bgNCortesNum >= 2 && !bgTrechoExcede && (
+                    {bgComprimentoNum > 0 && !bgTrechoExcede && (
                       <p className="mt-1.5 text-xs text-muted-foreground">
-                        {bgNCortesNum} cortes → {bgNCortesNum} trechos de {Math.round(bgComprimentoNum / bgNCortesNum)}mm cada
+                        {bgNCortesNum} {bgNCortesNum === 1 ? "corte" : "cortes"} → {bgNCortesNum} trecho{bgNCortesNum !== 1 ? "s" : ""} de {Math.round(bgComprimentoNum / bgNCortesNum)}mm cada
                       </p>
                     )}
                     {bgTrechoExcede && (
@@ -8405,16 +8399,14 @@ export default function Home() {
                       <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fita LED ({bgResult.ledModuleQtd}x por metro → {bgResult.fitaMetros.toFixed(1).replace(".",",")} m total)</p>
                       <p className="text-sm font-semibold">{bgResult.ledModuleWithCCT}</p>
                     </div>
-                    {/* Cortes */}
-                    {bgResult.nCortes > 1 && (
-                      <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Cortes</p>
-                        <p className="text-sm font-semibold">{bgResult.nCortes} cortes → {bgResult.nCortes} trechos de {bgResult.comprimentoPorCorte}mm cada</p>
-                      </div>
-                    )}
+                    {/* Cortes — sempre visível */}
+                    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Cortes</p>
+                      <p className="text-sm font-semibold">{bgResult.nCortes} {bgResult.nCortes === 1 ? "corte" : "cortes"} → {bgResult.nCortes} trecho{bgResult.nCortes !== 1 ? "s" : ""} de {bgResult.comprimentoPorCorte}mm cada</p>
+                    </div>
                     {/* Driver */}
                     <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fonte de Tensão (1 a cada 2300mm por trecho → {bgResult.driverQtd}x total)</p>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fonte de Tensão ({bgResult.driverQtdPorCorte}x por trecho × {bgResult.nCortes} trecho{bgResult.nCortes !== 1 ? "s" : ""} = {bgResult.driverQtd}x total)</p>
                       <p className="text-sm font-semibold">{bgResult.driver.model}</p>
                       {bgResult.driver.code && (
                         <a
@@ -8425,6 +8417,9 @@ export default function Home() {
                         >
                           {bgResult.driver.code}
                         </a>
+                      )}
+                      {bgResult.precoDriverPorUnidade !== null && (
+                        <p className="text-xs text-muted-foreground mt-1">{formatBRL(bgResult.precoDriverPorUnidade)}/un × {bgResult.driverQtd} = <span className="font-semibold text-foreground">{formatBRL(bgResult.precoDriverTotal!)}</span></p>
                       )}
                     </div>
                   </CardContent>
@@ -8491,7 +8486,24 @@ export default function Home() {
                           >
                             {orcamento}
                           </div>
-                          {r.precoTotal !== null && r.precoTotal !== undefined ? (
+                          {r.precoPerfil !== null && r.precoPerfil !== undefined ? (
+                            <div className="mt-3 space-y-1.5">
+                              <div className="flex items-center justify-between rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-2.5">
+                                <span className="text-sm font-semibold text-blue-400 uppercase tracking-wide">Corpo (perfil)</span>
+                                <span className="text-base font-bold text-blue-300">{formatBRL(r.precoPerfil)}</span>
+                              </div>
+                              {r.precoDriverTotal !== null && r.precoDriverTotal !== undefined && (
+                                <div className="flex items-center justify-between rounded-lg bg-violet-500/10 border border-violet-500/20 px-4 py-2.5">
+                                  <span className="text-sm font-semibold text-violet-400 uppercase tracking-wide">Driver ({r.driverQtd}x)</span>
+                                  <span className="text-base font-bold text-violet-300">{formatBRL(r.precoDriverTotal)}</span>
+                                </div>
+                              )}
+                              <div className="flex items-center justify-between rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5">
+                                <span className="text-sm font-semibold text-emerald-400 uppercase tracking-wide">Total</span>
+                                <span className="text-lg font-bold text-emerald-300">{formatBRL((r.precoPerfil ?? 0) + (r.precoDriverTotal ?? 0))}</span>
+                              </div>
+                            </div>
+                          ) : r.precoTotal !== null && r.precoTotal !== undefined ? (
                             <div className="flex items-center justify-between rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-3 mt-3">
                               <span className="text-sm font-semibold text-blue-400 uppercase tracking-wide">Preço Total</span>
                               <span className="text-lg font-bold text-blue-300">{formatBRL(r.precoTotal)}</span>
@@ -8547,28 +8559,42 @@ export default function Home() {
                               onClick={() => {
                                 const bgManualNum = bgManualPreco !== "" ? parseFloat(bgManualPreco.replace(",", ".")) : null;
                                 const bgPrecoEfetivo = r.precoTotal ?? (bgManualNum != null && !isNaN(bgManualNum) && bgManualNum > 0 ? bgManualNum : null);
+                                // Separar preço do corpo e do driver (igual LED BAR)
+                                const bgPrecoCorpo = r.precoPerfil ?? null;
+                                const bgPrecoPorUnidadeDriver = r.precoDriverPorUnidade ?? null;
+                                const bgPrecoTotalDriver = r.precoDriverTotal ?? null;
+                                const bgPrecoSemDriver = bgPrecoCorpo;
+                                const bgDrvLines: import("@/lib/cartTypes").DriverLine[] | undefined =
+                                  bgPrecoPorUnidadeDriver !== null && bgPrecoTotalDriver !== null
+                                    ? [{
+                                        driverModel: r.driver.model,
+                                        driverCode: r.driver.code,
+                                        driverQty: r.driverQtd,
+                                        driverUnitPrice: bgPrecoPorUnidadeDriver,
+                                        driverTotalPrice: bgPrecoTotalDriver,
+                                      }]
+                                    : undefined;
                                 const item: CartItemData = {
                                   category: "BAGEO",
                                   sku: r.product.sku ?? "",
-                                  description: `${r.product.name} ${r.product.aplicacao !== 'D1' ? r.product.aplicacao + ' ' : ''}${r.cct} ${r.controle} ${r.comprimento}MM${r.nCortes > 1 ? ` (${r.nCortes} CORTES DE ${r.comprimentoPorCorte}MM)` : ""}`,
+                                  description: `${r.product.name} ${r.product.aplicacao !== 'D1' ? r.product.aplicacao + ' ' : ''}${r.cct} ${r.controle} ${r.comprimento}MM (${r.nCortes} CORTE${r.nCortes !== 1 ? 'S' : ''} DE ${r.comprimentoPorCorte}MM)`,
                                   power: "",
                                   cct: r.cct,
                                   qty: 1,
-                                  unitPrice: bgPrecoEfetivo ?? null,
-                                  totalPrice: bgPrecoEfetivo ?? null,
-                                  priceFromApi: false, // BAGEO sempre permite edição manual de preço
+                                  unitPrice: bgDrvLines ? (bgPrecoSemDriver ?? bgPrecoEfetivo ?? null) : (bgPrecoEfetivo ?? null),
+                                  totalPrice: bgDrvLines ? (bgPrecoSemDriver ?? bgPrecoEfetivo ?? null) : (bgPrecoEfetivo ?? null),
+                                  priceFromApi: r.precoPerfil !== null || r.precoDriverPorUnidade !== null,
                                   photoUrl: r.product.fotoUrl ?? "",
                                   orderSummary: pedido,
                                   quoteSummary: orcamento,
                                   moduloLed: r.product.ledModule ?? "",
-                                  drivers: r.product.driver220?.model ?? r.product.driverBivolt?.model ?? "",
+                                  drivers: r.driver.model ?? "",
                                   availableCCTs: r.product.ccts,
                                   itemEmPlanta: globalItemEmPlanta,
-                                  ...(r.nCortes > 1 ? {
-                                    ledBarNCortes: r.nCortes,
-                                    ledBarComprimentoPorTrechoMm: r.comprimentoPorCorte,
-                                    ledBarComprimentoTotalMm: r.comprimento,
-                                  } : {}),
+                                  ledBarNCortes: r.nCortes,
+                                  ledBarComprimentoPorTrechoMm: r.comprimentoPorCorte,
+                                  ledBarComprimentoTotalMm: r.comprimento,
+                                  ...(bgDrvLines ? { driverLines: bgDrvLines } : {}),
                                 };
                                   if (appendToQuoteId) {
                                     handleAddItemOrToQuote(item);
