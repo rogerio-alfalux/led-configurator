@@ -849,6 +849,16 @@ function toBageoProduct(p: ApiProduct): BageoProduct | null {
     driverQtdDim110v: p.driverQtdDim110v ?? null,
     driverQtdDimDali: p.driverQtdDimDali ?? null,
     fotoUrl: normalizeFotoUrl(p.fotoUrl),
+    // Módulo LED por CCT (da API) — soberano sobre o campo genérico ledModuleQtd
+    // Para BAGEO 40W/M: ledModuleQtd2700/3000/4000/5000 = 4 (4 voltas de fita 10W/M)
+    ledModule2700: p.ledModule2700 ?? null,
+    ledModule3000: p.ledModule3000 ?? null,
+    ledModule4000: p.ledModule4000 ?? null,
+    ledModule5000: p.ledModule5000 ?? null,
+    ledModuleQtd2700: p.ledModuleQtd2700 ?? null,
+    ledModuleQtd3000: p.ledModuleQtd3000 ?? null,
+    ledModuleQtd4000: p.ledModuleQtd4000 ?? null,
+    ledModuleQtd5000: p.ledModuleQtd5000 ?? null,
   };
 }
 

@@ -1850,3 +1850,10 @@
 - [x] client/src/lib/cartTypes.ts: QuoteFormData.freteType expandido para incluir 'pickup'
 - [x] quoteExcelGenerator.ts: buildFreteText trata freteType='pickup' → "Cliente Retira — Frete R$ 0,00"
 - [x] QuoteDetail.tsx: ao selecionar "Cliente Retira", freteValue é zerado automaticamente
+
+## Correção BAGEO D1 40W/M (06/07/2026)
+- [x] BAGEO: colisão de value no Select entre D1 20W/M e D1 40W/M (mesmo SKU/aplicação) — corrigido: Select usa nome do produto como discriminador
+- [x] BAGEO: ledModuleQtd genérico (=2) ignorava campos por CCT (=4) para 40W/M — corrigido: calculateBageo usa ledModuleQtd2700/3000/4000/5000 quando disponível
+- [x] BAGEO: ledModule por CCT da API agora usado diretamente (sem substituição de [CCT]) quando disponível
+- [x] BAGEO: driverQtdBivolt=2 para D1 40W/M (2 fontes por corte) já funcionava via API — confirmado
+- [x] BAGEO: 4 novos testes vitest cobrindo D1 40W/M com ledModuleQtd por CCT e não-colisão de SKU

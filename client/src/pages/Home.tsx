@@ -4334,10 +4334,10 @@ export default function Home() {
                   <div>
                     <FieldLabel>Modelo</FieldLabel>
                     <Select
-                      value={bgProduct ? `${bgProduct.sku}__${bgProduct.aplicacao}` : ""}
+                      value={bgProduct ? encodeURIComponent(bgProduct.name) : ""}
                       onValueChange={(v) => {
-                        const [sku, ap] = v.split("__");
-                        const found = bgProductsByInstalacao.find(p => p.sku === sku && p.aplicacao === ap);
+                        const name = decodeURIComponent(v);
+                        const found = bgProductsByInstalacao.find(p => p.name === name);
                         setBgProduct(found ?? null);
                         setBgResult(null);
                       }}
@@ -4347,7 +4347,7 @@ export default function Home() {
                       </SelectTrigger>
                       <SelectContent>
                         {bgProductsByInstalacao.map((p, i) => (
-                          <SelectItem key={`${p.sku}__${p.aplicacao}__${i}`} value={`${p.sku}__${p.aplicacao}`}>
+                          <SelectItem key={`${p.name}__${i}`} value={encodeURIComponent(p.name)}>
                             {p.name}
                           </SelectItem>
                         ))}

@@ -428,3 +428,98 @@ describe("BAGEO_CATALOG (fallback)", () => {
     }
   });
 });
+
+// ─── Testes D1 40W/M — ledModuleQtd por CCT ──────────────────────────────────
+const mockCatalogWith40W: BageoProduct[] = [
+  ...mockCatalog,
+  {
+    familia: "BAGEO",
+    sku: "LDP-4910",
+    name: "BAGEO SINUOSA P D1 40W/M",
+    instalacao: "PENDENTE",
+    aplicacao: "D1",
+    ledModule: "2x FITA LED HOPELUMI 24V 10W/M [CCT]",
+    ledModuleQtd: 2, // campo genérico incorreto na API — deve ser ignorado quando por CCT existe
+    ledModuleQtd2700: 4,
+    ledModuleQtd3000: 4,
+    ledModuleQtd4000: 4,
+    ledModuleQtd5000: 4,
+    ledModule3000: "4x FITA LED 2835 128LEDS 24V 10W/M IP20 IRC80 3000K 1500LM/M",
+    ccts: ["2700K", "3000K", "4000K", "5000K"],
+    driver220: null,
+    driverBivolt: { model: "FONTE DE TENSÃO 60W 24V IP20 BIV DIP SLIM", code: "EQ00112" },
+    driverDim110v: null,
+    driverDimDali: { model: "FONTE DE TENSÃO 72W 24V IP67 BIV DIM DALI", code: "EQ00666" },
+    precoOnOff220: null,
+    precoOnOffBivolt: 1140,
+    precoDim110v: null,
+    precoDimDali: null,
+    driverQtdBivolt: 2,
+    driverQtdDimDali: 2,
+    fotoUrl: null,
+  },
+];
+
+describe("calculateBageo — D1 40W/M com ledModuleQtd por CCT", () => {
+  it("usa ledModuleQtd3000=4 para CCT 3000K (ignora campo genérico=2)", () => {
+    const prod = mockCatalogWith40W.find(p => p.name === "BAGEO SINUOSA P D1 40W/M")!;
+    const result = calculateBageo(mockCatalogWith40W, {
+      product: prod,
+      controle: "ON/OFF Bivolt",
+      cct: "3000K",
+      comprimento: 1000,
+    });
+    expect(result).not.toBeNull();
+    expect(result!.ledModuleQtd).toBe(4); // 4 voltas de fita 10W/M = 40W/M
+    expect(result!.fitaMetros).toBe(4); // 4 × 1m = 4m de fita
+  });
+
+  it("usa ledModule3000 da API quando disponível para CCT 3000K", () => {
+    const prod = mockCatalogWith40W.find(p => p.name === "BAGEO SINUOSA P D1 40W/M")!;
+    const result = calculateBageo(mockCatalogWith40W, {
+      product: prod,
+      controle: "ON/OFF Bivolt",
+      cct: "3000K",
+      comprimento: 1000,
+    });
+    expect(result).not.toBeNull();
+    expect(result!.ledModuleWithCCT).toBe("4x FITA LED 2835 128LEDS 24V 10W/M IP20 IRC80 3000K 1500LM/M");
+  });
+
+  it("usa driverQtdBivolt=2 para ON/OFF Bivolt (2 fontes por corte)", () => {
+    const prod = mockCatalogWith40W.find(p => p.name === "BAGEO SINUOSA P D1 40W/M")!;
+    const result = calculateBageo(mockCatalogWith40W, {
+      product: prod,
+      controle: "ON/OFF Bivolt",
+      cct: "3000K",
+      comprimento: 8000,
+    });
+    expect(result).not.toBeNull();
+    expect(result!.nCortes).toBe(4);
+    expect(result!.driverQtdPorCorte).toBe(2);
+    expect(result!.driverQtd).toBe(8); // 2 × 4 cortes = 8 fontes total
+  });
+
+  it("não confunde D1 40W/M com D1 20W/M (mesmo SKU, mesmo aplicacao)", () => {
+    const prod20 = mockCatalogWith40W.find(p => p.name === "BAGEO SINUOSA P D1 20W/M")!;
+    const prod40 = mockCatalogWith40W.find(p => p.name === "BAGEO SINUOSA P D1 40W/M")!;
+    const r20 = calculateBageo(mockCatalogWith40W, {
+      product: prod20,
+      controle: "ON/OFF 220V",
+      cct: "3000K",
+      comprimento: 1000,
+    });
+    const r40 = calculateBageo(mockCatalogWith40W, {
+      product: prod40,
+      controle: "ON/OFF Bivolt",
+      cct: "3000K",
+      comprimento: 1000,
+    });
+    expect(r20).not.toBeNull();
+    expect(r40).not.toBeNull();
+    expect(r20!.ledModuleQtd).toBe(2); // 20W/M: 2 voltas
+    expect(r40!.ledModuleQtd).toBe(4); // 40W/M: 4 voltas
+    expect(r20!.product.name).toBe("BAGEO SINUOSA P D1 20W/M");
+    expect(r40!.product.name).toBe("BAGEO SINUOSA P D1 40W/M");
+  });
+});

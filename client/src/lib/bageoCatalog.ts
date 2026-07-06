@@ -97,6 +97,23 @@ export interface BageoProduct {
   markupPadraoDriverDimDali?: number | null;
   /** URL da foto do produto */
   fotoUrl: string | null;
+  // ─── Módulo LED por CCT (da API) ───
+  /** Descrição do módulo LED para CCT 2700K */
+  ledModule2700?: string | null;
+  /** Descrição do módulo LED para CCT 3000K */
+  ledModule3000?: string | null;
+  /** Descrição do módulo LED para CCT 4000K */
+  ledModule4000?: string | null;
+  /** Descrição do módulo LED para CCT 5000K */
+  ledModule5000?: string | null;
+  /** Qtd de módulos LED por metro para CCT 2700K */
+  ledModuleQtd2700?: number | null;
+  /** Qtd de módulos LED por metro para CCT 3000K */
+  ledModuleQtd3000?: number | null;
+  /** Qtd de módulos LED por metro para CCT 4000K */
+  ledModuleQtd4000?: number | null;
+  /** Qtd de módulos LED por metro para CCT 5000K */
+  ledModuleQtd5000?: number | null;
   // ─── Quantidade de drivers por corte (da API) ───
   /** Qtd de drivers por corte — ON/OFF 220V (da API; null = não cadastrado) */
   driverQtd220?: number | null;
@@ -338,12 +355,15 @@ export const BAGEO_MAX_LENGTH_MM = 2000;
 export function calculateBageo(catalog: BageoProduct[], input: BageoInput): BageoResult | null {
   if (!input.product || input.comprimento < 100) return null;
 
-  const product = catalog.find(
-    (p) =>
-      p.sku === input.product.sku &&
-      p.aplicacao === input.product.aplicacao &&
-      p.instalacao === input.product.instalacao
-  );
+  // Busca por nome+sku para garantir unicidade e evitar colisão entre produtos com mesmo SKU/aplicação
+  // Ex: BAGEO SINUOSA P D1 20W/M e BAGEO SINUOSA P D1 40W/M têm mesmo SKU e aplicação
+  const product = catalog.find((p) => p.name === input.product.name && p.sku === input.product.sku) ??
+    catalog.find(
+      (p) =>
+        p.sku === input.product.sku &&
+        p.aplicacao === input.product.aplicacao &&
+        p.instalacao === input.product.instalacao
+    );
   if (!product) return null;
 
   const { driver, precoPorMetro, precoDriverPorUnidade, apiDriverQtdPorCorte } = selectBageoDriverAndPrice(product, input.controle);
@@ -364,10 +384,30 @@ export function calculateBageo(catalog: BageoProduct[], input: BageoInput): Bage
   const driverQtdPorCorte = apiDriverQtdPorCorte != null && apiDriverQtdPorCorte > 0 ? apiDriverQtdPorCorte : 1;
   const driverQtd = driverQtdPorCorte * nCortes;
 
-  // Metragem total de fita LED: ledModuleQtd (por metro) × comprimento em metros
-  const fitaMetros = product.ledModuleQtd * comprimentoMetros;
+  // Metragem total de fita LED: usa ledModuleQtd por CCT quando disponível (ex: 40W/M tem 4 voltas)
+  // Mapeamento: "2700K" -> ledModuleQtd2700, "3000K" -> ledModuleQtd3000, etc.
+  const cctKey = input.cct.replace('K', '') as '2700' | '3000' | '4000' | '5000';
+  const ledModuleQtdByCCT: number = (
+    (cctKey === '2700' ? product.ledModuleQtd2700 : null) ??
+    (cctKey === '3000' ? product.ledModuleQtd3000 : null) ??
+    (cctKey === '4000' ? product.ledModuleQtd4000 : null) ??
+    (cctKey === '5000' ? product.ledModuleQtd5000 : null) ??
+    product.ledModuleQtd
+  );
+  const fitaMetros = ledModuleQtdByCCT * comprimentoMetros;
 
-  const ledModuleWithCCT = product.ledModule.replace(/\[CCT\]/gi, input.cct).trim();
+  // Usa ledModule por CCT quando disponível (ex: 40W/M tem descrição diferente por CCT)
+  const ledModuleByCCT: string | null = (
+    (cctKey === '2700' ? product.ledModule2700 : null) ??
+    (cctKey === '3000' ? product.ledModule3000 : null) ??
+    (cctKey === '4000' ? product.ledModule4000 : null) ??
+    (cctKey === '5000' ? product.ledModule5000 : null) ??
+    null
+  );
+  // Se tiver ledModule por CCT da API, usa direto (já tem CCT no nome); senão substitui [CCT] no genérico
+  const ledModuleWithCCT = ledModuleByCCT
+    ? ledModuleByCCT.trim()
+    : product.ledModule.replace(/\[CCT\]/gi, input.cct).trim();
 
   // Preços separados
   const precoPerfil = precoPorMetro !== null ? Math.round(precoPorMetro * comprimentoMetros * 100) / 100 : null;
@@ -389,7 +429,7 @@ export function calculateBageo(catalog: BageoProduct[], input: BageoInput): Bage
     driverQtd,
     driverQtdPorCorte,
     ledModuleWithCCT,
-    ledModuleQtd: product.ledModuleQtd,
+    ledModuleQtd: ledModuleQtdByCCT,
     fitaMetros,
     precoPorMetro,
     precoPerfil,
