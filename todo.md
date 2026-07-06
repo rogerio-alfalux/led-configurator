@@ -1867,3 +1867,7 @@
 - [x] QuoteDetail: checkbox itemObsShowInExcel não era editável após orçamento salvo — corrigido: adicionado ao SortableEditItem
 - [x] QuoteDetail: barra de markup (itemMarginPercent) não era editável após orçamento salvo — corrigido: adicionado ao SortableEditItem
 - [x] QuoteDetail: todos os campos editáveis do Cart.tsx devem ser editáveis também no QuoteDetail — corrigido
+
+## Bug crítico — perda de dados ao editar orçamento (06/07/2026)
+- [ ] Editar orçamento: DIFAL, FCP, localidade de entrega e campos de frete são perdidos ao salvar e reabrir
+- [ ] Editar orçamento: campos de DIFAL/FCP devem sincronizar localidade para a aba Frete

@@ -613,7 +613,11 @@ export default function QuoteDetail() {
     paymentTerm: "30% Sinal e 70% a 28DDF (mediante aprovação de cadastro)",
     destState: "",
     difalEnabled: false,
+    difalPercent: "",
+    difalValue: "",
     fcpEnabled: false,
+    fcpPercent: "",
+    fcpValue: "",
     projectNumber: "",
     projectNoProject: false,
     freteValue: "",
@@ -989,7 +993,15 @@ export default function QuoteDetail() {
         const unitLum = d.unitPriceLuminaria ?? d.unitPrice ?? null;
         return unitLum != null ? unitLum * (d.qty ?? 1) : (d.totalPrice ?? 0);
       })();
-      const drvT = d.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0);
+      const drvT = d.driverLines.reduce((sd, dl) => {
+        const stored = dl.driverTotalPrice;
+        if (stored != null && stored > 0) return sd + stored;
+        // fallback: recalcular com effectiveQty
+        const iqty = d.qty ?? 1;
+        const storedQty = dl.driverQty ?? 1;
+        const effectiveQty = storedQty <= 1 ? iqty : storedQty;
+        return sd + Math.round((dl.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
+      }, 0);
       return s + lumT + drvT;
     }
     return s + (d.totalPrice ?? 0);
@@ -2116,7 +2128,11 @@ export default function QuoteDetail() {
                 paymentTerm: quote.paymentTerm ?? "30% Sinal e 70% a 28DDF (mediante aprovação de cadastro)",
                 destState: quote.destState ?? "",
                 difalEnabled: quote.difalEnabled ?? false,
+                difalPercent: quote.difalPercent != null ? String(parseFloat(String(quote.difalPercent))) : "",
+                difalValue: quote.difalValue != null ? String(parseFloat(String(quote.difalValue))) : "",
                 fcpEnabled: quote.fcpEnabled ?? false,
+                fcpPercent: quote.fcpPercent != null ? String(parseFloat(String(quote.fcpPercent))) : "",
+                fcpValue: quote.fcpValue != null ? String(parseFloat(String(quote.fcpValue))) : "",
                 projectNumber: quote.projectNumber ?? "",
                 projectNoProject: (quote.projectNumber ?? "") === "Sem Projeto",
                 freteValue: (quote as any).freteValue != null ? String((quote as any).freteValue) : "",
@@ -2522,7 +2538,15 @@ export default function QuoteDetail() {
                       <Label>Estado destino</Label>
                       <Select
                         value={editForm.destState || "none"}
-                        onValueChange={(v) => setEditForm(f => ({ ...f, destState: v === "none" ? "" : v }))}
+                        onValueChange={(v) => {
+                          const newState = v === "none" ? "" : v;
+                          setEditForm(f => ({
+                            ...f,
+                            destState: newState,
+                            // Sincronizar localidade de entrega: se estado selecionado != SP, marcar como "Outra cidade"
+                            freteLocalidade: newState && newState !== "SP" ? "other" : f.freteLocalidade,
+                          }));
+                        }}
                       >
                         <SelectTrigger><SelectValue placeholder="Selecione o estado" /></SelectTrigger>
                         <SelectContent className="max-h-60">
@@ -2610,9 +2634,14 @@ export default function QuoteDetail() {
                     // Fórmula por dentro (igual a RT/Margem): acréscimo = base / (1 - %) - base
                     const editDifalPct = editStateInfo ? editStateInfo.difal / 100 : 0;
                     const editFcpPct = editStateInfo ? editStateInfo.fcp / 100 : 0;
-                    const editDifalVal = editStateInfo && editForm.difalEnabled && editDifalPct > 0 ? totalFinalVal / (1 - editDifalPct) - totalFinalVal : 0;
+                    // Se há destState com alíquota, recalcula. Caso contrário, preserva o valor salvo no editForm.
+                    const editDifalVal = editStateInfo && editForm.difalEnabled && editDifalPct > 0
+                      ? totalFinalVal / (1 - editDifalPct) - totalFinalVal
+                      : (editForm.difalEnabled && editForm.difalValue ? parseFloat(editForm.difalValue) : 0);
                     const editTotalComDifal = totalFinalVal + editDifalVal;
-                    const editFcpVal = editStateInfo && editForm.fcpEnabled && editFcpPct > 0 ? editTotalComDifal / (1 - editFcpPct) - editTotalComDifal : 0;
+                    const editFcpVal = editStateInfo && editForm.fcpEnabled && editFcpPct > 0
+                      ? editTotalComDifal / (1 - editFcpPct) - editTotalComDifal
+                      : (editForm.fcpEnabled && editForm.fcpValue ? parseFloat(editForm.fcpValue) : 0);
                     const totalFinalCompleto = totalFinalVal + editFreteValor + editDifalVal + editFcpVal;
                     addRevisionMutation.mutate({
                       quoteId: Number(id),
@@ -2663,8 +2692,9 @@ export default function QuoteDetail() {
                       ...(() => {
                         const info = editForm.destState ? getStateInfo(editForm.destState) : undefined;
                         return {
-                          difalPercent: info ? info.difal : 0,
-                          fcpPercent: info ? info.fcp : 0,
+                          // Preservar aliquotas salvas quando nao ha destState selecionado
+                          difalPercent: info ? info.difal : (editForm.difalPercent ? parseFloat(editForm.difalPercent) : 0),
+                          fcpPercent: info ? info.fcp : (editForm.fcpPercent ? parseFloat(editForm.fcpPercent) : 0),
                           difalValue: editDifalVal,
                           fcpValue: editFcpVal,
                         };
