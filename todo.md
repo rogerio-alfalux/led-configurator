@@ -1879,3 +1879,13 @@
 - [ ] DIFAL/FCP: UI unificada — um único checkbox "Aplicar DIFAL/FCP", sem checkbox separado por imposto
 - [ ] DIFAL/FCP: exibir alíquota combinada e valor resultante no resumo do orçamento
 - [ ] DIFAL/FCP: corrigir em Home.tsx (carrinho), QuoteDetail.tsx, quoteExcelGenerator.ts e ExcelPreviewModal.tsx
+
+## Controle de visibilidade de comissão (06/07/2026)
+- [x] server/routers.ts: getById retorna canSeeCommission e canEditCommission baseado em role/email do usuário vs sellers do orçamento
+- [x] Cart.tsx: comissão padrão 5% geral, 10% para Gustavo Gatti; divisão igual quando 2 vendedores
+- [x] Cart.tsx: blocos de comissão (1º e 2º vendedor) ocultos para não-managers com {isManagerUser && ...}
+- [x] QuoteDetail.tsx: bloco de comissão na view de detalhes oculto para quem não tem canSeeCommission
+- [x] QuoteDetail.tsx: campos de comissão no formulário de edição ocultos para quem não tem canSeeCommission; readOnly/disabled para quem não tem canEditCommission
+- [x] Dashboard.tsx: seção de comissões já protegida por isManager (confirmado)
+- [x] salesReportGenerator.ts: exportação de relatório com comissões já protegida por isManager no Dashboard (confirmado)
+- [x] QuoteList.tsx: não exibe dados de comissão (confirmado)

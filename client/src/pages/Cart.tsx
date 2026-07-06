@@ -1672,6 +1672,17 @@ export default function Cart() {
                                   const sel = sellers.find(s => String(s.id) === v);
                                   updateSaveForm("seller1Id", v);
                                   updateSaveForm("seller1Name", sel?.name ?? "");
+                                  // Comissão padrão: 10% para Gatti, 5% para demais
+                                  const isGatti1 = (sel?.name ?? "").toLowerCase().includes("gatti");
+                                  const hasSeller2 = !!saveForm.seller2Id;
+                                  if (hasSeller2) {
+                                    const seller2 = sellers.find(s => String(s.id) === saveForm.seller2Id);
+                                    const isGatti2 = (seller2?.name ?? "").toLowerCase().includes("gatti");
+                                    const total = (isGatti1 || isGatti2) ? 10 : 5;
+                                    setSaveForm(prev => ({ ...prev, commissionPercent: String(total / 2), commissionPercent2: String(total / 2) }));
+                                  } else {
+                                    setSaveForm(prev => ({ ...prev, commissionPercent: isGatti1 ? "10" : "5" }));
+                                  }
                                 }}
                               >
                                 <SelectTrigger>
@@ -1705,10 +1716,20 @@ export default function Cart() {
                                   if (v === "none") {
                                     updateSaveForm("seller2Id", "");
                                     updateSaveForm("seller2Name", "");
+                                    // Voltar para comissão individual do seller1
+                                    const seller1 = sellers.find(s => String(s.id) === saveForm.seller1Id);
+                                    const isGatti1 = (seller1?.name ?? "").toLowerCase().includes("gatti");
+                                    setSaveForm(prev => ({ ...prev, commissionPercent: isGatti1 ? "10" : "5", commissionPercent2: "0" }));
                                   } else {
                                     const sel = sellers.find(s => String(s.id) === v);
                                     updateSaveForm("seller2Id", v);
                                     updateSaveForm("seller2Name", sel?.name ?? "");
+                                    // Dividir igualmente entre os dois
+                                    const seller1 = sellers.find(s => String(s.id) === saveForm.seller1Id);
+                                    const isGatti1 = (seller1?.name ?? "").toLowerCase().includes("gatti");
+                                    const isGatti2 = (sel?.name ?? "").toLowerCase().includes("gatti");
+                                    const total = (isGatti1 || isGatti2) ? 10 : 5;
+                                    setSaveForm(prev => ({ ...prev, commissionPercent: String(total / 2), commissionPercent2: String(total / 2) }));
                                   }
                                 }}
                               >
@@ -1962,8 +1983,8 @@ export default function Cart() {
                               <p className="text-xs text-muted-foreground mt-1">Será impresso no Excel do orçamento.</p>
                             </div>
 
-                            {/* Comissão do vendedor */}
-                            <div className="border rounded-lg p-3 space-y-2 bg-amber-50 dark:bg-amber-950/20">
+                            {/* Comissão do vendedor - visível apenas para managers */}
+                            {isManagerUser && <div className="border rounded-lg p-3 space-y-2 bg-amber-50 dark:bg-amber-950/20">
                               <div className="flex items-center gap-2">
                                 <Percent className="w-4 h-4 text-amber-600" />
                                 <span className="text-sm font-medium">Comissão do Vendedor (demonstrativo)</span>
@@ -1996,10 +2017,10 @@ export default function Cart() {
                                 ) : null;
                               })()}
                               <p className="text-xs text-muted-foreground">Não altera o valor do orçamento. Apenas demonstrativo para controle interno.</p>
-                            </div>
+                            </div>}
 
-                            {/* Comissão 2º Vendedor */}
-                            <div className="border rounded-lg p-3 space-y-2 bg-amber-50/50 dark:bg-amber-950/10">
+                            {/* Comissão 2º Vendedor - visível apenas para managers */}
+                            {isManagerUser && <div className="border rounded-lg p-3 space-y-2 bg-amber-50/50 dark:bg-amber-950/10">
                               <div className="flex items-center gap-2">
                                 <Percent className="w-4 h-4 text-amber-500" />
                                 <span className="text-sm font-medium">Comissão do 2º Vendedor (demonstrativo)</span>
@@ -2018,7 +2039,7 @@ export default function Cart() {
                                 <span className="text-sm text-muted-foreground">% {isManagerUser ? "" : "(máx. 5%)"}</span>
                               </div>
                               <p className="text-xs text-muted-foreground">Apenas demonstrativo. Visível quando há 2º vendedor no orçamento.</p>
-                            </div>
+                            </div>}
 
                             {/* DIFAL / FCP */}
                             <div className="border rounded-lg p-3 space-y-3">

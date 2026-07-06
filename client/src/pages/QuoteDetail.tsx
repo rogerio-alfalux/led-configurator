@@ -970,7 +970,7 @@ export default function QuoteDetail() {
     );
   }
 
-  const { quote, versions, items, canEdit } = data;
+  const { quote, versions, items, canEdit, canSeeCommission = false, canEditCommission = false } = data as typeof data & { canSeeCommission?: boolean; canEditCommission?: boolean };
   const st = STATUS_LABELS[quote.status] ?? STATUS_LABELS.open;
 
   // Itens da versão mais recente
@@ -1309,8 +1309,8 @@ export default function QuoteDetail() {
               {quote.paymentTerm && (
                 <p>💳 Pagamento: <span className="font-medium">{quote.paymentTerm}</span></p>
               )}
-              {/* Comissões dos vendedores */}
-              {(() => {
+              {/* Comissões dos vendedores — visível apenas para quem tem permissão */}
+              {canSeeCommission && (() => {
                 const total = quote.totalAmount ? Number(quote.totalAmount) : (quote.totalFinal ? Number(quote.totalFinal) : 0);
                 const base = total * (1 - 0.12);
                 const comm1Pct = quote.commissionPercent != null ? parseFloat(String(quote.commissionPercent)) : 0;
@@ -2481,23 +2481,27 @@ export default function QuoteDetail() {
                     <p className="text-xs text-muted-foreground mt-1">Será impresso no Excel do orçamento.</p>
                   </div>
 
-                  {/* Comissão do vendedor */}
+                  {/* Comissão do vendedor — visível apenas para quem tem permissão */}
+                  {canSeeCommission && (<div className="space-y-3">
                   <div className="border rounded-lg p-3 space-y-2 bg-amber-50 dark:bg-amber-950/20">
                     <div className="flex items-center gap-2">
                       <Percent className="w-4 h-4 text-amber-600" />
                       <span className="text-sm font-medium">Comissão do Vendedor (demonstrativo)</span>
+                      {!canEditCommission && <span className="text-xs text-muted-foreground">(somente leitura)</span>}
                     </div>
                     <div className="flex items-center gap-2">
                       <Input
-                        type="number" min={0} max={5} step={0.5}
+                        type="number" min={0} max={100} step={0.5}
                         className="w-24"
                         value={editForm.commissionPercent}
-                        onChange={e => {
-                          const val = Math.min(5, Math.max(0, parseFloat(e.target.value) || 0));
+                        readOnly={!canEditCommission}
+                        disabled={!canEditCommission}
+                        onChange={canEditCommission ? (e => {
+                          const val = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
                           setEditForm(f => ({ ...f, commissionPercent: String(val) }));
-                        }}
+                        }) : undefined}
                       />
-                      <span className="text-sm text-muted-foreground">% (máx. 5%)</span>
+                      <span className="text-sm text-muted-foreground">%</span>
                     </div>
                     {(() => {
                       const commPct = parseFloat(editForm.commissionPercent || "0") / 100;
@@ -2515,27 +2519,32 @@ export default function QuoteDetail() {
                     })()}
                     <p className="text-xs text-muted-foreground">Não altera o valor do orçamento. Apenas demonstrativo para controle interno.</p>
                   </div>
-
                   {/* Comissão 2º Vendedor */}
+                  {editForm.seller2Id && (
                   <div className="border rounded-lg p-3 space-y-2 bg-amber-50/50 dark:bg-amber-950/10">
                     <div className="flex items-center gap-2">
                       <Percent className="w-4 h-4 text-amber-500" />
                       <span className="text-sm font-medium">Comissão do 2º Vendedor (demonstrativo)</span>
+                      {!canEditCommission && <span className="text-xs text-muted-foreground">(somente leitura)</span>}
                     </div>
                     <div className="flex items-center gap-2">
                       <Input
-                        type="number" min={0} max={5} step={0.5}
+                        type="number" min={0} max={100} step={0.5}
                         className="w-24"
                         value={editForm.commissionPercent2}
-                        onChange={e => {
-                          const val = Math.min(5, Math.max(0, parseFloat(e.target.value) || 0));
+                        readOnly={!canEditCommission}
+                        disabled={!canEditCommission}
+                        onChange={canEditCommission ? (e => {
+                          const val = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
                           setEditForm(f => ({ ...f, commissionPercent2: String(val) }));
-                        }}
+                        }) : undefined}
                       />
-                      <span className="text-sm text-muted-foreground">% (máx. 5%)</span>
+                      <span className="text-sm text-muted-foreground">%</span>
                     </div>
                     <p className="text-xs text-muted-foreground">Apenas demonstrativo. Visível quando há 2º vendedor no orçamento.</p>
                   </div>
+                  )}
+                  </div>)} {/* fecha canSeeCommission */}
 
                   {/* DIFAL / FCP */}
                   <div className="border rounded-lg p-3 space-y-3">

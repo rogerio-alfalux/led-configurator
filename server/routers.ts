@@ -495,7 +495,38 @@ export const appRouter = router({
         const result = await getQuoteById(input.id);
         if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
         const canEdit = await canEditQuote(ctx.user.email, result.quote, ctx.user.role, ctx.user.id);
-        return { ...result, canEdit };
+        // Permissão de comissão:
+        // - Admin ou MANAGER_EMAILS: vê e edita
+        // - Vendedor que é seller1 ou seller2 do orçamento: vê (somente leitura)
+        // - Demais (assistente, user, etc.): não vê
+        const userEmail = (ctx.user.email ?? "").toLowerCase().trim();
+        const isAdminOrManager = ctx.user.role === "admin" || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
+        let canSeeCommission = isAdminOrManager;
+        let canEditCommission = isAdminOrManager;
+        if (!isAdminOrManager && ctx.user.role === "vendedor") {
+          // Verificar se o vendedor logado é seller1 ou seller2
+          const db = await getDb();
+          if (db) {
+            const checkSeller = async (sellerId: number | null | undefined) => {
+              if (!sellerId) return false;
+              const s = await db.select({ email: sellers.email }).from(sellers).where(eq(sellers.id, sellerId)).limit(1);
+              return s[0]?.email?.toLowerCase() === userEmail;
+            };
+            const isSeller1 = await checkSeller(result.quote.seller1Id);
+            const isSeller2 = await checkSeller(result.quote.seller2Id);
+            if (isSeller1 || isSeller2) {
+              canSeeCommission = true;
+              canEditCommission = false; // somente leitura
+            }
+          }
+        }
+        // Ocultar dados de comissão se não tem permissão
+        const quoteData = canSeeCommission ? result.quote : {
+          ...result.quote,
+          commissionPercent: null,
+          commissionPercent2: null,
+        };
+        return { ...result, quote: quoteData, canEdit, canSeeCommission, canEditCommission };
       }),
 
     approve: protectedProcedure
