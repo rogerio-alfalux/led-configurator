@@ -300,12 +300,68 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
           )}
         </div>
         <div className="text-right">
-          <p className="text-xs text-muted-foreground">Total</p>
-          <p className="font-bold text-primary">
-            {d.totalPrice != null && d.totalPrice > 0 ? formatBRL(d.totalPrice) : "A consultar"}
-          </p>
+          {d.driverLines && d.driverLines.length > 0 ? (() => {
+            const lumTotal = (() => {
+              if (d.priceWithoutDriver != null) {
+                const isUnitOnly = d.unitPriceLuminaria != null && Math.abs(d.priceWithoutDriver - d.unitPriceLuminaria) < 0.02 && d.qty > 1;
+                return isUnitOnly ? d.unitPriceLuminaria! * d.qty : d.priceWithoutDriver;
+              }
+              const unitLum = d.unitPriceLuminaria ?? d.unitPrice ?? null;
+              return unitLum != null ? unitLum * d.qty : (d.totalPrice ?? 0);
+            })();
+            const drvTotal = d.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
+            const grandTotal = lumTotal + drvTotal;
+            return grandTotal > 0 ? (
+              <>
+                <p className="text-xs text-muted-foreground">Total (lum. + drv.)</p>
+                <p className="font-bold text-primary">{formatBRL(grandTotal)}</p>
+              </>
+            ) : (
+              <><p className="text-xs text-muted-foreground">Total</p><p className="font-bold text-primary">A consultar</p></>
+            );
+          })() : (
+            <>
+              <p className="text-xs text-muted-foreground">Total</p>
+              <p className="font-bold text-primary">
+                {d.totalPrice != null && d.totalPrice > 0 ? formatBRL(d.totalPrice) : "A consultar"}
+              </p>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Drivers do item — exibição informativa */}
+      {d.driverLines && d.driverLines.length > 0 && (
+        <div className="pt-2 border-t space-y-1">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Drivers</p>
+          {d.driverLines.map((dl, dIdx) => (
+            <div key={dIdx} className="flex items-center justify-between gap-2 text-xs bg-muted/40 rounded px-2 py-1">
+              <div className="flex-1 min-w-0">
+                <span className="font-mono text-muted-foreground">{dl.driverCode ?? "—"}</span>
+                {dl.driverModel && <span className="ml-1 text-foreground/80 truncate">{dl.driverModel}</span>}
+              </div>
+              <div className="flex items-center gap-3 flex-shrink-0 text-right">
+                <span className="text-muted-foreground">Qtd: <span className="font-medium text-foreground">{dl.driverQty ?? 1}</span></span>
+                {dl.driverUnitPrice != null && dl.driverUnitPrice > 0 && (
+                  <span className="text-muted-foreground">Unit: <span className="font-medium text-foreground">{formatBRL(dl.driverUnitPrice)}</span></span>
+                )}
+                {dl.driverTotalPrice != null && dl.driverTotalPrice > 0 && (
+                  <span className="font-semibold text-primary">{formatBRL(dl.driverTotalPrice)}</span>
+                )}
+              </div>
+            </div>
+          ))}
+          {/* Subtotal drivers */}
+          {(() => {
+            const drvTotal = d.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
+            return drvTotal > 0 ? (
+              <div className="flex justify-end text-xs text-muted-foreground pt-0.5">
+                Subtotal drivers: <span className="ml-1 font-semibold text-foreground">{formatBRL(drvTotal)}</span>
+              </div>
+            ) : null;
+          })()}
+        </div>
+      )}
 
       {/* Campos editáveis do Item Especial */}
       {d.isSpecialItem && (
