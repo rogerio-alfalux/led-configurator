@@ -1565,6 +1565,7 @@
 
 - [ ] BAGEO: não puxa driver e não mostra preço (luminária nem driver)
 - [ ] Downlights com preço definido: mostram R$0 no modal de edição e "A consultar" no total
+- [x] Preço editado manualmente não aparecia na pré-visualização Excel nem no download Excel (itens com driverLines)
 - [ ] Carrinho: total de drivers não é multiplicado pela quantidade (mostra só unitário)
 - [ ] Perfis: driver não separado no orçamento Excel (linha de driver sem destaque)
 - [ ] Pré-visualização Excel: colunas deslocadas na linha de driver (QTD na coluna errada, linha de obra azul ganha coluna extra)
@@ -1808,15 +1809,15 @@
 
 ## BAGEO Sinuosa — Lógica de Cortes (máx 2000mm) — Jul 2026
 
-- [ ] bageoCatalog.ts: adicionar BAGEO_MAX_LENGTH_MM = 2000; adicionar nCortes e comprimentoPorCorte ao BageoResult
-- [ ] bageoCatalog.ts: calculateBageo recebe nCortes como input; calcula comprimentoPorCorte = ceil(comprimento / nCortes); valida que comprimentoPorCorte <= 2000mm
-- [ ] bageoCatalog.ts: precoTotal = precoPorMetro × comprimentoMetros (igual ao atual — cobrado pelo total, não por corte)
-- [ ] Home.tsx: adicionar estado bgNCortes; calcular bgRequiresCuts (comprimento > 2000mm); calcular bgMinCortesNecessarios; validar bgTrechoExcede
-- [ ] Home.tsx: exibir campo "Quantidade de Cortes" na UI (igual LED BAR) com aviso quando obrigatório
-- [ ] Home.tsx: passar nCortes para calculateBageo; exibir nCortes e comprimentoPorCorte no resultado
-- [ ] Home.tsx: atualizar orderSummary/quoteSummary para incluir informação de cortes
-- [ ] Home.tsx: atualizar CartItemData para incluir ledBarNCortes (reutilizar campo existente)
-- [ ] Atualizar testes bageoCatalog.test.ts para cobrir lógica de cortes
+- [x] bageoCatalog.ts: adicionar BAGEO_MAX_LENGTH_MM = 2000; adicionar nCortes e comprimentoPorCorte ao BageoResult
+- [x] bageoCatalog.ts: calculateBageo recebe nCortes como input; calcula comprimentoPorCorte = ceil(comprimento / nCortes); valida que comprimentoPorCorte <= 2000mm
+- [x] bageoCatalog.ts: precoTotal = precoPorMetro × comprimentoMetros (igual ao atual — cobrado pelo total, não por corte)
+- [x] Home.tsx: adicionar estado bgNCortes; calcular bgRequiresCuts (comprimento > 2000mm); calcular bgMinCortesNecessarios; validar bgTrechoExcede
+- [x] Home.tsx: exibir campo "Quantidade de Cortes" na UI (igual LED BAR) com aviso quando obrigatório
+- [x] Home.tsx: passar nCortes para calculateBageo; exibir nCortes e comprimentoPorCorte no resultado
+- [x] Home.tsx: atualizar orderSummary/quoteSummary para incluir informação de cortes
+- [x] Home.tsx: atualizar CartItemData para incluir ledBarNCortes (reutilizar campo existente)
+- [x] Atualizar testes bageoCatalog.test.ts para cobrir lógica de cortes
 
 ## BAGEO Sinuosa — Driver Separado (Jul 2026)
 

@@ -718,9 +718,9 @@ async function _generateExcelBuffer(
     };
     const hasDriverBreakdownItem = item.driverLines && item.driverLines.length > 0;
     const cUnit = ws.getCell(`M${rowNum}`);
-    // Para itens com driver desmembrado: usar unitPriceLuminaria; caso contrário: usar unitPrice normal
-    const _unitForLuminaria = hasDriverBreakdownItem && item.unitPriceLuminaria != null
-      ? item.unitPriceLuminaria
+    // Para itens com driver desmembrado: usar unitPriceLuminaria; fallback para unitPrice quando editado manualmente
+    const _unitForLuminaria = hasDriverBreakdownItem
+      ? (item.unitPriceLuminaria ?? _unitPriceComFrete(item))
       : _unitPriceComFrete(item);
     if (_unitForLuminaria !== null && _unitForLuminaria !== undefined && _unitForLuminaria > 0) {
       cUnit.value = applyMarkup(_unitForLuminaria);
@@ -738,15 +738,22 @@ async function _generateExcelBuffer(
     // detectamos isso comparando com unitPriceLuminaria e corrigimos multiplicando por qty.
     const cTotal = ws.getCell(`N${rowNum}`);
     let _correctedPriceWithoutDriver: number | null = null;
-    if (hasDriverBreakdownItem && item.priceWithoutDriver != null) {
-      const isUnitValueOnly =
-        item.unitPriceLuminaria != null &&
-        Math.abs(item.priceWithoutDriver - item.unitPriceLuminaria) < 0.02 &&
-        item.qty > 1;
-      _correctedPriceWithoutDriver = isUnitValueOnly
-        ? item.unitPriceLuminaria! * item.qty
-        : item.priceWithoutDriver;
+    if (hasDriverBreakdownItem) {
+      if (item.priceWithoutDriver != null) {
+        const isUnitValueOnly =
+          item.unitPriceLuminaria != null &&
+          Math.abs(item.priceWithoutDriver - item.unitPriceLuminaria) < 0.02 &&
+          item.qty > 1;
+        _correctedPriceWithoutDriver = isUnitValueOnly
+          ? item.unitPriceLuminaria! * item.qty
+          : item.priceWithoutDriver;
+      } else if (item.unitPriceLuminaria != null) {
+        // Fallback: priceWithoutDriver não salvo, mas unitPriceLuminaria disponível
+        _correctedPriceWithoutDriver = item.unitPriceLuminaria * item.qty;
+      }
     }
+    // Fallback adicional: item com driverLines mas sem priceWithoutDriver/unitPriceLuminaria,
+    // usa totalPrice (editado manualmente) como total da luminaria
     const _totalForLuminaria = _correctedPriceWithoutDriver != null
       ? _correctedPriceWithoutDriver
       : _totalPriceComFrete(item);

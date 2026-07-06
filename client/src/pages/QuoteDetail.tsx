@@ -49,7 +49,7 @@ import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator"
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 import { toast } from "sonner";
 import { PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS } from "@shared/const";
-import { applyCCTChange } from "@/lib/cctUtils";
+import { applyCCTChange, applyUnitPriceChange, applyQtyChange } from "@/lib/cctUtils";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   open: { label: "Em Aberto", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: <Clock className="w-3 h-3" /> },
@@ -1523,7 +1523,7 @@ export default function QuoteDetail() {
                                     resolvePhoto={resolvePhoto}
                                     onDelete={(id) => setEditableItems(prev => prev.filter(it => it.id !== id))}
                                     onDuplicate={(id) => setEditableItems(prev => { const i = prev.findIndex(it => it.id === id); if (i === -1) return prev; const src = prev[i]; const cloned = { ...src, id: Date.now() + Math.random(), itemData: src.itemData }; const next = [...prev]; next.splice(i + 1, 0, cloned); return next; })}
-                                    onUpdate={(id, fields) => { let mergedFields = { ...fields }; if (fields.cct !== undefined && fields.cct !== undefined) { const curItem = editableItems.find(it => it.id === id); if (curItem && fields.cct !== curItem.parsed.cct) { mergedFields = { ...applyCCTChange(curItem.parsed, fields.cct), ...fields }; } } setEditableItems(prev => prev.map(it => { if (it.id !== id) return it; const newParsed = { ...it.parsed, ...mergedFields }; if (fields.qty !== undefined || fields.unitPrice !== undefined) { const qty = fields.qty ?? newParsed.qty; const up = fields.unitPrice ?? newParsed.unitPrice; newParsed.totalPrice = up != null ? up * qty : null; } return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) }; })); }}
+                                    onUpdate={(id, fields) => { let mergedFields = { ...fields }; if (fields.cct !== undefined) { const curItem = editableItems.find(it => it.id === id); if (curItem && fields.cct !== curItem.parsed.cct) { mergedFields = { ...applyCCTChange(curItem.parsed, fields.cct), ...fields }; } } setEditableItems(prev => prev.map(it => { if (it.id !== id) return it; const newParsed = { ...it.parsed, ...mergedFields }; if (fields.unitPrice !== undefined) { Object.assign(newParsed, applyUnitPriceChange(newParsed, fields.unitPrice, fields.qty ?? newParsed.qty)); } else if (fields.qty !== undefined) { Object.assign(newParsed, applyQtyChange(newParsed, fields.qty)); } return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) }; })); }}
                                     onUploadSpecialPhoto={async (id, base64, mimeType, fileName) => { const result = await uploadSpecialPhotoMutationQD.mutateAsync({ base64, mimeType, fileName }); setEditableItems(prev => prev.map(it => { if (it.id !== id) return it; const newParsed = { ...it.parsed, specialPhotoUrl: result.url, photoUrl: result.url }; return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) }; })); }}
                                     canOverrideApiPrice={true}
                                   />
@@ -1590,10 +1590,10 @@ export default function QuoteDetail() {
                                 mergedFields = { ...applyCCTChange(it.parsed, fields.cct), ...fields };
                               }
                               const newParsed = { ...it.parsed, ...mergedFields };
-                              if (fields.qty !== undefined || fields.unitPrice !== undefined) {
-                                const qty = fields.qty ?? newParsed.qty;
-                                const up = fields.unitPrice ?? newParsed.unitPrice;
-                                newParsed.totalPrice = up != null ? up * qty : null;
+                              if (fields.unitPrice !== undefined) {
+                                Object.assign(newParsed, applyUnitPriceChange(newParsed, fields.unitPrice, fields.qty ?? newParsed.qty));
+                              } else if (fields.qty !== undefined) {
+                                Object.assign(newParsed, applyQtyChange(newParsed, fields.qty));
                               }
                               return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) };
                             }));
@@ -2656,12 +2656,22 @@ export default function QuoteDetail() {
                 if (!d) continue;
                 const tot = d.totalPrice != null && d.totalPrice > 0 ? (hasMarkup ? applyMkup(d.totalPrice) : d.totalPrice) : 0;
                 totalGeral += tot;
-                if (d.driverLines && d.driverLines.length > 0 && d.priceWithoutDriver != null) {
+                if (d.driverLines && d.driverLines.length > 0) {
                   hasDriverBreakdown = true;
-                  // Corrigir itens antigos onde priceWithoutDriver foi salvo como valor unitário
-                  const isUnitOnly = d.unitPriceLuminaria != null && Math.abs(d.priceWithoutDriver - d.unitPriceLuminaria) < 0.02 && d.qty > 1;
-                  const correctedPriceWithoutDriver = isUnitOnly ? d.unitPriceLuminaria! * d.qty : d.priceWithoutDriver;
-                  totalLuminaria += hasMarkup ? applyMkup(correctedPriceWithoutDriver) : correctedPriceWithoutDriver;
+                  // Resolver priceWithoutDriver: campo dedicado ou fallback para unitPrice × qty
+                  const _resolvedUnitLum2 = d.unitPriceLuminaria ?? d.unitPrice ?? null;
+                  let correctedPriceWithoutDriver: number | null = null;
+                  if (d.priceWithoutDriver != null) {
+                    const isUnitOnly = d.unitPriceLuminaria != null && Math.abs(d.priceWithoutDriver - d.unitPriceLuminaria) < 0.02 && d.qty > 1;
+                    correctedPriceWithoutDriver = isUnitOnly ? d.unitPriceLuminaria! * d.qty : d.priceWithoutDriver;
+                  } else if (_resolvedUnitLum2 != null) {
+                    correctedPriceWithoutDriver = _resolvedUnitLum2 * d.qty;
+                  }
+                  if (correctedPriceWithoutDriver != null) {
+                    totalLuminaria += hasMarkup ? applyMkup(correctedPriceWithoutDriver) : correctedPriceWithoutDriver;
+                  } else {
+                    totalLuminaria += tot;
+                  }
                   totalDriver += d.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice != null ? (hasMarkup ? applyMkup(dl.driverTotalPrice) : dl.driverTotalPrice) : 0), 0);
                 } else {
                   totalLuminaria += tot;
@@ -2693,15 +2703,26 @@ export default function QuoteDetail() {
                             const totalDisplay = d.totalPrice != null && d.totalPrice > 0
                               ? (hasMarkup ? applyMkup(d.totalPrice) : d.totalPrice)
                               : null;
-                            const hasBreakdown = !!(d.driverLines && d.driverLines.length > 0 && d.priceWithoutDriver != null);
+                            const hasBreakdown = !!(d.driverLines && d.driverLines.length > 0);
+                            // Resolver unitPriceLuminaria: usa o campo dedicado ou cai para unitPrice
+                            const _resolvedUnitLum = hasBreakdown
+                              ? (d.unitPriceLuminaria ?? d.unitPrice ?? null)
+                              : null;
                             // Corrigir itens antigos onde priceWithoutDriver foi salvo como valor unitário
-                            const _isUnitOnly = hasBreakdown && d.unitPriceLuminaria != null && Math.abs(d.priceWithoutDriver! - d.unitPriceLuminaria) < 0.02 && d.qty > 1;
-                            const _correctedPWD = hasBreakdown ? (_isUnitOnly ? d.unitPriceLuminaria! * d.qty : d.priceWithoutDriver!) : null;
+                            let _correctedPWD: number | null = null;
+                            if (hasBreakdown) {
+                              if (d.priceWithoutDriver != null) {
+                                const _isUnitOnly = d.unitPriceLuminaria != null && Math.abs(d.priceWithoutDriver - d.unitPriceLuminaria) < 0.02 && d.qty > 1;
+                                _correctedPWD = _isUnitOnly ? d.unitPriceLuminaria! * d.qty : d.priceWithoutDriver;
+                              } else if (_resolvedUnitLum != null) {
+                                _correctedPWD = _resolvedUnitLum * d.qty;
+                              }
+                            }
                             const lumTotalDisplay = _correctedPWD != null
                               ? (hasMarkup ? applyMkup(_correctedPWD) : _correctedPWD)
                               : null;
-                            const lumUnitDisplay = hasBreakdown && d.unitPriceLuminaria != null
-                              ? (hasMarkup ? applyMkup(d.unitPriceLuminaria) : d.unitPriceLuminaria)
+                            const lumUnitDisplay = hasBreakdown && _resolvedUnitLum != null
+                              ? (hasMarkup ? applyMkup(_resolvedUnitLum) : _resolvedUnitLum)
                               : null;
                             return (
                               <div key={item.id} className="flex items-start gap-3 px-4 py-3">

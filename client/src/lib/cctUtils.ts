@@ -58,3 +58,62 @@ export function applyCCTChange(
 
   return patch;
 }
+
+/**
+ * Aplica a troca de preço unitário em todos os campos relevantes de um CartItemData.
+ *
+ * Quando o usuário edita o preço unitário manualmente, os seguintes campos precisam
+ * ser atualizados:
+ *   - unitPrice: novo valor
+ *   - totalPrice: unitPrice × qty
+ *   - unitPriceLuminaria: igual ao unitPrice (para itens com driverLines)
+ *   - priceWithoutDriver: unitPrice × qty (para itens com driverLines)
+ *   - luminariaHasApiPrice: false (o preço agora é manual, não da API)
+ *
+ * Para itens sem driverLines, apenas unitPrice e totalPrice são atualizados.
+ */
+export function applyUnitPriceChange(
+  item: CartItemData,
+  newUnitPrice: number | null,
+  newQty?: number
+): Partial<CartItemData> {
+  const qty = newQty ?? item.qty ?? 1;
+  const patch: Partial<CartItemData> = {
+    unitPrice: newUnitPrice,
+    totalPrice: newUnitPrice != null ? newUnitPrice * qty : null,
+  };
+
+  // Para itens com driverLines: sincronizar unitPriceLuminaria e priceWithoutDriver
+  if (item.driverLines && item.driverLines.length > 0) {
+    patch.unitPriceLuminaria = newUnitPrice;
+    patch.priceWithoutDriver = newUnitPrice != null ? newUnitPrice * qty : null;
+    // Marcar que o preço não é mais da API (foi sobrescrito manualmente)
+    patch.luminariaHasApiPrice = false;
+  }
+
+  return patch;
+}
+
+/**
+ * Recalcula priceWithoutDriver quando qty muda em item com driverLines.
+ * Mantém unitPriceLuminaria inalterado, apenas recalcula o total.
+ */
+export function applyQtyChange(
+  item: CartItemData,
+  newQty: number
+): Partial<CartItemData> {
+  const patch: Partial<CartItemData> = { qty: newQty };
+
+  // Recalcular totalPrice
+  const up = item.unitPrice;
+  if (up != null) {
+    patch.totalPrice = up * newQty;
+  }
+
+  // Para itens com driverLines: recalcular priceWithoutDriver
+  if (item.driverLines && item.driverLines.length > 0 && item.unitPriceLuminaria != null) {
+    patch.priceWithoutDriver = item.unitPriceLuminaria * newQty;
+  }
+
+  return patch;
+}
