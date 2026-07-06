@@ -8488,13 +8488,19 @@ export default function Home() {
                   const trechoMm = r.comprimentoPorCorte;
                   if (aplicacao === "D1+D2") {
                     // D1+D2: dois circuitos independentes (D1 e D2), cada um com 2 voltas por trecho
+                    // r.driverQtd = total (ex: 16 para 8 cortes com 2 fontes/corte)
+                    // Por lado = r.driverQtd / 2 = r.nCortes (1 fonte por corte por lado)
                     const voltasPorLado = 2;
-                    const fitaD1 = `D1: ${voltasPorLado}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleName}`;
-                    const fitaD2 = `D2: ${voltasPorLado}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleName}`;
+                    // Remove "FITA LED" do início do nome se já estiver presente (evita duplicação)
+                    const ledModuleNameClean = ledModuleName.replace(/^FITA LED\s+/i, "");
+                    const fitaD1 = `D1: ${voltasPorLado}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleNameClean}`;
+                    const fitaD2 = `D2: ${voltasPorLado}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleNameClean}`;
                     const drvModel = r.driver.model.toUpperCase();
                     const drvCode = r.driver.code ? ` (${r.driver.code})` : "";
-                    const drvD1 = `D1: ${r.driverQtd}x FONTE DE TENSÃO ${drvModel}${drvCode}`;
-                    const drvD2 = `D2: ${r.driverQtd}x FONTE DE TENSÃO ${drvModel}${drvCode}`;
+                    // Fontes por lado = total / 2 (pois driverQtdPorCorte=2 para D1+D2, 1 por lado)
+                    const drvQtdPorLado = Math.round(r.driverQtd / 2);
+                    const drvD1 = `D1: ${drvQtdPorLado}x FONTE DE TENSÃO ${drvModel}${drvCode}`;
+                    const drvD2 = `D2: ${drvQtdPorLado}x FONTE DE TENSÃO ${drvModel}${drvCode}`;
                     fitaLine = `${fitaD1} | ${fitaD2}`;
                     drvLine = `${drvD1} | ${drvD2}`;
                   } else {
@@ -8502,7 +8508,9 @@ export default function Home() {
                     const voltas = r.ledModuleQtd;
                     const drvModel = r.driver.model.toUpperCase();
                     const drvCode = r.driver.code ? ` (${r.driver.code})` : "";
-                    fitaLine = `${voltas}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleName}`;
+                    // Remove "FITA LED" do início do nome se já estiver presente (evita duplicação)
+                    const ledModuleNameClean = ledModuleName.replace(/^FITA LED\s+/i, "");
+                    fitaLine = `${voltas}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleNameClean}`;
                     drvLine = `${r.driverQtd}x FONTE DE TENSÃO ${drvModel}${drvCode}`;
                   }
                   const pedido = [
@@ -10471,8 +10479,8 @@ export default function Home() {
                               controle="ON/OFF"
                               tensao="Bivolt"
                               qty={globalQty}
-                              drvModel={driverInfo?.model ?? ''}
-                              drvCode={driverInfo?.code ?? ''}
+                              driverModel={driverInfo?.model ?? ''}
+                              driverCode={driverInfo?.code ?? ''}
                               lumPriceMap={lumPriceMap}
                               productName={_srProd?.name}
                             />
