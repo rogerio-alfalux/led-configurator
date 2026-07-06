@@ -1215,28 +1215,53 @@ export const appRouter = router({
       const db = await getDb();
       if (!db) return { updated: 0, errors: [] };
 
-      // Função auxiliar: calcula total de um item (luminaria + drivers)
-      function calcItemTotal(itemData: string): number {
+      // Função auxiliar: corrige driverTotalPrice nos driverLines se estiver calculado para 1 unidade
+      // Retorna o itemData corrigido (string JSON) e o total correto do item
+      function fixAndCalcItem(itemData: string): { fixedData: string; total: number } {
         try {
           const d = JSON.parse(itemData) as any;
-          if (!d) return 0;
+          if (!d) return { fixedData: itemData, total: 0 };
           if (d.driverLines && Array.isArray(d.driverLines) && d.driverLines.length > 0) {
+            const qty = d.qty ?? 1;
+            // Corrigir driverLines: se driverTotalPrice ≈ driverUnitPrice (calculado para 1 unidade), multiplicar por driverQty
+            let itemDataChanged = false;
+            const fixedDriverLines = d.driverLines.map((dl: any) => {
+              if (dl.driverUnitPrice != null && dl.driverQty != null && dl.driverQty > 1) {
+                const expectedTotal = Math.round(dl.driverUnitPrice * dl.driverQty * 100) / 100;
+                const currentTotal = dl.driverTotalPrice ?? 0;
+                // Se o total atual é igual ao preço unitário (erro de qty=1) ou difere do esperado
+                if (Math.abs(currentTotal - dl.driverUnitPrice) < 0.02 || Math.abs(currentTotal - expectedTotal) > 0.02) {
+                  itemDataChanged = true;
+                  return { ...dl, driverTotalPrice: expectedTotal };
+                }
+              }
+              return dl;
+            });
             // Calcular total da luminaria corretamente
             let lumTotal = 0;
             if (d.priceWithoutDriver != null) {
               const isUnitOnly = d.unitPriceLuminaria != null &&
                 Math.abs(d.priceWithoutDriver - d.unitPriceLuminaria) < 0.02 &&
-                (d.qty ?? 1) > 1;
-              lumTotal = isUnitOnly ? d.unitPriceLuminaria * (d.qty ?? 1) : d.priceWithoutDriver;
+                qty > 1;
+              lumTotal = isUnitOnly ? d.unitPriceLuminaria * qty : d.priceWithoutDriver;
             } else {
               const unitLum = d.unitPriceLuminaria ?? d.unitPrice ?? null;
-              lumTotal = unitLum != null ? unitLum * (d.qty ?? 1) : (d.totalPrice ?? 0);
+              lumTotal = unitLum != null ? unitLum * qty : (d.totalPrice ?? 0);
             }
-            const drvTotal = d.driverLines.reduce((s: number, dl: any) => s + (dl.driverTotalPrice ?? 0), 0);
-            return lumTotal + drvTotal;
+            const drvTotal = fixedDriverLines.reduce((s: number, dl: any) => s + (dl.driverTotalPrice ?? 0), 0);
+            const total = lumTotal + drvTotal;
+            // Atualizar totalPrice no item para refletir luminária + drivers
+            const fixedData = itemDataChanged
+              ? JSON.stringify({ ...d, driverLines: fixedDriverLines, totalPrice: Math.round(total * 100) / 100 })
+              : JSON.stringify({ ...d, totalPrice: Math.round(total * 100) / 100 });
+            return { fixedData, total };
           }
-          return d.totalPrice ?? 0;
-        } catch { return 0; }
+          return { fixedData: itemData, total: d.totalPrice ?? 0 };
+        } catch { return { fixedData: itemData, total: 0 }; }
+      }
+      // Compatibilidade: calcItemTotal usa fixAndCalcItem internamente
+      function calcItemTotal(itemData: string): number {
+        return fixAndCalcItem(itemData).total;
       }
 
       // Buscar todos os orçamentos
@@ -1266,7 +1291,16 @@ export const appRouter = router({
             });
             if (!hasDrivers) continue;
 
-            // Calcular novo totalBase (luminaria + drivers)
+            // Corrigir itemData de cada item (driverTotalPrice × qty correto) e calcular novo totalBase
+            for (const vItem of vItems) {
+              const { fixedData, total } = fixAndCalcItem(vItem.itemData);
+              if (fixedData !== vItem.itemData) {
+                await db.update(quoteItems)
+                  .set({ itemData: fixedData })
+                  .where(eq(quoteItems.id, vItem.id));
+                vItem.itemData = fixedData; // atualizar referência local
+              }
+            }
             const newTotalBase = vItems.reduce((s, it) => s + calcItemTotal(it.itemData), 0);
 
             // Recuperar RT e margem do header snapshot

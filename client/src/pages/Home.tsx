@@ -10776,7 +10776,36 @@ export default function Home() {
                             handleAddItemOrToQuote(item);
                           } else if (panelResult.product.corUnica) {
                             // Produto só existe em uma cor: pular modal e adicionar diretamente
-                            addItem({ ...item, corPeca: panelResult.product.corUnica, ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}), ...(globalAmbiente ? { ambiente: globalAmbiente } : {}) });
+                            // Reescalar drivers e totais com globalQty (mesmo que o modal de cor faria)
+                            const effectiveQty = globalQty > 0 ? globalQty : 1;
+                            const scaledDrvLines = item.driverLines && item.driverLines.length > 0
+                              ? item.driverLines.map((dl) => {
+                                  const newDrvQty = Math.round((dl.driverQty ?? 1) * effectiveQty);
+                                  const newDrvTotal = dl.driverUnitPrice != null ? Math.round(dl.driverUnitPrice * newDrvQty * 100) / 100 : null;
+                                  return { ...dl, driverQty: newDrvQty, driverTotalPrice: newDrvTotal };
+                                })
+                              : item.driverLines;
+                            const scaledPWD = item.unitPriceLuminaria != null
+                              ? Math.round(item.unitPriceLuminaria * effectiveQty * 100) / 100
+                              : item.priceWithoutDriver ?? null;
+                            let scaledTotal: number | null;
+                            if (scaledDrvLines && scaledDrvLines.length > 0 && scaledPWD != null) {
+                              const drvSum = scaledDrvLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
+                              scaledTotal = Math.round((scaledPWD + drvSum) * 100) / 100;
+                            } else {
+                              scaledTotal = item.unitPrice != null ? item.unitPrice * effectiveQty : (item.totalPrice ?? 0);
+                            }
+                            const scaledItem: CartItemData = {
+                              ...item,
+                              corPeca: panelResult.product.corUnica,
+                              qty: effectiveQty,
+                              totalPrice: scaledTotal,
+                              priceWithoutDriver: scaledPWD,
+                              driverLines: scaledDrvLines,
+                              ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
+                              ...(globalAmbiente ? { ambiente: globalAmbiente } : {}),
+                            };
+                            addItem(scaledItem);
                           } else {
                             setPendingCartItem(item);
                             setColorModalOpen(true);
