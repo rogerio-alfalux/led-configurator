@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench, Briefcase, Star, Package2, Search as SearchIcon } from "lucide-react";
+import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench, Briefcase, Star, Package2, Search as SearchIcon, Minus, Plus } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -2847,6 +2847,7 @@ export default function Home() {
 
   // ── Estados de Acessórios ──────────────────────────────────────────────
   const [acSelectedId, setAcSelectedId] = useState<number | null>(null);
+  const [acItemQty, setAcItemQty] = useState<number>(1); // quantidade ao adicionar acessório como item independente
   const [acFamilia, setAcFamilia] = useState<string>("");
   const [acSearch, setAcSearch] = useState<string>("");
   // Subcategoria: 'driver' = Drivers & Fontes, 'accessories' = Acessórios Físicos, '' = todos
@@ -2938,7 +2939,7 @@ export default function Home() {
     setAddAcModalQty(1);
   }, [addAcModalSelectedId, addAcModalQty, acessoriosProducts]);
 
-  const handleAddAcessorioItem = useCallback((id?: number) => {
+  const handleAddAcessorioItem = useCallback((id?: number, forceIndependent?: boolean) => {
     const targetId = id ?? acSelectedId;
     if (!targetId) { toast.error("Selecione um acessório."); return; }
     const product = acessoriosProducts.find(p => p.id === targetId);
@@ -2946,9 +2947,12 @@ export default function Home() {
     const precoVenda = product.precoVenda ?? 0;
     const descricao = product.produto ?? product.codigo ?? `Acessório #${product.id}`;
 
-    // Verifica se há um produto configurado em qualquer categoria
-    // Nota: result e shapeResult são declarados depois deste callback, por isso são verificados via productCategory
-    const hasConfiguredProduct = !!(dlResult || aeResult || spotResult || arandelaResult || panelResult || lbResult || bgResult || bfResult || rvSelectedSku ||
+    // Quando o usuário está na categoria Acessórios, sempre adiciona como item independente
+    // Quando chamado via modal de outro produto (forceIndependent=false), vincula ao produto pai
+    const isFromAcessoriosCategory = productCategory === "Acessórios" || forceIndependent === true;
+
+    // Verifica se há um produto configurado em qualquer categoria (exceto Acessórios)
+    const hasConfiguredProduct = !isFromAcessoriosCategory && !!(dlResult || aeResult || spotResult || arandelaResult || panelResult || lbResult || bgResult || bfResult || rvSelectedSku ||
       (productCategory === "Perfis") || (productCategory === "Spots") || (productCategory === "Downlights") ||
       (productCategory === "Área Externa") || (productCategory === "Painéis") || (productCategory === "Arandelas") || (productCategory === "Revenda") ||
       (productCategory === "Item Especial"));
@@ -2977,15 +2981,16 @@ export default function Home() {
       return;
     }
 
-    // Sem produto configurado: adiciona como item independente
+    // Sem produto configurado ou categoria Acessórios: adiciona como item independente
+    const effectiveQty = isFromAcessoriosCategory ? Math.max(1, acItemQty) : 1;
     const item: CartItemData = {
       category: "Acessórios",
       sku: product.codigo ?? product.sku ?? `AC${product.id}`,
       description: descricao,
       photoUrl: product.fotoUrl ?? "",
-      qty: 1,
+      qty: effectiveQty,
       unitPrice: precoVenda,
-      totalPrice: precoVenda,
+      totalPrice: precoVenda > 0 ? precoVenda * effectiveQty : 0,
       priceFromApi: false,
       power: "",
       cct: "",
@@ -3004,14 +3009,16 @@ export default function Home() {
         ...(globalAmbiente ? { ambiente: globalAmbiente } : {}),
       };
       addItem(itemWithFloor);
+      const qtyLabel = effectiveQty > 1 ? ` (${effectiveQty}×)` : "";
       if (precoVenda > 0) {
-        toast.success(`"${descricao}" adicionado com preço R$ ${precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.`);
+        toast.success(`"${descricao}"${qtyLabel} adicionado — R$ ${(precoVenda * effectiveQty).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.`);
       } else {
-        toast.success(`"${descricao}" adicionado! Defina o preço no carrinho.`);
+        toast.success(`"${descricao}"${qtyLabel} adicionado! Defina o preço no carrinho.`);
       }
     }
     setAcSelectedId(null);
-  }, [acSelectedId, acessoriosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, dlResult, spotResult, arandelaResult, panelResult, lbResult, bgResult, rvSelectedSku, productCategory, setPendingAccessories, globalItemEmPlanta]);
+    if (isFromAcessoriosCategory) setAcItemQty(1); // reset quantidade após adicionar
+  }, [acSelectedId, acItemQty, acessoriosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, dlResult, aeResult, spotResult, arandelaResult, panelResult, lbResult, bgResult, bfResult, rvSelectedSku, productCategory, setPendingAccessories, globalItemEmPlanta]);
 
   const uploadSpecialPhotoMutation = trpc.upload.specialItemPhoto.useMutation({
     onSuccess: (data) => {
@@ -11841,14 +11848,38 @@ export default function Home() {
                             </p>
                           </div>
                         )}
-                        {/* Botão adicionar — sempre envia ao carrinho como item independente */}
-                        <Button
-                          className="w-full text-white bg-emerald-600 hover:bg-emerald-700"
-                          onClick={() => handleAddAcessorioItem()}
-                        >
-                          <ShoppingCart className="w-4 h-4 mr-2" />
-                          {appendToQuoteId ? "Enviar ao Orçamento" : "Adicionar ao Carrinho"}
-                        </Button>
+                        {/* Quantidade + Botão adicionar como item independente */}
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5 border border-border rounded-md px-2 py-1 bg-background">
+                            <button
+                              type="button"
+                              className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-foreground rounded"
+                              onClick={() => setAcItemQty(q => Math.max(1, q - 1))}
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <input
+                              type="number" min={1}
+                              value={acItemQty}
+                              onChange={e => setAcItemQty(Math.max(1, parseInt(e.target.value) || 1))}
+                              className="w-10 text-sm font-semibold text-center bg-transparent focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-foreground rounded"
+                              onClick={() => setAcItemQty(q => q + 1)}
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                          <Button
+                            className="flex-1 text-white bg-emerald-600 hover:bg-emerald-700"
+                            onClick={() => handleAddAcessorioItem()}
+                          >
+                            <ShoppingCart className="w-4 h-4 mr-2" />
+                            {appendToQuoteId ? "Enviar ao Orçamento" : "Adicionar ao Carrinho"}
+                          </Button>
+                        </div>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center py-16 text-center">

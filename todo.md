@@ -1869,16 +1869,16 @@
 - [x] QuoteDetail: todos os campos editáveis do Cart.tsx devem ser editáveis também no QuoteDetail — corrigido
 
 ## Bug crítico — perda de dados ao editar orçamento (06/07/2026)
-- [ ] Editar orçamento: DIFAL, FCP, localidade de entrega e campos de frete são perdidos ao salvar e reabrir
-- [ ] Editar orçamento: campos de DIFAL/FCP devem sincronizar localidade para a aba Frete
+- [x] Editar orçamento: DIFAL, FCP, localidade de entrega e campos de frete são perdidos ao salvar e reabrir
+- [x] Editar orçamento: campos de DIFAL/FCP devem sincronizar localidade para a aba Frete
 
 ## Reformulação DIFAL/FCP (06/07/2026)
-- [ ] DIFAL/FCP: usar alíquota combinada (DIFAL+FCP) em campo único por estado
-- [ ] DIFAL/FCP: fórmula "por dentro" — total = (produtos + frete) ÷ (1 - alíquota_combinada)
-- [ ] DIFAL/FCP: incluir frete na base de cálculo antes de aplicar DIFAL/FCP
-- [ ] DIFAL/FCP: UI unificada — um único checkbox "Aplicar DIFAL/FCP", sem checkbox separado por imposto
-- [ ] DIFAL/FCP: exibir alíquota combinada e valor resultante no resumo do orçamento
-- [ ] DIFAL/FCP: corrigir em Home.tsx (carrinho), QuoteDetail.tsx, quoteExcelGenerator.ts e ExcelPreviewModal.tsx
+- [x] DIFAL/FCP: usar alíquota combinada (DIFAL+FCP) em campo único por estado
+- [x] DIFAL/FCP: fórmula "por dentro" — total = (produtos + frete) ÷ (1 - alíquota_combinada)
+- [x] DIFAL/FCP: incluir frete na base de cálculo antes de aplicar DIFAL/FCP
+- [x] DIFAL/FCP: UI unificada — um único checkbox "Aplicar DIFAL/FCP", sem checkbox separado por imposto
+- [x] DIFAL/FCP: exibir alíquota combinada e valor resultante no resumo do orçamento
+- [x] DIFAL/FCP: corrigir em Home.tsx (carrinho), QuoteDetail.tsx, quoteExcelGenerator.ts e ExcelPreviewModal.tsx
 
 ## Controle de visibilidade de comissão (06/07/2026)
 - [x] server/routers.ts: getById retorna canSeeCommission e canEditCommission baseado em role/email do usuário vs sellers do orçamento
@@ -1889,3 +1889,9 @@
 - [x] Dashboard.tsx: seção de comissões já protegida por isManager (confirmado)
 - [x] salesReportGenerator.ts: exportação de relatório com comissões já protegida por isManager no Dashboard (confirmado)
 - [x] QuoteList.tsx: não exibe dados de comissão (confirmado)
+
+## Acessórios como produtos independentes (06/07/2026)
+- [x] handleAddAcessorioItem: quando productCategory === "Acessórios", sempre adicionar como item independente (nunca vincular a produto pai)
+- [x] Painel de resultado de acessórios: adicionar campo de quantidade antes do botão "Adicionar ao Carrinho"
+- [x] handleAddAcessorioItem: usar a quantidade informada no painel ao adicionar como item independente
+- [x] handleAddAcessorioItem: usar globalQty como quantidade padrão ao adicionar como item independente
