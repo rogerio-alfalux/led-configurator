@@ -740,6 +740,27 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
     custoDriverDimTriac110v: (p as any).custoDriverDimTriac110v ?? null,
     custoDriverDimTriac220v: (p as any).custoDriverDimTriac220v ?? null,
     markupMinimoDriver: (p as any).markupMinimoDriver ?? null,
+    // Custo do corpo por controle
+    custoCorpoOnoff220v: (p as any).custoCorpoOnoff220v ?? null,
+    custoCorpoOnoffBivolt: (p as any).custoCorpoOnoffBivolt ?? null,
+    custoCorpoDim010v: (p as any).custoCorpoDim110v ?? (p as any).custoCorpoDimTriac220v ?? null,
+    custoCorpoDimDali: (p as any).custoCorpoDimDali ?? null,
+    custoCorpoDimTriac110v: (p as any).custoCorpoDimTriac110v ?? null,
+    custoCorpoDimTriac220v: (p as any).custoCorpoDimTriac220v ?? null,
+    // Markup padrão do corpo por controle
+    markupPadraoOnoff220v: (p as any).markupPadraoOnoff220v ?? null,
+    markupPadraoOnoffBivolt: (p as any).markupPadraoOnoffBivolt ?? null,
+    markupPadraoDim010v: (p as any).markupPadraoDim110v ?? (p as any).markupPadraoDimTriac220v ?? null,
+    markupPadraoDimDali: (p as any).markupPadraoDimDali ?? null,
+    markupPadraoDimTriac110v: (p as any).markupPadraoDimTriac110v ?? null,
+    markupPadraoDimTriac220v: (p as any).markupPadraoDimTriac220v ?? null,
+    // Markup padrão do driver por controle
+    markupPadraoDriverOnoff220v: (p as any).markupPadraoDriverOnoff220v ?? null,
+    markupPadraoDriverOnoffBivolt: (p as any).markupPadraoDriverOnoffBivolt ?? null,
+    markupPadraoDriverDim010v: (p as any).markupPadraoDriverDim110v ?? (p as any).markupPadraoDriverDimTriac220v ?? null,
+    markupPadraoDriverDimDali: (p as any).markupPadraoDriverDimDali ?? null,
+    markupPadraoDriverDimTriac110v: (p as any).markupPadraoDriverDimTriac110v ?? null,
+    markupPadraoDriverDimTriac220v: (p as any).markupPadraoDriverDimTriac220v ?? null,
   };
 }
 

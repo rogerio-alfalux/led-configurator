@@ -91,6 +91,27 @@ export interface LedBarProduct {
   custoDriverDimTriac220v?: number | null;
   /** Markup mínimo do driver — padrão 3 quando não informado */
   markupMinimoDriver?: number | null;
+  /** Custo do corpo (luminária sem driver) por controle */
+  custoCorpoOnoff220v?: number | null;
+  custoCorpoOnoffBivolt?: number | null;
+  custoCorpoDim010v?: number | null;
+  custoCorpoDimDali?: number | null;
+  custoCorpoDimTriac110v?: number | null;
+  custoCorpoDimTriac220v?: number | null;
+  /** Markup padrão do corpo por controle */
+  markupPadraoOnoff220v?: number | null;
+  markupPadraoOnoffBivolt?: number | null;
+  markupPadraoDim010v?: number | null;
+  markupPadraoDimDali?: number | null;
+  markupPadraoDimTriac110v?: number | null;
+  markupPadraoDimTriac220v?: number | null;
+  /** Markup padrão do driver por controle */
+  markupPadraoDriverOnoff220v?: number | null;
+  markupPadraoDriverOnoffBivolt?: number | null;
+  markupPadraoDriverDim010v?: number | null;
+  markupPadraoDriverDimDali?: number | null;
+  markupPadraoDriverDimTriac110v?: number | null;
+  markupPadraoDriverDimTriac220v?: number | null;
 }
 
 // ─── Catálogo estático de fallback ───────────────────────────────────────────
@@ -207,6 +228,8 @@ export function selectLedBarDriverPrice(
  * @param precoMetroApi  Preço por metro vindo da API (tem prioridade sobre tabela estática).
  * @param custoDriverApi  Custo bruto do driver por corte vindo da API (custo × markup = preço de venda).
  * @param markupDriver    Markup do driver (padrão 3 quando não informado).
+ * @param custoCorpoApi   Custo bruto do corpo (luminária sem driver) por metro vindo da API.
+ * @param markupCorpo     Markup padrão do corpo (padrão 3 quando não informado).
  * @returns Preço total em R$, ou null se a família não tem tabela de preço
  */
 export function calcLedBarPrice(
@@ -216,7 +239,9 @@ export function calcLedBarPrice(
   familia?: string,
   precoMetroApi?: number | null,
   custoDriverApi?: number | null,
-  markupDriver?: number | null
+  markupDriver?: number | null,
+  custoCorpoApi?: number | null,
+  markupCorpo?: number | null
 ): number | null {
   // Famílias sem tabela de preço: retornar null para que o usuário preencha manualmente
   if (familia && LED_BAR_FAMILIES_NO_PRICE.test(familia)) return null;
@@ -229,8 +254,15 @@ export function calcLedBarPrice(
     const comprimentoM = comprimentoTotalMm / 1000;
     return Math.round(precoMetroEfetivo * comprimentoM * 100) / 100;
   }
-  // Preço por metro: API tem prioridade, tabela estática como fallback
-  const precoPorMetro = precoMetroApi ?? LED_BAR_PRECO_POR_METRO[potencia] ?? 0;
+  // Preço por metro: precoMetroApi > custoCorpoApi×markupCorpo > tabela estática
+  let precoPorMetro: number;
+  if (precoMetroApi != null) {
+    precoPorMetro = precoMetroApi;
+  } else if (custoCorpoApi != null) {
+    precoPorMetro = Math.round(custoCorpoApi * (markupCorpo ?? 3) * 100) / 100;
+  } else {
+    precoPorMetro = LED_BAR_PRECO_POR_METRO[potencia] ?? 0;
+  }
   const comprimentoM  = comprimentoTotalMm / 1000;
   // Comprimento por trecho (igual para todos os cortes)
   const comprimentoTrechoMm = Math.floor(comprimentoTotalMm / Math.max(1, nCortes));
@@ -259,7 +291,9 @@ export function calcLedBarPriceDetail(
   familia?: string,
   precoMetroApi?: number | null,
   custoDriverApi?: number | null,
-  markupDriver?: number | null
+  markupDriver?: number | null,
+  custoCorpoApi?: number | null,
+  markupCorpo?: number | null
 ): {
   precoPerfil: number;
   precoDriverPorCorte: number;
@@ -272,6 +306,8 @@ export function calcLedBarPriceDetail(
   perfilFlexivel?: boolean;
   /** true quando o preço do driver vem da API (custo × markup) */
   driverFromApi?: boolean;
+  /** true quando o preço do corpo vem da API (precoMetro ou custoCorpo×markup) */
+  corpoFromApi?: boolean;
 } | null {
   if (familia && LED_BAR_FAMILIES_NO_PRICE.test(familia)) return null;
   // PERFIL FLEXÍVEL: apenas o perfil, sem drivers
@@ -292,8 +328,18 @@ export function calcLedBarPriceDetail(
       perfilFlexivel: true,
     };
   }
-  // Preço por metro: API tem prioridade, tabela estática como fallback
-  const precoPorMetro = precoMetroApi ?? LED_BAR_PRECO_POR_METRO[potencia] ?? 0;
+  // Preço por metro: precoMetroApi > custoCorpoApi×markupCorpo > tabela estática
+  let precoPorMetro: number;
+  let corpoFromApi = false;
+  if (precoMetroApi != null) {
+    precoPorMetro = precoMetroApi;
+    corpoFromApi = true;
+  } else if (custoCorpoApi != null) {
+    precoPorMetro = Math.round(custoCorpoApi * (markupCorpo ?? 3) * 100) / 100;
+    corpoFromApi = true;
+  } else {
+    precoPorMetro = LED_BAR_PRECO_POR_METRO[potencia] ?? 0;
+  }
   const comprimentoM  = comprimentoTotalMm / 1000;
   const comprimentoTrechoMm = Math.floor(comprimentoTotalMm / Math.max(1, nCortes));
   const nT = Math.max(1, nCortes);
@@ -317,7 +363,7 @@ export function calcLedBarPriceDetail(
   const precoPerfil = Math.round(precoPorMetro * comprimentoM * 100) / 100;
   const totalDrivers = Math.round(precoDriverPorCorte * nT * 100) / 100;
   const total = Math.round((precoPerfil + totalDrivers) * 100) / 100;
-  return { precoPerfil, precoDriverPorCorte, wattsDriver, potenciaTrecho, totalDrivers, total, driverFromApi };
+  return { precoPerfil, precoDriverPorCorte, wattsDriver, potenciaTrecho, totalDrivers, total, driverFromApi, corpoFromApi };
 }
 
 export const LED_BAR_POTENCIA_OPTIONS: { value: LedBarPotencia; label: string }[] = [

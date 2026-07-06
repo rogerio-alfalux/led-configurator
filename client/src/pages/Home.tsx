@@ -4373,17 +4373,17 @@ export default function Home() {
                         {(parseInt(bgComprimento) / 1000).toFixed(3).replace(".", ",")} m
                       </p>
                     )}
+                    {bgRequiresCuts && (
+                      <p className="mt-1.5 text-xs text-amber-500 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        Comprimento acima de {BAGEO_MAX_LENGTH_MM}mm — informe a quantidade de cortes.
+                      </p>
+                    )}
                   </div>
                   )}
                   {/* Quantidade de Cortes — OBRIGATÓRIO para BAGEO sinuosa */}
                   {bgInstalacao && (
                   <div>
-                    {bgRequiresCuts && (
-                      <p className="mb-1.5 text-xs text-amber-500 flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3" />
-                        Comprimento acima de {BAGEO_MAX_LENGTH_MM}mm — informe a quantidade de cortes.
-                      </p>
-                    )}
                     <FieldLabel hint={bgRequiresCuts ? "obrigatório" : "opcional"}>Quantidade de Cortes</FieldLabel>
                     <input
                       type="number"
@@ -8099,8 +8099,37 @@ export default function Home() {
                       return p.custoDriver220 ?? null;
                     })();
                     const lbMarkupDriver = r.product.markupMinimoDriver ?? 3;
-                    const lbPreco = calcLedBarPrice(r.product.potencia, r.comprimentoTotalMm, nT, r.product.familia, r.product.precoMetro, lbCustoDriver, lbMarkupDriver);
-                    const lbDetail = calcLedBarPriceDetail(r.product.potencia, r.comprimentoTotalMm, nT, r.product.familia, r.product.precoMetro, lbCustoDriver, lbMarkupDriver);
+                    // Custo e markup do corpo por controle
+                    const lbCustoCorpo = (() => {
+                      const p = r.product;
+                      const ct = r.controle;
+                      if (ct === 'DIM DALI') return p.custoCorpoDimDali ?? null;
+                      if (ct === 'DIM 0-10V') return p.custoCorpoDim010v ?? null;
+                      if (ct === 'DIM TRIAC') return p.custoCorpoDimTriac220v ?? p.custoCorpoDimTriac110v ?? null;
+                      if (/bivolt/i.test(r.voltage)) return p.custoCorpoOnoffBivolt ?? null;
+                      return p.custoCorpoOnoff220v ?? null;
+                    })();
+                    const lbMarkupCorpo = (() => {
+                      const p = r.product;
+                      const ct = r.controle;
+                      if (ct === 'DIM DALI') return p.markupPadraoDimDali ?? null;
+                      if (ct === 'DIM 0-10V') return p.markupPadraoDim010v ?? null;
+                      if (ct === 'DIM TRIAC') return p.markupPadraoDimTriac220v ?? p.markupPadraoDimTriac110v ?? null;
+                      if (/bivolt/i.test(r.voltage)) return p.markupPadraoOnoffBivolt ?? null;
+                      return p.markupPadraoOnoff220v ?? null;
+                    })();
+                    const lbMarkupDriverPadrao = (() => {
+                      const p = r.product;
+                      const ct = r.controle;
+                      if (ct === 'DIM DALI') return p.markupPadraoDriverDimDali ?? null;
+                      if (ct === 'DIM 0-10V') return p.markupPadraoDriverDim010v ?? null;
+                      if (ct === 'DIM TRIAC') return p.markupPadraoDriverDimTriac220v ?? p.markupPadraoDriverDimTriac110v ?? null;
+                      if (/bivolt/i.test(r.voltage)) return p.markupPadraoDriverOnoffBivolt ?? null;
+                      return p.markupPadraoDriverOnoff220v ?? null;
+                    })();
+                    const lbMarkupDriverEfetivo = lbMarkupDriverPadrao ?? lbMarkupDriver;
+                    const lbPreco = calcLedBarPrice(r.product.potencia, r.comprimentoTotalMm, nT, r.product.familia, r.product.precoMetro, lbCustoDriver, lbMarkupDriverEfetivo, lbCustoCorpo, lbMarkupCorpo);
+                    const lbDetail = calcLedBarPriceDetail(r.product.potencia, r.comprimentoTotalMm, nT, r.product.familia, r.product.precoMetro, lbCustoDriver, lbMarkupDriverEfetivo, lbCustoCorpo, lbMarkupCorpo);
                     const isPerfilFlex = /^PERFIL FLEXIVEL/i.test(r.product.familia ?? "");
                     const orcamentoLines = [
                       [`${r.product.name} ${r.cct} ${r.voltage}`, nT > 1 ? `${nT} TRECHOS DE ${mm}MM` : `${mm}MM`].join(" "),
