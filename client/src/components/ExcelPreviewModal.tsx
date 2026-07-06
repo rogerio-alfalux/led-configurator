@@ -805,14 +805,7 @@ ${htmlContent}
                       )}
                     </>
                   )}
-                  {freteParaDiluir > 0 && (
-                    <tr>
-                      <td style={{ fontWeight: "bold", color: "#1a5c1a" }}>Frete diluído nos preços:</td>
-                      <td style={{ color: "#1a5c1a", fontWeight: "bold" }}>
-                        {formatBRL(freteParaDiluir)} distribuído proporcionalmente entre os produtos
-                      </td>
-                    </tr>
-                  )}
+                  {/* Frete diluído: informação interna — não exibir para o cliente */}
                 </tbody>
               </table>
 

@@ -1262,21 +1262,8 @@ async function _generateExcelBuffer(
       }
       nextRow++;
     }
-  } else {
-    // Frete diluído: mostrar nota informativa
-    ws.getRow(nextRow).height = 19.8;
-    ws.mergeCells(`C${nextRow}:N${nextRow}`);
-    {
-      const c = ws.getCell(`C${nextRow}`);
-      const freteFormatado = _freteParaDiluir.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      c.value = { richText: [
-        { text: "Frete: ", font: { name: "Calibri", size: 11, bold: true } },
-        { text: `R$ ${freteFormatado} distribu\u00eddo proporcionalmente nos pre\u00e7os dos produtos.`, font: { name: "Calibri", size: 11, bold: false, italic: true } },
-      ]};
-      c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
-    }
-    nextRow++;
   }
+  // Frete diluído: informação interna — não exibir para o cliente no Excel
 
   // -- Observacao (linha unica: label + texto) --
   ws.getRow(nextRow).height = 19.8;
