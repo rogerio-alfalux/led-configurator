@@ -102,6 +102,9 @@ function buildFreteText(formData: QuoteFormData, totalBase: number): string {
       : "";
     return `Frete sob consulta${valorCotado}`;
   }
+  if (freteType === "pickup") {
+    return "Cliente Retira — Frete R$ 0,00";
+  }
   return "CIF - Para faturamento acima de R$ 1.500,00 São Paulo/ SP (Capital). Demais localidades sob consulta";
 }
 
@@ -479,7 +482,14 @@ async function _generateExcelBuffer(
   // ── Diluição proporcional do frete ──────────────────────────────────────
   // Quando freteIncluded=true e freteValue>0, distribui o frete proporcionalmente
   // ao totalPrice de cada item (peso = totalPrice_i / soma_totalPrice_todos).
-  const _totalBaseParaFrete = items.reduce((s, it) => s + (it.totalPrice ?? 0), 0);
+  // Para itens com driverLines, totalPrice contém apenas luminaria; incluir drivers na base do frete
+  const _totalBaseParaFrete = items.reduce((s, it) => {
+    const lumT = it.totalPrice ?? 0;
+    const drvT = (it.driverLines && it.driverLines.length > 0)
+      ? it.driverLines.reduce((sd, d) => sd + (d.driverTotalPrice ?? 0), 0)
+      : 0;
+    return s + lumT + drvT;
+  }, 0);
   const _freteParaDiluir = (formData.freteIncluded && formData.freteValue && formData.freteValue > 0)
     ? formData.freteValue
     : 0;
@@ -745,7 +755,7 @@ async function _generateExcelBuffer(
     }
 
     // N = PREÇO TOTAL (já com RT e Margem aplicados — valor final ao cliente; frete diluído se freteIncluded)
-    // Para itens com driver desmembrado: usar priceWithoutDriver × qty.
+    // Para itens com driver desmembrado: usar priceWithoutDriver × qty + totais de drivers.
     // Itens antigos podem ter salvo apenas o valor unitário em priceWithoutDriver;
     // detectamos isso comparando com unitPriceLuminaria e corrigimos multiplicando por qty.
     const cTotal = ws.getCell(`N${rowNum}`);
@@ -769,8 +779,15 @@ async function _generateExcelBuffer(
     const _totalForLuminaria = _correctedPriceWithoutDriver != null
       ? _correctedPriceWithoutDriver
       : _totalPriceComFrete(item);
-    if (_totalForLuminaria !== null && _totalForLuminaria !== undefined && _totalForLuminaria > 0) {
-      cTotal.value = applyMarkup(_totalForLuminaria);
+    // Somar totais de drivers ao total da luminária para obter o PREÇO TOTAL do item
+    const _driversTotalForItem = hasDriverBreakdownItem
+      ? (item.driverLines ?? []).reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0)
+      : 0;
+    const _totalItemComDrivers = (_totalForLuminaria != null && _totalForLuminaria > 0)
+      ? _totalForLuminaria + _driversTotalForItem
+      : null;
+    if (_totalItemComDrivers !== null && _totalItemComDrivers > 0) {
+      cTotal.value = applyMarkup(_totalItemComDrivers);
       cTotal.numFmt = '"R$"#,##0.00';
       cTotal.font = { name: "Calibri", size: 11, bold: false };
     } else if (hasDriverBreakdownItem && !item.luminariaHasApiPrice) {
@@ -960,7 +977,15 @@ async function _generateExcelBuffer(
 
   // -- Calcular total dos produtos --
   // Quando frete está diluído, soma o freteValue ao totalBase para o cálculo do total final
-  const totalBase = items.reduce((sum, it) => sum + (it.totalPrice ?? 0), 0) + _freteParaDiluir;
+  // Para itens com driverLines, totalPrice contém apenas o preco da luminaria;
+  // os drivers precisam ser somados separadamente para o totalBase correto.
+  const totalBase = items.reduce((sum, it) => {
+    const lumTotal = it.totalPrice ?? 0;
+    const drvTotal = (it.driverLines && it.driverLines.length > 0)
+      ? it.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0)
+      : 0;
+    return sum + lumTotal + drvTotal;
+  }, 0) + _freteParaDiluir;
   // Totais com/sem driver (apenas para orçamentos novos com driverLines)
   // Usa mesma lógica do Cart.tsx: effectiveQty = storedQty <= 1 ? itemQty : storedQty
   const hasDriverBreakdown = items.some(it => it.driverLines && it.driverLines.length > 0);

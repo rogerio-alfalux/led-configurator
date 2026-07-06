@@ -511,7 +511,7 @@ export default function QuoteDetail() {
     assistantId: "", assistantName: "", versionNotes: "",
     rtPercent: "0", rtDest1: "", rtDest1Active: true, rtDest2: "", rtDest2Active: false, rtDest3: "", rtDest3Active: false,
     marginPercent: "0",
-    freteType: "free" as "free" | "paid" | "night" | "consult",
+    freteType: "free" as "free" | "paid" | "night" | "consult" | "pickup",
     freteIsento: false, freteLocalidade: "sp" as "sp" | "other",
     // Novos campos
     deliveryDays: "20",
@@ -881,7 +881,16 @@ export default function QuoteDetail() {
   const currentItems = items.filter(i => i.quoteVersionId === currentVersionId);
 
   // RT/Margem calc for edit form
-  const editTotalBase = currentItems.reduce((s, i) => { const d = parseCartItemData(i.itemData); return s + (d?.totalPrice ?? 0); }, 0);
+  // Para itens com driverLines, totalPrice contém apenas luminaria; incluir drivers no total base
+  const editTotalBase = currentItems.reduce((s, i) => {
+    const d = parseCartItemData(i.itemData);
+    if (!d) return s;
+    const lumT = d.totalPrice ?? 0;
+    const drvT = (d.driverLines && d.driverLines.length > 0)
+      ? d.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0)
+      : 0;
+    return s + lumT + drvT;
+  }, 0);
   const editRtPct = Math.min(Math.max(parseFloat(editForm.rtPercent || "0") / 100, 0), 0.99);
   const editMarginPct = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, 0), 0.99);
   const editTotalComRT = editRtPct > 0 ? editTotalBase / (1 - editRtPct) : editTotalBase;
@@ -920,7 +929,7 @@ export default function QuoteDetail() {
           rtDest3: quote.rtDest3 ?? undefined,
           rtDest3Active: quote.rtDest3Active ?? false,
           marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
-          freteType: (quote.freteType as "free" | "paid" | "night" | "consult") ?? "free",
+          freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
           freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
@@ -1073,7 +1082,7 @@ export default function QuoteDetail() {
           rtDest3: quote.rtDest3 ?? undefined,
           rtDest3Active: quote.rtDest3Active ?? false,
           marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
-          freteType: (quote.freteType as "free" | "paid" | "night" | "consult") ?? "free",
+          freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
           freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
@@ -1637,7 +1646,13 @@ export default function QuoteDetail() {
                 <div className="flex justify-between items-center mb-3">
                   <span className="text-sm font-medium">Total dos itens</span>
                   <span className="text-lg font-bold text-primary">
-                    {formatBRL(editableItems.reduce((s, it) => s + (it.parsed.totalPrice ?? 0), 0))}
+                    {formatBRL(editableItems.reduce((s, it) => {
+                      const lumT = it.parsed.totalPrice ?? 0;
+                      const drvT = (it.parsed.driverLines && it.parsed.driverLines.length > 0)
+                        ? it.parsed.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0)
+                        : 0;
+                      return s + lumT + drvT;
+                    }, 0))}
                   </span>
                 </div>
                 <div className="flex gap-2">
@@ -1645,7 +1660,14 @@ export default function QuoteDetail() {
                   <Button
                     className="flex-1"
                     onClick={() => {
-                      const totalBase = editableItems.reduce((s, it) => s + (it.parsed.totalPrice ?? 0), 0);
+                      // Para itens com driverLines, totalPrice contém apenas luminaria; incluir drivers
+                      const totalBase = editableItems.reduce((s, it) => {
+                        const lumT = it.parsed.totalPrice ?? 0;
+                        const drvT = (it.parsed.driverLines && it.parsed.driverLines.length > 0)
+                          ? it.parsed.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0)
+                          : 0;
+                        return s + lumT + drvT;
+                      }, 0);
                       const rtPct = quote.rtPercent ? parseFloat(String(quote.rtPercent)) : 0;
                       const marginPct = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;
                       const totalComRT = rtPct > 0 ? totalBase / (1 - rtPct) : totalBase;
@@ -1686,7 +1708,7 @@ export default function QuoteDetail() {
                         rtDest3: quote.rtDest3 ?? undefined,
                         rtDest3Active: quote.rtDest3Active ?? undefined,
                         marginPercent: marginPct,
-                        freteType: (quote.freteType as "free" | "paid" | "night" | "consult") ?? "free",
+                        freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
                         freteIsento: quote.freteIsento ?? undefined,
                         freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
                         versionNotes: editItemsNotes || undefined,
@@ -1971,7 +1993,7 @@ export default function QuoteDetail() {
                 rtDest3: quote.rtDest3 ?? "",
                 rtDest3Active: quote.rtDest3Active ?? false,
                 marginPercent: quote.marginPercent ? String(parseFloat(String(quote.marginPercent)) * 100) : "0",
-                freteType: (quote.freteType as "free" | "paid" | "night" | "consult") ?? "free",
+                freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
                 freteIsento: quote.freteIsento ?? false,
                 freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
                 deliveryDays: quote.deliveryDays != null ? String(quote.deliveryDays) : "20",
@@ -2221,13 +2243,22 @@ export default function QuoteDetail() {
                   </div>
                   <div>
                     <Label>Tipo de frete</Label>
-                    <Select value={editForm.freteType} onValueChange={(v) => setEditForm(f => ({ ...f, freteType: v as "free" | "paid" | "night" | "consult" }))}>
+                    <Select value={editForm.freteType} onValueChange={(v) => {
+                      const newType = v as "free" | "paid" | "night" | "consult" | "pickup";
+                      setEditForm(f => ({
+                        ...f,
+                        freteType: newType,
+                        // Quando cliente retira, zerar o valor do frete
+                        ...(newType === "pickup" ? { freteValue: "0", freteIncluded: false } : {}),
+                      }));
+                    }}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="free">Grátis (SP, acima de R$1.500)</SelectItem>
                         <SelectItem value="paid">A calcular</SelectItem>
                         <SelectItem value="night">Noturno (R$2.000)</SelectItem>
                         <SelectItem value="consult">Sob consulta</SelectItem>
+                        <SelectItem value="pickup">Cliente Retira (R$ 0,00)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -2654,12 +2685,9 @@ export default function QuoteDetail() {
               for (const item of currentItems) {
                 const d = parseCartItemData(item.itemData);
                 if (!d) continue;
-                const tot = d.totalPrice != null && d.totalPrice > 0 ? (hasMarkup ? applyMkup(d.totalPrice) : d.totalPrice) : 0;
-                totalGeral += tot;
                 if (d.driverLines && d.driverLines.length > 0) {
                   hasDriverBreakdown = true;
                   // Resolver priceWithoutDriver: campo dedicado ou fallback para unitPrice × qty
-                  // Fallback: quando unitPrice é null mas totalPrice > 0, derivar unitPrice = totalPrice / qty
                   const _derivedUnitLum2 = (d.unitPrice == null && d.totalPrice != null && d.totalPrice > 0 && d.qty > 0) ? d.totalPrice / d.qty : null;
                   const _resolvedUnitLum2 = d.unitPriceLuminaria ?? d.unitPrice ?? _derivedUnitLum2 ?? null;
                   let correctedPriceWithoutDriver: number | null = null;
@@ -2669,13 +2697,15 @@ export default function QuoteDetail() {
                   } else if (_resolvedUnitLum2 != null) {
                     correctedPriceWithoutDriver = _resolvedUnitLum2 * d.qty;
                   }
-                  if (correctedPriceWithoutDriver != null) {
-                    totalLuminaria += hasMarkup ? applyMkup(correctedPriceWithoutDriver) : correctedPriceWithoutDriver;
-                  } else {
-                    totalLuminaria += tot;
-                  }
-                  totalDriver += d.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice != null ? (hasMarkup ? applyMkup(dl.driverTotalPrice) : dl.driverTotalPrice) : 0), 0);
+                  const lumRaw = correctedPriceWithoutDriver ?? (d.totalPrice ?? 0);
+                  const drvRaw = d.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
+                  const itemTotalRaw = lumRaw + drvRaw;
+                  totalGeral += hasMarkup ? applyMkup(itemTotalRaw) : itemTotalRaw;
+                  totalLuminaria += hasMarkup ? applyMkup(lumRaw) : lumRaw;
+                  totalDriver += hasMarkup ? applyMkup(drvRaw) : drvRaw;
                 } else {
+                  const tot = d.totalPrice != null && d.totalPrice > 0 ? (hasMarkup ? applyMkup(d.totalPrice) : d.totalPrice) : 0;
+                  totalGeral += tot;
                   totalLuminaria += tot;
                 }
               }
@@ -2730,6 +2760,17 @@ export default function QuoteDetail() {
                               : null;
                             const lumUnitDisplay = hasBreakdown && _resolvedUnitLum != null
                               ? (hasMarkup ? applyMkup(_resolvedUnitLum) : _resolvedUnitLum)
+                              : null;
+                            // Total item correto: luminaria + todos os drivers
+                            const _driversTotalRaw = hasBreakdown
+                              ? d.driverLines!.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0)
+                              : 0;
+                            const _lumTotalRaw = _correctedPWD ?? (d.totalPrice ?? 0);
+                            const _correctTotalItem = hasBreakdown
+                              ? (_lumTotalRaw + _driversTotalRaw)
+                              : (d.totalPrice ?? 0);
+                            const correctTotalDisplay = _correctTotalItem > 0
+                              ? (hasMarkup ? applyMkup(_correctTotalItem) : _correctTotalItem)
                               : null;
                             return (
                               <div key={item.id} className="flex items-start gap-3 px-4 py-3">
@@ -2800,8 +2841,8 @@ export default function QuoteDetail() {
                                       })}
                                       <div className="pt-1 border-t border-border/50">
                                         <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Total item</p>
-                                        {totalDisplay != null
-                                          ? <p className="font-bold text-primary text-sm">{formatBRL(totalDisplay)}</p>
+                                        {correctTotalDisplay != null
+                                          ? <p className="font-bold text-primary text-sm">{formatBRL(correctTotalDisplay)}</p>
                                           : <p className="text-xs italic text-muted-foreground">A consultar</p>}
                                       </div>
                                     </>
@@ -3121,7 +3162,7 @@ export default function QuoteDetail() {
           assistantName: quote.assistantName ?? undefined,
           rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) : undefined,
           marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
-          freteType: (quote.freteType as "free" | "paid" | "night" | "consult") ?? "free",
+          freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
           freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,

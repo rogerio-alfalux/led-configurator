@@ -379,7 +379,7 @@ export interface QuoteFormData {
   /** Margem de negociação (0–1, ex: 0.10 = 10%) */
   marginPercent?: number;
   /** Frete */
-  freteType?: "free" | "paid" | "night" | "consult";
+  freteType?: "free" | "paid" | "night" | "consult" | "pickup";
   freteIsento?: boolean;
   freteLocalidade?: "sp" | "other";
   freteCity?: string;

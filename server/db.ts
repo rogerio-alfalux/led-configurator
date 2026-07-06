@@ -308,7 +308,7 @@ export interface SaveQuoteInput {
   rtDest3?: string;
   rtDest3Active?: boolean;
   marginPercent?: number;
-  freteType?: "free" | "paid" | "night" | "consult";
+  freteType?: "free" | "paid" | "night" | "consult" | "pickup";
   freteIsento?: boolean;
   freteLocalidade?: "sp" | "other";
   notes?: string;
@@ -1530,7 +1530,7 @@ export async function duplicateQuote(
     rtDest3: q.rtDest3,
     rtDest3Active: q.rtDest3Active,
     marginPercent: q.marginPercent,
-    freteType: q.freteType as "free" | "paid" | "night" | "consult" | null,
+    freteType: q.freteType as "free" | "paid" | "night" | "consult" | "pickup" | null,
     freteIsento: q.freteIsento,
     freteLocalidade: q.freteLocalidade as "sp" | "other" | null,
     createdByUserId,

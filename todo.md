@@ -1837,3 +1837,16 @@
 - [x] bageoCatalog.ts: remover DRIVER_INTERVAL_MM estático; usar driverQtd220/Bivolt/Dim110v/DimDali da API (soberana) para driverQtdPorCorte; fallback conservador = 1 quando API não tem o campo
 - [x] alfaluxApiAdapter.ts: toBageoProduct mapeia driverQtd220/Bivolt/Dim110v/DimDali da API para BageoProduct
 - [x] alfaluxApiAdapter.ts: toBageoProduct usa precoOnOff220D1D2 para D1+D2 e precoOnOff220D1 para D1 (API soberana nos preços por aplicação)
+
+## Correção de Totais com Drivers + Opção Cliente Retira — Jul 2026
+- [x] QuoteDetail.tsx: editTotalBase (linha ~884) corrigido para incluir driverLines no total base (RT/Margem)
+- [x] QuoteDetail.tsx: editableItems total no rodapé do modal de edição corrigido para incluir driverLines
+- [x] QuoteDetail.tsx: totalBase no onClick do botão Salvar do modal de edição corrigido para incluir driverLines
+- [x] quoteExcelGenerator.ts: coluna N (PREÇO TOTAL por item) corrigida para incluir totais de drivers (_driversTotalForItem + _totalForLuminaria)
+- [x] Adicionar opção "Cliente Retira (R$ 0,00)" no seletor de tipo de frete
+- [x] drizzle/schema.ts: enum freteType expandido para incluir 'pickup'
+- [x] server/db.ts: SaveQuoteInput.freteType expandido para incluir 'pickup'
+- [x] server/routers.ts: z.enum de freteType expandido para incluir 'pickup'
+- [x] client/src/lib/cartTypes.ts: QuoteFormData.freteType expandido para incluir 'pickup'
+- [x] quoteExcelGenerator.ts: buildFreteText trata freteType='pickup' → "Cliente Retira — Frete R$ 0,00"
+- [x] QuoteDetail.tsx: ao selecionar "Cliente Retira", freteValue é zerado automaticamente

@@ -1,0 +1,1 @@
+ALTER TABLE `quotes` MODIFY COLUMN `freteType` enum('free','paid','night','consult','pickup') DEFAULT 'free';

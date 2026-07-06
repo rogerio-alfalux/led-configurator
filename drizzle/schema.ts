@@ -85,7 +85,7 @@ export const quotes = mysqlTable("quotes", {
 	rtDest3: varchar({ length: 256 }),
 	rtDest3Active: boolean().default(false).notNull(),
 	marginPercent: decimal({ precision: 5, scale: 4 }).default('0.10'),
-	freteType: mysqlEnum(['free','paid','night','consult']).default('free'),
+	freteType: mysqlEnum(['free','paid','night','consult','pickup']).default('free'),
 	freteIsento: boolean().default(false).notNull(),
 	freteLocalidade: mysqlEnum(['sp','other']).default('sp'),
 	totalFinal: decimal({ precision: 12, scale: 2 }).default('0'),
