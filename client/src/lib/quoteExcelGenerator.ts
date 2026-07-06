@@ -483,13 +483,19 @@ async function _generateExcelBuffer(
   // Quando freteIncluded=true e freteValue>0, distribui o frete proporcionalmente
   // ao totalPrice de cada item (peso = totalPrice_i / soma_totalPrice_todos).
   // Para itens com driverLines, totalPrice contém apenas luminaria; incluir drivers na base do frete
-  const _totalBaseParaFrete = items.reduce((s, it) => {
-    const lumT = it.totalPrice ?? 0;
-    const drvT = (it.driverLines && it.driverLines.length > 0)
-      ? it.driverLines.reduce((sd, d) => sd + (d.driverTotalPrice ?? 0), 0)
-      : 0;
-    return s + lumT + drvT;
-  }, 0);
+  // Helper: calcula total de drivers de um item com fallback para driverUnitPrice*effectiveQty
+  const calcItemDrvTotal = (it: CartItemData): number => {
+    if (!it.driverLines || it.driverLines.length === 0) return 0;
+    const iqty = it.qty ?? 1;
+    return it.driverLines.reduce((sd, d) => {
+      const stored = d.driverTotalPrice;
+      if (stored != null && stored > 0) return sd + stored;
+      const storedQty = d.driverQty ?? 1;
+      const effectiveQty = storedQty <= 1 ? iqty : storedQty;
+      return sd + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
+    }, 0);
+  };
+  const _totalBaseParaFrete = items.reduce((s, it) => s + (it.totalPrice ?? 0) + calcItemDrvTotal(it), 0);
   const _freteParaDiluir = (formData.freteIncluded && formData.freteValue && formData.freteValue > 0)
     ? formData.freteValue
     : 0;
@@ -1009,13 +1015,7 @@ async function _generateExcelBuffer(
   // Quando frete está diluído, soma o freteValue ao totalBase para o cálculo do total final
   // Para itens com driverLines, totalPrice contém apenas o preco da luminaria;
   // os drivers precisam ser somados separadamente para o totalBase correto.
-  const totalBase = items.reduce((sum, it) => {
-    const lumTotal = it.totalPrice ?? 0;
-    const drvTotal = (it.driverLines && it.driverLines.length > 0)
-      ? it.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0)
-      : 0;
-    return sum + lumTotal + drvTotal;
-  }, 0) + _freteParaDiluir;
+  const totalBase = items.reduce((sum, it) => sum + (it.totalPrice ?? 0) + calcItemDrvTotal(it), 0) + _freteParaDiluir;
   // Totais com/sem driver (apenas para orçamentos novos com driverLines)
   // Usa mesma lógica do Cart.tsx: effectiveQty = storedQty <= 1 ? itemQty : storedQty
   const hasDriverBreakdown = items.some(it => it.driverLines && it.driverLines.length > 0);

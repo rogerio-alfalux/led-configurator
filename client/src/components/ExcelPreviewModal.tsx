@@ -262,7 +262,22 @@ ${htmlContent}
     });
   }, [items]);
 
-  const totalBase = useMemo(() => sortedItems.reduce((s, it) => s + (it.totalPrice ?? 0), 0), [sortedItems]);
+  // totalBase inclui luminária + drivers (usando driverUnitPrice*effectiveQty como fallback quando driverTotalPrice é null)
+  const totalBase = useMemo(() => sortedItems.reduce((s, it) => {
+    const lumT = it.totalPrice ?? 0;
+    const drvT = (it.driverLines && it.driverLines.length > 0)
+      ? it.driverLines.reduce((sd, d) => {
+          const stored = d.driverTotalPrice;
+          if (stored != null && stored > 0) return sd + stored;
+          // fallback: recalcular com effectiveQty
+          const iqty = it.qty ?? 1;
+          const storedQty = d.driverQty ?? 1;
+          const effectiveQty = storedQty <= 1 ? iqty : storedQty;
+          return sd + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
+        }, 0)
+      : 0;
+    return s + lumT + drvT;
+  }, 0), [sortedItems]);
 
   // ── Diluição proporcional do frete ──────────────────────────────────────
   // Quando freteIncluded=true, distribui freteValue proporcionalmente ao
@@ -314,7 +329,16 @@ ${htmlContent}
     return marginPct > 0 ? comRT  / (1 - marginPct) : comRT;
   };
   const totalDriverRaw = hasDriverBreakdown
-    ? sortedItems.reduce((sum, it) => sum + (it.driverLines?.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0) ?? 0), 0)
+    ? sortedItems.reduce((sum, it) => {
+        const iqty = it.qty ?? 1;
+        return sum + (it.driverLines?.reduce((s, d) => {
+          const stored = d.driverTotalPrice;
+          if (stored != null && stored > 0) return s + stored;
+          const storedQty = d.driverQty ?? 1;
+          const effectiveQty = storedQty <= 1 ? iqty : storedQty;
+          return s + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
+        }, 0) ?? 0);
+      }, 0)
     : 0;
   const totalSemDriverRaw = hasDriverBreakdown ? (totalBase - totalDriverRaw) : 0;
   const totalDriverFinal = applyMarkupFn(totalDriverRaw);
