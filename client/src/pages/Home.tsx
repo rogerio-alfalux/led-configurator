@@ -63,6 +63,7 @@ import {
 import type { LedBarProduct, LedBarPotencia, LedBarDifusor, LedBarControle, LedBarVoltage, LedBarResult } from "@/lib/ledBarCatalog";
 import {
   BAGEO_CATALOG,
+  BAGEO_MAX_LENGTH_MM,
   getBageoAvailableInstalacoes,
   getBageoProductsByInstalacao,
   getBageoAvailableControles,
@@ -2589,6 +2590,7 @@ export default function Home() {
   const [bgControle, setBgControle] = useState<BageoControle>("ON/OFF 220V");
   const [bgCCT, setBgCCT] = useState<string>("3000K");
   const [bgResult, setBgResult] = useState<BageoResult | null>(null);
+  const [bgNCortes, setBgNCortes] = useState<string>("1");
   const [bgManualPreco, setBgManualPreco] = useState<string>("");  // ── Estados de GLOW (perfis fixos) ───────────────────────────────────────────
   const [glowMode, setGlowMode] = useState<boolean>(false);
   const [glowProductKey, setGlowProductKey] = useState<string | null>(null);
@@ -3272,6 +3274,14 @@ export default function Home() {
       setBgCCT(bgAvailableCCTs[0] ?? "3000K");
     }
   }, [bgAvailableCCTs, bgCCT]);
+  // Cortes BAGEO sinuosa
+  const bgComprimentoNum = parseInt(bgComprimento) || 0;
+  const bgRequiresCuts = bgComprimentoNum > BAGEO_MAX_LENGTH_MM;
+  const bgNCortesNum = Math.max(1, parseInt(bgNCortes) || 1);
+  const bgTrechoMm = bgComprimentoNum > 0 ? Math.ceil(bgComprimentoNum / bgNCortesNum) : 0;
+  const bgTrechoExcede = bgTrechoMm > BAGEO_MAX_LENGTH_MM;
+  const bgMinCortesNecessarios = bgComprimentoNum > 0 ? Math.ceil(bgComprimentoNum / BAGEO_MAX_LENGTH_MM) : 1;
+
   const handleCalculateBageo = useCallback(() => {
     if (!bgProduct) {
       toast.error("Selecione o produto BAGEO.");
@@ -3282,18 +3292,24 @@ export default function Home() {
       toast.error("Informe um comprimento válido (mínimo 100mm).");
       return;
     }
+    if (bgTrechoExcede) {
+      toast.error(`Com ${bgNCortesNum} corte${bgNCortesNum !== 1 ? "s" : ""}, cada trecho ficaria com ${bgTrechoMm}mm — acima do limite de ${BAGEO_MAX_LENGTH_MM}mm. Mínimo necessário: ${bgMinCortesNecessarios} cortes.`);
+      return;
+    }
+    const nCortes = bgRequiresCuts ? Math.max(2, bgNCortesNum) : 1;
     const res = calculateBageo(activeBageoCatalog, {
       product: bgProduct,
       controle: bgControle,
       cct: bgCCT,
       comprimento: comprMm,
+      nCortes,
     });
     if (!res) {
       toast.error("Não foi possível calcular. Verifique as opções selecionadas.");
       return;
     }
     setBgResult(res);
-  }, [bgProduct, activeBageoCatalog, bgControle, bgCCT, bgComprimento]);
+  }, [bgProduct, activeBageoCatalog, bgControle, bgCCT, bgComprimento, bgNCortes, bgRequiresCuts, bgNCortesNum, bgTrechoExcede, bgTrechoMm, bgMinCortesNecessarios]);
 
   // Catalógo ativo de BAGEO fixo (API ou vazio)
   const activeBageoFixoCatalog = useMemo(() => {
@@ -4354,6 +4370,43 @@ export default function Home() {
                     {bgComprimento && parseInt(bgComprimento) >= 100 && (
                       <p className="mt-1 text-xs text-muted-foreground">
                         {(parseInt(bgComprimento) / 1000).toFixed(3).replace(".", ",")} m
+                      </p>
+                    )}
+                  </div>
+                  )}
+                  {/* Quantidade de Cortes */}
+                  {bgInstalacao && (
+                  <div>
+                    <FieldLabel hint={bgRequiresCuts ? "obrigatório" : "opcional"}>Quantidade de Cortes</FieldLabel>
+                    <input
+                      type="number"
+                      min={1}
+                      max={99}
+                      value={bgNCortes}
+                      onChange={(e) => { setBgNCortes(e.target.value); setBgResult(null); }}
+                      placeholder="1"
+                      className={`w-full h-10 px-3 rounded-md border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 ${
+                        bgRequiresCuts ? "border-amber-500" : "border-border"
+                      }`}
+                    />
+                    {bgRequiresCuts && (
+                      <p className="mt-1.5 text-xs text-amber-500 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        Comprimento acima de {BAGEO_MAX_LENGTH_MM}mm — informe a quantidade de cortes.
+                      </p>
+                    )}
+                    {bgComprimentoNum > 0 && bgNCortesNum >= 2 && !bgTrechoExcede && (
+                      <p className="mt-1.5 text-xs text-muted-foreground">
+                        {bgNCortesNum} cortes → {bgNCortesNum} trechos de {Math.round(bgComprimentoNum / bgNCortesNum)}mm cada
+                      </p>
+                    )}
+                    {bgTrechoExcede && (
+                      <p className="mt-1.5 text-xs text-red-500 flex items-start gap-1">
+                        <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+                        <span>
+                          Com {bgNCortesNum} corte{bgNCortesNum !== 1 ? "s" : ""}, cada trecho ficaria com {bgTrechoMm}mm — acima do limite de {BAGEO_MAX_LENGTH_MM}mm.
+                          {" "}Mínimo necessário: <strong>{bgMinCortesNecessarios} cortes</strong>.
+                        </span>
                       </p>
                     )}
                   </div>
@@ -8352,9 +8405,16 @@ export default function Home() {
                       <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fita LED ({bgResult.ledModuleQtd}x por metro → {bgResult.fitaMetros.toFixed(1).replace(".",",")} m total)</p>
                       <p className="text-sm font-semibold">{bgResult.ledModuleWithCCT}</p>
                     </div>
+                    {/* Cortes */}
+                    {bgResult.nCortes > 1 && (
+                      <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Cortes</p>
+                        <p className="text-sm font-semibold">{bgResult.nCortes} cortes → {bgResult.nCortes} trechos de {bgResult.comprimentoPorCorte}mm cada</p>
+                      </div>
+                    )}
                     {/* Driver */}
                     <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fonte de Tensão (1 a cada 2300mm → {bgResult.driverQtd}x)</p>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fonte de Tensão (1 a cada 2300mm por trecho → {bgResult.driverQtd}x total)</p>
                       <p className="text-sm font-semibold">{bgResult.driver.model}</p>
                       {bgResult.driver.code && (
                         <a
@@ -8373,9 +8433,10 @@ export default function Home() {
                 {(() => {
                   const r = bgResult;
                   const comprStr = `${r.comprimento}MM`;
+                  const cortesStr = r.nCortes > 1 ? ` (${r.nCortes} CORTES DE ${r.comprimentoPorCorte}MM)` : "";
                   const precoLine = r.precoTotal !== null ? `PREÇO: ${formatBRL(r.precoTotal)}` : null;
                   const orcamento = [
-                    `${r.product.name} ${r.cct} ${r.controle} ${comprStr}`,
+                    `${r.product.name} ${r.cct} ${r.controle} ${comprStr}${cortesStr}`,
                     precoLine,
                   ].filter(Boolean).join("\n");
                   // Monta a linha de fita com "voltas"
@@ -8388,11 +8449,13 @@ export default function Home() {
                   const ledModuleName = ledModuleRaw.replace(/^\d+[Xx]\s+/, "");
                   let fitaLine: string;
                   let drvLine: string;
+                  // Para cortes: cada trecho tem comprimentoPorCorte mm
+                  const trechoMm = r.comprimentoPorCorte;
                   if (aplicacao === "D1+D2") {
-                    // D1+D2: dois circuitos independentes (D1 e D2), cada um com 2 voltas
+                    // D1+D2: dois circuitos independentes (D1 e D2), cada um com 2 voltas por trecho
                     const voltasPorLado = 2;
-                    const fitaD1 = `D1: ${voltasPorLado}x VOLTAS DE ${r.comprimento}MM DE FITA LED ${ledModuleName}`;
-                    const fitaD2 = `D2: ${voltasPorLado}x VOLTAS DE ${r.comprimento}MM DE FITA LED ${ledModuleName}`;
+                    const fitaD1 = `D1: ${r.nCortes * voltasPorLado}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleName}`;
+                    const fitaD2 = `D2: ${r.nCortes * voltasPorLado}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleName}`;
                     const drvModel = r.driver.model.toUpperCase();
                     const drvCode = r.driver.code ? ` (${r.driver.code})` : "";
                     const drvD1 = `D1: ${r.driverQtd}x FONTE DE TENSÃO ${drvModel}${drvCode}`;
@@ -8400,11 +8463,11 @@ export default function Home() {
                     fitaLine = `${fitaD1} | ${fitaD2}`;
                     drvLine = `${drvD1} | ${drvD2}`;
                   } else {
-                    // D1 (20W/m): ledModuleQtd voltas (2 para D1)
+                    // D1: ledModuleQtd voltas por trecho × nCortes trechos
                     const voltas = r.ledModuleQtd;
                     const drvModel = r.driver.model.toUpperCase();
                     const drvCode = r.driver.code ? ` (${r.driver.code})` : "";
-                    fitaLine = `${voltas}x VOLTAS DE ${r.comprimento}MM DE FITA LED ${ledModuleName}`;
+                    fitaLine = `${r.nCortes * voltas}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleName}`;
                     drvLine = `${r.driverQtd}x FONTE DE TENSÃO ${drvModel}${drvCode}`;
                   }
                   const pedido = [
@@ -8487,7 +8550,7 @@ export default function Home() {
                                 const item: CartItemData = {
                                   category: "BAGEO",
                                   sku: r.product.sku ?? "",
-                                  description: `${r.product.name} ${r.product.aplicacao !== 'D1' ? r.product.aplicacao + ' ' : ''}${r.cct} ${r.controle} ${r.comprimento}MM`,
+                                  description: `${r.product.name} ${r.product.aplicacao !== 'D1' ? r.product.aplicacao + ' ' : ''}${r.cct} ${r.controle} ${r.comprimento}MM${r.nCortes > 1 ? ` (${r.nCortes} CORTES DE ${r.comprimentoPorCorte}MM)` : ""}`,
                                   power: "",
                                   cct: r.cct,
                                   qty: 1,
@@ -8501,6 +8564,11 @@ export default function Home() {
                                   drivers: r.product.driver220?.model ?? r.product.driverBivolt?.model ?? "",
                                   availableCCTs: r.product.ccts,
                                   itemEmPlanta: globalItemEmPlanta,
+                                  ...(r.nCortes > 1 ? {
+                                    ledBarNCortes: r.nCortes,
+                                    ledBarComprimentoPorTrechoMm: r.comprimentoPorCorte,
+                                    ledBarComprimentoTotalMm: r.comprimento,
+                                  } : {}),
                                 };
                                   if (appendToQuoteId) {
                                     handleAddItemOrToQuote(item);

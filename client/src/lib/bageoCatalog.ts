@@ -191,6 +191,8 @@ export interface BageoInput {
   cct: string;
   /** Comprimento desejado em mm */
   comprimento: number;
+  /** Número de cortes (padrão 1; obrigatório quando comprimento > BAGEO_MAX_LENGTH_MM) */
+  nCortes?: number;
 }
 
 export interface BageoResult {
@@ -202,7 +204,11 @@ export interface BageoResult {
   /** Comprimento em metros (para exibição e cálculo de preço) */
   comprimentoMetros: number;
   driver: BageoDriverInfo;
-  /** Quantidade de fontes (1 a cada 2300mm) */
+  /** Número de cortes (trechos) */
+  nCortes: number;
+  /** Comprimento por corte em mm (ceil(comprimento / nCortes)) */
+  comprimentoPorCorte: number;
+  /** Quantidade de fontes (1 a cada 2300mm por corte) */
   driverQtd: number;
   /** Módulo LED com CCT substituído (ex: FITA LED HOPELUMI 24V 10W/M 3000K) */
   ledModuleWithCCT: string;
@@ -258,6 +264,9 @@ function selectBageoDriverAndPrice(
   }
 }
 
+/** Comprimento máximo por corte em mm (BAGEO sinuosa) */
+export const BAGEO_MAX_LENGTH_MM = 2000;
+
 /** Intervalo máximo entre fontes em mm */
 const DRIVER_INTERVAL_MM = 2300;
 
@@ -286,8 +295,15 @@ export function calculateBageo(catalog: BageoProduct[], input: BageoInput): Bage
 
   const comprimentoMetros = input.comprimento / 1000;
 
-  // Quantidade de fontes: 1 a cada 2300mm (arredondado para cima)
-  const driverQtd = Math.ceil(input.comprimento / DRIVER_INTERVAL_MM);
+  // Cortes: obrigatório quando comprimento > BAGEO_MAX_LENGTH_MM
+  const nCortes = Math.max(1, input.nCortes ?? 1);
+  const comprimentoPorCorte = Math.ceil(input.comprimento / nCortes);
+  // Valida que cada corte não ultrapassa o limite
+  if (comprimentoPorCorte > BAGEO_MAX_LENGTH_MM) return null;
+
+  // Quantidade de fontes: 1 a cada 2300mm por corte × nCortes
+  const driverQtdPorCorte = Math.ceil(comprimentoPorCorte / DRIVER_INTERVAL_MM);
+  const driverQtd = driverQtdPorCorte * nCortes;
 
   // Metragem total de fita LED: ledModuleQtd (por metro) × comprimento em metros
   const fitaMetros = product.ledModuleQtd * comprimentoMetros;
@@ -304,6 +320,8 @@ export function calculateBageo(catalog: BageoProduct[], input: BageoInput): Bage
     cct: input.cct,
     comprimento: input.comprimento,
     comprimentoMetros,
+    nCortes,
+    comprimentoPorCorte,
     driver,
     driverQtd,
     ledModuleWithCCT,

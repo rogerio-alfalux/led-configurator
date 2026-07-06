@@ -1805,3 +1805,15 @@
 - [x] Causa raiz: driverQty e driverTotalPrice em perfis lineares e LED BAR eram calculados com globalQty incluído, mas ColorPickerModal reescalava novamente por effectiveQty
 - [x] Corrigir Home.tsx: driverQty = nModules (por luminária), driverTotalPrice = precoDriverTotal (por luminária) — ColorPickerModal escala corretamente
 - [x] Corrigir Home.tsx LED BAR: driverQty = r.nCortes (por unidade), driverTotalPrice = precoDriverPorCorte × r.nCortes (por unidade)
+
+## BAGEO Sinuosa — Lógica de Cortes (máx 2000mm) — Jul 2026
+
+- [ ] bageoCatalog.ts: adicionar BAGEO_MAX_LENGTH_MM = 2000; adicionar nCortes e comprimentoPorCorte ao BageoResult
+- [ ] bageoCatalog.ts: calculateBageo recebe nCortes como input; calcula comprimentoPorCorte = ceil(comprimento / nCortes); valida que comprimentoPorCorte <= 2000mm
+- [ ] bageoCatalog.ts: precoTotal = precoPorMetro × comprimentoMetros (igual ao atual — cobrado pelo total, não por corte)
+- [ ] Home.tsx: adicionar estado bgNCortes; calcular bgRequiresCuts (comprimento > 2000mm); calcular bgMinCortesNecessarios; validar bgTrechoExcede
+- [ ] Home.tsx: exibir campo "Quantidade de Cortes" na UI (igual LED BAR) com aviso quando obrigatório
+- [ ] Home.tsx: passar nCortes para calculateBageo; exibir nCortes e comprimentoPorCorte no resultado
+- [ ] Home.tsx: atualizar orderSummary/quoteSummary para incluir informação de cortes
+- [ ] Home.tsx: atualizar CartItemData para incluir ledBarNCortes (reutilizar campo existente)
+- [ ] Atualizar testes bageoCatalog.test.ts para cobrir lógica de cortes
