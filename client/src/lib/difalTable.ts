@@ -4,15 +4,17 @@
  * Origem: São Paulo (SP) — alíquota interestadual SP→Sul/Sudeste = 12%, SP→demais = 7%
  *
  * DIFAL = alíquota_interna_destino - alíquota_interestadual
- * FCP   = alíquota FCP do estado destino (incide sobre produtos em geral; para luminárias, verificar legislação estadual)
+ * FCP   = alíquota FCP do estado destino
+ * combined = DIFAL + FCP  ← alíquota única usada no cálculo
+ *
+ * Fórmula "por dentro" (imposto embutido no preço):
+ *   total_com_imposto = base ÷ (1 - combined/100)
+ *   valor_imposto     = total_com_imposto - base
  *
  * Fontes:
  *  - Conta Azul: https://contaazul.com/blog/tabela-de-aliquota-interestadual/ (atualizado 13/03/2026)
  *  - SimTax: https://simtax.com.br/fundo-combate-pobreza-fcp/ (2025)
  *  - NF-e Fazenda: tabela FCP oficial
- *
- * Nota: FCP para luminárias/iluminação geralmente NÃO incide (não é produto supérfluo).
- * O campo fcpRate está incluído para fins informativos; o usuário pode ativar/desativar via toggle.
  */
 
 export interface StateInfo {
@@ -28,6 +30,8 @@ export interface StateInfo {
   difal: number;
   /** Alíquota FCP (%) — 0 se não possui */
   fcp: number;
+  /** Alíquota combinada DIFAL + FCP (%) — usada no cálculo */
+  combined: number;
   /** Região */
   regiao: "Norte" | "Nordeste" | "Centro-Oeste" | "Sudeste" | "Sul";
 }
@@ -35,7 +39,7 @@ export interface StateInfo {
 /** Estados Sul/Sudeste (exceto SP origem): alíquota interestadual 12% */
 const SUL_SUDESTE = ["MG", "RJ", "ES", "PR", "SC", "RS"];
 
-const RAW: Array<Omit<StateInfo, "icmsInterestadual" | "difal">> = [
+const RAW: Array<Omit<StateInfo, "icmsInterestadual" | "difal" | "combined">> = [
   // Norte
   { uf: "AC", name: "Acre",             icmsInterno: 19.0, fcp: 0.0,  regiao: "Norte" },
   { uf: "AM", name: "Amazonas",         icmsInterno: 20.0, fcp: 2.0,  regiao: "Norte" },
@@ -72,7 +76,8 @@ const RAW: Array<Omit<StateInfo, "icmsInterestadual" | "difal">> = [
 export const DIFAL_TABLE: StateInfo[] = RAW.map((s) => {
   const interestadual = SUL_SUDESTE.includes(s.uf) ? 12 : 7;
   const difal = Math.max(0, s.icmsInterno - interestadual);
-  return { ...s, icmsInterestadual: interestadual, difal };
+  const combined = difal + s.fcp;
+  return { ...s, icmsInterestadual: interestadual, difal, combined };
 });
 
 /** Retorna as informações fiscais de um estado pelo UF */
@@ -81,24 +86,31 @@ export function getStateInfo(uf: string): StateInfo | undefined {
 }
 
 /**
- * Calcula DIFAL e FCP sobre um valor base.
- * @param baseValue  Valor total dos produtos (sem impostos)
+ * Calcula DIFAL+FCP pelo método "por dentro" sobre um valor base.
+ *
+ * Fórmula: total = base ÷ (1 - combined/100)
+ *          imposto = total - base
+ *
+ * @param baseValue  Valor total dos produtos + frete (sem impostos)
  * @param uf         Estado destino
- * @param includeFcp Se deve incluir FCP no cálculo
- * @returns { difalValue, fcpValue, totalTax, effectiveRate }
+ * @returns { difalValue, fcpValue, combinedValue, totalWithTax, combinedRate }
  */
 export function calculateDifal(
   baseValue: number,
   uf: string,
-  includeFcp: boolean
-): { difalValue: number; fcpValue: number; totalTax: number; effectiveRate: number } {
+): { difalValue: number; fcpValue: number; combinedValue: number; totalWithTax: number; combinedRate: number } {
   const info = getStateInfo(uf);
-  if (!info) return { difalValue: 0, fcpValue: 0, totalTax: 0, effectiveRate: 0 };
+  if (!info || info.combined <= 0) {
+    return { difalValue: 0, fcpValue: 0, combinedValue: 0, totalWithTax: baseValue, combinedRate: 0 };
+  }
 
-  const difalValue = (baseValue * info.difal) / 100;
-  const fcpValue = includeFcp ? (baseValue * info.fcp) / 100 : 0;
-  const totalTax = difalValue + fcpValue;
-  const effectiveRate = info.difal + (includeFcp ? info.fcp : 0);
+  const combinedRate = info.combined; // ex: 10 para RJ (8% DIFAL + 2% FCP)
+  // Fórmula por dentro: total = base / (1 - rate/100)
+  const totalWithTax = baseValue / (1 - combinedRate / 100);
+  const combinedValue = totalWithTax - baseValue;
+  // Decompor proporcionalmente em DIFAL e FCP para exibição
+  const difalValue = info.combined > 0 ? combinedValue * (info.difal / info.combined) : 0;
+  const fcpValue   = info.combined > 0 ? combinedValue * (info.fcp   / info.combined) : 0;
 
-  return { difalValue, fcpValue, totalTax, effectiveRate };
+  return { difalValue, fcpValue, combinedValue, totalWithTax, combinedRate };
 }

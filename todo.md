@@ -1871,3 +1871,11 @@
 ## Bug crítico — perda de dados ao editar orçamento (06/07/2026)
 - [ ] Editar orçamento: DIFAL, FCP, localidade de entrega e campos de frete são perdidos ao salvar e reabrir
 - [ ] Editar orçamento: campos de DIFAL/FCP devem sincronizar localidade para a aba Frete
+
+## Reformulação DIFAL/FCP (06/07/2026)
+- [ ] DIFAL/FCP: usar alíquota combinada (DIFAL+FCP) em campo único por estado
+- [ ] DIFAL/FCP: fórmula "por dentro" — total = (produtos + frete) ÷ (1 - alíquota_combinada)
+- [ ] DIFAL/FCP: incluir frete na base de cálculo antes de aplicar DIFAL/FCP
+- [ ] DIFAL/FCP: UI unificada — um único checkbox "Aplicar DIFAL/FCP", sem checkbox separado por imposto
+- [ ] DIFAL/FCP: exibir alíquota combinada e valor resultante no resumo do orçamento
+- [ ] DIFAL/FCP: corrigir em Home.tsx (carrinho), QuoteDetail.tsx, quoteExcelGenerator.ts e ExcelPreviewModal.tsx

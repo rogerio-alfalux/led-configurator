@@ -1349,12 +1349,20 @@ export default function QuoteDetail() {
               })()}
               {quote.destState && (
                 <p>🗺️ Destino: <span className="font-medium">{quote.destState}</span>
-                  {quote.difalEnabled && quote.difalValue != null && Number(quote.difalValue) > 0 && (
-                    <span className="ml-1 text-xs text-orange-600">DIFAL: {formatBRL(Number(quote.difalValue))}</span>
-                  )}
-                  {quote.fcpEnabled && quote.fcpValue != null && Number(quote.fcpValue) > 0 && (
-                    <span className="ml-1 text-xs text-orange-600">FCP: {formatBRL(Number(quote.fcpValue))}</span>
-                  )}
+                  {quote.difalEnabled && (() => {
+                    const difalAmt = Number(quote.difalValue ?? 0);
+                    const fcpAmt   = Number(quote.fcpValue ?? 0);
+                    const combined = difalAmt + fcpAmt;
+                    const difalPct = Number(quote.difalPercent ?? 0);
+                    const fcpPct   = Number(quote.fcpPercent ?? 0);
+                    const combinedPct = difalPct + fcpPct;
+                    if (combined <= 0) return null;
+                    return (
+                      <span className="ml-1 text-xs text-orange-600">
+                        DIFAL/FCP ({combinedPct.toFixed(1)}%): {formatBRL(combined)}
+                      </span>
+                    );
+                  })()}
                 </p>
               )}
               {(() => {
@@ -1798,18 +1806,18 @@ export default function QuoteDetail() {
                       const marginPct = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;
                       const totalComRT = rtPct > 0 ? totalBase / (1 - rtPct) : totalBase;
                       const totalFinal = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
-                      // Incluir frete, DIFAL e FCP do orçamento existente no totalFinal salvo
+                      // Incluir frete e DIFAL/FCP (alíquota combinada, fórmula por dentro)
                       const itemsFreteValor = (quote as any).freteIncluded && (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : 0;
-                      const itemsDifalVal = quote.difalEnabled && quote.difalValue ? parseFloat(String(quote.difalValue)) : 0;
-                      const itemsFcpVal = quote.fcpEnabled && quote.fcpValue ? parseFloat(String(quote.fcpValue)) : 0;
-                      // Recalcular DIFAL/FCP com base no novo totalFinal usando fórmula por dentro
                       const itemsStateInfo = quote.destState ? getStateInfo(quote.destState) : undefined;
-                      const itemsDifalPct = itemsStateInfo ? itemsStateInfo.difal / 100 : 0;
-                      const itemsFcpPct = itemsStateInfo ? itemsStateInfo.fcp / 100 : 0;
-                      const itemsDifalValRecalc = itemsStateInfo && quote.difalEnabled && itemsDifalPct > 0 ? totalFinal / (1 - itemsDifalPct) - totalFinal : itemsDifalVal;
-                      const itemsTotalComDifal = totalFinal + itemsDifalValRecalc;
-                      const itemsFcpValRecalc = itemsStateInfo && quote.fcpEnabled && itemsFcpPct > 0 ? itemsTotalComDifal / (1 - itemsFcpPct) - itemsTotalComDifal : itemsFcpVal;
-                      const totalFinalCompleto = totalFinal + itemsFreteValor + itemsDifalValRecalc + itemsFcpValRecalc;
+                      const itemsCombinedRate = itemsStateInfo ? itemsStateInfo.combined : 0;
+                      const baseComFrete = totalFinal + itemsFreteValor;
+                      const totalFinalComImposto = quote.difalEnabled && itemsCombinedRate > 0
+                        ? baseComFrete / (1 - itemsCombinedRate / 100)
+                        : baseComFrete;
+                      const itemsCombinedAmt = totalFinalComImposto - baseComFrete;
+                      const itemsDifalValRecalc = itemsStateInfo && itemsStateInfo.combined > 0 ? itemsCombinedAmt * (itemsStateInfo.difal / itemsStateInfo.combined) : 0;
+                      const itemsFcpValRecalc = itemsStateInfo && itemsStateInfo.combined > 0 ? itemsCombinedAmt * (itemsStateInfo.fcp / itemsStateInfo.combined) : 0;
+                      const totalFinalCompleto = totalFinalComImposto;
                       addRevisionForItemsMutation.mutate({
                         quoteId: Number(id),
                         clientName: quote.clientName,
@@ -2568,43 +2576,70 @@ export default function QuoteDetail() {
                     {editForm.destState && editForm.destState !== "none" && editForm.destState !== "SP" && (() => {
                       const info = getStateInfo(editForm.destState);
                       if (!info) return null;
-                      // Fórmula por dentro (igual a RT/Margem): acréscimo = base / (1 - %) - base
-                      const difalPct = info.difal / 100;
-                      const fcpPct = info.fcp / 100;
-                      const difalVal = difalPct > 0 ? editTotalFinal / (1 - difalPct) - editTotalFinal : 0;
-                      const totalComDifal = editTotalFinal + (editForm.difalEnabled ? difalVal : 0);
-                      const fcpVal = fcpPct > 0 ? totalComDifal / (1 - fcpPct) - totalComDifal : 0;
+                      // Base = produtos + frete
+                      const editFreteBase = editForm.freteIncluded && editForm.freteValue ? parseFloat(editForm.freteValue) : 0;
+                      const base = editTotalFinal + editFreteBase;
+                      // Alíquota combinada DIFAL + FCP
+                      const combinedRate = info.combined;
+                      const totalComImposto = combinedRate > 0 ? base / (1 - combinedRate / 100) : base;
+                      const combinedVal = totalComImposto - base;
+                      const difalVal = info.combined > 0 ? combinedVal * (info.difal / info.combined) : 0;
+                      const fcpVal   = info.combined > 0 ? combinedVal * (info.fcp   / info.combined) : 0;
                       return (
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
                             <Checkbox
                               id="editDifalEnabled"
                               checked={editForm.difalEnabled}
-                              onCheckedChange={(v) => setEditForm(f => ({ ...f, difalEnabled: Boolean(v) }))}
+                              onCheckedChange={(v) => {
+                                const enabled = Boolean(v);
+                                setEditForm(f => ({
+                                  ...f,
+                                  difalEnabled: enabled,
+                                  fcpEnabled: enabled,
+                                  difalValue: String(difalVal.toFixed(2)),
+                                  fcpValue: String(fcpVal.toFixed(2)),
+                                  difalPercent: String(info.difal),
+                                  fcpPercent: String(info.fcp),
+                                }));
+                              }}
                             />
                             <label htmlFor="editDifalEnabled" className="text-sm cursor-pointer">
-                              Aplicar DIFAL ({info.difal.toFixed(1)}%) = {formatBRL(difalVal)}
+                              Aplicar DIFAL/FCP ({combinedRate.toFixed(1)}%)
+                              {info.difal > 0 && info.fcp > 0 && (
+                                <span className="text-muted-foreground ml-1">
+                                  (DIFAL {info.difal.toFixed(1)}% + FCP {info.fcp.toFixed(1)}%)
+                                </span>
+                              )}
+                              {info.fcp === 0 && (
+                                <span className="text-muted-foreground ml-1">(apenas DIFAL)</span>
+                              )}
+                              {" = "}{formatBRL(combinedVal)}
                             </label>
                           </div>
-                          {info.fcp > 0 && (
-                            <div className="flex items-center gap-2">
-                              <Checkbox
-                                id="editFcpEnabled"
-                                checked={editForm.fcpEnabled}
-                                onCheckedChange={(v) => setEditForm(f => ({ ...f, fcpEnabled: Boolean(v) }))}
-                              />
-                              <label htmlFor="editFcpEnabled" className="text-sm cursor-pointer">
-                                Aplicar FCP ({info.fcp.toFixed(1)}%) = {formatBRL(fcpVal)}
-                              </label>
-                            </div>
-                          )}
-                          {(editForm.difalEnabled || editForm.fcpEnabled) && (
-                            <div className="bg-muted/60 rounded p-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">Total com DIFAL/FCP</span>
-                                <span className="font-semibold">
-                                  {formatBRL(editTotalFinal + (editForm.difalEnabled ? difalVal : 0) + (editForm.fcpEnabled ? fcpVal : 0))}
-                                </span>
+                          {editForm.difalEnabled && (
+                            <div className="bg-muted/60 rounded p-2 text-sm space-y-1">
+                              {editFreteBase > 0 && (
+                                <div className="flex justify-between text-muted-foreground">
+                                  <span>Base (produtos + frete)</span>
+                                  <span>{formatBRL(base)}</span>
+                                </div>
+                              )}
+                              {info.difal > 0 && (
+                                <div className="flex justify-between text-muted-foreground">
+                                  <span>DIFAL ({info.difal.toFixed(1)}%)</span>
+                                  <span>{formatBRL(difalVal)}</span>
+                                </div>
+                              )}
+                              {info.fcp > 0 && (
+                                <div className="flex justify-between text-muted-foreground">
+                                  <span>FCP ({info.fcp.toFixed(1)}%)</span>
+                                  <span>{formatBRL(fcpVal)}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between font-semibold border-t pt-1">
+                                <span>Total com DIFAL/FCP</span>
+                                <span>{formatBRL(totalComImposto)}</span>
                               </div>
                             </div>
                           )}
@@ -2628,21 +2663,24 @@ export default function QuoteDetail() {
                     const editMarginPctVal = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, 0), 0.99);
                     const totalComRTVal = editRtPctVal > 0 ? editTotalBase / (1 - editRtPctVal) : editTotalBase;
                     const totalFinalVal = editMarginPctVal > 0 ? totalComRTVal / (1 - editMarginPctVal) : totalComRTVal;
-                    // Calcular frete, DIFAL e FCP para incluir no totalFinal salvo
+                    // Calcular frete e DIFAL/FCP (alíquota combinada, fórmula por dentro)
                     const editFreteValor = editForm.freteIncluded && editForm.freteValue ? parseFloat(editForm.freteValue) : 0;
                     const editStateInfo = editForm.destState ? getStateInfo(editForm.destState) : undefined;
-                    // Fórmula por dentro (igual a RT/Margem): acréscimo = base / (1 - %) - base
-                    const editDifalPct = editStateInfo ? editStateInfo.difal / 100 : 0;
-                    const editFcpPct = editStateInfo ? editStateInfo.fcp / 100 : 0;
-                    // Se há destState com alíquota, recalcula. Caso contrário, preserva o valor salvo no editForm.
-                    const editDifalVal = editStateInfo && editForm.difalEnabled && editDifalPct > 0
-                      ? totalFinalVal / (1 - editDifalPct) - totalFinalVal
+                    const baseComFrete = totalFinalVal + editFreteValor;
+                    // Alíquota combinada DIFAL + FCP
+                    const editCombinedRate = editStateInfo ? editStateInfo.combined : 0;
+                    const totalFinalComImposto = editForm.difalEnabled && editCombinedRate > 0
+                      ? baseComFrete / (1 - editCombinedRate / 100)
+                      : baseComFrete;
+                    // Decompor para salvar separadamente
+                    const editCombinedVal = totalFinalComImposto - baseComFrete;
+                    const editDifalVal = editStateInfo && editStateInfo.combined > 0
+                      ? editCombinedVal * (editStateInfo.difal / editStateInfo.combined)
                       : (editForm.difalEnabled && editForm.difalValue ? parseFloat(editForm.difalValue) : 0);
-                    const editTotalComDifal = totalFinalVal + editDifalVal;
-                    const editFcpVal = editStateInfo && editForm.fcpEnabled && editFcpPct > 0
-                      ? editTotalComDifal / (1 - editFcpPct) - editTotalComDifal
+                    const editFcpVal = editStateInfo && editStateInfo.combined > 0
+                      ? editCombinedVal * (editStateInfo.fcp / editStateInfo.combined)
                       : (editForm.fcpEnabled && editForm.fcpValue ? parseFloat(editForm.fcpValue) : 0);
-                    const totalFinalCompleto = totalFinalVal + editFreteValor + editDifalVal + editFcpVal;
+                    const totalFinalCompleto = totalFinalComImposto;
                     addRevisionMutation.mutate({
                       quoteId: Number(id),
                       clientName: editForm.clientName.trim(),

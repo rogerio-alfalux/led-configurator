@@ -10,6 +10,7 @@ import { createPortal } from "react-dom";
 import { X, FileDown } from "lucide-react";
 import type { CartItemData, QuoteFormData } from "@/lib/cartTypes";
 import { formatBRL } from "@/lib/cartTypes";
+import { getStateInfo } from "@/lib/difalTable";
 
 // ── Helpers (mesmos do gerador Excel) ────────────────────────────────────────
 
@@ -318,9 +319,17 @@ ${htmlContent}
 
   const totalComRT = rtPct > 0 ? (totalBase + freteParaDiluir) / (1 - rtPct) : (totalBase + freteParaDiluir);
   const totalFinal = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
-  const difalAmt = (formData.difalEnabled && formData.difalValue && formData.difalValue > 0) ? formData.difalValue : 0;
-  const fcpAmt = (formData.fcpEnabled && formData.fcpValue && formData.fcpValue > 0) ? formData.fcpValue : 0;
-  const totalComDifal = totalFinal + difalAmt + fcpAmt;
+  // DIFAL/FCP: alíquota combinada, frete na base (fórmula por dentro)
+  const _freteParaImpostoPreview = formData.freteIncluded ? 0 : (formData.freteValue && formData.freteValue > 0 && !formData.freteIsento ? formData.freteValue : 0);
+  const baseParaImpostoPreview = totalFinal + _freteParaImpostoPreview;
+  const stateInfoPreview = formData.destState ? getStateInfo(formData.destState) : undefined;
+  const combinedRatePreview = stateInfoPreview ? stateInfoPreview.combined : 0;
+  const totalComDifal = formData.difalEnabled && combinedRatePreview > 0
+    ? baseParaImpostoPreview / (1 - combinedRatePreview / 100)
+    : baseParaImpostoPreview;
+  const combinedAmtPreview = totalComDifal - baseParaImpostoPreview;
+  const difalAmt = stateInfoPreview && stateInfoPreview.combined > 0 ? combinedAmtPreview * (stateInfoPreview.difal / stateInfoPreview.combined) : 0;
+  const fcpAmt   = stateInfoPreview && stateInfoPreview.combined > 0 ? combinedAmtPreview * (stateInfoPreview.fcp   / stateInfoPreview.combined) : 0;
 
   // Totais com/sem driver (apenas para orçamentos novos com driverLines)
   const hasDriverBreakdown = sortedItems.some(it => it.driverLines && it.driverLines.length > 0);

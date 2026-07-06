@@ -22,6 +22,7 @@
 import ExcelJS from "exceljs";
 import type { CartItemData, LinkedAccessory, QuoteFormData } from "./cartTypes";
 import { toBrasiliaDate } from "./dateUtils";
+import { getStateInfo } from "./difalTable";
 
 // ── Cores do template ────────────────────────────────────────────────────────
 const BLUE      = "FF5B9BD5"; // Azul do template (cabeçalho tabela, número, data)
@@ -1035,10 +1036,17 @@ async function _generateExcelBuffer(
   const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
   const totalComRT   = rtPct    > 0 ? totalBase  / (1 - rtPct)    : totalBase;
   const totalFinal   = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
-  // Calcular DIFAL e FCP a partir dos valores do formData (já calculados na UI)
-  const difalAmt = (formData.difalEnabled && formData.difalValue && formData.difalValue > 0) ? formData.difalValue : 0;
-  const fcpAmt   = (formData.fcpEnabled && formData.fcpValue && formData.fcpValue > 0) ? formData.fcpValue : 0;
-  const totalComDifal = totalFinal + difalAmt + fcpAmt;
+  // Calcular DIFAL/FCP com alíquota combinada e frete na base
+  const _freteParaImpostoBase = formData.freteIncluded ? 0 : (formData.freteValue && formData.freteValue > 0 && !formData.freteIsento ? formData.freteValue : 0); // frete não diluido entra na base
+  const baseParaImposto = totalFinal + _freteParaImpostoBase;
+  const stateInfo = formData.destState ? getStateInfo(formData.destState) : undefined;
+  const combinedRate = stateInfo ? stateInfo.combined : 0;
+  const totalComDifal = formData.difalEnabled && combinedRate > 0
+    ? baseParaImposto / (1 - combinedRate / 100)
+    : baseParaImposto;
+  const combinedAmt = totalComDifal - baseParaImposto;
+  const difalAmt = stateInfo && stateInfo.combined > 0 ? combinedAmt * (stateInfo.difal / stateInfo.combined) : 0;
+  const fcpAmt   = stateInfo && stateInfo.combined > 0 ? combinedAmt * (stateInfo.fcp   / stateInfo.combined) : 0;
   let nextRow = currentRow + items.length + floorHeaderCount;
 
   // Espaço após a tabela

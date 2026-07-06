@@ -1132,10 +1132,17 @@ export default function Cart() {
       arquiteto: saveForm.arquiteto || undefined,
       lightDesigner: saveForm.lightDesigner || undefined,
       totalAmount: totalGeral,
-      // totalFinal deve incluir TODOS os acréscimos: RT + margem + frete + DIFAL + FCP
-      totalFinal: totalFinal + freteValor
-        + (saveForm.difalEnabled && saveForm.difalValue ? parseFloat(saveForm.difalValue) : 0)
-        + (saveForm.fcpEnabled && saveForm.fcpValue ? parseFloat(saveForm.fcpValue) : 0),
+      // totalFinal inclui RT + margem + frete + DIFAL/FCP (alíquota combinada, fórmula por dentro)
+      totalFinal: (() => {
+        const baseComFrete = totalFinal + freteValor;
+        if (saveForm.difalEnabled) {
+          const info = getStateInfo(saveForm.destState);
+          if (info && info.combined > 0) {
+            return baseComFrete / (1 - info.combined / 100);
+          }
+        }
+        return baseComFrete;
+      })(),
       items: orderedEntries.map((e, idx) => ({
         itemNumber: idx + 1,
         itemData: JSON.stringify({
@@ -2052,13 +2059,16 @@ export default function Cart() {
                               {saveForm.destState && saveForm.destState !== "none" && saveForm.destState !== "SP" && (() => {
                                 const info = getStateInfo(saveForm.destState);
                                 if (!info) return null;
-                                const base = totalFinal;
-                                // Fórmula por dentro (igual a RT/Margem): acréscimo = base / (1 - %) - base
-                                const difalPct = info.difal / 100;
-                                const fcpPct = info.fcp / 100;
-                                const difalVal = difalPct > 0 ? base / (1 - difalPct) - base : 0;
-                                const totalComDifal = base + (saveForm.difalEnabled ? difalVal : 0);
-                                const fcpVal = fcpPct > 0 ? totalComDifal / (1 - fcpPct) - totalComDifal : 0;
+                                // Base = produtos + frete (antes de aplicar DIFAL/FCP)
+                                const base = totalFinal + freteValor;
+                                // Alíquota combinada DIFAL + FCP em uma única operação
+                                const combinedRate = info.combined; // ex: RJ = 10% (8% DIFAL + 2% FCP)
+                                // Fórmula por dentro: total = base / (1 - rate/100)
+                                const totalComImposto = combinedRate > 0 ? base / (1 - combinedRate / 100) : base;
+                                const combinedVal = totalComImposto - base;
+                                // Decompor para exibição
+                                const difalVal = info.combined > 0 ? combinedVal * (info.difal / info.combined) : 0;
+                                const fcpVal   = info.combined > 0 ? combinedVal * (info.fcp   / info.combined) : 0;
                                 return (
                                   <div className="space-y-2">
                                     <div className="flex items-center gap-2">
@@ -2066,36 +2076,51 @@ export default function Cart() {
                                         id="saveFormDifal"
                                         checked={saveForm.difalEnabled}
                                         onCheckedChange={(v) => {
-                                          updateSaveForm("difalEnabled", Boolean(v));
+                                          const enabled = Boolean(v);
+                                          updateSaveForm("difalEnabled", enabled);
+                                          updateSaveForm("fcpEnabled", enabled);
                                           updateSaveForm("difalValue", String(difalVal.toFixed(2)));
+                                          updateSaveForm("fcpValue", String(fcpVal.toFixed(2)));
+                                          updateSaveForm("difalPercent", String(info.difal));
+                                          updateSaveForm("fcpPercent", String(info.fcp));
                                         }}
                                       />
                                       <label htmlFor="saveFormDifal" className="text-sm cursor-pointer">
-                                        Aplicar DIFAL ({info.difal.toFixed(1)}%) = {formatBRL(difalVal)}
+                                        Aplicar DIFAL/FCP ({combinedRate.toFixed(1)}%)
+                                        {info.difal > 0 && info.fcp > 0 && (
+                                          <span className="text-muted-foreground ml-1">
+                                            (DIFAL {info.difal.toFixed(1)}% + FCP {info.fcp.toFixed(1)}%)
+                                          </span>
+                                        )}
+                                        {info.fcp === 0 && (
+                                          <span className="text-muted-foreground ml-1">(apenas DIFAL)</span>
+                                        )}
+                                        {" = "}{formatBRL(combinedVal)}
                                       </label>
                                     </div>
-                                    {info.fcp > 0 && (
-                                      <div className="flex items-center gap-2">
-                                        <Checkbox
-                                          id="saveFormFcp"
-                                          checked={saveForm.fcpEnabled}
-                                          onCheckedChange={(v) => {
-                                            updateSaveForm("fcpEnabled", Boolean(v));
-                                            updateSaveForm("fcpValue", String(fcpVal.toFixed(2)));
-                                          }}
-                                        />
-                                        <label htmlFor="saveFormFcp" className="text-sm cursor-pointer">
-                                          Aplicar FCP ({info.fcp.toFixed(1)}%) = {formatBRL(fcpVal)}
-                                        </label>
-                                      </div>
-                                    )}
-                                    {(saveForm.difalEnabled || saveForm.fcpEnabled) && (
-                                      <div className="bg-muted/60 rounded p-2 text-sm">
-                                        <div className="flex justify-between">
-                                          <span className="text-muted-foreground">Total com DIFAL/FCP</span>
-                                          <span className="font-semibold">
-                                            {formatBRL(base + (saveForm.difalEnabled ? difalVal : 0) + (saveForm.fcpEnabled ? fcpVal : 0))}
-                                          </span>
+                                    {saveForm.difalEnabled && (
+                                      <div className="bg-muted/60 rounded p-2 text-sm space-y-1">
+                                        {freteValor > 0 && (
+                                          <div className="flex justify-between text-muted-foreground">
+                                            <span>Base (produtos + frete)</span>
+                                            <span>{formatBRL(base)}</span>
+                                          </div>
+                                        )}
+                                        {info.difal > 0 && (
+                                          <div className="flex justify-between text-muted-foreground">
+                                            <span>DIFAL ({info.difal.toFixed(1)}%)</span>
+                                            <span>{formatBRL(difalVal)}</span>
+                                          </div>
+                                        )}
+                                        {info.fcp > 0 && (
+                                          <div className="flex justify-between text-muted-foreground">
+                                            <span>FCP ({info.fcp.toFixed(1)}%)</span>
+                                            <span>{formatBRL(fcpVal)}</span>
+                                          </div>
+                                        )}
+                                        <div className="flex justify-between font-semibold border-t pt-1">
+                                          <span>Total com DIFAL/FCP</span>
+                                          <span>{formatBRL(totalComImposto)}</span>
                                         </div>
                                       </div>
                                     )}
