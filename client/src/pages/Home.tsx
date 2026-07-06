@@ -3277,8 +3277,9 @@ export default function Home() {
   // Cortes BAGEO sinuosa
   const bgComprimentoNum = parseInt(bgComprimento) || 0;
   // BAGEO sinuosa: cortes SEMPRE obrigatórios (mín 1 corte, máx 2000mm por trecho)
+  const bgRequiresCuts = bgComprimentoNum > BAGEO_MAX_LENGTH_MM;
   const bgMinCortesNecessarios = bgComprimentoNum > 0 ? Math.ceil(bgComprimentoNum / BAGEO_MAX_LENGTH_MM) : 1;
-  const bgNCortesNum = Math.max(bgMinCortesNecessarios, parseInt(bgNCortes) || bgMinCortesNecessarios);
+  const bgNCortesNum = Math.max(1, parseInt(bgNCortes) || 1);
   const bgTrechoMm = bgComprimentoNum > 0 ? Math.ceil(bgComprimentoNum / bgNCortesNum) : 0;
   const bgTrechoExcede = bgTrechoMm > BAGEO_MAX_LENGTH_MM;
 
@@ -4377,21 +4378,27 @@ export default function Home() {
                   {/* Quantidade de Cortes — OBRIGATÓRIO para BAGEO sinuosa */}
                   {bgInstalacao && (
                   <div>
-                    <FieldLabel hint="obrigatório">Quantidade de Cortes</FieldLabel>
+                    {bgRequiresCuts && (
+                      <p className="mb-1.5 text-xs text-amber-500 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        Comprimento acima de {BAGEO_MAX_LENGTH_MM}mm — informe a quantidade de cortes.
+                      </p>
+                    )}
+                    <FieldLabel hint={bgRequiresCuts ? "obrigatório" : "opcional"}>Quantidade de Cortes</FieldLabel>
                     <input
                       type="number"
-                      min={bgMinCortesNecessarios}
+                      min={1}
                       max={99}
                       value={bgNCortes}
                       onChange={(e) => { setBgNCortes(e.target.value); setBgResult(null); }}
-                      placeholder={String(bgMinCortesNecessarios)}
+                      placeholder="1"
                       className={`w-full h-10 px-3 rounded-md border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 ${
-                        bgTrechoExcede ? "border-red-500" : "border-border"
+                        bgTrechoExcede ? "border-red-500" : bgRequiresCuts ? "border-amber-500" : "border-border"
                       }`}
                     />
-                    {bgComprimentoNum > 0 && !bgTrechoExcede && (
+                    {bgComprimentoNum > 0 && bgNCortesNum >= 2 && !bgTrechoExcede && (
                       <p className="mt-1.5 text-xs text-muted-foreground">
-                        {bgNCortesNum} {bgNCortesNum === 1 ? "corte" : "cortes"} → {bgNCortesNum} trecho{bgNCortesNum !== 1 ? "s" : ""} de {Math.round(bgComprimentoNum / bgNCortesNum)}mm cada
+                        {bgNCortesNum} cortes → {bgNCortesNum} trechos de {Math.round(bgComprimentoNum / bgNCortesNum)}mm cada
                       </p>
                     )}
                     {bgTrechoExcede && (
@@ -4446,7 +4453,7 @@ export default function Home() {
                   <Button
                     className="w-full h-12 text-base font-semibold"
                     onClick={handleCalculateBageo}
-                    disabled={!bgProduct}
+                    disabled={!bgProduct || bgComprimentoNum <= 0 || bgTrechoExcede || (bgRequiresCuts && bgNCortesNum < 2)}
                   >
                     <Zap className="w-4 h-4 mr-2" />
                     Calcular BAGEO
