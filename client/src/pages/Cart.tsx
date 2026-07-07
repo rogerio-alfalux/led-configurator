@@ -132,12 +132,14 @@ interface SortableCartItemProps {
   acessorioPhotoMap: Map<string, string>;
   /** Callback para reordenar: move o item da posição atual para a nova posição (1-based global) */
   onReorderToSeq: (itemId: number, newSeq: number) => void;
+  /** Função para aplicar margem individual do item sobre um valor base */
+  applyItemMargin: (base: number, itemMarginPercent?: number | null) => number;
 }
 
 function SortableCartItem({
   entry, idx, globalSeq, totalItems, itemEmPlantaMap, setItemEmPlantaMap, updateItemField,
   handleUpdateQty, handleQtyInput, removeItem, updateQtyMutation, isRemoving, onEditClick, onDuplicate,
-  acessorioPhotoMap, onReorderToSeq,
+  acessorioPhotoMap, onReorderToSeq, applyItemMargin,
 }: SortableCartItemProps) {
   const [seqInputVal, setSeqInputVal] = React.useState<string>("");
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: entry.id });
@@ -356,22 +358,28 @@ function SortableCartItem({
                       })()}
                       {/* Total geral */}
                       {entry.data.totalPrice != null && entry.data.totalPrice > 0 ? (
-                        <p className="font-bold text-primary text-base">{formatBRL(entry.data.totalPrice)}</p>
+                        <p className="font-bold text-primary text-base">{formatBRL(applyItemMargin(entry.data.totalPrice, entry.data.itemMarginPercent))}</p>
                       ) : (
                         <p className="text-xs text-muted-foreground italic">Total a calcular</p>
+                      )}
+                      {entry.data.itemMarginPercent != null && entry.data.itemMarginPercent > 0 && (
+                        <p className="text-[10px] text-emerald-600">+{entry.data.itemMarginPercent}% margem ind.</p>
                       )}
                     </>
                   ) : (
                     <>
                       {entry.data.unitPrice != null && entry.data.unitPrice > 0 && (
-                        <p className="text-xs text-muted-foreground">{formatBRL(entry.data.unitPrice)} / un</p>
+                        <p className="text-xs text-muted-foreground">{formatBRL(applyItemMargin(entry.data.unitPrice, entry.data.itemMarginPercent))} / un</p>
                       )}
                       {entry.data.totalPrice != null && entry.data.totalPrice > 0 ? (
-                        <p className="font-bold text-primary text-base">{formatBRL(entry.data.totalPrice)}</p>
+                        <p className="font-bold text-primary text-base">{formatBRL(applyItemMargin(entry.data.totalPrice, entry.data.itemMarginPercent))}</p>
                       ) : !entry.data.priceFromApi ? (
                         <p className="text-xs text-amber-600 italic cursor-pointer hover:underline" onClick={() => onEditClick(entry.id, entry.data)}>Definir preço →</p>
                       ) : (
                         <p className="text-xs text-muted-foreground italic">Preço a consultar</p>
+                      )}
+                      {entry.data.itemMarginPercent != null && entry.data.itemMarginPercent > 0 && (
+                        <p className="text-[10px] text-emerald-600">+{entry.data.itemMarginPercent}% margem ind.</p>
                       )}
                     </>
                   )}
@@ -923,7 +931,13 @@ export default function Cart() {
     );
   }
 
-  // totalGeral inclui luminária + drivers de cada item
+  // Helper: aplica margem individual do item (itemMarginPercent em %) sobre um valor base
+  const applyItemMargin = (base: number, itemMarginPercent?: number | null): number => {
+    if (itemMarginPercent == null || itemMarginPercent <= 0) return base;
+    const pct = Math.min(Math.max(itemMarginPercent / 100, 0), 0.99);
+    return base / (1 - pct);
+  };
+  // totalGeral inclui luminária + drivers de cada item + margem individual
   const totalGeral = entries.reduce((acc, e) => {
     let itemTotal = 0;
     if (e.data.driverLines && e.data.driverLines.length > 0) {
@@ -943,7 +957,8 @@ export default function Cart() {
     } else {
       itemTotal = e.data.totalPrice ?? 0;
     }
-    return acc + itemTotal;
+    // Aplicar margem individual do item (acréscimo sobre o preço base)
+    return acc + applyItemMargin(itemTotal, e.data.itemMarginPercent);
   }, 0);
 
   // Cálculo de RT e Margem
@@ -1343,15 +1358,15 @@ export default function Cart() {
                           onEditClick={(id, data) => {
                             setEditItemId(id);
                                     setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '' });
-                            if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
+                                                        if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
                           }}
+                          applyItemMargin={applyItemMargin}
                         />
                       ))}
                     </div>
                     </SortableContext>
                   );
                 }
-
                 // Lista agrupada com barras de título de pavimento editáveis + drag de grupo + expandir/recolher
                 const groups: { floor: string; entries: typeof orderedEntries }[] = [];
                 // Manter a ordem dos grupos conforme a ordem dos itens (não alfabética)
@@ -1420,6 +1435,7 @@ export default function Cart() {
                                     setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '' });
                                     if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
                                   }}
+                                  applyItemMargin={applyItemMargin}
                                 />
                                 );
                               })}

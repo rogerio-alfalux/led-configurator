@@ -1956,3 +1956,10 @@
 ## Correção — Módulos longos em formatos especiais (07/07/2026)
 - [x] lEngine.ts: collectAllModules agora respeita allowLongModules — módulos com comprimento > 2840mm (6 barras) só são incluídos quando o usuário habilita "Permitir Módulos Longos"; antes eram sempre disponíveis em formatos especiais (L/U/Quadrado/Retangular)
 - [x] lEngine.test.ts: 3 novos testes cobrindo allowLongModules=false para calculateSquare e calculateRectangle
+
+## Correção — Margem individual não afetava preço no carrinho (07/07/2026)
+- [x] Cart.tsx: criar helper applyItemMargin(base, itemMarginPercent) que aplica margem individual por fórmula de markup (base / (1 - pct))
+- [x] Cart.tsx: totalGeral agora aplica applyItemMargin por item antes de somar (margem individual entra no total)
+- [x] Cart.tsx: exibição de preço de cada item no SortableCartItem usa applyItemMargin — preço exibido reflete margem individual
+- [x] Cart.tsx: indicador visual "+X% margem ind." exibido abaixo do preço quando itemMarginPercent > 0
+- [x] Cart.tsx: applyItemMargin passada como prop para SortableCartItem (ambas as instâncias: lista plana e lista agrupada por pavimento)
