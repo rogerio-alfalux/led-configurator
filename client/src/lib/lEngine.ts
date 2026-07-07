@@ -1,39 +1,42 @@
 /**
- * lEngine.ts — Motor de cálculo para formas EM L (L, Quadrado, Retangular).
+ * lEngine.ts — Motor de cálculo para formas EM L (L, Quadrado, Retangular, U).
  *
  * Lógica de montagem:
  *
  * FORMATO L (2 lados):
- *   - 1 canto 1x1 no vértice
- *   - Lado horizontal: canto (lengthLong) + módulos retos adicionais
- *   - Lado vertical: canto (lengthShort) + módulos retos adicionais
+ *   - 1 canto 1L1 no vértice
+ *   - Lado horizontal: canto + módulos retos (ML e/ou IF)
+ *   - Lado vertical: canto + módulos retos (ML e/ou IF)
  *
  * FORMATO QUADRADO (4 lados iguais):
- *   - 4 cantos 1x1 nos vértices
- *   - Cada lado: canto + módulos retos + canto (oposto)
+ *   - 4 cantos 1L1 nos vértices
+ *   - Cada lado: canto + módulos retos + canto
  *   - Lado = 2 × cornerLength + módulos retos
  *
  * FORMATO RETANGULAR (4 lados, 2 pares diferentes):
- *   - 4 cantos 1x1 nos vértices
- *   - Lado curto (altura): canto + canto (sem retos)
- *   - Lado longo (largura): canto + módulos retos + canto
+ *   - 4 cantos 1L1 nos vértices
+ *   - Lado largo: canto + módulos retos + canto
+ *   - Lado curto: canto + módulos retos + canto
  *
- * Módulos retos entre cantos: usamos módulos IF do catálogo reto.
- * O comprimento disponível para retos = lado total - 2 × cornerLength.
+ * FORMATO U (3 lados):
+ *   - 2 cantos 1L1 nos vértices fechados
+ *   - 2 lados de profundidade: canto + módulos retos (abertura livre)
+ *   - 1 base: canto + módulos retos + canto
  *
- * Otimização: para cada módulo IF disponível, testamos múltiplas quantidades
- * (1×, 2×, 3×...) e escolhemos a combinação que minimiza o desvio em relação
- * ao comprimento disponível (sem ultrapassar).
+ * Algoritmo de preenchimento (v5 — busca ótima ML+IF combinados):
+ *   Para cada segmento reto, usa programação dinâmica (DP) sobre o conjunto
+ *   unificado de módulos ML e IF disponíveis para o perfil. O objetivo é
+ *   maximizar o comprimento realizado sem ultrapassar o disponível.
+ *   Inclui módulos de 1 barra (minBars=1) para minimizar o desvio.
  *
  * Drivers:
  *   - Cada peça (canto ou módulo reto) recebe 1 driver calculado pelas suas barras.
  *   - Canto 1x1: totalBars = barsLong + barsShort = 1 + 1 = 2
- *   - Canto 1xN: totalBars = barsLong + barsShort = N + 1
- *   - Módulo reto IF: totalBars = bars do módulo
+ *   - Módulo reto ML/IF: totalBars = bars do módulo
  */
 
 import { getLConfig, getCorner1x1, getCabeceiraMm, type LCornerModule, type ShapeResult, type ShapePiece, type ShapePieceDriver } from "./lCatalog";
-import { LED_CATALOG, getActiveCatalog, type ProfileVariant } from "./ledCatalog";
+import { getActiveCatalog, type ProfileVariant } from "./ledCatalog";
 import { selectDriverFallback } from "./driverSelector";
 import type { Power, Voltage, StripMethod } from "./ledEngine";
 
@@ -131,21 +134,62 @@ function calcPieceDriver(
 }
 
 /**
- * Algoritmo greedy de combinação de módulos:
- * Ordena os módulos do maior para o menor e vai preenchendo o espaço disponível
- * com o maior módulo que couber, repetindo até não caber mais nenhum.
- * Objetivo: minimizar o número de peças (usar módulos maiores primeiro).
- *
- * minBars: número mínimo de barras aceito (padrão 2 — exclui módulos de 1 barra
- * em formatos L/Quadrado/Retangular). Use 1 para formatos lineares simples.
+ * Coleta todos os módulos ML e IF disponíveis para um perfil, retornando uma lista
+ * unificada ordenada do maior para o menor comprimento.
+ * Inclui módulos de 1 barra (minBars=1) para maximizar a precisão nos formatos especiais.
+ * Preferência: quando ML e IF têm o mesmo comprimento, ML vem primeiro.
  */
-function findBestModuleByType(
+function collectAllModules(
   profileEntry: ProfileVariant,
-  moduleType: "IF" | "ML",
+  allowLongModules: boolean,
+  allowFractionalBars: boolean
+): Array<{ sku: string; length: number; bars: number; type: "ML" | "IF" }> {
+  type ModEntry = { sku: string; length: number; bars: number; type: "ML" | "IF" };
+  const result: ModEntry[] = [];
+  const seen = new Set<string>(); // evitar duplicatas por SKU
+
+  for (const moduleType of ["ML", "IF"] as const) {
+    const rawModules = profileEntry.modules?.[moduleType];
+    if (!rawModules) continue;
+    for (const [barsKey, mod] of Object.entries(rawModules)) {
+      const m = mod as { length: number; sku: string };
+      const bars = parseFloat(barsKey);
+      if (!allowLongModules && m.length > MAX_IF_LENGTH_STANDARD) continue;
+      if (!allowFractionalBars && !Number.isInteger(bars)) continue;
+      if (seen.has(m.sku)) continue;
+      seen.add(m.sku);
+      result.push({ sku: m.sku, length: m.length, bars, type: moduleType });
+    }
+  }
+
+  // Ordenar: maior comprimento primeiro; empate: ML antes de IF
+  result.sort((a, b) => {
+    if (b.length !== a.length) return b.length - a.length;
+    return a.type === "ML" ? -1 : 1;
+  });
+
+  return result;
+}
+
+/**
+ * Busca ótima (DP) para preencher um segmento reto com módulos ML e/ou IF.
+ *
+ * Algoritmo:
+ *   Usa programação dinâmica (unbounded knapsack) sobre o conjunto unificado
+ *   de módulos ML+IF disponíveis para o perfil. O objetivo é maximizar o
+ *   comprimento realizado sem ultrapassar o disponível.
+ *
+ *   Para evitar tempo excessivo em comprimentos muito grandes (>10m), o DP é
+ *   executado em unidades de 5mm (granularidade mínima dos módulos). Isso
+ *   reduz o espaço de estados de 10.000 para 2.000 para um segmento de 10m.
+ *
+ * Inclui módulos de 1 barra para minimizar o desvio final.
+ */
+function findBestSegmentOptimal(
+  profileEntry: ProfileVariant,
   availableLength: number,
   allowLongModules: boolean,
-  allowFractionalBars: boolean = false,
-  minBars: number = 2
+  allowFractionalBars: boolean
 ): StraightSegment {
   const empty: StraightSegment = {
     availableLength,
@@ -157,95 +201,80 @@ function findBestModuleByType(
 
   if (availableLength <= 0) return empty;
 
-  const rawModules = profileEntry.modules?.[moduleType];
-  if (!rawModules) return empty;
+  const allMods = collectAllModules(profileEntry, allowLongModules, allowFractionalBars);
+  if (allMods.length === 0) return empty;
 
-  // Construir lista de módulos elegantes ordenados do maior para o menor
-  type ModEntry = { sku: string; length: number; bars: number };
-  const eligible: ModEntry[] = [];
+  // Granularidade: MDC dos comprimentos dos módulos (mínimo 1mm)
+  // Para simplificar, usamos granularidade de 5mm (todos os módulos são múltiplos de 5mm)
+  const GRAN = 5;
+  const maxSlots = Math.floor(availableLength / GRAN);
 
-  for (const [barsKey, mod] of Object.entries(rawModules)) {
-    const m = mod as { length: number; sku: string };
-    const bars = parseFloat(barsKey);
-    if (!allowLongModules && m.length > MAX_IF_LENGTH_STANDARD) continue;
-    if (!allowFractionalBars && !Number.isInteger(bars)) continue;
-    if (bars < minBars) continue; // excluir módulos abaixo do mínimo de barras
-    eligible.push({ sku: m.sku, length: m.length, bars });
+  // DP: dp[i] = comprimento máximo realizável com i*GRAN mm disponíveis
+  // Limite de espaço: até 50.000 slots (250m) — suficiente para qualquer instalação
+  const MAX_SLOTS = Math.min(maxSlots, 50000);
+
+  // dp[i] = máximo comprimento realizável com exatamente i slots disponíveis
+  // Inicializar com -1 (impossível), dp[0] = 0
+  const dp = new Int32Array(MAX_SLOTS + 1).fill(-1);
+  dp[0] = 0;
+  // from[i] = índice do módulo usado para chegar ao estado i
+  const from = new Int16Array(MAX_SLOTS + 1).fill(-1);
+
+  for (let i = 1; i <= MAX_SLOTS; i++) {
+    for (let mi = 0; mi < allMods.length; mi++) {
+      const mod = allMods[mi];
+      const slots = Math.round(mod.length / GRAN);
+      if (slots > i) continue;
+      if (dp[i - slots] < 0) continue;
+      const candidate = dp[i - slots] + mod.length;
+      if (candidate > dp[i]) {
+        dp[i] = candidate;
+        from[i] = mi;
+      }
+    }
   }
 
-  if (eligible.length === 0) return empty;
+  // Encontrar o melhor estado: varrer do maior para o menor e parar no primeiro
+  // comprimento positivo encontrado (DP é não-decrescente em relação ao comprimento realizado)
+  let bestSlots = 0;
+  let bestLen = 0;
+  for (let i = MAX_SLOTS; i >= 0; i--) {
+    if (dp[i] > bestLen) {
+      bestLen = dp[i];
+      bestSlots = i;
+      break;
+    }
+  }
 
-  // Ordenar do maior para o menor comprimento
-  eligible.sort((a, b) => b.length - a.length);
+  if (bestLen === 0) return empty;
 
-  // Greedy: preencher o espaço restante com o maior módulo que couber
+  // Reconstruir a solução a partir do DP
   const segPieces: SegmentPiece[] = [];
-  let remaining = availableLength;
-  let totalPieces = 0;
-
-  while (remaining > 0 && totalPieces < MAX_MODULES_PER_SIDE) {
-    // Encontrar o maior módulo que cabe no espaço restante
-    const best = eligible.find(m => m.length <= remaining);
-    if (!best) break; // Nenhum módulo cabe mais
-
-    // Adicionar à lista de peças (agrupar se já existe)
-    const existing = segPieces.find(p => p.sku === best.sku);
+  let cur = bestSlots;
+  while (cur > 0 && from[cur] >= 0) {
+    const mi = from[cur];
+    const mod = allMods[mi];
+    const slots = Math.round(mod.length / GRAN);
+    const existing = segPieces.find(p => p.sku === mod.sku);
     if (existing) {
       existing.qty++;
     } else {
-      segPieces.push({ sku: best.sku, length: best.length, bars: best.bars, qty: 1 });
+      segPieces.push({ sku: mod.sku, length: mod.length, bars: mod.bars, qty: 1 });
     }
-
-    remaining -= best.length;
-    totalPieces++;
+    cur -= slots;
   }
 
-  if (segPieces.length === 0) return empty;
+  // Ordenar peças do maior para o menor comprimento
+  segPieces.sort((a, b) => b.length - a.length);
 
-  const actualLength = availableLength - remaining;
-
-  // Compat: expor o primeiro módulo (maior) e total de peças do primeiro tipo
   const firstPiece = segPieces[0];
-
   return {
     availableLength,
     pieces: segPieces,
     module: { sku: firstPiece.sku, length: firstPiece.length, bars: firstPiece.bars },
     moduleQty: firstPiece.qty,
-    actualLength,
+    actualLength: bestLen,
   };
-}
-
-/**
- * Encontra a melhor combinação de módulos IF para preencher um comprimento disponível.
- *
- * Algoritmo:
- * 1. Para cada módulo IF disponível, testa quantidades de 1 a MAX_MODULES_PER_SIDE.
- * 2. Escolhe a combinação (módulo × qty) que resulta no comprimento mais próximo
- *    do disponível, sem ultrapassar.
- * 3. Respeita os limites de allowLongModules e allowFractionalBars.
- */
-function findBestIFModule(
-  profileEntry: ProfileVariant,
-  availableLength: number,
-  allowLongModules: boolean,
-  allowFractionalBars: boolean = false
-): StraightSegment {
-  return findBestModuleByType(profileEntry, "IF", availableLength, allowLongModules, allowFractionalBars);
-}
-
-/**
- * Encontra a melhor combinação de módulos ML para preencher um comprimento disponível.
- * Usado nos formatos Quadrado e Retangular, onde os segmentos retos entre cantos
- * devem ser sempre ML (nunca IF).
- */
-function findBestMLModule(
-  profileEntry: ProfileVariant,
-  availableLength: number,
-  allowLongModules: boolean,
-  allowFractionalBars: boolean = false
-): StraightSegment {
-  return findBestModuleByType(profileEntry, "ML", availableLength, allowLongModules, allowFractionalBars);
 }
 
 /**
@@ -284,8 +313,8 @@ export function calculateLShape(
   const availH = sideH - cornerLen;
   const availV = sideV - cornerLen;
 
-  const segH = findBestIFModule(profileEntry as unknown as ProfileVariant, availH, allowLongModules, allowFractionalBars);
-  const segV = findBestIFModule(profileEntry as unknown as ProfileVariant, availV, allowLongModules, allowFractionalBars);
+  const segH = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availH, allowLongModules, allowFractionalBars);
+  const segV = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availV, allowLongModules, allowFractionalBars);
 
   // Ajuste de cabeceira: quando um lado não tem módulos retos (canto sozinho),
   // soma 2× cabeceira ao comprimento realizado naquele lado.
@@ -421,7 +450,7 @@ export function calculateSquare(
   // Cada lado = canto + reto(s) + canto → disponível = side - 2 × cornerLen
   const availPerSide = side - 2 * cornerLen;
 
-  const seg = findBestMLModule(profileEntry as unknown as ProfileVariant, availPerSide, allowLongModules, allowFractionalBars);
+  const seg = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availPerSide, allowLongModules, allowFractionalBars);
 
   const actualSide = 2 * cornerLen + seg.actualLength;
 
@@ -519,8 +548,8 @@ export function calculateRectangle(
   const availWidth = width - 2 * cornerLen;
   const availHeight = height - 2 * cornerLen;
 
-  const segWidth = findBestMLModule(profileEntry as unknown as ProfileVariant, availWidth, allowLongModules, allowFractionalBars);
-  const segHeight = findBestMLModule(profileEntry as unknown as ProfileVariant, availHeight, allowLongModules, allowFractionalBars);
+  const segWidth = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availWidth, allowLongModules, allowFractionalBars);
+  const segHeight = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availHeight, allowLongModules, allowFractionalBars);
 
   const actualWidth = 2 * cornerLen + segWidth.actualLength;
   const actualHeight = 2 * cornerLen + segHeight.actualLength;
@@ -668,13 +697,13 @@ export function calculateUShape(
   const availDepth = depth - cornerLen;
   const availBase = width - 2 * cornerLen;
 
-  const segDepth = findBestMLModule(
+  const segDepth = findBestSegmentOptimal(
     profileEntry as unknown as ProfileVariant,
     availDepth,
     allowLongModules,
     allowFractionalBars
   );
-  const segBase = findBestMLModule(
+  const segBase = findBestSegmentOptimal(
     profileEntry as unknown as ProfileVariant,
     availBase,
     allowLongModules,

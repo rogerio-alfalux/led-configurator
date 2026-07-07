@@ -1909,3 +1909,9 @@
 - [x] quoteExcelGenerator.ts: corrigir totalBase — usar calcItemLumTotal (priceWithoutDriver) + calcItemDrvTotal em vez de totalPrice + calcItemDrvTotal (duplicava drivers)
 - [x] quoteExcelGenerator.ts: corrigir _totalBaseParaFrete com mesma lógica
 - [x] ExcelPreviewModal.tsx: corrigir totalBase — mesma duplicação de drivers corrigida
+
+## Melhoria algoritmo composição formas especiais (07/07/2026)
+- [x] lEngine.ts: substituir greedy por busca exaustiva (DP) para maximizar preenchimento em formatos L/quadrado/retangular/U
+- [x] lEngine.ts: incluir módulos ML e IF combinados na busca para formatos especiais
+- [x] lEngine.ts: incluir módulos de 1 barra (minBars=1) na busca para formatos especiais
+- [x] lEngine.ts: preferir ML sobre IF quando ambos têm comprimento similar (consistência)
