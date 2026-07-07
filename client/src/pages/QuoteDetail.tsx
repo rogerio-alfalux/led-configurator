@@ -40,6 +40,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { CartItemData, formatBRL, parseCartItemData } from "@/lib/cartTypes";
+
+/** Aplica margem individual do item (itemMarginPercent em %) sobre um valor base */
+function applyItemMarginQD(base: number, itemMarginPercent?: number | null): number {
+  if (itemMarginPercent == null || itemMarginPercent <= 0) return base;
+  const pct = Math.min(Math.max(itemMarginPercent / 100, 0), 0.99);
+  return base / (1 - pct);
+}
 import type { LinkedAccessory, SpecialEquipment } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { CORES_PECA } from "@/components/ColorPickerModal";
@@ -311,10 +318,10 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
               return unitLum != null ? unitLum * d.qty : (d.totalPrice ?? 0);
             })();
             const drvTotal = d.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
-            const grandTotal = lumTotal + drvTotal;
+            const grandTotal = applyItemMarginQD(lumTotal + drvTotal, d.itemMarginPercent);
             return grandTotal > 0 ? (
               <>
-                <p className="text-xs text-muted-foreground">Total (lum. + drv.)</p>
+                <p className="text-xs text-muted-foreground">Total (lum. + drv.){d.itemMarginPercent != null && d.itemMarginPercent > 0 ? ` +${d.itemMarginPercent}% ind.` : ""}</p>
                 <p className="font-bold text-primary">{formatBRL(grandTotal)}</p>
               </>
             ) : (
@@ -322,9 +329,9 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
             );
           })() : (
             <>
-              <p className="text-xs text-muted-foreground">Total</p>
+              <p className="text-xs text-muted-foreground">Total{d.itemMarginPercent != null && d.itemMarginPercent > 0 ? ` +${d.itemMarginPercent}% ind.` : ""}</p>
               <p className="font-bold text-primary">
-                {d.totalPrice != null && d.totalPrice > 0 ? formatBRL(d.totalPrice) : "A consultar"}
+                {d.totalPrice != null && d.totalPrice > 0 ? formatBRL(applyItemMarginQD(d.totalPrice, d.itemMarginPercent)) : "A consultar"}
               </p>
             </>
           )}
@@ -1003,9 +1010,9 @@ export default function QuoteDetail() {
         const effectiveQty = storedQty <= 1 ? iqty : storedQty;
         return sd + Math.round((dl.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
       }, 0);
-      return s + lumT + drvT;
+      return s + applyItemMarginQD(lumT + drvT, d.itemMarginPercent);
     }
-    return s + (d.totalPrice ?? 0);
+    return s + applyItemMarginQD(d.totalPrice ?? 0, d.itemMarginPercent);
   }, 0);
   const editRtPct = Math.min(Math.max(parseFloat(editForm.rtPercent || "0") / 100, 0), 0.99);
   const editMarginPct = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, 0), 0.99);
@@ -1771,11 +1778,23 @@ export default function QuoteDetail() {
                   <span className="text-sm font-medium">Total dos itens</span>
                   <span className="text-lg font-bold text-primary">
                     {formatBRL(editableItems.reduce((s, it) => {
-                      const lumT = it.parsed.totalPrice ?? 0;
-                      const drvT = (it.parsed.driverLines && it.parsed.driverLines.length > 0)
-                        ? it.parsed.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0)
-                        : 0;
-                      return s + lumT + drvT;
+                      const p = it.parsed;
+                      let itemBase = 0;
+                      if (p.driverLines && p.driverLines.length > 0) {
+                        const lumT = (() => {
+                          if (p.priceWithoutDriver != null) {
+                            const isUnitOnly = p.unitPriceLuminaria != null && Math.abs(p.priceWithoutDriver - p.unitPriceLuminaria) < 0.02 && (p.qty ?? 1) > 1;
+                            return isUnitOnly ? p.unitPriceLuminaria! * (p.qty ?? 1) : p.priceWithoutDriver;
+                          }
+                          const unitLum = p.unitPriceLuminaria ?? p.unitPrice ?? null;
+                          return unitLum != null ? unitLum * (p.qty ?? 1) : (p.totalPrice ?? 0);
+                        })();
+                        const drvT = p.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0);
+                        itemBase = lumT + drvT;
+                      } else {
+                        itemBase = p.totalPrice ?? 0;
+                      }
+                      return s + applyItemMarginQD(itemBase, p.itemMarginPercent);
                     }, 0))}
                   </span>
                 </div>
@@ -1799,9 +1818,9 @@ export default function QuoteDetail() {
                             return unitLum != null ? unitLum * (p.qty ?? 1) : (p.totalPrice ?? 0);
                           })();
                           const drvT = p.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0);
-                          return s + lumT + drvT;
+                          return s + applyItemMarginQD(lumT + drvT, p.itemMarginPercent);
                         }
-                        return s + (p.totalPrice ?? 0);
+                        return s + applyItemMarginQD(p.totalPrice ?? 0, p.itemMarginPercent);
                       }, 0);
                       const rtPct = quote.rtPercent ? parseFloat(String(quote.rtPercent)) : 0;
                       const marginPct = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;
