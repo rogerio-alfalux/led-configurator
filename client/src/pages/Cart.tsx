@@ -2978,10 +2978,16 @@ export default function Cart() {
               patch.itemObs = editFields.itemObs.trim() || undefined;
               patch.itemObsShowInExcel = editFields.itemObsShowInExcel;
               // itemMarginPercent (apenas para itens não-Revenda)
-              if (!isRevenda && editFields.itemMarginPercent.trim()) {
-                patch.itemMarginPercent = parseFloat(editFields.itemMarginPercent) || undefined;
-              } else if (!isRevenda) {
-                patch.itemMarginPercent = undefined;
+              // Campo vazio = usa margem global (undefined)
+              // Campo com valor (incluindo 0) = margem individual explícita
+              if (!isRevenda) {
+                const rawMargin = editFields.itemMarginPercent.trim();
+                if (rawMargin === '') {
+                  patch.itemMarginPercent = undefined; // vazio = usa margem global
+                } else {
+                  const parsed = parseFloat(rawMargin);
+                  patch.itemMarginPercent = isNaN(parsed) ? undefined : Math.max(0, parsed);
+                }
               }
               // mkpCustom (markup personalizado por gerentes)
               if (editFields.mkpCustom.trim()) {

@@ -1949,3 +1949,6 @@
 ## Detalhamento de Preços (07/07/2026)
 - [ ] Home.tsx: adicionar painel "Detalhamento de Preços" abaixo do resumo de orçamento para formatos especiais (L/U/Quadrado/Retangular), mostrando SKU, tipo, comprimento, barras, preço lum., preço drv., subtotal — sem exibir markup
 - [ ] Home.tsx: adicionar painel "Detalhamento de Preços" para perfis lineares retos (usando modulePriceResult.breakdown)
+
+## Correção — Bug itemMarginPercent (07/07/2026)
+- [x] Cart.tsx: corrigir lógica de salvamento de margem individual — parseFloat("0") || undefined retornava undefined (0 é falsy); agora: campo vazio → undefined (usa margem global), campo com valor incluindo "0" → salva explicitamente como número; mínimo sempre 0% via Math.max(0, parsed)
