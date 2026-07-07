@@ -1941,3 +1941,7 @@
 - [x] Formato Retangular: apenas módulos ML com cantos 1L1 (sem IF, sem módulos de 1 barra)
 - [x] Fallback para canto sozinho (sem espaço para IF): retornar resultado com cabeceira (perfis embutir)
 - [x] Atualizar testes para refletir as novas regras IF/ML
+
+## Correção — Otimização de comprimento em formatos especiais (07/07/2026)
+- [x] lEngine.ts: remover filtro MAX_IF_LENGTH_STANDARD de collectAllModules (IF/ML de 6 barras agora sempre disponíveis em formas especiais, independente de allowLongModules)
+- [x] lEngine.ts: corrigir critério de seleção em findBestEndCappedSegment — prioridade: 1) menor desvio (maior comprimento), 2) menos peças

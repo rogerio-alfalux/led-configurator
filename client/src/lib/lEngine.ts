@@ -40,8 +40,13 @@ import { getActiveCatalog, type ProfileVariant } from "./ledCatalog";
 import { selectDriverFallback } from "./driverSelector";
 import type { Power, Voltage, StripMethod } from "./ledEngine";
 
-/** Comprimento máximo de módulo IF sem módulos longos habilitados */
-const MAX_IF_LENGTH_STANDARD = 2840;
+/**
+ * Comprimento máximo de módulo IF sem módulos longos habilitados.
+ * Usado apenas em ledEngine.ts para módulos IN em linha reta simples.
+ * Em formatos especiais (L/U/Quadrado/Retangular), IF e ML de 6 barras
+ * são sempre disponíveis para maximizar o preenchimento.
+ */
+const MAX_IF_LENGTH_STANDARD = 99999; // sem limite para IF/ML em formas especiais
 
 /** Número máximo de módulos por lado — valor alto para suportar instalações grandes */
 const MAX_MODULES_PER_SIDE = 500;
@@ -159,7 +164,9 @@ function collectAllModules(
     for (const [barsKey, mod] of Object.entries(rawModules)) {
       const m = mod as { length: number; sku: string };
       const bars = parseFloat(barsKey);
-      if (!allowLongModules && m.length > MAX_IF_LENGTH_STANDARD) continue;
+      // Em formas especiais, IF e ML de 6 barras são sempre disponíveis
+      // O limite MAX_IF_LENGTH_STANDARD só se aplica a módulos IN em linha reta
+      // (ver ledEngine.ts). Aqui não filtramos por comprimento máximo.
       if (!allowFractionalBars && !Number.isInteger(bars)) continue;
       if (seen.has(m.sku)) continue;
       seen.add(m.sku);
@@ -412,10 +419,11 @@ function findBestEndCappedSegment(
     };
 
     if (deviation <= maxDesvio) {
+      // Prioridade: 1) menor desvio (maior comprimento), 2) menos peças
       if (
         !bestAcceptable ||
-        candidate.totalPieces < bestAcceptable.totalPieces ||
-        (candidate.totalPieces === bestAcceptable.totalPieces && candidate.actualLength > bestAcceptable.actualLength)
+        candidate.actualLength > bestAcceptable.actualLength ||
+        (candidate.actualLength === bestAcceptable.actualLength && candidate.totalPieces < bestAcceptable.totalPieces)
       ) {
         bestAcceptable = candidate;
       }
