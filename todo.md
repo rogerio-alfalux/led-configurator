@@ -1915,3 +1915,9 @@
 - [x] lEngine.ts: incluir módulos ML e IF combinados na busca para formatos especiais
 - [x] lEngine.ts: incluir módulos de 1 barra (minBars=1) na busca para formatos especiais
 - [x] lEngine.ts: preferir ML sobre IF quando ambos têm comprimento similar (consistência)
+
+## Preço de módulos em formatos especiais (07/07/2026)
+- [x] Investigar como modulePriceResult é calculado para formatos especiais em ledEngine.ts
+- [x] Garantir que cada módulo (canto 1L1 + retos) tenha preço buscado na API individualmente
+- [x] Garantir que driver seja destacado separadamente no preço de formatos especiais
+- [x] Verificar se priceWithoutDriver e driverLines são corretamente populados para formatos especiais

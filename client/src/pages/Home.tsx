@@ -618,13 +618,15 @@ function ShapeResultCard({
     return getStripflexName(cct);
   }, [shapeResult.cct, shapeResult.stripMethod]);
 
-  // Calcular preço total somando custo × markup de cada peça (API) ou fallback estático
-  const { precoTotal, precoFromApi } = useMemo(() => {
+  // Calcular preço total separando luminária e driver, buscando custo por SKU na API
+  const { precoLuminaria, precoDriver, precoTotal, precoFromApi, precoBreakdown } = useMemo(() => {
+    const empty = { precoLuminaria: null as number|null, precoDriver: null as number|null, precoTotal: null as number|null, precoFromApi: false, precoBreakdown: [] as Array<{sku:string;qty:number;precoUnit:number;subtotal:number;driverUnit:number|null;driverSubtotal:number}> };
     // Método 1: preço por SKU individual via API (inclui cantos EM L)
     if (skuPriceMap && shapeResult.pieces.length > 0) {
-      // Para composições em L, a tensão é sempre ON/OFF 220V (sem controle dim)
-      let total = 0;
+      let totalLum = 0;
+      let totalDrv = 0;
       let allHavePrice = true;
+      const breakdown: typeof empty.precoBreakdown = [];
       for (const piece of shapeResult.pieces) {
         const entry = skuPriceMap[piece.sku];
         if (!entry) { allHavePrice = false; break; }
@@ -632,19 +634,41 @@ function ShapeResultCard({
         const markup = entry.markupPadraoOnoff220v;
         if (custo == null || markup == null) { allHavePrice = false; break; }
         const precoUnit = Math.round(custo * markup * 100) / 100;
-        total += precoUnit * piece.quantity;
+        const subtotal = Math.round(precoUnit * piece.quantity * 100) / 100;
+        totalLum += subtotal;
+        // Driver: buscar custo do driver por SKU (apenas para módulos retos, não cantos)
+        let driverUnit: number | null = null;
+        let driverSubtotal = 0;
+        if (piece.type !== "CORNER" && entry.custoDriver220 != null && entry.markupMinimoDriver != null) {
+          const driverQtyPerPiece = piece.driver
+            ? (piece.driver.combo ? piece.driver.combo.reduce((s, c) => s + c.quantity, 0) : (piece.driver.quantity ?? 1))
+            : 1;
+          driverUnit = Math.round(entry.custoDriver220 * entry.markupMinimoDriver * 100) / 100;
+          driverSubtotal = Math.round(driverUnit * driverQtyPerPiece * piece.quantity * 100) / 100;
+          totalDrv += driverSubtotal;
+        }
+        breakdown.push({ sku: piece.sku, qty: piece.quantity, precoUnit, subtotal, driverUnit, driverSubtotal });
       }
       if (allHavePrice) {
-        return { precoTotal: Math.round(total * 100) / 100, precoFromApi: true };
+        const lumTotal = Math.round(totalLum * 100) / 100;
+        const drvTotal = Math.round(totalDrv * 100) / 100;
+        return {
+          precoLuminaria: lumTotal,
+          precoDriver: drvTotal > 0 ? drvTotal : null,
+          precoTotal: Math.round((lumTotal + drvTotal) * 100) / 100,
+          precoFromApi: true,
+          precoBreakdown: breakdown,
+        };
       }
     }
     // Método 2: fallback — preço por metro linear via catálogo estático
     const power = shapeResult.power;
     const totalMm = shapeResult.totalLengthMm;
-    if (!profileCode || !power || !totalMm) return { precoTotal: null, precoFromApi: false };
+    if (!profileCode || !power || !totalMm) return empty;
     const pricePerMeter = getStaticPricePerMeter(profileCode, power, "onoff", false);
-    if (pricePerMeter == null) return { precoTotal: null, precoFromApi: false };
-    return { precoTotal: Math.round(pricePerMeter * (totalMm / 1000) * 100) / 100, precoFromApi: false };
+    if (pricePerMeter == null) return empty;
+    const total = Math.round(pricePerMeter * (totalMm / 1000) * 100) / 100;
+    return { precoLuminaria: total, precoDriver: null, precoTotal: total, precoFromApi: false, precoBreakdown: [] };
   }, [skuPriceMap, shapeResult.pieces, profileCode, shapeResult.power, shapeResult.totalLengthMm]);
 
   // Preço efetivo: API > catálogo > manual
@@ -784,6 +808,45 @@ function ShapeResultCard({
     const description = `${pName} ${pw} ${cctStr} ${voltStr} — ${shapeLabel} ${dimensionLabel}`.trim();
     const photo = profileCode ? getProfilePhoto(profileCode, undefined, undefined) : null;
 
+    // Separar driver no item do carrinho quando temos preço detalhado por SKU
+    let shapeDrvLines: CartItemData["driverLines"] = undefined;
+    let shapePrecoSemDriver: number | null = null;
+    if (precoDriver != null && precoLuminaria != null && precoFromApi) {
+      // Consolidar drivers por modelo
+      const drvMap = new Map<string, { model: string; code: string; qty: number; unitPrice: number; totalPrice: number }>();
+      for (const piece of shapeResult.pieces) {
+        if (piece.type === "CORNER" || !piece.driver) continue;
+        const bk = precoBreakdown.find(b => b.sku === piece.sku);
+        if (!bk || bk.driverUnit == null) continue;
+        const driverQtyPerPiece = piece.driver.combo
+          ? piece.driver.combo.reduce((s, c) => s + c.quantity, 0)
+          : (piece.driver.quantity ?? 1);
+        const model = piece.driver.combo
+          ? piece.driver.combo.map(c => `${c.quantity}× ${c.model.toUpperCase()}`).join(" + ")
+          : piece.driver.model.toUpperCase();
+        const code = piece.driver.combo ? "" : (piece.driver.code ?? "");
+        const key = model;
+        const totalQty = driverQtyPerPiece * piece.quantity;
+        const existing = drvMap.get(key);
+        if (existing) {
+          existing.qty += totalQty;
+          existing.totalPrice = Math.round((existing.totalPrice + bk.driverUnit * totalQty) * 100) / 100;
+        } else {
+          drvMap.set(key, { model, code, qty: totalQty, unitPrice: bk.driverUnit, totalPrice: Math.round(bk.driverUnit * totalQty * 100) / 100 });
+        }
+      }
+      if (drvMap.size > 0) {
+        shapeDrvLines = Array.from(drvMap.values()).map(d => ({
+          driverModel: d.model,
+          driverCode: d.code,
+          driverQty: d.qty,
+          driverUnitPrice: d.unitPrice,
+          driverTotalPrice: d.totalPrice,
+        }));
+        shapePrecoSemDriver = Math.round(precoLuminaria * globalQty * 100) / 100;
+      }
+    }
+
     const item: CartItemData = {
       category: "Perfis",
       sku: profileCode || (shapeResult.pieces[0]?.sku.split(".")[0] ?? ""),
@@ -801,6 +864,7 @@ function ShapeResultCard({
       stripMethod: shapeResult.stripMethod,
       availableCCTs: ["2700K", "3000K", "4000K", "5000K", "A definir"],
       shapeTotalLengthMm: shapeResult.totalLengthMm,
+      ...(shapeDrvLines ? { driverLines: shapeDrvLines, priceWithoutDriver: shapePrecoSemDriver } : {}),
       ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
     };
 
@@ -963,10 +1027,30 @@ function ShapeResultCard({
 
         {/* Preço estimado ou entrada manual */}
         {precoTotal !== null ? (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Preço estimado:</span>
-            <span className="text-lg font-bold text-blue-400">{formatBRL(precoTotal)}</span>
-            <span className="text-xs text-muted-foreground">(ON/OFF 220V{precoFromApi ? " · via API" : " · catálogo"})</span>
+          <div className="space-y-1">
+            {precoDriver != null && precoLuminaria != null ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Total sem driver:</span>
+                  <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">{formatBRL(precoLuminaria)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Total drivers:</span>
+                  <span className="text-sm font-semibold text-blue-500 dark:text-blue-400">{formatBRL(precoDriver)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Preço estimado:</span>
+                  <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{formatBRL(precoTotal)}</span>
+                  <span className="text-xs text-muted-foreground">(ON/OFF 220V · via API)</span>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Preço estimado:</span>
+                <span className="text-lg font-bold text-blue-400">{formatBRL(precoTotal)}</span>
+                <span className="text-xs text-muted-foreground">(ON/OFF 220V{precoFromApi ? " · via API" : " · catálogo"})</span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-1">
