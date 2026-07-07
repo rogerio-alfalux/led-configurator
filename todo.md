@@ -1904,3 +1904,8 @@
 - [x] ExcelPreviewModal.tsx: substituir emoji ⚠️ por texto simples
 - [x] ledEngine.ts: remover emojis ⚠️ de strings de engineeringNotes
 - [x] Adicionar translate="no" no index.html para prevenir traduções automáticas que causam removeChild
+
+## Correção duplicação de drivers no total do orçamento (07/07/2026)
+- [x] quoteExcelGenerator.ts: corrigir totalBase — usar calcItemLumTotal (priceWithoutDriver) + calcItemDrvTotal em vez de totalPrice + calcItemDrvTotal (duplicava drivers)
+- [x] quoteExcelGenerator.ts: corrigir _totalBaseParaFrete com mesma lógica
+- [x] ExcelPreviewModal.tsx: corrigir totalBase — mesma duplicação de drivers corrigida

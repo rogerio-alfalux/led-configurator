@@ -263,9 +263,10 @@ ${htmlContent}
     });
   }, [items]);
 
-  // totalBase inclui luminária + drivers (usando driverUnitPrice*effectiveQty como fallback quando driverTotalPrice é null)
+  // totalBase inclui luminária + drivers.
+  // IMPORTANTE: Para itens com driverLines, totalPrice = luminária + driver (ambos já incluídos).
+  // Usamos priceWithoutDriver (apenas luminária) + drivers separados para evitar duplicação.
   const totalBase = useMemo(() => sortedItems.reduce((s, it) => {
-    const lumT = it.totalPrice ?? 0;
     const drvT = (it.driverLines && it.driverLines.length > 0)
       ? it.driverLines.reduce((sd, d) => {
           const stored = d.driverTotalPrice;
@@ -277,6 +278,13 @@ ${htmlContent}
           return sd + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
         }, 0)
       : 0;
+    // Para itens com driverLines: usar priceWithoutDriver (luminária sem driver)
+    // Para itens sem driverLines: usar totalPrice normalmente
+    const lumT = (it.driverLines && it.driverLines.length > 0)
+      ? (it.priceWithoutDriver != null && it.priceWithoutDriver > 0
+          ? it.priceWithoutDriver
+          : Math.max(0, (it.totalPrice ?? 0) - drvT))
+      : (it.totalPrice ?? 0);
     return s + lumT + drvT;
   }, 0), [sortedItems]);
 

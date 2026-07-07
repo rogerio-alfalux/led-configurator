@@ -496,7 +496,22 @@ async function _generateExcelBuffer(
       return sd + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
     }, 0);
   };
-  const _totalBaseParaFrete = items.reduce((s, it) => s + (it.totalPrice ?? 0) + calcItemDrvTotal(it), 0);
+  /**
+   * Retorna o preço base da luminária de um item (sem drivers).
+   * Para itens com driverLines, totalPrice = luminária + driver (ambos já incluídos).
+   * Usamos priceWithoutDriver quando disponível; caso contrário totalPrice - calcItemDrvTotal.
+   * Para itens sem driverLines, retorna totalPrice normalmente.
+   */
+  const calcItemLumTotal = (it: CartItemData): number => {
+    if (!it.driverLines || it.driverLines.length === 0) return it.totalPrice ?? 0;
+    // priceWithoutDriver é o preço da luminária sem driver (já calculado na criação do item)
+    if (it.priceWithoutDriver != null && it.priceWithoutDriver > 0) return it.priceWithoutDriver;
+    // Fallback: totalPrice - drivers
+    return Math.max(0, (it.totalPrice ?? 0) - calcItemDrvTotal(it));
+  };
+  // _totalBaseParaFrete: base para distribuição proporcional do frete por item
+  // Para itens com driverLines, usa apenas o preço da luminária (sem drivers) para evitar duplicação
+  const _totalBaseParaFrete = items.reduce((s, it) => s + calcItemLumTotal(it) + calcItemDrvTotal(it), 0);
   const _freteParaDiluir = (formData.freteIncluded && formData.freteValue && formData.freteValue > 0)
     ? formData.freteValue
     : 0;
@@ -1014,9 +1029,9 @@ async function _generateExcelBuffer(
 
   // -- Calcular total dos produtos --
   // Quando frete está diluído, soma o freteValue ao totalBase para o cálculo do total final
-  // Para itens com driverLines, totalPrice contém apenas o preco da luminaria;
-  // os drivers precisam ser somados separadamente para o totalBase correto.
-  const totalBase = items.reduce((sum, it) => sum + (it.totalPrice ?? 0) + calcItemDrvTotal(it), 0) + _freteParaDiluir;
+  // IMPORTANTE: Para itens com driverLines, totalPrice = luminária + driver (ambos incluídos).
+  // Usamos calcItemLumTotal (apenas luminária) + calcItemDrvTotal (apenas drivers) para evitar duplicação.
+  const totalBase = items.reduce((sum, it) => sum + calcItemLumTotal(it) + calcItemDrvTotal(it), 0) + _freteParaDiluir;
   // Totais com/sem driver (apenas para orçamentos novos com driverLines)
   // Usa mesma lógica do Cart.tsx: effectiveQty = storedQty <= 1 ? itemQty : storedQty
   const hasDriverBreakdown = items.some(it => it.driverLines && it.driverLines.length > 0);
