@@ -580,6 +580,16 @@ function DiffuserSelector({
 }
 
 // ─── ShapeResultCard: Card de resultado para formatos EM L ──────────────────────
+/** Extrai as dimensões do canto a partir do nome do produto na API.
+ * Ex: "SKYLINE E ML 1B X 1B 590 X 590MM" → "590 × 590mm"
+ * Ex: "BLAZE E ML 1B X 2B 590 X 1180MM" → "590 × 1180mm"
+ */
+function extractCornerDimensions(name: string): string | null {
+  const m = name.match(/(\d+)\s*[Xx]\s*(\d+)\s*MM/i);
+  if (!m) return null;
+  return `${m[1]} × ${m[2]}mm`;
+}
+
 function ShapeResultCard({
   shapeResult,
   skuPriceMap,
@@ -1113,7 +1123,13 @@ function ShapeResultCard({
                     <tr key={idx} className="border-t border-border hover:bg-muted/20 transition-colors">
                       <td className="px-3 py-2 font-mono text-primary font-medium">{b.sku}</td>
                       <td className={`px-3 py-2 font-semibold hidden sm:table-cell ${typeColor}`}>{typeLabel}</td>
-                      <td className="px-3 py-2 text-right text-muted-foreground hidden sm:table-cell">{piece?.length != null ? `${piece.length}mm` : "—"}</td>
+                      <td className="px-3 py-2 text-right text-muted-foreground hidden sm:table-cell">
+                        {piece?.length != null
+                          ? `${piece.length}mm`
+                          : (piece?.type === 'CORNER' && skuPriceMap?.[b.sku]?.name
+                            ? (extractCornerDimensions(skuPriceMap[b.sku].name) ?? '—')
+                            : '—')}
+                      </td>
                       <td className="px-3 py-2 text-right text-muted-foreground hidden sm:table-cell">{piece?.bars != null ? (Number.isInteger(piece.bars) ? piece.bars : piece.bars.toFixed(1)) : "—"}</td>
                       <td className="px-3 py-2 text-right text-foreground font-semibold">{b.qty}</td>
                       <td className="px-3 py-2 text-right text-amber-600 dark:text-amber-400 font-mono">{formatBRL(b.subtotal)}</td>
@@ -1173,7 +1189,11 @@ function ShapeResultCard({
                       </span>
                     </td>
                     <td className="px-3 py-2 text-right text-foreground">
-                      {piece.length ? `${piece.length}mm` : (piece.type === "CORNER" ? `${shapeResult.dimensions[0] > 0 ? "—" : "—"}` : "—")}
+                      {piece.length
+                        ? `${piece.length}mm`
+                        : piece.type === "CORNER" && skuPriceMap?.[piece.sku]?.name
+                          ? (extractCornerDimensions(skuPriceMap[piece.sku].name) ?? '—')
+                          : '—'}
                     </td>
                     <td className="px-3 py-2 text-right text-foreground font-semibold">{piece.quantity}</td>
                     <td className="px-3 py-2 text-right text-foreground">
@@ -1305,6 +1325,7 @@ type ProfilePriceMap = Record<string, {
 }>;
 
 type SkuPriceMap = Record<string, {
+  name: string;
   custoOnoff220: number|null; custoOnoffBivolt: number|null; custoDim110v: number|null; custoDimDali: number|null; custoDimTriac110v: number|null; custoDimTriac220v: number|null;
   custoOnoff220D1D2: number|null; custoOnoffBivoltD1D2: number|null; custoDim110vD1D2: number|null; custoDimDaliD1D2: number|null; custoDimTriac110vD1D2: number|null; custoDimTriac220vD1D2: number|null;
   markupPadraoOnoff220v: number|null; markupPadraoOnoffBivolt: number|null; markupPadraoDim110v: number|null; markupPadraoDimDali: number|null; markupPadraoDimTriac110v: number|null; markupPadraoDimTriac220v: number|null;
@@ -2171,7 +2192,15 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                     return (
                       <tr key={idx} className="border-t border-border hover:bg-muted/20 transition-colors">
                         <td className="px-3 py-2 font-mono text-primary font-medium">{b.sku}</td>
-                        <td className="px-3 py-2 text-right text-muted-foreground hidden sm:table-cell">{compItem ? `${compItem.length}mm` : '—'}</td>
+                        <td className="px-3 py-2 text-right text-muted-foreground hidden sm:table-cell">
+                          {compItem
+                            ? (compItem.length > 0
+                              ? `${compItem.length}mm`
+                              : (skuPriceMap?.[b.sku]?.name
+                                ? (extractCornerDimensions(skuPriceMap[b.sku].name) ?? '—')
+                                : '—'))
+                            : '—'}
+                        </td>
                         <td className="px-3 py-2 text-right text-muted-foreground hidden sm:table-cell">{compItem ? (Number.isInteger(compItem.barsTotal) ? compItem.barsTotal : compItem.barsTotal.toFixed(1)) : '—'}</td>
                         <td className="px-3 py-2 text-right text-foreground font-semibold">{b.quantity}</td>
                         <td className="px-3 py-2 text-right text-amber-600 dark:text-amber-400 font-mono">{formatBRL(b.subtotal)}</td>
@@ -2464,6 +2493,7 @@ export default function Home() {
   const skuPriceMap = useMemo(() => {
     if (!alfaluxApiProducts || alfaluxApiProducts.length === 0) return {};
     const map: Record<string, {
+      name: string;
       // Custos brutos por controle (D1 simples)
       custoOnoff220: number | null;
       custoOnoffBivolt: number | null;
@@ -2507,6 +2537,7 @@ export default function Home() {
       const sku = p.sku ?? "";
       if (!sku) continue;
       map[sku] = {
+        name: p.name ?? '',
         custoOnoff220: p.custoCorpoOnoff220v ?? null,
         custoOnoffBivolt: p.custoCorpoOnoffBivolt ?? null,
         custoDim110v: p.custoCorpoDim110v ?? null,
