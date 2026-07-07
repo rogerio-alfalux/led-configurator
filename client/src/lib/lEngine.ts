@@ -219,8 +219,7 @@ function findBestSegmentOptimal(
   const maxSlots = Math.floor(availableLength / GRAN);
   const MAX_SLOTS = Math.min(maxSlots, 50000);
 
-  // Estado DP: dp[i] = [comprimento_realizado, num_pecas]
-  // Maximizar comprimento; desempate: minimizar num_pecas
+  // DP: maximizar comprimento; desempate: minimizar número de peças
   const dpLen = new Int32Array(MAX_SLOTS + 1).fill(-1);
   const dpPcs = new Int16Array(MAX_SLOTS + 1).fill(0x7fff); // INF
   dpLen[0] = 0;
@@ -246,16 +245,31 @@ function findBestSegmentOptimal(
     }
   }
 
-  // Encontrar melhor estado (maior comprimento, depois menos peças)
+  // Passo 1: encontrar o comprimento máximo realizável
+  let globalMaxLen = 0;
+  for (let i = 0; i <= MAX_SLOTS; i++) {
+    if (dpLen[i] > globalMaxLen) globalMaxLen = dpLen[i];
+  }
+
+  // Passo 2: entre todos os estados com comprimento >= globalMaxLen - tolerancia,
+  // escolher o que usa MENOS PEÇAS (desempate: maior comprimento)
+  // Tolerância = comprimento do menor módulo grande (para aceitar perder 1 módulo)
+  const smallestLarge = largeMods.length > 0 ? largeMods[largeMods.length - 1].length : 0;
+  const TOLERANCE = smallestLarge; // aceitar desvio de até 1 módulo pequeno
+  const threshold = globalMaxLen - TOLERANCE;
+
   let bestSlots = 0;
   let bestLen = 0;
   let bestPcs = 0x7fff;
-  for (let i = MAX_SLOTS; i >= 0; i--) {
-    if (dpLen[i] > bestLen || (dpLen[i] === bestLen && dpLen[i] >= 0 && dpPcs[i] < bestPcs)) {
-      bestLen = dpLen[i];
-      bestPcs = dpPcs[i];
-      bestSlots = i;
-      if (bestLen > 0) break;
+  for (let i = 0; i <= MAX_SLOTS; i++) {
+    const l = dpLen[i];
+    const p = dpPcs[i];
+    if (l >= threshold) {
+      if (p < bestPcs || (p === bestPcs && l > bestLen)) {
+        bestPcs = p;
+        bestLen = l;
+        bestSlots = i;
+      }
     }
   }
 
