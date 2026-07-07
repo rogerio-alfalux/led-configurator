@@ -3978,7 +3978,9 @@ export default function Home() {
       powerD2: isDual ? powerD2 : undefined,
       cct,
       voltage,
-      stripMethod: powerD1 === 36 ? stripMethod : "STRIPFLEX",
+      // REGRA INEGOCIÁVEL: se a variante tem stripMethod definido (ex: BLAZE S = STRIPLINE),
+      // usar esse valor. Caso contrário, usar a lógica legada baseada em potência (36W = STRIPLINE).
+      stripMethod: selectedVariant?.stripMethod ?? (powerD1 === 36 ? stripMethod : "STRIPFLEX"),
       totalLength: len,
       allowLongModules,
       allowFractional,

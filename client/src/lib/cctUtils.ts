@@ -95,8 +95,12 @@ export function applyUnitPriceChange(
 }
 
 /**
- * Recalcula priceWithoutDriver quando qty muda em item com driverLines.
- * Mantém unitPriceLuminaria inalterado, apenas recalcula o total.
+ * Recalcula priceWithoutDriver e driverLines quando qty muda em item com driverLines.
+ * Mantém unitPriceLuminaria inalterado, apenas recalcula os totais.
+ *
+ * REGRA INEGOCIÁVEL: driverQty = driverQtyPerUnit × newQty
+ * O driverQtyPerUnit é a quantidade de drivers por luminária (ex: 17 para BLAZE 45700mm).
+ * Quando qty muda de 1 para 12, driverQty deve ser 17 × 12 = 204.
  */
 export function applyQtyChange(
   item: CartItemData,
@@ -110,9 +114,33 @@ export function applyQtyChange(
     patch.totalPrice = up * newQty;
   }
 
-  // Para itens com driverLines: recalcular priceWithoutDriver
-  if (item.driverLines && item.driverLines.length > 0 && item.unitPriceLuminaria != null) {
-    patch.priceWithoutDriver = item.unitPriceLuminaria * newQty;
+  // Para itens com driverLines: recalcular driverQty, driverTotalPrice e priceWithoutDriver
+  if (item.driverLines && item.driverLines.length > 0) {
+    // driverQtyPerUnit: quantidade de drivers por luminária (salvo quando o item foi adicionado)
+    // Fallback: derivar do driverQty atual dividido pela qty atual
+    const oldQty = item.qty && item.qty > 0 ? item.qty : 1;
+    const newDriverLines = item.driverLines.map(dl => {
+      const drvPerUnit = item.driverQtyPerUnit != null && item.driverQtyPerUnit > 0
+        ? item.driverQtyPerUnit
+        : Math.round((dl.driverQty ?? 1) / oldQty);
+      const newDrvQty = drvPerUnit * newQty;
+      const newDrvTotal = dl.driverUnitPrice != null
+        ? Math.round(dl.driverUnitPrice * newDrvQty * 100) / 100
+        : null;
+      return { ...dl, driverQty: newDrvQty, driverTotalPrice: newDrvTotal };
+    });
+    patch.driverLines = newDriverLines;
+
+    if (item.unitPriceLuminaria != null) {
+      patch.priceWithoutDriver = item.unitPriceLuminaria * newQty;
+    }
+
+    // Recalcular totalPrice com luminária + driver
+    if (item.unitPriceLuminaria != null) {
+      const drvSum = newDriverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
+      const lumTotal = item.unitPriceLuminaria * newQty;
+      patch.totalPrice = Math.round((lumTotal + drvSum) * 100) / 100;
+    }
   }
 
   return patch;

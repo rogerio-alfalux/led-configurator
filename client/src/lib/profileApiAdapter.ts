@@ -300,6 +300,12 @@ export function adaptProfileProducts(
   const catalog: Record<string, ProfileVariant> = {};
   for (const [code, entry] of Object.entries(variantMap)) {
     const { rule, installType, modules, driver220, driverBivolt, driverDimDali, driverDim110v, ledModuleStripflex, ledModuleStripline } = entry;
+    // Derivar stripMethod automaticamente a partir do módulo LED detectado.
+    // REGRA INEGOCIÁVEL: se ledModuleStripline está preenchido → STRIPLINE;
+    // se ledModuleStripflex está preenchido → STRIPFLEX.
+    // Isso garante que perfis como BLAZE S (STRIPLINE) não caiam no fallback STRIPFLEX.
+    const derivedStripMethod: "STRIPFLEX" | "STRIPLINE" | undefined =
+      ledModuleStripline ? "STRIPLINE" : ledModuleStripflex ? "STRIPFLEX" : undefined;
     catalog[code] = {
       name: rule.name,
       code,
@@ -309,6 +315,7 @@ export function adaptProfileProducts(
       allowD1D2: rule.allowD1D2,
       ...(rule.hasDiffuser !== undefined ? { hasDiffuser: rule.hasDiffuser } : {}),
       ...(rule.requiresRemoteDriver ? { requiresRemoteDriver: true } : {}),
+      ...(derivedStripMethod ? { stripMethod: derivedStripMethod } : {}),
       driver220: driver220 ?? null,
       driverBivolt: driverBivolt ?? null,
       driverDimDali: driverDimDali ?? null,

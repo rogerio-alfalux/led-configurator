@@ -249,3 +249,67 @@ describe("adaptProfileProducts", () => {
     expect(Object.keys(result!)).toHaveLength(20);
   });
 });
+
+describe("stripMethod derivado do ledModule", () => {
+  it("define stripMethod=STRIPLINE para BLAZE S (ledModule contém STRIPLINE)", () => {
+    const product = makePerfilProduct({
+      sku: "LLS-3945.1IF.38F",
+      name: "BLAZE S IF 1B 575MM",
+      instalacao: "SOBREPOR",
+      familia: "BLAZE",
+      ledModule: "STRIPLINE 562,5 X 15MM 108L [CCT]",
+    });
+    const result = adaptProfileProducts([product]);
+    expect(result).not.toBeNull();
+    const variant = Object.values(result!)[0];
+    expect(variant.stripMethod).toBe("STRIPLINE");
+  });
+
+  it("define stripMethod=STRIPFLEX para EASY PRIME (ledModule contém STRIPFLEX)", () => {
+    const product = makePerfilProduct({
+      sku: "LLE-2580.1IF.18F",
+      name: "EASY PRIME E IF 1B 582MM",
+      instalacao: "EMBUTIR",
+      familia: "EASY PRIME",
+      ledModule: "STRIPFLEX 562,5 X 10MM 36L [CCT]",
+    });
+    const result = adaptProfileProducts([product]);
+    expect(result).not.toBeNull();
+    const variant = Object.values(result!)[0];
+    expect(variant.stripMethod).toBe("STRIPFLEX");
+  });
+
+  it("não define stripMethod quando ledModule não contém STRIPFLEX nem STRIPLINE", () => {
+    const product = makePerfilProduct({
+      sku: "LLS-3945.1IF.38F",
+      name: "BLAZE S IF 1B 575MM",
+      instalacao: "SOBREPOR",
+      familia: "BLAZE",
+      ledModule: null, // sem módulo LED
+    });
+    const result = adaptProfileProducts([product]);
+    expect(result).not.toBeNull();
+    const variant = Object.values(result!)[0];
+    expect(variant.stripMethod).toBeUndefined();
+  });
+
+  it("BLAZE S com ledModule STRIPLINE popula ledModuleStripline3000 corretamente", () => {
+    const product = makePerfilProduct({
+      sku: "LLS-3945.1IF.38F",
+      name: "BLAZE S IF 1B 575MM",
+      instalacao: "SOBREPOR",
+      familia: "BLAZE",
+      ledModule: "STRIPLINE 562,5 X 15MM 108L [CCT]",
+      // ledModule3000 simulado
+    } as any);
+    // Adicionar ledModule3000 via cast (campo extra da API)
+    (product as any).ledModule3000 = "STRIPLINE 562.5X15MM 108LEDS 28W 3000K S/CONECTOR (LC) 75V";
+    const result = adaptProfileProducts([product]);
+    expect(result).not.toBeNull();
+    const variant = Object.values(result!)[0];
+    expect(variant.stripMethod).toBe("STRIPLINE");
+    expect(variant.ledModuleStripline3000).toBe("STRIPLINE 562.5X15MM 108LEDS 28W 3000K S/CONECTOR (LC) 75V");
+    // Não deve poluir Stripflex
+    expect(variant.ledModuleStripflex3000).toBeNull();
+  });
+});
