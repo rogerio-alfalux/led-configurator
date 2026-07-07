@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench, Briefcase, Star, Package2, Search as SearchIcon, Minus, Plus } from "lucide-react";
+import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench, Briefcase, Star, Package2, Search as SearchIcon, Minus, Plus, DollarSign } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -1077,9 +1077,66 @@ function ShapeResultCard({
             <p className="text-xs text-muted-foreground">Este preço será usado no orçamento (ON/OFF 220V).</p>
           </div>
         )}
-      </CardContent>
+            </CardContent>
     </Card>
-
+    {/* Detalhamento de Preços — por módulo */}
+    {precoBreakdown.length > 0 && (
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+            <DollarSign className="w-4 h-4" />
+            Detalhamento de Preços
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border border-border overflow-hidden">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-muted/50">
+                  <th className="text-left px-3 py-2 font-semibold text-muted-foreground">SKU</th>
+                  <th className="text-left px-3 py-2 font-semibold text-muted-foreground hidden sm:table-cell">Tipo</th>
+                  <th className="text-right px-3 py-2 font-semibold text-muted-foreground hidden sm:table-cell">Compr.</th>
+                  <th className="text-right px-3 py-2 font-semibold text-muted-foreground hidden sm:table-cell">Barras</th>
+                  <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Qtd</th>
+                  <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Preço Lum.</th>
+                  <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Preço Drv.</th>
+                  <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {precoBreakdown.map((b, idx) => {
+                  const piece = shapeResult.pieces.find(p => p.sku === b.sku);
+                  const typeLabel = piece?.type === "CORNER" ? "Canto" : piece?.type === "STRAIGHT_IF" ? "IF" : piece?.type === "STRAIGHT_ML" ? "ML" : piece?.type === "STRAIGHT_IN" ? "IN" : "—";
+                  const typeColor = piece?.type === "CORNER" ? "text-purple-600 dark:text-purple-400" : piece?.type === "STRAIGHT_IF" ? "text-blue-600 dark:text-blue-400" : piece?.type === "STRAIGHT_ML" ? "text-emerald-600 dark:text-emerald-400" : "text-foreground";
+                  const subtotal = Math.round((b.subtotal + b.driverSubtotal) * 100) / 100;
+                  return (
+                    <tr key={idx} className="border-t border-border hover:bg-muted/20 transition-colors">
+                      <td className="px-3 py-2 font-mono text-primary font-medium">{b.sku}</td>
+                      <td className={`px-3 py-2 font-semibold hidden sm:table-cell ${typeColor}`}>{typeLabel}</td>
+                      <td className="px-3 py-2 text-right text-muted-foreground hidden sm:table-cell">{piece?.length != null ? `${piece.length}mm` : "—"}</td>
+                      <td className="px-3 py-2 text-right text-muted-foreground hidden sm:table-cell">{piece?.bars != null ? (Number.isInteger(piece.bars) ? piece.bars : piece.bars.toFixed(1)) : "—"}</td>
+                      <td className="px-3 py-2 text-right text-foreground font-semibold">{b.qty}</td>
+                      <td className="px-3 py-2 text-right text-amber-600 dark:text-amber-400 font-mono">{formatBRL(b.subtotal)}</td>
+                      <td className="px-3 py-2 text-right text-blue-600 dark:text-blue-400 font-mono">{b.driverSubtotal > 0 ? formatBRL(b.driverSubtotal) : <span className="text-muted-foreground">—</span>}</td>
+                      <td className="px-3 py-2 text-right text-foreground font-bold font-mono">{formatBRL(subtotal)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-border bg-muted/30">
+                  <td colSpan={5} className="px-3 py-2 font-semibold text-muted-foreground text-right hidden sm:table-cell">Total</td>
+                  <td colSpan={1} className="px-3 py-2 font-semibold text-muted-foreground text-right sm:hidden">Total</td>
+                  <td className="px-3 py-2 text-right font-bold text-amber-600 dark:text-amber-400 font-mono">{formatBRL(precoBreakdown.reduce((s, b) => s + b.subtotal, 0))}</td>
+                  <td className="px-3 py-2 text-right font-bold text-blue-600 dark:text-blue-400 font-mono">{formatBRL(precoBreakdown.reduce((s, b) => s + b.driverSubtotal, 0))}</td>
+                  <td className="px-3 py-2 text-right font-bold text-emerald-600 dark:text-emerald-400 font-mono">{formatBRL(precoBreakdown.reduce((s, b) => s + b.subtotal + b.driverSubtotal, 0))}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    )}
     {/* Composição de Módulos */}
     {shapeResult.pieces.length > 0 && (
       <Card className="shadow-sm">
@@ -1714,14 +1771,13 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
     const mkOverride = markupLuminariaOverride;
     let totalLuminaria = 0;
     let allHavePrice = true;
-    const breakdown: Array<{ sku: string; quantity: number; precoUnit: number; subtotal: number }> = [];
-
+        const breakdown: Array<{ sku: string; quantity: number; precoUnit: number; subtotal: number; driverUnit: number | null; driverSubtotal: number }> = [];
     for (const item of result.composition) {
       const precoUnit = getSkuPreco(item.sku, mkOverride);
       if (precoUnit == null) { allHavePrice = false; break; }
       const subtotal = Math.round(precoUnit * item.quantity * 100) / 100;
       totalLuminaria += subtotal;
-      breakdown.push({ sku: item.sku, quantity: item.quantity, precoUnit, subtotal });
+      breakdown.push({ sku: item.sku, quantity: item.quantity, precoUnit, subtotal, driverUnit: null, driverSubtotal: 0 });
     }
 
     if (!allHavePrice) return null;
@@ -1738,10 +1794,17 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
       else if (result.controlType === 'dimTriac220v') custoDriver = firstSkuEntry.custoDriverDimTriac220v;
       else if (/bivolt/i.test(result.voltage)) custoDriver = firstSkuEntry.custoDriverBivolt;
       else custoDriver = firstSkuEntry.custoDriver220;
-      const mkDriver = firstSkuEntry.markupMinimoDriver ?? 3;
-      if (custoDriver != null) precoDriverTotal = Math.round(custoDriver * nModules * mkDriver * 100) / 100;
+            const mkDriver = firstSkuEntry.markupMinimoDriver ?? 3;
+      if (custoDriver != null) {
+        precoDriverTotal = Math.round(custoDriver * nModules * mkDriver * 100) / 100;
+        const driverUnit = Math.round(custoDriver * mkDriver * 100) / 100;
+        // Distribuir driverUnit por módulo no breakdown
+        for (const b of breakdown) {
+          b.driverUnit = driverUnit;
+          b.driverSubtotal = Math.round(driverUnit * b.quantity * 100) / 100;
+        }
+      }
     }
-
     return {
       precoLuminariaTotal: totalLuminaria,
       precoDriverTotal,
@@ -2081,6 +2144,56 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
         <p className="text-xs text-muted-foreground">
           Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.
         </p>
+        {/* Detalhamento de Preços por módulo */}
+        {modulePriceResult && modulePriceResult.breakdown.length > 0 && (
+          <div className="mt-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 mb-2">
+              <DollarSign className="w-3.5 h-3.5" />
+              Detalhamento de Preços
+            </p>
+            <div className="rounded-md border border-border overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-muted/50">
+                    <th className="text-left px-3 py-2 font-semibold text-muted-foreground">SKU</th>
+                    <th className="text-right px-3 py-2 font-semibold text-muted-foreground hidden sm:table-cell">Compr.</th>
+                    <th className="text-right px-3 py-2 font-semibold text-muted-foreground hidden sm:table-cell">Barras</th>
+                    <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Qtd</th>
+                    <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Preço Lum.</th>
+                    <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Preço Drv.</th>
+                    <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {modulePriceResult.breakdown.map((b, idx) => {
+                    const compItem = result.composition.find(c => c.sku === b.sku);
+                    const subtotal = Math.round((b.subtotal + b.driverSubtotal) * 100) / 100;
+                    return (
+                      <tr key={idx} className="border-t border-border hover:bg-muted/20 transition-colors">
+                        <td className="px-3 py-2 font-mono text-primary font-medium">{b.sku}</td>
+                        <td className="px-3 py-2 text-right text-muted-foreground hidden sm:table-cell">{compItem ? `${compItem.length}mm` : '—'}</td>
+                        <td className="px-3 py-2 text-right text-muted-foreground hidden sm:table-cell">{compItem ? (Number.isInteger(compItem.barsTotal) ? compItem.barsTotal : compItem.barsTotal.toFixed(1)) : '—'}</td>
+                        <td className="px-3 py-2 text-right text-foreground font-semibold">{b.quantity}</td>
+                        <td className="px-3 py-2 text-right text-amber-600 dark:text-amber-400 font-mono">{formatBRL(b.subtotal)}</td>
+                        <td className="px-3 py-2 text-right text-blue-600 dark:text-blue-400 font-mono">{b.driverSubtotal > 0 ? formatBRL(b.driverSubtotal) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="px-3 py-2 text-right text-foreground font-bold font-mono">{formatBRL(subtotal)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-border bg-muted/30">
+                    <td colSpan={4} className="px-3 py-2 font-semibold text-muted-foreground text-right hidden sm:table-cell">Total</td>
+                    <td colSpan={1} className="px-3 py-2 font-semibold text-muted-foreground text-right sm:hidden">Total</td>
+                    <td className="px-3 py-2 text-right font-bold text-amber-600 dark:text-amber-400 font-mono">{formatBRL(modulePriceResult.breakdown.reduce((s, b) => s + b.subtotal, 0))}</td>
+                    <td className="px-3 py-2 text-right font-bold text-blue-600 dark:text-blue-400 font-mono">{formatBRL(modulePriceResult.breakdown.reduce((s, b) => s + b.driverSubtotal, 0))}</td>
+                    <td className="px-3 py-2 text-right font-bold text-emerald-600 dark:text-emerald-400 font-mono">{formatBRL(modulePriceResult.breakdown.reduce((s, b) => s + b.subtotal + b.driverSubtotal, 0))}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
     <ColorPickerModal
