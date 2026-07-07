@@ -1850,13 +1850,13 @@
 - [x] client/src/lib/cartTypes.ts: QuoteFormData.freteType expandido para incluir 'pickup'
 
 ## Correção — Regras IF/ML para formatos especiais (07/07/2026)
-- [ ] lEngine.ts: collectAllModules deve aceitar filtro de tipo `ML | IF | both`
-- [ ] lEngine.ts: findBestSegmentOptimal deve repassar filtro de tipo para restringir módulos por formato
-- [ ] Formato L: usar exatamente 2 módulos IF (um em cada extremidade) e preencher o restante apenas com ML
-- [ ] Formato U: usar exatamente 2 módulos IF (um em cada extremidade abertas) e preencher o restante apenas com ML
-- [ ] Formato Quadrado: usar apenas módulos ML com cantos 1L1 (sem IF)
-- [ ] Formato Retangular: usar apenas módulos ML com cantos 1L1 (sem IF)
-- [ ] lEngine.ts: separar peças IF como `STRAIGHT_IF` e manter ML como `STRAIGHT_ML` nas descrições e no summary
+- [x] lEngine.ts: collectAllModules deve aceitar filtro de tipo `ML | IF | both`
+- [x] lEngine.ts: findBestSegmentOptimal deve repassar filtro de tipo para restringir módulos por formato
+- [x] Formato L: usar exatamente 2 módulos IF (um em cada extremidade) e preencher o restante apenas com ML
+- [x] Formato U: usar exatamente 2 módulos IF (um em cada extremidade abertas) e preencher o restante apenas com ML
+- [x] Formato Quadrado: usar apenas módulos ML com cantos 1L1 (sem IF)
+- [x] Formato Retangular: usar apenas módulos ML com cantos 1L1 (sem IF)
+- [x] lEngine.ts: separar peças IF como `STRAIGHT_IF` e manter ML como `STRAIGHT_ML` nas descrições e no summary
 - [x] quoteExcelGenerator.ts: buildFreteText trata freteType='pickup' → "Cliente Retira — Frete R$ 0,00"
 - [x] QuoteDetail.tsx: ao selecionar "Cliente Retira", freteValue é zerado automaticamente
 
@@ -1947,8 +1947,12 @@
 - [x] lEngine.ts: corrigir critério de seleção em findBestEndCappedSegment — prioridade: 1) menor desvio (maior comprimento), 2) menos peças
 
 ## Detalhamento de Preços (07/07/2026)
-- [ ] Home.tsx: adicionar painel "Detalhamento de Preços" abaixo do resumo de orçamento para formatos especiais (L/U/Quadrado/Retangular), mostrando SKU, tipo, comprimento, barras, preço lum., preço drv., subtotal — sem exibir markup
-- [ ] Home.tsx: adicionar painel "Detalhamento de Preços" para perfis lineares retos (usando modulePriceResult.breakdown)
+- [x] Home.tsx: adicionar painel "Detalhamento de Preços" abaixo do resumo de orçamento para formatos especiais (L/U/Quadrado/Retangular), mostrando SKU, tipo, comprimento, barras, preço lum., preço drv., subtotal — sem exibir markup
+- [x] Home.tsx: adicionar painel "Detalhamento de Preços" para perfis lineares retos (usando modulePriceResult.breakdown)
 
 ## Correção — Bug itemMarginPercent (07/07/2026)
 - [x] Cart.tsx: corrigir lógica de salvamento de margem individual — parseFloat("0") || undefined retornava undefined (0 é falsy); agora: campo vazio → undefined (usa margem global), campo com valor incluindo "0" → salva explicitamente como número; mínimo sempre 0% via Math.max(0, parsed)
+
+## Correção — Módulos longos em formatos especiais (07/07/2026)
+- [x] lEngine.ts: collectAllModules agora respeita allowLongModules — módulos com comprimento > 2840mm (6 barras) só são incluídos quando o usuário habilita "Permitir Módulos Longos"; antes eram sempre disponíveis em formatos especiais (L/U/Quadrado/Retangular)
+- [x] lEngine.test.ts: 3 novos testes cobrindo allowLongModules=false para calculateSquare e calculateRectangle

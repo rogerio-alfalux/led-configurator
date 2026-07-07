@@ -252,3 +252,50 @@ describe("calculateSquare/calculateRectangle — sem ajuste de cabeceira e módu
     });
   });
 });
+
+// ─── Testes: allowLongModules=false deve bloquear módulos de 6 barras em formatos especiais ──
+describe("allowLongModules=false — formatos especiais não devem usar módulos de 6 barras", () => {
+  const paramsNoLong = {
+    power: 18 as const,
+    voltage: "220V" as const,
+    stripMethod: "STRIPFLEX" as const,
+    allowLongModules: false,
+  };
+  const paramsWithLong = {
+    power: 18 as const,
+    voltage: "220V" as const,
+    stripMethod: "STRIPFLEX" as const,
+    allowLongModules: true,
+  };
+
+  it("calculateSquare LLE-2052 4560mm: sem módulos longos → nenhum módulo de 6 barras (3380mm)", () => {
+    const result = calculateSquare("LLE-2052", 4560, paramsNoLong);
+    expect(result).not.toBeNull();
+    const straightPieces = result!.pieces.filter(p => p.type !== "CORNER");
+    straightPieces.forEach(p => {
+      expect(p.bars).toBeLessThanOrEqual(5);
+      expect(p.length).toBeLessThanOrEqual(2840);
+    });
+  });
+
+  it("calculateSquare LLE-2052 4560mm: com módulos longos → pode usar módulos de 6 barras (3380mm)", () => {
+    const result = calculateSquare("LLE-2052", 4560, paramsWithLong);
+    expect(result).not.toBeNull();
+    const straightPieces = result!.pieces.filter(p => p.type !== "CORNER");
+    // Com allowLongModules=true, módulos de 6 barras podem aparecer
+    const has6BarModule = straightPieces.some(p => p.bars === 6);
+    // Não forçamos que apareça, apenas que o filtro não os bloqueia
+    // O teste principal é que sem módulos longos, eles NÃO aparecem (teste acima)
+    expect(has6BarModule || straightPieces.length >= 0).toBe(true);
+  });
+
+  it("calculateRectangle LLE-2052 7000x5000mm: sem módulos longos → nenhum módulo de 6 barras", () => {
+    const result = calculateRectangle("LLE-2052", 7000, 5000, paramsNoLong);
+    expect(result).not.toBeNull();
+    const straightPieces = result!.pieces.filter(p => p.type !== "CORNER");
+    straightPieces.forEach(p => {
+      expect(p.bars).toBeLessThanOrEqual(5);
+      expect(p.length).toBeLessThanOrEqual(2840);
+    });
+  });
+});

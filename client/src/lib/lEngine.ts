@@ -41,12 +41,13 @@ import { selectDriverFallback } from "./driverSelector";
 import type { Power, Voltage, StripMethod } from "./ledEngine";
 
 /**
- * Comprimento máximo de módulo IF sem módulos longos habilitados.
- * Usado apenas em ledEngine.ts para módulos IN em linha reta simples.
- * Em formatos especiais (L/U/Quadrado/Retangular), IF e ML de 6 barras
- * são sempre disponíveis para maximizar o preenchimento.
+ * Comprimento máximo de módulo sem módulos longos habilitados.
+ * Módulos com comprimento > 2840mm (tipicamente 6 barras) só são incluídos
+ * quando allowLongModules=true. Este limite é aplicado em collectAllModules
+ * para todos os formatos (L/U/Quadrado/Retangular).
+ * O valor 2840mm inclui o IF-5 do BLAZE embutir (2835mm).
  */
-const MAX_IF_LENGTH_STANDARD = 99999; // sem limite para IF/ML em formas especiais
+const MAX_IF_LENGTH_STANDARD = 2840; // mm — mesmo limite do ledEngine.ts
 
 /** Número máximo de módulos por lado — valor alto para suportar instalações grandes */
 const MAX_MODULES_PER_SIDE = 500;
@@ -164,9 +165,10 @@ function collectAllModules(
     for (const [barsKey, mod] of Object.entries(rawModules)) {
       const m = mod as { length: number; sku: string };
       const bars = parseFloat(barsKey);
-      // Em formas especiais, IF e ML de 6 barras são sempre disponíveis
-      // O limite MAX_IF_LENGTH_STANDARD só se aplica a módulos IN em linha reta
-      // (ver ledEngine.ts). Aqui não filtramos por comprimento máximo.
+      // Respeitar allowLongModules: módulos com comprimento > 2840mm (6 barras)
+      // só são incluídos quando o usuário habilitou "Permitir Módulos Longos".
+      // O limite 2840mm é o mesmo usado em ledEngine.ts (inclui IF-5 do BLAZE embutir 2835mm).
+      if (!allowLongModules && m.length > 2840) continue;
       if (!allowFractionalBars && !Number.isInteger(bars)) continue;
       if (seen.has(m.sku)) continue;
       seen.add(m.sku);
