@@ -142,13 +142,18 @@ function calcPieceDriver(
 function collectAllModules(
   profileEntry: ProfileVariant,
   allowLongModules: boolean,
-  allowFractionalBars: boolean
+  allowFractionalBars: boolean,
+  moduleTypeFilter: "ML" | "IF" | "both" = "both"
 ): Array<{ sku: string; length: number; bars: number; type: "ML" | "IF" }> {
   type ModEntry = { sku: string; length: number; bars: number; type: "ML" | "IF" };
   const result: ModEntry[] = [];
   const seen = new Set<string>(); // evitar duplicatas por SKU
 
-  for (const moduleType of ["ML", "IF"] as const) {
+  const moduleTypes = moduleTypeFilter === "both"
+    ? (["ML", "IF"] as const)
+    : ([moduleTypeFilter] as const);
+
+  for (const moduleType of moduleTypes) {
     const rawModules = profileEntry.modules?.[moduleType];
     if (!rawModules) continue;
     for (const [barsKey, mod] of Object.entries(rawModules)) {
@@ -191,7 +196,9 @@ function findBestSegmentOptimal(
   profileEntry: ProfileVariant,
   availableLength: number,
   allowLongModules: boolean,
-  allowFractionalBars: boolean
+  allowFractionalBars: boolean,
+  moduleTypeFilter: "ML" | "IF" | "both" = "both",
+  allowSmallModules = true
 ): StraightSegment {
   const empty: StraightSegment = {
     availableLength,
@@ -203,7 +210,7 @@ function findBestSegmentOptimal(
 
   if (availableLength <= 0) return empty;
 
-  const allMods = collectAllModules(profileEntry, allowLongModules, allowFractionalBars);
+  const allMods = collectAllModules(profileEntry, allowLongModules, allowFractionalBars, moduleTypeFilter);
   if (allMods.length === 0) return empty;
 
   // Separar módulos grandes (>=2 barras) e pequenos (1 barra)
@@ -316,8 +323,9 @@ function findBestSegmentOptimal(
   }
 
   // Estágio 2: complementar com no máximo 1 módulo pequeno (1 barra)
+  // Desabilitado quando allowSmallModules=false (formatos Quadrado e Retangular)
   const remaining = availableLength - bestLen;
-  if (remaining > 0 && smallMods.length > 0) {
+  if (allowSmallModules && remaining > 0 && smallMods.length > 0) {
     const bestSmall = smallMods.find(m => m.length <= remaining);
     if (bestSmall) {
       const existing = segPieces.find(p => p.sku === bestSmall.sku);
@@ -343,6 +351,84 @@ function findBestSegmentOptimal(
     moduleQty: firstPiece.qty,
     actualLength: bestLen,
   };
+}
+
+type EndCappedSegment = {
+  ifModule: { sku: string; length: number; bars: number; type: "IF" };
+  mlSegment: StraightSegment;
+  actualLength: number;
+  deviation: number;
+  totalPieces: number;
+};
+
+function countSegmentPieces(segment: StraightSegment): number {
+  return segment.pieces.reduce((sum, piece) => sum + piece.qty, 0);
+}
+
+function findBestEndCappedSegment(
+  profileEntry: ProfileVariant,
+  availableLength: number,
+  allowLongModules: boolean,
+  allowFractionalBars: boolean
+): EndCappedSegment | null {
+  if (availableLength <= 0) return null;
+
+  // Filtrar IFs de 1 barra: em composições EM L/U, o IF deve ter pelo menos 2 barras
+  const ifMods = collectAllModules(profileEntry, allowLongModules, allowFractionalBars, "IF")
+    .filter(m => m.length <= availableLength && m.bars >= 2);
+  if (ifMods.length === 0) return null;
+
+  const largeMods = collectAllModules(profileEntry, allowLongModules, allowFractionalBars, "both")
+    .filter(m => m.length >= MIN_2BAR_LENGTH);
+  const maxDesvio = largeMods.length > 0
+    ? largeMods[largeMods.length - 1].length
+    : availableLength;
+
+  let bestAcceptable: EndCappedSegment | null = null;
+  let bestFallback: EndCappedSegment | null = null;
+
+  for (const ifMod of ifMods) {
+    if (ifMod.length > availableLength) continue;
+
+    const remainingForMl = availableLength - ifMod.length;
+    const mlSegment = findBestSegmentOptimal(
+      profileEntry,
+      remainingForMl,
+      allowLongModules,
+      allowFractionalBars,
+      "ML",
+      false // não usar módulos de 1 barra em composições EM L/U
+    );
+    const actualLength = ifMod.length + mlSegment.actualLength;
+    const deviation = availableLength - actualLength;
+    if (deviation < 0) continue;
+
+    const candidate: EndCappedSegment = {
+      ifModule: { ...ifMod, type: "IF" },
+      mlSegment,
+      actualLength,
+      deviation,
+      totalPieces: 1 + countSegmentPieces(mlSegment),
+    };
+
+    if (deviation <= maxDesvio) {
+      if (
+        !bestAcceptable ||
+        candidate.totalPieces < bestAcceptable.totalPieces ||
+        (candidate.totalPieces === bestAcceptable.totalPieces && candidate.actualLength > bestAcceptable.actualLength)
+      ) {
+        bestAcceptable = candidate;
+      }
+    } else if (
+      !bestFallback ||
+      candidate.actualLength > bestFallback.actualLength ||
+      (candidate.actualLength === bestFallback.actualLength && candidate.totalPieces < bestFallback.totalPieces)
+    ) {
+      bestFallback = candidate;
+    }
+  }
+
+  return bestAcceptable ?? bestFallback;
 }
 
 /**
@@ -381,18 +467,72 @@ export function calculateLShape(
   const availH = sideH - cornerLen;
   const availV = sideV - cornerLen;
 
-  const segH = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availH, allowLongModules, allowFractionalBars);
-  const segV = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availV, allowLongModules, allowFractionalBars);
+  const segH = findBestEndCappedSegment(
+    profileEntry as unknown as ProfileVariant,
+    availH,
+    allowLongModules,
+    allowFractionalBars
+  );
+  const segV = findBestEndCappedSegment(
+    profileEntry as unknown as ProfileVariant,
+    availV,
+    allowLongModules,
+    allowFractionalBars
+  );
 
-  // Ajuste de cabeceira: quando um lado não tem módulos retos (canto sozinho),
-  // soma 2× cabeceira ao comprimento realizado naquele lado.
-  // Isso reflete que o canto EM L, quando isolado, precisa das duas cabeceiras
-  // (uma em cada extremidade), assim como um módulo IN.
-  const cabH = (cabeceiraMm > 0 && segH.actualLength === 0) ? 2 * cabeceiraMm : 0;
-  const cabV = (cabeceiraMm > 0 && segV.actualLength === 0) ? 2 * cabeceiraMm : 0;
+  // Fallback: quando não há espaço para IF (canto sozinho), aplicar cabeceira
+  // como no comportamento anterior (perfis embutir com canto isolado).
+  // Caso misto: um lado tem IF, o outro não (canto sozinho com cabeceira).
+  if (!segH && availH > 0) return null; // há espaço mas sem IF válido
+  if (!segV && availV > 0) return null; // há espaço mas sem IF válido
 
-  const actualH = cornerLen + segH.actualLength + cabH;
-  const actualV = cornerLen + segV.actualLength + cabV;
+  // Calcular comprimentos reais de cada lado
+  // Lado com IF: cornerLen + segX.actualLength
+  // Lado sem IF (canto sozinho): cornerLen + 2*cabeceira (se embutir)
+  const cabH = (!segH) ? (cabeceiraMm > 0 ? 2 * cabeceiraMm : 0) : 0;
+  const cabV = (!segV) ? (cabeceiraMm > 0 ? 2 * cabeceiraMm : 0) : 0;
+
+  const actualH = cornerLen + (segH ? segH.actualLength : 0) + cabH;
+  const actualV = cornerLen + (segV ? segV.actualLength : 0) + cabV;
+
+  // Se ambos os lados são canto sozinho (sem IF), retornar resultado simples
+  if (!segH && !segV) {
+    const pieces2: ShapePiece[] = [];
+    const cornerBars2 = corner.barsLong + corner.barsShort;
+    const cornerDriver2 = driverParams ? calcPieceDriver(cornerBars2, driverParams) : undefined;
+    pieces2.push({
+      sku: corner.sku,
+      quantity: 1,
+      description: `Canto EM L 1×1 (${cornerLen}×${cornerLen}mm)`,
+      type: "CORNER",
+      bars: cornerBars2,
+      driver: cornerDriver2,
+    });
+    const summaryLines2 = [
+      `Formato L: ${actualH}mm × ${actualV}mm`,
+      `1× canto ${corner.sku} (${cornerLen}mm)`,
+    ];
+    if (cabH > 0) summaryLines2.push(`+ ${cabH}mm cabeceira (lado horizontal, canto isolado)`);
+    if (cabV > 0) summaryLines2.push(`+ ${cabV}mm cabeceira (lado vertical, canto isolado)`);
+    return {
+      shape: "L_SHAPE",
+      dimensions: [actualH, actualV],
+      pieces: pieces2,
+      summary: summaryLines2.join("\n") + "\n",
+      power: driverParams?.power,
+      voltage: driverParams?.voltage,
+      stripMethod: driverParams?.stripMethod,
+      cct: driverParams?.cct,
+      profileName: driverParams?.profileName,
+      profileCode,
+      totalLengthMm: actualH + actualV,
+      stripflexName: driverParams?.stripflexName,
+      stripflexEq: driverParams?.stripflexEq,
+    };
+  }
+
+  // Composição em L: exatamente 1 IF na extremidade de cada lado com IF.
+  // Quando há IF, a cabeceira já está incorporada ao acabamento final.
 
   const pieces: ShapePiece[] = [];
 
@@ -410,63 +550,96 @@ export function calculateLShape(
     driver: cornerDriver,
   });
 
-  // Módulos retos horizontais (algoritmo greedy, múltiplos tipos possíveis)
-  // v4.1: usa ML (não IF) — barras quebradas só nos MLs, cantos sempre inteiros
-  for (const sp of segH.pieces) {
-    const hDriver = driverParams ? calcPieceDriver(sp.bars, driverParams) : undefined;
-    const hDesc = sp.qty > 1
-      ? `${sp.qty}× ML ${sp.bars} barras (${sp.length}mm) — horizontal`
-      : `ML ${sp.bars} barras (${sp.length}mm) — horizontal`;
-    // Agrupar com peça vertical de mesmo SKU, se existir
-    const existing = pieces.find(p => p.sku === sp.sku && p.type === "STRAIGHT_ML");
-    if (existing) {
-      existing.quantity += sp.qty;
-      existing.description = `ML ${sp.bars} barras (${sp.length}mm) — horizontal e vertical`;
-    } else {
-      pieces.push({
-        sku: sp.sku,
-        quantity: sp.qty,
-        description: hDesc,
-        length: sp.length,
-        type: "STRAIGHT_ML",
-        bars: sp.bars,
-        driver: hDriver,
-      });
-    }
-  }
-
-  // Módulos retos verticais (algoritmo greedy, múltiplos tipos possíveis)
-  // v4.1: usa ML (não IF) — barras quebradas só nos MLs, cantos sempre inteiros
-  for (const sp of segV.pieces) {
-    const vDriver = driverParams ? calcPieceDriver(sp.bars, driverParams) : undefined;
-    const vDesc = sp.qty > 1
-      ? `${sp.qty}× ML ${sp.bars} barras (${sp.length}mm) — vertical`
-      : `ML ${sp.bars} barras (${sp.length}mm) — vertical`;
-    const existing = pieces.find(p => p.sku === sp.sku && p.type === "STRAIGHT_ML");
-    if (existing) {
-      existing.quantity += sp.qty;
-      existing.description = `ML ${sp.bars} barras (${sp.length}mm) — horizontal e vertical`;
-    } else {
-      pieces.push({
-        sku: sp.sku,
-        quantity: sp.qty,
-        description: vDesc,
-        length: sp.length,
-        type: "STRAIGHT_ML",
-        bars: sp.bars,
-        driver: vDriver,
-      });
-    }
-  }
+  // Neste ponto, pelo menos um de segH ou segV não é null (o caso ambos null já foi tratado acima)
+  // e o caso de um ser null com availX > 0 também já foi tratado.
+  // Portanto: se segH é null, availH <= 0 (canto sozinho horizontal)
+  //           se segV é null, availV <= 0 (canto sozinho vertical)
 
   const summaryLines: string[] = [
     `Formato L: ${actualH}mm × ${actualV}mm`,
     `1× canto ${corner.sku} (${cornerLen}mm)`,
   ];
-  for (const sp of segH.pieces) summaryLines.push(`${sp.qty}× ML ${sp.sku} (${sp.length}mm) — horizontal`);
+
+  if (segH) {
+    const hIfDriver = driverParams ? calcPieceDriver(segH.ifModule.bars, driverParams) : undefined;
+    pieces.push({
+      sku: segH.ifModule.sku,
+      quantity: 1,
+      description: `IF ${segH.ifModule.bars} barras (${segH.ifModule.length}mm) — extremidade horizontal`,
+      length: segH.ifModule.length,
+      type: "STRAIGHT_IF",
+      bars: segH.ifModule.bars,
+      driver: hIfDriver,
+    });
+    summaryLines.push(`1× IF ${segH.ifModule.sku} (${segH.ifModule.length}mm) — extremidade horizontal`);
+    for (const sp of segH.mlSegment.pieces) {
+      const hDriver = driverParams ? calcPieceDriver(sp.bars, driverParams) : undefined;
+      const hDesc = sp.qty > 1
+        ? `${sp.qty}× ML ${sp.bars} barras (${sp.length}mm) — horizontal`
+        : `ML ${sp.bars} barras (${sp.length}mm) — horizontal`;
+      const existing = pieces.find(p => p.sku === sp.sku && p.type === "STRAIGHT_ML");
+      if (existing) {
+        existing.quantity += sp.qty;
+        existing.description = `ML ${sp.bars} barras (${sp.length}mm) — horizontal e vertical`;
+      } else {
+        pieces.push({
+          sku: sp.sku,
+          quantity: sp.qty,
+          description: hDesc,
+          length: sp.length,
+          type: "STRAIGHT_ML",
+          bars: sp.bars,
+          driver: hDriver,
+        });
+      }
+      summaryLines.push(`${sp.qty}× ML ${sp.sku} (${sp.length}mm) — horizontal`);
+    }
+  }
   if (cabH > 0) summaryLines.push(`+ ${cabH}mm cabeceira (lado horizontal, canto isolado)`);
-  for (const sp of segV.pieces) summaryLines.push(`${sp.qty}× ML ${sp.sku} (${sp.length}mm) — vertical`);
+
+  if (segV) {
+    const vIfDriver = driverParams ? calcPieceDriver(segV.ifModule.bars, driverParams) : undefined;
+    const existingVerticalIf = pieces.find(p => p.sku === segV!.ifModule.sku && p.type === "STRAIGHT_IF");
+    if (existingVerticalIf) {
+      existingVerticalIf.quantity += 1;
+      existingVerticalIf.description = `IF ${segV.ifModule.bars} barras (${segV.ifModule.length}mm) — extremidades horizontal e vertical`;
+    } else {
+      pieces.push({
+        sku: segV.ifModule.sku,
+        quantity: 1,
+        description: `IF ${segV.ifModule.bars} barras (${segV.ifModule.length}mm) — extremidade vertical`,
+        length: segV.ifModule.length,
+        type: "STRAIGHT_IF",
+        bars: segV.ifModule.bars,
+        driver: vIfDriver,
+      });
+    }
+    summaryLines.push(`1× IF ${segV.ifModule.sku} (${segV.ifModule.length}mm) — extremidade vertical`);
+    for (const sp of segV.mlSegment.pieces) {
+      const vDriver = driverParams ? calcPieceDriver(sp.bars, driverParams) : undefined;
+      const vDesc = sp.qty > 1
+        ? `${sp.qty}× ML ${sp.bars} barras (${sp.length}mm) — vertical`
+        : `ML ${sp.bars} barras (${sp.length}mm) — vertical`;
+      const existing = pieces.find(p => p.sku === sp.sku && p.type === "STRAIGHT_ML");
+      if (existing) {
+        existing.quantity += sp.qty;
+        existing.description = `ML ${sp.bars} barras (${sp.length}mm) — horizontal e vertical`;
+      } else {
+        pieces.push({
+          sku: sp.sku,
+          quantity: sp.qty,
+          description: vDesc,
+          length: sp.length,
+          type: "STRAIGHT_ML",
+          bars: sp.bars,
+          driver: vDriver,
+        });
+      }
+      summaryLines.push(`${sp.qty}× ML ${sp.sku} (${sp.length}mm) — vertical`);
+    }
+  }
   if (cabV > 0) summaryLines.push(`+ ${cabV}mm cabeceira (lado vertical, canto isolado)`);
+
   const summary = summaryLines.join("\n") + "\n";
 
   // Comprimento total = soma dos dois lados realizados (já incluem canto + retos + cabeceira)
@@ -518,7 +691,7 @@ export function calculateSquare(
   // Cada lado = canto + reto(s) + canto → disponível = side - 2 × cornerLen
   const availPerSide = side - 2 * cornerLen;
 
-  const seg = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availPerSide, allowLongModules, allowFractionalBars);
+  const seg = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availPerSide, allowLongModules, allowFractionalBars, "ML", false);
 
   const actualSide = 2 * cornerLen + seg.actualLength;
 
@@ -616,8 +789,8 @@ export function calculateRectangle(
   const availWidth = width - 2 * cornerLen;
   const availHeight = height - 2 * cornerLen;
 
-  const segWidth = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availWidth, allowLongModules, allowFractionalBars);
-  const segHeight = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availHeight, allowLongModules, allowFractionalBars);
+  const segWidth = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availWidth, allowLongModules, allowFractionalBars, "ML", false);
+  const segHeight = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availHeight, allowLongModules, allowFractionalBars, "ML", false);
 
   const actualWidth = 2 * cornerLen + segWidth.actualLength;
   const actualHeight = 2 * cornerLen + segHeight.actualLength;
@@ -765,7 +938,7 @@ export function calculateUShape(
   const availDepth = depth - cornerLen;
   const availBase = width - 2 * cornerLen;
 
-  const segDepth = findBestSegmentOptimal(
+  const segDepth = findBestEndCappedSegment(
     profileEntry as unknown as ProfileVariant,
     availDepth,
     allowLongModules,
@@ -775,8 +948,11 @@ export function calculateUShape(
     profileEntry as unknown as ProfileVariant,
     availBase,
     allowLongModules,
-    allowFractionalBars
+    allowFractionalBars,
+    "ML",
+    false // não usar módulos de 1 barra na base do U
   );
+  if (!segDepth) return null;
 
   const actualDepth = cornerLen + segDepth.actualLength;
   const actualBase = 2 * cornerLen + segBase.actualLength;
@@ -797,9 +973,21 @@ export function calculateUShape(
     driver: cornerDriver,
   });
 
-  // ML dos lados de profundidade (2 lados idênticos)
-  const summaryDepthLines: string[] = [];
-  for (const sp of segDepth.pieces) {
+  const depthIfDriver = driverParams ? calcPieceDriver(segDepth.ifModule.bars, driverParams) : undefined;
+  pieces.push({
+    sku: segDepth.ifModule.sku,
+    quantity: 2,
+    description: `IF ${segDepth.ifModule.bars} barras (${segDepth.ifModule.length}mm) — extremidades do U`,
+    length: segDepth.ifModule.length,
+    type: "STRAIGHT_IF",
+    bars: segDepth.ifModule.bars,
+    driver: depthIfDriver,
+  });
+
+  const summaryDepthLines: string[] = [
+    `2× IF ${segDepth.ifModule.sku} (${segDepth.ifModule.length}mm) — extremidades abertas`,
+  ];
+  for (const sp of segDepth.mlSegment.pieces) {
     const spDriver = driverParams ? calcPieceDriver(sp.bars, driverParams) : undefined;
     const totalQty = 2 * sp.qty; // 2 lados de profundidade
     const desc = sp.qty > 1

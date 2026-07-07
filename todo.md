@@ -1848,6 +1848,15 @@
 - [x] server/db.ts: SaveQuoteInput.freteType expandido para incluir 'pickup'
 - [x] server/routers.ts: z.enum de freteType expandido para incluir 'pickup'
 - [x] client/src/lib/cartTypes.ts: QuoteFormData.freteType expandido para incluir 'pickup'
+
+## Correção — Regras IF/ML para formatos especiais (07/07/2026)
+- [ ] lEngine.ts: collectAllModules deve aceitar filtro de tipo `ML | IF | both`
+- [ ] lEngine.ts: findBestSegmentOptimal deve repassar filtro de tipo para restringir módulos por formato
+- [ ] Formato L: usar exatamente 2 módulos IF (um em cada extremidade) e preencher o restante apenas com ML
+- [ ] Formato U: usar exatamente 2 módulos IF (um em cada extremidade abertas) e preencher o restante apenas com ML
+- [ ] Formato Quadrado: usar apenas módulos ML com cantos 1L1 (sem IF)
+- [ ] Formato Retangular: usar apenas módulos ML com cantos 1L1 (sem IF)
+- [ ] lEngine.ts: separar peças IF como `STRAIGHT_IF` e manter ML como `STRAIGHT_ML` nas descrições e no summary
 - [x] quoteExcelGenerator.ts: buildFreteText trata freteType='pickup' → "Cliente Retira — Frete R$ 0,00"
 - [x] QuoteDetail.tsx: ao selecionar "Cliente Retira", freteValue é zerado automaticamente
 
@@ -1921,3 +1930,14 @@
 - [x] Garantir que cada módulo (canto 1L1 + retos) tenha preço buscado na API individualmente
 - [x] Garantir que driver seja destacado separadamente no preço de formatos especiais
 - [x] Verificar se priceWithoutDriver e driverLines são corretamente populados para formatos especiais
+
+## Regras IF/ML obrigatórias por formato (07/07/2026)
+- [x] lEngine.ts: collectAllModules aceita filtro de tipo `ML | IF | both`
+- [x] lEngine.ts: findBestSegmentOptimal aceita parâmetro allowSmallModules para desabilitar módulos de 1 barra
+- [x] lEngine.ts: findBestEndCappedSegment filtra IFs de 1 barra (exige bars >= 2 para composições EM L/U)
+- [x] Formato L: exatamente 2 módulos IF de 2+ barras (1 por extremidade) + ML para o restante
+- [x] Formato U: exatamente 2 módulos IF de 2+ barras (1 por extremidade aberta) + ML para o restante
+- [x] Formato Quadrado: apenas módulos ML com cantos 1L1 (sem IF, sem módulos de 1 barra)
+- [x] Formato Retangular: apenas módulos ML com cantos 1L1 (sem IF, sem módulos de 1 barra)
+- [x] Fallback para canto sozinho (sem espaço para IF): retornar resultado com cabeceira (perfis embutir)
+- [x] Atualizar testes para refletir as novas regras IF/ML
