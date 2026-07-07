@@ -51,6 +51,32 @@ import { PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS } from "@shared/const";
 import { toBrasiliaDate } from "@/lib/dateUtils";
 import { applyCCTChange } from "@/lib/cctUtils";
 
+/**
+ * REGRA INEGOCIÁVEL: Para perfis (com profileSegments), o driverQty total é sempre
+ * recalculado a partir de profileSegments para corrigir itens antigos com driverQty errado.
+ * Formula: sum(seg.driverQtyPerPiece * seg.qty) * itemQty
+ * Exemplo BLAZE 45700mm: (1×15 + 1×2) * 12 = 17 * 12 = 204 drivers.
+ */
+function getProfileDrvQtyPerLuminaria(item: CartItemData): number | null {
+  const segs = item.profileSegments;
+  if (!segs || segs.length === 0) return null;
+  return segs.reduce((s, seg) => s + (seg.driverQtyPerPiece ?? 1) * seg.qty, 0);
+}
+
+/** Retorna o total de drivers para um item (perfil ou outro produto). */
+function getEffectiveDrvTotal(item: CartItemData): number {
+  if (!item.driverLines || item.driverLines.length === 0) return 0;
+  const qty = item.qty ?? 1;
+  const drvQtyPerLuminaria = getProfileDrvQtyPerLuminaria(item);
+  return item.driverLines.reduce((s, d) => {
+    const unitPrice = d.driverUnitPrice ?? 0;
+    const effectiveQty = drvQtyPerLuminaria != null
+      ? drvQtyPerLuminaria * qty
+      : (d.driverQty ?? qty);
+    return s + Math.round(unitPrice * effectiveQty * 100) / 100;
+  }, 0);
+}
+
 interface SaveFormData {
   quoteNumber: string;
   clientName: string;
@@ -326,26 +352,33 @@ function SortableCartItem({
                       {/* Total driver: recalculado dinamicamente para cobrir itens antigos */}
                       {(() => {
                         const qty = entry.data.qty ?? 1;
-                        // driverQty armazenado pode ser unitário (itens antigos) ou total (itens novos)
-                        // Usamos driverUnitPrice × driverQty como base unitária se driverQty <= qty,
-                        // caso contrário driverQty já é o total
+                        // REGRA INEGOCIÁVEL: para perfis, recalcular driverQtyTotal a partir de profileSegments
+                        // para corrigir itens antigos que tinham driverQty errado (sem multiplicar por qty).
+                        // profileSegments.driverQtyPerPiece × seg.qty = drivers por luminária.
+                        // driverQtyTotal = drivers por luminária × qty de luminárias.
+                        const segs = entry.data.profileSegments;
+                        const drvQtyPerLuminaria = segs && segs.length > 0
+                          ? segs.reduce((s, seg) => s + (seg.driverQtyPerPiece ?? 1) * seg.qty, 0)
+                          : null;
                         const drvTotal = entry.data.driverLines.reduce((s, d) => {
-                          const storedQty = d.driverQty ?? 1;
                           const unitPrice = d.driverUnitPrice ?? 0;
-                          // Se storedQty <= qty, provavelmente é por unidade (item antigo com qty=1)
-                          // Calculamos sempre como unitPrice × storedQty × (qty / storedQty se storedQty < qty)
-                          // Forma mais segura: unitPrice × (storedQty <= 1 ? qty : storedQty)
-                          const effectiveQty = storedQty <= 1 ? qty : storedQty;
+                          // Se temos profileSegments, usar driverQtyPerLuminaria × qty (sempre correto).
+                          // Caso contrário, usar driverQty armazenado (outros produtos).
+                          const effectiveQty = drvQtyPerLuminaria != null
+                            ? drvQtyPerLuminaria * qty
+                            : (d.driverQty ?? qty);
                           return s + Math.round(unitPrice * effectiveQty * 100) / 100;
                         }, 0);
                         if (drvTotal <= 0) return null;
                         // Calcular preço unitário do driver (por luminária)
                         const drvUnitTotal = entry.data.driverLines.reduce((s, d) => {
                           const unitPrice = d.driverUnitPrice ?? 0;
-                          const storedQty = d.driverQty ?? 1;
-                          // driverQty por peça (não multiplicado pela qty de luminárias)
-                          const qtyPerPiece = storedQty <= 1 ? 1 : Math.round(storedQty / qty);
-                          return s + Math.round(unitPrice * qtyPerPiece * 100) / 100;
+                          // Drivers por luminária = drvQtyPerLuminaria (perfis) ou driverQty/qty (outros)
+                          const storedQty = d.driverQty ?? qty;
+                          const qtyPerLuminaria = drvQtyPerLuminaria != null
+                            ? drvQtyPerLuminaria
+                            : (storedQty <= qty ? storedQty : Math.round(storedQty / qty));
+                          return s + Math.round(unitPrice * qtyPerLuminaria * 100) / 100;
                         }, 0);
                         return (
                           <p className="text-xs text-orange-600">
@@ -952,7 +985,8 @@ export default function Cart() {
         const unitLum = e.data.unitPriceLuminaria ?? e.data.unitPrice ?? null;
         return unitLum != null ? unitLum * (e.data.qty ?? 1) : (e.data.totalPrice ?? 0);
       })();
-      const drvTotal = e.data.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
+      // REGRA INEGOCIÁVEL: usar getEffectiveDrvTotal para recalcular corretamente para perfis
+      const drvTotal = getEffectiveDrvTotal(e.data);
       itemTotal = lumTotal + drvTotal;
     } else {
       itemTotal = e.data.totalPrice ?? 0;
@@ -1470,16 +1504,8 @@ export default function Cart() {
                         }
                         return s + (e.data.totalPrice ?? 0);
                       }, 0);
-                      const totalDrv = entries.reduce((s, e) => {
-                        if (!e.data.driverLines || e.data.driverLines.length === 0) return s;
-                        const qty = e.data.qty ?? 1;
-                        return s + e.data.driverLines.reduce((d, dl) => {
-                          const storedQty = dl.driverQty ?? 1;
-                          const unitPrice = dl.driverUnitPrice ?? 0;
-                          const effectiveQty = storedQty <= 1 ? qty : storedQty;
-                          return d + Math.round(unitPrice * effectiveQty * 100) / 100;
-                        }, 0);
-                      }, 0);
+                      // REGRA INEGOCIÁVEL: usar getEffectiveDrvTotal para recalcular corretamente para perfis
+                      const totalDrv = entries.reduce((s, e) => s + getEffectiveDrvTotal(e.data), 0);
                       const hasDriverBreakdown = entries.some(e => e.data.driverLines && e.data.driverLines.length > 0);
                       if (!hasDriverBreakdown) return null;
                       return (
@@ -2973,12 +2999,15 @@ export default function Cart() {
                   if (canEditLuminaria && editFields.unitPrice.trim()) {
                     const qty = parseInt(editFields.qty) || item?.data.qty || 1;
                     const lumUnitPrice = parseFloat(editFields.unitPrice.replace(',', '.')) || 0;
-                    const drvTotal = item.data.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
+                    // REGRA INEGOCIÁVEL: usar getEffectiveDrvTotal para recalcular corretamente para perfis
+                    const drvTotal = getEffectiveDrvTotal(item.data);
                     patch.unitPriceLuminaria = lumUnitPrice;
                     patch.priceWithoutDriver = Math.round(lumUnitPrice * qty * 100) / 100;
                     // totalPrice = preço luminária total + preço driver total
                     patch.totalPrice = Math.round((lumUnitPrice * qty + drvTotal) * 100) / 100;
-                    patch.unitPrice = Math.round((lumUnitPrice + (item.data.unitPriceDriver ?? 0) * (item.data.driverLines[0]?.driverQty ?? 1) / qty) * 100) / 100;
+                    const drvQtyPerLum = getProfileDrvQtyPerLuminaria(item.data);
+                    const drvQtyForUnit = drvQtyPerLum != null ? drvQtyPerLum : (item.data.driverLines[0]?.driverQty ?? 1);
+                    patch.unitPrice = Math.round((lumUnitPrice + (item.data.unitPriceDriver ?? 0) * drvQtyForUnit) * 100) / 100;
                     patch.luminariaHasApiPrice = item.data.luminariaHasApiPrice;
                   }
                 } else if (canEditPriceSave && editFields.unitPrice.trim()) {
