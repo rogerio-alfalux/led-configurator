@@ -47,6 +47,31 @@ function applyItemMarginQD(base: number, itemMarginPercent?: number | null): num
   const pct = Math.min(Math.max(itemMarginPercent / 100, 0), 0.99);
   return base / (1 - pct);
 }
+
+/**
+ * Extrai informações de drivers de itens legados (sem driverLines mas com profileSegments).
+ * Retorna lista consolidada de { driverCode, driverModel, totalQty } ou null se não aplicável.
+ */
+function getLegacyDriverInfo(d: CartItemData): Array<{ driverCode: string; driverModel: string; totalQty: number }> | null {
+  if (d.driverLines && d.driverLines.length > 0) return null; // tem driverLines, não é legado
+  if (!d.profileSegments || d.profileSegments.length === 0) return null;
+  const hasAnyDriver = d.profileSegments.some(seg => seg.driverCode);
+  if (!hasAnyDriver) return null;
+  // Consolidar drivers por código
+  const map = new Map<string, { driverCode: string; driverModel: string; totalQty: number }>();
+  for (const seg of d.profileSegments) {
+    if (!seg.driverCode) continue;
+    const key = seg.driverCode;
+    const qtyPerSeg = (seg.driverQtyPerPiece ?? 1) * (seg.qty ?? 1);
+    if (map.has(key)) {
+      map.get(key)!.totalQty += qtyPerSeg;
+    } else {
+      map.set(key, { driverCode: seg.driverCode, driverModel: seg.driverModel ?? seg.driverCode, totalQty: qtyPerSeg });
+    }
+  }
+  return map.size > 0 ? Array.from(map.values()) : null;
+}
+
 import type { LinkedAccessory, SpecialEquipment } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { CORES_PECA } from "@/components/ColorPickerModal";
@@ -370,6 +395,27 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
           })()}
         </div>
       )}
+
+      {/* Drivers legados: itens antigos com profileSegments mas sem driverLines */}
+      {(() => {
+        const legacyDrivers = getLegacyDriverInfo(d);
+        if (!legacyDrivers) return null;
+        return (
+          <div className="pt-2 border-t space-y-1">
+            <p className="text-xs font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wide">Drivers (incluídos no preço)</p>
+            {legacyDrivers.map((drv, i) => (
+              <div key={i} className="flex items-center justify-between gap-2 text-xs bg-orange-50 dark:bg-orange-900/20 rounded px-2 py-1">
+                <div className="flex-1 min-w-0">
+                  <span className="font-mono text-orange-700 dark:text-orange-400">{drv.driverCode}</span>
+                  {drv.driverModel !== drv.driverCode && <span className="ml-1 text-foreground/80 truncate">{drv.driverModel}</span>}
+                </div>
+                <span className="text-muted-foreground flex-shrink-0">Qtd: <span className="font-medium text-foreground">{drv.totalQty}</span></span>
+              </div>
+            ))}
+            <p className="text-[10px] text-muted-foreground italic">Preço do driver já incluído no valor total do item.</p>
+          </div>
+        );
+      })()}
 
       {/* Campos editáveis do Item Especial */}
       {d.isSpecialItem && (
@@ -3034,6 +3080,23 @@ export default function QuoteDetail() {
                                       ))}
                                     </div>
                                   )}
+                                  {/* Drivers legados: itens antigos com profileSegments mas sem driverLines */}
+                                  {!hasBreakdown && (() => {
+                                    const legacyDrvs = getLegacyDriverInfo(d);
+                                    if (!legacyDrvs) return null;
+                                    return (
+                                      <div className="mt-1.5 border-l-2 border-orange-400/50 pl-2 space-y-0.5">
+                                        {legacyDrvs.map((drv, i) => (
+                                          <div key={i} className="flex items-center gap-1.5 text-xs">
+                                            <span className="font-mono text-[10px] text-orange-600 dark:text-orange-400">{drv.driverCode}</span>
+                                            <span className="text-orange-700 dark:text-orange-300 truncate">{drv.driverModel !== drv.driverCode ? drv.driverModel : ''}</span>
+                                            <span className="text-muted-foreground">x{drv.totalQty}</span>
+                                            <span className="text-[10px] text-muted-foreground italic">(incl. no preço)</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                                 <div className="text-right flex-shrink-0 min-w-[110px]">
                                   <p className="text-xs text-muted-foreground mb-1">Qtd: {d.qty}</p>

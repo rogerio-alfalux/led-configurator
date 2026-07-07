@@ -88,6 +88,28 @@ function buildFreteText(formData: QuoteFormData, totalBase: number): string {
   return "CIF - Para faturamento acima de R$ 1.500,00 São Paulo/ SP (Capital). Demais localidades sob consulta";
 }
 
+/**
+ * Extrai informações de drivers de itens legados (sem driverLines mas com profileSegments).
+ */
+function getLegacyDriverInfoPreview(item: CartItemData): Array<{ driverCode: string; driverModel: string; totalQty: number }> | null {
+  if (item.driverLines && item.driverLines.length > 0) return null;
+  if (!item.profileSegments || item.profileSegments.length === 0) return null;
+  const hasAnyDriver = item.profileSegments.some(seg => seg.driverCode);
+  if (!hasAnyDriver) return null;
+  const map = new Map<string, { driverCode: string; driverModel: string; totalQty: number }>();
+  for (const seg of item.profileSegments) {
+    if (!seg.driverCode) continue;
+    const key = seg.driverCode;
+    const qtyPerSeg = (seg.driverQtyPerPiece ?? 1) * (seg.qty ?? 1);
+    if (map.has(key)) {
+      map.get(key)!.totalQty += qtyPerSeg;
+    } else {
+      map.set(key, { driverCode: seg.driverCode, driverModel: seg.driverModel ?? seg.driverCode, totalQty: qtyPerSeg });
+    }
+  }
+  return map.size > 0 ? Array.from(map.values()) : null;
+}
+
 const CONDITIONS = [
   { num: "1)", text: "Os materiais especificados nesta proposta comercial estão de acordo com os dados fornecidos pelo cliente ou por profissional(is) por ele autorizados. Assim, não nos responsabilizamos por informações incompatíveis que possam ocasionar problemas com instalação ou aplicação do produto;" },
   { num: "2)", text: "Nossos produtos são fabricados sob encomenda, por esse motivo, as trocas somente serão realizadas por motivo de defeito de fabricação, após a análise da(s) peça(s) em fábrica e constatação do efetivo defeito;" },
@@ -761,6 +783,27 @@ ${htmlContent}
                         </tr>
                         );
                       })}
+                      {/* Sub-linhas de drivers legados (itens antigos sem driverLines mas com profileSegments) */}
+                      {(() => {
+                        const legacyDrvs = getLegacyDriverInfoPreview(item);
+                        if (!legacyDrvs) return null;
+                        return legacyDrvs.map((ldrv, ldIdx) => (
+                          <tr key={`ldrv-${idx}-${ldIdx}`} style={{ background: "#FFF3E0" }}>
+                            <td style={{ ...tdStyle, fontSize: 9 }}></td>
+                            <td style={{ ...tdStyle, fontSize: 9 }}></td>
+                            <td style={{ ...tdStyle, fontSize: 9, color: "#E65100", fontStyle: "italic", textAlign: "left" }}>
+                              <div style={{ fontFamily: "monospace", fontSize: 9, color: "#888" }}>{ldrv.driverCode}</div>
+                              <div>↳ Driver: {ldrv.driverModel} — incluído no preço</div>
+                            </td>
+                            {["", "", "", "", "", ""].map((_, i) => (
+                              <td key={i} style={{ ...tdStyle, fontSize: 9 }}></td>
+                            ))}
+                            <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold", color: "#E65100" }}>{ldrv.totalQty}</td>
+                            <td style={{ ...tdStyle, fontSize: 9, color: "#E65100", fontStyle: "italic" }}>incl.</td>
+                            <td style={{ ...tdStyle, fontSize: 9, color: "#E65100", fontStyle: "italic" }}>incl.</td>
+                          </tr>
+                        ));
+                      })()}
                     </Fragment>
                   );
                 })}

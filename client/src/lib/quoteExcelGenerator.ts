@@ -109,6 +109,29 @@ function buildFreteText(formData: QuoteFormData, totalBase: number): string {
   return "CIF - Para faturamento acima de R$ 1.500,00 São Paulo/ SP (Capital). Demais localidades sob consulta";
 }
 
+/**
+ * Extrai informações de drivers de itens legados (sem driverLines mas com profileSegments).
+ * Retorna lista consolidada de { driverCode, driverModel, totalQty } ou null se não aplicável.
+ */
+function getLegacyDriverInfoExcel(item: CartItemData): Array<{ driverCode: string; driverModel: string; totalQty: number }> | null {
+  if (item.driverLines && item.driverLines.length > 0) return null;
+  if (!item.profileSegments || item.profileSegments.length === 0) return null;
+  const hasAnyDriver = item.profileSegments.some(seg => seg.driverCode);
+  if (!hasAnyDriver) return null;
+  const map = new Map<string, { driverCode: string; driverModel: string; totalQty: number }>();
+  for (const seg of item.profileSegments) {
+    if (!seg.driverCode) continue;
+    const key = seg.driverCode;
+    const qtyPerSeg = (seg.driverQtyPerPiece ?? 1) * (seg.qty ?? 1);
+    if (map.has(key)) {
+      map.get(key)!.totalQty += qtyPerSeg;
+    } else {
+      map.set(key, { driverCode: seg.driverCode, driverModel: seg.driverModel ?? seg.driverCode, totalQty: qtyPerSeg });
+    }
+  }
+  return map.size > 0 ? Array.from(map.values()) : null;
+}
+
 // ── Cache de fotos frescas de produtos ──
 
 // A URL da foto no itemData pode expirar (CloudFront signed URL).
@@ -995,9 +1018,41 @@ async function _generateExcelBuffer(
       }
       currentRow += item.driverLines.length;
     }
-    // ── Sub-linha de observação do item (quando itemObsShowInExcel=true) ────────────────────────
+    // ── Sub-linhas de drivers legados (itens antigos sem driverLines mas com profileSegments) ────────────
+    const legacyDrvsExcel = getLegacyDriverInfoExcel(item);
+    if (legacyDrvsExcel && legacyDrvsExcel.length > 0) {
+      for (let ldIdx = 0; ldIdx < legacyDrvsExcel.length; ldIdx++) {
+        const ldrv = legacyDrvsExcel[ldIdx];
+        const ldRowNum = rowNum + (nonRabichoAcc?.length ?? 0) + ldIdx + 1;
+        ws.spliceRows(ldRowNum, 0, []);
+        const ldRow = ws.getRow(ldRowNum);
+        ldRow.height = 28;
+        const LD_BG = "FFFFF3E0"; // laranja muito claro (mesmo dos drivers normais)
+        const LD_COLOR = "FFE65100"; // laranja escuro
+        const thinOrangeLd: Partial<ExcelJS.Border> = { style: "thin", color: { argb: "FFFFCC80" } };
+        const ldBorder = { top: thinOrangeLd, bottom: thinOrangeLd, left: thinOrangeLd, right: thinOrangeLd };
+        const fillLd = (cell: ExcelJS.Cell, value: string | number | null) => {
+          cell.value = value ?? "";
+          cell.font = { name: "Calibri", size: 9, italic: true, color: { argb: LD_COLOR } };
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LD_BG } };
+          cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+          cell.border = ldBorder;
+        };
+        fillLd(ws.getCell(`C${ldRowNum}`), "");
+        fillLd(ws.getCell(`D${ldRowNum}`), "");
+        fillLd(ws.getCell(`E${ldRowNum}`), `\u21B3 Driver: ${ldrv.driverModel}${ldrv.driverCode !== ldrv.driverModel ? ` (${ldrv.driverCode})` : ""} \u2014 incluído no preço`);
+        for (const col of ["F", "G", "H", "I", "J", "K"]) {
+          fillLd(ws.getCell(`${col}${ldRowNum}`), "");
+        }
+        fillLd(ws.getCell(`L${ldRowNum}`), ldrv.totalQty);
+        fillLd(ws.getCell(`M${ldRowNum}`), "incl.");
+        fillLd(ws.getCell(`N${ldRowNum}`), "incl.");
+      }
+      currentRow += legacyDrvsExcel.length;
+    }
+    // ── Sub-linha de observação do item (quando itemObsShowInExcel=true) ──────────────────────────────────────────────────────────────────────────────────────
     if (item.itemObs && item.itemObsShowInExcel) {
-      const obsOffset = (nonRabichoAcc?.length ?? 0) + (item.driverLines?.length ?? 0);
+      const obsOffset = (nonRabichoAcc?.length ?? 0) + (item.driverLines?.length ?? 0) + (legacyDrvsExcel?.length ?? 0);
       const obsRowNum = rowNum + obsOffset + 1;
       ws.spliceRows(obsRowNum, 0, []);
       const obsRow = ws.getRow(obsRowNum);
