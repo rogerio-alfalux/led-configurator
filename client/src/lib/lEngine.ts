@@ -172,18 +172,25 @@ function collectAllModules(
 }
 
 /**
+ * Comprimento mínimo de um módulo de 2 barras (limiar para separar módulos grandes de pequenos).
+ * Módulos abaixo deste limiar são considerados "de 1 barra" e usados apenas como complemento.
+ */
+const MIN_2BAR_LENGTH = 1100; // ~1130mm para 2 barras
+
+/**
  * Busca ótima (DP) para preencher um segmento reto com módulos ML e/ou IF.
  *
- * Algoritmo:
- *   Usa programação dinâmica (unbounded knapsack) sobre o conjunto unificado
- *   de módulos ML+IF disponíveis para o perfil. O objetivo é maximizar o
- *   comprimento realizado sem ultrapassar o disponível.
+ * Estratégia de dois estágios:
+ *   Estágio 1: DP sobre módulos >=2 barras (comprimento >= MIN_2BAR_LENGTH).
+ *     Objetivo: maximizar comprimento realizado com o menor número de peças.
+ *     Desempate: menos peças vence.
+ *   Estágio 2: Se sobrar espaço após o estágio 1, adicionar no máximo 1 módulo
+ *     de 1 barra (o maior que couber no espaço restante).
  *
- *   Para evitar tempo excessivo em comprimentos muito grandes (>10m), o DP é
- *   executado em unidades de 5mm (granularidade mínima dos módulos). Isso
- *   reduz o espaço de estados de 10.000 para 2.000 para um segmento de 10m.
+ * Isso garante que o resultado usa o menor número de módulos grandes possível
+ * e no máximo 1 módulo pequeno de complemento.
  *
- * Inclui módulos de 1 barra para minimizar o desvio final.
+ * Granularidade: 5mm (todos os módulos são múltiplos de 5mm ou muito próximos).
  */
 function findBestSegmentOptimal(
   profileEntry: ProfileVariant,
@@ -204,56 +211,60 @@ function findBestSegmentOptimal(
   const allMods = collectAllModules(profileEntry, allowLongModules, allowFractionalBars);
   if (allMods.length === 0) return empty;
 
-  // Granularidade: MDC dos comprimentos dos módulos (mínimo 1mm)
-  // Para simplificar, usamos granularidade de 5mm (todos os módulos são múltiplos de 5mm)
+  // Separar módulos grandes (>=2 barras) e pequenos (1 barra)
+  const largeMods = allMods.filter(m => m.length >= MIN_2BAR_LENGTH);
+  const smallMods = allMods.filter(m => m.length < MIN_2BAR_LENGTH);
+
   const GRAN = 5;
   const maxSlots = Math.floor(availableLength / GRAN);
-
-  // DP: dp[i] = comprimento máximo realizável com i*GRAN mm disponíveis
-  // Limite de espaço: até 50.000 slots (250m) — suficiente para qualquer instalação
   const MAX_SLOTS = Math.min(maxSlots, 50000);
 
-  // dp[i] = máximo comprimento realizável com exatamente i slots disponíveis
-  // Inicializar com -1 (impossível), dp[0] = 0
-  const dp = new Int32Array(MAX_SLOTS + 1).fill(-1);
-  dp[0] = 0;
-  // from[i] = índice do módulo usado para chegar ao estado i
+  // Estado DP: dp[i] = [comprimento_realizado, num_pecas]
+  // Maximizar comprimento; desempate: minimizar num_pecas
+  const dpLen = new Int32Array(MAX_SLOTS + 1).fill(-1);
+  const dpPcs = new Int16Array(MAX_SLOTS + 1).fill(0x7fff); // INF
+  dpLen[0] = 0;
+  dpPcs[0] = 0;
   const from = new Int16Array(MAX_SLOTS + 1).fill(-1);
 
   for (let i = 1; i <= MAX_SLOTS; i++) {
-    for (let mi = 0; mi < allMods.length; mi++) {
-      const mod = allMods[mi];
+    for (let mi = 0; mi < largeMods.length; mi++) {
+      const mod = largeMods[mi];
       const slots = Math.round(mod.length / GRAN);
       if (slots > i) continue;
-      if (dp[i - slots] < 0) continue;
-      const candidate = dp[i - slots] + mod.length;
-      if (candidate > dp[i]) {
-        dp[i] = candidate;
+      const prevLen = dpLen[i - slots];
+      if (prevLen < 0) continue;
+      const prevPcs = dpPcs[i - slots];
+      const candLen = prevLen + mod.length;
+      const candPcs = prevPcs + 1;
+      // Maximizar comprimento; desempate: menos peças
+      if (candLen > dpLen[i] || (candLen === dpLen[i] && candPcs < dpPcs[i])) {
+        dpLen[i] = candLen;
+        dpPcs[i] = candPcs;
         from[i] = mi;
       }
     }
   }
 
-  // Encontrar o melhor estado: varrer do maior para o menor e parar no primeiro
-  // comprimento positivo encontrado (DP é não-decrescente em relação ao comprimento realizado)
+  // Encontrar melhor estado (maior comprimento, depois menos peças)
   let bestSlots = 0;
   let bestLen = 0;
+  let bestPcs = 0x7fff;
   for (let i = MAX_SLOTS; i >= 0; i--) {
-    if (dp[i] > bestLen) {
-      bestLen = dp[i];
+    if (dpLen[i] > bestLen || (dpLen[i] === bestLen && dpLen[i] >= 0 && dpPcs[i] < bestPcs)) {
+      bestLen = dpLen[i];
+      bestPcs = dpPcs[i];
       bestSlots = i;
-      break;
+      if (bestLen > 0) break;
     }
   }
 
-  if (bestLen === 0) return empty;
-
-  // Reconstruir a solução a partir do DP
+  // Reconstruir peças grandes
   const segPieces: SegmentPiece[] = [];
   let cur = bestSlots;
   while (cur > 0 && from[cur] >= 0) {
     const mi = from[cur];
-    const mod = allMods[mi];
+    const mod = largeMods[mi];
     const slots = Math.round(mod.length / GRAN);
     const existing = segPieces.find(p => p.sku === mod.sku);
     if (existing) {
@@ -263,6 +274,24 @@ function findBestSegmentOptimal(
     }
     cur -= slots;
   }
+
+  // Estágio 2: complementar com no máximo 1 módulo pequeno (1 barra)
+  let remaining = availableLength - bestLen;
+  if (remaining > 0 && smallMods.length > 0) {
+    // Escolher o maior módulo pequeno que cabe no espaço restante
+    const bestSmall = smallMods.find(m => m.length <= remaining);
+    if (bestSmall) {
+      const existing = segPieces.find(p => p.sku === bestSmall.sku);
+      if (existing) {
+        existing.qty++;
+      } else {
+        segPieces.push({ sku: bestSmall.sku, length: bestSmall.length, bars: bestSmall.bars, qty: 1 });
+      }
+      bestLen += bestSmall.length;
+    }
+  }
+
+  if (segPieces.length === 0) return empty;
 
   // Ordenar peças do maior para o menor comprimento
   segPieces.sort((a, b) => b.length - a.length);
