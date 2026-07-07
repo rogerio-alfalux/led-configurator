@@ -441,11 +441,11 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
       {/* Observação no Orçamento e Margem por item */}
       <div className="pt-2 border-t space-y-3">
         <div className="space-y-1">
-          <Label className="text-xs">Obs. no Orçamento (Excel)</Label>
+          <Label className="text-xs">Obs. por Item</Label>
           <Input
             value={d.itemObs ?? ""}
             onChange={e => onUpdate(item.id, { itemObs: e.target.value })}
-            placeholder="Obs. que aparece no Excel abaixo do item"
+            placeholder="Observação visível na tela e no Excel"
             className="mt-1 h-8 text-sm"
           />
           <div className="flex items-center gap-2 mt-1">
@@ -3008,6 +3008,12 @@ export default function QuoteDetail() {
                                       </span>
                                     )}
                                   </div>
+                                  {d.itemObs && (
+                                    <div className="mt-1.5 flex items-start gap-1 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded px-2 py-1">
+                                      <span className="font-medium flex-shrink-0">Obs:</span>
+                                      <span className="break-words">{d.itemObs}</span>
+                                    </div>
+                                  )}
                                   {d.accessories && (d.accessories as LinkedAccessory[]).length > 0 && (
                                     <div className="mt-1.5 border-l-2 border-cyan-500/40 pl-2 space-y-0.5">
                                       {(d.accessories as LinkedAccessory[]).map((acc, i) => (
