@@ -396,26 +396,6 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
         </div>
       )}
 
-      {/* Drivers legados: itens antigos com profileSegments mas sem driverLines */}
-      {(() => {
-        const legacyDrivers = getLegacyDriverInfo(d);
-        if (!legacyDrivers) return null;
-        return (
-          <div className="pt-2 border-t space-y-1">
-            <p className="text-xs font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wide">Drivers (incluídos no preço)</p>
-            {legacyDrivers.map((drv, i) => (
-              <div key={i} className="flex items-center justify-between gap-2 text-xs bg-orange-50 dark:bg-orange-900/20 rounded px-2 py-1">
-                <div className="flex-1 min-w-0">
-                  <span className="font-mono text-orange-700 dark:text-orange-400">{drv.driverCode}</span>
-                  {drv.driverModel !== drv.driverCode && <span className="ml-1 text-foreground/80 truncate">{drv.driverModel}</span>}
-                </div>
-                <span className="text-muted-foreground flex-shrink-0">Qtd: <span className="font-medium text-foreground">{drv.totalQty}</span></span>
-              </div>
-            ))}
-            <p className="text-[10px] text-muted-foreground italic">Preço do driver já incluído no valor total do item.</p>
-          </div>
-        );
-      })()}
 
       {/* Campos editáveis do Item Especial */}
       {d.isSpecialItem && (
@@ -734,6 +714,16 @@ export default function QuoteDetail() {
   const revendaProductsQuery = trpc.alfalux.revendaProducts.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   // Catálogo de acessórios para resolver fotos frescas (URLs CloudFront expiram)
   const acessoriosQuery = trpc.alfalux.acessoriosProducts.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  // Componentes (drivers, módulos LED, etc.) para migrar itens legados sem driverLines
+  const componentesQuery = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 10 * 60 * 1000 });
+  /** Mapa código EQ -> precoVenda para busca rápida de preço de driver */
+  const componentePriceMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const c of componentesQuery.data?.items ?? []) {
+      if (c.codigo && c.precoVenda != null) map.set(c.codigo, c.precoVenda);
+    }
+    return map;
+  }, [componentesQuery.data]);
   /** Mapa sku -> fotoUrl fresca para substituir URLs expiradas no preview/Excel.
    * Cobre: produtos principais (Downlights, Painéis, Spots, etc.),
    * produtos de revenda (RV*) e acessórios (EQ*, CP*). */
@@ -1031,6 +1021,48 @@ export default function QuoteDetail() {
   const currentVersionId = versions[0]?.id;
   const currentItems = items.filter(i => i.quoteVersionId === currentVersionId);
 
+  /**
+   * currentItems com migração de itens legados aplicada:
+   * Itens sem driverLines mas com profileSegments+driverCode têm driverLines reconstruidas
+   * a partir do preço dos componentes da API. Usado para exibição, Excel e preview.
+   */
+  const currentItemsMigrated = useMemo(() => {
+    return currentItems.map(item => {
+      const parsed = parseCartItemData(item.itemData);
+      if (!parsed) return item;
+      if ((!parsed.driverLines || parsed.driverLines.length === 0) &&
+          parsed.profileSegments && parsed.profileSegments.length > 0 &&
+          parsed.profileSegments.some(seg => seg.driverCode)) {
+        const drvMap = new Map<string, { driverCode: string; driverModel: string; totalQty: number }>();
+        for (const seg of parsed.profileSegments) {
+          if (!seg.driverCode) continue;
+          const key = seg.driverCode;
+          const qtyPerSeg = (seg.driverQtyPerPiece ?? 1) * (seg.qty ?? 1);
+          if (drvMap.has(key)) {
+            drvMap.get(key)!.totalQty += qtyPerSeg;
+          } else {
+            drvMap.set(key, { driverCode: seg.driverCode, driverModel: seg.driverModel ?? seg.driverCode, totalQty: qtyPerSeg });
+          }
+        }
+        const driverEntries = Array.from(drvMap.values());
+        let totalDriverCost = 0;
+        const driverLines: import("@/lib/cartTypes").DriverLine[] = driverEntries.map(drv => {
+          const unitPrice = componentePriceMap.get(drv.driverCode) ?? null;
+          const totalPrice = unitPrice != null ? unitPrice * drv.totalQty : null;
+          if (totalPrice != null) totalDriverCost += totalPrice;
+          return { driverCode: drv.driverCode, driverModel: drv.driverModel, driverQty: drv.totalQty, driverUnitPrice: unitPrice, driverTotalPrice: totalPrice };
+        });
+        const totalPrice = parsed.totalPrice ?? 0;
+        const priceWithoutDriver = totalDriverCost > 0 ? totalPrice - totalDriverCost : null;
+        const qty = parsed.qty ?? 1;
+        const unitPriceLuminaria = priceWithoutDriver != null && qty > 0 ? priceWithoutDriver / qty : null;
+        const migratedParsed: CartItemData = { ...parsed, driverLines, priceWithoutDriver: priceWithoutDriver ?? parsed.priceWithoutDriver, unitPriceLuminaria: unitPriceLuminaria ?? parsed.unitPriceLuminaria, luminariaHasApiPrice: priceWithoutDriver != null };
+        return { ...item, itemData: JSON.stringify(migratedParsed) };
+      }
+      return item;
+    });
+  }, [currentItems, componentePriceMap]);
+
   // RT/Margem calc for edit form
   // Para itens com driverLines, calcular total correto (luminaria + drivers)
   const editTotalBase = currentItems.reduce((s, i) => {
@@ -1073,7 +1105,7 @@ export default function QuoteDetail() {
       const s1 = quote.seller1Id ? editSellers.find(s => s.id === quote.seller1Id) : undefined;
       const s2 = quote.seller2Id ? editSellers.find(s => s.id === quote.seller2Id) : undefined;
       await generateQuoteExcel(
-        currentItems.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null),
+        currentItemsMigrated.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null),
         {
           cliente: quote.clientName,
           contato: quote.clientContact ?? "",
@@ -1176,7 +1208,7 @@ export default function QuoteDetail() {
       const { displayDays, deliveryDateStr } = await calcDeliveryDate(approvedAtIso, deliveryDays);
 
       await generateOrderExcel(
-        currentItems.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null),
+        currentItemsMigrated.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null),
         {
           clientName: quote.clientName,
           projectName: quote.projectName ?? "",
@@ -1585,11 +1617,63 @@ export default function QuoteDetail() {
             if (open) {
               setEditableItems(currentItems.map(item => {
                 const parsed = parseCartItemData(item.itemData);
+                if (!parsed) return { id: item.id, itemNumber: item.itemNumber, itemData: item.itemData, parsed: {} as CartItemData };
+                // ── Migração de itens legados: reconstruir driverLines a partir de profileSegments ──
+                // Aplica quando: tem profileSegments com driverCode, mas não tem driverLines
+                if ((!parsed.driverLines || parsed.driverLines.length === 0) &&
+                    parsed.profileSegments && parsed.profileSegments.length > 0 &&
+                    parsed.profileSegments.some(seg => seg.driverCode)) {
+                  // Consolidar drivers por código
+                  const drvMap = new Map<string, { driverCode: string; driverModel: string; totalQty: number }>();
+                  for (const seg of parsed.profileSegments) {
+                    if (!seg.driverCode) continue;
+                    const key = seg.driverCode;
+                    const qtyPerSeg = (seg.driverQtyPerPiece ?? 1) * (seg.qty ?? 1);
+                    if (drvMap.has(key)) {
+                      drvMap.get(key)!.totalQty += qtyPerSeg;
+                    } else {
+                      drvMap.set(key, { driverCode: seg.driverCode, driverModel: seg.driverModel ?? seg.driverCode, totalQty: qtyPerSeg });
+                    }
+                  }
+                  const driverEntries = Array.from(drvMap.values());
+                  // Calcular preço total de todos os drivers
+                  let totalDriverCost = 0;
+                  const driverLines: import("@/lib/cartTypes").DriverLine[] = driverEntries.map(drv => {
+                    const unitPrice = componentePriceMap.get(drv.driverCode) ?? null;
+                    const totalPrice = unitPrice != null ? unitPrice * drv.totalQty : null;
+                    if (totalPrice != null) totalDriverCost += totalPrice;
+                    return {
+                      driverCode: drv.driverCode,
+                      driverModel: drv.driverModel,
+                      driverQty: drv.totalQty,
+                      driverUnitPrice: unitPrice,
+                      driverTotalPrice: totalPrice,
+                    };
+                  });
+                  // Calcular preço da luminária sem driver
+                  const totalPrice = parsed.totalPrice ?? 0;
+                  const priceWithoutDriver = totalDriverCost > 0 ? totalPrice - totalDriverCost : null;
+                  const qty = parsed.qty ?? 1;
+                  const unitPriceLuminaria = priceWithoutDriver != null && qty > 0 ? priceWithoutDriver / qty : null;
+                  const migratedParsed: CartItemData = {
+                    ...parsed,
+                    driverLines,
+                    priceWithoutDriver: priceWithoutDriver ?? parsed.priceWithoutDriver,
+                    unitPriceLuminaria: unitPriceLuminaria ?? parsed.unitPriceLuminaria,
+                    luminariaHasApiPrice: priceWithoutDriver != null,
+                  };
+                  return {
+                    id: item.id,
+                    itemNumber: item.itemNumber,
+                    itemData: JSON.stringify(migratedParsed),
+                    parsed: migratedParsed,
+                  };
+                }
                 return {
                   id: item.id,
                   itemNumber: item.itemNumber,
                   itemData: item.itemData,
-                  parsed: parsed ?? ({} as CartItemData),
+                  parsed,
                 };
               }));
               setEditItemsNotes("");
@@ -2929,8 +3013,8 @@ export default function QuoteDetail() {
 
               // Agrupar itens por pavimento preservando a ordem de inserção
               const floorOrder: string[] = [];
-              const floorMap = new Map<string, typeof currentItems>();
-              for (const item of currentItems) {
+              const floorMap = new Map<string, typeof currentItemsMigrated>();
+              for (const item of currentItemsMigrated) {
                 const d = parseCartItemData(item.itemData);
                 const fid = d?.floorId?.trim() || '__sem_pavimento__';
                 if (!floorMap.has(fid)) { floorMap.set(fid, []); floorOrder.push(fid); }
@@ -2943,7 +3027,7 @@ export default function QuoteDetail() {
               let totalDriver = 0;
               let totalGeral = 0;
               let hasDriverBreakdown = false;
-              for (const item of currentItems) {
+              for (const item of currentItemsMigrated) {
                 const d = parseCartItemData(item.itemData);
                 if (!d) continue;
                 if (d.driverLines && d.driverLines.length > 0) {
@@ -3080,23 +3164,7 @@ export default function QuoteDetail() {
                                       ))}
                                     </div>
                                   )}
-                                  {/* Drivers legados: itens antigos com profileSegments mas sem driverLines */}
-                                  {!hasBreakdown && (() => {
-                                    const legacyDrvs = getLegacyDriverInfo(d);
-                                    if (!legacyDrvs) return null;
-                                    return (
-                                      <div className="mt-1.5 border-l-2 border-orange-400/50 pl-2 space-y-0.5">
-                                        {legacyDrvs.map((drv, i) => (
-                                          <div key={i} className="flex items-center gap-1.5 text-xs">
-                                            <span className="font-mono text-[10px] text-orange-600 dark:text-orange-400">{drv.driverCode}</span>
-                                            <span className="text-orange-700 dark:text-orange-300 truncate">{drv.driverModel !== drv.driverCode ? drv.driverModel : ''}</span>
-                                            <span className="text-muted-foreground">x{drv.totalQty}</span>
-                                            <span className="text-[10px] text-muted-foreground italic">(incl. no preço)</span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    );
-                                  })()}
+
                                 </div>
                                 <div className="text-right flex-shrink-0 min-w-[110px]">
                                   <p className="text-xs text-muted-foreground mb-1">Qtd: {d.qty}</p>
@@ -3430,7 +3498,7 @@ export default function QuoteDetail() {
       <ExcelPreviewModal
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
-        items={currentItems.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null)}
+        items={currentItemsMigrated.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null)}
         freshPhotoMap={productPhotoMap}
         formData={{
           cliente: quote.clientName,
@@ -3514,7 +3582,7 @@ export default function QuoteDetail() {
         <OrderPreviewModal
           open={orderPreviewOpen}
           onOpenChange={setOrderPreviewOpen}
-          items={currentItems.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null)}
+          items={currentItemsMigrated.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null)}
           form={orderPreviewForm}
           onExcelGenerated={() => {
             logProductionSheetMutation.mutate({
