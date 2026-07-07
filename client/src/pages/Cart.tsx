@@ -23,6 +23,7 @@ import {
   Plus, Minus, Save, ClipboardList, Factory, AlertTriangle,
   ChevronRight, ChevronDown, ChevronUp, Tag, Percent, Truck, Users, PlusCircle, CheckCircle2,
   GripVertical, Pencil, Wrench, Eye, Upload, X, Copy, Layers,
+  Zap, Palette, Building2, MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -214,9 +215,9 @@ function SortableCartItem({
                   <p className="text-xs text-muted-foreground font-mono">{entry.data.sku}</p>
                   <p className="font-semibold text-sm leading-tight">{entry.data.description}</p>
                   <div className="flex gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
-                    {entry.data.power && <span>⚡ {entry.data.power}</span>}
-                    {entry.data.cct && <span>🌡 {entry.data.cct}</span>}
-                    {entry.data.corPeca && <span>🎨 {entry.data.corPeca}</span>}
+                    {entry.data.power && <span className="flex items-center gap-0.5"><Zap className="w-3 h-3" />{entry.data.power}</span>}
+                    {entry.data.cct && <span>{entry.data.cct}</span>}
+                    {entry.data.corPeca && <span className="flex items-center gap-0.5"><Palette className="w-3 h-3" />{entry.data.corPeca}</span>}
                     <span className="text-muted-foreground/60">{entry.data.category}</span>
                   </div>
                   {/* Controle de quantidade */}
@@ -257,12 +258,12 @@ function SortableCartItem({
                     <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                       {entry.data.floorName && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">
-                          🏢 {entry.data.floorName}
+                          <Building2 className="w-3 h-3" />{entry.data.floorName}
                         </span>
                       )}
                       {entry.data.ambiente && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-teal-500/15 text-teal-400 border border-teal-500/20">
-                          📍 {entry.data.ambiente}
+                          <MapPin className="w-3 h-3" />{entry.data.ambiente}
                         </span>
                       )}
                     </div>
@@ -270,7 +271,7 @@ function SortableCartItem({
                   {/* Observação do item */}
                   {entry.data.itemNote && (
                     <p className="text-xs text-muted-foreground italic mt-1 truncate max-w-xs" title={entry.data.itemNote}>
-                      📋 {entry.data.itemNote}
+                      <ClipboardList className="w-3 h-3 inline mr-0.5" />{entry.data.itemNote}
                     </p>
                   )}
                   {/* Acessórios vinculados */}
@@ -2623,7 +2624,7 @@ export default function Cart() {
                         <p className="text-xs text-muted-foreground">Preço definido pela API. Apenas admin/gerente podem alterar.</p>
                       )}
                       {canEditPrice && item?.data.unitPrice == null && !item?.data.priceFromApi && (
-                        <p className="text-xs font-medium text-amber-600 dark:text-amber-400">⚠️ API sem custo cadastrado — informe o preço manualmente para incluir no orçamento.</p>
+                        <p className="text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3 shrink-0" />API sem custo cadastrado — informe o preço manualmente para incluir no orçamento.</p>
                       )}
                       {canEditPrice && item?.data.priceFromApi && (
                         <p className="text-xs text-amber-600 dark:text-amber-400">Preço da API — você pode alterar (admin/gerente).</p>

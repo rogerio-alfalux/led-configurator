@@ -971,7 +971,7 @@ function ShapeResultCard({
         ) : (
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-amber-600 dark:text-amber-400">⚠️ API sem custo — informe o preço manualmente:</span>
+              <span className="text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3 shrink-0" />API sem custo — informe o preço manualmente:</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">R$</span>
@@ -1973,7 +1973,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
         {/* Campo de preço manual quando API e catálogo não retornam custo */}
         {!modulePriceResult && precoTotal == null && (
           <div className="space-y-1 rounded-lg border border-amber-500/30 bg-amber-50/30 dark:bg-amber-900/10 px-3 py-2">
-            <span className="text-xs font-medium text-amber-600 dark:text-amber-400">⚠️ API sem custo — informe o preço manualmente:</span>
+            <span className="text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3 shrink-0" />API sem custo — informe o preço manualmente:</span>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">R$</span>
               <Input
@@ -3059,7 +3059,7 @@ export default function Home() {
     // Aviso não-bloqueante quando não há foto
     if (!spPhotoUrl) {
       toast("Item adicionado sem foto. Você pode adicionar a foto depois editando o item no carrinho.", {
-        icon: "📷",
+        icon: "📷", // emoji in toast is safe (not in React DOM tree)
         duration: 5000,
       });
     }
@@ -5476,7 +5476,7 @@ export default function Home() {
                         </p>
                         {allowMixedIF && (
                           <p className="text-xs text-amber-500 mt-0.5">
-                            ⚠️ Estética menos uniforme — pontas com módulos de tamanhos diferentes
+                            Estética menos uniforme — pontas com módulos de tamanhos diferentes
                           </p>
                         )}
                       </div>
@@ -7704,8 +7704,8 @@ export default function Home() {
                     <div className="flex gap-2">
                       {([
                         { value: '' as const, label: 'Todos', count: acessoriosProducts.length },
-                        { value: 'driver' as const, label: '⚡ Drivers & Fontes', count: acessoriosProducts.filter(p => (p.source ?? 'accessories') === 'driver').length },
-                        { value: 'accessories' as const, label: '🔧 Acessórios Físicos', count: acessoriosProducts.filter(p => (p.source ?? 'accessories') === 'accessories').length },
+                        { value: 'driver' as const, label: 'Drivers & Fontes', count: acessoriosProducts.filter(p => (p.source ?? 'accessories') === 'driver').length },
+                        { value: 'accessories' as const, label: 'Acessórios Físicos', count: acessoriosProducts.filter(p => (p.source ?? 'accessories') === 'accessories').length },
                       ] as const).map(opt => (
                         <button
                           key={opt.value}
@@ -8176,7 +8176,7 @@ export default function Home() {
                                     <span>Total (somente perfil)</span>
                                     <span className="font-mono text-primary">{formatBRL(lbDetail.total)}</span>
                                   </div>
-                                  <p className="text-[10px] text-amber-500 mt-1">⚠️ Preço somente do perfil (R$ {r.product.precoMetro?.toFixed(2).replace('.', ',')}/m). Drivers/fontes não incluídos — serão adicionados separadamente.</p>
+                                  <p className="text-[10px] text-amber-500 mt-1">Preço somente do perfil (R$ {r.product.precoMetro?.toFixed(2).replace('.', ',')}/m). Drivers/fontes não incluídos — serão adicionados separadamente.</p>
                                 </>
                               ) : (
                                 // LED BAR padrão: perfil + drivers
@@ -8204,7 +8204,7 @@ export default function Home() {
                             )}
                             {lbPreco === null && (
                               <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2 mb-3">
-                                <span className="text-amber-400 text-xs font-medium">⚠️ Preço não cadastrado — preencha manualmente no carrinho ou no orçamento.</span>
+                                <span className="text-amber-400 text-xs font-medium flex items-center gap-1"><AlertTriangle className="w-3 h-3 shrink-0" />Preço não cadastrado — preencha manualmente no carrinho ou no orçamento.</span>
                               </div>
                             )}
                             <div
@@ -8565,7 +8565,7 @@ export default function Home() {
                             </div>
                           ) : (
                             <div className="space-y-1 rounded-lg border border-amber-500/30 bg-amber-50/30 dark:bg-amber-900/10 px-3 py-2 mt-3">
-                              <span className="text-xs font-medium text-amber-600 dark:text-amber-400">⚠️ API sem custo — informe o preço manualmente:</span>
+                              <span className="text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3 shrink-0" />API sem custo — informe o preço manualmente:</span>
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-muted-foreground">R$</span>
                                 <Input
@@ -9591,7 +9591,7 @@ export default function Home() {
                       </div>
                       {bProd.semDriver && (
                         <div className="flex items-center gap-2 p-2 rounded-lg bg-blue-500/5 border border-blue-500/20">
-                          <span className="text-xs text-blue-600 font-medium">⚡ Produto sem driver — sempre ON/OFF, liga direto na tensão de rede</span>
+                          <span className="text-xs text-blue-600 font-medium flex items-center gap-1"><Zap className="w-3 h-3 shrink-0" />Produto sem driver — sempre ON/OFF, liga direto na tensão de rede</span>
                         </div>
                       )}
                     </CardContent>
@@ -10475,7 +10475,7 @@ export default function Home() {
                             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver{driverQty > 1 ? ` (${driverQty}x)` : ''}</p>
                             <p className="text-sm font-semibold">{driverInfo.model} <span className="font-mono text-primary">({driverInfo.code})</span></p>
                             {driverAlimentacaoDiferenciada && (
-                              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">⚡ Alimentação diferenciada — até 10.000mm por fonte</p>
+                              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1"><Zap className="w-3 h-3 shrink-0" />Alimentação diferenciada — até 10.000mm por fonte</p>
                             )}
                           </div>
                         )}

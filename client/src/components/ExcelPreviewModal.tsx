@@ -715,7 +715,7 @@ ${htmlContent}
                           <td style={{ ...tdStyle, fontSize: 9 }}></td>
                           <td style={{ ...tdStyle, fontSize: 9 }}></td>
                           <td colSpan={10} style={{ ...tdStyle, fontSize: 9, color: "#166534", fontStyle: "italic", textAlign: "left", paddingLeft: 8 }}>
-                            ⚠️ Obs.: {item.itemObs}
+                            Obs.: {item.itemObs}
                           </td>
                         </tr>
                       )}

@@ -956,7 +956,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
 
   if (forcedIndependent) {
     engineeringNotes.push(
-      `⚠️ Acendimento Independente forçado: D1 (${powerD1}W) e D2 (${effectivePowerD2}W) possuem potências diferentes.`
+      `Acendimento Independente forçado: D1 (${powerD1}W) e D2 (${effectivePowerD2}W) possuem potências diferentes.`
     );
   }
 
@@ -1060,7 +1060,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     engineeringNotes.push("Composição: Módulo Inteiro (IN) — peça única dentro do limite de barras.");
   } else if (compositionMode === "IF_ML_MIXED") {
     engineeringNotes.push("Composição: Linha longa — 2× IF (Inicio/Final) + ML (Meio de Linha).");
-    engineeringNotes.push("⚠️ IFs diferentes nas pontas — estética menos uniforme (otimização de comprimento ativa).");
+    engineeringNotes.push("IFs diferentes nas pontas — estética menos uniforme (otimização de comprimento ativa).");
   } else {
     engineeringNotes.push("Composição: Linha longa — 2× IF (Início/Final) + ML (Meio de Linha).");
   }
@@ -1123,7 +1123,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
   // ── Nota de driver remoto ──
   if (isRemoteDriver) {
     hasAlert = true;
-    alertMessage = `⚠️ DRIVER REMOTO OBRIGATÓRIO: O perfil ${profileName} (${installType}) exige instalação de driver em ponto remoto.`;
+    alertMessage = `DRIVER REMOTO OBRIGATÓRIO: O perfil ${profileName} (${installType}) exige instalação de driver em ponto remoto.`;
     engineeringNotes.push(alertMessage);
     engineeringNotes.push("Local do driver: Remoto — externo ao perfil, instalado em caixa de passagem ou teto.");
   } else {

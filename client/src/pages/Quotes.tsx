@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   Search, Plus, ClipboardList, CheckCircle, XCircle, Clock,
   TrendingDown, ArrowLeft, BarChart2, ShoppingCart, Eye,
-  Users, UserCheck, Filter, X, Receipt, Download,
+  Users, UserCheck, Filter, X, Receipt, Download, User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -306,7 +306,7 @@ export default function Quotes() {
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold truncate">{q.projectName || q.clientName}</p>
                           <div className="flex gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
-                            {q.clientName && <span>👤 {q.clientName}</span>}
+                            {q.clientName && <span className="flex items-center gap-1"><User className="w-3 h-3" />{q.clientName}</span>}
                             {q.seller1Name && (
                               <span className="flex items-center gap-1">
                                 <Users className="w-3 h-3" />

@@ -6,6 +6,7 @@ import {
   ChevronDown, ChevronUp, Factory, Trash2, PenLine,
   Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle, GripVertical, Wrench, Copy, Eye,
   Upload, X as XIcon, Layers, Receipt, Printer, Search,
+  User, Phone, FolderOpen, Bookmark, MapPin, Briefcase, Calendar, RefreshCw, ClipboardList, Zap,
 } from "lucide-react";
 import {
   DndContext,
@@ -1250,12 +1251,12 @@ export default function QuoteDetail() {
             </CardHeader>
             <CardContent className="space-y-1 text-sm">
               <p className="font-semibold text-base">{quote.clientName}</p>
-              {quote.clientContact && <p>👤 {quote.clientContact}</p>}
-              {quote.clientPhone && <p>📞 {quote.clientPhone}</p>}
-              {quote.clientEmail && <p>✉️ {quote.clientEmail}</p>}
-              {quote.projectName && <p>📍 Obra: <span className="font-medium">{quote.projectName}</span></p>}
-              {quote.projectRef && <p>🔖 Ref: {quote.projectRef}</p>}
-              {(quote as any).projectNumber && <p>📁 Nº Projeto: <span className="font-medium">{(quote as any).projectNumber}</span></p>}
+              {quote.clientContact && <p className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0" />{quote.clientContact}</p>}
+              {quote.clientPhone && <p className="flex items-center gap-1"><Phone className="w-3.5 h-3.5 shrink-0" />{quote.clientPhone}</p>}
+              {quote.clientEmail && <p className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 shrink-0" />{quote.clientEmail}</p>}
+              {quote.projectName && <p className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 shrink-0" />Obra: <span className="font-medium">{quote.projectName}</span></p>}
+              {quote.projectRef && <p className="flex items-center gap-1"><Bookmark className="w-3.5 h-3.5 shrink-0" />Ref: {quote.projectRef}</p>}
+              {(quote as any).projectNumber && <p className="flex items-center gap-1"><FolderOpen className="w-3.5 h-3.5 shrink-0" />Nº Projeto: <span className="font-medium">{(quote as any).projectNumber}</span></p>}
             </CardContent>
           </Card>
 
@@ -1266,18 +1267,18 @@ export default function QuoteDetail() {
             <CardContent className="space-y-1 text-sm">
               {/* Vendedor 1 */}
               {quote.vendorName && (
-                <p>🧑‍💼 Vendedor: <span className="font-medium">{quote.vendorName}</span></p>
+                <p className="flex items-center gap-1"><Briefcase className="w-3.5 h-3.5 shrink-0" />Vendedor: <span className="font-medium">{quote.vendorName}</span></p>
               )}
               {/* Vendedor 2 (quando houver) */}
               {(quote as any).seller2Name && (
-                <p>🧑‍💼 2º Vendedor: <span className="font-medium">{(quote as any).seller2Name}</span></p>
+                <p className="flex items-center gap-1"><Briefcase className="w-3.5 h-3.5 shrink-0" />2º Vendedor: <span className="font-medium">{(quote as any).seller2Name}</span></p>
               )}
-              {quote.assistantName && <p>✏️ Assistente: <span className="font-medium">{quote.assistantName}</span></p>}
-              <p>📅 Criado em: {toBrasiliaDate(quote.createdAt)}</p>
-              <p>🔄 Versão: <span className="font-bold font-mono">RV{quote.revisionCount ?? 0}</span></p>
+              {quote.assistantName && <p className="flex items-center gap-1"><Pencil className="w-3.5 h-3.5 shrink-0" />Assistente: <span className="font-medium">{quote.assistantName}</span></p>}
+              <p className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" />Criado em: {toBrasiliaDate(quote.createdAt)}</p>
+              <p className="flex items-center gap-1"><RefreshCw className="w-3.5 h-3.5 shrink-0" />Versão: <span className="font-bold font-mono">RV{quote.revisionCount ?? 0}</span></p>
               {quote.approvedAt && (
-                <p className="text-green-600 dark:text-green-400 font-medium">
-                  ✅ Aprovado em: {toBrasiliaDate(quote.approvedAt)}
+                <p className="text-green-600 dark:text-green-400 font-medium flex items-center gap-1">
+                  <CheckCircle className="w-3.5 h-3.5 shrink-0" />Aprovado em: {toBrasiliaDate(quote.approvedAt)}
                 </p>
               )}
               {(quote as any).invoicedAt && (
@@ -1288,7 +1289,7 @@ export default function QuoteDetail() {
               {/* Número do pedido e empresa faturadora */}
               {(quote as any).orderNumber && (
                 <p className="text-green-700 dark:text-green-400 font-semibold">
-                  📋 Pedido: <span className="font-mono">{(quote as any).orderNumber}</span>
+                  <ClipboardList className="w-3.5 h-3.5 inline mr-1" />Pedido: <span className="font-mono">{(quote as any).orderNumber}</span>
                   {(quote as any).billingCompany && (
                     <span className="ml-2 text-xs font-normal text-muted-foreground">
                       ({{
@@ -1325,13 +1326,13 @@ export default function QuoteDetail() {
                     <>
                       {comm1Pct > 0 && (
                         <p className="text-amber-700 dark:text-amber-400">
-                          💰 Comissão {quote.vendorName ? `(${quote.vendorName.split(" ")[0]})` : "1º Vendedor"}: <span className="font-medium">{(comm1Pct * 100).toFixed(1)}%</span>
+                          <Percent className="w-3 h-3 inline mr-0.5" />Comissão {quote.vendorName ? `(${quote.vendorName.split(" ")[0]})` : "1º Vendedor"}: <span className="font-medium">{(comm1Pct * 100).toFixed(1)}%</span>
                           {base * comm1Pct > 0 && <span className="ml-1 text-xs">({formatBRL(base * comm1Pct)})</span>}
                         </p>
                       )}
                       {comm2Pct > 0 && (
                         <p className="text-amber-700 dark:text-amber-400">
-                          💰 Comissão {(quote as any).seller2Name ? `(${(quote as any).seller2Name.split(" ")[0]})` : "2º Vendedor"}: <span className="font-medium">{(comm2Pct * 100).toFixed(1)}%</span>
+                          <Percent className="w-3 h-3 inline mr-0.5" />Comissão {(quote as any).seller2Name ? `(${(quote as any).seller2Name.split(" ")[0]})` : "2º Vendedor"}: <span className="font-medium">{(comm2Pct * 100).toFixed(1)}%</span>
                           {base * comm2Pct > 0 && <span className="ml-1 text-xs">({formatBRL(base * comm2Pct)})</span>}
                         </p>
                       )}
@@ -1341,7 +1342,7 @@ export default function QuoteDetail() {
                   // Um vendedor: exibir comissão total
                   return comm1Pct > 0 ? (
                     <p className="text-amber-700 dark:text-amber-400">
-                      💰 Comissão: <span className="font-medium">{(comm1Pct * 100).toFixed(1)}%</span>
+                      <Percent className="w-3 h-3 inline mr-0.5" />Comissão: <span className="font-medium">{(comm1Pct * 100).toFixed(1)}%</span>
                       {base * comm1Pct > 0 && <span className="ml-1 text-xs">({formatBRL(base * comm1Pct)})</span>}
                     </p>
                   ) : null;
@@ -2778,7 +2779,7 @@ export default function QuoteDetail() {
               {deleteStep === 0 && (
                 <div className="space-y-3">
                   <div className="p-3 bg-destructive/10 rounded-lg border border-destructive/20">
-                    <p className="text-sm font-semibold text-destructive mb-1">⚠️ Atenção: Ação irreversível!</p>
+                    <p className="text-sm font-semibold text-destructive mb-1 flex items-center gap-1"><AlertTriangle className="w-4 h-4 shrink-0" />Atenção: Ação irreversível!</p>
                     <p className="text-sm text-muted-foreground">
                       Excluir este orçamento removerá permanentemente <strong>todos os dados</strong>, incluindo
                       o histórico de revisões, itens e informações do cliente. <strong>Esta ação não pode ser desfeita.</strong>
@@ -2812,7 +2813,7 @@ export default function QuoteDetail() {
               {deleteStep === 2 && (
                 <div className="space-y-3">
                   <div className="p-3 bg-destructive/10 rounded-lg border border-destructive/20">
-                    <p className="text-sm font-semibold text-destructive mb-1">🔒 Confirmação final</p>
+                    <p className="text-sm font-semibold text-destructive mb-1 flex items-center gap-1"><AlertTriangle className="w-4 h-4 shrink-0" />Confirmação final</p>
                     <p className="text-sm text-muted-foreground">
                       Para confirmar a exclusão, digite o número do orçamento abaixo:
                     </p>
@@ -2979,12 +2980,12 @@ export default function QuoteDetail() {
                                   <p className="text-xs text-muted-foreground font-mono">{d.sku}</p>
                                   <p className="text-sm font-medium leading-tight">{d.description}</p>
                                   <div className="flex gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
-                                    {d.power && <span>⚡ {d.power}</span>}
+                                    {d.power && <span className="flex items-center gap-0.5"><Zap className="w-3 h-3" />{d.power}</span>}
                                     {d.cct && <span>{d.cct}</span>}
                                     <span>{d.category}</span>
                                     {d.itemEmPlanta && (
                                       <span className="inline-flex items-center gap-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded px-1.5 py-0.5 font-medium">
-                                        📍 {d.itemEmPlanta}
+                                        <MapPin className="w-3 h-3" />{d.itemEmPlanta}
                                       </span>
                                     )}
                                   </div>

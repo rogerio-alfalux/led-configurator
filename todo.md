@@ -1895,3 +1895,12 @@
 - [x] Painel de resultado de acessórios: adicionar campo de quantidade antes do botão "Adicionar ao Carrinho"
 - [x] handleAddAcessorioItem: usar a quantidade informada no painel ao adicionar como item independente
 - [x] handleAddAcessorioItem: usar globalQty como quantidade padrão ao adicionar como item independente
+
+## Correção NotFoundError removeChild — emojis no JSX (07/07/2026)
+- [x] Quotes.tsx: substituir emoji 👤 por ícone SVG (causa crash com Google Tradutor)
+- [x] Cart.tsx: substituir emojis 🎨 🏢 📋 ⚠️ por ícones SVG ou spans com translate="no"
+- [x] QuoteDetail.tsx: substituir emojis 👤 📞 📁 ✏️ 📅 🔄 ✅ 📋 💰 🔒 ⚡ por ícones SVG
+- [x] Home.tsx: substituir emojis ⚠️ 🔧 ⚡ por ícones SVG
+- [x] ExcelPreviewModal.tsx: substituir emoji ⚠️ por texto simples
+- [x] ledEngine.ts: remover emojis ⚠️ de strings de engineeringNotes
+- [x] Adicionar translate="no" no index.html para prevenir traduções automáticas que causam removeChild
