@@ -838,7 +838,11 @@ function ShapeResultCard({
           : piece.driver.model.toUpperCase();
         const code = piece.driver.combo ? "" : (piece.driver.code ?? "");
         const key = model;
-        const totalQty = driverQtyPerPiece * piece.quantity;
+        // REGRA INEGOCIÁVEL: totalQty = drivers por peça × peças por luminária × quantidade de luminárias.
+        // piece.quantity = peças por luminária (ex: 15 módulos + 2 caps = 17 peças).
+        // globalQty = quantidade de luminárias (ex: 12).
+        // Exemplo BLAZE 45700mm: 1 driver × 17 peças × 12 luminárias = 204 drivers.
+        const totalQty = driverQtyPerPiece * piece.quantity * globalQty;
         const existing = drvMap.get(key);
         if (existing) {
           existing.qty += totalQty;
@@ -876,7 +880,14 @@ function ShapeResultCard({
       stripMethod: shapeResult.stripMethod,
       availableCCTs: ["2700K", "3000K", "4000K", "5000K", "A definir"],
       shapeTotalLengthMm: shapeResult.totalLengthMm,
-      ...(shapeDrvLines ? { driverLines: shapeDrvLines, priceWithoutDriver: shapePrecoSemDriver } : {}),
+      ...(shapeDrvLines ? {
+        driverLines: shapeDrvLines,
+        priceWithoutDriver: shapePrecoSemDriver,
+        // REGRA INEGOCIÁVEL: driverQtyPerUnit = total de drivers por luminária (soma de driverQtyPerPiece × qty de cada segmento).
+        // Necessário para que applyQtyChange recalcule corretamente quando a quantidade muda no orçamento.
+        // Exemplo BLAZE 45700mm: (1×15 módulos) + (1×2 caps) = 17 drivers/luminária.
+        driverQtyPerUnit: profileSegments.reduce((sum, seg) => sum + (seg.driverQtyPerPiece ?? 1) * seg.qty, 0),
+      } : {}),
       ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
     };
 
