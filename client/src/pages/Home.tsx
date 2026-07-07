@@ -636,16 +636,18 @@ function ShapeResultCard({
         const precoUnit = Math.round(custo * markup * 100) / 100;
         const subtotal = Math.round(precoUnit * piece.quantity * 100) / 100;
         totalLum += subtotal;
-        // Driver: buscar custo do driver por SKU (apenas para módulos retos, não cantos)
+        // Driver: buscar custo do driver por SKU (inclui cantos quando têm driver cadastrado)
         let driverUnit: number | null = null;
         let driverSubtotal = 0;
-        if (piece.type !== "CORNER" && entry.custoDriver220 != null && entry.markupMinimoDriver != null) {
+        if (entry.custoDriver220 != null && entry.markupMinimoDriver != null) {
           const driverQtyPerPiece = piece.driver
             ? (piece.driver.combo ? piece.driver.combo.reduce((s, c) => s + c.quantity, 0) : (piece.driver.quantity ?? 1))
-            : 1;
-          driverUnit = Math.round(entry.custoDriver220 * entry.markupMinimoDriver * 100) / 100;
-          driverSubtotal = Math.round(driverUnit * driverQtyPerPiece * piece.quantity * 100) / 100;
-          totalDrv += driverSubtotal;
+            : 0;
+          if (driverQtyPerPiece > 0) {
+            driverUnit = Math.round(entry.custoDriver220 * entry.markupMinimoDriver * 100) / 100;
+            driverSubtotal = Math.round(driverUnit * driverQtyPerPiece * piece.quantity * 100) / 100;
+            totalDrv += driverSubtotal;
+          }
         }
         breakdown.push({ sku: piece.sku, qty: piece.quantity, precoUnit, subtotal, driverUnit, driverSubtotal });
       }
@@ -815,7 +817,7 @@ function ShapeResultCard({
       // Consolidar drivers por modelo
       const drvMap = new Map<string, { model: string; code: string; qty: number; unitPrice: number; totalPrice: number }>();
       for (const piece of shapeResult.pieces) {
-        if (piece.type === "CORNER" || !piece.driver) continue;
+        if (!piece.driver) continue;
         const bk = precoBreakdown.find(b => b.sku === piece.sku);
         if (!bk || bk.driverUnit == null) continue;
         const driverQtyPerPiece = piece.driver.combo
