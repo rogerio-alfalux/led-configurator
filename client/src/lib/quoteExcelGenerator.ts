@@ -1031,18 +1031,28 @@ async function _generateExcelBuffer(
   // Quando frete está diluído, soma o freteValue ao totalBase para o cálculo do total final
   // IMPORTANTE: Para itens com driverLines, totalPrice = luminária + driver (ambos incluídos).
   // Usamos calcItemLumTotal (apenas luminária) + calcItemDrvTotal (apenas drivers) para evitar duplicação.
-  const totalBase = items.reduce((sum, it) => sum + calcItemLumTotal(it) + calcItemDrvTotal(it), 0) + _freteParaDiluir;
+  // Aplica itemMarginPercent por item (RT e margem global são aplicados globalmente depois).
+  const _applyItemMgn = (base: number, it: CartItemData) => {
+    const p = it.itemMarginPercent != null ? Math.min(Math.max(it.itemMarginPercent / 100, 0), 0.99) : 0;
+    return p > 0 ? base / (1 - p) : base;
+  };
+  const totalBase = items.reduce((sum, it) => {
+    const lum = calcItemLumTotal(it);
+    const drv = calcItemDrvTotal(it);
+    return sum + _applyItemMgn(lum + drv, it);
+  }, 0) + _freteParaDiluir;
   // Totais com/sem driver (apenas para orçamentos novos com driverLines)
   // Usa mesma lógica do Cart.tsx: effectiveQty = storedQty <= 1 ? itemQty : storedQty
   const hasDriverBreakdown = items.some(it => it.driverLines && it.driverLines.length > 0);
   const totalDriverRaw = hasDriverBreakdown
     ? items.reduce((sum, it) => {
         const iqty = it.qty ?? 1;
-        return sum + (it.driverLines?.reduce((s, d) => {
+        const drvBruto = it.driverLines?.reduce((s, d) => {
           const storedQty = d.driverQty ?? 1;
           const effectiveQty = storedQty <= 1 ? iqty : storedQty;
           return s + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
-        }, 0) ?? 0);
+        }, 0) ?? 0;
+        return sum + _applyItemMgn(drvBruto, it);
       }, 0)
     : 0;
   const totalSemDriverRaw = hasDriverBreakdown ? (totalBase - _freteParaDiluir - totalDriverRaw) : 0;

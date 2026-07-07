@@ -266,6 +266,11 @@ ${htmlContent}
   // totalBase inclui luminária + drivers.
   // IMPORTANTE: Para itens com driverLines, totalPrice = luminária + driver (ambos já incluídos).
   // Usamos priceWithoutDriver (apenas luminária) + drivers separados para evitar duplicação.
+  // Aplica itemMarginPercent por item (RT e margem global são aplicados globalmente depois).
+  const _applyItemMgnPreview = (base: number, it: CartItemData) => {
+    const p = it.itemMarginPercent != null ? Math.min(Math.max(it.itemMarginPercent / 100, 0), 0.99) : 0;
+    return p > 0 ? base / (1 - p) : base;
+  };
   const totalBase = useMemo(() => sortedItems.reduce((s, it) => {
     const drvT = (it.driverLines && it.driverLines.length > 0)
       ? it.driverLines.reduce((sd, d) => {
@@ -285,7 +290,8 @@ ${htmlContent}
           ? it.priceWithoutDriver
           : Math.max(0, (it.totalPrice ?? 0) - drvT))
       : (it.totalPrice ?? 0);
-    return s + lumT + drvT;
+    return s + _applyItemMgnPreview(lumT + drvT, it);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, 0), [sortedItems]);
 
   // ── Diluição proporcional do frete ──────────────────────────────────────
@@ -348,13 +354,14 @@ ${htmlContent}
   const totalDriverRaw = hasDriverBreakdown
     ? sortedItems.reduce((sum, it) => {
         const iqty = it.qty ?? 1;
-        return sum + (it.driverLines?.reduce((s, d) => {
+        const drvBruto = it.driverLines?.reduce((s, d) => {
           const stored = d.driverTotalPrice;
           if (stored != null && stored > 0) return s + stored;
           const storedQty = d.driverQty ?? 1;
           const effectiveQty = storedQty <= 1 ? iqty : storedQty;
           return s + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
-        }, 0) ?? 0);
+        }, 0) ?? 0;
+        return sum + _applyItemMgnPreview(drvBruto, it);
       }, 0)
     : 0;
   const totalSemDriverRaw = hasDriverBreakdown ? (totalBase - totalDriverRaw) : 0;

@@ -2875,6 +2875,10 @@ export default function QuoteDetail() {
                 const comRT = rtPct > 0 ? base / (1 - rtPct) : base;
                 return mPct > 0 ? comRT / (1 - mPct) : comRT;
               };
+              const applyMkupWithItem = (base: number, itemMarginPercent?: number | null) => {
+                const afterGlobal = applyMkup(base);
+                return applyItemMarginQD(afterGlobal, itemMarginPercent);
+              };
               const hasMarkup = rtPct > 0 || mPct > 0;
 
               // Agrupar itens por pavimento preservando a ordem de inserção
@@ -2911,11 +2915,11 @@ export default function QuoteDetail() {
                   const lumRaw = correctedPriceWithoutDriver ?? (d.totalPrice ?? 0);
                   const drvRaw = d.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
                   const itemTotalRaw = lumRaw + drvRaw;
-                  totalGeral += hasMarkup ? applyMkup(itemTotalRaw) : itemTotalRaw;
-                  totalLuminaria += hasMarkup ? applyMkup(lumRaw) : lumRaw;
-                  totalDriver += hasMarkup ? applyMkup(drvRaw) : drvRaw;
+                  totalGeral += applyMkupWithItem(itemTotalRaw, d.itemMarginPercent);
+                  totalLuminaria += applyMkupWithItem(lumRaw, d.itemMarginPercent);
+                  totalDriver += applyMkupWithItem(drvRaw, d.itemMarginPercent);
                 } else {
-                  const tot = d.totalPrice != null && d.totalPrice > 0 ? (hasMarkup ? applyMkup(d.totalPrice) : d.totalPrice) : 0;
+                  const tot = d.totalPrice != null && d.totalPrice > 0 ? applyMkupWithItem(d.totalPrice, d.itemMarginPercent) : 0;
                   totalGeral += tot;
                   totalLuminaria += tot;
                 }
@@ -2941,10 +2945,10 @@ export default function QuoteDetail() {
                             if (!d) return null;
                             const itemIdx = ++globalIdx;
                             const unitDisplay = d.unitPrice != null && d.unitPrice > 0
-                              ? (hasMarkup ? applyMkup(d.unitPrice) : d.unitPrice)
+                              ? applyMkupWithItem(d.unitPrice, d.itemMarginPercent)
                               : null;
                             const totalDisplay = d.totalPrice != null && d.totalPrice > 0
-                              ? (hasMarkup ? applyMkup(d.totalPrice) : d.totalPrice)
+                              ? applyMkupWithItem(d.totalPrice, d.itemMarginPercent)
                               : null;
                             const hasBreakdown = !!(d.driverLines && d.driverLines.length > 0);
                             // Fallback: quando unitPrice é null mas totalPrice > 0, derivar unitPrice = totalPrice / qty
@@ -2967,10 +2971,10 @@ export default function QuoteDetail() {
                               }
                             }
                             const lumTotalDisplay = _correctedPWD != null
-                              ? (hasMarkup ? applyMkup(_correctedPWD) : _correctedPWD)
+                              ? applyMkupWithItem(_correctedPWD, d.itemMarginPercent)
                               : null;
                             const lumUnitDisplay = hasBreakdown && _resolvedUnitLum != null
-                              ? (hasMarkup ? applyMkup(_resolvedUnitLum) : _resolvedUnitLum)
+                              ? applyMkupWithItem(_resolvedUnitLum, d.itemMarginPercent)
                               : null;
                             // Total item correto: luminaria + todos os drivers
                             const _driversTotalRaw = hasBreakdown
@@ -2981,7 +2985,7 @@ export default function QuoteDetail() {
                               ? (_lumTotalRaw + _driversTotalRaw)
                               : (d.totalPrice ?? 0);
                             const correctTotalDisplay = _correctTotalItem > 0
-                              ? (hasMarkup ? applyMkup(_correctTotalItem) : _correctTotalItem)
+                              ? applyMkupWithItem(_correctTotalItem, d.itemMarginPercent)
                               : null;
                             return (
                               <div key={item.id} className="flex items-start gap-3 px-4 py-3">
@@ -3043,8 +3047,8 @@ export default function QuoteDetail() {
                                           : <p className="text-xs italic text-muted-foreground">A consultar</p>}
                                       </div>
                                       {d.driverLines!.map((dl, di) => {
-                                        const drvUnit = dl.driverUnitPrice != null ? (hasMarkup ? applyMkup(dl.driverUnitPrice) : dl.driverUnitPrice) : null;
-                                        const drvTotal = dl.driverTotalPrice != null ? (hasMarkup ? applyMkup(dl.driverTotalPrice) : dl.driverTotalPrice) : null;
+                                        const drvUnit = dl.driverUnitPrice != null ? applyMkupWithItem(dl.driverUnitPrice, d.itemMarginPercent) : null;
+                                        const drvTotal = dl.driverTotalPrice != null ? applyMkupWithItem(dl.driverTotalPrice, d.itemMarginPercent) : null;
                                         return (
                                           <div key={di} className="mb-1">
                                             <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Driver{d.driverLines!.length > 1 ? ` ${di + 1}` : ''}</p>
@@ -3264,12 +3268,16 @@ export default function QuoteDetail() {
                 const comRT = rtPct > 0 ? base / (1 - rtPct) : base;
                 return mPct > 0 ? comRT / (1 - mPct) : comRT;
               };
+              const applyMkupWithItem = (base: number, itemMarginPercent?: number | null) => {
+                const afterGlobal = applyMkup(base);
+                return applyItemMarginQD(afterGlobal, itemMarginPercent);
+              };
               const hasMarkup = rtPct > 0 || mPct > 0;
               let totalGeral = 0;
               for (const item of rvItems) {
                 const d = parseCartItemData(item.itemData);
                 if (!d) continue;
-                const tot = d.totalPrice != null && d.totalPrice > 0 ? (hasMarkup ? applyMkup(d.totalPrice) : d.totalPrice) : 0;
+                const tot = d.totalPrice != null && d.totalPrice > 0 ? applyMkupWithItem(d.totalPrice, d.itemMarginPercent) : 0;
                 totalGeral += tot;
               }
               return (
@@ -3290,7 +3298,7 @@ export default function QuoteDetail() {
                     {rvItems.map((item: { itemData: string }, idx: number) => {
                       const d = parseCartItemData(item.itemData);
                       if (!d) return null;
-                      const tot = d.totalPrice != null && d.totalPrice > 0 ? (hasMarkup ? applyMkup(d.totalPrice) : d.totalPrice) : null;
+                      const tot = d.totalPrice != null && d.totalPrice > 0 ? applyMkupWithItem(d.totalPrice, d.itemMarginPercent) : null;
                       return (
                         <div key={idx} className="px-3 py-2 flex items-center gap-3">
                           <div className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
