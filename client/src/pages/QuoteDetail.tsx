@@ -992,43 +992,21 @@ export default function QuoteDetail() {
     onError: (err) => toast.error(`Erro ao excluir: ${err.message}`),
   });
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">Carregando orçamento...</p>
-      </div>
-    );
-  }
-
-  if (error || !data) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Card className="w-full max-w-md text-center p-8">
-          <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-destructive" />
-          <h2 className="text-xl font-semibold mb-2">Orçamento não encontrado</h2>
-          <Link href="/orcamentos">
-            <Button>Voltar para a lista</Button>
-          </Link>
-        </Card>
-      </div>
-    );
-  }
-
-  const { quote, versions, items, canEdit, canSeeCommission = false, canEditCommission = false } = data as typeof data & { canSeeCommission?: boolean; canEditCommission?: boolean };
-  const st = STATUS_LABELS[quote.status] ?? STATUS_LABELS.open;
-
-  // Itens da versão mais recente
-  const currentVersionId = versions[0]?.id;
-  const currentItems = items.filter(i => i.quoteVersionId === currentVersionId);
-
   /**
+   * REGRA INEGOCIÁVEL: Este useMemo DEVE ficar antes de qualquer early return
+   * para garantir contagem estável de hooks entre renderizações.
    * currentItems com migração de itens legados aplicada:
    * Itens sem driverLines mas com profileSegments+driverCode têm driverLines reconstruidas
    * a partir do preço dos componentes da API. Usado para exibição, Excel e preview.
    */
   const currentItemsMigrated = useMemo(() => {
-    return currentItems.map(item => {
-      const parsed = parseCartItemData(item.itemData);
+    const _data = data as typeof data & { items?: typeof data extends { items: infer I } ? I : unknown[]; versions?: unknown[] } | undefined;
+    const _items: Array<{ quoteVersionId: string; itemData: string; [key: string]: unknown }> = (_data as { items?: Array<{ quoteVersionId: string; itemData: string; [key: string]: unknown }> } | undefined)?.items ?? [];
+    const _versions: Array<{ id: string }> = (_data as { versions?: Array<{ id: string }> } | undefined)?.versions ?? [];
+    const _currentVersionId = _versions[0]?.id;
+    const _currentItems = _items.filter(i => i.quoteVersionId === _currentVersionId);
+    return _currentItems.map(item => {
+      const parsed = parseCartItemData(item.itemData as string);
       if (!parsed) return item;
       if ((!parsed.driverLines || parsed.driverLines.length === 0) &&
           parsed.profileSegments && parsed.profileSegments.length > 0 &&
@@ -1061,7 +1039,36 @@ export default function QuoteDetail() {
       }
       return item;
     });
-  }, [currentItems, componentePriceMap]);
+  }, [data, componentePriceMap]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-muted-foreground">Carregando orçamento...</p>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Card className="w-full max-w-md text-center p-8">
+          <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-destructive" />
+          <h2 className="text-xl font-semibold mb-2">Orçamento não encontrado</h2>
+          <Link href="/orcamentos">
+            <Button>Voltar para a lista</Button>
+          </Link>
+        </Card>
+      </div>
+    );
+  }
+
+  const { quote, versions, items, canEdit, canSeeCommission = false, canEditCommission = false } = data as typeof data & { canSeeCommission?: boolean; canEditCommission?: boolean };
+  const st = STATUS_LABELS[quote.status] ?? STATUS_LABELS.open;
+
+  // Itens da versão mais recente
+  const currentVersionId = versions[0]?.id;
+  const currentItems = items.filter(i => i.quoteVersionId === currentVersionId);
 
   // RT/Margem calc for edit form
   // Para itens com driverLines, calcular total correto (luminaria + drivers)
