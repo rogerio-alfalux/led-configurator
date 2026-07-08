@@ -2000,3 +2000,10 @@
 - [x] Diagnosticar por que LLP-6060 (BLAZE H) não mostra driver nem preço na tabela de detalhamento
 - [x] Garantir que custoDriver220 da API é usado para calcular preço do driver em todos os perfis
 - [x] Mostrar driver destacado (código EQ + preço) sempre que disponível na API
+
+## Driver destacado em todos os perfis (08/07/2026)
+
+- [ ] Exibir driver sempre separado e destacado no card de resumo (preço da luminária + preço do driver separados)
+- [ ] Exibir driver sempre separado e destacado na tabela de detalhamento (linha própria com código EQ, modelo e preço)
+- [ ] Garantir que o preço do driver apareça em TODOS os perfis que têm driver cadastrado na API
+- [ ] Exibir preço total = luminária + driver de forma clara

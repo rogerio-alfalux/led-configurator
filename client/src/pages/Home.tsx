@@ -648,8 +648,8 @@ function ShapeResultCard({
   // Calcular preço total separando luminária e driver, buscando custo por SKU na API.
   // REGRA: preço do driver é calculado INDEPENDENTEMENTE do preço da luminária.
   // Se a luminária não tiver custo na API, o driver ainda pode ter preço e deve ser exibido.
-  const { precoLuminaria, precoDriver, precoTotal, precoFromApi, precoBreakdown } = useMemo(() => {
-    const empty = { precoLuminaria: null as number|null, precoDriver: null as number|null, precoTotal: null as number|null, precoFromApi: false, precoBreakdown: [] as Array<{sku:string;qty:number;precoUnit:number;subtotal:number;driverUnit:number|null;driverSubtotal:number}> };
+  const { precoLuminaria, precoDriver, precoTotal, precoFromApi, precoBreakdown, precoDriverCode, precoDriverModel } = useMemo(() => {
+    const empty = { precoLuminaria: null as number|null, precoDriver: null as number|null, precoTotal: null as number|null, precoFromApi: false, precoBreakdown: [] as Array<{sku:string;qty:number;precoUnit:number;subtotal:number;driverUnit:number|null;driverSubtotal:number}>, precoDriverCode: null as string|null, precoDriverModel: null as string|null };
     // Método 1: preço por SKU individual via API (inclui cantos EM L)
     if (skuPriceMap && shapeResult.pieces.length > 0) {
       // PowerLabel para formatos especiais: derivado de shapeResult.power e stripMethod do perfil
@@ -693,6 +693,13 @@ function ShapeResultCard({
       }
       const lumTotal = allHaveLumPrice ? Math.round(totalLum * 100) / 100 : null;
       const drvTotal = anyHasDriverPrice ? Math.round(totalDrv * 100) / 100 : null;
+      // Extrair código e modelo do driver da primeira peça com driver
+      let firstDriverCode: string | null = null;
+      let firstDriverModel: string | null = null;
+      for (const piece of shapeResult.pieces) {
+        const e = skuPriceMap[`${piece.sku}|${shapePowerLabel}`] ?? skuPriceMap[piece.sku];
+        if (e?.driverCode220) { firstDriverCode = e.driverCode220; firstDriverModel = e.driverModel220 ?? null; break; }
+      }
       if (allHaveLumPrice || anyHasDriverPrice) {
         return {
           precoLuminaria: lumTotal,
@@ -700,6 +707,8 @@ function ShapeResultCard({
           precoTotal: lumTotal != null ? Math.round(((lumTotal) + (drvTotal ?? 0)) * 100) / 100 : null,
           precoFromApi: true,
           precoBreakdown: breakdown,
+          precoDriverCode: firstDriverCode,
+          precoDriverModel: firstDriverModel,
         };
       }
     }
@@ -710,7 +719,7 @@ function ShapeResultCard({
     const pricePerMeter = getStaticPricePerMeter(profileCode, power, "onoff", false);
     if (pricePerMeter == null) return empty;
     const total = Math.round(pricePerMeter * (totalMm / 1000) * 100) / 100;
-    return { precoLuminaria: total, precoDriver: null, precoTotal: total, precoFromApi: false, precoBreakdown: [] };
+    return { precoLuminaria: total, precoDriver: null, precoTotal: total, precoFromApi: false, precoBreakdown: [], precoDriverCode: null, precoDriverModel: null };
   }, [skuPriceMap, shapeResult.pieces, profileCode, shapeResult.power, shapeResult.totalLengthMm]);
 
   // Preço efetivo: API > catálogo > manual
@@ -1099,9 +1108,19 @@ function ShapeResultCard({
               </div>
             )}
             {precoDriver != null && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Total drivers:</span>
-                <span className="text-sm font-semibold text-blue-500 dark:text-blue-400">{formatBRL(precoDriver)}</span>
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Total drivers:</span>
+                  <span className="text-sm font-semibold text-blue-500 dark:text-blue-400">{formatBRL(precoDriver)}</span>
+                  {precoDriverCode && (
+                    <span className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/40 px-1.5 py-0.5 rounded">
+                      {precoDriverCode}
+                    </span>
+                  )}
+                </div>
+                {precoDriverModel && (
+                  <span className="text-xs text-muted-foreground pl-0 truncate" title={precoDriverModel}>{precoDriverModel}</span>
+                )}
               </div>
             )}
             {precoTotal !== null ? (
@@ -1401,6 +1420,11 @@ type SkuPriceMap = Record<string, {
   markupMinimoOnoff220v: number|null; markupMinimoOnoffBivolt: number|null; markupMinimoDim110v: number|null; markupMinimoDimDali: number|null; markupMinimoDimTriac110v: number|null; markupMinimoDimTriac220v: number|null;
   custoDriver220: number|null; custoDriverBivolt: number|null; custoDriverDim110v: number|null; custoDriverDimDali: number|null; custoDriverDimTriac110v: number|null; custoDriverDimTriac220v: number|null;
   markupMinimoDriver: number|null;
+  // Modelo e código EQ do driver por tipo de controle
+  driverModel220: string|null; driverCode220: string|null;
+  driverModelBivolt: string|null; driverCodeBivolt: string|null;
+  driverModelDimDali: string|null; driverCodeDimDali: string|null;
+  driverModelDim110v: string|null; driverCodeDim110v: string|null;
 }>;
 
 function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty, setGlobalQty, onOpenAccessoryModal, pendingAccessoriesCount, globalPavimento }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void; onOpenAccessoryModal?: () => void; pendingAccessoriesCount?: number; globalPavimento?: string }) {
@@ -1896,15 +1920,32 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
 
     // Custo do driver (quando disponibilizado pela API)
     let precoDriverTotal = 0;
+    let driverModelApi: string | null = null;
+    let driverCodeApi: string | null = null;
     if (firstSkuEntry) {
       let custoDriver: number | null = null;
-      if (result.controlType === 'dimDali') custoDriver = firstSkuEntry.custoDriverDimDali;
-      else if (result.controlType === 'dim110v') custoDriver = firstSkuEntry.custoDriverDim110v;
-      else if (result.controlType === 'dimTriac110v') custoDriver = firstSkuEntry.custoDriverDimTriac110v;
-      else if (result.controlType === 'dimTriac220v') custoDriver = firstSkuEntry.custoDriverDimTriac220v;
-      else if (/bivolt/i.test(result.voltage)) custoDriver = firstSkuEntry.custoDriverBivolt;
-      else custoDriver = firstSkuEntry.custoDriver220;
-            const mkDriver = firstSkuEntry.markupMinimoDriver ?? 3;
+      if (result.controlType === 'dimDali') {
+        custoDriver = firstSkuEntry.custoDriverDimDali;
+        driverModelApi = firstSkuEntry.driverModelDimDali;
+        driverCodeApi = firstSkuEntry.driverCodeDimDali;
+      } else if (result.controlType === 'dim110v') {
+        custoDriver = firstSkuEntry.custoDriverDim110v;
+        driverModelApi = firstSkuEntry.driverModelDim110v;
+        driverCodeApi = firstSkuEntry.driverCodeDim110v;
+      } else if (result.controlType === 'dimTriac110v') {
+        custoDriver = firstSkuEntry.custoDriverDimTriac110v;
+      } else if (result.controlType === 'dimTriac220v') {
+        custoDriver = firstSkuEntry.custoDriverDimTriac220v;
+      } else if (/bivolt/i.test(result.voltage)) {
+        custoDriver = firstSkuEntry.custoDriverBivolt;
+        driverModelApi = firstSkuEntry.driverModelBivolt;
+        driverCodeApi = firstSkuEntry.driverCodeBivolt;
+      } else {
+        custoDriver = firstSkuEntry.custoDriver220;
+        driverModelApi = firstSkuEntry.driverModel220;
+        driverCodeApi = firstSkuEntry.driverCode220;
+      }
+      const mkDriver = firstSkuEntry.markupMinimoDriver ?? 3;
       if (custoDriver != null) {
         precoDriverTotal = Math.round(custoDriver * nModules * mkDriver * 100) / 100;
         const driverUnit = Math.round(custoDriver * mkDriver * 100) / 100;
@@ -1918,6 +1959,8 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
     return {
       precoLuminariaTotal: totalLuminaria,
       precoDriverTotal,
+      driverModel: driverModelApi,
+      driverCode: driverCodeApi,
       total: Math.round((totalLuminaria + precoDriverTotal) * 100) / 100,
       markupLuminariaAplicado: mkOverride ?? markupPadrao,
       markupPadrao,
@@ -2212,16 +2255,31 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                 ))}
               </div>
             </div>
-            {/* Linha driver (blue) */}
+            {/* Linha driver (blue) — sempre exibida quando há custo de driver */}
             {modulePriceResult.precoDriverTotal > 0 && (
-              <div className="flex items-center justify-between px-4 py-2.5 bg-blue-500/8 border-b border-border">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
-                  <span className="text-sm font-medium text-foreground">
-                    Driver × {nModules}
-                  </span>
+              <div className="flex flex-col px-4 py-2.5 bg-blue-500/8 border-b border-border gap-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+                    <span className="text-sm font-medium text-foreground">
+                      Driver × {nModules}
+                    </span>
+                    {modulePriceResult.driverCode && (
+                      <span className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/40 px-1.5 py-0.5 rounded">
+                        {modulePriceResult.driverCode}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{formatBRL(modulePriceResult.precoDriverTotal)}</span>
                 </div>
-                <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{formatBRL(modulePriceResult.precoDriverTotal)}</span>
+                {modulePriceResult.driverModel && (
+                  <div className="pl-4 text-xs text-muted-foreground truncate" title={modulePriceResult.driverModel}>
+                    {modulePriceResult.driverModel}
+                  </div>
+                )}
+                <div className="pl-4 text-xs text-muted-foreground">
+                  {nModules} × {formatBRL(Math.round(modulePriceResult.precoDriverTotal / nModules * 100) / 100)} cada
+                </div>
               </div>
             )}
             {/* Total (green) */}
@@ -2628,6 +2686,15 @@ export default function Home() {
       custoDriverDimTriac110v: number | null;
       custoDriverDimTriac220v: number | null;
       markupMinimoDriver: number | null;
+      // Modelo e código EQ do driver
+      driverModel220: string | null;
+      driverCode220: string | null;
+      driverModelBivolt: string | null;
+      driverCodeBivolt: string | null;
+      driverModelDimDali: string | null;
+      driverCodeDimDali: string | null;
+      driverModelDim110v: string | null;
+      driverCodeDim110v: string | null;
     }> = {};
     for (const p of alfaluxApiProducts) {
       const cat = (p.categoria ?? "").toUpperCase();
@@ -2671,6 +2738,14 @@ export default function Home() {
         custoDriverDimTriac110v: p.custoDriverDimTriac110v ?? null,
         custoDriverDimTriac220v: p.custoDriverDimTriac220v ?? null,
         markupMinimoDriver: p.markupMinimoDriver ?? null,
+        driverModel220: (p.driver220 as {model?:string}|null)?.model ?? null,
+        driverCode220: (p.driver220 as {code?:string}|null)?.code ?? null,
+        driverModelBivolt: (p.driverBivolt as {model?:string}|null)?.model ?? null,
+        driverCodeBivolt: (p.driverBivolt as {code?:string}|null)?.code ?? null,
+        driverModelDimDali: (p.driverDimDali as {model?:string}|null)?.model ?? null,
+        driverCodeDimDali: (p.driverDimDali as {code?:string}|null)?.code ?? null,
+        driverModelDim110v: (p.driverDim110v as {model?:string}|null)?.model ?? null,
+        driverCodeDim110v: (p.driverDim110v as {code?:string}|null)?.code ?? null,
       };
       map[key] = {
         name: p.name ?? '',
@@ -2704,12 +2779,19 @@ export default function Home() {
         custoDriverDimDali: p.custoDriverDimDali ?? null,
         custoDriverDimTriac110v: p.custoDriverDimTriac110v ?? null,
         custoDriverDimTriac220v: p.custoDriverDimTriac220v ?? null,
-        markupMinimoDriver: p.markupMinimoDriver ?? null,
+                markupMinimoDriver: p.markupMinimoDriver ?? null,
+        driverModel220: (p.driver220 as {model?:string}|null)?.model ?? null,
+        driverCode220: (p.driver220 as {code?:string}|null)?.code ?? null,
+        driverModelBivolt: (p.driverBivolt as {model?:string}|null)?.model ?? null,
+        driverCodeBivolt: (p.driverBivolt as {code?:string}|null)?.code ?? null,
+        driverModelDimDali: (p.driverDimDali as {model?:string}|null)?.model ?? null,
+        driverCodeDimDali: (p.driverDimDali as {code?:string}|null)?.code ?? null,
+        driverModelDim110v: (p.driverDim110v as {model?:string}|null)?.model ?? null,
+        driverCodeDim110v: (p.driverDim110v as {code?:string}|null)?.code ?? null,
       };
     }
     return map;
   }, [alfaluxApiProducts]);
-
   // Mapa de preços por metro por profileCode (extraído dos produtos PERFIS da API)
   // Estrutura: { [profileCode]: { onoff220: number|null, onoffBivolt: number|null, dim110v: number|null, dimDali: number|null } }
   const profilePriceMap = useMemo(() => {
