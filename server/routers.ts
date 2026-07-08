@@ -193,6 +193,8 @@ export const appRouter = router({
           potencia: p.potencia ?? null,
           tensaoEntrada: p.tensaoEntrada ?? null,
           corrente: p.corrente ?? null,
+          custoDriver: p.custoDriver ?? null,
+          mkpPadrao: p.mkpPadrao ?? null,
           precoVenda: p.precoVenda ?? null,
           fotoUrl: p.fotoUrl ?? null,
           observacoes: p.observacoes ?? null,

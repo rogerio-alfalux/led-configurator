@@ -757,7 +757,13 @@ export default function QuoteDetail() {
   const componentePriceMap = useMemo(() => {
     const map = new Map<string, number>();
     for (const c of componentesQuery.data?.items ?? []) {
-      if (c.codigo && c.precoVenda != null) map.set(c.codigo, c.precoVenda);
+      if (!c.codigo) continue;
+      // Preço de venda = custo × markup padrão (sempre calculado, nunca usa precoVenda da API)
+      const custo = c.custoDriver;
+      if (custo != null && custo > 0) {
+        const mkp = c.mkpPadrao ?? 3;
+        map.set(c.codigo, Math.round(custo * mkp * 100) / 100);
+      }
     }
     return map;
   }, [componentesQuery.data]);

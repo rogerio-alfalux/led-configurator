@@ -461,6 +461,8 @@ export interface ComponenteProduct {
   potencia: string | null;
   tensaoEntrada: string | null;
   corrente: string | null;
+  custoDriver: number | null;
+  mkpPadrao: number | null;
   precoVenda: number | null;
   fotoUrl: string | null;
   observacoes: string | null;
