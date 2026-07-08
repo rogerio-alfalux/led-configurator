@@ -785,9 +785,19 @@ async function _generateExcelBuffer(
       const freteItem = _freteParaDiluir * peso;
       return _effectiveUnitPrice + freteItem / Math.max(it.qty, 1);
     };
-    // Para itens com driver desmembrado: usar unitPriceLuminaria; fallback para unitPrice quando editado manualmente
+    // Para itens com driver desmembrado: usar unitPriceLuminaria;
+    // Fallback para itens legados: derivar unitPriceLuminaria = (totalPrice - driversTotalPrice) / qty
+    const _drvTotalForFallback = hasDriverBreakdownItem
+      ? (item.driverLines ?? []).reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0)
+      : 0;
+    const _derivedUnitLuminaria = (hasDriverBreakdownItem &&
+      item.unitPriceLuminaria == null &&
+      item.totalPrice != null && item.totalPrice > 0 &&
+      item.qty > 0)
+      ? (item.totalPrice - _drvTotalForFallback) / item.qty
+      : null;
     const _unitForLuminaria = hasDriverBreakdownItem
-      ? (item.unitPriceLuminaria ?? _unitPriceComFreteEffective(item))
+      ? (item.unitPriceLuminaria ?? _derivedUnitLuminaria ?? _unitPriceComFreteEffective(item))
       : _unitPriceComFrete(item);
     if (_unitForLuminaria !== null && _unitForLuminaria !== undefined && _unitForLuminaria > 0) {
       cUnit.value = applyMarkup(_unitForLuminaria);
@@ -819,8 +829,13 @@ async function _generateExcelBuffer(
         _correctedPriceWithoutDriver = item.unitPriceLuminaria * item.qty;
       }
     }
-    // Fallback adicional: item com driverLines mas sem priceWithoutDriver/unitPriceLuminaria,
-    // usa totalPrice (editado manualmente) como total da luminaria
+    // Fallback adicional para itens legados: se ainda não temos _correctedPriceWithoutDriver,
+    // derivar de totalPrice - driversTotalPrice (mesma lógica do fallback de unitPriceLuminaria)
+    if (_correctedPriceWithoutDriver == null && hasDriverBreakdownItem &&
+        item.totalPrice != null && item.totalPrice > 0) {
+      _correctedPriceWithoutDriver = Math.max(0, item.totalPrice - _drvTotalForFallback);
+    }
+    // Fallback final: usa totalPrice (editado manualmente) como total da luminaria
     const _totalForLuminaria = _correctedPriceWithoutDriver != null
       ? _correctedPriceWithoutDriver
       : _totalPriceComFrete(item);

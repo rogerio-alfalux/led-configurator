@@ -667,28 +667,36 @@ ${htmlContent}
                           <td style={tdStyle}>{item.cct || "-"}</td>
                           <td style={{ ...tdStyle, fontWeight: "bold" }}>{item.qty}</td>
                           {/* Preço da luminária (sem driver) */}
-                          <td style={tdStyle}>
-                            {item.unitPriceLuminaria && item.unitPriceLuminaria > 0
-                              ? formatBRL(applyMarkup(item.unitPriceLuminaria))
-                              : item.luminariaHasApiPrice === false
-                                ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
-                                : "-"}
-                          </td>
-                          <td style={tdStyle}>
-                            {(() => {
-                              // Corrigir itens antigos onde priceWithoutDriver foi salvo como valor unitário
-                              const _pwd = item.priceWithoutDriver ?? 0;
-                              const _upl = item.unitPriceLuminaria ?? 0;
-                              const _qty = item.qty ?? 1;
-                              const _isUnit = _upl > 0 && Math.abs(_pwd - _upl) < 0.02 && _qty > 1;
-                              const _corrected = _isUnit ? _upl * _qty : _pwd;
-                              return _corrected > 0
-                                ? formatBRL(applyMarkup(_corrected))
-                                : item.luminariaHasApiPrice === false
-                                  ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
-                                  : "-";
-                            })()}
-                          </td>
+                          {(() => {
+                            // Fallback para itens legados: derivar unitPriceLuminaria = (totalPrice - driversTotalPrice) / qty
+                            const _drvTotalPreview = (item.driverLines ?? []).reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
+                            const _derivedUnitLum = (item.unitPriceLuminaria == null && item.totalPrice != null && item.totalPrice > 0 && item.qty > 0)
+                              ? (item.totalPrice - _drvTotalPreview) / item.qty
+                              : null;
+                            const _effectiveUnitLum = item.unitPriceLuminaria ?? _derivedUnitLum;
+                            // Corrigir itens antigos onde priceWithoutDriver foi salvo como valor unitário
+                            const _pwd = item.priceWithoutDriver ?? 0;
+                            const _upl = _effectiveUnitLum ?? 0;
+                            const _qty = item.qty ?? 1;
+                            const _isUnit = _upl > 0 && Math.abs(_pwd - _upl) < 0.02 && _qty > 1;
+                            const _correctedTotal = _isUnit ? _upl * _qty : (_pwd > 0 ? _pwd : Math.max(0, (item.totalPrice ?? 0) - _drvTotalPreview));
+                            return (<>
+                              <td style={tdStyle}>
+                                {_effectiveUnitLum && _effectiveUnitLum > 0
+                                  ? formatBRL(applyMarkup(_effectiveUnitLum))
+                                  : item.luminariaHasApiPrice === false
+                                    ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
+                                    : "-"}
+                              </td>
+                              <td style={tdStyle}>
+                                {_correctedTotal > 0
+                                  ? formatBRL(applyMarkup(_correctedTotal))
+                                  : item.luminariaHasApiPrice === false
+                                    ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
+                                    : "-"}
+                              </td>
+                            </>);
+                          })()}
                         </tr>
                       ) : (
                         <tr>
