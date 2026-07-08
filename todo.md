@@ -1994,3 +1994,9 @@
 - [x] skuPriceMap já agrupa por sku|powerLabel (driver e custo corretos por potência)
 - [x] ledEngine/driverSelector usa driver correto por potência via driverLookup (sem alteração necessária)
 - [x] Implementado e testado: 563 testes passando
+
+## Driver e preço para todos os perfis (08/07/2026)
+
+- [x] Diagnosticar por que LLP-6060 (BLAZE H) não mostra driver nem preço na tabela de detalhamento
+- [x] Garantir que custoDriver220 da API é usado para calcular preço do driver em todos os perfis
+- [x] Mostrar driver destacado (código EQ + preço) sempre que disponível na API

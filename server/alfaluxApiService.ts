@@ -280,29 +280,49 @@ export async function fetchAllAlfaluxProducts(): Promise<AlfaluxProduct[]> {
     console.warn(`[AlfaluxAPI] Falha no lookup de EQ de ótica/dissipador/holder:`, err);
   }
 
-  // Enriquecer drivers com campo corrente via lookup em /api/componentes/all
+  // Enriquecer drivers com campo corrente e custoDriver (quando null no produto) via lookup em /api/componentes/all
   try {
     const { items: componentes } = await fetchComponentes();
-    // Construir mapa codigo.toUpperCase() -> corrente para componentes do tipo DRIVER
-    const driverCorrenteMap = new Map<string, string | null>();
+    // Construir mapa codigo.toUpperCase() -> { corrente, custoDriver, mkpPadrao, precoVenda }
+    const driverCompMap = new Map<string, { corrente: string | null; custoDriver: number | null; mkpPadrao: number | null; precoVenda: number | null }>();
     for (const c of componentes) {
       if (c.codigo) {
-        driverCorrenteMap.set(c.codigo.toUpperCase().trim(), c.corrente ?? null);
+        driverCompMap.set(c.codigo.toUpperCase().trim(), {
+          corrente: c.corrente ?? null,
+          custoDriver: c.custoDriver ?? null,
+          mkpPadrao: c.mkpPadrao ?? null,
+          precoVenda: c.precoVenda ?? null,
+        });
       }
     }
-    const driverFields = ['driver220', 'driverBivolt', 'driverDim110v', 'driverDimDali', 'driverDimTriac110v', 'driverDimTriac220v'] as const;
+    // Mapeamento entre campo driver e campo custoDriver correspondente
+    const driverCostFields: Array<[keyof AlfaluxProduct, keyof AlfaluxProduct]> = [
+      ['driver220', 'custoDriver220'],
+      ['driverBivolt', 'custoDriverBivolt'],
+      ['driverDim110v', 'custoDriverDim110v'],
+      ['driverDimDali', 'custoDriverDimDali'],
+      ['driverDimTriac110v', 'custoDriverDimTriac110v'],
+      ['driverDimTriac220v', 'custoDriverDimTriac220v'],
+    ];
     for (const p of all) {
-      for (const field of driverFields) {
-        const d = p[field] as DriverInfo | null | undefined;
+      for (const [driverField, costField] of driverCostFields) {
+        const d = p[driverField] as DriverInfo | null | undefined;
         if (d && d.code) {
-          const corrente = driverCorrenteMap.get(d.code.toUpperCase().trim()) ?? null;
-          (d as DriverInfo).corrente = corrente;
+          const comp = driverCompMap.get(d.code.toUpperCase().trim());
+          if (comp) {
+            // Enriquecer corrente
+            (d as DriverInfo).corrente = comp.corrente;
+            // Enriquecer custo do driver quando null no produto
+            if ((p[costField] as number | null) == null && comp.custoDriver != null) {
+              (p as unknown as Record<string, unknown>)[costField as string] = comp.custoDriver;
+            }
+          }
         }
       }
     }
-    console.log(`[AlfaluxAPI] Lookup de corrente do driver concluído.`);
+    console.log(`[AlfaluxAPI] Lookup de corrente e custo do driver concluído.`);
   } catch (err) {
-    console.warn(`[AlfaluxAPI] Falha no lookup de corrente do driver:`, err);
+    console.warn(`[AlfaluxAPI] Falha no lookup de corrente/custo do driver:`, err);
   }
 
   console.log(`[AlfaluxAPI] ${all.length} produtos carregados.`);
