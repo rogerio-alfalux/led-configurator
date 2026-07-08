@@ -752,16 +752,16 @@ export default function QuoteDetail() {
   // Catálogo de acessórios para resolver fotos frescas (URLs CloudFront expiram)
   const acessoriosQuery = trpc.alfalux.acessoriosProducts.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   // Componentes (drivers, módulos LED, etc.) para migrar itens legados sem driverLines
-  const componentesQuery = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 10 * 60 * 1000 });
+  const componentesQuery = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   /** Mapa código EQ -> precoVenda para busca rápida de preço de driver */
   const componentePriceMap = useMemo(() => {
     const map = new Map<string, number>();
     for (const c of componentesQuery.data?.items ?? []) {
       if (!c.codigo) continue;
       // Preço de venda = custo × markup padrão (sempre calculado, nunca usa precoVenda da API)
-      const custo = c.custoDriver;
+      const custo = (c as unknown as { custoDriver?: number | null }).custoDriver ?? null;
       if (custo != null && custo > 0) {
-        const mkp = c.mkpPadrao ?? 3;
+        const mkp = (c as unknown as { mkpPadrao?: number | null }).mkpPadrao ?? 3;
         map.set(c.codigo, Math.round(custo * mkp * 100) / 100);
       }
     }
