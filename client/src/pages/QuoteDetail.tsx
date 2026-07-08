@@ -1088,6 +1088,41 @@ export default function QuoteDetail() {
         const migratedParsed: CartItemData = { ...parsed, driverLines, priceWithoutDriver: priceWithoutDriver ?? parsed.priceWithoutDriver, unitPriceLuminaria: unitPriceLuminaria ?? parsed.unitPriceLuminaria, luminariaHasApiPrice };
         return { ...item, itemData: JSON.stringify(migratedParsed) };
       }
+      // Migração 2: itens com accessories contendo drivers (EQ*) sem unitPrice
+      // Ex: itens de revenda/especial como LL4, LL5, LL8, LL9, LL15, LL19
+      const accessories = (parsed.accessories as import("@/lib/cartTypes").LinkedAccessory[] | undefined) ?? [];
+      const driverAccessories = accessories.filter(acc =>
+        acc.codigo && (acc.unitPrice == null || acc.unitPrice === 0) &&
+        componentePriceMap.has(acc.codigo)
+      );
+      if (driverAccessories.length > 0 && (!parsed.driverLines || parsed.driverLines.length === 0)) {
+        const itemQty = parsed.qty ?? 1;
+        const driverLines: import("@/lib/cartTypes").DriverLine[] = driverAccessories.map(acc => {
+          const unitPrice = componentePriceMap.get(acc.codigo)!;
+          const totalQty = (acc.qty ?? 1) * itemQty;
+          const totalPrice = unitPrice * totalQty;
+          return {
+            driverCode: acc.codigo,
+            driverModel: acc.descricao,
+            driverQty: totalQty,
+            driverQtyPerUnit: acc.qty ?? 1,
+            driverUnitPrice: unitPrice,
+            driverTotalPrice: totalPrice,
+          };
+        });
+        const totalDriverCost = driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
+        const totalPrice = parsed.totalPrice ?? 0;
+        const priceWithoutDriver = totalPrice > 0 ? totalPrice - totalDriverCost : null;
+        const unitPriceLuminaria = priceWithoutDriver != null && itemQty > 0 ? priceWithoutDriver / itemQty : (parsed.unitPriceLuminaria ?? null);
+        const migratedParsed: CartItemData = {
+          ...parsed,
+          driverLines,
+          priceWithoutDriver: priceWithoutDriver ?? parsed.priceWithoutDriver,
+          unitPriceLuminaria: unitPriceLuminaria ?? parsed.unitPriceLuminaria,
+          luminariaHasApiPrice: true,
+        };
+        return { ...item, itemData: JSON.stringify(migratedParsed) };
+      }
       return item;
     });
   }, [data, componentePriceMap]);
@@ -1736,12 +1771,45 @@ export default function QuoteDetail() {
                     parsed: migratedParsed,
                   };
                 }
+                // Migração 2: itens com accessories contendo drivers (EQ*) sem unitPrice
+                const _editAccessories = (parsed.accessories as import("@/lib/cartTypes").LinkedAccessory[] | undefined) ?? [];
+                const _editDriverAccs = _editAccessories.filter(acc =>
+                  acc.codigo && (acc.unitPrice == null || acc.unitPrice === 0) &&
+                  componentePriceMap.has(acc.codigo)
+                );
+                if (_editDriverAccs.length > 0 && (!parsed.driverLines || parsed.driverLines.length === 0)) {
+                  const _editItemQty2 = parsed.qty ?? 1;
+                  const driverLines2: import("@/lib/cartTypes").DriverLine[] = _editDriverAccs.map(acc => {
+                    const unitPrice = componentePriceMap.get(acc.codigo)!;
+                    const totalQty = (acc.qty ?? 1) * _editItemQty2;
+                    return {
+                      driverCode: acc.codigo,
+                      driverModel: acc.descricao,
+                      driverQty: totalQty,
+                      driverQtyPerUnit: acc.qty ?? 1,
+                      driverUnitPrice: unitPrice,
+                      driverTotalPrice: unitPrice * totalQty,
+                    };
+                  });
+                  const _editTotalDriverCost2 = driverLines2.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
+                  const _editTotalPrice2 = parsed.totalPrice ?? 0;
+                  const _editPWD2 = _editTotalPrice2 > 0 ? _editTotalPrice2 - _editTotalDriverCost2 : null;
+                  const _editUPL2 = _editPWD2 != null && _editItemQty2 > 0 ? _editPWD2 / _editItemQty2 : (parsed.unitPriceLuminaria ?? null);
+                  const migratedParsed2: CartItemData = {
+                    ...parsed,
+                    driverLines: driverLines2,
+                    priceWithoutDriver: _editPWD2 ?? parsed.priceWithoutDriver,
+                    unitPriceLuminaria: _editUPL2 ?? parsed.unitPriceLuminaria,
+                    luminariaHasApiPrice: true,
+                  };
+                  return { id: item.id, itemNumber: item.itemNumber, itemData: JSON.stringify(migratedParsed2), parsed: migratedParsed2 };
+                }
                 return {
-                  id: item.id,
-                  itemNumber: item.itemNumber,
-                  itemData: item.itemData,
-                  parsed,
-                };
+                    id: item.id,
+                    itemNumber: item.itemNumber,
+                    itemData: item.itemData,
+                    parsed,
+                  };
               }));
               setEditItemsNotes("");
               setEditItemsSearch("");
