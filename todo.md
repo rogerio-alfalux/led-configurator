@@ -1983,3 +1983,14 @@
 - [x] Exportar preço do driver no Excel para todos os produtos
 - [x] Corrigir erros TypeScript pré-existentes em downlightCatalog.ts e spotCatalog.ts (campos faltantes no retorno isLamp)
 - [x] Corrigir parseCCTs para retornar ["3000K"] quando array vazio (teste alfaluxApiAdapter.test.ts)
+
+## Potência por produto via API (08/07/2026)
+
+- [x] Indexar skuPriceMap por sku+potência (chave: "LLS-3945.1IF.38F|18W") para suportar múltiplos registros por SKU
+- [x] Remover powerFactor manual (×1.05 para 26W, ×1.10 para 36W) — custo já vem correto da API
+- [x] Extrair potência do nome do produto na API (padrão: "36W SL", "36W SF", "26W", "18W")
+- [x] Atualizar getSkuPrice para usar sku+potência como chave
+- [x] UI de potência já exibe 18W, 26W, 36W com toggle Stripflex/Stripline (comportamento mantido)
+- [x] skuPriceMap já agrupa por sku|powerLabel (driver e custo corretos por potência)
+- [x] ledEngine/driverSelector usa driver correto por potência via driverLookup (sem alteração necessária)
+- [x] Implementado e testado: 563 testes passando

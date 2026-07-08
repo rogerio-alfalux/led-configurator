@@ -104,6 +104,23 @@ const POWER_OPTIONS: { value: Power; label: string }[] = [
   { value: 36, label: "36W" },
 ];
 
+// Converte power+stripMethod para o label de potência usado como chave no skuPriceMap
+// Padrão da API: nome contém "18W", "18W 26W", "18W 36W SF", "18W 36W SL"
+function toPowerLabel(power: number | undefined, stripMethod?: string | null): string {
+  if (power === 26) return "26W";
+  if (power === 36) {
+    if (stripMethod === "STRIPLINE") return "36W SL";
+    return "36W SF"; // STRIPFLEX dupla
+  }
+  return "18W"; // default
+}
+// Extrai o powerLabel do nome do produto da API
+function extractPowerLabelFromName(name: string): string {
+  if (/36W\s*SL/i.test(name)) return "36W SL";
+  if (/36W\s*SF/i.test(name)) return "36W SF";
+  if (/26W/i.test(name)) return "26W";
+  return "18W";
+}
 const CCT_OPTIONS: { value: CCT; label: string }[] = [
   { value: "2700K", label: "2700K (Branco Extra Quente)" },
   { value: "3000K", label: "3000K (Branco Quente)" },
@@ -635,14 +652,18 @@ function ShapeResultCard({
     const empty = { precoLuminaria: null as number|null, precoDriver: null as number|null, precoTotal: null as number|null, precoFromApi: false, precoBreakdown: [] as Array<{sku:string;qty:number;precoUnit:number;subtotal:number;driverUnit:number|null;driverSubtotal:number}> };
     // Método 1: preço por SKU individual via API (inclui cantos EM L)
     if (skuPriceMap && shapeResult.pieces.length > 0) {
+      // PowerLabel para formatos especiais: derivado de shapeResult.power e stripMethod do perfil
+      const shapePowerLabel = toPowerLabel(shapeResult.power, shapeResult.stripMethod);
       let totalLum = 0;
       let totalDrv = 0;
       let allHaveLumPrice = true;  // luminária tem custo+markup
       let anyHasDriverPrice = false; // ao menos um SKU tem custo de driver
       const breakdown: typeof empty.precoBreakdown = [];
       for (const piece of shapeResult.pieces) {
-        const entry = skuPriceMap[piece.sku];
+        // Preferir chave com powerLabel específico, fallback para sku simples
+        const entry = skuPriceMap[`${piece.sku}|${shapePowerLabel}`] ?? skuPriceMap[piece.sku];
         if (!entry) { allHaveLumPrice = false; }
+        // Custo já vem correto da API para cada potência (sem powerFactor adicional)
         const custo = entry?.custoOnoff220 ?? null;
         const markup = entry?.markupPadraoOnoff220v ?? null;
         let precoUnit = 0;
@@ -1174,8 +1195,8 @@ function ShapeResultCard({
                       <td className="px-3 py-2 text-right text-muted-foreground hidden sm:table-cell">
                         {piece?.length != null
                           ? `${piece.length}mm`
-                          : (piece?.type === 'CORNER' && skuPriceMap?.[b.sku]?.name
-                            ? (extractCornerDimensions(skuPriceMap[b.sku].name) ?? '—')
+                          : (piece?.type === 'CORNER' && (skuPriceMap?.[`${b.sku}|${toPowerLabel(shapeResult.power, shapeResult.stripMethod)}`] ?? skuPriceMap?.[b.sku])?.name
+                            ? (extractCornerDimensions((skuPriceMap[`${b.sku}|${toPowerLabel(shapeResult.power, shapeResult.stripMethod)}`] ?? skuPriceMap[b.sku]).name) ?? '—')
                             : '—')}
                       </td>
                       <td className="px-3 py-2 text-right text-muted-foreground hidden sm:table-cell">{piece?.bars != null ? (Number.isInteger(piece.bars) ? piece.bars : piece.bars.toFixed(1)) : "—"}</td>
@@ -1239,8 +1260,8 @@ function ShapeResultCard({
                     <td className="px-3 py-2 text-right text-foreground">
                       {piece.length
                         ? `${piece.length}mm`
-                        : piece.type === "CORNER" && skuPriceMap?.[piece.sku]?.name
-                          ? (extractCornerDimensions(skuPriceMap[piece.sku].name) ?? '—')
+                        : piece.type === "CORNER" && (skuPriceMap?.[`${piece.sku}|${toPowerLabel(shapeResult.power, shapeResult.stripMethod)}`] ?? skuPriceMap?.[piece.sku])?.name
+                          ? (extractCornerDimensions((skuPriceMap[`${piece.sku}|${toPowerLabel(shapeResult.power, shapeResult.stripMethod)}`] ?? skuPriceMap[piece.sku]).name) ?? '—')
                           : '—'}
                     </td>
                     <td className="px-3 py-2 text-right text-foreground font-semibold">{piece.quantity}</td>
@@ -1788,8 +1809,11 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
   const nModules = result.composition.reduce((sum, item) => sum + item.quantity, 0);
 
   // Função auxiliar: calcula preço de venda = custoCorpo × markupPadrao para o controle/aplicação selecionados
+  // Chave do skuPriceMap para o produto atual (sku|powerLabel)
+  const currentPowerLabel = toPowerLabel(result.powerD1, result.stripMethod);
   function getSkuPreco(sku: string, markupOverride?: number | null): number | null {
-    const entry = skuPriceMap?.[sku];
+    // Tentar primeiro com powerLabel específico, depois fallback para sku simples
+    const entry = skuPriceMap?.[`${sku}|${currentPowerLabel}`] ?? skuPriceMap?.[sku];
     if (!entry) return null;
 
     // Selecionar custo bruto e markup padrão conforme controle e aplicação
@@ -1814,23 +1838,25 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
 
     if (custo == null) return null;
     const mk = markupOverride ?? markupPadrao ?? 1;
-    // Fator de correção de potência: API fornece custo base para 18W;
-    // 26W recebe +5% e 36W recebe +10% sobre o custo antes do markup
-    const powerW = result.powerD1 ?? 18;
-    const powerFactor = powerW === 26 ? 1.05 : powerW === 36 ? 1.10 : 1.0;
-    return Math.round(custo * powerFactor * mk * 100) / 100;
+    // Custo já vem correto da API para cada potência (18W, 26W, 36W SF, 36W SL)
+    // Não aplicar powerFactor adicional
+    return Math.round(custo * mk * 100) / 100;
   }
 
   // Calcular preço total somando preço de cada SKU × quantidade
   // Só usa o novo método se TODOS os SKUs da composição tiverem preço no mapa
   const modulePriceResult = (() => {
     if (!skuPriceMap || result.composition.length === 0) return null;
-    // Verificar se algum SKU da composição tem preço no mapa
-    const hasAnySkuPrice = result.composition.some(item => skuPriceMap[item.sku] != null);
+        // Verificar se algum SKU da composição tem preço no mapa (usando powerLabel)
+    const hasAnySkuPrice = result.composition.some(item =>
+      skuPriceMap[`${item.sku}|${currentPowerLabel}`] != null || skuPriceMap[item.sku] != null
+    );
     if (!hasAnySkuPrice) return null;
-
-    // Extrair markup padrão/mínimo do primeiro SKU com dados
-    const firstSkuEntry = skuPriceMap[result.composition[0]?.sku];
+    // Extrair markup padrão/mínimo do primeiro SKU com dados (preferir chave com powerLabel)
+    const firstSku = result.composition[0]?.sku;
+    const firstSkuEntry = firstSku
+      ? (skuPriceMap[`${firstSku}|${currentPowerLabel}`] ?? skuPriceMap[firstSku])
+      : undefined;
     let markupPadrao = 2;
     let markupMinimo = 1;
     if (firstSkuEntry) {
@@ -2268,8 +2294,8 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                           {compItem
                             ? (compItem.length > 0
                               ? `${compItem.length}mm`
-                              : (skuPriceMap?.[b.sku]?.name
-                                ? (extractCornerDimensions(skuPriceMap[b.sku].name) ?? '—')
+                              : ((skuPriceMap?.[`${b.sku}|${currentPowerLabel}`] ?? skuPriceMap?.[b.sku])?.name
+                                ? (extractCornerDimensions((skuPriceMap[`${b.sku}|${currentPowerLabel}`] ?? skuPriceMap[b.sku]).name) ?? '—')
                                 : '—'))
                             : '—'}
                         </td>
@@ -2608,7 +2634,45 @@ export default function Home() {
       if (cat !== "PERFIS") continue;
       const sku = p.sku ?? "";
       if (!sku) continue;
-      map[sku] = {
+      // Indexar por sku|powerLabel para suportar múltiplos registros por SKU (18W, 26W, 36W SF, 36W SL)
+      const powerLabel = extractPowerLabelFromName(p.name ?? "");
+      const key = `${sku}|${powerLabel}`;
+      // Também manter entrada sem powerLabel para compatibilidade (primeiro registro vence)
+      if (!map[sku]) map[sku] = {
+        name: p.name ?? '',
+        custoOnoff220: p.custoCorpoOnoff220v ?? null,
+        custoOnoffBivolt: p.custoCorpoOnoffBivolt ?? null,
+        custoDim110v: p.custoCorpoDim110v ?? null,
+        custoDimDali: p.custoCorpoDimDali ?? null,
+        custoDimTriac110v: p.custoCorpoDimTriac110v ?? null,
+        custoDimTriac220v: p.custoCorpoDimTriac220v ?? null,
+        custoOnoff220D1D2: p.custoCorpoOnoff220vD1D2 ?? null,
+        custoOnoffBivoltD1D2: p.custoCorpoOnoffBivoltD1D2 ?? null,
+        custoDim110vD1D2: p.custoCorpoDim110vD1D2 ?? null,
+        custoDimDaliD1D2: p.custoCorpoDimDaliD1D2 ?? null,
+        custoDimTriac110vD1D2: p.custoCorpoDimTriac110vD1D2 ?? null,
+        custoDimTriac220vD1D2: p.custoCorpoDimTriac220vD1D2 ?? null,
+        markupPadraoOnoff220v: p.markupPadraoOnoff220v ?? null,
+        markupPadraoOnoffBivolt: p.markupPadraoOnoffBivolt ?? null,
+        markupPadraoDim110v: p.markupPadraoDim110v ?? null,
+        markupPadraoDimDali: p.markupPadraoDimDali ?? null,
+        markupPadraoDimTriac110v: p.markupPadraoDimTriac110v ?? null,
+        markupPadraoDimTriac220v: p.markupPadraoDimTriac220v ?? null,
+        markupMinimoOnoff220v: p.markupMinimoOnoff220v ?? null,
+        markupMinimoOnoffBivolt: p.markupMinimoOnoffBivolt ?? null,
+        markupMinimoDim110v: p.markupMinimoDim110v ?? null,
+        markupMinimoDimDali: p.markupMinimoDimDali ?? null,
+        markupMinimoDimTriac110v: p.markupMinimoDimTriac110v ?? null,
+        markupMinimoDimTriac220v: p.markupMinimoDimTriac220v ?? null,
+        custoDriver220: p.custoDriver220 ?? null,
+        custoDriverBivolt: p.custoDriverBivolt ?? null,
+        custoDriverDim110v: p.custoDriverDim110v ?? null,
+        custoDriverDimDali: p.custoDriverDimDali ?? null,
+        custoDriverDimTriac110v: p.custoDriverDimTriac110v ?? null,
+        custoDriverDimTriac220v: p.custoDriverDimTriac220v ?? null,
+        markupMinimoDriver: p.markupMinimoDriver ?? null,
+      };
+      map[key] = {
         name: p.name ?? '',
         custoOnoff220: p.custoCorpoOnoff220v ?? null,
         custoOnoffBivolt: p.custoCorpoOnoffBivolt ?? null,
