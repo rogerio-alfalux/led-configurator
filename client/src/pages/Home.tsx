@@ -1731,6 +1731,21 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
   // Estado do markup editável (apenas para Dennis e Vivian)
   const [markupLuminariaOverride, setMarkupLuminariaOverride] = useState<number | null>(null);
 
+  // ── Query de componentes para preço de driver por código EQ ──────────────────────
+  const { data: componentesData } = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const componentePriceMapLocal = useMemo(() => {
+    if (!componentesData) return new Map<string, number>();
+    const m = new Map<string, number>();
+    for (const c of componentesData.items) {
+      const custo = (c as unknown as { custoDriver?: number | null; mkpPadrao?: number | null }).custoDriver;
+      const mkp = (c as unknown as { custoDriver?: number | null; mkpPadrao?: number | null }).mkpPadrao;
+      if (custo != null && custo > 0) {
+        m.set(c.codigo, Math.round(custo * (mkp ?? 3) * 100) / 100);
+      }
+    }
+    return m;
+  }, [componentesData]);
+
   // ── Novo método: preço por SKU individual × quantidade (BLAZE H e futuros) ──────
   const isD1D2 = result.application === 'D1+D2';
   const nModules = result.composition.reduce((sum, item) => sum + item.quantity, 0);
@@ -1997,18 +2012,27 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                 });
 
                 // Separar driver quando modulePriceResult tem custo de driver
+                // Fallback: usar componentePriceMapLocal (custoDriver × mkpPadrao) quando custoDriver220 não está na API do SKU
+                const driverCode0 = profileSegments[0]?.driverCode || "";
+                const driverModel0 = profileSegments[0]?.driverModel || "Driver";
+                const driverUnitFromApi = modulePriceResult && modulePriceResult.precoDriverTotal > 0
+                  ? Math.round(modulePriceResult.precoDriverTotal / nModules * 100) / 100
+                  : null;
+                const driverUnitFromComponent = driverCode0 ? (componentePriceMapLocal.get(driverCode0) ?? null) : null;
+                const driverUnitEffective = driverUnitFromApi ?? driverUnitFromComponent;
+                const driverTotalEffective = driverUnitEffective != null ? Math.round(driverUnitEffective * nModules * 100) / 100 : 0;
                 const perfilDrvLines: import("@/lib/cartTypes").DriverLine[] | undefined =
-                  modulePriceResult && modulePriceResult.precoDriverTotal > 0
+                  driverUnitEffective != null && modulePriceResult
                     ? [{
-                        driverModel: profileSegments[0]?.driverModel || "Driver",
-                        driverCode: profileSegments[0]?.driverCode || "",
+                        driverModel: driverModel0,
+                        driverCode: driverCode0,
                         driverQty: nModules,
-                        driverUnitPrice: Math.round(modulePriceResult.precoDriverTotal / nModules * 100) / 100,
-                        driverTotalPrice: Math.round(modulePriceResult.precoDriverTotal * 100) / 100,
+                        driverUnitPrice: driverUnitEffective,
+                        driverTotalPrice: driverTotalEffective,
                       }]
                     : undefined;
-                const perfilPrecoSemDriver = modulePriceResult && modulePriceResult.precoDriverTotal > 0
-                  ? Math.round(modulePriceResult.precoLuminariaTotal * globalQty * 100) / 100
+                const perfilPrecoSemDriver = perfilDrvLines
+                  ? Math.round(modulePriceResult!.precoLuminariaTotal * globalQty * 100) / 100
                   : null;
                 const item: CartItemData = {
                   category: "Perfis",
