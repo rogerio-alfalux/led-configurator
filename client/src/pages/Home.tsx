@@ -4196,9 +4196,25 @@ export default function Home() {
       powerD2: isDual ? powerD2 : undefined,
       cct,
       voltage,
-      // REGRA INEGOCIÁVEL: se a variante tem stripMethod definido (ex: BLAZE S = STRIPLINE),
-      // usar esse valor. Caso contrário, usar a lógica legada baseada em potência (36W = STRIPLINE).
-      stripMethod: selectedVariant?.stripMethod ?? (powerD1 === 36 ? stripMethod : "STRIPFLEX"),
+      // REGRA INEGOCIÁVEL: determinar stripMethod com base na potência e nos módulos disponíveis.
+      // Se a variante tem AMBOS os módulos (ex: BLAZE H com 18W=STRIPFLEX e 28W=STRIPLINE),
+      // usar a potência para decidir: 18W → STRIPFLEX, 28W → STRIPLINE.
+      // Se a variante tem apenas um tipo, usar esse tipo.
+      // Se não tem nenhum, usar a lógica legada (36W = STRIPLINE, outros = STRIPFLEX).
+      stripMethod: (() => {
+        const hasBothMethods = selectedVariant?.ledModuleStripflex && selectedVariant?.ledModuleStripline;
+        if (hasBothMethods) {
+          // Perfis com ambos os métodos: decidir pela potência
+          // 18W e 26W são sempre Stripflex
+          if (powerD1 === 18 || powerD1 === 26) return "STRIPFLEX";
+          // 36W: usar a preferência do usuário (stripMethod state)
+          return stripMethod;
+        }
+        // Variante com apenas um método definido
+        if (selectedVariant?.stripMethod) return selectedVariant.stripMethod;
+        // Fallback legado: 36W = STRIPLINE, outros = STRIPFLEX
+        return powerD1 === 36 ? stripMethod : "STRIPFLEX";
+      })(),
       totalLength: len,
       allowLongModules,
       allowFractional,
