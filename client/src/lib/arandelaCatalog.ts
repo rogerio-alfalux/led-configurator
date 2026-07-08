@@ -185,6 +185,11 @@ export function calculateArandela(catalog: ArandelaProduct[], input: ArandelaInp
       driver: { model: "", code: "" },
       ledModuleWithCCT: null,
       ledModuleEq: null,
+      oticaEq: null,
+      oticaPrimariaEq: null,
+      oticaSecundariaEq: null,
+      dissipadorEq: null,
+      holderEq: null,
     };
   }
 

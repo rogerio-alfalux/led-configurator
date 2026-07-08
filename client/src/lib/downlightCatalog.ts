@@ -3808,6 +3808,11 @@ export function calculateDownlight(input: DownlightInput, catalog?: DownlightPro
       ledModuleWithCCT: "",
       ledModuleQtd: null,
       ledModuleEq: null,
+      oticaEq: null,
+      oticaPrimariaEq: null,
+      oticaSecundariaEq: null,
+      dissipadorEq: null,
+      holderEq: null,
     };
   }
   if (!driver) return null;

@@ -224,6 +224,11 @@ export function calculateSpot(catalog: SpotProduct[], input: SpotInput): SpotRes
       driver: { model: "", code: "" },
       ledModuleWithCCT: null,
       ledModuleEq: null,
+      oticaEq: null,
+      oticaPrimariaEq: null,
+      oticaSecundariaEq: null,
+      dissipadorEq: null,
+      holderEq: null,
     };
   }
 

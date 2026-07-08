@@ -547,7 +547,8 @@ function normalizeFotoUrl(fotoUrl: string | null): string | null {
  */
 export function parseCCTs(temperaturasCor: string | string[]): string[] {
   if (Array.isArray(temperaturasCor)) {
-    return normalizeCCTs(temperaturasCor);
+    const result = normalizeCCTs(temperaturasCor);
+    return result.length > 0 ? result : ["3000K"];
   }
   try {
     const arr = JSON.parse(temperaturasCor) as string[];

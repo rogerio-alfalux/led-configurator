@@ -1972,3 +1972,14 @@
 - [x] QuoteDetail.tsx: editTotalBase e totalBase no modal de edição — usar fallback correto
 - [x] quoteExcelGenerator.ts: getLegacyDriverInfoExcel — multiplicar totalQty por itemQty
 - [x] ExcelPreviewModal.tsx: getLegacyDriverInfoPreview — multiplicar totalQty por itemQty
+
+## Preço de driver para todos os produtos via API (08/07/2026)
+
+- [x] Unificar lumPriceMap para incluir TODOS os produtos (PERFIS + DOWNLIGHTS + SPOTS + PAÍNÉIS + etc.) com custoDriver220/Bivolt/Dim
+- [x] Garantir que buildLumDriverLines funcione para perfis lineares (BLAZE S, BLAZE E, HIT, etc.) — desacoplado do preço da luminária
+- [x] Exibir preço do driver destacado no resumo de todos os produtos (summaryText inclui LUMINÁRIA + DRIVERS separados)
+- [x] Exibir preço do driver no carrinho (driverLines) para todos os produtos
+- [x] Exibir preço do driver no preview do orçamento para todos os produtos
+- [x] Exportar preço do driver no Excel para todos os produtos
+- [x] Corrigir erros TypeScript pré-existentes em downlightCatalog.ts e spotCatalog.ts (campos faltantes no retorno isLamp)
+- [x] Corrigir parseCCTs para retornar ["3000K"] quando array vazio (teste alfaluxApiAdapter.test.ts)
