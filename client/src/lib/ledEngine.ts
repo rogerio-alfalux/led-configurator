@@ -407,9 +407,10 @@ function getModules(profileCode: string, type: ModuleType, allowLongModules: boo
         if (!Number.isInteger(b)) return false;
       }
       const b = parseFloat(barrasKey);
-      // Stripline: apenas barras inteiras (1, 2, 3, 4, 5)
+      // Stripline: barras inteiras padrão (1, 2, 3, 4, 5).
+      // Quando allowFractional=true, libera também barras decimais para composições.
       if (stripMethod === "STRIPLINE") {
-        if (!STRIPLINE_VALID_BARS.includes(b)) return false;
+        if (!allowFractional && !STRIPLINE_VALID_BARS.includes(b)) return false;
         // Continua para aplicar filtro forComposition abaixo
       }
       // 26W: excluir módulos nos gaps inválidos da tabela DRIVER_LOOKUP
