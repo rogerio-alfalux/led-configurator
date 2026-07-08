@@ -72,6 +72,43 @@ function getLegacyDriverInfo(d: CartItemData): Array<{ driverCode: string; drive
   return map.size > 0 ? Array.from(map.values()) : null;
 }
 
+/**
+ * REGRA INEGOCIÁVEL: Para itens de perfil (BLAZE, etc.), o driverQty salvo no banco
+ * pode estar errado (apenas por luminária, sem multiplicar por qty).
+ * Esta função recalcula driverQty e driverTotalPrice a partir de profileSegments.
+ * Deve ser usada em TODOS os locais que exibem ou calculam drivers de perfis.
+ */
+function getEffectiveDriverLines(d: CartItemData): typeof d.driverLines {
+  if (!d.driverLines || d.driverLines.length === 0) return d.driverLines;
+  if (!d.profileSegments || d.profileSegments.length === 0) return d.driverLines;
+  // Calcular total de drivers por luminária a partir de profileSegments
+  const drvPerLumMap = new Map<string, number>();
+  for (const seg of d.profileSegments) {
+    if (!seg.driverCode) continue;
+    const qtyPerSeg = (seg.driverQtyPerPiece ?? 1) * (seg.qty ?? 1);
+    drvPerLumMap.set(seg.driverCode, (drvPerLumMap.get(seg.driverCode) ?? 0) + qtyPerSeg);
+  }
+  if (drvPerLumMap.size === 0) return d.driverLines;
+  const itemQty = d.qty ?? 1;
+  return d.driverLines.map(dl => {
+    const drvPerLum = drvPerLumMap.get(dl.driverCode ?? '') ?? null;
+    if (drvPerLum == null) return dl;
+    const correctTotal = drvPerLum * itemQty;
+    // Se o driverQty salvo já está correto (igual ao total correto), não alterar
+    if (dl.driverQty === correctTotal) return dl;
+    // Se o driverQty salvo é igual a drvPerLum (só por luminária, sem multiplicar por qty), corrigir
+    if (dl.driverQty === drvPerLum || (dl.driverQty != null && dl.driverQty !== correctTotal)) {
+      const unitPrice = dl.driverUnitPrice ?? (dl.driverTotalPrice != null && dl.driverQty ? dl.driverTotalPrice / dl.driverQty : null);
+      return {
+        ...dl,
+        driverQty: correctTotal,
+        driverTotalPrice: unitPrice != null ? Math.round(unitPrice * correctTotal * 100) / 100 : dl.driverTotalPrice,
+      };
+    }
+    return dl;
+  });
+}
+
 import type { LinkedAccessory, SpecialEquipment } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { CORES_PECA } from "@/components/ColorPickerModal";

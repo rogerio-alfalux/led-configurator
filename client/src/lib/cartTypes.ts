@@ -425,9 +425,47 @@ export interface QuoteFormData {
   lightDesigner?: string;
 }
 
+/**
+ * REGRA INEGOCIÁVEL: Para itens de perfil (com profileSegments), o driverQty salvo
+ * no banco pode estar errado (só por luminária, sem multiplicar por qty total).
+ * Esta função corrige automaticamente ao parsear, garantindo que TODOS os locais
+ * que usam parseCartItemData recebam valores corretos de driverQty e driverTotalPrice.
+ * NÃO alterar esta lógica sem revisar todos os impactos.
+ */
 export function parseCartItemData(json: string): CartItemData | null {
   try {
-    return JSON.parse(json) as CartItemData;
+    const data = JSON.parse(json) as CartItemData;
+    // Corrigir driverQty para itens de perfil com profileSegments
+    if (data.driverLines && data.driverLines.length > 0 &&
+        data.profileSegments && data.profileSegments.length > 0) {
+      const itemQty = data.qty ?? 1;
+      // Calcular total de drivers por luminária a partir de profileSegments
+      const drvPerLumMap = new Map<string, number>();
+      for (const seg of data.profileSegments) {
+        if (!seg.driverCode) continue;
+        const qtyPerSeg = (seg.driverQtyPerPiece ?? 1) * (seg.qty ?? 1);
+        drvPerLumMap.set(seg.driverCode, (drvPerLumMap.get(seg.driverCode) ?? 0) + qtyPerSeg);
+      }
+      if (drvPerLumMap.size > 0) {
+        data.driverLines = data.driverLines.map(dl => {
+          const drvPerLum = drvPerLumMap.get(dl.driverCode ?? '') ?? null;
+          if (drvPerLum == null) return dl;
+          const correctTotal = drvPerLum * itemQty;
+          if (dl.driverQty === correctTotal) return dl; // já correto
+          // Recalcular: derivar preço unitário do valor salvo e multiplicar pelo total correto
+          const unitPrice = dl.driverUnitPrice ??
+            (dl.driverTotalPrice != null && dl.driverQty ? dl.driverTotalPrice / dl.driverQty : null);
+          return {
+            ...dl,
+            driverQty: correctTotal,
+            driverTotalPrice: unitPrice != null
+              ? Math.round(unitPrice * correctTotal * 100) / 100
+              : dl.driverTotalPrice,
+          };
+        });
+      }
+    }
+    return data;
   } catch {
     return null;
   }
