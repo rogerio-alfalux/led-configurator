@@ -549,6 +549,10 @@ function buildIfMlComposition(
     moduleCount: number;
     skuVariety: number;
     balance: number;
+    /** Comprimento médio dos módulos (maior = melhor, pois usa módulos maiores) */
+    avgLength: number;
+    /** Comprimento do maior módulo (menor = melhor, evita desequilíbrio extremo) */
+    maxLength: number;
     /** Número de módulos com barras decimais (não inteiras) na composição */
     brokenCount: number;
   }
@@ -566,10 +570,12 @@ function buildIfMlComposition(
       const realizedLength = twoIfLength;
       const moduleCount = 2;
       const balance = 0; // IFs iguais = desvio zero
+      const avgLength = ifMod.length; // comprimento médio = comprimento do IF
+      const maxLength = ifMod.length; // maior módulo = o próprio IF
       const skuVariety = 1; // apenas 1 tipo de SKU (IF)
       // Contar módulos com barras decimais: 2x IF, cada um conta se não for inteiro
       const brokenCount = (Number.isInteger(ifMod.barras) ? 0 : 1) * 2; // ambos IF são iguais
-      candidates.push({ ifMod, mlItems: [], realizedLength, moduleCount, skuVariety, balance, brokenCount });
+      candidates.push({ ifMod, mlItems: [], realizedLength, moduleCount, skuVariety, balance, avgLength, maxLength, brokenCount });
     }
 
     // --- Candidato B: 2x IF + ML (somente se sobrar comprimento) ---
@@ -589,43 +595,42 @@ function buildIfMlComposition(
         const allLengths = [ifMod.length, ifMod.length, ...mlItems.map(m => m.length)];
         const mean = allLengths.reduce((s, v) => s + v, 0) / allLengths.length;
         const balance = Math.sqrt(allLengths.reduce((s, v) => s + (v - mean) ** 2, 0) / allLengths.length);
+        const avgLength = allLengths.reduce((s, v) => s + v, 0) / allLengths.length;
+        const maxLength = Math.max(...allLengths);
         const skuVariety = new Set([ifMod.sku, ...mlItems.map(m => m.sku)]).size;
         // Contar módulos quebrados: 2x IF + cada ML individualmente
         const brokenCount = (Number.isInteger(ifMod.barras) ? 0 : 1) * 2
           + mlItems.filter(m => !Number.isInteger(m.barras)).length;
-        candidates.push({ ifMod, mlItems, realizedLength, moduleCount, skuVariety, balance, brokenCount });
+        candidates.push({ ifMod, mlItems, realizedLength, moduleCount, skuVariety, balance, avgLength, maxLength, brokenCount });
       }
     }
   }
 
   if (candidates.length === 0) return null;
 
-  // ── Lógica de seleção v3.2 / v4.1 ─────────────────────────────────────────
+  // ── Lógica de seleção v3.2 ─────────────────────────────────────────────────
   //
   // Para linhas curtas (≤ 5650mm), aplicar regra de tolerância:
   //   - Encontrar a melhor solução de 2 módulos (mais próxima sem ultrapassar)
-  //   - Preferir candidatos com menos módulos quebrados (barras decimais)
   //   - Se diferença <= 250mm → usar 2 módulos (aceitar)
   //   - Se diferença > 250mm → permitir mais módulos para aproximar melhor
   //
   // Para linhas longas (> 5650mm):
-  //   - Ordenar por: menor módulos → mais próximo → menos SKUs → menor desvio
+  //   - Ordenar por: mais próximo → menos módulos → menos SKUs → menor desvio
   //
-  // v4.1 (allowFractional): quando barras quebradas estão habilitadas, priorizar
-  //   composições com o menor número possível de módulos quebrados (idealmente 0 ou 1).
-  //   O critério brokenCount é aplicado ANTES de skuVariety e balance.
+  // Nota: brokenCount NÃO é critério de ordenação. O filtro allowFractional já
+  //   controla quais módulos estão disponíveis — se barras quebradas estão habilitadas,
+  //   o algoritmo usa o melhor módulo disponível (inteiro ou quebrado) sem preferência.
 
   if (requestedLength <= SHORT_LINE_THRESHOLD) {
-    // Encontrar a melhor solução de 2 módulos
-    // v4.1: entre candidatos de 2 módulos com mesmo comprimento realizado,
-    // preferir o que tem menos módulos quebrados
+    // Encontrar a melhor solução de 2 módulos (mais próxima)
     const twoModuleCandidates = candidates
       .filter(c => c.moduleCount === 2)
       .sort((a, b) => {
         // Mais próximo primeiro
         if (b.realizedLength !== a.realizedLength) return b.realizedLength - a.realizedLength;
-        // v4.1: menos módulos quebrados (barras decimais)
-        return a.brokenCount - b.brokenCount;
+        // Desempate: menor variedade de SKUs
+        return a.skuVariety - b.skuVariety;
       });
 
     if (twoModuleCandidates.length > 0) {
@@ -644,33 +649,30 @@ function buildIfMlComposition(
 
   // Ordenação geral: mais próximo primeiro (independente de número de módulos)
   // Para linhas longas OU quando 2 módulos ficou muito abaixo da tolerância
-  // v4.1: brokenCount como critério de desempate antes de skuVariety e balance
   candidates.sort((a, b) => {
     // Mais próximo do comprimento solicitado (prioridade principal)
     if (b.realizedLength !== a.realizedLength) return b.realizedLength - a.realizedLength;
     // Menor número de módulos (desempate)
     if (a.moduleCount !== b.moduleCount) return a.moduleCount - b.moduleCount;
-    // v4.1: menor número de módulos com barras quebradas (priorizar inteiros)
-    if (a.brokenCount !== b.brokenCount) return a.brokenCount - b.brokenCount;
     // Menor variedade de SKUs
     if (a.skuVariety !== b.skuVariety) return a.skuVariety - b.skuVariety;
-    // Menor desvio de equilíbrio
+    // Menor comprimento do maior módulo (evita desequilíbrio extremo entre módulos)
+    if (a.maxLength !== b.maxLength) return a.maxLength - b.maxLength;
+    // Menor desvio de equilíbrio como último desempate
     return a.balance - b.balance;
   });
   // v3.3: Para linhas longas, verificar se o candidato "mais limpo" está suficientemente
   // próximo do "mais exato" — se sim, preferir o mais limpo (menos SKUs/módulos).
   // Tolerância proporcional: 0,2% do comprimento solicitado, mínimo 30mm, máximo 100mm.
-  // Isso captura diferenças mínimas (ex: 30mm em 42330mm) sem sacrificar precisão em linhas curtas.
   let best = candidates[0];
   if (requestedLength > SHORT_LINE_THRESHOLD && candidates.length > 1) {
     const mostExact = candidates[0]; // já ordenado por realizedLength desc
-    // Candidato mais limpo: menos módulos quebrados → menos SKUs → menos módulos → mais próximo
+    // Candidato mais limpo: menos SKUs → menos módulos → menor maxLength → menor desvio
     const cleanest = [...candidates].sort((a, b) => {
-      // v4.1: priorizar menos módulos quebrados
-      if (a.brokenCount !== b.brokenCount) return a.brokenCount - b.brokenCount;
       if (a.skuVariety !== b.skuVariety) return a.skuVariety - b.skuVariety;
       if (a.moduleCount !== b.moduleCount) return a.moduleCount - b.moduleCount;
-      return b.realizedLength - a.realizedLength;
+      if (a.maxLength !== b.maxLength) return a.maxLength - b.maxLength;
+      return a.balance - b.balance;
     })[0];
     const lengthDiff = mostExact.realizedLength - cleanest.realizedLength;
     const cleanTolerance = Math.min(100, Math.max(30, requestedLength * 0.002));
@@ -777,12 +779,10 @@ function buildIfMlCompositionMixed(
   if (candidates.length === 0) return null;
 
   // Escolher: menor comprimento não realizado → menor número de módulos
-  // v4.1: brokenCount como critério de desempate para priorizar módulos inteiros
   candidates.sort((a, b) => {
     if (a.remainingLength !== b.remainingLength) return a.remainingLength - b.remainingLength;
     if (a.moduleCount !== b.moduleCount) return a.moduleCount - b.moduleCount;
-    // v4.1: menos módulos com barras quebradas
-    return a.brokenCount - b.brokenCount;
+    return 0;
   });
 
   const best = candidates[0];
