@@ -1048,30 +1048,38 @@ export default function QuoteDetail() {
       if ((!parsed.driverLines || parsed.driverLines.length === 0) &&
           parsed.profileSegments && parsed.profileSegments.length > 0 &&
           parsed.profileSegments.some(seg => seg.driverCode)) {
-        const drvMap = new Map<string, { driverCode: string; driverModel: string; totalQty: number }>();
+        const itemQty = parsed.qty ?? 1; // quantidade de lumárias (ex: 12)
+        const drvMap = new Map<string, { driverCode: string; driverModel: string; qtyPerLuminaria: number }>();
         for (const seg of parsed.profileSegments) {
           if (!seg.driverCode) continue;
           const key = seg.driverCode;
+          // qtyPerSeg = drivers por lumária (não multiplicar por itemQty aqui)
           const qtyPerSeg = (seg.driverQtyPerPiece ?? 1) * (seg.qty ?? 1);
           if (drvMap.has(key)) {
-            drvMap.get(key)!.totalQty += qtyPerSeg;
+            drvMap.get(key)!.qtyPerLuminaria += qtyPerSeg;
           } else {
-            drvMap.set(key, { driverCode: seg.driverCode, driverModel: seg.driverModel ?? seg.driverCode, totalQty: qtyPerSeg });
+            drvMap.set(key, { driverCode: seg.driverCode, driverModel: seg.driverModel ?? seg.driverCode, qtyPerLuminaria: qtyPerSeg });
           }
         }
         const driverEntries = Array.from(drvMap.values());
         let totalDriverCost = 0;
         const driverLines: import("@/lib/cartTypes").DriverLine[] = driverEntries.map(drv => {
+          // totalQty = drivers por lumária × quantidade de lumárias
+          const totalQty = drv.qtyPerLuminaria * itemQty;
           const unitPrice = componentePriceMap.get(drv.driverCode) ?? null;
-          const totalPrice = unitPrice != null ? unitPrice * drv.totalQty : null;
+          const totalPrice = unitPrice != null ? unitPrice * totalQty : null;
           if (totalPrice != null) totalDriverCost += totalPrice;
-          return { driverCode: drv.driverCode, driverModel: drv.driverModel, driverQty: drv.totalQty, driverUnitPrice: unitPrice, driverTotalPrice: totalPrice };
+          return { driverCode: drv.driverCode, driverModel: drv.driverModel, driverQty: totalQty, driverQtyPerUnit: drv.qtyPerLuminaria, driverUnitPrice: unitPrice, driverTotalPrice: totalPrice };
         });
         const totalPrice = parsed.totalPrice ?? 0;
-        const priceWithoutDriver = totalDriverCost > 0 ? totalPrice - totalDriverCost : null;
-        const qty = parsed.qty ?? 1;
-        const unitPriceLuminaria = priceWithoutDriver != null && qty > 0 ? priceWithoutDriver / qty : null;
-        const migratedParsed: CartItemData = { ...parsed, driverLines, priceWithoutDriver: priceWithoutDriver ?? parsed.priceWithoutDriver, unitPriceLuminaria: unitPriceLuminaria ?? parsed.unitPriceLuminaria, luminariaHasApiPrice: priceWithoutDriver != null };
+        // Fallback de preço: se não temos custo de driver da API, derivar preço da lumária do totalPrice
+        const priceWithoutDriver = totalDriverCost > 0
+          ? totalPrice - totalDriverCost
+          : (parsed.priceWithoutDriver ?? (totalPrice > 0 ? totalPrice - driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0) : null));
+        const qty = itemQty;
+        const unitPriceLuminaria = priceWithoutDriver != null && qty > 0 ? priceWithoutDriver / qty : (parsed.unitPriceLuminaria ?? null);
+        const luminariaHasApiPrice = totalDriverCost > 0 || (parsed.unitPriceLuminaria != null);
+        const migratedParsed: CartItemData = { ...parsed, driverLines, priceWithoutDriver: priceWithoutDriver ?? parsed.priceWithoutDriver, unitPriceLuminaria: unitPriceLuminaria ?? parsed.unitPriceLuminaria, luminariaHasApiPrice };
         return { ...item, itemData: JSON.stringify(migratedParsed) };
       }
       return item;
@@ -1120,7 +1128,12 @@ export default function QuoteDetail() {
             (d.qty ?? 1) > 1;
           return isUnitOnly ? d.unitPriceLuminaria! * (d.qty ?? 1) : d.priceWithoutDriver;
         }
-        const unitLum = d.unitPriceLuminaria ?? d.unitPrice ?? null;
+        // Fallback: derivar preço da lumária de (totalPrice - driversTotalPrice)
+        const _drvTotalEB = d.driverLines!.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0);
+        if (d.unitPriceLuminaria == null && d.totalPrice != null && d.totalPrice > 0) {
+          return Math.max(0, d.totalPrice - _drvTotalEB);
+        }
+        const unitLum = d.unitPriceLuminaria ?? null;
         return unitLum != null ? unitLum * (d.qty ?? 1) : (d.totalPrice ?? 0);
       })();
       const drvT = d.driverLines.reduce((sd, dl) => {
@@ -1667,44 +1680,48 @@ export default function QuoteDetail() {
                 if ((!parsed.driverLines || parsed.driverLines.length === 0) &&
                     parsed.profileSegments && parsed.profileSegments.length > 0 &&
                     parsed.profileSegments.some(seg => seg.driverCode)) {
-                  // Consolidar drivers por código
-                  const drvMap = new Map<string, { driverCode: string; driverModel: string; totalQty: number }>();
+                  const _editItemQty = parsed.qty ?? 1; // quantidade de lumárias
+                  // Consolidar drivers por código (quantidade por lumária)
+                  const drvMap = new Map<string, { driverCode: string; driverModel: string; qtyPerLuminaria: number }>();
                   for (const seg of parsed.profileSegments) {
                     if (!seg.driverCode) continue;
                     const key = seg.driverCode;
                     const qtyPerSeg = (seg.driverQtyPerPiece ?? 1) * (seg.qty ?? 1);
                     if (drvMap.has(key)) {
-                      drvMap.get(key)!.totalQty += qtyPerSeg;
+                      drvMap.get(key)!.qtyPerLuminaria += qtyPerSeg;
                     } else {
-                      drvMap.set(key, { driverCode: seg.driverCode, driverModel: seg.driverModel ?? seg.driverCode, totalQty: qtyPerSeg });
+                      drvMap.set(key, { driverCode: seg.driverCode, driverModel: seg.driverModel ?? seg.driverCode, qtyPerLuminaria: qtyPerSeg });
                     }
                   }
                   const driverEntries = Array.from(drvMap.values());
                   // Calcular preço total de todos os drivers
                   let totalDriverCost = 0;
                   const driverLines: import("@/lib/cartTypes").DriverLine[] = driverEntries.map(drv => {
+                    // totalQty = drivers por lumária × quantidade de lumárias
+                    const totalQty = drv.qtyPerLuminaria * _editItemQty;
                     const unitPrice = componentePriceMap.get(drv.driverCode) ?? null;
-                    const totalPrice = unitPrice != null ? unitPrice * drv.totalQty : null;
+                    const totalPrice = unitPrice != null ? unitPrice * totalQty : null;
                     if (totalPrice != null) totalDriverCost += totalPrice;
                     return {
                       driverCode: drv.driverCode,
                       driverModel: drv.driverModel,
-                      driverQty: drv.totalQty,
+                      driverQty: totalQty,
+                      driverQtyPerUnit: drv.qtyPerLuminaria,
                       driverUnitPrice: unitPrice,
                       driverTotalPrice: totalPrice,
                     };
                   });
                   // Calcular preço da luminária sem driver
                   const totalPrice = parsed.totalPrice ?? 0;
-                  const priceWithoutDriver = totalDriverCost > 0 ? totalPrice - totalDriverCost : null;
-                  const qty = parsed.qty ?? 1;
-                  const unitPriceLuminaria = priceWithoutDriver != null && qty > 0 ? priceWithoutDriver / qty : null;
+                  const priceWithoutDriver = totalDriverCost > 0 ? totalPrice - totalDriverCost : (parsed.priceWithoutDriver ?? null);
+                  const qty = _editItemQty;
+                  const unitPriceLuminaria = priceWithoutDriver != null && qty > 0 ? priceWithoutDriver / qty : (parsed.unitPriceLuminaria ?? null);
                   const migratedParsed: CartItemData = {
                     ...parsed,
                     driverLines,
                     priceWithoutDriver: priceWithoutDriver ?? parsed.priceWithoutDriver,
                     unitPriceLuminaria: unitPriceLuminaria ?? parsed.unitPriceLuminaria,
-                    luminariaHasApiPrice: priceWithoutDriver != null,
+                    luminariaHasApiPrice: totalDriverCost > 0 || (parsed.unitPriceLuminaria != null),
                   };
                   return {
                     id: item.id,
@@ -1955,16 +1972,19 @@ export default function QuoteDetail() {
                       const p = it.parsed;
                       let itemBase = 0;
                       if (p.driverLines && p.driverLines.length > 0) {
+                        const _drvTotalFt = p.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0);
                         const lumT = (() => {
                           if (p.priceWithoutDriver != null) {
                             const isUnitOnly = p.unitPriceLuminaria != null && Math.abs(p.priceWithoutDriver - p.unitPriceLuminaria) < 0.02 && (p.qty ?? 1) > 1;
                             return isUnitOnly ? p.unitPriceLuminaria! * (p.qty ?? 1) : p.priceWithoutDriver;
                           }
-                          const unitLum = p.unitPriceLuminaria ?? p.unitPrice ?? null;
+                          if (p.unitPriceLuminaria == null && p.totalPrice != null && p.totalPrice > 0) {
+                            return Math.max(0, p.totalPrice - _drvTotalFt);
+                          }
+                          const unitLum = p.unitPriceLuminaria ?? null;
                           return unitLum != null ? unitLum * (p.qty ?? 1) : (p.totalPrice ?? 0);
                         })();
-                        const drvT = p.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0);
-                        itemBase = lumT + drvT;
+                        itemBase = lumT + _drvTotalFt;
                       } else {
                         itemBase = p.totalPrice ?? 0;
                       }
@@ -1981,6 +2001,7 @@ export default function QuoteDetail() {
                       const totalBase = editableItems.reduce((s, it) => {
                         const p = it.parsed;
                         if (p.driverLines && p.driverLines.length > 0) {
+                          const _drvTotalTB = p.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0);
                           const lumT = (() => {
                             if (p.priceWithoutDriver != null) {
                               const isUnitOnly = p.unitPriceLuminaria != null &&
@@ -1988,7 +2009,10 @@ export default function QuoteDetail() {
                                 (p.qty ?? 1) > 1;
                               return isUnitOnly ? p.unitPriceLuminaria! * (p.qty ?? 1) : p.priceWithoutDriver;
                             }
-                            const unitLum = p.unitPriceLuminaria ?? p.unitPrice ?? null;
+                            if (p.unitPriceLuminaria == null && p.totalPrice != null && p.totalPrice > 0) {
+                              return Math.max(0, p.totalPrice - _drvTotalTB);
+                            }
+                            const unitLum = p.unitPriceLuminaria ?? null;
                             return unitLum != null ? unitLum * (p.qty ?? 1) : (p.totalPrice ?? 0);
                           })();
                           const drvT = p.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0);
@@ -3076,15 +3100,20 @@ export default function QuoteDetail() {
                 if (!d) continue;
                 if (d.driverLines && d.driverLines.length > 0) {
                   hasDriverBreakdown = true;
-                  // Resolver priceWithoutDriver: campo dedicado ou fallback para unitPrice × qty
-                  const _derivedUnitLum2 = (d.unitPrice == null && d.totalPrice != null && d.totalPrice > 0 && d.qty > 0) ? d.totalPrice / d.qty : null;
-                  const _resolvedUnitLum2 = d.unitPriceLuminaria ?? d.unitPrice ?? _derivedUnitLum2 ?? null;
+                  // Resolver priceWithoutDriver: campo dedicado, fallback derivado de (totalPrice - driversTotalPrice), ou unitPrice
+                  const _drvTotal2 = d.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
+                  const _derivedUnitLum2 = (d.unitPriceLuminaria == null && d.totalPrice != null && d.totalPrice > 0 && d.qty > 0)
+                    ? Math.max(0, d.totalPrice - _drvTotal2) / d.qty
+                    : null;
+                  const _resolvedUnitLum2 = d.unitPriceLuminaria ?? _derivedUnitLum2 ?? null;
                   let correctedPriceWithoutDriver: number | null = null;
                   if (d.priceWithoutDriver != null) {
                     const isUnitOnly = d.unitPriceLuminaria != null && Math.abs(d.priceWithoutDriver - d.unitPriceLuminaria) < 0.02 && d.qty > 1;
                     correctedPriceWithoutDriver = isUnitOnly ? d.unitPriceLuminaria! * d.qty : d.priceWithoutDriver;
                   } else if (_resolvedUnitLum2 != null) {
                     correctedPriceWithoutDriver = _resolvedUnitLum2 * d.qty;
+                  } else if (d.totalPrice != null && d.totalPrice > 0) {
+                    correctedPriceWithoutDriver = Math.max(0, d.totalPrice - _drvTotal2);
                   }
                   const lumRaw = correctedPriceWithoutDriver ?? (d.totalPrice ?? 0);
                   const drvRaw = d.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
@@ -3130,9 +3159,17 @@ export default function QuoteDetail() {
                               ? d.totalPrice / d.qty
                               : null;
                             const _effectiveUnitPricePreview = d.unitPrice ?? _derivedUnitPricePreview;
-                            // Resolver unitPriceLuminaria: usa o campo dedicado ou cai para unitPrice (ou derivado)
+                            // Para itens com breakdown: derivar unitPriceLuminaria = (totalPrice - driversTotalPrice) / qty
+                            // quando o campo não está salvo (itens legados)
+                            const _drvTotalForLum = hasBreakdown
+                              ? (d.driverLines ?? []).reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0)
+                              : 0;
+                            const _derivedUnitLumFromTotal = (hasBreakdown && d.unitPriceLuminaria == null && d.totalPrice != null && d.totalPrice > 0 && d.qty > 0)
+                              ? Math.max(0, d.totalPrice - _drvTotalForLum) / d.qty
+                              : null;
+                            // Resolver unitPriceLuminaria: usa o campo dedicado, depois fallback derivado, depois unitPrice (sem driver)
                             const _resolvedUnitLum = hasBreakdown
-                              ? (d.unitPriceLuminaria ?? _effectiveUnitPricePreview ?? null)
+                              ? (d.unitPriceLuminaria ?? _derivedUnitLumFromTotal ?? null)
                               : null;
                             // Corrigir itens antigos onde priceWithoutDriver foi salvo como valor unitário
                             let _correctedPWD: number | null = null;
@@ -3142,6 +3179,9 @@ export default function QuoteDetail() {
                                 _correctedPWD = _isUnitOnly ? d.unitPriceLuminaria! * d.qty : d.priceWithoutDriver;
                               } else if (_resolvedUnitLum != null) {
                                 _correctedPWD = _resolvedUnitLum * d.qty;
+                              } else if (d.totalPrice != null && d.totalPrice > 0) {
+                                // Fallback final: totalPrice - driversTotalPrice
+                                _correctedPWD = Math.max(0, d.totalPrice - _drvTotalForLum);
                               }
                             }
                             const lumTotalDisplay = _correctedPWD != null
@@ -3162,7 +3202,7 @@ export default function QuoteDetail() {
                               ? applyMkupWithItem(_correctTotalItem, d.itemMarginPercent)
                               : null;
                             return (
-                              <div key={item.id} className="flex items-start gap-3 px-4 py-3">
+                              <div key={String(item.id)} className="flex items-start gap-3 px-4 py-3">
                                 <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
                                   {itemIdx}
                                 </span>

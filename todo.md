@@ -1963,3 +1963,12 @@
 - [x] Cart.tsx: exibição de preço de cada item no SortableCartItem usa applyItemMargin — preço exibido reflete margem individual
 - [x] Cart.tsx: indicador visual "+X% margem ind." exibido abaixo do preço quando itemMarginPercent > 0
 - [x] Cart.tsx: applyItemMargin passada como prop para SortableCartItem (ambas as instâncias: lista plana e lista agrupada por pavimento)
+
+## Correção — driverQty errado e preços "A definir" em itens legados (08/07/2026)
+- [x] QuoteDetail.tsx: currentItemsMigrated — multiplicar driverQty por itemQty (estava calculando apenas por luminária, não pelo total de luminárias)
+- [x] QuoteDetail.tsx: modal de edição — mesmo bug corrigido no bloco de migração do Sheet de edição
+- [x] QuoteDetail.tsx: _resolvedUnitLum — usar fallback (totalPrice - driversTotalPrice) / qty em vez de unitPrice (que inclui driver)
+- [x] QuoteDetail.tsx: totais globais (totalLuminaria, totalDriver, totalGeral) — usar mesmo fallback
+- [x] QuoteDetail.tsx: editTotalBase e totalBase no modal de edição — usar fallback correto
+- [x] quoteExcelGenerator.ts: getLegacyDriverInfoExcel — multiplicar totalQty por itemQty
+- [x] ExcelPreviewModal.tsx: getLegacyDriverInfoPreview — multiplicar totalQty por itemQty

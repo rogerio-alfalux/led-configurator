@@ -118,18 +118,26 @@ function getLegacyDriverInfoExcel(item: CartItemData): Array<{ driverCode: strin
   if (!item.profileSegments || item.profileSegments.length === 0) return null;
   const hasAnyDriver = item.profileSegments.some(seg => seg.driverCode);
   if (!hasAnyDriver) return null;
-  const map = new Map<string, { driverCode: string; driverModel: string; totalQty: number }>();
+  const itemQty = item.qty ?? 1; // quantidade de lumárias (ex: 12)
+  const map = new Map<string, { driverCode: string; driverModel: string; qtyPerLuminaria: number }>();
   for (const seg of item.profileSegments) {
     if (!seg.driverCode) continue;
     const key = seg.driverCode;
+    // qtyPerSeg = drivers por lumária (não multiplicar por itemQty aqui)
     const qtyPerSeg = (seg.driverQtyPerPiece ?? 1) * (seg.qty ?? 1);
     if (map.has(key)) {
-      map.get(key)!.totalQty += qtyPerSeg;
+      map.get(key)!.qtyPerLuminaria += qtyPerSeg;
     } else {
-      map.set(key, { driverCode: seg.driverCode, driverModel: seg.driverModel ?? seg.driverCode, totalQty: qtyPerSeg });
+      map.set(key, { driverCode: seg.driverCode, driverModel: seg.driverModel ?? seg.driverCode, qtyPerLuminaria: qtyPerSeg });
     }
   }
-  return map.size > 0 ? Array.from(map.values()) : null;
+  if (map.size === 0) return null;
+  // totalQty = drivers por lumária × quantidade de lumárias
+  return Array.from(map.values()).map(e => ({
+    driverCode: e.driverCode,
+    driverModel: e.driverModel,
+    totalQty: e.qtyPerLuminaria * itemQty,
+  }));
 }
 
 // ── Cache de fotos frescas de produtos ──
