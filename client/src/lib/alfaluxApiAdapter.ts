@@ -967,11 +967,9 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
         const bg = toBageoProduct(p);
         if (bg) bageos.push(bg);
       }
-    } else if ((cat === "CUSTOMIZADOS" || cat === "CUSTOMIZADO") && isBageoProduct(p)) {
-      // BAGEO SINUOSA SOBREPOR vem com categoria CUSTOMIZADOS na API
-      const bg = toBageoProduct(p);
-      if (bg) bageos.push(bg);
     }
+    // Nota: produtos com categoria CUSTOMIZADOS (ex: BAGEO SINUOSA SOBREPOR) são exibidos
+    // apenas na seção Customizados da UI, via fetchCustomizadosProducts() no servidor.
   }
 
   return {

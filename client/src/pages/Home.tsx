@@ -4587,11 +4587,11 @@ export default function Home() {
                           ))}
                         </>
                       )}
-                      {activeBageoCatalog.length > 0 && (
+                      {(activeBageoCatalog.length > 0 || activeBageoFixoCatalog.length > 0) && (
                         <>
                           <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">BAGEO</div>
-                          <SelectItem value="__BAGEO_FIXO__">BAGEO</SelectItem>
-                          <SelectItem value="__BAGEO_SINUOSA__">BAGEO Sinuosa</SelectItem>
+                          {activeBageoFixoCatalog.length > 0 && <SelectItem value="__BAGEO_FIXO__">BAGEO</SelectItem>}
+                          {activeBageoCatalog.length > 0 && <SelectItem value="__BAGEO_SINUOSA__">BAGEO Sinuosa</SelectItem>}
                         </>
                       )}
                       {activeGlowCatalog.length > 0 && (
