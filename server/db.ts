@@ -7,7 +7,8 @@ import {
   factoryOrders, factoryOrderItems, InsertFactoryOrder, InsertFactoryOrderItem,
   factoryOrderExcels,
   salesGoals, InsertSalesGoal,
-  quoteNumberSequences
+  quoteNumberSequences,
+  driverPriceOverrides,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 // ─── Utilitários de data no fuso de Brasília ────────────────────────────────
@@ -1734,4 +1735,43 @@ export async function setQuoteRevisionCount(quoteId: number, revisionCount: numb
     revisionCount,
     updatedAt: sql`NOW()`,
   }).where(eq(quotes.id, quoteId));
+}
+
+// ─── Driver Price Overrides ───────────────────────────────────────────────────
+/** Retorna todos os overrides de preço de driver */
+export async function getDriverPriceOverrides() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(driverPriceOverrides).orderBy(asc(driverPriceOverrides.driverCode));
+}
+
+/** Cria ou atualiza o override de custo para um código EQ de driver */
+export async function upsertDriverPriceOverride(
+  driverCode: string,
+  driverModel: string | null,
+  customCusto: number,
+  updatedByUserId: number,
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(driverPriceOverrides).values({
+    driverCode,
+    driverModel,
+    customCusto: customCusto.toFixed(2) as any,
+    updatedByUserId,
+  }).onDuplicateKeyUpdate({
+    set: {
+      driverModel,
+      customCusto: customCusto.toFixed(2) as any,
+      updatedByUserId,
+      updatedAt: sql`NOW()`,
+    },
+  });
+}
+
+/** Remove o override de custo para um código EQ de driver */
+export async function deleteDriverPriceOverride(driverCode: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(driverPriceOverrides).where(eq(driverPriceOverrides.driverCode, driverCode));
 }

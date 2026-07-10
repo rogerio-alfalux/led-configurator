@@ -2007,3 +2007,10 @@
 - [ ] Exibir driver sempre separado e destacado na tabela de detalhamento (linha própria com código EQ, modelo e preço)
 - [ ] Garantir que o preço do driver apareça em TODOS os perfis que têm driver cadastrado na API
 - [ ] Exibir preço total = luminária + driver de forma clara
+
+## Edição de preço de drivers (2026-07-10)
+- [x] Criar tabela driver_price_overrides no banco de dados
+- [x] Criar endpoints tRPC: list, upsert, delete, getMap (restrito a vivian@grupoalfalux.com.br)
+- [x] Aplicar overrides no skuPriceMap e lumPriceMap antes do cálculo de preços
+- [x] Criar componente DriverPriceEditor com edição inline e remoção de overrides
+- [x] Integrar DriverPriceEditor no Home.tsx visível apenas para vivian@grupoalfalux.com.br

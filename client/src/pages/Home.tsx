@@ -28,6 +28,7 @@ import { profileSupportsLShape, calculateLShape, calculateSquare, calculateRecta
 import type { ProfileShape, ShapeResult, ShapePiece } from "@/lib/lCatalog";
 import { generateProductionTemplate } from "@/lib/productionTemplate";
 import { generateOrderSummary } from "@/lib/orderSummary";
+import { DriverPriceEditor } from "@/components/DriverPriceEditor";
 import { generateQuoteSummary } from "@/lib/quoteSummary";
 // import { calculateTotalPrice } from "@/lib/priceCatalog"; // Oculto temporariamente
 import { getStaticPricePerMeter, calcModulePrice, usesModulePricing, toModuleControlType } from "@/lib/profilePriceCatalog";
@@ -2523,6 +2524,7 @@ function ProductionTemplateCard({ result }: { result: CompositionResult }) {
 export default function Home() {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
+  const isVivian = user?.email === "vivian@grupoalfalux.com.br";
   const { addItem, count: cartCount, isAdding: isAddingToCart } = useCart();
   const [pendingCartItem, setPendingCartItem] = useState<CartItemData | null>(null);
   const [colorModalOpen, setColorModalOpen] = useState(false);
@@ -2593,6 +2595,30 @@ export default function Home() {
   // Buscar produtos da API Alfalux diretamente no browser (client-side)
   // Isso evita restrições de rede do servidor sandbox e garante dados sempre frescos
   const { products: alfaluxApiProducts, isLoading: alfaluxLoading, refetch: refetchAlfaluxProducts } = useAlfaluxProducts();
+  // Mapa de overrides de custo de driver (código EQ → custo customizado)
+  // Usado para substituir o custoDriver220/Bivolt/etc. da API quando há override cadastrado
+  const { data: driverCostOverrideMap = {} } = trpc.driverPriceOverrides.getMap.useQuery(undefined, { staleTime: 60 * 1000 });
+  // Lista de drivers únicos conhecidos (extraída dos produtos da API) para o DriverPriceEditor
+  const knownDrivers = useMemo(() => {
+    if (!alfaluxApiProducts) return [];
+    const seen = new Set<string>();
+    const list: { code: string; model: string }[] = [];
+    for (const p of alfaluxApiProducts) {
+      const drivers = [
+        { code: (p.driver220 as {code?:string}|null)?.code, model: (p.driver220 as {model?:string}|null)?.model },
+        { code: (p.driverBivolt as {code?:string}|null)?.code, model: (p.driverBivolt as {model?:string}|null)?.model },
+        { code: (p.driverDimDali as {code?:string}|null)?.code, model: (p.driverDimDali as {model?:string}|null)?.model },
+        { code: (p.driverDim110v as {code?:string}|null)?.code, model: (p.driverDim110v as {model?:string}|null)?.model },
+      ];
+      for (const d of drivers) {
+        if (d.code && !seen.has(d.code)) {
+          seen.add(d.code);
+          list.push({ code: d.code, model: d.model ?? d.code });
+        }
+      }
+    }
+    return list;
+  }, [alfaluxApiProducts]);
   // Adaptar produtos da API para os tipos internos (fallback para catálogos estáticos)
   const adaptedCatalogs = useMemo(() => {
     if (alfaluxApiProducts && alfaluxApiProducts.length > 0) {
@@ -2790,8 +2816,19 @@ export default function Home() {
         driverCodeDim110v: (p.driverDim110v as {code?:string}|null)?.code ?? null,
       };
     }
+    // Aplicar overrides de custo de driver (substitui custoDriver* quando há override cadastrado)
+    for (const entry of Object.values(map)) {
+      if (entry.driverCode220 && driverCostOverrideMap[entry.driverCode220] != null)
+        entry.custoDriver220 = driverCostOverrideMap[entry.driverCode220];
+      if (entry.driverCodeBivolt && driverCostOverrideMap[entry.driverCodeBivolt] != null)
+        entry.custoDriverBivolt = driverCostOverrideMap[entry.driverCodeBivolt];
+      if (entry.driverCodeDimDali && driverCostOverrideMap[entry.driverCodeDimDali] != null)
+        entry.custoDriverDimDali = driverCostOverrideMap[entry.driverCodeDimDali];
+      if (entry.driverCodeDim110v && driverCostOverrideMap[entry.driverCodeDim110v] != null)
+        entry.custoDriverDim110v = driverCostOverrideMap[entry.driverCodeDim110v];
+    }
     return map;
-  }, [alfaluxApiProducts]);
+  }, [alfaluxApiProducts, driverCostOverrideMap]);
   // Mapa de preços por metro por profileCode (extraído dos produtos PERFIS da API)
   // Estrutura: { [profileCode]: { onoff220: number|null, onoffBivolt: number|null, dim110v: number|null, dimDali: number|null } }
   const profilePriceMap = useMemo(() => {
@@ -2926,8 +2963,30 @@ export default function Home() {
       // Só registrar chave simples se ainda não existir (evita sobrescrever com produto errado)
       if (!map[sku]) map[sku] = entryData;
     }
+    // Aplicar overrides de custo de driver no lumPriceMap
+    // O lumPriceMap não armazena códigos EQ, então precisamos buscar o código via alfaluxApiProducts
+    const driverCodeBySkuMap: Record<string, { d220?: string; dBivolt?: string; dDim110v?: string; dDimDali?: string }> = {};
+    for (const p of alfaluxApiProducts) {
+      const sku = p.sku ?? "";
+      if (!sku) continue;
+      driverCodeBySkuMap[sku] = {
+        d220: (p.driver220 as {code?:string}|null)?.code ?? undefined,
+        dBivolt: (p.driverBivolt as {code?:string}|null)?.code ?? undefined,
+        dDim110v: (p.driverDim110v as {code?:string}|null)?.code ?? undefined,
+        dDimDali: (p.driverDimDali as {code?:string}|null)?.code ?? undefined,
+      };
+    }
+    for (const [key, entry] of Object.entries(map)) {
+      const baseSku = key.includes("||") ? key.split("||")[0] : key;
+      const codes = driverCodeBySkuMap[baseSku];
+      if (!codes) continue;
+      if (codes.d220 && driverCostOverrideMap[codes.d220] != null) entry.custoDriver220 = driverCostOverrideMap[codes.d220];
+      if (codes.dBivolt && driverCostOverrideMap[codes.dBivolt] != null) entry.custoDriverBivolt = driverCostOverrideMap[codes.dBivolt];
+      if (codes.dDim110v && driverCostOverrideMap[codes.dDim110v] != null) entry.custoDriverDim110v = driverCostOverrideMap[codes.dDim110v];
+      if (codes.dDimDali && driverCostOverrideMap[codes.dDimDali] != null) entry.custoDriverDimDali = driverCostOverrideMap[codes.dDimDali];
+    }
     return map;
-  }, [alfaluxApiProducts]);
+  }, [alfaluxApiProducts, driverCostOverrideMap]);
 
   // Funções de acesso ao catálogo ativo de perfis
   const activeGetProfileNames = useCallback(() => {
@@ -4468,6 +4527,11 @@ export default function Home() {
                     }`}>›</span>
                   </button>
                 </div>
+
+                {/* ── Painel de Edição de Custo de Drivers (apenas Vivian) ── */}
+                {isVivian && (
+                  <DriverPriceEditor knownDrivers={knownDrivers} />
+                )}
 
                 {productCategory === "Perfis" && (
                 <React.Fragment>

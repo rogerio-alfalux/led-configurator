@@ -28,6 +28,9 @@ import {
   nowBrasiliaStr,
   bumpQuoteRevision,
   setQuoteRevisionCount,
+  getDriverPriceOverrides,
+  upsertDriverPriceOverride,
+  deleteDriverPriceOverride,
 } from "./db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -1406,9 +1409,60 @@ export const appRouter = router({
         }
       }
 
-      return { updated: updatedCount, errors };
+            return { updated: updatedCount, errors };
+    }),
+  }),
+
+  // ─── Driver Price Overrides (apenas vivian@grupoalfalux.com.br) ──────────────────────
+  driverPriceOverrides: router({
+    /** Lista todos os overrides de custo de driver */
+    list: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.email !== "vivian@grupoalfalux.com.br") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito" });
+      }
+      return getDriverPriceOverrides();
+    }),
+
+    /** Cria ou atualiza o override de custo para um código EQ de driver */
+    upsert: protectedProcedure
+      .input(z.object({
+        driverCode: z.string().min(1).max(20),
+        driverModel: z.string().max(256).nullable().optional(),
+        customCusto: z.number().min(0),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.email !== "vivian@grupoalfalux.com.br") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito" });
+        }
+        await upsertDriverPriceOverride(
+          input.driverCode,
+          input.driverModel ?? null,
+          input.customCusto,
+          ctx.user.id,
+        );
+        return { success: true };
+      }),
+
+    /** Remove o override de custo para um código EQ de driver */
+    delete: protectedProcedure
+      .input(z.object({ driverCode: z.string().min(1).max(20) }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.email !== "vivian@grupoalfalux.com.br") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito" });
+        }
+        await deleteDriverPriceOverride(input.driverCode);
+        return { success: true };
+      }),
+
+    /** Retorna o mapa de overrides (código EQ → customCusto) para uso no frontend */
+    getMap: publicProcedure.query(async () => {
+      const overrides = await getDriverPriceOverrides();
+      const map: Record<string, number> = {};
+      for (const o of overrides) {
+        map[o.driverCode] = parseFloat(String(o.customCusto));
+      }
+      return map;
     }),
   }),
 });
-
 export type AppRouter = typeof appRouter;

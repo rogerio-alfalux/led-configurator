@@ -295,6 +295,25 @@ export const backups = mysqlTable("backups", {
 export type Backup = InferSelectModel<typeof backups>;
 export type InsertBackup = InferInsertModel<typeof backups>;
 
+// ─── Overrides de Preço de Driver ─────────────────────────────────────────────
+export const driverPriceOverrides = mysqlTable("driver_price_overrides", {
+	id: int().autoincrement().notNull().primaryKey(),
+	/** Código EQ do driver (ex: "EQ00346") */
+	driverCode: varchar({ length: 20 }).notNull(),
+	/** Modelo do driver para exibição (ex: "LED DRIVER XITANIUM 19W") */
+	driverModel: varchar({ length: 256 }),
+	/** Custo unitário customizado (substitui o valor da API) */
+	customCusto: decimal({ precision: 10, scale: 2 }).notNull(),
+	/** Usuário que fez a alteração */
+	updatedByUserId: int(),
+	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+	unique("uq_driver_code").on(table.driverCode),
+]);
+export type DriverPriceOverride = InferSelectModel<typeof driverPriceOverrides>;
+export type InsertDriverPriceOverride = InferInsertModel<typeof driverPriceOverrides>;
+
 // ─── Metas de Faturamento ─────────────────────────────────────────────────────
 export const salesGoals = mysqlTable("sales_goals", {
 	id: int().autoincrement().notNull(),

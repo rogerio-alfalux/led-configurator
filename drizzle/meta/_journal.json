@@ -155,6 +155,13 @@
       "when": 1783351556281,
       "tag": "0021_unknown_the_liberteens",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "5",
+      "when": 1783709297555,
+      "tag": "0022_powerful_wolverine",
+      "breakpoints": true
     }
   ]
 }
