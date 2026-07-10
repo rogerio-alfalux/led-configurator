@@ -4967,12 +4967,13 @@ export default function Home() {
                       const [_gSku, ..._gNP] = (glowProductKey ?? '::').split('::');
                       const gSelProd = activeGlowCatalog.find(p => p.sku === _gSku && p.name === _gNP.join('::'));
                       const hasBivolt = gSelProd?.driverBivolt != null;
+                      const has220Glow = gSelProd?.driver220 != null;
                       return (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
                           <div className="flex gap-2">
                             {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
-                              const disabled = v === "Bivolt" && !hasBivolt;
+                              const disabled = (v === "Bivolt" && !hasBivolt) || (v === "220V" && !has220Glow);
                               return (
                                 <button
                                   key={v}
@@ -6714,7 +6715,6 @@ export default function Home() {
                             value={panelProductKey ?? ""}
                             onValueChange={(v) => {
                               setPanelProductKey(v);
-                              setPanelVoltage(null);
                               setPanelControle("ON/OFF");
                               setPanelResult(null);
                               // Reset CCT para primeiro valor disponível do produto
@@ -6722,6 +6722,12 @@ export default function Home() {
                               const newProd = activePanelCatalog.find(p => p.sku === s && p.name === np.join('::'));
                               const availCCTs = newProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
                               if (!availCCTs.includes(panelCCT)) setPanelCCT(availCCTs[0] ?? "3000K");
+                              // Auto-select tensão: se só tem bivolt, selecionar Bivolt; se só tem 220V, selecionar 220V
+                              const newHas220Panel = newProd?.driver220 != null;
+                              const newHasBivoltPanel = newProd?.driverBivolt != null;
+                              if (!newHas220Panel && newHasBivoltPanel) setPanelVoltage("Bivolt");
+                              else if (newHas220Panel && !newHasBivoltPanel) setPanelVoltage("220V");
+                              else setPanelVoltage(null);
                             }}
                           >
                             <SelectTrigger className="h-10"><SelectValue placeholder="Selecione o produto..." /></SelectTrigger>
@@ -6808,12 +6814,15 @@ export default function Home() {
                         // Bivolt permitido no modo ON/OFF se o produto tiver driverBivolt
                         const hasBivoltOnOff = selProdV?.driverBivolt != null;
                         const bivoltAllowed = panelControle === 'ON/OFF' ? hasBivoltOnOff : dimSupportsBivolt;
+                        // 220V permitido no modo ON/OFF se o produto tiver driver220; no modo DIM, sempre permitido (driver é 220V por padrão)
+                        const has220OnOff = selProdV?.driver220 != null;
+                        const v220Allowed = panelControle === 'ON/OFF' ? has220OnOff : true;
                         return (
                           <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
                             <div className="flex gap-2">
                               {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
-                                const disabled = v === "Bivolt" && !bivoltAllowed;
+                                const disabled = (v === "Bivolt" && !bivoltAllowed) || (v === "220V" && !v220Allowed);
                                 return (
                                   <button
                                     key={v}

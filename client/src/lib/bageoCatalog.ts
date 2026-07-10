@@ -193,6 +193,10 @@ export const BAGEO_CATALOG: BageoProduct[] = [
 export function parseAplicacaoFromName(name: string): BageoAplicacao | null {
   if (/D1\+D2/i.test(name)) return "D1+D2";
   if (/\bD1\b/i.test(name)) return "D1";
+  // Fallback: inferir pela potência (ex: MINI BAGEO SINUOSA S LED 20W/M, 40W/M)
+  // 40W/m implica dois circuitos (D1+D2), 20W/m implica um circuito (D1)
+  if (/40W\/M/i.test(name)) return "D1+D2";
+  if (/20W\/M/i.test(name)) return "D1";
   return null;
 }
 

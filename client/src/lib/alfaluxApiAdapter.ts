@@ -779,9 +779,17 @@ function isGlowProduct(p: ApiProduct): boolean {
 function isTubeLightProduct(p: ApiProduct): boolean {
   return /^TUBE LIGHT/i.test(p.familia ?? "") || /^TUBE LIGHT/i.test(p.name ?? "");
 }
-/** Verifica se um produto PERFIS é um perfil fixo sem composição (ALDA, LEAVE, MINI BAGEO, ALS-3103) */
+/** Verifica se um produto PERFIS é um perfil fixo sem composição (ALDA, LEAVE, ALS-3103) */
 function isPerfisFixesProduct(p: ApiProduct): boolean {
-  return /^(ALDA|LEAVE|MINI BAGEO|ALS-3103)/i.test(p.familia ?? "");
+  return /^(ALDA|LEAVE|ALS-3103)/i.test(p.familia ?? "");
+}
+/** Verifica se um produto é MINI BAGEO com tamanhos fixos (pendente) */
+function isMiniBAGEOFixo(p: ApiProduct): boolean {
+  return /^MINI BAGEO$/i.test(p.familia ?? "");
+}
+/** Verifica se um produto é MINI BAGEO SINUOSA (por metro linear) */
+function isMiniBAGEOSinuosa(p: ApiProduct): boolean {
+  return /^MINI BAGEO S/i.test(p.familia ?? "");
 }
 /** Verifica se um produto PERFIS é da família BAGEO */
 function isBageoProduct(p: ApiProduct): boolean {
@@ -926,6 +934,14 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
     } else if (cat === "PERFIS" && isGlowProduct(p)) {
       glowProducts.push(toDownlightProduct(p));
       if (p.fotoUrl && p.sku) glowFotos[p.sku] = normalizeFotoUrl(p.fotoUrl)!;
+    } else if (cat === "PERFIS" && isMiniBAGEOFixo(p)) {
+      // MINI BAGEO com tamanhos fixos (pendente) — usa fluxo de BAGEO fixo
+      bageosFixos.push(toDownlightProduct(p));
+      if (p.fotoUrl && p.sku) bageosFixosFotos[p.sku] = normalizeFotoUrl(p.fotoUrl)!;
+    } else if (cat === "PERFIS" && isMiniBAGEOSinuosa(p)) {
+      // MINI BAGEO SINUOSA (por metro linear) — usa fluxo de BAGEO sinuosa
+      const bg = toBageoProduct(p);
+      if (bg) bageos.push(bg);
     } else if (cat === "PERFIS" && isPerfisFixesProduct(p)) {
       perfisFixes.push(toDownlightProduct(p));
       if (p.fotoUrl && p.sku) perfisFixesFotos[p.sku] = normalizeFotoUrl(p.fotoUrl)!;
@@ -951,6 +967,10 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
         const bg = toBageoProduct(p);
         if (bg) bageos.push(bg);
       }
+    } else if ((cat === "CUSTOMIZADOS" || cat === "CUSTOMIZADO") && isBageoProduct(p)) {
+      // BAGEO SINUOSA SOBREPOR vem com categoria CUSTOMIZADOS na API
+      const bg = toBageoProduct(p);
+      if (bg) bageos.push(bg);
     }
   }
 
