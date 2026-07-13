@@ -286,6 +286,10 @@ export default function Dashboard() {
   const qtdSemCusto = Number(profitMetrics?.qtdSemCusto ?? 0);
   const totalAprovados = Number(profitMetrics?.totalCount ?? 0);
   const totalVendas = Number(profitMetrics?.totalVendas ?? 0);
+  const totalCustoProdutosReal = Number(profitMetrics?.totalCustoProdutosReal ?? 0);
+  const totalCustoProdutosEstimado = Number(profitMetrics?.totalCustoProdutosEstimado ?? 0);
+  const margemBrutaMediaReal = Number(profitMetrics?.margemBrutaMediaReal ?? 0);
+  const temExtrapolacao = qtdSemCusto > 0 && qtdComCusto > 0;
   const taxaConversao = conversionMetrics
     ? (Number(conversionMetrics.totalApproved ?? 0) / Math.max(Number(conversionMetrics.totalCreated ?? 1), 1)) * 100
     : 0;
@@ -727,16 +731,28 @@ export default function Dashboard() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2 text-sm">
+                        {temExtrapolacao && (
+                          <div className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded px-3 py-2 mb-1">
+                            <strong>⚠ Estimativa parcial:</strong> {qtdComCusto} de {totalAprovados} orçamentos têm custo real cadastrado.
+                            Para os outros {qtdSemCusto}, foi aplicada a margem bruta média dos demais ({margemBrutaMediaReal.toFixed(1)}%) como proxy.
+                          </div>
+                        )}
                         <div className="flex justify-between font-medium">
                           <span>Receita de Vendas</span>
                           <span className="text-foreground">{formatBRL(totalVendas)}</span>
                         </div>
                         <div className="flex justify-between text-red-600 dark:text-red-400">
-                          <span>(−) Custo dos Produtos</span>
-                          <span>{formatBRL(totalCustoProdutos)}</span>
+                          <span>(−) Custo dos Produtos (real)</span>
+                          <span>{formatBRL(totalCustoProdutosReal)}</span>
                         </div>
+                        {temExtrapolacao && (
+                          <div className="flex justify-between text-orange-600 dark:text-orange-400">
+                            <span>(−) Custo estimado ({qtdSemCusto} orç. × {(100 - margemBrutaMediaReal).toFixed(1)}%)</span>
+                            <span>{formatBRL(totalCustoProdutosEstimado)}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between font-semibold text-emerald-600 dark:text-emerald-400 border-t pt-2">
-                          <span>= Lucro Bruto</span>
+                          <span>= Lucro Bruto{temExtrapolacao ? ' (estimado)' : ''}</span>
                           <span>{formatBRL(lucroBruto)} <span className="font-normal text-xs text-muted-foreground">({margemBruta.toFixed(1)}%)</span></span>
                         </div>
                         <div className="flex justify-between text-red-600 dark:text-red-400">

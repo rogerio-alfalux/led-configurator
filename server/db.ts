@@ -1336,8 +1336,29 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     }
   }
 
-  // Lucro Bruto = Receita de Vendas (base) - Custo dos Produtos
-  const lucroBruto = totalVendas - totalCustoProdutos;
+  // ── Passo 1: calcular margem bruta REAL (apenas orçamentos com custo) ────────
+  // Usada como proxy para estimar o custo dos orçamentos sem custo cadastrado
+  const vendasComCusto = approvedQuotes
+    .filter(q => (itemsByQuote.get(q.id) ?? []).some(row => {
+      try {
+        const d = typeof row.itemData === 'string' ? JSON.parse(row.itemData) : row.itemData;
+        return Number(d.custoCorpoBase ?? 0) > 0;
+      } catch { return false; }
+    }))
+    .reduce((s, q) => s + Number(q.totalFinal ?? 0), 0);
+
+  // Lucro bruto dos orçamentos com custo real
+  const lucroBrutoComCusto = vendasComCusto - totalCustoProdutos;
+  // Margem bruta média dos orçamentos com custo (0 a 1)
+  const margemBrutaMedia = vendasComCusto > 0 ? lucroBrutoComCusto / vendasComCusto : 0;
+
+  // ── Passo 2: estimar custo dos orçamentos sem custo usando a margem média ───
+  const vendasSemCusto = totalVendas - vendasComCusto;
+  const custoEstimadoSemCusto = vendasSemCusto * (1 - margemBrutaMedia);
+  const totalCustoProdutosAjustado = totalCustoProdutos + custoEstimadoSemCusto;
+
+  // ── Lucro Bruto = Receita - Custo real (com custo) - Custo estimado (sem custo)
+  const lucroBruto = totalVendas - totalCustoProdutosAjustado;
   // Lucro Líquido = Lucro Bruto - Impostos - Comissões - RT - DIFAL/FCP - Frete
   const lucroLiquido = lucroBruto - totalImpostos - totalComissoes - totalRt - totalDifal - totalFrete;
   const margemBruta = totalVendas > 0 ? (lucroBruto / totalVendas) * 100 : 0;
@@ -1345,7 +1366,9 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
 
   const profitMetrics = {
     totalVendas,
-    totalCustoProdutos,
+    totalCustoProdutos: totalCustoProdutosAjustado,
+    totalCustoProdutosReal: totalCustoProdutos,
+    totalCustoProdutosEstimado: custoEstimadoSemCusto,
     totalImpostos,
     totalComissoes,
     totalRt,
@@ -1355,6 +1378,7 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     lucroLiquido,
     margemBruta,
     margemLiquida,
+    margemBrutaMediaReal: margemBrutaMedia * 100, // % usada como proxy
     qtdComCusto,
     qtdSemCusto,
     totalCount: approvedQuotes.length,
