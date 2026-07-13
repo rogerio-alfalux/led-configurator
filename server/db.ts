@@ -1233,12 +1233,21 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)))`));
 
   // ── Lucro bruto estimado e margem média (aprovados no período) ─────────────
+  // Apenas orçamentos com margem cadastrada (marginPercent > 0) são considerados
   const [profitMetrics] = await db.select({
     totalAmount: sql<number>`sum(cast(totalAmount as decimal(14,2)))`,
     totalFinal: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
-    lucroEstimado: sql<number>`sum(cast(totalAmount as decimal(14,2)) * cast(marginPercent as decimal(5,4)))`,
+    // Lucro = totalFinal × marginPercent (margem embutida no preço final ao cliente)
+    lucroEstimado: sql<number>`sum(cast(totalFinal as decimal(14,2)) * cast(marginPercent as decimal(5,4)))`,
     margemMedia: sql<number>`avg(cast(marginPercent as decimal(5,4)))`,
     totalCount: sql<number>`count(*)`,
+    // Contagem de orçamentos com margem > 0 (para exibir aviso no Dashboard)
+    countComMargem: sql<number>`sum(case when cast(marginPercent as decimal(5,4)) > 0 then 1 else 0 end)`,
+    countSemMargem: sql<number>`sum(case when cast(marginPercent as decimal(5,4)) = 0 then 1 else 0 end)`,
+    // Lucro e margem calculados apenas para orçamentos com margem cadastrada
+    lucroEstimadoComMargem: sql<number>`sum(case when cast(marginPercent as decimal(5,4)) > 0 then cast(totalFinal as decimal(14,2)) * cast(marginPercent as decimal(5,4)) else 0 end)`,
+    margemMediaComMargem: sql<number>`avg(case when cast(marginPercent as decimal(5,4)) > 0 then cast(marginPercent as decimal(5,4)) else null end)`,
+    totalFinalComMargem: sql<number>`sum(case when cast(marginPercent as decimal(5,4)) > 0 then cast(totalFinal as decimal(14,2)) else 0 end)`,
   }).from(quotes).where(periodCondition);
 
   // ── Taxa de conversão (total criado no período vs aprovados) ─────────────────

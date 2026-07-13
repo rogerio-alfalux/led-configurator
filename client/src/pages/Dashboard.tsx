@@ -271,8 +271,12 @@ export default function Dashboard() {
   const profitMetrics = managerData?.profitMetrics;
   const conversionMetrics = managerData?.conversionMetrics;
   const familyRanking = ((managerData as any)?.familyRanking as Array<{ categoria: string; qtdItens: number; qtdUnidades: number; valorTotal: number }> | undefined) ?? [];
-  const lucroEstimado = Number(profitMetrics?.lucroEstimado ?? 0);
-  const margemMedia = Number(profitMetrics?.margemMedia ?? 0) * 100;
+  // Usar apenas orçamentos com margem cadastrada (Opção C)
+  const lucroEstimado = Number((profitMetrics as any)?.lucroEstimadoComMargem ?? profitMetrics?.lucroEstimado ?? 0);
+  const margemMedia = Number((profitMetrics as any)?.margemMediaComMargem ?? profitMetrics?.margemMedia ?? 0) * 100;
+  const countComMargem = Number((profitMetrics as any)?.countComMargem ?? 0);
+  const countSemMargem = Number((profitMetrics as any)?.countSemMargem ?? 0);
+  const totalAprovados = Number(profitMetrics?.totalCount ?? 0);
   const taxaConversao = conversionMetrics
     ? (Number(conversionMetrics.totalApproved ?? 0) / Math.max(Number(conversionMetrics.totalCreated ?? 1), 1)) * 100
     : 0;
@@ -668,20 +672,29 @@ export default function Dashboard() {
               <>
                 {/* KPIs de Lucratividade e Conversão */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <StatCard
-                    title="Lucro Bruto Estimado"
-                    value={formatBRL(lucroEstimado)}
-                    sub="margem aplicada sobre base"
-                    icon={<TrendingUp className="w-5 h-5 text-emerald-600" />}
-                    color="text-emerald-600 dark:text-emerald-400"
-                  />
-                  <StatCard
-                    title="Margem Média"
-                    value={`${margemMedia.toFixed(1)}%`}
-                    sub="dos orçamentos aprovados"
-                    icon={<Percent className="w-5 h-5 text-teal-600" />}
-                    color="text-teal-600 dark:text-teal-400"
-                  />
+                  <div className="flex flex-col gap-1">
+                    <StatCard
+                      title="Lucro Bruto Estimado"
+                      value={formatBRL(lucroEstimado)}
+                      sub={countComMargem > 0 ? `${countComMargem} de ${totalAprovados} orçamentos` : "nenhum orçamento com margem"}
+                      icon={<TrendingUp className="w-5 h-5 text-emerald-600" />}
+                      color="text-emerald-600 dark:text-emerald-400"
+                    />
+                    {countSemMargem > 0 && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 px-1">
+                        ⚠ {countSemMargem} orçamento{countSemMargem !== 1 ? 's' : ''} sem margem cadastrada excluído{countSemMargem !== 1 ? 's' : ''}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <StatCard
+                      title="Margem Média"
+                      value={`${margemMedia > 0 ? margemMedia.toFixed(1) : '—'}%`}
+                      sub={countComMargem > 0 ? `${countComMargem} orçamento${countComMargem !== 1 ? 's' : ''} com margem` : "nenhum orçamento com margem"}
+                      icon={<Percent className="w-5 h-5 text-teal-600" />}
+                      color="text-teal-600 dark:text-teal-400"
+                    />
+                  </div>
                   <StatCard
                     title="Taxa de Conversão"
                     value={`${taxaConversao.toFixed(1)}%`}
