@@ -267,16 +267,25 @@ export default function Dashboard() {
   const rtRanking = managerData?.rtRanking ?? [];
   const salesRanking = managerData?.salesRanking ?? [];
 
-  // Métricas gerenciais (novas)
-  const profitMetrics = managerData?.profitMetrics;
+  // Métricas gerenciais
+  const profitMetrics = managerData?.profitMetrics as any;
   const conversionMetrics = managerData?.conversionMetrics;
   const familyRanking = ((managerData as any)?.familyRanking as Array<{ categoria: string; qtdItens: number; qtdUnidades: number; valorTotal: number }> | undefined) ?? [];
-  // Usar apenas orçamentos com margem cadastrada (Opção C)
-  const lucroEstimado = Number((profitMetrics as any)?.lucroEstimadoComMargem ?? profitMetrics?.lucroEstimado ?? 0);
-  const margemMedia = Number((profitMetrics as any)?.margemMediaComMargem ?? profitMetrics?.margemMedia ?? 0) * 100;
-  const countComMargem = Number((profitMetrics as any)?.countComMargem ?? 0);
-  const countSemMargem = Number((profitMetrics as any)?.countSemMargem ?? 0);
+  // Lucro real calculado via custo dos produtos da API
+  const lucroBruto = Number(profitMetrics?.lucroBruto ?? 0);
+  const lucroLiquido = Number(profitMetrics?.lucroLiquido ?? 0);
+  const margemBruta = Number(profitMetrics?.margemBruta ?? 0);
+  const margemLiquida = Number(profitMetrics?.margemLiquida ?? 0);
+  const totalCustoProdutos = Number(profitMetrics?.totalCustoProdutos ?? 0);
+  const totalImpostos = Number(profitMetrics?.totalImpostos ?? 0);
+  const totalComissoes = Number(profitMetrics?.totalComissoes ?? 0);
+  const totalRt = Number(profitMetrics?.totalRt ?? 0);
+  const totalDifal = Number(profitMetrics?.totalDifal ?? 0);
+  const totalFrete = Number(profitMetrics?.totalFrete ?? 0);
+  const qtdComCusto = Number(profitMetrics?.qtdComCusto ?? 0);
+  const qtdSemCusto = Number(profitMetrics?.qtdSemCusto ?? 0);
   const totalAprovados = Number(profitMetrics?.totalCount ?? 0);
+  const totalVendas = Number(profitMetrics?.totalVendas ?? 0);
   const taxaConversao = conversionMetrics
     ? (Number(conversionMetrics.totalApproved ?? 0) / Math.max(Number(conversionMetrics.totalCreated ?? 1), 1)) * 100
     : 0;
@@ -672,29 +681,20 @@ export default function Dashboard() {
               <>
                 {/* KPIs de Lucratividade e Conversão */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <div className="flex flex-col gap-1">
-                    <StatCard
-                      title="Lucro Bruto Estimado"
-                      value={formatBRL(lucroEstimado)}
-                      sub={countComMargem > 0 ? `${countComMargem} de ${totalAprovados} orçamentos` : "nenhum orçamento com margem"}
-                      icon={<TrendingUp className="w-5 h-5 text-emerald-600" />}
-                      color="text-emerald-600 dark:text-emerald-400"
-                    />
-                    {countSemMargem > 0 && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400 px-1">
-                        ⚠ {countSemMargem} orçamento{countSemMargem !== 1 ? 's' : ''} sem margem cadastrada excluído{countSemMargem !== 1 ? 's' : ''}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <StatCard
-                      title="Margem Média"
-                      value={`${margemMedia > 0 ? margemMedia.toFixed(1) : '—'}%`}
-                      sub={countComMargem > 0 ? `${countComMargem} orçamento${countComMargem !== 1 ? 's' : ''} com margem` : "nenhum orçamento com margem"}
-                      icon={<Percent className="w-5 h-5 text-teal-600" />}
-                      color="text-teal-600 dark:text-teal-400"
-                    />
-                  </div>
+                  <StatCard
+                    title="Lucro Bruto Estimado"
+                    value={formatBRL(lucroBruto)}
+                    sub={`${margemBruta.toFixed(1)}% da receita • ${qtdComCusto} de ${totalAprovados} orç.`}
+                    icon={<TrendingUp className="w-5 h-5 text-emerald-600" />}
+                    color="text-emerald-600 dark:text-emerald-400"
+                  />
+                  <StatCard
+                    title="Lucro Líquido Estimado"
+                    value={formatBRL(lucroLiquido)}
+                    sub={`${margemLiquida.toFixed(1)}% da receita • após imp.+com.+RT`}
+                    icon={<Coins className="w-5 h-5 text-teal-600" />}
+                    color="text-teal-600 dark:text-teal-400"
+                  />
                   <StatCard
                     title="Taxa de Conversão"
                     value={`${taxaConversao.toFixed(1)}%`}
@@ -710,6 +710,69 @@ export default function Dashboard() {
                     color="text-violet-600 dark:text-violet-400"
                   />
                 </div>
+
+                {/* Detalhamento do Lucro */}
+                {totalAprovados > 0 && (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Coins className="w-4 h-4 text-teal-600" />
+                        Detalhamento do Resultado Estimado
+                        {qtdSemCusto > 0 && (
+                          <Badge variant="outline" className="text-xs ml-auto text-amber-600 border-amber-300">
+                            ⚠ {qtdSemCusto} orç. sem custo de produto
+                          </Badge>
+                        )}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between font-medium">
+                          <span>Receita de Vendas</span>
+                          <span className="text-foreground">{formatBRL(totalVendas)}</span>
+                        </div>
+                        <div className="flex justify-between text-red-600 dark:text-red-400">
+                          <span>(−) Custo dos Produtos</span>
+                          <span>{formatBRL(totalCustoProdutos)}</span>
+                        </div>
+                        <div className="flex justify-between font-semibold text-emerald-600 dark:text-emerald-400 border-t pt-2">
+                          <span>= Lucro Bruto</span>
+                          <span>{formatBRL(lucroBruto)} <span className="font-normal text-xs text-muted-foreground">({margemBruta.toFixed(1)}%)</span></span>
+                        </div>
+                        <div className="flex justify-between text-red-600 dark:text-red-400">
+                          <span>(−) Impostos estimados (12%)</span>
+                          <span>{formatBRL(totalImpostos)}</span>
+                        </div>
+                        <div className="flex justify-between text-red-600 dark:text-red-400">
+                          <span>(−) Comissões</span>
+                          <span>{formatBRL(totalComissoes)}</span>
+                        </div>
+                        {totalRt > 0 && (
+                          <div className="flex justify-between text-red-600 dark:text-red-400">
+                            <span>(−) RT (Representante Técnico)</span>
+                            <span>{formatBRL(totalRt)}</span>
+                          </div>
+                        )}
+                        {totalDifal > 0 && (
+                          <div className="flex justify-between text-red-600 dark:text-red-400">
+                            <span>(−) DIFAL / FCP</span>
+                            <span>{formatBRL(totalDifal)}</span>
+                          </div>
+                        )}
+                        {totalFrete > 0 && (
+                          <div className="flex justify-between text-red-600 dark:text-red-400">
+                            <span>(−) Frete</span>
+                            <span>{formatBRL(totalFrete)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between font-bold text-teal-600 dark:text-teal-400 border-t pt-2">
+                          <span>= Lucro Líquido Estimado</span>
+                          <span>{formatBRL(lucroLiquido)} <span className="font-normal text-xs text-muted-foreground">({margemLiquida.toFixed(1)}%)</span></span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Funil de orçamentos + Famílias mais orçadas */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

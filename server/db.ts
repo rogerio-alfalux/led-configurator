@@ -1232,23 +1232,138 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     .groupBy(quotes.seller1Name)
     .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)))`));
 
-  // ── Lucro bruto estimado e margem média (aprovados no período) ─────────────
-  // Apenas orçamentos com margem cadastrada (marginPercent > 0) são considerados
-  const [profitMetrics] = await db.select({
-    totalAmount: sql<number>`sum(cast(totalAmount as decimal(14,2)))`,
-    totalFinal: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
-    // Lucro = totalFinal × marginPercent (margem embutida no preço final ao cliente)
-    lucroEstimado: sql<number>`sum(cast(totalFinal as decimal(14,2)) * cast(marginPercent as decimal(5,4)))`,
-    margemMedia: sql<number>`avg(cast(marginPercent as decimal(5,4)))`,
-    totalCount: sql<number>`count(*)`,
-    // Contagem de orçamentos com margem > 0 (para exibir aviso no Dashboard)
-    countComMargem: sql<number>`sum(case when cast(marginPercent as decimal(5,4)) > 0 then 1 else 0 end)`,
-    countSemMargem: sql<number>`sum(case when cast(marginPercent as decimal(5,4)) = 0 then 1 else 0 end)`,
-    // Lucro e margem calculados apenas para orçamentos com margem cadastrada
-    lucroEstimadoComMargem: sql<number>`sum(case when cast(marginPercent as decimal(5,4)) > 0 then cast(totalFinal as decimal(14,2)) * cast(marginPercent as decimal(5,4)) else 0 end)`,
-    margemMediaComMargem: sql<number>`avg(case when cast(marginPercent as decimal(5,4)) > 0 then cast(marginPercent as decimal(5,4)) else null end)`,
-    totalFinalComMargem: sql<number>`sum(case when cast(marginPercent as decimal(5,4)) > 0 then cast(totalFinal as decimal(14,2)) else 0 end)`,
+  // ── Lucro Bruto e Líquido Estimado (aprovados no período) ──────────────
+  // Busca orçamentos aprovados com seus itens para calcular custo real via API
+  const IMPOSTOS_PADRAO = 0.12; // 12% de impostos (média padrão)
+
+  // Busca orçamentos aprovados no período com campos financeiros
+  const approvedQuotes = await db.select({
+    id: quotes.id,
+    totalAmount: quotes.totalAmount,
+    totalFinal: quotes.totalFinal,
+    commissionPercent: quotes.commissionPercent,
+    commissionPercent2: quotes.commissionPercent2,
+    difalValue: quotes.difalValue,
+    fcpValue: quotes.fcpValue,
+    freteValue: quotes.freteValue,
+    freteIncluded: quotes.freteIncluded,
+    rtPercent: quotes.rtPercent,
   }).from(quotes).where(periodCondition);
+
+  // Busca todos os itens dos orçamentos aprovados no período
+  const approvedQuoteIds = approvedQuotes.map(q => q.id);
+  let allItems: Array<{ quoteId: number; itemData: string }> = [];
+  if (approvedQuoteIds.length > 0) {
+    allItems = await db.select({
+      quoteId: quoteItems.quoteId,
+      itemData: quoteItems.itemData,
+    }).from(quoteItems).where(sql`quoteId IN (${sql.join(approvedQuoteIds.map(id => sql`${id}`), sql`, `)})`);
+  }
+
+  // Agrupa itens por orçamento
+  const itemsByQuote = new Map<number, typeof allItems>();
+  for (const item of allItems) {
+    if (!itemsByQuote.has(item.quoteId)) itemsByQuote.set(item.quoteId, []);
+    itemsByQuote.get(item.quoteId)!.push(item);
+  }
+
+  // Calcula lucro bruto e líquido por orçamento
+  let totalVendas = 0;
+  let totalCustoProdutos = 0;
+  let totalImpostos = 0;
+  let totalComissoes = 0;
+  let totalRt = 0;
+  let totalDifal = 0;
+  let totalFrete = 0;
+  let qtdComCusto = 0;
+  let qtdSemCusto = 0;
+
+  for (const quote of approvedQuotes) {
+    const tf = Number(quote.totalFinal ?? 0);
+    const ta = Number(quote.totalAmount ?? 0);
+    totalVendas += tf;
+
+    // Custo dos produtos: soma custoCorpoBase×qty + custoDriverBase×driverQty por item
+    const items = itemsByQuote.get(quote.id) ?? [];
+    let custoProdutos = 0;
+    let temCusto = false;
+    for (const row of items) {
+      try {
+        const data = typeof row.itemData === 'string' ? JSON.parse(row.itemData) : row.itemData;
+        const qty = Number(data.qty ?? 1);
+        const custoCorpo = Number(data.custoCorpoBase ?? 0);
+        const custoDriver = Number(data.custoDriverBase ?? 0);
+        // Quantidade de drivers = driverLines[].driverQty ou driverQtyPerUnit × qty
+        let driverQty = 0;
+        if (Array.isArray(data.driverLines) && data.driverLines.length > 0) {
+          driverQty = data.driverLines.reduce((s: number, d: any) => s + Number(d.driverQty ?? 0), 0);
+        } else if (data.driverQtyPerUnit) {
+          driverQty = Number(data.driverQtyPerUnit) * qty;
+        }
+        if (custoCorpo > 0) {
+          custoProdutos += custoCorpo * qty + custoDriver * driverQty;
+          temCusto = true;
+        }
+      } catch { /* item com itemData inválido, ignora */ }
+    }
+
+    if (temCusto) {
+      qtdComCusto++;
+    } else {
+      qtdSemCusto++;
+    }
+    totalCustoProdutos += custoProdutos;
+
+    // Impostos: 12% sobre totalFinal
+    const impostos = tf * IMPOSTOS_PADRAO;
+    totalImpostos += impostos;
+
+    // Comissões: (commissionPercent + commissionPercent2) × totalFinal
+    const comm1 = Number(quote.commissionPercent ?? 0);
+    const comm2 = Number(quote.commissionPercent2 ?? 0);
+    totalComissoes += tf * (comm1 + comm2);
+
+    // RT: rtPercent × totalAmount (base sem RT/margem)
+    const rt = Number(quote.rtPercent ?? 0);
+    totalRt += ta * rt;
+
+    // DIFAL + FCP (valores absolutos já calculados)
+    totalDifal += Number(quote.difalValue ?? 0) + Number(quote.fcpValue ?? 0);
+
+    // Frete (se não está diluído nos produtos)
+    if (!quote.freteIncluded) {
+      totalFrete += Number(quote.freteValue ?? 0);
+    }
+  }
+
+  // Lucro Bruto = Receita de Vendas (base) - Custo dos Produtos
+  const lucroBruto = totalVendas - totalCustoProdutos;
+  // Lucro Líquido = Lucro Bruto - Impostos - Comissões - RT - DIFAL/FCP - Frete
+  const lucroLiquido = lucroBruto - totalImpostos - totalComissoes - totalRt - totalDifal - totalFrete;
+  const margemBruta = totalVendas > 0 ? (lucroBruto / totalVendas) * 100 : 0;
+  const margemLiquida = totalVendas > 0 ? (lucroLiquido / totalVendas) * 100 : 0;
+
+  const profitMetrics = {
+    totalVendas,
+    totalCustoProdutos,
+    totalImpostos,
+    totalComissoes,
+    totalRt,
+    totalDifal,
+    totalFrete,
+    lucroBruto,
+    lucroLiquido,
+    margemBruta,
+    margemLiquida,
+    qtdComCusto,
+    qtdSemCusto,
+    totalCount: approvedQuotes.length,
+    // Campos legados (mantidos para compatibilidade)
+    totalAmount: totalVendas,
+    totalFinal: totalVendas,
+    lucroEstimado: lucroBruto,
+    margemMedia: margemBruta / 100,
+  };
 
   // ── Taxa de conversão (total criado no período vs aprovados) ─────────────────
   const createdCondition = (dateFrom && dateTo)
