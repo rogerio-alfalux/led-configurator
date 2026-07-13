@@ -46,8 +46,19 @@ export default function Quotes() {
     offset: page * limit,
   });
 
-  // Buscar todos os orçamentos sem filtro para estatísticas e listas de vendedores/assistentes
+  // Buscar todos os orçamentos sem filtro — apenas para popular dropdowns de vendedor/assistente
   const { data: allData } = trpc.quotes.list.useQuery({ limit: 1000, offset: 0 });
+  // Buscar todos os orçamentos COM os filtros ativos (sem paginação) para estatísticas corretas
+  const { data: filteredAllData } = trpc.quotes.list.useQuery({
+    search: search || undefined,
+    status: status !== "all" ? (status as "open" | "approved" | "lost" | "cancelled" | "invoiced") : undefined,
+    seller1Name: sellerFilter !== "all" ? sellerFilter : undefined,
+    assistantName: assistantFilter !== "all" ? assistantFilter : undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+    limit: 10000,
+    offset: 0,
+  });
 
   // Listas únicas de vendedores e assistentes
   const uniqueSellers = useMemo(() => {
@@ -66,9 +77,9 @@ export default function Quotes() {
     return Array.from(names).sort();
   }, [allData]);
 
-  // Estatísticas gerais
+  // Estatísticas refletem os filtros ativos
   const stats = useMemo(() => {
-    const rows = allData?.rows ?? [];
+    const rows = filteredAllData?.rows ?? [];
     const total = rows.length;
     const open = rows.filter(q => q.status === "open").length;
     const approved = rows.filter(q => q.status === "approved").length;
@@ -80,7 +91,7 @@ export default function Quotes() {
     const approvedValue = rows.filter(q => q.status === "approved").reduce((sum, q) => sum + getQuoteValue(q), 0);
     const invoicedValue = rows.filter(q => q.status === "invoiced").reduce((sum, q) => sum + getQuoteValue(q), 0);
     return { total, open, approved, lost, invoiced, totalValue, approvedValue, invoicedValue };
-  }, [allData]);
+  }, [filteredAllData]);
 
   const hasFilters = status !== "all" || sellerFilter !== "all" || assistantFilter !== "all" || search.trim() !== "" || dateFrom !== "" || dateTo !== "";
 
