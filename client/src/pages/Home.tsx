@@ -8705,17 +8705,25 @@ export default function Home() {
                             {lbDetail !== null && (
                             <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3 mb-3 space-y-0.5">
                               {lbDetail.perfilFlexivel ? (
-                                // PERFIL FLEXÍVEL: preço temporário — apenas perfil, sem drivers
+                                // PERFIL FLEXÍVEL: mesmo detalhamento do LED BAR (perfil + drivers)
                                 <>
                                   <div className="flex justify-between">
-                                    <span>Perfil Flexível × {(r.comprimentoTotalMm/1000).toFixed(3)}m</span>
+                                    <span>Perfil Flexível ({r.product.potencia}W/m × {(r.comprimentoTotalMm/1000).toFixed(3)}m)</span>
                                     <span className="font-mono">{formatBRL(lbDetail.precoPerfil)}</span>
                                   </div>
+                                  <div className="flex justify-between">
+                                    <span>
+                                      Driver {lbDetail.driverFromApi ? '' : `${lbDetail.wattsDriver}W `}× {nT} corte{nT > 1 ? "s" : ""}
+                                      {!lbDetail.driverFromApi && lbDetail.wattsDriver === 100 && (
+                                        <span className="ml-1 text-amber-500 font-medium">(potência {lbDetail.potenciaTrecho.toFixed(1)}W — driver 60W insuficiente)</span>
+                                      )}
+                                    </span>
+                                    <span className="font-mono">{formatBRL(lbDetail.totalDrivers)}</span>
+                                  </div>
                                   <div className="flex justify-between font-semibold border-t border-border pt-1 mt-1">
-                                    <span>Total (somente perfil)</span>
+                                    <span>Total</span>
                                     <span className="font-mono text-primary">{formatBRL(lbDetail.total)}</span>
                                   </div>
-                                  <p className="text-[10px] text-amber-500 mt-1">Preço somente do perfil (R$ {r.product.precoMetro?.toFixed(2).replace('.', ',')}/m). Drivers/fontes não incluídos — serão adicionados separadamente.</p>
                                 </>
                               ) : (
                                 // LED BAR padrão: perfil + drivers
@@ -8791,9 +8799,8 @@ export default function Home() {
                                   const lbDriverModel = lbDriverInfo?.model ?? "";
                                   // Construir driverLines para separar driver no orçamento
                                   // LED BAR: nCortes drivers por unidade (cada trecho tem 1 driver)
-                                  const isPerfilFlexLb = /^PERFIL FLEXIVEL/i.test(r.product.familia ?? "");
                                   const lbDrvLines: import("@/lib/cartTypes").DriverLine[] | undefined =
-                                    !isPerfilFlexLb && lbDriverModel && lbDetail !== null && lbDetail.precoDriverPorCorte > 0
+                                    lbDriverModel && lbDetail !== null && lbDetail.precoDriverPorCorte > 0
                                       ? [{
                                           driverModel: lbDriverModel,
                                           driverCode: lbDriverCode,

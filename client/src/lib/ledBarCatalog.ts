@@ -310,22 +310,46 @@ export function calcLedBarPriceDetail(
   corpoFromApi?: boolean;
 } | null {
   if (familia && LED_BAR_FAMILIES_NO_PRICE.test(familia)) return null;
-  // PERFIL FLEXÍVEL: apenas o perfil, sem drivers
+  // PERFIL FLEXÍVEL: mesmo cálculo do LED BAR padrão, mas com corte máximo de 5000mm
+  // Drivers são calculados e destacados separadamente, igual ao LED BAR
   // Fallback: R$157,00/m para 5W/m e 10W/m quando API não retorna precoMetro
   if (familia && /^PERFIL FLEXIVEL/i.test(familia)) {
     const PERFIL_FLEX_PRECO_METRO_FALLBACK: Partial<Record<LedBarPotencia, number>> = { 5: 157.00, 10: 157.00 };
     const precoMetroEfetivo = precoMetroApi ?? PERFIL_FLEX_PRECO_METRO_FALLBACK[potencia] ?? null;
     if (precoMetroEfetivo == null) return null; // sem preço → preencher manualmente
     const comprimentoM = comprimentoTotalMm / 1000;
+    const comprimentoTrechoMm = Math.floor(comprimentoTotalMm / Math.max(1, nCortes));
+    const nT = Math.max(1, nCortes);
     const precoPerfil = Math.round(precoMetroEfetivo * comprimentoM * 100) / 100;
+    // Driver: mesma lógica do LED BAR (API tem prioridade sobre tabela estática)
+    let precoDriverPorCorte: number;
+    let wattsDriver: 60 | 100;
+    let potenciaTrecho: number;
+    let driverFromApi = false;
+    if (custoDriverApi != null) {
+      const mk = markupDriver ?? 3;
+      precoDriverPorCorte = Math.round(custoDriverApi * mk * 100) / 100;
+      wattsDriver = 60;
+      potenciaTrecho = potencia * (comprimentoTrechoMm / 1000);
+      driverFromApi = true;
+    } else {
+      const sel = selectLedBarDriverPrice(potencia, comprimentoTrechoMm);
+      precoDriverPorCorte = sel.preco;
+      wattsDriver = sel.wattsDriver;
+      potenciaTrecho = sel.potenciaTrecho;
+    }
+    const totalDrivers = Math.round(precoDriverPorCorte * nT * 100) / 100;
+    const total = Math.round((precoPerfil + totalDrivers) * 100) / 100;
     return {
       precoPerfil,
-      precoDriverPorCorte: 0,
-      wattsDriver: 60,
-      potenciaTrecho: 0,
-      totalDrivers: 0,
-      total: precoPerfil,
+      precoDriverPorCorte,
+      wattsDriver,
+      potenciaTrecho,
+      totalDrivers,
+      total,
       perfilFlexivel: true,
+      driverFromApi,
+      corpoFromApi: precoMetroApi != null,
     };
   }
   // Preço por metro: precoMetroApi > custoCorpoApi×markupCorpo > tabela estática
