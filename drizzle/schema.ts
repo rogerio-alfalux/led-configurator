@@ -6,6 +6,8 @@ export const assistants = mysqlTable("assistants", {
 	name: varchar({ length: 128 }).notNull(),
 	email: varchar({ length: 320 }),
 	active: boolean().default(true).notNull(),
+	/** Se preenchido, este assistente só pode ver/editar orçamentos do vendedor vinculado */
+	allowedSellerId: int(),
 	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 });
 

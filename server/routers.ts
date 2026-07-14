@@ -37,7 +37,7 @@ import { TRPCError } from "@trpc/server";
 import { storagePut } from "./storage";
 import { getDb } from "./db";
 import { sellers, assistants } from "../drizzle/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and } from "drizzle-orm";
 
 // ─── Controle de acesso a orçamentos ─────────────────────────────────────────
 /** Emails dos gestores com acesso irrestrito a todos os orçamentos */
@@ -540,7 +540,30 @@ export const appRouter = router({
         limit: z.number().optional(),
         offset: z.number().optional(),
       }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        // Assistentes com allowedSellerId só podem ver orçamentos do vendedor vinculado
+        if (ctx.user.role === 'assistente' && ctx.user.email) {
+          const db = await getDb();
+          if (db) {
+            const assistantRow = await db
+              .select({ allowedSellerId: assistants.allowedSellerId, name: assistants.name })
+              .from(assistants)
+              .where(and(eq(assistants.email, ctx.user.email), eq(assistants.active, true)))
+              .limit(1);
+            if (assistantRow[0]?.allowedSellerId) {
+              // Buscar o nome do vendedor vinculado
+              const sellerRow = await db
+                .select({ name: sellers.name })
+                .from(sellers)
+                .where(eq(sellers.id, assistantRow[0].allowedSellerId))
+                .limit(1);
+              if (sellerRow[0]?.name) {
+                // Forçar filtro pelo nome do vendedor vinculado
+                return listQuotes({ ...input, seller1Name: sellerRow[0].name });
+              }
+            }
+          }
+        }
         return listQuotes(input);
       }),
 
@@ -549,6 +572,25 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => {
         const result = await getQuoteById(input.id);
         if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
+        // Assistentes com allowedSellerId só podem ver orçamentos do vendedor vinculado
+        if (ctx.user.role === 'assistente' && ctx.user.email) {
+          const db = await getDb();
+          if (db) {
+            const assistantRow = await db
+              .select({ allowedSellerId: assistants.allowedSellerId })
+              .from(assistants)
+              .where(and(eq(assistants.email, ctx.user.email), eq(assistants.active, true)))
+              .limit(1);
+            const allowedSellerId = assistantRow[0]?.allowedSellerId;
+            if (allowedSellerId) {
+              // Verificar se o orçamento pertence ao vendedor vinculado
+              const isAllowed = result.quote.seller1Id === allowedSellerId || result.quote.seller2Id === allowedSellerId;
+              if (!isAllowed) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "Acesso negado a este orçamento." });
+              }
+            }
+          }
+        }
         const canEdit = await canEditQuote(ctx.user.email, result.quote, ctx.user.role, ctx.user.id);
         // Permissão de comissão:
         // - Admin ou MANAGER_EMAILS: vê e edita

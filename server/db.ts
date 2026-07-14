@@ -878,18 +878,25 @@ export const ADMIN_EMAILS = [
 
 /**
  * Domínio permitido para acesso ao sistema.
- * Usuários com e-mail fora desse domínio serão bloqueados (exceto ADMINs).
+ * Usuários com e-mail fora desse domínio serão bloqueados (exceto ADMINs e EXCEPTION_EMAILS).
  */
 export const ALLOWED_DOMAIN = "grupoalfalux";
-
+/**
+ * E-mails externos com acesso excepcional (assistentes externos, parceiros).
+ * Estes usuários têm acesso restrito conforme seu role e allowedSellerId.
+ */
+export const EXCEPTION_EMAILS = [
+  "orcamentos.qualy@outlook.com", // Leandro Dantas — assistente externo (Izabel Simon)
+];
 /**
  * Verifica se um e-mail tem permissão para acessar o sistema.
- * Permite: ADMINs explícitos + qualquer e-mail @grupoalfalux.*
+ * Permite: ADMINs explícitos + qualquer e-mail @grupoalfalux.* + EXCEPTION_EMAILS
  */
 export function isEmailAllowed(email: string | null | undefined): boolean {
   if (!email) return false;
   const lower = email.toLowerCase();
   if (ADMIN_EMAILS.includes(lower)) return true;
+  if (EXCEPTION_EMAILS.includes(lower)) return true;
   // Aceita qualquer subdomínio de grupoalfalux (ex: @grupoalfalux.com.br, @grupoalfalux.com)
   return /@grupoalfalux\b/.test(lower);
 }
@@ -900,6 +907,14 @@ export function isEmailAllowed(email: string | null | undefined): boolean {
 export function isAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;
   return ADMIN_EMAILS.includes(email.toLowerCase());
+}
+/**
+ * Verifica se um e-mail é de um assistente externo (exceção de domínio).
+ * Esses usuários devem ter o role 'assistente' atribuído automaticamente.
+ */
+export function isExceptionAssistantEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return EXCEPTION_EMAILS.includes(email.toLowerCase());
 }
 
 /**

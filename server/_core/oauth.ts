@@ -1,7 +1,7 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import type { Express, Request, Response } from "express";
 import * as db from "../db";
-import { isEmailAllowed, isAdminEmail, insertAuditLog } from "../db";
+import { isEmailAllowed, isAdminEmail, isExceptionAssistantEmail, insertAuditLog } from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 
@@ -55,8 +55,8 @@ export function registerOAuthRoutes(app: Express) {
         return;
       }
 
-      // Promover automaticamente ADMINs pelo e-mail
-      const role = isAdminEmail(email) ? "admin" : undefined;
+      // Promover automaticamente ADMINs pelo e-mail; atribuir 'assistente' para e-mails de exceção externos
+      const role = isAdminEmail(email) ? "admin" : isExceptionAssistantEmail(email) ? "assistente" : undefined;
 
       await db.upsertUser({
         openId: userInfo.openId,
