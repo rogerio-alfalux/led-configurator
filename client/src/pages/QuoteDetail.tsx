@@ -3525,8 +3525,8 @@ export default function QuoteDetail() {
                   const vTotalBase = v.totalFinal && Number(v.totalFinal) > 0
                     ? Number(v.totalFinal)
                     : (v.totalAmount ? Number(v.totalAmount) : 0);
-                  // Somar diluição ao total exibido (apenas para versão atual, pois diluicaoValor fica no quote)
-                  const vDiluicao = isCurrentVersion && canSeeCommission && (quote as any).diluicaoValor
+                  // Somar diluição ao total exibido em todas as versões (diluicaoValor fica no quote e vale para todas)
+                  const vDiluicao = canSeeCommission && (quote as any).diluicaoValor
                     ? parseFloat(String((quote as any).diluicaoValor))
                     : 0;
                   const vTotal = vTotalBase + vDiluicao;
