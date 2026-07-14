@@ -15,6 +15,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { formatBRL } from "@/lib/cartTypes";
 import { toBrasiliaDate } from "@/lib/dateUtils";
+import { MANAGER_EMAILS } from "@shared/const";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   open: { label: "Em Aberto", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: <Clock className="w-3 h-3" /> },
@@ -77,6 +78,13 @@ export default function Quotes() {
     return Array.from(names).sort();
   }, [allData]);
 
+  // Permissão para ver diluição (mesma lógica do QuoteDetail)
+  const canSeeCommission = useMemo(() => {
+    if (!user) return false;
+    const email = ((user as any).email ?? "").toLowerCase().trim();
+    return (user as any).role === "admin" || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(email);
+  }, [user]);
+
   // Estatísticas refletem os filtros ativos
   const stats = useMemo(() => {
     const rows = filteredAllData?.rows ?? [];
@@ -86,12 +94,17 @@ export default function Quotes() {
     const lost = rows.filter(q => q.status === "lost").length;
     const invoiced = rows.filter(q => q.status === "invoiced").length;
     // Usar totalFinal (inclui RT + margem + frete + DIFAL + FCP) com fallback para totalAmount
-    const getQuoteValue = (q: typeof rows[0]) => Number(q.totalFinal) > 0 ? Number(q.totalFinal) : (Number(q.totalAmount) || 0);
+    // Somar diluição se o usuário tem permissão
+    const getQuoteValue = (q: typeof rows[0]) => {
+      const base = Number(q.totalFinal) > 0 ? Number(q.totalFinal) : (Number(q.totalAmount) || 0);
+      const dil = canSeeCommission && (q as any).diluicaoValor ? Number((q as any).diluicaoValor) : 0;
+      return base + dil;
+    };
     const totalValue = rows.reduce((sum, q) => sum + getQuoteValue(q), 0);
     const approvedValue = rows.filter(q => q.status === "approved").reduce((sum, q) => sum + getQuoteValue(q), 0);
     const invoicedValue = rows.filter(q => q.status === "invoiced").reduce((sum, q) => sum + getQuoteValue(q), 0);
     return { total, open, approved, lost, invoiced, totalValue, approvedValue, invoicedValue };
-  }, [filteredAllData]);
+  }, [filteredAllData, canSeeCommission]);
 
   const hasFilters = status !== "all" || sellerFilter !== "all" || assistantFilter !== "all" || search.trim() !== "" || dateFrom !== "" || dateTo !== "";
 
@@ -336,7 +349,10 @@ export default function Quotes() {
                         {/* Valor e data */}
                         <div className="text-right flex-shrink-0">
                           {(q.totalFinal && Number(q.totalFinal) > 0) || (q.totalAmount && Number(q.totalAmount) > 0) ? (
-                            <p className="font-bold text-primary">{formatBRL(Number(q.totalFinal) > 0 ? Number(q.totalFinal) : Number(q.totalAmount))}</p>
+                            <p className="font-bold text-primary">{formatBRL(
+                              (Number(q.totalFinal) > 0 ? Number(q.totalFinal) : Number(q.totalAmount))
+                              + (canSeeCommission && (q as any).diluicaoValor ? Number((q as any).diluicaoValor) : 0)
+                            )}</p>
                           ) : (
                             <p className="text-xs text-muted-foreground italic">A consultar</p>
                           )}
