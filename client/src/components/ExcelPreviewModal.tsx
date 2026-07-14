@@ -901,8 +901,8 @@ ${htmlContent}
                   <tr>
                     <td style={{ fontWeight: "bold", paddingTop: 8 }}>
                       {freteParaDiluir > 0
-                        ? (totalComDifal > totalFinal ? "Subtotal dos produtos (frete incl., sem DIFAL/FCP):" : "Valor total dos produtos (frete já incluído):")
-                        : (totalComDifal > totalFinal ? "Subtotal dos produtos (sem frete, sem DIFAL/FCP):" : "Valor total dos produtos (sem o frete):")}
+                        ? (formData.difalEnabled && difalAplicavel ? "Subtotal dos produtos (frete incl., sem DIFAL/FCP):" : "Valor total dos produtos (frete já incluído):")
+                        : (formData.difalEnabled && difalAplicavel ? "Subtotal dos produtos (sem frete, sem DIFAL/FCP):" : "Valor total dos produtos (sem o frete):")}
                     </td>
                     <td>
                       <span style={{ background: TOTAL_BG, fontWeight: "bold", fontSize: 14, padding: "4px 12px", border: "2px solid #444", display: "inline-block" }}>
@@ -922,7 +922,7 @@ ${htmlContent}
                       <td style={{ color: "#CC0000", fontWeight: "bold" }}>{formatBRL(fcpAmt)}</td>
                     </tr>
                   )}
-                  {totalComDifal > totalFinal && (
+                  {formData.difalEnabled && difalAplicavel && (
                     <tr>
                       <td style={{ fontWeight: "bold" }}>{freteParaDiluir > 0 ? "TOTAL GERAL (com DIFAL/FCP, frete incl.):" : "TOTAL GERAL (com DIFAL/FCP, sem frete):"}</td>
                       <td>
@@ -978,7 +978,7 @@ ${htmlContent}
                             <td style={{ fontWeight: "bold" }}>TOTAL GERAL (produtos + frete):</td>
                             <td>
                               <span style={{ background: "#D9EAD3", fontWeight: "bold", fontSize: 14, padding: "4px 12px", border: "2px solid #444", display: "inline-block" }}>
-                                {formatBRL((totalComDifal > totalFinal ? totalComDifal : totalFinal) + formData.freteValue)}
+                                {formatBRL((formData.difalEnabled && difalAplicavel ? totalComDifal : totalFinal) + formData.freteValue)}
                               </span>
                             </td>
                           </tr>

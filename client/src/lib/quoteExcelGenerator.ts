@@ -1238,11 +1238,12 @@ async function _generateExcelBuffer(
   ws.mergeCells(`C${nextRow}:D${nextRow}`);
   {
     const c = ws.getCell(`C${nextRow}`);
+    const _temDifal = !!(formData.difalEnabled && difalAplicavelExcel);
     c.value = formData.freteIncluded && _freteParaDiluir > 0
-      ? (totalComDifal > totalFinal
+      ? (_temDifal
         ? "Subtotal dos produtos\n(frete incl., sem DIFAL/FCP):"
         : "Valor total dos produtos\n(frete j\u00e1 inclu\u00eddo):")
-      : (totalComDifal > totalFinal
+      : (_temDifal
         ? "Subtotal dos produtos\n(sem frete, sem DIFAL/FCP):"
         : "Valor total dos produtos\n(sem o frete):");
     c.font = { name: "Calibri", size: 12, bold: true };
@@ -1349,7 +1350,7 @@ async function _generateExcelBuffer(
     nextRow++;
   }
   // ── Total com DIFAL/FCP (quando aplicável) ────────────────────────────────
-  if (totalComDifal > totalFinal) {
+  if (formData.difalEnabled && difalAplicavelExcel) {
     ws.getRow(nextRow).height = 42.6;
     ws.mergeCells(`C${nextRow}:D${nextRow}`);
     {
@@ -1453,7 +1454,7 @@ async function _generateExcelBuffer(
       ws.mergeCells(`E${nextRow}:N${nextRow}`);
       {
         const c = ws.getCell(`E${nextRow}`);
-        c.value = (totalComDifal > totalFinal ? totalComDifal : totalFinal) + _freteValorNum;
+        c.value = (formData.difalEnabled && difalAplicavelExcel ? totalComDifal : totalFinal) + _freteValorNum;
         c.numFmt = '"R$"#,##0.00';
         c.font = { name: "Calibri", size: 14, bold: true };
         c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9EAD3" } }; // verde claro
