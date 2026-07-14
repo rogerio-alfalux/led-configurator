@@ -119,7 +119,7 @@ import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator"
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 import { StateCitySelector, isSaoPauloCapital } from "@/components/StateCitySelector";
 import { toast } from "sonner";
-import { PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS } from "@shared/const";
+import { PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS, DRIVER_PRICE_OVERRIDE_EMAILS } from "@shared/const";
 import { applyCCTChange, applyUnitPriceChange, applyQtyChange } from "@/lib/cctUtils";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -147,9 +147,10 @@ interface SortableEditItemProps {
   onDuplicate: (id: number) => void;
   onUploadSpecialPhoto: (itemId: number, base64: string, mimeType: 'image/jpeg' | 'image/png' | 'image/webp', fileName: string) => Promise<void>;
   canOverrideApiPrice?: boolean;
+  canEditDriverPrice?: boolean;
 }
 
-function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, resolvePhoto, onUpdate, onDelete, onDuplicate, onUploadSpecialPhoto, canOverrideApiPrice = false }: SortableEditItemProps) {
+function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, resolvePhoto, onUpdate, onDelete, onDuplicate, onUploadSpecialPhoto, canOverrideApiPrice = false, canEditDriverPrice = false }: SortableEditItemProps) {
   const [specialUploading, setSpecialUploading] = useState(false);
   const [seqInputVal, setSeqInputVal] = useState<string>("");
   const d = item.parsed;
@@ -406,7 +407,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
         <div className="pt-2 border-t space-y-1">
           <div className="flex items-center gap-2">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Drivers</p>
-            {canOverrideApiPrice && <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">preço editável</span>}
+            {canEditDriverPrice && <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">preço editável</span>}
           </div>
           {d.driverLines.map((dl, dIdx) => (
             <div key={dIdx} className="flex items-center justify-between gap-2 text-xs bg-muted/40 rounded px-2 py-1.5">
@@ -416,7 +417,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <span className="text-muted-foreground">Qtd: <span className="font-medium text-foreground">{dl.driverQty ?? 1}</span></span>
-                {canOverrideApiPrice ? (
+                {canEditDriverPrice ? (
                   <div className="relative flex items-center">
                     <span className="text-muted-foreground mr-1">Unit:</span>
                     <div className="relative">
@@ -2013,6 +2014,9 @@ export default function QuoteDetail() {
                                     onUpdate={(id, fields) => { let mergedFields = { ...fields }; if (fields.cct !== undefined) { const curItem = editableItems.find(it => it.id === id); if (curItem && fields.cct !== curItem.parsed.cct) { mergedFields = { ...applyCCTChange(curItem.parsed, fields.cct), ...fields }; } } setEditableItems(prev => prev.map(it => { if (it.id !== id) return it; const newParsed = { ...it.parsed, ...mergedFields }; if (fields.unitPrice !== undefined) { Object.assign(newParsed, applyUnitPriceChange(newParsed, fields.unitPrice, fields.qty ?? newParsed.qty)); } else if (fields.qty !== undefined) { Object.assign(newParsed, applyQtyChange(newParsed, fields.qty)); } return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) }; })); }}
                                     onUploadSpecialPhoto={async (id, base64, mimeType, fileName) => { const result = await uploadSpecialPhotoMutationQD.mutateAsync({ base64, mimeType, fileName }); setEditableItems(prev => prev.map(it => { if (it.id !== id) return it; const newParsed = { ...it.parsed, specialPhotoUrl: result.url, photoUrl: result.url }; return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) }; })); }}
                                     canOverrideApiPrice={true}
+                                    canEditDriverPrice={
+                                      DRIVER_PRICE_OVERRIDE_EMAILS.map(e => e.toLowerCase()).includes(((user as any)?.email ?? "").toLowerCase())
+                                    }
                                   />
                                   );
                                 })}
@@ -2097,6 +2101,9 @@ export default function QuoteDetail() {
                             (user as any)?.role === 'admin' ||
                             (user as any)?.role === 'gerente' ||
                             PRICE_OVERRIDE_EMAILS.includes(((user as any)?.email ?? "").toLowerCase())
+                          }
+                          canEditDriverPrice={
+                            DRIVER_PRICE_OVERRIDE_EMAILS.map(e => e.toLowerCase()).includes(((user as any)?.email ?? "").toLowerCase())
                           }
                         />
                       ))}

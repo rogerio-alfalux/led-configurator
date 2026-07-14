@@ -48,7 +48,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 import { StateCitySelector, isSaoPauloCapital } from "@/components/StateCitySelector";
-import { PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS } from "@shared/const";
+import { PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS, DRIVER_PRICE_OVERRIDE_EMAILS } from "@shared/const";
 import { toBrasiliaDate } from "@/lib/dateUtils";
 import { applyCCTChange } from "@/lib/cctUtils";
 
@@ -2540,6 +2540,7 @@ export default function Cart() {
               const userRole = (user as any)?.role;
               const userEmail = (user as any)?.email?.toLowerCase() ?? "";
               const canOverrideApiPrice = userRole === 'admin' || userRole === 'gerente' || PRICE_OVERRIDE_EMAILS.includes(userEmail);
+              const canEditDriverPrice = DRIVER_PRICE_OVERRIDE_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
               const canEditPrice = !item?.data.priceFromApi || canOverrideApiPrice;
               const canEditMkp = userRole === 'admin' || userRole === 'gerente' || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
               const hasMkpData = canEditMkp && item?.data.custoCorpoBase != null && item.data.custoCorpoBase > 0;
@@ -2663,29 +2664,29 @@ export default function Cart() {
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <Label>Preço unitário do driver (R$)</Label>
-                            {canOverrideApiPrice && (
+                            {canEditDriverPrice && (
                               <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">editável</span>
                             )}
                           </div>
                           <div className="relative">
                             <Input
                               value={editFields.driverUnitPriceOverride}
-                              onChange={canOverrideApiPrice ? (e) => setEditFields(prev => ({ ...prev, driverUnitPriceOverride: e.target.value })) : undefined}
-                              readOnly={!canOverrideApiPrice}
+                              onChange={canEditDriverPrice ? (e) => setEditFields(prev => ({ ...prev, driverUnitPriceOverride: e.target.value })) : undefined}
+                              readOnly={!canEditDriverPrice}
                               placeholder={item.data.driverLines[0].driverUnitPrice != null ? String(item.data.driverLines[0].driverUnitPrice) : "Preço do driver"}
                               className={[
-                                !canOverrideApiPrice ? "bg-muted text-muted-foreground cursor-not-allowed" : "",
-                                canOverrideApiPrice ? "pr-8" : ""
+                                !canEditDriverPrice ? "bg-muted text-muted-foreground cursor-not-allowed" : "",
+                                canEditDriverPrice ? "pr-8" : ""
                               ].join(" ")}
                             />
-                            {canOverrideApiPrice && (
+                            {canEditDriverPrice && (
                               <Pencil className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-amber-500 pointer-events-none" />
                             )}
                           </div>
-                          {!canOverrideApiPrice && (
-                            <p className="text-xs text-muted-foreground">Preço do driver calculado pela API — apenas gerentes podem alterar.</p>
+                          {!canEditDriverPrice && (
+                            <p className="text-xs text-muted-foreground">Preço do driver calculado pela API.</p>
                           )}
-                          {canOverrideApiPrice && (
+                          {canEditDriverPrice && (
                             <p className="text-xs text-amber-600 dark:text-amber-400">Alterar substituirá o preço da API para este driver. O total do item será recalculado.</p>
                           )}
                         </div>
@@ -3014,6 +3015,7 @@ export default function Cart() {
               const userRoleSave = (user as any)?.role;
               const userEmailSave = (user as any)?.email?.toLowerCase() ?? "";
               const canOverrideApiPriceSave = userRoleSave === 'admin' || userRoleSave === 'gerente' || PRICE_OVERRIDE_EMAILS.includes(userEmailSave);
+              const canEditDriverPriceSave = DRIVER_PRICE_OVERRIDE_EMAILS.map(e => e.toLowerCase()).includes(userEmailSave);
               const canEditPriceSave = !item?.data.priceFromApi || canOverrideApiPriceSave;
               if (isRevenda) {
                 const qty = parseInt(editFields.qty) || 1;
@@ -3040,7 +3042,7 @@ export default function Cart() {
                   const canEditLuminaria = !item.data.luminariaHasApiPrice || canOverrideApiPriceSave;
                   // Override do preço do driver (apenas para quem tem permissão)
                   let effectiveDriverUnitPrice = item.data.driverLines[0]?.driverUnitPrice ?? null;
-                  if (canOverrideApiPriceSave && editFields.driverUnitPriceOverride.trim()) {
+                  if (canEditDriverPriceSave && editFields.driverUnitPriceOverride.trim()) {
                     const parsedDrvPrice = parseFloat(editFields.driverUnitPriceOverride.replace(',', '.'));
                     if (!isNaN(parsedDrvPrice) && parsedDrvPrice >= 0) {
                       effectiveDriverUnitPrice = parsedDrvPrice;
@@ -3073,7 +3075,7 @@ export default function Cart() {
                     const drvQtyForUnit = drvQtyPerLum != null ? drvQtyPerLum : (item.data.driverLines[0]?.driverQty ?? 1);
                     patch.unitPrice = Math.round((lumUnitPrice + (effectiveDriverUnitPrice ?? 0) * drvQtyForUnit) * 100) / 100;
                     patch.luminariaHasApiPrice = item.data.luminariaHasApiPrice;
-                  } else if (canOverrideApiPriceSave && editFields.driverUnitPriceOverride.trim() && !editFields.unitPrice.trim()) {
+                  } else if (canEditDriverPriceSave && editFields.driverUnitPriceOverride.trim() && !editFields.unitPrice.trim()) {
                     // Apenas o driver foi alterado (sem alterar luminária): recalcular unitPrice e totalPrice
                     const qty = parseInt(editFields.qty) || item?.data.qty || 1;
                     const lumUnitPrice = item.data.unitPriceLuminaria ?? 0;
