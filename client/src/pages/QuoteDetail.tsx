@@ -3522,9 +3522,14 @@ export default function QuoteDetail() {
                 {visibleVersions.map(v => {
                   const vItems = items.filter(i => i.quoteVersionId === v.id);
                   const isCurrentVersion = v.version === quote.currentVersion;
-                  const vTotal = v.totalFinal && Number(v.totalFinal) > 0
+                  const vTotalBase = v.totalFinal && Number(v.totalFinal) > 0
                     ? Number(v.totalFinal)
                     : (v.totalAmount ? Number(v.totalAmount) : 0);
+                  // Somar diluição ao total exibido (apenas para versão atual, pois diluicaoValor fica no quote)
+                  const vDiluicao = isCurrentVersion && canSeeCommission && (quote as any).diluicaoValor
+                    ? parseFloat(String((quote as any).diluicaoValor))
+                    : 0;
+                  const vTotal = vTotalBase + vDiluicao;
                   return (
                     <div key={v.id} className={`px-4 py-3 ${isCurrentVersion ? 'bg-primary/5' : ''}`}>
                       <div className="flex items-start justify-between gap-3">
