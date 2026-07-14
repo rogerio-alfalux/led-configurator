@@ -424,8 +424,12 @@ ${htmlContent}
       }, 0)
     : 0;
   const totalSemDriverRaw = hasDriverBreakdown ? (totalBase - totalDriverRaw) : 0;
-  const totalDriverFinal = applyMarkupFn(totalDriverRaw);
-  const totalSemDriverFinal = applyMarkupFn(totalSemDriverRaw);
+  // Distribuir diluíção proporcionalmente entre lum e driver
+  const _totalBaseForRatio = totalDriverRaw + totalSemDriverRaw;
+  const _drvDilFrac = _totalBaseForRatio > 0 ? diluicaoParaDiluir * (totalDriverRaw / _totalBaseForRatio) : 0;
+  const _lumDilFrac = diluicaoParaDiluir - _drvDilFrac;
+  const totalDriverFinal = applyMarkupFn(totalDriverRaw + _drvDilFrac);
+  const totalSemDriverFinal = applyMarkupFn(totalSemDriverRaw + _lumDilFrac);
 
   const vendedorText = [formData.seller1Name, formData.seller2Name].filter(Boolean).join(" / ") || "";
   const contactText = [formData.contato, formData.tel].filter(Boolean).join(" — ");
@@ -772,8 +776,22 @@ ${htmlContent}
                           <td style={tdStyle}>{item.category === "Item Especial" ? (item.specialColor || item.corPeca || "-") : (item.corPeca || "-")}</td>
                           <td style={tdStyle}>{item.cct || "-"}</td>
                           <td style={{ ...tdStyle, fontWeight: "bold" }}>{item.qty}</td>
-                          <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent)) : "-"}</td>
-                          <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkupItem(totalPriceComFrete(item) ?? item.totalPrice, item.itemMarginPercent)) : "-"}</td>
+                          {(() => {
+                            // Diluíção proporcional para itens sem driverLines
+                            const _itemTotalRealSimple = getItemTotalReal(item);
+                            const _diluicaoFatorSimple = (diluicaoParaDiluir > 0 && totalBase > 0)
+                              ? diluicaoParaDiluir * (_itemTotalRealSimple / totalBase)
+                              : 0;
+                            const _qty = item.qty ?? 1;
+                            const _unitWithFrete = unitPriceComFrete(item) ?? item.unitPrice ?? 0;
+                            const _totalWithFrete = totalPriceComFrete(item) ?? item.totalPrice ?? 0;
+                            const _unitWithDil = _unitWithFrete + (_qty > 0 ? _diluicaoFatorSimple / _qty : 0);
+                            const _totalWithDil = _totalWithFrete + _diluicaoFatorSimple;
+                            return (<>
+                              <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkupItem(_unitWithDil, item.itemMarginPercent)) : "-"}</td>
+                              <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkupItem(_totalWithDil, item.itemMarginPercent)) : "-"}</td>
+                            </>);
+                          })()}
                         </tr>
                       )}
 

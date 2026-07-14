@@ -1187,6 +1187,10 @@ async function _generateExcelBuffer(
       }, 0)
     : 0;
   const totalSemDriverRaw = hasDriverBreakdown ? (totalBase - _freteParaDiluir - _diluicaoParaDiluir - totalDriverRaw) : 0;
+  // Distribuir diluíção proporcionalmente entre lum e driver para os subtotais do rodapé
+  const _totalBaseForRatioExcel = totalDriverRaw + totalSemDriverRaw;
+  const _drvDilFracExcel = _totalBaseForRatioExcel > 0 ? _diluicaoParaDiluir * (totalDriverRaw / _totalBaseForRatioExcel) : 0;
+  const _lumDilFracExcel = _diluicaoParaDiluir - _drvDilFracExcel;
   // Aplicar RT e Margem (mesma fórmula do Cart.tsx)
   const rtPct    = Math.min(Math.max(formData.rtPercent    ?? 0, 0), 0.99);
   const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
@@ -1263,8 +1267,8 @@ async function _generateExcelBuffer(
       const final  = marginPct > 0 ? comRT  / (1 - marginPct) : comRT;
       return final;
     };
-    const totalSemDriverFinal = applyMarkupLocal(totalSemDriverRaw);
-    const totalDriverFinal = applyMarkupLocal(totalDriverRaw);
+    const totalSemDriverFinal = applyMarkupLocal(totalSemDriverRaw + _lumDilFracExcel);
+    const totalDriverFinal = applyMarkupLocal(totalDriverRaw + _drvDilFracExcel);
     // Linha: Total sem driver
     ws.getRow(nextRow).height = 28;
     ws.mergeCells(`C${nextRow}:D${nextRow}`);
