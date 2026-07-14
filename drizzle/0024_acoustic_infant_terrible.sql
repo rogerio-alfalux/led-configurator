@@ -1,0 +1,1 @@
+ALTER TABLE `quotes` ADD `freteCity` varchar(128);

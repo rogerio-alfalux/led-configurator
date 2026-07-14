@@ -119,6 +119,8 @@ export const quotes = mysqlTable("quotes", {
 	freteValue: decimal({ precision: 10, scale: 2 }).default('0'),
 	/** Estado de destino do frete (sigla UF, ex: "RJ") — pode ser preenchido automaticamente pelo destState */
 	freteState: varchar({ length: 2 }),
+	/** Cidade de destino do frete (nome completo, ex: "Rio de Janeiro") */
+	freteCity: varchar({ length: 128 }),
 	/** Se true, o frete é diluído nos produtos e sai zerado/"incluso" no Excel */
 	freteIncluded: boolean().default(false).notNull(),
 	/** Nome do arquiteto responsável pelo projeto */

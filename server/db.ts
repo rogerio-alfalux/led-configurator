@@ -344,6 +344,8 @@ export interface SaveQuoteInput {
   freteValue?: number;
   /** Estado de destino do frete */
   freteState?: string;
+  /** Cidade de destino do frete */
+  freteCity?: string;
   /** Se true, o frete é diluído nos produtos */
   freteIncluded?: boolean;
   /** Comissão do vendedor 2 (0-1) */
@@ -433,7 +435,8 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
     fcpValue: input.fcpValue != null ? String(input.fcpValue) : '0',
     projectNumber: input.projectNumber ?? null,
     freteValue: input.freteValue != null ? String(input.freteValue) : '0',
-    freteState: input.freteState ?? null,
+        freteState: input.freteState ?? null,
+    freteCity: input.freteCity ?? null,
     freteIncluded: input.freteIncluded ?? false,
     commissionPercent2: input.commissionPercent2 != null ? String(input.commissionPercent2) : '0',
     arquiteto: input.arquiteto ?? null,
@@ -442,7 +445,6 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
     diluicaoDescricao: input.diluicaoDescricao ?? null,
   });
   const quoteId = (qResult as unknown as { insertId: number }[])[0]?.insertId ?? 0;
-
   // Insert version 0
   const vResult = await db.insert(quoteVersions).values({
     quoteId,
@@ -555,6 +557,7 @@ export async function addQuoteRevision(
     projectNumber: input.projectNumber ?? null,
     freteValue: input.freteValue != null ? String(input.freteValue) : '0',
     freteState: input.freteState ?? null,
+    freteCity: input.freteCity ?? null,
     freteIncluded: input.freteIncluded ?? false,
     commissionPercent2: input.commissionPercent2 != null ? String(input.commissionPercent2) : '0',
     arquiteto: input.arquiteto ?? null,
@@ -1713,6 +1716,7 @@ export async function duplicateQuote(
     projectNumber: q.projectNumber,
     freteValue: q.freteValue,
     freteState: q.freteState,
+    freteCity: q.freteCity,
     freteIncluded: q.freteIncluded,
   });
   const newQuoteId = (qResult as unknown as { insertId: number }[])[0]?.insertId ?? 0;

@@ -72,7 +72,13 @@ function extractDim(description: string): string {
 }
 
 function buildFreteText(formData: QuoteFormData, totalBase: number): string {
-  const { freteType, freteIsento, freteLocalidade } = formData;
+  const { freteType, freteIsento, freteLocalidade, freteCity, freteState } = formData;
+  // Montar sufixo de localidade quando cidade/estado estiver preenchido
+  const localSuffix = freteCity && freteState
+    ? ` — ${freteCity}/${freteState}`
+    : freteState && freteState !== "SP"
+      ? ` — ${freteState}`
+      : "";
   if (freteIsento) return "Frete isento (conforme negociação)";
   if (freteType === "free") {
     const valorCotado = formData.freteValue && formData.freteValue > 0
@@ -84,24 +90,25 @@ function buildFreteText(formData: QuoteFormData, totalBase: number): string {
     const val = formData.freteValue && formData.freteValue > 0
       ? formData.freteValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       : "2.000,00";
-    return `Frete noturno — R$ ${val}`;
+    return `Frete noturno — R$ ${val}${localSuffix}`;
   }
   if (freteType === "paid") {
     const valorCotado = formData.freteValue && formData.freteValue > 0
       ? ` (R$ ${formData.freteValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} cotado)`
       : "";
-    if (freteLocalidade === "sp") {
+    // SP capital sem sufixo de localidade: comportamento original
+    if (freteLocalidade === "sp" && !localSuffix) {
       return totalBase >= 1500
         ? `CIF - Para faturamento acima de R$ 1.500,00 São Paulo/ SP (Capital). Demais localidades sob consulta${valorCotado}`
         : `Frete a cobrar — São Paulo/SP Capital (faturamento abaixo de R$ 1.500,00)${valorCotado}`;
     }
-    return `Frete sob consulta — localidade fora de São Paulo/SP Capital${valorCotado}`;
+    return `Frete A Calcular${localSuffix}${valorCotado}`;
   }
   if (freteType === "consult") {
     const valorCotado = formData.freteValue && formData.freteValue > 0
       ? ` — R$ ${formData.freteValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} cotado`
       : "";
-    return `Frete sob consulta${valorCotado}`;
+    return `Frete sob consulta${localSuffix}${valorCotado}`;
   }
   if (freteType === "pickup") {
     return "Cliente Retira — Frete R$ 0,00";

@@ -47,6 +47,7 @@ import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
+import { StateCitySelector, isSaoPauloCapital } from "@/components/StateCitySelector";
 import { PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS } from "@shared/const";
 import { toBrasiliaDate } from "@/lib/dateUtils";
 import { applyCCTChange } from "@/lib/cctUtils";
@@ -2235,45 +2236,28 @@ export default function Cart() {
                             </div>}
                           </TabsContent>
 
-                          {/* ─── Aba Frete ─── */}
+                                                    {/* ─── Aba Frete ─── */}
                           <TabsContent value="frete" className="space-y-4 pt-3">
-                            {/* Estado de entrega */}
-                            <div>
-                              <Label>Estado de entrega</Label>
-                              <Select
-                                value={saveForm.freteStateCode || "SP"}
-                                onValueChange={(v) => {
-                                  updateSaveForm("freteStateCode", v);
-                                  updateSaveForm("freteCity", "");
-                                }}
-                              >
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent className="max-h-72">
-                                  <SelectItem value="SP">SP — São Paulo</SelectItem>
-                                  {DIFAL_TABLE.map(s => (
-                                    <SelectItem key={s.uf} value={s.uf}>{s.uf} — {s.name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              {saveForm.destState && saveForm.destState !== saveForm.freteStateCode && (
-                                <button
-                                  type="button"
-                                  className="text-xs text-primary underline mt-1"
-                                  onClick={() => {
-                                    updateSaveForm("freteStateCode", saveForm.destState);
-                                    updateSaveForm("freteCity", "");
-                                  }}
-                                >
-                                  Usar estado da aba Comercial ({saveForm.destState})
-                                </button>
-                              )}
-                            </div>
-
-                            {/* Cidade de entrega */}
-                            <FreteIbgeCitySelect
+                            {/* Estado e Cidade de entrega */}
+                            <StateCitySelector
                               stateCode={saveForm.freteStateCode || "SP"}
-                              value={saveForm.freteCity}
-                              onChange={(city) => updateSaveForm("freteCity", city)}
+                              city={saveForm.freteCity}
+                              onStateChange={(v) => {
+                                updateSaveForm("freteStateCode", v);
+                                updateSaveForm("freteCity", "");
+                              }}
+                              onCityChange={(city) => {
+                                updateSaveForm("freteCity", city);
+                                // Auto-selecionar frete "A Calcular" se não for São Paulo capital
+                                if (city && !isSaoPauloCapital(city, saveForm.freteStateCode || "SP")) {
+                                  updateSaveForm("freteType", "paid");
+                                }
+                              }}
+                              difalState={saveForm.destState}
+                              onUseDifalState={() => {
+                                updateSaveForm("freteStateCode", saveForm.destState);
+                                updateSaveForm("freteCity", "");
+                              }}
                             />
 
                             <div>
@@ -3130,6 +3114,8 @@ export default function Cart() {
           freteType: saveForm.freteType,
           freteIsento: saveForm.freteIsento,
           freteLocalidade: saveForm.freteStateCode === "SP" ? "sp" : "other",
+          freteCity: saveForm.freteCity || undefined,
+          freteState: saveForm.freteStateCode || undefined,
           freteValue: saveForm.freteValue ? parseFloat(saveForm.freteValue) : undefined,
           freteIncluded: saveForm.freteIncluded,
           deliveryDays: parseInt(saveForm.deliveryDays) || 20,

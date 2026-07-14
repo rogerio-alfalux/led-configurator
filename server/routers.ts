@@ -775,6 +775,7 @@ export const appRouter = router({
           projectNumber: quote.projectNumber ?? undefined,
           freteValue: quote.freteValue != null ? Number(quote.freteValue) : 0,
           freteState: quote.freteState ?? undefined,
+          freteCity: quote.freteCity ?? undefined,
           freteIncluded: quote.freteIncluded ?? false,
           arquiteto: quote.arquiteto ?? undefined,
           lightDesigner: quote.lightDesigner ?? undefined,

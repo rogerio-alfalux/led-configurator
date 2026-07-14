@@ -117,6 +117,7 @@ import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
 import { OrderPreviewModal } from "@/components/OrderPreviewModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
+import { StateCitySelector, isSaoPauloCapital } from "@/components/StateCitySelector";
 import { toast } from "sonner";
 import { PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS } from "@shared/const";
 import { applyCCTChange, applyUnitPriceChange, applyQtyChange } from "@/lib/cctUtils";
@@ -677,6 +678,8 @@ export default function QuoteDetail() {
     marginPercent: "0",
     freteType: "free" as "free" | "paid" | "night" | "consult" | "pickup",
     freteIsento: false, freteLocalidade: "sp" as "sp" | "other",
+    freteStateCode: "SP",   // UF do estado de entrega
+    freteCity: "",           // Nome da cidade de entrega
     // Novos campos
     deliveryDays: "20",
     commissionPercent: "5",
@@ -1241,6 +1244,8 @@ export default function QuoteDetail() {
           freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
+          freteCity: (quote as any).freteCity ?? undefined,
+          freteState: (quote as any).freteState ?? undefined,
           freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
           freteIncluded: (quote as any).freteIncluded ?? false,
           diluicaoValor: (quote as any).diluicaoValor ? parseFloat(String((quote as any).diluicaoValor)) : undefined,
@@ -1395,6 +1400,8 @@ export default function QuoteDetail() {
           freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
+          freteCity: (quote as any).freteCity ?? undefined,
+          freteState: (quote as any).freteState ?? undefined,
           freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
           freteIncluded: (quote as any).freteIncluded ?? false,
           diluicaoValor: (quote as any).diluicaoValor ? parseFloat(String((quote as any).diluicaoValor)) : undefined,
@@ -2465,6 +2472,8 @@ export default function QuoteDetail() {
                 projectNoProject: (quote.projectNumber ?? "") === "Sem Projeto",
                 freteValue: (quote as any).freteValue != null ? String((quote as any).freteValue) : "",
                 freteState: (quote as any).freteState ?? "",
+                freteStateCode: (quote as any).freteState ?? "SP",
+                freteCity: (quote as any).freteCity ?? "",
                 freteIncluded: (quote as any).freteIncluded ?? false,
                 arquiteto: (quote as any).arquiteto ?? "",
                 lightDesigner: (quote as any).lightDesigner ?? "",
@@ -2691,16 +2700,36 @@ export default function QuoteDetail() {
 
                 {/* Aba Frete */}
                 <TabsContent value="frete" className="space-y-4 pt-3">
-                  <div>
-                    <Label>Localidade de entrega</Label>
-                    <Select value={editForm.freteLocalidade} onValueChange={(v) => setEditForm(f => ({ ...f, freteLocalidade: v as "sp" | "other" }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="sp">São Paulo (SP)</SelectItem>
-                        <SelectItem value="other">Outra cidade</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {/* Estado e Cidade de entrega */}
+                  <StateCitySelector
+                    stateCode={editForm.freteStateCode || "SP"}
+                    city={editForm.freteCity}
+                    onStateChange={(v) => setEditForm(f => ({
+                      ...f,
+                      freteStateCode: v,
+                      freteState: v,
+                      freteLocalidade: v === "SP" ? "sp" : "other",
+                      freteCity: "",
+                    }))}
+                    onCityChange={(city) => {
+                      const isSpCapital = isSaoPauloCapital(city, editForm.freteStateCode || "SP");
+                      setEditForm(f => ({
+                        ...f,
+                        freteCity: city,
+                        freteLocalidade: isSpCapital ? "sp" : "other",
+                        // Auto-selecionar frete "A Calcular" se não for São Paulo capital
+                        freteType: (!isSpCapital && city) ? "paid" : f.freteType,
+                      }));
+                    }}
+                    difalState={editForm.destState}
+                    onUseDifalState={() => setEditForm(f => ({
+                      ...f,
+                      freteStateCode: f.destState,
+                      freteState: f.destState,
+                      freteLocalidade: f.destState === "SP" ? "sp" : "other",
+                      freteCity: "",
+                    }))}
+                  />
                   <div>
                     <Label>Tipo de frete</Label>
                     <Select value={editForm.freteType} onValueChange={(v) => {
@@ -3085,7 +3114,8 @@ export default function QuoteDetail() {
                       fcpEnabled: editForm.fcpEnabled,
                       projectNumber: editForm.projectNumber || undefined,
                       freteValue: editForm.freteValue ? parseFloat(editForm.freteValue) : undefined,
-                      freteState: editForm.freteState || undefined,
+                      freteState: editForm.freteState || editForm.freteStateCode || undefined,
+                      freteCity: editForm.freteCity || undefined,
                       freteIncluded: editForm.freteIncluded,
                       arquiteto: editForm.arquiteto || undefined,
                       lightDesigner: editForm.lightDesigner || undefined,
@@ -3774,9 +3804,11 @@ export default function QuoteDetail() {
           assistantName: quote.assistantName ?? undefined,
           rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) : undefined,
           marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
-          freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
+                    freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
+          freteCity: (quote as any).freteCity ?? undefined,
+          freteState: (quote as any).freteState ?? undefined,
           freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
           freteIncluded: (quote as any).freteIncluded ?? false,
           revisionCount: quote.revisionCount ?? 0,
@@ -3792,7 +3824,6 @@ export default function QuoteDetail() {
           diluicaoValor: (quote as any).diluicaoValor ? parseFloat(String((quote as any).diluicaoValor)) : undefined,
         }}
       />
-
       {/* Dialog de edição manual de revisão (somente gestores) */}
       <Dialog open={setRevisionDialogOpen} onOpenChange={setSetRevisionDialogOpen}>
         <DialogContent className="max-w-sm">
