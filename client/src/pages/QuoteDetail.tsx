@@ -1576,8 +1576,12 @@ export default function QuoteDetail() {
                 const displayTotal = quote.totalFinal && Number(quote.totalFinal) > 0
                   ? Number(quote.totalFinal)
                   : (quote.totalAmount ? Number(quote.totalAmount) : 0);
-                return displayTotal > 0 ? (
-                  <p className="text-primary font-bold text-lg">{formatBRL(displayTotal)}</p>
+                const diluicaoHdr = canSeeCommission && (quote as any).diluicaoValor != null
+                  ? parseFloat(String((quote as any).diluicaoValor))
+                  : 0;
+                const displayTotalComDil = displayTotal + diluicaoHdr;
+                return displayTotalComDil > 0 ? (
+                  <p className="text-primary font-bold text-lg">{formatBRL(displayTotalComDil)}</p>
                 ) : null;
               })()}
             </CardContent>
@@ -3446,9 +3450,10 @@ export default function QuoteDetail() {
                                     </>
                                   ) : (
                                     <>
-                                      {unitDisplay != null && <p className="text-xs text-muted-foreground">{formatBRL(unitDisplay)}/un</p>}
+                                      {/* Para itens sem breakdown, a dilução já está em _itemDiluicao */}
+                                      {unitDisplay != null && <p className="text-xs text-muted-foreground">{formatBRL(unitDisplay + (_itemDiluicao / (d.qty || 1)))}/un</p>}
                                       {totalDisplay != null
-                                        ? <p className="font-bold text-primary text-sm">{formatBRL(totalDisplay)}</p>
+                                        ? <p className="font-bold text-primary text-sm">{formatBRL(totalDisplay + _itemDiluicao)}</p>
                                         : <p className="text-xs italic text-muted-foreground">A consultar</p>}
                                     </>
                                   )}
@@ -3466,17 +3471,17 @@ export default function QuoteDetail() {
                         <div className="px-4 pt-3 pb-1 space-y-1">
                           <div className="flex justify-between items-center text-sm">
                             <span className="text-muted-foreground">Subtotal Luminárias</span>
-                            <span className="font-medium">{formatBRL(totalLuminaria)}</span>
+                            <span className="font-medium">{formatBRL(totalLuminaria + (_diluicaoTotal > 0 && totalGeral > 0 ? _diluicaoTotal * (totalLuminaria / totalGeral) : 0))}</span>
                           </div>
                           <div className="flex justify-between items-center text-sm">
                             <span className="text-muted-foreground">Subtotal Drivers</span>
-                            <span className="font-medium">{formatBRL(totalDriver)}</span>
+                            <span className="font-medium">{formatBRL(totalDriver + (_diluicaoTotal > 0 && totalGeral > 0 ? _diluicaoTotal * (totalDriver / totalGeral) : 0))}</span>
                           </div>
                         </div>
                       )}
                       <div className="px-4 py-3 flex justify-between items-center border-t border-primary/10">
                         <span className="text-sm font-medium">Total</span>
-                        <span className="text-xl font-bold text-primary">{formatBRL(totalGeral)}</span>
+                        <span className="text-xl font-bold text-primary">{formatBRL(totalGeral + _diluicaoTotal)}</span>
                       </div>
                     </div>
                   )}
