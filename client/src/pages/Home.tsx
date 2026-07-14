@@ -8444,11 +8444,16 @@ export default function Home() {
                               <div className="text-xs text-muted-foreground">
                                 <span className="font-mono">{p.sku ?? p.codigo}</span>
                                 {p.dimensao ? ` · ${p.dimensao}` : ""}
-                                {p.precoVenda != null && p.precoVenda > 0 && (
-                                  <span className="ml-2 text-emerald-700 dark:text-emerald-400 font-medium">
-                                    R$ {p.precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                                  </span>
-                                )}
+                                {(() => {
+                                  const preco = (p.precoVenda != null && p.precoVenda > 0)
+                                    ? p.precoVenda
+                                    : (p.source === 'driver' && p.codigo ? (acDriverPriceMap.get(p.codigo) ?? null) : null);
+                                  return preco != null && preco > 0 ? (
+                                    <span className="ml-2 text-emerald-700 dark:text-emerald-400 font-medium">
+                                      R$ {preco.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                    </span>
+                                  ) : null;
+                                })()}
                               </div>
                               {p.observacoes && p.observacoes.trim() && p.observacoes.trim() !== '-' && (
                                 <div className="text-xs text-muted-foreground/70 truncate mt-0.5">{p.observacoes}</div>
@@ -12446,6 +12451,14 @@ export default function Home() {
               const acProduct = acSelectedId
                 ? acessoriosProducts.find(p => p.id === acSelectedId)
                 : null;
+              // Preço efetivo: usa precoVenda da API ou calcula via custo × mkp para drivers
+              const acProductPrecoEfetivo = acProduct
+                ? ((acProduct.precoVenda != null && acProduct.precoVenda > 0)
+                    ? acProduct.precoVenda
+                    : (acProduct.source === 'driver' && acProduct.codigo
+                        ? (acDriverPriceMap.get(acProduct.codigo) ?? null)
+                        : null))
+                : null;
               return (
                 <Card className="shadow-sm border-emerald-500/30">
                   <CardHeader className="pb-3">
@@ -12494,11 +12507,11 @@ export default function Home() {
                           </div>
                         )}
                         {/* Preço de venda */}
-                        {acProduct.precoVenda != null && acProduct.precoVenda > 0 && (
+                        {acProductPrecoEfetivo != null && acProductPrecoEfetivo > 0 && (
                           <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700/40">
                             <p className="text-xs text-emerald-700 dark:text-emerald-400 uppercase tracking-wide mb-1">Preço de Venda</p>
                             <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">
-                              R$ {acProduct.precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                              R$ {acProductPrecoEfetivo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                             </p>
                           </div>
                         )}
