@@ -43,7 +43,7 @@ import { eq, inArray } from "drizzle-orm";
 /** Emails dos gestores com acesso irrestrito a todos os orçamentos */
 const MANAGER_EMAILS = [
   "daniel@grupoalfalux.com.br",   // DANIEL PUGLIESE
-  "dennis@grupoalfalux.com.br",   // DENNIS PUGLIESI
+  "dennis@grupoalfalux.com.br",   // DENNIS PUGLIESE
   "vivian@grupoalfalux.com.br",   // VIVIAN FRANCESCHINELLI
 ];
 
