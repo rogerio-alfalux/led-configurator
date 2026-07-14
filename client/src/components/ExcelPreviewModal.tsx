@@ -332,6 +332,33 @@ ${htmlContent}
     ? formData.freteValue
     : 0;
 
+  // Diluição de valores pendentes (campo interno — não aparece no orçamento ao cliente)
+  const diluicaoParaDiluir = (formData.diluicaoValor && formData.diluicaoValor > 0)
+    ? formData.diluicaoValor
+    : 0;
+
+  /**
+   * Retorna o total real de um item (luminária + drivers) para uso como peso de diluição.
+   */
+  const getItemTotalReal = (it: CartItemData): number => {
+    const drvT = (it.driverLines && it.driverLines.length > 0)
+      ? it.driverLines.reduce((sd, d) => {
+          const stored = d.driverTotalPrice;
+          if (stored != null && stored > 0) return sd + stored;
+          const iqty = it.qty ?? 1;
+          const storedQty = d.driverQty ?? 1;
+          const effectiveQty = storedQty <= 1 ? iqty : storedQty;
+          return sd + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
+        }, 0)
+      : 0;
+    const lumT = (it.driverLines && it.driverLines.length > 0)
+      ? (it.priceWithoutDriver != null && it.priceWithoutDriver > 0
+          ? it.priceWithoutDriver
+          : Math.max(0, (it.totalPrice ?? 0) - drvT))
+      : (it.totalPrice ?? 0);
+    return lumT + drvT;
+  };
+
   /**
    * Retorna o frete diluído para um item específico (em R$, sobre o totalPrice).
    * Distribui proporcionalmente ao valor total de cada linha.
@@ -361,7 +388,7 @@ ${htmlContent}
     return item.totalPrice + getFreteItem(item);
   };
 
-  const totalComRT = rtPct > 0 ? (totalBase + freteParaDiluir) / (1 - rtPct) : (totalBase + freteParaDiluir);
+  const totalComRT = rtPct > 0 ? (totalBase + freteParaDiluir + diluicaoParaDiluir) / (1 - rtPct) : (totalBase + freteParaDiluir + diluicaoParaDiluir);
   const totalFinal = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
   // DIFAL/FCP: alíquota combinada, frete na base (fórmula por dentro)
   const _freteParaImpostoPreview = formData.freteIncluded ? 0 : (formData.freteValue && formData.freteValue > 0 && !formData.freteIsento ? formData.freteValue : 0);
@@ -676,7 +703,7 @@ ${htmlContent}
                           <td style={tdStyle}>{item.corPeca || "-"}</td>
                           <td style={tdStyle}>{item.cct || "-"}</td>
                           <td style={{ ...tdStyle, fontWeight: "bold" }}>{item.qty}</td>
-                          {/* Preço da luminária (sem driver) */}
+                          {/* Preço da luminária (sem driver) + diluição proporcional */}
                           {(() => {
                             // Fallback para itens legados: derivar unitPriceLuminaria = (totalPrice - driversTotalPrice) / qty
                             const _drvTotalPreview = (item.driverLines ?? []).reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
@@ -690,17 +717,25 @@ ${htmlContent}
                             const _qty = item.qty ?? 1;
                             const _isUnit = _upl > 0 && Math.abs(_pwd - _upl) < 0.02 && _qty > 1;
                             const _correctedTotal = _isUnit ? _upl * _qty : (_pwd > 0 ? _pwd : Math.max(0, (item.totalPrice ?? 0) - _drvTotalPreview));
+                            // Diluição proporcional: peso = total real do item / totalBase
+                            const _itemTotalReal = getItemTotalReal(item);
+                            const _lumPeso = _itemTotalReal > 0 ? _correctedTotal / _itemTotalReal : 1;
+                            const _diluicaoFator = (diluicaoParaDiluir > 0 && totalBase > 0)
+                              ? diluicaoParaDiluir * (_itemTotalReal / totalBase)
+                              : 0;
+                            const _lumDilUnit = _qty > 0 ? _diluicaoFator * _lumPeso / _qty : 0;
+                            const _lumDilTotal = _diluicaoFator * _lumPeso;
                             return (<>
                               <td style={tdStyle}>
                                 {_effectiveUnitLum && _effectiveUnitLum > 0
-                                  ? formatBRL(applyMarkup(_effectiveUnitLum))
+                                  ? formatBRL(applyMarkup(_effectiveUnitLum + _lumDilUnit))
                                   : item.luminariaHasApiPrice === false
                                     ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
                                     : "-"}
                               </td>
                               <td style={tdStyle}>
                                 {_correctedTotal > 0
-                                  ? formatBRL(applyMarkup(_correctedTotal))
+                                  ? formatBRL(applyMarkup(_correctedTotal + _lumDilTotal))
                                   : item.luminariaHasApiPrice === false
                                     ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
                                     : "-"}
@@ -780,6 +815,15 @@ ${htmlContent}
                         const _iqty = item.qty ?? 1;
                         const _storedDrvQty = drv.driverQty ?? 1;
                         const _effectiveDrvQty = _storedDrvQty <= 1 ? _iqty : _storedDrvQty;
+                        // Diluição proporcional ao peso do driver neste item
+                        const _itemTotalRealDrv = getItemTotalReal(item);
+                        const _drvTotalPrice = (drv.driverUnitPrice ?? 0) * _effectiveDrvQty;
+                        const _drvPeso = _itemTotalRealDrv > 0 ? _drvTotalPrice / _itemTotalRealDrv : 0;
+                        const _diluicaoFatorDrv = (diluicaoParaDiluir > 0 && totalBase > 0)
+                          ? diluicaoParaDiluir * (_itemTotalRealDrv / totalBase)
+                          : 0;
+                        const _drvDilUnit = _effectiveDrvQty > 0 ? _diluicaoFatorDrv * _drvPeso / _effectiveDrvQty : 0;
+                        const _drvDilTotal = _diluicaoFatorDrv * _drvPeso;
                         return (
                         <tr key={`drv-${idx}-${drvIdx}`} style={{ background: "#FFF3E0" }}>
                           <td style={{ ...tdStyle, fontSize: 9 }}></td>
@@ -793,10 +837,10 @@ ${htmlContent}
                           ))}
                           <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold", color: "#E65100" }}>{_effectiveDrvQty}</td>
                           <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
-                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupFn(drv.driverUnitPrice)) : "-"}
+                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupFn(drv.driverUnitPrice + _drvDilUnit)) : "-"}
                           </td>
                           <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
-                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupFn(drv.driverUnitPrice * _effectiveDrvQty)) : "-"}
+                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupFn(_drvTotalPrice + _drvDilTotal)) : "-"}
                           </td>
                         </tr>
                         );

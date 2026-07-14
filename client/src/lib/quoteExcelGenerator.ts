@@ -843,8 +843,22 @@ async function _generateExcelBuffer(
       item.qty > 0)
       ? (item.totalPrice - _drvTotalForFallback) / item.qty
       : null;
+    // Fator de diluição proporcional para este item (luminaria + drivers como base)
+    const _itemTotalRealForDil = calcItemLumTotal(item) + calcItemDrvTotal(item);
+    const _diluicaoFatorItem = (_diluicaoParaDiluir > 0 && _totalBaseParaFrete > 0)
+      ? _diluicaoParaDiluir * (_itemTotalRealForDil / _totalBaseParaFrete)
+      : 0;
+    // Fator de frete proporcional para este item
+    const _freteFatorItem = (_freteParaDiluir > 0 && _totalBaseParaFrete > 0)
+      ? _freteParaDiluir * (_itemTotalRealForDil / _totalBaseParaFrete)
+      : 0;
+    // Aplica diluição + frete ao preço unitário da luminária (proporcional ao peso da luminária no item)
+    const _lumTotalReal = calcItemLumTotal(item);
+    const _lumPeso = _itemTotalRealForDil > 0 ? _lumTotalReal / _itemTotalRealForDil : 1;
+    const _lumDiluicaoUnit = item.qty > 0 ? (_diluicaoFatorItem + _freteFatorItem) * _lumPeso / item.qty : 0;
+    const _baseUnitLuminaria = item.unitPriceLuminaria ?? _derivedUnitLuminaria ?? _effectiveUnitPrice;
     const _unitForLuminaria = hasDriverBreakdownItem
-      ? (item.unitPriceLuminaria ?? _derivedUnitLuminaria ?? _unitPriceComFreteEffective(item))
+      ? (_baseUnitLuminaria != null ? _baseUnitLuminaria + _lumDiluicaoUnit : _unitPriceComDiluicao(item))
       : _unitPriceComDiluicao(item);
     if (_unitForLuminaria !== null && _unitForLuminaria !== undefined && _unitForLuminaria > 0) {
       cUnit.value = applyMarkup(_unitForLuminaria);
@@ -883,8 +897,10 @@ async function _generateExcelBuffer(
       _correctedPriceWithoutDriver = Math.max(0, item.totalPrice - _drvTotalForFallback);
     }
     // Fallback final: usa totalPrice (editado manualmente) como total da luminaria
+    // Aplicar diluição + frete proporcionalmente ao peso da luminária no item
+    const _lumDiluicaoTotal = (_diluicaoFatorItem + _freteFatorItem) * _lumPeso;
     const _totalForLuminaria = _correctedPriceWithoutDriver != null
-      ? _correctedPriceWithoutDriver
+      ? _correctedPriceWithoutDriver + _lumDiluicaoTotal
       : _totalPriceComDiluicao(item);
     // Linha principal mostra APENAS o preço da luminária (sem drivers).
     // Os drivers aparecem separados nas sub-linhas abaixo, evitando duplicação.
@@ -1053,7 +1069,10 @@ async function _generateExcelBuffer(
         const _effectiveDrvQty = _storedDrvQty <= 1 ? _itemQty : _storedDrvQty;
         fillDrv(ws.getCell(`L${drvRowNum}`), _effectiveDrvQty, true);
         if (drv.driverUnitPrice != null && drv.driverUnitPrice > 0) {
-          const drvUnitAdjusted = applyMarkup(drv.driverUnitPrice);
+          // Aplicar diluição proporcional ao peso do driver neste item
+          const _drvPeso = _itemTotalRealForDil > 0 ? (drv.driverUnitPrice * _effectiveDrvQty) / _itemTotalRealForDil : 0;
+          const _drvDiluicaoUnit = _effectiveDrvQty > 0 ? (_diluicaoFatorItem + _freteFatorItem) * _drvPeso / _effectiveDrvQty : 0;
+          const drvUnitAdjusted = applyMarkup(drv.driverUnitPrice + _drvDiluicaoUnit);
           const mCell = ws.getCell(`M${drvRowNum}`);
           mCell.value = drvUnitAdjusted;
           mCell.numFmt = '"R$"#,##0.00';
@@ -1062,7 +1081,7 @@ async function _generateExcelBuffer(
           mCell.alignment = { horizontal: 'center', vertical: 'middle' };
           mCell.border = drvBorder;
           const nCell = ws.getCell(`N${drvRowNum}`);
-          nCell.value = applyMarkup(drv.driverUnitPrice * _effectiveDrvQty);
+          nCell.value = applyMarkup((drv.driverUnitPrice + _drvDiluicaoUnit) * _effectiveDrvQty);
           nCell.numFmt = '"R$"#,##0.00';
           nCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: DRV_COLOR } };
           nCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: DRV_BG } };
