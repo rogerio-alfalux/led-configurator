@@ -37,7 +37,7 @@ import { TRPCError } from "@trpc/server";
 import { storagePut } from "./storage";
 import { getDb } from "./db";
 import { sellers, assistants } from "../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 // ─── Controle de acesso a orçamentos ─────────────────────────────────────────
 /** Emails dos gestores com acesso irrestrito a todos os orçamentos */
@@ -46,6 +46,14 @@ const MANAGER_EMAILS = [
   "dennis@grupoalfalux.com.br",   // DENNIS PUGLIESI
   "vivian@grupoalfalux.com.br",   // VIVIAN FRANCESCHINELLI
 ];
+
+/**
+ * Vendedores com comissão diferenciada e seus caps individuais.
+ * O Gustavo tem cap de 10% (sozinho). Se houver 2 vendedores, a soma ainda não pode ultrapassar 10%.
+ */
+const SPECIAL_COMMISSION_SELLERS: Record<string, number> = {
+  "gustavo@grupoalfalux.com.br": 0.10, // Gustavo Gatti Casagrande — cap de 10%
+};
 
 /**
  * Verifica se o usuário logado pode editar/excluir um orçamento.
@@ -348,7 +356,8 @@ export const appRouter = router({
             });
           }
         }
-        // Verificar cap de comissão (máx 5% total) — gestores e admins ficam isentos
+        // Verificar cap de comissão — gestores e admins ficam isentos
+        // Gustavo tem cap de 10%; demais vendedores cap de 5% (soma das duas comissões)
         const userEmail = ctx.user.email?.toLowerCase().trim() ?? "";
         const isManagerUser = ctx.user.role === "admin" || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
         if (!isManagerUser) {
@@ -357,10 +366,29 @@ export const appRouter = router({
           // commissionPercent vem como valor 0-100 (%), commissionPercent2 como 0-1
           const comm1Pct = comm1 > 1 ? comm1 / 100 : comm1;
           const comm2Pct = comm2;
-          if (comm1Pct + comm2Pct > 0.05 + 0.0001) {
+          const totalComm = comm1Pct + comm2Pct;
+          // Verificar se o usuário logado é um vendedor com cap especial
+          const specialCap = SPECIAL_COMMISSION_SELLERS[userEmail];
+          // Verificar se o seller1 ou seller2 do orçamento tem cap especial (busca pelo email do seller no banco)
+          const db = await getDb();
+          let sellerSpecialCap = 0;
+          if (db && (input.seller1Id || input.seller2Id)) {
+            const sellerIds = [input.seller1Id, input.seller2Id].filter((id): id is number => typeof id === "number");
+            if (sellerIds.length > 0) {
+              const sellerRows = await db.select({ email: sellers.email })
+                .from(sellers)
+                .where(inArray(sellers.id, sellerIds));
+              for (const s of sellerRows) {
+                const cap = SPECIAL_COMMISSION_SELLERS[(s.email ?? "").toLowerCase()];
+                if (cap && cap > sellerSpecialCap) sellerSpecialCap = cap;
+              }
+            }
+          }
+          const effectiveCap = Math.max(specialCap ?? 0, sellerSpecialCap, 0.05);
+          if (totalComm > effectiveCap + 0.0001) {
             throw new TRPCError({
               code: "BAD_REQUEST",
-              message: `A soma das comissões não pode ultrapassar 5% (atual: ${((comm1Pct + comm2Pct) * 100).toFixed(1)}%).`,
+              message: `A soma das comissões não pode ultrapassar ${(effectiveCap * 100).toFixed(0)}% (atual: ${(totalComm * 100).toFixed(1)}%).`,
             });
           }
         }
@@ -444,7 +472,8 @@ export const appRouter = router({
         if (!existingForRevision) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
         const hasPermission = await canEditQuote(ctx.user.email, existingForRevision.quote, ctx.user.role, ctx.user.id);
         if (!hasPermission) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para editar este orçamento." });
-        // Verificar cap de comissão (máx 5% total) — gestores e admins ficam isentos
+        // Verificar cap de comissão — gestores e admins ficam isentos
+        // Gustavo tem cap de 10%; demais vendedores cap de 5% (soma das duas comissões)
         const userEmailRev = ctx.user.email?.toLowerCase().trim() ?? "";
         const isManagerRev = ctx.user.role === "admin" || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(userEmailRev);
         if (!isManagerRev) {
@@ -452,10 +481,27 @@ export const appRouter = router({
           const comm2 = input.commissionPercent2 ?? 0;
           const comm1Pct = comm1 > 1 ? comm1 / 100 : comm1;
           const comm2Pct = comm2;
-          if (comm1Pct + comm2Pct > 0.05 + 0.0001) {
+          const totalCommRev = comm1Pct + comm2Pct;
+          const specialCapRev = SPECIAL_COMMISSION_SELLERS[userEmailRev];
+          const dbRev = await getDb();
+          let sellerSpecialCapRev = 0;
+          if (dbRev && (input.seller1Id || input.seller2Id)) {
+            const sellerIdsRev = [input.seller1Id, input.seller2Id].filter((id): id is number => typeof id === "number");
+            if (sellerIdsRev.length > 0) {
+              const sellerRowsRev = await dbRev.select({ email: sellers.email })
+                .from(sellers)
+                .where(inArray(sellers.id, sellerIdsRev));
+              for (const s of sellerRowsRev) {
+                const cap = SPECIAL_COMMISSION_SELLERS[(s.email ?? "").toLowerCase()];
+                if (cap && cap > sellerSpecialCapRev) sellerSpecialCapRev = cap;
+              }
+            }
+          }
+          const effectiveCapRev = Math.max(specialCapRev ?? 0, sellerSpecialCapRev, 0.05);
+          if (totalCommRev > effectiveCapRev + 0.0001) {
             throw new TRPCError({
               code: "BAD_REQUEST",
-              message: `A soma das comissões não pode ultrapassar 5% (atual: ${((comm1Pct + comm2Pct) * 100).toFixed(1)}%).`,
+              message: `A soma das comissões não pode ultrapassar ${(effectiveCapRev * 100).toFixed(0)}% (atual: ${(totalCommRev * 100).toFixed(1)}%).`,
             });
           }
         }
