@@ -790,7 +790,7 @@ export default function Cart() {
 
   // Edição inline de campos do item
   const [editItemId, setEditItemId] = useState<number | null>(null);
-  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; itemNote: string; itemObs: string; itemObsShowInExcel: boolean; itemMarginPercent: string; floorId: string; floorName: string; ambiente: string; specialColorTemp: string; specialEquipments: SpecialEquipment[]; mkpCustom: string; specialDescription: string; specialDimensions: string; specialPower: string; specialDim: string; specialVoltage: string; specialColor: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', itemNote: '', itemObs: '', itemObsShowInExcel: false, itemMarginPercent: '', floorId: '', floorName: '', ambiente: '', specialColorTemp: '', specialEquipments: [], mkpCustom: '', specialDescription: '', specialDimensions: '', specialPower: '', specialDim: '', specialVoltage: '', specialColor: '' });
+  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; driverUnitPriceOverride: string; itemNote: string; itemObs: string; itemObsShowInExcel: boolean; itemMarginPercent: string; floorId: string; floorName: string; ambiente: string; specialColorTemp: string; specialEquipments: SpecialEquipment[]; mkpCustom: string; specialDescription: string; specialDimensions: string; specialPower: string; specialDim: string; specialVoltage: string; specialColor: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', driverUnitPriceOverride: '', itemNote: '', itemObs: '', itemObsShowInExcel: false, itemMarginPercent: '', floorId: '', floorName: '', ambiente: '', specialColorTemp: '', specialEquipments: [], mkpCustom: '', specialDescription: '', specialDimensions: '', specialPower: '', specialDim: '', specialVoltage: '', specialColor: '' });
   // Estados para edição de foto de Item Especial
   const [editSpecialPhotoUrl, setEditSpecialPhotoUrl] = useState<string | null>(null);
   const [editSpecialPhotoPreview, setEditSpecialPhotoPreview] = useState<string | null>(null);
@@ -1399,7 +1399,7 @@ export default function Cart() {
                           onDuplicate={(data) => { addItem({ ...data, itemEmPlanta: data.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
                           onEditClick={(id, data) => {
                             setEditItemId(id);
-                                    setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '' });
+                                    setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', driverUnitPriceOverride: data.driverLines && data.driverLines.length > 0 && data.driverLines[0].driverUnitPrice != null ? String(data.driverLines[0].driverUnitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '' });
                                                         if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
                           }}
                           applyItemMargin={applyItemMargin}
@@ -1474,7 +1474,7 @@ export default function Cart() {
                                   onDuplicate={(data) => { addItem({ ...data, itemEmPlanta: data.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
                                   onEditClick={(id, data) => {
                                     setEditItemId(id);
-                                    setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '' });
+                                    setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', driverUnitPriceOverride: data.driverLines && data.driverLines.length > 0 && data.driverLines[0].driverUnitPrice != null ? String(data.driverLines[0].driverUnitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: data.itemMarginPercent != null ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '' });
                                     if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
                                   }}
                                   applyItemMargin={applyItemMargin}
@@ -2659,15 +2659,35 @@ export default function Cart() {
                           <p className="text-xs text-muted-foreground">Preço da luminária definido pela API. Apenas admin/gerente podem alterar.</p>
                         )}
                       </div>
-                      {item.data.unitPriceDriver != null && item.data.unitPriceDriver > 0 && (
+                      {item.data.driverLines && item.data.driverLines.length > 0 && (
                         <div className="space-y-1">
-                          <Label>Preço unitário do driver (R$)</Label>
-                          <Input
-                            value={formatBRL(item.data.unitPriceDriver)}
-                            readOnly
-                            className="bg-muted text-muted-foreground cursor-not-allowed"
-                          />
-                          <p className="text-xs text-muted-foreground">Preço do driver calculado pela API — não editável.</p>
+                          <div className="flex items-center gap-2">
+                            <Label>Preço unitário do driver (R$)</Label>
+                            {canOverrideApiPrice && (
+                              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">editável</span>
+                            )}
+                          </div>
+                          <div className="relative">
+                            <Input
+                              value={editFields.driverUnitPriceOverride}
+                              onChange={canOverrideApiPrice ? (e) => setEditFields(prev => ({ ...prev, driverUnitPriceOverride: e.target.value })) : undefined}
+                              readOnly={!canOverrideApiPrice}
+                              placeholder={item.data.driverLines[0].driverUnitPrice != null ? String(item.data.driverLines[0].driverUnitPrice) : "Preço do driver"}
+                              className={[
+                                !canOverrideApiPrice ? "bg-muted text-muted-foreground cursor-not-allowed" : "",
+                                canOverrideApiPrice ? "pr-8" : ""
+                              ].join(" ")}
+                            />
+                            {canOverrideApiPrice && (
+                              <Pencil className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-amber-500 pointer-events-none" />
+                            )}
+                          </div>
+                          {!canOverrideApiPrice && (
+                            <p className="text-xs text-muted-foreground">Preço do driver calculado pela API — apenas gerentes podem alterar.</p>
+                          )}
+                          {canOverrideApiPrice && (
+                            <p className="text-xs text-amber-600 dark:text-amber-400">Alterar substituirá o preço da API para este driver. O total do item será recalculado.</p>
+                          )}
                         </div>
                       )}
                     </>
@@ -3018,11 +3038,32 @@ export default function Cart() {
                 if (item?.data.driverLines && item.data.driverLines.length > 0) {
                   // Item com driver desmembrado: editFields.unitPrice é o preço da luminária
                   const canEditLuminaria = !item.data.luminariaHasApiPrice || canOverrideApiPriceSave;
+                  // Override do preço do driver (apenas para quem tem permissão)
+                  let effectiveDriverUnitPrice = item.data.driverLines[0]?.driverUnitPrice ?? null;
+                  if (canOverrideApiPriceSave && editFields.driverUnitPriceOverride.trim()) {
+                    const parsedDrvPrice = parseFloat(editFields.driverUnitPriceOverride.replace(',', '.'));
+                    if (!isNaN(parsedDrvPrice) && parsedDrvPrice >= 0) {
+                      effectiveDriverUnitPrice = parsedDrvPrice;
+                      // Atualizar driverLines com o novo preço unitário
+                      const qty = parseInt(editFields.qty) || item?.data.qty || 1;
+                      const drvQtyPerLum = getProfileDrvQtyPerLuminaria(item.data);
+                      patch.driverLines = item.data.driverLines.map(dl => {
+                        const drvQtyForTotal = drvQtyPerLum != null
+                          ? drvQtyPerLum * qty
+                          : (dl.driverQty ?? qty);
+                        return {
+                          ...dl,
+                          driverUnitPrice: parsedDrvPrice,
+                          driverTotalPrice: Math.round(parsedDrvPrice * drvQtyForTotal * 100) / 100,
+                        };
+                      });
+                      // Atualizar unitPriceDriver para consistência
+                      patch.unitPriceDriver = parsedDrvPrice;
+                    }
+                  }
                   if (canEditLuminaria && editFields.unitPrice.trim()) {
                     const qty = parseInt(editFields.qty) || item?.data.qty || 1;
                     const lumUnitPrice = parseFloat(editFields.unitPrice.replace(',', '.')) || 0;
-                    // REGRA INEGOCIÁVEL: usar getEffectiveDrvTotal para recalcular corretamente para perfis
-                    const drvTotal = getEffectiveDrvTotal(item.data);
                     patch.unitPriceLuminaria = lumUnitPrice;
                     patch.priceWithoutDriver = Math.round(lumUnitPrice * qty * 100) / 100;
                     // REGRA: totalPrice = apenas luminária (sem driver)
@@ -3030,8 +3071,19 @@ export default function Cart() {
                     patch.totalPrice = Math.round(lumUnitPrice * qty * 100) / 100;
                     const drvQtyPerLum = getProfileDrvQtyPerLuminaria(item.data);
                     const drvQtyForUnit = drvQtyPerLum != null ? drvQtyPerLum : (item.data.driverLines[0]?.driverQty ?? 1);
-                    patch.unitPrice = Math.round((lumUnitPrice + (item.data.unitPriceDriver ?? 0) * drvQtyForUnit) * 100) / 100;
+                    patch.unitPrice = Math.round((lumUnitPrice + (effectiveDriverUnitPrice ?? 0) * drvQtyForUnit) * 100) / 100;
                     patch.luminariaHasApiPrice = item.data.luminariaHasApiPrice;
+                  } else if (canOverrideApiPriceSave && editFields.driverUnitPriceOverride.trim() && !editFields.unitPrice.trim()) {
+                    // Apenas o driver foi alterado (sem alterar luminária): recalcular unitPrice e totalPrice
+                    const qty = parseInt(editFields.qty) || item?.data.qty || 1;
+                    const lumUnitPrice = item.data.unitPriceLuminaria ?? 0;
+                    const drvQtyPerLum = getProfileDrvQtyPerLuminaria(item.data);
+                    const drvQtyForUnit = drvQtyPerLum != null ? drvQtyPerLum : (item.data.driverLines[0]?.driverQty ?? 1);
+                    if (lumUnitPrice > 0 && effectiveDriverUnitPrice != null) {
+                      patch.unitPrice = Math.round((lumUnitPrice + effectiveDriverUnitPrice * drvQtyForUnit) * 100) / 100;
+                      patch.totalPrice = Math.round(lumUnitPrice * qty * 100) / 100;
+                      patch.priceWithoutDriver = Math.round(lumUnitPrice * qty * 100) / 100;
+                    }
                   }
                 } else if (canEditPriceSave && editFields.unitPrice.trim()) {
                   const qty = parseInt(editFields.qty) || item?.data.qty || 1;

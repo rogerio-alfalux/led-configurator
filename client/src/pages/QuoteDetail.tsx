@@ -401,20 +401,68 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
         </div>
       </div>
 
-      {/* Drivers do item — exibição informativa */}
+      {/* Drivers do item — exibição + edição de preço para gerentes */}
       {d.driverLines && d.driverLines.length > 0 && (
         <div className="pt-2 border-t space-y-1">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Drivers</p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Drivers</p>
+            {canOverrideApiPrice && <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">preço editável</span>}
+          </div>
           {d.driverLines.map((dl, dIdx) => (
-            <div key={dIdx} className="flex items-center justify-between gap-2 text-xs bg-muted/40 rounded px-2 py-1">
+            <div key={dIdx} className="flex items-center justify-between gap-2 text-xs bg-muted/40 rounded px-2 py-1.5">
               <div className="flex-1 min-w-0">
                 <span className="font-mono text-muted-foreground">{dl.driverCode ?? "—"}</span>
                 {dl.driverModel && <span className="ml-1 text-foreground/80 truncate">{dl.driverModel}</span>}
               </div>
-              <div className="flex items-center gap-3 flex-shrink-0 text-right">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 <span className="text-muted-foreground">Qtd: <span className="font-medium text-foreground">{dl.driverQty ?? 1}</span></span>
-                {dl.driverUnitPrice != null && dl.driverUnitPrice > 0 && (
-                  <span className="text-muted-foreground">Unit: <span className="font-medium text-foreground">{formatBRL(dl.driverUnitPrice)}</span></span>
+                {canOverrideApiPrice ? (
+                  <div className="relative flex items-center">
+                    <span className="text-muted-foreground mr-1">Unit:</span>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        defaultValue={dl.driverUnitPrice ?? ''}
+                        placeholder={dl.driverUnitPrice != null ? String(dl.driverUnitPrice) : "0"}
+                        className="h-6 w-20 rounded border border-amber-400/60 bg-background px-1.5 pr-5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-amber-400"
+                        onBlur={(e) => {
+                          const newUnitPrice = e.target.value ? parseFloat(e.target.value) : dl.driverUnitPrice;
+                          if (newUnitPrice == null || newUnitPrice === dl.driverUnitPrice) return;
+                          // Recalcular driverLines com novo preço unitário
+                          const updatedDriverLines = d.driverLines!.map((x, xi) =>
+                            xi === dIdx
+                              ? { ...x, driverUnitPrice: newUnitPrice, driverTotalPrice: Math.round(newUnitPrice * (x.driverQty ?? 1) * 100) / 100 }
+                              : x
+                          );
+                          // Recalcular unitPriceDriver (média ponderada por luminaria)
+                          const drvQtyPerLum = d.profileSegments && d.profileSegments.length > 0
+                            ? d.profileSegments.reduce((s, seg) => s + (seg.driverQtyPerPiece ?? 1) * seg.qty, 0)
+                            : null;
+                          const drvUnitForLum = updatedDriverLines.reduce((s, x) => {
+                            const qtyPerLum = drvQtyPerLum != null ? drvQtyPerLum : Math.round((x.driverQty ?? 1) / (d.qty ?? 1));
+                            return s + (x.driverUnitPrice ?? 0) * qtyPerLum;
+                          }, 0);
+                          const lumUnitPrice = d.unitPriceLuminaria ?? 0;
+                          const drvQtyForUnit = drvQtyPerLum != null ? drvQtyPerLum : (d.driverLines![0]?.driverQty ?? 1);
+                          const newUnitPriceComposite = lumUnitPrice > 0
+                            ? Math.round((lumUnitPrice + drvUnitForLum) * 100) / 100
+                            : null;
+                          onUpdate(item.id, {
+                            driverLines: updatedDriverLines,
+                            unitPriceDriver: newUnitPrice,
+                            ...(newUnitPriceComposite != null ? { unitPrice: newUnitPriceComposite } : {}),
+                          });
+                        }}
+                      />
+                      <Pencil className="absolute right-1 top-1/2 -translate-y-1/2 w-3 h-3 text-amber-500 pointer-events-none" />
+                    </div>
+                  </div>
+                ) : (
+                  dl.driverUnitPrice != null && dl.driverUnitPrice > 0 && (
+                    <span className="text-muted-foreground">Unit: <span className="font-medium text-foreground">{formatBRL(dl.driverUnitPrice)}</span></span>
+                  )
                 )}
                 {dl.driverTotalPrice != null && dl.driverTotalPrice > 0 && (
                   <span className="font-semibold text-primary">{formatBRL(dl.driverTotalPrice)}</span>
