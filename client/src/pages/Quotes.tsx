@@ -33,6 +33,7 @@ export default function Quotes() {
   const [assistantFilter, setAssistantFilter] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [datePreset, setDatePreset] = useState("all");
   const [page, setPage] = useState(0);
   const limit = 20;
 
@@ -106,7 +107,7 @@ export default function Quotes() {
     return { total, open, approved, lost, invoiced, totalValue, approvedValue, invoicedValue };
   }, [filteredAllData, canSeeCommission]);
 
-  const hasFilters = status !== "all" || sellerFilter !== "all" || assistantFilter !== "all" || search.trim() !== "" || dateFrom !== "" || dateTo !== "";
+  const hasFilters = status !== "all" || sellerFilter !== "all" || assistantFilter !== "all" || search.trim() !== "" || dateFrom !== "" || dateTo !== "" || datePreset !== "all";
 
   const clearFilters = () => {
     setSearch("");
@@ -115,8 +116,45 @@ export default function Quotes() {
     setAssistantFilter("all");
     setDateFrom("");
     setDateTo("");
+    setDatePreset("all");
     setPage(0);
   };
+
+  // Aplica preset de data
+  const applyDatePreset = (preset: string) => {
+    setDatePreset(preset);
+    setPage(0);
+    const today = new Date();
+    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    if (preset === "all") {
+      setDateFrom(""); setDateTo("");
+    } else if (preset === "7d") {
+      const from = new Date(today); from.setDate(today.getDate() - 7);
+      setDateFrom(fmt(from)); setDateTo(fmt(today));
+    } else if (preset === "30d") {
+      const from = new Date(today); from.setDate(today.getDate() - 30);
+      setDateFrom(fmt(from)); setDateTo(fmt(today));
+    } else if (preset.startsWith("month:")) {
+      const parts = preset.split(":");
+      const y = Number(parts[1]); const m = Number(parts[2]);
+      const from = new Date(y, m - 1, 1);
+      const to = new Date(y, m, 0);
+      setDateFrom(fmt(from)); setDateTo(fmt(to));
+    }
+  };
+
+  // Gera lista dos últimos 12 meses
+  const lastTwelveMonths = useMemo(() => {
+    const months: { value: string; label: string }[] = [];
+    const today = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const y = d.getFullYear(); const m = d.getMonth() + 1;
+      const label = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+      months.push({ value: `month:${y}:${m}`, label: label.charAt(0).toUpperCase() + label.slice(1) });
+    }
+    return months;
+  }, []);
 
   if (!user) {
     return (
@@ -247,25 +285,61 @@ export default function Quotes() {
             </SelectContent>
           </Select>
 
-          {/* Data De */}
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">De:</span>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={e => { setDateFrom(e.target.value); setPage(0); }}
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          </div>
-          {/* Data Até */}
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">Até:</span>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={e => { setDateTo(e.target.value); setPage(0); }}
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
+          {/* Filtros de data — linha 2 */}
+          <div className="flex items-center gap-2 flex-wrap w-full">
+            {/* Atalhos rápidos */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant={datePreset === "7d" ? "default" : "outline"}
+                size="sm"
+                className="h-8 text-xs px-2.5"
+                onClick={() => applyDatePreset(datePreset === "7d" ? "all" : "7d")}
+              >
+                7 dias
+              </Button>
+              <Button
+                variant={datePreset === "30d" ? "default" : "outline"}
+                size="sm"
+                className="h-8 text-xs px-2.5"
+                onClick={() => applyDatePreset(datePreset === "30d" ? "all" : "30d")}
+              >
+                30 dias
+              </Button>
+            </div>
+            {/* Dropdown de meses */}
+            <Select
+              value={datePreset.startsWith("month:") ? datePreset : "none"}
+              onValueChange={v => applyDatePreset(v === "none" ? "all" : v)}
+            >
+              <SelectTrigger className="h-8 w-44 text-xs">
+                <SelectValue placeholder="Mês..." />
+              </SelectTrigger>
+              <SelectContent className="max-h-60">
+                <SelectItem value="none">Mês específico...</SelectItem>
+                {lastTwelveMonths.map(m => (
+                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* Separador visual */}
+            <span className="text-muted-foreground/40 text-xs hidden sm:inline">|</span>
+            {/* De e Até na mesma linha */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">De:</span>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={e => { setDateFrom(e.target.value); setDatePreset("all"); setPage(0); }}
+                className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <span className="text-xs text-muted-foreground whitespace-nowrap">Até:</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={e => { setDateTo(e.target.value); setDatePreset("all"); setPage(0); }}
+                className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
           </div>
           {/* Limpar filtros */}
           {hasFilters && (
