@@ -163,6 +163,8 @@ export interface ApiProduct {
   /** Preço por metro (D1+D2 duplo) — DIM DALI */
   precoDimDaliD1D2?: number | null;
   precoMetro?: number | null;
+  /** Produto com lâmpada (ex: NONA) — sem driver na composição */
+  moduloLampada?: boolean | null;
 }
 
 /** Normaliza CCTs: garante sufixo "K" exceto para valores especiais como RGBW */
@@ -255,9 +257,9 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
   // Detectar produto RGBW: algum ledModule* contém "RGBW" no texto
   const allLedModules = [p.ledModule, p.ledModule2700, p.ledModule3000, p.ledModule4000, p.ledModule5000].filter(Boolean);
   const isRgbw = allLedModules.some(m => /RGBW/i.test(m ?? ''));
-  // Detectar produto com lâmpada: nenhum módulo LED e sem driver
+  // Detectar produto com lâmpada: campo moduloLampada da API ou (nenhum módulo LED e sem driver)
   const hasAnyLedModule = allLedModules.length > 0;
-  const isLamp = !hasAnyLedModule && semDriver;
+  const isLamp = !!(p.moduloLampada) || (!hasAnyLedModule && semDriver);
 
   return {
     instalacao: p.instalacao,
@@ -351,7 +353,7 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
   const ccts = normalizeCCTs(p.temperaturasCor);
   const allLedModulesSpot = [p.ledModule, p.ledModule2700, p.ledModule3000, p.ledModule4000, p.ledModule5000].filter(Boolean);
   const isRgbwSpot = allLedModulesSpot.some(m => /RGBW/i.test(m ?? ''));
-  const isLampSpot = allLedModulesSpot.length === 0 && !d220 && !dBivolt;
+  const isLampSpot = !!(p.moduloLampada) || (allLedModulesSpot.length === 0 && !d220 && !dBivolt);
 
   return {
     instalacao: p.instalacao,
@@ -622,7 +624,7 @@ function toArandelaProduct(p: ApiProduct): ArandelaProduct {
   const ccts = normalizeCCTs(p.temperaturasCor);
   const allLedModulesAr = [p.ledModule, p.ledModule2700, p.ledModule3000, p.ledModule4000, p.ledModule5000].filter(Boolean);
   const isRgbwAr = allLedModulesAr.some(m => /RGBW/i.test(m ?? ''));
-  const isLampAr = allLedModulesAr.length === 0 && !d220 && !dBivolt;
+  const isLampAr = !!(p.moduloLampada) || (allLedModulesAr.length === 0 && !d220 && !dBivolt);
   return {
     instalacao: p.instalacao,
     familia: p.familia,

@@ -180,6 +180,8 @@ export interface AlfaluxProduct {
   /** Preço por metro (D1+D2 duplo) — DIM TRIAC 220V */
   precoDimTriac220vD1D2?: number | null;
   precoMetro?: number | null;
+  /** Produto com lâmpada (ex: NONA) — sem driver na composição */
+  moduloLampada?: boolean | null;
 }
 
 interface ApiResponse {
