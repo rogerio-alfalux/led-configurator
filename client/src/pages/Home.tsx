@@ -2574,12 +2574,71 @@ export default function Home() {
   });
 
   // Função central: adiciona ao orçamento ou ao carrinho dependendo do modo
-  // Sempre abre o modal de cor antes de enviar (seja ao carrinho ou ao orçamento)
+  // Categorias que já têm cor predefinida — não precisam do modal de cor
+  const CATEGORIES_WITH_PRESET_COLOR = ["Acessórios", "Revenda"];
+
+  // Função auxiliar: envia item diretamente ao carrinho/orçamento sem abrir modal de cor
+  const dispatchItemDirect = useCallback((item: CartItemData, cor: CorPeca = "A Definir") => {
+    const effectiveQty = globalQty > 0 ? globalQty : 1;
+    const scaledDriverLines = item.driverLines && item.driverLines.length > 0
+      ? item.driverLines.map((dl) => {
+          const newDrvQty = Math.round((dl.driverQty ?? 1) * effectiveQty);
+          const newDrvTotal = dl.driverUnitPrice != null ? Math.round(dl.driverUnitPrice * newDrvQty * 100) / 100 : null;
+          return { ...dl, driverQty: newDrvQty, driverTotalPrice: newDrvTotal };
+        })
+      : item.driverLines;
+    const scaledPriceWithoutDriver = item.unitPriceLuminaria != null
+      ? Math.round(item.unitPriceLuminaria * effectiveQty * 100) / 100
+      : item.priceWithoutDriver ?? null;
+    let scaledTotalPrice: number | null;
+    if (scaledDriverLines && scaledDriverLines.length > 0 && scaledPriceWithoutDriver != null) {
+      const drvSum = scaledDriverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
+      scaledTotalPrice = Math.round((scaledPriceWithoutDriver + drvSum) * 100) / 100;
+    } else {
+      scaledTotalPrice = item.unitPrice != null ? item.unitPrice * effectiveQty : (item.totalPrice ?? 0);
+    }
+    const baseItem: CartItemData = {
+      ...item,
+      corPeca: cor,
+      qty: effectiveQty,
+      totalPrice: scaledTotalPrice,
+      priceWithoutDriver: scaledPriceWithoutDriver,
+      driverLines: scaledDriverLines,
+      itemEmPlanta: globalItemEmPlanta || item.itemEmPlanta || "",
+      ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
+      ...(globalAmbiente ? { ambiente: globalAmbiente } : {}),
+    };
+    const itemWithAcc: CartItemData = pendingAccessories.length > 0
+      ? { ...baseItem, accessories: [...pendingAccessories] }
+      : baseItem;
+    if (pendingAccessories.length > 0) setPendingAccessories([]);
+    if (appendToQuoteId) {
+      appendItemsMutation.mutate({
+        quoteId: appendToQuoteId,
+        newItems: [{ itemNumber: 1, itemData: JSON.stringify(itemWithAcc) }],
+        versionNotes: `+1 item adicionado via configurador`,
+      });
+      setGlobalItemEmPlanta("");
+      setGlobalQty(1);
+    } else {
+      addItem(itemWithAcc);
+      setGlobalItemEmPlanta("");
+      setGlobalQty(1);
+    }
+  }, [globalQty, globalItemEmPlanta, globalPavimento, globalAmbiente, pendingAccessories, setPendingAccessories, appendToQuoteId, appendItemsMutation, addItem]);
+
+  // Sempre abre o modal de cor antes de enviar (seja ao carrinho ou ao orçamento),
+  // EXCETO para categorias que já têm cor predefinida (Acessórios, Revenda)
   const handleAddItemOrToQuote = useCallback((item: CartItemData) => {
+    if (CATEGORIES_WITH_PRESET_COLOR.includes(item.category ?? "")) {
+      // Pula o modal de cor — envia diretamente com cor padrão
+      dispatchItemDirect(item, "A Definir");
+      return;
+    }
     // Abre o modal de seleção de cor — o onConfirm abaixo decide o destino
     setPendingCartItem(item);
     setColorModalOpen(true);
-  }, []);
+  }, [dispatchItemDirect]);
 
   const handleConfirmAddToQuote = useCallback(() => {
     if (!appendToQuoteId || pendingQuoteItems.length === 0) return;
@@ -3384,6 +3443,26 @@ export default function Home() {
   const acessoriosQuery = trpc.alfalux.acessoriosProducts.useQuery();
   const acessoriosProducts = acessoriosQuery.data ?? [];
 
+  // Componentes e overrides de custo para calcular preço de drivers adicionados como acessório
+  const { data: acComponentesData } = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const { data: acDriverCostOverrideMap = {} } = trpc.driverPriceOverrides.getMap.useQuery(undefined, { staleTime: 60 * 1000 });
+  // Mapa: código EQ → preço de venda calculado (custo × mkpPadrao, com override de custo quando disponível)
+  const acDriverPriceMap = useMemo(() => {
+    const m = new Map<string, number>();
+    if (!acComponentesData) return m;
+    for (const c of acComponentesData.items) {
+      const comp = c as unknown as { codigo: string; custoDriver?: number | null; mkpPadrao?: number | null };
+      if (!comp.codigo) continue;
+      // Usar override de custo se disponível, senão usar custoDriver da API
+      const custoBase = acDriverCostOverrideMap[comp.codigo] ?? comp.custoDriver ?? null;
+      const mkp = comp.mkpPadrao ?? 3;
+      if (custoBase != null && custoBase > 0) {
+        m.set(comp.codigo, Math.round(custoBase * mkp * 100) / 100);
+      }
+    }
+    return m;
+  }, [acComponentesData, acDriverCostOverrideMap]);
+
   // Famílias únicas para os chips de filtro (filtradas pela subcategoria ativa)
   const acessoriosFamilias = useMemo(() => {
     const set = new Set<string>();
@@ -3431,7 +3510,12 @@ export default function Home() {
     if (!addAcModalSelectedId) { toast.error("Selecione um acessório."); return; }
     const product = acessoriosProducts.find(p => p.id === addAcModalSelectedId);
     if (!product) return;
-    const precoVenda = product.precoVenda ?? 0;
+    // Para drivers sem precoVenda na API, calcular via custo × mkpPadrao do mapa de componentes
+    const precoVendaRaw = product.precoVenda ?? null;
+    const precoVendaFallback = (precoVendaRaw == null || precoVendaRaw === 0) && product.source === 'driver' && product.codigo
+      ? (acDriverPriceMap.get(product.codigo) ?? 0)
+      : (precoVendaRaw ?? 0);
+    const precoVenda = precoVendaFallback;
     const descricao = product.produto ?? product.codigo ?? `Acessório #${product.id}`;
     // Acumula o acessório como pendente para ser vinculado ao próximo item enviado ao carrinho
     const qty = Math.max(1, addAcModalQty || 1);
@@ -3459,14 +3543,18 @@ export default function Home() {
     setAddAcModalSearch("");
     setAddAcModalFamilia("");
     setAddAcModalQty(1);
-  }, [addAcModalSelectedId, addAcModalQty, acessoriosProducts]);
+  }, [addAcModalSelectedId, addAcModalQty, acessoriosProducts, acDriverPriceMap]);
 
   const handleAddAcessorioItem = useCallback((id?: number, forceIndependent?: boolean) => {
     const targetId = id ?? acSelectedId;
     if (!targetId) { toast.error("Selecione um acessório."); return; }
     const product = acessoriosProducts.find(p => p.id === targetId);
     if (!product) return;
-    const precoVenda = product.precoVenda ?? 0;
+    // Para drivers sem precoVenda na API, calcular via custo × mkpPadrao do mapa de componentes
+    const precoVendaRaw = product.precoVenda ?? null;
+    const precoVenda = (precoVendaRaw == null || precoVendaRaw === 0) && product.source === 'driver' && product.codigo
+      ? (acDriverPriceMap.get(product.codigo) ?? 0)
+      : (precoVendaRaw ?? 0);
     const descricao = product.produto ?? product.codigo ?? `Acessório #${product.id}`;
 
     // Quando o usuário está na categoria Acessórios, sempre adiciona como item independente
@@ -3540,7 +3628,7 @@ export default function Home() {
     }
     setAcSelectedId(null);
     if (isFromAcessoriosCategory) setAcItemQty(1); // reset quantidade após adicionar
-  }, [acSelectedId, acItemQty, acessoriosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, dlResult, aeResult, spotResult, arandelaResult, panelResult, lbResult, bgResult, bfResult, rvSelectedSku, productCategory, setPendingAccessories, globalItemEmPlanta]);
+  }, [acSelectedId, acItemQty, acessoriosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, dlResult, aeResult, spotResult, arandelaResult, panelResult, lbResult, bgResult, bfResult, rvSelectedSku, productCategory, setPendingAccessories, globalItemEmPlanta, acDriverPriceMap]);
 
   const uploadSpecialPhotoMutation = trpc.upload.specialItemPhoto.useMutation({
     onSuccess: (data) => {
