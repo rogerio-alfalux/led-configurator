@@ -913,6 +913,14 @@ function ShapeResultCard({
       }
     }
 
+    // Quando há driverLines, totalPrice = apenas luminária (sem driver)
+    // O driver aparece separado em driverLines para evitar duplicação no Excel/preview
+    const _perfilTotalPrice = shapeDrvLines && shapePrecoSemDriver != null
+      ? shapePrecoSemDriver
+      : (precoEfetivo != null ? precoEfetivo * globalQty : null);
+    const _perfilUnitPrice = shapeDrvLines && precoLuminaria != null
+      ? precoLuminaria
+      : (precoEfetivo ?? null);
     const item: CartItemData = {
       category: "Perfis",
       sku: profileCode || (shapeResult.pieces[0]?.sku.split(".")[0] ?? ""),
@@ -920,8 +928,8 @@ function ShapeResultCard({
       power: pw || undefined,
       cct: cctStr || undefined,
       qty: globalQty,
-      unitPrice: precoEfetivo ?? null,
-      totalPrice: precoEfetivo != null ? precoEfetivo * globalQty : null,
+      unitPrice: _perfilUnitPrice,
+      totalPrice: _perfilTotalPrice,
       priceFromApi: precoEfetivoFromApi,
       photoUrl: photo ?? null,
       orderSummary: summaryText,
@@ -2141,6 +2149,13 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                 const perfilPrecoSemDriver = perfilDrvLines
                   ? Math.round(modulePriceResult!.precoLuminariaTotal * globalQty * 100) / 100
                   : null;
+                // Quando há driverLines, totalPrice = apenas luminária (sem driver)
+                const _flexTotalPrice = perfilDrvLines && perfilPrecoSemDriver != null
+                  ? perfilPrecoSemDriver
+                  : (precoEfetivo != null ? precoEfetivo * globalQty : null);
+                const _flexUnitPrice = perfilDrvLines && modulePriceResult
+                  ? Math.round(modulePriceResult.precoLuminariaTotal * 100) / 100
+                  : (precoEfetivo ?? null);
                 const item: CartItemData = {
                   category: "Perfis",
                   sku: result.profileCode,
@@ -2148,8 +2163,8 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                   power: `${result.powerD1}W`,
                   cct: result.cct,
                   qty: globalQty,
-                  unitPrice: precoEfetivo ?? null,
-                  totalPrice: precoEfetivo != null ? precoEfetivo * globalQty : null,
+                  unitPrice: _flexUnitPrice,
+                  totalPrice: _flexTotalPrice,
                   priceFromApi: modulePriceResult != null && precoTotal != null,
                   photoUrl: photo ?? "",
                   moduloLed: `Stripflex 562,5 x 10mm 36L ${result.cct}`,
@@ -8818,6 +8833,11 @@ export default function Home() {
                                   const lbUnitPriceDriver = lbDrvLines
                                     ? lbDetail?.precoDriverPorCorte ?? null
                                     : null;
+                                  // Quando há driverLines, totalPrice = apenas luminária (sem driver)
+                                  // O driver aparece separado em driverLines para evitar duplicação no Excel/preview
+                                  const lbTotalPriceFinal = lbDrvLines && lbPrecoSemDriver != null
+                                    ? lbPrecoSemDriver
+                                    : (lbPreco !== null ? lbPreco * globalQty : null);
                                   const item: CartItemData = {
                                     category: "LED BAR",
                                     sku: r.product.sku ?? "",
@@ -8825,8 +8845,8 @@ export default function Home() {
                                     power: `${r.product.potencia}W/m`,
                                     cct: r.cct,
                                     qty: globalQty,
-                                    unitPrice: lbPreco ?? null,
-                                    totalPrice: lbPreco !== null ? lbPreco * globalQty : null,
+                                    unitPrice: lbDrvLines && lbUnitPriceLuminaria != null ? lbUnitPriceLuminaria : (lbPreco ?? null),
+                                    totalPrice: lbTotalPriceFinal,
                                     photoUrl: r.product.fotoUrl ?? "",
                                     orderSummary: pedido,
                                     quoteSummary: orcamento,

@@ -3041,8 +3041,9 @@ export default function Cart() {
                     const drvTotal = getEffectiveDrvTotal(item.data);
                     patch.unitPriceLuminaria = lumUnitPrice;
                     patch.priceWithoutDriver = Math.round(lumUnitPrice * qty * 100) / 100;
-                    // totalPrice = preço luminária total + preço driver total
-                    patch.totalPrice = Math.round((lumUnitPrice * qty + drvTotal) * 100) / 100;
+                    // REGRA: totalPrice = apenas luminária (sem driver)
+                    // O driver aparece separado em driverLines; não somar aqui para evitar duplicação
+                    patch.totalPrice = Math.round(lumUnitPrice * qty * 100) / 100;
                     const drvQtyPerLum = getProfileDrvQtyPerLuminaria(item.data);
                     const drvQtyForUnit = drvQtyPerLum != null ? drvQtyPerLum : (item.data.driverLines[0]?.driverQty ?? 1);
                     patch.unitPrice = Math.round((lumUnitPrice + (item.data.unitPriceDriver ?? 0) * drvQtyForUnit) * 100) / 100;

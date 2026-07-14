@@ -1537,7 +1537,7 @@ export default function QuoteDetail() {
               })()}
               {quote.destState && (
                 <p>🗺️ Destino: <span className="font-medium">{quote.destState}</span>
-                  {quote.difalEnabled && (() => {
+                  {quote.difalEnabled && !!getStateInfo(quote.destState ?? "") && (() => {
                     const difalAmt = Number(quote.difalValue ?? 0);
                     const fcpAmt   = Number(quote.fcpValue ?? 0);
                     const combined = difalAmt + fcpAmt;
@@ -2106,8 +2106,9 @@ export default function QuoteDetail() {
                       const itemsFreteValor = (quote as any).freteIncluded && (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : 0;
                       const itemsStateInfo = quote.destState ? getStateInfo(quote.destState) : undefined;
                       const itemsCombinedRate = itemsStateInfo ? itemsStateInfo.combined : 0;
+                      const itemsDifalAplicavel = !!itemsStateInfo && itemsCombinedRate > 0;
                       const baseComFrete = totalFinal + itemsFreteValor;
-                      const totalFinalComImposto = quote.difalEnabled && itemsCombinedRate > 0
+                      const totalFinalComImposto = quote.difalEnabled && itemsDifalAplicavel
                         ? baseComFrete / (1 - itemsCombinedRate / 100)
                         : baseComFrete;
                       const itemsCombinedAmt = totalFinalComImposto - baseComFrete;

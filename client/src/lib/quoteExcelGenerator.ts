@@ -529,16 +529,16 @@ async function _generateExcelBuffer(
   };
   /**
    * Retorna o preço base da luminária de um item (sem drivers).
-   * Para itens com driverLines, totalPrice = luminária + driver (ambos já incluídos).
-   * Usamos priceWithoutDriver quando disponível; caso contrário totalPrice - calcItemDrvTotal.
+   * NOVA SEMÂNTICA: totalPrice = apenas luminária (drivers estão em driverLines separados).
+   * Para itens com driverLines, usa priceWithoutDriver ou totalPrice diretamente.
    * Para itens sem driverLines, retorna totalPrice normalmente.
    */
   const calcItemLumTotal = (it: CartItemData): number => {
     if (!it.driverLines || it.driverLines.length === 0) return it.totalPrice ?? 0;
-    // priceWithoutDriver é o preço da luminária sem driver (já calculado na criação do item)
+    // priceWithoutDriver é o preço da luminária sem driver (campo canônico)
     if (it.priceWithoutDriver != null && it.priceWithoutDriver > 0) return it.priceWithoutDriver;
-    // Fallback: totalPrice - drivers
-    return Math.max(0, (it.totalPrice ?? 0) - calcItemDrvTotal(it));
+    // totalPrice agora é apenas luminária (nova semântica)
+    return it.totalPrice ?? 0;
   };
   // _totalBaseParaFrete: base para distribuição proporcional do frete por item
   // Para itens com driverLines, usa apenas o preço da luminária (sem drivers) para evitar duplicação
@@ -553,7 +553,9 @@ async function _generateExcelBuffer(
   const _unitPriceComFrete = (item: CartItemData): number | null => {
     if (item.unitPrice === null || item.unitPrice === undefined) return null;
     if (_freteParaDiluir <= 0 || _totalBaseParaFrete <= 0) return item.unitPrice;
-    const peso = (item.totalPrice ?? 0) / _totalBaseParaFrete;
+    // Peso baseado no total real do item (luminária + drivers)
+    const itemTotalReal = calcItemLumTotal(item) + calcItemDrvTotal(item);
+    const peso = itemTotalReal / _totalBaseParaFrete;
     const freteItem = _freteParaDiluir * peso;
     return item.unitPrice + freteItem / Math.max(item.qty, 1);
   };
@@ -563,7 +565,9 @@ async function _generateExcelBuffer(
   const _totalPriceComFrete = (item: CartItemData): number | null => {
     if (item.totalPrice === null || item.totalPrice === undefined) return null;
     if (_freteParaDiluir <= 0 || _totalBaseParaFrete <= 0) return item.totalPrice;
-    const peso = item.totalPrice / _totalBaseParaFrete;
+    // Peso baseado no total real do item (luminária + drivers)
+    const itemTotalReal = calcItemLumTotal(item) + calcItemDrvTotal(item);
+    const peso = itemTotalReal / _totalBaseParaFrete;
     return item.totalPrice + _freteParaDiluir * peso;
   };
 
@@ -579,7 +583,8 @@ async function _generateExcelBuffer(
     const base = _unitPriceComFrete(item);
     if (base === null) return null;
     if (_diluicaoParaDiluir <= 0 || _totalBaseParaFrete <= 0) return base;
-    const peso = (item.totalPrice ?? 0) / _totalBaseParaFrete;
+    const itemTotalReal = calcItemLumTotal(item) + calcItemDrvTotal(item);
+    const peso = itemTotalReal / _totalBaseParaFrete;
     const diluicaoItem = _diluicaoParaDiluir * peso;
     return base + diluicaoItem / Math.max(item.qty, 1);
   };
@@ -590,7 +595,8 @@ async function _generateExcelBuffer(
     const base = _totalPriceComFrete(item);
     if (base === null) return null;
     if (_diluicaoParaDiluir <= 0 || _totalBaseParaFrete <= 0) return base;
-    const peso = (item.totalPrice ?? 0) / _totalBaseParaFrete;
+    const itemTotalReal = calcItemLumTotal(item) + calcItemDrvTotal(item);
+    const peso = itemTotalReal / _totalBaseParaFrete;
     return base + _diluicaoParaDiluir * peso;
   };
 
@@ -880,15 +886,10 @@ async function _generateExcelBuffer(
     const _totalForLuminaria = _correctedPriceWithoutDriver != null
       ? _correctedPriceWithoutDriver
       : _totalPriceComDiluicao(item);
-    // Somar totais de drivers ao total da luminária para obter o PREÇO TOTAL do item
-    const _driversTotalForItem = hasDriverBreakdownItem
-      ? (item.driverLines ?? []).reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0)
-      : 0;
-    const _totalItemComDrivers = (_totalForLuminaria != null && _totalForLuminaria > 0)
-      ? _totalForLuminaria + _driversTotalForItem
-      : null;
-    if (_totalItemComDrivers !== null && _totalItemComDrivers > 0) {
-      cTotal.value = applyMarkup(_totalItemComDrivers);
+    // Linha principal mostra APENAS o preço da luminária (sem drivers).
+    // Os drivers aparecem separados nas sub-linhas abaixo, evitando duplicação.
+    if (_totalForLuminaria !== null && _totalForLuminaria > 0) {
+      cTotal.value = applyMarkup(_totalForLuminaria);
       cTotal.numFmt = '"R$"#,##0.00';
       cTotal.font = { name: "Calibri", size: 11, bold: false };
     } else if (hasDriverBreakdownItem && !item.luminariaHasApiPrice) {
@@ -1177,7 +1178,9 @@ async function _generateExcelBuffer(
   const baseParaImposto = totalFinal + _freteParaImpostoBase;
   const stateInfo = formData.destState ? getStateInfo(formData.destState) : undefined;
   const combinedRate = stateInfo ? stateInfo.combined : 0;
-  const totalComDifal = formData.difalEnabled && combinedRate > 0
+  // DIFAL só se aplica em vendas interestaduais: destState deve existir na tabela (não SP) e ter combined > 0
+  const difalAplicavelExcel = !!stateInfo && combinedRate > 0;
+  const totalComDifal = formData.difalEnabled && difalAplicavelExcel
     ? baseParaImposto / (1 - combinedRate / 100)
     : baseParaImposto;
   const combinedAmt = totalComDifal - baseParaImposto;

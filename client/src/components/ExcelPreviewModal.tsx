@@ -368,7 +368,9 @@ ${htmlContent}
   const baseParaImpostoPreview = totalFinal + _freteParaImpostoPreview;
   const stateInfoPreview = formData.destState ? getStateInfo(formData.destState) : undefined;
   const combinedRatePreview = stateInfoPreview ? stateInfoPreview.combined : 0;
-  const totalComDifal = formData.difalEnabled && combinedRatePreview > 0
+  // DIFAL só se aplica em vendas interestaduais: destState deve existir na tabela (não SP) e ter combined > 0
+  const difalAplicavel = !!stateInfoPreview && combinedRatePreview > 0;
+  const totalComDifal = formData.difalEnabled && difalAplicavel
     ? baseParaImpostoPreview / (1 - combinedRatePreview / 100)
     : baseParaImpostoPreview;
   const combinedAmtPreview = totalComDifal - baseParaImpostoPreview;
