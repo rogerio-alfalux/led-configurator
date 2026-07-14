@@ -129,6 +129,10 @@ export const quotes = mysqlTable("quotes", {
 	orderNumber: varchar({ length: 6 }),
 	/** Empresa do grupo Alfalux que irá faturar este pedido */
 	billingCompany: mysqlEnum(['alfalux','primelux','decada','primelase','luminew']),
+	/** Valor a ser diluído proporcionalmente nos produtos (uso interno — não aparece no preview/Excel) */
+	diluicaoValor: decimal({ precision: 12, scale: 2 }).default('0'),
+	/** Descrição interna da diluição (ex: "Saldo devedor ORC 04.0123-25") — não aparece no preview/Excel */
+	diluicaoDescricao: varchar({ length: 256 }),
 },
 (table) => [
 	index("quotes_quoteNumber_unique").on(table.quoteNumber),

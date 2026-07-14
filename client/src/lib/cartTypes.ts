@@ -423,6 +423,10 @@ export interface QuoteFormData {
   arquiteto?: string;
   /** Nome do light designer responsável pelo projeto */
   lightDesigner?: string;
+  /** Valor a ser diluído proporcionalmente nos produtos (uso interno, não aparece no Excel) */
+  diluicaoValor?: number;
+  /** Descrição interna da diluição */
+  diluicaoDescricao?: string;
 }
 
 /**

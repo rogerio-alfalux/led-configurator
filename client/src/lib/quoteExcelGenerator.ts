@@ -567,6 +567,33 @@ async function _generateExcelBuffer(
     return item.totalPrice + _freteParaDiluir * peso;
   };
 
+  // Diluição interna: valor adicionado proporcionalmente aos produtos (não aparece no Excel)
+  const _diluicaoParaDiluir = (formData.diluicaoValor && formData.diluicaoValor > 0)
+    ? formData.diluicaoValor
+    : 0;
+  /**
+   * Retorna o preço unitário ajustado com a parcela de diluição interna.
+   * Aplicada ANTES do markup, distribuída proporcionalmente ao totalPrice.
+   */
+  const _unitPriceComDiluicao = (item: CartItemData): number | null => {
+    const base = _unitPriceComFrete(item);
+    if (base === null) return null;
+    if (_diluicaoParaDiluir <= 0 || _totalBaseParaFrete <= 0) return base;
+    const peso = (item.totalPrice ?? 0) / _totalBaseParaFrete;
+    const diluicaoItem = _diluicaoParaDiluir * peso;
+    return base + diluicaoItem / Math.max(item.qty, 1);
+  };
+  /**
+   * Retorna o preço total ajustado com a parcela de diluição interna.
+   */
+  const _totalPriceComDiluicao = (item: CartItemData): number | null => {
+    const base = _totalPriceComFrete(item);
+    if (base === null) return null;
+    if (_diluicaoParaDiluir <= 0 || _totalBaseParaFrete <= 0) return base;
+    const peso = (item.totalPrice ?? 0) / _totalBaseParaFrete;
+    return base + _diluicaoParaDiluir * peso;
+  };
+
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     // Inserir cabeçalho de pavimento quando floorId muda (comparacao normalizada)
@@ -613,8 +640,8 @@ async function _generateExcelBuffer(
       const _mPctS = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
       const _itemMPctS = item.itemMarginPercent != null ? Math.min(Math.max(item.itemMarginPercent / 100, 0), 0.99) : 0;
       const applyMarkupS = (b: number) => { const r = _rtPctS > 0 ? b / (1 - _rtPctS) : b; const m = _mPctS > 0 ? r / (1 - _mPctS) : r; return _itemMPctS > 0 ? m / (1 - _itemMPctS) : m; };
-      const _uS = _unitPriceComFrete(item);
-      const _tS = _totalPriceComFrete(item);
+      const _uS = _unitPriceComDiluicao(item);
+      const _tS = _totalPriceComDiluicao(item);
       if (_uS !== null && _uS > 0) {
         const mCell = ws.getCell(`M${rowNum}`);
         mCell.value = applyMarkupS(_uS);
@@ -788,10 +815,16 @@ async function _generateExcelBuffer(
     const _effectiveUnitPrice = item.unitPrice ?? _derivedUnitPrice;
     const _unitPriceComFreteEffective = (it: CartItemData): number | null => {
       if (_effectiveUnitPrice == null) return null;
-      if (_freteParaDiluir <= 0 || _totalBaseParaFrete <= 0) return _effectiveUnitPrice;
+      if (_freteParaDiluir <= 0 || _totalBaseParaFrete <= 0) {
+        // Sem frete, mas pode ter diluição
+        if (_diluicaoParaDiluir <= 0 || _totalBaseParaFrete <= 0) return _effectiveUnitPrice;
+        const pesoDil = (it.totalPrice ?? 0) / _totalBaseParaFrete;
+        return _effectiveUnitPrice + _diluicaoParaDiluir * pesoDil / Math.max(it.qty, 1);
+      }
       const peso = (it.totalPrice ?? 0) / _totalBaseParaFrete;
       const freteItem = _freteParaDiluir * peso;
-      return _effectiveUnitPrice + freteItem / Math.max(it.qty, 1);
+      const diluicaoItem = _diluicaoParaDiluir > 0 ? _diluicaoParaDiluir * peso : 0;
+      return _effectiveUnitPrice + (freteItem + diluicaoItem) / Math.max(it.qty, 1);
     };
     // Para itens com driver desmembrado: usar unitPriceLuminaria;
     // Fallback para itens legados: derivar unitPriceLuminaria = (totalPrice - driversTotalPrice) / qty
@@ -806,7 +839,7 @@ async function _generateExcelBuffer(
       : null;
     const _unitForLuminaria = hasDriverBreakdownItem
       ? (item.unitPriceLuminaria ?? _derivedUnitLuminaria ?? _unitPriceComFreteEffective(item))
-      : _unitPriceComFrete(item);
+      : _unitPriceComDiluicao(item);
     if (_unitForLuminaria !== null && _unitForLuminaria !== undefined && _unitForLuminaria > 0) {
       cUnit.value = applyMarkup(_unitForLuminaria);
       cUnit.numFmt = '"R$"#,##0.00';
@@ -846,7 +879,7 @@ async function _generateExcelBuffer(
     // Fallback final: usa totalPrice (editado manualmente) como total da luminaria
     const _totalForLuminaria = _correctedPriceWithoutDriver != null
       ? _correctedPriceWithoutDriver
-      : _totalPriceComFrete(item);
+      : _totalPriceComDiluicao(item);
     // Somar totais de drivers ao total da luminária para obter o PREÇO TOTAL do item
     const _driversTotalForItem = hasDriverBreakdownItem
       ? (item.driverLines ?? []).reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0)
@@ -1118,7 +1151,7 @@ async function _generateExcelBuffer(
     const lum = calcItemLumTotal(it);
     const drv = calcItemDrvTotal(it);
     return sum + _applyItemMgn(lum + drv, it);
-  }, 0) + _freteParaDiluir;
+  }, 0) + _freteParaDiluir + _diluicaoParaDiluir;
   // Totais com/sem driver (apenas para orçamentos novos com driverLines)
   // Usa mesma lógica do Cart.tsx: effectiveQty = storedQty <= 1 ? itemQty : storedQty
   const hasDriverBreakdown = items.some(it => it.driverLines && it.driverLines.length > 0);
@@ -1133,7 +1166,7 @@ async function _generateExcelBuffer(
         return sum + _applyItemMgn(drvBruto, it);
       }, 0)
     : 0;
-  const totalSemDriverRaw = hasDriverBreakdown ? (totalBase - _freteParaDiluir - totalDriverRaw) : 0;
+  const totalSemDriverRaw = hasDriverBreakdown ? (totalBase - _freteParaDiluir - _diluicaoParaDiluir - totalDriverRaw) : 0;
   // Aplicar RT e Margem (mesma fórmula do Cart.tsx)
   const rtPct    = Math.min(Math.max(formData.rtPercent    ?? 0, 0), 0.99);
   const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);

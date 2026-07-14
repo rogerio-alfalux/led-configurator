@@ -697,6 +697,8 @@ export default function QuoteDetail() {
     arquiteto: "",
     lightDesigner: "",
     quoteNumber: "",
+    diluicaoValor: "",
+    diluicaoDescricao: "",
   });
 
   // Sellers & Assistants for edit dialog
@@ -1233,6 +1235,7 @@ export default function QuoteDetail() {
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
           freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
           freteIncluded: (quote as any).freteIncluded ?? false,
+          diluicaoValor: (quote as any).diluicaoValor ? parseFloat(String((quote as any).diluicaoValor)) : undefined,
           // O número de revisão do Excel é o revisionCount do banco (controlado pela Vivian)
           revisionCount: quote.revisionCount ?? 0,
           deliveryDays: quote.deliveryDays ?? 20,
@@ -1386,6 +1389,7 @@ export default function QuoteDetail() {
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
           freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
           freteIncluded: (quote as any).freteIncluded ?? false,
+          diluicaoValor: (quote as any).diluicaoValor ? parseFloat(String((quote as any).diluicaoValor)) : undefined,
           revisionCount: revCount,
           deliveryDays: quote.deliveryDays ?? 20,
           commissionPercent: quote.commissionPercent ? parseFloat(String(quote.commissionPercent)) : undefined,
@@ -2441,6 +2445,8 @@ export default function QuoteDetail() {
                 arquiteto: (quote as any).arquiteto ?? "",
                 lightDesigner: (quote as any).lightDesigner ?? "",
                 quoteNumber: quote.quoteNumber ?? "",
+                diluicaoValor: (quote as any).diluicaoValor != null ? String((quote as any).diluicaoValor) : "",
+                diluicaoDescricao: (quote as any).diluicaoDescricao ?? "",
               });
             }
           }}>
@@ -2951,6 +2957,38 @@ export default function QuoteDetail() {
                       );
                     })()}
                   </div>
+
+                  {/* Diluição — visível apenas para managers/admins */}
+                  {canSeeCommission && <div className="border rounded-lg p-3 space-y-3 bg-red-50 dark:bg-red-950/20">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-red-700 dark:text-red-400">⚠ Diluição (uso interno)</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Valor que será diluído proporcionalmente nos produtos. <strong>Não aparece no orçamento nem no Excel.</strong></p>
+                    <div>
+                      <Label>Valor a diluir (R$)</Label>
+                      <Input
+                        type="number" min={0} step={0.01}
+                        className="w-40"
+                        placeholder="0,00"
+                        value={editForm.diluicaoValor}
+                        onChange={e => setEditForm(f => ({ ...f, diluicaoValor: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <Label>Motivo / Descrição interna</Label>
+                      <Input
+                        maxLength={256}
+                        placeholder="Ex: Saldo devedor ORC 04.0123-25"
+                        value={editForm.diluicaoDescricao}
+                        onChange={e => setEditForm(f => ({ ...f, diluicaoDescricao: e.target.value }))}
+                      />
+                    </div>
+                    {editForm.diluicaoValor && parseFloat(editForm.diluicaoValor) > 0 && (
+                      <p className="text-xs font-medium text-red-600 dark:text-red-400">
+                        {formatBRL(parseFloat(editForm.diluicaoValor))} serão adicionados proporcionalmente aos preços dos produtos.
+                      </p>
+                    )}
+                  </div>}
                 </TabsContent>
               </Tabs>
 
@@ -3028,6 +3066,8 @@ export default function QuoteDetail() {
                       arquiteto: editForm.arquiteto || undefined,
                       lightDesigner: editForm.lightDesigner || undefined,
                       quoteNumber: editForm.quoteNumber.trim() || undefined,
+                      diluicaoValor: editForm.diluicaoValor ? parseFloat(editForm.diluicaoValor) : undefined,
+                      diluicaoDescricao: editForm.diluicaoDescricao || undefined,
                       ...(() => {
                         const info = editForm.destState ? getStateInfo(editForm.destState) : undefined;
                         return {

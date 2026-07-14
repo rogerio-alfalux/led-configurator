@@ -126,6 +126,8 @@ interface SaveFormData {
   freteIncluded: boolean;
   arquiteto: string;
   lightDesigner: string;
+  diluicaoValor: string;
+  diluicaoDescricao: string;
 }
 
 interface OrderFormData {
@@ -867,6 +869,8 @@ export default function Cart() {
     freteIncluded: false,
     arquiteto: "",
     lightDesigner: "",
+    diluicaoValor: "",
+    diluicaoDescricao: "",
   };
   const [saveForm, setSaveForm] = useState<SaveFormData>(() => {
     try {
@@ -1091,6 +1095,7 @@ export default function Cart() {
         commissionPercent2: saveForm.commissionPercent2 ? (parseFloat(saveForm.commissionPercent2) || 0) / 100 : undefined,
         freteValue: saveForm.freteValue ? parseFloat(saveForm.freteValue) : undefined,
         freteIncluded: saveForm.freteIncluded,
+        diluicaoValor: saveForm.diluicaoValor ? parseFloat(saveForm.diluicaoValor) : undefined,
         // Usar o número do orçamento do saveForm (não o gerado aleatoriamente no form)
         numero: saveForm.quoteNumber.trim() || form.numero,
       };
@@ -1181,6 +1186,8 @@ export default function Cart() {
       freteIncluded: saveForm.freteIncluded,
       arquiteto: saveForm.arquiteto || undefined,
       lightDesigner: saveForm.lightDesigner || undefined,
+      diluicaoValor: saveForm.diluicaoValor ? parseFloat(saveForm.diluicaoValor) : undefined,
+      diluicaoDescricao: saveForm.diluicaoDescricao || undefined,
       totalAmount: totalGeral,
       // totalFinal inclui RT + margem + frete + DIFAL/FCP (alíquota combinada, fórmula por dentro)
       totalFinal: (() => {
@@ -2195,6 +2202,37 @@ export default function Cart() {
                                 );
                               })()}
                             </div>
+                            {/* Diluição — visível apenas para managers */}
+                            {isManagerUser && <div className="border rounded-lg p-3 space-y-3 bg-red-50 dark:bg-red-950/20">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-red-700 dark:text-red-400">⚠ Diluição (uso interno)</span>
+                              </div>
+                              <p className="text-xs text-muted-foreground">Valor que será diluído proporcionalmente nos produtos. <strong>Não aparece no orçamento nem no Excel.</strong></p>
+                              <div>
+                                <Label>Valor a diluir (R$)</Label>
+                                <Input
+                                  type="number" min={0} step={0.01}
+                                  className="w-40"
+                                  placeholder="0,00"
+                                  value={saveForm.diluicaoValor}
+                                  onChange={e => updateSaveForm("diluicaoValor", e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <Label>Motivo / Descrição interna</Label>
+                                <Input
+                                  maxLength={256}
+                                  placeholder="Ex: Saldo devedor ORC 04.0123-25"
+                                  value={saveForm.diluicaoDescricao}
+                                  onChange={e => updateSaveForm("diluicaoDescricao", e.target.value)}
+                                />
+                              </div>
+                              {saveForm.diluicaoValor && parseFloat(saveForm.diluicaoValor) > 0 && (
+                                <p className="text-xs font-medium text-red-600 dark:text-red-400">
+                                  {formatBRL(parseFloat(saveForm.diluicaoValor))} serão adicionados proporcionalmente aos preços dos produtos.
+                                </p>
+                              )}
+                            </div>}
                           </TabsContent>
 
                           {/* ─── Aba Frete ─── */}

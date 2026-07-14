@@ -334,6 +334,8 @@ export const appRouter = router({
         commissionPercent2: z.number().min(0).max(1).optional(),
         arquiteto: z.string().optional(),
         lightDesigner: z.string().optional(),
+        diluicaoValor: z.number().min(0).optional(),
+        diluicaoDescricao: z.string().max(256).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         // Verificar obra duplicada — BLOQUEIA a criação se já existir obra com mesmo nome
@@ -432,6 +434,8 @@ export const appRouter = router({
         arquiteto: z.string().optional(),
         lightDesigner: z.string().optional(),
         quoteNumber: z.string().optional(),
+        diluicaoValor: z.number().min(0).optional(),
+        diluicaoDescricao: z.string().max(256).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const { quoteId, bumpVersion, ...rest } = input;
@@ -728,6 +732,8 @@ export const appRouter = router({
           freteIncluded: quote.freteIncluded ?? false,
           arquiteto: quote.arquiteto ?? undefined,
           lightDesigner: quote.lightDesigner ?? undefined,
+          diluicaoValor: quote.diluicaoValor != null ? Number(quote.diluicaoValor) : undefined,
+          diluicaoDescricao: quote.diluicaoDescricao ?? undefined,
           notes: quote.notes ?? undefined,
           versionNotes: input.versionNotes ?? `+${input.newItems.length} item(s) adicionado(s)`,
           totalAmount,

@@ -352,6 +352,10 @@ export interface SaveQuoteInput {
   arquiteto?: string;
   /** Nome do light designer responsável pelo projeto */
   lightDesigner?: string;
+  /** Valor a ser diluído proporcionalmente nos produtos (uso interno) */
+  diluicaoValor?: number;
+  /** Descrição interna da diluição */
+  diluicaoDescricao?: string;
 }
 
 /** Cria um novo orçamento com versão 1 */
@@ -434,6 +438,8 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
     commissionPercent2: input.commissionPercent2 != null ? String(input.commissionPercent2) : '0',
     arquiteto: input.arquiteto ?? null,
     lightDesigner: input.lightDesigner ?? null,
+    diluicaoValor: input.diluicaoValor != null ? String(input.diluicaoValor) : '0',
+    diluicaoDescricao: input.diluicaoDescricao ?? null,
   });
   const quoteId = (qResult as unknown as { insertId: number }[])[0]?.insertId ?? 0;
 
@@ -553,6 +559,8 @@ export async function addQuoteRevision(
     commissionPercent2: input.commissionPercent2 != null ? String(input.commissionPercent2) : '0',
     arquiteto: input.arquiteto ?? null,
     lightDesigner: input.lightDesigner ?? null,
+    diluicaoValor: input.diluicaoValor != null ? String(input.diluicaoValor) : '0',
+    diluicaoDescricao: input.diluicaoDescricao ?? null,
     ...(input.quoteNumber ? { quoteNumber: input.quoteNumber } : {}),
     updatedAt: sql`NOW()`,
   }).where(eq(quotes.id, quoteId));

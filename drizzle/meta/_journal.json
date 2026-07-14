@@ -162,6 +162,13 @@
       "when": 1783709297555,
       "tag": "0022_powerful_wolverine",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "5",
+      "when": 1784033456095,
+      "tag": "0023_supreme_squirrel_girl",
+      "breakpoints": true
     }
   ]
 }
