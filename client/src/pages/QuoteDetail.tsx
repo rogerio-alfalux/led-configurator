@@ -3784,6 +3784,7 @@ export default function QuoteDetail() {
           fcpEnabled: quote.fcpEnabled ?? false,
           fcpPercent: quote.fcpPercent ? parseFloat(String(quote.fcpPercent)) : undefined,
           fcpValue: quote.fcpValue ? parseFloat(String(quote.fcpValue)) : undefined,
+          diluicaoValor: (quote as any).diluicaoValor ? parseFloat(String((quote as any).diluicaoValor)) : undefined,
         }}
       />
 
