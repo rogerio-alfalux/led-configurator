@@ -800,16 +800,24 @@ export default function QuoteDetail() {
     return map;
   }, [acessoriosQuery.data]);
 
+  /** Passa URL externa pelo proxy para evitar bloqueio CORS */
+  const proxyPhoto = (url: string | null | undefined): string | null => {
+    if (!url) return null;
+    if (url.startsWith("/manus-storage/") || url.startsWith("/api/image-proxy")) return url;
+    if (url.startsWith("http://") || url.startsWith("https://")) return `/api/image-proxy?url=${encodeURIComponent(url)}`;
+    return url;
+  };
+
   /** Retorna a URL de foto mais fresca: catálogo > salva no banco > null */
   const resolvePhoto = (sku: string | undefined, savedUrl: string | null): string | null => {
-    if (sku && productPhotoMap.has(sku)) return productPhotoMap.get(sku)!;
-    return savedUrl;
+    const raw = sku && productPhotoMap.has(sku) ? productPhotoMap.get(sku)! : savedUrl;
+    return proxyPhoto(raw);
   };
 
   /** Retorna a URL de foto fresca para acessório: catálogo > salva no item > null */
   const resolveAccPhoto = (codigo: string | undefined, savedUrl: string | null | undefined): string | null => {
-    if (codigo && acessorioPhotoMap.has(codigo)) return acessorioPhotoMap.get(codigo)!;
-    return savedUrl ?? null;
+    const raw = codigo && acessorioPhotoMap.has(codigo) ? acessorioPhotoMap.get(codigo)! : (savedUrl ?? null);
+    return proxyPhoto(raw);
   };
 
   // Delete dialog — triple confirmation
@@ -1552,6 +1560,17 @@ export default function QuoteDetail() {
                     );
                   })()}
                 </p>
+              )}
+              {/* Diluição — visível apenas para quem pode ver comissão */}
+              {canSeeCommission && (quote as any).diluicaoValor != null && parseFloat(String((quote as any).diluicaoValor)) > 0 && (
+                <div className="mt-1 rounded-md border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30 px-2 py-1.5 space-y-0.5">
+                  <p className="text-xs font-semibold text-red-700 dark:text-red-400 flex items-center gap-1">
+                    <span>⚠</span> Diluição (uso interno): <span className="font-mono">{formatBRL(parseFloat(String((quote as any).diluicaoValor)))}</span>
+                  </p>
+                  {(quote as any).diluicaoDescricao && (
+                    <p className="text-xs text-red-600 dark:text-red-300 italic">{(quote as any).diluicaoDescricao}</p>
+                  )}
+                </div>
               )}
               {(() => {
                 const displayTotal = quote.totalFinal && Number(quote.totalFinal) > 0
@@ -3243,6 +3262,14 @@ export default function QuoteDetail() {
                 }
               }
 
+              // Diluição proporcional por item
+              const _diluicaoTotal = (quote as any).diluicaoValor != null ? parseFloat(String((quote as any).diluicaoValor)) : 0;
+              // Calcular peso total (soma dos totais de cada item antes da diluição) para distribuição proporcional
+              const _diluicaoBase = totalGeral; // totalGeral já é a soma com markup
+              const getItemDiluicaoFrac = (itemTotal: number): number => {
+                if (_diluicaoTotal <= 0 || _diluicaoBase <= 0) return 0;
+                return _diluicaoTotal * (itemTotal / _diluicaoBase);
+              };
               let globalIdx = 0;
               return (
                 <>
@@ -3313,9 +3340,23 @@ export default function QuoteDetail() {
                             const _correctTotalItem = hasBreakdown
                               ? (_lumTotalRaw + _driversTotalRaw)
                               : (d.totalPrice ?? 0);
-                            const correctTotalDisplay = _correctTotalItem > 0
+                            const _correctTotalWithMkup = _correctTotalItem > 0
                               ? applyMkupWithItem(_correctTotalItem, d.itemMarginPercent)
+                              : 0;
+                            // Diluição proporcional ao peso deste item
+                            const _itemDiluicao = getItemDiluicaoFrac(_correctTotalWithMkup);
+                            const correctTotalDisplay = _correctTotalWithMkup > 0
+                              ? _correctTotalWithMkup + _itemDiluicao
                               : null;
+                            // Distribuição da diluição entre luminária e driver proporcionalmente
+                            const _lumWithMkup = lumTotalDisplay ?? 0;
+                            const _drvWithMkup = hasBreakdown
+                              ? d.driverLines!.reduce((s, dl) => s + (dl.driverTotalPrice != null ? applyMkupWithItem(dl.driverTotalPrice, d.itemMarginPercent) : 0), 0)
+                              : 0;
+                            const _itemTotalForRatio = _lumWithMkup + _drvWithMkup;
+                            const _lumDiluicaoFrac = _itemTotalForRatio > 0 ? _itemDiluicao * (_lumWithMkup / _itemTotalForRatio) : _itemDiluicao;
+                            const lumTotalDisplayWithDil = lumTotalDisplay != null ? lumTotalDisplay + _lumDiluicaoFrac : null;
+                            const lumUnitDisplayWithDil = lumUnitDisplay != null && d.qty > 0 ? lumTotalDisplayWithDil != null ? lumTotalDisplayWithDil / d.qty : null : null;
                             return (
                               <div key={String(item.id)} className="flex items-start gap-3 px-4 py-3">
                                 <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -3371,25 +3412,31 @@ export default function QuoteDetail() {
                                     <>
                                       <div className="mb-1">
                                         <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Luminária</p>
-                                        {lumUnitDisplay != null && <p className="text-xs text-muted-foreground">{formatBRL(lumUnitDisplay)}/un</p>}
-                                        {lumTotalDisplay != null
-                                          ? <p className="font-semibold text-foreground text-sm">{formatBRL(lumTotalDisplay)}</p>
+                                        {lumUnitDisplayWithDil != null && <p className="text-xs text-muted-foreground">{formatBRL(lumUnitDisplayWithDil)}/un</p>}
+                                        {lumTotalDisplayWithDil != null
+                                          ? <p className="font-semibold text-foreground text-sm">{formatBRL(lumTotalDisplayWithDil)}</p>
                                           : <p className="text-xs italic text-muted-foreground">A consultar</p>}
                                       </div>
                                       {d.driverLines!.map((dl, di) => {
-                                        const drvUnit = dl.driverUnitPrice != null ? applyMkupWithItem(dl.driverUnitPrice, d.itemMarginPercent) : null;
-                                        const drvTotal = dl.driverTotalPrice != null ? applyMkupWithItem(dl.driverTotalPrice, d.itemMarginPercent) : null;
+                                        const drvUnitRaw = dl.driverUnitPrice != null ? applyMkupWithItem(dl.driverUnitPrice, d.itemMarginPercent) : null;
+                                        const drvTotalRaw = dl.driverTotalPrice != null ? applyMkupWithItem(dl.driverTotalPrice, d.itemMarginPercent) : null;
+                                        // Diluição proporcional ao peso deste driver dentro do item
+                                        const _drvItemWeight = drvTotalRaw ?? 0;
+                                        const _drvDiluicao = _itemTotalForRatio > 0 ? _itemDiluicao * (_drvItemWeight / _itemTotalForRatio) : 0;
+                                        const drvTotalWithDil = drvTotalRaw != null ? drvTotalRaw + _drvDiluicao : null;
+                                        const drvUnitWithDil = drvUnitRaw != null && dl.driverQty > 0 ? drvTotalWithDil != null ? drvTotalWithDil / dl.driverQty : null : null;
                                         return (
                                           <div key={di} className="mb-1">
                                             <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Driver{d.driverLines!.length > 1 ? ` ${di + 1}` : ''}</p>
                                             <p className="text-[10px] font-mono text-muted-foreground">{dl.driverCode}</p>
-                                            {drvUnit != null && <p className="text-xs text-muted-foreground">{formatBRL(drvUnit)}/un</p>}
-                                            {drvTotal != null
-                                              ? <p className="font-semibold text-foreground text-sm">{formatBRL(drvTotal)}</p>
+                                            {drvUnitWithDil != null && <p className="text-xs text-muted-foreground">{formatBRL(drvUnitWithDil)}/un</p>}
+                                            {drvTotalWithDil != null
+                                              ? <p className="font-semibold text-foreground text-sm">{formatBRL(drvTotalWithDil)}</p>
                                               : <p className="text-xs italic text-muted-foreground">A consultar</p>}
                                           </div>
                                         );
                                       })}
+
                                       <div className="pt-1 border-t border-border/50">
                                         <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Total item</p>
                                         {correctTotalDisplay != null
