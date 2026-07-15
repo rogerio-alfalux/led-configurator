@@ -173,11 +173,12 @@ export const PERFIL_FLEXIVEL_MAX_LENGTH_MM = 5000;
 // ─── Tabela de preços LED BAR U ──────────────────────────────────────────────
 
 /**
- * Famílias de LED BAR que ainda não têm tabela de preço cadastrada.
- * Para essas famílias, calcLedBarPrice retorna null e o usuário preenche manualmente no carrinho.
- * Nota: quando a API retornar precoMetro para um produto, esse campo tem prioridade sobre esta lista.
+ * Famílias de LED BAR que não têm tabela de preço estático e dependem 100% da API.
+ * Se a API retornar custoCorpo/custoDriver, o cálculo prossegue normalmente.
+ * Se não houver dados da API, calcLedBarPrice retorna null e o usuário preenche manualmente.
+ * Nota: LED BAR EC, LED BAR E e LED BAR 45 foram removidas pois a API já retorna custoCorpo/custoDriver.
  */
-export const LED_BAR_FAMILIES_NO_PRICE = /^(LED BAR WW|FLOOR|LED BAR EC|LED BAR E\b|LED BAR 45|MEIA LUA|MILANO)/i;
+export const LED_BAR_FAMILIES_NO_PRICE = /^(LED BAR WW|FLOOR|MEIA LUA|MILANO)/i;
 
 /**
  * Tabela de preços estáticos por metro linear (R$) por potência.
@@ -243,8 +244,8 @@ export function calcLedBarPrice(
   custoCorpoApi?: number | null,
   markupCorpo?: number | null
 ): number | null {
-  // Famílias sem tabela de preço: retornar null para que o usuário preencha manualmente
-  if (familia && LED_BAR_FAMILIES_NO_PRICE.test(familia)) return null;
+  // Famílias sem tabela de preço estático: retornar null apenas quando a API também não tem dados
+  if (familia && LED_BAR_FAMILIES_NO_PRICE.test(familia) && precoMetroApi == null && custoCorpoApi == null && custoDriverApi == null) return null;
   // PERFIL FLEXÍVEL: apenas o perfil, sem drivers
   // Fallback: R$157,00/m para 5W/m e 10W/m quando API não retorna precoMetro
   if (familia && /^PERFIL FLEXIVEL/i.test(familia)) {
@@ -309,7 +310,7 @@ export function calcLedBarPriceDetail(
   /** true quando o preço do corpo vem da API (precoMetro ou custoCorpo×markup) */
   corpoFromApi?: boolean;
 } | null {
-  if (familia && LED_BAR_FAMILIES_NO_PRICE.test(familia)) return null;
+  if (familia && LED_BAR_FAMILIES_NO_PRICE.test(familia) && precoMetroApi == null && custoCorpoApi == null && custoDriverApi == null) return null;
   // PERFIL FLEXÍVEL: mesmo cálculo do LED BAR padrão, mas com corte máximo de 5000mm
   // Drivers são calculados e destacados separadamente, igual ao LED BAR
   // Fallback: R$157,00/m para 5W/m e 10W/m quando API não retorna precoMetro
