@@ -68,7 +68,11 @@ function getProfileDrvQtyPerLuminaria(item: CartItemData): number | null {
 function getEffectiveDrvTotal(item: CartItemData): number {
   if (!item.driverLines || item.driverLines.length === 0) return 0;
   const qty = item.qty ?? 1;
-  const drvQtyPerLuminaria = getProfileDrvQtyPerLuminaria(item);
+  // Para perfis: usar profileSegments. Para outros: usar driverQtyPerUnit salvo, ou fallback para driverQty armazenado.
+  const profileDrvQtyPerLum = getProfileDrvQtyPerLuminaria(item);
+  const drvQtyPerLuminaria = profileDrvQtyPerLum != null
+    ? profileDrvQtyPerLum
+    : (item.driverQtyPerUnit != null ? item.driverQtyPerUnit : null);
   return item.driverLines.reduce((s, d) => {
     const unitPrice = d.driverUnitPrice ?? 0;
     const effectiveQty = drvQtyPerLuminaria != null
@@ -355,28 +359,31 @@ function SortableCartItem({
                       {/* Total driver: recalculado dinamicamente para cobrir itens antigos */}
                       {(() => {
                         const qty = entry.data.qty ?? 1;
-                        // REGRA INEGOCIÁVEL: para perfis, recalcular driverQtyTotal a partir de profileSegments
-                        // para corrigir itens antigos que tinham driverQty errado (sem multiplicar por qty).
-                        // profileSegments.driverQtyPerPiece × seg.qty = drivers por luminária.
-                        // driverQtyTotal = drivers por luminária × qty de luminárias.
+                        // REGRA INEGOCIÁVEL: para perfis, recalcular driverQtyTotal a partir de profileSegments.
+                        // Para outros produtos, usar driverQtyPerUnit salvo no item (1 driver por luminária por padrão).
                         const segs = entry.data.profileSegments;
+                        // Drivers por luminária:
+                        // 1. Perfis: soma de driverQtyPerPiece × qty de cada segmento
+                        // 2. Outros com driverQtyPerUnit salvo: usar diretamente
+                        // 3. Outros sem driverQtyPerUnit (itens antigos): inferir de driverQty / qty, mínimo 1
                         const drvQtyPerLuminaria = segs && segs.length > 0
                           ? segs.reduce((s, seg) => s + (seg.driverQtyPerPiece ?? 1) * seg.qty, 0)
-                          : null;
+                          : (entry.data.driverQtyPerUnit != null
+                            ? entry.data.driverQtyPerUnit
+                            : null);
                         const drvTotal = entry.data.driverLines.reduce((s, d) => {
                           const unitPrice = d.driverUnitPrice ?? 0;
-                          // Se temos profileSegments, usar driverQtyPerLuminaria × qty (sempre correto).
-                          // Caso contrário, usar driverQty armazenado (outros produtos).
+                          const storedQty = d.driverQty ?? qty;
+                          // Se temos drvQtyPerLuminaria confiável, usar. Senão usar driverQty armazenado.
                           const effectiveQty = drvQtyPerLuminaria != null
                             ? drvQtyPerLuminaria * qty
-                            : (d.driverQty ?? qty);
+                            : storedQty;
                           return s + Math.round(unitPrice * effectiveQty * 100) / 100;
                         }, 0);
                         if (drvTotal <= 0) return null;
                         // Calcular preço unitário do driver (por luminária)
                         const drvUnitTotal = entry.data.driverLines.reduce((s, d) => {
                           const unitPrice = d.driverUnitPrice ?? 0;
-                          // Drivers por luminária = drvQtyPerLuminaria (perfis) ou driverQty/qty (outros)
                           const storedQty = d.driverQty ?? qty;
                           const qtyPerLuminaria = drvQtyPerLuminaria != null
                             ? drvQtyPerLuminaria

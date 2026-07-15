@@ -316,7 +316,10 @@ ${htmlContent}
           // fallback: recalcular com effectiveQty
           const iqty = it.qty ?? 1;
           const storedQty = d.driverQty ?? 1;
-          const effectiveQty = storedQty <= 1 ? iqty : storedQty;
+          const drvQtyPerUnitA = it.driverQtyPerUnit;
+          const effectiveQty = drvQtyPerUnitA != null
+            ? drvQtyPerUnitA * iqty
+            : (storedQty <= 1 ? iqty : storedQty);
           return sd + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
         }, 0)
       : 0;
@@ -354,7 +357,10 @@ ${htmlContent}
           if (stored != null && stored > 0) return sd + stored;
           const iqty = it.qty ?? 1;
           const storedQty = d.driverQty ?? 1;
-          const effectiveQty = storedQty <= 1 ? iqty : storedQty;
+          const drvQtyPerUnitB = it.driverQtyPerUnit;
+          const effectiveQty = drvQtyPerUnitB != null
+            ? drvQtyPerUnitB * iqty
+            : (storedQty <= 1 ? iqty : storedQty);
           return sd + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
         }, 0)
       : 0;
@@ -420,11 +426,14 @@ ${htmlContent}
   const totalDriverRaw = hasDriverBreakdown
     ? sortedItems.reduce((sum, it) => {
         const iqty = it.qty ?? 1;
+        const drvQtyPerUnit = it.driverQtyPerUnit;
         const drvBruto = it.driverLines?.reduce((s, d) => {
           const stored = d.driverTotalPrice;
           if (stored != null && stored > 0) return s + stored;
           const storedQty = d.driverQty ?? 1;
-          const effectiveQty = storedQty <= 1 ? iqty : storedQty;
+          const effectiveQty = drvQtyPerUnit != null
+            ? drvQtyPerUnit * iqty
+            : (storedQty <= 1 ? iqty : storedQty);
           return s + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
         }, 0) ?? 0;
         return sum + _applyItemMgnPreview(drvBruto, it);
@@ -836,10 +845,15 @@ ${htmlContent}
                       )}
                       {/* Sub-linhas de drivers (apenas para itens novos com driverLines) */}
                       {item.driverLines && item.driverLines.map((drv, drvIdx) => {
-                        // Mesma lógica do Cart.tsx: effectiveQty = storedQty <= 1 ? itemQty : storedQty
+                        // Calcular qty efetiva do driver:
+                        // Com driverQtyPerUnit salvo: driverQtyPerUnit × itemQty
+                        // Itens antigos sem driverQtyPerUnit: usar driverQty armazenado
                         const _iqty = item.qty ?? 1;
                         const _storedDrvQty = drv.driverQty ?? 1;
-                        const _effectiveDrvQty = _storedDrvQty <= 1 ? _iqty : _storedDrvQty;
+                        const _drvQtyPerUnitPreview = item.driverQtyPerUnit;
+                        const _effectiveDrvQty = _drvQtyPerUnitPreview != null
+                          ? _drvQtyPerUnitPreview * _iqty
+                          : (_storedDrvQty <= 1 ? _iqty : _storedDrvQty);
                         // Diluição proporcional ao peso do driver neste item
                         const _itemTotalRealDrv = getItemTotalReal(item);
                         const _drvTotalPrice = (drv.driverUnitPrice ?? 0) * _effectiveDrvQty;

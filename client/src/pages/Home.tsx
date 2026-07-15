@@ -10323,7 +10323,7 @@ export default function Home() {
                               itemEmPlanta: globalItemEmPlanta,
                               floorName: globalPavimento || undefined,
                               ambiente: globalAmbiente || undefined,
-                              ...(bDrvLines ? { driverLines: bDrvLines.driverLines, priceWithoutDriver: bDrvLines.priceWithoutDriver, unitPriceLuminaria: bDrvLines.unitPriceLuminaria, unitPriceDriver: bDrvLines.unitPriceDriver, luminariaHasApiPrice: bDrvLines.luminariaHasApiPrice, custoCorpoBase: bDrvLines.custoCorpoBase, markupPadraoApi: bDrvLines.markupPadraoApi, markupMinimoApi: bDrvLines.markupMinimoApi } : {}),
+                              ...(bDrvLines ? { driverLines: bDrvLines.driverLines, priceWithoutDriver: bDrvLines.priceWithoutDriver, unitPriceLuminaria: bDrvLines.unitPriceLuminaria, unitPriceDriver: bDrvLines.unitPriceDriver, luminariaHasApiPrice: bDrvLines.luminariaHasApiPrice, custoCorpoBase: bDrvLines.custoCorpoBase, markupPadraoApi: bDrvLines.markupPadraoApi, markupMinimoApi: bDrvLines.markupMinimoApi, driverQtyPerUnit: bDrvLines.drvQtyPerUnit } : {}),
                             };
                             if (appendToQuoteId) {
                               handleAddItemOrToQuote(item);

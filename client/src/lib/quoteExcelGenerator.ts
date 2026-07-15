@@ -530,7 +530,10 @@ async function _generateExcelBuffer(
       const stored = d.driverTotalPrice;
       if (stored != null && stored > 0) return sd + stored;
       const storedQty = d.driverQty ?? 1;
-      const effectiveQty = storedQty <= 1 ? iqty : storedQty;
+      const drvQtyPerUnitCalc = it.driverQtyPerUnit;
+      const effectiveQty = drvQtyPerUnitCalc != null
+        ? drvQtyPerUnitCalc * iqty
+        : (storedQty <= 1 ? iqty : storedQty);
       return sd + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
     }, 0);
   };
@@ -1070,10 +1073,15 @@ async function _generateExcelBuffer(
         for (const col of ["F", "G", "H", "I", "J", "K"]) {
           fillDrv(ws.getCell(`${col}${drvRowNum}`), "");
         }
-        // Calcular qty efetiva do driver (mesma lógica do Cart.tsx para compatibilidade com itens antigos)
+        // Calcular qty efetiva do driver:
+        // 1. Com driverQtyPerUnit salvo: driverQtyPerUnit × itemQty (correto para todos os produtos)
+        // 2. Itens antigos sem driverQtyPerUnit: usar driverQty armazenado diretamente
         const _itemQty = item.qty ?? 1;
         const _storedDrvQty = drv.driverQty ?? 1;
-        const _effectiveDrvQty = _storedDrvQty <= 1 ? _itemQty : _storedDrvQty;
+        const _drvQtyPerUnit = item.driverQtyPerUnit;
+        const _effectiveDrvQty = _drvQtyPerUnit != null
+          ? _drvQtyPerUnit * _itemQty
+          : (_storedDrvQty <= 1 ? _itemQty : _storedDrvQty);
         fillDrv(ws.getCell(`L${drvRowNum}`), _effectiveDrvQty, true);
         if (drv.driverUnitPrice != null && drv.driverUnitPrice > 0) {
           // Aplicar diluição proporcional ao peso do driver neste item
@@ -1185,9 +1193,12 @@ async function _generateExcelBuffer(
   const totalDriverRaw = hasDriverBreakdown
     ? items.reduce((sum, it) => {
         const iqty = it.qty ?? 1;
+        const drvQtyPerUnit = it.driverQtyPerUnit;
         const drvBruto = it.driverLines?.reduce((s, d) => {
           const storedQty = d.driverQty ?? 1;
-          const effectiveQty = storedQty <= 1 ? iqty : storedQty;
+          const effectiveQty = drvQtyPerUnit != null
+            ? drvQtyPerUnit * iqty
+            : (storedQty <= 1 ? iqty : storedQty);
           return s + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
         }, 0) ?? 0;
         return sum + _applyItemMgn(drvBruto, it);
