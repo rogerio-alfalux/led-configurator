@@ -894,6 +894,7 @@ export const EXCEPTION_ASSISTANT_EMAILS = [
  */
 export const EXCEPTION_VIEWER_EMAILS = [
   "pab@besten.com.br", // Pablo — usuário visualizador externo
+  "lilian.alfalux@gmail.com", // Lilian Jardim — vendedora externa (prefixo 34)
 ];
 /** Lista unificada de todos os e-mails externos com acesso permitido */
 export const EXCEPTION_EMAILS = [...EXCEPTION_ASSISTANT_EMAILS, ...EXCEPTION_VIEWER_EMAILS];
