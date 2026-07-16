@@ -741,6 +741,7 @@ export default function QuoteDetail() {
   const [billingCompanyInput, setBillingCompanyInput] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [pdfPrintOpen, setPdfPrintOpen] = useState(false);
 
   // Edit (add revision) dialog — full form with all tabs
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -1346,64 +1347,8 @@ export default function QuoteDetail() {
     }
   };
 
-  const handleGeneratePdf = async () => {
-    setIsGenerating(true);
-    try {
-      const s1 = quote.seller1Id ? editSellers.find(s => s.id === quote.seller1Id) : undefined;
-      const s2 = quote.seller2Id ? editSellers.find(s => s.id === quote.seller2Id) : undefined;
-      await generateQuotePdf(
-        currentItemsMigrated.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null),
-        {
-          cliente: quote.clientName,
-          contato: quote.clientContact ?? "",
-          tel: quote.clientPhone ?? "",
-          email: quote.clientEmail ?? "",
-          obra: quote.projectName ?? "",
-          referencia: quote.projectRef ?? "",
-          numero: quote.quoteNumber,
-          data: toBrasiliaDate(quote.updatedAt ?? quote.createdAt),
-          arquiteto: (quote as any).arquiteto ?? undefined,
-          lightDesigner: (quote as any).lightDesigner ?? undefined,
-          seller1Name: quote.seller1Name ?? undefined,
-          seller1Phone: s1?.phone ?? undefined,
-          seller2Name: quote.seller2Name ?? undefined,
-          seller2Phone: s2?.phone ?? undefined,
-          assistantName: quote.assistantName ?? undefined,
-          rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) : undefined,
-          rtDest1: quote.rtDest1 ?? undefined,
-          rtDest1Active: quote.rtDest1Active ?? false,
-          rtDest2: quote.rtDest2 ?? undefined,
-          rtDest2Active: quote.rtDest2Active ?? false,
-          rtDest3: quote.rtDest3 ?? undefined,
-          rtDest3Active: quote.rtDest3Active ?? false,
-          marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
-          freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
-          freteIsento: quote.freteIsento ?? false,
-          freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
-          freteCity: (quote as any).freteCity ?? undefined,
-          freteState: (quote as any).freteState ?? undefined,
-          freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
-          freteIncluded: (quote as any).freteIncluded ?? false,
-          diluicaoValor: (quote as any).diluicaoValor ? parseFloat(String((quote as any).diluicaoValor)) : undefined,
-          revisionCount: quote.revisionCount ?? 0,
-          deliveryDays: quote.deliveryDays ?? 20,
-          commissionPercent: quote.commissionPercent ? parseFloat(String(quote.commissionPercent)) : undefined,
-          paymentTerm: quote.paymentTerm ?? undefined,
-          destState: quote.destState ?? undefined,
-          difalEnabled: quote.difalEnabled ?? false,
-          difalPercent: quote.difalPercent ? parseFloat(String(quote.difalPercent)) : undefined,
-          difalValue: quote.difalValue ? parseFloat(String(quote.difalValue)) : undefined,
-          fcpEnabled: quote.fcpEnabled ?? false,
-          fcpPercent: quote.fcpPercent ? parseFloat(String(quote.fcpPercent)) : undefined,
-          fcpValue: quote.fcpValue ? parseFloat(String(quote.fcpValue)) : undefined,
-        }
-      );
-      toast.success("PDF do orçamento gerado!");
-    } catch (err) {
-      toast.error("Erro ao gerar PDF do orçamento.");
-    } finally {
-      setIsGenerating(false);
-    }
+  const handleGeneratePdf = () => {
+    setPdfPrintOpen(true);
   };
 
   /** Abre o modal de pré-visualização com os dados do pedido de fábrica */
@@ -3984,6 +3929,52 @@ export default function QuoteDetail() {
           rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) : undefined,
           marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
                     freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
+          freteIsento: quote.freteIsento ?? false,
+          freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
+          freteCity: (quote as any).freteCity ?? undefined,
+          freteState: (quote as any).freteState ?? undefined,
+          freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
+          freteIncluded: (quote as any).freteIncluded ?? false,
+          revisionCount: quote.revisionCount ?? 0,
+          deliveryDays: quote.deliveryDays ?? 20,
+          paymentTerm: quote.paymentTerm ?? undefined,
+          destState: quote.destState ?? undefined,
+          difalEnabled: quote.difalEnabled ?? false,
+          difalPercent: quote.difalPercent ? parseFloat(String(quote.difalPercent)) : undefined,
+          difalValue: quote.difalValue ? parseFloat(String(quote.difalValue)) : undefined,
+          fcpEnabled: quote.fcpEnabled ?? false,
+          fcpPercent: quote.fcpPercent ? parseFloat(String(quote.fcpPercent)) : undefined,
+          fcpValue: quote.fcpValue ? parseFloat(String(quote.fcpValue)) : undefined,
+          diluicaoValor: (quote as any).diluicaoValor ? parseFloat(String((quote as any).diluicaoValor)) : undefined,
+        }}
+      />
+
+      {/* PDF automático — mesmo modal mas dispara print imediatamente */}
+      <ExcelPreviewModal
+        open={pdfPrintOpen}
+        onClose={() => setPdfPrintOpen(false)}
+        autoPrint
+        items={currentItemsMigrated.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null)}
+        freshPhotoMap={productPhotoMap}
+        formData={{
+          cliente: quote.clientName,
+          contato: quote.clientContact ?? "",
+          tel: quote.clientPhone ?? "",
+          email: quote.clientEmail ?? "",
+          obra: quote.projectName ?? "",
+          referencia: quote.projectRef ?? "",
+          numero: quote.quoteNumber,
+          data: toBrasiliaDate(quote.updatedAt ?? quote.createdAt),
+          arquiteto: (quote as any).arquiteto ?? undefined,
+          lightDesigner: (quote as any).lightDesigner ?? undefined,
+          seller1Name: quote.seller1Name ?? undefined,
+          seller1Phone: editSellers.find(s => s.id === quote.seller1Id)?.phone ?? undefined,
+          seller2Name: quote.seller2Name ?? undefined,
+          seller2Phone: editSellers.find(s => s.id === quote.seller2Id)?.phone ?? undefined,
+          assistantName: quote.assistantName ?? undefined,
+          rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) : undefined,
+          marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
+          freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
           freteCity: (quote as any).freteCity ?? undefined,

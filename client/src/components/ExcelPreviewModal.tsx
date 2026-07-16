@@ -146,9 +146,11 @@ interface Props {
   formData: QuoteFormData;
   /** Mapa sku -> fotoUrl fresca para substituir URLs CloudFront expiradas */
   freshPhotoMap?: Map<string, string>;
+  /** Se true, dispara o download de PDF automaticamente ao abrir (sem exibir o modal) */
+  autoPrint?: boolean;
 }
 
-export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMap }: Props) {
+export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMap, autoPrint }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Gera nome do arquivo no mesmo padrão do Excel + sufixo "rascunho"
@@ -265,6 +267,16 @@ ${htmlContent}
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [open, onClose]);
+
+  // autoPrint: dispara download de PDF automaticamente após renderizar as imagens
+  useEffect(() => {
+    if (!open || !autoPrint) return;
+    const timer = setTimeout(() => {
+      handleDownloadPDF();
+      onClose();
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [open, autoPrint, handleDownloadPDF, onClose]);
 
   const revCount = formData.revisionCount ?? 0;
   const rvSuffix = ` (RV${revCount})`;
