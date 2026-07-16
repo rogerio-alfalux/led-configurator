@@ -2040,3 +2040,7 @@
 - [ ] Adicionar botão "Baixar PDF" no Cart.tsx (diálogo de geração) com mesmas regras de revisão do Excel
 - [ ] Adicionar botão "Baixar PDF" no QuoteDetail.tsx com mesmas regras de revisão do Excel
 - [ ] Incrementar revisão ao baixar PDF (mesma lógica do Excel: conta como revisão oficial)
+
+## Download PDF do Orçamento (Jul 2026)
+- [x] Criar quotePdfGenerator.ts com jsPDF + autoTable replicando o layout do Excel
+- [x] Adicionar botão "Baixar PDF" no Cart.tsx e QuoteDetail.tsx com as mesmas regras de revisão do Excel

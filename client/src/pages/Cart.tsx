@@ -23,7 +23,7 @@ import {
   Plus, Minus, Save, ClipboardList, Factory, AlertTriangle,
   ChevronRight, ChevronDown, ChevronUp, Tag, Percent, Truck, Users, PlusCircle, CheckCircle2,
   GripVertical, Pencil, Wrench, Eye, Upload, X, Copy, Layers,
-  Zap, Palette, Building2, MapPin, Ban,
+  Zap, Palette, Building2, MapPin, Ban, FileDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +39,7 @@ import { formatBRL, QuoteFormData, CartItemData, parseCartItemData } from "@/lib
 import type { LinkedAccessory, SpecialEquipment } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
+import { generateQuotePdf } from "@/lib/quotePdfGenerator";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
@@ -1138,6 +1139,63 @@ export default function Cart() {
     }
   };
 
+  const handleGeneratePdf = async () => {
+    if (!form.cliente.trim()) {
+      toast.error("Informe o nome do cliente.");
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      const seller1Obj = saveForm.seller1Id ? sellers.find(s => String(s.id) === saveForm.seller1Id) : undefined;
+      const seller2Obj = saveForm.seller2Id ? sellers.find(s => String(s.id) === saveForm.seller2Id) : undefined;
+      const enrichedForm: QuoteFormData = {
+        ...form,
+        seller1Id: saveForm.seller1Id ? Number(saveForm.seller1Id) : undefined,
+        seller1Name: saveForm.seller1Name || undefined,
+        seller1Phone: seller1Obj?.phone || undefined,
+        seller2Id: saveForm.seller2Id ? Number(saveForm.seller2Id) : undefined,
+        seller2Name: saveForm.seller2Name || undefined,
+        seller2Phone: seller2Obj?.phone || undefined,
+        assistantId: saveForm.assistantId && saveForm.assistantId !== "VENDEDOR" ? Number(saveForm.assistantId) : undefined,
+        assistantName: saveForm.assistantName || undefined,
+        rtPercent: rtPct > 0 ? rtPct : undefined,
+        marginPercent: marginPct > 0 ? marginPct : undefined,
+        freteType: saveForm.freteType,
+        freteIsento: saveForm.freteIsento,
+        freteLocalidade: saveForm.freteStateCode === "SP" ? "sp" : "other",
+        freteCity: saveForm.freteCity,
+        freteState: saveForm.freteStateCode || undefined,
+        revisionCount: 0,
+        deliveryDays: parseInt(saveForm.deliveryDays) || 20,
+        paymentTerm: saveForm.paymentTerm || undefined,
+        commissionPercent: (parseFloat(saveForm.commissionPercent) || 5) / 100,
+        destState: saveForm.destState || undefined,
+        difalEnabled: saveForm.difalEnabled,
+        difalPercent: saveForm.difalEnabled && saveForm.difalPercent ? parseFloat(saveForm.difalPercent) : undefined,
+        difalValue: saveForm.difalEnabled && saveForm.difalValue ? parseFloat(saveForm.difalValue) : undefined,
+        fcpEnabled: saveForm.fcpEnabled,
+        fcpPercent: saveForm.fcpEnabled && saveForm.fcpPercent ? parseFloat(saveForm.fcpPercent) : undefined,
+        fcpValue: saveForm.fcpEnabled && saveForm.fcpValue ? parseFloat(saveForm.fcpValue) : undefined,
+        projectNumber: saveForm.projectNumber || undefined,
+        commissionPercent2: saveForm.commissionPercent2 ? (parseFloat(saveForm.commissionPercent2) || 0) / 100 : undefined,
+        freteValue: saveForm.freteValue ? parseFloat(saveForm.freteValue) : undefined,
+        freteIncluded: saveForm.freteIncluded,
+        diluicaoValor: saveForm.diluicaoValor ? parseFloat(saveForm.diluicaoValor) : undefined,
+        numero: saveForm.quoteNumber.trim() || form.numero,
+      };
+      const itemsWithPlanta = orderedEntries.map((e) => ({
+        ...e.data,
+        itemEmPlanta: itemEmPlantaMap[e.id] ?? e.data.itemEmPlanta ?? "",
+      }));
+      await generateQuotePdf(itemsWithPlanta, enrichedForm);
+      toast.success("PDF do orçamento gerado com sucesso!");
+    } catch (err) {
+      console.error("Erro ao gerar PDF:", err);
+      toast.error("Erro ao gerar o PDF. Tente novamente.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
   const handleSaveQuote = () => {
     if (!saveForm.clientName.trim()) {
       toast.error("Informe o nome do cliente.");
@@ -2378,6 +2436,17 @@ export default function Cart() {
                       Pré-visualizar Excel
                     </Button>
 
+                    {/* ─── Baixar PDF do orçamento ─── */}
+                    <Button
+                      variant="outline"
+                      className="gap-2 border-red-500/40 text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+                      onClick={handleGeneratePdf}
+                      disabled={isGenerating || !form.cliente.trim()}
+                      title="Baixar orçamento em PDF (conta como revisão)"
+                    >
+                      <FileDown className="w-4 h-4" />
+                      {isGenerating ? "Gerando..." : "Baixar PDF"}
+                    </Button>
                     {/* ─── Gerar Pedido de Fábrica (sem orçamento) ─── */}
                     <Button
                       variant="outline"

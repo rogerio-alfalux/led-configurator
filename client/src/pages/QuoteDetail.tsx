@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronUp, Factory, Trash2, PenLine,
   Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle, GripVertical, Wrench, Copy, Eye,
   Upload, X as XIcon, Layers, Receipt, Printer, Search,
-  User, Phone, FolderOpen, Bookmark, MapPin, Briefcase, Calendar, RefreshCw, ClipboardList, Zap,
+  User, Phone, FolderOpen, Bookmark, MapPin, Briefcase, Calendar, RefreshCw, ClipboardList, Zap, FileDown,
 } from "lucide-react";
 import {
   DndContext,
@@ -113,6 +113,7 @@ import type { LinkedAccessory, SpecialEquipment } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
+import { generateQuotePdf } from "@/lib/quotePdfGenerator";
 import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
 import { OrderPreviewModal } from "@/components/OrderPreviewModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
@@ -1344,6 +1345,67 @@ export default function QuoteDetail() {
       setIsGenerating(false);
     }
   };
+
+  const handleGeneratePdf = async () => {
+    setIsGenerating(true);
+    try {
+      const s1 = quote.seller1Id ? editSellers.find(s => s.id === quote.seller1Id) : undefined;
+      const s2 = quote.seller2Id ? editSellers.find(s => s.id === quote.seller2Id) : undefined;
+      await generateQuotePdf(
+        currentItemsMigrated.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null),
+        {
+          cliente: quote.clientName,
+          contato: quote.clientContact ?? "",
+          tel: quote.clientPhone ?? "",
+          email: quote.clientEmail ?? "",
+          obra: quote.projectName ?? "",
+          referencia: quote.projectRef ?? "",
+          numero: quote.quoteNumber,
+          data: toBrasiliaDate(quote.updatedAt ?? quote.createdAt),
+          arquiteto: (quote as any).arquiteto ?? undefined,
+          lightDesigner: (quote as any).lightDesigner ?? undefined,
+          seller1Name: quote.seller1Name ?? undefined,
+          seller1Phone: s1?.phone ?? undefined,
+          seller2Name: quote.seller2Name ?? undefined,
+          seller2Phone: s2?.phone ?? undefined,
+          assistantName: quote.assistantName ?? undefined,
+          rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) : undefined,
+          rtDest1: quote.rtDest1 ?? undefined,
+          rtDest1Active: quote.rtDest1Active ?? false,
+          rtDest2: quote.rtDest2 ?? undefined,
+          rtDest2Active: quote.rtDest2Active ?? false,
+          rtDest3: quote.rtDest3 ?? undefined,
+          rtDest3Active: quote.rtDest3Active ?? false,
+          marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
+          freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
+          freteIsento: quote.freteIsento ?? false,
+          freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
+          freteCity: (quote as any).freteCity ?? undefined,
+          freteState: (quote as any).freteState ?? undefined,
+          freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
+          freteIncluded: (quote as any).freteIncluded ?? false,
+          diluicaoValor: (quote as any).diluicaoValor ? parseFloat(String((quote as any).diluicaoValor)) : undefined,
+          revisionCount: quote.revisionCount ?? 0,
+          deliveryDays: quote.deliveryDays ?? 20,
+          commissionPercent: quote.commissionPercent ? parseFloat(String(quote.commissionPercent)) : undefined,
+          paymentTerm: quote.paymentTerm ?? undefined,
+          destState: quote.destState ?? undefined,
+          difalEnabled: quote.difalEnabled ?? false,
+          difalPercent: quote.difalPercent ? parseFloat(String(quote.difalPercent)) : undefined,
+          difalValue: quote.difalValue ? parseFloat(String(quote.difalValue)) : undefined,
+          fcpEnabled: quote.fcpEnabled ?? false,
+          fcpPercent: quote.fcpPercent ? parseFloat(String(quote.fcpPercent)) : undefined,
+          fcpValue: quote.fcpValue ? parseFloat(String(quote.fcpValue)) : undefined,
+        }
+      );
+      toast.success("PDF do orçamento gerado!");
+    } catch (err) {
+      toast.error("Erro ao gerar PDF do orçamento.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   /** Abre o modal de pré-visualização com os dados do pedido de fábrica */
   const handleOpenOrderPreview = async (empresa: "ALFALUX" | "LUMINEW") => {
     if (orderNumberInput.length !== 6) { toast.error("Número do pedido deve ter exatamente 6 dígitos."); return; }
@@ -1681,6 +1743,16 @@ export default function QuoteDetail() {
             Baixar Orçamento Excel
           </Button>
 
+          <Button
+            variant="outline"
+            className="gap-2 border-red-500/40 text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+            onClick={handleGeneratePdf}
+            disabled={isGenerating}
+            title="Baixar orçamento em PDF (conta como revisão)"
+          >
+            <FileDown className="w-4 h-4" />
+            {isGenerating ? "Gerando..." : "Baixar PDF"}
+          </Button>
           <Button
             variant="outline"
             className="gap-2 border-amber-500/40 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950"
