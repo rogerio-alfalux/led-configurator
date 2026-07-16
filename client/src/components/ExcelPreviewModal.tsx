@@ -201,13 +201,13 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
     [data-print-content] > div {
       position: static !important;
     }
-    /* Página branca: zoom para caber em A4 paisagem sem quebrar layout */
+    /* Página branca: zoom para caber em A4 retrato */
     [data-print-content] > div > div {
-      zoom: 0.88;
       width: 1100px !important;
       min-width: 1100px !important;
       margin: 0 !important;
       box-shadow: none !important;
+      padding: 16px 24px 32px !important;
     }
     @media print {
       html, body {
@@ -215,13 +215,23 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
         print-color-adjust: exact !important;
         color-adjust: exact !important;
         background: #fff !important;
+        margin: 0 !important;
+        padding: 0 !important;
       }
       @page {
-        size: A4 landscape;
-        margin: 6mm;
+        size: A4 portrait;
+        margin: 8mm 6mm;
+      }
+      /* Escala para caber 1100px em A4 retrato (794px úteis a 96dpi → zoom ≈ 0.64) */
+      [data-print-content] > div > div {
+        zoom: 0.64 !important;
+        transform-origin: top left !important;
       }
       /* Evitar quebra de página dentro de linhas da tabela */
-      tr, td, th { page-break-inside: avoid; }
+      tr, td, th { page-break-inside: avoid; break-inside: avoid; }
+      /* Cabeçalho de pavimento nunca fica sozinho no fim da página */
+      thead { display: table-header-group; }
+      tfoot { display: table-footer-group; }
     }
   </style>
 </head>
