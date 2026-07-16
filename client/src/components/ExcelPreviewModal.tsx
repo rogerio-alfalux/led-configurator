@@ -166,11 +166,42 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   }, [formData]);
 
   // Abre nova janela com o HTML do conteúdo e aciona print
-  const handleDownloadPDF = useCallback(() => {
+  const handleDownloadPDF = useCallback(async () => {
     const el = contentRef.current;
     if (!el) return;
     const fileName = buildFileName();
-    const htmlContent = el.innerHTML;
+
+    // Converte todas as imagens relativas para base64 para que apareçam na janela de impressão (about:blank)
+    const imgEls = Array.from(el.querySelectorAll("img")) as HTMLImageElement[];
+    await Promise.all(imgEls.map(async (img) => {
+      const src = img.getAttribute("src") || "";
+      if (!src || src.startsWith("data:")) return;
+      try {
+        const absoluteSrc = src.startsWith("http") ? src : `${window.location.origin}${src.startsWith("/") ? "" : "/"}${src}`;
+        const resp = await fetch(absoluteSrc);
+        const blob = await resp.blob();
+        const b64 = await new Promise<string>((res) => {
+          const reader = new FileReader();
+          reader.onload = () => res(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+        img.setAttribute("data-print-src", b64);
+      } catch { /* ignora erros de imagem individual */ }
+    }));
+
+    // Substitui src por base64 no HTML serializado
+    let htmlContent = el.innerHTML;
+    imgEls.forEach((img) => {
+      const b64 = img.getAttribute("data-print-src");
+      const origSrc = img.getAttribute("src") || "";
+      if (b64 && origSrc && !origSrc.startsWith("data:")) {
+        // Escapa caracteres especiais do src original para usar como regex
+        const escaped = origSrc.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        htmlContent = htmlContent.replace(new RegExp(`src="${escaped}"`, "g"), `src="${b64}"`);
+      }
+      img.removeAttribute("data-print-src");
+    });
+
     const printWindow = window.open("", "_blank", "width=1200,height=900");
     if (!printWindow) { alert("Permita popups para baixar o PDF."); return; }
     printWindow.document.write(`<!DOCTYPE html>
