@@ -2034,3 +2034,9 @@
 - [x] Corrigir no Cart.tsx o cálculo do DIFAL/FCP para incluir o frete separado (freteIncluded=false) na base ao gerar novos orçamentos
 - [x] Validar que quoteExcelGenerator.ts e ExcelPreviewModal.tsx usam a mesma regra de base de DIFAL/FCP com frete separado
 - [x] Configurar Excel gerado com impressão pronta para caber em 1 página: fitToPage=true, fitToWidth=1, fitToHeight=1, área de impressão dinâmica (C1:N{lastRow}), margens reduzidas (0.5")
+
+## Download PDF do Orçamento (16/07/2026)
+- [ ] Criar quotePdfGenerator.ts com layout fiel ao Excel (cabeçalho, tabela de itens, rodapé, logo)
+- [ ] Adicionar botão "Baixar PDF" no Cart.tsx (diálogo de geração) com mesmas regras de revisão do Excel
+- [ ] Adicionar botão "Baixar PDF" no QuoteDetail.tsx com mesmas regras de revisão do Excel
+- [ ] Incrementar revisão ao baixar PDF (mesma lógica do Excel: conta como revisão oficial)
