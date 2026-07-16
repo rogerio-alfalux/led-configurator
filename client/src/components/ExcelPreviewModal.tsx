@@ -660,8 +660,8 @@ ${htmlContent}
           >
             {/* ── Número, data + campos + logo fixo no canto superior direito ── */}
             <div style={{ position: "relative" }}>
-              {/* Logo centralizado verticalmente à direita */}
-              <div style={{ position: "absolute", top: "50%", right: 0, transform: "translateY(-50%)" }}>
+              {/* Logo centralizado vertical e horizontalmente na metade direita */}
+              <div style={{ position: "absolute", top: "50%", right: 0, width: 230, transform: "translateY(-50%)", display: "flex", justifyContent: "center" }}>
                 <img
                   src={LOGO_URL}
                   alt="ALFALUX"
