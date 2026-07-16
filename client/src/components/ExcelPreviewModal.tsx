@@ -658,39 +658,10 @@ ${htmlContent}
               zIndex: 1,
             }}
           >
-            {/* ── Número, data + campos + logo no canto superior direito ── */}
-            <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-              {/* Coluna esquerda: número/data + tabela de campos */}
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", gap: 12, marginBottom: 6 }}>
-                  <div style={{ background: BLUE, color: WHITE, fontWeight: "bold", fontSize: 15, padding: "4px 14px", borderRadius: 2 }}>
-                    {(formData.numero || "") + rvSuffix}
-                  </div>
-                  <div style={{ background: BLUE, color: WHITE, fontWeight: "bold", fontSize: 15, padding: "4px 14px", borderRadius: 2 }}>
-                    {formData.data || new Date().toLocaleDateString("pt-BR")}
-                  </div>
-                </div>
-                <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 6, fontSize: 12 }}>
-                  <tbody>
-                    {[
-                      ["VENDEDOR", vendedorText],
-                      ["OBRA", formData.obra || ""],
-                      ["CLIENTE", formData.cliente || ""],
-                      ["CONTATO/TEL", contactText],
-                      ["E-MAIL", formData.email || ""],
-                      ["ARQUITETURA/LD", [formData.arquiteto ? `ARQUITETO: ${formData.arquiteto}` : "", formData.lightDesigner ? `LD: ${formData.lightDesigner}` : ""].filter(Boolean).join("   |   ")],
-                      ["REFERÊNCIA", formData.referencia || "FORNECIMENTO DE LUMINÁRIAS"],
-                    ].map(([label, value]) => (
-                      <tr key={label}>
-                        <td style={{ fontWeight: "bold", paddingRight: 8, whiteSpace: "nowrap", width: 160, paddingTop: 1, paddingBottom: 1 }}>{label}:</td>
-                        <td style={{ paddingTop: 1, paddingBottom: 1 }}>{value}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {/* Coluna direita: logo no topo direito */}
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "flex-end", width: 220, paddingTop: 0 }}>
+            {/* ── Número, data + campos + logo fixo no canto superior direito ── */}
+            <div style={{ position: "relative" }}>
+              {/* Logo centralizado verticalmente à direita */}
+              <div style={{ position: "absolute", top: "50%", right: 0, transform: "translateY(-50%)" }}>
                 <img
                   src={LOGO_URL}
                   alt="ALFALUX"
@@ -698,6 +669,34 @@ ${htmlContent}
                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                 />
               </div>
+              {/* Número e data */}
+              <div style={{ display: "flex", gap: 12, marginBottom: 6, paddingRight: 230 }}>
+                <div style={{ background: BLUE, color: WHITE, fontWeight: "bold", fontSize: 15, padding: "4px 14px", borderRadius: 2 }}>
+                  {(formData.numero || "") + rvSuffix}
+                </div>
+                <div style={{ background: BLUE, color: WHITE, fontWeight: "bold", fontSize: 15, padding: "4px 14px", borderRadius: 2 }}>
+                  {formData.data || new Date().toLocaleDateString("pt-BR")}
+                </div>
+              </div>
+              {/* Tabela de campos */}
+              <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 6, fontSize: 12 }}>
+                <tbody>
+                  {[
+                    ["VENDEDOR", vendedorText],
+                    ["OBRA", formData.obra || ""],
+                    ["CLIENTE", formData.cliente || ""],
+                    ["CONTATO/TEL", contactText],
+                    ["E-MAIL", formData.email || ""],
+                    ["ARQUITETURA/LD", [formData.arquiteto ? `ARQUITETO: ${formData.arquiteto}` : "", formData.lightDesigner ? `LD: ${formData.lightDesigner}` : ""].filter(Boolean).join("   |   ")],
+                    ["REFERÊNCIA", formData.referencia || "FORNECIMENTO DE LUMINÁRIAS"],
+                  ].map(([label, value]) => (
+                    <tr key={label}>
+                      <td style={{ fontWeight: "bold", paddingRight: 8, whiteSpace: "nowrap", width: 160, paddingTop: 1, paddingBottom: 1 }}>{label}:</td>
+                      <td style={{ paddingTop: 1, paddingBottom: 1, paddingRight: 230 }}>{value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
             {/* ── Proposta comercial ── */}
