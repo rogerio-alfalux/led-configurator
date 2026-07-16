@@ -690,7 +690,7 @@ ${htmlContent}
 
                       {isNaoOrcamos ? (
                         <tr>
-                          <td style={{ ...tdStyle, fontWeight: "bold", fontSize: 18 }}>{item.itemEmPlanta || ""}</td>
+                          <td style={{ ...tdStyle, fontWeight: "bold", fontSize: 18 }}>{item.itemEmPlanta || item.floorId || item.floorName || ""}</td>
                           <td style={{ ...tdStyle, width: 80, minHeight: 80 }}></td>{/* FOTO vazia */}
                           <td style={{ ...tdStyle, textAlign: "left", color: "#C53030", fontWeight: 700 }}>NÃO ORÇAMOS</td>
                           <td style={tdStyle}>-</td>

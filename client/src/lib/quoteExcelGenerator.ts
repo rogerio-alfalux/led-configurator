@@ -645,9 +645,9 @@ async function _generateExcelBuffer(
         cell.font = { name: 'Calibri', size: 11 };
         cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       }
-      // Item em planta
+      // Item em planta (usa itemEmPlanta ou floorId como fallback)
       const naoItemPlantaCell = ws.getCell(`C${rowNum}`);
-      naoItemPlantaCell.value = item.itemEmPlanta || '';
+      naoItemPlantaCell.value = item.itemEmPlanta || item.floorId || item.floorName || '';
       naoItemPlantaCell.font = { name: 'Calibri', size: 18, bold: true };
       // Foto: vazia
       ws.getCell(`D${rowNum}`).value = '';

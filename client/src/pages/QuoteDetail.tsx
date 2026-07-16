@@ -2213,7 +2213,8 @@ export default function QuoteDetail() {
                       const totalComRT = rtPct > 0 ? totalBase / (1 - rtPct) : totalBase;
                       const totalFinal = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
                       // Incluir frete e DIFAL/FCP (alíquota combinada, fórmula por dentro)
-                      const itemsFreteValor = (quote as any).freteIncluded && (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : 0;
+                      // Frete separado (não diluído) entra na base do DIFAL; frete diluído já está no totalFinal
+                      const itemsFreteValor = !(quote as any).freteIncluded && (quote as any).freteValue && !(quote as any).freteIsento ? parseFloat(String((quote as any).freteValue)) : 0;
                       const itemsStateInfo = quote.destState ? getStateInfo(quote.destState) : undefined;
                       const itemsCombinedRate = itemsStateInfo ? itemsStateInfo.combined : 0;
                       const itemsDifalAplicavel = !!itemsStateInfo && itemsCombinedRate > 0;
@@ -3037,7 +3038,8 @@ export default function QuoteDetail() {
                       const info = getStateInfo(editForm.destState);
                       if (!info) return null;
                       // Base = produtos + frete
-                      const editFreteBase = editForm.freteIncluded && editForm.freteValue ? parseFloat(editForm.freteValue) : 0;
+                      // Frete separado (não diluído) entra na base do DIFAL; frete diluído já está no editTotalFinal
+                      const editFreteBase = !editForm.freteIncluded && editForm.freteValue && !editForm.freteIsento ? parseFloat(editForm.freteValue) : 0;
                       const base = editTotalFinal + editFreteBase;
                       // Alíquota combinada DIFAL + FCP
                       const combinedRate = info.combined;
@@ -3156,7 +3158,8 @@ export default function QuoteDetail() {
                     const totalComRTVal = editRtPctVal > 0 ? editTotalBase / (1 - editRtPctVal) : editTotalBase;
                     const totalFinalVal = editMarginPctVal > 0 ? totalComRTVal / (1 - editMarginPctVal) : totalComRTVal;
                     // Calcular frete e DIFAL/FCP (alíquota combinada, fórmula por dentro)
-                    const editFreteValor = editForm.freteIncluded && editForm.freteValue ? parseFloat(editForm.freteValue) : 0;
+                    // Frete separado (não diluído) entra na base do DIFAL; frete diluído já está no editTotalFinal
+                    const editFreteValor = !editForm.freteIncluded && editForm.freteValue && !editForm.freteIsento ? parseFloat(editForm.freteValue) : 0;
                     const editStateInfo = editForm.destState ? getStateInfo(editForm.destState) : undefined;
                     const baseComFrete = totalFinalVal + editFreteValor;
                     // Alíquota combinada DIFAL + FCP
