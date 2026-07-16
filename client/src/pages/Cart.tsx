@@ -1022,34 +1022,47 @@ export default function Cart() {
   const userRole = (user as any)?.role;
   const isManagerUser = userRole === 'admin' || userRole === 'gerente' || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
 
+  const freteCotadoValor = saveForm.freteValue ? parseFloat(saveForm.freteValue) : 0;
   let freteValor = 0;
   let freteLabel = "";
   if (!saveForm.freteIsento) {
     if (saveForm.freteType === "night") {
+      // Frete noturno: valor fixo FRETE_NOTURNO entra na base do DIFAL (é sempre separado)
       freteValor = FRETE_NOTURNO;
       freteLabel = `Frete noturno: ${formatBRL(FRETE_NOTURNO)}`;
     } else if (saveForm.freteType === "paid") {
-      // Frete "A calcular": se houver valor digitado, somar ao total
-      const paidVal = saveForm.freteValue ? parseFloat(saveForm.freteValue) : 0;
-      if (paidVal > 0 && !saveForm.freteIncluded) {
-        freteValor = paidVal;
-        freteLabel = `Frete a calcular: ${formatBRL(paidVal)}`;
-      } else if (paidVal > 0) {
-        freteLabel = `Frete a calcular: ${formatBRL(paidVal)} (já incluído)`;
+      // Frete "A calcular": se houver valor cotado e não está diluído, entra na base do DIFAL
+      if (freteCotadoValor > 0 && !saveForm.freteIncluded) {
+        freteValor = freteCotadoValor;
+        freteLabel = `Frete a calcular: ${formatBRL(freteCotadoValor)}`;
+      } else if (freteCotadoValor > 0) {
+        freteLabel = `Frete a calcular: ${formatBRL(freteCotadoValor)} (já incluído)`;
       } else {
         freteLabel = "Frete: a calcular (aguardando cotação)";
       }
     } else if (saveForm.freteType === "consult") {
       freteLabel = "Frete: sob consulta";
+      // Frete cotado separado (campo Frete Cotado) entra na base do DIFAL mesmo com tipo "consult"
+      if (freteCotadoValor > 0 && !saveForm.freteIncluded) {
+        freteValor = freteCotadoValor;
+      }
     } else if (!saveForm.freteStateCode || saveForm.freteStateCode === "SP") {
       if (totalFinal >= FRETE_GRATIS_MINIMO) {
         freteLabel = "Frete grátis (SP)";
       } else {
         freteLabel = "Frete: a calcular (SP)";
       }
+      // Frete cotado separado entra na base do DIFAL mesmo com tipo "free"
+      if (freteCotadoValor > 0 && !saveForm.freteIncluded) {
+        freteValor = freteCotadoValor;
+      }
     } else {
       const cityPart = saveForm.freteCity ? ` — ${saveForm.freteCity}` : "";
       freteLabel = `Frete: sob consulta (${saveForm.freteStateCode}${cityPart})`;
+      // Frete cotado separado entra na base do DIFAL
+      if (freteCotadoValor > 0 && !saveForm.freteIncluded) {
+        freteValor = freteCotadoValor;
+      }
     }
   } else {
     freteLabel = "Frete isento";

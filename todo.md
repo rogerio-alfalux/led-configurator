@@ -2031,3 +2031,5 @@
 - [x] Home.tsx: remover obrigatoriedade da descrição para enviar ao carrinho (botão habilitado mesmo sem descrição)
 - [x] quoteExcelGenerator.ts: exibir "Não Orçamos" como linha normal de produto (sem linha vermelha especial, sem borda lateral)
 - [x] ExcelPreviewModal.tsx: exibir "Não Orçamos" como linha normal de produto (sem linha vermelha especial, sem borda lateral)
+- [x] Corrigir no Cart.tsx o cálculo do DIFAL/FCP para incluir o frete separado (freteIncluded=false) na base ao gerar novos orçamentos
+- [x] Validar que quoteExcelGenerator.ts e ExcelPreviewModal.tsx usam a mesma regra de base de DIFAL/FCP com frete separado
