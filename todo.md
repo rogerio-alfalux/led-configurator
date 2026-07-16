@@ -2033,3 +2033,4 @@
 - [x] ExcelPreviewModal.tsx: exibir "Não Orçamos" como linha normal de produto (sem linha vermelha especial, sem borda lateral)
 - [x] Corrigir no Cart.tsx o cálculo do DIFAL/FCP para incluir o frete separado (freteIncluded=false) na base ao gerar novos orçamentos
 - [x] Validar que quoteExcelGenerator.ts e ExcelPreviewModal.tsx usam a mesma regra de base de DIFAL/FCP com frete separado
+- [x] Configurar Excel gerado com impressão pronta para caber em 1 página: fitToPage=true, fitToWidth=1, fitToHeight=1, área de impressão dinâmica (C1:N{lastRow}), margens reduzidas (0.5")

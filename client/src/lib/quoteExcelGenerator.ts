@@ -267,23 +267,22 @@ async function _generateExcelBuffer(
   // definedName: _xlnm.Print_Area = 'Alfalux'!$C$1:$N$72
   ws.pageSetup.paperSize = 9;            // A4
   ws.pageSetup.orientation = "portrait";
-  ws.pageSetup.fitToPage = true;         // ativa <sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
+  // fitToPage=true + fitToWidth=1 + fitToHeight=1: Excel ajusta a escala automaticamente
+  // para que todo o conteúdo caiba em exatamente 1 página (largura e altura).
+  // NÃO definir scale quando fitToPage está ativo: os dois são mutuamente exclusivos
+  // no XML do Excel; scale fixo sobrescreve o comportamento automático de "ajustar à página".
+  ws.pageSetup.fitToPage = true;
   ws.pageSetup.fitToWidth = 1;           // 1 página de largura
-  ws.pageSetup.fitToHeight = 0;          // 0 = sem limite de altura (escala automática)
-  ws.pageSetup.scale = 51;               // 51% igual ao template
-  ws.pageSetup.horizontalDpi = 4294967295; // idêntico ao template
-  ws.pageSetup.verticalDpi = 4294967295;   // idêntico ao template
+  ws.pageSetup.fitToHeight = 1;          // 1 página de altura (escala automática)
   ws.pageSetup.margins = {
-    left: 0.7,
-    right: 0.7,
-    top: 0.75,
-    bottom: 0.75,
+    left: 0.5,
+    right: 0.5,
+    top: 0.5,
+    bottom: 0.5,
     header: 0.3,
     footer: 0.3,
   };
-  // Área de impressão: colunas C-N (idêntico ao template: Alfalux!$C$1:$N$72)
-  // ExcelJS usa wb.definedNames para definir a área de impressão
-  wb.definedNames.add("Alfalux!\$C\$1:\$N\$200", "_xlnm.Print_Area");
+  // A área de impressão será definida dinamicamente ao final da geração (veja abaixo)
 
   // ── Larguras das colunas (fiel ao template) ──────────────────────────────────────────────
   // Template original: C=12, D=18, E=35, F=15.1, G=12, H=10, I=13, J=14, K=13, L=7, M=13, N=14
@@ -1733,6 +1732,13 @@ async function _generateExcelBuffer(
   } catch {
     // Ignorar erro de logo
   }
+
+  // ── Área de impressão dinâmica: C1 até a última linha escrita ──────────────────
+  // ws.rowCount retorna o índice da última linha com conteúdo na planilha.
+  // Isso garante que a área de impressão sempre cobre exatamente o orçamento inteiro,
+  // independentemente do número de itens, e que o Excel calcula a escala corretamente.
+  const lastContentRow = ws.rowCount;
+  wb.definedNames.add(`Alfalux!\$C\$1:\$N\$${lastContentRow}`, "_xlnm.Print_Area");
 
   // ── Retornar buffer ──────────────────────────────────────────────
   return await wb.xlsx.writeBuffer() as ArrayBuffer;
