@@ -658,7 +658,7 @@ ${htmlContent}
               zIndex: 1,
             }}
           >
-            {/* ── Número, data + campos + logo lateral ── */}
+            {/* ── Número, data + campos + logo no canto superior direito ── */}
             <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
               {/* Coluna esquerda: número/data + tabela de campos */}
               <div style={{ flex: 1 }}>
@@ -689,12 +689,12 @@ ${htmlContent}
                   </tbody>
                 </table>
               </div>
-              {/* Coluna direita: logo centralizado verticalmente */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 200, alignSelf: "stretch" }}>
+              {/* Coluna direita: logo no topo direito */}
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "flex-end", width: 220, paddingTop: 0 }}>
                 <img
                   src={LOGO_URL}
                   alt="ALFALUX"
-                  style={{ height: 80, objectFit: "contain" }}
+                  style={{ height: 70, objectFit: "contain" }}
                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                 />
               </div>
