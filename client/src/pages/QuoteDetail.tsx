@@ -2234,6 +2234,26 @@ export default function QuoteDetail() {
                         arquiteto: (quote as any).arquiteto ?? undefined,
                         lightDesigner: (quote as any).lightDesigner ?? undefined,
                         bumpVersion: false,
+                        // Preservar todos os campos do orçamento para não perder dados ao salvar itens
+                        deliveryDays: quote.deliveryDays ?? 20,
+                        commissionPercent: quote.commissionPercent != null ? parseFloat(String(quote.commissionPercent)) : 0.05,
+                        commissionPercent2: quote.commissionPercent2 != null ? parseFloat(String(quote.commissionPercent2)) : 0,
+                        paymentTerm: quote.paymentTerm ?? undefined,
+                        destState: quote.destState ?? undefined,
+                        difalEnabled: quote.difalEnabled ?? false,
+                        difalPercent: quote.difalPercent != null ? parseFloat(String(quote.difalPercent)) : 0,
+                        fcpPercent: quote.fcpPercent != null ? parseFloat(String(quote.fcpPercent)) : 0,
+                        fcpEnabled: quote.fcpEnabled ?? false,
+                        difalValue: itemsDifalValRecalc,
+                        fcpValue: itemsFcpValRecalc,
+                        projectNumber: quote.projectNumber ?? undefined,
+                        freteValue: (quote as any).freteValue != null ? parseFloat(String((quote as any).freteValue)) : undefined,
+                        freteState: (quote as any).freteState ?? undefined,
+                        freteCity: (quote as any).freteCity ?? undefined,
+                        freteIncluded: (quote as any).freteIncluded ?? false,
+                        diluicaoValor: (quote as any).diluicaoValor != null ? parseFloat(String((quote as any).diluicaoValor)) : undefined,
+                        diluicaoDescricao: (quote as any).diluicaoDescricao ?? undefined,
+                        quoteNumber: quote.quoteNumber ?? undefined,
                       });
                     }}
                     disabled={addRevisionForItemsMutation.isPending}

@@ -2014,3 +2014,7 @@
 - [x] Aplicar overrides no skuPriceMap e lumPriceMap antes do cálculo de preços
 - [x] Criar componente DriverPriceEditor com edição inline e remoção de overrides
 - [x] Integrar DriverPriceEditor no Home.tsx visível apenas para vivian@grupoalfalux.com.br
+
+## Bug crítico — perda de dados ao salvar itens do orçamento (16/07/2026)
+- [x] QuoteDetail.tsx: addRevisionForItemsMutation não enviava freteValue, freteCity, freteState, freteIncluded, destState, difalEnabled, fcpEnabled, deliveryDays, commissionPercent, paymentTerm, difalPercent, fcpPercent, difalValue, fcpValue, projectNumber, diluicaoValor, diluicaoDescricao, quoteNumber ao salvar itens — todos esses campos eram sobrescritos com null/false/0 no banco
+- [x] Corrigido: addRevisionForItemsMutation agora preserva todos os campos do orçamento ao salvar apenas itens
