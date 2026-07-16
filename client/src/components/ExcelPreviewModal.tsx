@@ -658,18 +658,18 @@ ${htmlContent}
               zIndex: 1,
             }}
           >
-            {/* ── Cabeçalho: endereço + logo ── */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
-              <div style={{ fontSize: 11 }}>
-                <div style={{ fontWeight: "bold" }}>(11) 5666.9272 / 5666.4856</div>
-                <div style={{ fontWeight: "bold" }}>Rua Agostino Togneri, n° 617 - Jurubatuba - São Paulo/ SP</div>
-              </div>
+            {/* ── Cabeçalho: logo centralizado + endereço abaixo ── */}
+            <div style={{ textAlign: "center", marginBottom: 6 }}>
               <img
                 src={LOGO_URL}
                 alt="ALFALUX"
-                style={{ height: 70, objectFit: "contain" }}
+                style={{ height: 70, objectFit: "contain", display: "inline-block" }}
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
               />
+              <div style={{ fontSize: 11, marginTop: 4 }}>
+                <div style={{ fontWeight: "bold" }}>(11) 5666.9272 / 5666.4856</div>
+                <div style={{ fontWeight: "bold" }}>Rua Agostino Togneri, n° 617 - Jurubatuba - São Paulo/ SP</div>
+              </div>
             </div>
 
             {/* ── Número, data e campos ── */}
