@@ -2018,3 +2018,11 @@
 ## Bug crítico — perda de dados ao salvar itens do orçamento (16/07/2026)
 - [x] QuoteDetail.tsx: addRevisionForItemsMutation não enviava freteValue, freteCity, freteState, freteIncluded, destState, difalEnabled, fcpEnabled, deliveryDays, commissionPercent, paymentTerm, difalPercent, fcpPercent, difalValue, fcpValue, projectNumber, diluicaoValor, diluicaoDescricao, quoteNumber ao salvar itens — todos esses campos eram sobrescritos com null/false/0 no banco
 - [x] Corrigido: addRevisionForItemsMutation agora preserva todos os campos do orçamento ao salvar apenas itens
+
+## Nova categoria "Não Orçamos" (16/07/2026)
+- [x] Home.tsx: adicionar categoria "Não Orçamos" na grade de categorias (caixa retangular igual a Customizados)
+- [x] Home.tsx: ao selecionar "Não Orçamos", mostrar formulário com apenas Descrição e Item em Planta (sem CCT, tensão, cor, quantidade, controle)
+- [x] Home.tsx: ao adicionar ao carrinho, usar category="NaoOrcamos", sku="NAO-ORCAMOS", description=texto do usuário, totalPrice=0, qty=1 (sem perguntar cor)
+- [x] Cart.tsx: tratar category="NaoOrcamos" — não mostrar driver, não mostrar preço, exibir badge especial
+- [x] QuoteDetail.tsx: tratar category="NaoOrcamos" — exibir corretamente sem preço, sem driver
+- [x] ExcelPreviewModal.tsx e quoteExcelGenerator.ts: linha sem preço, sem driver para NaoOrcamos

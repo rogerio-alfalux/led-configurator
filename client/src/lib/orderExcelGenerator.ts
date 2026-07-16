@@ -384,8 +384,11 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   const DATA_START = 7;
   const imagePromises: Promise<void>[] = [];
 
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
+  // Filtrar itens de "Não Orçamos" pois são apenas indicativos e não devem aparecer na ficha de produção
+  const orderItems = items.filter(item => item.category !== 'Não Orçamos');
+
+  for (let i = 0; i < orderItems.length; i++) {
+    const item = orderItems[i];
     const rowNum = DATA_START + i;
     const row = ws.getRow(rowNum);
 
@@ -521,7 +524,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   await Promise.allSettled(imagePromises);
 
   // ─── Linha de observações gerais ─────────────────────────────────────────
-  const obsRow = DATA_START + items.length + 1;
+  const obsRow = DATA_START + orderItems.length + 1;
   ws.getRow(obsRow).height = 22;
   ws.mergeCells(`A${obsRow}:C${obsRow}`);
   labelCell(ws.getCell(`A${obsRow}`), "OBSERVAÇÕES GERAIS");

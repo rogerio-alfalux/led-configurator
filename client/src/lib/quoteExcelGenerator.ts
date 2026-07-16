@@ -552,7 +552,8 @@ async function _generateExcelBuffer(
   };
   // _totalBaseParaFrete: base para distribuição proporcional do frete por item
   // Para itens com driverLines, usa apenas o preço da luminária (sem drivers) para evitar duplicação
-  const _totalBaseParaFrete = items.reduce((s, it) => s + calcItemLumTotal(it) + calcItemDrvTotal(it), 0);
+  // Itens "Não Orçamos" são apenas indicativos e não entram na base de cálculo do frete
+  const _totalBaseParaFrete = items.filter(it => it.category !== 'Não Orçamos').reduce((s, it) => s + calcItemLumTotal(it) + calcItemDrvTotal(it), 0);
   const _freteParaDiluir = (formData.freteIncluded && formData.freteValue && formData.freteValue > 0)
     ? formData.freteValue
     : 0;
@@ -632,7 +633,28 @@ async function _generateExcelBuffer(
     const rowNum = currentRow + i + floorHeaderCount;
     const row = ws.getRow(rowNum);
 
-    // ── Categoria Serviços: linha compacta sem foto nem colunas técnicas ──────────────
+    // ── Categoria Não Orçamos: linha indicativa sem preço ──────────────────────
+    if (item.category === 'Não Orçamos') {
+      row.height = 30;
+      const NAO_BG = 'FFFFF3F3';
+      const NAO_COLOR = 'FFC53030';
+      for (const col of ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N']) {
+        const cell = ws.getCell(`${col}${rowNum}`);
+        mediumBorder(cell);
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAO_BG } };
+        cell.font = { name: 'Calibri', size: 11, color: { argb: NAO_COLOR } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      }
+      ws.getCell(`C${rowNum}`).value = item.itemEmPlanta || '';
+      ws.mergeCells(`E${rowNum}:N${rowNum}`);
+      const naoCell = ws.getCell(`E${rowNum}`);
+      naoCell.value = `NÃO ORÇAMOS — ${item.description || 'Produto sem equivalente no catálogo'}`;
+      naoCell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: NAO_COLOR } };
+      naoCell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+      continue; // pular o restante do loop para este item
+    }
+
+    // ── Categoria Serviços: linha compacta sem foto nem colunas técnicas ──────────────────────
     if (item.category === 'Serviços') {
       row.height = 30;
       const SERV_BG = 'FFF5F5F5';

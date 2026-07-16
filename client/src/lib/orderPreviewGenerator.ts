@@ -142,7 +142,9 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
 
   // ── Linhas de dados ──────────────────────────────────────────────────────
   let dataRows = "";
-  items.forEach((item, i) => {
+  // Filtrar itens de "Não Orçamos" pois são apenas indicativos e não devem aparecer na ficha de produção
+  const orderItems = items.filter(item => item.category !== 'Não Orçamos');
+  orderItems.forEach((item, i) => {
     const isOdd = i % 2 === 0;
     const rowBg = isOdd ? "#dce6f1" : "#ffffff";
 

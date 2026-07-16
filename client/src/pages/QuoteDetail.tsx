@@ -243,8 +243,33 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
         </div>
       </div>
 
+      {/* Campos editáveis para Não Orçamos: apenas descrição e item em planta */}
+      {d.category === 'Não Orçamos' && (
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Descrição</Label>
+            <textarea
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
+              rows={3}
+              value={d.description ?? ""}
+              onChange={e => onUpdate(item.id, { description: e.target.value, orderSummary: e.target.value, quoteSummary: e.target.value })}
+              placeholder="Descrição do produto não orçado"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Item em Planta</Label>
+            <Input
+              value={d.itemEmPlanta ?? ""}
+              onChange={e => onUpdate(item.id, { itemEmPlanta: e.target.value })}
+              placeholder="ex: L1, EF2"
+              className="mt-1 h-8 text-sm"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Campos editáveis */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {d.category !== 'Não Orçamos' && <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {/* Quantidade */}
         <div>
           <Label className="text-xs">Quantidade</Label>
@@ -337,10 +362,10 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
             </SelectContent>
           </Select>
         </div>
-      </div>
+      </div>}
 
       {/* Preço unitário: editável quando não veio da API, ou quando o usuário tem permissão de override */}
-      <div className="flex items-center gap-4">
+      {d.category !== 'Não Orçamos' && <div className="flex items-center gap-4">
         <div className="flex-1">
           <Label className="text-xs">
             Preço Unitário (R$)
@@ -400,7 +425,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
             </>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Drivers do item — exibição + edição de preço para gerentes */}
       {d.driverLines && d.driverLines.length > 0 && (
@@ -3341,6 +3366,8 @@ export default function QuoteDetail() {
               for (const item of currentItemsMigrated) {
                 const d = parseCartItemData(item.itemData);
                 if (!d) continue;
+                // Itens "Não Orçamos" são apenas indicativos e não entram no total
+                if (d.category === 'Não Orçamos') continue;
                 if (d.driverLines && d.driverLines.length > 0) {
                   hasDriverBreakdown = true;
                   // Resolver priceWithoutDriver: campo dedicado, fallback derivado de (totalPrice - driversTotalPrice), ou unitPrice
@@ -3553,6 +3580,8 @@ export default function QuoteDetail() {
                                           : <p className="text-xs italic text-muted-foreground">A consultar</p>}
                                       </div>
                                     </>
+                                  ) : d.category === 'Não Orçamos' ? (
+                                    <p className="text-xs font-semibold text-red-600 dark:text-red-400 italic">Sem preço</p>
                                   ) : (
                                     <>
                                       {/* Para itens sem breakdown, a dilução já está em _itemDiluicao */}

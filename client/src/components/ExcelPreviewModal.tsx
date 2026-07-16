@@ -670,6 +670,7 @@ ${htmlContent}
               <tbody>
                 {sortedItems.map((item, idx) => {
                   const isService = item.category === "Serviços";
+                  const isNaoOrcamos = item.category === "Não Orçamos";
                   const nonRabichoAcc = item.accessories?.filter(a => !a.familia?.toLowerCase().includes("rabicho")) ?? [];
                   const rabichoAcc = item.accessories?.find(a => a.familia?.toLowerCase().includes("rabicho"));
 
@@ -687,7 +688,18 @@ ${htmlContent}
                         </tr>
                       )}
 
-                      {isService ? (
+                      {isNaoOrcamos ? (
+                        <tr style={{ background: "#FFF3F3", borderLeft: "3px solid #E53E3E" }}>
+                          <td style={tdStyle}>{item.itemEmPlanta || ""}</td>
+                          <td style={tdStyle}></td>{/* FOTO vazia */}
+                          <td colSpan={7} style={{ ...tdStyle, textAlign: "left", color: "#C53030", fontWeight: 600 }}>
+                            NÃO ORÇAMOS — {item.description || "Produto sem equivalente no catálogo"}
+                          </td>
+                          <td style={tdStyle}>-</td>
+                          <td style={tdStyle}>-</td>
+                          <td style={tdStyle}>-</td>
+                        </tr>
+                      ) : isService ? (
                         <tr style={{ background: "#F5F5F5" }}>
                           <td style={tdStyle}>{item.itemEmPlanta || ""}</td>
                           <td style={tdStyle}></td>{/* FOTO vazia */}

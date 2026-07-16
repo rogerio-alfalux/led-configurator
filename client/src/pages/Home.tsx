@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench, Briefcase, Star, Package2, Search as SearchIcon, Minus, Plus, DollarSign } from "lucide-react";
+import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench, Briefcase, Star, Package2, Search as SearchIcon, Minus, Plus, DollarSign, Ban } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -158,7 +158,8 @@ type ProductCategory =
   | "Revenda"
   | "Acessórios"
   | "Serviços"
-  | "Customizados";
+  | "Customizados"
+  | "Não Orçamos";
 
 const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.ElementType; image?: string; available: boolean }[] = [
   { value: "Perfis",       label: "Perfis",        icon: Layers,      image: "/manus-storage/PERFIS_e65318d1.png",      available: true  },
@@ -2575,7 +2576,7 @@ export default function Home() {
 
   // Função central: adiciona ao orçamento ou ao carrinho dependendo do modo
   // Categorias que já têm cor predefinida — não precisam do modal de cor
-  const CATEGORIES_WITH_PRESET_COLOR = ["Acessórios", "Revenda"];
+  const CATEGORIES_WITH_PRESET_COLOR = ["Acessórios", "Revenda", "Customizados", "Não Orçamos"];
 
   // Função auxiliar: envia item diretamente ao carrinho/orçamento sem abrir modal de cor
   const dispatchItemDirect = useCallback((item: CartItemData, cor: CorPeca = "A Definir") => {
@@ -3424,8 +3425,45 @@ export default function Home() {
     setCzQty("1");
     setCzUnitPrice("");
     setCzNotes("");
-  }, [czSelectedSku, czSearch, czQty, czUnitPrice, czNotes, customizadosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, pendingAccessories, globalItemEmPlanta, globalPavimento, globalAmbiente]);
-
+    }, [czSelectedSku, czSearch, czQty, czUnitPrice, czNotes, customizadosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, pendingAccessories, globalItemEmPlanta, globalPavimento, globalAmbiente]);
+  // ── Estados de Não Orçamos ──────────────────────────────────────────────
+  const [noDescription, setNoDescription] = useState<string>("");
+  const handleAddNaoOrcamos = useCallback(() => {
+    if (!noDescription.trim()) {
+      toast.error("Informe a descrição do produto.");
+      return;
+    }
+    const item: CartItemData = {
+      category: "Não Orçamos",
+      sku: `NAO-${Date.now()}`,
+      description: noDescription.trim(),
+      photoUrl: "",
+      qty: 1,
+      unitPrice: 0,
+      totalPrice: 0,
+      priceFromApi: false,
+      power: "",
+      cct: "",
+      orderSummary: noDescription.trim(),
+      quoteSummary: noDescription.trim(),
+      specialInternalNotes: undefined,
+      corPeca: "",
+      itemNote: undefined,
+      itemEmPlanta: globalItemEmPlanta,
+    };
+    if (appendToQuoteId) {
+      handleAddItemOrToQuote(item);
+    } else {
+      const itemWithFloor: CartItemData = {
+        ...item,
+        ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
+        ...(globalAmbiente ? { ambiente: globalAmbiente } : {}),
+      };
+      addItem(itemWithFloor);
+      toast.success(`"${noDescription.trim()}" adicionado como Não Orçamos!`);
+    }
+    setNoDescription("");
+  }, [noDescription, addItem, appendToQuoteId, handleAddItemOrToQuote, globalItemEmPlanta, globalPavimento, globalAmbiente]);
   // ── Estados de Acessórios ──────────────────────────────────────────────
   const [acSelectedId, setAcSelectedId] = useState<number | null>(null);
   const [acItemQty, setAcItemQty] = useState<number>(1); // quantidade ao adicionar acessório como item independente
@@ -4627,6 +4665,30 @@ export default function Home() {
                     )}
                     <span className={`text-muted-foreground transition-transform ${
                       productCategory === "Customizados" ? "rotate-90" : ""
+                    }`}>›</span>
+                  </button>
+                </div>
+                {/* ── Faixa horizontal: Não Orçamos ── */}
+                <div>
+                  <button
+                    onClick={() => {
+                      setProductCategory(productCategory === "Não Orçamos" ? "Perfis" : "Não Orçamos");
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-sm font-medium transition-all ${
+                      productCategory === "Não Orçamos"
+                        ? "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500 shadow-sm ring-1 ring-red-500/30"
+                        : "bg-background text-foreground border-border hover:border-red-400/60 hover:bg-red-50/50 dark:hover:bg-red-900/10"
+                    }`}
+                  >
+                    <Ban className={`w-5 h-5 shrink-0 ${
+                      productCategory === "Não Orçamos" ? "text-red-500" : "text-muted-foreground"
+                    }`} />
+                    <div className="flex-1 text-left">
+                      <span className="font-semibold">Não Orçamos</span>
+                      <span className="ml-2 text-xs text-muted-foreground font-normal">Produtos sem equivalente no catálogo</span>
+                    </div>
+                    <span className={`text-muted-foreground transition-transform ${
+                      productCategory === "Não Orçamos" ? "rotate-90" : ""
                     }`}>›</span>
                   </button>
                 </div>
@@ -8331,6 +8393,40 @@ export default function Home() {
               </div>
             )}
 
+            {/* ── Formulário de Não Orçamos ──────────────────────────────────────────────── */}
+            {productCategory === "Não Orçamos" && (
+              <div className="space-y-4">
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-red-500/5 border border-red-500/20">
+                  <Ban className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-red-600 dark:text-red-400">Não Orçamos</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Use este item para indicar produtos solicitados pelo cliente que não possuímos equivalente no catálogo.
+                      O item aparecerá no orçamento sem preço.
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Descrição do produto <span className="text-destructive">*</span></label>
+                  <textarea
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
+                    rows={3}
+                    placeholder="ex: Arandela externa IP65 com sensor de presença, 15W, 3000K, acabamento preto"
+                    value={noDescription}
+                    onChange={(e) => setNoDescription(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={!noDescription.trim()}
+                  onClick={handleAddNaoOrcamos}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+                >
+                  <Ban className="w-4 h-4" />
+                  Adicionar como Não Orçamos
+                </button>
+              </div>
+            )}
             {/* ── Formulário de Acessórios ────────────────────────────────────────────────── */}
             {productCategory === "Acessórios" && (       <div className="space-y-4">
                 {acessoriosQuery.isLoading ? (
@@ -12446,6 +12542,46 @@ export default function Home() {
               );
             })()}
 
+            {/* ── Não Orçamos: painel de resumo ── */}
+            {productCategory === "Não Orçamos" && (
+              <Card className="border-red-500/30 bg-red-500/5">
+                <CardContent className="p-4 space-y-3">
+                  {noDescription.trim() ? (
+                    <div className="space-y-3">
+                      <div className="p-3 rounded-lg bg-background border border-border">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto a indicar</p>
+                        <p className="text-sm font-semibold leading-tight">{noDescription.trim()}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/40">
+                        <p className="text-xs text-red-700 dark:text-red-400 font-medium">Sem preço — apenas indicativo</p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                        <Input className="h-7 text-xs flex-1" placeholder="ex: L1, P2..." value={globalItemEmPlanta} onChange={(e) => setGlobalItemEmPlanta(e.target.value)} />
+                      </div>
+                      <Button
+                        className="w-full bg-red-600 hover:bg-red-700 text-white"
+                        onClick={handleAddNaoOrcamos}
+                        disabled={!noDescription.trim()}
+                      >
+                        <Ban className="w-4 h-4 mr-2" />
+                        {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                      <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                        <Ban className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                      <p className="text-base font-semibold text-foreground">Nenhuma descrição</p>
+                      <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+                        Preencha a descrição do produto no formulário ao lado.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
             {/* ── Acessórios: painel de resumo do item selecionado ── */}
             {productCategory === "Acessórios" && (() => {
               const acProduct = acSelectedId
