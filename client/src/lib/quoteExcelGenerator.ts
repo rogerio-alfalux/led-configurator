@@ -614,7 +614,9 @@ async function _generateExcelBuffer(
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     // Inserir cabeçalho de pavimento quando floorId muda (comparacao normalizada)
-    if (item.floorId && normalizeFloor(item.floorId) !== normalizeFloor(lastFloorId)) {
+    // Exceção: itens "Não Orçamos" não geram cabeçalho de pavimento — o item em planta
+    // aparece diretamente na coluna C da mesma linha, como um produto normal
+    if (item.category !== 'Não Orçamos' && item.floorId && normalizeFloor(item.floorId) !== normalizeFloor(lastFloorId)) {
       const fhRow = currentRow + i + floorHeaderCount;
       const fhRowObj = ws.getRow(fhRow);
       fhRowObj.height = 22;

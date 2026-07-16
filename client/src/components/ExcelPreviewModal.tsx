@@ -676,8 +676,8 @@ ${htmlContent}
 
                   return (
                     <Fragment key={`row-group-${idx}`}>
-                      {/* Cabeçalho de pavimento */}
-                      {item.floorId && (
+                      {/* Cabeçalho de pavimento — não exibir para itens "Não Orçamos" (item em planta aparece na coluna C da mesma linha) */}
+                      {item.category !== 'Não Orçamos' && item.floorId && (
                         idx === 0 ||
                         (sortedItems[idx - 1]?.floorId ?? "").trim().toLowerCase() !== (item.floorId ?? "").trim().toLowerCase()
                       ) && (
