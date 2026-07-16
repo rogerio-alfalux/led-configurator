@@ -237,7 +237,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-xs text-muted-foreground font-mono">{d.sku}</p>
+          {d.category !== 'Não Orçamos' && <p className="text-xs text-muted-foreground font-mono">{d.sku}</p>}
           <p className="text-sm font-semibold leading-tight">{d.description}</p>
           <p className="text-xs text-muted-foreground">{d.category}</p>
         </div>
@@ -3509,7 +3509,7 @@ export default function QuoteDetail() {
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs text-muted-foreground font-mono">{d.sku}</p>
+                                  {d.category !== 'Não Orçamos' && <p className="text-xs text-muted-foreground font-mono">{d.sku}</p>}
                                   <p className="text-sm font-medium leading-tight">{d.description}</p>
                                   <div className="flex gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
                                     {d.power && <span className="flex items-center gap-0.5"><Zap className="w-3 h-3" />{d.power}</span>}
@@ -3829,7 +3829,7 @@ export default function QuoteDetail() {
                             {idx + 1}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-mono text-muted-foreground">{d.sku}</p>
+                            {d.category !== 'Não Orçamos' && <p className="text-xs font-mono text-muted-foreground">{d.sku}</p>}
                             <p className="text-sm font-medium leading-tight truncate">{d.description}</p>
                             {d.floorName && <p className="text-xs text-muted-foreground">{d.floorName}</p>}
                           </div>

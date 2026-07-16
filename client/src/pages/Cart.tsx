@@ -247,7 +247,7 @@ function SortableCartItem({
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground font-mono">{entry.data.sku}</p>
+                  {entry.data.category !== 'Não Orçamos' && <p className="text-xs text-muted-foreground font-mono">{entry.data.sku}</p>}
                   <p className="font-semibold text-sm leading-tight">{entry.data.description}</p>
                   <div className="flex gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
                     {entry.data.power && <span className="flex items-center gap-0.5"><Zap className="w-3 h-3" />{entry.data.power}</span>}

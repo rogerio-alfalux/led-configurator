@@ -2028,6 +2028,6 @@
 - [x] ExcelPreviewModal.tsx e quoteExcelGenerator.ts: linha sem preço, sem driver para NaoOrcamos
 
 ## Ajustes "Não Orçamos" (16/07/2026)
-- [ ] Home.tsx: remover obrigatoriedade da descrição para enviar ao carrinho (botão habilitado mesmo sem descrição)
-- [ ] quoteExcelGenerator.ts: exibir "Não Orçamos" como linha normal de produto (sem linha vermelha especial, sem borda lateral)
-- [ ] ExcelPreviewModal.tsx: exibir "Não Orçamos" como linha normal de produto (sem linha vermelha especial, sem borda lateral)
+- [x] Home.tsx: remover obrigatoriedade da descrição para enviar ao carrinho (botão habilitado mesmo sem descrição)
+- [x] quoteExcelGenerator.ts: exibir "Não Orçamos" como linha normal de produto (sem linha vermelha especial, sem borda lateral)
+- [x] ExcelPreviewModal.tsx: exibir "Não Orçamos" como linha normal de produto (sem linha vermelha especial, sem borda lateral)
