@@ -251,7 +251,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
       }
       @page {
         size: A4 portrait;
-        margin: 15mm 6mm 10mm 6mm;
+        margin: 20mm 6mm 10mm 6mm;
       }
       /* Escala para caber 1100px em A4 retrato (794px úteis a 96dpi → zoom ≈ 0.64) */
       [data-print-content] > div > div {
