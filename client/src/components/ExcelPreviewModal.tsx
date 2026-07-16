@@ -658,48 +658,61 @@ ${htmlContent}
               zIndex: 1,
             }}
           >
-            {/* ── Cabeçalho: logo centralizado + endereço abaixo ── */}
-            <div style={{ textAlign: "center", marginBottom: 6 }}>
+            {/* ── Cabeçalho: logo centralizado no topo + endereço ── */}
+            <div style={{ textAlign: "center", marginBottom: 8 }}>
               <img
                 src={LOGO_URL}
                 alt="ALFALUX"
                 style={{ height: 70, objectFit: "contain", display: "inline-block" }}
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
               />
-              <div style={{ fontSize: 11, marginTop: 4 }}>
+              <div style={{ fontSize: 11, marginTop: 2 }}>
                 <div style={{ fontWeight: "bold" }}>(11) 5666.9272 / 5666.4856</div>
                 <div style={{ fontWeight: "bold" }}>Rua Agostino Togneri, n° 617 - Jurubatuba - São Paulo/ SP</div>
               </div>
             </div>
 
-            {/* ── Número, data e campos ── */}
-            <div style={{ display: "flex", gap: 12, marginBottom: 6, marginTop: 8 }}>
-              <div style={{ background: BLUE, color: WHITE, fontWeight: "bold", fontSize: 15, padding: "4px 14px", borderRadius: 2 }}>
-                {(formData.numero || "") + rvSuffix}
+            {/* ── Número, data + campos + logo lateral ── */}
+            <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+              {/* Coluna esquerda: número/data + tabela de campos */}
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", gap: 12, marginBottom: 6 }}>
+                  <div style={{ background: BLUE, color: WHITE, fontWeight: "bold", fontSize: 15, padding: "4px 14px", borderRadius: 2 }}>
+                    {(formData.numero || "") + rvSuffix}
+                  </div>
+                  <div style={{ background: BLUE, color: WHITE, fontWeight: "bold", fontSize: 15, padding: "4px 14px", borderRadius: 2 }}>
+                    {formData.data || new Date().toLocaleDateString("pt-BR")}
+                  </div>
+                </div>
+                <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 6, fontSize: 12 }}>
+                  <tbody>
+                    {[
+                      ["VENDEDOR", vendedorText],
+                      ["OBRA", formData.obra || ""],
+                      ["CLIENTE", formData.cliente || ""],
+                      ["CONTATO/TEL", contactText],
+                      ["E-MAIL", formData.email || ""],
+                      ["ARQUITETURA/LD", [formData.arquiteto ? `ARQUITETO: ${formData.arquiteto}` : "", formData.lightDesigner ? `LD: ${formData.lightDesigner}` : ""].filter(Boolean).join("   |   ")],
+                      ["REFERÊNCIA", formData.referencia || "FORNECIMENTO DE LUMINÁRIAS"],
+                    ].map(([label, value]) => (
+                      <tr key={label}>
+                        <td style={{ fontWeight: "bold", paddingRight: 8, whiteSpace: "nowrap", width: 160, paddingTop: 1, paddingBottom: 1 }}>{label}:</td>
+                        <td style={{ paddingTop: 1, paddingBottom: 1 }}>{value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <div style={{ background: BLUE, color: WHITE, fontWeight: "bold", fontSize: 15, padding: "4px 14px", borderRadius: 2 }}>
-                {formData.data || new Date().toLocaleDateString("pt-BR")}
+              {/* Coluna direita: logo centralizado verticalmente */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 200, alignSelf: "stretch" }}>
+                <img
+                  src={LOGO_URL}
+                  alt="ALFALUX"
+                  style={{ height: 80, objectFit: "contain" }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
               </div>
             </div>
-
-            <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 6, fontSize: 12 }}>
-              <tbody>
-                {[
-                  ["VENDEDOR", vendedorText],
-                  ["OBRA", formData.obra || ""],
-                  ["CLIENTE", formData.cliente || ""],
-                  ["CONTATO/TEL", contactText],
-                  ["E-MAIL", formData.email || ""],
-                  ["ARQUITETURA/LD", [formData.arquiteto ? `ARQUITETO: ${formData.arquiteto}` : "", formData.lightDesigner ? `LD: ${formData.lightDesigner}` : ""].filter(Boolean).join("   |   ")],
-                  ["REFERÊNCIA", formData.referencia || "FORNECIMENTO DE LUMINÁRIAS"],
-                ].map(([label, value]) => (
-                  <tr key={label}>
-                    <td style={{ fontWeight: "bold", paddingRight: 8, whiteSpace: "nowrap", width: 160, paddingTop: 1, paddingBottom: 1 }}>{label}:</td>
-                    <td style={{ paddingTop: 1, paddingBottom: 1 }}>{value}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
 
             {/* ── Proposta comercial ── */}
             <div style={{ textAlign: "center", fontWeight: "bold", fontSize: 11, padding: "5px 0", borderTop: "1px solid #ccc", borderBottom: "1px solid #ccc", marginBottom: 6 }}>
