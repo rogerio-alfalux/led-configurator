@@ -658,10 +658,10 @@ ${htmlContent}
               zIndex: 1,
             }}
           >
-            {/* ── Número, data + campos + logo fixo no canto superior direito ── */}
+            {/* ── Logo centralizado horizontalmente + campos ── */}
             <div style={{ position: "relative" }}>
-              {/* Logo centralizado vertical e horizontalmente na metade direita */}
-              <div style={{ position: "absolute", top: "50%", right: 0, width: 230, transform: "translateY(-50%)", display: "flex", justifyContent: "center" }}>
+              {/* Logo centralizado horizontalmente na página, centralizado verticalmente no bloco */}
+              <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", pointerEvents: "none" }}>
                 <img
                   src={LOGO_URL}
                   alt="ALFALUX"
@@ -670,7 +670,7 @@ ${htmlContent}
                 />
               </div>
               {/* Número e data */}
-              <div style={{ display: "flex", gap: 12, marginBottom: 6, paddingRight: 230 }}>
+              <div style={{ display: "flex", gap: 12, marginBottom: 6 }}>
                 <div style={{ background: BLUE, color: WHITE, fontWeight: "bold", fontSize: 15, padding: "4px 14px", borderRadius: 2 }}>
                   {(formData.numero || "") + rvSuffix}
                 </div>
@@ -692,7 +692,7 @@ ${htmlContent}
                   ].map(([label, value]) => (
                     <tr key={label}>
                       <td style={{ fontWeight: "bold", paddingRight: 8, whiteSpace: "nowrap", width: 160, paddingTop: 1, paddingBottom: 1 }}>{label}:</td>
-                      <td style={{ paddingTop: 1, paddingBottom: 1, paddingRight: 230 }}>{value}</td>
+                      <td style={{ paddingTop: 1, paddingBottom: 1 }}>{value}</td>
                     </tr>
                   ))}
                 </tbody>
