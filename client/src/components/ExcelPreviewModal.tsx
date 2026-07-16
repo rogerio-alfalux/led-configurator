@@ -689,13 +689,17 @@ ${htmlContent}
                       )}
 
                       {isNaoOrcamos ? (
-                        <tr style={{ background: "#FFF3F3", borderLeft: "3px solid #E53E3E" }}>
-                          <td style={tdStyle}>{item.itemEmPlanta || ""}</td>
-                          <td style={tdStyle}></td>{/* FOTO vazia */}
-                          <td colSpan={7} style={{ ...tdStyle, textAlign: "left", color: "#C53030", fontWeight: 600 }}>
-                            NÃO ORÇAMOS — {item.description || "Produto sem equivalente no catálogo"}
-                          </td>
+                        <tr>
+                          <td style={{ ...tdStyle, fontWeight: "bold", fontSize: 18 }}>{item.itemEmPlanta || ""}</td>
+                          <td style={{ ...tdStyle, width: 80, minHeight: 80 }}></td>{/* FOTO vazia */}
+                          <td style={{ ...tdStyle, textAlign: "left", color: "#C53030", fontWeight: 700 }}>NÃO ORÇAMOS</td>
                           <td style={tdStyle}>-</td>
+                          <td style={tdStyle}>-</td>
+                          <td style={tdStyle}>-</td>
+                          <td style={tdStyle}>-</td>
+                          <td style={tdStyle}>-</td>
+                          <td style={tdStyle}>-</td>
+                          <td style={tdStyle}>1</td>
                           <td style={tdStyle}>-</td>
                           <td style={tdStyle}>-</td>
                         </tr>

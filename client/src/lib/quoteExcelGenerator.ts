@@ -633,24 +633,33 @@ async function _generateExcelBuffer(
     const rowNum = currentRow + i + floorHeaderCount;
     const row = ws.getRow(rowNum);
 
-    // ── Categoria Não Orçamos: linha indicativa sem preço ──────────────────────
+    // ── Categoria Não Orçamos: linha normal de produto sem preço ──────────────────────
     if (item.category === 'Não Orçamos') {
-      row.height = 30;
-      const NAO_BG = 'FFFFF3F3';
-      const NAO_COLOR = 'FFC53030';
+      row.height = 55;
       for (const col of ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N']) {
         const cell = ws.getCell(`${col}${rowNum}`);
         mediumBorder(cell);
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAO_BG } };
-        cell.font = { name: 'Calibri', size: 11, color: { argb: NAO_COLOR } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+        cell.font = { name: 'Calibri', size: 11 };
         cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       }
-      ws.getCell(`C${rowNum}`).value = item.itemEmPlanta || '';
-      ws.mergeCells(`E${rowNum}:N${rowNum}`);
-      const naoCell = ws.getCell(`E${rowNum}`);
-      naoCell.value = `NÃO ORÇAMOS — ${item.description || 'Produto sem equivalente no catálogo'}`;
-      naoCell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: NAO_COLOR } };
-      naoCell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+      // Item em planta
+      const naoItemPlantaCell = ws.getCell(`C${rowNum}`);
+      naoItemPlantaCell.value = item.itemEmPlanta || '';
+      naoItemPlantaCell.font = { name: 'Calibri', size: 18, bold: true };
+      // Foto: vazia
+      ws.getCell(`D${rowNum}`).value = '';
+      // Descrição: "NÃO ORÇAMOS" em vermelho
+      ws.getCell(`E${rowNum}`).value = 'NÃO ORÇAMOS';
+      ws.getCell(`E${rowNum}`).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFC53030' } };
+      ws.getCell(`E${rowNum}`).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+      // Colunas técnicas: traço
+      for (const col of ['F', 'G', 'H', 'I', 'J', 'K']) {
+        ws.getCell(`${col}${rowNum}`).value = '-';
+      }
+      ws.getCell(`L${rowNum}`).value = 1; // qtd
+      ws.getCell(`M${rowNum}`).value = '-'; // preço unitário
+      ws.getCell(`N${rowNum}`).value = '-'; // preço total
       continue; // pular o restante do loop para este item
     }
 

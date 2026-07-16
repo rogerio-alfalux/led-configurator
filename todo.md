@@ -2026,3 +2026,8 @@
 - [x] Cart.tsx: tratar category="NaoOrcamos" — não mostrar driver, não mostrar preço, exibir badge especial
 - [x] QuoteDetail.tsx: tratar category="NaoOrcamos" — exibir corretamente sem preço, sem driver
 - [x] ExcelPreviewModal.tsx e quoteExcelGenerator.ts: linha sem preço, sem driver para NaoOrcamos
+
+## Ajustes "Não Orçamos" (16/07/2026)
+- [ ] Home.tsx: remover obrigatoriedade da descrição para enviar ao carrinho (botão habilitado mesmo sem descrição)
+- [ ] quoteExcelGenerator.ts: exibir "Não Orçamos" como linha normal de produto (sem linha vermelha especial, sem borda lateral)
+- [ ] ExcelPreviewModal.tsx: exibir "Não Orçamos" como linha normal de produto (sem linha vermelha especial, sem borda lateral)

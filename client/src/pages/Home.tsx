@@ -3429,14 +3429,10 @@ export default function Home() {
   // ── Estados de Não Orçamos ──────────────────────────────────────────────
   const [noDescription, setNoDescription] = useState<string>("");
   const handleAddNaoOrcamos = useCallback(() => {
-    if (!noDescription.trim()) {
-      toast.error("Informe a descrição do produto.");
-      return;
-    }
     const item: CartItemData = {
       category: "Não Orçamos",
       sku: `NAO-${Date.now()}`,
-      description: noDescription.trim(),
+      description: noDescription.trim() || "",
       photoUrl: "",
       qty: 1,
       unitPrice: 0,
@@ -3444,8 +3440,9 @@ export default function Home() {
       priceFromApi: false,
       power: "",
       cct: "",
-      orderSummary: noDescription.trim(),
-      quoteSummary: noDescription.trim(),
+      // orderSummary e quoteSummary vazios para não exibir descrição no preview/excel
+      orderSummary: "",
+      quoteSummary: "",
       specialInternalNotes: undefined,
       corPeca: "",
       itemNote: undefined,
@@ -3460,7 +3457,7 @@ export default function Home() {
         ...(globalAmbiente ? { ambiente: globalAmbiente } : {}),
       };
       addItem(itemWithFloor);
-      toast.success(`"${noDescription.trim()}" adicionado como Não Orçamos!`);
+      toast.success(`Item "Não Orçamos" adicionado ao carrinho!`);
     }
     setNoDescription("");
   }, [noDescription, addItem, appendToQuoteId, handleAddItemOrToQuote, globalItemEmPlanta, globalPavimento, globalAmbiente]);
@@ -8418,9 +8415,8 @@ export default function Home() {
                 </div>
                 <button
                   type="button"
-                  disabled={!noDescription.trim()}
                   onClick={handleAddNaoOrcamos}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors"
                 >
                   <Ban className="w-4 h-4" />
                   Adicionar como Não Orçamos
@@ -12546,39 +12542,28 @@ export default function Home() {
             {productCategory === "Não Orçamos" && (
               <Card className="border-red-500/30 bg-red-500/5">
                 <CardContent className="p-4 space-y-3">
-                  {noDescription.trim() ? (
-                    <div className="space-y-3">
+                  <div className="space-y-3">
+                    {noDescription.trim() && (
                       <div className="p-3 rounded-lg bg-background border border-border">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto a indicar</p>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Descrição interna</p>
                         <p className="text-sm font-semibold leading-tight">{noDescription.trim()}</p>
                       </div>
-                      <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/40">
-                        <p className="text-xs text-red-700 dark:text-red-400 font-medium">Sem preço — apenas indicativo</p>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
-                        <Input className="h-7 text-xs flex-1" placeholder="ex: L1, P2..." value={globalItemEmPlanta} onChange={(e) => setGlobalItemEmPlanta(e.target.value)} />
-                      </div>
-                      <Button
-                        className="w-full bg-red-600 hover:bg-red-700 text-white"
-                        onClick={handleAddNaoOrcamos}
-                        disabled={!noDescription.trim()}
-                      >
-                        <Ban className="w-4 h-4 mr-2" />
-                        {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
-                      </Button>
+                    )}
+                    <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/40">
+                      <p className="text-xs text-red-700 dark:text-red-400 font-medium">Sem preço — apenas indicativo no orçamento</p>
                     </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-16 text-center">
-                      <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
-                        <Ban className="w-8 h-8 text-muted-foreground" />
-                      </div>
-                      <p className="text-base font-semibold text-foreground">Nenhuma descrição</p>
-                      <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                        Preencha a descrição do produto no formulário ao lado.
-                      </p>
+                    <div className="flex items-center gap-1.5">
+                      <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                      <Input className="h-7 text-xs flex-1" placeholder="ex: L1, P2..." value={globalItemEmPlanta} onChange={(e) => setGlobalItemEmPlanta(e.target.value)} />
                     </div>
-                  )}
+                    <Button
+                      className="w-full bg-red-600 hover:bg-red-700 text-white"
+                      onClick={handleAddNaoOrcamos}
+                    >
+                      <Ban className="w-4 h-4 mr-2" />
+                      {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             )}
