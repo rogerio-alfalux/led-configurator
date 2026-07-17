@@ -418,16 +418,16 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
   <table>
     <thead>
       <tr>
-        <th style="width:40px">ITEM</th>
-        <th style="width:50px">PA</th>
-        <th style="width:60px">ETIQUETA</th>
-        <th style="width:180px">PRODUTO</th>
-        <th style="width:130px">SKU</th>
-        <th style="width:160px">FONTE DE LUZ</th>
-        <th style="width:200px">EQUIPAMENTOS</th>
-        <th style="width:40px">QTD</th>
-        <th style="width:90px">COR DA PEÇA</th>
-        <th>OBSERVAÇÕES</th>
+        <th style="width:3.5%">ITEM</th>
+        <th style="width:6%">PA</th>
+        <th style="width:6.5%">ETIQUETA</th>
+        <th style="width:12%">PRODUTO</th>
+        <th style="width:11%">SKU</th>
+        <th style="width:16%">FONTE DE LUZ</th>
+        <th style="width:20%">EQUIPAMENTOS</th>
+        <th style="width:3.5%">QTD</th>
+        <th style="width:8%">COR DA PEÇA</th>
+        <th style="width:13.5%">OBSERVAÇÕES</th>
       </tr>
     </thead>
     <tbody>
