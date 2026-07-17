@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import { CartItemData } from "./cartTypes";
 import type { LinkedAccessory } from "./cartTypes";
 import { toBrasiliaDate, toBrasiliaDateTime } from "./dateUtils";
+import { groupOrderItems } from "./orderGrouping";
 
 export interface OrderFormData {
   clientName: string;
@@ -145,13 +146,14 @@ function buildProfileSkuText(item: CartItemData): string {
 /**
  * Gera o texto da coluna FONTE DE LUZ para composições de perfis.
  *
- * Regras:
- * - 18W ou 26W: cada barra = 1 Stripflex → qty de barras = barsPerPiece
- * - 36W Stripflex (barra dupla): barsPerPiece já é 2 → qty de barras = barsPerPiece
- * - 36W Stripline: usa nome Stripline 562,5 x 15mm 108L [CCT]
+ * Exibe a quantidade TOTAL de módulos (seg.qty × seg.barsPerPiece × item.qty),
+ * agrupando por nome de módulo quando há múltiplos segmentos com o mesmo tipo.
+ * O SKU NÃO aparece nesta coluna — fica apenas na coluna SKU (E).
  *
- * Formato por segmento:
- *   "LLE-2810.3IF.18F - 03 x Stripflex 562,5 x 10mm 36L 3000K"
+ * Formato:
+ *   "120 x Stripflex 562,5 x 10mm 36L 3000K"
+ *   ou, se houver tipos diferentes:
+ *   "40 x Stripflex 562,5 x 10mm 36L 3000K\n20 x Stripline 562,5 x 15mm 108L 3000K"
  */
 function buildProfileFonteLuzText(item: CartItemData): string {
   if (!item.profileSegments || item.profileSegments.length === 0) {
@@ -161,14 +163,27 @@ function buildProfileFonteLuzText(item: CartItemData): string {
 
   const cct = item.cct ?? "";
   const isStripline = item.stripMethod === "STRIPLINE";
+  const itemQty = item.qty ?? 1;
 
-  return item.profileSegments
-    .map((seg) => {
-      const barName = isStripline
-        ? `Stripline 562,5 x 15mm 108L ${cct}`
-        : `Stripflex 562,5 x 10mm 36L ${cct}`;
-      const barQty = seg.barsPerPiece; // já inclui duplicação para 36W Stripflex
-      return `${seg.sku} - ${fmtQty(barQty)} x ${barName}`;
+  // Agrupar por nome de módulo e somar quantidades totais
+  const totals = new Map<string, { qty: number; eqCode: string | null }>();
+  for (const seg of item.profileSegments) {
+    const barName = isStripline
+      ? `Stripline 562,5 x 15mm 108L ${cct}`
+      : `Stripflex 562,5 x 10mm 36L ${cct}`;
+    const totalBars = seg.qty * seg.barsPerPiece * itemQty;
+    const existing = totals.get(barName);
+    if (existing) {
+      totals.set(barName, { qty: existing.qty + totalBars, eqCode: existing.eqCode ?? (seg as any).ledModuleCode ?? null });
+    } else {
+      totals.set(barName, { qty: totalBars, eqCode: (seg as any).ledModuleCode ?? null });
+    }
+  }
+
+  return Array.from(totals.entries())
+    .map(([name, { qty, eqCode }]) => {
+      const eqSuffix = eqCode ? ` (${eqCode})` : "";
+      return `${fmtQty(qty)} x ${name}${eqSuffix}`;
     })
     .join("\n");
 }
@@ -195,11 +210,17 @@ function buildLuminariaEquipamentosText(item: CartItemData): string {
 /**
  * Gera o texto da coluna EQUIPAMENTOS para composições de perfis.
  *
- * Formato por segmento:
- *   "LLE-2810.3IF.18F - 02 x PHILIPS XITANIUM 44W 350MA (EQ00347)"
+ * Exibe a quantidade TOTAL de drivers (seg.qty × seg.driverQtyPerPiece × item.qty),
+ * agrupando por modelo+código quando há múltiplos segmentos com o mesmo driver.
+ * O SKU NÃO aparece nesta coluna — fica apenas na coluna SKU (E).
  *
  * Para drivers combo (ex: Stripline 3 barras = 44W + 65W), o driverModel
  * já foi formatado como "1 x MODEL1 (CODE1) + 1 x MODEL2 (CODE2)" no Home.tsx.
+ *
+ * Formato:
+ *   "35 x PHILIPS XITANIUM 65W 350MA (EQ00393)"
+ *   ou, se houver modelos diferentes:
+ *   "20 x PHILIPS XITANIUM 44W 350MA (EQ00347)\n15 x PHILIPS XITANIUM 65W 350MA (EQ00393)"
  */
 function buildProfileEquipamentosText(item: CartItemData): string {
   if (!item.profileSegments || item.profileSegments.length === 0) {
@@ -210,17 +231,52 @@ function buildProfileEquipamentosText(item: CartItemData): string {
     return item.drivers ?? "";
   }
 
-  return item.profileSegments
-    .map((seg) => {
-      // Se driverModel já contém formatação de combo (tem " + "), usar direto
-      if (seg.driverModel.includes(" + ")) {
-        return `${seg.sku} - ${seg.driverModel}`;
+  const itemQty = item.qty ?? 1;
+
+  // Agrupar por modelo+código e somar quantidades totais
+  const totals = new Map<string, { model: string; code: string; qty: number; corrente?: string | null }>();
+
+  for (const seg of item.profileSegments) {
+    // Driver combo: já formatado como "1 x MODEL1 (CODE1) + 1 x MODEL2 (CODE2)"
+    if (seg.driverModel.includes(" + ")) {
+      // Para combos, tratar como texto livre e acumular por segmento
+      const comboKey = seg.driverModel;
+      const totalQty = seg.qty * itemQty;
+      const existing = totals.get(comboKey);
+      if (existing) {
+        totals.set(comboKey, { ...existing, qty: existing.qty + totalQty });
+      } else {
+        totals.set(comboKey, { model: seg.driverModel, code: "", qty: totalQty });
       }
-      // Driver simples: "SKU - QTY x MODEL (CODE)"
-      const codeSuffix = seg.driverCode && seg.driverCode !== "ERRO"
-        ? ` (${seg.driverCode})`
-        : "";
-      return `${seg.sku} - ${fmtQty(seg.driverQtyPerPiece)} x ${seg.driverModel}${codeSuffix}`;
+      continue;
+    }
+
+    // Driver simples
+    const codeSuffix = seg.driverCode && seg.driverCode !== "ERRO"
+      ? ` (${seg.driverCode})`
+      : "";
+    const key = `${seg.driverModel}${codeSuffix}`;
+    const totalQty = seg.qty * seg.driverQtyPerPiece * itemQty;
+    const corrente = seg.corrente ?? null;
+    const existing = totals.get(key);
+    if (existing) {
+      totals.set(key, { ...existing, qty: existing.qty + totalQty });
+    } else {
+      totals.set(key, { model: seg.driverModel, code: codeSuffix, qty: totalQty, corrente });
+    }
+  }
+
+  return Array.from(totals.entries())
+    .map(([_key, entry]) => {
+      // Para combos (sem code separado), usar a key como texto
+      const base = !entry.code
+        ? `${fmtQty(entry.qty)} x ${_key}`
+        : `${fmtQty(entry.qty)} x ${entry.model}${entry.code}`;
+      // Adicionar PROGRAMAÇÃO se corrente disponível e não é fonte 24V
+      if (entry.corrente && !entry.model.toUpperCase().includes("FONTE 24V")) {
+        return `${base}\nPROGRAMAÇÃO: ${entry.corrente}`;
+      }
+      return base;
     })
     .join("\n");
 }
@@ -385,7 +441,8 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   const imagePromises: Promise<void>[] = [];
 
   // Filtrar itens de "Não Orçamos" pois são apenas indicativos e não devem aparecer na ficha de produção
-  const orderItems = items.filter(item => item.category !== 'Não Orçamos');
+  // Agrupar itens idênticos (mesmo produto, CCT, cor, drivers) somando quantidades e concatenando etiquetas com pavimento
+  const orderItems = groupOrderItems(items.filter(item => item.category !== 'Não Orçamos'));
 
   for (let i = 0; i < orderItems.length; i++) {
     const item = orderItems[i];

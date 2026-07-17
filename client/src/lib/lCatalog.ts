@@ -476,6 +476,8 @@ export type ShapePieceDriver = {
   quantity: number;
   /** Drivers adicionais para combos */
   combo?: Array<{ code: string; model: string; quantity: number }>;
+  /** Corrente de programação do driver (ex: "350MA"). Exibida na ficha de produção. */
+  corrente?: string | null;
 };
 
 /**

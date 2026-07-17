@@ -150,6 +150,8 @@ export interface ConfigInput {
   driverDimDali?: { model: string; code: string | null } | null;
   /** Driver DIM 1-10V disponível para este perfil (da API) */
   driverDim110v?: { model: string; code: string | null } | null;
+  /** Corrente de programação do driver (ex: "programar em 350mA"). Campo direto da API. */
+  correnteDriver?: string | null;
   /**
    * Nome da barra Stripflex vindo da API (ex: "STRIPFLEX 562,5 X 10MM 36L").
    * Quando presente, substitui o nome hardcoded para método STRIPFLEX.
@@ -1194,7 +1196,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
         code: apiDriverInfo.code ?? undefined,
         model: apiDriverInfo.model,
         power: 0,
-        current: "",
+        current: input.correnteDriver ?? "",
         quantity: 1,
       },
     }));

@@ -859,6 +859,7 @@ function ShapeResultCard({
         driverQtyPerPiece,
         driverModel,
         driverCode,
+        corrente: piece.driver?.corrente ?? null,
       };
     });
 
@@ -1435,6 +1436,9 @@ type SkuPriceMap = Record<string, {
   driverModelBivolt: string|null; driverCodeBivolt: string|null;
   driverModelDimDali: string|null; driverCodeDimDali: string|null;
   driverModelDim110v: string|null; driverCodeDim110v: string|null;
+  // Corrente de programação do driver por tipo de controle
+  corrente220: string|null; correnteBivolt: string|null;
+  correnteDimDali: string|null; correnteDim110v: string|null;
 }>;
 
 function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty, setGlobalQty, onOpenAccessoryModal, pendingAccessoriesCount, globalPavimento }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void; onOpenAccessoryModal?: () => void; pendingAccessoriesCount?: number; globalPavimento?: string }) {
@@ -2100,6 +2104,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                   let driverQtyPerPiece = 1;
                   let driverModel = "";
                   let driverCode = "";
+                  let corrente: string | null = d1Entry?.driver?.current ?? null;
 
                   if (d1Entry) {
                     if (d1Entry.driver.combo && d1Entry.driver.combo.length > 0) {
@@ -2116,6 +2121,43 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                     }
                   }
 
+                  // CORREÇÃO: sobrescrever driver e corrente com dados do skuPriceMap por SKU específico.
+                  // O applyDimDriver usa o driver220 genérico do ProfileVariant (primeiro produto
+                  // encontrado para o profileCode), que pode ser o de 1 barra (EQ00346) mesmo
+                  // quando o segmento tem 3+ barras (EQ00347). O skuPriceMap indexa por SKU
+                  // individual e tem o driver e corrente corretos para cada produto.
+                  if (skuPriceMap && !d1Entry?.driver?.combo) {
+                    const skuEntry = skuPriceMap[`${sku}|${currentPowerLabel}`] ?? skuPriceMap[sku];
+                    if (skuEntry) {
+                      let apiDriverModel: string | null = null;
+                      let apiDriverCode: string | null = null;
+                      let apiCorrente: string | null = null;
+                      if (result.controlType === 'dimDali') {
+                        apiDriverModel = skuEntry.driverModelDimDali;
+                        apiDriverCode = skuEntry.driverCodeDimDali;
+                        apiCorrente = skuEntry.correnteDimDali;
+                      } else if (result.controlType === 'dim110v') {
+                        apiDriverModel = skuEntry.driverModelDim110v;
+                        apiDriverCode = skuEntry.driverCodeDim110v;
+                        apiCorrente = skuEntry.correnteDim110v;
+                      } else if (/bivolt/i.test(result.voltage)) {
+                        apiDriverModel = skuEntry.driverModelBivolt;
+                        apiDriverCode = skuEntry.driverCodeBivolt;
+                        apiCorrente = skuEntry.correnteBivolt;
+                      } else {
+                        apiDriverModel = skuEntry.driverModel220;
+                        apiDriverCode = skuEntry.driverCode220;
+                        apiCorrente = skuEntry.corrente220;
+                      }
+                      if (apiDriverModel && apiDriverCode) {
+                        driverModel = apiDriverModel.toUpperCase();
+                        driverCode = apiDriverCode;
+                      }
+                      // Usar corrente do skuPriceMap se disponível (fonte primária por SKU)
+                      if (apiCorrente) corrente = apiCorrente;
+                    }
+                  }
+
                   return {
                     sku,
                     qty: info.quantity,
@@ -2124,6 +2166,10 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                     driverQtyPerPiece,
                     driverModel,
                     driverCode,
+                    corrente,
+                    // Código EQ do módulo LED (Stripflex/Stripline) — vem do result.stripflexEq
+                    // que é derivado do ProfileVariant.ledModuleStripflexEq{CCT} via ledEngine
+                    ledModuleCode: result.stripflexEq ?? null,
                   };
                 });
 
@@ -2137,6 +2183,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                 const driverUnitFromComponent = driverCode0 ? (componentePriceMapLocal.get(driverCode0) ?? null) : null;
                 const driverUnitEffective = driverUnitFromApi ?? driverUnitFromComponent;
                 const driverTotalEffective = driverUnitEffective != null ? Math.round(driverUnitEffective * nModules * 100) / 100 : 0;
+                const corrente0 = profileSegments[0]?.corrente ?? null;
                 const perfilDrvLines: import("@/lib/cartTypes").DriverLine[] | undefined =
                   driverUnitEffective != null && modulePriceResult
                     ? [{
@@ -2145,6 +2192,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                         driverQty: nModules,
                         driverUnitPrice: driverUnitEffective,
                         driverTotalPrice: driverTotalEffective,
+                        corrente: corrente0 ?? undefined,
                       }]
                     : undefined;
                 const perfilPrecoSemDriver = perfilDrvLines
@@ -2747,56 +2795,9 @@ export default function Home() {
   // Mapa de custo+markup por SKU individual (extraído dos produtos PERFIS da API)
   // Armazena custoCorpo (bruto) e markups por tipo de controle
   // Preço de venda = custoCorpo[controle] × markupPadrao[controle]
-  const skuPriceMap = useMemo(() => {
+  const skuPriceMap = useMemo((): SkuPriceMap => {
     if (!alfaluxApiProducts || alfaluxApiProducts.length === 0) return {};
-    const map: Record<string, {
-      name: string;
-      // Custos brutos por controle (D1 simples)
-      custoOnoff220: number | null;
-      custoOnoffBivolt: number | null;
-      custoDim110v: number | null;
-      custoDimDali: number | null;
-      custoDimTriac110v: number | null;
-      custoDimTriac220v: number | null;
-      // Custos brutos por controle (D1+D2)
-      custoOnoff220D1D2: number | null;
-      custoOnoffBivoltD1D2: number | null;
-      custoDim110vD1D2: number | null;
-      custoDimDaliD1D2: number | null;
-      custoDimTriac110vD1D2: number | null;
-      custoDimTriac220vD1D2: number | null;
-      // Markups padrão por controle
-      markupPadraoOnoff220v: number | null;
-      markupPadraoOnoffBivolt: number | null;
-      markupPadraoDim110v: number | null;
-      markupPadraoDimDali: number | null;
-      markupPadraoDimTriac110v: number | null;
-      markupPadraoDimTriac220v: number | null;
-      // Markups mínimos por controle
-      markupMinimoOnoff220v: number | null;
-      markupMinimoOnoffBivolt: number | null;
-      markupMinimoDim110v: number | null;
-      markupMinimoDimDali: number | null;
-      markupMinimoDimTriac110v: number | null;
-      markupMinimoDimTriac220v: number | null;
-      // Custo do driver por controle
-      custoDriver220: number | null;
-      custoDriverBivolt: number | null;
-      custoDriverDim110v: number | null;
-      custoDriverDimDali: number | null;
-      custoDriverDimTriac110v: number | null;
-      custoDriverDimTriac220v: number | null;
-      markupMinimoDriver: number | null;
-      // Modelo e código EQ do driver
-      driverModel220: string | null;
-      driverCode220: string | null;
-      driverModelBivolt: string | null;
-      driverCodeBivolt: string | null;
-      driverModelDimDali: string | null;
-      driverCodeDimDali: string | null;
-      driverModelDim110v: string | null;
-      driverCodeDim110v: string | null;
-    }> = {};
+    const map: SkuPriceMap = {};
     for (const p of alfaluxApiProducts) {
       const cat = (p.categoria ?? "").toUpperCase();
       if (cat !== "PERFIS") continue;
@@ -2847,6 +2848,10 @@ export default function Home() {
         driverCodeDimDali: (p.driverDimDali as {code?:string}|null)?.code ?? null,
         driverModelDim110v: (p.driverDim110v as {model?:string}|null)?.model ?? null,
         driverCodeDim110v: (p.driverDim110v as {code?:string}|null)?.code ?? null,
+        corrente220: (p.driver220 as {corrente?:string|null}|null)?.corrente ?? null,
+        correnteBivolt: (p.driverBivolt as {corrente?:string|null}|null)?.corrente ?? null,
+        correnteDimDali: (p.driverDimDali as {corrente?:string|null}|null)?.corrente ?? null,
+        correnteDim110v: (p.driverDim110v as {corrente?:string|null}|null)?.corrente ?? null,
       };
       map[key] = {
         name: p.name ?? '',
@@ -2889,6 +2894,10 @@ export default function Home() {
         driverCodeDimDali: (p.driverDimDali as {code?:string}|null)?.code ?? null,
         driverModelDim110v: (p.driverDim110v as {model?:string}|null)?.model ?? null,
         driverCodeDim110v: (p.driverDim110v as {code?:string}|null)?.code ?? null,
+        corrente220: (p.driver220 as {corrente?:string|null}|null)?.corrente ?? null,
+        correnteBivolt: (p.driverBivolt as {corrente?:string|null}|null)?.corrente ?? null,
+        correnteDimDali: (p.driverDimDali as {corrente?:string|null}|null)?.corrente ?? null,
+        correnteDim110v: (p.driverDim110v as {corrente?:string|null}|null)?.corrente ?? null,
       };
     }
     // Aplicar overrides de custo de driver (substitui custoDriver* quando há override cadastrado)
@@ -3224,7 +3233,8 @@ export default function Home() {
   const revendaProducts = revendaProductsQuery.data ?? [];
 
   // ── Estados de Customizados ──────────────────────────────────────────────────────
-  const [czSelectedSku, setCzSelectedSku] = useState<string>("");
+  // czSelectedKey = "sku::globalIdx" — identificador único por item (evita selecionar duplicatas com mesmo SKU)
+  const [czSelectedKey, setCzSelectedKey] = useState<string>("");
   const [czSearch, setCzSearch] = useState<string>("");
   const [czQty, setCzQty] = useState<string>("1");
   const [czUnitPrice, setCzUnitPrice] = useState<string>("");
@@ -3232,6 +3242,13 @@ export default function Home() {
 
   const customizadosQuery = trpc.alfalux.customizadosProducts.useQuery();
   const customizadosProducts = customizadosQuery.data ?? [];
+  // Derivado: produto selecionado pelo índice global (não pelo SKU)
+  const czSelectedProduct = useMemo(() => {
+    if (!czSelectedKey) return null;
+    const parts = czSelectedKey.split("::");
+    const idx = parts.length === 2 ? parseInt(parts[1]) : -1;
+    return idx >= 0 && idx < customizadosProducts.length ? customizadosProducts[idx] : null;
+  }, [czSelectedKey, customizadosProducts]);
 
   // Regras de agrupamento de fornecedores
   const FORNECEDOR_IGNORE: string[] = []; // Nenhum fornecedor ignorado — exibir todos
@@ -3335,8 +3352,8 @@ export default function Home() {
 
   const handleAddCustomizadoItem = useCallback(() => {
     // Modo API: produto selecionado da lista
-    if (czSelectedSku && customizadosProducts.length > 0) {
-      const product = customizadosProducts.find(p => p.sku === czSelectedSku);
+    if (czSelectedKey && customizadosProducts.length > 0) {
+      const product = czSelectedProduct;
       if (!product) return;
       const qty = parseInt(czQty) || 1;
       const unitPrice = czUnitPrice ? parseFloat(czUnitPrice) : (product.precoVenda ?? 0);
@@ -3374,7 +3391,7 @@ export default function Home() {
         addItem(itemWithAcc);
         toast.success(`"${product.name}" adicionado!`);
       }
-      setCzSelectedSku("");
+      setCzSelectedKey("");
       setCzQty("1");
       setCzUnitPrice("");
       setCzNotes("");
@@ -3425,7 +3442,7 @@ export default function Home() {
     setCzQty("1");
     setCzUnitPrice("");
     setCzNotes("");
-    }, [czSelectedSku, czSearch, czQty, czUnitPrice, czNotes, customizadosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, pendingAccessories, globalItemEmPlanta, globalPavimento, globalAmbiente]);
+    }, [czSelectedKey, czSelectedProduct, czSearch, czQty, czUnitPrice, czNotes, customizadosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, pendingAccessories, globalItemEmPlanta, globalPavimento, globalAmbiente]);
   // ── Estados de Não Orçamos ──────────────────────────────────────────────
   const [noDescription, setNoDescription] = useState<string>("");
   const handleAddNaoOrcamos = useCallback(() => {
@@ -4281,7 +4298,7 @@ export default function Home() {
   // ── Produto configurado (habilita botão Incluir Acessório) ───────
   // Verdadeiro quando há um resultado calculado em qualquer categoria,
   // ou quando um produto de Revenda/Acessório/Item Especial está selecionado.
-  const hasResult = !!(result || shapeResult || dlResult || aeResult || panelResult || spotResult || arandelaResult || lbResult || bgResult || bfResult || rvSelectedSku || acSelectedId || czSelectedSku || productCategory === "Item Especial");
+  const hasResult = !!(result || shapeResult || dlResult || aeResult || panelResult || spotResult || arandelaResult || lbResult || bgResult || bfResult || rvSelectedSku || acSelectedId || czSelectedKey || productCategory === "Item Especial");
   // ── Dados derivados ──────────────────────────────────────────────
   // Usa funções do catálogo ativo (API ou estático)
   const profileNames = activeGetProfileNames();
@@ -8293,7 +8310,7 @@ export default function Home() {
                       <Input
                         placeholder="Buscar por nome, código ou referência..."
                         value={czSearch}
-                        onChange={e => { setCzSearch(e.target.value); setCzSelectedSku(""); }}
+                        onChange={e => { setCzSearch(e.target.value); setCzSelectedKey(""); }}
                         className="pr-8"
                       />
                       {czSearch && (
@@ -8310,52 +8327,58 @@ export default function Home() {
                     {/* Lista de produtos */}
                     <div className="border rounded-md divide-y max-h-72 overflow-y-auto">
                       {customizadosProducts
-                        .filter(p => !czSearch.trim() || p.name.toLowerCase().includes(czSearch.toLowerCase()) || p.sku.toLowerCase().includes(czSearch.toLowerCase()))
+                        .map((p, globalIdx) => ({ p, globalIdx }))
+                        .filter(({ p }) => !czSearch.trim() || p.name.toLowerCase().includes(czSearch.toLowerCase()) || p.sku.toLowerCase().includes(czSearch.toLowerCase()))
                         .length === 0 ? (
-                        <div className="text-sm text-muted-foreground p-4 text-center">Nenhum produto encontrado.</div>
-                      ) : customizadosProducts
-                        .filter(p => !czSearch.trim() || p.name.toLowerCase().includes(czSearch.toLowerCase()) || p.sku.toLowerCase().includes(czSearch.toLowerCase()))
-                        .map((p, idx) => (
-                          <div
-                            key={`${p.sku}-${idx}`}
-                            onClick={() => setCzSelectedSku(prev => prev === p.sku ? "" : p.sku)}
-                            className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors ${
-                              czSelectedSku === p.sku
-                                ? "bg-purple-50 dark:bg-purple-900/20 border-l-2 border-purple-500"
-                                : "hover:bg-muted/50"
-                            }`}
-                          >
-                            <div className="shrink-0 w-9 h-9 rounded border border-border bg-muted/30 flex items-center justify-center overflow-hidden">
-                              {p.fotoUrl ? (
-                                <img src={p.fotoUrl} alt={p.name} className="w-full h-full object-contain p-0.5" loading="lazy" />
-                              ) : (
-                                <Package2 className="w-4 h-4 text-muted-foreground/40" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium truncate">{p.name}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {p.sku}
-                                {p.precoVenda != null && p.precoVenda > 0 && (
-                                  <span className="ml-2 text-purple-700 dark:text-purple-400 font-medium">
-                                    R$ {p.precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                                  </span>
+                          <div className="text-sm text-muted-foreground p-4 text-center">Nenhum produto encontrado.</div>
+                        ) : customizadosProducts
+                          .map((p, globalIdx) => ({ p, globalIdx }))
+                          .filter(({ p }) => !czSearch.trim() || p.name.toLowerCase().includes(czSearch.toLowerCase()) || p.sku.toLowerCase().includes(czSearch.toLowerCase()))
+                          .map(({ p, globalIdx }) => {
+                            const itemKey = `${p.sku}::${globalIdx}`;
+                            return (
+                              <div
+                                key={itemKey}
+                                onClick={() => { setCzSelectedKey(prev => prev === itemKey ? "" : itemKey); }}
+                                className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors ${
+                                  czSelectedKey === itemKey
+                                    ? "bg-purple-50 dark:bg-purple-900/20 border-l-2 border-purple-500"
+                                    : "hover:bg-muted/50"
+                                }`}
+                              >
+                                <div className="shrink-0 w-9 h-9 rounded border border-border bg-muted/30 flex items-center justify-center overflow-hidden">
+                                  {p.fotoUrl ? (
+                                    <img src={p.fotoUrl} alt={p.name} className="w-full h-full object-contain p-0.5" loading="lazy" />
+                                  ) : (
+                                    <Package2 className="w-4 h-4 text-muted-foreground/40" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium truncate">{p.name}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {p.sku}
+                                    {p.precoVenda != null && p.precoVenda > 0 && (
+                                      <span className="ml-2 text-purple-700 dark:text-purple-400 font-medium">
+                                        R$ {p.precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                {czSelectedKey === itemKey && (
+                                  <div className="shrink-0">
+                                    <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
+                                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                    </div>
+                                  </div>
                                 )}
                               </div>
-                            </div>
-                            {czSelectedSku === p.sku && (
-                              <div className="shrink-0">
-                                <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
-                                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                            );
+                          })
+                      }
                     </div>
 
                     {/* Campos de quantidade e preço para produto selecionado */}
-                    {czSelectedSku && (
+                    {czSelectedKey && (
                       <div className="grid grid-cols-2 gap-3 pt-1">
                         <div className="space-y-1">
                           <label className="text-sm font-medium">Qtd *</label>
@@ -8635,6 +8658,7 @@ export default function Home() {
                     driverBivolt: selectedVariant?.driverBivolt ?? null,
                     driverDimDali: selectedVariant?.driverDimDali ?? null,
                     driverDim110v: selectedVariant?.driverDim110v ?? null,
+                    correnteDriver: selectedVariant?.correnteDriver ?? null,
                   };
                   if (profileShape === "L_SHAPE") {
                     sr = calculateLShape(code, parseInt(shapeSideH) || 2000, parseInt(shapeSideV) || 1200, dp);
@@ -12435,13 +12459,11 @@ export default function Home() {
             })()}
             {/* ── Customizados: painel de resumo do item selecionado ── */}
             {productCategory === "Customizados" && (() => {
-              const czProduct = czSelectedSku
-                ? customizadosProducts.find(p => p.sku === czSelectedSku)
-                : null;
+              const czProduct = czSelectedProduct;
               const isManualMode = customizadosProducts.length === 0;
               const canAdd = isManualMode
                 ? czSearch.trim().length > 0
-                : czSelectedSku.length > 0;
+                : czSelectedKey.length > 0;
               return (
                 <Card className="shadow-sm border-purple-500/30">
                   <CardHeader className="pb-3">

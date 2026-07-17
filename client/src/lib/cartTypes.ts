@@ -22,6 +22,10 @@ export interface ProfileSegment {
   driverModel: string;
   /** Código do driver (ex: "EQ00347") */
   driverCode: string;
+  /** Corrente de programação do driver (ex: "350MA", "700MA"). null se não disponível. */
+  corrente?: string | null;
+  /** Código EQ do módulo LED/Stripflex/Stripline (ex: "EQ00123"). null se não disponível. */
+  ledModuleCode?: string | null;
 }
 
 /**

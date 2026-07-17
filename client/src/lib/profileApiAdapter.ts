@@ -127,6 +127,7 @@ export function adaptProfileProducts(
       driverBivolt: { model: string; code: string | null } | null;
       driverDimDali: { model: string; code: string | null } | null;
       driverDim110v: { model: string; code: string | null } | null;
+      correnteDriver: string | null;
       ledModuleStripflex: string | null;
       ledModuleStripline: string | null;
       ledModuleStripflex2700: string | null;
@@ -197,6 +198,7 @@ export function adaptProfileProducts(
         driverBivolt: p.driverBivolt ?? null,
         driverDimDali: p.driverDimDali ?? null,
         driverDim110v: p.driverDim110v ?? null,
+        correnteDriver: (p as any).correnteDriver ?? null,
         ledModuleStripflex: null,
         ledModuleStripline: null,
         ledModuleStripflex2700: null,
@@ -299,7 +301,7 @@ export function adaptProfileProducts(
   // Monta o Record<string, ProfileVariant> final
   const catalog: Record<string, ProfileVariant> = {};
   for (const [code, entry] of Object.entries(variantMap)) {
-    const { rule, installType, modules, driver220, driverBivolt, driverDimDali, driverDim110v, ledModuleStripflex, ledModuleStripline } = entry;
+    const { rule, installType, modules, driver220, driverBivolt, driverDimDali, driverDim110v, ledModuleStripflex, ledModuleStripline, correnteDriver } = entry;
     // Derivar stripMethod automaticamente a partir do módulo LED detectado.
     // REGRA INEGOCIÁVEL: se ledModuleStripline está preenchido → STRIPLINE;
     // se ledModuleStripflex está preenchido → STRIPFLEX.
@@ -320,6 +322,7 @@ export function adaptProfileProducts(
       driverBivolt: driverBivolt ?? null,
       driverDimDali: driverDimDali ?? null,
       driverDim110v: driverDim110v ?? null,
+      correnteDriver: entry.correnteDriver ?? null,
       ledModuleStripflex: ledModuleStripflex ?? null,
       ledModuleStripline: ledModuleStripline ?? null,
       ledModuleStripflex2700: entry.ledModuleStripflex2700,

@@ -24,6 +24,165 @@ import type { OrderFormData } from "@/lib/orderExcelGenerator";
 import { toBrasiliaDate } from "@/lib/dateUtils";
 import { toast } from "sonner";
 
+// ─── Funções auxiliares para Fonte de Luz e Equipamentos ────────────────────
+function fmtQty(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/**
+ * Retorna true se o item é um LED BAR U (tem dados específicos de cortes).
+ */
+function isLedBar(item: CartItemData): boolean {
+  return item.category === "LED BAR" && item.ledBarNCortes !== undefined;
+}
+
+/**
+ * Gera o texto de FONTE DE LUZ / Módulo LED para exibição na tela de pedido.
+ * Replica a lógica do orderExcelGenerator.ts.
+ */
+function buildFonteLuzText(item: CartItemData): string {
+  if (item.isSpecialItem) return "";
+  if (isLedBar(item)) {
+    const nCortes = item.ledBarNCortes ?? 1;
+    const mm = item.ledBarComprimentoPorTrechoMm ?? item.ledBarComprimentoTotalMm ?? 0;
+    const modulo = item.moduloLed ?? "";
+    const linhas: string[] = [];
+    if (modulo) linhas.push(`Módulo: ${modulo}`);
+    if (nCortes > 1) {
+      linhas.push(`Trechos: ${nCortes}x de ${mm}mm`);
+    } else {
+      linhas.push(`Comprimento: ${mm}mm`);
+    }
+    return linhas.join("\n");
+  }
+  if (!item.profileSegments || item.profileSegments.length === 0) {
+    return item.moduloLed ?? [item.power, item.cct].filter(Boolean).join(" | ") ?? "";
+  }
+  const cct = item.cct ?? "";
+  const isStripline = item.stripMethod === "STRIPLINE";
+  const itemQty = item.qty ?? 1;
+
+  // Agrupar por nome de módulo e somar quantidades totais
+  const totals = new Map<string, { qty: number; eqCode: string | null }>();
+  for (const seg of item.profileSegments) {
+    const barName = isStripline
+      ? `Stripline 562,5 x 15mm 108L ${cct}`
+      : `Stripflex 562,5 x 10mm 36L ${cct}`;
+    const totalBars = seg.qty * seg.barsPerPiece * itemQty;
+    const existing = totals.get(barName);
+    if (existing) {
+      totals.set(barName, { qty: existing.qty + totalBars, eqCode: existing.eqCode ?? seg.ledModuleCode ?? null });
+    } else {
+      totals.set(barName, { qty: totalBars, eqCode: seg.ledModuleCode ?? null });
+    }
+  }
+
+  return Array.from(totals.entries())
+    .map(([name, { qty, eqCode }]) => {
+      const eqSuffix = eqCode ? ` (${eqCode})` : "";
+      return `${String(qty).padStart(2, "0")} x ${name}${eqSuffix}`;
+    })
+    .join("\n");
+}
+
+/**
+ * Gera o texto de EQUIPAMENTOS / Drivers para exibição na tela de pedido.
+ * Replica a lógica do orderExcelGenerator.ts.
+ */
+function buildEquipamentosText(item: CartItemData): string {
+  if (item.isSpecialItem) return "";
+  if (isLedBar(item)) {
+    const nCortes = item.ledBarNCortes ?? 1;
+    const model = item.ledBarDriverModel ?? "";
+    const code = item.ledBarDriverCode ?? "";
+    if (!model) return item.drivers ?? "";
+    const codeSuffix = code ? ` (${code})` : "";
+    return `${nCortes}x ${model}${codeSuffix}`;
+  }
+  if (!item.profileSegments || item.profileSegments.length === 0) {
+    // Luminária com driverLines desmembradas
+    if (item.driverLines && item.driverLines.length > 0) {
+      return item.driverLines.map(dl => {
+        const codeSuffix = dl.driverCode ? ` (${dl.driverCode})` : "";
+        const linha = `${dl.driverQty}x ${dl.driverModel}${codeSuffix}`;
+        if (dl.corrente && !dl.driverModel.toUpperCase().includes("FONTE 24V")) {
+          return `${linha}\nPROGRAMAÇÃO: ${dl.corrente}`;
+        }
+        return linha;
+      }).join("\n");
+    }
+    return item.drivers ?? "";
+  }
+  const itemQtyEq = item.qty ?? 1;
+
+  // Agrupar por modelo+código e somar quantidades totais
+  const driverTotals = new Map<string, { model: string; code: string; qty: number }>();
+
+  for (const seg of item.profileSegments) {
+    if (seg.driverModel.includes(" + ")) {
+      const comboKey = seg.driverModel;
+      const totalQty = seg.qty * itemQtyEq;
+      const existing = driverTotals.get(comboKey);
+      if (existing) {
+        driverTotals.set(comboKey, { ...existing, qty: existing.qty + totalQty });
+      } else {
+        driverTotals.set(comboKey, { model: seg.driverModel, code: "", qty: totalQty });
+      }
+      continue;
+    }
+    const codeSuffix = seg.driverCode && seg.driverCode !== "ERRO"
+      ? ` (${seg.driverCode})`
+      : "";
+    const key = `${seg.driverModel}${codeSuffix}`;
+    const totalQty = seg.qty * seg.driverQtyPerPiece * itemQtyEq;
+    const existing = driverTotals.get(key);
+    if (existing) {
+      driverTotals.set(key, { ...existing, qty: existing.qty + totalQty });
+    } else {
+      driverTotals.set(key, { model: seg.driverModel, code: codeSuffix, qty: totalQty });
+    }
+  }
+
+  // Coletar corrente (igual para todos os segmentos do mesmo perfil)
+  const correnteSegmento = item.profileSegments
+    .map(s => s.corrente)
+    .find(c => c && c.trim());
+
+  const linhas = Array.from(driverTotals.entries())
+    .map(([key, entry]) => {
+      if (!entry.code) return `${String(entry.qty).padStart(2, "0")} x ${key}`;
+      return `${String(entry.qty).padStart(2, "0")} x ${entry.model}${entry.code}`;
+    });
+
+  // Adicionar linha de programação se houver corrente e não for fonte 24V
+  if (correnteSegmento) {
+    const isDriverFonte = Array.from(driverTotals.values()).every(e =>
+      e.model.toUpperCase().includes("FONTE 24V")
+    );
+    if (!isDriverFonte) {
+      linhas.push(`PROGRAMAÇÃO: ${correnteSegmento}`);
+    }
+  }
+
+  return linhas.join("\n");
+}
+
+/**
+ * Verifica se um item tem equipamentos/drivers definidos (para warnings).
+ * Considera driverLines, profileSegments, ledBarDriverModel e drivers.
+ */
+function hasEquipamentoDefined(item: CartItemData): boolean {
+  if (item.isSpecialItem) {
+    return (item.specialEquipments ?? []).length > 0;
+  }
+  if (isLedBar(item)) {
+    return !!(item.ledBarDriverModel || item.drivers);
+  }
+  if (item.profileSegments && item.profileSegments.length > 0) return true;
+  if (item.driverLines && item.driverLines.length > 0) return true;
+  return !!(item.drivers && item.drivers.trim() !== "");
+}
+
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   draft: { label: "Rascunho", color: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300", icon: <Clock className="w-3 h-3" /> },
   sent: { label: "Enviado", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: <Truck className="w-3 h-3" /> },
@@ -198,58 +357,87 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove }: Editabl
             </div>
           </div>
 
-          {/* Drivers (apenas para itens não-especiais) */}
-          {!isSpecial && (
-            <div>
-              <Label className="text-xs">Driver / Equipamento</Label>
-              <div className="flex gap-2 mt-1">
-                <Select
-                  value={driverValue}
-                  onValueChange={v => update({ drivers: v === "__none__" ? "" : v })}
-                >
-                  <SelectTrigger className="h-8 text-sm flex-1">
-                    <SelectValue placeholder="Selecionar driver da API..." />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-64">
-                    <SelectItem value="__none__">— Sem driver —</SelectItem>
-                    {drivers.filter(d => d.available).map(d => (
-                      <SelectItem key={d.code} value={`${d.code} — ${d.model} ${d.inputVoltage}`}>
-                        {d.code} — {d.model} ({d.inputVoltage})
-                      </SelectItem>
-                    ))}
-                    {drivers.filter(d => !d.available).length > 0 && (
-                      <>
-                        <Separator className="my-1" />
-                        <div className="px-2 py-1 text-xs text-muted-foreground">Indisponíveis</div>
-                        {drivers.filter(d => !d.available).map(d => (
-                          <SelectItem key={d.code} value={`${d.code} — ${d.model} ${d.inputVoltage}`} className="opacity-50">
-                            {d.code} — {d.model} ({d.inputVoltage})
-                          </SelectItem>
-                        ))}
-                      </>
-                    )}
-                  </SelectContent>
-                </Select>
-                {parsed.drivers && parsed.drivers.trim() !== "" && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => update({ drivers: "" })}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
+          {/* Módulo LED / Fonte de Luz e Equipamentos (apenas para itens não-especiais) */}
+          {!isSpecial && (() => {
+            const fonteLuzText = buildFonteLuzText(parsed);
+            const equipText = buildEquipamentosText(parsed);
+            const hasRichData = !!(parsed.profileSegments?.length || parsed.driverLines?.length || parsed.ledBarDriverModel || parsed.moduloLed);
+            return (
+              <div className="space-y-3">
+                {/* Fonte de Luz / Módulo LED — somente leitura quando vem do orçamento */}
+                {fonteLuzText && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Módulo LED / Fonte de Luz</Label>
+                    <div className="mt-1 rounded border border-border bg-muted/40 px-3 py-2">
+                      <pre className="text-xs font-mono whitespace-pre-wrap text-foreground leading-relaxed">{fonteLuzText}</pre>
+                    </div>
+                  </div>
+                )}
+
+                {/* Equipamentos / Drivers — somente leitura quando vem do orçamento */}
+                {equipText && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Equipamentos / Drivers</Label>
+                    <div className="mt-1 rounded border border-border bg-muted/40 px-3 py-2">
+                      <pre className="text-xs font-mono whitespace-pre-wrap text-foreground leading-relaxed">{equipText}</pre>
+                    </div>
+                  </div>
+                )}
+
+                {/* Campo de override manual — aparece sempre para itens sem dados ricos, ou como campo adicional */}
+                {!hasRichData && (
+                  <div>
+                    <Label className="text-xs">Driver / Equipamento (manual)</Label>
+                    <div className="flex gap-2 mt-1">
+                      <Select
+                        value={driverValue}
+                        onValueChange={v => update({ drivers: v === "__none__" ? "" : v })}
+                      >
+                        <SelectTrigger className="h-8 text-sm flex-1">
+                          <SelectValue placeholder="Selecionar driver da API..." />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-64">
+                          <SelectItem value="__none__">— Sem driver —</SelectItem>
+                          {drivers.filter(d => d.available).map(d => (
+                            <SelectItem key={d.code} value={`${d.code} — ${d.model} ${d.inputVoltage}`}>
+                              {d.code} — {d.model} ({d.inputVoltage})
+                            </SelectItem>
+                          ))}
+                          {drivers.filter(d => !d.available).length > 0 && (
+                            <>
+                              <Separator className="my-1" />
+                              <div className="px-2 py-1 text-xs text-muted-foreground">Indisponíveis</div>
+                              {drivers.filter(d => !d.available).map(d => (
+                                <SelectItem key={d.code} value={`${d.code} — ${d.model} ${d.inputVoltage}`} className="opacity-50">
+                                  {d.code} — {d.model} ({d.inputVoltage})
+                                </SelectItem>
+                              ))}
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {parsed.drivers && parsed.drivers.trim() !== "" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={() => update({ drivers: "" })}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <Input
+                      value={parsed.drivers ?? ""}
+                      onChange={e => update({ drivers: e.target.value })}
+                      placeholder="Ou digitar driver manualmente..."
+                      className="mt-2 h-8 text-sm"
+                    />
+                  </div>
                 )}
               </div>
-              {/* Campo livre para driver manual */}
-              <Input
-                value={parsed.drivers ?? ""}
-                onChange={e => update({ drivers: e.target.value })}
-                placeholder="Ou digitar driver manualmente..."
-                className="mt-2 h-8 text-sm"
-              />
-            </div>
-          )}
+            );
+          })()}
 
           {/* Descrição / SKU (editável) */}
           <div className="grid grid-cols-2 gap-3">
@@ -672,14 +860,8 @@ export default function FactoryOrderDetail() {
     for (const item of items) {
       const d = parseCartItemData(item.itemData);
       if (!d) continue;
-      // Verificar equipamentos pendentes em itens especiais
-      if (d.isSpecialItem) {
-        const equips = d.specialEquipments ?? [];
-        if (equips.length === 0) semEquipamento++;
-      } else {
-        // Para itens normais, verificar se driver está definido
-        if (!d.drivers || d.drivers.trim() === "") semEquipamento++;
-      }
+      // Verificar equipamentos pendentes usando a função que considera driverLines, profileSegments, ledBarDriverModel etc.
+      if (!hasEquipamentoDefined(d)) semEquipamento++;
       // Verificar cor da peça
       if (!d.corPeca || d.corPeca.trim() === "" || d.corPeca === "A Definir") semCor++;
       // Verificar CCT

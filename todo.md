@@ -2045,6 +2045,33 @@
 - [x] Criar quotePdfGenerator.ts com jsPDF + autoTable replicando o layout do Excel
 - [x] Adicionar botão "Baixar PDF" no Cart.tsx e QuoteDetail.tsx com as mesmas regras de revisão do Excel
 
+- [x] orderGrouping.ts: criar função groupOrderItems() que agrupa itens idênticos somando qtys e concatenando etiquetas com pavimento
+- [x] orderExcelGenerator.ts: aplicar groupOrderItems() antes de gerar linhas do Excel do pedido de fábrica
+- [x] orderPreviewGenerator.ts: aplicar groupOrderItems() antes de gerar linhas do HTML do preview do pedido de fábrica
+- [x] FactoryOrderDetail.tsx: tela de gerenciamento continua mostrando itens individuais (agrupamento só ocorre na geração do Excel/preview)
+
+## Correção — Driver incorreto no pedido de fábrica (17/07/2026)
+- [x] Home.tsx: ao montar profileSegments, sobrescrever driver com dados do skuPriceMap por SKU específico (em vez do driver genérico do ProfileVariant que usava o primeiro produto do profileCode)
+- [x] Banco: corrigir 459 itens com driverLines contendo EQ00346 (XITANIUM 19W) → EQ00347 (XITANIUM 44W) para SKUs de 2+ barras (SKYLINE, EASY PRIME, BLAZE E, etc.)
+- [x] Banco: profileSegments já estavam corretos (EQ00347) — apenas driverLines precisava de correção
+
+## Correção — Driver incorreto na tabela factory_order_items (17/07/2026)
+- [x] Identificar que factory_order_items tem cópia independente dos dados do orçamento, salva no momento da criação do pedido
+- [x] Corrigir 7 itens em factory_order_items: driverLines EQ00346 → EQ00347 e profileSegments EQ00346 → EQ00347
+- [x] Verificar que o item 3 do pedido de fábrica 900001 (orçamento 20.0397-26) agora exibe EQ00347 corretamente
+
+## Corrente de programação e código EQ de módulos LED na ficha de produção (17/07/2026)
+- [x] Home.tsx: adicionar corrente220/Bivolt/DimDali/Dim110v ao SkuPriceMap e usar na montagem de profileSegments e perfilDrvLines
+- [x] FactoryOrderDetail.tsx: exibir PROGRAMAÇÃO: corrente no buildEquipamentosText para profileSegments (igual ao Excel)
+- [x] Home.tsx: incluir código EQ do módulo LED (ledModuleEq/ledModuleEq3000 etc.) no ProfileSegment (novo campo ledModuleCode)
+- [x] CartItemData: adicionar campo ledModuleCode ao ProfileSegment para armazenar código EQ do módulo LED
+- [x] FactoryOrderDetail.tsx: exibir código EQ do módulo LED na seção Módulo LED / Fonte de Luz
+- [x] orderExcelGenerator.ts: incluir código EQ do módulo LED na coluna Fonte de Luz
+- [x] orderPreviewGenerator.ts: incluir código EQ do módulo LED na coluna Fonte de Luz
+- [x] Corrigir corrente e código EQ nos dados já salvos no banco (quote_items e factory_order_items)
+
+## Bug — Seleção múltipla na categoria Customizados (17/07/2026)
+- [x] Corrigir bug onde clicar em um produto Customizado seleciona todos os itens com o mesmo SKU (ex: LDP-1650.500.48F aparece 2 vezes selecionado)
 ## Correções e Requisição de Materiais (17/07/2026 — tarde)
 - [x] Corrigir agrupamento de Itens Especiais por pavimento (orderGrouping.ts)
 - [x] Adicionar campo drvQtyPerUnit ao DriverLine (cartTypes.ts)

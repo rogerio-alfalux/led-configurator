@@ -7,6 +7,7 @@
 import type { CartItemData, LinkedAccessory } from "./cartTypes";
 import type { OrderFormData } from "./orderExcelGenerator";
 import { toBrasiliaDateTime } from "./dateUtils";
+import { groupOrderItems } from "./orderGrouping";
 
 function fmtQty(n: number): string {
   return String(n).padStart(2, "0");
@@ -27,12 +28,27 @@ function buildProfileFonteLuzText(item: CartItemData): string {
   }
   const cct = item.cct ?? "";
   const isStripline = item.stripMethod === "STRIPLINE";
-  return item.profileSegments
-    .map((seg) => {
-      const barName = isStripline
-        ? `Stripline 562,5 x 15mm 108L ${cct}`
-        : `Stripflex 562,5 x 10mm 36L ${cct}`;
-      return `${seg.sku} - ${fmtQty(seg.barsPerPiece)} x ${barName}`;
+  const itemQty = item.qty ?? 1;
+
+  // Agrupar por nome de módulo e somar quantidades totais
+  const totals = new Map<string, { qty: number; eqCode: string | null }>();
+  for (const seg of item.profileSegments) {
+    const barName = isStripline
+      ? `Stripline 562,5 x 15mm 108L ${cct}`
+      : `Stripflex 562,5 x 10mm 36L ${cct}`;
+    const totalBars = seg.qty * seg.barsPerPiece * itemQty;
+    const existing = totals.get(barName);
+    if (existing) {
+      totals.set(barName, { qty: existing.qty + totalBars, eqCode: existing.eqCode ?? (seg as any).ledModuleCode ?? null });
+    } else {
+      totals.set(barName, { qty: totalBars, eqCode: (seg as any).ledModuleCode ?? null });
+    }
+  }
+
+  return Array.from(totals.entries())
+    .map(([name, { qty, eqCode }]) => {
+      const eqSuffix = eqCode ? ` (${esc(eqCode)})` : "";
+      return `${fmtQty(qty)} x ${esc(name)}${eqSuffix}`;
     })
     .join("<br>");
 }
@@ -59,17 +75,62 @@ function buildProfileEquipamentosText(item: CartItemData): string {
     }
     return esc(item.drivers ?? "");
   }
-  return item.profileSegments
-    .map((seg) => {
-      if (seg.driverModel.includes(" + ")) {
-        return `${seg.sku} - ${seg.driverModel}`;
+
+  const itemQty = item.qty ?? 1;
+
+  // Agrupar por modelo+código e somar quantidades totais
+  const totals = new Map<string, { model: string; code: string; qty: number }>();
+
+  for (const seg of item.profileSegments) {
+    // Driver combo
+    if (seg.driverModel.includes(" + ")) {
+      const comboKey = seg.driverModel;
+      const totalQty = seg.qty * itemQty;
+      const existing = totals.get(comboKey);
+      if (existing) {
+        totals.set(comboKey, { ...existing, qty: existing.qty + totalQty });
+      } else {
+        totals.set(comboKey, { model: seg.driverModel, code: "", qty: totalQty });
       }
-      const codeSuffix = seg.driverCode && seg.driverCode !== "ERRO"
-        ? ` (${seg.driverCode})`
-        : "";
-      return `${seg.sku} - ${fmtQty(seg.driverQtyPerPiece)} x ${seg.driverModel}${codeSuffix}`;
-    })
-    .join("<br>");
+      continue;
+    }
+
+    // Driver simples
+    const codeSuffix = seg.driverCode && seg.driverCode !== "ERRO"
+      ? ` (${seg.driverCode})`
+      : "";
+    const key = `${seg.driverModel}${codeSuffix}`;
+    const totalQty = seg.qty * seg.driverQtyPerPiece * itemQty;
+    const existing = totals.get(key);
+    if (existing) {
+      totals.set(key, { ...existing, qty: existing.qty + totalQty });
+    } else {
+      totals.set(key, { model: seg.driverModel, code: codeSuffix, qty: totalQty });
+    }
+  }
+
+  // Coletar corrente (igual para todos os segmentos do mesmo perfil)
+  const correnteSegmento = item.profileSegments
+    .map((s: any) => s.corrente)
+    .find((c: any) => c && c.trim());
+
+  const linhas = Array.from(totals.entries())
+    .map(([key, entry]) => {
+      if (!entry.code) return `${fmtQty(entry.qty)} x ${esc(key)}`;
+      return `${fmtQty(entry.qty)} x ${esc(entry.model)}${esc(entry.code)}`;
+    });
+
+  // Adicionar linha de programação se houver corrente e não for fonte 24V
+  if (correnteSegmento) {
+    const isDriverFonte = Array.from(totals.values()).every(e =>
+      e.model.toUpperCase().includes("FONTE 24V")
+    );
+    if (!isDriverFonte) {
+      linhas.push(`<span style="color:#555;font-style:italic">PROGRAMAÇÃO: ${esc(correnteSegmento)}</span>`);
+    }
+  }
+
+  return linhas.join("<br>");
 }
 
 function buildProdutoText(item: CartItemData): string {
@@ -143,7 +204,8 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
   // ── Linhas de dados ──────────────────────────────────────────────────────
   let dataRows = "";
   // Filtrar itens de "Não Orçamos" pois são apenas indicativos e não devem aparecer na ficha de produção
-  const orderItems = items.filter(item => item.category !== 'Não Orçamos');
+  // Agrupar itens idênticos (mesmo produto, CCT, cor, drivers) somando quantidades e concatenando etiquetas com pavimento
+  const orderItems = groupOrderItems(items.filter(item => item.category !== 'Não Orçamos'));
   orderItems.forEach((item, i) => {
     const isOdd = i % 2 === 0;
     const rowBg = isOdd ? "#dce6f1" : "#ffffff";
