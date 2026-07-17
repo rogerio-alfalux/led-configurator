@@ -598,44 +598,11 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     evenFooter: `&L&8Ficha T\u00e9cnica de Produ\u00e7\u00e3o \u2014 ${pedidoFooter}&R&8Emitido em: ${emitidoEm} (Hor\u00e1rio de Bras\u00edlia) | ${form.quoteNumber}`,
   };
 
-  // ─── Aba: Requisição de Materiais ──────────────────────────────────────────────────────────────
+  // ─── Requisição de Materiais (mesma aba, após observações gerais) ──────────────────────────────────────────────────────────────────────────────────────────
   {
     const allItemsForReq = items.filter(i => i.category !== 'Não Orçamos');
     const matEntries = buildMaterialRequisition(allItemsForReq);
     if (matEntries.length > 0) {
-      const wsReq = wb.addWorksheet("Requisição de Materiais", {
-        pageSetup: { paperSize: 9, orientation: "portrait", fitToPage: true, fitToWidth: 1 },
-      });
-      wsReq.columns = [
-        { key: "A", width: 22 },  // TIPO
-        { key: "B", width: 14 },  // CÓDIGO
-        { key: "C", width: 55 },  // DESCRIÇÃO
-        { key: "D", width: 8 },   // QTD
-      ];
-      // Título
-      wsReq.mergeCells("A1:D1");
-      const reqTitleCell = wsReq.getCell("A1");
-      reqTitleCell.value = "REQUISIÇÃO DE MATERIAIS";
-      reqTitleCell.font = { bold: true, size: 14, color: { argb: HEADER_FONT_COLOR } };
-      reqTitleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_BG } };
-      reqTitleCell.alignment = { horizontal: "center", vertical: "middle" };
-      wsReq.getRow(1).height = 28;
-      // Subtítulo
-      wsReq.mergeCells("A2:D2");
-      const reqSubCell = wsReq.getCell("A2");
-      reqSubCell.value = `Pedido: ${form.orderNumber || form.quoteNumber} — ${form.clientName}${form.projectName ? ' / ' + form.projectName : ''}`;
-      reqSubCell.font = { size: 10 };
-      reqSubCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9E1F2" } };
-      reqSubCell.alignment = { horizontal: "left", vertical: "middle" };
-      wsReq.getRow(2).height = 18;
-      // Cabeçalho
-      const REQ_HDR = 3;
-      wsReq.getRow(REQ_HDR).height = 18;
-      ["TIPO", "CÓDIGO", "DESCRIÇÃO", "QTD"].forEach((h, i) => {
-        const col = String.fromCharCode(65 + i);
-        headerCell(wsReq.getCell(`${col}${REQ_HDR}`), h, 10);
-      });
-      // Cores por tipo
       const TIPO_COLORS: Record<MaterialTipo, string> = {
         "MÓDULOS LED": "FFE2EFDA",
         "DRIVERS": "FFDCE6F1",
@@ -651,34 +618,53 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
         "REFLETORES", "SUPORTES", "ACESSÓRIOS", "OUTROS",
       ];
       const byTipo = groupByTipo(matEntries);
-      let reqRow = REQ_HDR + 1;
+
+      // Linha em branco de separação
+      let reqRow = obsRow + 2;
+
+      // Título da seção
+      ws.getRow(reqRow).height = 28;
+      ws.mergeCells(`A${reqRow}:J${reqRow}`);
+      const reqTitleCell = ws.getCell(`A${reqRow}`);
+      reqTitleCell.value = "REQUISIÇÃO DE MATERIAIS";
+      reqTitleCell.font = { bold: true, size: 14, color: { argb: HEADER_FONT_COLOR } };
+      reqTitleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_BG } };
+      reqTitleCell.alignment = { horizontal: "center", vertical: "middle" };
+      reqRow++;
+
+      // Cabeçalho: A=TIPO, B=CÓDIGO, C-I=DESCRIÇÃO (mesclado), J=QTD
+      ws.getRow(reqRow).height = 18;
+      headerCell(ws.getCell(`A${reqRow}`), "TIPO", 10);
+      headerCell(ws.getCell(`B${reqRow}`), "CÓDIGO", 10);
+      ws.mergeCells(`C${reqRow}:I${reqRow}`);
+      headerCell(ws.getCell(`C${reqRow}`), "DESCRIÇÃO", 10);
+      headerCell(ws.getCell(`J${reqRow}`), "QTD", 10);
+      reqRow++;
+
       for (const tipo of TIPO_ORDER_LOCAL) {
         const entries = byTipo.get(tipo);
         if (!entries || entries.length === 0) continue;
         const bgColor = TIPO_COLORS[tipo] ?? "FFFFFFFF";
         for (const entry of entries) {
-          wsReq.getRow(reqRow).height = 16;
+          ws.getRow(reqRow).height = 16;
+          ws.mergeCells(`C${reqRow}:I${reqRow}`);
           const applyReqCell = (col: string, value: string | number, bold = false) => {
-            const cell = wsReq.getCell(`${col}${reqRow}`);
+            const cell = ws.getCell(`${col}${reqRow}`);
             cell.value = value;
             cell.font = { size: 10, bold };
             cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bgColor } };
-            cell.alignment = { horizontal: col === "D" ? "center" : "left", vertical: "middle", wrapText: col === "C" };
+            cell.alignment = { horizontal: col === "J" ? "center" : "left", vertical: "middle", wrapText: col === "C" };
             applyBorder(cell);
           };
           applyReqCell("A", entry.tipo);
           applyReqCell("B", entry.codigo, true);
           applyReqCell("C", entry.descricao);
-          applyReqCell("D", entry.qty, true);
+          applyReqCell("J", entry.qty, true);
           reqRow++;
         }
       }
-      wsReq.headerFooter = {
-        oddFooter: `&L&8Requisição de Materiais — ${form.orderNumber || form.quoteNumber}&R&8Emitido em: ${emitidoEm} (Horário de Brasília)`,
-      };
     }
   }
-
   // ─── Gerar, baixar e retornar buffer ──────────────────────────────────────────────────────────────
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], {
