@@ -8,6 +8,8 @@ import type { CartItemData, LinkedAccessory } from "./cartTypes";
 import type { OrderFormData } from "./orderExcelGenerator";
 import { toBrasiliaDateTime } from "./dateUtils";
 import { groupOrderItems } from "./orderGrouping";
+import { buildMaterialRequisition, groupByTipo } from "./materialRequisition";
+import type { MaterialTipo } from "./materialRequisition";
 
 function fmtQty(n: number): string {
   return String(n).padStart(2, "0");
@@ -442,6 +444,59 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
     <span>Ficha Técnica de Produção &mdash; ${esc(pedidoDisplay)}</span>
     <span>Emitido em: ${toBrasiliaDateTime(Date.now())} (Horário de Brasília) &nbsp;|&nbsp; ${esc(form.quoteNumber)}</span>
   </div>
+
+  ${(() => {
+    const allItemsForReq = items.filter((i: CartItemData) => i.category !== 'Não Orçamos');
+    const matEntries = buildMaterialRequisition(allItemsForReq);
+    if (matEntries.length === 0) return '';
+    const byTipo = groupByTipo(matEntries);
+    const TIPO_ORDER_LOCAL: MaterialTipo[] = [
+      'MÓDULOS LED', 'DRIVERS', 'FONTES DE TENSÃO', 'LENTES',
+      'REFLETORES', 'SUPORTES', 'ACESSÓRIOS', 'OUTROS',
+    ];
+    const TIPO_COLORS: Record<MaterialTipo, string> = {
+      'MÓDULOS LED': '#e2efda',
+      'DRIVERS': '#dce6f1',
+      'FONTES DE TENSÃO': '#fff2cc',
+      'LENTES': '#fce4d6',
+      'REFLETORES': '#ededed',
+      'SUPORTES': '#f2f2f2',
+      'ACESSÓRIOS': '#fef9e7',
+      'OUTROS': '#ffffff',
+    };
+    let rows = '';
+    for (const tipo of TIPO_ORDER_LOCAL) {
+      const entries = byTipo.get(tipo);
+      if (!entries || entries.length === 0) continue;
+      const bg = TIPO_COLORS[tipo] ?? '#ffffff';
+      for (const entry of entries) {
+        rows += `<tr style="background:${bg}">
+          <td style="text-align:left;font-size:9px">${esc(entry.tipo)}</td>
+          <td style="text-align:center;font-weight:bold;font-size:9px;font-family:monospace">${esc(entry.codigo)}</td>
+          <td style="text-align:left;font-size:9px">${esc(entry.descricao)}</td>
+          <td style="text-align:center;font-weight:bold;font-size:10px">${esc(String(entry.qty))}</td>
+        </tr>`;
+      }
+    }
+    return `
+  <div style="page-break-before:always;margin-top:20px">
+    <h1 style="background:#1f3864;color:#fff;text-align:center;font-size:15px;padding:8px 0;letter-spacing:1px;margin-bottom:6px">REQUISIÇÃO DE MATERIAIS</h1>
+    <div style="background:#d9e1f2;padding:5px 8px;font-size:10px;margin-bottom:6px;border:1px solid #8ea9c1">
+      Pedido: ${esc(form.orderNumber || form.quoteNumber)} &mdash; ${esc(form.clientName)}${form.projectName ? ' / ' + esc(form.projectName) : ''}
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:9px">
+      <thead>
+        <tr>
+          <th style="background:#1f3864;color:#fff;padding:5px 3px;border:1.5px solid #8ea9c1;text-align:center;width:120px">TIPO</th>
+          <th style="background:#1f3864;color:#fff;padding:5px 3px;border:1.5px solid #8ea9c1;text-align:center;width:80px">CÓDIGO</th>
+          <th style="background:#1f3864;color:#fff;padding:5px 3px;border:1.5px solid #8ea9c1;text-align:center">DESCRIÇÃO</th>
+          <th style="background:#1f3864;color:#fff;padding:5px 3px;border:1.5px solid #8ea9c1;text-align:center;width:50px">QTD</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+  })()}
 </body>
 </html>`;
 }
