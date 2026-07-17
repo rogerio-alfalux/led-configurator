@@ -1436,6 +1436,9 @@ type SkuPriceMap = Record<string, {
   driverModelBivolt: string|null; driverCodeBivolt: string|null;
   driverModelDimDali: string|null; driverCodeDimDali: string|null;
   driverModelDim110v: string|null; driverCodeDim110v: string|null;
+  // Corrente de programação do driver por tipo de controle
+  corrente220: string|null; correnteBivolt: string|null;
+  correnteDimDali: string|null; correnteDim110v: string|null;
 }>;
 
 function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty, setGlobalQty, onOpenAccessoryModal, pendingAccessoriesCount, globalPavimento }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void; onOpenAccessoryModal?: () => void; pendingAccessoriesCount?: number; globalPavimento?: string }) {
@@ -2118,35 +2121,40 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                     }
                   }
 
-                  // CORREÇÃO: sobrescrever driver com dados do skuPriceMap por SKU específico.
+                  // CORREÇÃO: sobrescrever driver e corrente com dados do skuPriceMap por SKU específico.
                   // O applyDimDriver usa o driver220 genérico do ProfileVariant (primeiro produto
                   // encontrado para o profileCode), que pode ser o de 1 barra (EQ00346) mesmo
                   // quando o segmento tem 3+ barras (EQ00347). O skuPriceMap indexa por SKU
-                  // individual e tem o driver correto para cada produto.
+                  // individual e tem o driver e corrente corretos para cada produto.
                   if (skuPriceMap && !d1Entry?.driver?.combo) {
                     const skuEntry = skuPriceMap[`${sku}|${currentPowerLabel}`] ?? skuPriceMap[sku];
                     if (skuEntry) {
                       let apiDriverModel: string | null = null;
                       let apiDriverCode: string | null = null;
+                      let apiCorrente: string | null = null;
                       if (result.controlType === 'dimDali') {
                         apiDriverModel = skuEntry.driverModelDimDali;
                         apiDriverCode = skuEntry.driverCodeDimDali;
+                        apiCorrente = skuEntry.correnteDimDali;
                       } else if (result.controlType === 'dim110v') {
                         apiDriverModel = skuEntry.driverModelDim110v;
                         apiDriverCode = skuEntry.driverCodeDim110v;
+                        apiCorrente = skuEntry.correnteDim110v;
                       } else if (/bivolt/i.test(result.voltage)) {
                         apiDriverModel = skuEntry.driverModelBivolt;
                         apiDriverCode = skuEntry.driverCodeBivolt;
+                        apiCorrente = skuEntry.correnteBivolt;
                       } else {
                         apiDriverModel = skuEntry.driverModel220;
                         apiDriverCode = skuEntry.driverCode220;
+                        apiCorrente = skuEntry.corrente220;
                       }
-                      // Nota: corrente (ex: "programar em 350mA") mantida do d1Entry
-                      // pois é igual para todos os SKUs do mesmo perfil.
                       if (apiDriverModel && apiDriverCode) {
                         driverModel = apiDriverModel.toUpperCase();
                         driverCode = apiDriverCode;
                       }
+                      // Usar corrente do skuPriceMap se disponível (fonte primária por SKU)
+                      if (apiCorrente) corrente = apiCorrente;
                     }
                   }
 
@@ -2159,6 +2167,9 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                     driverModel,
                     driverCode,
                     corrente,
+                    // Código EQ do módulo LED (Stripflex/Stripline) — vem do result.stripflexEq
+                    // que é derivado do ProfileVariant.ledModuleStripflexEq{CCT} via ledEngine
+                    ledModuleCode: result.stripflexEq ?? null,
                   };
                 });
 
@@ -2172,6 +2183,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                 const driverUnitFromComponent = driverCode0 ? (componentePriceMapLocal.get(driverCode0) ?? null) : null;
                 const driverUnitEffective = driverUnitFromApi ?? driverUnitFromComponent;
                 const driverTotalEffective = driverUnitEffective != null ? Math.round(driverUnitEffective * nModules * 100) / 100 : 0;
+                const corrente0 = profileSegments[0]?.corrente ?? null;
                 const perfilDrvLines: import("@/lib/cartTypes").DriverLine[] | undefined =
                   driverUnitEffective != null && modulePriceResult
                     ? [{
@@ -2180,6 +2192,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                         driverQty: nModules,
                         driverUnitPrice: driverUnitEffective,
                         driverTotalPrice: driverTotalEffective,
+                        corrente: corrente0 ?? undefined,
                       }]
                     : undefined;
                 const perfilPrecoSemDriver = perfilDrvLines
@@ -2782,56 +2795,9 @@ export default function Home() {
   // Mapa de custo+markup por SKU individual (extraído dos produtos PERFIS da API)
   // Armazena custoCorpo (bruto) e markups por tipo de controle
   // Preço de venda = custoCorpo[controle] × markupPadrao[controle]
-  const skuPriceMap = useMemo(() => {
+  const skuPriceMap = useMemo((): SkuPriceMap => {
     if (!alfaluxApiProducts || alfaluxApiProducts.length === 0) return {};
-    const map: Record<string, {
-      name: string;
-      // Custos brutos por controle (D1 simples)
-      custoOnoff220: number | null;
-      custoOnoffBivolt: number | null;
-      custoDim110v: number | null;
-      custoDimDali: number | null;
-      custoDimTriac110v: number | null;
-      custoDimTriac220v: number | null;
-      // Custos brutos por controle (D1+D2)
-      custoOnoff220D1D2: number | null;
-      custoOnoffBivoltD1D2: number | null;
-      custoDim110vD1D2: number | null;
-      custoDimDaliD1D2: number | null;
-      custoDimTriac110vD1D2: number | null;
-      custoDimTriac220vD1D2: number | null;
-      // Markups padrão por controle
-      markupPadraoOnoff220v: number | null;
-      markupPadraoOnoffBivolt: number | null;
-      markupPadraoDim110v: number | null;
-      markupPadraoDimDali: number | null;
-      markupPadraoDimTriac110v: number | null;
-      markupPadraoDimTriac220v: number | null;
-      // Markups mínimos por controle
-      markupMinimoOnoff220v: number | null;
-      markupMinimoOnoffBivolt: number | null;
-      markupMinimoDim110v: number | null;
-      markupMinimoDimDali: number | null;
-      markupMinimoDimTriac110v: number | null;
-      markupMinimoDimTriac220v: number | null;
-      // Custo do driver por controle
-      custoDriver220: number | null;
-      custoDriverBivolt: number | null;
-      custoDriverDim110v: number | null;
-      custoDriverDimDali: number | null;
-      custoDriverDimTriac110v: number | null;
-      custoDriverDimTriac220v: number | null;
-      markupMinimoDriver: number | null;
-      // Modelo e código EQ do driver
-      driverModel220: string | null;
-      driverCode220: string | null;
-      driverModelBivolt: string | null;
-      driverCodeBivolt: string | null;
-      driverModelDimDali: string | null;
-      driverCodeDimDali: string | null;
-      driverModelDim110v: string | null;
-      driverCodeDim110v: string | null;
-    }> = {};
+    const map: SkuPriceMap = {};
     for (const p of alfaluxApiProducts) {
       const cat = (p.categoria ?? "").toUpperCase();
       if (cat !== "PERFIS") continue;
@@ -2882,6 +2848,10 @@ export default function Home() {
         driverCodeDimDali: (p.driverDimDali as {code?:string}|null)?.code ?? null,
         driverModelDim110v: (p.driverDim110v as {model?:string}|null)?.model ?? null,
         driverCodeDim110v: (p.driverDim110v as {code?:string}|null)?.code ?? null,
+        corrente220: (p.driver220 as {corrente?:string|null}|null)?.corrente ?? null,
+        correnteBivolt: (p.driverBivolt as {corrente?:string|null}|null)?.corrente ?? null,
+        correnteDimDali: (p.driverDimDali as {corrente?:string|null}|null)?.corrente ?? null,
+        correnteDim110v: (p.driverDim110v as {corrente?:string|null}|null)?.corrente ?? null,
       };
       map[key] = {
         name: p.name ?? '',
@@ -2924,6 +2894,10 @@ export default function Home() {
         driverCodeDimDali: (p.driverDimDali as {code?:string}|null)?.code ?? null,
         driverModelDim110v: (p.driverDim110v as {model?:string}|null)?.model ?? null,
         driverCodeDim110v: (p.driverDim110v as {code?:string}|null)?.code ?? null,
+        corrente220: (p.driver220 as {corrente?:string|null}|null)?.corrente ?? null,
+        correnteBivolt: (p.driverBivolt as {corrente?:string|null}|null)?.corrente ?? null,
+        correnteDimDali: (p.driverDimDali as {corrente?:string|null}|null)?.corrente ?? null,
+        correnteDim110v: (p.driverDim110v as {corrente?:string|null}|null)?.corrente ?? null,
       };
     }
     // Aplicar overrides de custo de driver (substitui custoDriver* quando há override cadastrado)

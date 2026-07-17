@@ -31,17 +31,25 @@ function buildProfileFonteLuzText(item: CartItemData): string {
   const itemQty = item.qty ?? 1;
 
   // Agrupar por nome de módulo e somar quantidades totais
-  const totals = new Map<string, number>();
+  const totals = new Map<string, { qty: number; eqCode: string | null }>();
   for (const seg of item.profileSegments) {
     const barName = isStripline
       ? `Stripline 562,5 x 15mm 108L ${cct}`
       : `Stripflex 562,5 x 10mm 36L ${cct}`;
     const totalBars = seg.qty * seg.barsPerPiece * itemQty;
-    totals.set(barName, (totals.get(barName) ?? 0) + totalBars);
+    const existing = totals.get(barName);
+    if (existing) {
+      totals.set(barName, { qty: existing.qty + totalBars, eqCode: existing.eqCode ?? (seg as any).ledModuleCode ?? null });
+    } else {
+      totals.set(barName, { qty: totalBars, eqCode: (seg as any).ledModuleCode ?? null });
+    }
   }
 
   return Array.from(totals.entries())
-    .map(([name, qty]) => `${fmtQty(qty)} x ${name}`)
+    .map(([name, { qty, eqCode }]) => {
+      const eqSuffix = eqCode ? ` (${esc(eqCode)})` : "";
+      return `${fmtQty(qty)} x ${esc(name)}${eqSuffix}`;
+    })
     .join("<br>");
 }
 
@@ -101,12 +109,28 @@ function buildProfileEquipamentosText(item: CartItemData): string {
     }
   }
 
-  return Array.from(totals.entries())
+  // Coletar corrente (igual para todos os segmentos do mesmo perfil)
+  const correnteSegmento = item.profileSegments
+    .map((s: any) => s.corrente)
+    .find((c: any) => c && c.trim());
+
+  const linhas = Array.from(totals.entries())
     .map(([key, entry]) => {
       if (!entry.code) return `${fmtQty(entry.qty)} x ${esc(key)}`;
       return `${fmtQty(entry.qty)} x ${esc(entry.model)}${esc(entry.code)}`;
-    })
-    .join("<br>");
+    });
+
+  // Adicionar linha de programação se houver corrente e não for fonte 24V
+  if (correnteSegmento) {
+    const isDriverFonte = Array.from(totals.values()).every(e =>
+      e.model.toUpperCase().includes("FONTE 24V")
+    );
+    if (!isDriverFonte) {
+      linhas.push(`<span style="color:#555;font-style:italic">PROGRAMAÇÃO: ${esc(correnteSegmento)}</span>`);
+    }
+  }
+
+  return linhas.join("<br>");
 }
 
 function buildProdutoText(item: CartItemData): string {

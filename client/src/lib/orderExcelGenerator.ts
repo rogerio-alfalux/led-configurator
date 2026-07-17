@@ -166,17 +166,25 @@ function buildProfileFonteLuzText(item: CartItemData): string {
   const itemQty = item.qty ?? 1;
 
   // Agrupar por nome de módulo e somar quantidades totais
-  const totals = new Map<string, number>();
+  const totals = new Map<string, { qty: number; eqCode: string | null }>();
   for (const seg of item.profileSegments) {
     const barName = isStripline
       ? `Stripline 562,5 x 15mm 108L ${cct}`
       : `Stripflex 562,5 x 10mm 36L ${cct}`;
     const totalBars = seg.qty * seg.barsPerPiece * itemQty;
-    totals.set(barName, (totals.get(barName) ?? 0) + totalBars);
+    const existing = totals.get(barName);
+    if (existing) {
+      totals.set(barName, { qty: existing.qty + totalBars, eqCode: existing.eqCode ?? (seg as any).ledModuleCode ?? null });
+    } else {
+      totals.set(barName, { qty: totalBars, eqCode: (seg as any).ledModuleCode ?? null });
+    }
   }
 
   return Array.from(totals.entries())
-    .map(([name, qty]) => `${fmtQty(qty)} x ${name}`)
+    .map(([name, { qty, eqCode }]) => {
+      const eqSuffix = eqCode ? ` (${eqCode})` : "";
+      return `${fmtQty(qty)} x ${name}${eqSuffix}`;
+    })
     .join("\n");
 }
 
