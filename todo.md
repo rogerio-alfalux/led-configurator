@@ -2054,3 +2054,8 @@
 - [x] Home.tsx: ao montar profileSegments, sobrescrever driver com dados do skuPriceMap por SKU específico (em vez do driver genérico do ProfileVariant que usava o primeiro produto do profileCode)
 - [x] Banco: corrigir 459 itens com driverLines contendo EQ00346 (XITANIUM 19W) → EQ00347 (XITANIUM 44W) para SKUs de 2+ barras (SKYLINE, EASY PRIME, BLAZE E, etc.)
 - [x] Banco: profileSegments já estavam corretos (EQ00347) — apenas driverLines precisava de correção
+
+## Correção — Driver incorreto na tabela factory_order_items (17/07/2026)
+- [x] Identificar que factory_order_items tem cópia independente dos dados do orçamento, salva no momento da criação do pedido
+- [x] Corrigir 7 itens em factory_order_items: driverLines EQ00346 → EQ00347 e profileSegments EQ00346 → EQ00347
+- [x] Verificar que o item 3 do pedido de fábrica 900001 (orçamento 20.0397-26) agora exibe EQ00347 corretamente
