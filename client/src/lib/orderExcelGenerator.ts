@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import { CartItemData } from "./cartTypes";
 import type { LinkedAccessory } from "./cartTypes";
 import { toBrasiliaDate, toBrasiliaDateTime } from "./dateUtils";
+import { groupOrderItems } from "./orderGrouping";
 
 export interface OrderFormData {
   clientName: string;
@@ -385,7 +386,8 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   const imagePromises: Promise<void>[] = [];
 
   // Filtrar itens de "Não Orçamos" pois são apenas indicativos e não devem aparecer na ficha de produção
-  const orderItems = items.filter(item => item.category !== 'Não Orçamos');
+  // Agrupar itens idênticos (mesmo produto, CCT, cor, drivers) somando quantidades e concatenando etiquetas com pavimento
+  const orderItems = groupOrderItems(items.filter(item => item.category !== 'Não Orçamos'));
 
   for (let i = 0; i < orderItems.length; i++) {
     const item = orderItems[i];

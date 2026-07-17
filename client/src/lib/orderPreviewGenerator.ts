@@ -7,6 +7,7 @@
 import type { CartItemData, LinkedAccessory } from "./cartTypes";
 import type { OrderFormData } from "./orderExcelGenerator";
 import { toBrasiliaDateTime } from "./dateUtils";
+import { groupOrderItems } from "./orderGrouping";
 
 function fmtQty(n: number): string {
   return String(n).padStart(2, "0");
@@ -143,7 +144,8 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
   // ── Linhas de dados ──────────────────────────────────────────────────────
   let dataRows = "";
   // Filtrar itens de "Não Orçamos" pois são apenas indicativos e não devem aparecer na ficha de produção
-  const orderItems = items.filter(item => item.category !== 'Não Orçamos');
+  // Agrupar itens idênticos (mesmo produto, CCT, cor, drivers) somando quantidades e concatenando etiquetas com pavimento
+  const orderItems = groupOrderItems(items.filter(item => item.category !== 'Não Orçamos'));
   orderItems.forEach((item, i) => {
     const isOdd = i % 2 === 0;
     const rowBg = isOdd ? "#dce6f1" : "#ffffff";

@@ -2044,3 +2044,8 @@
 ## Download PDF do Orçamento (Jul 2026)
 - [x] Criar quotePdfGenerator.ts com jsPDF + autoTable replicando o layout do Excel
 - [x] Adicionar botão "Baixar PDF" no Cart.tsx e QuoteDetail.tsx com as mesmas regras de revisão do Excel
+
+- [x] orderGrouping.ts: criar função groupOrderItems() que agrupa itens idênticos somando qtys e concatenando etiquetas com pavimento
+- [x] orderExcelGenerator.ts: aplicar groupOrderItems() antes de gerar linhas do Excel do pedido de fábrica
+- [x] orderPreviewGenerator.ts: aplicar groupOrderItems() antes de gerar linhas do HTML do preview do pedido de fábrica
+- [x] FactoryOrderDetail.tsx: tela de gerenciamento continua mostrando itens individuais (agrupamento só ocorre na geração do Excel/preview)
