@@ -233,8 +233,28 @@ export function buildMaterialRequisition(items: CartItemData[]): MaterialEntry[]
     }
   }
 
+  // Segunda passagem: consolidar entradas com mesma descrição + tipo
+  // (ocorre quando dois itens usam códigos EQ diferentes para o mesmo produto físico)
+  const descMap = new Map<string, MaterialEntry>();
+  for (const entry of Array.from(map.values())) {
+    const key = `${entry.tipo}||${entry.descricao.trim().toLowerCase()}`;
+    const existing = descMap.get(key);
+    if (existing) {
+      // Mesmo produto com códigos diferentes: somar quantidades, manter o código do primeiro
+      descMap.set(key, { ...existing, qty: existing.qty + entry.qty });
+    } else {
+      descMap.set(key, { ...entry });
+    }
+  }
+
+  // Arredondar quantidades para evitar erros de ponto flutuante (ex: 499.000000000006 → 499)
+  for (const [key, entry] of Array.from(descMap.entries())) {
+    const rounded = Math.round(entry.qty * 1000) / 1000;
+    descMap.set(key, { ...entry, qty: rounded });
+  }
+
   // Ordenar: primeiro por tipo (TIPO_ORDER), depois por descrição
-  const entries = Array.from(map.values());
+  const entries = Array.from(descMap.values());
   entries.sort((a, b) => {
     const tipoA = TIPO_ORDER.indexOf(a.tipo);
     const tipoB = TIPO_ORDER.indexOf(b.tipo);
