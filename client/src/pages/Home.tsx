@@ -4038,7 +4038,7 @@ export default function Home() {
     }, [bfProductKey, activeBageoFixoCatalog, bfCCT, bfControle, bfVoltage]);
   // ── Catálogo ALDA (perfis fixos: ALDA, LEAVE, ALS-3103) ──────────────────────
   const activeAldaCatalog = useMemo(() => {
-    return adaptedCatalogs?.perfisFixes ?? [];
+    return (adaptedCatalogs?.perfisFixes ?? []).filter(p => /^ALDA/i.test(p.familia ?? ""));
   }, [adaptedCatalogs]);
   const aldaInstalacoes = useMemo(() => {
     const set = new Set(activeAldaCatalog.map(p => p.instalacao ?? ""));
@@ -4910,8 +4910,8 @@ export default function Home() {
                       )}
                       {activeAldaCatalog.length > 0 && (
                         <>
-                          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">ALDA / LEAVE / ALS-3103</div>
-                          <SelectItem value="__ALDA__">ALDA / LEAVE / ALS-3103</SelectItem>
+                          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">ALDA</div>
+                          <SelectItem value="__ALDA__">ALDA</SelectItem>
                         </>
                       )}
                     </SelectContent>
@@ -10009,7 +10009,41 @@ export default function Home() {
                       </Button>
                     </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-3">
+                    {(() => {
+                      const aldaPhoto = aldaResult.product.sku ? adaptedCatalogs?.perfisFixesFotos?.[aldaResult.product.sku] ?? null : null;
+                      return aldaPhoto ? (
+                        <div className="flex gap-3 items-stretch">
+                          <div className="rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 w-36 flex items-center justify-center">
+                            <img src={aldaPhoto} alt={aldaResult.product.name} className="w-full h-full object-contain p-2" loading="lazy" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 flex-1">
+                            {aldaResult.product.sku && (
+                              <div className="bg-muted/30 rounded-lg p-2">
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">SKU</p>
+                                <p className="text-sm font-mono font-semibold text-primary">{aldaResult.product.sku}</p>
+                              </div>
+                            )}
+                            <div className="bg-muted/30 rounded-lg p-2">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Produto</p>
+                              <p className="text-sm font-semibold">{aldaResult.product.name}</p>
+                            </div>
+                            <div className="bg-muted/30 rounded-lg p-2">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">CCT</p>
+                              <p className="text-sm font-semibold">{aldaResult.cct}</p>
+                            </div>
+                            <div className="bg-muted/30 rounded-lg p-2">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Tensão</p>
+                              <p className="text-sm font-semibold">{aldaResult.tensao}</p>
+                            </div>
+                            <div className="bg-muted/30 rounded-lg p-2 col-span-2">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Driver</p>
+                              <p className="text-sm font-semibold">{aldaResult.driver.model} <span className="font-mono text-primary">({aldaResult.driver.code})</span></p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
                     <div
                       className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
                       onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
