@@ -8940,7 +8940,7 @@ export default function Home() {
               </div>
             </div>
 
-            {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && !glowMode && !tubeLightMode && !tubeLightResult && profileShape === "STRAIGHT" && (!result ? (
+            {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && !glowMode && !tubeLightMode && !tubeLightResult && !aldaMode && profileShape === "STRAIGHT" && (!result ? (
               <Card className="shadow-sm">
                 <CardContent className="flex flex-col items-center justify-center py-20 text-center">
                   <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
