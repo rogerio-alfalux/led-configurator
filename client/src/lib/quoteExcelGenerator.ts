@@ -1504,7 +1504,10 @@ async function _generateExcelBuffer(
       ws.mergeCells(`E${nextRow}:N${nextRow}`);
       {
         const c = ws.getCell(`E${nextRow}`);
-        c.value = (formData.difalEnabled && difalAplicavelExcel ? totalComDifal : totalFinal) + _freteValorNum;
+        // CORREÇÃO: quando DIFAL está ativo, totalComDifal já inclui o frete na base de cálculo
+        // (baseParaImposto = totalFinal + freteValue). Somar o frete novamente seria contá-lo duas vezes.
+        // Quando DIFAL não está ativo, totalFinal não inclui o frete — somamos normalmente.
+        c.value = (formData.difalEnabled && difalAplicavelExcel) ? totalComDifal : (totalFinal + _freteValorNum);
         c.numFmt = '"R$"#,##0.00';
         c.font = { name: "Calibri", size: 14, bold: true };
         c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9EAD3" } }; // verde claro

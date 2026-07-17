@@ -4,7 +4,7 @@ import {
   ArrowLeft, CheckCircle, XCircle, Clock, TrendingDown,
   FileSpreadsheet, History, Package, Edit, AlertTriangle,
   ChevronDown, ChevronUp, Factory, Trash2, PenLine,
-  Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle, GripVertical, Wrench, Copy, Eye,
+  Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle, GripVertical, Wrench, Copy, Eye, Navigation2,
   Upload, X as XIcon, Layers, Receipt, Printer, Search,
   User, Phone, FolderOpen, Bookmark, MapPin, Briefcase, Calendar, RefreshCw, ClipboardList, Zap, FileDown,
 } from "lucide-react";
@@ -2619,7 +2619,7 @@ export default function QuoteDetail() {
                   <TabsTrigger value="equipe" className="flex-1"><Users className="w-3 h-3 mr-1" />Equipe</TabsTrigger>
                   <TabsTrigger value="cliente" className="flex-1">Cliente</TabsTrigger>
                   <TabsTrigger value="financeiro" className="flex-1"><Percent className="w-3 h-3 mr-1" />RT / Margem</TabsTrigger>
-                  <TabsTrigger value="frete" className="flex-1"><Truck className="w-3 h-3 mr-1" />Frete</TabsTrigger>
+                  <TabsTrigger value="frete" className="flex-1"><Navigation2 className="w-3 h-3 mr-1" />Destino</TabsTrigger>
                   <TabsTrigger value="comercial" className="flex-1"><ShoppingBag className="w-3 h-3 mr-1" />Comercial</TabsTrigger>
                 </TabsList>
 
@@ -2816,7 +2816,7 @@ export default function QuoteDetail() {
                   </div>
                 </TabsContent>
 
-                {/* Aba Frete */}
+                {/* Aba Destino */}
                 <TabsContent value="frete" className="space-y-4 pt-3">
                   {/* Estado e Cidade de entrega */}
                   <StateCitySelector
@@ -2828,6 +2828,11 @@ export default function QuoteDetail() {
                       freteState: v,
                       freteLocalidade: v === "SP" ? "sp" : "other",
                       freteCity: "",
+                      // Auto-preencher estado destino DIFAL com o estado de entrega
+                      destState: v,
+                      // Resetar DIFAL ao mudar estado
+                      difalEnabled: false,
+                      fcpEnabled: false,
                     }))}
                     onCityChange={(city) => {
                       const isSpCapital = isSaoPauloCapital(city, editForm.freteStateCode || "SP");
@@ -2896,6 +2901,109 @@ export default function QuoteDetail() {
                       <label htmlFor="editFreteIncluded" className="text-sm cursor-pointer">Frete já incluído no total do orçamento</label>
                     </div>
                     <p className="text-xs text-muted-foreground">Valor real do frete cotado. Apenas demonstrativo.</p>
+                  </div>
+
+                  {/* DIFAL / FCP — calculado após o frete */}
+                  <div className="border rounded-lg p-3 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Navigation2 className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">DIFAL / FCP (venda interestadual)</span>
+                    </div>
+                    {(!editForm.destState || editForm.destState === "none") && (
+                      <p className="text-xs text-muted-foreground">Selecione o estado de entrega acima para calcular DIFAL/FCP automaticamente.</p>
+                    )}
+                    {editForm.destState === "SP" && (
+                      <p className="text-xs text-muted-foreground bg-muted/40 rounded p-2">
+                        São Paulo é o estado de origem — DIFAL não se aplica para vendas internas.
+                      </p>
+                    )}
+                    {editForm.destState && editForm.destState !== "none" && editForm.destState !== "SP" && (() => {
+                      const info = getStateInfo(editForm.destState);
+                      if (!info) return null;
+                      // Frete separado (não diluído) entra na base do DIFAL; frete diluído já está no editTotalFinal
+                      const editFreteBase = !editForm.freteIncluded && editForm.freteValue && !editForm.freteIsento ? parseFloat(editForm.freteValue) : 0;
+                      const base = editTotalFinal + editFreteBase;
+                      const combinedRate = info.combined;
+                      const totalComImposto = combinedRate > 0 ? base / (1 - combinedRate / 100) : base;
+                      const combinedVal = totalComImposto - base;
+                      const difalVal = info.combined > 0 ? combinedVal * (info.difal / info.combined) : 0;
+                      const fcpVal   = info.combined > 0 ? combinedVal * (info.fcp   / info.combined) : 0;
+                      return (
+                        <div className="space-y-2">
+                          <p className="text-xs text-muted-foreground bg-blue-50 dark:bg-blue-950/30 rounded p-2">
+                            Destino: <strong>{info.uf} — {info.name}</strong>
+                            {editFreteBase > 0 && <span className="ml-2">(frete R$ {editFreteBase.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} incluído na base)</span>}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="editDifalEnabled"
+                              checked={editForm.difalEnabled}
+                              onCheckedChange={(v) => {
+                                const enabled = Boolean(v);
+                                setEditForm(f => ({
+                                  ...f,
+                                  difalEnabled: enabled,
+                                  fcpEnabled: enabled,
+                                  difalValue: String(difalVal.toFixed(2)),
+                                  fcpValue: String(fcpVal.toFixed(2)),
+                                  difalPercent: String(info.difal),
+                                  fcpPercent: String(info.fcp),
+                                }));
+                              }}
+                            />
+                            <label htmlFor="editDifalEnabled" className="text-sm cursor-pointer">
+                              Aplicar DIFAL/FCP ({combinedRate.toFixed(1)}%)
+                              {info.difal > 0 && info.fcp > 0 && (
+                                <span className="text-muted-foreground ml-1">
+                                  (DIFAL {info.difal.toFixed(1)}% + FCP {info.fcp.toFixed(1)}%)
+                                </span>
+                              )}
+                              {info.fcp === 0 && (
+                                <span className="text-muted-foreground ml-1">(apenas DIFAL)</span>
+                              )}
+                              {" = "}{formatBRL(combinedVal)}
+                            </label>
+                          </div>
+                          {editForm.difalEnabled && (
+                            <div className="bg-muted/60 rounded p-2 text-sm space-y-1">
+                              <div className="flex justify-between text-muted-foreground">
+                                <span>Produtos</span>
+                                <span>{formatBRL(editTotalFinal)}</span>
+                              </div>
+                              {editFreteBase > 0 && (
+                                <div className="flex justify-between text-muted-foreground">
+                                  <span>+ Frete</span>
+                                  <span>{formatBRL(editFreteBase)}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between text-muted-foreground border-t pt-1">
+                                <span>Base de cálculo</span>
+                                <span>{formatBRL(base)}</span>
+                              </div>
+                              {info.difal > 0 && (
+                                <div className="flex justify-between text-muted-foreground">
+                                  <span>DIFAL ({info.difal.toFixed(1)}%)</span>
+                                  <span>{formatBRL(difalVal)}</span>
+                                </div>
+                              )}
+                              {info.fcp > 0 && (
+                                <div className="flex justify-between text-muted-foreground">
+                                  <span>FCP ({info.fcp.toFixed(1)}%)</span>
+                                  <span>{formatBRL(fcpVal)}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between font-semibold border-t pt-1">
+                                <span>Total com DIFAL/FCP</span>
+                                <span>{formatBRL(totalComImposto)}</span>
+                              </div>
+                            </div>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Alíquota interna {info.uf}: {info.icmsInterno}% | Interestadual SP→{info.uf}: {info.icmsInterestadual}%
+                          </p>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </TabsContent>
 
@@ -3014,121 +3122,6 @@ export default function QuoteDetail() {
                   </div>
                   )}
                   </div>)} {/* fecha canSeeCommission */}
-
-                  {/* DIFAL / FCP */}
-                  <div className="border rounded-lg p-3 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">DIFAL / FCP (venda interestadual)</span>
-                    </div>
-                    <div>
-                      <Label>Estado destino</Label>
-                      <Select
-                        value={editForm.destState || "none"}
-                        onValueChange={(v) => {
-                          const newState = v === "none" ? "" : v;
-                          setEditForm(f => ({
-                            ...f,
-                            destState: newState,
-                            // Sincronizar localidade de entrega: se estado selecionado != SP, marcar como "Outra cidade"
-                            freteLocalidade: newState && newState !== "SP" ? "other" : f.freteLocalidade,
-                          }));
-                        }}
-                      >
-                        <SelectTrigger><SelectValue placeholder="Selecione o estado" /></SelectTrigger>
-                        <SelectContent className="max-h-60">
-                          <SelectItem value="none">Selecione...</SelectItem>
-                          <SelectItem value="SP">SP — São Paulo (venda interna — sem DIFAL)</SelectItem>
-                          {DIFAL_TABLE.map(s => (
-                            <SelectItem key={s.uf} value={s.uf}>
-                              {s.uf} — {s.name} (DIFAL {s.difal.toFixed(1)}% + FCP {s.fcp.toFixed(1)}%)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {editForm.destState === "SP" && (
-                      <p className="text-xs text-muted-foreground bg-muted/40 rounded p-2">
-                        São Paulo é o estado de origem — DIFAL não se aplica para vendas internas.
-                      </p>
-                    )}
-                    {editForm.destState && editForm.destState !== "none" && editForm.destState !== "SP" && (() => {
-                      const info = getStateInfo(editForm.destState);
-                      if (!info) return null;
-                      // Base = produtos + frete
-                      // Frete separado (não diluído) entra na base do DIFAL; frete diluído já está no editTotalFinal
-                      const editFreteBase = !editForm.freteIncluded && editForm.freteValue && !editForm.freteIsento ? parseFloat(editForm.freteValue) : 0;
-                      const base = editTotalFinal + editFreteBase;
-                      // Alíquota combinada DIFAL + FCP
-                      const combinedRate = info.combined;
-                      const totalComImposto = combinedRate > 0 ? base / (1 - combinedRate / 100) : base;
-                      const combinedVal = totalComImposto - base;
-                      const difalVal = info.combined > 0 ? combinedVal * (info.difal / info.combined) : 0;
-                      const fcpVal   = info.combined > 0 ? combinedVal * (info.fcp   / info.combined) : 0;
-                      return (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              id="editDifalEnabled"
-                              checked={editForm.difalEnabled}
-                              onCheckedChange={(v) => {
-                                const enabled = Boolean(v);
-                                setEditForm(f => ({
-                                  ...f,
-                                  difalEnabled: enabled,
-                                  fcpEnabled: enabled,
-                                  difalValue: String(difalVal.toFixed(2)),
-                                  fcpValue: String(fcpVal.toFixed(2)),
-                                  difalPercent: String(info.difal),
-                                  fcpPercent: String(info.fcp),
-                                }));
-                              }}
-                            />
-                            <label htmlFor="editDifalEnabled" className="text-sm cursor-pointer">
-                              Aplicar DIFAL/FCP ({combinedRate.toFixed(1)}%)
-                              {info.difal > 0 && info.fcp > 0 && (
-                                <span className="text-muted-foreground ml-1">
-                                  (DIFAL {info.difal.toFixed(1)}% + FCP {info.fcp.toFixed(1)}%)
-                                </span>
-                              )}
-                              {info.fcp === 0 && (
-                                <span className="text-muted-foreground ml-1">(apenas DIFAL)</span>
-                              )}
-                              {" = "}{formatBRL(combinedVal)}
-                            </label>
-                          </div>
-                          {editForm.difalEnabled && (
-                            <div className="bg-muted/60 rounded p-2 text-sm space-y-1">
-                              {editFreteBase > 0 && (
-                                <div className="flex justify-between text-muted-foreground">
-                                  <span>Base (produtos + frete)</span>
-                                  <span>{formatBRL(base)}</span>
-                                </div>
-                              )}
-                              {info.difal > 0 && (
-                                <div className="flex justify-between text-muted-foreground">
-                                  <span>DIFAL ({info.difal.toFixed(1)}%)</span>
-                                  <span>{formatBRL(difalVal)}</span>
-                                </div>
-                              )}
-                              {info.fcp > 0 && (
-                                <div className="flex justify-between text-muted-foreground">
-                                  <span>FCP ({info.fcp.toFixed(1)}%)</span>
-                                  <span>{formatBRL(fcpVal)}</span>
-                                </div>
-                              )}
-                              <div className="flex justify-between font-semibold border-t pt-1">
-                                <span>Total com DIFAL/FCP</span>
-                                <span>{formatBRL(totalComImposto)}</span>
-                              </div>
-                            </div>
-                          )}
-                          <p className="text-xs text-muted-foreground">
-                            Alíquota interna {info.uf}: {info.icmsInterno}% | Interestadual SP→{info.uf}: {info.icmsInterestadual}%
-                          </p>
-                        </div>
-                      );
-                    })()}
-                  </div>
 
                   {/* Diluição — visível apenas para managers/admins */}
                   {canSeeCommission && <div className="border rounded-lg p-3 space-y-3 bg-red-50 dark:bg-red-950/20">

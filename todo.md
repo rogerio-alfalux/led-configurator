@@ -2081,3 +2081,9 @@
 - [x] Adicionar aba "Requisição de Materiais" no Excel (orderExcelGenerator.ts)
 - [x] Adicionar seção "Requisição de Materiais" na pré-visualização HTML (orderPreviewGenerator.ts)
 - [x] Corrigir drvQtyPerUnit nos dados já salvos no banco (2010 quote_items + 55 factory_order_items)
+
+## Reorganização Aba Destino + Correção DIFAL (17/07/2026)
+- [x] Renomear aba "Frete" para "Destino" na tela de edição do orçamento
+- [x] Mover bloco DIFAL/FCP da aba Comercial para a aba Destino (após campos de frete)
+- [x] Corrigir bug de dupla contagem do frete no TOTAL GERAL do Excel (totalComDifal + freteValue quando DIFAL já inclui frete na base)
+- [x] Ajustar ordem de exibição no preview HTML e Excel (frete antes do DIFAL)
