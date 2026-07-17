@@ -3234,6 +3234,7 @@ export default function Home() {
 
   // ── Estados de Customizados ──────────────────────────────────────────────────────
   const [czSelectedSku, setCzSelectedSku] = useState<string>("");
+  const [czSelectedKey, setCzSelectedKey] = useState<string>(""); // "sku::globalIdx" para distinguir duplicatas
   const [czSearch, setCzSearch] = useState<string>("");
   const [czQty, setCzQty] = useState<string>("1");
   const [czUnitPrice, setCzUnitPrice] = useState<string>("");
@@ -3345,7 +3346,12 @@ export default function Home() {
   const handleAddCustomizadoItem = useCallback(() => {
     // Modo API: produto selecionado da lista
     if (czSelectedSku && customizadosProducts.length > 0) {
-      const product = customizadosProducts.find(p => p.sku === czSelectedSku);
+      // Usar czSelectedKey para identificar unicamente (sku::globalIdx)
+      const keyParts = czSelectedKey.split("::");
+      const keyIdx = keyParts.length === 2 ? parseInt(keyParts[1]) : -1;
+      const product = keyIdx >= 0 && keyIdx < customizadosProducts.length
+        ? customizadosProducts[keyIdx]
+        : customizadosProducts.find(p => p.sku === czSelectedSku);
       if (!product) return;
       const qty = parseInt(czQty) || 1;
       const unitPrice = czUnitPrice ? parseFloat(czUnitPrice) : (product.precoVenda ?? 0);
@@ -3384,6 +3390,7 @@ export default function Home() {
         toast.success(`"${product.name}" adicionado!`);
       }
       setCzSelectedSku("");
+      setCzSelectedKey("");
       setCzQty("1");
       setCzUnitPrice("");
       setCzNotes("");
@@ -3434,7 +3441,7 @@ export default function Home() {
     setCzQty("1");
     setCzUnitPrice("");
     setCzNotes("");
-    }, [czSelectedSku, czSearch, czQty, czUnitPrice, czNotes, customizadosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, pendingAccessories, globalItemEmPlanta, globalPavimento, globalAmbiente]);
+    }, [czSelectedSku, czSelectedKey, czSearch, czQty, czUnitPrice, czNotes, customizadosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, pendingAccessories, globalItemEmPlanta, globalPavimento, globalAmbiente]);
   // ── Estados de Não Orçamos ──────────────────────────────────────────────
   const [noDescription, setNoDescription] = useState<string>("");
   const handleAddNaoOrcamos = useCallback(() => {
@@ -8302,7 +8309,7 @@ export default function Home() {
                       <Input
                         placeholder="Buscar por nome, código ou referência..."
                         value={czSearch}
-                        onChange={e => { setCzSearch(e.target.value); setCzSelectedSku(""); }}
+                        onChange={e => { setCzSearch(e.target.value); setCzSelectedSku(""); setCzSelectedKey(""); }}
                         className="pr-8"
                       />
                       {czSearch && (
@@ -8319,48 +8326,54 @@ export default function Home() {
                     {/* Lista de produtos */}
                     <div className="border rounded-md divide-y max-h-72 overflow-y-auto">
                       {customizadosProducts
-                        .filter(p => !czSearch.trim() || p.name.toLowerCase().includes(czSearch.toLowerCase()) || p.sku.toLowerCase().includes(czSearch.toLowerCase()))
+                        .map((p, globalIdx) => ({ p, globalIdx }))
+                        .filter(({ p }) => !czSearch.trim() || p.name.toLowerCase().includes(czSearch.toLowerCase()) || p.sku.toLowerCase().includes(czSearch.toLowerCase()))
                         .length === 0 ? (
-                        <div className="text-sm text-muted-foreground p-4 text-center">Nenhum produto encontrado.</div>
-                      ) : customizadosProducts
-                        .filter(p => !czSearch.trim() || p.name.toLowerCase().includes(czSearch.toLowerCase()) || p.sku.toLowerCase().includes(czSearch.toLowerCase()))
-                        .map((p, idx) => (
-                          <div
-                            key={`${p.sku}-${idx}`}
-                            onClick={() => setCzSelectedSku(prev => prev === p.sku ? "" : p.sku)}
-                            className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors ${
-                              czSelectedSku === p.sku
-                                ? "bg-purple-50 dark:bg-purple-900/20 border-l-2 border-purple-500"
-                                : "hover:bg-muted/50"
-                            }`}
-                          >
-                            <div className="shrink-0 w-9 h-9 rounded border border-border bg-muted/30 flex items-center justify-center overflow-hidden">
-                              {p.fotoUrl ? (
-                                <img src={p.fotoUrl} alt={p.name} className="w-full h-full object-contain p-0.5" loading="lazy" />
-                              ) : (
-                                <Package2 className="w-4 h-4 text-muted-foreground/40" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium truncate">{p.name}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {p.sku}
-                                {p.precoVenda != null && p.precoVenda > 0 && (
-                                  <span className="ml-2 text-purple-700 dark:text-purple-400 font-medium">
-                                    R$ {p.precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                                  </span>
+                          <div className="text-sm text-muted-foreground p-4 text-center">Nenhum produto encontrado.</div>
+                        ) : customizadosProducts
+                          .map((p, globalIdx) => ({ p, globalIdx }))
+                          .filter(({ p }) => !czSearch.trim() || p.name.toLowerCase().includes(czSearch.toLowerCase()) || p.sku.toLowerCase().includes(czSearch.toLowerCase()))
+                          .map(({ p, globalIdx }) => {
+                            const itemKey = `${p.sku}::${globalIdx}`;
+                            return (
+                              <div
+                                key={itemKey}
+                                onClick={() => { const newKey = czSelectedKey === itemKey ? "" : itemKey; setCzSelectedKey(newKey); setCzSelectedSku(newKey ? p.sku : ""); }}
+                                className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors ${
+                                  czSelectedKey === itemKey
+                                    ? "bg-purple-50 dark:bg-purple-900/20 border-l-2 border-purple-500"
+                                    : "hover:bg-muted/50"
+                                }`}
+                              >
+                                <div className="shrink-0 w-9 h-9 rounded border border-border bg-muted/30 flex items-center justify-center overflow-hidden">
+                                  {p.fotoUrl ? (
+                                    <img src={p.fotoUrl} alt={p.name} className="w-full h-full object-contain p-0.5" loading="lazy" />
+                                  ) : (
+                                    <Package2 className="w-4 h-4 text-muted-foreground/40" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium truncate">{p.name}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {p.sku}
+                                    {p.precoVenda != null && p.precoVenda > 0 && (
+                                      <span className="ml-2 text-purple-700 dark:text-purple-400 font-medium">
+                                        R$ {p.precoVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                {czSelectedKey === itemKey && (
+                                  <div className="shrink-0">
+                                    <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
+                                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                    </div>
+                                  </div>
                                 )}
                               </div>
-                            </div>
-                            {czSelectedSku === p.sku && (
-                              <div className="shrink-0">
-                                <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
-                                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                            );
+                          })
+                      }
                     </div>
 
                     {/* Campos de quantidade e preço para produto selecionado */}

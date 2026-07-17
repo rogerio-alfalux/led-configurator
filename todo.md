@@ -2069,3 +2069,6 @@
 - [x] orderExcelGenerator.ts: incluir código EQ do módulo LED na coluna Fonte de Luz
 - [x] orderPreviewGenerator.ts: incluir código EQ do módulo LED na coluna Fonte de Luz
 - [x] Corrigir corrente e código EQ nos dados já salvos no banco (quote_items e factory_order_items)
+
+## Bug — Seleção múltipla na categoria Customizados (17/07/2026)
+- [x] Corrigir bug onde clicar em um produto Customizado seleciona todos os itens com o mesmo SKU (ex: LDP-1650.500.48F aparece 2 vezes selecionado)
