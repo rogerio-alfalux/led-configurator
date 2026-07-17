@@ -28,13 +28,20 @@ function buildProfileFonteLuzText(item: CartItemData): string {
   }
   const cct = item.cct ?? "";
   const isStripline = item.stripMethod === "STRIPLINE";
-  return item.profileSegments
-    .map((seg) => {
-      const barName = isStripline
-        ? `Stripline 562,5 x 15mm 108L ${cct}`
-        : `Stripflex 562,5 x 10mm 36L ${cct}`;
-      return `${seg.sku} - ${fmtQty(seg.barsPerPiece)} x ${barName}`;
-    })
+  const itemQty = item.qty ?? 1;
+
+  // Agrupar por nome de módulo e somar quantidades totais
+  const totals = new Map<string, number>();
+  for (const seg of item.profileSegments) {
+    const barName = isStripline
+      ? `Stripline 562,5 x 15mm 108L ${cct}`
+      : `Stripflex 562,5 x 10mm 36L ${cct}`;
+    const totalBars = seg.qty * seg.barsPerPiece * itemQty;
+    totals.set(barName, (totals.get(barName) ?? 0) + totalBars);
+  }
+
+  return Array.from(totals.entries())
+    .map(([name, qty]) => `${fmtQty(qty)} x ${name}`)
     .join("<br>");
 }
 
@@ -60,15 +67,44 @@ function buildProfileEquipamentosText(item: CartItemData): string {
     }
     return esc(item.drivers ?? "");
   }
-  return item.profileSegments
-    .map((seg) => {
-      if (seg.driverModel.includes(" + ")) {
-        return `${seg.sku} - ${seg.driverModel}`;
+
+  const itemQty = item.qty ?? 1;
+
+  // Agrupar por modelo+código e somar quantidades totais
+  const totals = new Map<string, { model: string; code: string; qty: number }>();
+
+  for (const seg of item.profileSegments) {
+    // Driver combo
+    if (seg.driverModel.includes(" + ")) {
+      const comboKey = seg.driverModel;
+      const totalQty = seg.qty * itemQty;
+      const existing = totals.get(comboKey);
+      if (existing) {
+        totals.set(comboKey, { ...existing, qty: existing.qty + totalQty });
+      } else {
+        totals.set(comboKey, { model: seg.driverModel, code: "", qty: totalQty });
       }
-      const codeSuffix = seg.driverCode && seg.driverCode !== "ERRO"
-        ? ` (${seg.driverCode})`
-        : "";
-      return `${seg.sku} - ${fmtQty(seg.driverQtyPerPiece)} x ${seg.driverModel}${codeSuffix}`;
+      continue;
+    }
+
+    // Driver simples
+    const codeSuffix = seg.driverCode && seg.driverCode !== "ERRO"
+      ? ` (${seg.driverCode})`
+      : "";
+    const key = `${seg.driverModel}${codeSuffix}`;
+    const totalQty = seg.qty * seg.driverQtyPerPiece * itemQty;
+    const existing = totals.get(key);
+    if (existing) {
+      totals.set(key, { ...existing, qty: existing.qty + totalQty });
+    } else {
+      totals.set(key, { model: seg.driverModel, code: codeSuffix, qty: totalQty });
+    }
+  }
+
+  return Array.from(totals.entries())
+    .map(([key, entry]) => {
+      if (!entry.code) return `${fmtQty(entry.qty)} x ${esc(key)}`;
+      return `${fmtQty(entry.qty)} x ${esc(entry.model)}${esc(entry.code)}`;
     })
     .join("<br>");
 }

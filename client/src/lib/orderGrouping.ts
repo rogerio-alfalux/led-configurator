@@ -8,14 +8,21 @@
  *
  * Resultado do agrupamento:
  * - qty = soma das quantidades de todos os itens agrupados
- * - itemEmPlanta = "L05 - Térreo, L05 - 1º Andar" (etiqueta + pavimento de cada item original)
+ * - itemEmPlanta = uma linha por pavimento, com quantidade:
+ *     "L05 - 1°PAV = 05 pçs\nL05 - 2°PAV = 06 pçs\nL05 - 3°PAV = 02 pçs"
  * - accessories = acessórios somados (mesmos códigos têm qtys somadas)
  */
 
 import type { CartItemData, LinkedAccessory } from "./cartTypes";
 
+/** Entrada interna para acumular etiquetas e quantidades por pavimento */
+interface EtiquetaEntry {
+  label: string;  // "L05 - 1°PAV"
+  qty: number;    // quantidade de peças nesse pavimento
+}
+
 /** Tipo interno para acumular etiquetas durante o agrupamento */
-type GroupedItem = CartItemData & { _groupEtiquetas: string[] };
+type GroupedItem = CartItemData & { _groupEntries: EtiquetaEntry[] };
 
 /**
  * Gera uma chave de agrupamento para um item.
@@ -74,16 +81,34 @@ function buildGroupKey(item: CartItemData): string {
 
 /**
  * Formata a etiqueta de um item com o nome do pavimento.
- * Ex: itemEmPlanta="L05", floorName="Térreo" → "L05 - Térreo"
+ * Ex: itemEmPlanta="L05", floorName="1°PAV" → "L05 - 1°PAV"
  * Se não houver etiqueta nem pavimento, retorna string vazia.
  */
-function formatEtiquetaComPavimento(item: CartItemData): string {
+function formatEtiquetaLabel(item: CartItemData): string {
   const etiqueta = item.itemEmPlanta?.trim() ?? "";
   const pavimento = item.floorName?.trim() ?? "";
   if (etiqueta && pavimento) return `${etiqueta} - ${pavimento}`;
   if (etiqueta) return etiqueta;
   if (pavimento) return pavimento;
   return "";
+}
+
+/**
+ * Formata a string final de etiquetas para exibição no Excel/preview.
+ * Cada pavimento em uma linha, com quantidade formatada:
+ *   "L05 - 1°PAV = 05 pçs\nL05 - 2°PAV = 06 pçs"
+ *
+ * Se houver apenas um pavimento e a quantidade for 1, exibe só a etiqueta sem "= 01 pçs".
+ */
+function formatEtiquetasString(entries: EtiquetaEntry[]): string {
+  if (entries.length === 0) return "";
+  // Se só há uma entrada e qty=1, exibir apenas o label sem quantidade
+  if (entries.length === 1 && entries[0].qty === 1) {
+    return entries[0].label;
+  }
+  return entries
+    .map(e => `${e.label} = ${String(e.qty).padStart(2, "0")} pçs`)
+    .join("\n");
 }
 
 /**
@@ -111,7 +136,7 @@ function mergeAccessories(
  *
  * @param items - Lista de itens do pedido (já filtrados, sem "Não Orçamos")
  * @returns Lista agrupada, onde itens iguais são fundidos em um único com qty somada
- *          e itemEmPlanta concatenando etiqueta + pavimento de cada item original.
+ *          e itemEmPlanta com uma linha por pavimento mostrando etiqueta e quantidade.
  */
 export function groupOrderItems(items: CartItemData[]): CartItemData[] {
   const groups = new Map<string, GroupedItem>();
@@ -119,42 +144,55 @@ export function groupOrderItems(items: CartItemData[]): CartItemData[] {
 
   for (const item of items) {
     const key = buildGroupKey(item);
+    const label = formatEtiquetaLabel(item);
 
     if (!groups.has(key)) {
       // Primeiro item deste grupo: clonar e registrar
-      const etiqueta = formatEtiquetaComPavimento(item);
+      const entries: EtiquetaEntry[] = label ? [{ label, qty: item.qty }] : [];
       groups.set(key, {
         ...item,
-        itemEmPlanta: etiqueta,
-        _groupEtiquetas: etiqueta ? [etiqueta] : [],
+        itemEmPlanta: formatEtiquetasString(entries),
+        _groupEntries: entries,
       });
       order.push(key);
     } else {
-      // Item igual já existe: somar qty, concatenar etiqueta, mesclar acessórios
+      // Item igual já existe: somar qty, atualizar entradas de etiquetas, mesclar acessórios
       const existing = groups.get(key)!;
-      const etiqueta = formatEtiquetaComPavimento(item);
 
-      const newEtiquetas = etiqueta
-        ? [...existing._groupEtiquetas, etiqueta]
-        : existing._groupEtiquetas;
+      // Verificar se já existe uma entrada para este mesmo label (mesmo pavimento)
+      let newEntries: EtiquetaEntry[];
+      if (label) {
+        const existingEntryIdx = existing._groupEntries.findIndex(e => e.label === label);
+        if (existingEntryIdx >= 0) {
+          // Mesmo pavimento: somar quantidade
+          newEntries = existing._groupEntries.map((e, i) =>
+            i === existingEntryIdx ? { ...e, qty: e.qty + item.qty } : e
+          );
+        } else {
+          // Novo pavimento: adicionar nova entrada
+          newEntries = [...existing._groupEntries, { label, qty: item.qty }];
+        }
+      } else {
+        newEntries = existing._groupEntries;
+      }
 
       groups.set(key, {
         ...existing,
         qty: existing.qty + item.qty,
-        itemEmPlanta: newEtiquetas.join(", "),
+        itemEmPlanta: formatEtiquetasString(newEntries),
         accessories: mergeAccessories(
           existing.accessories ?? [],
           item.accessories ?? []
         ),
-        _groupEtiquetas: newEtiquetas,
+        _groupEntries: newEntries,
       });
     }
   }
 
-  // Remover campo auxiliar _groupEtiquetas antes de retornar
+  // Remover campo auxiliar _groupEntries antes de retornar
   return order.map(key => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { _groupEtiquetas: _unused, ...clean } = groups.get(key)!;
+    const { _groupEntries: _unused, ...clean } = groups.get(key)!;
     return clean as CartItemData;
   });
 }
