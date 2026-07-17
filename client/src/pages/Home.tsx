@@ -3233,8 +3233,8 @@ export default function Home() {
   const revendaProducts = revendaProductsQuery.data ?? [];
 
   // ── Estados de Customizados ──────────────────────────────────────────────────────
-  const [czSelectedSku, setCzSelectedSku] = useState<string>("");
-  const [czSelectedKey, setCzSelectedKey] = useState<string>(""); // "sku::globalIdx" para distinguir duplicatas
+  // czSelectedKey = "sku::globalIdx" — identificador único por item (evita selecionar duplicatas com mesmo SKU)
+  const [czSelectedKey, setCzSelectedKey] = useState<string>("");
   const [czSearch, setCzSearch] = useState<string>("");
   const [czQty, setCzQty] = useState<string>("1");
   const [czUnitPrice, setCzUnitPrice] = useState<string>("");
@@ -3242,6 +3242,13 @@ export default function Home() {
 
   const customizadosQuery = trpc.alfalux.customizadosProducts.useQuery();
   const customizadosProducts = customizadosQuery.data ?? [];
+  // Derivado: produto selecionado pelo índice global (não pelo SKU)
+  const czSelectedProduct = useMemo(() => {
+    if (!czSelectedKey) return null;
+    const parts = czSelectedKey.split("::");
+    const idx = parts.length === 2 ? parseInt(parts[1]) : -1;
+    return idx >= 0 && idx < customizadosProducts.length ? customizadosProducts[idx] : null;
+  }, [czSelectedKey, customizadosProducts]);
 
   // Regras de agrupamento de fornecedores
   const FORNECEDOR_IGNORE: string[] = []; // Nenhum fornecedor ignorado — exibir todos
@@ -3345,13 +3352,8 @@ export default function Home() {
 
   const handleAddCustomizadoItem = useCallback(() => {
     // Modo API: produto selecionado da lista
-    if (czSelectedSku && customizadosProducts.length > 0) {
-      // Usar czSelectedKey para identificar unicamente (sku::globalIdx)
-      const keyParts = czSelectedKey.split("::");
-      const keyIdx = keyParts.length === 2 ? parseInt(keyParts[1]) : -1;
-      const product = keyIdx >= 0 && keyIdx < customizadosProducts.length
-        ? customizadosProducts[keyIdx]
-        : customizadosProducts.find(p => p.sku === czSelectedSku);
+    if (czSelectedKey && customizadosProducts.length > 0) {
+      const product = czSelectedProduct;
       if (!product) return;
       const qty = parseInt(czQty) || 1;
       const unitPrice = czUnitPrice ? parseFloat(czUnitPrice) : (product.precoVenda ?? 0);
@@ -3389,7 +3391,6 @@ export default function Home() {
         addItem(itemWithAcc);
         toast.success(`"${product.name}" adicionado!`);
       }
-      setCzSelectedSku("");
       setCzSelectedKey("");
       setCzQty("1");
       setCzUnitPrice("");
@@ -3441,7 +3442,7 @@ export default function Home() {
     setCzQty("1");
     setCzUnitPrice("");
     setCzNotes("");
-    }, [czSelectedSku, czSelectedKey, czSearch, czQty, czUnitPrice, czNotes, customizadosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, pendingAccessories, globalItemEmPlanta, globalPavimento, globalAmbiente]);
+    }, [czSelectedKey, czSelectedProduct, czSearch, czQty, czUnitPrice, czNotes, customizadosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, pendingAccessories, globalItemEmPlanta, globalPavimento, globalAmbiente]);
   // ── Estados de Não Orçamos ──────────────────────────────────────────────
   const [noDescription, setNoDescription] = useState<string>("");
   const handleAddNaoOrcamos = useCallback(() => {
@@ -4297,7 +4298,7 @@ export default function Home() {
   // ── Produto configurado (habilita botão Incluir Acessório) ───────
   // Verdadeiro quando há um resultado calculado em qualquer categoria,
   // ou quando um produto de Revenda/Acessório/Item Especial está selecionado.
-  const hasResult = !!(result || shapeResult || dlResult || aeResult || panelResult || spotResult || arandelaResult || lbResult || bgResult || bfResult || rvSelectedSku || acSelectedId || czSelectedSku || productCategory === "Item Especial");
+  const hasResult = !!(result || shapeResult || dlResult || aeResult || panelResult || spotResult || arandelaResult || lbResult || bgResult || bfResult || rvSelectedSku || acSelectedId || czSelectedKey || productCategory === "Item Especial");
   // ── Dados derivados ──────────────────────────────────────────────
   // Usa funções do catálogo ativo (API ou estático)
   const profileNames = activeGetProfileNames();
@@ -8309,7 +8310,7 @@ export default function Home() {
                       <Input
                         placeholder="Buscar por nome, código ou referência..."
                         value={czSearch}
-                        onChange={e => { setCzSearch(e.target.value); setCzSelectedSku(""); setCzSelectedKey(""); }}
+                        onChange={e => { setCzSearch(e.target.value); setCzSelectedKey(""); }}
                         className="pr-8"
                       />
                       {czSearch && (
@@ -8338,7 +8339,7 @@ export default function Home() {
                             return (
                               <div
                                 key={itemKey}
-                                onClick={() => { const newKey = czSelectedKey === itemKey ? "" : itemKey; setCzSelectedKey(newKey); setCzSelectedSku(newKey ? p.sku : ""); }}
+                                onClick={() => { setCzSelectedKey(prev => prev === itemKey ? "" : itemKey); }}
                                 className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors ${
                                   czSelectedKey === itemKey
                                     ? "bg-purple-50 dark:bg-purple-900/20 border-l-2 border-purple-500"
@@ -8377,7 +8378,7 @@ export default function Home() {
                     </div>
 
                     {/* Campos de quantidade e preço para produto selecionado */}
-                    {czSelectedSku && (
+                    {czSelectedKey && (
                       <div className="grid grid-cols-2 gap-3 pt-1">
                         <div className="space-y-1">
                           <label className="text-sm font-medium">Qtd *</label>
@@ -12458,13 +12459,11 @@ export default function Home() {
             })()}
             {/* ── Customizados: painel de resumo do item selecionado ── */}
             {productCategory === "Customizados" && (() => {
-              const czProduct = czSelectedSku
-                ? customizadosProducts.find(p => p.sku === czSelectedSku)
-                : null;
+              const czProduct = czSelectedProduct;
               const isManualMode = customizadosProducts.length === 0;
               const canAdd = isManualMode
                 ? czSearch.trim().length > 0
-                : czSelectedSku.length > 0;
+                : czSelectedKey.length > 0;
               return (
                 <Card className="shadow-sm border-purple-500/30">
                   <CardHeader className="pb-3">
