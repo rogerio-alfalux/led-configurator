@@ -153,15 +153,15 @@ interface Props {
 export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMap, autoPrint }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // Gera nome do arquivo no mesmo padrão do Excel + sufixo "rascunho"
+  // Gera nome do arquivo no mesmo padrão do Excel
   const buildFileName = useCallback(() => {
     const revCount = formData.revisionCount ?? 0;
     const rvSuffix = `(RV${revCount})`;
     const numPart = formData.numero ? `${formData.numero} ${rvSuffix}` : rvSuffix;
     const obraPart = formData.obra ? ` - ${formData.obra.toUpperCase()}` : "";
     const clientePart = formData.cliente ? ` - ${formData.cliente.toUpperCase()}` : "";
-    return `${numPart}${obraPart}${clientePart} rascunho`
-      .replace(/[\\/:*?"<>|]/g, "-")
+    return `${numPart}${obraPart}${clientePart}`
+      .replace(/[\\\/:*?"<>|]/g, "-")
       .substring(0, 200);
   }, [formData]);
 
@@ -252,6 +252,13 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
       @page {
         size: A4 portrait;
         margin: 20mm 6mm 10mm 6mm;
+        /* Suprimir cabeçalhos e rodapés automáticos do navegador */
+        @top-left { content: none; }
+        @top-center { content: none; }
+        @top-right { content: none; }
+        @bottom-left { content: none; }
+        @bottom-center { content: none; }
+        @bottom-right { content: none; }
       }
       /* Escala para caber 1100px em A4 retrato (794px úteis a 96dpi → zoom ≈ 0.64) */
       [data-print-content] > div > div {
