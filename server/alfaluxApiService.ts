@@ -182,6 +182,8 @@ export interface AlfaluxProduct {
   precoMetro?: number | null;
   /** Produto com lâmpada (ex: NONA) — sem driver na composição */
   moduloLampada?: boolean | null;
+  /** Corrente de programação do driver (ex: "programar em 350mA"). Campo direto da API. */
+  correnteDriver?: string | null;
 }
 
 interface ApiResponse {

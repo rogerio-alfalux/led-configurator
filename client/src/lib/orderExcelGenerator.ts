@@ -226,7 +226,7 @@ function buildProfileEquipamentosText(item: CartItemData): string {
   const itemQty = item.qty ?? 1;
 
   // Agrupar por modelo+código e somar quantidades totais
-  const totals = new Map<string, { model: string; code: string; qty: number }>();
+  const totals = new Map<string, { model: string; code: string; qty: number; corrente?: string | null }>();
 
   for (const seg of item.profileSegments) {
     // Driver combo: já formatado como "1 x MODEL1 (CODE1) + 1 x MODEL2 (CODE2)"
@@ -249,19 +249,26 @@ function buildProfileEquipamentosText(item: CartItemData): string {
       : "";
     const key = `${seg.driverModel}${codeSuffix}`;
     const totalQty = seg.qty * seg.driverQtyPerPiece * itemQty;
+    const corrente = seg.corrente ?? null;
     const existing = totals.get(key);
     if (existing) {
       totals.set(key, { ...existing, qty: existing.qty + totalQty });
     } else {
-      totals.set(key, { model: seg.driverModel, code: codeSuffix, qty: totalQty });
+      totals.set(key, { model: seg.driverModel, code: codeSuffix, qty: totalQty, corrente });
     }
   }
 
   return Array.from(totals.entries())
-    .map(([key, entry]) => {
+    .map(([_key, entry]) => {
       // Para combos (sem code separado), usar a key como texto
-      if (!entry.code) return `${fmtQty(entry.qty)} x ${key}`;
-      return `${fmtQty(entry.qty)} x ${entry.model}${entry.code}`;
+      const base = !entry.code
+        ? `${fmtQty(entry.qty)} x ${_key}`
+        : `${fmtQty(entry.qty)} x ${entry.model}${entry.code}`;
+      // Adicionar PROGRAMAÇÃO se corrente disponível e não é fonte 24V
+      if (entry.corrente && !entry.model.toUpperCase().includes("FONTE 24V")) {
+        return `${base}\nPROGRAMAÇÃO: ${entry.corrente}`;
+      }
+      return base;
     })
     .join("\n");
 }

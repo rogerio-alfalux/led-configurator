@@ -22,6 +22,8 @@ export interface ProfileSegment {
   driverModel: string;
   /** Código do driver (ex: "EQ00347") */
   driverCode: string;
+  /** Corrente de programação do driver (ex: "350MA", "700MA"). null se não disponível. */
+  corrente?: string | null;
 }
 
 /**

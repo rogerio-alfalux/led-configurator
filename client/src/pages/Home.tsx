@@ -859,6 +859,7 @@ function ShapeResultCard({
         driverQtyPerPiece,
         driverModel,
         driverCode,
+        corrente: piece.driver?.corrente ?? null,
       };
     });
 
@@ -2124,6 +2125,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                     driverQtyPerPiece,
                     driverModel,
                     driverCode,
+                    corrente: d1Entry?.driver?.current ?? null,
                   };
                 });
 
@@ -8635,6 +8637,7 @@ export default function Home() {
                     driverBivolt: selectedVariant?.driverBivolt ?? null,
                     driverDimDali: selectedVariant?.driverDimDali ?? null,
                     driverDim110v: selectedVariant?.driverDim110v ?? null,
+                    correnteDriver: selectedVariant?.correnteDriver ?? null,
                   };
                   if (profileShape === "L_SHAPE") {
                     sr = calculateLShape(code, parseInt(shapeSideH) || 2000, parseInt(shapeSideV) || 1200, dp);

@@ -76,6 +76,8 @@ export interface ShapeDriverParams {
   driverDimDali?: { model: string; code: string | null } | null;
   /** Driver DIM 1-10V da API */
   driverDim110v?: { model: string; code: string | null } | null;
+  /** Corrente de programação do driver (ex: "programar em 350mA"). Campo direto da API. */
+  correnteDriver?: string | null;
 }
 
 /** Uma peça dentro de um segmento reto (pode haver múltiplas peças diferentes) */
@@ -120,6 +122,7 @@ function calcPieceDriver(
       code: apiDriver.code ?? undefined,
       model: apiDriver.model,
       quantity: 1,
+      corrente: params.correnteDriver ?? null,
     };
   }
 
@@ -136,6 +139,7 @@ function calcPieceDriver(
     model: d.model,
     quantity: d.quantity,
     combo: d.combo,
+    corrente: params.correnteDriver ?? null,
   };
 }
 

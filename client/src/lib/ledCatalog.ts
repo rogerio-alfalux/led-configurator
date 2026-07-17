@@ -40,6 +40,8 @@ export interface ProfileVariant {
   driverDimDali?: { model: string; code: string | null } | null;
   /** Driver DIM 1-10V disponível para este perfil (vindo da API) */
   driverDim110v?: { model: string; code: string | null } | null;
+  /** Corrente de programação do driver (ex: "programar em 350mA"). Campo direto da API. */
+  correnteDriver?: string | null;
   /** Método de barra: STRIPFLEX ou STRIPLINE */
   stripMethod?: "STRIPFLEX" | "STRIPLINE";
   /** Nome da barra Stripflex vindo da API, ex: "STRIPFLEX 562,5 X 10MM 36L" (genérico sem CCT) */
