@@ -2044,3 +2044,13 @@
 ## Download PDF do Orçamento (Jul 2026)
 - [x] Criar quotePdfGenerator.ts com jsPDF + autoTable replicando o layout do Excel
 - [x] Adicionar botão "Baixar PDF" no Cart.tsx e QuoteDetail.tsx com as mesmas regras de revisão do Excel
+
+## Correções e Requisição de Materiais (17/07/2026 — tarde)
+- [x] Corrigir agrupamento de Itens Especiais por pavimento (orderGrouping.ts)
+- [x] Adicionar campo drvQtyPerUnit ao DriverLine (cartTypes.ts)
+- [x] Corrigir buildEquipamentosText (FactoryOrderDetail.tsx) para usar drvQtyPerUnit
+- [x] Corrigir downlightCatalog.ts e painelCatalog.ts para usar driverBivolt como fallback quando driver220 é null
+- [x] Criar materialRequisition.ts com função buildMaterialRequisition
+- [x] Adicionar aba "Requisição de Materiais" no Excel (orderExcelGenerator.ts)
+- [x] Adicionar seção "Requisição de Materiais" na pré-visualização HTML (orderPreviewGenerator.ts)
+- [x] Corrigir drvQtyPerUnit nos dados já salvos no banco (2010 quote_items + 55 factory_order_items)
