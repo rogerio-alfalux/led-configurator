@@ -2101,6 +2101,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                   let driverQtyPerPiece = 1;
                   let driverModel = "";
                   let driverCode = "";
+                  let corrente: string | null = d1Entry?.driver?.current ?? null;
 
                   if (d1Entry) {
                     if (d1Entry.driver.combo && d1Entry.driver.combo.length > 0) {
@@ -2117,6 +2118,38 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                     }
                   }
 
+                  // CORREÇÃO: sobrescrever driver com dados do skuPriceMap por SKU específico.
+                  // O applyDimDriver usa o driver220 genérico do ProfileVariant (primeiro produto
+                  // encontrado para o profileCode), que pode ser o de 1 barra (EQ00346) mesmo
+                  // quando o segmento tem 3+ barras (EQ00347). O skuPriceMap indexa por SKU
+                  // individual e tem o driver correto para cada produto.
+                  if (skuPriceMap && !d1Entry?.driver?.combo) {
+                    const skuEntry = skuPriceMap[`${sku}|${currentPowerLabel}`] ?? skuPriceMap[sku];
+                    if (skuEntry) {
+                      let apiDriverModel: string | null = null;
+                      let apiDriverCode: string | null = null;
+                      if (result.controlType === 'dimDali') {
+                        apiDriverModel = skuEntry.driverModelDimDali;
+                        apiDriverCode = skuEntry.driverCodeDimDali;
+                      } else if (result.controlType === 'dim110v') {
+                        apiDriverModel = skuEntry.driverModelDim110v;
+                        apiDriverCode = skuEntry.driverCodeDim110v;
+                      } else if (/bivolt/i.test(result.voltage)) {
+                        apiDriverModel = skuEntry.driverModelBivolt;
+                        apiDriverCode = skuEntry.driverCodeBivolt;
+                      } else {
+                        apiDriverModel = skuEntry.driverModel220;
+                        apiDriverCode = skuEntry.driverCode220;
+                      }
+                      // Nota: corrente (ex: "programar em 350mA") mantida do d1Entry
+                      // pois é igual para todos os SKUs do mesmo perfil.
+                      if (apiDriverModel && apiDriverCode) {
+                        driverModel = apiDriverModel.toUpperCase();
+                        driverCode = apiDriverCode;
+                      }
+                    }
+                  }
+
                   return {
                     sku,
                     qty: info.quantity,
@@ -2125,7 +2158,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                     driverQtyPerPiece,
                     driverModel,
                     driverCode,
-                    corrente: d1Entry?.driver?.current ?? null,
+                    corrente,
                   };
                 });
 

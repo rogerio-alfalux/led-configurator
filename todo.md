@@ -2049,3 +2049,8 @@
 - [x] orderExcelGenerator.ts: aplicar groupOrderItems() antes de gerar linhas do Excel do pedido de fábrica
 - [x] orderPreviewGenerator.ts: aplicar groupOrderItems() antes de gerar linhas do HTML do preview do pedido de fábrica
 - [x] FactoryOrderDetail.tsx: tela de gerenciamento continua mostrando itens individuais (agrupamento só ocorre na geração do Excel/preview)
+
+## Correção — Driver incorreto no pedido de fábrica (17/07/2026)
+- [x] Home.tsx: ao montar profileSegments, sobrescrever driver com dados do skuPriceMap por SKU específico (em vez do driver genérico do ProfileVariant que usava o primeiro produto do profileCode)
+- [x] Banco: corrigir 459 itens com driverLines contendo EQ00346 (XITANIUM 19W) → EQ00347 (XITANIUM 44W) para SKUs de 2+ barras (SKYLINE, EASY PRIME, BLAZE E, etc.)
+- [x] Banco: profileSegments já estavam corretos (EQ00347) — apenas driverLines precisava de correção
