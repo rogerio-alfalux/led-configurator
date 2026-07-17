@@ -3175,6 +3175,15 @@ export default function Home() {
   const [bfCCT, setBfCCT] = useState<string>("3000K");
   const [bfControle, setBfControle] = useState<ControleType>("ON/OFF");
   const [bfResult, setBfResult] = useState<DownlightResult | null>(null);
+  // ── Estados de ALDA (perfis fixos, fluxo igual a BAGEO fixo) ─────────────
+  const [aldaMode, setAldaMode] = useState<boolean>(false);
+  const [aldaInstalacao, setAldaInstalacao] = useState<string | null>(null);
+  const [aldaFamilia, setAldaFamilia] = useState<string | null>(null);
+  const [aldaProductKey, setAldaProductKey] = useState<string | null>(null);
+  const [aldaVoltage, setAldaVoltage] = useState<"220V" | "Bivolt" | null>(null);
+  const [aldaCCT, setAldaCCT] = useState<string>("3000K");
+  const [aldaControle, setAldaControle] = useState<ControleType>("ON/OFF");
+  const [aldaResult, setAldaResult] = useState<DownlightResult | null>(null);
   const [bgInstalacao, setBgInstalacao] = useState<BageoInstalacao | null>(null);
   const [bgProduct, setBgProduct] = useState<BageoProduct | null>(null);
   const [bgComprimento, setBgComprimento] = useState<string>("1000");
@@ -3614,7 +3623,7 @@ export default function Home() {
     const isFromAcessoriosCategory = productCategory === "Acessórios" || forceIndependent === true;
 
     // Verifica se há um produto configurado em qualquer categoria (exceto Acessórios)
-    const hasConfiguredProduct = !isFromAcessoriosCategory && !!(dlResult || aeResult || spotResult || arandelaResult || panelResult || lbResult || bgResult || bfResult || rvSelectedSku ||
+    const hasConfiguredProduct = !isFromAcessoriosCategory && !!(dlResult || aeResult || spotResult || arandelaResult || panelResult || lbResult || bgResult || bfResult || aldaResult || rvSelectedSku ||
       (productCategory === "Perfis") || (productCategory === "Spots") || (productCategory === "Downlights") ||
       (productCategory === "Área Externa") || (productCategory === "Painéis") || (productCategory === "Arandelas") || (productCategory === "Revenda") ||
       (productCategory === "Item Especial"));
@@ -4026,8 +4035,43 @@ export default function Home() {
       return;
     }
     setBfResult(res);
-  }, [bfProductKey, activeBageoFixoCatalog, bfCCT, bfControle, bfVoltage]);
-
+    }, [bfProductKey, activeBageoFixoCatalog, bfCCT, bfControle, bfVoltage]);
+  // ── Catálogo ALDA (perfis fixos: ALDA, LEAVE, ALS-3103) ──────────────────────
+  const activeAldaCatalog = useMemo(() => {
+    return adaptedCatalogs?.perfisFixes ?? [];
+  }, [adaptedCatalogs]);
+  const aldaInstalacoes = useMemo(() => {
+    const set = new Set(activeAldaCatalog.map(p => p.instalacao ?? ""));
+    return Array.from(set).filter(Boolean);
+  }, [activeAldaCatalog]);
+  const aldaFamilias = useMemo(() => {
+    if (!aldaInstalacao) return [];
+    const set = new Set(
+      activeAldaCatalog
+        .filter(p => p.instalacao === aldaInstalacao)
+        .map(p => p.familia)
+    );
+    return Array.from(set).filter(Boolean) as string[];
+  }, [aldaInstalacao, activeAldaCatalog]);
+  const aldaProductsByFamilia = useMemo(() => {
+    if (!aldaInstalacao || !aldaFamilia) return [];
+    return activeAldaCatalog
+      .map((p, i) => ({ p, i }))
+      .filter(({ p }) => p.instalacao === aldaInstalacao && p.familia === aldaFamilia);
+  }, [aldaInstalacao, aldaFamilia, activeAldaCatalog]);
+  const handleCalculateAlda = useCallback(() => {
+    if (!aldaProductKey) { toast.error("Selecione o produto."); return; }
+    const [aldaSku, ...aldaNameParts] = aldaProductKey.split("::");
+    const aldaName = aldaNameParts.join("::");
+    const aldaSelProd = activeAldaCatalog.find(p => p.sku === aldaSku && p.name === aldaName);
+    if (!aldaSelProd) { toast.error("Produto não encontrado."); return; }
+    const res = calculateDownlight(
+      { productSku: aldaSelProd.sku ?? "", productName: aldaSelProd.name, cct: aldaCCT ?? "3000K", controle: (aldaControle ?? "ON/OFF") as ControleType, tensao: (aldaVoltage ?? "Bivolt") as "220V" | "Bivolt" },
+      activeAldaCatalog
+    );
+    if (!res) { toast.error("Não foi possível calcular. Verifique as opções selecionadas."); return; }
+    setAldaResult(res);
+  }, [aldaProductKey, activeAldaCatalog, aldaCCT, aldaControle, aldaVoltage]);
   // ─── Busca rápida ────────────────────────────────────────────────────────────────────────────
   const searchCatalogs: ProductSearchCatalogs = useMemo(() => ({
     profiles: activeProfileCatalog,
@@ -4298,7 +4342,7 @@ export default function Home() {
   // ── Produto configurado (habilita botão Incluir Acessório) ───────
   // Verdadeiro quando há um resultado calculado em qualquer categoria,
   // ou quando um produto de Revenda/Acessório/Item Especial está selecionado.
-  const hasResult = !!(result || shapeResult || dlResult || aeResult || panelResult || spotResult || arandelaResult || lbResult || bgResult || bfResult || rvSelectedSku || acSelectedId || czSelectedKey || productCategory === "Item Especial");
+  const hasResult = !!(result || shapeResult || dlResult || aeResult || panelResult || spotResult || arandelaResult || lbResult || bgResult || bfResult || aldaResult || rvSelectedSku || acSelectedId || czSelectedKey || productCategory === "Item Especial");
   // ── Dados derivados ──────────────────────────────────────────────
   // Usa funções do catálogo ativo (API ou estático)
   const profileNames = activeGetProfileNames();
@@ -4737,12 +4781,13 @@ export default function Home() {
                 <div>
                   <FieldLabel>Perfil</FieldLabel>
                   <Select
-                    value={bgMode === "sinuosa" ? "__BAGEO_SINUOSA__" : bgMode === "fixo" ? "__BAGEO_FIXO__" : glowMode ? "__GLOW__" : tubeLightMode ? "__TUBE_LIGHT__" : lbFamilia ? `__LEDBAR__${lbFamilia}` : profileName}
+                    value={bgMode === "sinuosa" ? "__BAGEO_SINUOSA__" : bgMode === "fixo" ? "__BAGEO_FIXO__" : glowMode ? "__GLOW__" : tubeLightMode ? "__TUBE_LIGHT__" : aldaMode ? "__ALDA__" : lbFamilia ? `__LEDBAR__${lbFamilia}` : profileName}
                     onValueChange={(v) => {
                       if (v === "__BAGEO_SINUOSA__") {
                         setBgMode("sinuosa");
                         setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                         setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
+                        setAldaMode(false); setAldaInstalacao(null); setAldaFamilia(null); setAldaProductKey(null); setAldaVoltage(null); setAldaResult(null);
                         setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
                         setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                         setProfileName(""); setInstallType(""); setResult(null); setError(null);
@@ -4750,6 +4795,7 @@ export default function Home() {
                         setBgMode("fixo");
                         setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                         setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
+                        setAldaMode(false); setAldaInstalacao(null); setAldaFamilia(null); setAldaProductKey(null); setAldaVoltage(null); setAldaResult(null);
                         setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
                         setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                         setProfileName(""); setInstallType(""); setResult(null); setError(null);
@@ -4757,6 +4803,7 @@ export default function Home() {
                         setGlowMode(true);
                         setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                         setTubeLightMode(false); setTubeLightProductKey(null); setTubeLightVoltage(null); setTubeLightResult(null);
+                        setAldaMode(false); setAldaInstalacao(null); setAldaFamilia(null); setAldaProductKey(null); setAldaVoltage(null); setAldaResult(null);
                         setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                         setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
                         setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
@@ -4764,6 +4811,16 @@ export default function Home() {
                       } else if (v === "__TUBE_LIGHT__") {
                         setTubeLightMode(true);
                         setTubeLightProductKey(null); setTubeLightVoltage(null); setTubeLightResult(null);
+                        setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
+                        setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
+                        setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
+                        setAldaMode(false); setAldaInstalacao(null); setAldaFamilia(null); setAldaProductKey(null); setAldaVoltage(null); setAldaResult(null);
+                        setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
+                        setProfileName(""); setInstallType(""); setResult(null); setError(null);
+                      } else if (v === "__ALDA__") {
+                        setAldaMode(true);
+                        setAldaInstalacao(null); setAldaFamilia(null); setAldaProductKey(null); setAldaVoltage(null); setAldaResult(null);
+                        setTubeLightMode(false); setTubeLightProductKey(null); setTubeLightVoltage(null); setTubeLightResult(null);
                         setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                         setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                         setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
@@ -4778,6 +4835,7 @@ export default function Home() {
                         setLbResult(null);
                         setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                         setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
+                        setAldaMode(false); setAldaInstalacao(null); setAldaFamilia(null); setAldaProductKey(null); setAldaVoltage(null); setAldaResult(null);
                         setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                         setProfileName("");
                         setInstallType("");
@@ -4789,6 +4847,7 @@ export default function Home() {
                         setLbResult(null);
                         setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                         setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
+                        setAldaMode(false); setAldaInstalacao(null); setAldaFamilia(null); setAldaProductKey(null); setAldaVoltage(null); setAldaResult(null);
                         setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                         setTubeLightMode(false); setTubeLightProductKey(null); setTubeLightVoltage(null); setTubeLightResult(null);
                       }
@@ -4847,6 +4906,12 @@ export default function Home() {
                         <>
                           <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">TUBE LIGHT</div>
                           <SelectItem value="__TUBE_LIGHT__">TUBE LIGHT</SelectItem>
+                        </>
+                      )}
+                      {activeAldaCatalog.length > 0 && (
+                        <>
+                          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">ALDA / LEAVE / ALS-3103</div>
+                          <SelectItem value="__ALDA__">ALDA / LEAVE / ALS-3103</SelectItem>
                         </>
                       )}
                     </SelectContent>
@@ -5383,6 +5448,175 @@ export default function Home() {
                         <Zap className="w-4 h-4 mr-2" />
                         Calcular TUBE LIGHT
                       </Button>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Fluxo ALDA (tamanhos fixos, igual BAGEO fixo) ─────────────────────────────────────────────────────────────────────────────────── */}
+                {aldaMode && (
+                  <div className="space-y-4">
+                    {/* Tipo de Instalação */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tipo de Instalação</Label>
+                      <Select
+                        value={aldaInstalacao ?? ""}
+                        onValueChange={(v) => { setAldaInstalacao(v); setAldaFamilia(null); setAldaProductKey(null); setAldaVoltage(null); setAldaResult(null); }}
+                      >
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Selecione o tipo de instalação..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {aldaInstalacoes.map((inst) => (
+                            <SelectItem key={inst} value={inst}>{inst}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {/* Família */}
+                    {aldaInstalacao && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Família</Label>
+                        <Select
+                          value={aldaFamilia ?? ""}
+                          onValueChange={(v) => { setAldaFamilia(v); setAldaProductKey(null); setAldaVoltage(null); setAldaResult(null); }}
+                        >
+                          <SelectTrigger className="h-10">
+                            <SelectValue placeholder="Selecione a família..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {aldaFamilias.map((fam) => (
+                              <SelectItem key={fam} value={fam}>{fam}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {/* Produto */}
+                    {aldaFamilia && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Produto</Label>
+                        <Select
+                          value={aldaProductKey ?? ""}
+                          onValueChange={(v) => {
+                            setAldaProductKey(v);
+                            setAldaVoltage(null);
+                            setAldaResult(null);
+                            const [s, ...np] = v.split('::');
+                            const newProd = activeAldaCatalog.find(p => p.sku === s && p.name === np.join('::'));
+                            const availCCTs = newProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+                            if (!availCCTs.includes(aldaCCT)) setAldaCCT(availCCTs[0] ?? "3000K");
+                          }}
+                        >
+                          <SelectTrigger className="h-10">
+                            <SelectValue placeholder="Selecione o produto..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {aldaProductsByFamilia.map(({ p }, idx) => {
+                              const key = `${p.sku ?? ""}::${p.name}`;
+                              return <SelectItem key={`${key}-${idx}`} value={key}>{p.name}</SelectItem>;
+                            })}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {/* Controle */}
+                    {aldaProductKey !== null && (() => {
+                      const [_aSku, ..._aNP] = (aldaProductKey ?? '::').split('::');
+                      const aldaSelProdCtrl = activeAldaCatalog.find(p => p.sku === _aSku && p.name === _aNP.join('::'));
+                      const hasDim110v = aldaSelProdCtrl?.driverDim110v != null;
+                      const hasDimDali = aldaSelProdCtrl?.driverDimDali != null;
+                      return (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Controle</Label>
+                          <div className="flex gap-2">
+                            {(["ON/OFF", "DIM 1-10V", "DIM DALI"] as ControleType[]).map((ctrl) => {
+                              const isAvailable = ctrl === "ON/OFF" || (ctrl === "DIM 1-10V" && hasDim110v) || (ctrl === "DIM DALI" && hasDimDali);
+                              return (
+                                <button
+                                  key={ctrl}
+                                  disabled={!isAvailable}
+                                  onClick={() => { setAldaControle(ctrl); setAldaVoltage(null); setAldaResult(null); }}
+                                  className={[
+                                    "flex-1 py-2 rounded-lg text-xs font-medium border transition-all",
+                                    aldaControle === ctrl && isAvailable
+                                      ? "bg-primary text-primary-foreground border-primary"
+                                      : "bg-background text-foreground border-border hover:border-primary/50",
+                                    !isAvailable ? "opacity-40 cursor-not-allowed" : "",
+                                  ].join(" ")}
+                                >
+                                  {ctrl}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    {/* Tensão */}
+                    {aldaProductKey !== null && (() => {
+                      const [_aSku2, ..._aNP2] = (aldaProductKey ?? '::').split('::');
+                      const aldaSelProdV = activeAldaCatalog.find(p => p.sku === _aSku2 && p.name === _aNP2.join('::'));
+                      const aldaDimDrv = aldaControle === "DIM 1-10V" ? aldaSelProdV?.driverDim110v : aldaControle === "DIM DALI" ? aldaSelProdV?.driverDimDali : null;
+                      const aldaDimBivolt = aldaDimDrv != null && /bivolt/i.test(aldaDimDrv.model);
+                      const hasAldaBivolt = aldaControle !== 'ON/OFF' ? aldaDimBivolt : (aldaSelProdV?.driverBivolt != null);
+                      const hasAlda220 = aldaSelProdV == null ? false : aldaControle !== 'ON/OFF' ? (aldaDimDrv != null && !aldaDimBivolt) : (aldaSelProdV.driver220 != null);
+                      return (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
+                          <div className="flex gap-2">
+                            {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
+                              const disabled = (v === "Bivolt" && !hasAldaBivolt) || (v === "220V" && !hasAlda220);
+                              return (
+                                <button
+                                  key={v}
+                                  disabled={disabled}
+                                  onClick={() => { setAldaVoltage(v); setAldaResult(null); }}
+                                  className={[
+                                    "flex-1 py-2 rounded-lg text-sm font-medium border transition-all",
+                                    aldaVoltage === v && !disabled
+                                      ? "bg-primary text-primary-foreground border-primary"
+                                      : "bg-background text-foreground border-border hover:border-primary/50",
+                                    disabled ? "opacity-40 cursor-not-allowed" : "",
+                                  ].join(" ")}
+                                >
+                                  {v}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    {/* CCT */}
+                    {aldaProductKey !== null && (() => {
+                      const aldaSelProd = activeAldaCatalog.find(p => { const [s, ...np] = (aldaProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
+                      const aldaAvailCCTs = aldaSelProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
+                      return (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CCT</Label>
+                          <select
+                            value={aldaCCT}
+                            onChange={(e) => { setAldaCCT(e.target.value); setAldaResult(null); }}
+                            className="h-9 rounded-md border border-border bg-background text-foreground text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
+                          >
+                            {[...aldaAvailCCTs, "A definir"].map((c) => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })()}
+                    {/* Botão Calcular */}
+                    {aldaProductKey !== null && (
+                    <Button
+                      variant="default"
+                      className="w-full h-12 text-base font-semibold"
+                      onClick={handleCalculateAlda}
+                      disabled={!aldaProductKey || !aldaVoltage}
+                    >
+                      <Zap className="w-4 h-4 mr-2" />
+                      Calcular ALDA
+                    </Button>
                     )}
                   </div>
                 )}
@@ -9678,6 +9912,154 @@ export default function Home() {
                   </div>
                   <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
                   <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione instalação, família, produto, tensão e CCT, depois clique em "Calcular BAGEO".</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* ── Resultado ALDA ── */}
+            {productCategory === "Perfis" && aldaMode && aldaResult && (
+              <div className="space-y-4">
+                <Card className="shadow-sm border-blue-500/30">
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                      Resumo Para Orçamento
+                    </CardTitle>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                        <Input
+                          className="h-7 text-xs w-28"
+                          placeholder="ex: L1, P2..."
+                          value={globalItemEmPlanta}
+                          onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">Qtd:</label>
+                        <Input
+                          type="number"
+                          className="h-7 text-xs w-16"
+                          min={1}
+                          placeholder="1"
+                          value={globalQty}
+                          onChange={(e) => setGlobalQty(Math.max(1, parseInt(e.target.value) || 1))}
+                        />
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5"
+                        onClick={() => {
+                          const preco = getPrecoForControle(aldaResult.product, aldaResult.controle, aldaResult.tensao);
+                          const lines = [`${aldaResult.product.name} ${aldaResult.cct} ${aldaResult.tensao}`.toUpperCase()];
+                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          navigator.clipboard.writeText(lines.join("\n"));
+                          toast.success("Copiado!");
+                        }}
+                      >
+                        <Copy className="w-3 h-3" /> Copiar Resumo
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        disabled={isAddingToCart}
+                        onClick={() => {
+                          const preco = getPrecoForControle(aldaResult.product, aldaResult.controle, aldaResult.tensao);
+                          const item: CartItemData = {
+                            category: "Perfis",
+                            sku: aldaResult.product.sku ?? "",
+                            description: `${aldaResult.product.name} ${aldaResult.cct} ${aldaResult.controle} ${aldaResult.tensao}`,
+                            power: "",
+                            cct: aldaResult.cct,
+                            qty: 1,
+                            unitPrice: preco ?? null,
+                            totalPrice: preco ?? null,
+                            priceFromApi: preco != null,
+                            photoUrl: "",
+                            orderSummary: `CÓDIGO: ${aldaResult.product.sku}\n${aldaResult.product.name.toUpperCase()} ${aldaResult.cct} ${aldaResult.controle.toUpperCase()} ${aldaResult.tensao} COM DRIVER ${aldaResult.driver.model.toUpperCase()} (${aldaResult.driver.code})`,
+                            quoteSummary: `${aldaResult.product.name} ${aldaResult.cct} ${aldaResult.controle} ${aldaResult.tensao}`.toUpperCase(),
+                            moduloLed: aldaResult.ledModuleWithCCT ?? "",
+                            drivers: `DRIVER ${aldaResult.driver.model.toUpperCase()} (${aldaResult.driver.code})`,
+                            availableCCTs: aldaResult.product.ccts,
+                            itemEmPlanta: globalItemEmPlanta,
+                            ...getCustoForControle(aldaResult.product, aldaResult.controle, aldaResult.tensao),
+                          };
+                          if (appendToQuoteId) {
+                            handleAddItemOrToQuote(item);
+                          } else {
+                            setPendingCartItem(item);
+                            setColorModalOpen(true);
+                          }
+                        }}
+                      >
+                        <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 border-cyan-500/50 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                        onClick={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
+                      >
+                        <Wrench className="w-3 h-3" />
+                        Incluir Acessório
+                        {pendingAccessories.length > 0 && (
+                          <span className="ml-1 bg-cyan-600 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">{pendingAccessories.length}</span>
+                        )}
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div
+                      className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
+                      onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
+                    >
+                      {(() => {
+                        const preco = getPrecoForControle(aldaResult.product, aldaResult.controle, aldaResult.tensao);
+                        const drvLines = buildLumDriverLines(aldaResult.product.sku ?? "", aldaResult.controle, aldaResult.tensao, globalQty, aldaResult.driver.model, aldaResult.driver.code, lumPriceMap, aldaResult.product.name ?? undefined, aldaResult.driver.corrente ?? null);
+                        const lines = [`${aldaResult.product.name} ${aldaResult.cct} ${aldaResult.tensao}`.toUpperCase()];
+                        if (drvLines) {
+                          if (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) {
+                            lines.push(`LUMINÁRIAS: ${formatBRL(drvLines.priceWithoutDriver)}`);
+                          } else {
+                            lines.push(`LUMINÁRIAS: A DEFINIR`);
+                          }
+                          const totalDrv = drvLines.driverLines.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0);
+                          if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
+                          const totalCalc = (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) ? drvLines.priceWithoutDriver + totalDrv : null;
+                          if (totalCalc !== null) lines.push(`TOTAL: ${formatBRL(totalCalc)}`);
+                          else if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                        } else if (preco !== null) {
+                          lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
+                        }
+                        return lines.join("\n");
+                      })()}
+                    </div>
+                    <PriceBreakdownBlock
+                      sku={aldaResult.product.sku ?? ""}
+                      controle={aldaResult.controle}
+                      tensao={aldaResult.tensao}
+                      qty={globalQty}
+                      driverModel={aldaResult.driver.model}
+                      driverCode={aldaResult.driver.code}
+                      lumPriceMap={lumPriceMap}
+                      staticPreco={getPrecoForControle(aldaResult.product, aldaResult.controle, aldaResult.tensao)}
+                      productName={aldaResult.product.name ?? undefined}
+                    />
+                    <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+            {/* Estado vazio ALDA */}
+            {productCategory === "Perfis" && aldaMode && !aldaResult && (
+              <Card className="shadow-sm">
+                <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                    <Zap className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione instalação, família, produto, tensão e CCT, depois clique em "Calcular ALDA".</p>
                 </CardContent>
               </Card>
             )}
