@@ -431,6 +431,12 @@ export interface QuoteFormData {
   diluicaoValor?: number;
   /** Descrição interna da diluição */
   diluicaoDescricao?: string;
+  /**
+   * Data de criação do orçamento (ISO string, ex: "2026-07-17T00:00:00.000Z").
+   * Usado para distinguir orçamentos antigos (antes de 17/07/2026) dos novos,
+   * garantindo compatibilidade retroativa no cálculo do DIFAL.
+   */
+  quoteCreatedAt?: string;
 }
 
 /**

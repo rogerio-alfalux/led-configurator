@@ -1405,9 +1405,13 @@ async function _generateExcelBuffer(
     ws.mergeCells(`C${nextRow}:D${nextRow}`);
     {
       const c = ws.getCell(`C${nextRow}`);
+      // Quando há frete pago não-diluído, ele já entra na base do DIFAL (baseParaImposto = totalFinal + freteValue)
+      const _temFretePagoNaBase = _freteParaImpostoBase > 0;
       c.value = formData.freteIncluded && _freteParaDiluir > 0
-      ? "TOTAL GERAL\n(com DIFAL/FCP, frete inclu\u00eddo):"
-      : "TOTAL GERAL\n(com DIFAL/FCP, sem frete):";
+        ? "TOTAL GERAL\n(com DIFAL/FCP, frete incluído):"
+        : _temFretePagoNaBase
+          ? "TOTAL GERAL\n(com DIFAL/FCP + frete):"
+          : "TOTAL GERAL\n(com DIFAL/FCP, sem frete):";
       c.font = { name: "Calibri", size: 12, bold: true };
       c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
     }
@@ -1492,29 +1496,32 @@ async function _generateExcelBuffer(
         c.alignment = { horizontal: "left", vertical: "middle" };
       }
       nextRow++;
-      // Linha TOTAL GERAL COM FRETE
-      ws.getRow(nextRow).height = 42.6;
-      ws.mergeCells(`C${nextRow}:D${nextRow}`);
-      {
-        const c = ws.getCell(`C${nextRow}`);
-        c.value = "TOTAL GERAL\n(produtos + frete):";
-        c.font = { name: "Calibri", size: 12, bold: true };
-        c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+      // Linha TOTAL GERAL COM FRETE:
+      // Quando DIFAL está ativo, totalComDifal já inclui o frete na base de cálculo
+      // (baseParaImposto = totalFinal + freteValue). Não exibir esta linha separada
+      // para evitar confusão — o total já está na linha "TOTAL GERAL (com DIFAL/FCP + frete)".
+      const _difalAtivoComFrete = formData.difalEnabled && difalAplicavelExcel && _freteParaImpostoBase > 0;
+      if (!_difalAtivoComFrete) {
+        ws.getRow(nextRow).height = 42.6;
+        ws.mergeCells(`C${nextRow}:D${nextRow}`);
+        {
+          const c = ws.getCell(`C${nextRow}`);
+          c.value = "TOTAL GERAL\n(produtos + frete):";
+          c.font = { name: "Calibri", size: 12, bold: true };
+          c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+        }
+        ws.mergeCells(`E${nextRow}:N${nextRow}`);
+        {
+          const c = ws.getCell(`E${nextRow}`);
+          c.value = totalFinal + _freteValorNum;
+          c.numFmt = '"R$"#,##0.00';
+          c.font = { name: "Calibri", size: 14, bold: true };
+          c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9EAD3" } }; // verde claro
+          c.alignment = { horizontal: "left", vertical: "middle" };
+          mediumBorder(c);
+        }
+        nextRow++;
       }
-      ws.mergeCells(`E${nextRow}:N${nextRow}`);
-      {
-        const c = ws.getCell(`E${nextRow}`);
-        // CORREÇÃO: quando DIFAL está ativo, totalComDifal já inclui o frete na base de cálculo
-        // (baseParaImposto = totalFinal + freteValue). Somar o frete novamente seria contá-lo duas vezes.
-        // Quando DIFAL não está ativo, totalFinal não inclui o frete — somamos normalmente.
-        c.value = (formData.difalEnabled && difalAplicavelExcel) ? totalComDifal : (totalFinal + _freteValorNum);
-        c.numFmt = '"R$"#,##0.00';
-        c.font = { name: "Calibri", size: 14, bold: true };
-        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9EAD3" } }; // verde claro
-        c.alignment = { horizontal: "left", vertical: "middle" };
-        mediumBorder(c);
-      }
-      nextRow++;
     }
   }
   // Frete diluído: informação interna — não exibir para o cliente no Excel

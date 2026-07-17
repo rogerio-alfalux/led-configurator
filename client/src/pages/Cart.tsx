@@ -1123,6 +1123,8 @@ export default function Cart() {
         diluicaoValor: saveForm.diluicaoValor ? parseFloat(saveForm.diluicaoValor) : undefined,
         // Usar o número do orçamento do saveForm (não o gerado aleatoriamente no form)
         numero: saveForm.quoteNumber.trim() || form.numero,
+        // Orçamentos gerados diretamente do Cart são sempre novos (a partir de hoje)
+        quoteCreatedAt: new Date().toISOString(),
       };
       // Injetar itemEmPlanta em cada item (respeitando a ordem do DnD)
       const itemsWithPlanta = orderedEntries.map((e, idx) => ({

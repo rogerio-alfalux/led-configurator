@@ -1337,6 +1337,7 @@ export default function QuoteDetail() {
           fcpEnabled: quote.fcpEnabled ?? false,
           fcpPercent: quote.fcpPercent ? parseFloat(String(quote.fcpPercent)) : undefined,
           fcpValue: quote.fcpValue ? parseFloat(String(quote.fcpValue)) : undefined,
+          quoteCreatedAt: quote.createdAt ? new Date(quote.createdAt).toISOString() : undefined,
         }
       );
       toast.success("Orçamento Excel gerado!");
@@ -1497,6 +1498,7 @@ export default function QuoteDetail() {
           fcpEnabled: quote.fcpEnabled ?? false,
           fcpPercent: quote.fcpPercent ? parseFloat(String(quote.fcpPercent)) : undefined,
           fcpValue: quote.fcpValue ? parseFloat(String(quote.fcpValue)) : undefined,
+          quoteCreatedAt: quote.createdAt ? new Date(quote.createdAt).toISOString() : undefined,
         }
       );
       toast.success(`Excel da RV${revCount} gerado!`);
