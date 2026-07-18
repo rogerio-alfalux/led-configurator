@@ -2105,7 +2105,6 @@
 
 - [x] Agrupar perfis por código-base (LLE-2810, LLS-3945, etc.) com metragem total somada em uma única linha
 - [x] Incluir LED BAR na contabilização de perfis (metragem total)
-- [x] Separar Fita LED (LED BAR U DA) em metros — categoria própria
-- [x] Separar Fita LED (LED BAR Perfil Flexível) em metros — categoria própria
+- [x] Fita LED unificada em um único item por código EQ da API (metragem total somada)
 - [x] Módulos LED (Stripflex, Stripline, Lux Round, etc.) contabilizados por unidade (UN), não metros
 - [x] TypeScript check e testes passando

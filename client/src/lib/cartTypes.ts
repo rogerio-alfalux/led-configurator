@@ -76,6 +76,8 @@ export interface CartItemData {
   corPeca?: string;
   /** Módulo LED (fonte de luz) para ficha de produção — usado por produtos não-perfil */
   moduloLed?: string;
+  /** Código EQ do módulo LED (fita) — usado para requisição de materiais */
+  moduloLedCode?: string | null;
   /** Drivers (equipamentos) para ficha de produção — usado por produtos não-perfil */
   drivers?: string;
   /**

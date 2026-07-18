@@ -46,6 +46,13 @@ export interface LedBarProduct {
   ledModuleQtd3000?: number | null;
   ledModuleQtd4000?: number | null;
   ledModuleQtd5000?: number | null;
+  /** Código EQ do módulo LED (fita) por CCT — vindo da API */
+  ledModuleEq2700?: string | null;
+  ledModuleEq3000?: string | null;
+  ledModuleEq4000?: string | null;
+  ledModuleEq5000?: string | null;
+  /** Código EQ genérico do módulo LED (para RGBW e legados) */
+  ledModuleEq?: string | null;
   /** Temperaturas de cor disponíveis */
   ccts: string[];
   /** Driver ON/OFF 220V */
@@ -527,6 +534,8 @@ export interface LedBarResult {
   cct: string;
   /** Módulo LED com CCT substituído */
   ledModuleWithCCT: string;
+  /** Código EQ do módulo LED (fita) para a CCT selecionada */
+  ledModuleEqCode: string | null;
   /** Erros de validação */
   errors: string[];
 }
@@ -605,13 +614,16 @@ export function calculateLedBar(input: LedBarInput): LedBarResult {
     });
   }
 
-  // Usar módulo LED específico por CCT quando disponível (novos campos da API)
+    // Usar módulo LED específico por CCT quando disponível (novos campos da API)
   const cctKeyLB = cct.replace("K", "") as "2700" | "3000" | "4000" | "5000";
   const cctSpecificModuleLB = (product as any)[`ledModule${cctKeyLB}`] as string | null | undefined;
   const ledModuleWithCCT = cctSpecificModuleLB
     ? cctSpecificModuleLB.replace(/\[CCT\]/gi, cct).trim()
     : product.ledModule.replace(/\[CCT\]/gi, cct).trim();
-
+  // Resolver código EQ do módulo LED (fita) para a CCT selecionada
+  const ledModuleEqCode = (product as any)[`ledModuleEq${cctKeyLB}`] as string | null | undefined
+    ?? product.ledModuleEq
+    ?? null;
   return {
     product,
     comprimentoTotalMm: comprimentoMm,
@@ -622,6 +634,7 @@ export function calculateLedBar(input: LedBarInput): LedBarResult {
     voltage,
     cct,
     ledModuleWithCCT,
+    ledModuleEqCode: ledModuleEqCode || null,
     errors,
   };
 }

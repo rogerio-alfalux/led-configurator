@@ -163,13 +163,6 @@ function extractPerfilBase(sku: string): string {
   return match ? match[1].toUpperCase() : sku.toUpperCase();
 }
 
-/**
- * Verifica se a descrição/nome do item LED BAR indica "Perfil Flexível"
- */
-function isPerfilFlexivel(item: CartItemData): boolean {
-  const desc = (item.description ?? "").toUpperCase();
-  return desc.includes("PERFIL FLEX") || desc.includes("PERFIL FLEXIVEL") || desc.includes("PERFIL FLEXÍVEL");
-}
 
 /**
  * Agrega todos os materiais de todos os itens do pedido.
@@ -293,18 +286,12 @@ export function buildMaterialRequisition(
         );
       }
 
-      // Fita LED do LED BAR: separar LED BAR U DA vs Perfil Flexível
+      // Fita LED do LED BAR: unificar por código EQ da fita (vindo da API)
       if (item.moduloLed && item.ledBarComprimentoTotalMm) {
         const totalMetros = (item.ledBarComprimentoTotalMm / 1000) * itemQty;
-        if (isPerfilFlexivel(item)) {
-          // Perfil Flexível — fita LED separada
-          const fakeCode = "FITA_LEDBAR_PERFIL_FLEXIVEL";
-          add(fakeCode, item.moduloLed, totalMetros, "m", "FITAS LED");
-        } else {
-          // LED BAR U DA — fita LED separada
-          const fakeCode = "FITA_LEDBAR_LED_BAR_U_DA";
-          add(fakeCode, item.moduloLed, totalMetros, "m", "FITAS LED");
-        }
+        // Usar código EQ da fita se disponível, senão usar descrição como chave
+        const fitaCode = item.moduloLedCode ?? `FITA_LEDBAR_${item.moduloLed}`;
+        add(fitaCode, item.moduloLed, totalMetros, "m", "FITAS LED");
       }
     }
 

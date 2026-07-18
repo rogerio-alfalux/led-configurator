@@ -9294,6 +9294,7 @@ export default function Home() {
                                     orderSummary: pedido,
                                     quoteSummary: orcamento,
                                     moduloLed: r.ledModuleWithCCT ?? r.product.ledModule ?? "",
+                                    moduloLedCode: r.ledModuleEqCode ?? null,
                                     drivers: lbDriverCode ? `${r.nCortes}x ${lbDriverModel} (${lbDriverCode})` : `${r.nCortes}x ${lbDriverModel}`,
                                     ledBarNCortes: r.nCortes,
                                     ledBarComprimentoPorTrechoMm: r.comprimentoPorTrechoMm,
