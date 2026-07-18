@@ -791,6 +791,20 @@ export function migrateItemDrivers(
     }
   }
 
+  // ── Migração 5: Resolver moduloLedCode para itens LED BAR sem código EQ da fita ──
+  // Itens LED BAR antigos não têm moduloLedCode. Resolver via productSkuMap.
+  if (item.category === "LED BAR" && item.moduloLed && !item.moduloLedCode) {
+    const cctKey = (item.cct ?? "").replace("K", "") as "2700" | "3000" | "4000" | "5000";
+    const apiProd = item.sku ? productSkuMap.get(item.sku) : null;
+    if (apiProd) {
+      const eqByCct = (apiProd as any)[`ledModuleEq${cctKey}`] as string | null | undefined;
+      const resolvedEq = eqByCct ?? apiProd.ledModuleEq ?? null;
+      if (resolvedEq) {
+        return { ...normalizeDriverModels(item, descMap), moduloLedCode: resolvedEq };
+      }
+    }
+  }
+
   // Nenhuma migração aplicável — apenas normalizar descrições existentes
   return normalizeDriverModels(item, descMap);
 }
