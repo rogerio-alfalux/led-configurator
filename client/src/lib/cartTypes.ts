@@ -797,8 +797,9 @@ export function migrateItemDrivers(
     const cctKey = (item.cct ?? "").replace("K", "") as "2700" | "3000" | "4000" | "5000";
     // Buscar por sku|potencia (ex: "LED BAR U DA|5W/m") para pegar o produto correto
     const powerField = item.power ?? "";
+    const compositeKey = `${item.sku}|${powerField}`;
     const apiProd = item.sku
-      ? (productSkuMap.get(`${item.sku}|${powerField}`) ?? productSkuMap.get(item.sku))
+      ? (productSkuMap.get(compositeKey) ?? productSkuMap.get(item.sku))
       : null;
     if (apiProd) {
       const eqByCct = (apiProd as any)[`ledModuleEq${cctKey}`] as string | null | undefined;

@@ -175,6 +175,16 @@ export function buildMaterialRequisition(
   items: CartItemData[],
   descMap?: Map<string, string>
 ): MaterialEntry[] {
+  // Mapa reverso: descrição (uppercase) → código EQ para resolver fitas LED BAR sem moduloLedCode
+  const reverseDescMap = new Map<string, string>();
+  if (descMap) {
+    descMap.forEach((desc, code) => {
+      if (code.startsWith("EQ") && desc) {
+        reverseDescMap.set(desc.toUpperCase().trim(), code);
+      }
+    });
+  }
+
   // Map: codigo → MaterialEntry
   const map = new Map<string, MaterialEntry>();
 
@@ -289,8 +299,10 @@ export function buildMaterialRequisition(
       // Fita LED do LED BAR: unificar por código EQ da fita (vindo da API)
       if (item.moduloLed && item.ledBarComprimentoTotalMm) {
         const totalMetros = (item.ledBarComprimentoTotalMm / 1000) * itemQty;
-        // Usar código EQ da fita se disponível, senão usar descrição como chave
-        const fitaCode = item.moduloLedCode ?? `FITA_LEDBAR_${item.moduloLed}`;
+        // Resolver código EQ: 1) moduloLedCode do item, 2) reverseDescMap pela descrição, 3) fallback descrição
+        const fitaCode = item.moduloLedCode
+          ?? reverseDescMap.get(item.moduloLed.toUpperCase().trim())
+          ?? `FITA_LEDBAR_${item.moduloLed}`;
         add(fitaCode, item.moduloLed, totalMetros, "m", "FITAS LED");
       }
     }
