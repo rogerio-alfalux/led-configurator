@@ -225,7 +225,11 @@ export function buildMaterialRequisition(
         }
 
         // 2. Módulo LED (Stripflex/Stripline) — contabilizado por UNIDADE
-        const ledCode = (seg as any).ledModuleCode ?? "";
+        let ledCode = (seg as any).ledModuleCode ?? "";
+        // Fallback: se ledCode vazio mas item tem moduloLed, tentar resolver via reverseDescMap
+        if (!ledCode && item.moduloLed) {
+          ledCode = reverseDescMap.get(item.moduloLed.toUpperCase().trim()) ?? "";
+        }
         if (ledCode) {
           // Cada barra é 1 unidade de módulo LED
           const totalUnidades = seg.qty * seg.barsPerPiece * itemQty;
@@ -233,8 +237,8 @@ export function buildMaterialRequisition(
           const isStripflexDupla = item.stripMethod === "STRIPFLEX" && (item.power === "36" || item.power === "36W");
           const finalUnidades = isStripflexDupla ? totalUnidades * 2 : totalUnidades;
           // Usar SEMPRE a descrição canônica da API pelo código EQ
-          const barName = descMap?.get(ledCode);
-          if (!barName) continue; // Sem descrição na API: omitir
+          const barName = descMap?.get(ledCode) ?? item.moduloLed ?? "";
+          if (!barName) continue;
           add(ledCode, barName, finalUnidades, "un", "MÓDULOS LED");
         }
 

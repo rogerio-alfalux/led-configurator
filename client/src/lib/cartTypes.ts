@@ -622,27 +622,35 @@ export function migrateItemDrivers(
   // ── Migração 4: Corrigir ledModuleCode nos profileSegments ──
   // Busca o produto correto da API pelo SKU do perfil + potência + stripMethod
   // e sobrescreve o ledModuleCode com o EQ correto para a CCT do item.
-  if (item.profileSegments && item.profileSegments.length > 0 && item.power && item.cct) {
+  // Funciona mesmo quando CCT é "A definir" (usa ledModuleEq genérico).
+  if (item.profileSegments && item.profileSegments.length > 0 && item.power) {
     const powerNum = parseInt(item.power, 10);
     const powerLabel = toPowerLabel(isNaN(powerNum) ? undefined : powerNum, item.stripMethod);
     const cctKey = (item.cct ?? "").replace("K", "") as "2700" | "3000" | "4000" | "5000";
-    if (["2700", "3000", "4000", "5000"].includes(cctKey)) {
-      let anyChanged = false;
-      const newSegments = item.profileSegments.map(seg => {
-        // Buscar produto correto: chave composta sku|powerLabel
-        const product = productSkuMap.get(`${seg.sku}|${powerLabel}`) ?? productSkuMap.get(seg.sku);
-        if (!product) return seg;
+    const hasCctKey = ["2700", "3000", "4000", "5000"].includes(cctKey);
+    let anyChanged = false;
+    const newSegments = item.profileSegments.map(seg => {
+      // Se já tem ledModuleCode preenchido, manter
+      if (seg.ledModuleCode) return seg;
+      // Buscar produto correto: chave composta sku|powerLabel
+      const product = productSkuMap.get(`${seg.sku}|${powerLabel}`) ?? productSkuMap.get(seg.sku);
+      if (!product) return seg;
+      let correctEq: string | null = null;
+      if (hasCctKey) {
         const eqField = `ledModuleEq${cctKey}` as keyof ApiProductDriverInfo;
-        const correctEq = (product[eqField] as string | null | undefined) ?? product.ledModuleEq ?? null;
-        if (correctEq && correctEq !== seg.ledModuleCode) {
-          anyChanged = true;
-          return { ...seg, ledModuleCode: correctEq };
-        }
-        return seg;
-      });
-      if (anyChanged) {
-        item = { ...item, profileSegments: newSegments };
+        correctEq = (product[eqField] as string | null | undefined) ?? product.ledModuleEq ?? null;
+      } else {
+        // CCT "A definir" ou inválida: usar EQ genérico
+        correctEq = product.ledModuleEq ?? product.ledModuleEq3000 ?? product.ledModuleEq4000 ?? null;
       }
+      if (correctEq) {
+        anyChanged = true;
+        return { ...seg, ledModuleCode: correctEq };
+      }
+      return seg;
+    });
+    if (anyChanged) {
+      item = { ...item, profileSegments: newSegments };
     }
   }
 
