@@ -31,20 +31,16 @@ function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, stri
   if (!item.profileSegments || item.profileSegments.length === 0) {
     return item.moduloLed ?? [item.power, item.cct].filter(Boolean).join(" | ") ?? "";
   }
-  const cct = item.cct ?? "";
-  const isStripline = item.stripMethod === "STRIPLINE";
   const itemQty = item.qty ?? 1;
 
   // Agrupar por código EQ do módulo e somar quantidades totais
   const totals = new Map<string, { qty: number; eqCode: string | null; name: string }>();
   for (const seg of item.profileSegments) {
     const eqCode = (seg as any).ledModuleCode ?? null;
-    // Usar descrição canônica da API se disponível, senão fallback estático
-    const barName = (eqCode && descMap?.has(eqCode))
-      ? descMap.get(eqCode)!
-      : (isStripline
-          ? `Stripline 562,5 x 15mm 108L ${cct}`
-          : `Stripflex 562,5 x 10mm 36L ${cct}`);
+    // Usar SEMPRE a descrição canônica da API pelo código EQ — nunca fallback estático
+    const apiDesc = eqCode ? descMap?.get(eqCode) : undefined;
+    if (!apiDesc) continue; // Sem EQ ou sem descrição na API: omitir
+    const barName = apiDesc;
     const mapKey = eqCode ?? barName;
     const totalBars = seg.qty * seg.barsPerPiece * itemQty;
     const existing = totals.get(mapKey);

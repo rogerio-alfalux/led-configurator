@@ -556,7 +556,8 @@ export function normalizeDriverModels(
 }
 
 /**
- * Tipo mínimo de produto da API necessário para o fallback de driver na Migração 3.
+ * Tipo mínimo de produto da API necessário para o fallback de driver na Migração 3
+ * e resolução de ledModuleCode na Migração 4.
  */
 export interface ApiProductDriverInfo {
   sku: string;
@@ -564,6 +565,39 @@ export interface ApiProductDriverInfo {
   driverBivolt: { model: string; code: string | null } | null;
   driverQtd220: number | null;
   driverQtdBivolt: number | null;
+  /** Código EQ do módulo LED por CCT — para Migração 4 */
+  ledModuleEq2700?: string | null;
+  ledModuleEq3000?: string | null;
+  ledModuleEq4000?: string | null;
+  ledModuleEq5000?: string | null;
+  /** Código EQ genérico (fallback para RGBW/legados) */
+  ledModuleEq?: string | null;
+  /** Nome do produto na API (para extractPowerLabelFromName) */
+  name?: string;
+}
+
+/**
+ * Converte power+stripMethod para o label de potência usado como chave composta no productSkuMap.
+ * Padrão: "18W", "26W", "36W SF" (Stripflex dupla), "36W SL" (Stripline única).
+ */
+export function toPowerLabel(power: number | undefined, stripMethod?: string | null): string {
+  if (power === 26) return "26W";
+  if (power === 36) {
+    if (stripMethod === "STRIPLINE") return "36W SL";
+    return "36W SF"; // STRIPFLEX dupla
+  }
+  return "18W"; // default
+}
+
+/**
+ * Extrai o powerLabel do nome do produto da API.
+ * Ex: "BLAZE E IF 6B 3395MM 18W 36W SL" → "36W SL"
+ */
+export function extractPowerLabelFromName(name: string): string {
+  if (/36W\s*SL/i.test(name)) return "36W SL";
+  if (/36W\s*SF/i.test(name)) return "36W SF";
+  if (/26W/i.test(name)) return "26W";
+  return "18W";
 }
 
 /**
@@ -583,6 +617,33 @@ export function migrateItemDrivers(
   descMap: Map<string, string>,
   productSkuMap: Map<string, ApiProductDriverInfo>,
 ): CartItemData {
+  // ── Migração 4: Corrigir ledModuleCode nos profileSegments ──
+  // Busca o produto correto da API pelo SKU do perfil + potência + stripMethod
+  // e sobrescreve o ledModuleCode com o EQ correto para a CCT do item.
+  if (item.profileSegments && item.profileSegments.length > 0 && item.power && item.cct) {
+    const powerNum = parseInt(item.power, 10);
+    const powerLabel = toPowerLabel(isNaN(powerNum) ? undefined : powerNum, item.stripMethod);
+    const cctKey = (item.cct ?? "").replace("K", "") as "2700" | "3000" | "4000" | "5000";
+    if (["2700", "3000", "4000", "5000"].includes(cctKey)) {
+      let anyChanged = false;
+      const newSegments = item.profileSegments.map(seg => {
+        // Buscar produto correto: chave composta sku|powerLabel
+        const product = productSkuMap.get(`${seg.sku}|${powerLabel}`) ?? productSkuMap.get(seg.sku);
+        if (!product) return seg;
+        const eqField = `ledModuleEq${cctKey}` as keyof ApiProductDriverInfo;
+        const correctEq = (product[eqField] as string | null | undefined) ?? product.ledModuleEq ?? null;
+        if (correctEq && correctEq !== seg.ledModuleCode) {
+          anyChanged = true;
+          return { ...seg, ledModuleCode: correctEq };
+        }
+        return seg;
+      });
+      if (anyChanged) {
+        item = { ...item, profileSegments: newSegments };
+      }
+    }
+  }
+
   // Normalização 0: itens que já têm driverLines — apenas normalizar driverModel
   if (item.driverLines && item.driverLines.length > 0) {
     return normalizeDriverModels(item, descMap);

@@ -2087,3 +2087,16 @@
 - [x] Mover bloco DIFAL/FCP da aba Comercial para a aba Destino (após campos de frete)
 - [x] Corrigir bug de dupla contagem do frete no TOTAL GERAL do Excel (totalComDifal + freteValue quando DIFAL já inclui frete na base)
 - [x] Ajustar ordem de exibição no preview HTML e Excel (frete antes do DIFAL)
+
+## Migração 4 — Resolução correta de ledModuleCode por potência
+
+- [x] Expandir ApiProductDriverInfo com campos ledModuleEq2700/3000/4000/5000, ledModuleEq, name
+- [x] Exportar helpers toPowerLabel() e extractPowerLabelFromName() de cartTypes.ts
+- [x] Implementar Migração 4 em migrateItemDrivers: corrigir ledModuleCode nos profileSegments usando produto correto da API por SKU+potência+stripMethod
+- [x] Atualizar productSkuMapFO em FactoryOrderDetail.tsx para indexar por sku|powerLabel e incluir campos ledModuleEq
+- [x] Atualizar productSkuMap em QuoteDetail.tsx para indexar por sku|powerLabel e incluir campos ledModuleEq
+- [x] Adicionar Migração 4 inline em QuoteDetail.tsx (currentItemsMigrated) antes das migrações existentes
+- [x] Remover fallback estático de nome de barra em productionTemplate.ts (usar sempre result.stripflexName da API)
+- [x] Remover fallback estático de nome de barra em materialRequisition.ts (usar sempre descMap da API)
+- [x] TypeScript check: 0 erros
+- [x] Vitest: 563 testes passando (21 arquivos)

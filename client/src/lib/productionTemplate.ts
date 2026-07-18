@@ -9,11 +9,10 @@ import type { CompositionResult, SkuDriverEntry } from "./ledEngine";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getBarName(stripMethod: string, cct: string, stripflexName?: string): string {
-  if (stripMethod === "STRIPLINE") {
-    return `Stripline 562,5 x 15mm 105L ${cct}`;
-  }
-  return stripflexName || `Stripflex 562,5 x 10mm 36L ${cct}`;
+function getBarName(stripMethod: string, _cct: string, stripflexName?: string): string {
+  // Usar SEMPRE o nome canônico da API (result.stripflexName) que já inclui CCT.
+  // O ledEngine resolve o nome correto baseado no stripMethod + CCT + dados da API.
+  return stripflexName || `(módulo LED não identificado)`;
 }
 
 function buildMountingNotes(result: CompositionResult): string[] {

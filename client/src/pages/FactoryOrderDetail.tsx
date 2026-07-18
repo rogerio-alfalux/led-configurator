@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { trpc } from "@/lib/trpc";
-import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, formatBRL, normalizeDriverModels, migrateItemDrivers, ApiProductDriverInfo } from "@/lib/cartTypes";
+import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, formatBRL, normalizeDriverModels, migrateItemDrivers, ApiProductDriverInfo, extractPowerLabelFromName } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
@@ -61,20 +61,16 @@ function buildFonteLuzText(item: CartItemData, descMap?: Map<string, string>): s
   if (!item.profileSegments || item.profileSegments.length === 0) {
     return item.moduloLed ?? [item.power, item.cct].filter(Boolean).join(" | ") ?? "";
   }
-  const cct = item.cct ?? "";
-  const isStripline = item.stripMethod === "STRIPLINE";
   const itemQty = item.qty ?? 1;
 
   // Agrupar por código EQ do módulo e somar quantidades totais
   const totals = new Map<string, { qty: number; eqCode: string | null; name: string }>();
   for (const seg of item.profileSegments) {
     const eqCode = seg.ledModuleCode ?? null;
-    // Usar descrição canônica da API se disponível, senão fallback estático
-    const barName = (eqCode && descMap?.has(eqCode))
-      ? descMap.get(eqCode)!
-      : (isStripline
-          ? `Stripline 562,5 x 15mm 108L ${cct}`
-          : `Stripflex 562,5 x 10mm 36L ${cct}`);
+    // Usar SEMPRE a descrição canônica da API pelo código EQ — nunca fallback estático
+    const apiDesc = eqCode ? descMap?.get(eqCode) : undefined;
+    if (!apiDesc) continue; // Sem EQ ou sem descrição na API: omitir
+    const barName = apiDesc;
     const mapKey = eqCode ?? barName;
     const totalBars = seg.qty * seg.barsPerPiece * itemQty;
     const existing = totals.get(mapKey);
@@ -774,12 +770,32 @@ export default function FactoryOrderDetail() {
     }
     return map;
   }, [componentesData]);
-  /** Produtos da API para fallback de driver (SKU → driver info) */
+  /** Produtos da API para fallback de driver (SKU → driver info) e resolução de ledModuleCode (Migração 4) */
   const { data: allProductsFO } = trpc.alfalux.products.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const productSkuMapFO = useMemo(() => {
     const map = new Map<string, ApiProductDriverInfo>();
-    for (const p of (allProductsFO ?? []) as Array<{ sku: string; driver220?: { model: string; code: string | null } | null; driverBivolt?: { model: string; code: string | null } | null; driverQtd220?: number | null; driverQtdBivolt?: number | null }>) {
-      if (p.sku) map.set(p.sku, { sku: p.sku, driver220: p.driver220 ?? null, driverBivolt: p.driverBivolt ?? null, driverQtd220: p.driverQtd220 ?? null, driverQtdBivolt: p.driverQtdBivolt ?? null });
+    for (const p of (allProductsFO ?? []) as Array<{ sku: string; name?: string; categoria?: string; driver220?: { model: string; code: string | null } | null; driverBivolt?: { model: string; code: string | null } | null; driverQtd220?: number | null; driverQtdBivolt?: number | null; ledModuleEq2700?: string | null; ledModuleEq3000?: string | null; ledModuleEq4000?: string | null; ledModuleEq5000?: string | null; ledModuleEq?: string | null }>) {
+      if (!p.sku) continue;
+      const entry: ApiProductDriverInfo = {
+        sku: p.sku,
+        driver220: p.driver220 ?? null,
+        driverBivolt: p.driverBivolt ?? null,
+        driverQtd220: p.driverQtd220 ?? null,
+        driverQtdBivolt: p.driverQtdBivolt ?? null,
+        ledModuleEq2700: p.ledModuleEq2700 ?? null,
+        ledModuleEq3000: p.ledModuleEq3000 ?? null,
+        ledModuleEq4000: p.ledModuleEq4000 ?? null,
+        ledModuleEq5000: p.ledModuleEq5000 ?? null,
+        ledModuleEq: p.ledModuleEq ?? null,
+        name: p.name,
+      };
+      // Indexar por sku simples (primeiro registro vence) para compat
+      if (!map.has(p.sku)) map.set(p.sku, entry);
+      // Indexar por sku|powerLabel para perfis com múltiplas potências
+      if ((p.categoria ?? "").toUpperCase() === "PERFIS" && p.name) {
+        const powerLabel = extractPowerLabelFromName(p.name);
+        map.set(`${p.sku}|${powerLabel}`, entry);
+      }
     }
     return map;
   }, [allProductsFO]);

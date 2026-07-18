@@ -39,7 +39,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { CartItemData, formatBRL, parseCartItemData } from "@/lib/cartTypes";
+import { CartItemData, formatBRL, parseCartItemData, extractPowerLabelFromName, toPowerLabel } from "@/lib/cartTypes";
+import type { ApiProductDriverInfo } from "@/lib/cartTypes";
 
 /** Aplica margem individual do item (itemMarginPercent em %) sobre um valor base */
 function applyItemMarginQD(base: number, itemMarginPercent?: number | null): number {
@@ -1145,14 +1146,59 @@ export default function QuoteDetail() {
     const _versions: Array<{ id: string }> = (_data as { versions?: Array<{ id: string }> } | undefined)?.versions ?? [];
     const _currentVersionId = _versions[0]?.id;
     const _currentItems = _items.filter(i => i.quoteVersionId === _currentVersionId);
-    // Mapa sku -> produto da API (para fallback de driver na Migração 3)
-    const productSkuMap = new Map<string, { driverBivolt: { model: string; code: string | null } | null; driver220: { model: string; code: string | null } | null; driverQtdBivolt: number | null; driverQtd220: number | null }>();
-    for (const p of (productsQuery.data ?? []) as Array<{ sku: string; driverBivolt?: { model: string; code: string | null } | null; driver220?: { model: string; code: string | null } | null; driverQtdBivolt?: number | null; driverQtd220?: number | null }>) {
-      if (p.sku) productSkuMap.set(p.sku, { driverBivolt: p.driverBivolt ?? null, driver220: p.driver220 ?? null, driverQtdBivolt: p.driverQtdBivolt ?? null, driverQtd220: p.driverQtd220 ?? null });
+    // Mapa sku -> produto da API (para fallback de driver na Migração 3 e resolução de ledModuleCode na Migração 4)
+    const productSkuMap = new Map<string, ApiProductDriverInfo>();
+    for (const p of (productsQuery.data ?? []) as Array<{ sku: string; name?: string; categoria?: string; driverBivolt?: { model: string; code: string | null } | null; driver220?: { model: string; code: string | null } | null; driverQtdBivolt?: number | null; driverQtd220?: number | null; ledModuleEq2700?: string | null; ledModuleEq3000?: string | null; ledModuleEq4000?: string | null; ledModuleEq5000?: string | null; ledModuleEq?: string | null }>) {
+      if (!p.sku) continue;
+      const entry: ApiProductDriverInfo = {
+        sku: p.sku,
+        driver220: p.driver220 ?? null,
+        driverBivolt: p.driverBivolt ?? null,
+        driverQtd220: p.driverQtd220 ?? null,
+        driverQtdBivolt: p.driverQtdBivolt ?? null,
+        ledModuleEq2700: p.ledModuleEq2700 ?? null,
+        ledModuleEq3000: p.ledModuleEq3000 ?? null,
+        ledModuleEq4000: p.ledModuleEq4000 ?? null,
+        ledModuleEq5000: p.ledModuleEq5000 ?? null,
+        ledModuleEq: p.ledModuleEq ?? null,
+        name: p.name,
+      };
+      // Indexar por sku simples (primeiro registro vence) para compat
+      if (!productSkuMap.has(p.sku)) productSkuMap.set(p.sku, entry);
+      // Indexar por sku|powerLabel para perfis com múltiplas potências
+      if ((p.categoria ?? "").toUpperCase() === "PERFIS" && p.name) {
+        const powerLabel = extractPowerLabelFromName(p.name);
+        productSkuMap.set(`${p.sku}|${powerLabel}`, entry);
+      }
     }
     return _currentItems.map(item => {
       const parsed = parseCartItemData(item.itemData as string);
       if (!parsed) return item;
+      // ── Migração 4: Corrigir ledModuleCode nos profileSegments ──
+      // Busca o produto correto da API pelo SKU do perfil + potência + stripMethod
+      if (parsed.profileSegments && parsed.profileSegments.length > 0 && parsed.power && parsed.cct) {
+        const powerNum = parseInt(parsed.power, 10);
+        const powerLabel = toPowerLabel(isNaN(powerNum) ? undefined : powerNum, parsed.stripMethod);
+        const cctKey = (parsed.cct ?? "").replace("K", "") as "2700" | "3000" | "4000" | "5000";
+        if (["2700", "3000", "4000", "5000"].includes(cctKey)) {
+          let anyChanged = false;
+          const newSegments = parsed.profileSegments.map(seg => {
+            const product = productSkuMap.get(`${seg.sku}|${powerLabel}`) ?? productSkuMap.get(seg.sku);
+            if (!product) return seg;
+            const eqField = `ledModuleEq${cctKey}` as keyof ApiProductDriverInfo;
+            const correctEq = (product[eqField] as string | null | undefined) ?? product.ledModuleEq ?? null;
+            if (correctEq && correctEq !== seg.ledModuleCode) {
+              anyChanged = true;
+              return { ...seg, ledModuleCode: correctEq };
+            }
+            return seg;
+          });
+          if (anyChanged) {
+            const migratedParsed4: CartItemData = { ...parsed, profileSegments: newSegments };
+            return { ...item, itemData: JSON.stringify(migratedParsed4) };
+          }
+        }
+      }
       // Normalização 0: itens que já têm driverLines mas com driverModel desatualizado
       // Sempre sobrescrever driverModel com a descrição canônica da API pelo código EQ
       if (parsed.driverLines && parsed.driverLines.length > 0) {

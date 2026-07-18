@@ -205,9 +205,9 @@ export function buildMaterialRequisition(
           // Cada barra de Stripflex = 562,5mm = 0,5625m; Stripline = 562,5mm também
           const metroPorBarra = 0.5625;
           const totalMetrosFita = seg.qty * seg.barsPerPiece * metroPorBarra * itemQty;
-          const barName = isStripline
-            ? `Stripline 562,5 x 15mm 108L ${cct}`
-            : `Stripflex 562,5 x 10mm 36L ${cct}`;
+          // Usar SEMPRE a descrição canônica da API pelo código EQ — nunca fallback estático
+          const barName = descMap?.get(ledCode);
+          if (!barName) continue; // Sem descrição na API: omitir
           add(ledCode, barName, totalMetrosFita, "m", "FITAS LED");
         }
 
