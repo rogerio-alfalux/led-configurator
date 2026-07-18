@@ -554,3 +554,180 @@ export function normalizeDriverModels(
     ledBarDriverModel: newLedBarDriverModel,
   };
 }
+
+/**
+ * Tipo mínimo de produto da API necessário para o fallback de driver na Migração 3.
+ */
+export interface ApiProductDriverInfo {
+  sku: string;
+  driver220: { model: string; code: string | null } | null;
+  driverBivolt: { model: string; code: string | null } | null;
+  driverQtd220: number | null;
+  driverQtdBivolt: number | null;
+}
+
+/**
+ * Aplica as Migrações 1, 2 e 3 em um CartItemData bruto (sem driverLines),
+ * retornando um novo objeto com driverLines preenchidas quando possível.
+ *
+ * - Migração 1: itens com profileSegments+driverCode
+ * - Migração 2: itens com accessories contendo drivers (EQ*)
+ * - Migração 3: itens com campo `drivers` (string legada), com fallback via API de produtos
+ *   Preferência: driver220 primeiro, se null usa driverBivolt
+ *
+ * Também aplica normalizeDriverModels (descrição canônica da API de componentes).
+ */
+export function migrateItemDrivers(
+  item: CartItemData,
+  priceMap: Map<string, number>,
+  descMap: Map<string, string>,
+  productSkuMap: Map<string, ApiProductDriverInfo>,
+): CartItemData {
+  // Normalização 0: itens que já têm driverLines — apenas normalizar driverModel
+  if (item.driverLines && item.driverLines.length > 0) {
+    return normalizeDriverModels(item, descMap);
+  }
+
+  // Migração 1: profileSegments com driverCode
+  if (item.profileSegments && item.profileSegments.length > 0 &&
+      item.profileSegments.some(seg => seg.driverCode)) {
+    const itemQty = item.qty ?? 1;
+    const drvMap = new Map<string, { driverCode: string; driverModel: string; qtyPerLuminaria: number }>();
+    for (const seg of item.profileSegments) {
+      if (!seg.driverCode) continue;
+      const key = seg.driverCode;
+      const qtyPerSeg = (seg.driverQtyPerPiece ?? 1) * (seg.qty ?? 1);
+      if (drvMap.has(key)) {
+        drvMap.get(key)!.qtyPerLuminaria += qtyPerSeg;
+      } else {
+        drvMap.set(key, { driverCode: seg.driverCode, driverModel: seg.driverModel ?? seg.driverCode, qtyPerLuminaria: qtyPerSeg });
+      }
+    }
+    const driverEntries = Array.from(drvMap.values());
+    let totalDriverCost = 0;
+    const driverLines: DriverLine[] = driverEntries.map(drv => {
+      const totalQty = drv.qtyPerLuminaria * itemQty;
+      const unitPrice = priceMap.get(drv.driverCode) ?? null;
+      const totalPrice = unitPrice != null ? unitPrice * totalQty : null;
+      if (totalPrice != null) totalDriverCost += totalPrice;
+      return { driverCode: drv.driverCode, driverModel: descMap.get(drv.driverCode) ?? drv.driverModel, driverQty: totalQty, driverUnitPrice: unitPrice, driverTotalPrice: totalPrice };
+    });
+    const totalPrice = item.totalPrice ?? 0;
+    const priceWithoutDriver = totalDriverCost > 0
+      ? totalPrice - totalDriverCost
+      : (item.priceWithoutDriver ?? (totalPrice > 0 ? totalPrice - driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0) : null));
+    const unitPriceLuminaria = priceWithoutDriver != null && itemQty > 0 ? priceWithoutDriver / itemQty : (item.unitPriceLuminaria ?? null);
+    return normalizeDriverModels({
+      ...item,
+      driverLines,
+      priceWithoutDriver: priceWithoutDriver ?? item.priceWithoutDriver,
+      unitPriceLuminaria: unitPriceLuminaria ?? item.unitPriceLuminaria,
+      luminariaHasApiPrice: totalDriverCost > 0 || (item.unitPriceLuminaria != null),
+    }, descMap);
+  }
+
+  // Migração 2: accessories com drivers (EQ*) sem preço unitário
+  const accessories = (item.accessories as LinkedAccessory[] | undefined) ?? [];
+  const driverAccessories = accessories.filter(acc =>
+    acc.codigo && (acc.unitPrice == null || acc.unitPrice === 0) &&
+    priceMap.has(acc.codigo)
+  );
+  if (driverAccessories.length > 0) {
+    const itemQty = item.qty ?? 1;
+    const driverLines: DriverLine[] = driverAccessories.map(acc => {
+      const unitPrice = priceMap.get(acc.codigo)!;
+      const totalQty = (acc.qty ?? 1) * itemQty;
+      const totalPrice = unitPrice * totalQty;
+      return {
+        driverCode: acc.codigo,
+        driverModel: descMap.get(acc.codigo) ?? acc.descricao,
+        driverQty: totalQty,
+        driverUnitPrice: unitPrice,
+        driverTotalPrice: totalPrice,
+      };
+    });
+    const totalDriverCost = driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
+    const totalPrice = item.totalPrice ?? 0;
+    const priceWithoutDriver = totalPrice > 0 ? totalPrice - totalDriverCost : null;
+    const unitPriceLuminaria = priceWithoutDriver != null && itemQty > 0 ? priceWithoutDriver / itemQty : (item.unitPriceLuminaria ?? null);
+    return normalizeDriverModels({
+      ...item,
+      driverLines,
+      priceWithoutDriver: priceWithoutDriver ?? item.priceWithoutDriver,
+      unitPriceLuminaria: unitPriceLuminaria ?? item.unitPriceLuminaria,
+      luminariaHasApiPrice: true,
+    }, descMap);
+  }
+
+  // Migração 3: campo `drivers` (string legada)
+  // Formatos: "Nx DRIVER MODELO (EQxxxxx)" ou "DRIVER MODELO (EQxxxxx)" ou "1x DRIVER" (genérico)
+  if (item.drivers && item.drivers.trim().length > 0) {
+    const driversStr = item.drivers.trim();
+    const eqMatch = driversStr.match(/\(([A-Z]{2}\d{4,})\)/i);
+    const eqCode = eqMatch ? eqMatch[1].toUpperCase() : null;
+    const qtyMatch = driversStr.match(/^(\d+)x?\s/i);
+    const drvQtyPerUnit = qtyMatch ? parseInt(qtyMatch[1], 10) : 1;
+    let driverModel = driversStr
+      .replace(/^\d+x?\s*/i, '')
+      .replace(/\s*\([A-Z]{2}\d{4,}\)\s*$/i, '')
+      .replace(/^DRIVER\s*/i, '')
+      .trim();
+    if (!driverModel && eqCode) driverModel = eqCode;
+    if (eqCode && descMap.has(eqCode)) driverModel = descMap.get(eqCode)!;
+
+    // Fallback: sem EQ extraível → buscar da API pelo SKU
+    // Preferir driver220; se null, usar driverBivolt (conforme instrução do usuário)
+    const resolvedEqCode = eqCode ?? (() => {
+      const apiProd = item.sku ? productSkuMap.get(item.sku) : null;
+      if (!apiProd) return null;
+      const drvInfo = apiProd.driver220 ?? apiProd.driverBivolt;
+      return drvInfo?.code ?? null;
+    })();
+    const resolvedDrvQtyPerUnit = eqCode ? drvQtyPerUnit : (() => {
+      const apiProd = item.sku ? productSkuMap.get(item.sku) : null;
+      if (!apiProd) return 1;
+      return apiProd.driverQtd220 ?? apiProd.driverQtdBivolt ?? 1;
+    })();
+    const resolvedDriverModel = eqCode ? driverModel : (() => {
+      const apiProd = item.sku ? productSkuMap.get(item.sku) : null;
+      if (!apiProd) return driverModel;
+      const drvInfo = apiProd.driver220 ?? apiProd.driverBivolt;
+      if (!drvInfo) return driverModel;
+      const code = drvInfo.code;
+      if (code && descMap.has(code)) return descMap.get(code)!;
+      return drvInfo.model ?? driverModel;
+    })();
+
+    if (resolvedEqCode) {
+      const itemQty = item.qty ?? 1;
+      const totalQty = resolvedDrvQtyPerUnit * itemQty;
+      const unitPrice = priceMap.get(resolvedEqCode) ?? null;
+      const totalPrice = unitPrice != null ? unitPrice * totalQty : null;
+      const driverLines: DriverLine[] = [{
+        driverCode: resolvedEqCode,
+        driverModel: resolvedDriverModel,
+        driverQty: totalQty,
+        driverUnitPrice: unitPrice,
+        driverTotalPrice: totalPrice,
+      }];
+      const totalDriverCost = totalPrice ?? 0;
+      const totalPriceItem = item.totalPrice ?? 0;
+      const priceWithoutDriver = totalDriverCost > 0 && totalPriceItem > 0
+        ? totalPriceItem - totalDriverCost
+        : (item.priceWithoutDriver ?? null);
+      const unitPriceLuminaria = priceWithoutDriver != null && itemQty > 0
+        ? priceWithoutDriver / itemQty
+        : (item.unitPriceLuminaria ?? null);
+      return {
+        ...item,
+        driverLines,
+        priceWithoutDriver: priceWithoutDriver ?? item.priceWithoutDriver,
+        unitPriceLuminaria: unitPriceLuminaria ?? item.unitPriceLuminaria,
+        luminariaHasApiPrice: unitPrice != null,
+      };
+    }
+  }
+
+  // Nenhuma migração aplicável — apenas normalizar descrições existentes
+  return normalizeDriverModels(item, descMap);
+}

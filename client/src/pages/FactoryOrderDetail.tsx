@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { trpc } from "@/lib/trpc";
-import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, formatBRL, normalizeDriverModels } from "@/lib/cartTypes";
+import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, formatBRL, normalizeDriverModels, migrateItemDrivers, ApiProductDriverInfo } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
@@ -199,6 +199,8 @@ const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.
 interface EditableItemProps {
   item: { id: number; itemNumber: number; itemData: string };
   drivers: Array<{ code: string; model: string; inputVoltage: string; available: boolean }>;
+  priceMap?: Map<string, number>;
+  productSkuMap?: Map<string, ApiProductDriverInfo>;
   acessorios: Array<{ codigo: string | null; produto: string | null; familia: string | null; dimensao: string | null; precoVenda: number | null; fotoUrl: string | null }>;
   onUpdate: (itemId: number, newData: CartItemData) => void;
   onRemove: (itemId: number) => void;
@@ -206,14 +208,18 @@ interface EditableItemProps {
   descMap?: Map<string, string>;
 }
 
-function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap }: EditableItemProps) {
+function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, priceMap, productSkuMap }: EditableItemProps) {
   const [expanded, setExpanded] = useState(true);
   const [showAcessorioModal, setShowAcessorioModal] = useState(false);
   const [acessorioSearch, setAcessorioSearch] = useState("");
   const [acessorioFamilia, setAcessorioFamilia] = useState<string>("Todos");
   const [acQty, setAcQty] = useState<number>(1);
 
-  const parsed = useMemo(() => parseCartItemData(item.itemData), [item.itemData]);
+  const parsed = useMemo(() => {
+    const raw = parseCartItemData(item.itemData);
+    if (!raw || !priceMap || !productSkuMap) return raw;
+    return migrateItemDrivers(raw, priceMap, descMap ?? new Map(), productSkuMap);
+  }, [item.itemData, priceMap, productSkuMap, descMap]);
   if (!parsed) return null;
 
   const update = (fields: Partial<CartItemData>) => {
@@ -752,6 +758,28 @@ export default function FactoryOrderDetail() {
     }
     return map;
   }, [componentesData]);
+  /** Preços de componentes (EQ code → preço de venda = custoDriver × mkpPadrao) */
+  const componentePriceMapFO = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const c of componentesData?.items ?? []) {
+      if (!c.codigo) continue;
+      const custo = (c as unknown as { custoDriver?: number | null }).custoDriver ?? null;
+      if (custo != null && custo > 0) {
+        const mkp = (c as unknown as { mkpPadrao?: number | null }).mkpPadrao ?? 3;
+        map.set(c.codigo, Math.round(custo * mkp * 100) / 100);
+      }
+    }
+    return map;
+  }, [componentesData]);
+  /** Produtos da API para fallback de driver (SKU → driver info) */
+  const { data: allProductsFO } = trpc.alfalux.products.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const productSkuMapFO = useMemo(() => {
+    const map = new Map<string, ApiProductDriverInfo>();
+    for (const p of (allProductsFO ?? []) as Array<{ sku: string; driver220?: { model: string; code: string | null } | null; driverBivolt?: { model: string; code: string | null } | null; driverQtd220?: number | null; driverQtdBivolt?: number | null }>) {
+      if (p.sku) map.set(p.sku, { sku: p.sku, driver220: p.driver220 ?? null, driverBivolt: p.driverBivolt ?? null, driverQtd220: p.driverQtd220 ?? null, driverQtdBivolt: p.driverQtdBivolt ?? null });
+    }
+    return map;
+  }, [allProductsFO]);
 
   // Mutations
   const createOrderMutation = trpc.factoryOrders.create.useMutation({
@@ -904,7 +932,7 @@ export default function FactoryOrderDetail() {
       const itemsData = orderToUse.items
         .map(i => parseCartItemData(i.itemData))
         .filter((d): d is CartItemData => d !== null)
-        .map(d => normalizeDriverModels(d, componenteDescMapFO));
+        .map(d => migrateItemDrivers(d, componentePriceMapFO, componenteDescMapFO, productSkuMapFO));
       const fileName = `PEDIDO-FABRICA-${orderNum}-${quote.clientName.replace(/\s+/g, "_")}.xlsx`;
       const buffer = await generateOrderExcel(itemsData, {
         clientName: quote.clientName,
@@ -1110,7 +1138,7 @@ export default function FactoryOrderDetail() {
                     const items = currentOrder.items
                       .map(i => parseCartItemData(i.itemData))
                       .filter((d): d is CartItemData => d !== null)
-                      .map(d => normalizeDriverModels(d, componenteDescMapFO));
+                      .map(d => migrateItemDrivers(d, componentePriceMapFO, componenteDescMapFO, productSkuMapFO));
                     setPreviewItems(items);
                     setPreviewForm({
                       clientName: quote.clientName,
@@ -1412,6 +1440,8 @@ export default function FactoryOrderDetail() {
                           onUpdate={handleUpdateItem}
                           onRemove={handleRemoveItem}
                           descMap={componenteDescMapFO}
+                          priceMap={componentePriceMapFO}
+                          productSkuMap={productSkuMapFO}
                         />
                       ))
                     )}
