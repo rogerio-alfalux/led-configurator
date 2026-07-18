@@ -848,6 +848,14 @@ export default function QuoteDetail() {
     }
     return map;
   }, [componentesQuery.data]);
+  /** Mapa código EQ -> descrição canônica da API (para normalizar driverModel legado) */
+  const componenteDescMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of componentesQuery.data?.items ?? []) {
+      if (c.codigo && c.descricao) map.set(c.codigo, c.descricao);
+    }
+    return map;
+  }, [componentesQuery.data]);
   /** Mapa sku -> fotoUrl fresca para substituir URLs expiradas no preview/Excel.
    * Cobre: produtos principais (Downlights, Painéis, Spots, etc.),
    * produtos de revenda (RV*) e acessórios (EQ*, CP*). */
@@ -1140,6 +1148,24 @@ export default function QuoteDetail() {
     return _currentItems.map(item => {
       const parsed = parseCartItemData(item.itemData as string);
       if (!parsed) return item;
+      // Normalização 0: itens que já têm driverLines mas com driverModel desatualizado
+      // Sempre sobrescrever driverModel com a descrição canônica da API pelo código EQ
+      if (parsed.driverLines && parsed.driverLines.length > 0) {
+        const needsNorm = parsed.driverLines.some(dl =>
+          dl.driverCode && componenteDescMap.has(dl.driverCode) &&
+          componenteDescMap.get(dl.driverCode) !== dl.driverModel
+        );
+        if (needsNorm) {
+          const normalizedLines = parsed.driverLines.map(dl => {
+            if (!dl.driverCode) return dl;
+            const canonicalModel = componenteDescMap.get(dl.driverCode);
+            if (!canonicalModel || canonicalModel === dl.driverModel) return dl;
+            return { ...dl, driverModel: canonicalModel };
+          });
+          const normalizedParsed: CartItemData = { ...parsed, driverLines: normalizedLines };
+          return { ...item, itemData: JSON.stringify(normalizedParsed) };
+        }
+      }
       if ((!parsed.driverLines || parsed.driverLines.length === 0) &&
           parsed.profileSegments && parsed.profileSegments.length > 0 &&
           parsed.profileSegments.some(seg => seg.driverCode)) {
@@ -1164,7 +1190,7 @@ export default function QuoteDetail() {
           const unitPrice = componentePriceMap.get(drv.driverCode) ?? null;
           const totalPrice = unitPrice != null ? unitPrice * totalQty : null;
           if (totalPrice != null) totalDriverCost += totalPrice;
-          return { driverCode: drv.driverCode, driverModel: drv.driverModel, driverQty: totalQty, driverUnitPrice: unitPrice, driverTotalPrice: totalPrice };
+          return { driverCode: drv.driverCode, driverModel: componenteDescMap.get(drv.driverCode) ?? drv.driverModel, driverQty: totalQty, driverUnitPrice: unitPrice, driverTotalPrice: totalPrice };
         });
         const totalPrice = parsed.totalPrice ?? 0;
         // Fallback de preço: se não temos custo de driver da API, derivar preço da lumária do totalPrice
@@ -1192,7 +1218,7 @@ export default function QuoteDetail() {
           const totalPrice = unitPrice * totalQty;
           return {
             driverCode: acc.codigo,
-            driverModel: acc.descricao,
+            driverModel: componenteDescMap.get(acc.codigo) ?? acc.descricao,
             driverQty: totalQty,
             driverUnitPrice: unitPrice,
             driverTotalPrice: totalPrice,
@@ -1229,6 +1255,8 @@ export default function QuoteDetail() {
           .replace(/^DRIVER\s*/i, '')  // remover prefixo "DRIVER "
           .trim();
         if (!driverModel && eqCode) driverModel = eqCode;
+        // Sempre preferir a descrição canônica da API sobre a string legada
+        if (eqCode && componenteDescMap.has(eqCode)) driverModel = componenteDescMap.get(eqCode)!;
         if (eqCode) {
           const itemQty = parsed.qty ?? 1;
           const totalQty = drvQtyPerUnit * itemQty;
@@ -1261,7 +1289,7 @@ export default function QuoteDetail() {
       }
       return item;
     });
-  }, [data, componentePriceMap]);
+  }, [data, componentePriceMap, componenteDescMap]);
 
   if (isLoading) {
     return (
@@ -1919,7 +1947,7 @@ export default function QuoteDetail() {
                     if (totalPrice != null) totalDriverCost += totalPrice;
                     return {
                       driverCode: drv.driverCode,
-                      driverModel: drv.driverModel,
+                      driverModel: componenteDescMap.get(drv.driverCode) ?? drv.driverModel,
                       driverQty: totalQty,
                       driverUnitPrice: unitPrice,
                       driverTotalPrice: totalPrice,
@@ -1957,7 +1985,7 @@ export default function QuoteDetail() {
                     const totalQty = (acc.qty ?? 1) * _editItemQty2;
                     return {
                       driverCode: acc.codigo,
-                      driverModel: acc.descricao,
+                      driverModel: componenteDescMap.get(acc.codigo) ?? acc.descricao,
                       driverQty: totalQty,
                       driverUnitPrice: unitPrice,
                       driverTotalPrice: unitPrice * totalQty,
