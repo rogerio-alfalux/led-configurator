@@ -29,9 +29,29 @@ type GroupedItem = CartItemData & { _groupEntries: EtiquetaEntry[] };
  * Itens com a mesma chave são considerados tecnicamente idênticos e podem ser agrupados.
  */
 function buildGroupKey(item: CartItemData): string {
-  // Itens Especiais nunca são agrupados
+  // Itens Especiais: agrupar por descrição + cor + equipamentos
+  // (permite agrupar BAGEO, BLAZE E etc. de múltiplos pavimentos)
   if (item.isSpecialItem) {
-    return `__special__${Math.random()}`; // chave única para cada especial
+    const specialEquips = item.specialEquipments
+      ? JSON.stringify(
+          [...item.specialEquipments]
+            .sort((a, b) => a.codigo.localeCompare(b.codigo))
+            .map(e => ({ codigo: e.codigo, qty: e.qty }))
+        )
+      : "";
+    return [
+      "__special__",
+      item.sku ?? "",
+      item.description ?? "",
+      item.specialDescription ?? "",
+      item.corPeca ?? "",
+      item.specialColor ?? "",
+      item.specialPower ?? "",
+      item.specialDim ?? "",
+      item.specialVoltage ?? "",
+      item.specialColorTemp ?? "",
+      specialEquips,
+    ].join("|");
   }
 
   // Normaliza profileSegments: ordena por sku para evitar falsos negativos por ordem

@@ -1,45 +1,53 @@
 /**
  * materialRequisition.ts
- * Agrega todos os materiais (módulos LED, drivers, fontes, lentes, refletores, suportes)
- * de todos os itens do pedido de fábrica para gerar a Requisição de Materiais.
+ * Agrega todos os materiais de todos os itens do pedido de fábrica
+ * para gerar a Requisição de Materiais.
  *
  * Regras:
  * - Itens com mesmo código (EQ/CP) são somados
- * - Cada material deve ter código EQ ou CP obrigatório
- * - Materiais sem código são agrupados em "SEM CÓDIGO" para revisão
- * - A lista é ordenada por tipo (Módulos LED, Drivers, Fontes, Lentes, Refletores, Suportes, Outros)
+ * - Cada material deve ter código EQ, CP ou SKU de perfil
+ * - A lista é ordenada por tipo (Perfis, Módulos LED, Drivers, Fontes, Lentes, ...)
+ * - Perfis e fitas LED são medidos em METROS (m); demais em UNIDADES (un)
  */
 
-import type { CartItemData, ProfileSegment, DriverLine } from "./cartTypes";
+import type { CartItemData, ProfileSegment } from "./cartTypes";
 
 export interface MaterialEntry {
-  /** Código EQ ou CP do material (ex: "EQ00347", "CP00526") */
+  /** Código EQ, CP ou SKU do material */
   codigo: string;
   /** Descrição completa do material */
   descricao: string;
   /** Quantidade total necessária */
   qty: number;
+  /** Unidade de medida: "un" para peças, "m" para metros */
+  unidade: "un" | "m";
   /** Tipo/família do material para agrupamento */
   tipo: MaterialTipo;
 }
 
 export type MaterialTipo =
+  | "PERFIS"
+  | "FITAS LED"
   | "MÓDULOS LED"
   | "DRIVERS"
   | "FONTES DE TENSÃO"
   | "LENTES"
   | "REFLETORES"
+  | "DISSIPADORES"
   | "SUPORTES"
   | "ACESSÓRIOS"
   | "OUTROS";
 
 /** Ordem de exibição dos tipos */
 const TIPO_ORDER: MaterialTipo[] = [
+  "PERFIS",
+  "FITAS LED",
   "MÓDULOS LED",
   "DRIVERS",
   "FONTES DE TENSÃO",
   "LENTES",
   "REFLETORES",
+  "DISSIPADORES",
   "SUPORTES",
   "ACESSÓRIOS",
   "OUTROS",
@@ -49,13 +57,32 @@ function detectTipo(descricao: string, codigo: string): MaterialTipo {
   const d = descricao.toUpperCase();
   const c = codigo.toUpperCase();
 
-  // Módulos LED: Stripflex, Stripline, módulo LED, fita LED
+  // Perfis: SKUs de perfil (LLE-, LLS-, ALE-, ALS-, etc.)
+  if (
+    c.startsWith("LLE-") || c.startsWith("LLS-") ||
+    c.startsWith("ALE-") || c.startsWith("ALS-") ||
+    c.startsWith("LLE") || c.startsWith("LLS") ||
+    d.includes("PERFIL") || d.includes("CALHA")
+  ) {
+    return "PERFIS";
+  }
+
+  // Fitas LED: Stripflex, Stripline, fita LED
   if (
     d.includes("STRIPFLEX") ||
     d.includes("STRIPLINE") ||
-    d.includes("FITA LED") ||
+    d.includes("STRIPLUX") ||
+    (d.includes("FITA") && d.includes("LED"))
+  ) {
+    return "FITAS LED";
+  }
+
+  // Módulos LED: módulo LED, barra LED
+  if (
     d.includes("MÓDULO LED") ||
     d.includes("MODULO LED") ||
+    d.includes("MÓDULO LUX") ||
+    d.includes("MODULO LUX") ||
     (d.includes("LED") && (d.includes("BARRA") || d.includes("BAR")))
   ) {
     return "MÓDULOS LED";
@@ -65,8 +92,8 @@ function detectTipo(descricao: string, codigo: string): MaterialTipo {
   if (
     d.includes("FONTE") ||
     d.includes("POWER SUPPLY") ||
-    d.includes("24V") ||
-    d.includes("12V")
+    (d.includes("24V") && !d.includes("DRIVER")) ||
+    (d.includes("12V") && !d.includes("DRIVER"))
   ) {
     return "FONTES DE TENSÃO";
   }
@@ -94,6 +121,11 @@ function detectTipo(descricao: string, codigo: string): MaterialTipo {
     return "REFLETORES";
   }
 
+  // Dissipadores
+  if (d.includes("DISSIPADOR") || d.includes("HEATSINK") || d.includes("HEAT SINK")) {
+    return "DISSIPADORES";
+  }
+
   // Suportes
   if (
     d.includes("SUPORTE") ||
@@ -117,19 +149,34 @@ function detectTipo(descricao: string, codigo: string): MaterialTipo {
 /**
  * Agrega todos os materiais de todos os itens do pedido.
  * Retorna lista ordenada por tipo e depois por descrição.
+ *
+ * @param items - Lista de itens do pedido (já filtrados)
+ * @param descMap - Mapa código EQ → descrição canônica da API (opcional, para normalizar nomes)
  */
-export function buildMaterialRequisition(items: CartItemData[]): MaterialEntry[] {
+export function buildMaterialRequisition(
+  items: CartItemData[],
+  descMap?: Map<string, string>
+): MaterialEntry[] {
   // Map: codigo → MaterialEntry
   const map = new Map<string, MaterialEntry>();
 
-  function add(codigo: string, descricao: string, qty: number, tipo?: MaterialTipo) {
+  function add(
+    codigo: string,
+    descricao: string,
+    qty: number,
+    unidade: "un" | "m",
+    tipo?: MaterialTipo
+  ) {
     if (!codigo || !descricao || qty <= 0) return;
-    const resolvedTipo = tipo ?? detectTipo(descricao, codigo);
-    const existing = map.get(codigo);
+    // Usar descrição canônica da API se disponível
+    const canonicalDesc = descMap?.get(codigo) ?? descricao;
+    const resolvedTipo = tipo ?? detectTipo(canonicalDesc, codigo);
+    const key = `${codigo}||${unidade}`;
+    const existing = map.get(key);
     if (existing) {
-      map.set(codigo, { ...existing, qty: existing.qty + qty });
+      map.set(key, { ...existing, qty: existing.qty + qty });
     } else {
-      map.set(codigo, { codigo, descricao, qty, tipo: resolvedTipo });
+      map.set(key, { codigo, descricao: canonicalDesc, qty, unidade, tipo: resolvedTipo });
     }
   }
 
@@ -145,26 +192,34 @@ export function buildMaterialRequisition(items: CartItemData[]): MaterialEntry[]
       const cct = item.cct ?? "";
 
       for (const seg of item.profileSegments) {
-        // Módulo LED (Stripflex/Stripline)
-        const barName = isStripline
-          ? `Stripline 562,5 x 15mm 108L ${cct}`
-          : `Stripflex 562,5 x 10mm 36L ${cct}`;
-        const ledCode = (seg as any).ledModuleCode ?? "";
-        const totalBars = seg.qty * seg.barsPerPiece * itemQty;
-        if (ledCode) {
-          add(ledCode, barName, totalBars, "MÓDULOS LED");
+        // 1. Perfil em metros (SKU do perfil × comprimento × qty)
+        if (seg.sku && seg.lengthMm > 0) {
+          const totalMetros = (seg.qty * seg.lengthMm / 1000) * itemQty;
+          const perfilDesc = descMap?.get(seg.sku) ?? seg.sku;
+          add(seg.sku, perfilDesc, totalMetros, "m", "PERFIS");
         }
 
-        // Driver
+        // 2. Fita LED em metros (barsPerPiece × 562,5mm por barra = metros)
+        const ledCode = (seg as any).ledModuleCode ?? "";
+        if (ledCode) {
+          // Cada barra de Stripflex = 562,5mm = 0,5625m; Stripline = 562,5mm também
+          const metroPorBarra = 0.5625;
+          const totalMetrosFita = seg.qty * seg.barsPerPiece * metroPorBarra * itemQty;
+          const barName = isStripline
+            ? `Stripline 562,5 x 15mm 108L ${cct}`
+            : `Stripflex 562,5 x 10mm 36L ${cct}`;
+          add(ledCode, barName, totalMetrosFita, "m", "FITAS LED");
+        }
+
+        // 3. Driver
         if (seg.driverCode && seg.driverCode !== "ERRO" && !seg.driverModel.includes(" + ")) {
           const totalDrivers = seg.qty * seg.driverQtyPerPiece * itemQty;
           const correnteSuffix = seg.corrente ? ` - PROG: ${seg.corrente}` : "";
-          add(seg.driverCode, `${seg.driverModel}${correnteSuffix}`, totalDrivers, "DRIVERS");
+          add(seg.driverCode, `${seg.driverModel}${correnteSuffix}`, totalDrivers, "un", "DRIVERS");
         }
 
-        // Driver combo: "1 x MODEL1 (CODE1) + 1 x MODEL2 (CODE2)"
+        // 4. Driver combo: "1 x MODEL1 (CODE1) + 1 x MODEL2 (CODE2)"
         if (seg.driverModel.includes(" + ")) {
-          // Extrair cada driver do combo
           const parts = seg.driverModel.split(" + ");
           for (const part of parts) {
             const match = part.match(/^(\d+)\s*x\s*(.+?)\s*\(([^)]+)\)$/);
@@ -173,7 +228,7 @@ export function buildMaterialRequisition(items: CartItemData[]): MaterialEntry[]
               const drvModel = match[2].trim();
               const drvCode = match[3].trim();
               const totalDrivers = seg.qty * drvQtyPerPiece * itemQty;
-              add(drvCode, drvModel, totalDrivers, "DRIVERS");
+              add(drvCode, drvModel, totalDrivers, "un", "DRIVERS");
             }
           }
         }
@@ -184,43 +239,42 @@ export function buildMaterialRequisition(items: CartItemData[]): MaterialEntry[]
     if (item.driverLines && item.driverLines.length > 0) {
       for (const dl of item.driverLines) {
         if (!dl.driverCode) continue;
-        // drvQtyPerUnit = qty por unidade; se não existir, usar driverQty / itemQty
         const qtyPerUnit = (dl as any).drvQtyPerUnit ?? Math.round(dl.driverQty / itemQty) ?? 1;
         const totalDrivers = qtyPerUnit * itemQty;
         const isDriverFonte = dl.driverModel.toUpperCase().includes("FONTE 24V");
         const tipo: MaterialTipo = isDriverFonte ? "FONTES DE TENSÃO" : "DRIVERS";
         const correnteSuffix = dl.corrente && !isDriverFonte ? ` - PROG: ${dl.corrente}` : "";
-        add(dl.driverCode, `${dl.driverModel}${correnteSuffix}`, totalDrivers, tipo);
-      }
-
-      // Módulo LED para luminárias (moduloLed)
-      if (item.moduloLed) {
-        // Sem código EQ disponível para moduloLed em luminárias — não adicionar sem código
-        // (o código EQ do módulo só está disponível para perfis via ledModuleCode)
+        add(dl.driverCode, `${dl.driverModel}${correnteSuffix}`, totalDrivers, "un", tipo);
       }
     }
 
     // ── LED BAR ──────────────────────────────────────────────────────────
     if (item.category === "LED BAR" && item.ledBarNCortes !== undefined) {
-      // Fonte de tensão
       if (item.ledBarDriverCode && item.ledBarDriverModel) {
         const nCortes = item.ledBarNCortes ?? 1;
         add(
           item.ledBarDriverCode,
           item.ledBarDriverModel,
           nCortes * itemQty,
+          "un",
           "FONTES DE TENSÃO"
         );
       }
-      // Módulo LED (fita): sem código EQ disponível na estrutura atual
+      // Fita LED do LED BAR: ledBarComprimentoTotalMm em metros
+      if (item.moduloLed && item.ledBarComprimentoTotalMm) {
+        const totalMetros = (item.ledBarComprimentoTotalMm / 1000) * itemQty;
+        // Sem código EQ disponível para fita do LED BAR — usar descrição como chave
+        const fakeCode = `FITA_LEDBAR_${item.sku ?? item.description ?? ""}`;
+        add(fakeCode, item.moduloLed, totalMetros, "m", "FITAS LED");
+      }
     }
 
     // ── ITEM ESPECIAL: specialEquipments ─────────────────────────────────
-    if (item.category === "Item Especial" && item.specialEquipments && item.specialEquipments.length > 0) {
+    if (item.isSpecialItem && item.specialEquipments && item.specialEquipments.length > 0) {
       for (const eq of item.specialEquipments) {
         if (!eq.codigo) continue;
         const tipo = detectTipo(eq.descricao, eq.codigo);
-        add(eq.codigo, eq.descricao, eq.qty * itemQty, tipo);
+        add(eq.codigo, eq.descricao, eq.qty * itemQty, "un", tipo);
       }
     }
 
@@ -228,33 +282,27 @@ export function buildMaterialRequisition(items: CartItemData[]): MaterialEntry[]
     if (item.accessories && item.accessories.length > 0) {
       for (const acc of item.accessories) {
         if (!acc.codigo) continue;
-        add(acc.codigo, acc.descricao, acc.qty * itemQty, "ACESSÓRIOS");
+        const tipo = detectTipo(acc.descricao, acc.codigo);
+        add(acc.codigo, acc.descricao, acc.qty * itemQty, "un", tipo);
       }
     }
   }
 
-  // Segunda passagem: consolidar entradas com mesma descrição + tipo
-  // (ocorre quando dois itens usam códigos EQ diferentes para o mesmo produto físico)
-  const descMap = new Map<string, MaterialEntry>();
-  for (const entry of Array.from(map.values())) {
-    const key = `${entry.tipo}||${entry.descricao.trim().toLowerCase()}`;
-    const existing = descMap.get(key);
-    if (existing) {
-      // Mesmo produto com códigos diferentes: somar quantidades, manter o código do primeiro
-      descMap.set(key, { ...existing, qty: existing.qty + entry.qty });
+  // Arredondar quantidades para evitar erros de ponto flutuante
+  // Metros: 1 decimal (arredondar para cima); unidades: inteiro
+  for (const [key, entry] of Array.from(map.entries())) {
+    let rounded: number;
+    if (entry.unidade === "m") {
+      // Arredondar para cima com 1 decimal
+      rounded = Math.ceil(entry.qty * 10) / 10;
     } else {
-      descMap.set(key, { ...entry });
+      rounded = Math.ceil(entry.qty);
     }
-  }
-
-  // Arredondar quantidades para evitar erros de ponto flutuante (ex: 499.000000000006 → 499)
-  for (const [key, entry] of Array.from(descMap.entries())) {
-    const rounded = Math.round(entry.qty * 1000) / 1000;
-    descMap.set(key, { ...entry, qty: rounded });
+    map.set(key, { ...entry, qty: rounded });
   }
 
   // Ordenar: primeiro por tipo (TIPO_ORDER), depois por descrição
-  const entries = Array.from(descMap.values());
+  const entries = Array.from(map.values());
   entries.sort((a, b) => {
     const tipoA = TIPO_ORDER.indexOf(a.tipo);
     const tipoB = TIPO_ORDER.indexOf(b.tipo);

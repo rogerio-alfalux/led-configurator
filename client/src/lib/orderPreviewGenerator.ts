@@ -12,7 +12,10 @@ import { buildMaterialRequisition, groupByTipo } from "./materialRequisition";
 import type { MaterialTipo } from "./materialRequisition";
 
 function fmtQty(n: number): string {
-  return String(n).padStart(2, "0");
+  // Arredondar para cima com 1 decimal para módulos LED (podem ser fracionários)
+  const rounded = Math.ceil(n * 10) / 10;
+  const s = rounded % 1 === 0 ? String(Math.round(rounded)) : rounded.toFixed(1);
+  return s.padStart(s.includes(".") ? 5 : 2, "0");
 }
 
 function buildProfileSkuText(item: CartItemData): string {
@@ -452,19 +455,22 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
 
   ${(() => {
     const allItemsForReq = items.filter((i: CartItemData) => i.category !== 'Não Orçamos');
-    const matEntries = buildMaterialRequisition(allItemsForReq);
+    const matEntries = buildMaterialRequisition(allItemsForReq, descMap);
     if (matEntries.length === 0) return '';
     const byTipo = groupByTipo(matEntries);
     const TIPO_ORDER_LOCAL: MaterialTipo[] = [
-      'MÓDULOS LED', 'DRIVERS', 'FONTES DE TENSÃO', 'LENTES',
-      'REFLETORES', 'SUPORTES', 'ACESSÓRIOS', 'OUTROS',
+      'PERFIS', 'FITAS LED', 'MÓDULOS LED', 'DRIVERS', 'FONTES DE TENSÃO',
+      'LENTES', 'REFLETORES', 'DISSIPADORES', 'SUPORTES', 'ACESSÓRIOS', 'OUTROS',
     ];
     const TIPO_COLORS: Record<MaterialTipo, string> = {
-      'MÓDULOS LED': '#e2efda',
+      'PERFIS': '#d9e1f2',
+      'FITAS LED': '#e2efda',
+      'MÓDULOS LED': '#d6ead0',
       'DRIVERS': '#dce6f1',
       'FONTES DE TENSÃO': '#fff2cc',
       'LENTES': '#fce4d6',
       'REFLETORES': '#ededed',
+      'DISSIPADORES': '#f2f2f2',
       'SUPORTES': '#f2f2f2',
       'ACESSÓRIOS': '#fef9e7',
       'OUTROS': '#ffffff',
@@ -479,6 +485,7 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
           <td style="text-align:left;font-size:9px">${esc(entry.tipo)}</td>
           <td style="text-align:center;font-weight:bold;font-size:9px;font-family:monospace">${esc(entry.codigo)}</td>
           <td style="text-align:left;font-size:9px">${esc(entry.descricao)}</td>
+          <td style="text-align:center;font-size:9px">${esc(entry.unidade.toUpperCase())}</td>
           <td style="text-align:center;font-weight:bold;font-size:10px">${esc(String(entry.qty))}</td>
         </tr>`;
       }
@@ -495,6 +502,7 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
           <th style="background:#1f3864;color:#fff;padding:5px 3px;border:1.5px solid #8ea9c1;text-align:center;width:120px">TIPO</th>
           <th style="background:#1f3864;color:#fff;padding:5px 3px;border:1.5px solid #8ea9c1;text-align:center;width:80px">CÓDIGO</th>
           <th style="background:#1f3864;color:#fff;padding:5px 3px;border:1.5px solid #8ea9c1;text-align:center">DESCRIÇÃO</th>
+          <th style="background:#1f3864;color:#fff;padding:5px 3px;border:1.5px solid #8ea9c1;text-align:center;width:30px">UN</th>
           <th style="background:#1f3864;color:#fff;padding:5px 3px;border:1.5px solid #8ea9c1;text-align:center;width:50px">QTD</th>
         </tr>
       </thead>

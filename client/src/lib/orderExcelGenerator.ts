@@ -129,7 +129,10 @@ function valueCell(cell: ExcelJS.Cell, value: string | number | null) {
  * Formata quantidade com zero à esquerda para 2 dígitos (ex: 2 → "02", 19 → "19").
  */
 function fmtQty(n: number): string {
-  return String(n).padStart(2, "0");
+  // Arredondar para cima com 1 decimal para módulos LED (podem ser fracionários)
+  const rounded = Math.ceil(n * 10) / 10;
+  const s = rounded % 1 === 0 ? String(Math.round(rounded)) : rounded.toFixed(1);
+  return s.padStart(s.includes(".") ? 5 : 2, "0");
 }
 
 /**
@@ -606,21 +609,24 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   // ─── Requisição de Materiais (mesma aba, após observações gerais) ──────────────────────────────────────────────────────────────────────────────────────────
   {
     const allItemsForReq = items.filter(i => i.category !== 'Não Orçamos');
-    const matEntries = buildMaterialRequisition(allItemsForReq);
+    const matEntries = buildMaterialRequisition(allItemsForReq, descMap);
     if (matEntries.length > 0) {
       const TIPO_COLORS: Record<MaterialTipo, string> = {
-        "MÓDULOS LED": "FFE2EFDA",
+        "PERFIS": "FFD9E1F2",
+        "FITAS LED": "FFE2EFDA",
+        "MÓDULOS LED": "FFD6EAD0",
         "DRIVERS": "FFDCE6F1",
         "FONTES DE TENSÃO": "FFFFF2CC",
         "LENTES": "FFFCE4D6",
         "REFLETORES": "FFEDEDED",
+        "DISSIPADORES": "FFF2F2F2",
         "SUPORTES": "FFF2F2F2",
         "ACESSÓRIOS": "FFFEF9E7",
         "OUTROS": "FFFFFFFF",
       };
       const TIPO_ORDER_LOCAL: MaterialTipo[] = [
-        "MÓDULOS LED", "DRIVERS", "FONTES DE TENSÃO", "LENTES",
-        "REFLETORES", "SUPORTES", "ACESSÓRIOS", "OUTROS",
+        "PERFIS", "FITAS LED", "MÓDULOS LED", "DRIVERS", "FONTES DE TENSÃO",
+        "LENTES", "REFLETORES", "DISSIPADORES", "SUPORTES", "ACESSÓRIOS", "OUTROS",
       ];
       const byTipo = groupByTipo(matEntries);
 
@@ -637,12 +643,13 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
       reqTitleCell.alignment = { horizontal: "center", vertical: "middle" };
       reqRow++;
 
-      // Cabeçalho: A=TIPO, B=CÓDIGO, C-I=DESCRIÇÃO (mesclado), J=QTD
+      // Cabeçalho: A=TIPO, B=CÓDIGO, C-H=DESCRIÇÃO (mesclado), I=UN, J=QTD
       ws.getRow(reqRow).height = 18;
       headerCell(ws.getCell(`A${reqRow}`), "TIPO", 10);
       headerCell(ws.getCell(`B${reqRow}`), "CÓDIGO", 10);
-      ws.mergeCells(`C${reqRow}:I${reqRow}`);
+      ws.mergeCells(`C${reqRow}:H${reqRow}`);
       headerCell(ws.getCell(`C${reqRow}`), "DESCRIÇÃO", 10);
+      headerCell(ws.getCell(`I${reqRow}`), "UN", 10);
       headerCell(ws.getCell(`J${reqRow}`), "QTD", 10);
       reqRow++;
 
@@ -652,18 +659,19 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
         const bgColor = TIPO_COLORS[tipo] ?? "FFFFFFFF";
         for (const entry of entries) {
           ws.getRow(reqRow).height = 16;
-          ws.mergeCells(`C${reqRow}:I${reqRow}`);
+          ws.mergeCells(`C${reqRow}:H${reqRow}`);
           const applyReqCell = (col: string, value: string | number, bold = false) => {
             const cell = ws.getCell(`${col}${reqRow}`);
             cell.value = value;
             cell.font = { size: 10, bold };
             cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bgColor } };
-            cell.alignment = { horizontal: col === "J" ? "center" : "left", vertical: "middle", wrapText: col === "C" };
+            cell.alignment = { horizontal: (col === "I" || col === "J") ? "center" : "left", vertical: "middle", wrapText: col === "C" };
             applyBorder(cell);
           };
           applyReqCell("A", entry.tipo);
           applyReqCell("B", entry.codigo, true);
           applyReqCell("C", entry.descricao);
+          applyReqCell("I", entry.unidade.toUpperCase());
           applyReqCell("J", entry.qty, true);
           reqRow++;
         }

@@ -26,7 +26,10 @@ import { toast } from "sonner";
 
 // ─── Funções auxiliares para Fonte de Luz e Equipamentos ────────────────────
 function fmtQty(n: number): string {
-  return String(n).padStart(2, "0");
+  // Arredondar para cima com 1 decimal para módulos LED (podem ser fracionários)
+  const rounded = Math.ceil(n * 10) / 10;
+  const s = rounded % 1 === 0 ? String(Math.round(rounded)) : rounded.toFixed(1);
+  return s.padStart(s.includes(".") ? 5 : 2, "0");
 }
 
 /**
@@ -85,7 +88,7 @@ function buildFonteLuzText(item: CartItemData, descMap?: Map<string, string>): s
   return Array.from(totals.values())
     .map(({ qty, eqCode, name }) => {
       const eqSuffix = eqCode ? ` (${eqCode})` : "";
-      return `${String(qty).padStart(2, "0")} x ${name}${eqSuffix}`;
+      return `${fmtQty(qty)} x ${name}${eqSuffix}`;
     })
     .join("\n");
 }
