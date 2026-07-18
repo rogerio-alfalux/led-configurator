@@ -4110,6 +4110,7 @@ export default function QuoteDetail() {
           onOpenChange={setOrderPreviewOpen}
           items={currentItemsMigrated.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null)}
           form={orderPreviewForm}
+          descMap={componenteDescMap}
           onExcelGenerated={() => {
             logProductionSheetMutation.mutate({
               quoteId: quote.id,

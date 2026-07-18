@@ -40,7 +40,7 @@ function isLedBar(item: CartItemData): boolean {
  * Gera o texto de FONTE DE LUZ / Módulo LED para exibição na tela de pedido.
  * Replica a lógica do orderExcelGenerator.ts.
  */
-function buildFonteLuzText(item: CartItemData): string {
+function buildFonteLuzText(item: CartItemData, descMap?: Map<string, string>): string {
   if (item.isSpecialItem) return "";
   if (isLedBar(item)) {
     const nCortes = item.ledBarNCortes ?? 1;
@@ -62,23 +62,28 @@ function buildFonteLuzText(item: CartItemData): string {
   const isStripline = item.stripMethod === "STRIPLINE";
   const itemQty = item.qty ?? 1;
 
-  // Agrupar por nome de módulo e somar quantidades totais
-  const totals = new Map<string, { qty: number; eqCode: string | null }>();
+  // Agrupar por código EQ do módulo e somar quantidades totais
+  const totals = new Map<string, { qty: number; eqCode: string | null; name: string }>();
   for (const seg of item.profileSegments) {
-    const barName = isStripline
-      ? `Stripline 562,5 x 15mm 108L ${cct}`
-      : `Stripflex 562,5 x 10mm 36L ${cct}`;
+    const eqCode = seg.ledModuleCode ?? null;
+    // Usar descrição canônica da API se disponível, senão fallback estático
+    const barName = (eqCode && descMap?.has(eqCode))
+      ? descMap.get(eqCode)!
+      : (isStripline
+          ? `Stripline 562,5 x 15mm 108L ${cct}`
+          : `Stripflex 562,5 x 10mm 36L ${cct}`);
+    const mapKey = eqCode ?? barName;
     const totalBars = seg.qty * seg.barsPerPiece * itemQty;
-    const existing = totals.get(barName);
+    const existing = totals.get(mapKey);
     if (existing) {
-      totals.set(barName, { qty: existing.qty + totalBars, eqCode: existing.eqCode ?? seg.ledModuleCode ?? null });
+      totals.set(mapKey, { qty: existing.qty + totalBars, eqCode, name: barName });
     } else {
-      totals.set(barName, { qty: totalBars, eqCode: seg.ledModuleCode ?? null });
+      totals.set(mapKey, { qty: totalBars, eqCode, name: barName });
     }
   }
 
-  return Array.from(totals.entries())
-    .map(([name, { qty, eqCode }]) => {
+  return Array.from(totals.values())
+    .map(({ qty, eqCode, name }) => {
       const eqSuffix = eqCode ? ` (${eqCode})` : "";
       return `${String(qty).padStart(2, "0")} x ${name}${eqSuffix}`;
     })
@@ -197,9 +202,11 @@ interface EditableItemProps {
   acessorios: Array<{ codigo: string | null; produto: string | null; familia: string | null; dimensao: string | null; precoVenda: number | null; fotoUrl: string | null }>;
   onUpdate: (itemId: number, newData: CartItemData) => void;
   onRemove: (itemId: number) => void;
+  /** Mapa código EQ -> descrição canônica da API (para normalizar módulos LED) */
+  descMap?: Map<string, string>;
 }
 
-function EditableItem({ item, drivers, acessorios, onUpdate, onRemove }: EditableItemProps) {
+function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap }: EditableItemProps) {
   const [expanded, setExpanded] = useState(true);
   const [showAcessorioModal, setShowAcessorioModal] = useState(false);
   const [acessorioSearch, setAcessorioSearch] = useState("");
@@ -359,7 +366,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove }: Editabl
 
           {/* Módulo LED / Fonte de Luz e Equipamentos (apenas para itens não-especiais) */}
           {!isSpecial && (() => {
-            const fonteLuzText = buildFonteLuzText(parsed);
+            const fonteLuzText = buildFonteLuzText(parsed, descMap);
             const equipText = buildEquipamentosText(parsed);
             const hasRichData = !!(parsed.profileSegments?.length || parsed.driverLines?.length || parsed.ledBarDriverModel || parsed.moduloLed);
             return (
@@ -1404,6 +1411,7 @@ export default function FactoryOrderDetail() {
                           acessorios={acessoriosData}
                           onUpdate={handleUpdateItem}
                           onRemove={handleRemoveItem}
+                          descMap={componenteDescMapFO}
                         />
                       ))
                     )}
@@ -1507,6 +1515,7 @@ export default function FactoryOrderDetail() {
           onOpenChange={setPreviewOpen}
           items={previewItems}
           form={previewForm}
+          descMap={componenteDescMapFO}
         />
       )}
 

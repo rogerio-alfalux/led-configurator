@@ -157,7 +157,7 @@ function buildProfileSkuText(item: CartItemData): string {
  *   ou, se houver tipos diferentes:
  *   "40 x Stripflex 562,5 x 10mm 36L 3000K\n20 x Stripline 562,5 x 15mm 108L 3000K"
  */
-function buildProfileFonteLuzText(item: CartItemData): string {
+function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, string>): string {
   if (!item.profileSegments || item.profileSegments.length === 0) {
     // Fallback para produtos não-perfil
     return item.moduloLed ?? [item.power, item.cct].filter(Boolean).join(" | ") ?? "";
@@ -167,23 +167,28 @@ function buildProfileFonteLuzText(item: CartItemData): string {
   const isStripline = item.stripMethod === "STRIPLINE";
   const itemQty = item.qty ?? 1;
 
-  // Agrupar por nome de módulo e somar quantidades totais
-  const totals = new Map<string, { qty: number; eqCode: string | null }>();
+  // Agrupar por código EQ do módulo e somar quantidades totais
+  const totals = new Map<string, { qty: number; eqCode: string | null; name: string }>();
   for (const seg of item.profileSegments) {
-    const barName = isStripline
-      ? `Stripline 562,5 x 15mm 108L ${cct}`
-      : `Stripflex 562,5 x 10mm 36L ${cct}`;
+    const eqCode = (seg as any).ledModuleCode ?? null;
+    // Usar descrição canônica da API se disponível, senão fallback estático
+    const barName = (eqCode && descMap?.has(eqCode))
+      ? descMap.get(eqCode)!
+      : (isStripline
+          ? `Stripline 562,5 x 15mm 108L ${cct}`
+          : `Stripflex 562,5 x 10mm 36L ${cct}`);
+    const mapKey = eqCode ?? barName;
     const totalBars = seg.qty * seg.barsPerPiece * itemQty;
-    const existing = totals.get(barName);
+    const existing = totals.get(mapKey);
     if (existing) {
-      totals.set(barName, { qty: existing.qty + totalBars, eqCode: existing.eqCode ?? (seg as any).ledModuleCode ?? null });
+      totals.set(mapKey, { qty: existing.qty + totalBars, eqCode, name: barName });
     } else {
-      totals.set(barName, { qty: totalBars, eqCode: (seg as any).ledModuleCode ?? null });
+      totals.set(mapKey, { qty: totalBars, eqCode, name: barName });
     }
   }
 
-  return Array.from(totals.entries())
-    .map(([name, { qty, eqCode }]) => {
+  return Array.from(totals.values())
+    .map(({ qty, eqCode, name }) => {
       const eqSuffix = eqCode ? ` (${eqCode})` : "";
       return `${fmtQty(qty)} x ${name}${eqSuffix}`;
     })
@@ -332,7 +337,7 @@ function buildLedBarEquipamentosText(item: CartItemData): string {
   return `${nCortes}x ${model}${codeSuffix}`;
 }
 
-export async function generateOrderExcel(items: CartItemData[], form: OrderFormData): Promise<ArrayBuffer> {
+export async function generateOrderExcel(items: CartItemData[], form: OrderFormData, descMap?: Map<string, string>): Promise<ArrayBuffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = "Configurador Alfalux";
   wb.created = new Date();
@@ -505,7 +510,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
       ? [item.specialPower, item.specialDim, item.specialVoltage].filter(Boolean).join(" | ") || "-"
       : isLedBar(item)
         ? buildLedBarFonteLuzText(item)
-        : buildProfileFonteLuzText(item);
+        : buildProfileFonteLuzText(item, descMap);
     const fCell = ws.getCell(`F${rowNum}`);
     fCell.value = fonteText;
     fCell.font = { size: 10 };

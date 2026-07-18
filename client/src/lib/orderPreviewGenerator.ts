@@ -24,7 +24,7 @@ function buildProfileSkuText(item: CartItemData): string {
     .join("<br>");
 }
 
-function buildProfileFonteLuzText(item: CartItemData): string {
+function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, string>): string {
   if (!item.profileSegments || item.profileSegments.length === 0) {
     return item.moduloLed ?? [item.power, item.cct].filter(Boolean).join(" | ") ?? "";
   }
@@ -32,23 +32,28 @@ function buildProfileFonteLuzText(item: CartItemData): string {
   const isStripline = item.stripMethod === "STRIPLINE";
   const itemQty = item.qty ?? 1;
 
-  // Agrupar por nome de módulo e somar quantidades totais
-  const totals = new Map<string, { qty: number; eqCode: string | null }>();
+  // Agrupar por código EQ do módulo e somar quantidades totais
+  const totals = new Map<string, { qty: number; eqCode: string | null; name: string }>();
   for (const seg of item.profileSegments) {
-    const barName = isStripline
-      ? `Stripline 562,5 x 15mm 108L ${cct}`
-      : `Stripflex 562,5 x 10mm 36L ${cct}`;
+    const eqCode = (seg as any).ledModuleCode ?? null;
+    // Usar descrição canônica da API se disponível, senão fallback estático
+    const barName = (eqCode && descMap?.has(eqCode))
+      ? descMap.get(eqCode)!
+      : (isStripline
+          ? `Stripline 562,5 x 15mm 108L ${cct}`
+          : `Stripflex 562,5 x 10mm 36L ${cct}`);
+    const mapKey = eqCode ?? barName;
     const totalBars = seg.qty * seg.barsPerPiece * itemQty;
-    const existing = totals.get(barName);
+    const existing = totals.get(mapKey);
     if (existing) {
-      totals.set(barName, { qty: existing.qty + totalBars, eqCode: existing.eqCode ?? (seg as any).ledModuleCode ?? null });
+      totals.set(mapKey, { qty: existing.qty + totalBars, eqCode, name: barName });
     } else {
-      totals.set(barName, { qty: totalBars, eqCode: (seg as any).ledModuleCode ?? null });
+      totals.set(mapKey, { qty: totalBars, eqCode, name: barName });
     }
   }
 
-  return Array.from(totals.entries())
-    .map(([name, { qty, eqCode }]) => {
+  return Array.from(totals.values())
+    .map(({ qty, eqCode, name }) => {
       const eqSuffix = eqCode ? ` (${esc(eqCode)})` : "";
       return `${fmtQty(qty)} x ${esc(name)}${eqSuffix}`;
     })
@@ -193,7 +198,7 @@ function escNl(str: string | null | undefined): string {
  * Gera o HTML completo da ficha técnica de produção.
  * Retorna uma string HTML pronta para ser injetada em um iframe ou janela.
  */
-export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormData & { prazoStr?: string }): string {
+export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormData & { prazoStr?: string }, descMap?: Map<string, string>): string {
   const isLuminew = form.empresa === "LUMINEW";
   // Campo PEDIDO: mostra o número do pedido de fábrica (6 dígitos) se informado,
   // caso contrário mostra "NÃO INFORMADO" para deixar claro que falta o número
@@ -224,7 +229,7 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
       ? esc([item.specialPower, item.specialDim, item.specialVoltage].filter(Boolean).join(" | ") || "-")
       : isLedBar(item)
         ? buildLedBarFonteLuzText(item)
-        : buildProfileFonteLuzText(item);
+        : buildProfileFonteLuzText(item, descMap);
 
     const equipText = item.category === "Item Especial"
       ? buildSpecialEquipText(item)

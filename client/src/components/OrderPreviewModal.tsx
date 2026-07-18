@@ -21,6 +21,8 @@ interface OrderPreviewModalProps {
   form: OrderFormData & { prazoStr?: string };
   /** Callback chamado após geração do Excel para registrar no log de auditoria */
   onExcelGenerated?: () => void;
+  /** Mapa código EQ -> descrição canônica da API (para normalizar módulos LED na coluna FONTE DE LUZ) */
+  descMap?: Map<string, string>;
 }
 
 export function OrderPreviewModal({
@@ -29,6 +31,7 @@ export function OrderPreviewModal({
   items,
   form,
   onExcelGenerated,
+  descMap,
 }: OrderPreviewModalProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -39,7 +42,7 @@ export function OrderPreviewModal({
     const timer = setTimeout(() => {
       const iframe = iframeRef.current;
       if (!iframe) return;
-      const html = generateOrderPreviewHtml(items, form);
+      const html = generateOrderPreviewHtml(items, form, descMap);
       iframe.srcdoc = html;
     }, 50);
     return () => clearTimeout(timer);
