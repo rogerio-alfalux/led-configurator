@@ -2100,3 +2100,12 @@
 - [x] Remover fallback estático de nome de barra em materialRequisition.ts (usar sempre descMap da API)
 - [x] TypeScript check: 0 erros
 - [x] Vitest: 563 testes passando (21 arquivos)
+
+## Requisição de Materiais — Agrupamento e categorização
+
+- [x] Agrupar perfis por código-base (LLE-2810, LLS-3945, etc.) com metragem total somada em uma única linha
+- [x] Incluir LED BAR na contabilização de perfis (metragem total)
+- [x] Separar Fita LED (LED BAR U DA) em metros — categoria própria
+- [x] Separar Fita LED (LED BAR Perfil Flexível) em metros — categoria própria
+- [x] Módulos LED (Stripflex, Stripline, Lux Round, etc.) contabilizados por unidade (UN), não metros
+- [x] TypeScript check e testes passando

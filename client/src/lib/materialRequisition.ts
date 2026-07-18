@@ -6,8 +6,12 @@
  * Regras:
  * - Itens com mesmo código (EQ/CP) são somados
  * - Cada material deve ter código EQ, CP ou SKU de perfil
- * - A lista é ordenada por tipo (Perfis, Módulos LED, Drivers, Fontes, Lentes, ...)
- * - Perfis e fitas LED são medidos em METROS (m); demais em UNIDADES (un)
+ * - A lista é ordenada por tipo (Perfis, Fitas LED, Módulos LED, Drivers, Fontes, Lentes, ...)
+ * - Perfis são agrupados por código-base (ex: LLE-2810, LLS-3945) com metragem total
+ * - LED BAR também é contabilizado como perfil (metragem)
+ * - Fitas LED (LED BAR U DA e Perfil Flexível) são medidas em METROS (m)
+ * - Módulos LED (Stripflex, Stripline, Lux Round, etc.) são medidos em UNIDADES (un)
+ * - Drivers e demais componentes em UNIDADES (un)
  */
 
 import type { CartItemData, ProfileSegment } from "./cartTypes";
@@ -147,6 +151,27 @@ function detectTipo(descricao: string, codigo: string): MaterialTipo {
 }
 
 /**
+ * Extrai o código-base de um SKU de perfil.
+ * Ex: "LLE-2810.35F.18F" → "LLE-2810"
+ *     "LLS-3945.22I.38F" → "LLS-3945"
+ *     "LLP-6060.5ML.48F" → "LLP-6060"
+ *     "LLA-4450.3IF.18F" → "LLA-4450"
+ */
+function extractPerfilBase(sku: string): string {
+  // Padrão: 3 letras + "-" + 4 dígitos (ex: LLE-2810, LLS-3945, LLP-6060)
+  const match = sku.match(/^([A-Z]{2,3}-\d{4})/i);
+  return match ? match[1].toUpperCase() : sku.toUpperCase();
+}
+
+/**
+ * Verifica se a descrição/nome do item LED BAR indica "Perfil Flexível"
+ */
+function isPerfilFlexivel(item: CartItemData): boolean {
+  const desc = (item.description ?? "").toUpperCase();
+  return desc.includes("PERFIL FLEX") || desc.includes("PERFIL FLEXIVEL") || desc.includes("PERFIL FLEXÍVEL");
+}
+
+/**
  * Agrega todos os materiais de todos os itens do pedido.
  * Retorna lista ordenada por tipo e depois por descrição.
  *
@@ -188,27 +213,26 @@ export function buildMaterialRequisition(
 
     // ── PERFIS: profileSegments ──────────────────────────────────────────
     if (item.profileSegments && item.profileSegments.length > 0) {
-      const isStripline = item.stripMethod === "STRIPLINE";
-      const cct = item.cct ?? "";
-
       for (const seg of item.profileSegments) {
-        // 1. Perfil em metros (SKU do perfil × comprimento × qty)
+        // 1. Perfil em metros — AGRUPADO POR CÓDIGO-BASE
         if (seg.sku && seg.lengthMm > 0) {
           const totalMetros = (seg.qty * seg.lengthMm / 1000) * itemQty;
-          const perfilDesc = descMap?.get(seg.sku) ?? seg.sku;
-          add(seg.sku, perfilDesc, totalMetros, "m", "PERFIS");
+          const perfilBase = extractPerfilBase(seg.sku);
+          add(perfilBase, perfilBase, totalMetros, "m", "PERFIS");
         }
 
-        // 2. Fita LED em metros (barsPerPiece × 562,5mm por barra = metros)
+        // 2. Módulo LED (Stripflex/Stripline) — contabilizado por UNIDADE
         const ledCode = (seg as any).ledModuleCode ?? "";
         if (ledCode) {
-          // Cada barra de Stripflex = 562,5mm = 0,5625m; Stripline = 562,5mm também
-          const metroPorBarra = 0.5625;
-          const totalMetrosFita = seg.qty * seg.barsPerPiece * metroPorBarra * itemQty;
-          // Usar SEMPRE a descrição canônica da API pelo código EQ — nunca fallback estático
+          // Cada barra é 1 unidade de módulo LED
+          const totalUnidades = seg.qty * seg.barsPerPiece * itemQty;
+          // Para 36W Stripflex dupla: barras × 2 (fileira dupla)
+          const isStripflexDupla = item.stripMethod === "STRIPFLEX" && (item.power === "36" || item.power === "36W");
+          const finalUnidades = isStripflexDupla ? totalUnidades * 2 : totalUnidades;
+          // Usar SEMPRE a descrição canônica da API pelo código EQ
           const barName = descMap?.get(ledCode);
           if (!barName) continue; // Sem descrição na API: omitir
-          add(ledCode, barName, totalMetrosFita, "m", "FITAS LED");
+          add(ledCode, barName, finalUnidades, "un", "MÓDULOS LED");
         }
 
         // 3. Driver
@@ -250,6 +274,14 @@ export function buildMaterialRequisition(
 
     // ── LED BAR ──────────────────────────────────────────────────────────
     if (item.category === "LED BAR" && item.ledBarNCortes !== undefined) {
+      // LED BAR como PERFIL: contabilizar metragem do perfil agrupado por código-base
+      if (item.sku && item.ledBarComprimentoTotalMm) {
+        const totalMetros = (item.ledBarComprimentoTotalMm / 1000) * itemQty;
+        const perfilBase = extractPerfilBase(item.sku);
+        add(perfilBase, perfilBase, totalMetros, "m", "PERFIS");
+      }
+
+      // Driver do LED BAR
       if (item.ledBarDriverCode && item.ledBarDriverModel) {
         const nCortes = item.ledBarNCortes ?? 1;
         add(
@@ -260,12 +292,19 @@ export function buildMaterialRequisition(
           "FONTES DE TENSÃO"
         );
       }
-      // Fita LED do LED BAR: ledBarComprimentoTotalMm em metros
+
+      // Fita LED do LED BAR: separar LED BAR U DA vs Perfil Flexível
       if (item.moduloLed && item.ledBarComprimentoTotalMm) {
         const totalMetros = (item.ledBarComprimentoTotalMm / 1000) * itemQty;
-        // Sem código EQ disponível para fita do LED BAR — usar descrição como chave
-        const fakeCode = `FITA_LEDBAR_${item.sku ?? item.description ?? ""}`;
-        add(fakeCode, item.moduloLed, totalMetros, "m", "FITAS LED");
+        if (isPerfilFlexivel(item)) {
+          // Perfil Flexível — fita LED separada
+          const fakeCode = "FITA_LEDBAR_PERFIL_FLEXIVEL";
+          add(fakeCode, item.moduloLed, totalMetros, "m", "FITAS LED");
+        } else {
+          // LED BAR U DA — fita LED separada
+          const fakeCode = "FITA_LEDBAR_LED_BAR_U_DA";
+          add(fakeCode, item.moduloLed, totalMetros, "m", "FITAS LED");
+        }
       }
     }
 
