@@ -1164,7 +1164,7 @@ export default function QuoteDetail() {
           const unitPrice = componentePriceMap.get(drv.driverCode) ?? null;
           const totalPrice = unitPrice != null ? unitPrice * totalQty : null;
           if (totalPrice != null) totalDriverCost += totalPrice;
-          return { driverCode: drv.driverCode, driverModel: drv.driverModel, driverQty: totalQty, driverQtyPerUnit: drv.qtyPerLuminaria, driverUnitPrice: unitPrice, driverTotalPrice: totalPrice };
+          return { driverCode: drv.driverCode, driverModel: drv.driverModel, driverQty: totalQty, driverUnitPrice: unitPrice, driverTotalPrice: totalPrice };
         });
         const totalPrice = parsed.totalPrice ?? 0;
         // Fallback de preço: se não temos custo de driver da API, derivar preço da lumária do totalPrice
@@ -1194,7 +1194,6 @@ export default function QuoteDetail() {
             driverCode: acc.codigo,
             driverModel: acc.descricao,
             driverQty: totalQty,
-            driverQtyPerUnit: acc.qty ?? 1,
             driverUnitPrice: unitPrice,
             driverTotalPrice: totalPrice,
           };
@@ -1211,6 +1210,54 @@ export default function QuoteDetail() {
           luminariaHasApiPrice: true,
         };
         return { ...item, itemData: JSON.stringify(migratedParsed) };
+      }
+      // Migração 3: itens antigos de downlight/painel/spot/arandela/decorativa/balizador
+      // que têm campo `drivers` (string) mas não têm `driverLines`.
+      // Formatos: "Nx DRIVER MODELO (EQxxxxx)" ou "DRIVER MODELO (EQxxxxx)"
+      if ((!parsed.driverLines || parsed.driverLines.length === 0) && parsed.drivers && parsed.drivers.trim().length > 0) {
+        const driversStr = parsed.drivers.trim();
+        // Extrair código EQ entre parênteses
+        const eqMatch = driversStr.match(/\(([A-Z]{2}\d{4,})\)/i);
+        const eqCode = eqMatch ? eqMatch[1].toUpperCase() : null;
+        // Extrair quantidade (ex: "10x" no início)
+        const qtyMatch = driversStr.match(/^(\d+)x?\s/i);
+        const drvQtyPerUnit = qtyMatch ? parseInt(qtyMatch[1], 10) : 1;
+        // Extrair modelo: remover prefixo de quantidade, "DRIVER " e código EQ
+        let driverModel = driversStr
+          .replace(/^\d+x?\s*/i, '')   // remover prefixo "Nx "
+          .replace(/\s*\([A-Z]{2}\d{4,}\)\s*$/i, '') // remover "(EQxxxxx)" no final
+          .replace(/^DRIVER\s*/i, '')  // remover prefixo "DRIVER "
+          .trim();
+        if (!driverModel && eqCode) driverModel = eqCode;
+        if (eqCode) {
+          const itemQty = parsed.qty ?? 1;
+          const totalQty = drvQtyPerUnit * itemQty;
+          const unitPrice = componentePriceMap.get(eqCode) ?? null;
+          const totalPrice = unitPrice != null ? unitPrice * totalQty : null;
+          const driverLines: import("@/lib/cartTypes").DriverLine[] = [{
+            driverCode: eqCode,
+            driverModel,
+            driverQty: totalQty,
+            driverUnitPrice: unitPrice,
+            driverTotalPrice: totalPrice,
+          }];
+          const totalDriverCost = totalPrice ?? 0;
+          const totalPriceItem = parsed.totalPrice ?? 0;
+          const priceWithoutDriver = totalDriverCost > 0 && totalPriceItem > 0
+            ? totalPriceItem - totalDriverCost
+            : (parsed.priceWithoutDriver ?? null);
+          const unitPriceLuminaria = priceWithoutDriver != null && itemQty > 0
+            ? priceWithoutDriver / itemQty
+            : (parsed.unitPriceLuminaria ?? null);
+          const migratedParsed: CartItemData = {
+            ...parsed,
+            driverLines,
+            priceWithoutDriver: priceWithoutDriver ?? parsed.priceWithoutDriver,
+            unitPriceLuminaria: unitPriceLuminaria ?? parsed.unitPriceLuminaria,
+            luminariaHasApiPrice: unitPrice != null,
+          };
+          return { ...item, itemData: JSON.stringify(migratedParsed) };
+        }
       }
       return item;
     });
@@ -1874,7 +1921,6 @@ export default function QuoteDetail() {
                       driverCode: drv.driverCode,
                       driverModel: drv.driverModel,
                       driverQty: totalQty,
-                      driverQtyPerUnit: drv.qtyPerLuminaria,
                       driverUnitPrice: unitPrice,
                       driverTotalPrice: totalPrice,
                     };
@@ -1913,7 +1959,6 @@ export default function QuoteDetail() {
                       driverCode: acc.codigo,
                       driverModel: acc.descricao,
                       driverQty: totalQty,
-                      driverQtyPerUnit: acc.qty ?? 1,
                       driverUnitPrice: unitPrice,
                       driverTotalPrice: unitPrice * totalQty,
                     };
