@@ -1145,6 +1145,11 @@ export default function QuoteDetail() {
     const _versions: Array<{ id: string }> = (_data as { versions?: Array<{ id: string }> } | undefined)?.versions ?? [];
     const _currentVersionId = _versions[0]?.id;
     const _currentItems = _items.filter(i => i.quoteVersionId === _currentVersionId);
+    // Mapa sku -> produto da API (para fallback de driver na Migração 3)
+    const productSkuMap = new Map<string, { driverBivolt: { model: string; code: string | null } | null; driver220: { model: string; code: string | null } | null; driverQtdBivolt: number | null; driverQtd220: number | null }>();
+    for (const p of (productsQuery.data ?? []) as Array<{ sku: string; driverBivolt?: { model: string; code: string | null } | null; driver220?: { model: string; code: string | null } | null; driverQtdBivolt?: number | null; driverQtd220?: number | null }>) {
+      if (p.sku) productSkuMap.set(p.sku, { driverBivolt: p.driverBivolt ?? null, driver220: p.driver220 ?? null, driverQtdBivolt: p.driverQtdBivolt ?? null, driverQtd220: p.driverQtd220 ?? null });
+    }
     return _currentItems.map(item => {
       const parsed = parseCartItemData(item.itemData as string);
       if (!parsed) return item;
@@ -1257,14 +1262,35 @@ export default function QuoteDetail() {
         if (!driverModel && eqCode) driverModel = eqCode;
         // Sempre preferir a descrição canônica da API sobre a string legada
         if (eqCode && componenteDescMap.has(eqCode)) driverModel = componenteDescMap.get(eqCode)!;
-        if (eqCode) {
+        // Fallback: se não há eqCode extraível (ex: "1x DRIVER"), buscar da API pelo SKU
+        const resolvedEqCode = eqCode ?? (() => {
+          const apiProd = parsed.sku ? productSkuMap.get(parsed.sku) : null;
+          if (!apiProd) return null;
+          const drvInfo = apiProd.driverBivolt ?? apiProd.driver220;
+          return drvInfo?.code ?? null;
+        })();
+        const resolvedDrvQtyPerUnit = eqCode ? drvQtyPerUnit : (() => {
+          const apiProd = parsed.sku ? productSkuMap.get(parsed.sku) : null;
+          if (!apiProd) return 1;
+          return apiProd.driverQtdBivolt ?? apiProd.driverQtd220 ?? 1;
+        })();
+        const resolvedDriverModel = eqCode ? driverModel : (() => {
+          const apiProd = parsed.sku ? productSkuMap.get(parsed.sku) : null;
+          if (!apiProd) return driverModel;
+          const drvInfo = apiProd.driverBivolt ?? apiProd.driver220;
+          if (!drvInfo) return driverModel;
+          const code = drvInfo.code;
+          if (code && componenteDescMap.has(code)) return componenteDescMap.get(code)!;
+          return drvInfo.model ?? driverModel;
+        })();
+        if (resolvedEqCode) {
           const itemQty = parsed.qty ?? 1;
-          const totalQty = drvQtyPerUnit * itemQty;
-          const unitPrice = componentePriceMap.get(eqCode) ?? null;
+          const totalQty = resolvedDrvQtyPerUnit * itemQty;
+          const unitPrice = componentePriceMap.get(resolvedEqCode) ?? null;
           const totalPrice = unitPrice != null ? unitPrice * totalQty : null;
           const driverLines: import("@/lib/cartTypes").DriverLine[] = [{
-            driverCode: eqCode,
-            driverModel,
+            driverCode: resolvedEqCode,
+            driverModel: resolvedDriverModel,
             driverQty: totalQty,
             driverUnitPrice: unitPrice,
             driverTotalPrice: totalPrice,
@@ -1289,7 +1315,7 @@ export default function QuoteDetail() {
       }
       return item;
     });
-  }, [data, componentePriceMap, componenteDescMap]);
+  }, [data, componentePriceMap, componenteDescMap, productsQuery.data]);
 
   if (isLoading) {
     return (
