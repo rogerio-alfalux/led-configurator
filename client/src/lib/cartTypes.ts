@@ -488,3 +488,69 @@ export function parseCartItemData(json: string): CartItemData | null {
 export function formatBRL(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
+
+/**
+ * Normaliza o driverModel de todos os campos de um CartItemData usando a descrição
+ * canônica da API de componentes (mapa código EQ → descrição).
+ *
+ * Aplica-se a:
+ *  - driverLines[].driverModel
+ *  - profileSegments[].driverModel
+ *  - ledBarDriverModel
+ *
+ * Retorna o mesmo objeto se nenhuma alteração for necessária (referência estável).
+ */
+export function normalizeDriverModels(
+  item: CartItemData,
+  descMap: Map<string, string>
+): CartItemData {
+  if (descMap.size === 0) return item;
+
+  let changed = false;
+
+  // 1. driverLines
+  let newDriverLines = item.driverLines;
+  if (item.driverLines && item.driverLines.length > 0) {
+    let dlChanged = false;
+    const normalized = item.driverLines.map(dl => {
+      if (!dl.driverCode) return dl;
+      const canonical = descMap.get(dl.driverCode);
+      if (!canonical || canonical === dl.driverModel) return dl;
+      dlChanged = true;
+      return { ...dl, driverModel: canonical };
+    });
+    if (dlChanged) { newDriverLines = normalized; changed = true; }
+  }
+
+  // 2. profileSegments
+  let newProfileSegments = item.profileSegments;
+  if (item.profileSegments && item.profileSegments.length > 0) {
+    let segChanged = false;
+    const normalized = item.profileSegments.map(seg => {
+      if (!seg.driverCode) return seg;
+      const canonical = descMap.get(seg.driverCode);
+      if (!canonical || canonical === seg.driverModel) return seg;
+      segChanged = true;
+      return { ...seg, driverModel: canonical };
+    });
+    if (segChanged) { newProfileSegments = normalized; changed = true; }
+  }
+
+  // 3. ledBarDriverModel
+  let newLedBarDriverModel = item.ledBarDriverModel;
+  if (item.ledBarDriverCode) {
+    const canonical = descMap.get(item.ledBarDriverCode);
+    if (canonical && canonical !== item.ledBarDriverModel) {
+      newLedBarDriverModel = canonical;
+      changed = true;
+    }
+  }
+
+  if (!changed) return item;
+  return {
+    ...item,
+    driverLines: newDriverLines,
+    profileSegments: newProfileSegments,
+    ledBarDriverModel: newLedBarDriverModel,
+  };
+}

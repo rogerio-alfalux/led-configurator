@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { trpc } from "@/lib/trpc";
-import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, formatBRL } from "@/lib/cartTypes";
+import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, formatBRL, normalizeDriverModels } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
@@ -736,6 +736,15 @@ export default function FactoryOrderDetail() {
 
   // Acessórios
   const { data: acessoriosData = [] } = trpc.alfalux.acessoriosProducts.useQuery();
+  /** Mapa código EQ -> descrição canônica da API (para normalizar driverModel) */
+  const { data: componentesData } = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const componenteDescMapFO = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of componentesData?.items ?? []) {
+      if (c.codigo && c.descricao) map.set(c.codigo, c.descricao);
+    }
+    return map;
+  }, [componentesData]);
 
   // Mutations
   const createOrderMutation = trpc.factoryOrders.create.useMutation({
@@ -887,7 +896,8 @@ export default function FactoryOrderDetail() {
       const { displayDays, deliveryDateStr } = await calcDeliveryDate(approvedAtIso, deliveryDays);
       const itemsData = orderToUse.items
         .map(i => parseCartItemData(i.itemData))
-        .filter((d): d is CartItemData => d !== null);
+        .filter((d): d is CartItemData => d !== null)
+        .map(d => normalizeDriverModels(d, componenteDescMapFO));
       const fileName = `PEDIDO-FABRICA-${orderNum}-${quote.clientName.replace(/\s+/g, "_")}.xlsx`;
       const buffer = await generateOrderExcel(itemsData, {
         clientName: quote.clientName,
@@ -1092,7 +1102,8 @@ export default function FactoryOrderDetail() {
                     const { displayDays, deliveryDateStr } = await calcDeliveryDate(approvedAtIso, deliveryDays);
                     const items = currentOrder.items
                       .map(i => parseCartItemData(i.itemData))
-                      .filter((d): d is CartItemData => d !== null);
+                      .filter((d): d is CartItemData => d !== null)
+                      .map(d => normalizeDriverModels(d, componenteDescMapFO));
                     setPreviewItems(items);
                     setPreviewForm({
                       clientName: quote.clientName,
