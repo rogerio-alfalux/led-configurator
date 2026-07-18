@@ -1169,6 +1169,11 @@ export default function QuoteDetail() {
       if ((p.categoria ?? "").toUpperCase() === "PERFIS" && p.name) {
         const powerLabel = extractPowerLabelFromName(p.name);
         productSkuMap.set(`${p.sku}|${powerLabel}`, entry);
+        // Indexar LED BAR por sku|potenciaW/m (ex: "LED BAR U DA|5W/m")
+        const potMatch = (p.name ?? "").match(/(\d+)\s*W\/M/i);
+        if (potMatch) {
+          productSkuMap.set(`${p.sku}|${potMatch[1]}W/m`, entry);
+        }
       }
     }
     return _currentItems.map(item => {

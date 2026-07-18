@@ -795,6 +795,11 @@ export default function FactoryOrderDetail() {
       if ((p.categoria ?? "").toUpperCase() === "PERFIS" && p.name) {
         const powerLabel = extractPowerLabelFromName(p.name);
         map.set(`${p.sku}|${powerLabel}`, entry);
+        // Indexar LED BAR por sku|potenciaW/m (ex: "LED BAR U DA|5W/M")
+        const potMatch = (p.name ?? "").match(/(\d+)\s*W\/M/i);
+        if (potMatch) {
+          map.set(`${p.sku}|${potMatch[1]}W/m`, entry);
+        }
       }
     }
     return map;
