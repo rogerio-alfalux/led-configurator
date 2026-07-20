@@ -1027,7 +1027,7 @@ ${htmlContent}
                   )}
                   {formData.difalEnabled && difalAplicavel && (
                     <tr>
-                      <td style={{ fontWeight: "bold" }}>{freteParaDiluir > 0 ? "TOTAL GERAL (com DIFAL/FCP, frete incl.):" : "TOTAL GERAL (com DIFAL/FCP, sem frete):"}</td>
+                      <td style={{ fontWeight: "bold" }}>TOTAL GERAL (com FRETE + DIFAL/FCP):</td>
                       <td>
                         <span style={{ background: "#FCE4D6", fontWeight: "bold", fontSize: 14, padding: "4px 12px", border: "2px solid #444", display: "inline-block" }}>
                           {formatBRL(totalComDifal)}

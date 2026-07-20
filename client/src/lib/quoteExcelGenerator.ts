@@ -1407,11 +1407,7 @@ async function _generateExcelBuffer(
       const c = ws.getCell(`C${nextRow}`);
       // Quando há frete pago não-diluído, ele já entra na base do DIFAL (baseParaImposto = totalFinal + freteValue)
       const _temFretePagoNaBase = _freteParaImpostoBase > 0;
-      c.value = formData.freteIncluded && _freteParaDiluir > 0
-        ? "TOTAL GERAL\n(com DIFAL/FCP, frete incluído):"
-        : _temFretePagoNaBase
-          ? "TOTAL GERAL\n(com DIFAL/FCP + frete):"
-          : "TOTAL GERAL\n(com DIFAL/FCP, sem frete):";
+      c.value = "TOTAL GERAL\n(com FRETE + DIFAL/FCP):";
       c.font = { name: "Calibri", size: 12, bold: true };
       c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
     }

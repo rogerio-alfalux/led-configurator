@@ -477,7 +477,7 @@ async function _generatePdfBlob(
     addRow(`FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%):`, fmtBRL(fcpAmt), { bgColor: TOTAL_BG_RGB });
   }
   if (difalAmt > 0 || fcpAmt > 0) {
-    addRow("TOTAL (com DIFAL/FCP):", fmtBRL(totalComDifal), { bgColor: TOTAL_BG_RGB, bold: true, fontSize: 12 });
+    addRow("TOTAL GERAL (com FRETE + DIFAL/FCP):", fmtBRL(totalComDifal), { bgColor: TOTAL_BG_RGB, bold: true, fontSize: 12 });
   }
 
   // Condição de pagamento
