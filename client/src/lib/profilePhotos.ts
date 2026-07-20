@@ -24,6 +24,7 @@ const PROFILE_PHOTOS_SIMPLE: Record<string, string> = {
   "LLA-3395": `${CDN}/wCZvbpprpyHYWvxc.png`, // HIT Arandela
   // EASY H PLUS
   "LLP-4450": `${CDN}/TtwikAuQTlPNptHP.png`, // EASY H PLUS Pendente
+  "LLA-4450": `${CDN}/TtwikAuQTlPNptHP.png`, // EASY H PLUS Arandela (mesma foto do Pendente — EASYHPLUSP)
   // EASY PRIME
   "LLE-2580": `${CDN}/kqvDoVsaaZDHYCwT.png`, // EASY PRIME Embutir
   // SKYLINE
