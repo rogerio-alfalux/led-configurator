@@ -37,10 +37,9 @@ function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, stri
   const totals = new Map<string, { qty: number; eqCode: string | null; name: string }>();
   for (const seg of item.profileSegments) {
     const eqCode = (seg as any).ledModuleCode ?? null;
-    // Usar SEMPRE a descrição canônica da API pelo código EQ — nunca fallback estático
+    // Preferência: descrição canônica da API pelo código EQ; fallback: item.moduloLed ou eqCode
     const apiDesc = eqCode ? descMap?.get(eqCode) : undefined;
-    if (!apiDesc) continue; // Sem EQ ou sem descrição na API: omitir
-    const barName = apiDesc;
+    const barName = apiDesc ?? item.moduloLed ?? eqCode ?? "Módulo LED";
     const mapKey = eqCode ?? barName;
     const totalBars = seg.qty * seg.barsPerPiece * itemQty;
     const existing = totals.get(mapKey);

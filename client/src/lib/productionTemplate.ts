@@ -9,10 +9,11 @@ import type { CompositionResult, SkuDriverEntry } from "./ledEngine";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getBarName(stripMethod: string, _cct: string, stripflexName?: string): string {
+function getBarName(stripMethod: string, _cct: string, stripflexName?: string, stripflexEq?: string | null): string {
   // Usar SEMPRE o nome canônico da API (result.stripflexName) que já inclui CCT.
   // O ledEngine resolve o nome correto baseado no stripMethod + CCT + dados da API.
-  return stripflexName || `(módulo LED não identificado)`;
+  const name = stripflexName || `(módulo LED não identificado)`;
+  return stripflexEq ? `${name} (${stripflexEq})` : name;
 }
 
 function buildMountingNotes(result: CompositionResult): string[] {
@@ -54,7 +55,7 @@ function buildModuleBlock(
   label?: string
 ): string {
   const lines: string[] = [];
-  const barName = getBarName(result.stripMethod, result.cct, result.stripflexName);
+  const barName = getBarName(result.stripMethod, result.cct, result.stripflexName, result.stripflexEq);
 
   lines.push(`Módulo: ${sku}${label ? ` [${label}]` : ""}`);
   lines.push(`Comprimento: ${length}mm`);

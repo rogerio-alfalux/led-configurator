@@ -2108,3 +2108,8 @@
 - [x] Fita LED unificada em um único item por código EQ da API (metragem total somada)
 - [x] Módulos LED (Stripflex, Stripline, Lux Round, etc.) contabilizados por unidade (UN), não metros
 - [x] TypeScript check e testes passando
+
+## Ficha de Produção — Código EQ/CP entre parênteses
+- [ ] Módulo LED: mostrar descrição + (EQ00XXX) na Ficha de Produção
+- [ ] Drivers/fontes: mostrar descrição + (EQ/CP) na Ficha de Produção
+- [ ] Todos os equipamentos e fontes de luz: usar EQ ou CP conforme o tipo
