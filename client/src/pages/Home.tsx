@@ -6780,6 +6780,8 @@ export default function Home() {
                       const [_dlCtrlSku, ..._dlCtrlNameParts] = (dlProductKey ?? '::').split('::');
                       const _dlCtrlName = _dlCtrlNameParts.join('::');
                       const dlSelProdCtrl = activeDlCatalog.find(p => p.sku === _dlCtrlSku && p.name === _dlCtrlName);
+                      // Produto sem driver: não exibir controle
+                      if (dlSelProdCtrl?.semDriver) return null;
                       const hasDim110v = dlSelProdCtrl?.driverDim110v != null;
                       const hasDimDali = dlSelProdCtrl?.driverDimDali != null;
                       const hasDimTriac110v = (dlSelProdCtrl as any)?.driverDimTriac110v != null;
@@ -6834,6 +6836,8 @@ export default function Home() {
                       const [_dlVSku, ..._dlVNameParts] = (dlProductKey ?? '::').split('::');
                       const _dlVName = _dlVNameParts.join('::');
                       const dlSelProdV = activeDlCatalog.find(p => p.sku === _dlVSku && p.name === _dlVName);
+                      // Produto sem driver: não exibir tensão
+                      if (dlSelProdV?.semDriver) return null;
                       // Verificar se o driver DIM selecionado suporta bivolt
                       const dlDimDrv = dlControle === 'DIM DALI' ? dlSelProdV?.driverDimDali : dlControle === 'DIM 1-10V' ? dlSelProdV?.driverDim110v : null;
                       const dlDimBivolt = dlDimDrv != null && /bivolt/i.test(dlDimDrv.model);
@@ -8079,7 +8083,7 @@ export default function Home() {
                 )}
                 {dlProductKey !== null && !dlVoltage && (() => {
                   const dlSelProd2 = activeDlCatalog.find(p => { const [s, ...np] = (dlProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
-                  if (dlSelProd2?.isLamp) return null;
+                  if (dlSelProd2?.isLamp || dlSelProd2?.semDriver) return null;
                   return (
                     <p className="text-xs text-amber-500 flex items-center gap-1.5">
                       <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
@@ -8089,14 +8093,14 @@ export default function Home() {
                 <Button
                   disabled={dlProductKey === null || (() => {
                     const dlSelProd3 = activeDlCatalog.find(p => { const [s, ...np] = (dlProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
-                    return !dlSelProd3?.isLamp && !dlVoltage;
+                    return !dlSelProd3?.isLamp && !dlSelProd3?.semDriver && !dlVoltage;
                   })()}
                   onClick={() => {
                     if (dlProductKey === null) return;
                     const [dlSku, ...dlNameParts] = (dlProductKey ?? '::').split('::');
                     const dlName = dlNameParts.join('::');
                     const dlSelProd4 = activeDlCatalog.find(p => p.sku === dlSku && p.name === dlName);
-                    const tensaoToUse = (dlSelProd4?.isLamp ? "220V" : dlVoltage) as "220V" | "Bivolt";
+                    const tensaoToUse = (dlSelProd4?.isLamp || dlSelProd4?.semDriver ? "220V" : dlVoltage) as "220V" | "Bivolt";
                     if (!tensaoToUse) return;
                     setDlResult(calculateDownlight({ productSku: dlSku, productName: dlName, tensao: tensaoToUse, cct: dlCCT, controle: dlControle }, activeDlCatalog));
                   }}
