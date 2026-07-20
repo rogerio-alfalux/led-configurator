@@ -4751,10 +4751,7 @@ export default function Home() {
                   </button>
                 </div>
 
-                {/* ── Painel de Edição de Custo de Drivers (apenas Vivian) ── */}
-                {isVivian && (
-                  <DriverPriceEditor knownDrivers={knownDrivers} />
-                )}
+                {/* Painel de Edição de Custo de Drivers removido da visualização */}
 
                 {productCategory === "Perfis" && (
                 <React.Fragment>
