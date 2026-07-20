@@ -1069,24 +1069,34 @@ ${htmlContent}
                           {buildFreteText(formData, totalFinal)}
                         </td>
                       </tr>
-                      {formData.freteValue && formData.freteValue > 0 && !formData.freteIsento && (
-                        <>
-                          <tr>
-                            <td style={{ fontWeight: "bold" }}>Valor do frete:</td>
-                            <td style={{ fontWeight: "bold", color: "#CC0000" }}>
-                              {formatBRL(formData.freteValue)}
-                            </td>
-                          </tr>
-                          <tr>
-                            <td style={{ fontWeight: "bold" }}>TOTAL GERAL (produtos + frete):</td>
-                            <td>
-                              <span style={{ background: "#D9EAD3", fontWeight: "bold", fontSize: 14, padding: "4px 12px", border: "2px solid #444", display: "inline-block" }}>
-                                {formatBRL((formData.difalEnabled && difalAplicavel ? totalComDifal : totalFinal) + formData.freteValue)}
-                              </span>
-                            </td>
-                          </tr>
-                        </>
-                      )}
+                      {formData.freteValue && formData.freteValue > 0 && !formData.freteIsento && (() => {
+                        // Quando DIFAL está ativo, totalComDifal já inclui o frete na base de cálculo
+                        // (baseParaImpostoPreview = totalFinal + freteValue). Não somar frete novamente.
+                        const _difalAtivoComFrete = formData.difalEnabled && difalAplicavel && _freteParaImpostoPreview > 0;
+                        const totalGeralPreview = _difalAtivoComFrete
+                          ? totalComDifal
+                          : (formData.difalEnabled && difalAplicavel ? totalComDifal : totalFinal) + formData.freteValue;
+                        return (
+                          <>
+                            <tr>
+                              <td style={{ fontWeight: "bold" }}>Valor do frete:</td>
+                              <td style={{ fontWeight: "bold", color: "#CC0000" }}>
+                                {formatBRL(formData.freteValue)}
+                              </td>
+                            </tr>
+                            {!_difalAtivoComFrete && (
+                              <tr>
+                                <td style={{ fontWeight: "bold" }}>TOTAL GERAL (produtos + frete):</td>
+                                <td>
+                                  <span style={{ background: "#D9EAD3", fontWeight: "bold", fontSize: 14, padding: "4px 12px", border: "2px solid #444", display: "inline-block" }}>
+                                    {formatBRL(totalGeralPreview)}
+                                  </span>
+                                </td>
+                              </tr>
+                            )}
+                          </>
+                        );
+                      })()}
                     </>
                   )}
                   {/* Frete diluído: informação interna — não exibir para o cliente */}

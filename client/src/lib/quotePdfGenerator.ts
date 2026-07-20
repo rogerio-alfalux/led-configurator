@@ -492,10 +492,15 @@ async function _generatePdfBlob(
   });
 
   // Valor do frete + total geral
+  // Quando DIFAL está ativo, totalComDifal já inclui o frete na base de cálculo
+  // (baseParaImposto = totalFinal + freteParaBase). Não somar frete novamente.
+  const _difalAtivoComFretePdf = formData.difalEnabled && difalAplicavel && freteParaBase > 0;
   if (freteValorNum > 0) {
     addRow("Valor do frete:", fmtBRL(freteValorNum), { valueColor: RED_RGB, bold: true });
-    const totalGeral = (formData.difalEnabled && difalAplicavel ? totalComDifal : totalFinal) + freteValorNum;
-    addRow("TOTAL GERAL (produtos + frete):", fmtBRL(totalGeral), { bgColor: [217, 234, 211], bold: true, fontSize: 12 });
+    if (!_difalAtivoComFretePdf) {
+      const totalGeral = (formData.difalEnabled && difalAplicavel ? totalComDifal : totalFinal) + freteValorNum;
+      addRow("TOTAL GERAL (produtos + frete):", fmtBRL(totalGeral), { bgColor: [217, 234, 211], bold: true, fontSize: 12 });
+    }
   }
 
   // Observação
