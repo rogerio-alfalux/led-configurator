@@ -630,8 +630,6 @@ export function migrateItemDrivers(
     const hasCctKey = ["2700", "3000", "4000", "5000"].includes(cctKey);
     let anyChanged = false;
     const newSegments = item.profileSegments.map(seg => {
-      // Se já tem ledModuleCode preenchido, manter
-      if (seg.ledModuleCode) return seg;
       // Buscar produto correto: chave composta sku|powerLabel
       const product = productSkuMap.get(`${seg.sku}|${powerLabel}`) ?? productSkuMap.get(seg.sku);
       if (!product) return seg;
@@ -643,7 +641,8 @@ export function migrateItemDrivers(
         // CCT "A definir" ou inválida: usar EQ genérico
         correctEq = product.ledModuleEq ?? product.ledModuleEq3000 ?? product.ledModuleEq4000 ?? null;
       }
-      if (correctEq) {
+      // SEMPRE sobrescrever com o EQ correto da API (baseado na potência real do item)
+      if (correctEq && correctEq !== seg.ledModuleCode) {
         anyChanged = true;
         return { ...seg, ledModuleCode: correctEq };
       }
