@@ -3815,6 +3815,33 @@ export function calculateDownlight(input: DownlightInput, catalog?: DownlightPro
       holderEq: null,
     };
   }
+  // Produto sem driver (peça avulsa): retornar resultado sem driver, usando módulo LED e CCT normalmente
+  if (!driver && product.semDriver) {
+    const cctKey = (input.cct ?? "").replace("K", "") as "2700" | "3000" | "4000" | "5000";
+    const cctModuleField = `ledModule${cctKey}` as keyof typeof product;
+    const cctModuleQtdField = `ledModuleQtd${cctKey}` as keyof typeof product;
+    const cctEqField = `ledModuleEq${cctKey}` as keyof typeof product;
+    const cctSpecificModule = product[cctModuleField] as string | null | undefined;
+    const cctSpecificQtd = product[cctModuleQtdField] as number | null | undefined;
+    const ledModuleWithCCT = cctSpecificModule
+      ? cctSpecificModule.replace(/\[CCT\]/gi, input.cct).trim()
+      : product.ledModule ? product.ledModule + " " + input.cct : "";
+    return {
+      product,
+      tensao: (product.tensaoEmbutida ?? input.tensao) as "220V" | "Bivolt",
+      cct: input.cct,
+      controle: input.controle,
+      driver: { model: "", code: "" },
+      ledModuleWithCCT,
+      ledModuleQtd: cctSpecificQtd ?? product.ledModuleQtd ?? null,
+      ledModuleEq: (product[cctEqField] as string | null | undefined) ?? product.ledModuleEq ?? null,
+      oticaEq: product.oticaEq ?? null,
+      oticaPrimariaEq: product.oticaPrimariaEq ?? null,
+      oticaSecundariaEq: product.oticaSecundariaEq ?? null,
+      dissipadorEq: product.dissipadorEq ?? null,
+      holderEq: product.holderEq ?? null,
+    };
+  }
   if (!driver) return null;
 
   // Produto RGBW: usar ledModule diretamente sem adicionar CCT
