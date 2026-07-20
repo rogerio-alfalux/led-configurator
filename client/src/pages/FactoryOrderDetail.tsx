@@ -202,11 +202,12 @@ interface EditableItemProps {
   acessorios: Array<{ codigo: string | null; produto: string | null; familia: string | null; dimensao: string | null; precoVenda: number | null; fotoUrl: string | null }>;
   onUpdate: (itemId: number, newData: CartItemData) => void;
   onRemove: (itemId: number) => void;
-  /** Mapa código EQ -> descrição canônica da API (para normalizar módulos LED) */
+    /** Mapa código EQ -> descrição canônica da API (para normalizar módulos LED) */
   descMap?: Map<string, string>;
+  /** Mapa código EQ -> corrente de programação (para Migração 6) */
+  correnteMap?: Map<string, string | null>;
 }
-
-function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, priceMap, productSkuMap }: EditableItemProps) {
+function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, priceMap, productSkuMap, correnteMap }: EditableItemProps) {
   const [expanded, setExpanded] = useState(true);
   const [showAcessorioModal, setShowAcessorioModal] = useState(false);
   const [acessorioSearch, setAcessorioSearch] = useState("");
@@ -216,8 +217,8 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
   const parsed = useMemo(() => {
     const raw = parseCartItemData(item.itemData);
     if (!raw || !priceMap || !productSkuMap) return raw;
-    return migrateItemDrivers(raw, priceMap, descMap ?? new Map(), productSkuMap);
-  }, [item.itemData, priceMap, productSkuMap, descMap]);
+    return migrateItemDrivers(raw, priceMap, descMap ?? new Map(), productSkuMap, correnteMap);
+  }, [item.itemData, priceMap, productSkuMap, descMap, correnteMap]);
   if (!parsed) return null;
 
   const update = (fields: Partial<CartItemData>) => {
@@ -769,6 +770,14 @@ export default function FactoryOrderDetail() {
     }
     return map;
   }, [componentesData]);
+  /** Corrente de programação de componentes (EQ code → corrente, ex: "350MA") */
+  const componenteCorrenteMapFO = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const c of componentesData?.items ?? []) {
+      if (c.codigo) map.set(c.codigo, (c as unknown as { corrente?: string | null }).corrente ?? null);
+    }
+    return map;
+  }, [componentesData]);
   /** Produtos da API para fallback de driver (SKU → driver info) e resolução de ledModuleCode (Migração 4) */
   const { data: allProductsFO } = trpc.alfalux.products.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const productSkuMapFO = useMemo(() => {
@@ -955,7 +964,7 @@ export default function FactoryOrderDetail() {
       const itemsData = orderToUse.items
         .map(i => parseCartItemData(i.itemData))
         .filter((d): d is CartItemData => d !== null)
-        .map(d => migrateItemDrivers(d, componentePriceMapFO, componenteDescMapFO, productSkuMapFO));
+        .map(d => migrateItemDrivers(d, componentePriceMapFO, componenteDescMapFO, productSkuMapFO, componenteCorrenteMapFO));
       const fileName = `PEDIDO-FABRICA-${orderNum}-${quote.clientName.replace(/\s+/g, "_")}.xlsx`;
       const buffer = await generateOrderExcel(itemsData, {
         clientName: quote.clientName,
@@ -1161,7 +1170,7 @@ export default function FactoryOrderDetail() {
                     const items = currentOrder.items
                       .map(i => parseCartItemData(i.itemData))
                       .filter((d): d is CartItemData => d !== null)
-                      .map(d => migrateItemDrivers(d, componentePriceMapFO, componenteDescMapFO, productSkuMapFO));
+                      .map(d => migrateItemDrivers(d, componentePriceMapFO, componenteDescMapFO, productSkuMapFO, componenteCorrenteMapFO));
                     setPreviewItems(items);
                     setPreviewForm({
                       clientName: quote.clientName,
@@ -1465,6 +1474,7 @@ export default function FactoryOrderDetail() {
                           descMap={componenteDescMapFO}
                           priceMap={componentePriceMapFO}
                           productSkuMap={productSkuMapFO}
+                          correnteMap={componenteCorrenteMapFO}
                         />
                       ))
                     )}

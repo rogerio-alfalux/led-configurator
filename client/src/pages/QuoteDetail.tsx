@@ -857,6 +857,14 @@ export default function QuoteDetail() {
     }
     return map;
   }, [componentesQuery.data]);
+  /** Mapa código EQ -> corrente de programação (Migração 6) */
+  const componenteCorrenteMap = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const c of componentesQuery.data?.items ?? []) {
+      if (c.codigo) map.set(c.codigo, (c as unknown as { corrente?: string | null }).corrente ?? null);
+    }
+    return map;
+  }, [componentesQuery.data]);
   /** Mapa sku -> fotoUrl fresca para substituir URLs expiradas no preview/Excel.
    * Cobre: produtos principais (Downlights, Painéis, Spots, etc.),
    * produtos de revenda (RV*) e acessórios (EQ*, CP*). */
@@ -1204,21 +1212,51 @@ export default function QuoteDetail() {
           }
         }
       }
-      // Normalização 0: itens que já têm driverLines mas com driverModel desatualizado
-      // Sempre sobrescrever driverModel com a descrição canônica da API pelo código EQ
+      // Normalização 0 + Migração 6: itens que já têm driverLines
+      // Normalizar driverModel E enriquecer corrente via componenteCorrenteMap quando ausente
       if (parsed.driverLines && parsed.driverLines.length > 0) {
-        const needsNorm = parsed.driverLines.some(dl =>
+        let enrichedParsed: CartItemData = parsed;
+        // Migração 6: preencher corrente ausente nas driverLines
+        const needsCorrenteEnrich = parsed.driverLines.some(
+          dl => dl.driverCode && (dl.corrente == null || dl.corrente === "") && componenteCorrenteMap.has(dl.driverCode) && componenteCorrenteMap.get(dl.driverCode) != null
+        );
+        if (needsCorrenteEnrich) {
+          const enrichedLines = parsed.driverLines.map(dl => {
+            if (!dl.driverCode || (dl.corrente != null && dl.corrente !== "")) return dl;
+            const corrente = componenteCorrenteMap.get(dl.driverCode);
+            if (corrente == null) return dl;
+            return { ...dl, corrente };
+          });
+          enrichedParsed = { ...enrichedParsed, driverLines: enrichedLines };
+        }
+        // Migração 6: preencher corrente ausente nos profileSegments
+        if (enrichedParsed.profileSegments && enrichedParsed.profileSegments.length > 0) {
+          const needsSegCorrenteEnrich = enrichedParsed.profileSegments.some(
+            seg => seg.driverCode && (seg.corrente == null || seg.corrente === "") && componenteCorrenteMap.has(seg.driverCode) && componenteCorrenteMap.get(seg.driverCode) != null
+          );
+          if (needsSegCorrenteEnrich) {
+            const enrichedSegs = enrichedParsed.profileSegments.map(seg => {
+              if (!seg.driverCode || (seg.corrente != null && seg.corrente !== "")) return seg;
+              const corrente = componenteCorrenteMap.get(seg.driverCode);
+              if (corrente == null) return seg;
+              return { ...seg, corrente };
+            });
+            enrichedParsed = { ...enrichedParsed, profileSegments: enrichedSegs };
+          }
+        }
+        // Normalização 0: normalizar driverModel
+        const needsNorm = enrichedParsed.driverLines!.some(dl =>
           dl.driverCode && componenteDescMap.has(dl.driverCode) &&
           componenteDescMap.get(dl.driverCode) !== dl.driverModel
         );
-        if (needsNorm) {
-          const normalizedLines = parsed.driverLines.map(dl => {
+        if (needsNorm || enrichedParsed !== parsed) {
+          const normalizedLines = enrichedParsed.driverLines!.map(dl => {
             if (!dl.driverCode) return dl;
             const canonicalModel = componenteDescMap.get(dl.driverCode);
             if (!canonicalModel || canonicalModel === dl.driverModel) return dl;
             return { ...dl, driverModel: canonicalModel };
           });
-          const normalizedParsed: CartItemData = { ...parsed, driverLines: normalizedLines };
+          const normalizedParsed: CartItemData = { ...enrichedParsed, driverLines: normalizedLines };
           return { ...item, itemData: JSON.stringify(normalizedParsed) };
         }
       }
@@ -1246,7 +1284,8 @@ export default function QuoteDetail() {
           const unitPrice = componentePriceMap.get(drv.driverCode) ?? null;
           const totalPrice = unitPrice != null ? unitPrice * totalQty : null;
           if (totalPrice != null) totalDriverCost += totalPrice;
-          return { driverCode: drv.driverCode, driverModel: componenteDescMap.get(drv.driverCode) ?? drv.driverModel, driverQty: totalQty, driverUnitPrice: unitPrice, driverTotalPrice: totalPrice };
+          const corrente = componenteCorrenteMap.get(drv.driverCode) ?? null;
+          return { driverCode: drv.driverCode, driverModel: componenteDescMap.get(drv.driverCode) ?? drv.driverModel, driverQty: totalQty, driverUnitPrice: unitPrice, driverTotalPrice: totalPrice, ...(corrente ? { corrente } : {}) };
         });
         const totalPrice = parsed.totalPrice ?? 0;
         // Fallback de preço: se não temos custo de driver da API, derivar preço da lumária do totalPrice
@@ -1272,12 +1311,14 @@ export default function QuoteDetail() {
           const unitPrice = componentePriceMap.get(acc.codigo)!;
           const totalQty = (acc.qty ?? 1) * itemQty;
           const totalPrice = unitPrice * totalQty;
+          const corrente = componenteCorrenteMap.get(acc.codigo) ?? null;
           return {
             driverCode: acc.codigo,
             driverModel: componenteDescMap.get(acc.codigo) ?? acc.descricao,
             driverQty: totalQty,
             driverUnitPrice: unitPrice,
             driverTotalPrice: totalPrice,
+            ...(corrente ? { corrente } : {}),
           };
         });
         const totalDriverCost = driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
@@ -1339,12 +1380,14 @@ export default function QuoteDetail() {
           const totalQty = resolvedDrvQtyPerUnit * itemQty;
           const unitPrice = componentePriceMap.get(resolvedEqCode) ?? null;
           const totalPrice = unitPrice != null ? unitPrice * totalQty : null;
+          const corrente3 = componenteCorrenteMap.get(resolvedEqCode) ?? null;
           const driverLines: import("@/lib/cartTypes").DriverLine[] = [{
             driverCode: resolvedEqCode,
             driverModel: resolvedDriverModel,
             driverQty: totalQty,
             driverUnitPrice: unitPrice,
             driverTotalPrice: totalPrice,
+            ...(corrente3 ? { corrente: corrente3 } : {}),
           }];
           const totalDriverCost = totalPrice ?? 0;
           const totalPriceItem = parsed.totalPrice ?? 0;
@@ -1366,7 +1409,7 @@ export default function QuoteDetail() {
       }
       return item;
     });
-  }, [data, componentePriceMap, componenteDescMap, productsQuery.data]);
+  }, [data, componentePriceMap, componenteDescMap, componenteCorrenteMap, productsQuery.data]);
 
   if (isLoading) {
     return (

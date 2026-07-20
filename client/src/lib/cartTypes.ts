@@ -603,13 +603,14 @@ export function extractPowerLabelFromName(name: string): string {
 }
 
 /**
- * Aplica as Migrações 1, 2 e 3 em um CartItemData bruto (sem driverLines),
+ * Aplica as Migrações 1, 2, 3 e 6 em um CartItemData bruto (sem driverLines),
  * retornando um novo objeto com driverLines preenchidas quando possível.
  *
  * - Migração 1: itens com profileSegments+driverCode
  * - Migração 2: itens com accessories contendo drivers (EQ*)
  * - Migração 3: itens com campo `drivers` (string legada), com fallback via API de produtos
  *   Preferência: driver220 primeiro, se null usa driverBivolt
+ * - Migração 6: enriquecer corrente em driverLines e profileSegments existentes via correnteMap
  *
  * Também aplica normalizeDriverModels (descrição canônica da API de componentes).
  */
@@ -618,6 +619,7 @@ export function migrateItemDrivers(
   priceMap: Map<string, number>,
   descMap: Map<string, string>,
   productSkuMap: Map<string, ApiProductDriverInfo>,
+  correnteMap?: Map<string, string | null>,
 ): CartItemData {
   // ── Migração 4: Corrigir ledModuleCode nos profileSegments ──
   // Busca o produto correto da API pelo SKU do perfil + potência + stripMethod
@@ -653,9 +655,40 @@ export function migrateItemDrivers(
     }
   }
 
-  // Normalização 0: itens que já têm driverLines — apenas normalizar driverModel
+  // Normalização 0 + Migração 6: itens que já têm driverLines
+  // Normalizar driverModel E enriquecer corrente via correnteMap quando ausente
   if (item.driverLines && item.driverLines.length > 0) {
-    return normalizeDriverModels(item, descMap);
+    let enriched = item;
+    if (correnteMap && correnteMap.size > 0) {
+      const needsEnrich = item.driverLines.some(
+        dl => dl.driverCode && (dl.corrente == null || dl.corrente === "") && correnteMap.has(dl.driverCode)
+      );
+      if (needsEnrich) {
+        const newLines = item.driverLines.map(dl => {
+          if (!dl.driverCode || (dl.corrente != null && dl.corrente !== "")) return dl;
+          const corrente = correnteMap.get(dl.driverCode);
+          if (corrente == null) return dl;
+          return { ...dl, corrente };
+        });
+        enriched = { ...item, driverLines: newLines };
+      }
+    }
+    // Também enriquecer corrente nos profileSegments quando driverLines já existem
+    if (correnteMap && correnteMap.size > 0 && enriched.profileSegments && enriched.profileSegments.length > 0) {
+      const needsSegEnrich = enriched.profileSegments.some(
+        seg => seg.driverCode && (seg.corrente == null || seg.corrente === "") && correnteMap.has(seg.driverCode)
+      );
+      if (needsSegEnrich) {
+        const newSegs = enriched.profileSegments.map(seg => {
+          if (!seg.driverCode || (seg.corrente != null && seg.corrente !== "")) return seg;
+          const corrente = correnteMap.get(seg.driverCode);
+          if (corrente == null) return seg;
+          return { ...seg, corrente };
+        });
+        enriched = { ...enriched, profileSegments: newSegs };
+      }
+    }
+    return normalizeDriverModels(enriched, descMap);
   }
 
   // Migração 1: profileSegments com driverCode
@@ -680,7 +713,8 @@ export function migrateItemDrivers(
       const unitPrice = priceMap.get(drv.driverCode) ?? null;
       const totalPrice = unitPrice != null ? unitPrice * totalQty : null;
       if (totalPrice != null) totalDriverCost += totalPrice;
-      return { driverCode: drv.driverCode, driverModel: descMap.get(drv.driverCode) ?? drv.driverModel, driverQty: totalQty, driverUnitPrice: unitPrice, driverTotalPrice: totalPrice };
+      const corrente = correnteMap?.get(drv.driverCode) ?? null;
+      return { driverCode: drv.driverCode, driverModel: descMap.get(drv.driverCode) ?? drv.driverModel, driverQty: totalQty, driverUnitPrice: unitPrice, driverTotalPrice: totalPrice, ...(corrente ? { corrente } : {}) };
     });
     const totalPrice = item.totalPrice ?? 0;
     const priceWithoutDriver = totalDriverCost > 0
@@ -708,12 +742,14 @@ export function migrateItemDrivers(
       const unitPrice = priceMap.get(acc.codigo)!;
       const totalQty = (acc.qty ?? 1) * itemQty;
       const totalPrice = unitPrice * totalQty;
+      const corrente = correnteMap?.get(acc.codigo) ?? null;
       return {
         driverCode: acc.codigo,
         driverModel: descMap.get(acc.codigo) ?? acc.descricao,
         driverQty: totalQty,
         driverUnitPrice: unitPrice,
         driverTotalPrice: totalPrice,
+        ...(corrente ? { corrente } : {}),
       };
     });
     const totalDriverCost = driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
@@ -773,12 +809,14 @@ export function migrateItemDrivers(
       const totalQty = resolvedDrvQtyPerUnit * itemQty;
       const unitPrice = priceMap.get(resolvedEqCode) ?? null;
       const totalPrice = unitPrice != null ? unitPrice * totalQty : null;
+      const corrente3 = correnteMap?.get(resolvedEqCode) ?? null;
       const driverLines: DriverLine[] = [{
         driverCode: resolvedEqCode,
         driverModel: resolvedDriverModel,
         driverQty: totalQty,
         driverUnitPrice: unitPrice,
         driverTotalPrice: totalPrice,
+        ...(corrente3 ? { corrente: corrente3 } : {}),
       }];
       const totalDriverCost = totalPrice ?? 0;
       const totalPriceItem = item.totalPrice ?? 0;
