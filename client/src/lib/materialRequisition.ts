@@ -279,6 +279,18 @@ export function buildMaterialRequisition(
       }
     }
 
+    // ── MÓDULO LED (fonte de luz) para itens com driverLines ─────────────
+    // Downlights, spots, painéis e arandelas salvam o módulo LED em item.moduloLed
+    // (campo preenchido ao adicionar ao carrinho). Adicionar à lista de materiais
+    // como FONTES DE LUZ, agrupado pelo código EQ (moduloLedCode).
+    if (item.driverLines && item.driverLines.length > 0 && item.moduloLed) {
+      const ledCode =
+        item.moduloLedCode ??
+        reverseDescMap.get(item.moduloLed.toUpperCase().trim()) ??
+        `MODULO_${item.moduloLed}`;
+      add(ledCode, item.moduloLed, itemQty, "un", "MÓDULOS LED");
+    }
+
     // ── LED BAR ──────────────────────────────────────────────────────────
     if (item.category === "LED BAR" && item.ledBarNCortes !== undefined) {
       // LED BAR como PERFIL: contabilizar metragem do perfil agrupado por código-base
