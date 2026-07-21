@@ -620,6 +620,7 @@ export function migrateItemDrivers(
   descMap: Map<string, string>,
   productSkuMap: Map<string, ApiProductDriverInfo>,
   correnteMap?: Map<string, string | null>,
+  reverseDescMap?: Map<string, string>,
 ): CartItemData {
   // ── Migração 4: Corrigir ledModuleCode nos profileSegments ──
   // Busca o produto correto da API pelo SKU do perfil + potência + stripMethod
@@ -863,6 +864,27 @@ export function migrateItemDrivers(
       if (resolvedEq) {
         return { ...normalizeDriverModels(item, descMap), moduloLedCode: resolvedEq };
       }
+    }
+  }
+
+  // ── Migração 7: Resolver moduloLedCode para itens com driverLines sem código EQ do módulo LED ──
+  // Itens antigos de downlight, spot, painel, arandela e área externa não têm moduloLedCode.
+  // Resolver via reverseDescMap (busca reversa por descrição do componente).
+  if (
+    item.driverLines &&
+    item.driverLines.length > 0 &&
+    item.moduloLed &&
+    !item.moduloLedCode
+  ) {
+    // Extrair apenas o nome do módulo sem o código EQ entre parênteses
+    // ex: "LÚCIO ROUND Ø120MM 54L 3000K (EQ00123)" → "LÚCIO ROUND Ø120MM 54L 3000K"
+    const moduloBase = item.moduloLed.replace(/\s*\([^)]*\)\s*/g, " ").trim();
+    const resolvedEq =
+      reverseDescMap?.get(moduloBase.toUpperCase()) ??
+      reverseDescMap?.get(item.moduloLed.toUpperCase().trim()) ??
+      null;
+    if (resolvedEq) {
+      return { ...normalizeDriverModels(item, descMap), moduloLedCode: resolvedEq };
     }
   }
 

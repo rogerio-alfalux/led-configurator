@@ -865,6 +865,14 @@ export default function QuoteDetail() {
     }
     return map;
   }, [componentesQuery.data]);
+  /** Mapa descrição (UPPER) -> código EQ — busca reversa para Migração 7 */
+  const componenteReverseDescMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of componentesQuery.data?.items ?? []) {
+      if (c.codigo && c.descricao) map.set(c.descricao.toUpperCase().trim(), c.codigo);
+    }
+    return map;
+  }, [componentesQuery.data]);
   /** Mapa sku -> fotoUrl fresca para substituir URLs expiradas no preview/Excel.
    * Cobre: produtos principais (Downlights, Painéis, Spots, etc.),
    * produtos de revenda (RV*) e acessórios (EQ*, CP*). */
@@ -1244,6 +1252,17 @@ export default function QuoteDetail() {
             enrichedParsed = { ...enrichedParsed, profileSegments: enrichedSegs };
           }
         }
+        // Migração 7: resolver moduloLedCode via busca reversa no componenteDescMap
+        if (!enrichedParsed.moduloLedCode && enrichedParsed.moduloLed) {
+          const moduloBase = enrichedParsed.moduloLed.replace(/\s*\([^)]*\)\s*/g, " ").trim();
+          const resolvedEq =
+            componenteReverseDescMap.get(moduloBase.toUpperCase()) ??
+            componenteReverseDescMap.get(enrichedParsed.moduloLed.toUpperCase().trim()) ??
+            null;
+          if (resolvedEq) {
+            enrichedParsed = { ...enrichedParsed, moduloLedCode: resolvedEq };
+          }
+        }
         // Normalização 0: normalizar driverModel
         const needsNorm = enrichedParsed.driverLines!.some(dl =>
           dl.driverCode && componenteDescMap.has(dl.driverCode) &&
@@ -1409,7 +1428,7 @@ export default function QuoteDetail() {
       }
       return item;
     });
-  }, [data, componentePriceMap, componenteDescMap, componenteCorrenteMap, productsQuery.data]);
+  }, [data, componentePriceMap, componenteDescMap, componenteCorrenteMap, componenteReverseDescMap, productsQuery.data]);
 
   if (isLoading) {
     return (

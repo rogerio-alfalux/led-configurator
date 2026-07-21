@@ -206,8 +206,10 @@ interface EditableItemProps {
   descMap?: Map<string, string>;
   /** Mapa código EQ -> corrente de programação (para Migração 6) */
   correnteMap?: Map<string, string | null>;
+  /** Mapa descrição UPPER -> código EQ (para Migração 7) */
+  reverseDescMap?: Map<string, string>;
 }
-function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, priceMap, productSkuMap, correnteMap }: EditableItemProps) {
+function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, priceMap, productSkuMap, correnteMap, reverseDescMap }: EditableItemProps) {
   const [expanded, setExpanded] = useState(true);
   const [showAcessorioModal, setShowAcessorioModal] = useState(false);
   const [acessorioSearch, setAcessorioSearch] = useState("");
@@ -217,8 +219,8 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
   const parsed = useMemo(() => {
     const raw = parseCartItemData(item.itemData);
     if (!raw || !priceMap || !productSkuMap) return raw;
-    return migrateItemDrivers(raw, priceMap, descMap ?? new Map(), productSkuMap, correnteMap);
-  }, [item.itemData, priceMap, productSkuMap, descMap, correnteMap]);
+    return migrateItemDrivers(raw, priceMap, descMap ?? new Map(), productSkuMap, correnteMap, reverseDescMap);
+  }, [item.itemData, priceMap, productSkuMap, descMap, correnteMap, reverseDescMap]);
   if (!parsed) return null;
 
   const update = (fields: Partial<CartItemData>) => {
@@ -778,6 +780,14 @@ export default function FactoryOrderDetail() {
     }
     return map;
   }, [componentesData]);
+  /** Mapa descrição (UPPER) -> código EQ — busca reversa para Migração 7 */
+  const componenteReverseDescMapFO = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of componentesData?.items ?? []) {
+      if (c.codigo && c.descricao) map.set(c.descricao.toUpperCase().trim(), c.codigo);
+    }
+    return map;
+  }, [componentesData]);
   /** Produtos da API para fallback de driver (SKU → driver info) e resolução de ledModuleCode (Migração 4) */
   const { data: allProductsFO } = trpc.alfalux.products.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const productSkuMapFO = useMemo(() => {
@@ -964,7 +974,7 @@ export default function FactoryOrderDetail() {
       const itemsData = orderToUse.items
         .map(i => parseCartItemData(i.itemData))
         .filter((d): d is CartItemData => d !== null)
-        .map(d => migrateItemDrivers(d, componentePriceMapFO, componenteDescMapFO, productSkuMapFO, componenteCorrenteMapFO));
+        .map(d => migrateItemDrivers(d, componentePriceMapFO, componenteDescMapFO, productSkuMapFO, componenteCorrenteMapFO, componenteReverseDescMapFO));
       const fileName = `PEDIDO-FABRICA-${orderNum}-${quote.clientName.replace(/\s+/g, "_")}.xlsx`;
       const buffer = await generateOrderExcel(itemsData, {
         clientName: quote.clientName,
@@ -1170,7 +1180,7 @@ export default function FactoryOrderDetail() {
                     const items = currentOrder.items
                       .map(i => parseCartItemData(i.itemData))
                       .filter((d): d is CartItemData => d !== null)
-                      .map(d => migrateItemDrivers(d, componentePriceMapFO, componenteDescMapFO, productSkuMapFO, componenteCorrenteMapFO));
+                      .map(d => migrateItemDrivers(d, componentePriceMapFO, componenteDescMapFO, productSkuMapFO, componenteCorrenteMapFO, componenteReverseDescMapFO));
                     setPreviewItems(items);
                     setPreviewForm({
                       clientName: quote.clientName,
@@ -1475,6 +1485,7 @@ export default function FactoryOrderDetail() {
                           priceMap={componentePriceMapFO}
                           productSkuMap={productSkuMapFO}
                           correnteMap={componenteCorrenteMapFO}
+                          reverseDescMap={componenteReverseDescMapFO}
                         />
                       ))
                     )}
