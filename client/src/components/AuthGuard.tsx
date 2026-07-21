@@ -13,11 +13,18 @@ const ADMIN_EMAILS = [
   "rogerio@grupoalfalux.com.br",
 ];
 
+// E-mails externos com acesso de visualizador (sem domínio grupoalfalux)
+const ALLOWED_EXTERNAL_EMAILS = [
+  "pab@besten.com.br", // Pablo — usuário visualizador externo
+];
+
 function isEmailAllowed(email: string | null | undefined): boolean {
   if (!email) return false;
   const lower = email.toLowerCase();
   // Admins explícitos sempre têm acesso
   if (ADMIN_EMAILS.includes(lower)) return true;
+  // E-mails externos autorizados
+  if (ALLOWED_EXTERNAL_EMAILS.includes(lower)) return true;
   // Qualquer e-mail do domínio grupoalfalux tem acesso
   return /@grupoalfalux\b/.test(lower);
 }
