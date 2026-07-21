@@ -575,18 +575,21 @@ async function _generatePdfBlob(
 
   doc.setTextColor(0, 0, 0);
   for (const cond of conditions) {
-    if (fy + 12 > pageH - 20) { doc.addPage(); fy = 10; }
     doc.setFontSize(8.5);
+    doc.setFont("helvetica", "normal");
+    const lines = doc.splitTextToSize(cond.text, contentW - 8);
+    const blockH = lines.length * 4 + 3;
+    if (fy + blockH > pageH - 30) { doc.addPage(); fy = 10; }
     doc.setFont("helvetica", "bold");
     doc.text(cond.num, marginL, fy + 4);
     doc.setFont("helvetica", "normal");
-    const lines = doc.splitTextToSize(cond.text, contentW - 8);
     doc.text(lines, marginL + 7, fy + 4);
-    fy += lines.length * 4 + 3;
+    fy += blockH;
   }
 
   fy += 4;
-  if (fy + 24 > pageH - 20) { doc.addPage(); fy = 10; }
+  // Bloco: "Estou ciente" (8) + assinatura (9+12) + rodapé (12) = ~45mm
+  if (fy + 45 > pageH - 10) { doc.addPage(); fy = 10; }
 
   // "Estou ciente"
   doc.setFontSize(12);
@@ -607,7 +610,9 @@ async function _generatePdfBlob(
   fy += 12;
 
   // Rodapé de endereço (fundo azul)
-  const footerY = Math.min(fy + 4, pageH - 12);
+  fy += 4;
+  if (fy + 12 > pageH - 2) { doc.addPage(); fy = 10; }
+  const footerY = fy;
   doc.setFillColor(...BLUE_RGB);
   doc.rect(marginL, footerY, contentW, 8, "F");
   doc.setFont("helvetica", "normal");
