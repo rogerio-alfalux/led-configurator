@@ -860,6 +860,9 @@ function ShapeResultCard({
         driverModel,
         driverCode,
         corrente: piece.driver?.corrente ?? null,
+        // ledModuleCode propagado do ShapeResult para que buildMaterialRequisition
+        // consiga incluir os módulos LED na lista de materiais
+        ledModuleCode: shapeResult.stripflexEq ?? null,
       };
     });
 

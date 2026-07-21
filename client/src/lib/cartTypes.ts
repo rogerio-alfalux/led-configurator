@@ -631,9 +631,20 @@ export function migrateItemDrivers(
     const cctKey = (item.cct ?? "").replace("K", "") as "2700" | "3000" | "4000" | "5000";
     const hasCctKey = ["2700", "3000", "4000", "5000"].includes(cctKey);
     let anyChanged = false;
+    // Extrair código-base do perfil do item (ex: LLP-6060 de LLP-6060.C90.00)
+    const itemSkuBase = (item.sku ?? "").match(/^([A-Z]{2,3}-\d{4})/i)?.[1]?.toUpperCase() ?? "";
     const newSegments = item.profileSegments.map(seg => {
-      // Buscar produto correto: chave composta sku|powerLabel
-      const product = productSkuMap.get(`${seg.sku}|${powerLabel}`) ?? productSkuMap.get(seg.sku);
+      // Extrair código-base do segmento (ex: LLP-6060 de LLP-6060.C90.00)
+      const segSkuBase = seg.sku.match(/^([A-Z]{2,3}-\d{4})/i)?.[1]?.toUpperCase() ?? "";
+      // Buscar produto: 1) sku|powerLabel, 2) sku simples, 3) base|powerLabel, 4) base simples
+      const product =
+        productSkuMap.get(`${seg.sku}|${powerLabel}`) ??
+        productSkuMap.get(seg.sku) ??
+        (segSkuBase ? productSkuMap.get(`${segSkuBase}|${powerLabel}`) : undefined) ??
+        (segSkuBase ? productSkuMap.get(segSkuBase) : undefined) ??
+        // Fallback: usar código-base do item (para cantos que não têm entrada própria)
+        (itemSkuBase ? productSkuMap.get(`${itemSkuBase}|${powerLabel}`) : undefined) ??
+        (itemSkuBase ? productSkuMap.get(itemSkuBase) : undefined);
       if (!product) return seg;
       let correctEq: string | null = null;
       if (hasCctKey) {
