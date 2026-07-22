@@ -107,12 +107,37 @@ async function _generatePdfBlob(
   );
 
   // ── Calcular totais (mesma lógica do quoteExcelGenerator) ──────────────────
-  let totalBase = 0;
-  for (const item of items) {
-    const lumTotal = item.totalPrice ?? 0;
-    const drvTotal = item.driverLines?.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0) ?? 0;
-    totalBase += lumTotal + drvTotal;
-  }
+  // Para itens com driverLines: totalPrice = apenas luminária (sem drivers).
+  // Usar calcItemLumTotal + calcItemDrvTotal para evitar duplicação e aplicar itemMarginPercent.
+  const _pdfCalcItemLumTotal = (it: CartItemData): number => {
+    if (!it.driverLines || it.driverLines.length === 0) return it.totalPrice ?? 0;
+    if (it.priceWithoutDriver != null && it.priceWithoutDriver > 0) return it.priceWithoutDriver;
+    return it.totalPrice ?? 0;
+  };
+  const _pdfCalcItemDrvTotal = (it: CartItemData): number => {
+    if (!it.driverLines || it.driverLines.length === 0) return 0;
+    const iqty = it.qty ?? 1;
+    return it.driverLines.reduce((sd, d) => {
+      const stored = d.driverTotalPrice;
+      if (stored != null && stored > 0) return sd + stored;
+      const storedQty = d.driverQty ?? 1;
+      const effectiveQty = it.driverQtyPerUnit != null
+        ? it.driverQtyPerUnit * iqty
+        : (storedQty <= 1 ? iqty : storedQty);
+      return sd + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
+    }, 0);
+  };
+  const _pdfApplyItemMgn = (base: number, it: CartItemData): number => {
+    const p = it.itemMarginPercent != null ? Math.min(Math.max(it.itemMarginPercent / 100, 0), 0.99) : 0;
+    return p > 0 ? base / (1 - p) : base;
+  };
+  const totalBase = items
+    .filter(it => it.category !== 'Não Orçamos')
+    .reduce((sum, it) => {
+      const lum = _pdfCalcItemLumTotal(it);
+      const drv = _pdfCalcItemDrvTotal(it);
+      return sum + _pdfApplyItemMgn(lum + drv, it);
+    }, 0);
   const rtPct     = Math.min(Math.max(formData.rtPercent    ?? 0, 0), 0.99);
   const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
   const totalComRT  = rtPct     > 0 ? totalBase  / (1 - rtPct)    : totalBase;
