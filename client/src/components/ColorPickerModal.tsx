@@ -122,7 +122,7 @@ export default function ColorPickerModal({
               )}
             >
               <span className="w-5 h-5 rounded-full border-2 border-dashed border-current flex-shrink-0" />
-              <span>A Definir (deixar em branco)</span>
+              <span>A Definir (Padrão Alfalux)</span>
             </button>
           </div>
         </div>
@@ -138,7 +138,7 @@ export default function ColorPickerModal({
             disabled={isAdding}
           >
             <ShoppingCart className="w-3.5 h-3.5" />
-            {selected ? `Enviar com ${selected}` : "Enviar sem cor (A Definir)"}
+            {selected ? `Enviar com ${selected}` : "Enviar sem cor (A Definir — Padrão Alfalux)"}
           </Button>
         </DialogFooter>
       </DialogContent>
