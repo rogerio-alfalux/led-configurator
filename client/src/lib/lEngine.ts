@@ -752,8 +752,9 @@ export function calculateSquare(
     `4× canto ${corner.sku} (${cornerLen}mm)\n` +
     summaryModLines.join("\n") + (summaryModLines.length ? "\n" : "");
 
-  // Comprimento total = 4 lados (4 cantos + 4 × retos)
-  const totalLengthMm = 4 * cornerLen + 4 * seg.actualLength;
+  // Comprimento total = 4 lados completos (cada lado = 2 cantos + retos)
+  // actualSide = 2 * cornerLen + seg.actualLength
+  const totalLengthMm = 4 * actualSide;
 
   return {
     shape: "SQUARE",
