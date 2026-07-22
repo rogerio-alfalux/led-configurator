@@ -1885,6 +1885,69 @@ export default function QuoteDetail() {
               {quote.paymentTerm && (
                 <p>💳 Pagamento: <span className="font-medium">{quote.paymentTerm}</span></p>
               )}
+              {/* RT, Margem e Frete — sempre visível */}
+              {(() => {
+                const rtPct = quote.rtPercent ? parseFloat(String(quote.rtPercent)) : 0;
+                const marginPct = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;
+                const freteType = (quote as any).freteType ?? 'free';
+                const freteIsento = (quote as any).freteIsento ?? false;
+                const freteValue = (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : 0;
+                const freteIncluded = (quote as any).freteIncluded ?? false;
+                const freteState = (quote as any).freteState ?? '';
+                const freteCity = (quote as any).freteCity ?? '';
+
+                // Monta label do frete
+                let freteLabel = '';
+                if (freteIsento) {
+                  freteLabel = 'Frete isento';
+                } else if (freteType === 'night') {
+                  freteLabel = 'Frete noturno';
+                } else if (freteType === 'paid') {
+                  if (freteValue > 0) {
+                    freteLabel = freteIncluded
+                      ? `Frete a calcular: ${formatBRL(freteValue)} (incluído)`
+                      : `Frete a calcular: ${formatBRL(freteValue)}`;
+                  } else {
+                    freteLabel = 'Frete: a calcular (aguardando cotação)';
+                  }
+                } else if (freteType === 'consult') {
+                  freteLabel = freteValue > 0
+                    ? `Frete sob consulta: ${formatBRL(freteValue)}`
+                    : 'Frete: sob consulta';
+                } else if (freteType === 'pickup') {
+                  freteLabel = 'Retirada em fábrica';
+                } else {
+                  // free
+                  if (freteState && freteState !== 'SP') {
+                    const cityPart = freteCity ? ` — ${freteCity}` : '';
+                    freteLabel = freteValue > 0
+                      ? `Frete: ${formatBRL(freteValue)} (${freteState}${cityPart})`
+                      : `Frete: sob consulta (${freteState}${cityPart})`;
+                  } else {
+                    freteLabel = freteValue > 0
+                      ? `Frete: ${formatBRL(freteValue)}`
+                      : 'Frete grátis (SP)';
+                  }
+                }
+
+                return (
+                  <div className="mt-1 mb-1 rounded-md border border-border bg-muted/30 px-2.5 py-2 space-y-1">
+                    {rtPct > 0 && (
+                      <p className="text-xs flex items-center gap-1 text-muted-foreground">
+                        <span className="font-medium text-foreground">RT:</span> {(rtPct * 100).toFixed(1)}%
+                      </p>
+                    )}
+                    {marginPct > 0 && (
+                      <p className="text-xs flex items-center gap-1 text-muted-foreground">
+                        <span className="font-medium text-foreground">Margem:</span> {(marginPct * 100).toFixed(1)}%
+                      </p>
+                    )}
+                    <p className="text-xs flex items-center gap-1 text-muted-foreground">
+                      <span className="font-medium text-foreground">Frete:</span> {freteLabel}
+                    </p>
+                  </div>
+                );
+              })()}
               {/* Comissões dos vendedores — visível apenas para quem tem permissão */}
               {canSeeCommission && (() => {
                 const total = quote.totalAmount ? Number(quote.totalAmount) : (quote.totalFinal ? Number(quote.totalFinal) : 0);
