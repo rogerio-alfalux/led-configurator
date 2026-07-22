@@ -563,15 +563,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
                 className="mt-1 h-8 text-sm"
               />
             </div>
-            <div>
-              <Label className="text-xs">Cor da Peça (Especial)</Label>
-              <Input
-                value={d.specialColor ?? ""}
-                onChange={e => onUpdate(item.id, { specialColor: e.target.value })}
-                placeholder="ex: Branco, Preto"
-                className="mt-1 h-8 text-sm"
-              />
-            </div>
+
           </div>
           <SpecialEquipmentsEditor
             value={d.specialEquipments ?? []}

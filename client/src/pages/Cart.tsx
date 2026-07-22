@@ -2948,15 +2948,7 @@ export default function Cart() {
                               className="mt-1 h-8 text-sm"
                             />
                           </div>
-                          <div>
-                            <Label className="text-xs">Cor da Peça (Especial)</Label>
-                            <Input
-                              value={editFields.specialColor}
-                              onChange={e => setEditFields(prev => ({ ...prev, specialColor: e.target.value }))}
-                              placeholder="ex: Branco, Preto"
-                              className="mt-1 h-8 text-sm"
-                            />
-                          </div>
+
                         </div>
                       </div>
                     </div>
@@ -3289,7 +3281,6 @@ export default function Cart() {
                 if (editFields.specialPower.trim()) patch.specialPower = editFields.specialPower.trim();
                 if (editFields.specialDim.trim()) patch.specialDim = editFields.specialDim.trim();
                 if (editFields.specialVoltage.trim()) patch.specialVoltage = editFields.specialVoltage.trim();
-                if (editFields.specialColor.trim()) patch.specialColor = editFields.specialColor.trim();
                 // Custo e markup (apenas se preenchido)
                 const custoVal = parseFloat(editFields.specialCustoUnitario.replace(',', '.'));
                 const mkpVal2 = parseFloat(editFields.specialMarkup.replace(',', '.'));

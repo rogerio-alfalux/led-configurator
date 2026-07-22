@@ -3220,7 +3220,6 @@ export default function Home() {
   const [spPower, setSpPower] = useState<string>("");
   const [spDim, setSpDim] = useState<string>("");
   const [spVoltage, setSpVoltage] = useState<string>("");
-  const [spColor, setSpColor] = useState<string>("");
   const [spColorTemp, setSpColorTemp] = useState<string>("");
   const [spUnitPrice, setSpUnitPrice] = useState<string>("");
   const [spPriceMode, setSpPriceMode] = useState<"unit" | "meter">("unit");
@@ -3757,7 +3756,6 @@ export default function Home() {
       specialPower: spPower.trim() || undefined,
       specialDim: spDim.trim() || undefined,
       specialVoltage: spVoltage.trim() || undefined,
-      specialColor: spColor.trim() || undefined,
       specialColorTemp: spColorTemp.trim() || undefined,
       specialUnitPrice: unitPrice || undefined,
       specialPhotoUrl: spPhotoUrl || undefined,
@@ -3786,7 +3784,7 @@ export default function Home() {
       setGlobalItemEmPlanta("");
       setGlobalQty(1);
     }
-  }, [spDescription, spDimensions, spPower, spDim, spVoltage, spColor, spColorTemp, spUnitPrice, spPhotoUrl, spInternalNotes, appendToQuoteId, handleAddItemOrToQuote, globalItemEmPlanta, globalQty, globalPavimento, globalAmbiente, pendingAccessories, addItem]);
+  }, [spDescription, spDimensions, spPower, spDim, spVoltage, spColorTemp, spUnitPrice, spPhotoUrl, spInternalNotes, appendToQuoteId, handleAddItemOrToQuote, globalItemEmPlanta, globalQty, globalPavimento, globalAmbiente, pendingAccessories, addItem]);
 
   const handleAddService = useCallback(() => {
     if (!svDescription.trim()) {
@@ -8208,16 +8206,6 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Cor */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cor / Acabamento</Label>
-                  <Input
-                    value={spColor}
-                    onChange={(e) => setSpColor(e.target.value)}
-                    placeholder="Ex: Branco Fosco, Preto Texturizado..."
-                    className="h-10"
-                  />
-                </div>
                 {/* Temperatura de Cor */}
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Temperatura de Cor</Label>
@@ -13182,7 +13170,7 @@ export default function Home() {
                         {spPower && <span><span className="font-medium text-foreground">Potência:</span> {spPower}</span>}
                         {spDim && <span><span className="font-medium text-foreground">DIM:</span> {spDim}</span>}
                         {spVoltage && <span><span className="font-medium text-foreground">Tensão:</span> {spVoltage}</span>}
-                        {spColor && <span><span className="font-medium text-foreground">Cor:</span> {spColor}</span>}
+
                         {spUnitPrice && <span><span className="font-medium text-foreground">Valor unit.:</span> {formatBRL(parseFloat(spUnitPrice.replace(",",".")) || 0)}</span>}
                       </div>
                       {spInternalNotes && (
