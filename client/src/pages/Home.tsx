@@ -618,6 +618,7 @@ function ShapeResultCard({
   onOpenAccessoryModal,
   pendingAccessoriesCount,
   globalPavimento,
+  requestedTotalMm,
 }: {
   shapeResult: ShapeResult;
   skuPriceMap?: SkuPriceMap;
@@ -627,6 +628,7 @@ function ShapeResultCard({
   onOpenAccessoryModal?: () => void;
   pendingAccessoriesCount?: number;
   globalPavimento?: string;
+  requestedTotalMm?: number;
 }) {
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1059,6 +1061,15 @@ function ShapeResultCard({
                 {shapeResult.totalLengthMm && (
                   <p className="text-xs text-muted-foreground">
                     Linear: {(shapeResult.totalLengthMm / 1000).toFixed(3).replace(".", ",")}m
+                  </p>
+                )}
+                {shapeResult.totalLengthMm && requestedTotalMm && requestedTotalMm > 0 && (
+                  <p className={`text-xs font-semibold mt-0.5 ${
+                    Math.round((shapeResult.totalLengthMm / requestedTotalMm) * 100) === 100
+                      ? "text-green-600 dark:text-green-400"
+                      : "text-yellow-600 dark:text-yellow-400"
+                  }`}>
+                    {shapeResult.totalLengthMm}mm de {requestedTotalMm}mm · {Math.round((shapeResult.totalLengthMm / requestedTotalMm) * 100)}%
                   </p>
                 )}
               </div>
@@ -4340,6 +4351,7 @@ export default function Home() {
   const [shapeSideH, setShapeSideH] = useState<string>("2000");
   const [shapeSideV, setShapeSideV] = useState<string>("1200");
   const [shapeResult, setShapeResult] = useState<ShapeResult | null>(null);
+  const [shapeRequestedMm, setShapeRequestedMm] = useState<number>(0);
   // Result state
   const [result, setResult] = useState<CompositionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -8889,17 +8901,23 @@ export default function Home() {
                     driverDim110v: selectedVariant?.driverDim110v ?? null,
                     correnteDriver: selectedVariant?.correnteDriver ?? null,
                   };
+                  let _reqMm = 0;
                   if (profileShape === "L_SHAPE") {
                     sr = calculateLShape(code, parseInt(shapeSideH) || 2000, parseInt(shapeSideV) || 1200, dp);
+                    _reqMm = (parseInt(shapeSideH) || 2000) + (parseInt(shapeSideV) || 1200);
                   } else if (profileShape === "SQUARE") {
                     sr = calculateSquare(code, parseInt(shapeSide) || 1200, dp);
+                    _reqMm = 4 * (parseInt(shapeSide) || 1200);
                   } else if (profileShape === "RECTANGLE") {
                     sr = calculateRectangle(code, parseInt(shapeWidth) || 2000, parseInt(shapeHeight) || 1200, dp);
+                    _reqMm = 2 * (parseInt(shapeWidth) || 2000) + 2 * (parseInt(shapeHeight) || 1200);
                   } else if (profileShape === "U_SHAPE") {
                     sr = calculateUShape(code, parseInt(shapeHeight) || 1200, parseInt(shapeWidth) || 2000, dp);
+                    _reqMm = 2 * (parseInt(shapeHeight) || 1200) + (parseInt(shapeWidth) || 2000);
                   }
                   if (sr) {
                     setShapeResult(sr);
+                    setShapeRequestedMm(_reqMm);
                     setResult(null);
                     setError(null);
                   } else {
@@ -8978,6 +8996,7 @@ export default function Home() {
                   onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
                   pendingAccessoriesCount={pendingAccessories.length}
                   globalPavimento={globalPavimento}
+                  requestedTotalMm={shapeRequestedMm}
                 />
               )
             )}
