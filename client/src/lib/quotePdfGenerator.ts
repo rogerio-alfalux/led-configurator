@@ -157,6 +157,21 @@ async function _generatePdfBlob(
   const freteValorNum = formData.freteValue && formData.freteValue > 0 && !formData.freteIsento
     ? formData.freteValue : 0;
 
+  // ── Pré-calcular frete diluído (fora do loop) ─────────────────────────────
+  const _pdfFreteParaDiluirGlobal = (formData.freteIncluded && formData.freteValue && formData.freteValue > 0)
+    ? formData.freteValue : 0;
+  const _pdfTotalBaseForFreteGlobal = items
+    .filter(it => it.category !== 'Não Orçamos')
+    .reduce((sum, it) => {
+      const lum = _pdfCalcItemLumTotal(it);
+      const drv = _pdfCalcItemDrvTotal(it);
+      return sum + _pdfApplyItemMgn(lum + drv, it);
+    }, 0);
+  const _pdfApplyGlobalMarkupGlobal = (base: number) => {
+    const comRT = rtPct > 0 ? base / (1 - rtPct) : base;
+    return marginPct > 0 ? comRT / (1 - marginPct) : comRT;
+  };
+
   // ── CABEÇALHO ─────────────────────────────────────────────────────────────
   let y = 8;
 
@@ -290,9 +305,16 @@ async function _generatePdfBlob(
       }
     }
 
+    const lumRaw = _pdfCalcItemLumTotal(item);
+    const drvRaw = _pdfCalcItemDrvTotal(item);
+    const itemRaw = _pdfApplyItemMgn(lumRaw + drvRaw, item);
+    // Frete diluído proporcional a este item
+    const _pdfFreteFatorItem = (_pdfFreteParaDiluirGlobal > 0 && _pdfTotalBaseForFreteGlobal > 0)
+      ? _pdfFreteParaDiluirGlobal * (itemRaw / _pdfTotalBaseForFreteGlobal)
+      : 0;
     const lumTotal = item.totalPrice ?? 0;
     const drvTotal = item.driverLines?.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0) ?? 0;
-    const itemTotal = lumTotal + drvTotal;
+    const itemTotal = _pdfApplyGlobalMarkupGlobal(itemRaw + _pdfFreteFatorItem);
 
     // Modelo: SKU + descrição
     const modeloText = item.sku ? `${item.sku}\n${item.description || ""}` : (item.description || "");
@@ -348,8 +370,17 @@ async function _generatePdfBlob(
     // Linhas de driver
     if (item.driverLines && item.driverLines.length > 0) {
       for (const drv of item.driverLines) {
-        const drvQty = drv.driverQty ?? item.qty ?? 1;
-        const drvTotal2 = drv.driverTotalPrice ?? 0;
+        const _iqty = item.qty ?? 1;
+        const _storedDrvQty = drv.driverQty ?? 1;
+        const _drvQtyPerUnit = item.driverQtyPerUnit;
+        const drvQty = _drvQtyPerUnit != null
+          ? _drvQtyPerUnit * _iqty
+          : (_storedDrvQty <= 1 ? _iqty : _storedDrvQty);
+        const _drvTotalRaw = (drv.driverUnitPrice ?? 0) * drvQty;
+        // Peso do driver no item para distribuição do frete
+        const _drvPeso = itemRaw > 0 ? _drvTotalRaw / itemRaw : 0;
+        const _drvFreteFrac = _pdfFreteFatorItem * _drvPeso;
+        const drvTotal2 = _pdfApplyGlobalMarkupGlobal(_pdfApplyItemMgn(_drvTotalRaw + _drvFreteFrac, item));
         tableBody.push([
           "", "",
           `  ↳ Driver: ${drv.driverModel || drv.driverCode || ""}`,

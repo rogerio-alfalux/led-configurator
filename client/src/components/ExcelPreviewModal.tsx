@@ -827,17 +827,22 @@ ${htmlContent}
                               : 0;
                             const _lumDilUnit = _qty > 0 ? _diluicaoFator * _lumPeso / _qty : 0;
                             const _lumDilTotal = _diluicaoFator * _lumPeso;
+                            // Frete diluído proporcional à luminária (frete entra na base antes do markup)
+                            const _lumFreteFrac = freteParaDiluir > 0 && totalBase > 0
+                              ? freteParaDiluir * (_itemTotalReal / totalBase) * _lumPeso
+                              : 0;
+                            const _lumFreteFracUnit = _qty > 0 ? _lumFreteFrac / _qty : 0;
                             return (<>
                               <td style={tdStyle}>
                                 {_effectiveUnitLum && _effectiveUnitLum > 0
-                                  ? formatBRL(applyMarkup(_effectiveUnitLum + _lumDilUnit))
+                                  ? formatBRL(applyMarkupItem(_effectiveUnitLum + _lumDilUnit + _lumFreteFracUnit, item.itemMarginPercent))
                                   : item.luminariaHasApiPrice === false
                                     ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
                                     : "-"}
                               </td>
                               <td style={tdStyle}>
                                 {_correctedTotal > 0
-                                  ? formatBRL(applyMarkup(_correctedTotal + _lumDilTotal))
+                                  ? formatBRL(applyMarkupItem(_correctedTotal + _lumDilTotal + _lumFreteFrac, item.itemMarginPercent))
                                   : item.luminariaHasApiPrice === false
                                     ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
                                     : "-"}
@@ -875,12 +880,13 @@ ${htmlContent}
                           <td style={tdStyle}>{item.cct || "-"}</td>
                           <td style={{ ...tdStyle, fontWeight: "bold" }}>{item.qty}</td>
                           {(() => {
-                            // Diluíção proporcional para itens sem driverLines
+                            // Diluíção + frete proporcional para itens sem driverLines
                             const _itemTotalRealSimple = getItemTotalReal(item);
                             const _diluicaoFatorSimple = (diluicaoParaDiluir > 0 && totalBase > 0)
                               ? diluicaoParaDiluir * (_itemTotalRealSimple / totalBase)
                               : 0;
                             const _qty = item.qty ?? 1;
+                            // Frete entra na base ANTES do markup (igual à tela do orçamento)
                             const _unitWithFrete = unitPriceComFrete(item) ?? item.unitPrice ?? 0;
                             const _totalWithFrete = totalPriceComFrete(item) ?? item.totalPrice ?? 0;
                             const _unitWithDil = _unitWithFrete + (_qty > 0 ? _diluicaoFatorSimple / _qty : 0);
@@ -945,6 +951,11 @@ ${htmlContent}
                           : 0;
                         const _drvDilUnit = _effectiveDrvQty > 0 ? _diluicaoFatorDrv * _drvPeso / _effectiveDrvQty : 0;
                         const _drvDilTotal = _diluicaoFatorDrv * _drvPeso;
+                        // Frete diluído proporcional ao driver (frete entra na base antes do markup)
+                        const _drvFreteFrac = freteParaDiluir > 0 && totalBase > 0
+                          ? freteParaDiluir * (_itemTotalRealDrv / totalBase) * _drvPeso
+                          : 0;
+                        const _drvFreteFracUnit = _effectiveDrvQty > 0 ? _drvFreteFrac / _effectiveDrvQty : 0;
                         return (
                         <tr key={`drv-${idx}-${drvIdx}`} style={{ background: "#FFF3E0" }}>
                           <td style={{ ...tdStyle, fontSize: 9 }}></td>
@@ -958,10 +969,10 @@ ${htmlContent}
                           ))}
                           <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold", color: "#E65100" }}>{_effectiveDrvQty}</td>
                           <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
-                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupFn(drv.driverUnitPrice + _drvDilUnit)) : "-"}
+                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent)) : "-"}
                           </td>
                           <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
-                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupFn(_drvTotalPrice + _drvDilTotal)) : "-"}
+                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupItem(_drvTotalPrice + _drvDilTotal + _drvFreteFrac, item.itemMarginPercent)) : "-"}
                           </td>
                         </tr>
                         );
