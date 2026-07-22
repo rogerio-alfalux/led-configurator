@@ -386,10 +386,12 @@ function findBestEndCappedSegment(
 ): EndCappedSegment | null {
   if (availableLength <= 0) return null;
 
-  // Filtrar IFs de 1 barra: em composições EM L/U, o IF deve ter pelo menos 2 barras
-  const ifMods = collectAllModules(profileEntry, allowLongModules, allowFractionalBars, "IF")
-    .filter(m => m.length <= availableLength && m.bars >= 2);
-  if (ifMods.length === 0) return null;
+  // Preferir IFs de 2+ barras; usar IF de 1 barra como fallback quando é a única opção disponível
+  const allIfMods = collectAllModules(profileEntry, allowLongModules, allowFractionalBars, "IF")
+    .filter(m => m.length <= availableLength);
+  if (allIfMods.length === 0) return null;
+  const ifMods2Plus = allIfMods.filter(m => m.bars >= 2);
+  const ifMods = ifMods2Plus.length > 0 ? ifMods2Plus : allIfMods;
 
   const largeMods = collectAllModules(profileEntry, allowLongModules, allowFractionalBars, "both")
     .filter(m => m.length >= MIN_2BAR_LENGTH);
@@ -496,9 +498,8 @@ export function calculateLShape(
 
   // Fallback: quando não há espaço para IF (canto sozinho), aplicar cabeceira
   // como no comportamento anterior (perfis embutir com canto isolado).
-  // Caso misto: um lado tem IF, o outro não (canto sozinho com cabeceira).
-  if (!segH && availH > 0) return null; // há espaço mas sem IF válido
-  if (!segV && availV > 0) return null; // há espaço mas sem IF válido
+  // Caso misto: um lado tem IF, o outro não — usa apenas o canto naquele lado.
+  // Nota: não retornamos null aqui — lado sem IF válido usa apenas o canto + cabeceira.
 
   // Calcular comprimentos reais de cada lado
   // Lado com IF: cornerLen + segX.actualLength
