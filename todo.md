@@ -2124,3 +2124,7 @@
 - [x] Botão "Incluir custo adicional" no orçamento (valor + descrição)
 - [x] Custos adicionais debitam do lucro no dashboard do orçamento
 - [x] Índice de custos adicionais no dashboard geral
+
+## Correções de Quantidade e Cor (Jul 2026)
+- [x] Item Especial e Revenda: campo Qtd agora espelha corretamente ao enviar ao carrinho/orçamento (globalQty usado em todos os fluxos)
+- [x] LED BAR: cor "Branco Fosco Micro" bloqueada — não aparece como opção no modal de cor para a família LED BAR

@@ -1325,9 +1325,22 @@ export default function QuoteDetail() {
         }
         // Migração 7: resolver moduloLedCode via busca reversa no componenteDescMap
         if (!enrichedParsed.moduloLedCode && enrichedParsed.moduloLed) {
-          const moduloBase = enrichedParsed.moduloLed.replace(/\s*\([^)]*\)\s*/g, " ").trim();
+          // Remover parênteses e conteúdo entre eles (ex: "(EQ00121)" ou "(PT001050)")
+          const moduloBase = enrichedParsed.moduloLed.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
+          // Remover prefixos comuns como "MÓDULO LED ", "MODULO LED ", "MÓDULO "
+          const stripPrefixes = (s: string) => s
+            .replace(/^MÓDULO LED\s+/i, "")
+            .replace(/^MODULO LED\s+/i, "")
+            .replace(/^MÓDULO\s+/i, "")
+            .replace(/^MODULO\s+/i, "")
+            .trim();
+          // Pegar apenas a primeira parte (antes de " + ") para itens compostos
+          const firstPart = moduloBase.split(" + ")[0].trim();
+          const firstPartStripped = stripPrefixes(firstPart);
           const resolvedEq =
             componenteReverseDescMap.get(moduloBase.toUpperCase()) ??
+            componenteReverseDescMap.get(firstPart.toUpperCase()) ??
+            componenteReverseDescMap.get(firstPartStripped.toUpperCase()) ??
             componenteReverseDescMap.get(enrichedParsed.moduloLed.toUpperCase().trim()) ??
             null;
           if (resolvedEq) {

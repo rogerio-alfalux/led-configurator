@@ -283,7 +283,10 @@ export function buildMaterialRequisition(
     // Downlights, spots, painéis e arandelas salvam o módulo LED em item.moduloLed
     // (campo preenchido ao adicionar ao carrinho). Adicionar à lista de materiais
     // como FONTES DE LUZ, agrupado pelo código EQ (moduloLedCode).
-    if (item.driverLines && item.driverLines.length > 0 && item.moduloLed) {
+    // IMPORTANTE: itens de perfil (profileSegments) já contam o módulo LED via
+    // profileSegments[].ledModuleCode — não contar novamente aqui para evitar duplicata.
+    const hasProfileSegments = item.profileSegments && item.profileSegments.length > 0;
+    if (!hasProfileSegments && item.driverLines && item.driverLines.length > 0 && item.moduloLed) {
       const ledCode =
         item.moduloLedCode ??
         reverseDescMap.get(item.moduloLed.toUpperCase().trim()) ??
