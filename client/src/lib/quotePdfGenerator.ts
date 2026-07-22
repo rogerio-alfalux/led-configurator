@@ -561,11 +561,9 @@ async function _generatePdfBlob(
 
   // Observação
   fy += 2;
-  if (fy + 10 > pageH - 12) { doc.addPage(); fy = 10; }
+  if (fy + 14 > pageH - 12) { doc.addPage(); fy = 10; }
   doc.setFontSize(8.5);
-  doc.setFont("helvetica", "bold");
   doc.setTextColor(0, 0, 0);
-  doc.text("Observação: ", marginL + 1, fy + 4);
 
   let obsText = "Pode ser acrescido o valor de DIFAL, de acordo com o Estado e classificação fiscal da empresa.";
   const difalParts: string[] = [];
@@ -578,10 +576,35 @@ async function _generatePdfBlob(
   if (difalParts.length > 0) {
     obsText = `DIFAL/FCP aplicado para ${formData.destState ?? ""}: ${difalParts.join(" | ")}. Valores já incluídos na proposta.`;
   }
+  // Renderizar "Observação:" em negrito + texto normal na mesma linha usando largura total
+  doc.setFont("helvetica", "bold");
+  const obsLabel = "Observação: ";
+  doc.text(obsLabel, marginL + 1, fy + 4);
+  const obsLabelW = doc.getTextWidth(obsLabel);
   doc.setFont("helvetica", "normal");
-  const obsLines = doc.splitTextToSize(obsText, contentW - 30);
-  doc.text(obsLines, marginL + 30, fy + 4);
-  fy += obsLines.length * 4 + 5;
+  // Calcular quantos caracteres cabem na primeira linha após o label
+  const obsRemainingW = contentW - obsLabelW - 2;
+  const obsFullText = doc.splitTextToSize(obsText, contentW - 2);
+  const obsFirstLine = doc.splitTextToSize(obsText, obsRemainingW);
+  // Primeira linha ao lado do label
+  doc.text(obsFirstLine[0], marginL + 1 + obsLabelW, fy + 4);
+  // Linhas restantes abaixo, alinhadas com o início do texto (após o label)
+  let obsExtraLines: string[] = [];
+  if (obsFirstLine.length < obsFullText.length) {
+    // Texto que não coube na primeira linha
+    const firstLineText = obsFirstLine[0];
+    const remainingText = obsText.slice(firstLineText.length).trim();
+    if (remainingText) {
+      obsExtraLines = doc.splitTextToSize(remainingText, contentW - 2);
+    }
+  } else if (obsFirstLine.length > 1) {
+    obsExtraLines = obsFirstLine.slice(1);
+  }
+  for (let li = 0; li < obsExtraLines.length; li++) {
+    fy += 4.5;
+    doc.text(obsExtraLines[li], marginL + 1 + obsLabelW, fy + 4);
+  }
+  fy += 4.5 + 5;
 
   // ── NOVA PÁGINA: Condições Gerais ─────────────────────────────────────────
   doc.addPage();
