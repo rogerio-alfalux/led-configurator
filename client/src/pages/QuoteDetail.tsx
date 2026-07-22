@@ -399,6 +399,12 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
           {d.priceFromApi && canOverrideApiPrice && (
             <p className="text-xs text-amber-500 mt-0.5">Permissão especial: preço da API pode ser sobrescrito.</p>
           )}
+          {/* Preço com margem individual aplicada */}
+          {d.itemMarginPercent != null && d.itemMarginPercent > 0 && d.unitPrice != null && d.unitPrice > 0 && (
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+              c/ margem ind. ({d.itemMarginPercent}%): <span className="font-semibold">{formatBRL(applyItemMarginQD(d.unitPrice, d.itemMarginPercent))}</span>/un
+            </p>
+          )}
         </div>
         <div className="text-right">
           {d.driverLines && d.driverLines.length > 0 ? (() => {
