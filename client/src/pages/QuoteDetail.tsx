@@ -1896,37 +1896,27 @@ export default function QuoteDetail() {
                 const freteState = (quote as any).freteState ?? '';
                 const freteCity = (quote as any).freteCity ?? '';
 
-                // Monta label do frete
+                // Monta label do frete — simplificado
                 let freteLabel = '';
                 if (freteIsento) {
-                  freteLabel = 'Frete isento';
-                } else if (freteType === 'night') {
-                  freteLabel = 'Frete noturno';
-                } else if (freteType === 'paid') {
-                  if (freteValue > 0) {
-                    freteLabel = freteIncluded
-                      ? `Frete a calcular: ${formatBRL(freteValue)} (incluído)`
-                      : `Frete a calcular: ${formatBRL(freteValue)}`;
-                  } else {
-                    freteLabel = 'Frete: a calcular (aguardando cotação)';
-                  }
-                } else if (freteType === 'consult') {
-                  freteLabel = freteValue > 0
-                    ? `Frete sob consulta: ${formatBRL(freteValue)}`
-                    : 'Frete: sob consulta';
+                  freteLabel = 'Isento';
                 } else if (freteType === 'pickup') {
                   freteLabel = 'Retirada em fábrica';
+                } else if (freteIncluded && freteValue > 0) {
+                  freteLabel = `Diluído nos produtos: ${formatBRL(freteValue)}`;
+                } else if (freteValue > 0) {
+                  const locPart = freteState && freteState !== 'SP' ? ` (${freteState}${freteCity ? ` — ${freteCity}` : ''})` : '';
+                  freteLabel = `${formatBRL(freteValue)}${locPart}`;
                 } else {
-                  // free
-                  if (freteState && freteState !== 'SP') {
+                  // Sem valor definido
+                  if (freteType === 'night') freteLabel = 'Noturno';
+                  else if (freteType === 'paid') freteLabel = 'A calcular';
+                  else if (freteType === 'consult') freteLabel = 'Sob consulta';
+                  else if (freteState && freteState !== 'SP') {
                     const cityPart = freteCity ? ` — ${freteCity}` : '';
-                    freteLabel = freteValue > 0
-                      ? `Frete: ${formatBRL(freteValue)} (${freteState}${cityPart})`
-                      : `Frete: sob consulta (${freteState}${cityPart})`;
+                    freteLabel = `Sob consulta (${freteState}${cityPart})`;
                   } else {
-                    freteLabel = freteValue > 0
-                      ? `Frete: ${formatBRL(freteValue)}`
-                      : 'Frete grátis (SP)';
+                    freteLabel = 'Grátis (SP)';
                   }
                 }
 
@@ -3869,11 +3859,15 @@ export default function QuoteDetail() {
                             // Diluição proporcional ao peso deste item
                             const _itemDiluicao = getItemDiluicaoFrac(_correctTotalWithMkup);
                             // Frete diluído proporcional ao peso bruto deste item (antes de RT/margem)
+                            // IMPORTANTE: frete entra na base ANTES do RT/margem (igual ao ExcelPreviewModal)
                             const _itemFreteRaw = getItemFreteFrac(_correctTotalItem > 0 ? _correctTotalItem : (d.totalPrice ?? 0));
-                            // O frete entra no total após RT e margem (aplica markup sobre o frete também)
-                            const _itemFreteComMkup = _itemFreteRaw > 0 ? applyMkupWithItem(_itemFreteRaw, d.itemMarginPercent) : 0;
+                            // Recalcular total do item com frete incluído na base (antes do markup)
+                            const _correctTotalWithFrete = _correctTotalItem > 0
+                              ? applyMkupWithItem(_correctTotalItem + _itemFreteRaw, d.itemMarginPercent)
+                              : 0;
+                            const _itemFreteComMkup = _correctTotalWithFrete - _correctTotalWithMkup;
                             const correctTotalDisplay = _correctTotalWithMkup > 0
-                              ? _correctTotalWithMkup + _itemDiluicao + _itemFreteComMkup
+                              ? _correctTotalWithFrete + _itemDiluicao
                               : null;
                             // Distribuição da diluição + frete entre luminária e driver proporcionalmente
                             const _lumWithMkup = lumTotalDisplay ?? 0;
@@ -3994,21 +3988,65 @@ export default function QuoteDetail() {
                   })}
                   {totalGeral > 0 && (
                     <div className="border-t bg-primary/5">
-                      {hasDriverBreakdown && (
-                        <div className="px-4 pt-3 pb-1 space-y-1">
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Subtotal Luminárias</span>
-                            <span className="font-medium">{formatBRL(totalLuminaria + (_diluicaoTotal > 0 && totalGeral > 0 ? _diluicaoTotal * (totalLuminaria / totalGeral) : 0))}</span>
+                      {hasDriverBreakdown && (() => {
+                        // Calcular subtotais com frete diluído na base
+                        let _totalLumComFrete = 0;
+                        let _totalDrvComFrete = 0;
+                        for (const _it of currentItemsMigrated) {
+                          const _d2 = parseCartItemData(_it.itemData);
+                          if (!_d2 || _d2.category === 'Não Orçamos') continue;
+                          const _drvT2 = (_d2.driverLines && _d2.driverLines.length > 0)
+                            ? _d2.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0) : 0;
+                          const _lumT2 = (_d2.driverLines && _d2.driverLines.length > 0)
+                            ? (_d2.priceWithoutDriver != null && _d2.priceWithoutDriver > 0 ? _d2.priceWithoutDriver : Math.max(0, (_d2.totalPrice ?? 0) - _drvT2))
+                            : (_d2.totalPrice ?? 0);
+                          const _itemRaw2 = _lumT2 + _drvT2;
+                          const _itemFrete2 = _freteBase > 0 ? _freteParaDiluir * (_itemRaw2 / _freteBase) : 0;
+                          const _lumFrete2 = _itemRaw2 > 0 ? _itemFrete2 * (_lumT2 / _itemRaw2) : 0;
+                          const _drvFrete2 = _itemRaw2 > 0 ? _itemFrete2 * (_drvT2 / _itemRaw2) : 0;
+                          if (_d2.driverLines && _d2.driverLines.length > 0) {
+                            _totalLumComFrete += applyMkupWithItem(_lumT2 + _lumFrete2, _d2.itemMarginPercent);
+                            _totalDrvComFrete += applyMkupWithItem(_drvT2 + _drvFrete2, _d2.itemMarginPercent);
+                          } else {
+                            _totalLumComFrete += applyMkupWithItem(_lumT2 + _itemFrete2, _d2.itemMarginPercent);
+                          }
+                        }
+                        const _totalComFreteGlobal = _totalLumComFrete + _totalDrvComFrete;
+                        return (
+                          <div className="px-4 pt-3 pb-1 space-y-1">
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-muted-foreground">Subtotal Luminárias</span>
+                              <span className="font-medium">{formatBRL(_totalLumComFrete + (_diluicaoTotal > 0 && _totalComFreteGlobal > 0 ? _diluicaoTotal * (_totalLumComFrete / _totalComFreteGlobal) : 0))}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-muted-foreground">Subtotal Drivers</span>
+                              <span className="font-medium">{formatBRL(_totalDrvComFrete + (_diluicaoTotal > 0 && _totalComFreteGlobal > 0 ? _diluicaoTotal * (_totalDrvComFrete / _totalComFreteGlobal) : 0))}</span>
+                            </div>
                           </div>
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Subtotal Drivers</span>
-                            <span className="font-medium">{formatBRL(totalDriver + (_diluicaoTotal > 0 && totalGeral > 0 ? _diluicaoTotal * (totalDriver / totalGeral) : 0))}</span>
-                          </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                       <div className="px-4 py-3 flex justify-between items-center border-t border-primary/10">
-                        <span className="text-sm font-medium">Total</span>
-                        <span className="text-xl font-bold text-primary">{formatBRL(totalGeral + _diluicaoTotal)}</span>
+                        <span className="text-sm font-medium">Total{_freteParaDiluir > 0 ? " (c/ frete diluído)" : ""}</span>
+                        <span className="text-xl font-bold text-primary">{formatBRL(
+                          _freteParaDiluir > 0
+                            ? (() => {
+                                // Recalcular total com frete na base (igual ao ExcelPreviewModal)
+                                const _totalBaseRaw = currentItemsMigrated.reduce((s, it) => {
+                                  const _d = parseCartItemData(it.itemData);
+                                  if (!_d || _d.category === 'Não Orçamos') return s;
+                                  const _drvT = (_d.driverLines && _d.driverLines.length > 0)
+                                    ? _d.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0) : 0;
+                                  const _lumT = (_d.driverLines && _d.driverLines.length > 0)
+                                    ? (_d.priceWithoutDriver != null && _d.priceWithoutDriver > 0 ? _d.priceWithoutDriver : Math.max(0, (_d.totalPrice ?? 0) - _drvT))
+                                    : (_d.totalPrice ?? 0);
+                                  const _itemRaw = _lumT + _drvT;
+                                  const _itemFrete = _freteBase > 0 ? _freteParaDiluir * (_itemRaw / _freteBase) : 0;
+                                  return s + applyMkupWithItem(_itemRaw + _itemFrete, _d.itemMarginPercent);
+                                }, 0);
+                                return _totalBaseRaw + _diluicaoTotal;
+                              })()
+                            : totalGeral + _diluicaoTotal
+                        )}</span>
                       </div>
                     </div>
                   )}
