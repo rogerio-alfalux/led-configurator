@@ -3772,11 +3772,26 @@ export default function QuoteDetail() {
 
               // Diluição proporcional por item
               const _diluicaoTotal = (quote as any).diluicaoValor != null ? parseFloat(String((quote as any).diluicaoValor)) : 0;
+              // Frete diluído nos itens: quando freteIncluded=true, o valor do frete é distribuído proporcionalmente
+              const _freteIncluded = (quote as any).freteIncluded ?? false;
+              const _freteValue = (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : 0;
+              const _freteIsento = (quote as any).freteIsento ?? false;
+              const _freteParaDiluir = (_freteIncluded && !_freteIsento && _freteValue > 0) ? _freteValue : 0;
               // Calcular peso total (soma dos totais de cada item antes da diluição) para distribuição proporcional
               const _diluicaoBase = totalGeral; // totalGeral já é a soma com markup
               const getItemDiluicaoFrac = (itemTotal: number): number => {
                 if (_diluicaoTotal <= 0 || _diluicaoBase <= 0) return 0;
                 return _diluicaoTotal * (itemTotal / _diluicaoBase);
+              };
+              // Frete diluído proporcional por item (baseado no totalPrice bruto, antes de RT/margem)
+              const _freteBase = currentItemsMigrated.reduce((s, it) => {
+                const _d = parseCartItemData(it.itemData);
+                if (!_d || _d.category === 'Não Orçamos') return s;
+                return s + (_d.totalPrice ?? 0);
+              }, 0);
+              const getItemFreteFrac = (itemTotalRaw: number): number => {
+                if (_freteParaDiluir <= 0 || _freteBase <= 0) return 0;
+                return _freteParaDiluir * (itemTotalRaw / _freteBase);
               };
               let globalIdx = 0;
               return (
@@ -3853,16 +3868,22 @@ export default function QuoteDetail() {
                               : 0;
                             // Diluição proporcional ao peso deste item
                             const _itemDiluicao = getItemDiluicaoFrac(_correctTotalWithMkup);
+                            // Frete diluído proporcional ao peso bruto deste item (antes de RT/margem)
+                            const _itemFreteRaw = getItemFreteFrac(_correctTotalItem > 0 ? _correctTotalItem : (d.totalPrice ?? 0));
+                            // O frete entra no total após RT e margem (aplica markup sobre o frete também)
+                            const _itemFreteComMkup = _itemFreteRaw > 0 ? applyMkupWithItem(_itemFreteRaw, d.itemMarginPercent) : 0;
                             const correctTotalDisplay = _correctTotalWithMkup > 0
-                              ? _correctTotalWithMkup + _itemDiluicao
+                              ? _correctTotalWithMkup + _itemDiluicao + _itemFreteComMkup
                               : null;
-                            // Distribuição da diluição entre luminária e driver proporcionalmente
+                            // Distribuição da diluição + frete entre luminária e driver proporcionalmente
                             const _lumWithMkup = lumTotalDisplay ?? 0;
                             const _drvWithMkup = hasBreakdown
                               ? d.driverLines!.reduce((s, dl) => s + (dl.driverTotalPrice != null ? applyMkupWithItem(dl.driverTotalPrice, d.itemMarginPercent) : 0), 0)
                               : 0;
                             const _itemTotalForRatio = _lumWithMkup + _drvWithMkup;
-                            const _lumDiluicaoFrac = _itemTotalForRatio > 0 ? _itemDiluicao * (_lumWithMkup / _itemTotalForRatio) : _itemDiluicao;
+                            // Combinar diluição + frete para distribuir proporcionalmente
+                            const _totalAdicional = _itemDiluicao + _itemFreteComMkup;
+                            const _lumDiluicaoFrac = _itemTotalForRatio > 0 ? _totalAdicional * (_lumWithMkup / _itemTotalForRatio) : _totalAdicional;
                             const lumTotalDisplayWithDil = lumTotalDisplay != null ? lumTotalDisplay + _lumDiluicaoFrac : null;
                             const lumUnitDisplayWithDil = lumUnitDisplay != null && d.qty > 0 ? lumTotalDisplayWithDil != null ? lumTotalDisplayWithDil / d.qty : null : null;
                             return (
@@ -3928,10 +3949,10 @@ export default function QuoteDetail() {
                                       {d.driverLines!.map((dl, di) => {
                                         const drvUnitRaw = dl.driverUnitPrice != null ? applyMkupWithItem(dl.driverUnitPrice, d.itemMarginPercent) : null;
                                         const drvTotalRaw = dl.driverTotalPrice != null ? applyMkupWithItem(dl.driverTotalPrice, d.itemMarginPercent) : null;
-                                        // Diluição proporcional ao peso deste driver dentro do item
+                                        // Diluição + frete proporcional ao peso deste driver dentro do item
                                         const _drvItemWeight = drvTotalRaw ?? 0;
-                                        const _drvDiluicao = _itemTotalForRatio > 0 ? _itemDiluicao * (_drvItemWeight / _itemTotalForRatio) : 0;
-                                        const drvTotalWithDil = drvTotalRaw != null ? drvTotalRaw + _drvDiluicao : null;
+                                        const _drvAdicional = _itemTotalForRatio > 0 ? _totalAdicional * (_drvItemWeight / _itemTotalForRatio) : 0;
+                                        const drvTotalWithDil = drvTotalRaw != null ? drvTotalRaw + _drvAdicional : null;
                                         const drvUnitWithDil = drvUnitRaw != null && dl.driverQty > 0 ? drvTotalWithDil != null ? drvTotalWithDil / dl.driverQty : null : null;
                                         return (
                                           <div key={di} className="mb-1">
@@ -3956,10 +3977,10 @@ export default function QuoteDetail() {
                                     <p className="text-xs font-semibold text-red-600 dark:text-red-400 italic">Sem preço</p>
                                   ) : (
                                     <>
-                                      {/* Para itens sem breakdown, a dilução já está em _itemDiluicao */}
-                                      {unitDisplay != null && <p className="text-xs text-muted-foreground">{formatBRL(unitDisplay + (_itemDiluicao / (d.qty || 1)))}/un</p>}
+                                      {/* Para itens sem breakdown, diluição + frete já estão em _itemDiluicao + _itemFreteComMkup */}
+                                      {unitDisplay != null && <p className="text-xs text-muted-foreground">{formatBRL(unitDisplay + ((_itemDiluicao + _itemFreteComMkup) / (d.qty || 1)))}/un</p>}
                                       {totalDisplay != null
-                                        ? <p className="font-bold text-primary text-sm">{formatBRL(totalDisplay + _itemDiluicao)}</p>
+                                        ? <p className="font-bold text-primary text-sm">{formatBRL(totalDisplay + _itemDiluicao + _itemFreteComMkup)}</p>
                                         : <p className="text-xs italic text-muted-foreground">A consultar</p>}
                                     </>
                                   )}
