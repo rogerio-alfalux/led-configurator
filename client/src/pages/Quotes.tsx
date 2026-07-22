@@ -99,7 +99,9 @@ export default function Quotes() {
     const getQuoteValue = (q: typeof rows[0]) => {
       const base = Number(q.totalFinal) > 0 ? Number(q.totalFinal) : (Number(q.totalAmount) || 0);
       const dil = canSeeCommission && (q as any).diluicaoValor ? Number((q as any).diluicaoValor) : 0;
-      return base + dil;
+      // Incluir DIFAL/FCP no valor total (mesmo valor do PDF/Excel/Preview)
+      const difal = (q as any).difalEnabled ? (Number((q as any).difalValue ?? 0) + Number((q as any).fcpValue ?? 0)) : 0;
+      return base + dil + difal;
     };
     const totalValue = rows.reduce((sum, q) => sum + getQuoteValue(q), 0);
     const approvedValue = rows.filter(q => q.status === "approved").reduce((sum, q) => sum + getQuoteValue(q), 0);
@@ -426,6 +428,7 @@ export default function Quotes() {
                             <p className="font-bold text-primary">{formatBRL(
                               (Number(q.totalFinal) > 0 ? Number(q.totalFinal) : Number(q.totalAmount))
                               + (canSeeCommission && (q as any).diluicaoValor ? Number((q as any).diluicaoValor) : 0)
+                              + ((q as any).difalEnabled ? (Number((q as any).difalValue ?? 0) + Number((q as any).fcpValue ?? 0)) : 0)
                             )}</p>
                           ) : (
                             <p className="text-xs text-muted-foreground italic">A consultar</p>

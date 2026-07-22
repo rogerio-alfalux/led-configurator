@@ -1574,6 +1574,57 @@ export default function QuoteDetail() {
   const editTotalComRT = editRtPct > 0 ? editTotalBase / (1 - editRtPct) : editTotalBase;
   const editTotalFinal = editMarginPct > 0 ? editTotalComRT / (1 - editMarginPct) : editTotalComRT;
 
+  // Recalcular o total do orçamento dinamicamente (igual ao PDF/Preview/Excel)
+  // Usando os campos do quote (não do editForm) para o card de resumo
+  const _hdrRtPct = quote.rtPercent ? Math.min(Math.max(parseFloat(String(quote.rtPercent)), 0), 0.99) : 0;
+  const _hdrMarginPct = quote.marginPercent ? Math.min(Math.max(parseFloat(String(quote.marginPercent)), 0), 0.99) : 0;
+  const _hdrFreteIncluded = !!(quote as any).freteIncluded;
+  const _hdrFreteValue = (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : 0;
+  const _hdrFreteParaDiluir = (_hdrFreteIncluded && _hdrFreteValue > 0) ? _hdrFreteValue : 0;
+  const _hdrDiluicao = (quote as any).diluicaoValor ? parseFloat(String((quote as any).diluicaoValor)) : 0;
+  // Base dos itens (sem RT/margem global, mas com margem individual)
+  const _hdrTotalBase = currentItems.reduce((s, i) => {
+    const d = parseCartItemData(i.itemData);
+    if (!d || d.category === 'Não Orçamos') return s;
+    if (d.driverLines && d.driverLines.length > 0) {
+      const lumT = (() => {
+        if (d.priceWithoutDriver != null) {
+          const isUnitOnly = d.unitPriceLuminaria != null &&
+            Math.abs(d.priceWithoutDriver - d.unitPriceLuminaria) < 0.02 && (d.qty ?? 1) > 1;
+          return isUnitOnly ? d.unitPriceLuminaria! * (d.qty ?? 1) : d.priceWithoutDriver;
+        }
+        const _drvT = d.driverLines!.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0);
+        if (d.unitPriceLuminaria == null && d.totalPrice != null && d.totalPrice > 0) return Math.max(0, d.totalPrice - _drvT);
+        const unitLum = d.unitPriceLuminaria ?? null;
+        return unitLum != null ? unitLum * (d.qty ?? 1) : (d.totalPrice ?? 0);
+      })();
+      const drvT = d.driverLines.reduce((sd, dl) => {
+        if (dl.driverTotalPrice != null && dl.driverTotalPrice > 0) return sd + dl.driverTotalPrice;
+        const iqty = d.qty ?? 1;
+        const storedQty = dl.driverQty ?? 1;
+        const effectiveQty = storedQty <= 1 ? iqty : storedQty;
+        return sd + Math.round((dl.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
+      }, 0);
+      return s + applyItemMarginQD(lumT + drvT, d.itemMarginPercent);
+    }
+    return s + applyItemMarginQD(d.totalPrice ?? 0, d.itemMarginPercent);
+  }, 0);
+  // Aplicar RT + margem sobre (base + frete diluído + diluição)
+  const _hdrTotalComRT = _hdrRtPct > 0 ? (_hdrTotalBase + _hdrFreteParaDiluir + _hdrDiluicao) / (1 - _hdrRtPct) : (_hdrTotalBase + _hdrFreteParaDiluir + _hdrDiluicao);
+  const _hdrTotalFinal = _hdrMarginPct > 0 ? _hdrTotalComRT / (1 - _hdrMarginPct) : _hdrTotalComRT;
+  // Frete separado (não diluído) entra na base do DIFAL
+  const _hdrFreteParaImposto = _hdrFreteIncluded ? 0 : (_hdrFreteValue > 0 ? _hdrFreteValue : 0);
+  const _hdrBaseParaDifal = _hdrTotalFinal + _hdrFreteParaImposto;
+  // DIFAL/FCP
+  const _hdrStateInfo = quote.destState ? getStateInfo(quote.destState) : undefined;
+  const _hdrCombinedRate = _hdrStateInfo ? _hdrStateInfo.combined : 0;
+  const _hdrDifalAplicavel = !!_hdrStateInfo && _hdrCombinedRate > 0;
+  const _hdrTotalComDifal = (quote.difalEnabled && _hdrDifalAplicavel)
+    ? _hdrBaseParaDifal / (1 - _hdrCombinedRate / 100)
+    : _hdrBaseParaDifal;
+  // Total final recalculado (igual ao PDF/Preview/Excel)
+  const totalRecalculado = _hdrTotalComDifal;
+
   const handleGenerateQuote = async () => {
     setIsGenerating(true);
     try {
@@ -2005,18 +2056,9 @@ export default function QuoteDetail() {
                   )}
                 </div>
               )}
-              {(() => {
-                const displayTotal = quote.totalFinal && Number(quote.totalFinal) > 0
-                  ? Number(quote.totalFinal)
-                  : (quote.totalAmount ? Number(quote.totalAmount) : 0);
-                const diluicaoHdr = canSeeCommission && (quote as any).diluicaoValor != null
-                  ? parseFloat(String((quote as any).diluicaoValor))
-                  : 0;
-                const displayTotalComDil = displayTotal + diluicaoHdr;
-                return displayTotalComDil > 0 ? (
-                  <p className="text-primary font-bold text-lg">{formatBRL(displayTotalComDil)}</p>
-                ) : null;
-              })()}
+              {totalRecalculado > 0 ? (
+                <p className="text-primary font-bold text-lg">{formatBRL(totalRecalculado)}</p>
+              ) : null}
             </CardContent>
           </Card>
         </div>
