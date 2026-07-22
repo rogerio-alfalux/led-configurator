@@ -11,6 +11,7 @@
  */
 
 import type { Request, Response } from "express";
+import { sdk } from "./_core/sdk";
 import { getDb } from "./db";
 import { storagePut } from "./storage";
 import {
@@ -69,6 +70,21 @@ function buildExcelBuffer(sheets: { name: string; rows: Record<string, unknown>[
 // ─── Handler principal ────────────────────────────────────────────────────────
 
 export async function dailyBackupHandler(req: Request, res: Response) {
+  // Autenticar: aceitar apenas chamadas do Heartbeat (cron) ou chamadas internas (sem cookie)
+  // Chamadas diretas do sandbox (sem cookie) são permitidas para testes manuais
+  const hasCookie = !!(req.headers.cookie && req.headers.cookie.includes("app_session_id"));
+  if (hasCookie) {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      if (!user.isCron) {
+        return res.status(403).json({ error: "cron-only endpoint" });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return res.status(403).json({ error: msg });
+    }
+  }
+
   const startedAt = new Date();
   const db = await getDb();
   if (!db) {
