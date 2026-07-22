@@ -3322,14 +3322,15 @@ export default function Home() {
     const autoNote = [fabricante, product.referencia ? `ref: ${product.referencia}` : null]
       .filter(Boolean).join(" ");
     const precoVenda = product.precoVenda ?? 0;
+    const effectiveQty = globalQty > 0 ? globalQty : 1;
     const item: CartItemData = {
       category: "Revenda",
       sku: product.sku,
       description: product.name,
       photoUrl: product.fotoUrl ?? "",
-      qty: 1,
+      qty: effectiveQty,
       unitPrice: precoVenda,
-      totalPrice: precoVenda,
+      totalPrice: precoVenda * effectiveQty,
       priceFromApi: false, // Revenda: preço pré-preenchido mas sempre editável
       power: "",
       cct: "",
@@ -3360,7 +3361,8 @@ export default function Home() {
       }
     }
     setRvSelectedSku("");
-  }, [rvSelectedSku, revendaProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, pendingAccessories]);
+    setGlobalQty(1);
+  }, [rvSelectedSku, revendaProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, pendingAccessories, globalQty, globalItemEmPlanta, globalPavimento, globalAmbiente, setGlobalQty]);
 
   const handleAddCustomizadoItem = useCallback(() => {
     // Modo API: produto selecionado da lista
@@ -3762,19 +3764,20 @@ export default function Home() {
       specialInternalNotes: spInternalNotes.trim() || undefined,
       itemEmPlanta: globalItemEmPlanta,
     };
+    // Aplicar globalQty em ambos os fluxos (carrinho e orçamento)
+    const effectiveQty = globalQty > 0 ? globalQty : 1;
+    const finalItem: CartItemData = {
+      ...item,
+      qty: effectiveQty,
+      totalPrice: unitPrice * effectiveQty,
+      itemEmPlanta: globalItemEmPlanta,
+      ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
+      ...(globalAmbiente ? { ambiente: globalAmbiente } : {}),
+    };
     if (appendToQuoteId) {
-      handleAddItemOrToQuote(item);
+      handleAddItemOrToQuote(finalItem);
     } else {
       // Item Especial vai direto ao carrinho — cor já está no formulário, não precisa do seletor de cor
-      const effectiveQty = globalQty > 0 ? globalQty : 1;
-      const finalItem: CartItemData = {
-        ...item,
-        qty: effectiveQty,
-        totalPrice: unitPrice * effectiveQty,
-        itemEmPlanta: globalItemEmPlanta,
-        ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
-        ...(globalAmbiente ? { ambiente: globalAmbiente } : {}),
-      };
       const itemWithAcc: CartItemData = pendingAccessories.length > 0
         ? { ...finalItem, accessories: [...pendingAccessories] }
         : finalItem;
@@ -3783,7 +3786,7 @@ export default function Home() {
       setGlobalItemEmPlanta("");
       setGlobalQty(1);
     }
-  }, [spDescription, spDimensions, spPower, spDim, spVoltage, spColor, spColorTemp, spUnitPrice, spPhotoUrl, spInternalNotes, appendToQuoteId, handleAddItemOrToQuote, globalItemEmPlanta, globalQty, pendingAccessories, addItem]);
+  }, [spDescription, spDimensions, spPower, spDim, spVoltage, spColor, spColorTemp, spUnitPrice, spPhotoUrl, spInternalNotes, appendToQuoteId, handleAddItemOrToQuote, globalItemEmPlanta, globalQty, globalPavimento, globalAmbiente, pendingAccessories, addItem]);
 
   const handleAddService = useCallback(() => {
     if (!svDescription.trim()) {
@@ -13402,6 +13405,7 @@ export default function Home() {
         }}
         isAdding={appendToQuoteId ? appendItemsMutation.isPending : isAddingToCart}
         productName={pendingCartItem?.sku ?? ""}
+        excludedColors={pendingCartItem?.category === "LED BAR" ? ["Branco Fosco Micro"] : []}
       />
     </div>
   );

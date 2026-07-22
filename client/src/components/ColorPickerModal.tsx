@@ -26,6 +26,8 @@ interface ColorPickerModalProps {
   onConfirm: (cor: CorPeca) => void;
   isAdding?: boolean;
   productName?: string;
+  /** Cores a serem excluídas da lista de opções */
+  excludedColors?: string[];
 }
 
 // Mapeamento visual de cores para CSS
@@ -50,8 +52,10 @@ export default function ColorPickerModal({
   onConfirm,
   isAdding = false,
   productName,
+  excludedColors = [],
 }: ColorPickerModalProps) {
   const [selected, setSelected] = useState<CorPeca | null>(null);
+  const availableColors = CORES_PECA.filter((c) => !excludedColors.includes(c));
 
   const handleConfirm = () => {
     onConfirm(selected ?? "A Definir");
@@ -82,7 +86,7 @@ export default function ColorPickerModal({
           </p>
 
           <div className="grid grid-cols-2 gap-2">
-            {CORES_PECA.map((cor) => (
+            {availableColors.map((cor) => (
               <button
                 key={cor}
                 type="button"
