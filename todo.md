@@ -2113,3 +2113,14 @@
 - [ ] Módulo LED: mostrar descrição + (EQ00XXX) na Ficha de Produção
 - [ ] Drivers/fontes: mostrar descrição + (EQ/CP) na Ficha de Produção
 - [ ] Todos os equipamentos e fontes de luz: usar EQ ou CP conforme o tipo
+
+## Sistema de Custo/Markup e Dashboard de Lucro
+- [x] Campo de custo no Item Especial (visível só para Vivian, Dennis, Rogério) no carrinho
+- [x] Campo de custo no Item Especial na edição de itens do orçamento
+- [x] Campo de markup que calcula preço de venda a partir do custo (e vice-versa)
+- [x] Tabela de custos adicionais por orçamento no banco de dados
+- [x] tRPC endpoints para CRUD de custos adicionais
+- [x] Dashboard de lucro por orçamento (margens, bruto, líquido) — restrito a Vivian/Dennis/Rogério
+- [x] Botão "Incluir custo adicional" no orçamento (valor + descrição)
+- [x] Custos adicionais debitam do lucro no dashboard do orçamento
+- [x] Índice de custos adicionais no dashboard geral

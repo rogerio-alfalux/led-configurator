@@ -49,7 +49,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 import { StateCitySelector, isSaoPauloCapital } from "@/components/StateCitySelector";
-import { PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS, DRIVER_PRICE_OVERRIDE_EMAILS } from "@shared/const";
+import { PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS, DRIVER_PRICE_OVERRIDE_EMAILS, COST_PRIVILEGED_EMAILS } from "@shared/const";
 import { toBrasiliaDate } from "@/lib/dateUtils";
 import { applyCCTChange } from "@/lib/cctUtils";
 
@@ -799,7 +799,7 @@ export default function Cart() {
 
   // Edição inline de campos do item
   const [editItemId, setEditItemId] = useState<number | null>(null);
-  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; driverUnitPriceOverride: string; itemNote: string; itemObs: string; itemObsShowInExcel: boolean; itemMarginPercent: string; floorId: string; floorName: string; ambiente: string; specialColorTemp: string; specialEquipments: SpecialEquipment[]; mkpCustom: string; specialDescription: string; specialDimensions: string; specialPower: string; specialDim: string; specialVoltage: string; specialColor: string; description: string; itemEmPlanta: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', driverUnitPriceOverride: '', itemNote: '', itemObs: '', itemObsShowInExcel: false, itemMarginPercent: '', floorId: '', floorName: '', ambiente: '', specialColorTemp: '', specialEquipments: [], mkpCustom: '', specialDescription: '', specialDimensions: '', specialPower: '', specialDim: '', specialVoltage: '', specialColor: '', description: '', itemEmPlanta: '' });
+  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; driverUnitPriceOverride: string; itemNote: string; itemObs: string; itemObsShowInExcel: boolean; itemMarginPercent: string; floorId: string; floorName: string; ambiente: string; specialColorTemp: string; specialEquipments: SpecialEquipment[]; mkpCustom: string; specialDescription: string; specialDimensions: string; specialPower: string; specialDim: string; specialVoltage: string; specialColor: string; description: string; itemEmPlanta: string; specialCustoUnitario: string; specialMarkup: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', driverUnitPriceOverride: '', itemNote: '', itemObs: '', itemObsShowInExcel: false, itemMarginPercent: '', floorId: '', floorName: '', ambiente: '', specialColorTemp: '', specialEquipments: [], mkpCustom: '', specialDescription: '', specialDimensions: '', specialPower: '', specialDim: '', specialVoltage: '', specialColor: '', description: '', itemEmPlanta: '', specialCustoUnitario: '', specialMarkup: '' });
   // Estados para edição de foto de Item Especial
   const [editSpecialPhotoUrl, setEditSpecialPhotoUrl] = useState<string | null>(null);
   const [editSpecialPhotoPreview, setEditSpecialPhotoPreview] = useState<string | null>(null);
@@ -1432,7 +1432,7 @@ export default function Cart() {
                           onDuplicate={(data) => { addItem({ ...data, itemEmPlanta: data.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
                           onEditClick={(id, data) => {
                             setEditItemId(id);
-                                    setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', driverUnitPriceOverride: data.driverLines && data.driverLines.length > 0 && data.driverLines[0].driverUnitPrice != null ? String(data.driverLines[0].driverUnitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: (data.itemMarginPercent != null && data.itemMarginPercent > 0) ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '', description: data.description ?? '', itemEmPlanta: data.itemEmPlanta ?? '' });
+                                    setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', driverUnitPriceOverride: data.driverLines && data.driverLines.length > 0 && data.driverLines[0].driverUnitPrice != null ? String(data.driverLines[0].driverUnitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: (data.itemMarginPercent != null && data.itemMarginPercent > 0) ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '', description: data.description ?? '', itemEmPlanta: data.itemEmPlanta ?? '', specialCustoUnitario: data.specialCustoUnitario != null ? String(data.specialCustoUnitario).replace('.', ',') : '', specialMarkup: data.specialMarkup != null ? String(data.specialMarkup).replace('.', ',') : '' });
                                                         if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
                           }}
                           applyItemMargin={applyItemMargin}
@@ -1507,7 +1507,7 @@ export default function Cart() {
                                   onDuplicate={(data) => { addItem({ ...data, itemEmPlanta: data.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
                                   onEditClick={(id, data) => {
                                     setEditItemId(id);
-                                    setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', driverUnitPriceOverride: data.driverLines && data.driverLines.length > 0 && data.driverLines[0].driverUnitPrice != null ? String(data.driverLines[0].driverUnitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: (data.itemMarginPercent != null && data.itemMarginPercent > 0) ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '', description: data.description ?? '', itemEmPlanta: data.itemEmPlanta ?? '' });
+                                    setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', driverUnitPriceOverride: data.driverLines && data.driverLines.length > 0 && data.driverLines[0].driverUnitPrice != null ? String(data.driverLines[0].driverUnitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: (data.itemMarginPercent != null && data.itemMarginPercent > 0) ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '', description: data.description ?? '', itemEmPlanta: data.itemEmPlanta ?? '', specialCustoUnitario: data.specialCustoUnitario != null ? String(data.specialCustoUnitario).replace('.', ',') : '', specialMarkup: data.specialMarkup != null ? String(data.specialMarkup).replace('.', ',') : '' });
                                     if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
                                   }}
                                   applyItemMargin={applyItemMargin}
@@ -2961,6 +2961,86 @@ export default function Cart() {
                       </div>
                     </div>
                   )}
+                  {/* Custo Unitário e Markup para Item Especial — apenas privilegiados */}
+                  {item?.data.isSpecialItem && COST_PRIVILEGED_EMAILS.map(e => e.toLowerCase()).includes(userEmail) && (
+                    <div className="space-y-3 pt-2 border-t border-emerald-200 dark:border-emerald-800">
+                      <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">Custo / Markup (interno)</p>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <Label className="text-xs">Custo Unitário (R$)</Label>
+                          <Input
+                            value={editFields.specialCustoUnitario}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setEditFields(prev => {
+                                const custo = parseFloat(val.replace(',', '.'));
+                                const preco = parseFloat(prev.unitPrice.replace(',', '.'));
+                                let mkp = prev.specialMarkup;
+                                if (!isNaN(custo) && custo > 0 && !isNaN(preco) && preco > 0) {
+                                  mkp = (preco / custo).toFixed(4).replace('.', ',');
+                                }
+                                return { ...prev, specialCustoUnitario: val, specialMarkup: mkp };
+                              });
+                            }}
+                            placeholder="ex: 150,00"
+                            className="mt-1 h-8 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Markup (×)</Label>
+                          <Input
+                            value={editFields.specialMarkup}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setEditFields(prev => {
+                                const mkp = parseFloat(val.replace(',', '.'));
+                                const custo = parseFloat(prev.specialCustoUnitario.replace(',', '.'));
+                                let preco = prev.unitPrice;
+                                if (!isNaN(mkp) && mkp > 0 && !isNaN(custo) && custo > 0) {
+                                  preco = (custo * mkp).toFixed(2).replace('.', ',');
+                                }
+                                return { ...prev, specialMarkup: val, unitPrice: preco };
+                              });
+                            }}
+                            placeholder="ex: 2,5"
+                            className="mt-1 h-8 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Preço Venda (R$)</Label>
+                          <Input
+                            value={editFields.unitPrice}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setEditFields(prev => {
+                                const preco = parseFloat(val.replace(',', '.'));
+                                const custo = parseFloat(prev.specialCustoUnitario.replace(',', '.'));
+                                let mkp = prev.specialMarkup;
+                                if (!isNaN(preco) && preco > 0 && !isNaN(custo) && custo > 0) {
+                                  mkp = (preco / custo).toFixed(4).replace('.', ',');
+                                }
+                                return { ...prev, unitPrice: val, specialMarkup: mkp };
+                              });
+                            }}
+                            placeholder="ex: 375,00"
+                            className="mt-1 h-8 text-sm"
+                          />
+                        </div>
+                      </div>
+                      {editFields.specialCustoUnitario && editFields.specialMarkup && (
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                          Margem: {(() => {
+                            const custo = parseFloat(editFields.specialCustoUnitario.replace(',', '.'));
+                            const preco = parseFloat(editFields.unitPrice.replace(',', '.'));
+                            if (!isNaN(custo) && custo > 0 && !isNaN(preco) && preco > 0) {
+                              return ((1 - custo / preco) * 100).toFixed(1) + '%';
+                            }
+                            return '—';
+                          })()}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   {/* Temperatura de cor para Item Especial */}
                   {item?.data.isSpecialItem && (
                     <div className="space-y-1">
@@ -3210,6 +3290,11 @@ export default function Cart() {
                 if (editFields.specialDim.trim()) patch.specialDim = editFields.specialDim.trim();
                 if (editFields.specialVoltage.trim()) patch.specialVoltage = editFields.specialVoltage.trim();
                 if (editFields.specialColor.trim()) patch.specialColor = editFields.specialColor.trim();
+                // Custo e markup (apenas se preenchido)
+                const custoVal = parseFloat(editFields.specialCustoUnitario.replace(',', '.'));
+                const mkpVal2 = parseFloat(editFields.specialMarkup.replace(',', '.'));
+                patch.specialCustoUnitario = !isNaN(custoVal) && custoVal > 0 ? custoVal : null;
+                patch.specialMarkup = !isNaN(mkpVal2) && mkpVal2 > 0 ? mkpVal2 : null;
               }
               const totalForUpdate = isRevenda
                 ? (parseInt(editFields.qty) || 1) * (parseFloat(editFields.unitPrice.replace(',', '.')) || 0)

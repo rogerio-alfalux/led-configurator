@@ -282,6 +282,8 @@ export default function Dashboard() {
   const totalRt = Number(profitMetrics?.totalRt ?? 0);
   const totalDifal = Number(profitMetrics?.totalDifal ?? 0);
   const totalFrete = Number(profitMetrics?.totalFrete ?? 0);
+  const totalAdditionalCosts = Number(profitMetrics?.totalAdditionalCosts ?? 0);
+  const additionalCostsCount = Number(profitMetrics?.additionalCostsCount ?? 0);
   const qtdComCusto = Number(profitMetrics?.qtdComCusto ?? 0);
   const qtdSemCusto = Number(profitMetrics?.qtdSemCusto ?? 0);
   const totalAprovados = Number(profitMetrics?.totalCount ?? 0);
@@ -779,6 +781,12 @@ export default function Dashboard() {
                           <div className="flex justify-between text-red-600 dark:text-red-400">
                             <span>(−) Frete</span>
                             <span>{formatBRL(totalFrete)}</span>
+                          </div>
+                        )}
+                        {totalAdditionalCosts > 0 && (
+                          <div className="flex justify-between text-red-600 dark:text-red-400">
+                            <span>(−) Custos Adicionais ({additionalCostsCount} itens)</span>
+                            <span>{formatBRL(totalAdditionalCosts)}</span>
                           </div>
                         )}
                         <div className="flex justify-between font-bold text-teal-600 dark:text-teal-400 border-t pt-2">

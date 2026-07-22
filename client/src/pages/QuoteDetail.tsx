@@ -7,6 +7,7 @@ import {
   Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle, GripVertical, Wrench, Copy, Eye, Navigation2,
   Upload, X as XIcon, Layers, Receipt, Printer, Search,
   User, Phone, FolderOpen, Bookmark, MapPin, Briefcase, Calendar, RefreshCw, ClipboardList, Zap, FileDown,
+  TrendingUp, DollarSign, Calculator,
 } from "lucide-react";
 import {
   DndContext,
@@ -121,7 +122,7 @@ import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator"
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 import { StateCitySelector, isSaoPauloCapital } from "@/components/StateCitySelector";
 import { toast } from "sonner";
-import { PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS, DRIVER_PRICE_OVERRIDE_EMAILS } from "@shared/const";
+import { PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS, DRIVER_PRICE_OVERRIDE_EMAILS, COST_PRIVILEGED_EMAILS } from "@shared/const";
 import { applyCCTChange, applyUnitPriceChange, applyQtyChange } from "@/lib/cctUtils";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -150,9 +151,10 @@ interface SortableEditItemProps {
   onUploadSpecialPhoto: (itemId: number, base64: string, mimeType: 'image/jpeg' | 'image/png' | 'image/webp', fileName: string) => Promise<void>;
   canOverrideApiPrice?: boolean;
   canEditDriverPrice?: boolean;
+  isCostPrivileged?: boolean;
 }
 
-function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, resolvePhoto, onUpdate, onDelete, onDuplicate, onUploadSpecialPhoto, canOverrideApiPrice = false, canEditDriverPrice = false }: SortableEditItemProps) {
+function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, resolvePhoto, onUpdate, onDelete, onDuplicate, onUploadSpecialPhoto, canOverrideApiPrice = false, canEditDriverPrice = false, isCostPrivileged = false }: SortableEditItemProps) {
   const [specialUploading, setSpecialUploading] = useState(false);
   const [seqInputVal, setSeqInputVal] = useState<string>("");
   const d = item.parsed;
@@ -575,6 +577,75 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
             value={d.specialEquipments ?? []}
             onChange={(equips: SpecialEquipment[]) => onUpdate(item.id, { specialEquipments: equips })}
           />
+        </div>
+      )}
+
+      {/* Custo Unitário e Markup para Item Especial — apenas privilegiados */}
+      {d.isSpecialItem && isCostPrivileged && (
+        <div className="pt-2 border-t border-emerald-200 dark:border-emerald-800 space-y-3">
+          <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">Custo / Markup (interno)</p>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <Label className="text-xs">Custo Unitário (R$)</Label>
+              <Input
+                value={d.specialCustoUnitario != null ? String(d.specialCustoUnitario).replace('.', ',') : ''}
+                onChange={e => {
+                  const val = e.target.value;
+                  const custo = parseFloat(val.replace(',', '.'));
+                  const preco = d.unitPrice ?? 0;
+                  let mkp: number | null = d.specialMarkup ?? null;
+                  if (!isNaN(custo) && custo > 0 && preco > 0) {
+                    mkp = Math.round((preco / custo) * 10000) / 10000;
+                  }
+                  onUpdate(item.id, { specialCustoUnitario: !isNaN(custo) && custo > 0 ? custo : null, specialMarkup: mkp });
+                }}
+                placeholder="ex: 150,00"
+                className="mt-1 h-8 text-sm"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Markup (×)</Label>
+              <Input
+                value={d.specialMarkup != null ? String(d.specialMarkup).replace('.', ',') : ''}
+                onChange={e => {
+                  const val = e.target.value;
+                  const mkp = parseFloat(val.replace(',', '.'));
+                  const custo = d.specialCustoUnitario ?? 0;
+                  let preco = d.unitPrice ?? 0;
+                  if (!isNaN(mkp) && mkp > 0 && custo > 0) {
+                    preco = Math.round(custo * mkp * 100) / 100;
+                  }
+                  onUpdate(item.id, { specialMarkup: !isNaN(mkp) && mkp > 0 ? mkp : null, unitPrice: preco > 0 ? preco : d.unitPrice });
+                }}
+                placeholder="ex: 2,5"
+                className="mt-1 h-8 text-sm"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Preço Venda (R$)</Label>
+              <Input
+                value={d.unitPrice != null ? String(d.unitPrice).replace('.', ',') : ''}
+                onChange={e => {
+                  const val = e.target.value;
+                  const preco = parseFloat(val.replace(',', '.'));
+                  const custo = d.specialCustoUnitario ?? 0;
+                  let mkp: number | null = d.specialMarkup ?? null;
+                  if (!isNaN(preco) && preco > 0 && custo > 0) {
+                    mkp = Math.round((preco / custo) * 10000) / 10000;
+                  }
+                  const qty = d.qty ?? 1;
+                  onUpdate(item.id, { unitPrice: !isNaN(preco) ? preco : d.unitPrice, totalPrice: !isNaN(preco) ? preco * qty : undefined, specialMarkup: mkp });
+                }}
+                placeholder="ex: 375,00"
+                className="mt-1 h-8 text-sm"
+              />
+            </div>
+          </div>
+          {d.specialCustoUnitario != null && d.specialCustoUnitario > 0 && (d.unitPrice ?? 0) > 0 && (
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">
+              Margem: {((1 - d.specialCustoUnitario / (d.unitPrice ?? 1)) * 100).toFixed(1)}%
+            </p>
+          )}
         </div>
       )}
 
@@ -2273,6 +2344,9 @@ export default function QuoteDetail() {
                                     canEditDriverPrice={
                                       DRIVER_PRICE_OVERRIDE_EMAILS.map(e => e.toLowerCase()).includes(((user as any)?.email ?? "").toLowerCase())
                                     }
+                                    isCostPrivileged={
+                                      (user as any)?.role === 'admin' || COST_PRIVILEGED_EMAILS.map(e => e.toLowerCase()).includes(((user as any)?.email ?? "").toLowerCase())
+                                    }
                                   />
                                   );
                                 })}
@@ -2360,6 +2434,9 @@ export default function QuoteDetail() {
                           }
                           canEditDriverPrice={
                             DRIVER_PRICE_OVERRIDE_EMAILS.map(e => e.toLowerCase()).includes(((user as any)?.email ?? "").toLowerCase())
+                          }
+                          isCostPrivileged={
+                            (user as any)?.role === 'admin' || COST_PRIVILEGED_EMAILS.map(e => e.toLowerCase()).includes(((user as any)?.email ?? "").toLowerCase())
                           }
                         />
                       ))}
@@ -3852,6 +3929,54 @@ export default function QuoteDetail() {
           </CardContent>
         </Card>
 
+        {/* Dashboard de Lucro por Orçamento — apenas privilegiados */}
+        {(() => {
+          const ue = ((user as any)?.email ?? "").toLowerCase();
+          const isCostPriv = (user as any)?.role === 'admin' || COST_PRIVILEGED_EMAILS.map(e => e.toLowerCase()).includes(ue);
+          if (!isCostPriv) return null;
+          // Calcular custo total dos itens especiais
+          const rtPctProfit = quote.rtPercent ? parseFloat(String(quote.rtPercent)) : 0;
+          const mPctProfit = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;
+          let totalReceita = 0;
+          let totalCustoEspeciais = 0;
+          for (const item of currentItemsMigrated) {
+            const d = parseCartItemData(item.itemData);
+            if (!d) continue;
+            const qty = d.qty ?? 1;
+            // Receita do item (preço de venda com markup aplicado)
+            let itemRevenue = 0;
+            if (d.driverLines && d.driverLines.length > 0) {
+              const lumTotal = (d.unitPriceLuminaria ?? 0) * qty;
+              const drvTotal = d.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
+              itemRevenue = lumTotal + drvTotal;
+            } else if (d.totalPrice != null && d.totalPrice > 0) {
+              itemRevenue = d.totalPrice;
+            } else {
+              itemRevenue = (d.unitPrice ?? 0) * qty;
+            }
+            // Aplicar RT e margem global
+            if (rtPctProfit > 0) itemRevenue = itemRevenue / (1 - rtPctProfit);
+            if (mPctProfit > 0) itemRevenue = itemRevenue / (1 - mPctProfit);
+            // Aplicar margem individual
+            if (d.itemMarginPercent != null && d.itemMarginPercent > 0) {
+              itemRevenue = itemRevenue / (1 - d.itemMarginPercent / 100);
+            }
+            totalReceita += itemRevenue;
+            // Custo dos itens especiais
+            if (d.isSpecialItem && d.specialCustoUnitario != null && d.specialCustoUnitario > 0) {
+              totalCustoEspeciais += d.specialCustoUnitario * qty;
+            }
+          }
+          return (
+            <QuoteProfitDashboard
+              quoteId={quote.id}
+              totalReceita={totalReceita}
+              totalCustoEspeciais={totalCustoEspeciais}
+              user={user}
+            />
+          );
+        })()}
+
         {/* Histórico de versões */}
         {versions.length > 0 && (
           <Card>
@@ -4260,5 +4385,165 @@ export default function QuoteDetail() {
         />
       )}
     </div>
+  );
+}
+
+// ─── Dashboard de Lucro por Orçamento ─────────────────────────────────────────
+interface QuoteProfitDashboardProps {
+  quoteId: number;
+  totalReceita: number;
+  totalCustoEspeciais: number;
+  user: unknown;
+}
+
+function QuoteProfitDashboard({ quoteId, totalReceita, totalCustoEspeciais, user }: QuoteProfitDashboardProps) {
+  const [addCostOpen, setAddCostOpen] = useState(false);
+  const [newCostDesc, setNewCostDesc] = useState("");
+  const [newCostValor, setNewCostValor] = useState("");
+  const utils = trpc.useUtils();
+
+  const costsQuery = trpc.quoteAdditionalCosts.list.useQuery({ quoteId });
+  const createCostMutation = trpc.quoteAdditionalCosts.create.useMutation({
+    onSuccess: () => {
+      utils.quoteAdditionalCosts.list.invalidate({ quoteId });
+      setNewCostDesc("");
+      setNewCostValor("");
+      setAddCostOpen(false);
+      toast.success("Custo adicional adicionado");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  const deleteCostMutation = trpc.quoteAdditionalCosts.delete.useMutation({
+    onSuccess: () => {
+      utils.quoteAdditionalCosts.list.invalidate({ quoteId });
+      toast.success("Custo removido");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const additionalCosts = costsQuery.data ?? [];
+  const totalAdditionalCosts = additionalCosts.reduce((s, c) => s + parseFloat(String(c.valor)), 0);
+  const lucroLiquido = totalReceita - totalCustoEspeciais - totalAdditionalCosts;
+  const margemLucro = totalReceita > 0 ? (lucroLiquido / totalReceita) * 100 : 0;
+
+  return (
+    <Card className="border-emerald-200 dark:border-emerald-800">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+          <TrendingUp className="w-4 h-4" />
+          Dashboard de Lucro (interno)
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Resumo financeiro */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 p-3 text-center">
+            <p className="text-xs text-muted-foreground">Receita Total</p>
+            <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">{formatBRL(totalReceita)}</p>
+          </div>
+          <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 p-3 text-center">
+            <p className="text-xs text-muted-foreground">Custo Itens Especiais</p>
+            <p className="text-sm font-bold text-amber-700 dark:text-amber-300">{formatBRL(totalCustoEspeciais)}</p>
+          </div>
+          <div className="rounded-lg bg-red-50 dark:bg-red-950/30 p-3 text-center">
+            <p className="text-xs text-muted-foreground">Custos Adicionais</p>
+            <p className="text-sm font-bold text-red-700 dark:text-red-300">{formatBRL(totalAdditionalCosts)}</p>
+          </div>
+          <div className={`rounded-lg p-3 text-center ${lucroLiquido >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-red-50 dark:bg-red-950/30'}`}>
+            <p className="text-xs text-muted-foreground">Lucro Líquido</p>
+            <p className={`text-sm font-bold ${lucroLiquido >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
+              {formatBRL(lucroLiquido)}
+            </p>
+            <p className="text-xs text-muted-foreground">({margemLucro.toFixed(1)}%)</p>
+          </div>
+        </div>
+
+        {/* Lista de custos adicionais */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Custos Adicionais</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+              onClick={() => setAddCostOpen(true)}
+            >
+              <PlusCircle className="w-3 h-3" />
+              Incluir Custo Adicional
+            </Button>
+          </div>
+
+          {additionalCosts.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic">Nenhum custo adicional registrado.</p>
+          ) : (
+            <div className="space-y-1">
+              {additionalCosts.map(cost => (
+                <div key={cost.id} className="flex items-center justify-between bg-muted/30 rounded px-3 py-1.5">
+                  <div>
+                    <span className="text-sm">{cost.descricao}</span>
+                    <span className="text-xs text-muted-foreground ml-2">
+                      {cost.createdAt ? new Date(cost.createdAt).toLocaleDateString('pt-BR') : ''}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                      -{formatBRL(parseFloat(String(cost.valor)))}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
+                      onClick={() => deleteCostMutation.mutate({ id: cost.id })}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Dialog para adicionar custo */}
+        <Dialog open={addCostOpen} onOpenChange={setAddCostOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Incluir Custo Adicional</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs">Descrição</Label>
+                <Input
+                  value={newCostDesc}
+                  onChange={e => setNewCostDesc(e.target.value)}
+                  placeholder="ex: Assistência técnica, Frete extra"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Valor (R$)</Label>
+                <Input
+                  value={newCostValor}
+                  onChange={e => setNewCostValor(e.target.value)}
+                  placeholder="ex: 1000,00"
+                  className="mt-1"
+                />
+              </div>
+              <Button
+                className="w-full"
+                disabled={!newCostDesc.trim() || !newCostValor.trim() || createCostMutation.isPending}
+                onClick={() => {
+                  const valor = parseFloat(newCostValor.replace(',', '.'));
+                  if (isNaN(valor) || valor <= 0) { toast.error("Valor inválido"); return; }
+                  createCostMutation.mutate({ quoteId, descricao: newCostDesc.trim(), valor });
+                }}
+              >
+                {createCostMutation.isPending ? "Salvando..." : "Adicionar"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
   );
 }

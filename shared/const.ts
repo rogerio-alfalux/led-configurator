@@ -26,6 +26,17 @@ export const DRIVER_PRICE_OVERRIDE_EMAILS: string[] = [
   "dennis@grupoalfalux.com.br",
   "daniel@grupoalfalux.com.br",
 ];
+/**
+ * E-mails com permissão para ver/editar custo unitário e markup de itens especiais,
+ * e acessar o dashboard de lucro por orçamento.
+ * Inclui Vivian, Dennis e Rogério (admin/owner).
+ */
+export const COST_PRIVILEGED_EMAILS: string[] = [
+  "vivian@grupoalfalux.com.br",
+  "dennis@grupoalfalux.com.br",
+  "rogeriojohnwayne@gmail.com",
+  "rogerio@grupoalfalux.com.br",
+];
 export const ONE_YEAR_MS = 1000 * 60 * 60 * 24 * 365;
 export const AXIOS_TIMEOUT_MS = 30_000;
 export const UNAUTHED_ERR_MSG = 'Please login (10001)';

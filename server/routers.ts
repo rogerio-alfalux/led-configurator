@@ -1,4 +1,4 @@
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME, COST_PRIVILEGED_EMAILS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
@@ -31,6 +31,10 @@ import {
   getDriverPriceOverrides,
   upsertDriverPriceOverride,
   deleteDriverPriceOverride,
+  getQuoteAdditionalCosts,
+  createQuoteAdditionalCost,
+  deleteQuoteAdditionalCost,
+  getTotalAdditionalCosts,
 } from "./db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -1509,6 +1513,60 @@ export const appRouter = router({
   }),
 
   // ─── Driver Price Overrides (apenas vivian@grupoalfalux.com.br) ──────────────────────
+  // ─── Custos Adicionais por Orçamento ─────────────────────────────────────────
+  quoteAdditionalCosts: router({
+    /** Lista custos adicionais de um orçamento (restrito a privilegiados) */
+    list: protectedProcedure
+      .input(z.object({ quoteId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const email = ctx.user.email?.toLowerCase().trim() ?? "";
+        const isPrivileged = ctx.user.role === 'admin' || COST_PRIVILEGED_EMAILS.map(e => e.toLowerCase()).includes(email);
+        if (!isPrivileged) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito" });
+        }
+        return getQuoteAdditionalCosts(input.quoteId);
+      }),
+
+    /** Cria um custo adicional para um orçamento */
+    create: protectedProcedure
+      .input(z.object({
+        quoteId: z.number(),
+        descricao: z.string().min(1).max(256),
+        valor: z.number().min(0),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const email = ctx.user.email?.toLowerCase().trim() ?? "";
+        const isPrivileged = ctx.user.role === 'admin' || COST_PRIVILEGED_EMAILS.map(e => e.toLowerCase()).includes(email);
+        if (!isPrivileged) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito" });
+        }
+        return createQuoteAdditionalCost(input.quoteId, input.descricao, input.valor, ctx.user.id);
+      }),
+
+    /** Remove um custo adicional */
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const email = ctx.user.email?.toLowerCase().trim() ?? "";
+        const isPrivileged = ctx.user.role === 'admin' || COST_PRIVILEGED_EMAILS.map(e => e.toLowerCase()).includes(email);
+        if (!isPrivileged) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito" });
+        }
+        await deleteQuoteAdditionalCost(input.id);
+        return { success: true };
+      }),
+
+    /** Retorna totais de custos adicionais agrupados por orçamento (para dashboard) */
+    totals: protectedProcedure.query(async ({ ctx }) => {
+      const email = ctx.user.email?.toLowerCase().trim() ?? "";
+      const isPrivileged = ctx.user.role === 'admin' || COST_PRIVILEGED_EMAILS.map(e => e.toLowerCase()).includes(email);
+      if (!isPrivileged) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito" });
+      }
+      return getTotalAdditionalCosts();
+    }),
+  }),
+
   driverPriceOverrides: router({
     /** Lista todos os overrides de custo de driver */
     list: protectedProcedure.query(async ({ ctx }) => {

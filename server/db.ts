@@ -9,6 +9,7 @@ import {
   salesGoals, InsertSalesGoal,
   quoteNumberSequences,
   driverPriceOverrides,
+  quoteAdditionalCosts,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 // ─── Utilitários de data no fuso de Brasília ────────────────────────────────
@@ -1401,6 +1402,15 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
   const margemBruta = totalVendas > 0 ? (lucroBruto / totalVendas) * 100 : 0;
   const margemLiquida = totalVendas > 0 ? (lucroLiquido / totalVendas) * 100 : 0;
 
+  // ── Custos adicionais (assistências, retrabalhos, etc.) ────────────────────
+  const additionalCostsResult = await getTotalAdditionalCostsForPeriod(year, month, dateFrom, dateTo);
+  const totalAdditionalCosts = additionalCostsResult.total;
+  const additionalCostsCount = additionalCostsResult.count;
+
+  // Lucro líquido final considerando custos adicionais
+  const lucroLiquidoFinal = lucroLiquido - totalAdditionalCosts;
+  const margemLiquidaFinal = totalVendas > 0 ? (lucroLiquidoFinal / totalVendas) * 100 : 0;
+
   const profitMetrics = {
     totalVendas,
     totalCustoProdutos: totalCustoProdutosAjustado,
@@ -1411,10 +1421,13 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     totalRt,
     totalDifal,
     totalFrete,
+    totalAdditionalCosts,
+    additionalCostsCount,
     lucroBruto,
-    lucroLiquido,
+    lucroLiquido: lucroLiquidoFinal,
+    lucroLiquidoSemAdicionais: lucroLiquido,
     margemBruta,
-    margemLiquida,
+    margemLiquida: margemLiquidaFinal,
     margemBrutaMediaReal: margemBrutaMedia * 100, // % usada como proxy
     qtdComCusto,
     qtdSemCusto,
@@ -1960,4 +1973,69 @@ export async function deleteDriverPriceOverride(driverCode: string) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(driverPriceOverrides).where(eq(driverPriceOverrides.driverCode, driverCode));
+}
+
+// ─── Custos Adicionais por Orçamento ─────────────────────────────────────────
+
+/** Lista todos os custos adicionais de um orçamento */
+export async function getQuoteAdditionalCosts(quoteId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(quoteAdditionalCosts)
+    .where(eq(quoteAdditionalCosts.quoteId, quoteId))
+    .orderBy(asc(quoteAdditionalCosts.id));
+}
+
+/** Cria um custo adicional para um orçamento */
+export async function createQuoteAdditionalCost(
+  quoteId: number,
+  descricao: string,
+  valor: number,
+  createdByUserId: number | null,
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(quoteAdditionalCosts).values({
+    quoteId,
+    descricao,
+    valor: valor.toFixed(2) as any,
+    createdByUserId,
+  });
+  return { id: Number(result[0].insertId) };
+}
+
+/** Remove um custo adicional pelo ID */
+export async function deleteQuoteAdditionalCost(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(quoteAdditionalCosts).where(eq(quoteAdditionalCosts.id, id));
+}
+
+/** Retorna a soma de custos adicionais de todos os orçamentos (para dashboard geral) */
+export async function getTotalAdditionalCosts() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    quoteId: quoteAdditionalCosts.quoteId,
+    total: sql<string>`SUM(${quoteAdditionalCosts.valor})`,
+  }).from(quoteAdditionalCosts)
+    .groupBy(quoteAdditionalCosts.quoteId);
+}
+
+/** Retorna o total de custos adicionais de orçamentos aprovados no período (para dashboard geral) */
+export async function getTotalAdditionalCostsForPeriod(year: number, month?: number, dateFrom?: string, dateTo?: string) {
+  const db = await getDb();
+  if (!db) return { total: 0, count: 0 };
+  const periodCondition = (dateFrom && dateTo)
+    ? sql`q.approvedAt >= ${dateFrom} AND q.approvedAt <= ${dateTo + ' 23:59:59'} AND q.status = 'approved'`
+    : month
+      ? sql`YEAR(q.approvedAt) = ${year} AND MONTH(q.approvedAt) = ${month} AND q.status = 'approved'`
+      : sql`YEAR(q.approvedAt) = ${year} AND q.status = 'approved'`;
+  const [result] = await db.execute(sql`
+    SELECT COALESCE(SUM(ac.valor), 0) AS total, COUNT(ac.id) AS count
+    FROM quote_additional_costs ac
+    INNER JOIN quotes q ON q.id = ac.quoteId
+    WHERE ${periodCondition}
+  `);
+  return { total: Number((result as any)?.total ?? 0), count: Number((result as any)?.count ?? 0) };
 }

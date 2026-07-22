@@ -338,3 +338,21 @@ export const salesGoals = mysqlTable("sales_goals", {
 });
 export type SalesGoal = InferSelectModel<typeof salesGoals>;
 export type InsertSalesGoal = InferInsertModel<typeof salesGoals>;
+
+// ─── Custos Adicionais por Orçamento ─────────────────────────────────────────
+export const quoteAdditionalCosts = mysqlTable("quote_additional_costs", {
+	id: int().autoincrement().notNull().primaryKey(),
+	/** ID do orçamento ao qual este custo está vinculado */
+	quoteId: int().notNull(),
+	/** Descrição do custo adicional (ex: "Frete especial", "Instalação") */
+	descricao: varchar({ length: 256 }).notNull(),
+	/** Valor do custo adicional em R$ */
+	valor: decimal({ precision: 12, scale: 2 }).notNull(),
+	/** Usuário que criou este custo */
+	createdByUserId: int(),
+	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+}, (table) => [
+	index("quote_additional_costs_quoteId_idx").on(table.quoteId),
+]);
+export type QuoteAdditionalCost = InferSelectModel<typeof quoteAdditionalCosts>;
+export type InsertQuoteAdditionalCost = InferInsertModel<typeof quoteAdditionalCosts>;

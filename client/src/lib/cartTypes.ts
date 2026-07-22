@@ -170,6 +170,17 @@ export interface CartItemData {
   specialInternalNotes?: string;
 
   /**
+   * Custo unitário do item especial (preenchido manualmente por usuários privilegiados).
+   * Usado para calcular margem de lucro: precoVenda = custoUnitario × markup.
+   */
+  specialCustoUnitario?: number | null;
+  /**
+   * Markup (multiplicador) do item especial.
+   * precoVenda = custoUnitario × markup. Se preço preenchido primeiro, markup = precoVenda / custoUnitario.
+   */
+  specialMarkup?: number | null;
+
+  /**
    * Lista de equipamentos do item especial (drivers, módulos LED, etc.).
    * Cada entrada é um componente com código, descrição, quantidade e preço unitário.
    * Aparece na coluna EQUIPAMENTOS da Ficha de Produção.
