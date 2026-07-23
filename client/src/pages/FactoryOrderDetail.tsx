@@ -63,9 +63,8 @@ function buildFonteLuzText(item: CartItemData, descMap?: Map<string, string>): s
   if (!item.profileSegments || item.profileSegments.length === 0) {
     return item.moduloLed ?? [item.power, item.cct].filter(Boolean).join(" | ") ?? "";
   }
-  const itemQty = item.qty ?? 1;
-
-  // Agrupar por código EQ do módulo e somar quantidades totais
+  // CORREÇÃO: mostrar quantidade POR PEÇA (sem multiplicar por itemQty)
+  // Agrupar por código EQ do módulo e somar quantidades por peça
   const totals = new Map<string, { qty: number; eqCode: string | null; name: string }>();
   for (const seg of item.profileSegments) {
     const eqCode = seg.ledModuleCode ?? null;
@@ -73,12 +72,13 @@ function buildFonteLuzText(item: CartItemData, descMap?: Map<string, string>): s
     const apiDesc = eqCode ? descMap?.get(eqCode) : undefined;
     const barName = apiDesc ?? item.moduloLed ?? eqCode ?? "Módulo LED";
     const mapKey = eqCode ?? barName;
-    const totalBars = seg.qty * seg.barsPerPiece * itemQty;
+    // qty POR PEÇA: seg.qty × barsPerPiece (sem multiplicar por item.qty)
+    const barsPerUnit = seg.qty * seg.barsPerPiece;
     const existing = totals.get(mapKey);
     if (existing) {
-      totals.set(mapKey, { qty: existing.qty + totalBars, eqCode, name: barName });
+      totals.set(mapKey, { qty: existing.qty + barsPerUnit, eqCode, name: barName });
     } else {
-      totals.set(mapKey, { qty: totalBars, eqCode, name: barName });
+      totals.set(mapKey, { qty: barsPerUnit, eqCode, name: barName });
     }
   }
 
@@ -107,9 +107,13 @@ function buildEquipamentosText(item: CartItemData): string {
   if (!item.profileSegments || item.profileSegments.length === 0) {
     // Luminária com driverLines desmembradas
     if (item.driverLines && item.driverLines.length > 0) {
+      const itemQtyDl = item.qty ?? 1;
+      // CORREÇÃO: mostrar qty POR PEÇA (driverQtyPerUnit ou dl.driverQty / itemQty)
+      const drvPerUnit = item.driverQtyPerUnit ?? null;
       return item.driverLines.map(dl => {
         const codeSuffix = dl.driverCode ? ` (${dl.driverCode})` : "";
-        const linha = `${dl.driverQty}x ${dl.driverModel}${codeSuffix}`;
+        const qtyPerUnit = drvPerUnit ?? Math.max(1, Math.round(dl.driverQty / itemQtyDl));
+        const linha = `${qtyPerUnit}x ${dl.driverModel}${codeSuffix}`;
         if (dl.corrente && !dl.driverModel.toUpperCase().includes("FONTE 24V")) {
           return `${linha}\nPROGRAMAÇÃO: ${dl.corrente}`;
         }
@@ -118,20 +122,19 @@ function buildEquipamentosText(item: CartItemData): string {
     }
     return item.drivers ?? "";
   }
-  const itemQtyEq = item.qty ?? 1;
 
-  // Agrupar por modelo+código e somar quantidades totais
+  // CORREÇÃO: Agrupar por modelo+código e somar quantidades POR PEÇA (sem multiplicar por itemQty)
   const driverTotals = new Map<string, { model: string; code: string; qty: number }>();
 
   for (const seg of item.profileSegments) {
     if (seg.driverModel.includes(" + ")) {
       const comboKey = seg.driverModel;
-      const totalQty = seg.qty * itemQtyEq;
+      const qtyPerUnit = seg.qty;
       const existing = driverTotals.get(comboKey);
       if (existing) {
-        driverTotals.set(comboKey, { ...existing, qty: existing.qty + totalQty });
+        driverTotals.set(comboKey, { ...existing, qty: existing.qty + qtyPerUnit });
       } else {
-        driverTotals.set(comboKey, { model: seg.driverModel, code: "", qty: totalQty });
+        driverTotals.set(comboKey, { model: seg.driverModel, code: "", qty: qtyPerUnit });
       }
       continue;
     }
@@ -139,12 +142,13 @@ function buildEquipamentosText(item: CartItemData): string {
       ? ` (${seg.driverCode})`
       : "";
     const key = `${seg.driverModel}${codeSuffix}`;
-    const totalQty = seg.qty * seg.driverQtyPerPiece * itemQtyEq;
+    // qty POR PEÇA: seg.qty × driverQtyPerPiece (sem multiplicar por item.qty)
+    const qtyPerUnit = seg.qty * seg.driverQtyPerPiece;
     const existing = driverTotals.get(key);
     if (existing) {
-      driverTotals.set(key, { ...existing, qty: existing.qty + totalQty });
+      driverTotals.set(key, { ...existing, qty: existing.qty + qtyPerUnit });
     } else {
-      driverTotals.set(key, { model: seg.driverModel, code: codeSuffix, qty: totalQty });
+      driverTotals.set(key, { model: seg.driverModel, code: codeSuffix, qty: qtyPerUnit });
     }
   }
 
@@ -460,6 +464,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
             // ── PERFIS com profileSegments ─────────────────────────────────────
             if (parsed.profileSegments && parsed.profileSegments.length > 0) {
               // Agrupar segmentos por ledModuleCode para Fonte de Luz
+              // CORREÇÃO: mostrar quantidade POR PEÇA (barsPerPiece), não total multiplicado por itemQty
               const moduloGroups = new Map<string, { qty: number; code: string | null; desc: string; segIdxs: number[] }>();
               for (let i = 0; i < parsed.profileSegments.length; i++) {
                 const seg = parsed.profileSegments[i];
@@ -467,17 +472,19 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                 const apiDesc = code ? descMap?.get(code) : undefined;
                 const desc = apiDesc ?? parsed.moduloLed ?? code ?? "Módulo LED";
                 const key = code ?? desc;
-                const totalBars = seg.qty * seg.barsPerPiece * itemQty;
+                // qty POR PEÇA: soma de (seg.qty * barsPerPiece) sem multiplicar por itemQty
+                const barsPerUnit = seg.qty * seg.barsPerPiece;
                 const existing = moduloGroups.get(key);
                 if (existing) {
-                  existing.qty += totalBars;
+                  existing.qty += barsPerUnit;
                   existing.segIdxs.push(i);
                 } else {
-                  moduloGroups.set(key, { qty: totalBars, code, desc, segIdxs: [i] });
+                  moduloGroups.set(key, { qty: barsPerUnit, code, desc, segIdxs: [i] });
                 }
               }
 
               // Agrupar segmentos por driverModel+code para Equipamentos
+              // CORREÇÃO: mostrar quantidade POR PEÇA (driverQtyPerPiece), não total multiplicado por itemQty
               const driverGroups = new Map<string, { qty: number; code: string; model: string; corrente?: string | null; segIdxs: number[] }>();
               for (let i = 0; i < parsed.profileSegments.length; i++) {
                 const seg = parsed.profileSegments[i];
@@ -485,19 +492,19 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                   const key = seg.driverModel;
                   const existing = driverGroups.get(key);
                   if (existing) {
-                    existing.qty += seg.qty * itemQty;
+                    existing.qty += seg.qty;
                     existing.segIdxs.push(i);
                   } else {
-                    driverGroups.set(key, { qty: seg.qty * itemQty, code: "", model: seg.driverModel, corrente: seg.corrente, segIdxs: [i] });
+                    driverGroups.set(key, { qty: seg.qty, code: "", model: seg.driverModel, corrente: seg.corrente, segIdxs: [i] });
                   }
                 } else {
                   const key = `${seg.driverModel}|${seg.driverCode}`;
                   const existing = driverGroups.get(key);
                   if (existing) {
-                    existing.qty += seg.qty * seg.driverQtyPerPiece * itemQty;
+                    existing.qty += seg.qty * seg.driverQtyPerPiece;
                     existing.segIdxs.push(i);
                   } else {
-                    driverGroups.set(key, { qty: seg.qty * seg.driverQtyPerPiece * itemQty, code: seg.driverCode, model: seg.driverModel, corrente: seg.corrente, segIdxs: [i] });
+                    driverGroups.set(key, { qty: seg.qty * seg.driverQtyPerPiece, code: seg.driverCode, model: seg.driverModel, corrente: seg.corrente, segIdxs: [i] });
                   }
                 }
               }
@@ -638,9 +645,20 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
 
             // ── LUMINÁRIAS com driverLines ─────────────────────────────────────
             if (parsed.driverLines && parsed.driverLines.length > 0) {
-              const moduloVal = parsed.moduloLed
-                ? (parsed.moduloLedCode ? `${parsed.moduloLed} (${parsed.moduloLedCode})` : parsed.moduloLed)
+              // CORREÇÃO: Extrair prefixo "Nx" do moduloLed para mostrar no campo Qtd separado
+              // Ex: "2x STRIPFLEX 562.5 X 10MM..." → qty=2, desc="STRIPFLEX 562.5 X 10MM..."
+              const moduloLedRaw = parsed.moduloLed ?? "";
+              const moduloLedPrefixMatch = moduloLedRaw.match(/^(\d+)[xX]\s+(.+)$/);
+              const moduloLedQtyPerUnit = moduloLedPrefixMatch ? parseInt(moduloLedPrefixMatch[1], 10) : 1;
+              const moduloLedDescClean = moduloLedPrefixMatch ? moduloLedPrefixMatch[2] : moduloLedRaw;
+              const moduloVal = moduloLedDescClean
+                ? (parsed.moduloLedCode ? `${moduloLedDescClean} (${parsed.moduloLedCode})` : moduloLedDescClean)
                 : "";
+
+              // CORREÇÃO: Driver qty POR PEÇA (não total)
+              // driverQtyPerUnit = drivers por luminária; dl.driverQty = total (per unit × itemQty)
+              const driverQtyPerUnit = parsed.driverQtyPerUnit ?? (parsed.driverLines.length === 1 ? Math.round(parsed.driverLines[0].driverQty / itemQty) : null);
+
               return (
                 <div className="space-y-4">
                   {(parsed.moduloLed || moduloLedOptions.length > 0) && (
@@ -650,9 +668,19 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                         <ComponentSearchField
                           label=""
                           value={moduloVal}
-                          qty={itemQty}
-                          onValueChange={handleModuloLedChange}
-                          onQtyChange={qty => update({ qty })}
+                          qty={moduloLedQtyPerUnit}
+                          onValueChange={(desc, code) => {
+                            // Ao mudar o componente, preservar o prefixo de quantidade
+                            const prefix = moduloLedQtyPerUnit > 1 ? `${moduloLedQtyPerUnit}x ` : "";
+                            const newModuloLed = desc ? `${prefix}${desc}` : "";
+                            update({ moduloLed: newModuloLed, moduloLedCode: code || null });
+                          }}
+                          onQtyChange={qty => {
+                            // Ao mudar a qty por peça, atualizar o prefixo no moduloLed
+                            const prefix = qty > 1 ? `${qty}x ` : "";
+                            const newModuloLed = moduloLedDescClean ? `${prefix}${moduloLedDescClean}` : "";
+                            update({ moduloLed: newModuloLed });
+                          }}
                           options={moduloLedOptions}
                           placeholder="Buscar módulo LED..."
                         />
@@ -666,16 +694,22 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                         const driverVal = dl.driverCode
                           ? `${dl.driverModel} (${dl.driverCode})`
                           : dl.driverModel;
+                        // Qty POR PEÇA: usar driverQtyPerUnit ou derivar do total
+                        const dlQtyPerUnit = driverQtyPerUnit ?? Math.max(1, Math.round(dl.driverQty / itemQty));
                         return (
                           <div key={li} className="space-y-1">
                             <ComponentSearchField
                               label={parsed.driverLines!.length > 1 ? `Driver ${li + 1}` : ""}
                               value={driverVal}
-                              qty={dl.driverQty}
+                              qty={dlQtyPerUnit}
                               onValueChange={(desc, code) => handleDriverLineChange(li, desc, code)}
-                              onQtyChange={qty => {
-                                const newLines = parsed.driverLines!.map((d, i) => i === li ? { ...d, driverQty: qty } : d);
-                                update({ driverLines: newLines });
+                              onQtyChange={newQtyPerUnit => {
+                                // Recalcular driverQty total = newQtyPerUnit × itemQty
+                                const newTotal = newQtyPerUnit * itemQty;
+                                const unitPrice = dl.driverUnitPrice;
+                                const newTotalPrice = unitPrice != null ? Math.round(unitPrice * newTotal * 100) / 100 : dl.driverTotalPrice;
+                                const newLines = parsed.driverLines!.map((d, i) => i === li ? { ...d, driverQty: newTotal, driverTotalPrice: newTotalPrice } : d);
+                                update({ driverLines: newLines, driverQtyPerUnit: newQtyPerUnit });
                               }}
                               options={driverOptions}
                               placeholder="Buscar driver..."
@@ -704,11 +738,19 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
             }
 
             // ── ITENS SIMPLES (sem profileSegments, sem driverLines, sem ledBar) ──
-            const moduloVal = parsed.moduloLed
-              ? (parsed.moduloLedCode ? `${parsed.moduloLed} (${parsed.moduloLedCode})` : parsed.moduloLed)
+            // CORREÇÃO: Extrair prefixo "Nx" do moduloLed e drivers para mostrar no campo Qtd separado
+            const moduloLedSimpleRaw = parsed.moduloLed ?? "";
+            const moduloSimplePrefixMatch = moduloLedSimpleRaw.match(/^(\d+)[xX]\s+(.+)$/);
+            const moduloSimpleQty = moduloSimplePrefixMatch ? parseInt(moduloSimplePrefixMatch[1], 10) : 1;
+            const moduloSimpleDesc = moduloSimplePrefixMatch ? moduloSimplePrefixMatch[2] : moduloLedSimpleRaw;
+            const moduloVal = moduloSimpleDesc
+              ? (parsed.moduloLedCode ? `${moduloSimpleDesc} (${parsed.moduloLedCode})` : moduloSimpleDesc)
               : "";
-            const driverSimpleVal = parsed.drivers ?? "";
-            const hasAnyData = !!(moduloVal || driverSimpleVal);
+
+            const driverSimpleRaw = parsed.drivers ?? "";
+            const driverSimplePrefixMatch = driverSimpleRaw.match(/^(\d+)[xX]\s+(.+)$/);
+            const driverSimpleQty = driverSimplePrefixMatch ? parseInt(driverSimplePrefixMatch[1], 10) : 1;
+            const driverSimpleDesc = driverSimplePrefixMatch ? driverSimplePrefixMatch[2] : driverSimpleRaw;
 
             return (
               <div className="space-y-4">
@@ -718,9 +760,17 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                     <ComponentSearchField
                       label=""
                       value={moduloVal}
-                      qty={itemQty}
-                      onValueChange={handleModuloLedChange}
-                      onQtyChange={qty => update({ qty })}
+                      qty={moduloSimpleQty}
+                      onValueChange={(desc, code) => {
+                        const prefix = moduloSimpleQty > 1 ? `${moduloSimpleQty}x ` : "";
+                        const newModuloLed = desc ? `${prefix}${desc}` : "";
+                        update({ moduloLed: newModuloLed, moduloLedCode: code || null });
+                      }}
+                      onQtyChange={qty => {
+                        const prefix = qty > 1 ? `${qty}x ` : "";
+                        const newModuloLed = moduloSimpleDesc ? `${prefix}${moduloSimpleDesc}` : "";
+                        update({ moduloLed: newModuloLed });
+                      }}
                       options={moduloLedOptions}
                       placeholder="Buscar módulo LED..."
                     />
@@ -731,10 +781,18 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                   <div className="mt-2">
                     <ComponentSearchField
                       label=""
-                      value={driverSimpleVal}
-                      qty={itemQty}
-                      onValueChange={handleDriverChange}
-                      onQtyChange={qty => update({ qty })}
+                      value={driverSimpleDesc}
+                      qty={driverSimpleQty}
+                      onValueChange={(desc, code) => {
+                        const prefix = driverSimpleQty > 1 ? `${driverSimpleQty}x ` : "";
+                        const newDrivers = desc ? `${prefix}${desc}${code ? ` (${code})` : ""}` : "";
+                        update({ drivers: newDrivers });
+                      }}
+                      onQtyChange={qty => {
+                        const prefix = qty > 1 ? `${qty}x ` : "";
+                        const newDrivers = driverSimpleDesc ? `${prefix}${driverSimpleDesc}` : "";
+                        update({ drivers: newDrivers });
+                      }}
                       options={driverOptions}
                       placeholder="Buscar driver..."
                     />

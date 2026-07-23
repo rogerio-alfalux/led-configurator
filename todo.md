@@ -2163,3 +2163,9 @@
 - [x] Eliminar duplicatas de Stripflex (mesmo EQ = uma linha com total)
 - [x] Mostrar EQ entre parênteses na coluna DESCRIÇÃO
 - [ ] Ler campos corretos da tela de gerenciamento (quantidade, componente, programação)
+
+## Correção Qtd Módulo LED e Driver no Pedido de Fábrica (Jul 2026)
+
+- [x] Campo Qtd do Módulo LED: mostrar quantidade POR PEÇA (ex: 2 stripflex), não total de produtos
+- [x] Campo Qtd do Driver: mostrar quantidade POR PEÇA (ex: 1 driver), não total de produtos
+- [x] Remover prefixo "2x" da descrição do módulo LED (o "2" vai no campo Qtd separado)
