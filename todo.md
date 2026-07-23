@@ -2202,3 +2202,4 @@
 - [ ] Subpedidos: usuário escolhe quais itens do orçamento compõem cada subpedido (sem repetição entre subpedidos)
 - [x] Feature: Campo de margem aceitar valores negativos como desconto geral (ex: -10 = 10% de desconto em todos os itens)
 - [x] Fix: FITA LED duplicada na requisição de materiais para itens LED BAR (contada 2x: no bloco driverLines e no bloco LED BAR)
+- [x] Feature: Botão "Substituir Item" na edição do orçamento — redireciona para tela inicial, novo item herda posição/ordem, item em planta e quantidade do item substituído

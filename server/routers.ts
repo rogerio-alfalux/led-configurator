@@ -846,6 +846,99 @@ export const appRouter = router({
         return { ...result, quoteNumber: quote.quoteNumber };
       }),
 
+    replaceItem: protectedProcedure
+      .input(z.object({
+        quoteId: z.number(),
+        replaceIndex: z.number(), // 0-based index of the item to replace
+        newItemData: z.string(), // JSON stringified CartItemData
+        versionNotes: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const existing = await getQuoteById(input.quoteId);
+        if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
+        const canReplace = await canEditQuote(ctx.user.email, existing.quote, ctx.user.role, ctx.user.id);
+        if (!canReplace) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para editar este orçamento." });
+        const { quote, versions, items } = existing;
+        const currentVersionId = versions[0]?.id;
+        const currentItems = items
+          .filter(i => i.quoteVersionId === currentVersionId)
+          .map((i) => ({ itemNumber: i.itemNumber, itemData: i.itemData }));
+        if (input.replaceIndex < 0 || input.replaceIndex >= currentItems.length) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Índice de item inválido" });
+        }
+        // Replace the item at the given index, keeping the same itemNumber
+        const updatedItems = currentItems.map((it, idx) => {
+          if (idx === input.replaceIndex) {
+            return { itemNumber: it.itemNumber, itemData: input.newItemData };
+          }
+          return it;
+        });
+        const totalAmount = updatedItems.reduce((sum, it) => {
+          try { const d = JSON.parse(it.itemData); return sum + (d.totalPrice ?? 0); } catch { return sum; }
+        }, 0);
+        const result = await addQuoteRevision(input.quoteId, {
+          clientName: quote.clientName,
+          clientContact: quote.clientContact ?? undefined,
+          clientPhone: quote.clientPhone ?? undefined,
+          clientEmail: quote.clientEmail ?? undefined,
+          projectName: quote.projectName ?? undefined,
+          projectRef: quote.projectRef ?? undefined,
+          vendorName: quote.vendorName ?? undefined,
+          assistantName: quote.assistantName ?? undefined,
+          seller1Id: quote.seller1Id ?? undefined,
+          seller1Name: quote.seller1Name ?? undefined,
+          seller2Id: quote.seller2Id ?? undefined,
+          seller2Name: quote.seller2Name ?? undefined,
+          assistantId: quote.assistantId ?? undefined,
+          rtPercent: quote.rtPercent != null ? Number(quote.rtPercent) : 0,
+          rtDest1: quote.rtDest1 ?? undefined,
+          rtDest1Active: quote.rtDest1Active ?? false,
+          rtDest2: quote.rtDest2 ?? undefined,
+          rtDest2Active: quote.rtDest2Active ?? false,
+          rtDest3: quote.rtDest3 ?? undefined,
+          rtDest3Active: quote.rtDest3Active ?? false,
+          marginPercent: quote.marginPercent != null ? Number(quote.marginPercent) : 0,
+          freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? undefined,
+          freteIsento: quote.freteIsento ?? false,
+          freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? undefined,
+          deliveryDays: quote.deliveryDays ?? 20,
+          commissionPercent: quote.commissionPercent != null ? Number(quote.commissionPercent) : 0.05,
+          commissionPercent2: quote.commissionPercent2 != null ? Number(quote.commissionPercent2) : 0,
+          paymentTerm: quote.paymentTerm ?? undefined,
+          destState: quote.destState ?? undefined,
+          difalEnabled: quote.difalEnabled ?? false,
+          difalPercent: quote.difalPercent != null ? Number(quote.difalPercent) : 0,
+          fcpPercent: quote.fcpPercent != null ? Number(quote.fcpPercent) : 0,
+          fcpEnabled: quote.fcpEnabled ?? false,
+          difalValue: quote.difalValue != null ? Number(quote.difalValue) : 0,
+          fcpValue: quote.fcpValue != null ? Number(quote.fcpValue) : 0,
+          projectNumber: quote.projectNumber ?? undefined,
+          freteValue: quote.freteValue != null ? Number(quote.freteValue) : 0,
+          freteState: quote.freteState ?? undefined,
+          freteCity: quote.freteCity ?? undefined,
+          freteIncluded: quote.freteIncluded ?? false,
+          arquiteto: quote.arquiteto ?? undefined,
+          lightDesigner: quote.lightDesigner ?? undefined,
+          diluicaoValor: quote.diluicaoValor != null ? Number(quote.diluicaoValor) : undefined,
+          diluicaoDescricao: quote.diluicaoDescricao ?? undefined,
+          notes: quote.notes ?? undefined,
+          versionNotes: input.versionNotes ?? `Item #${input.replaceIndex + 1} substituído`,
+          totalAmount,
+          items: updatedItems,
+          createdByUserId: ctx.user.id,
+        }, false /* bumpVersion=false */);
+        await insertAuditLog({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+          userName: ctx.user.name,
+          action: "quote_revised",
+          entityType: "quote",
+          entityId: input.quoteId,
+          details: JSON.stringify({ newVersion: result.version, replacedIndex: input.replaceIndex }),
+        });
+        return { ...result, quoteNumber: quote.quoteNumber };
+      }),
+
     suggestNumber: protectedProcedure
       .input(z.object({ sellerId: z.number().optional() }))
       .query(async ({ input }) => {

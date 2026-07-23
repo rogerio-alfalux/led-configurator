@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench, Briefcase, Star, Package2, Search as SearchIcon, Minus, Plus, DollarSign, Ban } from "lucide-react";
+import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench, Briefcase, Star, Package2, Search as SearchIcon, Minus, Plus, DollarSign, Ban, ArrowLeftRight } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -2645,6 +2645,37 @@ export default function Home() {
     },
   });
 
+  // ── Modo "Substituir Item" ─────────────────────────────────────────
+  const replaceInQuoteId = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    const v = params.get("replaceInQuote");
+    return v ? parseInt(v, 10) : null;
+  }, []);
+  const replaceIndex = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    const v = params.get("replaceIndex");
+    return v != null ? parseInt(v, 10) : null;
+  }, []);
+  const replaceItemMutation = trpc.quotes.replaceItem.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Item substituído no orçamento ${data.quoteNumber}!`);
+      navigate(`/orcamentos/${replaceInQuoteId}`);
+    },
+    onError: (err) => {
+      toast.error(`Erro ao substituir item: ${err.message}`);
+    },
+  });
+  // Herdar quantidade e item em planta do item original
+  useEffect(() => {
+    if (replaceInQuoteId != null) {
+      const params = new URLSearchParams(window.location.search);
+      const qty = params.get("replaceQty");
+      const iep = params.get("replaceItemEmPlanta");
+      if (qty) setGlobalQty(parseInt(qty, 10) || 1);
+      if (iep) setGlobalItemEmPlanta(decodeURIComponent(iep));
+    }
+  }, [replaceInQuoteId]);
+
   // Função central: adiciona ao orçamento ou ao carrinho dependendo do modo
   // Categorias que já têm cor predefinida — não precisam do modal de cor
   const CATEGORIES_WITH_PRESET_COLOR = ["Acessórios", "Revenda", "Customizados", "Não Orçamos"];
@@ -2684,7 +2715,16 @@ export default function Home() {
       ? { ...baseItem, accessories: [...pendingAccessories] }
       : baseItem;
     if (pendingAccessories.length > 0) setPendingAccessories([]);
-    if (appendToQuoteId) {
+    if (replaceInQuoteId != null && replaceIndex != null) {
+      replaceItemMutation.mutate({
+        quoteId: replaceInQuoteId,
+        replaceIndex: replaceIndex,
+        newItemData: JSON.stringify(itemWithAcc),
+        versionNotes: `Item #${replaceIndex + 1} substituído via configurador`,
+      });
+      setGlobalItemEmPlanta("");
+      setGlobalQty(1);
+    } else if (appendToQuoteId) {
       appendItemsMutation.mutate({
         quoteId: appendToQuoteId,
         newItems: [{ itemNumber: 1, itemData: JSON.stringify(itemWithAcc) }],
@@ -2697,7 +2737,7 @@ export default function Home() {
       setGlobalItemEmPlanta("");
       setGlobalQty(1);
     }
-  }, [globalQty, globalItemEmPlanta, globalPavimento, globalAmbiente, pendingAccessories, setPendingAccessories, appendToQuoteId, appendItemsMutation, addItem]);
+  }, [globalQty, globalItemEmPlanta, globalPavimento, globalAmbiente, pendingAccessories, setPendingAccessories, appendToQuoteId, appendItemsMutation, replaceInQuoteId, replaceIndex, replaceItemMutation, addItem]);
 
   // Sempre abre o modal de cor antes de enviar (seja ao carrinho ou ao orçamento),
   // EXCETO para categorias que já têm cor predefinida (Acessórios, Revenda)
@@ -3360,7 +3400,7 @@ export default function Home() {
       itemNote: autoNote || undefined,
       itemEmPlanta: globalItemEmPlanta,
     };
-    if (appendToQuoteId) {
+    if (appendToQuoteId || replaceInQuoteId) {
       handleAddItemOrToQuote(item);
     } else {
       const itemWithFloor: CartItemData = {
@@ -3409,7 +3449,7 @@ export default function Home() {
         itemNote: czNotes || undefined,
         itemEmPlanta: globalItemEmPlanta,
       };
-      if (appendToQuoteId) {
+      if (appendToQuoteId || replaceInQuoteId) {
         handleAddItemOrToQuote(item);
       } else {
         const itemWithFloor: CartItemData = {
@@ -3456,7 +3496,7 @@ export default function Home() {
       itemNote: czNotes || undefined,
       itemEmPlanta: globalItemEmPlanta,
     };
-    if (appendToQuoteId) {
+    if (appendToQuoteId || replaceInQuoteId) {
       handleAddItemOrToQuote(item);
     } else {
       const itemWithFloor: CartItemData = {
@@ -3498,7 +3538,7 @@ export default function Home() {
       itemNote: undefined,
       itemEmPlanta: globalItemEmPlanta,
     };
-    if (appendToQuoteId) {
+    if (appendToQuoteId || replaceInQuoteId) {
       handleAddItemOrToQuote(item);
     } else {
       const itemWithFloor: CartItemData = {
@@ -3695,7 +3735,7 @@ export default function Home() {
       itemNote: product.familia ?? undefined,
       itemEmPlanta: globalItemEmPlanta,
     };
-    if (appendToQuoteId) {
+    if (appendToQuoteId || replaceInQuoteId) {
       handleAddItemOrToQuote(item);
     } else {
       const itemWithFloor: CartItemData = {
@@ -3792,7 +3832,7 @@ export default function Home() {
       ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
       ...(globalAmbiente ? { ambiente: globalAmbiente } : {}),
     };
-    if (appendToQuoteId) {
+    if (appendToQuoteId || replaceInQuoteId) {
       handleAddItemOrToQuote(finalItem);
     } else {
       // Item Especial vai direto ao carrinho — cor já está no formulário, não precisa do seletor de cor
@@ -4638,7 +4678,37 @@ export default function Home() {
             </div>
           </div>
         )}
-        {/* ── Busca rápida de produtos ────────────────────────────────────────────── */}
+        {/* ── Banner: Modo Substituir Item ────────────────────────────────── */}
+        {replaceInQuoteId != null && (
+          <div className="mb-6 rounded-xl border border-orange-500/40 bg-orange-500/10 px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-orange-400 flex items-center gap-2">
+                <ArrowLeftRight className="w-4 h-4" />
+                Modo: Substituir Item no Orçamento #{replaceInQuoteId}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Configure o novo produto e clique em <strong>"Substituir Item"</strong>. O item anterior será substituído na mesma posição.
+                {replaceItemMutation.isPending && (
+                  <span className="ml-2 inline-flex items-center gap-1 text-orange-400 font-semibold">
+                    · Substituindo...
+                  </span>
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 bg-transparent"
+                onClick={() => navigate(`/orcamentos/${replaceInQuoteId}`)}
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Cancelar e Voltar
+              </Button>
+            </div>
+          </div>
+        )}
+        {/* ── Busca rápida de produtos ──────────────────────────────────────────── */}
         <div className="mb-6">
           <div className="max-w-xl">
             <p className="text-xs text-muted-foreground mb-1.5 font-medium">Busca rápida de produto</p>
@@ -8977,7 +9047,7 @@ export default function Home() {
                 </CardContent>
               </Card>
             ) : (
-              <ResultBlock result={result} profilePriceMap={profilePriceMap} profileVariant={activeProfileCatalog[result.profileCode]} skuPriceMap={skuPriceMap} onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }} pendingAccessoriesCount={pendingAccessories.length} globalPavimento={globalPavimento} />
+              <ResultBlock result={result} profilePriceMap={profilePriceMap} profileVariant={activeProfileCatalog[result.profileCode]} skuPriceMap={skuPriceMap} onAddToQuote={(appendToQuoteId || replaceInQuoteId) ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }} pendingAccessoriesCount={pendingAccessories.length} globalPavimento={globalPavimento} />
             ))}
             {/* Resultado EM L */}
             {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && !glowMode && !tubeLightMode && !tubeLightResult && profileShape !== "STRAIGHT" && (
@@ -8999,7 +9069,7 @@ export default function Home() {
                 <ShapeResultCard
                   shapeResult={shapeResult}
                   skuPriceMap={skuPriceMap}
-                  onAddToQuote={appendToQuoteId ? handleAddItemOrToQuote : undefined}
+                  onAddToQuote={(appendToQuoteId || replaceInQuoteId) ? handleAddItemOrToQuote : undefined}
                   globalQty={globalQty}
                   setGlobalQty={setGlobalQty}
                   onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
@@ -9335,7 +9405,7 @@ export default function Home() {
                                       luminariaHasApiPrice: lbPreco !== null,
                                     } : {}),
                                   };
-                                  if (appendToQuoteId) {
+                                  if (appendToQuoteId || replaceInQuoteId) {
                                     handleAddItemOrToQuote(item);
                                   } else {
                                     setPendingCartItem(item);
@@ -9343,7 +9413,7 @@ export default function Home() {
                                   }
                                 }}
                               >
-                                <ShoppingCart className="w-3 h-3 mr-1" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                                <ShoppingCart className="w-3 h-3 mr-1" /> {replaceInQuoteId ? "Substituir Item" : appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                               </Button>
                             </div>
                             {/* Botão Incluir Acessório — logo abaixo do Enviar ao Carrinho */}
@@ -9688,7 +9758,7 @@ export default function Home() {
                                   ledBarComprimentoTotalMm: r.comprimento,
                                   ...(bgDrvLines ? { driverLines: bgDrvLines } : {}),
                                 };
-                                  if (appendToQuoteId) {
+                                  if (appendToQuoteId || replaceInQuoteId) {
                                     handleAddItemOrToQuote(item);
                                   } else {
                                     setPendingCartItem(item);
@@ -9696,7 +9766,7 @@ export default function Home() {
                                   }
                                 }}
                               >
-                                <ShoppingCart className="w-3 h-3 mr-1" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                                <ShoppingCart className="w-3 h-3 mr-1" /> {replaceInQuoteId ? "Substituir Item" : appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                               </Button>
                             </div>
                           </CardContent>
@@ -9866,7 +9936,7 @@ export default function Home() {
                             itemEmPlanta: globalItemEmPlanta,
                             ...getCustoForControle(bfResult.product, bfResult.controle, bfResult.tensao),
                           };
-                          if (appendToQuoteId) {
+                          if (appendToQuoteId || replaceInQuoteId) {
                             handleAddItemOrToQuote(item);
                           } else {
                             setPendingCartItem(item);
@@ -9874,7 +9944,7 @@ export default function Home() {
                           }
                         }}
                       >
-                        <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                        <ShoppingCart className="w-3 h-3" /> {replaceInQuoteId ? "Substituir Item" : appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                       </Button>
                       <Button
                         variant="outline"
@@ -10015,7 +10085,7 @@ export default function Home() {
                             itemEmPlanta: globalItemEmPlanta,
                             ...getCustoForControle(aldaResult.product, aldaResult.controle, aldaResult.tensao),
                           };
-                          if (appendToQuoteId) {
+                          if (appendToQuoteId || replaceInQuoteId) {
                             handleAddItemOrToQuote(item);
                           } else {
                             setPendingCartItem(item);
@@ -10023,7 +10093,7 @@ export default function Home() {
                           }
                         }}
                       >
-                        <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                        <ShoppingCart className="w-3 h-3" /> {replaceInQuoteId ? "Substituir Item" : appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                       </Button>
                       <Button
                         variant="outline"
@@ -10255,7 +10325,7 @@ export default function Home() {
                             itemEmPlanta: globalItemEmPlanta,
                             ...getCustoForControle(glowResult.product, glowResult.controle, glowResult.tensao),
                           };
-                          if (appendToQuoteId) {
+                          if (appendToQuoteId || replaceInQuoteId) {
                             handleAddItemOrToQuote(item);
                           } else {
                             // GLOW só existe em BRANCO — pular modal de cor
@@ -10264,7 +10334,7 @@ export default function Home() {
                           }
                         }}
                       >
-                        <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                        <ShoppingCart className="w-3 h-3" /> {replaceInQuoteId ? "Substituir Item" : appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                       </Button>
                       <Button
                         variant="outline"
@@ -10462,7 +10532,7 @@ export default function Home() {
                             itemEmPlanta: globalItemEmPlanta,
                             ...getCustoForControle(tubeLightResult.product, tubeLightResult.controle, tubeLightResult.tensao),
                           };
-                          if (appendToQuoteId) {
+                          if (appendToQuoteId || replaceInQuoteId) {
                             handleAddItemOrToQuote(item);
                           } else {
                             // TUBE LIGHT só existe em BRANCO — pular modal de cor
@@ -10471,7 +10541,7 @@ export default function Home() {
                           }
                         }}
                       >
-                        <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                        <ShoppingCart className="w-3 h-3" /> {replaceInQuoteId ? "Substituir Item" : appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                       </Button>
                       <Button
                         variant="outline"
@@ -10685,7 +10755,7 @@ export default function Home() {
                               ambiente: globalAmbiente || undefined,
                               ...(dDrvLines ? { driverLines: dDrvLines.driverLines, priceWithoutDriver: dDrvLines.priceWithoutDriver, unitPriceLuminaria: dDrvLines.unitPriceLuminaria, unitPriceDriver: dDrvLines.unitPriceDriver, luminariaHasApiPrice: dDrvLines.luminariaHasApiPrice, custoCorpoBase: dDrvLines.custoCorpoBase, custoDriverBase: dDrvLines.custoDriverBase, markupPadraoApi: dDrvLines.markupPadraoApi, markupMinimoApi: dDrvLines.markupMinimoApi, markupMinimoDriverApi: dDrvLines.markupMinimoDriverApi, driverQtyPerUnit: dDrvLines.drvQtyPerUnit } : {}),
                             };
-                            if (appendToQuoteId) {
+                            if (appendToQuoteId || replaceInQuoteId) {
                               handleAddItemOrToQuote(item);
                             } else {
                               setPendingCartItem(item);
@@ -10693,7 +10763,7 @@ export default function Home() {
                             }
                           }}
                         >
-                          <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                          <ShoppingCart className="w-3 h-3" /> {replaceInQuoteId ? "Substituir Item" : appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                         </Button>
                         <Button
                           variant="outline"
@@ -10891,7 +10961,7 @@ export default function Home() {
                               ambiente: globalAmbiente || undefined,
                               ...(bDrvLines ? { driverLines: bDrvLines.driverLines, priceWithoutDriver: bDrvLines.priceWithoutDriver, unitPriceLuminaria: bDrvLines.unitPriceLuminaria, unitPriceDriver: bDrvLines.unitPriceDriver, luminariaHasApiPrice: bDrvLines.luminariaHasApiPrice, custoCorpoBase: bDrvLines.custoCorpoBase, markupPadraoApi: bDrvLines.markupPadraoApi, markupMinimoApi: bDrvLines.markupMinimoApi, driverQtyPerUnit: bDrvLines.drvQtyPerUnit } : {}),
                             };
-                            if (appendToQuoteId) {
+                            if (appendToQuoteId || replaceInQuoteId) {
                               handleAddItemOrToQuote(item);
                             } else {
                               setPendingCartItem(item);
@@ -10899,7 +10969,7 @@ export default function Home() {
                             }
                           }}
                         >
-                          <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                          <ShoppingCart className="w-3 h-3" /> {replaceInQuoteId ? "Substituir Item" : appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                         </Button>
                         <Button
                           variant="outline"
@@ -11156,7 +11226,7 @@ export default function Home() {
                             itemEmPlanta: globalItemEmPlanta,
                             ...(dlDrvLines ? { driverLines: dlDrvLines.driverLines, priceWithoutDriver: dlDrvLines.priceWithoutDriver, unitPriceLuminaria: dlDrvLines.unitPriceLuminaria, unitPriceDriver: dlDrvLines.unitPriceDriver, luminariaHasApiPrice: dlDrvLines.luminariaHasApiPrice, custoCorpoBase: dlDrvLines.custoCorpoBase, custoDriverBase: dlDrvLines.custoDriverBase, markupPadraoApi: dlDrvLines.markupPadraoApi, markupMinimoApi: dlDrvLines.markupMinimoApi, markupMinimoDriverApi: dlDrvLines.markupMinimoDriverApi, driverQtyPerUnit: dlDrvLines.drvQtyPerUnit } : {}),
                           };
-                          if (appendToQuoteId) {
+                          if (appendToQuoteId || replaceInQuoteId) {
                             handleAddItemOrToQuote(item);
                           } else {
                             setPendingCartItem(item);
@@ -11164,7 +11234,7 @@ export default function Home() {
                           }
                         }}
                       >
-                        <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                        <ShoppingCart className="w-3 h-3" /> {replaceInQuoteId ? "Substituir Item" : appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                       </Button>
                       <Button
                         variant="outline"
@@ -11459,7 +11529,7 @@ export default function Home() {
                             itemEmPlanta: globalItemEmPlanta,
                             ...(aeDrvLines ? { driverLines: aeDrvLines.driverLines, priceWithoutDriver: aeDrvLines.priceWithoutDriver, unitPriceLuminaria: aeDrvLines.unitPriceLuminaria, unitPriceDriver: aeDrvLines.unitPriceDriver, luminariaHasApiPrice: aeDrvLines.luminariaHasApiPrice, custoCorpoBase: aeDrvLines.custoCorpoBase, custoDriverBase: aeDrvLines.custoDriverBase, markupPadraoApi: aeDrvLines.markupPadraoApi, markupMinimoApi: aeDrvLines.markupMinimoApi, markupMinimoDriverApi: aeDrvLines.markupMinimoDriverApi, driverQtyPerUnit: aeDrvLines.drvQtyPerUnit } : {}),
                           };
-                          if (appendToQuoteId) {
+                          if (appendToQuoteId || replaceInQuoteId) {
                             handleAddItemOrToQuote(item);
                           } else {
                             setPendingCartItem(item);
@@ -11467,7 +11537,7 @@ export default function Home() {
                           }
                         }}
                       >
-                        <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                        <ShoppingCart className="w-3 h-3" /> {replaceInQuoteId ? "Substituir Item" : appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                       </Button>
                       <Button
                         variant="outline"
@@ -11812,7 +11882,7 @@ export default function Home() {
                               ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
                               ...(globalAmbiente ? { ambiente: globalAmbiente } : {}),
                             };
-                            if (appendToQuoteId) {
+                            if (appendToQuoteId || replaceInQuoteId) {
                               handleAddItemOrToQuote(item);
                             } else {
                               setPendingCartItem(item);
@@ -12019,7 +12089,7 @@ export default function Home() {
                             itemEmPlanta: globalItemEmPlanta,
                             ...(panelDrvLines ? { driverLines: panelDrvLines.driverLines, priceWithoutDriver: panelDrvLines.priceWithoutDriver, unitPriceLuminaria: panelDrvLines.unitPriceLuminaria, unitPriceDriver: panelDrvLines.unitPriceDriver, luminariaHasApiPrice: panelDrvLines.luminariaHasApiPrice, custoCorpoBase: panelDrvLines.custoCorpoBase, custoDriverBase: panelDrvLines.custoDriverBase, markupPadraoApi: panelDrvLines.markupPadraoApi, markupMinimoApi: panelDrvLines.markupMinimoApi, markupMinimoDriverApi: panelDrvLines.markupMinimoDriverApi, driverQtyPerUnit: panelDrvLines.drvQtyPerUnit } : {}),
                           };
-                          if (appendToQuoteId) {
+                          if (appendToQuoteId || replaceInQuoteId) {
                             handleAddItemOrToQuote(item);
                           } else if (panelResult.product.corUnica) {
                             // Produto só existe em uma cor: pular modal e adicionar diretamente
@@ -12059,7 +12129,7 @@ export default function Home() {
                           }
                         }}
                       >
-                        <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                        <ShoppingCart className="w-3 h-3" /> {replaceInQuoteId ? "Substituir Item" : appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                       </Button>
                       <Button
                         variant="outline"
@@ -12350,7 +12420,7 @@ export default function Home() {
                             itemEmPlanta: globalItemEmPlanta,
                             ...(arandelaDrvLines ? { driverLines: arandelaDrvLines.driverLines, priceWithoutDriver: arandelaDrvLines.priceWithoutDriver, unitPriceLuminaria: arandelaDrvLines.unitPriceLuminaria, unitPriceDriver: arandelaDrvLines.unitPriceDriver, luminariaHasApiPrice: arandelaDrvLines.luminariaHasApiPrice, custoCorpoBase: arandelaDrvLines.custoCorpoBase, custoDriverBase: arandelaDrvLines.custoDriverBase, markupPadraoApi: arandelaDrvLines.markupPadraoApi, markupMinimoApi: arandelaDrvLines.markupMinimoApi, markupMinimoDriverApi: arandelaDrvLines.markupMinimoDriverApi, driverQtyPerUnit: arandelaDrvLines.drvQtyPerUnit } : {}),
                           };
-                          if (appendToQuoteId) {
+                          if (appendToQuoteId || replaceInQuoteId) {
                             handleAddItemOrToQuote(item);
                           } else {
                             setPendingCartItem(item);
@@ -12358,7 +12428,7 @@ export default function Home() {
                           }
                         }}
                       >
-                        <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                        <ShoppingCart className="w-3 h-3" /> {replaceInQuoteId ? "Substituir Item" : appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                       </Button>
                       <Button
                         variant="outline"
@@ -12653,7 +12723,7 @@ export default function Home() {
                             itemEmPlanta: globalItemEmPlanta,
                             ...(spotDrvLines ? { driverLines: spotDrvLines.driverLines, priceWithoutDriver: spotDrvLines.priceWithoutDriver, unitPriceLuminaria: spotDrvLines.unitPriceLuminaria, unitPriceDriver: spotDrvLines.unitPriceDriver, luminariaHasApiPrice: spotDrvLines.luminariaHasApiPrice, custoCorpoBase: spotDrvLines.custoCorpoBase, custoDriverBase: spotDrvLines.custoDriverBase, markupPadraoApi: spotDrvLines.markupPadraoApi, markupMinimoApi: spotDrvLines.markupMinimoApi, markupMinimoDriverApi: spotDrvLines.markupMinimoDriverApi, driverQtyPerUnit: spotDrvLines.drvQtyPerUnit } : {}),
                           };
-                          if (appendToQuoteId) {
+                          if (appendToQuoteId || replaceInQuoteId) {
                             handleAddItemOrToQuote(item);
                           } else {
                             setPendingCartItem(item);
@@ -12661,7 +12731,7 @@ export default function Home() {
                           }
                         }}
                       >
-                        <ShoppingCart className="w-3 h-3" /> {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                        <ShoppingCart className="w-3 h-3" /> {replaceInQuoteId ? "Substituir Item" : appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                       </Button>
                       <Button
                         variant="outline"
@@ -12896,7 +12966,7 @@ export default function Home() {
                           onClick={() => handleAddRevendaItem(rvProduct.sku)}
                         >
                           <ShoppingCart className="w-4 h-4 mr-2" />
-                          {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                          {replaceInQuoteId ? "Substituir Item" : appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                         </Button>
                       </div>
                     ) : (
@@ -12973,7 +13043,7 @@ export default function Home() {
                         </div>
                         <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white" onClick={handleAddCustomizadoItem}>
                           <ShoppingCart className="w-4 h-4 mr-2" />
-                          {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                          {replaceInQuoteId ? "Substituir Item" : appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                         </Button>
                       </div>
                     ) : isManualMode && czSearch.trim() ? (
@@ -12996,7 +13066,7 @@ export default function Home() {
                         </div>
                         <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white" onClick={handleAddCustomizadoItem}>
                           <ShoppingCart className="w-4 h-4 mr-2" />
-                          {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                          {replaceInQuoteId ? "Substituir Item" : appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                         </Button>
                       </div>
                     ) : (
@@ -13038,7 +13108,7 @@ export default function Home() {
                       onClick={handleAddNaoOrcamos}
                     >
                       <Ban className="w-4 h-4 mr-2" />
-                      {appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
+                      {replaceInQuoteId ? "Substituir Item" : appendToQuoteId ? "Enviar ao Orçamento" : "Enviar ao Carrinho"}
                     </Button>
                   </div>
                 </CardContent>
@@ -13142,7 +13212,7 @@ export default function Home() {
                             onClick={() => handleAddAcessorioItem()}
                           >
                             <ShoppingCart className="w-4 h-4 mr-2" />
-                            {appendToQuoteId ? "Enviar ao Orçamento" : "Adicionar ao Carrinho"}
+                            {replaceInQuoteId ? "Substituir Item" : appendToQuoteId ? "Enviar ao Orçamento" : "Adicionar ao Carrinho"}
                           </Button>
                         </div>
                       </div>
@@ -13405,7 +13475,16 @@ export default function Home() {
               ? { ...baseItem, accessories: [...pendingAccessories] }
               : baseItem;
             if (pendingAccessories.length > 0) setPendingAccessories([]);
-            if (appendToQuoteId) {
+            if (replaceInQuoteId != null && replaceIndex != null) {
+              replaceItemMutation.mutate({
+                quoteId: replaceInQuoteId,
+                replaceIndex: replaceIndex,
+                newItemData: JSON.stringify(itemWithAcc),
+                versionNotes: `Item #${replaceIndex + 1} substituído via configurador`,
+              });
+              setGlobalItemEmPlanta("");
+              setGlobalQty(1);
+            } else if (appendToQuoteId) {
               // Modo append: envia diretamente ao orçamento após selecionar cor
               appendItemsMutation.mutate({
                 quoteId: appendToQuoteId,

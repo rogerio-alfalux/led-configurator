@@ -7,7 +7,7 @@ import {
   Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle, GripVertical, Wrench, Copy, Eye, Navigation2,
   Upload, X as XIcon, Layers, Receipt, Printer, Search,
   User, Phone, FolderOpen, Bookmark, MapPin, Briefcase, Calendar, RefreshCw, ClipboardList, Zap, FileDown,
-  TrendingUp, DollarSign, Calculator,
+  TrendingUp, DollarSign, Calculator, ArrowLeftRight,
 } from "lucide-react";
 import {
   DndContext,
@@ -148,13 +148,14 @@ interface SortableEditItemProps {
   onUpdate: (id: number, fields: Partial<CartItemData>) => void;
   onDelete: (id: number) => void;
   onDuplicate: (id: number) => void;
+  onReplace: (idx: number) => void;
   onUploadSpecialPhoto: (itemId: number, base64: string, mimeType: 'image/jpeg' | 'image/png' | 'image/webp', fileName: string) => Promise<void>;
   canOverrideApiPrice?: boolean;
   canEditDriverPrice?: boolean;
   isCostPrivileged?: boolean;
 }
 
-function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, resolvePhoto, onUpdate, onDelete, onDuplicate, onUploadSpecialPhoto, canOverrideApiPrice = false, canEditDriverPrice = false, isCostPrivileged = false }: SortableEditItemProps) {
+function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, resolvePhoto, onUpdate, onDelete, onDuplicate, onReplace, onUploadSpecialPhoto, canOverrideApiPrice = false, canEditDriverPrice = false, isCostPrivileged = false }: SortableEditItemProps) {
   const [specialUploading, setSpecialUploading] = useState(false);
   const [seqInputVal, setSeqInputVal] = useState<string>("");
   const d = item.parsed;
@@ -196,6 +197,15 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
           onClick={() => onDuplicate(item.id)}
         >
           <Copy className="w-4 h-4" />
+        </button>
+        {/* Botão substituir item */}
+        <button
+          type="button"
+          className="flex-shrink-0 text-muted-foreground/60 hover:text-amber-500 transition-colors"
+          title="Substituir este item"
+          onClick={() => onReplace(idx)}
+        >
+          <ArrowLeftRight className="w-4 h-4" />
         </button>
         {/* Número de sequência editável */}
         <div
@@ -2355,6 +2365,7 @@ export default function QuoteDetail() {
                                     resolvePhoto={resolvePhoto}
                                     onDelete={(id) => setEditableItems(prev => prev.filter(it => it.id !== id))}
                                     onDuplicate={(id) => setEditableItems(prev => { const i = prev.findIndex(it => it.id === id); if (i === -1) return prev; const src = prev[i]; const cloned = { ...src, id: Date.now() + Math.random(), itemData: src.itemData }; const next = [...prev]; next.splice(i + 1, 0, cloned); return next; })}
+                                    onReplace={(replIdx) => { setEditItemsDialogOpen(false); const d = editableItems[replIdx]?.parsed; navigate(`/?replaceInQuote=${quote.id}&replaceIndex=${replIdx}&replaceQty=${d?.qty ?? 1}&replaceItemEmPlanta=${encodeURIComponent(d?.itemEmPlanta ?? "")}`); }}
                                     onUpdate={(id, fields) => { let mergedFields = { ...fields }; if (fields.cct !== undefined) { const curItem = editableItems.find(it => it.id === id); if (curItem && fields.cct !== curItem.parsed.cct) { mergedFields = { ...applyCCTChange(curItem.parsed, fields.cct), ...fields }; } } setEditableItems(prev => prev.map(it => { if (it.id !== id) return it; const newParsed = { ...it.parsed, ...mergedFields }; if (fields.unitPrice !== undefined) { Object.assign(newParsed, applyUnitPriceChange(newParsed, fields.unitPrice, fields.qty ?? newParsed.qty)); } else if (fields.qty !== undefined) { Object.assign(newParsed, applyQtyChange(newParsed, fields.qty)); } return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) }; })); }}
                                     onUploadSpecialPhoto={async (id, base64, mimeType, fileName) => { const result = await uploadSpecialPhotoMutationQD.mutateAsync({ base64, mimeType, fileName }); setEditableItems(prev => prev.map(it => { if (it.id !== id) return it; const newParsed = { ...it.parsed, specialPhotoUrl: result.url, photoUrl: result.url }; return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) }; })); }}
                                     canOverrideApiPrice={true}
@@ -2420,6 +2431,7 @@ export default function QuoteDetail() {
                               return next;
                             });
                           }}
+                          onReplace={(replIdx) => { setEditItemsDialogOpen(false); const d = editableItems[replIdx]?.parsed; navigate(`/?replaceInQuote=${quote.id}&replaceIndex=${replIdx}&replaceQty=${d?.qty ?? 1}&replaceItemEmPlanta=${encodeURIComponent(d?.itemEmPlanta ?? "")}`); }}
                           onUpdate={(id, fields) => {
                             setEditableItems(prev => prev.map(it => {
                               if (it.id !== id) return it;
