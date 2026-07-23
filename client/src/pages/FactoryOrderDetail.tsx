@@ -1084,7 +1084,7 @@ export default function FactoryOrderDetail() {
   // Acessórios
   const { data: acessoriosData = [] } = trpc.alfalux.acessoriosProducts.useQuery();
   /** Mapa código EQ -> descrição canônica da API (para normalizar driverModel) */
-  const { data: componentesData } = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const { data: componentesData } = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 5 * 60 * 1000, retry: 3, retryDelay: 2000 });
   const componenteDescMapFO = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of componentesData?.items ?? []) {

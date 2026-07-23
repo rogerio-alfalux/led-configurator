@@ -2176,3 +2176,10 @@
 - [x] Listar TODOS os componentes da categoria correta (módulos LED) vindos da API
 - [x] Mesma funcionalidade que o campo de Drivers já tem (busca, seleção, código EQ)
 - [x] Drivers no pedido de fábrica: usar exclusivamente dados da API (remover fallback estático do Google Sheets)
+
+## Bug: Autocomplete Drivers/Módulo LED não funciona (Jul 2026)
+
+- [x] Dropdown de autocomplete não aparece ao digitar no campo de Drivers (corrigido: versão publicada estava desatualizada)
+- [x] Descrição de fallback normalizada usando descMap da API (normalizeDriverModels etapas 4 e 5)
+- [x] Garantir que componentesData está sendo carregado corretamente no FactoryOrderDetail (retry: 3 adicionado)
+- [ ] Drivers no pedido de fábrica: usar exclusivamente dados da API (remover fallback estático do Google Sheets)

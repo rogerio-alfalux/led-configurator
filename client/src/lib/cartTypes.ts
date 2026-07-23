@@ -559,12 +559,51 @@ export function normalizeDriverModels(
     }
   }
 
+  // 4. moduloLed — normalizar descrição usando moduloLedCode + descMap
+  let newModuloLed = item.moduloLed;
+  if (item.moduloLedCode) {
+    const canonical = descMap.get(item.moduloLedCode);
+    if (canonical) {
+      // Preservar prefixo de quantidade (ex: "2x ") se existir
+      const prefixMatch = (item.moduloLed ?? "").match(/^(\d+[xX]\s+)/);
+      const prefix = prefixMatch ? prefixMatch[1] : "";
+      const expectedModuloLed = `${prefix}${canonical} (${item.moduloLedCode})`;
+      if (item.moduloLed !== expectedModuloLed) {
+        newModuloLed = expectedModuloLed;
+        changed = true;
+      }
+    }
+  }
+
+  // 5. drivers (string legada) — normalizar descrição usando código EQ embutido
+  let newDrivers = item.drivers;
+  if (item.drivers && item.drivers.trim() !== "") {
+    const drvCodeMatch = item.drivers.match(/\(([A-Z]{2}\d+)\)/);
+    if (drvCodeMatch) {
+      const drvCode = drvCodeMatch[1];
+      const canonical = descMap.get(drvCode);
+      if (canonical) {
+        const drvPrefixMatch = item.drivers.match(/^(\d+[xX]\s+)/);
+        const drvPrefix = drvPrefixMatch ? drvPrefixMatch[1] : "";
+        const expectedDrivers = `${drvPrefix}${canonical} (${drvCode})`;
+        if (item.drivers !== expectedDrivers) {
+          newDrivers = expectedDrivers;
+          changed = true;
+        }
+      }
+    }
+  }
+
+
+
   if (!changed) return item;
   return {
     ...item,
     driverLines: newDriverLines,
     profileSegments: newProfileSegments,
     ledBarDriverModel: newLedBarDriverModel,
+    moduloLed: newModuloLed,
+    drivers: newDrivers,
   };
 }
 
