@@ -188,25 +188,30 @@ export const users = mysqlTable("users", {
 export const factoryOrders = mysqlTable("factory_orders", {
 	id: int().autoincrement().notNull(),
 	quoteId: int().notNull(),
-	orderNumber: varchar({ length: 6 }),
+	orderNumber: varchar({ length: 20 }),
 	revision: int().default(0).notNull(),
 	empresa: mysqlEnum(['ALFALUX','LUMINEW']).default('ALFALUX').notNull(),
 	status: mysqlEnum(['draft','sent','in_production','completed']).default('draft').notNull(),
 	deliveryDays: int().default(19),
 	approvedAt: timestamp({ mode: 'string' }),
 	notes: text(),
+	/** ID do pedido pai (null = pedido principal, preenchido = subpedido) */
+	parentOrderId: int(),
+	/** Índice do subpedido (1, 2, 3...) — null para pedido principal sem divisão */
+	subOrderIndex: int(),
 	createdByUserId: int(),
 	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 	updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
 (table) => [
 	index("factory_orders_quoteId_idx").on(table.quoteId),
+	index("factory_orders_parentId_idx").on(table.parentOrderId),
 ]);
 
 export const factoryOrderExcels = mysqlTable("factory_order_excels", {
 	id: int().autoincrement().notNull(),
 	factoryOrderId: int().notNull(),
-	orderNumber: varchar({ length: 6 }).notNull(),
+	orderNumber: varchar({ length: 20 }).notNull(),
 	revision: int().notNull(),
 	excelKey: text().notNull(),
 	excelUrl: text().notNull(),

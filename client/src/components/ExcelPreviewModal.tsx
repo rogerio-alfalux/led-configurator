@@ -330,17 +330,17 @@ ${htmlContent}
   const rvSuffix = ` (RV${revCount})`;
 
   const rtPct = Math.min(Math.max(formData.rtPercent ?? 0, 0), 0.99);
-  const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
+  const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, -0.99), 0.99);
   // applyMarkup global (sem margem individual) — usado para totais
   const applyMarkup = (base: number) => {
     const comRT = rtPct > 0 ? base / (1 - rtPct) : base;
-    return marginPct > 0 ? comRT / (1 - marginPct) : comRT;
+    return marginPct > 0 ? comRT / (1 - marginPct) : marginPct < 0 ? comRT * (1 + marginPct) : comRT;
   };
   // applyMarkupItem — aplica margem global + margem individual do item
   const applyMarkupItem = (base: number, itemMarginPercent?: number | null) => {
     const itemMPct = itemMarginPercent != null ? Math.min(Math.max(itemMarginPercent / 100, 0), 0.99) : 0;
     const comRT = rtPct > 0 ? base / (1 - rtPct) : base;
-    const comMargem = marginPct > 0 ? comRT / (1 - marginPct) : comRT;
+    const comMargem = marginPct > 0 ? comRT / (1 - marginPct) : marginPct < 0 ? comRT * (1 + marginPct) : comRT;
     return itemMPct > 0 ? comMargem / (1 - itemMPct) : comMargem;
   };
 
@@ -462,7 +462,7 @@ ${htmlContent}
   };
 
   const totalComRT = rtPct > 0 ? (totalBase + freteParaDiluir + diluicaoParaDiluir) / (1 - rtPct) : (totalBase + freteParaDiluir + diluicaoParaDiluir);
-  const totalFinal = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
+  const totalFinal = marginPct > 0 ? totalComRT / (1 - marginPct) : marginPct < 0 ? totalComRT * (1 + marginPct) : totalComRT;
   // DIFAL/FCP: alíquota combinada, frete na base (fórmula por dentro)
   const _freteParaImpostoPreview = formData.freteIncluded ? 0 : (formData.freteValue && formData.freteValue > 0 && !formData.freteIsento ? formData.freteValue : 0);
   const baseParaImpostoPreview = totalFinal + _freteParaImpostoPreview;
@@ -481,7 +481,7 @@ ${htmlContent}
   const hasDriverBreakdown = sortedItems.some(it => it.driverLines && it.driverLines.length > 0);
   const applyMarkupFn = (base: number) => {
     const comRT  = rtPct    > 0 ? base   / (1 - rtPct)    : base;
-    return marginPct > 0 ? comRT  / (1 - marginPct) : comRT;
+    return marginPct > 0 ? comRT  / (1 - marginPct) : marginPct < 0 ? comRT * (1 + marginPct) : comRT;
   };
   const totalDriverRaw = hasDriverBreakdown
     ? sortedItems.reduce((sum, it) => {

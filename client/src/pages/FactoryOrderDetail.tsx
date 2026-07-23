@@ -3,7 +3,7 @@ import { Link, useParams, useLocation } from "wouter";
 import {
   ArrowLeft, Factory, Plus, Trash2, FileSpreadsheet,
   ChevronDown, ChevronUp, Wrench, X, Search, Package,
-  CheckCircle, Clock, Truck, AlertTriangle, Edit2, Save, Eye,
+  CheckCircle, Clock, Truck, AlertTriangle, Edit2, Save, Eye, Split,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import { trpc } from "@/lib/trpc";
 import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, formatBRL, normalizeDriverModels, migrateItemDrivers, ApiProductDriverInfo, extractPowerLabelFromName } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
@@ -359,7 +360,12 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
             #{item.itemNumber}
           </span>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate">{parsed.sku || parsed.description}</p>
+            <p className="text-sm font-semibold truncate">{(() => {
+              if (parsed.profileSegments && parsed.profileSegments.length > 0) {
+                return parsed.profileSegments.map(s => `${s.qty}x ${s.sku}`).join(" + ");
+              }
+              return parsed.sku || parsed.description;
+            })()}</p>
             {parsed.sku && parsed.description !== parsed.sku && (
               <p className="text-xs text-muted-foreground truncate">{parsed.description}</p>
             )}
@@ -805,9 +811,19 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
             <div>
               <Label className="text-xs">SKU / Código</Label>
               <Input
-                value={parsed.sku ?? ""}
-                onChange={e => update({ sku: e.target.value })}
-                className="mt-1 h-8 text-sm font-mono"
+                value={(() => {
+                  if (parsed.profileSegments && parsed.profileSegments.length > 0) {
+                    return parsed.profileSegments.map(s => `${s.qty}x ${s.sku} - ${s.lengthMm}mm`).join(" | ");
+                  }
+                  return parsed.sku ?? "";
+                })()}
+                onChange={e => {
+                  if (!(parsed.profileSegments && parsed.profileSegments.length > 0)) {
+                    update({ sku: e.target.value });
+                  }
+                }}
+                readOnly={!!(parsed.profileSegments && parsed.profileSegments.length > 0)}
+                className={`mt-1 h-8 text-sm font-mono ${parsed.profileSegments && parsed.profileSegments.length > 0 ? 'bg-muted cursor-default' : ''}`}
               />
             </div>
             <div>
@@ -1033,6 +1049,10 @@ export default function FactoryOrderDetail() {
   // Número do pedido de fábrica (editável manualmente)
   const [orderNumberEdit, setOrderNumberEdit] = useState("");
   const [editingOrderNumber, setEditingOrderNumber] = useState(false);
+  // Sub-pedidos
+  const [showSplitDialog, setShowSplitDialog] = useState(false);
+  const [splitSubOrders, setSplitSubOrders] = useState<Array<{ items: number[]; deliveryDays: number }>>([{ items: [], deliveryDays: 20 }]);
+  const [splitCreating, setSplitCreating] = useState(false);
   // Rastrear se há alterações não publicadas (desde o último Excel gerado ou criação do pedido)
   const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState(false);
   // Snapshot dos itens no momento do último Excel gerado (para detectar alterações)
@@ -1500,7 +1520,7 @@ export default function FactoryOrderDetail() {
             <div className="min-w-0">
               <h1 className="text-sm font-semibold truncate flex items-center gap-2">
                 Pedido de Fábrica — Orç. {quote.quoteNumber}
-                {currentOrder?.orderNumber && /^\d{6}$/.test(currentOrder.orderNumber) && (
+                {currentOrder?.orderNumber && /^\d{6}(-\d+)?$/.test(currentOrder.orderNumber) && (
                   <span className="text-xs font-mono bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 px-1.5 py-0.5 rounded border border-orange-200 dark:border-orange-800 shrink-0">
                     Ped. {currentOrder.orderNumber}
                   </span>
@@ -1595,18 +1615,23 @@ export default function FactoryOrderDetail() {
               {orders.map(order => {
                 const st = STATUS_LABELS[order.status] ?? STATUS_LABELS.draft;
                 const isActive = order.id === effectiveOrderId;
+                const isSub = !!order.parentOrderId;
                 return (
                   <button
                     key={order.id}
                     onClick={() => setSelectedOrderId(order.id)}
                     className={`w-full text-left rounded-lg border p-3 transition-colors ${
+                      isSub ? "ml-3 " : ""
+                    }${
                       isActive
                         ? "border-orange-400 bg-orange-50 dark:bg-orange-950/20"
                         : "border-border hover:border-orange-300 hover:bg-muted/50"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold">Rev. {order.revision}</span>
+                      <span className="text-sm font-semibold">
+                        {isSub ? `Sub #${order.subOrderIndex}` : `Rev. ${order.revision}`}
+                      </span>
                       <Badge className={`text-xs gap-1 ${st.color}`}>
                         {st.icon}
                         {st.label}
@@ -1642,16 +1667,16 @@ export default function FactoryOrderDetail() {
                         <div className="sm:col-span-3">
                           <Label className="text-xs">Número do Pedido de Fábrica</Label>
                           <p className="text-xs text-muted-foreground mb-1">
-                            Número interno da fábrica com exatamente <strong>6 dígitos numéricos</strong> (ex: 250042). Obrigatório para gerar o Excel.
+                            Número interno da fábrica: <strong>6 dígitos</strong> (ex: 250042) ou com sufixo de subpedido (ex: 250042-1). Obrigatório para gerar o Excel.
                           </p>
                           {editingOrderNumber ? (
                             <div className="flex gap-2 mt-1">
                               <Input
                                 value={orderNumberEdit}
-                                onChange={e => setOrderNumberEdit(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                placeholder="Ex: 250042"
-                                maxLength={6}
-                                className={`h-8 text-sm font-mono flex-1 ${orderNumberEdit && !/^\d{6}$/.test(orderNumberEdit) ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
+                                onChange={e => setOrderNumberEdit(e.target.value.replace(/[^0-9-]/g, '').slice(0, 10))}
+                                placeholder="Ex: 250042 ou 250042-1"
+                                maxLength={10}
+                                className={`h-8 text-sm font-mono flex-1 ${orderNumberEdit && !/^\d{6}(-\d+)?$/.test(orderNumberEdit) ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
                                 autoFocus
                                 onKeyDown={e => { if (e.key === "Enter") handleSaveOrderNumber(); if (e.key === "Escape") setEditingOrderNumber(false); }}
                               />
@@ -1795,6 +1820,36 @@ export default function FactoryOrderDetail() {
                           <p className="text-xs text-muted-foreground italic">Sem observações</p>
                         )}
                       </div>
+
+                      {/* Botão Dividir em Subpedidos */}
+                      {currentOrder.items.length > 1 && !currentOrder.parentOrderId && (
+                        <div className="mt-4 border-t pt-3">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-2 border-orange-400 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/30"
+                            onClick={() => {
+                              setSplitSubOrders([{ items: [], deliveryDays: currentOrder.deliveryDays ?? 20 }]);
+                              setShowSplitDialog(true);
+                            }}
+                          >
+                            <Split className="w-4 h-4" />
+                            Dividir em Subpedidos
+                          </Button>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Divida este pedido em entregas parciais com prazos diferentes.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Indicador de subpedido */}
+                      {currentOrder.parentOrderId && (
+                        <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-800">
+                          <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
+                            Este é o subpedido #{currentOrder.subOrderIndex} do pedido principal.
+                          </p>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
 
@@ -1958,6 +2013,186 @@ export default function FactoryOrderDetail() {
             <Button variant="outline" onClick={() => setShowNotesEdit(false)}>Cancelar</Button>
             <Button onClick={handleSaveNotes}>Salvar</Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Dividir em Subpedidos */}
+      <Dialog open={showSplitDialog} onOpenChange={setShowSplitDialog}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Split className="w-5 h-5 text-orange-500" />
+              Dividir em Subpedidos
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Selecione quais itens irão para cada subpedido. Cada item só pode pertencer a um subpedido.
+            O número do pedido será <strong>{currentOrder?.orderNumber || "XXXXXX"}-1</strong>, <strong>{currentOrder?.orderNumber || "XXXXXX"}-2</strong>, etc.
+          </p>
+
+          {!currentOrder?.orderNumber && (
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded border border-amber-200 dark:border-amber-800">
+              <p className="text-sm text-amber-700 dark:text-amber-300 font-medium">
+                Informe o número do pedido antes de dividir em subpedidos.
+              </p>
+            </div>
+          )}
+
+          {currentOrder?.orderNumber && (
+            <div className="space-y-4 mt-2">
+              {splitSubOrders.map((sub, subIdx) => {
+                // Itens já selecionados em outros subpedidos
+                const usedInOther = new Set<number>();
+                splitSubOrders.forEach((s, i) => { if (i !== subIdx) s.items.forEach(id => usedInOther.add(id)); });
+                return (
+                  <div key={subIdx} className="border rounded-lg p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-semibold text-orange-700 dark:text-orange-400">
+                        Subpedido {currentOrder.orderNumber}-{subIdx + 1}
+                      </h4>
+                      {splitSubOrders.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-xs text-red-500 hover:text-red-700"
+                          onClick={() => setSplitSubOrders(prev => prev.filter((_, i) => i !== subIdx))}
+                        >
+                          <X className="w-3 h-3 mr-1" />
+                          Remover
+                        </Button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Label className="text-xs whitespace-nowrap">Prazo (dias úteis):</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={sub.deliveryDays}
+                        onChange={e => {
+                          const val = Math.max(1, parseInt(e.target.value) || 20);
+                          setSplitSubOrders(prev => prev.map((s, i) => i === subIdx ? { ...s, deliveryDays: val } : s));
+                        }}
+                        className="h-7 text-sm w-20"
+                      />
+                    </div>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                      {currentOrder.items.map(item => {
+                        const parsed = parseCartItemData(item.itemData);
+                        const isSelected = sub.items.includes(item.id);
+                        const isUsed = usedInOther.has(item.id);
+                        return (
+                          <label
+                            key={item.id}
+                            className={`flex items-center gap-2 p-2 rounded border text-sm cursor-pointer transition-colors ${
+                              isUsed
+                                ? "opacity-40 cursor-not-allowed border-muted"
+                                : isSelected
+                                  ? "border-orange-400 bg-orange-50 dark:bg-orange-950/20"
+                                  : "border-border hover:border-orange-300"
+                            }`}
+                          >
+                            <Checkbox
+                              checked={isSelected}
+                              disabled={isUsed}
+                              onCheckedChange={(checked) => {
+                                setSplitSubOrders(prev => prev.map((s, i) => {
+                                  if (i !== subIdx) return s;
+                                  return {
+                                    ...s,
+                                    items: checked
+                                      ? [...s.items, item.id]
+                                      : s.items.filter(id => id !== item.id),
+                                  };
+                                }));
+                              }}
+                            />
+                            <span className="font-mono text-xs text-muted-foreground">#{item.itemNumber}</span>
+                            <span className="truncate">{parsed?.sku || "—"}</span>
+                            <span className="text-xs text-muted-foreground truncate ml-auto">
+                              {parsed?.description?.slice(0, 40) || ""}
+                            </span>
+                            {isUsed && <span className="text-xs text-amber-600 shrink-0">(outro sub)</span>}
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {sub.items.length} item(ns) selecionado(s)
+                    </p>
+                  </div>
+                );
+              })}
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1 w-full"
+                onClick={() => setSplitSubOrders(prev => [...prev, { items: [], deliveryDays: currentOrder.deliveryDays ?? 20 }])}
+              >
+                <Plus className="w-3 h-3" />
+                Adicionar Subpedido
+              </Button>
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <Button variant="outline" onClick={() => setShowSplitDialog(false)}>Cancelar</Button>
+                <Button
+                  className="bg-orange-600 hover:bg-orange-700 text-white gap-2"
+                  disabled={splitCreating || splitSubOrders.every(s => s.items.length === 0)}
+                  onClick={async () => {
+                    if (!currentOrder || !currentOrder.orderNumber) return;
+                    setSplitCreating(true);
+                    try {
+                      for (let i = 0; i < splitSubOrders.length; i++) {
+                        const sub = splitSubOrders[i];
+                        if (sub.items.length === 0) continue;
+                        const subItems = currentOrder.items.filter(it => sub.items.includes(it.id));
+                        await createOrderMutation.mutateAsync({
+                          quoteId: Number(quoteId),
+                          empresa: currentOrder.empresa as "ALFALUX" | "LUMINEW",
+                          deliveryDays: sub.deliveryDays,
+                          parentOrderId: currentOrder.id,
+                          subOrderIndex: i + 1,
+                          items: subItems.map((it, idx) => ({
+                            itemNumber: idx + 1,
+                            itemData: it.itemData,
+                          })),
+                        });
+                        // Atualizar o orderNumber do subpedido recém-criado
+                        // (será feito via update após criação)
+                      }
+                      // Remover itens do pedido pai que foram para subpedidos
+                      const movedItemIds = Array.from(new Set(splitSubOrders.flatMap(s => s.items)));
+                      for (const itemId of movedItemIds) {
+                        await removeItemMutation.mutateAsync({ itemId });
+                      }
+                      // Atualizar orderNumber dos subpedidos criados
+                      const updatedOrders = await utils.factoryOrders.list.fetch({ quoteId: Number(quoteId) });
+                      const subOrders = updatedOrders.filter(o => o.parentOrderId === currentOrder.id);
+                      for (const so of subOrders) {
+                        if (so.subOrderIndex) {
+                          await updateOrderMutation.mutateAsync({
+                            id: so.id,
+                            orderNumber: `${currentOrder.orderNumber}-${so.subOrderIndex}`,
+                          });
+                        }
+                      }
+                      utils.factoryOrders.list.invalidate({ quoteId: Number(quoteId) });
+                      utils.factoryOrders.getById.invalidate({ id: currentOrder.id });
+                      toast.success(`${splitSubOrders.filter(s => s.items.length > 0).length} subpedido(s) criado(s)!`);
+                      setShowSplitDialog(false);
+                    } catch (err: any) {
+                      toast.error(`Erro ao criar subpedidos: ${err.message}`);
+                    } finally {
+                      setSplitCreating(false);
+                    }
+                  }}
+                >
+                  <Split className="w-4 h-4" />
+                  {splitCreating ? "Criando..." : "Criar Subpedidos"}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

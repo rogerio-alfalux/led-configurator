@@ -139,9 +139,9 @@ async function _generatePdfBlob(
       return sum + _pdfApplyItemMgn(lum + drv, it);
     }, 0);
   const rtPct     = Math.min(Math.max(formData.rtPercent    ?? 0, 0), 0.99);
-  const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
+  const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, -0.99), 0.99);
   const totalComRT  = rtPct     > 0 ? totalBase  / (1 - rtPct)    : totalBase;
-  const totalFinal  = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
+  const totalFinal  = marginPct > 0 ? totalComRT / (1 - marginPct) : marginPct < 0 ? totalComRT * (1 + marginPct) : totalComRT;
   const freteParaBase = formData.freteIncluded ? 0
     : (formData.freteValue && formData.freteValue > 0 && !formData.freteIsento ? formData.freteValue : 0);
   const baseParaImposto = totalFinal + freteParaBase;
@@ -169,7 +169,7 @@ async function _generatePdfBlob(
     }, 0);
   const _pdfApplyGlobalMarkupGlobal = (base: number) => {
     const comRT = rtPct > 0 ? base / (1 - rtPct) : base;
-    return marginPct > 0 ? comRT / (1 - marginPct) : comRT;
+    return marginPct > 0 ? comRT / (1 - marginPct) : marginPct < 0 ? comRT * (1 + marginPct) : comRT;
   };
 
   // ── CABEÇALHO ─────────────────────────────────────────────────────────────

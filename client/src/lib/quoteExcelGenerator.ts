@@ -1243,9 +1243,9 @@ async function _generateExcelBuffer(
   const _lumDilFracExcel = _diluicaoParaDiluir - _drvDilFracExcel;
   // Aplicar RT e Margem (mesma fórmula do Cart.tsx)
   const rtPct    = Math.min(Math.max(formData.rtPercent    ?? 0, 0), 0.99);
-  const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
+  const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, -0.99), 0.99);
   const totalComRT   = rtPct    > 0 ? totalBase  / (1 - rtPct)    : totalBase;
-  const totalFinal   = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
+  const totalFinal   = marginPct > 0 ? totalComRT / (1 - marginPct) : marginPct < 0 ? totalComRT * (1 + marginPct) : totalComRT;
   // Calcular DIFAL/FCP com alíquota combinada e frete na base
   const _freteParaImpostoBase = formData.freteIncluded ? 0 : (formData.freteValue && formData.freteValue > 0 && !formData.freteIsento ? formData.freteValue : 0); // frete não diluido entra na base
   const baseParaImposto = totalFinal + _freteParaImpostoBase;
@@ -1315,7 +1315,7 @@ async function _generateExcelBuffer(
   if (hasDriverBreakdown && totalDriverRaw > 0) {
     const applyMarkupLocal = (base: number) => {
       const comRT  = rtPct    > 0 ? base   / (1 - rtPct)    : base;
-      const final  = marginPct > 0 ? comRT  / (1 - marginPct) : comRT;
+      const final  = marginPct > 0 ? comRT  / (1 - marginPct) : marginPct < 0 ? comRT * (1 + marginPct) : comRT;
       return final;
     };
     const totalSemDriverFinal = applyMarkupLocal(totalSemDriverRaw + _lumDilFracExcel);

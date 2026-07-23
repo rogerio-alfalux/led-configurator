@@ -1013,9 +1013,13 @@ export default function Cart() {
 
   // Cálculo de RT e Margem
   const rtPct = Math.min(Math.max(parseFloat(saveForm.rtPercent || "0") / 100, 0), 0.99);
-  const marginPct = Math.min(Math.max(parseFloat(saveForm.marginPercent || "0") / 100, 0), 0.99);
+  const marginPct = Math.min(Math.max(parseFloat(saveForm.marginPercent || "0") / 100, -0.99), 0.99);
   const totalComRT = rtPct > 0 ? totalGeral / (1 - rtPct) : totalGeral;
-  const totalFinal = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
+  const totalFinal = marginPct > 0
+    ? totalComRT / (1 - marginPct)
+    : marginPct < 0
+      ? totalComRT * (1 + marginPct)
+      : totalComRT;
 
   // Cálculo de frete
   const FRETE_NOTURNO = 2000;
@@ -1098,7 +1102,7 @@ export default function Cart() {
         rtDest2Active: saveForm.rtDest2Active,
         rtDest3: saveForm.rtDest3 || undefined,
         rtDest3Active: saveForm.rtDest3Active,
-        marginPercent: marginPct > 0 ? marginPct : undefined,
+        marginPercent: marginPct !== 0 ? marginPct : undefined,
         freteType: saveForm.freteType,
         freteIsento: saveForm.freteIsento,
         freteLocalidade: saveForm.freteStateCode === "SP" ? "sp" : "other",
@@ -1954,16 +1958,16 @@ export default function Cart() {
                               </div>
                             )}
 
-                            {/* Margem */}
+                            {/* Margem / Desconto */}
                             <div>
                               <Label className="flex items-center gap-2">
                                 <Percent className="w-3 h-3" />
-                                Margem de Negociação
+                                Margem / Desconto
                               </Label>
                               <div className="flex items-center gap-2 mt-1">
                                 <Input
                                   type="number"
-                                  min={0}
+                                  min={-99}
                                   max={99}
                                   step={0.5}
                                   className="w-24"
@@ -1971,8 +1975,10 @@ export default function Cart() {
                                   onChange={e => updateSaveForm("marginPercent", e.target.value)}
                                 />
                                 <span className="text-sm text-muted-foreground">%</span>
-                                <span className="text-xs text-muted-foreground">(padrão 10%)</span>
                               </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Positivo = margem. Negativo = desconto.
+                              </p>
                             </div>
 
                             {/* Resumo */}
@@ -1991,6 +1997,12 @@ export default function Cart() {
                                 <div className="flex justify-between">
                                   <span className="text-muted-foreground">+ Margem ({saveForm.marginPercent}%)</span>
                                   <span>{formatBRL(totalFinal - totalComRT)}</span>
+                                </div>
+                              )}
+                              {marginPct < 0 && (
+                                <div className="flex justify-between">
+                                  <span className="text-red-500">− Desconto ({Math.abs(parseFloat(saveForm.marginPercent || "0"))}%)</span>
+                                  <span className="text-red-500">− {formatBRL(Math.abs(totalFinal - totalComRT))}</span>
                                 </div>
                               )}
                               {freteValor > 0 && !saveForm.freteIncluded ? (
@@ -3315,7 +3327,7 @@ export default function Cart() {
           seller1Name: saveForm.seller1Name || undefined,
           seller2Name: saveForm.seller2Name || undefined,
           rtPercent: rtPct > 0 ? rtPct : undefined,
-          marginPercent: marginPct > 0 ? marginPct : undefined,
+          marginPercent: marginPct !== 0 ? marginPct : undefined,
           freteType: saveForm.freteType,
           freteIsento: saveForm.freteIsento,
           freteLocalidade: saveForm.freteStateCode === "SP" ? "sp" : "other",
@@ -3351,7 +3363,7 @@ export default function Cart() {
           seller1Name: saveForm.seller1Name || undefined,
           seller2Name: saveForm.seller2Name || undefined,
           rtPercent: rtPct > 0 ? rtPct : undefined,
-          marginPercent: marginPct > 0 ? marginPct : undefined,
+          marginPercent: marginPct !== 0 ? marginPct : undefined,
           freteType: saveForm.freteType,
           freteIsento: saveForm.freteIsento,
           freteLocalidade: saveForm.freteStateCode === "SP" ? "sp" : "other",

@@ -1576,14 +1576,18 @@ export default function QuoteDetail() {
     return s + applyItemMarginQD(d.totalPrice ?? 0, d.itemMarginPercent);
   }, 0);
   const editRtPct = Math.min(Math.max(parseFloat(editForm.rtPercent || "0") / 100, 0), 0.99);
-  const editMarginPct = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, 0), 0.99);
+  const editMarginPct = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, -0.99), 0.99);
   const editTotalComRT = editRtPct > 0 ? editTotalBase / (1 - editRtPct) : editTotalBase;
-  const editTotalFinal = editMarginPct > 0 ? editTotalComRT / (1 - editMarginPct) : editTotalComRT;
+  const editTotalFinal = editMarginPct > 0
+    ? editTotalComRT / (1 - editMarginPct)
+    : editMarginPct < 0
+      ? editTotalComRT * (1 + editMarginPct)
+      : editTotalComRT;
 
   // Recalcular o total do orçamento dinamicamente (igual ao PDF/Preview/Excel)
   // Usando os campos do quote (não do editForm) para o card de resumo
   const _hdrRtPct = quote.rtPercent ? Math.min(Math.max(parseFloat(String(quote.rtPercent)), 0), 0.99) : 0;
-  const _hdrMarginPct = quote.marginPercent ? Math.min(Math.max(parseFloat(String(quote.marginPercent)), 0), 0.99) : 0;
+  const _hdrMarginPct = quote.marginPercent ? Math.min(Math.max(parseFloat(String(quote.marginPercent)), -0.99), 0.99) : 0;
   const _hdrFreteIncluded = !!(quote as any).freteIncluded;
   const _hdrFreteValue = (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : 0;
   const _hdrFreteParaDiluir = (_hdrFreteIncluded && _hdrFreteValue > 0) ? _hdrFreteValue : 0;
@@ -1617,7 +1621,11 @@ export default function QuoteDetail() {
   }, 0);
   // Aplicar RT + margem sobre (base + frete diluído + diluição)
   const _hdrTotalComRT = _hdrRtPct > 0 ? (_hdrTotalBase + _hdrFreteParaDiluir + _hdrDiluicao) / (1 - _hdrRtPct) : (_hdrTotalBase + _hdrFreteParaDiluir + _hdrDiluicao);
-  const _hdrTotalFinal = _hdrMarginPct > 0 ? _hdrTotalComRT / (1 - _hdrMarginPct) : _hdrTotalComRT;
+  const _hdrTotalFinal = _hdrMarginPct > 0
+    ? _hdrTotalComRT / (1 - _hdrMarginPct)
+    : _hdrMarginPct < 0
+      ? _hdrTotalComRT * (1 + _hdrMarginPct)
+      : _hdrTotalComRT;
   // Frete separado (não diluído) entra na base do DIFAL
   const _hdrFreteParaImposto = _hdrFreteIncluded ? 0 : (_hdrFreteValue > 0 ? _hdrFreteValue : 0);
   const _hdrBaseParaDifal = _hdrTotalFinal + _hdrFreteParaImposto;
@@ -1989,6 +1997,11 @@ export default function QuoteDetail() {
                         <span className="font-medium text-foreground">Margem:</span> {(marginPct * 100).toFixed(1)}%
                       </p>
                     )}
+                    {marginPct < 0 && (
+                      <p className="text-xs flex items-center gap-1 text-red-500">
+                        <span className="font-medium">Desconto:</span> {Math.abs(marginPct * 100).toFixed(1)}%
+                      </p>
+                    )}
                     <p className="text-xs flex items-center gap-1 text-muted-foreground">
                       <span className="font-medium text-foreground">Frete:</span> {freteLabel}
                     </p>
@@ -2103,115 +2116,13 @@ export default function QuoteDetail() {
           {quote.status === "approved" && (
             <>
               <Button
-                variant="outline"
-                className="gap-2 border-orange-400 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/30"
+                className="gap-2 bg-orange-600 hover:bg-orange-700 text-white"
                 onClick={() => navigate(`/orcamentos/${id}/pedido-fabrica`)}
               >
                 <Factory className="w-4 h-4" />
                 Gerenciar Pedido de Fábrica
               </Button>
-              <Button
-                className="gap-2 bg-orange-600 hover:bg-orange-700 text-white"
-                onClick={() => setEmpresaDialogOpen(true)}
-                disabled={isGenerating}
-              >
-                <Factory className="w-4 h-4" />
-                Gerar Pedido de Fábrica
-              </Button>
 
-              {/* Dialog de seleção de empresa */}
-              <Dialog open={empresaDialogOpen} onOpenChange={setEmpresaDialogOpen}>
-                <DialogContent className="max-w-sm">
-                  <DialogHeader>
-                    <DialogTitle>Empresa Fabricante</DialogTitle>
-                  </DialogHeader>
-                  <p className="text-sm text-muted-foreground">Selecione a empresa fabricante e preencha os dados do pedido.</p>
-                  {/* Número do Pedido e Empresa Faturadora */}
-                  <div className="space-y-3 p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-200 dark:border-orange-800">
-                    <div>
-                      <Label className="text-sm">Número do Pedido <span className="text-red-500">*</span></Label>
-                      <Input
-                        placeholder="Ex: 102030"
-                        maxLength={6}
-                        value={orderNumberInput}
-                        onChange={e => setOrderNumberInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                        className="font-mono mt-1"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">6 dígitos numéricos sequenciais</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm">Empresa Faturadora <span className="text-red-500">*</span></Label>
-                      <Select value={billingCompanyInput} onValueChange={setBillingCompanyInput}>
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Selecione a empresa" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="alfalux">Alfalux (Lucro Presumido)</SelectItem>
-                          <SelectItem value="primelux">Prime Lux (Lucro Real)</SelectItem>
-                          <SelectItem value="decada">Década (Simples Nacional)</SelectItem>
-                          <SelectItem value="primelase">Prime Lase (Simples Nacional)</SelectItem>
-                          <SelectItem value="luminew">Luminew (Simples Nacional)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <p className="text-sm font-medium">Empresa Fabricante</p>
-                  <div className="flex flex-col gap-3 py-2">
-                    <button
-                      onClick={() => setEmpresaSelecionada("ALFALUX")}
-                      className={`flex items-center gap-3 rounded-lg border-2 px-4 py-3 text-left transition-colors ${
-                        empresaSelecionada === "ALFALUX"
-                          ? "border-orange-500 bg-orange-50 dark:bg-orange-950/30"
-                          : "border-border hover:border-orange-300"
-                      }`}
-                    >
-                      <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                        empresaSelecionada === "ALFALUX" ? "border-orange-500" : "border-muted-foreground"
-                      }`}>
-                        {empresaSelecionada === "ALFALUX" && <span className="w-2 h-2 rounded-full bg-orange-500" />}
-                      </span>
-                      <span className="font-semibold text-sm">1 — ALFALUX</span>
-                    </button>
-                    <button
-                      onClick={() => setEmpresaSelecionada("LUMINEW")}
-                      className={`flex items-center gap-3 rounded-lg border-2 px-4 py-3 text-left transition-colors ${
-                        empresaSelecionada === "LUMINEW"
-                          ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
-                          : "border-border hover:border-blue-300"
-                      }`}
-                    >
-                      <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                        empresaSelecionada === "LUMINEW" ? "border-blue-500" : "border-muted-foreground"
-                      }`}>
-                        {empresaSelecionada === "LUMINEW" && <span className="w-2 h-2 rounded-full bg-blue-500" />}
-                      </span>
-                      <span className="font-semibold text-sm">2 — LUMINEW</span>
-                    </button>
-                  </div>
-                  <div className="flex justify-between items-center gap-2 pt-2">
-                    <Button variant="outline" onClick={() => setEmpresaDialogOpen(false)}>Cancelar</Button>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        className="gap-2 border-blue-400 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30"
-                        onClick={() => handleOpenOrderPreview(empresaSelecionada)}
-                        disabled={isGenerating}
-                      >
-                        <Printer className="w-4 h-4" />
-                        Pré-visualizar
-                      </Button>
-                      <Button
-                        className="bg-orange-600 hover:bg-orange-700 text-white gap-2"
-                        onClick={() => handleGenerateOrder(empresaSelecionada)}
-                        disabled={isGenerating}
-                      >
-                        <Factory className="w-4 h-4" />
-                        Gerar Excel
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
             </>
           )}
 
@@ -2625,7 +2536,7 @@ export default function QuoteDetail() {
                       const rtPct = quote.rtPercent ? parseFloat(String(quote.rtPercent)) : 0;
                       const marginPct = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;
                       const totalComRT = rtPct > 0 ? totalBase / (1 - rtPct) : totalBase;
-                      const totalFinal = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
+                      const totalFinal = marginPct > 0 ? totalComRT / (1 - marginPct) : marginPct < 0 ? totalComRT * (1 + marginPct) : totalComRT;
                       // Incluir frete e DIFAL/FCP (alíquota combinada, fórmula por dentro)
                       // Frete separado (não diluído) entra na base do DIFAL; frete diluído já está no totalFinal
                       const itemsFreteValor = !(quote as any).freteIncluded && (quote as any).freteValue && !(quote as any).freteIsento ? parseFloat(String((quote as any).freteValue)) : 0;
@@ -3174,7 +3085,8 @@ export default function QuoteDetail() {
                 {/* Aba RT / Margem */}
                 <TabsContent value="financeiro" className="space-y-4 pt-3">
                   <div className="bg-muted/40 rounded-lg p-3 text-xs text-muted-foreground">
-                    Fórmula: <code>Preço final = base ÷ (1 − RT%) ÷ (1 − Margem%)</code>
+                    Fórmula: <code>Preço final = base ÷ (1 − RT%) ÷ (1 − Margem%)</code><br/>
+                    <code>Desconto: Preço final = base × (1 + Margem%) [quando negativo]</code>
                   </div>
                   <div>
                     <Label className="flex items-center gap-2"><Percent className="w-3 h-3" />Reserva Técnica (RT)</Label>
@@ -3199,16 +3111,20 @@ export default function QuoteDetail() {
                     </div>
                   )}
                   <div>
-                    <Label className="flex items-center gap-2"><Percent className="w-3 h-3" />Margem de Negociação</Label>
+                    <Label className="flex items-center gap-2"><Percent className="w-3 h-3" />Margem / Desconto</Label>
                     <div className="flex items-center gap-2 mt-1">
-                      <Input type="number" min={0} max={99} step={0.5} className="w-24" value={editForm.marginPercent} onChange={e => setEditForm(f => ({ ...f, marginPercent: e.target.value }))} />
+                      <Input type="number" min={-99} max={99} step={0.5} className="w-24" value={editForm.marginPercent} onChange={e => setEditForm(f => ({ ...f, marginPercent: e.target.value }))} />
                       <span className="text-sm text-muted-foreground">%</span>
                     </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Positivo = margem (encarece). Negativo = desconto (reduz preço).
+                    </p>
                   </div>
                   <div className="bg-muted/60 rounded-lg p-3 space-y-1 text-sm">
                     <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatBRL(editTotalBase)}</span></div>
                     {editRtPct > 0 && <div className="flex justify-between"><span className="text-muted-foreground">+ RT ({editForm.rtPercent}%)</span><span>{formatBRL(editTotalComRT - editTotalBase)}</span></div>}
                     {editMarginPct > 0 && <div className="flex justify-between"><span className="text-muted-foreground">+ Margem ({editForm.marginPercent}%)</span><span>{formatBRL(editTotalFinal - editTotalComRT)}</span></div>}
+                    {editMarginPct < 0 && <div className="flex justify-between"><span className="text-red-500">− Desconto ({Math.abs(parseFloat(editForm.marginPercent || "0"))}%)</span><span className="text-red-500">− {formatBRL(Math.abs(editTotalFinal - editTotalComRT))}</span></div>}
                     <div className="flex justify-between font-bold border-t pt-1"><span>Total final</span><span className="text-primary">{formatBRL(editTotalFinal)}</span></div>
                   </div>
                 </TabsContent>
@@ -3561,9 +3477,13 @@ export default function QuoteDetail() {
                     if (!editForm.clientName.trim()) { toast.error("Nome do cliente é obrigatório."); return; }
                     if (!editForm.projectNumber.trim()) { toast.error("Informe o Número do Projeto ou marque \"Sem Projeto\"."); return; }
                     const editRtPctVal = Math.min(Math.max(parseFloat(editForm.rtPercent || "0") / 100, 0), 0.99);
-                    const editMarginPctVal = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, 0), 0.99);
+                    const editMarginPctVal = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, -0.99), 0.99);
                     const totalComRTVal = editRtPctVal > 0 ? editTotalBase / (1 - editRtPctVal) : editTotalBase;
-                    const totalFinalVal = editMarginPctVal > 0 ? totalComRTVal / (1 - editMarginPctVal) : totalComRTVal;
+                    const totalFinalVal = editMarginPctVal > 0
+                      ? totalComRTVal / (1 - editMarginPctVal)
+                      : editMarginPctVal < 0
+                        ? totalComRTVal * (1 + editMarginPctVal)
+                        : totalComRTVal;
                     // Calcular frete e DIFAL/FCP (alíquota combinada, fórmula por dentro)
                     // Frete separado (não diluído) entra na base do DIFAL; frete diluído já está no editTotalFinal
                     const editFreteValor = !editForm.freteIncluded && editForm.freteValue && !editForm.freteIsento ? parseFloat(editForm.freteValue) : 0;

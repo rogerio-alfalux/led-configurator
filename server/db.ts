@@ -1011,10 +1011,12 @@ export async function listAssistants() {
 /** Cria um novo pedido de fábrica (revisão 1) com seus itens */
 export async function createFactoryOrder(data: {
   quoteId: number;
-  empresa: 'ALFALUX' | 'LUMINEW';
+  empresa?: 'ALFALUX' | 'LUMINEW';
   deliveryDays?: number;
   notes?: string;
   createdByUserId?: number;
+  parentOrderId?: number;
+  subOrderIndex?: number;
   items: { itemNumber: number; itemData: string }[];
 }) {
   const db = await getDb();
@@ -1026,6 +1028,8 @@ export async function createFactoryOrder(data: {
     status: 'draft',
     deliveryDays: data.deliveryDays ?? 19,
     notes: data.notes ?? null,
+    parentOrderId: data.parentOrderId ?? null,
+    subOrderIndex: data.subOrderIndex ?? null,
     createdByUserId: data.createdByUserId ?? null,
   });
   const orderId = (result as any).insertId as number;
@@ -1035,6 +1039,15 @@ export async function createFactoryOrder(data: {
     );
   }
   return orderId;
+}
+
+/** Lista subpedidos de um pedido pai */
+export async function getSubOrders(parentOrderId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(factoryOrders)
+    .where(eq(factoryOrders.parentOrderId, parentOrderId))
+    .orderBy(asc(factoryOrders.subOrderIndex));
 }
 
 /** Lista todos os pedidos de fábrica de um orçamento (ordenados por revisão desc) */
@@ -1108,6 +1121,8 @@ export async function createFactoryOrderRevision(sourceOrderId: number) {
     status: 'draft',
     deliveryDays: source.deliveryDays,
     notes: source.notes ?? null,
+    parentOrderId: source.parentOrderId ?? null,
+    subOrderIndex: source.subOrderIndex ?? null,
     createdByUserId: source.createdByUserId ?? null,
   });
   const newOrderId = (result as any).insertId as number;

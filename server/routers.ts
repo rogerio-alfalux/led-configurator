@@ -18,7 +18,7 @@ import {
   createFactoryOrder, getFactoryOrdersByQuoteId, getFactoryOrderById,
   updateFactoryOrder, addFactoryOrderItem, updateFactoryOrderItem,
   deleteFactoryOrderItem, createFactoryOrderRevision,
-  createFactoryOrderExcel, listFactoryOrderExcels,
+  createFactoryOrderExcel, listFactoryOrderExcels, getSubOrders,
   getManagerDashboard, getSellerDashboard, getSalesGoalsByYear, upsertSalesGoal,
   getMonthlyReport,
   duplicateQuote,
@@ -438,7 +438,7 @@ export const appRouter = router({
         rtDest2Active: z.boolean().optional(),
         rtDest3: z.string().optional(),
         rtDest3Active: z.boolean().optional(),
-        marginPercent: z.number().min(0).max(0.99).optional(),
+        marginPercent: z.number().min(-0.99).max(0.99).optional(),
         freteType: z.enum(["free", "paid", "night", "consult", "pickup"]).optional(),
         freteIsento: z.boolean().optional(),
         freteLocalidade: z.enum(["sp", "other"]).optional(),
@@ -1028,6 +1028,8 @@ export const appRouter = router({
         empresa: z.enum(['ALFALUX', 'LUMINEW']).default('ALFALUX'),
         deliveryDays: z.number().optional(),
         notes: z.string().optional(),
+        parentOrderId: z.number().optional(),
+        subOrderIndex: z.number().optional(),
         items: z.array(z.object({
           itemNumber: z.number(),
           itemData: z.string(), // CartItemData serializado como JSON
@@ -1039,10 +1041,19 @@ export const appRouter = router({
           empresa: input.empresa,
           deliveryDays: input.deliveryDays,
           notes: input.notes,
+          parentOrderId: input.parentOrderId,
+          subOrderIndex: input.subOrderIndex,
           createdByUserId: ctx.user.id,
           items: input.items,
         });
         return { id: orderId };
+      }),
+
+    /** Lista subpedidos de um pedido pai */
+    listSubOrders: protectedProcedure
+      .input(z.object({ parentOrderId: z.number() }))
+      .query(async ({ input }) => {
+        return getSubOrders(input.parentOrderId);
       }),
 
     /** Lista todos os pedidos de fábrica de um orçamento */
@@ -1121,7 +1132,7 @@ export const appRouter = router({
     saveExcel: protectedProcedure
       .input(z.object({
         factoryOrderId: z.number(),
-        orderNumber: z.string().regex(/^\d{6}$/, 'Número do pedido deve ter exatamente 6 dígitos numéricos'),
+        orderNumber: z.string().regex(/^\d{6}(-\d+)?$/, 'Número do pedido deve ter 6 dígitos (opcionalmente seguido de -N para subpedido)'),
         revision: z.number(),
         excelBase64: z.string(), // ArrayBuffer serializado como base64
         fileName: z.string(),
@@ -1448,7 +1459,7 @@ export const appRouter = router({
             } catch {}
 
             const totalComRT = rtPct > 0 ? newTotalBase / (1 - rtPct) : newTotalBase;
-            const totalFinalCalc = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
+            const totalFinalCalc = marginPct > 0 ? totalComRT / (1 - marginPct) : marginPct < 0 ? totalComRT * (1 + marginPct) : totalComRT;
 
             // Recuperar frete, DIFAL e FCP do snapshot
             let freteValor = 0, difalVal = 0, fcpVal = 0;
@@ -1493,7 +1504,7 @@ export const appRouter = router({
             fcpValQ = (snap.fcpEnabled && snap.fcpValue) ? parseFloat(String(snap.fcpValue)) : 0;
           } catch {}
           const totalComRTQ = rtPctQ > 0 ? newTotalBaseLatest / (1 - rtPctQ) : newTotalBaseLatest;
-          const totalFinalQ = marginPctQ > 0 ? totalComRTQ / (1 - marginPctQ) : totalComRTQ;
+          const totalFinalQ = marginPctQ > 0 ? totalComRTQ / (1 - marginPctQ) : marginPctQ < 0 ? totalComRTQ * (1 + marginPctQ) : totalComRTQ;
           const newTotalFinalQ = totalFinalQ + freteValorQ + difalValQ + fcpValQ;
 
           await db.update(quotes)

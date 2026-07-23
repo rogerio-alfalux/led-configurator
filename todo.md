@@ -2195,3 +2195,9 @@
 - [x] Usar código EQ entre parênteses na ficha de produção (descrição canônica da API)
 - [x] Fix: Stripflex/Stripline must be classified as "MÓDULOS LED" (not "FITAS LED") with unit "un" (not meters)
 - [x] Fix: Ficha de produção deve mostrar código EQ entre parênteses para TODOS os componentes (módulo LED, óptica, holder, dissipador, driver) em TODAS as categorias (Downlights, Painéis, Spots, etc.)
+- [x] Fix: SKU incompleto na tela de gerenciamento do pedido de fábrica (mostra só prefixo, ex: LLE-2810 ao invés do SKU completo)
+- [x] Remover botão "Gerar Pedido de Fábrica" da tela de detalhes do orçamento
+- [x] Botão "Gerenciar Pedido de Fábrica" deve ficar na cor laranja
+- [x] Sistema de subpedidos: permitir dividir pedido em subpedidos (ex: 202539-1, 202539-2) com prazos de entrega diferentes
+- [ ] Subpedidos: usuário escolhe quais itens do orçamento compõem cada subpedido (sem repetição entre subpedidos)
+- [x] Feature: Campo de margem aceitar valores negativos como desconto geral (ex: -10 = 10% de desconto em todos os itens)
