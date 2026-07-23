@@ -2186,3 +2186,10 @@
 - [x] Adicionar isLoading state ao ComponentSearchField (mostra "Carregando..." enquanto API não responde)
 - [x] refetchOnMount='always' + refetchOnWindowFocus para garantir dados frescos
 - [x] Log de debug no servidor para confirmar chamadas ao endpoint de componentes
+
+## Correção Requisição de Materiais - Agrupamento e Código EQ (Jul 2026)
+
+- [x] EQ00586 duplicado: agrupar em uma única linha como FITAS LED (detectTipo automático + unidade metros)
+- [x] PT001050 → EQ00121: resolver via busca fuzzy por tokens (normForSearch + 80% match)
+- [x] Fitas LED sempre contabilizadas em metros (profileSegments usa seg.lengthMm, driverLines extrai comprimento)
+- [x] Usar código EQ entre parênteses na ficha de produção (descrição canônica da API)

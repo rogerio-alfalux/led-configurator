@@ -187,9 +187,21 @@ export function buildMaterialRequisition(
   }
 
   /**
-   * Tenta resolver o código EQ a partir de uma descrição.
-   * Faz busca exata e também tenta variações (sem parênteses de EQ, busca parcial).
+   * Normaliza string para busca fuzzy: remove caracteres especiais,
+   * unifica variações de diâmetro (Ø80MM → 80MM, D80MM → 80MM),
+   * e remove códigos de fornecedor entre parênteses (PT...).
    */
+  function normForSearch(s: string): string {
+    return s
+      .replace(/\s*\((PT|P|REF)\d+\)\s*/gi, " ") // Remove (PTxxxxx)
+      .replace(/\s*\((EQ|CP)\d+\)\s*/gi, " ") // Remove (EQxxxxx)
+      .replace(/Ø(\d)/g, "$1") // Ø80MM → 80MM
+      .replace(/\bD(\d+\s*MM)/gi, "$1") // D80MM → 80MM
+      .replace(/[^A-Z0-9\s\/\-\.]/g, "") // Remove caracteres especiais restantes
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
   function resolveEqFromDesc(rawDesc: string): string | null {
     if (!rawDesc) return null;
     const normalized = rawDesc.toUpperCase().trim().replace(/\s+/g, " ");
@@ -202,15 +214,43 @@ export function buildMaterialRequisition(
       const fromNoEq = reverseDescMap.get(withoutEqSuffix);
       if (fromNoEq) return fromNoEq;
     }
-    // 3. Extrair código EQ diretamente se presente na string (ex: "(EQ00125)")
-    const eqMatch = rawDesc.match(/\((EQ\d+|CP\d+|PT\d+)\)/i);
+    // 3. Extrair código EQ diretamente se presente na string — APENAS EQ e CP (não PT)
+    const eqMatch = rawDesc.match(/\((EQ\d+|CP\d+)\)/i);
     if (eqMatch) return eqMatch[1].toUpperCase();
-    // 4. Busca parcial: verificar se alguma chave do reverseDescMap contém a descrição
+    // 4. Busca normalizada (fuzzy): remove PT, Ø/D antes de números, etc.
+    const inputNorm = normForSearch(normalized);
     for (const [key, code] of Array.from(reverseDescMap.entries())) {
-      if (key.includes(normalized) || normalized.includes(key)) {
+      const keyNorm = normForSearch(key);
+      if (keyNorm === inputNorm) return code;
+    }
+    // 5. Busca parcial normalizada: verificar se uma contém a outra
+    for (const [key, code] of Array.from(reverseDescMap.entries())) {
+      const keyNorm = normForSearch(key);
+      if (keyNorm.includes(inputNorm) || inputNorm.includes(keyNorm)) {
         return code;
       }
     }
+    // 6. Busca por tokens em comum: se 80%+ dos tokens coincidem (ignora ordem)
+    const inputTokens = new Set(inputNorm.split(/[\s\-\/]+/).filter(t => t.length > 1));
+    let bestMatch: string | null = null;
+    let bestScore = 0;
+    for (const [key, code] of Array.from(reverseDescMap.entries())) {
+      const keyNorm = normForSearch(key);
+      const keyTokens = new Set(keyNorm.split(/[\s\-\/]+/).filter(t => t.length > 1));
+      // Contar tokens em comum
+      let common = 0;
+      for (const t of Array.from(inputTokens)) {
+        if (keyTokens.has(t)) common++;
+      }
+      const maxLen = Math.max(inputTokens.size, keyTokens.size);
+      if (maxLen === 0) continue;
+      const score = common / maxLen;
+      if (score > bestScore && score >= 0.8) {
+        bestScore = score;
+        bestMatch = code;
+      }
+    }
+    if (bestMatch) return bestMatch;
     return null;
   }
 
@@ -253,22 +293,37 @@ export function buildMaterialRequisition(
           add(perfilBase, perfilBase, totalMetros, "m", "PERFIS");
         }
 
-        // 2. Módulo LED (Stripflex/Stripline) — contabilizado por UNIDADE
+        // 2. Módulo LED (Stripflex/Stripline/Fita LED/Lux Round)
+        // O tipo e unidade são determinados automaticamente pela descrição:
+        //   - FITAS LED (Stripflex/Stripline/Fita LED): unidade = "m", qty em metros
+        //   - MÓDULOS LED (Lux Round, etc.): unidade = "un", qty em unidades
         let ledCode = (seg as any).ledModuleCode ?? "";
         // Fallback: se ledCode vazio, tentar resolver via resolveEqFromDesc
         if (!ledCode && item.moduloLed) {
           ledCode = resolveEqFromDesc(item.moduloLed) ?? "";
         }
         if (ledCode) {
-          // Cada barra é 1 unidade de módulo LED
-          const totalUnidades = seg.qty * seg.barsPerPiece * itemQty;
-          // Para 36W Stripflex dupla: barras × 2 (fileira dupla)
-          const isStripflexDupla = item.stripMethod === "STRIPFLEX" && (item.power === "36" || item.power === "36W");
-          const finalUnidades = isStripflexDupla ? totalUnidades * 2 : totalUnidades;
           // Usar SEMPRE a descrição canônica da API pelo código EQ
           const barName = descMap?.get(ledCode) ?? item.moduloLed ?? "";
           if (!barName) continue;
-          add(ledCode, barName, finalUnidades, "un", "MÓDULOS LED");
+          const ledTipo = detectTipo(barName, ledCode);
+
+          if (ledTipo === "FITAS LED") {
+            // Fitas LED: contabilizar em METROS (comprimento do perfil = comprimento da fita)
+            // Cada peça tem barsPerPiece fitas, cada uma com comprimento seg.lengthMm
+            const totalBarras = seg.qty * seg.barsPerPiece * itemQty;
+            const isStripflexDupla = item.stripMethod === "STRIPFLEX" && (item.power === "36" || item.power === "36W");
+            const finalBarras = isStripflexDupla ? totalBarras * 2 : totalBarras;
+            // Cada barra de fita cobre o comprimento do perfil (seg.lengthMm)
+            const totalMetros = finalBarras * (seg.lengthMm / 1000);
+            add(ledCode, barName, totalMetros, "m", "FITAS LED");
+          } else {
+            // Módulos LED (Lux Round, etc.): contabilizar em UNIDADES
+            const totalUnidades = seg.qty * seg.barsPerPiece * itemQty;
+            const isStripflexDupla = item.stripMethod === "STRIPFLEX" && (item.power === "36" || item.power === "36W");
+            const finalUnidades = isStripflexDupla ? totalUnidades * 2 : totalUnidades;
+            add(ledCode, barName, finalUnidades, "un", ledTipo);
+          }
         }
 
         // 3. Driver
@@ -311,16 +366,37 @@ export function buildMaterialRequisition(
     // ── MÓDULO LED (fonte de luz) para itens com driverLines ─────────────
     // Downlights, spots, painéis e arandelas salvam o módulo LED em item.moduloLed
     // (campo preenchido ao adicionar ao carrinho). Adicionar à lista de materiais
-    // como FONTES DE LUZ, agrupado pelo código EQ (moduloLedCode).
+    // agrupado pelo código EQ (moduloLedCode).
     // IMPORTANTE: itens de perfil (profileSegments) já contam o módulo LED via
     // profileSegments[].ledModuleCode — não contar novamente aqui para evitar duplicata.
+    // O tipo é determinado automaticamente pela descrição (FITAS LED para Stripflex/Stripline/Fita,
+    // MÓDULOS LED para Lux Round, etc.)
     const hasProfileSegments = item.profileSegments && item.profileSegments.length > 0;
     if (!hasProfileSegments && item.driverLines && item.driverLines.length > 0 && item.moduloLed) {
       const ledCode =
         item.moduloLedCode ??
         resolveEqFromDesc(item.moduloLed) ??
-        item.moduloLed; // fallback: usar descrição como código (sem prefixo MODULO_)
-      add(ledCode, item.moduloLed, itemQty, "un", "MÓDULOS LED");
+        item.moduloLed; // fallback: usar descrição como código
+      // Usar descrição canônica da API para detectar tipo correto (FITAS LED vs MÓDULOS LED)
+      const canonicalDesc = descMap?.get(ledCode) ?? item.moduloLed;
+      const ledTipo = detectTipo(canonicalDesc, ledCode);
+
+      if (ledTipo === "FITAS LED") {
+        // Fitas LED em luminárias: contabilizar em METROS
+        // Extrair comprimento da descrição do produto (ex: "1260mm", "3030mm")
+        const lengthMatch = item.description?.match(/(\d+)\s*mm/i);
+        const lengthMm = lengthMatch ? parseInt(lengthMatch[1], 10) : 0;
+        if (lengthMm > 0) {
+          const totalMetros = (lengthMm / 1000) * itemQty;
+          add(ledCode, canonicalDesc, totalMetros, "m", "FITAS LED");
+        } else {
+          // Sem comprimento disponível: usar 1 unidade por peça
+          add(ledCode, canonicalDesc, itemQty, "un", "FITAS LED");
+        }
+      } else {
+        // Módulos LED (Lux Round, etc.): contabilizar em UNIDADES
+        add(ledCode, canonicalDesc, itemQty, "un", ledTipo);
+      }
     }
 
     // ── LED BAR ──────────────────────────────────────────────────────────

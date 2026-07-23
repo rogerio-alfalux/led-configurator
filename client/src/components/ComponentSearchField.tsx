@@ -9,6 +9,7 @@ export interface ComponentOption {
   descricao: string;
   tipo: string;
   disponivel: boolean;
+  observacoes?: string | null;
 }
 
 interface ComponentSearchFieldProps {
