@@ -17,6 +17,8 @@ import { Separator } from "@/components/ui/separator";
 import { trpc } from "@/lib/trpc";
 import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, formatBRL, normalizeDriverModels, migrateItemDrivers, ApiProductDriverInfo, extractPowerLabelFromName } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
+import { ComponentSearchField } from "@/components/ComponentSearchField";
+import type { ComponentOption } from "@/components/ComponentSearchField";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
 import { OrderPreviewModal } from "@/components/OrderPreviewModal";
@@ -202,14 +204,16 @@ interface EditableItemProps {
   acessorios: Array<{ codigo: string | null; produto: string | null; familia: string | null; dimensao: string | null; precoVenda: number | null; fotoUrl: string | null }>;
   onUpdate: (itemId: number, newData: CartItemData) => void;
   onRemove: (itemId: number) => void;
-    /** Mapa código EQ -> descrição canônica da API (para normalizar módulos LED) */
+  /** Mapa código EQ -> descrição canônica da API (para normalizar módulos LED) */
   descMap?: Map<string, string>;
   /** Mapa código EQ -> corrente de programação (para Migração 6) */
   correnteMap?: Map<string, string | null>;
   /** Mapa descrição UPPER -> código EQ (para Migração 7) */
   reverseDescMap?: Map<string, string>;
+  /** Lista de componentes da API para autocomplete */
+  componentesData?: ComponentOption[];
 }
-function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, priceMap, productSkuMap, correnteMap, reverseDescMap }: EditableItemProps) {
+function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, priceMap, productSkuMap, correnteMap, reverseDescMap, componentesData = [] }: EditableItemProps) {
   const [expanded, setExpanded] = useState(true);
   const [showAcessorioModal, setShowAcessorioModal] = useState(false);
   const [acessorioSearch, setAcessorioSearch] = useState("");
@@ -278,6 +282,84 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
 
   // Valor seguro para o Select de driver — nunca string vazia
   const driverValue = parsed.drivers && parsed.drivers.trim() !== "" ? parsed.drivers : "__none__";
+
+  // Opções de autocomplete para Módulo LED / Fonte de Luz
+  const moduloLedOptions = useMemo(() => {
+    return componentesData.filter(c => c.tipo === "MODULO_LED");
+  }, [componentesData]);
+
+  // Opções de autocomplete para Equipamentos / Drivers
+  const driverOptions = useMemo(() => {
+    // Combinar componentes tipo DRIVER_* com a lista de drivers da API
+    const fromComponentes = componentesData.filter(c => c.tipo.startsWith("DRIVER_"));
+    const fromDriversList = drivers.map(d => ({
+      codigo: d.code,
+      descricao: `${d.model} ${d.inputVoltage}`.trim(),
+      tipo: "DRIVER_ONOFF_220",
+      disponivel: d.available,
+    }));
+    // Mesclar sem duplicatas por código
+    const seen = new Set(fromComponentes.map(c => c.codigo));
+    const merged = [...fromComponentes];
+    for (const d of fromDriversList) {
+      if (!seen.has(d.codigo)) {
+        merged.push(d);
+        seen.add(d.codigo);
+      }
+    }
+    return merged;
+  }, [componentesData, drivers]);
+
+  // Helper para extrair código EQ de uma string como "DESCRIÇÃO (EQ00125)"
+  const extractCode = (val: string) => val.match(/\(([A-Z]{2}\d+)\)/)?.[1] ?? "";
+  const extractDesc = (val: string) => val.replace(/\s*\([A-Z]{2}\d+\)\s*$/, "").trim();
+
+  // Handler para atualizar moduloLed e moduloLedCode
+  const handleModuloLedChange = (descricao: string, codigo: string) => {
+    const newVal = descricao ? (codigo ? `${descricao} (${codigo})` : descricao) : "";
+    update({ moduloLed: newVal, moduloLedCode: codigo || null });
+  };
+
+  // Handler para atualizar drivers
+  const handleDriverChange = (descricao: string, codigo: string) => {
+    const newVal = descricao ? (codigo ? `${descricao} (${codigo})` : descricao) : "";
+    update({ drivers: newVal });
+  };
+
+  // Handler para atualizar ledBarDriverModel e ledBarDriverCode
+  const handleLedBarDriverChange = (descricao: string, codigo: string) => {
+    const newVal = descricao ? (codigo ? `${descricao} (${codigo})` : descricao) : "";
+    update({ ledBarDriverModel: newVal, ledBarDriverCode: codigo || undefined });
+  };
+
+  // Handler para atualizar profileSegment moduloLed
+  const handleSegmentModuloChange = (segIdx: number, descricao: string, codigo: string) => {
+    if (!parsed.profileSegments) return;
+    const newSegs = parsed.profileSegments.map((s, i) =>
+      i === segIdx ? { ...s, ledModuleCode: codigo || null } : s
+    );
+    // Atualizar também moduloLed global se for o primeiro segmento
+    const newModulo = descricao ? (codigo ? `${descricao} (${codigo})` : descricao) : "";
+    update({ profileSegments: newSegs, ...(segIdx === 0 ? { moduloLed: newModulo, moduloLedCode: codigo || null } : {}) });
+  };
+
+  // Handler para atualizar profileSegment driver
+  const handleSegmentDriverChange = (segIdx: number, descricao: string, codigo: string) => {
+    if (!parsed.profileSegments) return;
+    const newSegs = parsed.profileSegments.map((s, i) =>
+      i === segIdx ? { ...s, driverModel: descricao, driverCode: codigo } : s
+    );
+    update({ profileSegments: newSegs });
+  };
+
+  // Handler para atualizar driverLine
+  const handleDriverLineChange = (lineIdx: number, descricao: string, codigo: string) => {
+    if (!parsed.driverLines) return;
+    const newLines = parsed.driverLines.map((dl, i) =>
+      i === lineIdx ? { ...dl, driverModel: descricao, driverCode: codigo } : dl
+    );
+    update({ driverLines: newLines });
+  };
 
   return (
     <Card className="border-border">
@@ -373,82 +455,291 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
 
           {/* Módulo LED / Fonte de Luz e Equipamentos (apenas para itens não-especiais) */}
           {!isSpecial && (() => {
-            const fonteLuzText = buildFonteLuzText(parsed, descMap);
-            const equipText = buildEquipamentosText(parsed);
-            const hasRichData = !!(parsed.profileSegments?.length || parsed.driverLines?.length || parsed.ledBarDriverModel || parsed.moduloLed);
-            return (
-              <div className="space-y-3">
-                {/* Fonte de Luz / Módulo LED — somente leitura quando vem do orçamento */}
-                {fonteLuzText && (
+            const itemQty = parsed.qty ?? 1;
+
+            // ── PERFIS com profileSegments ─────────────────────────────────────
+            if (parsed.profileSegments && parsed.profileSegments.length > 0) {
+              // Agrupar segmentos por ledModuleCode para Fonte de Luz
+              const moduloGroups = new Map<string, { qty: number; code: string | null; desc: string; segIdxs: number[] }>();
+              for (let i = 0; i < parsed.profileSegments.length; i++) {
+                const seg = parsed.profileSegments[i];
+                const code = seg.ledModuleCode ?? null;
+                const apiDesc = code ? descMap?.get(code) : undefined;
+                const desc = apiDesc ?? parsed.moduloLed ?? code ?? "Módulo LED";
+                const key = code ?? desc;
+                const totalBars = seg.qty * seg.barsPerPiece * itemQty;
+                const existing = moduloGroups.get(key);
+                if (existing) {
+                  existing.qty += totalBars;
+                  existing.segIdxs.push(i);
+                } else {
+                  moduloGroups.set(key, { qty: totalBars, code, desc, segIdxs: [i] });
+                }
+              }
+
+              // Agrupar segmentos por driverModel+code para Equipamentos
+              const driverGroups = new Map<string, { qty: number; code: string; model: string; corrente?: string | null; segIdxs: number[] }>();
+              for (let i = 0; i < parsed.profileSegments.length; i++) {
+                const seg = parsed.profileSegments[i];
+                if (seg.driverModel.includes(" + ")) {
+                  const key = seg.driverModel;
+                  const existing = driverGroups.get(key);
+                  if (existing) {
+                    existing.qty += seg.qty * itemQty;
+                    existing.segIdxs.push(i);
+                  } else {
+                    driverGroups.set(key, { qty: seg.qty * itemQty, code: "", model: seg.driverModel, corrente: seg.corrente, segIdxs: [i] });
+                  }
+                } else {
+                  const key = `${seg.driverModel}|${seg.driverCode}`;
+                  const existing = driverGroups.get(key);
+                  if (existing) {
+                    existing.qty += seg.qty * seg.driverQtyPerPiece * itemQty;
+                    existing.segIdxs.push(i);
+                  } else {
+                    driverGroups.set(key, { qty: seg.qty * seg.driverQtyPerPiece * itemQty, code: seg.driverCode, model: seg.driverModel, corrente: seg.corrente, segIdxs: [i] });
+                  }
+                }
+              }
+              const correnteSegmento = parsed.profileSegments.map(s => s.corrente).find(c => c && c.trim());
+
+              return (
+                <div className="space-y-4">
+                  {/* Fonte de Luz — editável por grupo de módulo */}
                   <div>
-                    <Label className="text-xs text-muted-foreground">Módulo LED / Fonte de Luz</Label>
-                    <div className="mt-1 rounded border border-border bg-muted/40 px-3 py-2">
-                      <pre className="text-xs font-mono whitespace-pre-wrap text-foreground leading-relaxed">{fonteLuzText}</pre>
+                    <Label className="text-xs font-semibold text-foreground">Módulo LED / Fonte de Luz</Label>
+                    <div className="mt-2 space-y-3">
+                      {Array.from(moduloGroups.values()).map((group, gi) => {
+                        const currentVal = group.code
+                          ? `${group.desc} (${group.code})`
+                          : group.desc;
+                        return (
+                          <ComponentSearchField
+                            key={gi}
+                            label={moduloGroups.size > 1 ? `Grupo ${gi + 1}` : ""}
+                            value={currentVal}
+                            qty={group.qty}
+                            onValueChange={(desc, code) => {
+                              // Atualizar todos os segmentos deste grupo
+                              if (!parsed.profileSegments) return;
+                              const newSegs = parsed.profileSegments.map((s, i) =>
+                                group.segIdxs.includes(i) ? { ...s, ledModuleCode: code || null } : s
+                              );
+                              const newModulo = desc ? (code ? `${desc} (${code})` : desc) : "";
+                              update({ profileSegments: newSegs, moduloLed: newModulo, moduloLedCode: code || null });
+                            }}
+                            onQtyChange={(_qty) => { /* qty calculada automaticamente */ }}
+                            options={moduloLedOptions}
+                            placeholder="Buscar módulo LED..."
+                          />
+                        );
+                      })}
                     </div>
                   </div>
-                )}
 
-                {/* Equipamentos / Drivers — somente leitura quando vem do orçamento */}
-                {equipText && (
+                  {/* Equipamentos / Drivers — editável por grupo de driver */}
                   <div>
-                    <Label className="text-xs text-muted-foreground">Equipamentos / Drivers</Label>
-                    <div className="mt-1 rounded border border-border bg-muted/40 px-3 py-2">
-                      <pre className="text-xs font-mono whitespace-pre-wrap text-foreground leading-relaxed">{equipText}</pre>
-                    </div>
-                  </div>
-                )}
-
-                {/* Campo de override manual — aparece sempre para itens sem dados ricos, ou como campo adicional */}
-                {!hasRichData && (
-                  <div>
-                    <Label className="text-xs">Driver / Equipamento (manual)</Label>
-                    <div className="flex gap-2 mt-1">
-                      <Select
-                        value={driverValue}
-                        onValueChange={v => update({ drivers: v === "__none__" ? "" : v })}
-                      >
-                        <SelectTrigger className="h-8 text-sm flex-1">
-                          <SelectValue placeholder="Selecionar driver da API..." />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-64">
-                          <SelectItem value="__none__">— Sem driver —</SelectItem>
-                          {drivers.filter(d => d.available).map(d => (
-                            <SelectItem key={d.code} value={`${d.code} — ${d.model} ${d.inputVoltage}`}>
-                              {d.code} — {d.model} ({d.inputVoltage})
-                            </SelectItem>
-                          ))}
-                          {drivers.filter(d => !d.available).length > 0 && (
-                            <>
-                              <Separator className="my-1" />
-                              <div className="px-2 py-1 text-xs text-muted-foreground">Indisponíveis</div>
-                              {drivers.filter(d => !d.available).map(d => (
-                                <SelectItem key={d.code} value={`${d.code} — ${d.model} ${d.inputVoltage}`} className="opacity-50">
-                                  {d.code} — {d.model} ({d.inputVoltage})
-                                </SelectItem>
-                              ))}
-                            </>
-                          )}
-                        </SelectContent>
-                      </Select>
-                      {parsed.drivers && parsed.drivers.trim() !== "" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={() => update({ drivers: "" })}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
+                    <Label className="text-xs font-semibold text-foreground">Equipamentos / Drivers</Label>
+                    <div className="mt-2 space-y-3">
+                      {Array.from(driverGroups.values()).map((group, gi) => {
+                        const currentVal = group.code
+                          ? `${group.model} (${group.code})`
+                          : group.model;
+                        return (
+                          <ComponentSearchField
+                            key={gi}
+                            label={driverGroups.size > 1 ? `Driver ${gi + 1}` : ""}
+                            value={currentVal}
+                            qty={group.qty}
+                            onValueChange={(desc, code) => {
+                              if (!parsed.profileSegments) return;
+                              const newSegs = parsed.profileSegments.map((s, i) =>
+                                group.segIdxs.includes(i) ? { ...s, driverModel: desc, driverCode: code } : s
+                              );
+                              update({ profileSegments: newSegs });
+                            }}
+                            onQtyChange={(_qty) => { /* qty calculada automaticamente */ }}
+                            options={driverOptions}
+                            placeholder="Buscar driver..."
+                          />
+                        );
+                      })}
+                      {correnteSegmento && (
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs text-muted-foreground w-20 shrink-0">Programação</Label>
+                          <Input
+                            value={correnteSegmento}
+                            onChange={e => {
+                              if (!parsed.profileSegments) return;
+                              const newSegs = parsed.profileSegments.map(s => ({ ...s, corrente: e.target.value }));
+                              update({ profileSegments: newSegs });
+                            }}
+                            className="h-8 text-xs font-mono flex-1"
+                            placeholder="Ex: 350MA"
+                          />
+                        </div>
                       )}
                     </div>
-                    <Input
-                      value={parsed.drivers ?? ""}
-                      onChange={e => update({ drivers: e.target.value })}
-                      placeholder="Ou digitar driver manualmente..."
-                      className="mt-2 h-8 text-sm"
+                  </div>
+                </div>
+              );
+            }
+
+            // ── LED BAR ────────────────────────────────────────────────────────
+            if (parsed.category === "LED BAR" && parsed.ledBarNCortes !== undefined) {
+              const nCortes = parsed.ledBarNCortes ?? 1;
+              const mm = parsed.ledBarComprimentoPorTrechoMm ?? parsed.ledBarComprimentoTotalMm ?? 0;
+              const moduloVal = parsed.moduloLed ?? "";
+              const driverVal = parsed.ledBarDriverModel
+                ? (parsed.ledBarDriverCode ? `${parsed.ledBarDriverModel} (${parsed.ledBarDriverCode})` : parsed.ledBarDriverModel)
+                : "";
+              return (
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-xs font-semibold text-foreground">Módulo LED / Fonte de Luz</Label>
+                    <div className="mt-2 space-y-2">
+                      <ComponentSearchField
+                        label=""
+                        value={moduloVal}
+                        qty={nCortes}
+                        onValueChange={handleModuloLedChange}
+                        onQtyChange={qty => update({ ledBarNCortes: qty })}
+                        options={moduloLedOptions}
+                        placeholder="Buscar módulo LED..."
+                      />
+                      <div className="flex items-center gap-2 pl-22">
+                        <Label className="text-xs text-muted-foreground">Comprimento por trecho (mm)</Label>
+                        <Input
+                          type="number"
+                          value={mm}
+                          onChange={e => update({ ledBarComprimentoPorTrechoMm: parseFloat(e.target.value) || 0 })}
+                          className="h-8 text-xs w-28"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-foreground">Equipamentos / Drivers</Label>
+                    <div className="mt-2">
+                      <ComponentSearchField
+                        label=""
+                        value={driverVal}
+                        qty={nCortes}
+                        onValueChange={handleLedBarDriverChange}
+                        onQtyChange={qty => update({ ledBarNCortes: qty })}
+                        options={driverOptions}
+                        placeholder="Buscar driver..."
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            // ── LUMINÁRIAS com driverLines ─────────────────────────────────────
+            if (parsed.driverLines && parsed.driverLines.length > 0) {
+              const moduloVal = parsed.moduloLed
+                ? (parsed.moduloLedCode ? `${parsed.moduloLed} (${parsed.moduloLedCode})` : parsed.moduloLed)
+                : "";
+              return (
+                <div className="space-y-4">
+                  {(parsed.moduloLed || moduloLedOptions.length > 0) && (
+                    <div>
+                      <Label className="text-xs font-semibold text-foreground">Módulo LED / Fonte de Luz</Label>
+                      <div className="mt-2">
+                        <ComponentSearchField
+                          label=""
+                          value={moduloVal}
+                          qty={itemQty}
+                          onValueChange={handleModuloLedChange}
+                          onQtyChange={qty => update({ qty })}
+                          options={moduloLedOptions}
+                          placeholder="Buscar módulo LED..."
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <Label className="text-xs font-semibold text-foreground">Equipamentos / Drivers</Label>
+                    <div className="mt-2 space-y-3">
+                      {parsed.driverLines.map((dl, li) => {
+                        const driverVal = dl.driverCode
+                          ? `${dl.driverModel} (${dl.driverCode})`
+                          : dl.driverModel;
+                        return (
+                          <div key={li} className="space-y-1">
+                            <ComponentSearchField
+                              label={parsed.driverLines!.length > 1 ? `Driver ${li + 1}` : ""}
+                              value={driverVal}
+                              qty={dl.driverQty}
+                              onValueChange={(desc, code) => handleDriverLineChange(li, desc, code)}
+                              onQtyChange={qty => {
+                                const newLines = parsed.driverLines!.map((d, i) => i === li ? { ...d, driverQty: qty } : d);
+                                update({ driverLines: newLines });
+                              }}
+                              options={driverOptions}
+                              placeholder="Buscar driver..."
+                            />
+                            {dl.corrente && (
+                              <div className="flex items-center gap-2 pl-22">
+                                <Label className="text-xs text-muted-foreground">Programação</Label>
+                                <Input
+                                  value={dl.corrente ?? ""}
+                                  onChange={e => {
+                                    const newLines = parsed.driverLines!.map((d, i) => i === li ? { ...d, corrente: e.target.value } : d);
+                                    update({ driverLines: newLines });
+                                  }}
+                                  className="h-8 text-xs font-mono w-28"
+                                  placeholder="Ex: 350MA"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            // ── ITENS SIMPLES (sem profileSegments, sem driverLines, sem ledBar) ──
+            const moduloVal = parsed.moduloLed
+              ? (parsed.moduloLedCode ? `${parsed.moduloLed} (${parsed.moduloLedCode})` : parsed.moduloLed)
+              : "";
+            const driverSimpleVal = parsed.drivers ?? "";
+            const hasAnyData = !!(moduloVal || driverSimpleVal);
+
+            return (
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-xs font-semibold text-foreground">Módulo LED / Fonte de Luz</Label>
+                  <div className="mt-2">
+                    <ComponentSearchField
+                      label=""
+                      value={moduloVal}
+                      qty={itemQty}
+                      onValueChange={handleModuloLedChange}
+                      onQtyChange={qty => update({ qty })}
+                      options={moduloLedOptions}
+                      placeholder="Buscar módulo LED..."
                     />
                   </div>
-                )}
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold text-foreground">Equipamentos / Drivers</Label>
+                  <div className="mt-2">
+                    <ComponentSearchField
+                      label=""
+                      value={driverSimpleVal}
+                      qty={itemQty}
+                      onValueChange={handleDriverChange}
+                      onQtyChange={qty => update({ qty })}
+                      options={driverOptions}
+                      placeholder="Buscar driver..."
+                    />
+                  </div>
+                </div>
               </div>
             );
           })()}
@@ -1486,6 +1777,7 @@ export default function FactoryOrderDetail() {
                           productSkuMap={productSkuMapFO}
                           correnteMap={componenteCorrenteMapFO}
                           reverseDescMap={componenteReverseDescMapFO}
+                          componentesData={componentesData?.items ?? []}
                         />
                       ))
                     )}

@@ -2145,3 +2145,13 @@
 - [x] Exibir códigos EQ/CP entre parênteses em todos os cards de resultado
 - [x] Exibir códigos EQ/CP na ficha de produção (texto copiado)
 - [x] Exibir códigos EQ/CP na requisição de materiais
+
+## Pedido de Fábrica — Campos Editáveis com Autocomplete (Jul 2026)
+
+- [x] Separar "Módulo LED / Fonte de Luz" em: campo de descrição editável + campo de quantidade separado
+- [x] Separar "Equipamentos / Drivers" em: campo de descrição editável + campo de quantidade separado
+- [x] Implementar autocomplete no campo Módulo LED: busca na API de componentes (fitas, módulos LED)
+- [x] Implementar autocomplete no campo Driver: busca na API de componentes (drivers)
+- [x] Ao selecionar um componente no autocomplete, preencher automaticamente o código EQ
+- [x] Persistir as alterações feitas nesses campos no banco de dados
+- [x] Exibir o código EQ entre parênteses ao lado da descrição selecionada
