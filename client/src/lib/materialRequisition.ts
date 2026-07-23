@@ -9,7 +9,7 @@
  * - A lista é ordenada por tipo (Perfis, Fitas LED, Módulos LED, Drivers, Fontes, Lentes, ...)
  * - Perfis são agrupados por código-base (ex: LLE-2810, LLS-3945) com metragem total
  * - LED BAR também é contabilizado como perfil (metragem)
- * - Fitas LED (LED BAR U DA e Perfil Flexível) são medidas em METROS (m)
+ * - Fitas LED (somente itens com "FITA LED" na descrição, ex: EQ00586) são medidas em METROS (m)
  * - Módulos LED (Stripflex, Stripline, Lux Round, etc.) são medidos em UNIDADES (un)
  * - Drivers e demais componentes em UNIDADES (un)
  */
@@ -71,18 +71,23 @@ function detectTipo(descricao: string, codigo: string): MaterialTipo {
     return "PERFIS";
   }
 
-  // Fitas LED: Stripflex, Stripline, fita LED
+  // Fitas LED: SOMENTE itens com "FITA LED" na descrição (ex: EQ00586 "FITA LED 2835...")
+  // Stripflex/Stripline NÃO são fitas — são módulos LED
   if (
-    d.includes("STRIPFLEX") ||
-    d.includes("STRIPLINE") ||
-    d.includes("STRIPLUX") ||
-    (d.includes("FITA") && d.includes("LED"))
+    (d.includes("FITA") && d.includes("LED")) &&
+    !d.includes("STRIPFLEX") &&
+    !d.includes("STRIPLINE") &&
+    !d.includes("STRIPLUX")
   ) {
     return "FITAS LED";
   }
 
-  // Módulos LED: módulo LED, barra LED
+  // Módulos LED: Stripflex, Stripline, Striplux, módulo LED, barra LED, Lux Round, etc.
+  // Todos medidos em UNIDADES (un), nunca em metros
   if (
+    d.includes("STRIPFLEX") ||
+    d.includes("STRIPLINE") ||
+    d.includes("STRIPLUX") ||
     d.includes("MÓDULO LED") ||
     d.includes("MODULO LED") ||
     d.includes("MÓDULO LUX") ||
@@ -295,8 +300,8 @@ export function buildMaterialRequisition(
 
         // 2. Módulo LED (Stripflex/Stripline/Fita LED/Lux Round)
         // O tipo e unidade são determinados automaticamente pela descrição:
-        //   - FITAS LED (Stripflex/Stripline/Fita LED): unidade = "m", qty em metros
-        //   - MÓDULOS LED (Lux Round, etc.): unidade = "un", qty em unidades
+        //   - FITAS LED (somente "FITA LED" na descrição, ex: EQ00586): unidade = "m", qty em metros
+        //   - MÓDULOS LED (Stripflex, Stripline, Lux Round, etc.): unidade = "un", qty em unidades
         let ledCode = (seg as any).ledModuleCode ?? "";
         // Fallback: se ledCode vazio, tentar resolver via resolveEqFromDesc
         if (!ledCode && item.moduloLed) {
@@ -369,8 +374,9 @@ export function buildMaterialRequisition(
     // agrupado pelo código EQ (moduloLedCode).
     // IMPORTANTE: itens de perfil (profileSegments) já contam o módulo LED via
     // profileSegments[].ledModuleCode — não contar novamente aqui para evitar duplicata.
-    // O tipo é determinado automaticamente pela descrição (FITAS LED para Stripflex/Stripline/Fita,
-    // MÓDULOS LED para Lux Round, etc.)
+    // O tipo é determinado automaticamente pela descrição:
+    //   - FITAS LED: somente "FITA LED" na descrição (ex: EQ00586)
+    //   - MÓDULOS LED: Stripflex, Stripline, Lux Round, etc.
     const hasProfileSegments = item.profileSegments && item.profileSegments.length > 0;
     if (!hasProfileSegments && item.driverLines && item.driverLines.length > 0 && item.moduloLed) {
       const ledCode =

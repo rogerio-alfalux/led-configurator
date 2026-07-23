@@ -2193,3 +2193,4 @@
 - [x] PT001050 → EQ00121: resolver via busca fuzzy por tokens (normForSearch + 80% match)
 - [x] Fitas LED sempre contabilizadas em metros (profileSegments usa seg.lengthMm, driverLines extrai comprimento)
 - [x] Usar código EQ entre parênteses na ficha de produção (descrição canônica da API)
+- [x] Fix: Stripflex/Stripline must be classified as "MÓDULOS LED" (not "FITAS LED") with unit "un" (not meters)

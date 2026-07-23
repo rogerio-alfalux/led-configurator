@@ -33,7 +33,7 @@ describe("materialRequisition", () => {
     expect(moduloEntry!.qty).toBe(2); // 2 peças × 1 módulo por peça
   });
 
-  it("deve agrupar EQ00586 como FITAS LED em metros (profileSegments)", () => {
+  it("deve classificar EQ00586 (FITA LED) como FITAS LED em metros", () => {
     const items: CartItemData[] = [
       {
         sku: "LLS-3945",
@@ -66,9 +66,46 @@ describe("materialRequisition", () => {
     expect(fitaEntry!.tipo).toBe("FITAS LED");
     expect(fitaEntry!.unidade).toBe("m");
     // 1 seg × 2 barsPerPiece × 2 itemQty = 4 barras × 1.26m = 5.04m
-    // Nota: pode ter pequena variação se há arredondamento interno
     expect(fitaEntry!.qty).toBeGreaterThanOrEqual(5.0);
     expect(fitaEntry!.qty).toBeLessThanOrEqual(5.2);
+  });
+
+  it("deve classificar EQ00125 (STRIPFLEX) como MÓDULOS LED em unidades (NÃO como FITAS LED)", () => {
+    const items: CartItemData[] = [
+      {
+        sku: "LLE-2810",
+        description: "BLAZE EMBUTIR 18W 3000K ON/OFF 220Vac 2260mm",
+        category: "Perfil",
+        qty: 3,
+        moduloLed: "STRIPFLEX 562.5 X 10MM - 36 LEDS 830 - 3000K (LC) 25V",
+        moduloLedCode: "EQ00125",
+        stripMethod: "STRIPFLEX",
+        power: "18",
+        profileSegments: [
+          {
+            sku: "LLE-2810.4IF.38F",
+            lengthMm: 2260,
+            qty: 1,
+            barsPerPiece: 4,
+            driverModel: "LED DRIVER XITANIUM 44W (EQ00347)",
+            driverCode: "EQ00347",
+            driverQtyPerPiece: 1,
+            ledModuleCode: "EQ00125",
+          },
+        ],
+        driverLines: [{ driverModel: "LED DRIVER XITANIUM 44W (EQ00347)", driverCode: "EQ00347", driverQty: 1 }],
+      } as any,
+    ];
+
+    const result = buildMaterialRequisition(items, descMap);
+    const stripflexEntry = result.find(e => e.codigo === "EQ00125");
+    expect(stripflexEntry).toBeDefined();
+    // Stripflex DEVE ser MÓDULOS LED, NÃO FITAS LED
+    expect(stripflexEntry!.tipo).toBe("MÓDULOS LED");
+    // Stripflex DEVE ser em unidades, NÃO em metros
+    expect(stripflexEntry!.unidade).toBe("un");
+    // 1 seg × 4 barsPerPiece × 3 itemQty = 12 unidades
+    expect(stripflexEntry!.qty).toBe(12);
   });
 
   it("NÃO deve duplicar EQ00586 em FITAS LED e MÓDULOS LED", () => {
@@ -104,5 +141,41 @@ describe("materialRequisition", () => {
     expect(fitaEntries.length).toBe(1);
     expect(fitaEntries[0].tipo).toBe("FITAS LED");
     expect(fitaEntries[0].unidade).toBe("m");
+  });
+
+  it("Stripflex com 36W dupla deve contar unidades dobradas (não metros)", () => {
+    const items: CartItemData[] = [
+      {
+        sku: "LLE-2810",
+        description: "BLAZE EMBUTIR 36W 3000K ON/OFF 220Vac 2260mm",
+        category: "Perfil",
+        qty: 2,
+        moduloLed: "STRIPFLEX 562.5 X 10MM - 36 LEDS 830 - 3000K (LC) 25V",
+        moduloLedCode: "EQ00125",
+        stripMethod: "STRIPFLEX",
+        power: "36",
+        profileSegments: [
+          {
+            sku: "LLE-2810.4IF.48F",
+            lengthMm: 2260,
+            qty: 1,
+            barsPerPiece: 4,
+            driverModel: "LED DRIVER XITANIUM 44W (EQ00347)",
+            driverCode: "EQ00347",
+            driverQtyPerPiece: 1,
+            ledModuleCode: "EQ00125",
+          },
+        ],
+        driverLines: [{ driverModel: "LED DRIVER XITANIUM 44W (EQ00347)", driverCode: "EQ00347", driverQty: 1 }],
+      } as any,
+    ];
+
+    const result = buildMaterialRequisition(items, descMap);
+    const stripflexEntry = result.find(e => e.codigo === "EQ00125");
+    expect(stripflexEntry).toBeDefined();
+    expect(stripflexEntry!.tipo).toBe("MÓDULOS LED");
+    expect(stripflexEntry!.unidade).toBe("un");
+    // 36W Stripflex dupla: 1 seg × 4 barsPerPiece × 2 itemQty × 2 (dupla) = 16 unidades
+    expect(stripflexEntry!.qty).toBe(16);
   });
 });
