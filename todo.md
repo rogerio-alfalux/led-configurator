@@ -2169,3 +2169,10 @@
 - [x] Campo Qtd do Módulo LED: mostrar quantidade POR PEÇA (ex: 2 stripflex), não total de produtos
 - [x] Campo Qtd do Driver: mostrar quantidade POR PEÇA (ex: 1 driver), não total de produtos
 - [x] Remover prefixo "2x" da descrição do módulo LED (o "2" vai no campo Qtd separado)
+
+## Correção Autocomplete Módulo LED no Pedido de Fábrica (Jul 2026)
+
+- [x] Campo Módulo LED deve ter autocomplete com dados da API /api/componentes/all (não catálogo estático)
+- [x] Listar TODOS os componentes da categoria correta (módulos LED) vindos da API
+- [x] Mesma funcionalidade que o campo de Drivers já tem (busca, seleção, código EQ)
+- [x] Drivers no pedido de fábrica: usar exclusivamente dados da API (remover fallback estático do Google Sheets)

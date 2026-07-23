@@ -293,26 +293,10 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
   }, [componentesData]);
 
   // Opções de autocomplete para Equipamentos / Drivers
+  // Drivers: exclusivamente da API /api/componentes/all (sem fallback estático)
   const driverOptions = useMemo(() => {
-    // Combinar componentes tipo DRIVER_* com a lista de drivers da API
-    const fromComponentes = componentesData.filter(c => c.tipo.startsWith("DRIVER_"));
-    const fromDriversList = drivers.map(d => ({
-      codigo: d.code,
-      descricao: `${d.model} ${d.inputVoltage}`.trim(),
-      tipo: "DRIVER_ONOFF_220",
-      disponivel: d.available,
-    }));
-    // Mesclar sem duplicatas por código
-    const seen = new Set(fromComponentes.map(c => c.codigo));
-    const merged = [...fromComponentes];
-    for (const d of fromDriversList) {
-      if (!seen.has(d.codigo)) {
-        merged.push(d);
-        seen.add(d.codigo);
-      }
-    }
-    return merged;
-  }, [componentesData, drivers]);
+    return componentesData.filter(c => c.tipo.startsWith("DRIVER_"));
+  }, [componentesData]);
 
   // Helper para extrair código EQ de uma string como "DESCRIÇÃO (EQ00125)"
   const extractCode = (val: string) => val.match(/\(([A-Z]{2}\d+)\)/)?.[1] ?? "";
