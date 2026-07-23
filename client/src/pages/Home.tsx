@@ -1065,7 +1065,7 @@ function ShapeResultCard({
                 )}
                 {shapeResult.totalLengthMm && requestedTotalMm && requestedTotalMm > 0 && (
                   <p className={`text-xs font-semibold mt-0.5 ${
-                    Math.round((shapeResult.totalLengthMm / requestedTotalMm) * 100) === 100
+                    (shapeResult.totalLengthMm / requestedTotalMm) >= 0.95
                       ? "text-green-600 dark:text-green-400"
                       : "text-yellow-600 dark:text-yellow-400"
                   }`}>
@@ -1101,6 +1101,15 @@ function ShapeResultCard({
               {shapeResult.totalLengthMm && (
                 <p className="text-xs text-muted-foreground">
                   Linear: {(shapeResult.totalLengthMm / 1000).toFixed(3).replace(".", ",")}m
+                </p>
+              )}
+              {shapeResult.totalLengthMm && requestedTotalMm && requestedTotalMm > 0 && (
+                <p className={`text-xs font-semibold mt-0.5 ${
+                  (shapeResult.totalLengthMm / requestedTotalMm) >= 0.95
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-yellow-600 dark:text-yellow-400"
+                }`}>
+                  {shapeResult.totalLengthMm}mm de {requestedTotalMm}mm · {Math.round((shapeResult.totalLengthMm / requestedTotalMm) * 100)}%
                 </p>
               )}
             </div>

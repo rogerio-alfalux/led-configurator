@@ -2128,3 +2128,13 @@
 ## Correções de Quantidade e Cor (Jul 2026)
 - [x] Item Especial e Revenda: campo Qtd agora espelha corretamente ao enviar ao carrinho/orçamento (globalQty usado em todos os fluxos)
 - [x] LED BAR: cor "Branco Fosco Micro" bloqueada — não aparece como opção no modal de cor para a família LED BAR
+
+## Otimização de Formatos Especiais — Mesma lógica dos retos (Jul 2026)
+
+- [x] lEngine.ts: findBestEndCappedSegment — permitir módulos de 1 barra no ML quando allowFractionalBars=true
+- [x] lEngine.ts: calculateSquare — usar ML+IF combinados (findBestSegmentOptimal com "both") e permitir módulos de 1 barra quando allowFractionalBars=true
+- [x] lEngine.ts: calculateRectangle — usar ML+IF combinados e permitir módulos de 1 barra quando allowFractionalBars=true
+- [x] lEngine.ts: calculateLShape — permitir módulos de 1 barra no ML quando allowFractionalBars=true
+- [x] lEngine.ts: calculateUShape — permitir módulos de 1 barra no ML quando allowFractionalBars=true
+- [x] Home.tsx: Indicador de proximidade verde (≥95%) no card de resultado para formatos com cantos
+- [x] Home.tsx: Visualização de composição de preço dos formatos com cantos similar aos lineares retos (descrições ML/IF corretas)

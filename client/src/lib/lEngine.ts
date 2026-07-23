@@ -384,6 +384,8 @@ function findBestEndCappedSegment(
   allowLongModules: boolean,
   allowFractionalBars: boolean
 ): EndCappedSegment | null {
+  // When allowFractionalBars is true, we allow small (1-bar) modules in the ML segment
+  const allowSmallInMl = allowFractionalBars;
   if (availableLength <= 0) return null;
 
   // Preferir IFs de 2+ barras; usar IF de 1 barra como fallback quando é a única opção disponível
@@ -412,7 +414,7 @@ function findBestEndCappedSegment(
       allowLongModules,
       allowFractionalBars,
       "ML",
-      false // não usar módulos de 1 barra em composições EM L/U
+      allowSmallInMl // permitir módulos de 1 barra quando medidas quebradas está ativo
     );
     const actualLength = ifMod.length + mlSegment.actualLength;
     const deviation = availableLength - actualLength;
@@ -706,7 +708,7 @@ export function calculateSquare(
   // Cada lado = canto + reto(s) + canto → disponível = side - 2 × cornerLen
   const availPerSide = side - 2 * cornerLen;
 
-  const seg = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availPerSide, allowLongModules, allowFractionalBars, "ML", false);
+  const seg = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availPerSide, allowLongModules, allowFractionalBars, "both", allowFractionalBars);
 
   const actualSide = 2 * cornerLen + seg.actualLength;
 
@@ -726,25 +728,27 @@ export function calculateSquare(
     driver: cornerDriver,
   });
 
-  // Módulos retos ML (4 lados, algoritmo greedy — múltiplos tipos de módulo possíveis)
+  // Módulos retos ML/IF (4 lados, algoritmo DP — múltiplos tipos de módulo possíveis)
   // Cada peça do segmento aparece 4× (uma por lado do quadrado)
   const summaryModLines: string[] = [];
   for (const sp of seg.pieces) {
     const spDriver = driverParams ? calcPieceDriver(sp.bars, driverParams) : undefined;
     const totalQty = 4 * sp.qty;
+    const modType = sp.sku.includes("IF") ? "IF" : "ML";
+    const pieceType = sp.sku.includes("IF") ? "STRAIGHT_IF" as const : "STRAIGHT_ML" as const;
     const desc = sp.qty > 1
-      ? `${sp.qty}× Módulo reto ML ${sp.bars} barras (${sp.length}mm) por lado`
-      : `Módulo reto ML ${sp.bars} barras (${sp.length}mm)`;
+      ? `${sp.qty}× Módulo reto ${modType} ${sp.bars} barras (${sp.length}mm) por lado`
+      : `Módulo reto ${modType} ${sp.bars} barras (${sp.length}mm)`;
     pieces.push({
       sku: sp.sku,
       quantity: totalQty,
       description: desc,
       length: sp.length,
-      type: "STRAIGHT_ML",
+      type: pieceType,
       bars: sp.bars,
       driver: spDriver,
     });
-    summaryModLines.push(`${totalQty}× ML ${sp.sku} (${sp.length}mm)`);
+    summaryModLines.push(`${totalQty}× ${modType} ${sp.sku} (${sp.length}mm)`);
   }
 
   const summary =
@@ -805,8 +809,8 @@ export function calculateRectangle(
   const availWidth = width - 2 * cornerLen;
   const availHeight = height - 2 * cornerLen;
 
-  const segWidth = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availWidth, allowLongModules, allowFractionalBars, "ML", false);
-  const segHeight = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availHeight, allowLongModules, allowFractionalBars, "ML", false);
+  const segWidth = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availWidth, allowLongModules, allowFractionalBars, "both", allowFractionalBars);
+  const segHeight = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availHeight, allowLongModules, allowFractionalBars, "both", allowFractionalBars);
 
   const actualWidth = 2 * cornerLen + segWidth.actualLength;
   const actualHeight = 2 * cornerLen + segHeight.actualLength;
@@ -827,57 +831,61 @@ export function calculateRectangle(
     driver: cornerDriver,
   });
 
-  // Módulos retos ML nos lados largos (2 lados, algoritmo greedy)
+  // Módulos retos ML/IF nos lados largos (2 lados, algoritmo DP)
   const summaryWidthLines: string[] = [];
   for (const sp of segWidth.pieces) {
     const spDriver = driverParams ? calcPieceDriver(sp.bars, driverParams) : undefined;
     const totalQty = 2 * sp.qty;
+    const modType = sp.sku.includes("IF") ? "IF" : "ML";
+    const pieceType = sp.sku.includes("IF") ? "STRAIGHT_IF" as const : "STRAIGHT_ML" as const;
     const desc = sp.qty > 1
-      ? `${sp.qty}× ML ${sp.bars} barras (${sp.length}mm) por lado largo`
-      : `ML ${sp.bars} barras (${sp.length}mm) — lados largos`;
-    // Verificar se já existe peça com mesmo SKU (pode ser compartilhada com lados curtos)
-    const existing = pieces.find(p => p.sku === sp.sku && p.type === "STRAIGHT_ML");
+      ? `${sp.qty}× ${modType} ${sp.bars} barras (${sp.length}mm) por lado largo`
+      : `${modType} ${sp.bars} barras (${sp.length}mm) — lados largos`;
+    // Verificar se já existe peça com mesmo SKU
+    const existing = pieces.find(p => p.sku === sp.sku && (p.type === "STRAIGHT_ML" || p.type === "STRAIGHT_IF"));
     if (existing) {
       existing.quantity += totalQty;
-      existing.description = `ML ${sp.bars} barras (${sp.length}mm) — todos os lados`;
+      existing.description = `${modType} ${sp.bars} barras (${sp.length}mm) — todos os lados`;
     } else {
       pieces.push({
         sku: sp.sku,
         quantity: totalQty,
         description: desc,
         length: sp.length,
-        type: "STRAIGHT_ML",
+        type: pieceType,
         bars: sp.bars,
         driver: spDriver,
       });
     }
-    summaryWidthLines.push(`${totalQty}× ML ${sp.sku} (${sp.length}mm) — largos`);
+    summaryWidthLines.push(`${totalQty}× ${modType} ${sp.sku} (${sp.length}mm) — largos`);
   }
 
-  // Módulos retos ML nos lados curtos (2 lados, algoritmo greedy)
+  // Módulos retos ML/IF nos lados curtos (2 lados, algoritmo DP)
   const summaryHeightLines: string[] = [];
   for (const sp of segHeight.pieces) {
     const spDriver = driverParams ? calcPieceDriver(sp.bars, driverParams) : undefined;
     const totalQty = 2 * sp.qty;
+    const modType = sp.sku.includes("IF") ? "IF" : "ML";
+    const pieceType = sp.sku.includes("IF") ? "STRAIGHT_IF" as const : "STRAIGHT_ML" as const;
     const desc = sp.qty > 1
-      ? `${sp.qty}× ML ${sp.bars} barras (${sp.length}mm) por lado curto`
-      : `ML ${sp.bars} barras (${sp.length}mm) — lados curtos`;
-    const existing = pieces.find(p => p.sku === sp.sku && p.type === "STRAIGHT_ML");
+      ? `${sp.qty}× ${modType} ${sp.bars} barras (${sp.length}mm) por lado curto`
+      : `${modType} ${sp.bars} barras (${sp.length}mm) — lados curtos`;
+    const existing = pieces.find(p => p.sku === sp.sku && (p.type === "STRAIGHT_ML" || p.type === "STRAIGHT_IF"));
     if (existing) {
       existing.quantity += totalQty;
-      existing.description = `ML ${sp.bars} barras (${sp.length}mm) — todos os lados`;
+      existing.description = `${modType} ${sp.bars} barras (${sp.length}mm) — todos os lados`;
     } else {
       pieces.push({
         sku: sp.sku,
         quantity: totalQty,
         description: desc,
         length: sp.length,
-        type: "STRAIGHT_ML",
+        type: pieceType,
         bars: sp.bars,
         driver: spDriver,
       });
     }
-    summaryHeightLines.push(`${totalQty}× ML ${sp.sku} (${sp.length}mm) — curtos`);
+    summaryHeightLines.push(`${totalQty}× ${modType} ${sp.sku} (${sp.length}mm) — curtos`);
   }
 
   const summary =
@@ -965,8 +973,8 @@ export function calculateUShape(
     availBase,
     allowLongModules,
     allowFractionalBars,
-    "ML",
-    false // não usar módulos de 1 barra na base do U
+    "both",
+    allowFractionalBars // permitir módulos de 1 barra quando medidas quebradas está ativo
   );
   if (!segDepth) return null;
 
@@ -1006,51 +1014,55 @@ export function calculateUShape(
   for (const sp of segDepth.mlSegment.pieces) {
     const spDriver = driverParams ? calcPieceDriver(sp.bars, driverParams) : undefined;
     const totalQty = 2 * sp.qty; // 2 lados de profundidade
+    const modType = sp.sku.includes("IF") ? "IF" : "ML";
+    const pieceType = sp.sku.includes("IF") ? "STRAIGHT_IF" as const : "STRAIGHT_ML" as const;
     const desc = sp.qty > 1
-      ? `${sp.qty}× ML ${sp.bars} barras (${sp.length}mm) por lado de profundidade`
-      : `ML ${sp.bars} barras (${sp.length}mm) — lados de profundidade`;
-    const existing = pieces.find(p => p.sku === sp.sku && p.type === "STRAIGHT_ML");
+      ? `${sp.qty}× ${modType} ${sp.bars} barras (${sp.length}mm) por lado de profundidade`
+      : `${modType} ${sp.bars} barras (${sp.length}mm) — lados de profundidade`;
+    const existing = pieces.find(p => p.sku === sp.sku && (p.type === "STRAIGHT_ML" || p.type === "STRAIGHT_IF"));
     if (existing) {
       existing.quantity += totalQty;
-      existing.description = `ML ${sp.bars} barras (${sp.length}mm) — todos os lados`;
+      existing.description = `${modType} ${sp.bars} barras (${sp.length}mm) — todos os lados`;
     } else {
       pieces.push({
         sku: sp.sku,
         quantity: totalQty,
         description: desc,
         length: sp.length,
-        type: "STRAIGHT_ML",
+        type: pieceType,
         bars: sp.bars,
         driver: spDriver,
       });
     }
-    summaryDepthLines.push(`${totalQty}× ML ${sp.sku} (${sp.length}mm) — profundidade`);
+    summaryDepthLines.push(`${totalQty}× ${modType} ${sp.sku} (${sp.length}mm) — profundidade`);
   }
 
-  // ML da base
+  // ML/IF da base
   const summaryBaseLines: string[] = [];
   for (const sp of segBase.pieces) {
     const spDriver = driverParams ? calcPieceDriver(sp.bars, driverParams) : undefined;
     const totalQty = sp.qty; // 1 base
+    const modType = sp.sku.includes("IF") ? "IF" : "ML";
+    const pieceType = sp.sku.includes("IF") ? "STRAIGHT_IF" as const : "STRAIGHT_ML" as const;
     const desc = sp.qty > 1
-      ? `${sp.qty}× ML ${sp.bars} barras (${sp.length}mm) na base`
-      : `ML ${sp.bars} barras (${sp.length}mm) — base`;
-    const existing = pieces.find(p => p.sku === sp.sku && p.type === "STRAIGHT_ML");
+      ? `${sp.qty}× ${modType} ${sp.bars} barras (${sp.length}mm) na base`
+      : `${modType} ${sp.bars} barras (${sp.length}mm) — base`;
+    const existing = pieces.find(p => p.sku === sp.sku && (p.type === "STRAIGHT_ML" || p.type === "STRAIGHT_IF"));
     if (existing) {
       existing.quantity += totalQty;
-      existing.description = `ML ${sp.bars} barras (${sp.length}mm) — todos os lados`;
+      existing.description = `${modType} ${sp.bars} barras (${sp.length}mm) — todos os lados`;
     } else {
       pieces.push({
         sku: sp.sku,
         quantity: totalQty,
         description: desc,
         length: sp.length,
-        type: "STRAIGHT_ML",
+        type: pieceType,
         bars: sp.bars,
         driver: spDriver,
       });
     }
-    summaryBaseLines.push(`${totalQty}× ML ${sp.sku} (${sp.length}mm) — base`);
+    summaryBaseLines.push(`${totalQty}× ${modType} ${sp.sku} (${sp.length}mm) — base`);
   }
 
   const summary =
