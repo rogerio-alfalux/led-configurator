@@ -378,7 +378,8 @@ export function buildMaterialRequisition(
     //   - FITAS LED: somente "FITA LED" na descrição (ex: EQ00586)
     //   - MÓDULOS LED: Stripflex, Stripline, Lux Round, etc.
     const hasProfileSegments = item.profileSegments && item.profileSegments.length > 0;
-    if (!hasProfileSegments && item.driverLines && item.driverLines.length > 0 && item.moduloLed) {
+    const isLedBar = item.category === "LED BAR";
+    if (!hasProfileSegments && !isLedBar && item.driverLines && item.driverLines.length > 0 && item.moduloLed) {
       const ledCode =
         item.moduloLedCode ??
         resolveEqFromDesc(item.moduloLed) ??

@@ -2201,3 +2201,4 @@
 - [x] Sistema de subpedidos: permitir dividir pedido em subpedidos (ex: 202539-1, 202539-2) com prazos de entrega diferentes
 - [ ] Subpedidos: usuário escolhe quais itens do orçamento compõem cada subpedido (sem repetição entre subpedidos)
 - [x] Feature: Campo de margem aceitar valores negativos como desconto geral (ex: -10 = 10% de desconto em todos os itens)
+- [x] Fix: FITA LED duplicada na requisição de materiais para itens LED BAR (contada 2x: no bloco driverLines e no bloco LED BAR)
