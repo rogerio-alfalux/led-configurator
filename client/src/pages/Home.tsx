@@ -1551,7 +1551,7 @@ function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onA
                 <div className="rounded-lg bg-muted/40 p-3 border border-border">
                   <p className="text-xs text-muted-foreground mb-1">Comprimento</p>
                   <p className={`text-sm font-bold font-display ${
-                    efficiency === 100 ? "text-green-600 dark:text-green-400" : "text-yellow-600 dark:text-yellow-400"
+                    efficiency >= 95 ? "text-green-600 dark:text-green-400" : "text-yellow-600 dark:text-yellow-400"
                   }`}>
                     {result.realizedLength}mm
                   </p>
@@ -1592,7 +1592,7 @@ function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onA
               <div className="rounded-lg bg-muted/40 p-3 border border-border">
                 <p className="text-xs text-muted-foreground mb-1">Comprimento</p>
                 <p className={`text-sm font-bold font-display ${
-                  efficiency === 100 ? "text-green-600 dark:text-green-400" : "text-yellow-600 dark:text-yellow-400"
+                  efficiency >= 95 ? "text-green-600 dark:text-green-400" : "text-yellow-600 dark:text-yellow-400"
                 }`}>
                   {result.realizedLength}mm
                 </p>
