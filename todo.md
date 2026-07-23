@@ -2138,3 +2138,10 @@
 - [x] lEngine.ts: calculateUShape — permitir módulos de 1 barra no ML quando allowFractionalBars=true
 - [x] Home.tsx: Indicador de proximidade verde (≥95%) no card de resultado para formatos com cantos
 - [x] Home.tsx: Visualização de composição de preço dos formatos com cantos similar aos lineares retos (descrições ML/IF corretas)
+
+## Códigos EQ/CP em todos os componentes (Jul 2026)
+
+- [x] Identificar campos EQ/CP nos dados da API (drivers, ótica, dissipadores, módulos LED)
+- [x] Exibir códigos EQ/CP entre parênteses em todos os cards de resultado
+- [x] Exibir códigos EQ/CP na ficha de produção (texto copiado)
+- [x] Exibir códigos EQ/CP na requisição de materiais

@@ -114,6 +114,15 @@ export interface BageoProduct {
   ledModuleQtd4000?: number | null;
   /** Qtd de módulos LED por metro para CCT 5000K */
   ledModuleQtd5000?: number | null;
+  // ─── Código EQ do módulo LED por CCT (da API) ───
+  /** Código EQ do módulo LED para CCT 2700K */
+  ledModuleEq2700?: string | null;
+  /** Código EQ do módulo LED para CCT 3000K */
+  ledModuleEq3000?: string | null;
+  /** Código EQ do módulo LED para CCT 4000K */
+  ledModuleEq4000?: string | null;
+  /** Código EQ do módulo LED para CCT 5000K */
+  ledModuleEq5000?: string | null;
   // ─── Quantidade de drivers por corte (da API) ───
   /** Qtd de drivers por corte — ON/OFF 220V (da API; null = não cadastrado) */
   driverQtd220?: number | null;
@@ -269,6 +278,8 @@ export interface BageoResult {
   ledModuleQtd: number;
   /** Metragem total de fita LED (ledModuleQtd × comprimentoMetros) */
   fitaMetros: number;
+  /** Código EQ do módulo LED (resolvido por CCT) */
+  ledModuleEqCode: string | null;
   /** Preço por metro do corpo (R$) — null se não cadastrado */
   precoPorMetro: number | null;
   /** Preço do corpo total (precoPorMetro × comprimentoMetros) — null se não cadastrado */
@@ -413,6 +424,15 @@ export function calculateBageo(catalog: BageoProduct[], input: BageoInput): Bage
     ? ledModuleByCCT.trim()
     : product.ledModule.replace(/\[CCT\]/gi, input.cct).trim();
 
+  // Resolver código EQ do módulo LED por CCT
+  const ledModuleEqCode: string | null = (
+    (cctKey === '2700' ? product.ledModuleEq2700 : null) ??
+    (cctKey === '3000' ? product.ledModuleEq3000 : null) ??
+    (cctKey === '4000' ? product.ledModuleEq4000 : null) ??
+    (cctKey === '5000' ? product.ledModuleEq5000 : null) ??
+    null
+  );
+
   // Preços separados
   const precoPerfil = precoPorMetro !== null ? Math.round(precoPorMetro * comprimentoMetros * 100) / 100 : null;
   const precoDriverTotal = precoDriverPorUnidade !== null ? Math.round(precoDriverPorUnidade * driverQtd * 100) / 100 : null;
@@ -435,6 +455,7 @@ export function calculateBageo(catalog: BageoProduct[], input: BageoInput): Bage
     ledModuleWithCCT,
     ledModuleQtd: ledModuleQtdByCCT,
     fitaMetros,
+    ledModuleEqCode,
     precoPorMetro,
     precoPerfil,
     precoDriverPorUnidade,

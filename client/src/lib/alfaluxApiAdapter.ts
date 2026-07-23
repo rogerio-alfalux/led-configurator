@@ -875,6 +875,10 @@ function toBageoProduct(p: ApiProduct): BageoProduct | null {
     ledModuleQtd3000: p.ledModuleQtd3000 ?? null,
     ledModuleQtd4000: p.ledModuleQtd4000 ?? null,
     ledModuleQtd5000: p.ledModuleQtd5000 ?? null,
+    ledModuleEq2700: p.ledModuleEq2700 ?? null,
+    ledModuleEq3000: p.ledModuleEq3000 ?? null,
+    ledModuleEq4000: p.ledModuleEq4000 ?? null,
+    ledModuleEq5000: p.ledModuleEq5000 ?? null,
   };
 }
 

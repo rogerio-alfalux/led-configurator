@@ -162,8 +162,10 @@ function buildProfileSkuText(item: CartItemData): string {
  */
 function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, string>): string {
   if (!item.profileSegments || item.profileSegments.length === 0) {
-    // Fallback para produtos não-perfil
-    return item.moduloLed ?? [item.power, item.cct].filter(Boolean).join(" | ") ?? "";
+    // Fallback para produtos não-perfil — incluir EQ quando disponível
+    const modName = item.moduloLed ?? [item.power, item.cct].filter(Boolean).join(" | ") ?? "";
+    const modEqSuffix = item.moduloLedCode ? ` (${item.moduloLedCode})` : "";
+    return `${modName}${modEqSuffix}`;
   }
 
   const itemQty = item.qty ?? 1;
@@ -312,8 +314,9 @@ function buildLedBarFonteLuzText(item: CartItemData): string {
   const nCortes = item.ledBarNCortes ?? 1;
   const mm = item.ledBarComprimentoPorTrechoMm ?? item.ledBarComprimentoTotalMm ?? 0;
   const modulo = item.moduloLed ?? "";
+  const moduloEqSuffix = item.moduloLedCode ? ` (${item.moduloLedCode})` : "";
   const linhas: string[] = [];
-  if (modulo) linhas.push(`Módulo: ${modulo}`);
+  if (modulo) linhas.push(`Módulo: ${modulo}${moduloEqSuffix}`);
   if (nCortes > 1) {
     linhas.push(`Trechos: ${nCortes}x de ${mm}mm`);
   } else {

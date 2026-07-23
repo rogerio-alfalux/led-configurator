@@ -9080,7 +9080,7 @@ export default function Home() {
                       {/* Módulo LED */}
                       <div className="p-3 rounded-lg bg-muted/50">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
-                        <p className="text-sm font-semibold">{lbResult.ledModuleWithCCT} {lbResult.cct}</p>
+                        <p className="text-sm font-semibold">{lbResult.ledModuleWithCCT} {lbResult.cct}{lbResult.ledModuleEqCode ? <span className="ml-2 text-xs font-mono text-muted-foreground">({lbResult.ledModuleEqCode})</span> : null}</p>
                       </div>
 
                       {/* Fonte (total) */}
@@ -9168,9 +9168,10 @@ export default function Home() {
                     ].filter(Boolean);
                     const orcamento = orcamentoLines.join("\n");
                     const cortesInfo = nT > 1 ? ` COM ${nT} CORTES` : "";
+                    const ledBarEqSuffix = r.ledModuleEqCode ? ` (${r.ledModuleEqCode})` : "";
                     const pedido = [
                       `CÓDIGO: ${r.product.sku}`,
-                      `${r.product.name} ${r.cct} ${r.voltage} ${r.comprimentoTotalMm}MM${cortesInfo}${nT > 1 ? ` (${nT}x ${mm}MM)` : ""} MONTADO COM ${r.ledModuleWithCCT} ${r.cct} + ${nT}x ${driverLine}`,
+                      `${r.product.name} ${r.cct} ${r.voltage} ${r.comprimentoTotalMm}MM${cortesInfo}${nT > 1 ? ` (${nT}x ${mm}MM)` : ""} MONTADO COM ${r.ledModuleWithCCT} ${r.cct}${ledBarEqSuffix} + ${nT}x ${driverLine}`,
                     ].join("\n");
                     return (
                       <>
@@ -9473,7 +9474,7 @@ export default function Home() {
                     {/* Fita LED */}
                     <div className="p-3 rounded-lg bg-muted/50">
                       <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fita LED ({bgResult.ledModuleQtd}x por metro → {bgResult.fitaMetros.toFixed(1).replace(".",",")} m total)</p>
-                      <p className="text-sm font-semibold">{bgResult.ledModuleWithCCT}</p>
+                      <p className="text-sm font-semibold">{bgResult.ledModuleWithCCT}{bgResult.ledModuleEqCode ? <span className="ml-2 text-xs font-mono text-muted-foreground">({bgResult.ledModuleEqCode})</span> : null}</p>
                     </div>
                     {/* Cortes — sempre visível */}
                     <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
@@ -9533,8 +9534,9 @@ export default function Home() {
                     const voltasPorLado = 2;
                     // Remove "FITA LED" do início do nome se já estiver presente (evita duplicação)
                     const ledModuleNameClean = ledModuleName.replace(/^FITA LED\s+/i, "");
-                    const fitaD1 = `D1: ${voltasPorLado}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleNameClean}`;
-                    const fitaD2 = `D2: ${voltasPorLado}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleNameClean}`;
+                    const ledEqSuffix = r.ledModuleEqCode ? ` (${r.ledModuleEqCode})` : "";
+                    const fitaD1 = `D1: ${voltasPorLado}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleNameClean}${ledEqSuffix}`;
+                    const fitaD2 = `D2: ${voltasPorLado}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleNameClean}${ledEqSuffix}`;
                     const drvModel = r.driver.model.toUpperCase();
                     const drvCode = r.driver.code ? ` (${r.driver.code})` : "";
                     // Fontes por lado = total / 2 (pois driverQtdPorCorte=2 para D1+D2, 1 por lado)
@@ -9550,7 +9552,8 @@ export default function Home() {
                     const drvCode = r.driver.code ? ` (${r.driver.code})` : "";
                     // Remove "FITA LED" do início do nome se já estiver presente (evita duplicação)
                     const ledModuleNameClean = ledModuleName.replace(/^FITA LED\s+/i, "");
-                    fitaLine = `${voltas}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleNameClean}`;
+                    const ledEqSuffix2 = r.ledModuleEqCode ? ` (${r.ledModuleEqCode})` : "";
+                    fitaLine = `${voltas}x VOLTAS DE ${trechoMm}MM DE FITA LED ${ledModuleNameClean}${ledEqSuffix2}`;
                     drvLine = `${r.driverQtd}x FONTE DE TENSÃO ${drvModel}${drvCode}`;
                   }
                   const pedido = [
@@ -9676,6 +9679,7 @@ export default function Home() {
                                   orderSummary: pedido,
                                   quoteSummary: orcamento,
                                   moduloLed: r.product.ledModule ?? "",
+                                  moduloLedCode: r.ledModuleEqCode ?? null,
                                   drivers: r.driver.model ?? "",
                                   availableCCTs: r.product.ccts,
                                   itemEmPlanta: globalItemEmPlanta,
@@ -10174,7 +10178,7 @@ export default function Home() {
                             {glowResult.ledModuleWithCCT && (
                               <div className="p-3 rounded-lg bg-muted/50 col-span-2">
                                 <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
-                                <p className="text-sm font-semibold">{glowResult.ledModuleWithCCT}</p>
+                                <p className="text-sm font-semibold">{glowResult.ledModuleWithCCT}{glowResult.ledModuleEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({glowResult.ledModuleEq})</span> : null}</p>
                               </div>
                             )}
                           </div>
@@ -10381,7 +10385,7 @@ export default function Home() {
                             {tubeLightResult.ledModuleWithCCT && (
                               <div className="p-3 rounded-lg bg-muted/50 col-span-2">
                                 <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
-                                <p className="text-sm font-semibold">{tubeLightResult.ledModuleWithCCT}</p>
+                                <p className="text-sm font-semibold">{tubeLightResult.ledModuleWithCCT}{tubeLightResult.ledModuleEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({tubeLightResult.ledModuleEq})</span> : null}</p>
                               </div>
                             )}
                           </div>
