@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { Search, X } from "lucide-react";
+import { Search, X, Loader2 } from "lucide-react";
 
 export interface ComponentOption {
   codigo: string;
@@ -28,6 +28,8 @@ interface ComponentSearchFieldProps {
   placeholder?: string;
   /** Se true, o campo é somente leitura */
   readOnly?: boolean;
+  /** Se true, os dados ainda estão carregando */
+  isLoading?: boolean;
   /** Classe CSS adicional */
   className?: string;
 }
@@ -41,6 +43,7 @@ export function ComponentSearchField({
   options,
   placeholder = "Buscar componente...",
   readOnly = false,
+  isLoading = false,
   className,
 }: ComponentSearchFieldProps) {
   const [search, setSearch] = useState("");
@@ -85,6 +88,9 @@ export function ComponentSearchField({
   // Extrair código EQ do valor atual (ex: "(EQ00125)" → "EQ00125")
   const currentCode = value.match(/\(([A-Z]{2}\d+)\)/)?.[1] ?? "";
   const currentDesc = value.replace(/\s*\([A-Z]{2}\d+\)\s*$/, "").trim();
+
+  // Mostrar dropdown quando: aberto, não readonly, e (tem resultados OU está carregando)
+  const showDropdown = open && !readOnly && (filtered.length > 0 || isLoading);
 
   return (
     <div className={cn("space-y-1", className)} ref={containerRef}>
@@ -144,26 +150,37 @@ export function ComponentSearchField({
           </div>
 
           {/* Dropdown de resultados */}
-          {open && !readOnly && filtered.length > 0 && (
+          {showDropdown && (
             <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-64 overflow-y-auto">
-              {filtered.map(opt => (
-                <button
-                  key={opt.codigo}
-                  type="button"
-                  onMouseDown={e => {
-                    e.preventDefault();
-                    handleSelect(opt);
-                  }}
-                  className={cn(
-                    "w-full text-left px-3 py-2 text-xs hover:bg-accent hover:text-accent-foreground transition-colors",
-                    !opt.disponivel && "opacity-50"
-                  )}
-                >
-                  <span className="font-mono font-semibold text-primary">{opt.codigo}</span>
-                  <span className="ml-2 text-muted-foreground">{opt.descricao}</span>
-                  {!opt.disponivel && <span className="ml-2 text-xs text-destructive">(indisponível)</span>}
-                </button>
-              ))}
+              {isLoading && filtered.length === 0 ? (
+                <div className="flex items-center gap-2 px-3 py-3 text-xs text-muted-foreground">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Carregando componentes...
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="px-3 py-3 text-xs text-muted-foreground">
+                  Nenhum componente encontrado
+                </div>
+              ) : (
+                filtered.map(opt => (
+                  <button
+                    key={opt.codigo}
+                    type="button"
+                    onMouseDown={e => {
+                      e.preventDefault();
+                      handleSelect(opt);
+                    }}
+                    className={cn(
+                      "w-full text-left px-3 py-2 text-xs hover:bg-accent hover:text-accent-foreground transition-colors",
+                      !opt.disponivel && "opacity-50"
+                    )}
+                  >
+                    <span className="font-mono font-semibold text-primary">{opt.codigo}</span>
+                    <span className="ml-2 text-muted-foreground">{opt.descricao}</span>
+                    {!opt.disponivel && <span className="ml-2 text-xs text-destructive">(indisponível)</span>}
+                  </button>
+                ))
+              )}
             </div>
           )}
         </div>

@@ -198,6 +198,7 @@ export const appRouter = router({
      */
     componentes: publicProcedure.query(async () => {
       const { items, tipos } = await fetchComponentes();
+      console.log(`[Componentes] Retornando ${items.length} itens, tipos: ${tipos.join(", ")}`);
       return {
         tipos,
         items: items.map(p => ({

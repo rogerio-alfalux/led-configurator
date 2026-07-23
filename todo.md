@@ -2182,4 +2182,7 @@
 - [x] Dropdown de autocomplete não aparece ao digitar no campo de Drivers (corrigido: versão publicada estava desatualizada)
 - [x] Descrição de fallback normalizada usando descMap da API (normalizeDriverModels etapas 4 e 5)
 - [x] Garantir que componentesData está sendo carregado corretamente no FactoryOrderDetail (retry: 3 adicionado)
-- [ ] Drivers no pedido de fábrica: usar exclusivamente dados da API (remover fallback estático do Google Sheets)
+- [x] Drivers no pedido de fábrica: usar exclusivamente dados da API (remover fallback estático do Google Sheets)
+- [x] Adicionar isLoading state ao ComponentSearchField (mostra "Carregando..." enquanto API não responde)
+- [x] refetchOnMount='always' + refetchOnWindowFocus para garantir dados frescos
+- [x] Log de debug no servidor para confirmar chamadas ao endpoint de componentes

@@ -216,8 +216,10 @@ interface EditableItemProps {
   reverseDescMap?: Map<string, string>;
   /** Lista de componentes da API para autocomplete */
   componentesData?: ComponentOption[];
+  /** Se true, os componentes ainda estão carregando */
+  componentesLoading?: boolean;
 }
-function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, priceMap, productSkuMap, correnteMap, reverseDescMap, componentesData = [] }: EditableItemProps) {
+function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, priceMap, productSkuMap, correnteMap, reverseDescMap, componentesData = [], componentesLoading = false }: EditableItemProps) {
   const [expanded, setExpanded] = useState(true);
   const [showAcessorioModal, setShowAcessorioModal] = useState(false);
   const [acessorioSearch, setAcessorioSearch] = useState("");
@@ -521,6 +523,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                             }}
                             onQtyChange={(_qty) => { /* qty calculada automaticamente */ }}
                             options={moduloLedOptions}
+                            isLoading={componentesLoading}
                             placeholder="Buscar módulo LED..."
                           />
                         );
@@ -551,6 +554,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                             }}
                             onQtyChange={(_qty) => { /* qty calculada automaticamente */ }}
                             options={driverOptions}
+                            isLoading={componentesLoading}
                             placeholder="Buscar driver..."
                           />
                         );
@@ -596,6 +600,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                         onValueChange={handleModuloLedChange}
                         onQtyChange={qty => update({ ledBarNCortes: qty })}
                         options={moduloLedOptions}
+                        isLoading={componentesLoading}
                         placeholder="Buscar módulo LED..."
                       />
                       <div className="flex items-center gap-2 pl-22">
@@ -619,6 +624,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                         onValueChange={handleLedBarDriverChange}
                         onQtyChange={qty => update({ ledBarNCortes: qty })}
                         options={driverOptions}
+                        isLoading={componentesLoading}
                         placeholder="Buscar driver..."
                       />
                     </div>
@@ -666,6 +672,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                             update({ moduloLed: newModuloLed });
                           }}
                           options={moduloLedOptions}
+                          isLoading={componentesLoading}
                           placeholder="Buscar módulo LED..."
                         />
                       </div>
@@ -696,6 +703,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                                 update({ driverLines: newLines, driverQtyPerUnit: newQtyPerUnit });
                               }}
                               options={driverOptions}
+                              isLoading={componentesLoading}
                               placeholder="Buscar driver..."
                             />
                             {dl.corrente && (
@@ -756,6 +764,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                         update({ moduloLed: newModuloLed });
                       }}
                       options={moduloLedOptions}
+                      isLoading={componentesLoading}
                       placeholder="Buscar módulo LED..."
                     />
                   </div>
@@ -778,6 +787,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                         update({ drivers: newDrivers });
                       }}
                       options={driverOptions}
+                      isLoading={componentesLoading}
                       placeholder="Buscar driver..."
                     />
                   </div>
@@ -1084,7 +1094,7 @@ export default function FactoryOrderDetail() {
   // Acessórios
   const { data: acessoriosData = [] } = trpc.alfalux.acessoriosProducts.useQuery();
   /** Mapa código EQ -> descrição canônica da API (para normalizar driverModel) */
-  const { data: componentesData } = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 5 * 60 * 1000, retry: 3, retryDelay: 2000 });
+  const { data: componentesData, isLoading: componentesLoading } = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 5 * 60 * 1000, retry: 3, retryDelay: 2000, refetchOnMount: "always", refetchOnWindowFocus: true });
   const componenteDescMapFO = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of componentesData?.items ?? []) {
@@ -1820,6 +1830,7 @@ export default function FactoryOrderDetail() {
                           correnteMap={componenteCorrenteMapFO}
                           reverseDescMap={componenteReverseDescMapFO}
                           componentesData={componentesData?.items ?? []}
+                          componentesLoading={componentesLoading}
                         />
                       ))
                     )}
