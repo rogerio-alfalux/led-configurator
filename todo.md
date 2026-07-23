@@ -2155,3 +2155,11 @@
 - [x] Ao selecionar um componente no autocomplete, preencher automaticamente o código EQ
 - [x] Persistir as alterações feitas nesses campos no banco de dados
 - [x] Exibir o código EQ entre parênteses ao lado da descrição selecionada
+
+## Correção Requisição de Materiais (Jul 2026)
+
+- [x] Coluna CÓDIGO: sempre mostrar código EQ (não descrição genérica)
+- [x] Agrupar itens com mesmo EQ: somar quantidades em uma única linha
+- [x] Eliminar duplicatas de Stripflex (mesmo EQ = uma linha com total)
+- [x] Mostrar EQ entre parênteses na coluna DESCRIÇÃO
+- [ ] Ler campos corretos da tela de gerenciamento (quantidade, componente, programação)

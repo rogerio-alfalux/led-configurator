@@ -175,14 +175,43 @@ export function buildMaterialRequisition(
   items: CartItemData[],
   descMap?: Map<string, string>
 ): MaterialEntry[] {
-  // Mapa reverso: descrição (uppercase) → código EQ para resolver fitas LED BAR sem moduloLedCode
+  // Mapa reverso: descrição (uppercase) → código EQ para resolver itens sem moduloLedCode
   const reverseDescMap = new Map<string, string>();
   if (descMap) {
     descMap.forEach((desc, code) => {
-      if (code.startsWith("EQ") && desc) {
-        reverseDescMap.set(desc.toUpperCase().trim(), code);
+      if ((code.startsWith("EQ") || code.startsWith("CP") || code.startsWith("PT")) && desc) {
+        const normalized = desc.toUpperCase().trim().replace(/\s+/g, " ");
+        reverseDescMap.set(normalized, code);
       }
     });
+  }
+
+  /**
+   * Tenta resolver o código EQ a partir de uma descrição.
+   * Faz busca exata e também tenta variações (sem parênteses de EQ, busca parcial).
+   */
+  function resolveEqFromDesc(rawDesc: string): string | null {
+    if (!rawDesc) return null;
+    const normalized = rawDesc.toUpperCase().trim().replace(/\s+/g, " ");
+    // 1. Busca exata
+    const exact = reverseDescMap.get(normalized);
+    if (exact) return exact;
+    // 2. Remover código EQ entre parênteses no final (ex: "STRIPFLEX ... (EQ00125)" → "STRIPFLEX ...")
+    const withoutEqSuffix = normalized.replace(/\s*\([A-Z]{2}\d+\)\s*$/, "").trim();
+    if (withoutEqSuffix !== normalized) {
+      const fromNoEq = reverseDescMap.get(withoutEqSuffix);
+      if (fromNoEq) return fromNoEq;
+    }
+    // 3. Extrair código EQ diretamente se presente na string (ex: "(EQ00125)")
+    const eqMatch = rawDesc.match(/\((EQ\d+|CP\d+|PT\d+)\)/i);
+    if (eqMatch) return eqMatch[1].toUpperCase();
+    // 4. Busca parcial: verificar se alguma chave do reverseDescMap contém a descrição
+    for (const [key, code] of Array.from(reverseDescMap.entries())) {
+      if (key.includes(normalized) || normalized.includes(key)) {
+        return code;
+      }
+    }
+    return null;
   }
 
   // Map: codigo → MaterialEntry
@@ -226,9 +255,9 @@ export function buildMaterialRequisition(
 
         // 2. Módulo LED (Stripflex/Stripline) — contabilizado por UNIDADE
         let ledCode = (seg as any).ledModuleCode ?? "";
-        // Fallback: se ledCode vazio mas item tem moduloLed, tentar resolver via reverseDescMap
+        // Fallback: se ledCode vazio, tentar resolver via resolveEqFromDesc
         if (!ledCode && item.moduloLed) {
-          ledCode = reverseDescMap.get(item.moduloLed.toUpperCase().trim()) ?? "";
+          ledCode = resolveEqFromDesc(item.moduloLed) ?? "";
         }
         if (ledCode) {
           // Cada barra é 1 unidade de módulo LED
@@ -289,8 +318,8 @@ export function buildMaterialRequisition(
     if (!hasProfileSegments && item.driverLines && item.driverLines.length > 0 && item.moduloLed) {
       const ledCode =
         item.moduloLedCode ??
-        reverseDescMap.get(item.moduloLed.toUpperCase().trim()) ??
-        `MODULO_${item.moduloLed}`;
+        resolveEqFromDesc(item.moduloLed) ??
+        item.moduloLed; // fallback: usar descrição como código (sem prefixo MODULO_)
       add(ledCode, item.moduloLed, itemQty, "un", "MÓDULOS LED");
     }
 
@@ -318,10 +347,10 @@ export function buildMaterialRequisition(
       // Fita LED do LED BAR: unificar por código EQ da fita (vindo da API)
       if (item.moduloLed && item.ledBarComprimentoTotalMm) {
         const totalMetros = (item.ledBarComprimentoTotalMm / 1000) * itemQty;
-        // Resolver código EQ: 1) moduloLedCode do item, 2) reverseDescMap pela descrição, 3) fallback descrição
+        // Resolver código EQ: 1) moduloLedCode do item, 2) resolveEqFromDesc, 3) fallback descrição
         const fitaCode = item.moduloLedCode
-          ?? reverseDescMap.get(item.moduloLed.toUpperCase().trim())
-          ?? `FITA_LEDBAR_${item.moduloLed}`;
+          ?? resolveEqFromDesc(item.moduloLed)
+          ?? item.moduloLed; // fallback: usar descrição como código (sem prefixo)
         add(fitaCode, item.moduloLed, totalMetros, "m", "FITAS LED");
       }
     }
