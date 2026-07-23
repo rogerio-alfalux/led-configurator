@@ -30,7 +30,9 @@ function buildProfileSkuText(item: CartItemData): string {
 function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, string>): string {
   if (!item.profileSegments || item.profileSegments.length === 0) {
     const modName = item.moduloLed ?? [item.power, item.cct].filter(Boolean).join(" | ") ?? "";
-    const modEqSuffix = item.moduloLedCode ? ` (${esc(item.moduloLedCode)})` : "";
+    // Não duplicar EQ se já está embutido no moduloLed
+    const alreadyHasEq = item.moduloLedCode && modName.includes(`(${item.moduloLedCode})`);
+    const modEqSuffix = item.moduloLedCode && !alreadyHasEq ? ` (${esc(item.moduloLedCode)})` : "";
     return `${esc(modName)}${modEqSuffix}`;
   }
   const itemQty = item.qty ?? 1;

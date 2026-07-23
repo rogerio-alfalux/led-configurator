@@ -560,8 +560,10 @@ export function normalizeDriverModels(
   }
 
   // 4. moduloLed — normalizar descrição usando moduloLedCode + descMap
+  // Pular normalização quando moduloLed contém múltiplos componentes (separados por " + ")
+  // pois nesses casos a string já foi construída com todos os EQs embutidos.
   let newModuloLed = item.moduloLed;
-  if (item.moduloLedCode) {
+  if (item.moduloLedCode && !(item.moduloLed ?? "").includes(" + ")) {
     const canonical = descMap.get(item.moduloLedCode);
     if (canonical) {
       // Preservar prefixo de quantidade (ex: "2x ") se existir

@@ -164,7 +164,9 @@ function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, stri
   if (!item.profileSegments || item.profileSegments.length === 0) {
     // Fallback para produtos não-perfil — incluir EQ quando disponível
     const modName = item.moduloLed ?? [item.power, item.cct].filter(Boolean).join(" | ") ?? "";
-    const modEqSuffix = item.moduloLedCode ? ` (${item.moduloLedCode})` : "";
+    // Não duplicar EQ se já está embutido no moduloLed
+    const alreadyHasEq = item.moduloLedCode && modName.includes(`(${item.moduloLedCode})`);
+    const modEqSuffix = item.moduloLedCode && !alreadyHasEq ? ` (${item.moduloLedCode})` : "";
     return `${modName}${modEqSuffix}`;
   }
 

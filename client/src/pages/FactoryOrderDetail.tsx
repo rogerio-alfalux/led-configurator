@@ -641,8 +641,10 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
               const moduloLedPrefixMatch = moduloLedRaw.match(/^(\d+)[xX]\s+(.+)$/);
               const moduloLedQtyPerUnit = moduloLedPrefixMatch ? parseInt(moduloLedPrefixMatch[1], 10) : 1;
               const moduloLedDescClean = moduloLedPrefixMatch ? moduloLedPrefixMatch[2] : moduloLedRaw;
+              // Não duplicar EQ se já está embutido no moduloLed
+              const _alreadyHasEq1 = parsed.moduloLedCode && moduloLedDescClean.includes(`(${parsed.moduloLedCode})`);
               const moduloVal = moduloLedDescClean
-                ? (parsed.moduloLedCode ? `${moduloLedDescClean} (${parsed.moduloLedCode})` : moduloLedDescClean)
+                ? (parsed.moduloLedCode && !_alreadyHasEq1 ? `${moduloLedDescClean} (${parsed.moduloLedCode})` : moduloLedDescClean)
                 : "";
 
               // CORREÇÃO: Driver qty POR PEÇA (não total)
@@ -735,8 +737,10 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
             const moduloSimplePrefixMatch = moduloLedSimpleRaw.match(/^(\d+)[xX]\s+(.+)$/);
             const moduloSimpleQty = moduloSimplePrefixMatch ? parseInt(moduloSimplePrefixMatch[1], 10) : 1;
             const moduloSimpleDesc = moduloSimplePrefixMatch ? moduloSimplePrefixMatch[2] : moduloLedSimpleRaw;
+            // Não duplicar EQ se já está embutido no moduloLed
+            const _alreadyHasEq2 = parsed.moduloLedCode && moduloSimpleDesc.includes(`(${parsed.moduloLedCode})`);
             const moduloVal = moduloSimpleDesc
-              ? (parsed.moduloLedCode ? `${moduloSimpleDesc} (${parsed.moduloLedCode})` : moduloSimpleDesc)
+              ? (parsed.moduloLedCode && !_alreadyHasEq2 ? `${moduloSimpleDesc} (${parsed.moduloLedCode})` : moduloSimpleDesc)
               : "";
 
             const driverSimpleRaw = parsed.drivers ?? "";
