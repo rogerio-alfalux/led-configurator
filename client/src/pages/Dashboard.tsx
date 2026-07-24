@@ -48,14 +48,14 @@ function StatCard({ title, value, sub, icon, color }: {
 }) {
   return (
     <Card>
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm text-muted-foreground">{title}</p>
-            <p className={`text-2xl font-bold mt-1 ${color}`}>{value}</p>
-            {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-muted-foreground truncate">{title}</p>
+            <p className={`text-lg font-bold mt-1 truncate ${color}`}>{value}</p>
+            {sub && <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{sub}</p>}
           </div>
-          <div className="p-2 rounded-lg bg-muted">{icon}</div>
+          <div className="p-1.5 rounded-lg bg-muted shrink-0">{icon}</div>
         </div>
       </CardContent>
     </Card>
