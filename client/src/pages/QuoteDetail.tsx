@@ -3820,7 +3820,23 @@ export default function QuoteDetail() {
                     Ao converter em amostra, o valor de venda será zerado. O custo será registrado como investimento da empresa.
                   </p>
                   <p className="text-sm text-amber-700 dark:text-amber-400 mt-1 font-medium">
-                    Custo registrado: {formatBRL(parseFloat(String(quote.totalAmount)))}
+                    Custo registrado: {formatBRL((() => {
+                      let tc = 0;
+                      for (const item of currentItemsMigrated) {
+                        const p = parseCartItemData(item.itemData);
+                        if (!p) continue;
+                        const custo = p.custoCorpoBase ?? 0;
+                        const qty = p.qty ?? 1;
+                        tc += custo * qty;
+                        // Adicionar custo dos drivers (custoDriverBase é por unidade de driver)
+                        if (p.custoDriverBase && p.driverLines) {
+                          for (const dl of p.driverLines) {
+                            tc += p.custoDriverBase * (dl.driverQty ?? 0);
+                          }
+                        }
+                      }
+                      return tc > 0 ? tc : parseFloat(String(quote.totalAmount));
+                    })())}
                   </p>
                 </div>
                 <div>

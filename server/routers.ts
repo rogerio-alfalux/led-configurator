@@ -1782,12 +1782,30 @@ export const appRouter = router({
         // Buscar dados do orçamento
         const quoteData = await getQuoteById(input.quoteId);
         if (!quoteData) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado." });
-        const { quote } = quoteData;
+        const { quote, items } = quoteData;
+        // Calcular custo real (sem markup) somando custoCorpoBase * qty de cada item
+        let totalCusto = 0;
+        for (const item of items) {
+          try {
+            const parsed = JSON.parse(item.itemData);
+            const custo = parsed.custoCorpoBase ?? 0;
+            const qty = parsed.qty ?? 1;
+            totalCusto += custo * qty;
+            // Adicionar custo dos drivers (custoDriverBase é por unidade de driver, no CartItemData)
+            if (parsed.custoDriverBase && parsed.driverLines && Array.isArray(parsed.driverLines)) {
+              for (const dl of parsed.driverLines) {
+                totalCusto += parsed.custoDriverBase * (dl.driverQty ?? 0);
+              }
+            }
+          } catch { /* skip unparseable items */ }
+        }
+        // Fallback: se nenhum item tem custoCorpoBase, usar totalAmount como aproximação
+        const costAmount = totalCusto > 0 ? Math.round(totalCusto * 100) / 100 : parseFloat(String(quote.totalAmount));
         const result = await createSampleOrder({
           quoteId: input.quoteId,
           clientName: quote.clientName,
           projectName: (quote as any).projectName ?? undefined,
-          costAmount: parseFloat(String(quote.totalAmount)),
+          costAmount,
           notes: input.notes,
           sellerName: (quote as any).seller1Name ?? undefined,
           sellerId: quote.seller1Id ?? undefined,
