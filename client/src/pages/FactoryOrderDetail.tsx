@@ -1066,6 +1066,9 @@ export default function FactoryOrderDetail() {
   const [previewItems, setPreviewItems] = useState<CartItemData[]>([]);
   // Sincronização de itens novos do orçamento
   const [isSyncingItems, setIsSyncingItems] = useState(false);
+  // Diálogo para escolher subpedido destino ao sincronizar
+  const [showSyncSubDialog, setShowSyncSubDialog] = useState(false);
+  const [syncTargetSubOrderId, setSyncTargetSubOrderId] = useState<number | null>(null);
 
   // Dados do orçamento
   const { data: quoteData, isLoading: quoteLoading } = trpc.quotes.getById.useQuery({ id: Number(quoteId) });
@@ -1078,6 +1081,19 @@ export default function FactoryOrderDetail() {
   const { data: currentOrder, isLoading: orderLoading } = trpc.factoryOrders.getById.useQuery(
     { id: effectiveOrderId! },
     { enabled: effectiveOrderId !== null }
+  );
+
+  // Subpedidos do pedido atual (se for pedido pai)
+  const parentOrderId = currentOrder?.parentOrderId ?? null;
+  const rootOrderId = parentOrderId ?? effectiveOrderId;
+  const { data: siblingSubOrders = [] } = trpc.factoryOrders.listSubOrders.useQuery(
+    { parentOrderId: rootOrderId! },
+    { enabled: rootOrderId !== null }
+  );
+  // Dados completos dos subpedidos irmãos (para detectar itens já distribuídos)
+  const siblingSubOrderIds = siblingSubOrders.map(s => s.id);
+  const siblingSubOrdersData = trpc.useQueries(t =>
+    siblingSubOrderIds.map(id => t.factoryOrders.getById({ id }))
   );
 
   // Histórico de Excels gerados para o pedido selecionado
@@ -1277,50 +1293,73 @@ export default function FactoryOrderDetail() {
     setHasUnpublishedChanges(true);
   }, [removeItemMutation]);
 
-  // Detecta itens do orçamento que ainda não estão no pedido de fábrica
-  // Compara por SKU + descrição para evitar duplicatas
+  // Detecta itens do orçamento que ainda não estão em nenhum pedido/subpedido de fábrica
+  // Se o pedido atual é um subpedido, verifica todos os irmãos para evitar duplicatas
+  const hasSubOrders = siblingSubOrders.length > 0;
   const missingQuoteItems = useMemo(() => {
     if (!quoteData || !currentOrder) return [];
+    // Subpedidos: só mostrar o banner no pedido pai (não nos subpedidos)
+    if (currentOrder.parentOrderId) return [];
     const { versions, items } = quoteData;
     const sortedVersions = [...versions].sort((a, b) => b.version - a.version);
     const currentVersionId = sortedVersions[0]?.id;
     const quoteCurrentItems = items.filter(i => i.quoteVersionId === currentVersionId);
-    // SKUs já presentes no pedido de fábrica
+    // Coletar todos os SKUs já presentes: pedido atual + todos os subpedidos
+    const allOrderItems = [
+      ...currentOrder.items,
+      ...siblingSubOrdersData.flatMap(q => q.data?.items ?? []),
+    ];
     const orderSkus = new Set(
-      currentOrder.items.map(i => {
+      allOrderItems.map(i => {
         const d = parseCartItemData(i.itemData);
         return d ? `${d.sku}|${d.description}` : null;
       }).filter(Boolean)
     );
-    // Itens do orçamento que não estão no pedido
+    // Itens do orçamento que não estão em nenhum pedido/subpedido
     return quoteCurrentItems.filter(qi => {
       const d = parseCartItemData(qi.itemData);
       if (!d) return false;
       if (d.category === 'Não Orçamos') return false;
       return !orderSkus.has(`${d.sku}|${d.description}`);
     });
-  }, [quoteData, currentOrder]);
+  }, [quoteData, currentOrder, siblingSubOrdersData]);
 
-  const handleSyncMissingItems = useCallback(async () => {
-    if (!effectiveOrderId || missingQuoteItems.length === 0) return;
+  const doSyncMissingItems = useCallback(async (targetOrderId: number) => {
+    if (missingQuoteItems.length === 0) return;
     setIsSyncingItems(true);
     try {
-      const maxNum = (currentOrder?.items ?? []).reduce((m, i) => Math.max(m, i.itemNumber), 0);
+      // Buscar itens atuais do pedido destino para calcular próximo itemNumber
+      const targetOrder = targetOrderId === effectiveOrderId
+        ? currentOrder
+        : siblingSubOrdersData.find(q => q.data?.id === targetOrderId)?.data;
+      const maxNum = (targetOrder?.items ?? []).reduce((m, i) => Math.max(m, i.itemNumber), 0);
       for (let i = 0; i < missingQuoteItems.length; i++) {
         await addItemMutation.mutateAsync({
-          factoryOrderId: effectiveOrderId,
+          factoryOrderId: targetOrderId,
           itemNumber: maxNum + i + 1,
           itemData: missingQuoteItems[i].itemData,
         });
       }
       toast.success(`${missingQuoteItems.length} item(ns) adicionado(s) ao pedido`);
       setHasUnpublishedChanges(true);
+      setShowSyncSubDialog(false);
     } catch (err: unknown) {
       toast.error(`Erro ao sincronizar: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsSyncingItems(false);
     }
-  }, [effectiveOrderId, missingQuoteItems, currentOrder, addItemMutation]);
+  }, [effectiveOrderId, missingQuoteItems, currentOrder, siblingSubOrdersData, addItemMutation]);
+
+  const handleSyncMissingItems = useCallback(() => {
+    if (!effectiveOrderId || missingQuoteItems.length === 0) return;
+    // Se há subpedidos, perguntar em qual adicionar
+    if (hasSubOrders) {
+      setSyncTargetSubOrderId(siblingSubOrders[0]?.id ?? effectiveOrderId);
+      setShowSyncSubDialog(true);
+    } else {
+      doSyncMissingItems(effectiveOrderId);
+    }
+  }, [effectiveOrderId, missingQuoteItems, hasSubOrders, siblingSubOrders, doSyncMissingItems]);
 
   const handleAddBlankItem = useCallback(() => {
     if (!effectiveOrderId) return;
@@ -2267,6 +2306,59 @@ export default function FactoryOrderDetail() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para escolher subpedido ao sincronizar item novo */}
+      <Dialog open={showSyncSubDialog} onOpenChange={setShowSyncSubDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adicionar ao Subpedido</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Este pedido está dividido em subpedidos. Escolha em qual subpedido adicionar o(s) item(ns) novo(s):
+            </p>
+            <div className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-700 rounded p-2">
+              {missingQuoteItems.map(qi => {
+                const d = parseCartItemData(qi.itemData);
+                return <div key={qi.id}>• {d?.sku} — {d?.description?.slice(0, 50)}</div>;
+              })}
+            </div>
+            <div className="space-y-2">
+              {siblingSubOrders.map(sub => (
+                <button
+                  key={sub.id}
+                  type="button"
+                  onClick={() => setSyncTargetSubOrderId(sub.id)}
+                  className={`w-full text-left rounded-lg border p-3 transition-colors ${
+                    syncTargetSubOrderId === sub.id
+                      ? 'border-orange-400 bg-orange-50 dark:bg-orange-950/20'
+                      : 'border-border hover:border-orange-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold">Sub #{sub.subOrderIndex}</span>
+                    {sub.orderNumber && (
+                      <span className="text-xs font-mono text-orange-700 dark:text-orange-400">Ped. {sub.orderNumber}</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{sub.empresa} • {sub.deliveryDays} dias</p>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button variant="outline" onClick={() => setShowSyncSubDialog(false)}>Cancelar</Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700 text-white gap-2"
+              disabled={isSyncingItems || syncTargetSubOrderId === null}
+              onClick={() => syncTargetSubOrderId && doSyncMissingItems(syncTargetSubOrderId)}
+            >
+              <Plus className="w-4 h-4" />
+              {isSyncingItems ? 'Adicionando...' : 'Adicionar ao Subpedido'}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
