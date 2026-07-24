@@ -2266,6 +2266,9 @@
 - [x] Dashboard de Lucro no detalhe do orçamento: aplicar fórmula correta (receita - custo - comissão - impostos = lucro bruto; lucro bruto - custos adicionais = lucro líquido)
 - [x] Buscar custo real dos produtos/drivers na API para cálculo do lucro (endpoint quotes.calculateCost)
 - [x] Dashboard de Lucro visível apenas para Dennis, Vivian e admins (COST_PRIVILEGED_EMAILS)
+- [x] Contabilizar custo de componentes/acessórios no calculateCost (buscar na API de componentes pelo código EQ)
+- [x] Itens especiais sem custo: aplicar margem média para estimar custo (totalPrice / (1 + margem))
+- [x] Recalcular lucro quando custo do item especial for preenchido manualmente (setCustoManual + UI inline)
 
 ## v35 — Unificar DIFAL + FCP em linha única (Jul 2026)
 

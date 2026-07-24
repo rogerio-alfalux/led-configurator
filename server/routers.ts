@@ -51,7 +51,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { storagePut } from "./storage";
 import { getDb } from "./db";
-import { sellers, assistants } from "../drizzle/schema";
+import { sellers, assistants, quoteItems } from "../drizzle/schema";
 import { eq, inArray, and } from "drizzle-orm";
 import { DISCOUNT_EDITORS_EMAILS } from "../shared/const";
 
@@ -1097,6 +1097,9 @@ export const appRouter = router({
         const productBySku = new Map(products.map(p => [p.sku.toUpperCase(), p]));
         const componenteByCodigo = new Map(componentes.map(c => [c.codigo?.toUpperCase() ?? '', c]));
 
+        // Margem do orçamento para estimar custo de itens especiais
+        const marginPercent = Number(result.quote.marginPercent ?? 0.10);
+
         let totalCusto = 0;
         let temCusto = false;
         const itemDetails: Array<{ itemNumber: number; sku: string; custoCorpo: number; custoDriver: number; qty: number; driverQty: number; subtotal: number; source: string }> = [];
@@ -1107,9 +1110,27 @@ export const appRouter = router({
             const sku = (data.sku ?? '').toUpperCase();
             const qty = Number(data.qty ?? 1);
 
-            // Item Especial sem custo de produto (verificar primeiro)
+            // Item Especial: usar custoManual se preenchido, senão estimar pela margem
             if (data.isSpecialItem || data.category === 'Item Especial' || data.category === 'especial') {
-              itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: 0, custoDriver: 0, qty, driverQty: 0, subtotal: 0, source: 'especial' });
+              const custoManual = Number(data.custoManual ?? 0);
+              if (custoManual > 0) {
+                // Custo manual preenchido pelo usuário
+                const subtotal = custoManual * qty;
+                totalCusto += subtotal;
+                temCusto = true;
+                itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: custoManual, custoDriver: 0, qty, driverQty: 0, subtotal, source: 'especial_manual' });
+              } else {
+                // Estimar custo pela margem média: precoVenda / (1 + margem)
+                const totalPrice = Number(data.totalPrice ?? 0);
+                if (totalPrice > 0 && marginPercent > 0) {
+                  const custoEstimado = totalPrice / (1 + marginPercent);
+                  totalCusto += custoEstimado;
+                  temCusto = true;
+                  itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: custoEstimado / qty, custoDriver: 0, qty, driverQty: 0, subtotal: custoEstimado, source: 'especial_estimado' });
+                } else {
+                  itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: 0, custoDriver: 0, qty, driverQty: 0, subtotal: 0, source: 'especial_sem_preco' });
+                }
+              }
               continue;
             }
 
@@ -1232,7 +1253,27 @@ export const appRouter = router({
             // ── ITENS SEM custoCorpoBase: buscar na API pelo SKU principal ──
             const product = productBySku.get(sku);
             if (!product) {
-              itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: 0, custoDriver: 0, qty, driverQty: 0, subtotal: 0, source: 'nao_encontrado' });
+              // Tentar buscar como componente/acessório pelo código
+              const comp = componenteByCodigo.get(sku);
+              if (comp && (comp.custoDriver ?? 0) > 0) {
+                // Componente/acessório encontrado na API de componentes
+                const custoUnit = Number(comp.custoDriver ?? 0);
+                const subtotal = custoUnit * qty;
+                totalCusto += subtotal;
+                temCusto = true;
+                itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: custoUnit, custoDriver: 0, qty, driverQty: 0, subtotal, source: 'componente' });
+              } else {
+                // Não encontrado em nenhuma API — tentar estimar pela margem
+                const totalPrice = Number(data.totalPrice ?? 0);
+                if (totalPrice > 0 && marginPercent > 0) {
+                  const custoEstimado = totalPrice / (1 + marginPercent);
+                  totalCusto += custoEstimado;
+                  temCusto = true;
+                  itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: custoEstimado / qty, custoDriver: 0, qty, driverQty: 0, subtotal: custoEstimado, source: 'estimado_margem' });
+                } else {
+                  itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: 0, custoDriver: 0, qty, driverQty: 0, subtotal: 0, source: 'nao_encontrado' });
+                }
+              }
               continue;
             }
 
@@ -1300,6 +1341,24 @@ export const appRouter = router({
         }
 
         return { custoProdutos: totalCusto, temCusto, items: itemDetails };
+      }),
+    setCustoManual: protectedProcedure
+      .input(z.object({ quoteId: z.number(), itemNumber: z.number(), custoManual: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB unavailable' });
+        // Buscar o item
+        const [item] = await db.select().from(quoteItems)
+          .where(and(eq(quoteItems.quoteId, input.quoteId), eq(quoteItems.itemNumber, input.itemNumber)))
+          .limit(1);
+        if (!item) throw new TRPCError({ code: 'NOT_FOUND', message: 'Item não encontrado' });
+        // Atualizar itemData com custoManual
+        const data = typeof item.itemData === 'string' ? JSON.parse(item.itemData) : (item.itemData ?? {});
+        data.custoManual = input.custoManual;
+        await db.update(quoteItems)
+          .set({ itemData: JSON.stringify(data) })
+          .where(and(eq(quoteItems.quoteId, input.quoteId), eq(quoteItems.itemNumber, input.itemNumber)));
+        return { success: true };
       }),
   }),
   // ─── Sellers & Assistants ─────────────────────────────────────────────────

@@ -4816,6 +4816,15 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
     },
     onError: (err) => toast.error(err.message),
   });
+  const setCustoManualMutation = trpc.quotes.setCustoManual.useMutation({
+    onSuccess: () => {
+      utils.quotes.calculateCost.invalidate({ quoteId });
+      toast.success("Custo atualizado");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  const [editingCustoItem, setEditingCustoItem] = useState<number | null>(null);
+  const [custoManualInput, setCustoManualInput] = useState("");
 
   const additionalCosts = costsQuery.data ?? [];
   const totalAdditionalCosts = additionalCosts.reduce((s, c) => s + parseFloat(String(c.valor)), 0);
@@ -4937,6 +4946,73 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
           </p>
           <p className="text-xs text-muted-foreground">{margemLiquida.toFixed(1)}% da receita</p>
         </div>
+
+        {/* Itens especiais/estimados com opção de preencher custo manual */}
+        {costQuery.data?.items && costQuery.data.items.filter(i => i.source === 'especial_estimado' || i.source === 'especial_sem_preco' || i.source === 'especial_manual' || i.source === 'estimado_margem').length > 0 && (
+          <div className="bg-amber-50/50 dark:bg-amber-950/20 rounded-md px-3 py-2 space-y-2">
+            <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide">Itens com custo estimado/manual</p>
+            {costQuery.data.items.filter(i => i.source === 'especial_estimado' || i.source === 'especial_sem_preco' || i.source === 'especial_manual' || i.source === 'estimado_margem').map(item => (
+              <div key={item.itemNumber} className="flex items-center justify-between text-xs gap-2">
+                <span className="text-muted-foreground truncate flex-1">#{item.itemNumber} {item.sku}</span>
+                {item.source === 'especial_manual' ? (
+                  <span className="text-emerald-600 font-medium">R$ {item.custoCorpo.toFixed(2)}/un (manual)</span>
+                ) : item.source === 'especial_estimado' || item.source === 'estimado_margem' ? (
+                  <span className="text-amber-600 font-medium">~R$ {item.custoCorpo.toFixed(2)}/un (estimado)</span>
+                ) : (
+                  <span className="text-red-600 font-medium">Sem custo</span>
+                )}
+                {editingCustoItem === item.itemNumber ? (
+                  <div className="flex items-center gap-1">
+                    <Input
+                      value={custoManualInput}
+                      onChange={e => setCustoManualInput(e.target.value)}
+                      placeholder="Custo unit."
+                      className="h-6 w-24 text-xs"
+                      autoFocus
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          const val = parseFloat(custoManualInput.replace(',', '.'));
+                          if (!isNaN(val) && val > 0) {
+                            setCustoManualMutation.mutate({ quoteId, itemNumber: item.itemNumber, custoManual: val });
+                            setEditingCustoItem(null);
+                          }
+                        } else if (e.key === 'Escape') {
+                          setEditingCustoItem(null);
+                        }
+                      }}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-emerald-600"
+                      onClick={() => {
+                        const val = parseFloat(custoManualInput.replace(',', '.'));
+                        if (!isNaN(val) && val > 0) {
+                          setCustoManualMutation.mutate({ quoteId, itemNumber: item.itemNumber, custoManual: val });
+                          setEditingCustoItem(null);
+                        }
+                      }}
+                    >
+                      ✓
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-blue-600 hover:bg-blue-50"
+                    onClick={() => {
+                      setEditingCustoItem(item.itemNumber);
+                      setCustoManualInput(item.custoCorpo > 0 ? item.custoCorpo.toFixed(2) : '');
+                    }}
+                  >
+                    Definir custo
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Botão para gerenciar custos adicionais */}
         <div className="flex justify-end">
