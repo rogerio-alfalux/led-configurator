@@ -1326,6 +1326,15 @@ export default function QuoteDetail() {
     onError: (err) => toast.error(`Erro: ${err.message}`),
   });
 
+  const cancelSampleMutation = trpc.samples.cancel.useMutation({
+    onSuccess: () => {
+      utils.quotes.getById.invalidate({ id: Number(id) });
+      sampleQuery.refetch();
+      toast.success("Pedido de Amostra cancelado. Orçamento revertido para Em Aberto.");
+    },
+    onError: (err) => toast.error(`Erro ao cancelar amostra: ${err.message}`),
+  });
+
   /**
    * REGRA INEGOCIÁVEL: Este useMemo DEVE ficar antes de qualquer early return
    * para garantir contagem estável de hooks entre renderizações.
@@ -3954,10 +3963,26 @@ export default function QuoteDetail() {
                   ))}
                 </div>
               )}
-              <Button variant="outline" size="sm" className="gap-1 mt-2" onClick={() => setSampleLinkDialogOpen(true)}>
-                <Link2 className="w-3 h-3" />
-                Vincular a Orçamento
-              </Button>
+              <div className="flex gap-2 mt-2 flex-wrap">
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => setSampleLinkDialogOpen(true)}>
+                  <Link2 className="w-3 h-3" />
+                  Vincular a Orçamento
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
+                  disabled={cancelSampleMutation.isPending}
+                  onClick={() => {
+                    if (window.confirm("Tem certeza que deseja cancelar este Pedido de Amostra? O orçamento voltará ao status Em Aberto e o registro de custo será removido.")) {
+                      cancelSampleMutation.mutate({ id: sampleQuery.data!.id, quoteId: Number(id) });
+                    }
+                  }}
+                >
+                  <XIcon className="w-3 h-3" />
+                  {cancelSampleMutation.isPending ? "Cancelando..." : "Cancelar Amostra"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}

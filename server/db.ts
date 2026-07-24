@@ -2146,6 +2146,18 @@ export async function updateSampleOrder(id: number, data: { status?: string; not
   }
 }
 
+/** Cancela/remove um pedido de amostra e reverte o status do orçamento para 'open' */
+export async function deleteSampleOrder(id: number, quoteId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Remover vinculações primeiro
+  await db.delete(sampleLinks).where(eq(sampleLinks.sampleOrderId, id));
+  // Remover o pedido de amostra
+  await db.delete(sampleOrders).where(eq(sampleOrders.id, id));
+  // Reverter status do orçamento para 'open'
+  await db.update(quotes).set({ status: 'open' }).where(eq(quotes.id, quoteId));
+}
+
 /** Cria uma vinculação entre pedido de amostra e orçamento futuro */
 export async function createSampleLink(data: {
   sampleOrderId: number;

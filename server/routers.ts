@@ -44,6 +44,7 @@ import {
   listSampleLinks,
   listSampleLinksByQuoteId,
   deleteSampleLink,
+  deleteSampleOrder,
   getSampleOrderStats,
 } from "./db";
 import { z } from "zod";
@@ -1786,11 +1787,13 @@ export const appRouter = router({
         // Calcular custo real (sem markup) somando custoCorpoBase * qty de cada item
         // custoCorpoBase é o custo da API antes de aplicar qualquer markup
         let totalCusto = 0;
+        console.log(`[Sample] items count: ${items.length}`);
         for (const item of items) {
           try {
             const parsed = JSON.parse(item.itemData);
             const custo = parsed.custoCorpoBase ?? 0;
             const qty = parsed.qty ?? 1;
+            console.log(`[Sample] item ${item.itemNumber}: custoCorpoBase=${custo}, qty=${qty}, subtotal=${custo*qty}`);
             totalCusto += custo * qty;
             // Adicionar custo dos drivers (custoDriverBase é por unidade de driver)
             if (parsed.custoDriverBase && parsed.driverLines && Array.isArray(parsed.driverLines)) {
@@ -1808,6 +1811,7 @@ export const appRouter = router({
           ? Math.round(totalSale * (1 - marginPct) / (1 - discountPct) * 100) / 100
           : Math.round(totalSale * (1 - marginPct) * 100) / 100;
         const costAmount = totalCusto > 0 ? Math.round(totalCusto * 100) / 100 : fallbackCost;
+        console.log(`[Sample] totalCusto=${totalCusto}, fallbackCost=${fallbackCost}, costAmount=${costAmount}`);
         const result = await createSampleOrder({
           quoteId: input.quoteId,
           clientName: quote.clientName,
@@ -1930,6 +1934,25 @@ export const appRouter = router({
       .input(z.object({ quoteId: z.number() }))
       .query(async ({ input }) => {
         return listSampleLinksByQuoteId(input.quoteId);
+      }),
+
+    /** Cancela um pedido de amostra e reverte o status do orçamento */
+    cancel: protectedProcedure
+      .input(z.object({ id: z.number(), quoteId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const sample = await getSampleOrderById(input.id);
+        if (!sample) throw new TRPCError({ code: "NOT_FOUND", message: "Pedido de amostra não encontrado." });
+        await deleteSampleOrder(input.id, input.quoteId);
+        await insertAuditLog({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email ?? "",
+          userName: ctx.user.name ?? "",
+          action: "sample_cancelled",
+          entityType: "sample_order",
+          entityId: input.id,
+          details: JSON.stringify({ quoteId: input.quoteId }),
+        });
+        return { success: true };
       }),
 
     /** Estatísticas de amostras para o dashboard */
