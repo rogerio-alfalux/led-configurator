@@ -66,7 +66,7 @@ export const quotes = mysqlTable("quotes", {
 	vendorName: varchar({ length: 128 }),
 	assistantName: varchar({ length: 128 }),
 	createdByUserId: int().notNull(),
-	status: mysqlEnum(['open','approved','lost','cancelled','invoiced']).default('open').notNull(),
+	status: mysqlEnum(['open','approved','lost','cancelled','invoiced','sample']).default('open').notNull(),
 	currentVersion: int().default(1).notNull(),
 	totalAmount: decimal({ precision: 12, scale: 2 }).default('0'),
 	approvedAt: timestamp({ mode: 'string' }),

@@ -2250,6 +2250,12 @@
 - [x] Implementar barra deslizante de MKP (range slider) com min/padrão/max no QuoteDetail
 - [x] Passar canEditMkp=true para gerentes/admin nos call sites do SortableEditItem
 
+## Fix: Conversão em Pedido de Amostra (Jul 2026)
+
+- [x] Adicionar 'sample' ao enum de status da tabela quotes no schema
+- [x] Aplicar migration SQL (ALTER TABLE quotes MODIFY COLUMN status)
+- [x] Botão Confirmar Conversão agora funciona corretamente
+
 ## v35 — Unificar DIFAL + FCP em linha única (Jul 2026)
 
 - [x] ExcelPreviewModal: unificar DIFAL e FCP em uma única linha com cálculo correto
