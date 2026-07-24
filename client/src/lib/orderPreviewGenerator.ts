@@ -243,7 +243,7 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
   const isLuminew = form.empresa === "LUMINEW";
   // Campo PEDIDO: mostra o número do pedido de fábrica (6 dígitos) se informado,
   // caso contrário mostra "NÃO INFORMADO" para deixar claro que falta o número
-  const pedidoDisplay = form.orderNumber && /^\d{6}$/.test(form.orderNumber)
+  const pedidoDisplay = form.orderNumber && /^\d{6}(-\d+)?$/.test(form.orderNumber)
     ? form.orderNumber
     : "NÃO INFORMADO";
   const displayDays = form.precomputedDisplayDays ?? (form.deliveryDays ?? 20) - 1;

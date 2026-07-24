@@ -1489,8 +1489,8 @@ export default function FactoryOrderDetail() {
     if (!currentOrder || !quoteData) return;
     // Validar número do pedido: exatamente 6 dígitos numéricos
     const orderNum = currentOrder.orderNumber ?? "";
-    if (!/^\d{6}$/.test(orderNum)) {
-      toast.error("Informe o número do pedido (6 dígitos numéricos) antes de gerar o Excel.");
+    if (!/^\d{6}(-\d+)?$/.test(orderNum)) {
+      toast.error("Informe o número do pedido (6 dígitos, ex: 222222 ou 222222-1) antes de gerar o Excel.");
       setEditingOrderNumber(true);
       return;
     }
