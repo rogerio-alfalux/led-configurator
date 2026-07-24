@@ -2294,3 +2294,7 @@
 ## Bug: Discrepância contagem orçamentos aprovados — Meus Orçamentos (74) vs Dashboard (79) em julho
 
 - [x] Investigar queries de contagem em listQuotes vs managerDashboard e corrigir a divergência
+
+## Feature: Card Receita Bruta no Dashboard
+
+- [x] Adicionar card "Receita Bruta" como primeiro card na sequência: Receita Bruta, Lucro Bruto, Lucro Líquido, Taxa de Conversão, Ticket Médio

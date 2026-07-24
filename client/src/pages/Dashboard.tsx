@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   ArrowLeft, ClipboardList, CheckCircle, DollarSign, BarChart2, Target,
   Award, Percent, Edit2, Save, X, ShieldAlert, ChevronDown, ChevronUp, Coins,
-  Users, FileDown, TrendingUp, Package, PieChart, AlertCircle, Activity, FlaskConical, Link2,
+  Users, FileDown, TrendingUp, Package, PieChart, AlertCircle, Activity, FlaskConical, Link2, Receipt,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -696,7 +696,14 @@ export default function Dashboard() {
             {isManager && (
               <>
                 {/* KPIs de Lucratividade e Conversão */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                  <StatCard
+                    title="Receita Bruta"
+                    value={formatBRL(totalVendas)}
+                    sub={`${totalAprovados} orçamentos aprovados`}
+                    icon={<Receipt className="w-5 h-5 text-indigo-600" />}
+                    color="text-indigo-600 dark:text-indigo-400"
+                  />
                   <StatCard
                     title="Lucro Bruto Estimado"
                     value={formatBRL(lucroBruto)}
