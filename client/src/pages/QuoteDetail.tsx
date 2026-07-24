@@ -153,9 +153,10 @@ interface SortableEditItemProps {
   canOverrideApiPrice?: boolean;
   canEditDriverPrice?: boolean;
   isCostPrivileged?: boolean;
+  canEditMkp?: boolean;
 }
 
-function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, resolvePhoto, onUpdate, onDelete, onDuplicate, onReplace, onUploadSpecialPhoto, canOverrideApiPrice = false, canEditDriverPrice = false, isCostPrivileged = false }: SortableEditItemProps) {
+function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, resolvePhoto, onUpdate, onDelete, onDuplicate, onReplace, onUploadSpecialPhoto, canOverrideApiPrice = false, canEditDriverPrice = false, isCostPrivileged = false, canEditMkp = false }: SortableEditItemProps) {
   const [specialUploading, setSpecialUploading] = useState(false);
   const [seqInputVal, setSeqInputVal] = useState<string>("");
   const d = item.parsed;
@@ -528,6 +529,60 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
         </div>
       )}
 
+      {/* MKP (Markup) slider — apenas gerentes/admin com dados de custo */}
+      {canEditMkp && d.custoCorpoBase != null && d.custoCorpoBase > 0 && (() => {
+        const custoCorpo = d.custoCorpoBase!;
+        const mkpMin = d.markupMinimoApi ?? 1;
+        const mkpPad = d.markupPadraoApi ?? mkpMin;
+        const mkpMax = Math.max(mkpPad, mkpMin + 2);
+        const currentMkp = d.mkpCustom != null ? d.mkpCustom : mkpPad;
+        const previewPrice = Math.round(custoCorpo * currentMkp * 100) / 100;
+        return (
+          <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-50/30 dark:bg-amber-900/10 p-3 mt-2">
+            <div className="flex items-center gap-2">
+              <Label className="text-amber-700 dark:text-amber-400 font-semibold text-xs uppercase tracking-wide">MKP (Markup)</Label>
+              <span className="text-xs text-muted-foreground">Apenas gerentes</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min={mkpMin}
+                max={mkpMax}
+                step={0.01}
+                value={currentMkp}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  const newPrice = Math.round(custoCorpo * v * 100) / 100;
+                  onUpdate(item.id, { mkpCustom: v, unitPrice: newPrice, totalPrice: Math.round(newPrice * d.qty * 100) / 100 });
+                }}
+                className="flex-1 accent-amber-600"
+              />
+              <Input
+                type="number"
+                min={mkpMin}
+                max={mkpMax}
+                step={0.01}
+                value={currentMkp}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  if (!isNaN(v)) {
+                    const clamped = Math.min(Math.max(v, mkpMin), mkpMax);
+                    const newPrice = Math.round(custoCorpo * clamped * 100) / 100;
+                    onUpdate(item.id, { mkpCustom: clamped, unitPrice: newPrice, totalPrice: Math.round(newPrice * d.qty * 100) / 100 });
+                  }
+                }}
+                className="w-20 text-center h-8"
+              />
+            </div>
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Mín: {mkpMin.toFixed(2)}</span>
+              <span>Padrão: {mkpPad.toFixed(2)}</span>
+              <span>Preço: R$ {previewPrice.toFixed(2).replace('.', ',')}</span>
+            </div>
+            <p className="text-xs text-amber-600 dark:text-amber-400">Custo base: R$ {custoCorpo.toFixed(2).replace('.', ',')} · Alteração reflete no campo de preço acima.</p>
+          </div>
+        );
+      })()}
 
       {/* Campos editáveis do Item Especial */}
       {d.isSpecialItem && (
@@ -2414,6 +2469,9 @@ export default function QuoteDetail() {
                                     isCostPrivileged={
                                       (user as any)?.role === 'admin' || COST_PRIVILEGED_EMAILS.map(e => e.toLowerCase()).includes(((user as any)?.email ?? "").toLowerCase())
                                     }
+                                    canEditMkp={
+                                      (user as any)?.role === 'admin' || (user as any)?.role === 'gerente' || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(((user as any)?.email ?? "").toLowerCase())
+                                    }
                                   />
                                   );
                                 })}
@@ -2505,6 +2563,9 @@ export default function QuoteDetail() {
                           }
                           isCostPrivileged={
                             (user as any)?.role === 'admin' || COST_PRIVILEGED_EMAILS.map(e => e.toLowerCase()).includes(((user as any)?.email ?? "").toLowerCase())
+                          }
+                          canEditMkp={
+                            (user as any)?.role === 'admin' || (user as any)?.role === 'gerente' || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(((user as any)?.email ?? "").toLowerCase())
                           }
                         />
                       ))}

@@ -2243,3 +2243,9 @@
 - [x] Dashboard: filtro por cliente, obra, vendedor, período
 - [x] Dashboard: indicador de amostras vinculadas vs não-vinculadas
 - [x] Dashboard: ao vincular, opção de cobrar/diluir/apenas associar
+
+## v34b — Restaurar Barra Deslizante de MKP por Item no QuoteDetail (Jul 2026)
+
+- [x] Adicionar prop canEditMkp ao SortableEditItem no QuoteDetail.tsx
+- [x] Implementar barra deslizante de MKP (range slider) com min/padrão/max no QuoteDetail
+- [x] Passar canEditMkp=true para gerentes/admin nos call sites do SortableEditItem
