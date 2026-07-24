@@ -2258,6 +2258,7 @@
 - [x] Custo registrado agora usa custoCorpoBase da API (custo real sem markup), não mais reversão de margem
 - [x] Botão "Cancelar Amostra" adicionado no card do Pedido de Amostra (reverte status para Em Aberto e remove registro)
 - [x] Equipamentos do Item Especial separados por tipo: Drivers → coluna EQUIPAMENTOS; Módulo LED/Óptica/Holder/Dissipador → coluna FONTE DE LUZ (Preview, Excel)
+- [x] Sincronizar itens novos do orçamento no pedido de fábrica: detectar itens ausentes e mostrar botão para adicioná-los
 
 ## v35 — Unificar DIFAL + FCP em linha única (Jul 2026)
 

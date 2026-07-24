@@ -1064,6 +1064,8 @@ export default function FactoryOrderDetail() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewForm, setPreviewForm] = useState<(OrderFormData & { prazoStr?: string }) | null>(null);
   const [previewItems, setPreviewItems] = useState<CartItemData[]>([]);
+  // Sincronização de itens novos do orçamento
+  const [isSyncingItems, setIsSyncingItems] = useState(false);
 
   // Dados do orçamento
   const { data: quoteData, isLoading: quoteLoading } = trpc.quotes.getById.useQuery({ id: Number(quoteId) });
@@ -1274,6 +1276,51 @@ export default function FactoryOrderDetail() {
     removeItemMutation.mutate({ itemId });
     setHasUnpublishedChanges(true);
   }, [removeItemMutation]);
+
+  // Detecta itens do orçamento que ainda não estão no pedido de fábrica
+  // Compara por SKU + descrição para evitar duplicatas
+  const missingQuoteItems = useMemo(() => {
+    if (!quoteData || !currentOrder) return [];
+    const { versions, items } = quoteData;
+    const sortedVersions = [...versions].sort((a, b) => b.version - a.version);
+    const currentVersionId = sortedVersions[0]?.id;
+    const quoteCurrentItems = items.filter(i => i.quoteVersionId === currentVersionId);
+    // SKUs já presentes no pedido de fábrica
+    const orderSkus = new Set(
+      currentOrder.items.map(i => {
+        const d = parseCartItemData(i.itemData);
+        return d ? `${d.sku}|${d.description}` : null;
+      }).filter(Boolean)
+    );
+    // Itens do orçamento que não estão no pedido
+    return quoteCurrentItems.filter(qi => {
+      const d = parseCartItemData(qi.itemData);
+      if (!d) return false;
+      if (d.category === 'Não Orçamos') return false;
+      return !orderSkus.has(`${d.sku}|${d.description}`);
+    });
+  }, [quoteData, currentOrder]);
+
+  const handleSyncMissingItems = useCallback(async () => {
+    if (!effectiveOrderId || missingQuoteItems.length === 0) return;
+    setIsSyncingItems(true);
+    try {
+      const maxNum = (currentOrder?.items ?? []).reduce((m, i) => Math.max(m, i.itemNumber), 0);
+      for (let i = 0; i < missingQuoteItems.length; i++) {
+        await addItemMutation.mutateAsync({
+          factoryOrderId: effectiveOrderId,
+          itemNumber: maxNum + i + 1,
+          itemData: missingQuoteItems[i].itemData,
+        });
+      }
+      toast.success(`${missingQuoteItems.length} item(ns) adicionado(s) ao pedido`);
+      setHasUnpublishedChanges(true);
+    } catch (err: unknown) {
+      toast.error(`Erro ao sincronizar: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsSyncingItems(false);
+    }
+  }, [effectiveOrderId, missingQuoteItems, currentOrder, addItemMutation]);
 
   const handleAddBlankItem = useCallback(() => {
     if (!effectiveOrderId) return;
@@ -1869,6 +1916,33 @@ export default function FactoryOrderDetail() {
                         Adicionar Item
                       </Button>
                     </div>
+
+                    {/* Banner de itens novos do orçamento não sincronizados */}
+                    {missingQuoteItems.length > 0 && (
+                      <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-700 rounded-lg">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                            {missingQuoteItems.length} item(ns) do orçamento não estão neste pedido
+                          </p>
+                          <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                            {missingQuoteItems.map(qi => {
+                              const d = parseCartItemData(qi.itemData);
+                              return d?.sku || 'Item';
+                            }).join(', ')}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white shrink-0"
+                          onClick={handleSyncMissingItems}
+                          disabled={isSyncingItems}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          {isSyncingItems ? 'Adicionando...' : 'Adicionar ao Pedido'}
+                        </Button>
+                      </div>
+                    )}
 
                     {currentOrder.items.length === 0 ? (
                       <Card className="text-center py-8">
