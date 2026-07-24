@@ -928,6 +928,27 @@ function ShapeResultCard({
     const _perfilUnitPrice = shapeDrvLines && precoLuminaria != null
       ? precoLuminaria
       : (precoEfetivo ?? null);
+    // Computar custoCorpoBase e markups para o slider de MKP (perfis)
+    const _perfilCustoData = (() => {
+      if (!skuPriceMap || shapeResult.pieces.length === 0) return {};
+      const shapePowerLabel = toPowerLabel(shapeResult.power, shapeResult.stripMethod);
+      let totalCusto = 0;
+      let allHaveCusto = true;
+      let minMkpPadrao: number | null = null;
+      let minMkpMinimo: number | null = null;
+      for (const piece of shapeResult.pieces) {
+        const entry = skuPriceMap[`${piece.sku}|${shapePowerLabel}`] ?? skuPriceMap[piece.sku];
+        const custo = entry?.custoOnoff220 ?? null;
+        const mkpPad = entry?.markupPadraoOnoff220v ?? null;
+        const mkpMin = entry?.markupMinimoOnoff220v ?? null;
+        if (custo == null || mkpPad == null) { allHaveCusto = false; break; }
+        totalCusto += custo * piece.quantity;
+        if (minMkpPadrao == null || mkpPad < minMkpPadrao) minMkpPadrao = mkpPad;
+        if (mkpMin != null && (minMkpMinimo == null || mkpMin < minMkpMinimo)) minMkpMinimo = mkpMin;
+      }
+      if (!allHaveCusto || totalCusto <= 0) return {};
+      return { custoCorpoBase: Math.round(totalCusto * 100) / 100, markupPadraoApi: minMkpPadrao, markupMinimoApi: minMkpMinimo ?? minMkpPadrao };
+    })();
     const item: CartItemData = {
       category: "Perfis",
       sku: profileCode || (shapeResult.pieces[0]?.sku.split(".")[0] ?? ""),
@@ -945,6 +966,7 @@ function ShapeResultCard({
       stripMethod: shapeResult.stripMethod,
       availableCCTs: ["2700K", "3000K", "4000K", "5000K", "A definir"],
       shapeTotalLengthMm: shapeResult.totalLengthMm,
+      ..._perfilCustoData,
       ...(shapeDrvLines ? {
         driverLines: shapeDrvLines,
         priceWithoutDriver: shapePrecoSemDriver,
@@ -2248,6 +2270,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                   availableCCTs: ["2700K", "3000K", "4000K", "5000K", "A definir"],
                   itemEmPlanta: itemEmPlanta || "",
                   ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
+                  ...(modulePriceResult ? { custoCorpoBase: (() => { let tc = 0; for (const ci of result.composition) { const e = skuPriceMap?.[`${ci.sku}|${currentPowerLabel}`] ?? skuPriceMap?.[ci.sku]; const c = isD1D2 ? (result.controlType === 'dimDali' ? e?.custoDimDaliD1D2 : result.controlType === 'dim110v' ? e?.custoDim110vD1D2 : /bivolt/i.test(result.voltage) ? e?.custoOnoffBivoltD1D2 : e?.custoOnoff220D1D2) : (result.controlType === 'dimDali' ? e?.custoDimDali : result.controlType === 'dim110v' ? e?.custoDim110v : /bivolt/i.test(result.voltage) ? e?.custoOnoffBivolt : e?.custoOnoff220); if (c == null) return 0; tc += c * ci.quantity; } return Math.round(tc * 100) / 100; })(), markupPadraoApi: modulePriceResult.markupPadrao, markupMinimoApi: modulePriceResult.markupMinimo } : {}),
                   ...(perfilDrvLines ? {
                     driverLines: perfilDrvLines,
                     priceWithoutDriver: perfilPrecoSemDriver,
@@ -9397,6 +9420,7 @@ export default function Home() {
                                     ledBarDriverCode: lbDriverCode,
                                     availableCCTs: r.product.ccts,
                                     itemEmPlanta: globalItemEmPlanta,
+                                    ...getCustoForControle(r.product, r.controle, r.voltage),
                                     ...(lbDrvLines ? {
                                       driverLines: lbDrvLines,
                                       priceWithoutDriver: lbPrecoSemDriver,
@@ -9756,6 +9780,7 @@ export default function Home() {
                                   ledBarNCortes: r.nCortes,
                                   ledBarComprimentoPorTrechoMm: r.comprimentoPorCorte,
                                   ledBarComprimentoTotalMm: r.comprimento,
+                                  ...getCustoForControle(r.product, r.controle ?? 'ON/OFF', '220V'),
                                   ...(bgDrvLines ? { driverLines: bgDrvLines } : {}),
                                 };
                                   if (appendToQuoteId || replaceInQuoteId) {
@@ -10753,7 +10778,7 @@ export default function Home() {
                               itemEmPlanta: globalItemEmPlanta,
                               floorName: globalPavimento || undefined,
                               ambiente: globalAmbiente || undefined,
-                              ...(dDrvLines ? { driverLines: dDrvLines.driverLines, priceWithoutDriver: dDrvLines.priceWithoutDriver, unitPriceLuminaria: dDrvLines.unitPriceLuminaria, unitPriceDriver: dDrvLines.unitPriceDriver, luminariaHasApiPrice: dDrvLines.luminariaHasApiPrice, custoCorpoBase: dDrvLines.custoCorpoBase, custoDriverBase: dDrvLines.custoDriverBase, markupPadraoApi: dDrvLines.markupPadraoApi, markupMinimoApi: dDrvLines.markupMinimoApi, markupMinimoDriverApi: dDrvLines.markupMinimoDriverApi, driverQtyPerUnit: dDrvLines.drvQtyPerUnit } : {}),
+                              ...(dDrvLines ? { driverLines: dDrvLines.driverLines, priceWithoutDriver: dDrvLines.priceWithoutDriver, unitPriceLuminaria: dDrvLines.unitPriceLuminaria, unitPriceDriver: dDrvLines.unitPriceDriver, luminariaHasApiPrice: dDrvLines.luminariaHasApiPrice, custoCorpoBase: dDrvLines.custoCorpoBase, custoDriverBase: dDrvLines.custoDriverBase, markupPadraoApi: dDrvLines.markupPadraoApi, markupMinimoApi: dDrvLines.markupMinimoApi, markupMinimoDriverApi: dDrvLines.markupMinimoDriverApi, driverQtyPerUnit: dDrvLines.drvQtyPerUnit } : getCustoForControle(dProd, 'ON/OFF', dTensaoEfetiva)),
                             };
                             if (appendToQuoteId || replaceInQuoteId) {
                               handleAddItemOrToQuote(item);
@@ -10959,7 +10984,7 @@ export default function Home() {
                               itemEmPlanta: globalItemEmPlanta,
                               floorName: globalPavimento || undefined,
                               ambiente: globalAmbiente || undefined,
-                              ...(bDrvLines ? { driverLines: bDrvLines.driverLines, priceWithoutDriver: bDrvLines.priceWithoutDriver, unitPriceLuminaria: bDrvLines.unitPriceLuminaria, unitPriceDriver: bDrvLines.unitPriceDriver, luminariaHasApiPrice: bDrvLines.luminariaHasApiPrice, custoCorpoBase: bDrvLines.custoCorpoBase, markupPadraoApi: bDrvLines.markupPadraoApi, markupMinimoApi: bDrvLines.markupMinimoApi, driverQtyPerUnit: bDrvLines.drvQtyPerUnit } : {}),
+                              ...(bDrvLines ? { driverLines: bDrvLines.driverLines, priceWithoutDriver: bDrvLines.priceWithoutDriver, unitPriceLuminaria: bDrvLines.unitPriceLuminaria, unitPriceDriver: bDrvLines.unitPriceDriver, luminariaHasApiPrice: bDrvLines.luminariaHasApiPrice, custoCorpoBase: bDrvLines.custoCorpoBase, markupPadraoApi: bDrvLines.markupPadraoApi, markupMinimoApi: bDrvLines.markupMinimoApi, driverQtyPerUnit: bDrvLines.drvQtyPerUnit } : getCustoForControle(bProd, 'ON/OFF', bTensao)),
                             };
                             if (appendToQuoteId || replaceInQuoteId) {
                               handleAddItemOrToQuote(item);
@@ -11224,7 +11249,7 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); return `${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: dlResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
-                            ...(dlDrvLines ? { driverLines: dlDrvLines.driverLines, priceWithoutDriver: dlDrvLines.priceWithoutDriver, unitPriceLuminaria: dlDrvLines.unitPriceLuminaria, unitPriceDriver: dlDrvLines.unitPriceDriver, luminariaHasApiPrice: dlDrvLines.luminariaHasApiPrice, custoCorpoBase: dlDrvLines.custoCorpoBase, custoDriverBase: dlDrvLines.custoDriverBase, markupPadraoApi: dlDrvLines.markupPadraoApi, markupMinimoApi: dlDrvLines.markupMinimoApi, markupMinimoDriverApi: dlDrvLines.markupMinimoDriverApi, driverQtyPerUnit: dlDrvLines.drvQtyPerUnit } : {}),
+                            ...(dlDrvLines ? { driverLines: dlDrvLines.driverLines, priceWithoutDriver: dlDrvLines.priceWithoutDriver, unitPriceLuminaria: dlDrvLines.unitPriceLuminaria, unitPriceDriver: dlDrvLines.unitPriceDriver, luminariaHasApiPrice: dlDrvLines.luminariaHasApiPrice, custoCorpoBase: dlDrvLines.custoCorpoBase, custoDriverBase: dlDrvLines.custoDriverBase, markupPadraoApi: dlDrvLines.markupPadraoApi, markupMinimoApi: dlDrvLines.markupMinimoApi, markupMinimoDriverApi: dlDrvLines.markupMinimoDriverApi, driverQtyPerUnit: dlDrvLines.drvQtyPerUnit } : getCustoForControle(dlResult.product, dlResult.controle, dlResult.tensao)),
                           };
                           if (appendToQuoteId || replaceInQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -11527,7 +11552,7 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = aeResult.driver.code ? ` (${aeResult.driver.code})` : ""; const drvQty = driverQtyFor(aeResult.product, aeResult.controle, aeResult.tensao); return `${drvQty}x DRIVER ${aeResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: aeResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
-                            ...(aeDrvLines ? { driverLines: aeDrvLines.driverLines, priceWithoutDriver: aeDrvLines.priceWithoutDriver, unitPriceLuminaria: aeDrvLines.unitPriceLuminaria, unitPriceDriver: aeDrvLines.unitPriceDriver, luminariaHasApiPrice: aeDrvLines.luminariaHasApiPrice, custoCorpoBase: aeDrvLines.custoCorpoBase, custoDriverBase: aeDrvLines.custoDriverBase, markupPadraoApi: aeDrvLines.markupPadraoApi, markupMinimoApi: aeDrvLines.markupMinimoApi, markupMinimoDriverApi: aeDrvLines.markupMinimoDriverApi, driverQtyPerUnit: aeDrvLines.drvQtyPerUnit } : {}),
+                            ...(aeDrvLines ? { driverLines: aeDrvLines.driverLines, priceWithoutDriver: aeDrvLines.priceWithoutDriver, unitPriceLuminaria: aeDrvLines.unitPriceLuminaria, unitPriceDriver: aeDrvLines.unitPriceDriver, luminariaHasApiPrice: aeDrvLines.luminariaHasApiPrice, custoCorpoBase: aeDrvLines.custoCorpoBase, custoDriverBase: aeDrvLines.custoDriverBase, markupPadraoApi: aeDrvLines.markupPadraoApi, markupMinimoApi: aeDrvLines.markupMinimoApi, markupMinimoDriverApi: aeDrvLines.markupMinimoDriverApi, driverQtyPerUnit: aeDrvLines.drvQtyPerUnit } : getCustoForControle(aeResult.product, aeResult.controle, aeResult.tensao)),
                           };
                           if (appendToQuoteId || replaceInQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -12087,7 +12112,7 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = panelResult.driver.code ? ` (${panelResult.driver.code})` : ""; const drvQty = driverQtyFor(panelResult.product, panelResult.controle, panelResult.tensao); return `${drvQty}x DRIVER ${panelResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: panelResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
-                            ...(panelDrvLines ? { driverLines: panelDrvLines.driverLines, priceWithoutDriver: panelDrvLines.priceWithoutDriver, unitPriceLuminaria: panelDrvLines.unitPriceLuminaria, unitPriceDriver: panelDrvLines.unitPriceDriver, luminariaHasApiPrice: panelDrvLines.luminariaHasApiPrice, custoCorpoBase: panelDrvLines.custoCorpoBase, custoDriverBase: panelDrvLines.custoDriverBase, markupPadraoApi: panelDrvLines.markupPadraoApi, markupMinimoApi: panelDrvLines.markupMinimoApi, markupMinimoDriverApi: panelDrvLines.markupMinimoDriverApi, driverQtyPerUnit: panelDrvLines.drvQtyPerUnit } : {}),
+                            ...(panelDrvLines ? { driverLines: panelDrvLines.driverLines, priceWithoutDriver: panelDrvLines.priceWithoutDriver, unitPriceLuminaria: panelDrvLines.unitPriceLuminaria, unitPriceDriver: panelDrvLines.unitPriceDriver, luminariaHasApiPrice: panelDrvLines.luminariaHasApiPrice, custoCorpoBase: panelDrvLines.custoCorpoBase, custoDriverBase: panelDrvLines.custoDriverBase, markupPadraoApi: panelDrvLines.markupPadraoApi, markupMinimoApi: panelDrvLines.markupMinimoApi, markupMinimoDriverApi: panelDrvLines.markupMinimoDriverApi, driverQtyPerUnit: panelDrvLines.drvQtyPerUnit } : getCustoForControle(panelResult.product, panelResult.controle, panelResult.tensao)),
                           };
                           if (appendToQuoteId || replaceInQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -12418,7 +12443,7 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); return `${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: arandelaResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
-                            ...(arandelaDrvLines ? { driverLines: arandelaDrvLines.driverLines, priceWithoutDriver: arandelaDrvLines.priceWithoutDriver, unitPriceLuminaria: arandelaDrvLines.unitPriceLuminaria, unitPriceDriver: arandelaDrvLines.unitPriceDriver, luminariaHasApiPrice: arandelaDrvLines.luminariaHasApiPrice, custoCorpoBase: arandelaDrvLines.custoCorpoBase, custoDriverBase: arandelaDrvLines.custoDriverBase, markupPadraoApi: arandelaDrvLines.markupPadraoApi, markupMinimoApi: arandelaDrvLines.markupMinimoApi, markupMinimoDriverApi: arandelaDrvLines.markupMinimoDriverApi, driverQtyPerUnit: arandelaDrvLines.drvQtyPerUnit } : {}),
+                            ...(arandelaDrvLines ? { driverLines: arandelaDrvLines.driverLines, priceWithoutDriver: arandelaDrvLines.priceWithoutDriver, unitPriceLuminaria: arandelaDrvLines.unitPriceLuminaria, unitPriceDriver: arandelaDrvLines.unitPriceDriver, luminariaHasApiPrice: arandelaDrvLines.luminariaHasApiPrice, custoCorpoBase: arandelaDrvLines.custoCorpoBase, custoDriverBase: arandelaDrvLines.custoDriverBase, markupPadraoApi: arandelaDrvLines.markupPadraoApi, markupMinimoApi: arandelaDrvLines.markupMinimoApi, markupMinimoDriverApi: arandelaDrvLines.markupMinimoDriverApi, driverQtyPerUnit: arandelaDrvLines.drvQtyPerUnit } : getCustoForControle(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao)),
                           };
                           if (appendToQuoteId || replaceInQuoteId) {
                             handleAddItemOrToQuote(item);
@@ -12721,7 +12746,7 @@ export default function Home() {
                             drivers: (() => { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; const drvQty = driverQtyFor(spotResult.product, spotResult.controle, spotResult.tensao); return `${drvQty}x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
                             availableCCTs: spotResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
-                            ...(spotDrvLines ? { driverLines: spotDrvLines.driverLines, priceWithoutDriver: spotDrvLines.priceWithoutDriver, unitPriceLuminaria: spotDrvLines.unitPriceLuminaria, unitPriceDriver: spotDrvLines.unitPriceDriver, luminariaHasApiPrice: spotDrvLines.luminariaHasApiPrice, custoCorpoBase: spotDrvLines.custoCorpoBase, custoDriverBase: spotDrvLines.custoDriverBase, markupPadraoApi: spotDrvLines.markupPadraoApi, markupMinimoApi: spotDrvLines.markupMinimoApi, markupMinimoDriverApi: spotDrvLines.markupMinimoDriverApi, driverQtyPerUnit: spotDrvLines.drvQtyPerUnit } : {}),
+                            ...(spotDrvLines ? { driverLines: spotDrvLines.driverLines, priceWithoutDriver: spotDrvLines.priceWithoutDriver, unitPriceLuminaria: spotDrvLines.unitPriceLuminaria, unitPriceDriver: spotDrvLines.unitPriceDriver, luminariaHasApiPrice: spotDrvLines.luminariaHasApiPrice, custoCorpoBase: spotDrvLines.custoCorpoBase, custoDriverBase: spotDrvLines.custoDriverBase, markupPadraoApi: spotDrvLines.markupPadraoApi, markupMinimoApi: spotDrvLines.markupMinimoApi, markupMinimoDriverApi: spotDrvLines.markupMinimoDriverApi, driverQtyPerUnit: spotDrvLines.drvQtyPerUnit } : getCustoForControle(spotResult.product, spotResult.controle, spotResult.tensao)),
                           };
                           if (appendToQuoteId || replaceInQuoteId) {
                             handleAddItemOrToQuote(item);
