@@ -330,18 +330,23 @@ ${htmlContent}
   const rvSuffix = ` (RV${revCount})`;
 
   const rtPct = Math.min(Math.max(formData.rtPercent ?? 0, 0), 0.99);
-  const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, -0.99), 0.99);
+  const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
+  const discountPct = Math.min(Math.max(formData.discountPercent ?? 0, 0), 0.99);
   // applyMarkup global (sem margem individual) — usado para totais
   const applyMarkup = (base: number) => {
     const comRT = rtPct > 0 ? base / (1 - rtPct) : base;
-    return marginPct > 0 ? comRT / (1 - marginPct) : marginPct < 0 ? comRT * (1 + marginPct) : comRT;
+    const comMargem = marginPct > 0 ? comRT / (1 - marginPct) : comRT;
+    return discountPct > 0 ? comMargem * (1 - discountPct) : comMargem;
   };
-  // applyMarkupItem — aplica margem global + margem individual do item
-  const applyMarkupItem = (base: number, itemMarginPercent?: number | null) => {
+  // applyMarkupItem — aplica margem global + margem individual do item + desconto global
+  const applyMarkupItem = (base: number, itemMarginPercent?: number | null, itemDiscountPercent?: number | null) => {
     const itemMPct = itemMarginPercent != null ? Math.min(Math.max(itemMarginPercent / 100, 0), 0.99) : 0;
+    const itemDPct = itemDiscountPercent != null ? Math.min(Math.max(itemDiscountPercent / 100, 0), 0.99) : 0;
     const comRT = rtPct > 0 ? base / (1 - rtPct) : base;
-    const comMargem = marginPct > 0 ? comRT / (1 - marginPct) : marginPct < 0 ? comRT * (1 + marginPct) : comRT;
-    return itemMPct > 0 ? comMargem / (1 - itemMPct) : comMargem;
+    const comMargem = marginPct > 0 ? comRT / (1 - marginPct) : comRT;
+    const comItemMargem = itemMPct > 0 ? comMargem / (1 - itemMPct) : comMargem;
+    const comDiscount = discountPct > 0 ? comItemMargem * (1 - discountPct) : comItemMargem;
+    return itemDPct > 0 ? comDiscount * (1 - itemDPct) : comDiscount;
   };
 
   // Ordenar itens por pavimento (mesma logica do gerador Excel)
@@ -462,7 +467,8 @@ ${htmlContent}
   };
 
   const totalComRT = rtPct > 0 ? (totalBase + freteParaDiluir + diluicaoParaDiluir) / (1 - rtPct) : (totalBase + freteParaDiluir + diluicaoParaDiluir);
-  const totalFinal = marginPct > 0 ? totalComRT / (1 - marginPct) : marginPct < 0 ? totalComRT * (1 + marginPct) : totalComRT;
+  const totalComMargem = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
+  const totalFinal = discountPct > 0 ? totalComMargem * (1 - discountPct) : totalComMargem;
   // DIFAL/FCP: alíquota combinada, frete na base (fórmula por dentro)
   const _freteParaImpostoPreview = formData.freteIncluded ? 0 : (formData.freteValue && formData.freteValue > 0 && !formData.freteIsento ? formData.freteValue : 0);
   const baseParaImpostoPreview = totalFinal + _freteParaImpostoPreview;
@@ -481,7 +487,8 @@ ${htmlContent}
   const hasDriverBreakdown = sortedItems.some(it => it.driverLines && it.driverLines.length > 0);
   const applyMarkupFn = (base: number) => {
     const comRT  = rtPct    > 0 ? base   / (1 - rtPct)    : base;
-    return marginPct > 0 ? comRT  / (1 - marginPct) : marginPct < 0 ? comRT * (1 + marginPct) : comRT;
+    const comMargem = marginPct > 0 ? comRT / (1 - marginPct) : comRT;
+    return discountPct > 0 ? comMargem * (1 - discountPct) : comMargem;
   };
   const totalDriverRaw = hasDriverBreakdown
     ? sortedItems.reduce((sum, it) => {
@@ -775,8 +782,8 @@ ${htmlContent}
                           <td style={tdStyle}></td>{/* FOTO vazia */}
                           <td colSpan={7} style={{ ...tdStyle, textAlign: "left", fontStyle: "italic" }}>{item.description || item.sku || "Serviço"}</td>
                           <td style={tdStyle}>{item.qty}</td>
-                          <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent)) : "-"}</td>
-                          <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkupItem(totalPriceComFrete(item) ?? item.totalPrice, item.itemMarginPercent)) : "-"}</td>
+                          <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}</td>
+                          <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkupItem(totalPriceComFrete(item) ?? item.totalPrice, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}</td>
                         </tr>
                       ) : item.driverLines && item.driverLines.length > 0 ? (
                         <tr>
@@ -835,14 +842,14 @@ ${htmlContent}
                             return (<>
                               <td style={tdStyle}>
                                 {_effectiveUnitLum && _effectiveUnitLum > 0
-                                  ? formatBRL(applyMarkupItem(_effectiveUnitLum + _lumDilUnit + _lumFreteFracUnit, item.itemMarginPercent))
+                                  ? formatBRL(applyMarkupItem(_effectiveUnitLum + _lumDilUnit + _lumFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent))
                                   : item.luminariaHasApiPrice === false
                                     ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
                                     : "-"}
                               </td>
                               <td style={tdStyle}>
                                 {_correctedTotal > 0
-                                  ? formatBRL(applyMarkupItem(_correctedTotal + _lumDilTotal + _lumFreteFrac, item.itemMarginPercent))
+                                  ? formatBRL(applyMarkupItem(_correctedTotal + _lumDilTotal + _lumFreteFrac, item.itemMarginPercent, item.itemDiscountPercent))
                                   : item.luminariaHasApiPrice === false
                                     ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
                                     : "-"}
@@ -892,8 +899,8 @@ ${htmlContent}
                             const _unitWithDil = _unitWithFrete + (_qty > 0 ? _diluicaoFatorSimple / _qty : 0);
                             const _totalWithDil = _totalWithFrete + _diluicaoFatorSimple;
                             return (<>
-                              <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkupItem(_unitWithDil, item.itemMarginPercent)) : "-"}</td>
-                              <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkupItem(_totalWithDil, item.itemMarginPercent)) : "-"}</td>
+                              <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkupItem(_unitWithDil, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}</td>
+                              <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkupItem(_totalWithDil, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}</td>
                             </>);
                           })()}
                         </tr>
@@ -969,10 +976,10 @@ ${htmlContent}
                           ))}
                           <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold", color: "#E65100" }}>{_effectiveDrvQty}</td>
                           <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
-                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent)) : "-"}
+                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}
                           </td>
                           <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
-                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupItem(_drvTotalPrice + _drvDilTotal + _drvFreteFrac, item.itemMarginPercent)) : "-"}
+                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupItem(_drvTotalPrice + _drvDilTotal + _drvFreteFrac, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}
                           </td>
                         </tr>
                         );

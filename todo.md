@@ -2202,4 +2202,18 @@
 - [ ] Subpedidos: usuário escolhe quais itens do orçamento compõem cada subpedido (sem repetição entre subpedidos)
 - [x] Feature: Campo de margem aceitar valores negativos como desconto geral (ex: -10 = 10% de desconto em todos os itens)
 - [x] Fix: FITA LED duplicada na requisição de materiais para itens LED BAR (contada 2x: no bloco driverLines e no bloco LED BAR)
-- [x] Feature: Botão "Substituir Item" na edição do orçamento — redireciona para tela inicial, novo item herda posição/ordem, item em planta e quantidade do item substituído
+- [x] Feature: Botão "Substituir Item"
+
+## v33 — Reverter Margem Negativa + Sistema de Desconto (Jul 2026)
+
+- [x] Reverter feature de margem negativa (margem apenas positiva)
+- [x] Criar constante DISCOUNT_EDITORS_EMAILS em shared/const.ts
+- [x] Criar campo discountPercent decimal(5,4) default 0 na tabela quotes (DB migration)
+- [x] Criar campo discountPercent por item no JSON de items
+- [x] Backend: aceitar/salvar desconto global e por item, validar permissão por email
+- [x] Frontend Cart.tsx: campo desconto global ao lado da margem (visível todos, editável autorizados)
+- [x] Frontend QuoteDetail.tsx: campo desconto global + por item (visível todos, editável autorizados)
+- [x] Barra de markup por item: atualiza automaticamente ao dar desconto
+- [x] Cálculos de preço: aplicar desconto após margem em Excel, PDF, ExcelPreviewModal
+- [x] Constraint: desconto limitado a 0-99% (não pode exceder markup)
+- [x] Dashboard/Recalc: refletir desconto nos cálculos de totalFinal

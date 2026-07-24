@@ -42,6 +42,7 @@ import { storagePut } from "./storage";
 import { getDb } from "./db";
 import { sellers, assistants } from "../drizzle/schema";
 import { eq, inArray, and } from "drizzle-orm";
+import { DISCOUNT_EDITORS_EMAILS } from "../shared/const";
 
 // ─── Controle de acesso a orçamentos ─────────────────────────────────────────
 /** Emails dos gestores com acesso irrestrito a todos os orçamentos */
@@ -349,6 +350,7 @@ export const appRouter = router({
         lightDesigner: z.string().optional(),
         diluicaoValor: z.number().min(0).optional(),
         diluicaoDescricao: z.string().max(256).optional(),
+        discountPercent: z.number().min(0).max(0.99).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         // Verificar obra duplicada — BLOQUEIA a criação se já existir obra com mesmo nome
@@ -397,6 +399,13 @@ export const appRouter = router({
             });
           }
         }
+        // Validar permissão de desconto — apenas DISCOUNT_EDITORS_EMAILS podem definir desconto
+        if (input.discountPercent && input.discountPercent > 0) {
+          const discountAllowed = DISCOUNT_EDITORS_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
+          if (!discountAllowed) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para aplicar desconto." });
+          }
+        }
         const result = await createQuote({ ...input, createdByUserId: ctx.user.id });
         await insertAuditLog({
           userId: ctx.user.id,
@@ -438,7 +447,7 @@ export const appRouter = router({
         rtDest2Active: z.boolean().optional(),
         rtDest3: z.string().optional(),
         rtDest3Active: z.boolean().optional(),
-        marginPercent: z.number().min(-0.99).max(0.99).optional(),
+        marginPercent: z.number().min(0).max(0.99).optional(),
         freteType: z.enum(["free", "paid", "night", "consult", "pickup"]).optional(),
         freteIsento: z.boolean().optional(),
         freteLocalidade: z.enum(["sp", "other"]).optional(),
@@ -469,6 +478,7 @@ export const appRouter = router({
         quoteNumber: z.string().optional(),
         diluicaoValor: z.number().min(0).optional(),
         diluicaoDescricao: z.string().max(256).optional(),
+        discountPercent: z.number().min(0).max(0.99).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const { quoteId, bumpVersion, ...rest } = input;
@@ -510,11 +520,19 @@ export const appRouter = router({
             });
           }
         }
+        // Validar permissão de desconto — apenas DISCOUNT_EDITORS_EMAILS podem definir desconto
+        if (input.discountPercent && input.discountPercent > 0) {
+          const discountAllowed = DISCOUNT_EDITORS_EMAILS.map(e => e.toLowerCase()).includes(userEmailRev);
+          if (!discountAllowed) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para aplicar desconto." });
+          }
+        }
         // Garantir que 0 seja passado explicitamente (não undefined) para limpar RT/Margem
         const result = await addQuoteRevision(quoteId, {
           ...rest,
           rtPercent: input.rtPercent ?? 0,
           marginPercent: input.marginPercent ?? 0,
+          discountPercent: input.discountPercent ?? 0,
           createdByUserId: ctx.user.id,
         }, bumpVersion ?? false);
         await insertAuditLog({
@@ -1551,8 +1569,14 @@ export const appRouter = router({
               marginPct = snap.marginPercent ? parseFloat(String(snap.marginPercent)) : 0;
             } catch {}
 
+            let discPct = 0;
+            try {
+              const snap2 = JSON.parse(v.headerSnapshot) as any;
+              discPct = snap2.discountPercent ? parseFloat(String(snap2.discountPercent)) : 0;
+            } catch {}
             const totalComRT = rtPct > 0 ? newTotalBase / (1 - rtPct) : newTotalBase;
-            const totalFinalCalc = marginPct > 0 ? totalComRT / (1 - marginPct) : marginPct < 0 ? totalComRT * (1 + marginPct) : totalComRT;
+            const totalComMargem = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
+            const totalFinalCalc = discPct > 0 ? totalComMargem * (1 - discPct) : totalComMargem;
 
             // Recuperar frete, DIFAL e FCP do snapshot
             let freteValor = 0, difalVal = 0, fcpVal = 0;
@@ -1596,8 +1620,14 @@ export const appRouter = router({
             difalValQ = (snap.difalEnabled && snap.difalValue) ? parseFloat(String(snap.difalValue)) : 0;
             fcpValQ = (snap.fcpEnabled && snap.fcpValue) ? parseFloat(String(snap.fcpValue)) : 0;
           } catch {}
+          let discPctQ = 0;
+          try {
+            const snap2 = JSON.parse(latestVersion.headerSnapshot) as any;
+            discPctQ = snap2.discountPercent ? parseFloat(String(snap2.discountPercent)) : 0;
+          } catch {}
           const totalComRTQ = rtPctQ > 0 ? newTotalBaseLatest / (1 - rtPctQ) : newTotalBaseLatest;
-          const totalFinalQ = marginPctQ > 0 ? totalComRTQ / (1 - marginPctQ) : marginPctQ < 0 ? totalComRTQ * (1 + marginPctQ) : totalComRTQ;
+          const totalComMargemQ = marginPctQ > 0 ? totalComRTQ / (1 - marginPctQ) : totalComRTQ;
+          const totalFinalQ = discPctQ > 0 ? totalComMargemQ * (1 - discPctQ) : totalComMargemQ;
           const newTotalFinalQ = totalFinalQ + freteValorQ + difalValQ + fcpValQ;
 
           await db.update(quotes)

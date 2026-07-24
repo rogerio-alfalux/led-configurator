@@ -122,7 +122,7 @@ import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator"
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 import { StateCitySelector, isSaoPauloCapital } from "@/components/StateCitySelector";
 import { toast } from "sonner";
-import { PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS, DRIVER_PRICE_OVERRIDE_EMAILS, COST_PRIVILEGED_EMAILS } from "@shared/const";
+import { PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS, DRIVER_PRICE_OVERRIDE_EMAILS, COST_PRIVILEGED_EMAILS, DISCOUNT_EDITORS_EMAILS } from "@shared/const";
 import { applyCCTChange, applyUnitPriceChange, applyQtyChange } from "@/lib/cctUtils";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -858,6 +858,7 @@ export default function QuoteDetail() {
     quoteNumber: "",
     diluicaoValor: "",
     diluicaoDescricao: "",
+    discountPercent: "0",
   });
 
   // Sellers & Assistants for edit dialog
@@ -1586,18 +1587,16 @@ export default function QuoteDetail() {
     return s + applyItemMarginQD(d.totalPrice ?? 0, d.itemMarginPercent);
   }, 0);
   const editRtPct = Math.min(Math.max(parseFloat(editForm.rtPercent || "0") / 100, 0), 0.99);
-  const editMarginPct = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, -0.99), 0.99);
+  const editMarginPct = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, 0), 0.99);
+  const editDiscountPct = Math.min(Math.max(parseFloat(editForm.discountPercent || "0") / 100, 0), 0.99);
   const editTotalComRT = editRtPct > 0 ? editTotalBase / (1 - editRtPct) : editTotalBase;
-  const editTotalFinal = editMarginPct > 0
-    ? editTotalComRT / (1 - editMarginPct)
-    : editMarginPct < 0
-      ? editTotalComRT * (1 + editMarginPct)
-      : editTotalComRT;
+  const editTotalComMargem = editMarginPct > 0 ? editTotalComRT / (1 - editMarginPct) : editTotalComRT;
+  const editTotalFinal = editDiscountPct > 0 ? editTotalComMargem * (1 - editDiscountPct) : editTotalComMargem;
 
   // Recalcular o total do orçamento dinamicamente (igual ao PDF/Preview/Excel)
   // Usando os campos do quote (não do editForm) para o card de resumo
   const _hdrRtPct = quote.rtPercent ? Math.min(Math.max(parseFloat(String(quote.rtPercent)), 0), 0.99) : 0;
-  const _hdrMarginPct = quote.marginPercent ? Math.min(Math.max(parseFloat(String(quote.marginPercent)), -0.99), 0.99) : 0;
+  const _hdrMarginPct = quote.marginPercent ? Math.min(Math.max(parseFloat(String(quote.marginPercent)), 0), 0.99) : 0;
   const _hdrFreteIncluded = !!(quote as any).freteIncluded;
   const _hdrFreteValue = (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : 0;
   const _hdrFreteParaDiluir = (_hdrFreteIncluded && _hdrFreteValue > 0) ? _hdrFreteValue : 0;
@@ -1629,13 +1628,11 @@ export default function QuoteDetail() {
     }
     return s + applyItemMarginQD(d.totalPrice ?? 0, d.itemMarginPercent);
   }, 0);
+  const _hdrDiscountPct = (quote as any).discountPercent ? Math.min(Math.max(parseFloat(String((quote as any).discountPercent)), 0), 0.99) : 0;
   // Aplicar RT + margem sobre (base + frete diluído + diluição)
   const _hdrTotalComRT = _hdrRtPct > 0 ? (_hdrTotalBase + _hdrFreteParaDiluir + _hdrDiluicao) / (1 - _hdrRtPct) : (_hdrTotalBase + _hdrFreteParaDiluir + _hdrDiluicao);
-  const _hdrTotalFinal = _hdrMarginPct > 0
-    ? _hdrTotalComRT / (1 - _hdrMarginPct)
-    : _hdrMarginPct < 0
-      ? _hdrTotalComRT * (1 + _hdrMarginPct)
-      : _hdrTotalComRT;
+  const _hdrTotalComMargem = _hdrMarginPct > 0 ? _hdrTotalComRT / (1 - _hdrMarginPct) : _hdrTotalComRT;
+  const _hdrTotalFinal = _hdrDiscountPct > 0 ? _hdrTotalComMargem * (1 - _hdrDiscountPct) : _hdrTotalComMargem;
   // Frete separado (não diluído) entra na base do DIFAL
   const _hdrFreteParaImposto = _hdrFreteIncluded ? 0 : (_hdrFreteValue > 0 ? _hdrFreteValue : 0);
   const _hdrBaseParaDifal = _hdrTotalFinal + _hdrFreteParaImposto;
@@ -1682,6 +1679,7 @@ export default function QuoteDetail() {
           rtDest3: quote.rtDest3 ?? undefined,
           rtDest3Active: quote.rtDest3Active ?? false,
           marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
+          discountPercent: (quote as any).discountPercent ? parseFloat(String((quote as any).discountPercent)) : undefined,
           freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
@@ -1844,6 +1842,7 @@ export default function QuoteDetail() {
           rtDest3: quote.rtDest3 ?? undefined,
           rtDest3Active: quote.rtDest3Active ?? false,
           marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
+          discountPercent: (quote as any).discountPercent ? parseFloat(String((quote as any).discountPercent)) : undefined,
           freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
@@ -2007,11 +2006,7 @@ export default function QuoteDetail() {
                         <span className="font-medium text-foreground">Margem:</span> {(marginPct * 100).toFixed(1)}%
                       </p>
                     )}
-                    {marginPct < 0 && (
-                      <p className="text-xs flex items-center gap-1 text-red-500">
-                        <span className="font-medium">Desconto:</span> {Math.abs(marginPct * 100).toFixed(1)}%
-                      </p>
-                    )}
+
                     <p className="text-xs flex items-center gap-1 text-muted-foreground">
                       <span className="font-medium text-foreground">Frete:</span> {freteLabel}
                     </p>
@@ -2548,7 +2543,7 @@ export default function QuoteDetail() {
                       const rtPct = quote.rtPercent ? parseFloat(String(quote.rtPercent)) : 0;
                       const marginPct = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;
                       const totalComRT = rtPct > 0 ? totalBase / (1 - rtPct) : totalBase;
-                      const totalFinal = marginPct > 0 ? totalComRT / (1 - marginPct) : marginPct < 0 ? totalComRT * (1 + marginPct) : totalComRT;
+                      const totalFinal = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
                       // Incluir frete e DIFAL/FCP (alíquota combinada, fórmula por dentro)
                       // Frete separado (não diluído) entra na base do DIFAL; frete diluído já está no totalFinal
                       const itemsFreteValor = !(quote as any).freteIncluded && (quote as any).freteValue && !(quote as any).freteIsento ? parseFloat(String((quote as any).freteValue)) : 0;
@@ -2918,6 +2913,7 @@ export default function QuoteDetail() {
                 quoteNumber: quote.quoteNumber ?? "",
                 diluicaoValor: (quote as any).diluicaoValor != null ? String((quote as any).diluicaoValor) : "",
                 diluicaoDescricao: (quote as any).diluicaoDescricao ?? "",
+                discountPercent: (quote as any).discountPercent ? String(parseFloat(String((quote as any).discountPercent)) * 100) : "0",
               });
             }
           }}>
@@ -3097,8 +3093,7 @@ export default function QuoteDetail() {
                 {/* Aba RT / Margem */}
                 <TabsContent value="financeiro" className="space-y-4 pt-3">
                   <div className="bg-muted/40 rounded-lg p-3 text-xs text-muted-foreground">
-                    Fórmula: <code>Preço final = base ÷ (1 − RT%) ÷ (1 − Margem%)</code><br/>
-                    <code>Desconto: Preço final = base × (1 + Margem%) [quando negativo]</code>
+                    Fórmula: <code>Preço final = base ÷ (1 − RT%) ÷ (1 − Margem%)</code>
                   </div>
                   <div>
                     <Label className="flex items-center gap-2"><Percent className="w-3 h-3" />Reserva Técnica (RT)</Label>
@@ -3123,20 +3118,33 @@ export default function QuoteDetail() {
                     </div>
                   )}
                   <div>
-                    <Label className="flex items-center gap-2"><Percent className="w-3 h-3" />Margem / Desconto</Label>
+                    <Label className="flex items-center gap-2"><Percent className="w-3 h-3" />Margem</Label>
                     <div className="flex items-center gap-2 mt-1">
-                      <Input type="number" min={-99} max={99} step={0.5} className="w-24" value={editForm.marginPercent} onChange={e => setEditForm(f => ({ ...f, marginPercent: e.target.value }))} />
+                      <Input type="number" min={0} max={99} step={0.5} className="w-24" value={editForm.marginPercent} onChange={e => setEditForm(f => ({ ...f, marginPercent: e.target.value }))} />
                       <span className="text-sm text-muted-foreground">%</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Positivo = margem (encarece). Negativo = desconto (reduz preço).
+                      Margem de negociação (encarece o preço final).
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="flex items-center gap-2"><Percent className="w-3 h-3" />Desconto</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Input type="number" min={0} max={99} step={0.5} className="w-24" value={editForm.discountPercent} onChange={e => setEditForm(f => ({ ...f, discountPercent: e.target.value }))} disabled={!DISCOUNT_EDITORS_EMAILS.map(e => e.toLowerCase()).includes(((user as any)?.email ?? "").toLowerCase())} />
+                      <span className="text-sm text-muted-foreground">%</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {DISCOUNT_EDITORS_EMAILS.map(e => e.toLowerCase()).includes(((user as any)?.email ?? "").toLowerCase())
+                        ? "Desconto sobre o preço final (após margem)."
+                        : "Apenas gestores podem aplicar desconto."}
                     </p>
                   </div>
                   <div className="bg-muted/60 rounded-lg p-3 space-y-1 text-sm">
                     <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatBRL(editTotalBase)}</span></div>
                     {editRtPct > 0 && <div className="flex justify-between"><span className="text-muted-foreground">+ RT ({editForm.rtPercent}%)</span><span>{formatBRL(editTotalComRT - editTotalBase)}</span></div>}
-                    {editMarginPct > 0 && <div className="flex justify-between"><span className="text-muted-foreground">+ Margem ({editForm.marginPercent}%)</span><span>{formatBRL(editTotalFinal - editTotalComRT)}</span></div>}
-                    {editMarginPct < 0 && <div className="flex justify-between"><span className="text-red-500">− Desconto ({Math.abs(parseFloat(editForm.marginPercent || "0"))}%)</span><span className="text-red-500">− {formatBRL(Math.abs(editTotalFinal - editTotalComRT))}</span></div>}
+                    {editMarginPct > 0 && <div className="flex justify-between"><span className="text-muted-foreground">+ Margem ({editForm.marginPercent}%)</span><span>{formatBRL(editTotalComMargem - editTotalComRT)}</span></div>}
+                    {editDiscountPct > 0 && <div className="flex justify-between"><span className="text-red-500">− Desconto ({editForm.discountPercent}%)</span><span className="text-red-500">− {formatBRL(editTotalComMargem - editTotalFinal)}</span></div>}
+
                     <div className="flex justify-between font-bold border-t pt-1"><span>Total final</span><span className="text-primary">{formatBRL(editTotalFinal)}</span></div>
                   </div>
                 </TabsContent>
@@ -3489,13 +3497,9 @@ export default function QuoteDetail() {
                     if (!editForm.clientName.trim()) { toast.error("Nome do cliente é obrigatório."); return; }
                     if (!editForm.projectNumber.trim()) { toast.error("Informe o Número do Projeto ou marque \"Sem Projeto\"."); return; }
                     const editRtPctVal = Math.min(Math.max(parseFloat(editForm.rtPercent || "0") / 100, 0), 0.99);
-                    const editMarginPctVal = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, -0.99), 0.99);
+                    const editMarginPctVal = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, 0), 0.99);
                     const totalComRTVal = editRtPctVal > 0 ? editTotalBase / (1 - editRtPctVal) : editTotalBase;
-                    const totalFinalVal = editMarginPctVal > 0
-                      ? totalComRTVal / (1 - editMarginPctVal)
-                      : editMarginPctVal < 0
-                        ? totalComRTVal * (1 + editMarginPctVal)
-                        : totalComRTVal;
+                    const totalFinalVal = editMarginPctVal > 0 ? totalComRTVal / (1 - editMarginPctVal) : totalComRTVal;
                     // Calcular frete e DIFAL/FCP (alíquota combinada, fórmula por dentro)
                     // Frete separado (não diluído) entra na base do DIFAL; frete diluído já está no editTotalFinal
                     const editFreteValor = !editForm.freteIncluded && editForm.freteValue && !editForm.freteIsento ? parseFloat(editForm.freteValue) : 0;
@@ -3564,6 +3568,7 @@ export default function QuoteDetail() {
                       quoteNumber: editForm.quoteNumber.trim() || undefined,
                       diluicaoValor: editForm.diluicaoValor ? parseFloat(editForm.diluicaoValor) : undefined,
                       diluicaoDescricao: editForm.diluicaoDescricao || undefined,
+                      discountPercent: editDiscountPct > 0 ? editDiscountPct : 0,
                       ...(() => {
                         const info = editForm.destState ? getStateInfo(editForm.destState) : undefined;
                         return {
@@ -4367,7 +4372,8 @@ export default function QuoteDetail() {
           assistantName: quote.assistantName ?? undefined,
           rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) : undefined,
           marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
-                    freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
+          discountPercent: (quote as any).discountPercent ? parseFloat(String((quote as any).discountPercent)) : undefined,
+          freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
           freteCity: (quote as any).freteCity ?? undefined,
@@ -4413,6 +4419,7 @@ export default function QuoteDetail() {
           assistantName: quote.assistantName ?? undefined,
           rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) : undefined,
           marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
+          discountPercent: (quote as any).discountPercent ? parseFloat(String((quote as any).discountPercent)) : undefined,
           freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",

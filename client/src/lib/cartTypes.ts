@@ -229,6 +229,12 @@ export interface CartItemData {
    */
   itemMarginPercent?: number;
   /**
+   * Desconto específico por item (0–100, ex: 5 = 5%).
+   * Aplicado após a margem (global + individual). Reduz o preço final do item.
+   * Apenas usuários autorizados (DISCOUNT_EDITORS_EMAILS) podem definir.
+   */
+  itemDiscountPercent?: number;
+  /**
    * ID do pavimento/zona ao qual este item pertence.
    * Usado para agrupar itens por pavimento no Excel.
    */
@@ -444,6 +450,8 @@ export interface QuoteFormData {
   diluicaoValor?: number;
   /** Descrição interna da diluição */
   diluicaoDescricao?: string;
+  /** Percentual de desconto global (0–1, ex: 0.10 = 10%). Aplicado após margem. */
+  discountPercent?: number;
   /**
    * Data de criação do orçamento (ISO string, ex: "2026-07-17T00:00:00.000Z").
    * Usado para distinguir orçamentos antigos (antes de 17/07/2026) dos novos,

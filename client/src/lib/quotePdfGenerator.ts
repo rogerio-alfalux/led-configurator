@@ -131,6 +131,10 @@ async function _generatePdfBlob(
     const p = it.itemMarginPercent != null ? Math.min(Math.max(it.itemMarginPercent / 100, 0), 0.99) : 0;
     return p > 0 ? base / (1 - p) : base;
   };
+  const _pdfApplyItemDiscount = (base: number, it: CartItemData): number => {
+    const d = (it as any).itemDiscountPercent != null ? Math.min(Math.max((it as any).itemDiscountPercent / 100, 0), 0.99) : 0;
+    return d > 0 ? base * (1 - d) : base;
+  };
   const totalBase = items
     .filter(it => it.category !== 'Não Orçamos')
     .reduce((sum, it) => {
@@ -139,9 +143,11 @@ async function _generatePdfBlob(
       return sum + _pdfApplyItemMgn(lum + drv, it);
     }, 0);
   const rtPct     = Math.min(Math.max(formData.rtPercent    ?? 0, 0), 0.99);
-  const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, -0.99), 0.99);
+  const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
+  const discountPct = Math.min(Math.max(formData.discountPercent ?? 0, 0), 0.99);
   const totalComRT  = rtPct     > 0 ? totalBase  / (1 - rtPct)    : totalBase;
-  const totalFinal  = marginPct > 0 ? totalComRT / (1 - marginPct) : marginPct < 0 ? totalComRT * (1 + marginPct) : totalComRT;
+  const totalComMargem = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
+  const totalFinal  = discountPct > 0 ? totalComMargem * (1 - discountPct) : totalComMargem;
   const freteParaBase = formData.freteIncluded ? 0
     : (formData.freteValue && formData.freteValue > 0 && !formData.freteIsento ? formData.freteValue : 0);
   const baseParaImposto = totalFinal + freteParaBase;
@@ -169,7 +175,8 @@ async function _generatePdfBlob(
     }, 0);
   const _pdfApplyGlobalMarkupGlobal = (base: number) => {
     const comRT = rtPct > 0 ? base / (1 - rtPct) : base;
-    return marginPct > 0 ? comRT / (1 - marginPct) : marginPct < 0 ? comRT * (1 + marginPct) : comRT;
+    const comMargem = marginPct > 0 ? comRT / (1 - marginPct) : comRT;
+    return discountPct > 0 ? comMargem * (1 - discountPct) : comMargem;
   };
 
   // ── CABEÇALHO ─────────────────────────────────────────────────────────────
@@ -314,7 +321,7 @@ async function _generatePdfBlob(
       : 0;
     const lumTotal = item.totalPrice ?? 0;
     const drvTotal = item.driverLines?.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0) ?? 0;
-    const itemTotal = _pdfApplyGlobalMarkupGlobal(itemRaw + _pdfFreteFatorItem);
+    const itemTotal = _pdfApplyItemDiscount(_pdfApplyGlobalMarkupGlobal(itemRaw + _pdfFreteFatorItem), item);
 
     // Modelo: SKU + descrição
     const modeloText = item.sku ? `${item.sku}\n${item.description || ""}` : (item.description || "");
@@ -380,7 +387,7 @@ async function _generatePdfBlob(
         // Peso do driver no item para distribuição do frete
         const _drvPeso = itemRaw > 0 ? _drvTotalRaw / itemRaw : 0;
         const _drvFreteFrac = _pdfFreteFatorItem * _drvPeso;
-        const drvTotal2 = _pdfApplyGlobalMarkupGlobal(_pdfApplyItemMgn(_drvTotalRaw + _drvFreteFrac, item));
+        const drvTotal2 = _pdfApplyItemDiscount(_pdfApplyGlobalMarkupGlobal(_pdfApplyItemMgn(_drvTotalRaw + _drvFreteFrac, item)), item);
         tableBody.push([
           "", "",
           `  ↳ Driver: ${drv.driverModel || drv.driverCode || ""}`,

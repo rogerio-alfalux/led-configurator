@@ -686,8 +686,10 @@ async function _generateExcelBuffer(
       ws.getCell(`L${rowNum}`).value = item.qty;
       const _rtPctS = Math.min(Math.max(formData.rtPercent ?? 0, 0), 0.99);
       const _mPctS = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
+      const _dPctS = Math.min(Math.max(formData.discountPercent ?? 0, 0), 0.99);
       const _itemMPctS = item.itemMarginPercent != null ? Math.min(Math.max(item.itemMarginPercent / 100, 0), 0.99) : 0;
-      const applyMarkupS = (b: number) => { const r = _rtPctS > 0 ? b / (1 - _rtPctS) : b; const m = _mPctS > 0 ? r / (1 - _mPctS) : r; return _itemMPctS > 0 ? m / (1 - _itemMPctS) : m; };
+      const _itemDPctS = item.itemDiscountPercent != null ? Math.min(Math.max(item.itemDiscountPercent / 100, 0), 0.99) : 0;
+      const applyMarkupS = (b: number) => { const r = _rtPctS > 0 ? b / (1 - _rtPctS) : b; const m = _mPctS > 0 ? r / (1 - _mPctS) : r; const im = _itemMPctS > 0 ? m / (1 - _itemMPctS) : m; const d = _dPctS > 0 ? im * (1 - _dPctS) : im; return _itemDPctS > 0 ? d * (1 - _itemDPctS) : d; };
       const _uS = _unitPriceComDiluicao(item);
       const _tS = _totalPriceComDiluicao(item);
       if (_uS !== null && _uS > 0) {
@@ -844,15 +846,21 @@ async function _generateExcelBuffer(
     // Quando há driverLines, mostra apenas o preço da luminária (sem driver) na linha principal
     const _rtPct    = Math.min(Math.max(formData.rtPercent    ?? 0, 0), 0.99);
     const _marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
+    const _discPct   = Math.min(Math.max(formData.discountPercent ?? 0, 0), 0.99);
     // Margem individual do item (acréscimo adicional sobre a margem global)
     const _itemMarginPct = item.itemMarginPercent != null
       ? Math.min(Math.max(item.itemMarginPercent / 100, 0), 0.99)
+      : 0;
+    // Desconto individual do item
+    const _itemDiscPct = item.itemDiscountPercent != null
+      ? Math.min(Math.max(item.itemDiscountPercent / 100, 0), 0.99)
       : 0;
     const applyMarkup = (base: number) => {
       const comRT  = _rtPct    > 0 ? base   / (1 - _rtPct)    : base;
       const comMargem = _marginPct > 0 ? comRT  / (1 - _marginPct) : comRT;
       const comItemMargem = _itemMarginPct > 0 ? comMargem / (1 - _itemMarginPct) : comMargem;
-      return comItemMargem;
+      const comDiscount = _discPct > 0 ? comItemMargem * (1 - _discPct) : comItemMargem;
+      return _itemDiscPct > 0 ? comDiscount * (1 - _itemDiscPct) : comDiscount;
     };
     const hasDriverBreakdownItem = item.driverLines && item.driverLines.length > 0;
     const cUnit = ws.getCell(`M${rowNum}`);
@@ -1243,9 +1251,11 @@ async function _generateExcelBuffer(
   const _lumDilFracExcel = _diluicaoParaDiluir - _drvDilFracExcel;
   // Aplicar RT e Margem (mesma fórmula do Cart.tsx)
   const rtPct    = Math.min(Math.max(formData.rtPercent    ?? 0, 0), 0.99);
-  const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, -0.99), 0.99);
+  const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
+  const discountPct = Math.min(Math.max(formData.discountPercent ?? 0, 0), 0.99);
   const totalComRT   = rtPct    > 0 ? totalBase  / (1 - rtPct)    : totalBase;
-  const totalFinal   = marginPct > 0 ? totalComRT / (1 - marginPct) : marginPct < 0 ? totalComRT * (1 + marginPct) : totalComRT;
+  const totalComMargem = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
+  const totalFinal   = discountPct > 0 ? totalComMargem * (1 - discountPct) : totalComMargem;
   // Calcular DIFAL/FCP com alíquota combinada e frete na base
   const _freteParaImpostoBase = formData.freteIncluded ? 0 : (formData.freteValue && formData.freteValue > 0 && !formData.freteIsento ? formData.freteValue : 0); // frete não diluido entra na base
   const baseParaImposto = totalFinal + _freteParaImpostoBase;
@@ -1315,8 +1325,8 @@ async function _generateExcelBuffer(
   if (hasDriverBreakdown && totalDriverRaw > 0) {
     const applyMarkupLocal = (base: number) => {
       const comRT  = rtPct    > 0 ? base   / (1 - rtPct)    : base;
-      const final  = marginPct > 0 ? comRT  / (1 - marginPct) : marginPct < 0 ? comRT * (1 + marginPct) : comRT;
-      return final;
+      const comMargem = marginPct > 0 ? comRT / (1 - marginPct) : comRT;
+      return discountPct > 0 ? comMargem * (1 - discountPct) : comMargem;
     };
     const totalSemDriverFinal = applyMarkupLocal(totalSemDriverRaw + _lumDilFracExcel);
     const totalDriverFinal = applyMarkupLocal(totalDriverRaw + _drvDilFracExcel);

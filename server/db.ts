@@ -359,6 +359,8 @@ export interface SaveQuoteInput {
   diluicaoValor?: number;
   /** Descrição interna da diluição */
   diluicaoDescricao?: string;
+  /** Percentual de desconto global (0–1, ex: 0.10 = 10%) */
+  discountPercent?: number;
 }
 
 /** Cria um novo orçamento com versão 1 */
@@ -444,6 +446,7 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
     lightDesigner: input.lightDesigner ?? null,
     diluicaoValor: input.diluicaoValor != null ? String(input.diluicaoValor) : '0',
     diluicaoDescricao: input.diluicaoDescricao ?? null,
+    discountPercent: input.discountPercent != null ? String(input.discountPercent) : '0',
   });
   const quoteId = (qResult as unknown as { insertId: number }[])[0]?.insertId ?? 0;
   // Insert version 0
@@ -567,6 +570,7 @@ export async function addQuoteRevision(
     lightDesigner: input.lightDesigner !== undefined ? (input.lightDesigner ?? null) : quote.lightDesigner,
     diluicaoValor: input.diluicaoValor != null ? String(input.diluicaoValor) : (quote.diluicaoValor ?? '0'),
     diluicaoDescricao: input.diluicaoDescricao !== undefined ? (input.diluicaoDescricao ?? null) : quote.diluicaoDescricao,
+    discountPercent: input.discountPercent != null ? String(input.discountPercent) : (quote.discountPercent ?? '0'),
     ...(input.quoteNumber ? { quoteNumber: input.quoteNumber } : {}),
     updatedAt: sql`NOW()`,
   }).where(eq(quotes.id, quoteId));

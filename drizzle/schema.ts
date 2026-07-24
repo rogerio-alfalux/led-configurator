@@ -137,6 +137,8 @@ export const quotes = mysqlTable("quotes", {
 	diluicaoValor: decimal({ precision: 12, scale: 2 }).default('0'),
 	/** Descrição interna da diluição (ex: "Saldo devedor ORC 04.0123-25") — não aparece no preview/Excel */
 	diluicaoDescricao: varchar({ length: 256 }),
+	/** Percentual de desconto global (0–1, ex: 0.10 = 10%). Aplicado após margem. */
+	discountPercent: decimal({ precision: 5, scale: 4 }).default('0'),
 },
 (table) => [
 	index("quotes_quoteNumber_unique").on(table.quoteNumber),

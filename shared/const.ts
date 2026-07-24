@@ -37,6 +37,16 @@ export const COST_PRIVILEGED_EMAILS: string[] = [
   "rogeriojohnwayne@gmail.com",
   "rogerio@grupoalfalux.com.br",
 ];
+/**
+ * E-mails com permissão para editar o desconto global e por item nos orçamentos.
+ * Apenas estes usuários podem definir/alterar descontos.
+ */
+export const DISCOUNT_EDITORS_EMAILS: string[] = [
+  "vivian@grupoalfalux.com.br",
+  "dennis@grupoalfalux.com.br",
+  "rogeriojohnwayne@gmail.com",
+  "rogerio@grupoalfalux.com.br",
+];
 export const ONE_YEAR_MS = 1000 * 60 * 60 * 24 * 365;
 export const AXIOS_TIMEOUT_MS = 30_000;
 export const UNAUTHED_ERR_MSG = 'Please login (10001)';
