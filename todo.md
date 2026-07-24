@@ -2290,3 +2290,7 @@
 - [x] profitMetrics (db.ts): buscar custo real na API para itens sem custoCorpoBase (acessórios, itens especiais, etc.)
 - [x] Usar mesma lógica do calculateCost: produtos → componentes → acessórios → estimativa por margem
 - [x] Garantir que o Lucro Bruto Estimado e Lucro Líquido Estimado refletem custos reais de todos os orçamentos
+
+## Bug: Discrepância contagem orçamentos aprovados — Meus Orçamentos (74) vs Dashboard (79) em julho
+
+- [x] Investigar queries de contagem em listQuotes vs managerDashboard e corrigir a divergência

@@ -660,8 +660,11 @@ export async function listQuotes(opts: {
   if (opts.status) conditions.push(eq(quotes.status, opts.status));
   if (opts.seller1Name) conditions.push(like(quotes.seller1Name, `%${opts.seller1Name}%`));
   if (opts.assistantName) conditions.push(like(quotes.assistantName, `%${opts.assistantName}%`));
-  if (opts.dateFrom) conditions.push(sql`DATE(createdAt) >= ${opts.dateFrom}`);
-  if (opts.dateTo) conditions.push(sql`DATE(createdAt) <= ${opts.dateTo}`);
+  // Para status 'approved': filtrar por approvedAt (data de aprovação) para consistência com o dashboard
+  // Para outros status: filtrar por createdAt (data de criação)
+  const dateField = opts.status === 'approved' ? 'approvedAt' : 'createdAt';
+  if (opts.dateFrom) conditions.push(sql`DATE(${sql.raw(dateField)}) >= ${opts.dateFrom}`);
+  if (opts.dateTo) conditions.push(sql`DATE(${sql.raw(dateField)}) <= ${opts.dateTo}`);
   if (opts.search) {
     // Busca case-insensitive: banco usa utf8mb4_bin (case-sensitive), por isso usamos LOWER()
     const sLower = `%${opts.search.toLowerCase()}%`;
@@ -682,11 +685,12 @@ export async function listQuotes(opts: {
   const limit = opts.limit ?? 20;
   const offset = opts.offset ?? 0;
 
+  const orderCol = opts.status === 'approved' ? quotes.approvedAt : quotes.createdAt;
   const rows = await db
     .select()
     .from(quotes)
     .where(where)
-    .orderBy(desc(quotes.createdAt))
+    .orderBy(desc(orderCol))
     .limit(limit)
     .offset(offset);
 
