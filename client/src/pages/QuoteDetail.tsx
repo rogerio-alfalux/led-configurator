@@ -4358,44 +4358,62 @@ export default function QuoteDetail() {
           const ue = ((user as any)?.email ?? "").toLowerCase();
           const isCostPriv = (user as any)?.role === 'admin' || COST_PRIVILEGED_EMAILS.map(e => e.toLowerCase()).includes(ue);
           if (!isCostPriv) return null;
-          // Calcular custo total dos itens especiais
-          const rtPctProfit = quote.rtPercent ? parseFloat(String(quote.rtPercent)) : 0;
-          const mPctProfit = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;
-          let totalReceita = 0;
-          let totalCustoEspeciais = 0;
+
+          // ── Calcular métricas de lucro usando a mesma fórmula do dashboard principal ──
+          const IMPOSTOS_PADRAO = 0.12;
+          const tf = Number(quote.totalFinal ?? quote.totalAmount ?? 0); // receita total (com DIFAL/frete)
+          const ta = Number(quote.totalAmount ?? 0); // base sem RT/margem (para RT)
+
+          // Custo dos produtos: custoCorpoBase×qty + custoDriverBase×driverQty
+          let custoProdutos = 0;
+          let temCusto = false;
           for (const item of currentItemsMigrated) {
             const d = parseCartItemData(item.itemData);
             if (!d) continue;
-            const qty = d.qty ?? 1;
-            // Receita do item (preço de venda com markup aplicado)
-            let itemRevenue = 0;
-            if (d.driverLines && d.driverLines.length > 0) {
-              const lumTotal = (d.unitPriceLuminaria ?? 0) * qty;
-              const drvTotal = d.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
-              itemRevenue = lumTotal + drvTotal;
-            } else if (d.totalPrice != null && d.totalPrice > 0) {
-              itemRevenue = d.totalPrice;
-            } else {
-              itemRevenue = (d.unitPrice ?? 0) * qty;
+            const qty = Number(d.qty ?? 1);
+            const custoCorpo = Number(d.custoCorpoBase ?? 0);
+            const custoDriver = Number(d.custoDriverBase ?? 0);
+            let driverQty = 0;
+            if (Array.isArray(d.driverLines) && d.driverLines.length > 0) {
+              driverQty = d.driverLines.reduce((s, dl) => s + Number((dl as any).driverQty ?? 0), 0);
+            } else if ((d as any).driverQtyPerUnit) {
+              driverQty = Number((d as any).driverQtyPerUnit) * qty;
             }
-            // Aplicar RT e margem global
-            if (rtPctProfit > 0) itemRevenue = itemRevenue / (1 - rtPctProfit);
-            if (mPctProfit > 0) itemRevenue = itemRevenue / (1 - mPctProfit);
-            // Aplicar margem individual
-            if (d.itemMarginPercent != null && d.itemMarginPercent > 0) {
-              itemRevenue = itemRevenue / (1 - d.itemMarginPercent / 100);
-            }
-            totalReceita += itemRevenue;
-            // Custo dos itens especiais
-            if (d.isSpecialItem && d.specialCustoUnitario != null && d.specialCustoUnitario > 0) {
-              totalCustoEspeciais += d.specialCustoUnitario * qty;
+            if (custoCorpo > 0) {
+              custoProdutos += custoCorpo * qty + custoDriver * driverQty;
+              temCusto = true;
             }
           }
+
+          // Deduções
+          const impostos = tf * IMPOSTOS_PADRAO;
+          const comm1 = Number(quote.commissionPercent ?? 0);
+          const comm2 = Number((quote as any).commissionPercent2 ?? 0);
+          const comissoes = tf * (comm1 + comm2);
+          const rt = Number(quote.rtPercent ?? 0);
+          const rtVal = ta * rt;
+          const difal = Number(quote.difalValue ?? 0) + Number(quote.fcpValue ?? 0);
+          const freteIncluded = !!(quote as any).freteIncluded;
+          const frete = freteIncluded ? 0 : Number((quote as any).freteValue ?? 0);
+
+          // Lucro Bruto = Receita - Custo Produtos
+          const lucroBruto = tf - custoProdutos;
+          // Lucro Líquido = Lucro Bruto - Impostos - Comissões - RT - DIFAL/FCP - Frete
+          const lucroLiquidoBase = lucroBruto - impostos - comissoes - rtVal - difal - frete;
+
           return (
             <QuoteProfitDashboard
               quoteId={quote.id}
-              totalReceita={totalReceita}
-              totalCustoEspeciais={totalCustoEspeciais}
+              totalReceita={tf}
+              custoProdutos={custoProdutos}
+              temCusto={temCusto}
+              impostos={impostos}
+              comissoes={comissoes}
+              rtVal={rtVal}
+              difal={difal}
+              frete={frete}
+              lucroBruto={lucroBruto}
+              lucroLiquidoBase={lucroLiquidoBase}
               user={user}
             />
           );
@@ -4820,11 +4838,22 @@ export default function QuoteDetail() {
 interface QuoteProfitDashboardProps {
   quoteId: number;
   totalReceita: number;
-  totalCustoEspeciais: number;
+  custoProdutos: number;
+  temCusto: boolean;
+  impostos: number;
+  comissoes: number;
+  rtVal: number;
+  difal: number;
+  frete: number;
+  lucroBruto: number;
+  lucroLiquidoBase: number;
   user: unknown;
 }
 
-function QuoteProfitDashboard({ quoteId, totalReceita, totalCustoEspeciais, user }: QuoteProfitDashboardProps) {
+function QuoteProfitDashboard({
+  quoteId, totalReceita, custoProdutos, temCusto, impostos, comissoes, rtVal, difal, frete,
+  lucroBruto, lucroLiquidoBase, user
+}: QuoteProfitDashboardProps) {
   const [addCostOpen, setAddCostOpen] = useState(false);
   const [newCostDesc, setNewCostDesc] = useState("");
   const [newCostValor, setNewCostValor] = useState("");
@@ -4851,8 +4880,16 @@ function QuoteProfitDashboard({ quoteId, totalReceita, totalCustoEspeciais, user
 
   const additionalCosts = costsQuery.data ?? [];
   const totalAdditionalCosts = additionalCosts.reduce((s, c) => s + parseFloat(String(c.valor)), 0);
-  const lucroLiquido = totalReceita - totalCustoEspeciais - totalAdditionalCosts;
-  const margemLucro = totalReceita > 0 ? (lucroLiquido / totalReceita) * 100 : 0;
+
+  // Fórmula idêntica ao dashboard principal:
+  // Lucro Bruto = Receita - Custo Produtos
+  // Lucro Líquido = Lucro Bruto - Impostos(12%) - Comissões - RT - DIFAL/FCP - Frete
+  // Lucro Líquido Final = Lucro Líquido - Custos Adicionais
+  const lucroLiquido = lucroLiquidoBase - totalAdditionalCosts;
+  const margemBruta = totalReceita > 0 ? (lucroBruto / totalReceita) * 100 : 0;
+  const margemLiquida = totalReceita > 0 ? (lucroLiquido / totalReceita) * 100 : 0;
+
+  const totalDeducoes = impostos + comissoes + rtVal + difal + frete;
 
   return (
     <Card className="border-emerald-200 dark:border-emerald-800">
@@ -4863,111 +4900,159 @@ function QuoteProfitDashboard({ quoteId, totalReceita, totalCustoEspeciais, user
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Resumo financeiro */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {!temCusto && (
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+            ⚠ Custo de produto não disponível para este orçamento. Lucro Bruto não pode ser calculado.
+          </div>
+        )}
+        {/* Resumo financeiro — linha 1: receita, custo, lucro bruto */}
+        <div className="grid grid-cols-3 gap-3">
           <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 p-3 text-center">
             <p className="text-xs text-muted-foreground">Receita Total</p>
             <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">{formatBRL(totalReceita)}</p>
           </div>
-          <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 p-3 text-center">
-            <p className="text-xs text-muted-foreground">Custo Itens Especiais</p>
-            <p className="text-sm font-bold text-amber-700 dark:text-amber-300">{formatBRL(totalCustoEspeciais)}</p>
+          <div className="rounded-lg bg-slate-50 dark:bg-slate-900/40 p-3 text-center">
+            <p className="text-xs text-muted-foreground">Custo Produtos</p>
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{temCusto ? formatBRL(custoProdutos) : '—'}</p>
           </div>
-          <div className="rounded-lg bg-red-50 dark:bg-red-950/30 p-3 text-center">
-            <p className="text-xs text-muted-foreground">Custos Adicionais</p>
-            <p className="text-sm font-bold text-red-700 dark:text-red-300">{formatBRL(totalAdditionalCosts)}</p>
-          </div>
-          <div className={`rounded-lg p-3 text-center ${lucroLiquido >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-red-50 dark:bg-red-950/30'}`}>
-            <p className="text-xs text-muted-foreground">Lucro Líquido</p>
-            <p className={`text-sm font-bold ${lucroLiquido >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
-              {formatBRL(lucroLiquido)}
+          <div className={`rounded-lg p-3 text-center ${lucroBruto >= 0 ? 'bg-blue-50 dark:bg-blue-950/30' : 'bg-red-50 dark:bg-red-950/30'}`}>
+            <p className="text-xs text-muted-foreground">Lucro Bruto</p>
+            <p className={`text-sm font-bold ${lucroBruto >= 0 ? 'text-blue-700 dark:text-blue-300' : 'text-red-700 dark:text-red-300'}`}>
+              {temCusto ? formatBRL(lucroBruto) : '—'}
             </p>
-            <p className="text-xs text-muted-foreground">({margemLucro.toFixed(1)}%)</p>
+            {temCusto && <p className="text-xs text-muted-foreground">{margemBruta.toFixed(1)}%</p>}
           </div>
         </div>
-
-        {/* Lista de custos adicionais */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Custos Adicionais</p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
-              onClick={() => setAddCostOpen(true)}
-            >
-              <PlusCircle className="w-3 h-3" />
-              Incluir Custo Adicional
-            </Button>
+        {/* Deduções */}
+        {(totalDeducoes > 0 || totalAdditionalCosts > 0) && (
+          <div className="bg-muted/30 rounded-md px-3 py-2 space-y-1">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Deduções</p>
+            {impostos > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Impostos (12%)</span>
+                <span className="text-red-600 dark:text-red-400">−{formatBRL(impostos)}</span>
+              </div>
+            )}
+            {comissoes > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Comissões</span>
+                <span className="text-red-600 dark:text-red-400">−{formatBRL(comissoes)}</span>
+              </div>
+            )}
+            {rtVal > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">RT</span>
+                <span className="text-red-600 dark:text-red-400">−{formatBRL(rtVal)}</span>
+              </div>
+            )}
+            {difal > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">DIFAL/FCP</span>
+                <span className="text-red-600 dark:text-red-400">−{formatBRL(difal)}</span>
+              </div>
+            )}
+            {frete > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Frete</span>
+                <span className="text-red-600 dark:text-red-400">−{formatBRL(frete)}</span>
+              </div>
+            )}
+            {additionalCosts.map(cost => (
+              <div key={cost.id} className="flex justify-between text-xs">
+                <span className="text-muted-foreground">{cost.descricao}</span>
+                <span className="text-red-600 dark:text-red-400">−{formatBRL(parseFloat(String(cost.valor)))}</span>
+              </div>
+            ))}
           </div>
-
-          {additionalCosts.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">Nenhum custo adicional registrado.</p>
-          ) : (
-            <div className="space-y-1">
-              {additionalCosts.map(cost => (
-                <div key={cost.id} className="flex items-center justify-between bg-muted/30 rounded px-3 py-1.5">
-                  <div>
-                    <span className="text-sm">{cost.descricao}</span>
-                    <span className="text-xs text-muted-foreground ml-2">
-                      {cost.createdAt ? new Date(cost.createdAt).toLocaleDateString('pt-BR') : ''}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-red-600 dark:text-red-400">
-                      -{formatBRL(parseFloat(String(cost.valor)))}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
-                      onClick={() => deleteCostMutation.mutate({ id: cost.id })}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+        )}
+        {/* Lucro Líquido Final */}
+        <div className={`rounded-lg p-3 text-center ${lucroLiquido >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-red-50 dark:bg-red-950/30'}`}>
+          <p className="text-xs text-muted-foreground">Lucro Líquido {!temCusto ? '(sem custo de produto)' : ''}</p>
+          <p className={`text-lg font-bold ${lucroLiquido >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
+            {formatBRL(lucroLiquido)}
+          </p>
+          <p className="text-xs text-muted-foreground">{margemLiquida.toFixed(1)}% da receita</p>
         </div>
 
-        {/* Dialog para adicionar custo */}
+        {/* Botão para gerenciar custos adicionais */}
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+            onClick={() => setAddCostOpen(true)}
+          >
+            <PlusCircle className="w-3 h-3" />
+            {additionalCosts.length > 0 ? `Gerenciar Custos Adicionais (${additionalCosts.length})` : 'Incluir Custo Adicional'}
+          </Button>
+        </div>
+
+        {/* Dialog para gerenciar custos adicionais */}
         <Dialog open={addCostOpen} onOpenChange={setAddCostOpen}>
           <DialogContent className="max-w-sm">
             <DialogHeader>
-              <DialogTitle>Incluir Custo Adicional</DialogTitle>
+              <DialogTitle>Custos Adicionais</DialogTitle>
             </DialogHeader>
-            <div className="space-y-3">
-              <div>
-                <Label className="text-xs">Descrição</Label>
-                <Input
-                  value={newCostDesc}
-                  onChange={e => setNewCostDesc(e.target.value)}
-                  placeholder="ex: Assistência técnica, Frete extra"
-                  className="mt-1"
-                />
+            <div className="space-y-4">
+              {additionalCosts.length > 0 && (
+                <div className="space-y-1">
+                  {additionalCosts.map(cost => (
+                    <div key={cost.id} className="flex items-center justify-between bg-muted/30 rounded px-3 py-1.5">
+                      <div>
+                        <span className="text-sm">{cost.descricao}</span>
+                        <span className="text-xs text-muted-foreground ml-2">
+                          {cost.createdAt ? new Date(cost.createdAt).toLocaleDateString('pt-BR') : ''}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                          -{formatBRL(parseFloat(String(cost.valor)))}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
+                          onClick={() => deleteCostMutation.mutate({ id: cost.id })}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="border-t pt-3 space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground">Adicionar novo custo</p>
+                <div>
+                  <Label className="text-xs">Descrição</Label>
+                  <Input
+                    value={newCostDesc}
+                    onChange={e => setNewCostDesc(e.target.value)}
+                    placeholder="ex: Assistência técnica, Frete extra"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Valor (R$)</Label>
+                  <Input
+                    value={newCostValor}
+                    onChange={e => setNewCostValor(e.target.value)}
+                    placeholder="ex: 1000,00"
+                    className="mt-1"
+                  />
+                </div>
+                <Button
+                  className="w-full"
+                  disabled={!newCostDesc.trim() || !newCostValor.trim() || createCostMutation.isPending}
+                  onClick={() => {
+                    const valor = parseFloat(newCostValor.replace(',', '.'));
+                    if (isNaN(valor) || valor <= 0) { toast.error("Valor inválido"); return; }
+                    createCostMutation.mutate({ quoteId, descricao: newCostDesc.trim(), valor });
+                  }}
+                >
+                  {createCostMutation.isPending ? "Salvando..." : "Adicionar"}
+                </Button>
               </div>
-              <div>
-                <Label className="text-xs">Valor (R$)</Label>
-                <Input
-                  value={newCostValor}
-                  onChange={e => setNewCostValor(e.target.value)}
-                  placeholder="ex: 1000,00"
-                  className="mt-1"
-                />
-              </div>
-              <Button
-                className="w-full"
-                disabled={!newCostDesc.trim() || !newCostValor.trim() || createCostMutation.isPending}
-                onClick={() => {
-                  const valor = parseFloat(newCostValor.replace(',', '.'));
-                  if (isNaN(valor) || valor <= 0) { toast.error("Valor inválido"); return; }
-                  createCostMutation.mutate({ quoteId, descricao: newCostDesc.trim(), valor });
-                }}
-              >
-                {createCostMutation.isPending ? "Salvando..." : "Adicionar"}
-              </Button>
             </div>
           </DialogContent>
         </Dialog>
