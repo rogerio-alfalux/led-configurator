@@ -1293,6 +1293,20 @@ export default function FactoryOrderDetail() {
     setHasUnpublishedChanges(true);
   }, [removeItemMutation]);
 
+  // Exclusão de pedido/subpedido completo
+  const [showDeleteOrderDialog, setShowDeleteOrderDialog] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<{ id: number; label: string } | null>(null);
+  const deleteOrderMutation = trpc.factoryOrders.deleteOrder.useMutation({
+    onSuccess: () => {
+      utils.factoryOrders.list.invalidate({ quoteId: Number(quoteId) });
+      setSelectedOrderId(null);
+      setShowDeleteOrderDialog(false);
+      setOrderToDelete(null);
+      toast.success('Pedido excluído com sucesso');
+    },
+    onError: (err) => toast.error(`Erro ao excluir: ${err.message}`),
+  });
+
   // Detecta itens do orçamento que ainda não estão em nenhum pedido/subpedido de fábrica
   // Se o pedido atual é um subpedido, verifica todos os irmãos para evitar duplicatas
   const hasSubOrders = siblingSubOrders.length > 0;
@@ -1703,36 +1717,50 @@ export default function FactoryOrderDetail() {
                 const isActive = order.id === effectiveOrderId;
                 const isSub = !!order.parentOrderId;
                 return (
-                  <button
-                    key={order.id}
-                    onClick={() => setSelectedOrderId(order.id)}
-                    className={`w-full text-left rounded-lg border p-3 transition-colors ${
-                      isSub ? "ml-3 " : ""
-                    }${
-                      isActive
-                        ? "border-orange-400 bg-orange-50 dark:bg-orange-950/20"
-                        : "border-border hover:border-orange-300 hover:bg-muted/50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold">
-                        {isSub ? `Sub #${order.subOrderIndex}` : `Rev. ${order.revision}`}
-                      </span>
-                      <Badge className={`text-xs gap-1 ${st.color}`}>
-                        {st.icon}
-                        {st.label}
-                      </Badge>
-                    </div>
-                    {order.orderNumber && (
-                      <p className="text-xs font-mono text-orange-700 dark:text-orange-400 mt-0.5">
-                        Ped. {order.orderNumber}
+                  <div key={order.id} className={`relative group ${isSub ? "ml-3" : ""}`}>
+                    <button
+                      onClick={() => setSelectedOrderId(order.id)}
+                      className={`w-full text-left rounded-lg border p-3 transition-colors ${
+                        isActive
+                          ? "border-orange-400 bg-orange-50 dark:bg-orange-950/20"
+                          : "border-border hover:border-orange-300 hover:bg-muted/50"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold">
+                          {isSub ? `Sub #${order.subOrderIndex}` : `Rev. ${order.revision}`}
+                        </span>
+                        <Badge className={`text-xs gap-1 ${st.color}`}>
+                          {st.icon}
+                          {st.label}
+                        </Badge>
+                      </div>
+                      {order.orderNumber && (
+                        <p className="text-xs font-mono text-orange-700 dark:text-orange-400 mt-0.5">
+                          Ped. {order.orderNumber}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-0.5">{order.empresa}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {toBrasiliaDate(order.createdAt)}
                       </p>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-0.5">{order.empresa}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {toBrasiliaDate(order.createdAt)}
-                    </p>
-                  </button>
+                    </button>
+                    {/* Botão excluir pedido/subpedido */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const label = isSub
+                          ? `Sub #${order.subOrderIndex}${order.orderNumber ? ` (Ped. ${order.orderNumber})` : ''}`
+                          : `Rev. ${order.revision}${order.orderNumber ? ` (Ped. ${order.orderNumber})` : ''}`;
+                        setOrderToDelete({ id: order.id, label });
+                        setShowDeleteOrderDialog(true);
+                      }}
+                      className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-destructive hover:bg-destructive/10"
+                      title="Excluir pedido"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -2357,6 +2385,42 @@ export default function FactoryOrderDetail() {
             >
               <Plus className="w-4 h-4" />
               {isSyncingItems ? 'Adicionando...' : 'Adicionar ao Subpedido'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de confirmação de exclusão de pedido */}
+      <Dialog open={showDeleteOrderDialog} onOpenChange={(open) => { if (!open) { setShowDeleteOrderDialog(false); setOrderToDelete(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="w-5 h-5" />
+              Excluir Pedido de Fábrica
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 text-sm text-destructive">
+              Esta ação é <strong>irreversível</strong>. Todos os itens e histórico deste pedido serão removidos permanentemente.
+            </div>
+            {orderToDelete && (
+              <p className="text-sm text-muted-foreground">
+                Pedido a excluir: <strong>{orderToDelete.label}</strong>
+              </p>
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => { setShowDeleteOrderDialog(false); setOrderToDelete(null); }}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteOrderMutation.isPending}
+              onClick={() => {
+                if (orderToDelete) deleteOrderMutation.mutate({ id: orderToDelete.id });
+              }}
+            >
+              {deleteOrderMutation.isPending ? 'Excluindo...' : 'Excluir Permanentemente'}
             </Button>
           </div>
         </DialogContent>

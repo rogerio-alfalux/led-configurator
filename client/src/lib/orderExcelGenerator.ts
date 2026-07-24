@@ -510,12 +510,21 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     // FONTE DE LUZ (F) — LED BAR: módulo + trechos; perfis: multi-segmento
     // Para Item Especial: coluna F (FONTE DE LUZ) = Módulos LED + Ópticas + Holders + Dissipadores
     // Para outros: dim + potência + DIM + tensão
-    const isDriverTipo = (tipo?: string) => !tipo || tipo.startsWith("DRIVER_");
-    const isFonteLuzTipo = (tipo?: string) => tipo && (tipo === "MODULO_LED" || tipo === "OTICA" || tipo === "HOLDER" || tipo === "DISSIPADOR");
+    // Classifica equipamento como driver ou fonte de luz, usando familia como fallback para itens antigos sem tipo
+    const isDriverTipo = (tipo?: string, familia?: string) => {
+      if (tipo) return tipo.startsWith("DRIVER_");
+      if (familia) { const f = familia.toUpperCase(); return f.includes("DRIVER") || f.includes("FONTE"); }
+      return true;
+    };
+    const isFonteLuzTipo = (tipo?: string, familia?: string) => {
+      if (tipo) return tipo === "MODULO_LED" || tipo === "OTICA" || tipo === "HOLDER" || tipo === "DISSIPADOR";
+      if (familia) { const f = familia.toUpperCase(); return f.includes("MÓDULO") || f.includes("MODULO") || f.includes("ÓPTICA") || f.includes("OPTICA") || f.includes("HOLDER") || f.includes("DISSIPADOR"); }
+      return false;
+    };
     const buildSpecialFonteLuzText = () => {
       const equips = (item as any).specialEquipments as Array<{ codigo?: string; descricao: string; qty: number; familia?: string; tipo?: string }> | undefined;
       if (equips && equips.length > 0) {
-        const fonteLuzEquips = equips.filter(e => isFonteLuzTipo(e.tipo));
+        const fonteLuzEquips = equips.filter(e => isFonteLuzTipo(e.tipo, e.familia));
         if (fonteLuzEquips.length > 0) {
           return fonteLuzEquips.map(e => `${e.qty}x ${e.descricao}${e.codigo ? ` (${e.codigo})` : ''}`).join('\n');
         }
@@ -541,7 +550,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
       const equips = (item as any).specialEquipments as Array<{ codigo?: string; descricao: string; qty: number; familia?: string; tipo?: string }> | undefined;
       if (equips && equips.length > 0) {
         // Apenas drivers vão para a coluna EQUIPAMENTOS
-        const driverEquips = equips.filter(e => isDriverTipo(e.tipo));
+        const driverEquips = equips.filter(e => isDriverTipo(e.tipo, e.familia));
         if (driverEquips.length > 0) {
           return driverEquips.map(e => `${e.qty}x ${e.descricao}${e.codigo ? ` (${e.codigo})` : ''}`).join('\n');
         }

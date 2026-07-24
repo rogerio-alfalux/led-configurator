@@ -439,7 +439,8 @@ export function buildMaterialRequisition(
     }
 
     // ── ITEM ESPECIAL: specialEquipments ─────────────────────────────────
-    if (item.isSpecialItem && item.specialEquipments && item.specialEquipments.length > 0) {
+    const isSpecialItemCheck = item.isSpecialItem || item.category === "Item Especial" || (item.category ?? "").toLowerCase() === "especial";
+    if (isSpecialItemCheck && item.specialEquipments && item.specialEquipments.length > 0) {
       for (const eq of item.specialEquipments) {
         if (!eq.codigo) continue;
         const tipo = detectTipo(eq.descricao, eq.codigo);

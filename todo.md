@@ -2260,6 +2260,9 @@
 - [x] Equipamentos do Item Especial separados por tipo: Drivers → coluna EQUIPAMENTOS; Módulo LED/Óptica/Holder/Dissipador → coluna FONTE DE LUZ (Preview, Excel)
 - [x] Sincronizar itens novos do orçamento no pedido de fábrica: detectar itens ausentes e mostrar botão para adicioná-los
 - [x] Corrigir sincronização de itens em pedidos com subpedidos: não adicionar nos dois subpedidos, permitir escolha do subpedido destino
+- [x] Botão excluir pedido/subpedido de fábrica completo (com confirmação)
+- [x] Corrigir divisão de equipamentos do Item Especial por tipo na ficha de produção (campo tipo não está sendo salvo/lido corretamente; fallback por familia para itens antigos)
+- [x] Garantir que equipamentos do Item Especial aparecem na requisição de materiais (verifica isSpecialItem, category='Item Especial' e category='especial')
 
 ## v35 — Unificar DIFAL + FCP em linha única (Jul 2026)
 

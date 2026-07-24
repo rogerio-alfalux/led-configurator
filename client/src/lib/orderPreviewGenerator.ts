@@ -174,13 +174,31 @@ function buildLedBarEquipamentosText(item: CartItemData): string {
   return `${nCortes}x ${model}${codeSuffix}`;
 }
 
-const isDriverTipoPreview = (tipo?: string) => !tipo || tipo.startsWith("DRIVER_");
-const isFonteLuzTipoPreview = (tipo?: string) => tipo && (tipo === "MODULO_LED" || tipo === "OTICA" || tipo === "HOLDER" || tipo === "DISSIPADOR");
+// Classifica equipamento como driver (coluna EQUIPAMENTOS) ou fonte de luz (coluna FONTE DE LUZ)
+// Usa tipo quando disponível; caso contrário usa familia como fallback para itens antigos
+const isDriverTipoPreview = (tipo?: string, familia?: string) => {
+  if (tipo) return tipo.startsWith("DRIVER_");
+  // Fallback por familia para itens antigos sem tipo salvo
+  if (familia) {
+    const f = familia.toUpperCase();
+    return f.includes("DRIVER") || f.includes("FONTE");
+  }
+  return true; // default: vai para EQUIPAMENTOS
+};
+const isFonteLuzTipoPreview = (tipo?: string, familia?: string) => {
+  if (tipo) return tipo === "MODULO_LED" || tipo === "OTICA" || tipo === "HOLDER" || tipo === "DISSIPADOR";
+  // Fallback por familia para itens antigos sem tipo salvo
+  if (familia) {
+    const f = familia.toUpperCase();
+    return f.includes("MÓDULO") || f.includes("MODULO") || f.includes("ÓPTICA") || f.includes("OPTICA") || f.includes("HOLDER") || f.includes("DISSIPADOR");
+  }
+  return false;
+};
 
 function buildSpecialFonteLuzText(item: CartItemData): string {
-  const equips = (item as any).specialEquipments as Array<{ codigo?: string; descricao: string; qty: number; tipo?: string }> | undefined;
+  const equips = (item as any).specialEquipments as Array<{ codigo?: string; descricao: string; qty: number; tipo?: string; familia?: string }> | undefined;
   if (equips && equips.length > 0) {
-    const fonteLuzEquips = equips.filter(e => isFonteLuzTipoPreview(e.tipo));
+    const fonteLuzEquips = equips.filter(e => isFonteLuzTipoPreview(e.tipo, e.familia));
     if (fonteLuzEquips.length > 0) {
       return fonteLuzEquips.map(e => `${e.qty}x ${esc(e.descricao)}${e.codigo ? ` (${esc(e.codigo)})` : ''}`).join('<br>');
     }
@@ -190,10 +208,10 @@ function buildSpecialFonteLuzText(item: CartItemData): string {
 }
 
 function buildSpecialEquipText(item: CartItemData): string {
-  const equips = (item as any).specialEquipments as Array<{ codigo?: string; descricao: string; qty: number; tipo?: string }> | undefined;
+  const equips = (item as any).specialEquipments as Array<{ codigo?: string; descricao: string; qty: number; tipo?: string; familia?: string }> | undefined;
   if (equips && equips.length > 0) {
     // Apenas drivers vão para a coluna EQUIPAMENTOS
-    const driverEquips = equips.filter(e => isDriverTipoPreview(e.tipo));
+    const driverEquips = equips.filter(e => isDriverTipoPreview(e.tipo, e.familia));
     if (driverEquips.length > 0) {
       return driverEquips.map(e => `${e.qty}x ${esc(e.descricao)}${e.codigo ? ` (${esc(e.codigo)})` : ''}`).join('<br>');
     }

@@ -17,7 +17,7 @@ import {
   insertAuditLog, getAuditLogs, listSellers, listAssistants,
   createFactoryOrder, getFactoryOrdersByQuoteId, getFactoryOrderById,
   updateFactoryOrder, addFactoryOrderItem, updateFactoryOrderItem,
-  deleteFactoryOrderItem, createFactoryOrderRevision,
+  deleteFactoryOrderItem, createFactoryOrderRevision, deleteFactoryOrder,
   createFactoryOrderExcel, listFactoryOrderExcels, getSubOrders,
   getManagerDashboard, getSellerDashboard, getSalesGoalsByYear, upsertSalesGoal,
   getMonthlyReport,
@@ -1241,6 +1241,14 @@ export const appRouter = router({
       .input(z.object({ itemId: z.number() }))
       .mutation(async ({ input }) => {
         await deleteFactoryOrderItem(input.itemId);
+        return { success: true };
+      }),
+
+    /** Remove um pedido de fábrica completo (com itens e subpedidos) */
+    deleteOrder: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await deleteFactoryOrder(input.id);
         return { success: true };
       }),
 

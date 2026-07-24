@@ -1117,6 +1117,22 @@ export async function deleteFactoryOrderItem(itemId: number) {
   await db.delete(factoryOrderItems).where(eq(factoryOrderItems.id, itemId));
 }
 
+/** Remove um pedido de fábrica completo (com todos os seus itens e subpedidos) */
+export async function deleteFactoryOrder(orderId: number) {
+  const db = await getDb();
+  if (!db) throw new Error('DB não disponível');
+  // Remover todos os itens do pedido
+  await db.delete(factoryOrderItems).where(eq(factoryOrderItems.factoryOrderId, orderId));
+  // Remover subpedidos e seus itens (se for pedido pai)
+  const subs = await db.select().from(factoryOrders).where(eq(factoryOrders.parentOrderId, orderId));
+  for (const sub of subs) {
+    await db.delete(factoryOrderItems).where(eq(factoryOrderItems.factoryOrderId, sub.id));
+    await db.delete(factoryOrders).where(eq(factoryOrders.id, sub.id));
+  }
+  // Remover o próprio pedido
+  await db.delete(factoryOrders).where(eq(factoryOrders.id, orderId));
+}
+
 /** Cria uma nova revisão clonando o pedido atual */
 export async function createFactoryOrderRevision(sourceOrderId: number) {
   const db = await getDb();
