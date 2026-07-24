@@ -508,9 +508,23 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     applyBorder(eCell);
 
     // FONTE DE LUZ (F) — LED BAR: módulo + trechos; perfis: multi-segmento
-    // Para Item Especial: dim + potência + DIM + tensão
+    // Para Item Especial: coluna F (FONTE DE LUZ) = Módulos LED + Ópticas + Holders + Dissipadores
+    // Para outros: dim + potência + DIM + tensão
+    const isDriverTipo = (tipo?: string) => !tipo || tipo.startsWith("DRIVER_");
+    const isFonteLuzTipo = (tipo?: string) => tipo && (tipo === "MODULO_LED" || tipo === "OTICA" || tipo === "HOLDER" || tipo === "DISSIPADOR");
+    const buildSpecialFonteLuzText = () => {
+      const equips = (item as any).specialEquipments as Array<{ codigo?: string; descricao: string; qty: number; familia?: string; tipo?: string }> | undefined;
+      if (equips && equips.length > 0) {
+        const fonteLuzEquips = equips.filter(e => isFonteLuzTipo(e.tipo));
+        if (fonteLuzEquips.length > 0) {
+          return fonteLuzEquips.map(e => `${e.qty}x ${e.descricao}${e.codigo ? ` (${e.codigo})` : ''}`).join('\n');
+        }
+      }
+      // Fallback: potência + dim + tensão
+      return [item.specialPower, item.specialDim, item.specialVoltage].filter(Boolean).join(" | ") || "-";
+    };
     const fonteText = item.category === "Item Especial"
-      ? [item.specialPower, item.specialDim, item.specialVoltage].filter(Boolean).join(" | ") || "-"
+      ? buildSpecialFonteLuzText()
       : isLedBar(item)
         ? buildLedBarFonteLuzText(item)
         : buildProfileFonteLuzText(item, descMap);
@@ -521,12 +535,17 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     fCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
     applyBorder(fCell);
 
-    // EQUIPAMENTOS (G) — LED BAR: QTY x driver; perfis: multi-segmento
-    // Para Item Especial: lista de equipamentos definidos (drivers, módulos LED, etc.)
+    // EQUIPAMENTOS (G) — Para Item Especial: apenas Drivers
+    // Para outros: LED BAR: QTY x driver; perfis: multi-segmento
     const buildSpecialEquipText = () => {
-      const equips = (item as any).specialEquipments as Array<{ codigo?: string; descricao: string; qty: number; familia?: string }> | undefined;
+      const equips = (item as any).specialEquipments as Array<{ codigo?: string; descricao: string; qty: number; familia?: string; tipo?: string }> | undefined;
       if (equips && equips.length > 0) {
-        return equips.map(e => `${e.qty}x ${e.descricao}${e.codigo ? ` (${e.codigo})` : ''}`).join('\n');
+        // Apenas drivers vão para a coluna EQUIPAMENTOS
+        const driverEquips = equips.filter(e => isDriverTipo(e.tipo));
+        if (driverEquips.length > 0) {
+          return driverEquips.map(e => `${e.qty}x ${e.descricao}${e.codigo ? ` (${e.codigo})` : ''}`).join('\n');
+        }
+        return "A DEFINIR";
       }
       return "A DEFINIR";
     };

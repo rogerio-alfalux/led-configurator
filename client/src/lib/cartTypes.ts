@@ -43,6 +43,8 @@ export interface SpecialEquipment {
   unitPrice: number | null;
   /** Família do componente (ex: "DRIVERS", "MÓDULOS LED") */
   familia?: string;
+  /** Tipo técnico do componente (ex: "DRIVER_ONOFF_220", "MODULO_LED", "OTICA", "HOLDER", "DISSIPADOR") */
+  tipo?: string;
   /** URL da foto do componente */
   fotoUrl?: string | null;
   /** Observações adicionais (ex: referência do fabricante) */

@@ -174,10 +174,30 @@ function buildLedBarEquipamentosText(item: CartItemData): string {
   return `${nCortes}x ${model}${codeSuffix}`;
 }
 
-function buildSpecialEquipText(item: CartItemData): string {
-  const equips = (item as any).specialEquipments as Array<{ codigo?: string; descricao: string; qty: number }> | undefined;
+const isDriverTipoPreview = (tipo?: string) => !tipo || tipo.startsWith("DRIVER_");
+const isFonteLuzTipoPreview = (tipo?: string) => tipo && (tipo === "MODULO_LED" || tipo === "OTICA" || tipo === "HOLDER" || tipo === "DISSIPADOR");
+
+function buildSpecialFonteLuzText(item: CartItemData): string {
+  const equips = (item as any).specialEquipments as Array<{ codigo?: string; descricao: string; qty: number; tipo?: string }> | undefined;
   if (equips && equips.length > 0) {
-    return equips.map(e => `${e.qty}x ${e.descricao}${e.codigo ? ` (${e.codigo})` : ''}`).join('<br>');
+    const fonteLuzEquips = equips.filter(e => isFonteLuzTipoPreview(e.tipo));
+    if (fonteLuzEquips.length > 0) {
+      return fonteLuzEquips.map(e => `${e.qty}x ${esc(e.descricao)}${e.codigo ? ` (${esc(e.codigo)})` : ''}`).join('<br>');
+    }
+  }
+  // Fallback: potência + dim + tensão
+  return esc([item.specialPower, item.specialDim, item.specialVoltage].filter(Boolean).join(" | ") || "-");
+}
+
+function buildSpecialEquipText(item: CartItemData): string {
+  const equips = (item as any).specialEquipments as Array<{ codigo?: string; descricao: string; qty: number; tipo?: string }> | undefined;
+  if (equips && equips.length > 0) {
+    // Apenas drivers vão para a coluna EQUIPAMENTOS
+    const driverEquips = equips.filter(e => isDriverTipoPreview(e.tipo));
+    if (driverEquips.length > 0) {
+      return driverEquips.map(e => `${e.qty}x ${esc(e.descricao)}${e.codigo ? ` (${esc(e.codigo)})` : ''}`).join('<br>');
+    }
+    return "A DEFINIR";
   }
   return "A DEFINIR";
 }
@@ -229,7 +249,7 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
       : buildProfileSkuText(item);
 
     const fonteText = item.category === "Item Especial"
-      ? esc([item.specialPower, item.specialDim, item.specialVoltage].filter(Boolean).join(" | ") || "-")
+      ? buildSpecialFonteLuzText(item)
       : isLedBar(item)
         ? buildLedBarFonteLuzText(item)
         : buildProfileFonteLuzText(item, descMap);

@@ -104,6 +104,7 @@ export function SpecialEquipmentsEditor({ value, onChange, readOnly = false }: P
       qty,
       unitPrice: item.precoVenda,
       familia: item.familia ?? undefined,
+      tipo: item.tipo,
       fotoUrl: item.fotoUrl,
       observacoes: item.observacoes,
     };
