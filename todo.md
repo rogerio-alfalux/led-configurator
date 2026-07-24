@@ -2255,6 +2255,7 @@
 - [x] Adicionar 'sample' ao enum de status da tabela quotes no schema
 - [x] Aplicar migration SQL (ALTER TABLE quotes MODIFY COLUMN status)
 - [x] Botão Confirmar Conversão agora funciona corretamente
+- [x] Custo registrado agora usa custoCorpoBase da API (custo real sem markup), não mais reversão de margem
 
 ## v35 — Unificar DIFAL + FCP em linha única (Jul 2026)
 

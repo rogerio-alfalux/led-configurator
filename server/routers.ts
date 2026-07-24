@@ -1783,19 +1783,31 @@ export const appRouter = router({
         const quoteData = await getQuoteById(input.quoteId);
         if (!quoteData) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado." });
         const { quote, items } = quoteData;
-        // Calcular custo real: totalAmount é o valor de venda (com margem e desconto aplicados)
-        // Custo = totalAmount / (1 - margem) para reverter a margem
-        // Se houver desconto, o totalAmount já inclui o desconto: totalAmount = base/(1-margem) * (1-desconto)
-        // Portanto: base (custo) = totalAmount / (1 - desconto) * (1 - margem)
+        // Calcular custo real (sem markup) somando custoCorpoBase * qty de cada item
+        // custoCorpoBase é o custo da API antes de aplicar qualquer markup
+        let totalCusto = 0;
+        for (const item of items) {
+          try {
+            const parsed = JSON.parse(item.itemData);
+            const custo = parsed.custoCorpoBase ?? 0;
+            const qty = parsed.qty ?? 1;
+            totalCusto += custo * qty;
+            // Adicionar custo dos drivers (custoDriverBase é por unidade de driver)
+            if (parsed.custoDriverBase && parsed.driverLines && Array.isArray(parsed.driverLines)) {
+              for (const dl of parsed.driverLines) {
+                totalCusto += parsed.custoDriverBase * (dl.driverQty ?? 0);
+              }
+            }
+          } catch { /* skip unparseable items */ }
+        }
+        // Fallback: se nenhum item tem custoCorpoBase, reverter margem do totalAmount
+        const totalSale = parseFloat(String(quote.totalAmount)) || 0;
         const marginPct = parseFloat(String(quote.marginPercent)) || 0;
         const discountPct = parseFloat(String((quote as any).discountPercent)) || 0;
-        const totalSale = parseFloat(String(quote.totalAmount)) || 0;
-        // Reverter: custo = totalSale * (1 - margem) / (1 - desconto)
-        // Na fórmula original: preçoVenda = custo / (1 - margem) * (1 - desconto)
-        // Logo: custo = preçoVenda * (1 - margem) / (1 - desconto)
-        const costAmount = discountPct < 1
+        const fallbackCost = discountPct < 1
           ? Math.round(totalSale * (1 - marginPct) / (1 - discountPct) * 100) / 100
           : Math.round(totalSale * (1 - marginPct) * 100) / 100;
+        const costAmount = totalCusto > 0 ? Math.round(totalCusto * 100) / 100 : fallbackCost;
         const result = await createSampleOrder({
           quoteId: input.quoteId,
           clientName: quote.clientName,
