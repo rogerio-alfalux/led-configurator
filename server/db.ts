@@ -14,6 +14,7 @@ import {
   sampleLinks,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { fetchAllAlfaluxProducts, fetchComponentes, fetchAcessoriosProducts } from './alfaluxApiService';
 // ─── Utilitários de data no fuso de Brasília ────────────────────────────────
 const BRASILIA_TZ = "America/Sao_Paulo";
 
@@ -1327,6 +1328,7 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     freteValue: quotes.freteValue,
     freteIncluded: quotes.freteIncluded,
     rtPercent: quotes.rtPercent,
+    marginPercent: quotes.marginPercent,
   }).from(quotes).where(periodCondition);
 
   // Busca todos os itens dos orçamentos aprovados no período
@@ -1346,6 +1348,17 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     itemsByQuote.get(item.quoteId)!.push(item);
   }
 
+  // ── Buscar dados da API para cálculo de custo real (cache de 5min) ─────────────
+  const [apiProducts, apiCompResult, apiAcessorios] = await Promise.all([
+    fetchAllAlfaluxProducts(),
+    fetchComponentes(),
+    fetchAcessoriosProducts(),
+  ]);
+  const productBySku = new Map(apiProducts.map(p => [p.sku.toUpperCase(), p]));
+  const componenteByCodigo = new Map(apiCompResult.items.filter(c => c.codigo).map(c => [c.codigo!.toUpperCase(), c]));
+  const acessorioByCodigo = new Map(apiAcessorios.filter(a => a.codigo).map(a => [a.codigo!.toUpperCase(), a]));
+  const acessorioBySku = new Map(apiAcessorios.filter(a => a.sku).map(a => [a.sku!.toUpperCase(), a]));
+
   // Calcula lucro bruto e líquido por orçamento
   let totalVendas = 0;
   let totalCustoProdutos = 0;
@@ -1361,8 +1374,9 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     const tf = Number(quote.totalFinal ?? 0);
     const ta = Number(quote.totalAmount ?? 0);
     totalVendas += tf;
+    const marginPercent = Number(quote.marginPercent ?? 0.10);
 
-    // Custo dos produtos: soma custoCorpoBase×qty + custoDriverBase×driverQty por item
+    // Custo dos produtos: buscar em todas as fontes (custoCorpoBase salvo, API produtos, componentes, acessórios)
     const items = itemsByQuote.get(quote.id) ?? [];
     let custoProdutos = 0;
     let temCusto = false;
@@ -1370,14 +1384,159 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
       try {
         const data = typeof row.itemData === 'string' ? JSON.parse(row.itemData) : row.itemData;
         const qty = Number(data.qty ?? 1);
-        const custoCorpo = Number(data.custoCorpoBase ?? 0);
-        const custoDriver = Number(data.custoDriverBase ?? 0);
-        // Quantidade de drivers = driverLines[].driverQty ou driverQtyPerUnit × qty
+        const sku = (data.sku ?? '').toUpperCase();
+
+        // 1. Item Especial: custoManual ou estimativa por margem
+        if (data.isSpecialItem || data.category === 'Item Especial' || data.category === 'especial') {
+          const custoManual = Number(data.custoManual ?? 0);
+          if (custoManual > 0) {
+            custoProdutos += custoManual * qty;
+            temCusto = true;
+          } else {
+            const totalPrice = Number(data.totalPrice ?? 0);
+            if (totalPrice > 0 && marginPercent > 0) {
+              custoProdutos += totalPrice / (1 + marginPercent);
+              temCusto = true;
+            }
+          }
+          continue;
+        }
+
+        // 2. Perfis modulares: cada segmento tem SKU próprio
+        if (Array.isArray(data.profileSegments) && data.profileSegments.length > 0) {
+          let custoCorpoTotal = 0;
+          let allFound = false;
+          let totalDriverQty = 0;
+          let firstDriverCode = '';
+          for (const seg of data.profileSegments) {
+            const segSku = (seg.sku ?? '').toUpperCase();
+            const segQty = Number(seg.qty ?? 1);
+            const segDriverQtyPerPiece = Number(seg.driverQtyPerPiece ?? 0);
+            if (!firstDriverCode && seg.driverCode) firstDriverCode = seg.driverCode.toUpperCase();
+            const segProduct = productBySku.get(segSku);
+            if (segProduct) {
+              const segCusto = Number(segProduct.custoCorpoOnoff220v ?? segProduct.custoLuminaria ?? 0);
+              custoCorpoTotal += segCusto * segQty;
+              if (segCusto > 0) allFound = true;
+            }
+            totalDriverQty += segDriverQtyPerPiece * segQty;
+          }
+          // Driver cost
+          let custoDriverUnit = 0;
+          if (firstDriverCode) {
+            const comp = componenteByCodigo.get(firstDriverCode);
+            if (comp?.custoDriver) custoDriverUnit = Number(comp.custoDriver);
+            else {
+              const acess = acessorioByCodigo.get(firstDriverCode);
+              if (acess?.custo) custoDriverUnit = Number(acess.custo);
+            }
+          }
+          let driverQtyFinal = totalDriverQty * qty;
+          if (Array.isArray(data.driverLines) && data.driverLines.length > 0) {
+            driverQtyFinal = data.driverLines.reduce((s: number, d: any) => s + Number(d.driverQty ?? 0), 0);
+            const dlCode = (data.driverLines[0].driverCode ?? '').toUpperCase();
+            if (dlCode && dlCode !== firstDriverCode) {
+              const comp = componenteByCodigo.get(dlCode);
+              if (comp?.custoDriver) custoDriverUnit = Number(comp.custoDriver);
+              else {
+                const acess = acessorioByCodigo.get(dlCode);
+                if (acess?.custo) custoDriverUnit = Number(acess.custo);
+              }
+            }
+          }
+          if (allFound) {
+            custoProdutos += custoCorpoTotal * qty + custoDriverUnit * driverQtyFinal;
+            temCusto = true;
+          }
+          continue;
+        }
+
+        // 3. Item com custoCorpoBase já salvo
+        const custoCorpoSalvo = Number(data.custoCorpoBase ?? 0);
+        if (custoCorpoSalvo > 0) {
+          const custoDriverSalvo = Number(data.custoDriverBase ?? 0);
+          let driverQty = 0;
+          if (Array.isArray(data.driverLines) && data.driverLines.length > 0) {
+            driverQty = data.driverLines.reduce((s: number, d: any) => s + Number(d.driverQty ?? 0), 0);
+          } else if (data.driverQtyPerUnit) {
+            driverQty = Number(data.driverQtyPerUnit) * qty;
+          }
+          custoProdutos += custoCorpoSalvo * qty + custoDriverSalvo * driverQty;
+          temCusto = true;
+          continue;
+        }
+
+        // 4. Buscar na API de produtos pelo SKU
+        const product = productBySku.get(sku);
+        if (!product) {
+          // 4a. Buscar como componente pelo código EQ/CP
+          const comp = componenteByCodigo.get(sku);
+          if (comp && (comp.custoDriver ?? 0) > 0) {
+            custoProdutos += Number(comp.custoDriver!) * qty;
+            temCusto = true;
+            continue;
+          }
+          // 4b. Buscar na API de acessórios pelo código EQ/CP ou SKU
+          const acess = acessorioByCodigo.get(sku) ?? acessorioBySku.get(sku);
+          if (acess && (acess.custo ?? 0) > 0) {
+            custoProdutos += Number(acess.custo!) * qty;
+            temCusto = true;
+            continue;
+          }
+          // 4c. Não encontrado — estimar pela margem
+          const totalPrice = Number(data.totalPrice ?? 0);
+          if (totalPrice > 0 && marginPercent > 0) {
+            custoProdutos += totalPrice / (1 + marginPercent);
+            temCusto = true;
+          }
+          continue;
+        }
+
+        // 5. Produto encontrado na API — determinar custo pelo driver
+        let driverCode = '';
+        if (Array.isArray(data.driverLines) && data.driverLines.length > 0) {
+          driverCode = (data.driverLines[0].driverCode ?? '').toUpperCase();
+        }
+        let custoCorpo = 0;
+        let custoDriver = 0;
+        if (driverCode && product.driver220?.code?.toUpperCase() === driverCode) {
+          custoCorpo = Number(product.custoCorpoOnoff220v ?? product.custoLuminaria ?? 0);
+          custoDriver = Number(product.custoDriver220 ?? 0);
+        } else if (driverCode && product.driverBivolt?.code?.toUpperCase() === driverCode) {
+          custoCorpo = Number(product.custoCorpoOnoffBivolt ?? product.custoLuminaria ?? 0);
+          custoDriver = Number(product.custoDriverBivolt ?? 0);
+        } else if (driverCode && product.driverDim110v?.code?.toUpperCase() === driverCode) {
+          custoCorpo = Number(product.custoCorpoDim110v ?? product.custoLuminaria ?? 0);
+          custoDriver = Number(product.custoDriverDim110v ?? 0);
+        } else if (driverCode && product.driverDimDali?.code?.toUpperCase() === driverCode) {
+          custoCorpo = Number(product.custoCorpoDimDali ?? product.custoLuminaria ?? 0);
+          custoDriver = Number(product.custoDriverDimDali ?? 0);
+        } else if (driverCode && product.driverDimTriac110v?.code?.toUpperCase() === driverCode) {
+          custoCorpo = Number(product.custoCorpoDimTriac110v ?? product.custoLuminaria ?? 0);
+          custoDriver = Number(product.custoDriverDimTriac110v ?? 0);
+        } else if (driverCode && product.driverDimTriac220v?.code?.toUpperCase() === driverCode) {
+          custoCorpo = Number(product.custoCorpoDimTriac220v ?? product.custoLuminaria ?? 0);
+          custoDriver = Number(product.custoDriverDimTriac220v ?? 0);
+        } else {
+          custoCorpo = Number(product.custoCorpoOnoff220v ?? product.custoLuminaria ?? 0);
+          custoDriver = Number(product.custoDriver220 ?? 0);
+          if (custoDriver === 0 && driverCode) {
+            const comp = componenteByCodigo.get(driverCode);
+            if (comp?.custoDriver) custoDriver = Number(comp.custoDriver);
+            else {
+              const acess = acessorioByCodigo.get(driverCode);
+              if (acess?.custo) custoDriver = Number(acess.custo);
+            }
+          }
+        }
         let driverQty = 0;
         if (Array.isArray(data.driverLines) && data.driverLines.length > 0) {
           driverQty = data.driverLines.reduce((s: number, d: any) => s + Number(d.driverQty ?? 0), 0);
         } else if (data.driverQtyPerUnit) {
           driverQty = Number(data.driverQtyPerUnit) * qty;
+        } else {
+          const driverQtdPerUnit = Number(product.driverQtd220 ?? product.driverQtdBivolt ?? 1);
+          driverQty = driverQtdPerUnit * qty;
         }
         if (custoCorpo > 0) {
           custoProdutos += custoCorpo * qty + custoDriver * driverQty;
@@ -1416,14 +1575,31 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
   }
 
   // ── Passo 1: calcular margem bruta REAL (apenas orçamentos com custo) ────────
-  // Usada como proxy para estimar o custo dos orçamentos sem custo cadastrado
+  // Usada como proxy para estimar o custo dos orçamentos sem custo encontrado
   const vendasComCusto = approvedQuotes
-    .filter(q => (itemsByQuote.get(q.id) ?? []).some(row => {
-      try {
-        const d = typeof row.itemData === 'string' ? JSON.parse(row.itemData) : row.itemData;
-        return Number(d.custoCorpoBase ?? 0) > 0;
-      } catch { return false; }
-    }))
+    .filter(q => {
+      const items = itemsByQuote.get(q.id) ?? [];
+      return items.some(row => {
+        try {
+          const d = typeof row.itemData === 'string' ? JSON.parse(row.itemData) : row.itemData;
+          const sku = (d.sku ?? '').toUpperCase();
+          // Tem custo se: custoCorpoBase salvo, ou encontrado na API, ou é especial com custoManual
+          if (Number(d.custoCorpoBase ?? 0) > 0) return true;
+          if (d.isSpecialItem || d.category === 'Item Especial' || d.category === 'especial') {
+            return Number(d.custoManual ?? 0) > 0;
+          }
+          if (productBySku.has(sku)) {
+            const p = productBySku.get(sku)!;
+            return Number(p.custoCorpoOnoff220v ?? p.custoLuminaria ?? 0) > 0;
+          }
+          const comp = componenteByCodigo.get(sku);
+          if (comp && (comp.custoDriver ?? 0) > 0) return true;
+          const acess = acessorioByCodigo.get(sku) ?? acessorioBySku.get(sku);
+          if (acess && (acess.custo ?? 0) > 0) return true;
+          return false;
+        } catch { return false; }
+      });
+    })
     .reduce((s, q) => s + Number(q.totalFinal ?? 0), 0);
 
   // Lucro bruto dos orçamentos com custo real

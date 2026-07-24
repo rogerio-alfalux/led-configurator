@@ -2284,3 +2284,9 @@
 - [x] calculateCost: buscar custo de itens por código EQ/CP em todas as fontes da API (produtos + componentes + acessórios)
 - [x] Garantir que EQ00448, EQ00438, EQ00440, EQ00450, EQ00603 (acessórios) são encontrados corretamente
 - [x] Funcionar para todos os orçamentos já cadastrados e futuros
+
+## Fix: Dashboard Geral — custo real de TODOS os itens (Jul 2026)
+
+- [x] profitMetrics (db.ts): buscar custo real na API para itens sem custoCorpoBase (acessórios, itens especiais, etc.)
+- [x] Usar mesma lógica do calculateCost: produtos → componentes → acessórios → estimativa por margem
+- [x] Garantir que o Lucro Bruto Estimado e Lucro Líquido Estimado refletem custos reais de todos os orçamentos
