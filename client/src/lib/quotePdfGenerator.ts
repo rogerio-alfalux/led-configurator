@@ -529,6 +529,11 @@ async function _generatePdfBlob(
   // Prazo de fabricação
   addRow("Prazo de fabricação e entrega:", `${formData.deliveryDays ?? 20} dias úteis`, { valueColor: RED_RGB, bold: true });
 
+  // Desconto concedido (se showDiscount=true)
+  if (formData.showDiscount && discountPct > 0) {
+    addRow(`Desconto concedido (${(discountPct * 100).toFixed(1)}%):`, `− ${fmtBRL(totalComMargem - totalFinal)}`, { valueColor: [0, 102, 0], bold: true });
+  }
+
   // Total dos produtos
   addRow("Valor total dos produtos:", fmtBRL(totalFinal), { bgColor: TOTAL_BG_RGB, bold: true, fontSize: 11 });
 

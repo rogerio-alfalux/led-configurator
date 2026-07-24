@@ -7,7 +7,7 @@ import {
   Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle, GripVertical, Wrench, Copy, Eye, Navigation2,
   Upload, X as XIcon, Layers, Receipt, Printer, Search,
   User, Phone, FolderOpen, Bookmark, MapPin, Briefcase, Calendar, RefreshCw, ClipboardList, Zap, FileDown,
-  TrendingUp, DollarSign, Calculator, ArrowLeftRight,
+  TrendingUp, DollarSign, Calculator, ArrowLeftRight, FlaskConical, Link2,
 } from "lucide-react";
 import {
   DndContext,
@@ -817,6 +817,12 @@ export default function QuoteDetail() {
   const [showAllVersions, setShowAllVersions] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<string>("");
+  const [sampleDialogOpen, setSampleDialogOpen] = useState(false);
+  const [sampleNotes, setSampleNotes] = useState("");
+  const [sampleLinkDialogOpen, setSampleLinkDialogOpen] = useState(false);
+  const [sampleLinkQuoteNumber, setSampleLinkQuoteNumber] = useState("");
+  const [sampleLinkType, setSampleLinkType] = useState<"cobrar" | "diluir" | "associar">("associar");
+  const [sampleLinkNotes, setSampleLinkNotes] = useState("");
   const [orderNumberInput, setOrderNumberInput] = useState("");
   const [billingCompanyInput, setBillingCompanyInput] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -859,6 +865,7 @@ export default function QuoteDetail() {
     diluicaoValor: "",
     diluicaoDescricao: "",
     discountPercent: "0",
+    showDiscount: false,
   });
 
   // Sellers & Assistants for edit dialog
@@ -1227,6 +1234,41 @@ export default function QuoteDetail() {
       navigate("/orcamentos");
     },
     onError: (err) => toast.error(`Erro ao excluir: ${err.message}`),
+  });
+
+  // ─── Pedido de Amostra ───
+  const createSampleMutation = trpc.samples.create.useMutation({
+    onSuccess: () => {
+      utils.quotes.getById.invalidate({ id: Number(id) });
+      toast.success("Orçamento convertido em Pedido de Amostra!");
+      setSampleDialogOpen(false);
+      setSampleNotes("");
+    },
+    onError: (err) => toast.error(`Erro: ${err.message}`),
+  });
+
+  const sampleQuery = trpc.samples.getByQuoteId.useQuery(
+    { quoteId: Number(id) },
+    { enabled: !!id }
+  );
+
+  const linkSampleMutation = trpc.samples.link.useMutation({
+    onSuccess: () => {
+      toast.success("Amostra vinculada com sucesso!");
+      setSampleLinkDialogOpen(false);
+      setSampleLinkQuoteNumber("");
+      setSampleLinkNotes("");
+      sampleQuery.refetch();
+    },
+    onError: (err) => toast.error(`Erro: ${err.message}`),
+  });
+
+  const unlinkSampleMutation = trpc.samples.unlink.useMutation({
+    onSuccess: () => {
+      toast.success("Vinculação removida.");
+      sampleQuery.refetch();
+    },
+    onError: (err) => toast.error(`Erro: ${err.message}`),
   });
 
   /**
@@ -1680,6 +1722,7 @@ export default function QuoteDetail() {
           rtDest3Active: quote.rtDest3Active ?? false,
           marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
           discountPercent: (quote as any).discountPercent ? parseFloat(String((quote as any).discountPercent)) : undefined,
+          showDiscount: !!(quote as any).showDiscount,
           freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
@@ -1843,6 +1886,7 @@ export default function QuoteDetail() {
           rtDest3Active: quote.rtDest3Active ?? false,
           marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
           discountPercent: (quote as any).discountPercent ? parseFloat(String((quote as any).discountPercent)) : undefined,
+          showDiscount: !!(quote as any).showDiscount,
           freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
@@ -2623,6 +2667,24 @@ export default function QuoteDetail() {
             </SheetContent>
           </Sheet>}
 
+          {/* Converter em Pedido de Amostra */}
+          {(quote.status as string) !== "sample" && canEdit && (
+            <Button
+              variant="outline"
+              className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/30"
+              onClick={() => setSampleDialogOpen(true)}
+            >
+              <FlaskConical className="w-4 h-4" />
+              Converter em Amostra
+            </Button>
+          )}
+          {(quote.status as string) === "sample" && (
+            <Badge variant="outline" className="gap-1 border-amber-400 text-amber-700 dark:text-amber-400 px-3 py-1">
+              <FlaskConical className="w-3 h-3" />
+              Pedido de Amostra
+            </Badge>
+          )}
+
           {/* Duplicar Orçamento */}
           <Dialog open={duplicateDialogOpen} onOpenChange={(open) => {
             setDuplicateDialogOpen(open);
@@ -2914,6 +2976,7 @@ export default function QuoteDetail() {
                 diluicaoValor: (quote as any).diluicaoValor != null ? String((quote as any).diluicaoValor) : "",
                 diluicaoDescricao: (quote as any).diluicaoDescricao ?? "",
                 discountPercent: (quote as any).discountPercent ? String(parseFloat(String((quote as any).discountPercent)) * 100) : "0",
+                showDiscount: !!(quote as any).showDiscount,
               });
             }
           }}>
@@ -3138,6 +3201,12 @@ export default function QuoteDetail() {
                         ? "Desconto sobre o preço final (após margem)."
                         : "Apenas gestores podem aplicar desconto."}
                     </p>
+                    {parseFloat(editForm.discountPercent || "0") > 0 && (
+                      <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                        <input type="checkbox" checked={editForm.showDiscount} onChange={e => setEditForm(f => ({ ...f, showDiscount: e.target.checked }))} className="rounded border-border" />
+                        <span className="text-xs text-muted-foreground">Mostrar desconto ao cliente</span>
+                      </label>
+                    )}
                   </div>
                   <div className="bg-muted/60 rounded-lg p-3 space-y-1 text-sm">
                     <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatBRL(editTotalBase)}</span></div>
@@ -3569,6 +3638,7 @@ export default function QuoteDetail() {
                       diluicaoValor: editForm.diluicaoValor ? parseFloat(editForm.diluicaoValor) : undefined,
                       diluicaoDescricao: editForm.diluicaoDescricao || undefined,
                       discountPercent: editDiscountPct > 0 ? editDiscountPct : 0,
+                      showDiscount: editForm.showDiscount && editDiscountPct > 0,
                       ...(() => {
                         const info = editForm.destState ? getStateInfo(editForm.destState) : undefined;
                         return {
@@ -3673,7 +3743,166 @@ export default function QuoteDetail() {
               )}
             </DialogContent>
           </Dialog>}
+
+          {/* Dialog: Converter em Amostra */}
+          <Dialog open={sampleDialogOpen} onOpenChange={(open) => { setSampleDialogOpen(open); if (!open) setSampleNotes(""); }}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <FlaskConical className="w-5 h-5 text-amber-600" />
+                  Converter em Pedido de Amostra
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <p className="text-sm text-amber-700 dark:text-amber-400">
+                    Ao converter em amostra, o valor de venda será zerado. O custo será registrado como investimento da empresa.
+                  </p>
+                  <p className="text-sm text-amber-700 dark:text-amber-400 mt-1 font-medium">
+                    Custo registrado: {formatBRL(parseFloat(String(quote.totalAmount)))}
+                  </p>
+                </div>
+                <div>
+                  <Label>Observações (opcional)</Label>
+                  <textarea
+                    className="w-full mt-1 p-2 border rounded-md text-sm bg-background"
+                    rows={3}
+                    value={sampleNotes}
+                    onChange={e => setSampleNotes(e.target.value)}
+                    placeholder="Ex: Amostra para apresentação ao cliente..."
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setSampleDialogOpen(false)}>Cancelar</Button>
+                <Button
+                  className="bg-amber-600 hover:bg-amber-700 text-white"
+                  onClick={() => createSampleMutation.mutate({ quoteId: Number(id), notes: sampleNotes || undefined })}
+                  disabled={createSampleMutation.isPending}
+                >
+                  {createSampleMutation.isPending ? "Convertendo..." : "Confirmar Conversão"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Dialog: Vincular Amostra a Orçamento */}
+          {sampleQuery.data && (
+            <Dialog open={sampleLinkDialogOpen} onOpenChange={(open) => { setSampleLinkDialogOpen(open); if (!open) { setSampleLinkQuoteNumber(""); setSampleLinkNotes(""); } }}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Link2 className="w-5 h-5 text-blue-600" />
+                    Vincular Amostra a Orçamento
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                  <div>
+                    <Label>Número do Orçamento a vincular</Label>
+                    <Input
+                      className="mt-1"
+                      value={sampleLinkQuoteNumber}
+                      onChange={e => setSampleLinkQuoteNumber(e.target.value)}
+                      placeholder="Ex: ORC 04.0123-25"
+                    />
+                  </div>
+                  <div>
+                    <Label>Tipo de vinculação</Label>
+                    <Select value={sampleLinkType} onValueChange={(v) => setSampleLinkType(v as any)}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="associar">Apenas associar (mesma obra)</SelectItem>
+                        <SelectItem value="cobrar">Cobrar valor da amostra</SelectItem>
+                        <SelectItem value="diluir">Diluir valor no pedido</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {sampleLinkType === "associar" && "Vincula sem cobrar — apenas para rastreabilidade."}
+                      {sampleLinkType === "cobrar" && "O valor da amostra será cobrado integralmente no pedido vinculado."}
+                      {sampleLinkType === "diluir" && "O valor da amostra será diluído proporcionalmente no pedido."}
+                    </p>
+                  </div>
+                  <div>
+                    <Label>Observações (opcional)</Label>
+                    <textarea
+                      className="w-full mt-1 p-2 border rounded-md text-sm bg-background"
+                      rows={2}
+                      value={sampleLinkNotes}
+                      onChange={e => setSampleLinkNotes(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setSampleLinkDialogOpen(false)}>Cancelar</Button>
+                  <Button
+                    onClick={async () => {
+                      if (!sampleLinkQuoteNumber.trim()) { toast.error("Informe o número do orçamento."); return; }
+                      // Buscar o quoteId pelo número
+                      const allQuotes = utils.quotes.list.getData() as any;
+                      const target = (allQuotes?.rows ?? allQuotes ?? [])?.find((q: any) => q.quoteNumber === sampleLinkQuoteNumber.trim());
+                      if (!target) { toast.error("Orçamento não encontrado. Verifique o número."); return; }
+                      linkSampleMutation.mutate({
+                        sampleOrderId: sampleQuery.data!.id,
+                        linkedQuoteId: target.id,
+                        linkType: sampleLinkType,
+                        notes: sampleLinkNotes || undefined,
+                      });
+                    }}
+                    disabled={linkSampleMutation.isPending || !sampleLinkQuoteNumber.trim()}
+                  >
+                    {linkSampleMutation.isPending ? "Vinculando..." : "Vincular"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
+
+        {/* Seção de Amostra vinculada */}
+        {sampleQuery.data && (
+          <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                <FlaskConical className="w-4 h-4" />
+                Pedido de Amostra
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Custo registrado:</span>
+                <span className="font-medium">{formatBRL(parseFloat(String(sampleQuery.data.costAmount)))}</span>
+              </div>
+              {sampleQuery.data.notes && (
+                <div className="text-muted-foreground italic">"{sampleQuery.data.notes}"</div>
+              )}
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Status:</span>
+                <Badge variant="outline" className={sampleQuery.data.status === "linked" ? "border-green-400 text-green-700" : "border-amber-400 text-amber-700"}>
+                  {sampleQuery.data.status === "active" ? "Ativo" : sampleQuery.data.status === "linked" ? "Vinculado" : sampleQuery.data.status}
+                </Badge>
+              </div>
+              {(sampleQuery.data as any).links?.length > 0 && (
+                <div className="border-t pt-2 mt-2 space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Vinculações:</p>
+                  {((sampleQuery.data as any).links as any[]).map((link: any) => (
+                    <div key={link.id} className="flex items-center justify-between text-xs bg-background rounded px-2 py-1">
+                      <span>Orç. #{link.linkedQuoteId} — {link.linkType === "cobrar" ? "Cobrar" : link.linkType === "diluir" ? "Diluir" : "Associar"}</span>
+                      <Button variant="ghost" size="sm" className="h-5 px-1 text-red-500" onClick={() => unlinkSampleMutation.mutate({ id: link.id, sampleOrderId: sampleQuery.data!.id })}>
+                        <XIcon className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Button variant="outline" size="sm" className="gap-1 mt-2" onClick={() => setSampleLinkDialogOpen(true)}>
+                <Link2 className="w-3 h-3" />
+                Vincular a Orçamento
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Itens da versão atual */}
         <Card>
@@ -4373,6 +4602,7 @@ export default function QuoteDetail() {
           rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) : undefined,
           marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
           discountPercent: (quote as any).discountPercent ? parseFloat(String((quote as any).discountPercent)) : undefined,
+          showDiscount: !!(quote as any).showDiscount,
           freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
@@ -4420,6 +4650,7 @@ export default function QuoteDetail() {
           rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) : undefined,
           marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
           discountPercent: (quote as any).discountPercent ? parseFloat(String((quote as any).discountPercent)) : undefined,
+          showDiscount: !!(quote as any).showDiscount,
           freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",

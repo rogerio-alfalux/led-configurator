@@ -135,6 +135,7 @@ interface SaveFormData {
   diluicaoValor: string;
   diluicaoDescricao: string;
   discountPercent: string;
+  showDiscount: boolean;
 }
 
 interface OrderFormData {
@@ -883,6 +884,7 @@ export default function Cart() {
     diluicaoValor: "",
     diluicaoDescricao: "",
     discountPercent: "0",
+    showDiscount: false,
   };
   const [saveForm, setSaveForm] = useState<SaveFormData>(() => {
     try {
@@ -1126,6 +1128,7 @@ export default function Cart() {
         freteIncluded: saveForm.freteIncluded,
         diluicaoValor: saveForm.diluicaoValor ? parseFloat(saveForm.diluicaoValor) : undefined,
         discountPercent: discountPct > 0 ? discountPct : undefined,
+        showDiscount: saveForm.showDiscount && discountPct > 0,
         // Usar o número do orçamento do saveForm (não o gerado aleatoriamente no form)
         numero: saveForm.quoteNumber.trim() || form.numero,
         // Orçamentos gerados diretamente do Cart são sempre novos (a partir de hoje)
@@ -1228,6 +1231,7 @@ export default function Cart() {
       diluicaoValor: saveForm.diluicaoValor ? parseFloat(saveForm.diluicaoValor) : undefined,
       diluicaoDescricao: saveForm.diluicaoDescricao || undefined,
       discountPercent: discountPct > 0 ? discountPct : undefined,
+      showDiscount: saveForm.showDiscount && discountPct > 0,
       totalAmount: totalGeral,
       // totalFinal inclui RT + margem + frete + DIFAL/FCP (alíquota combinada, fórmula por dentro)
       totalFinal: (() => {
@@ -2007,6 +2011,17 @@ export default function Cart() {
                                   ? "Desconto sobre o preço final (após margem)."
                                   : "Apenas gestores podem aplicar desconto."}
                               </p>
+                              {parseFloat(saveForm.discountPercent || "0") > 0 && (
+                                <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={saveForm.showDiscount}
+                                    onChange={e => updateSaveForm("showDiscount", e.target.checked)}
+                                    className="rounded border-border"
+                                  />
+                                  <span className="text-xs text-muted-foreground">Mostrar desconto ao cliente</span>
+                                </label>
+                              )}
                             </div>
 
                             {/* Resumo */}
@@ -3358,6 +3373,7 @@ export default function Cart() {
           rtPercent: rtPct > 0 ? rtPct : undefined,
           marginPercent: marginPct !== 0 ? marginPct : undefined,
           discountPercent: discountPct > 0 ? discountPct : undefined,
+          showDiscount: saveForm.showDiscount && discountPct > 0,
           freteType: saveForm.freteType,
           freteIsento: saveForm.freteIsento,
           freteLocalidade: saveForm.freteStateCode === "SP" ? "sp" : "other",
@@ -3394,6 +3410,7 @@ export default function Cart() {
           rtPercent: rtPct > 0 ? rtPct : undefined,
           marginPercent: marginPct !== 0 ? marginPct : undefined,
           discountPercent: discountPct > 0 ? discountPct : undefined,
+          showDiscount: saveForm.showDiscount && discountPct > 0,
           freteType: saveForm.freteType,
           freteIsento: saveForm.freteIsento,
           freteLocalidade: saveForm.freteStateCode === "SP" ? "sp" : "other",

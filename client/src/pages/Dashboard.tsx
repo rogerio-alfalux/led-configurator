@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   ArrowLeft, ClipboardList, CheckCircle, DollarSign, BarChart2, Target,
   Award, Percent, Edit2, Save, X, ShieldAlert, ChevronDown, ChevronUp, Coins,
-  Users, FileDown, TrendingUp, Package, PieChart, AlertCircle, Activity,
+  Users, FileDown, TrendingUp, Package, PieChart, AlertCircle, Activity, FlaskConical, Link2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -195,6 +195,16 @@ export default function Dashboard() {
   const { data: goalsData = [] } = trpc.dashboard.goals.useQuery(
     { year },
     { enabled: !!user && !isAssist }
+  );
+
+  // Dados de amostras
+  const { data: samplesData } = trpc.samples.list.useQuery(
+    undefined,
+    { enabled: !!user && isManager }
+  );
+  const { data: samplesStats } = trpc.samples.stats.useQuery(
+    hasDateRange ? { startDate: dateFrom, endDate: dateTo } : undefined,
+    { enabled: !!user && isManager }
   );
 
   const upsertGoalMutation = trpc.dashboard.upsertGoal.useMutation({
@@ -1032,6 +1042,65 @@ export default function Dashboard() {
                   <p className="text-xs text-muted-foreground mt-2">
                     Exporta todos os orçamentos aprovados do mês com comissões por vendedor e destinatários de RT.
                   </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Pedidos de Amostras */}
+            {isManager && samplesStats && (
+              <Card className="border-amber-200 dark:border-amber-800">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                    <FlaskConical className="w-4 h-4" />
+                    Pedidos de Amostras
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">{samplesStats.count}</p>
+                      <p className="text-xs text-muted-foreground">Total</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-red-600">{formatBRL(samplesStats.totalCost)}</p>
+                      <p className="text-xs text-muted-foreground">Custo Total</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-amber-600">{samplesStats.activeCount}</p>
+                      <p className="text-xs text-muted-foreground">Ativos</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-green-600">{samplesStats.linkedCount}</p>
+                      <p className="text-xs text-muted-foreground">Vinculados</p>
+                    </div>
+                  </div>
+                  {samplesData && (samplesData as any[]).length > 0 && (
+                    <div className="mt-4 border-t pt-3">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Amostras recentes:</p>
+                      <div className="space-y-1 max-h-40 overflow-y-auto">
+                        {(samplesData as any[]).slice(0, 5).map((s: any) => (
+                          <div key={s.id} className="flex items-center justify-between text-xs bg-amber-50/50 dark:bg-amber-950/20 rounded px-2 py-1">
+                            <div className="flex items-center gap-2">
+                              <FlaskConical className="w-3 h-3 text-amber-600" />
+                              <span className="font-medium">{s.clientName}</span>
+                              {s.projectName && <span className="text-muted-foreground">— {s.projectName}</span>}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-red-600 font-medium">{formatBRL(parseFloat(String(s.costAmount)))}</span>
+                              <Badge variant="outline" className={`text-[10px] px-1 ${s.status === 'linked' ? 'border-green-400 text-green-700' : 'border-amber-400 text-amber-700'}`}>
+                                {s.status === 'active' ? 'Ativo' : s.status === 'linked' ? 'Vinculado' : s.status}
+                              </Badge>
+                              <Link href={`/orcamentos/${s.quoteId}`}>
+                                <Button variant="ghost" size="sm" className="h-5 px-1">
+                                  <ClipboardList className="w-3 h-3" />
+                                </Button>
+                              </Link>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

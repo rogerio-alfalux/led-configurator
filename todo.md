@@ -2217,3 +2217,29 @@
 - [x] Cálculos de preço: aplicar desconto após margem em Excel, PDF, ExcelPreviewModal
 - [x] Constraint: desconto limitado a 0-99% (não pode exceder markup)
 - [x] Dashboard/Recalc: refletir desconto nos cálculos de totalFinal
+
+## v34 — Mostrar Desconto nos Documentos + Pedido de Amostras (Jul 2026)
+
+### Desconto Visível nos Documentos
+- [x] Adicionar campo showDiscount (boolean) ao schema/DB e formData
+- [x] Checkbox "Mostrar desconto ao cliente" ao lado do campo de desconto (Cart + QuoteDetail)
+- [x] ExcelPreviewModal: exibir linha de desconto quando showDiscount=true e desconto>0
+- [x] quoteExcelGenerator: exibir linha de desconto no Excel quando showDiscount=true
+- [x] quotePdfGenerator: exibir linha de desconto no PDF quando showDiscount=true
+- [x] Quando desconto=0, não mostrar nada independente do checkbox
+
+### Pedido de Amostras
+- [x] Criar tabela sampleOrders no DB (vinculada a quotes, com custo, status, data)
+- [x] Criar tabela sampleLinks para vincular amostras a pedidos futuros
+- [x] Backend: mutation convertToSample (zera valor de venda, registra custo)
+- [x] Backend: mutation linkSampleToQuote (vincula amostra a pedido futuro)
+- [x] Backend: query listSamples (com filtros por cliente, obra, período, status)
+- [x] Backend: query sampleStats (total gasto, por período, por cliente)
+- [x] QuoteDetail: botão "Converter em Pedido de Amostra" (com confirmação)
+- [x] QuoteDetail: indicador visual quando orçamento é amostra
+- [x] QuoteDetail: seção de vinculação (vincular a outro pedido do mesmo cliente/obra)
+- [x] Dashboard: aba/seção "Amostras" com lista, filtros e totais
+- [x] Dashboard: card de resumo (total gasto com amostras no período)
+- [x] Dashboard: filtro por cliente, obra, vendedor, período
+- [x] Dashboard: indicador de amostras vinculadas vs não-vinculadas
+- [x] Dashboard: ao vincular, opção de cobrar/diluir/apenas associar

@@ -1293,7 +1293,28 @@ async function _generateExcelBuffer(
     c.font = { name: "Calibri", size: 12, bold: true, color: { argb: RED_TXT } };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
-  nextRow++;  // ── Valor total dos produtos (sem o frete) ───────────────────────────────────────
+  nextRow++;
+  // ── Desconto concedido (se showDiscount=true) ──────────────────────────────────────
+  if (formData.showDiscount && discountPct > 0) {
+    ws.getRow(nextRow).height = 28;
+    ws.mergeCells(`C${nextRow}:D${nextRow}`);
+    {
+      const c = ws.getCell(`C${nextRow}`);
+      c.value = `Desconto concedido (${(discountPct * 100).toFixed(1)}%):`;
+      c.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FF006600" } };
+      c.alignment = { horizontal: "left", vertical: "middle" };
+    }
+    ws.mergeCells(`E${nextRow}:N${nextRow}`);
+    {
+      const c = ws.getCell(`E${nextRow}`);
+      c.value = -(totalComMargem - totalFinal);
+      c.numFmt = '"R$"#,##0.00';
+      c.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FF006600" } };
+      c.alignment = { horizontal: "left", vertical: "middle" };
+    }
+    nextRow++;
+  }
+  // ── Valor total dos produtos (sem o frete) ───────────────────────────────────────
   ws.getRow(nextRow).height = 42.6;
   ws.mergeCells(`C${nextRow}:D${nextRow}`);
   {
@@ -1302,7 +1323,7 @@ async function _generateExcelBuffer(
     c.value = formData.freteIncluded && _freteParaDiluir > 0
       ? (_temDifal
         ? "Subtotal dos produtos\n(frete incl., sem DIFAL/FCP):"
-        : "Valor total dos produtos\n(frete j\u00e1 inclu\u00eddo):")
+        : "Valor total dos produtos\n(frete já incluído):")
       : (_temDifal
         ? "Subtotal dos produtos\n(sem frete, sem DIFAL/FCP):"
         : "Valor total dos produtos\n(sem o frete):");

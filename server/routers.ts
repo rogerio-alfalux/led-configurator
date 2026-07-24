@@ -35,6 +35,16 @@ import {
   createQuoteAdditionalCost,
   deleteQuoteAdditionalCost,
   getTotalAdditionalCosts,
+  createSampleOrder,
+  listSampleOrders,
+  getSampleOrderById,
+  getSampleOrderByQuoteId,
+  updateSampleOrder,
+  createSampleLink,
+  listSampleLinks,
+  listSampleLinksByQuoteId,
+  deleteSampleLink,
+  getSampleOrderStats,
 } from "./db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -351,6 +361,7 @@ export const appRouter = router({
         diluicaoValor: z.number().min(0).optional(),
         diluicaoDescricao: z.string().max(256).optional(),
         discountPercent: z.number().min(0).max(0.99).optional(),
+        showDiscount: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         // Verificar obra duplicada — BLOQUEIA a criação se já existir obra com mesmo nome
@@ -479,6 +490,7 @@ export const appRouter = router({
         diluicaoValor: z.number().min(0).optional(),
         diluicaoDescricao: z.string().max(256).optional(),
         discountPercent: z.number().min(0).max(0.99).optional(),
+        showDiscount: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const { quoteId, bumpVersion, ...rest } = input;
@@ -1751,6 +1763,160 @@ export const appRouter = router({
       }
       return map;
     }),
+  }),
+
+  // ─── Pedidos de Amostras ─────────────────────────────────────────────────────
+  samples: router({
+    /** Converte um orçamento em pedido de amostra */
+    create: protectedProcedure
+      .input(z.object({
+        quoteId: z.number(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // Verificar se já existe amostra para este orçamento
+        const existing = await getSampleOrderByQuoteId(input.quoteId);
+        if (existing) {
+          throw new TRPCError({ code: "CONFLICT", message: "Este orçamento já foi convertido em pedido de amostra." });
+        }
+        // Buscar dados do orçamento
+        const quoteData = await getQuoteById(input.quoteId);
+        if (!quoteData) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado." });
+        const { quote } = quoteData;
+        const result = await createSampleOrder({
+          quoteId: input.quoteId,
+          clientName: quote.clientName,
+          projectName: (quote as any).projectName ?? undefined,
+          costAmount: parseFloat(String(quote.totalAmount)),
+          notes: input.notes,
+          sellerName: (quote as any).seller1Name ?? undefined,
+          sellerId: quote.seller1Id ?? undefined,
+          createdByUserId: ctx.user.id,
+        });
+        // Marcar orçamento como amostra (status)
+        await updateQuoteStatus(input.quoteId, "sample");
+        await insertAuditLog({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email ?? "",
+          userName: ctx.user.name ?? "",
+          action: "sample_created",
+          entityType: "sample_order",
+          entityId: result.id,
+          details: JSON.stringify({ quoteId: input.quoteId, clientName: quote.clientName }),
+        });
+        return result;
+      }),
+
+    /** Lista pedidos de amostras com filtros */
+    list: protectedProcedure
+      .input(z.object({
+        clientName: z.string().optional(),
+        status: z.string().optional(),
+        sellerId: z.number().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return listSampleOrders(input ?? undefined);
+      }),
+
+    /** Busca pedido de amostra por ID */
+    getById: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const sample = await getSampleOrderById(input.id);
+        if (!sample) throw new TRPCError({ code: "NOT_FOUND" });
+        // Buscar vinculações
+        const links = await listSampleLinks(input.id);
+        return { ...sample, links };
+      }),
+
+    /** Verifica se um orçamento já é amostra */
+    getByQuoteId: protectedProcedure
+      .input(z.object({ quoteId: z.number() }))
+      .query(async ({ input }) => {
+        return getSampleOrderByQuoteId(input.quoteId);
+      }),
+
+    /** Atualiza status/notas de um pedido de amostra */
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.string().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await updateSampleOrder(input.id, { status: input.status, notes: input.notes });
+        await insertAuditLog({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email ?? "",
+          userName: ctx.user.name ?? "",
+          action: "sample_updated",
+          entityType: "sample_order",
+          entityId: input.id,
+          details: JSON.stringify({ status: input.status }),
+        });
+        return { success: true };
+      }),
+
+    /** Vincula pedido de amostra a um orçamento futuro */
+    link: protectedProcedure
+      .input(z.object({
+        sampleOrderId: z.number(),
+        linkedQuoteId: z.number(),
+        linkType: z.enum(["cobrar", "diluir", "associar"]),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await createSampleLink({
+          sampleOrderId: input.sampleOrderId,
+          linkedQuoteId: input.linkedQuoteId,
+          linkType: input.linkType,
+          notes: input.notes,
+          createdByUserId: ctx.user.id,
+        });
+        // Atualizar status da amostra para 'linked'
+        await updateSampleOrder(input.sampleOrderId, { status: "linked" });
+        await insertAuditLog({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email ?? "",
+          userName: ctx.user.name ?? "",
+          action: "sample_linked",
+          entityType: "sample_link",
+          entityId: result.id,
+          details: JSON.stringify({ sampleOrderId: input.sampleOrderId, linkedQuoteId: input.linkedQuoteId, linkType: input.linkType }),
+        });
+        return result;
+      }),
+
+    /** Remove uma vinculação */
+    unlink: protectedProcedure
+      .input(z.object({ id: z.number(), sampleOrderId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        await deleteSampleLink(input.id);
+        // Verificar se ainda tem links; se não, voltar status para active
+        const remaining = await listSampleLinks(input.sampleOrderId);
+        if (remaining.length === 0) {
+          await updateSampleOrder(input.sampleOrderId, { status: "active" });
+        }
+        return { success: true };
+      }),
+
+    /** Busca vinculações de um orçamento (para saber se ele tem amostras vinculadas) */
+    linksByQuoteId: protectedProcedure
+      .input(z.object({ quoteId: z.number() }))
+      .query(async ({ input }) => {
+        return listSampleLinksByQuoteId(input.quoteId);
+      }),
+
+    /** Estatísticas de amostras para o dashboard */
+    stats: protectedProcedure
+      .input(z.object({
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+        sellerId: z.number().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return getSampleOrderStats(input ?? undefined);
+      }),
   }),
 });
 export type AppRouter = typeof appRouter;

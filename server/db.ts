@@ -10,6 +10,8 @@ import {
   quoteNumberSequences,
   driverPriceOverrides,
   quoteAdditionalCosts,
+  sampleOrders,
+  sampleLinks,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 // ─── Utilitários de data no fuso de Brasília ────────────────────────────────
@@ -361,6 +363,8 @@ export interface SaveQuoteInput {
   diluicaoDescricao?: string;
   /** Percentual de desconto global (0–1, ex: 0.10 = 10%) */
   discountPercent?: number;
+  /** Se true, exibe desconto nos documentos para o cliente */
+  showDiscount?: boolean;
 }
 
 /** Cria um novo orçamento com versão 1 */
@@ -447,6 +451,7 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
     diluicaoValor: input.diluicaoValor != null ? String(input.diluicaoValor) : '0',
     diluicaoDescricao: input.diluicaoDescricao ?? null,
     discountPercent: input.discountPercent != null ? String(input.discountPercent) : '0',
+    showDiscount: input.showDiscount ?? false,
   });
   const quoteId = (qResult as unknown as { insertId: number }[])[0]?.insertId ?? 0;
   // Insert version 0
@@ -571,6 +576,7 @@ export async function addQuoteRevision(
     diluicaoValor: input.diluicaoValor != null ? String(input.diluicaoValor) : (quote.diluicaoValor ?? '0'),
     diluicaoDescricao: input.diluicaoDescricao !== undefined ? (input.diluicaoDescricao ?? null) : quote.diluicaoDescricao,
     discountPercent: input.discountPercent != null ? String(input.discountPercent) : (quote.discountPercent ?? '0'),
+    showDiscount: input.showDiscount !== undefined ? input.showDiscount : (quote.showDiscount ?? false),
     ...(input.quoteNumber ? { quoteNumber: input.quoteNumber } : {}),
     updatedAt: sql`NOW()`,
   }).where(eq(quotes.id, quoteId));
@@ -727,7 +733,7 @@ export async function approveQuote(id: number) {
 /** Atualiza o status de um orçamento */
 export async function updateQuoteStatus(
   id: number,
-  status: "open" | "approved" | "lost" | "cancelled" | "invoiced",
+  status: "open" | "approved" | "lost" | "cancelled" | "invoiced" | "sample",
   opts?: { orderNumber?: string; billingCompany?: "alfalux" | "primelux" | "decada" | "primelase" | "luminew" }
 ) {
   const db = await getDb();
@@ -2057,4 +2063,155 @@ export async function getTotalAdditionalCostsForPeriod(year: number, month?: num
     WHERE ${periodCondition}
   `);
   return { total: Number((result as any)?.total ?? 0), count: Number((result as any)?.count ?? 0) };
+}
+
+// ─── Pedidos de Amostras ─────────────────────────────────────────────────────
+
+/** Cria um pedido de amostra a partir de um orçamento */
+export async function createSampleOrder(data: {
+  quoteId: number;
+  clientName: string;
+  projectName?: string;
+  costAmount: number;
+  notes?: string;
+  sellerName?: string;
+  sellerId?: number;
+  createdByUserId: number;
+}): Promise<{ id: number }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(sampleOrders).values({
+    quoteId: data.quoteId,
+    clientName: data.clientName,
+    projectName: data.projectName ?? null,
+    costAmount: String(data.costAmount),
+    notes: data.notes ?? null,
+    sellerName: data.sellerName ?? null,
+    sellerId: data.sellerId ?? null,
+    createdByUserId: data.createdByUserId,
+  });
+  const id = (result as unknown as { insertId: number }[])[0]?.insertId ?? 0;
+  return { id };
+}
+
+/** Lista todos os pedidos de amostras com filtros opcionais */
+export async function listSampleOrders(filters?: {
+  clientName?: string;
+  status?: string;
+  sellerId?: number;
+}): Promise<any[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions: any[] = [];
+  if (filters?.clientName) {
+    conditions.push(like(sampleOrders.clientName, `%${filters.clientName}%`));
+  }
+  if (filters?.status) {
+    conditions.push(eq(sampleOrders.status, filters.status));
+  }
+  if (filters?.sellerId) {
+    conditions.push(eq(sampleOrders.sellerId, filters.sellerId));
+  }
+  const query = conditions.length > 0
+    ? db.select().from(sampleOrders).where(and(...conditions)).orderBy(desc(sampleOrders.createdAt))
+    : db.select().from(sampleOrders).orderBy(desc(sampleOrders.createdAt));
+  return query;
+}
+
+/** Busca um pedido de amostra por ID */
+export async function getSampleOrderById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(sampleOrders).where(eq(sampleOrders.id, id));
+  return rows[0] ?? null;
+}
+
+/** Busca pedido de amostra por quoteId */
+export async function getSampleOrderByQuoteId(quoteId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(sampleOrders).where(eq(sampleOrders.quoteId, quoteId));
+  return rows[0] ?? null;
+}
+
+/** Atualiza status/notas de um pedido de amostra */
+export async function updateSampleOrder(id: number, data: { status?: string; notes?: string }) {
+  const db = await getDb();
+  if (!db) return;
+  const updates: any = {};
+  if (data.status !== undefined) updates.status = data.status;
+  if (data.notes !== undefined) updates.notes = data.notes;
+  if (Object.keys(updates).length > 0) {
+    await db.update(sampleOrders).set(updates).where(eq(sampleOrders.id, id));
+  }
+}
+
+/** Cria uma vinculação entre pedido de amostra e orçamento futuro */
+export async function createSampleLink(data: {
+  sampleOrderId: number;
+  linkedQuoteId: number;
+  linkType: string;
+  notes?: string;
+  createdByUserId: number;
+}): Promise<{ id: number }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(sampleLinks).values({
+    sampleOrderId: data.sampleOrderId,
+    linkedQuoteId: data.linkedQuoteId,
+    linkType: data.linkType,
+    notes: data.notes ?? null,
+    createdByUserId: data.createdByUserId,
+  });
+  const id = (result as unknown as { insertId: number }[])[0]?.insertId ?? 0;
+  return { id };
+}
+
+/** Lista vinculações de um pedido de amostra */
+export async function listSampleLinks(sampleOrderId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(sampleLinks).where(eq(sampleLinks.sampleOrderId, sampleOrderId)).orderBy(desc(sampleLinks.createdAt));
+}
+
+/** Lista vinculações de um orçamento (para saber se ele tem amostras vinculadas) */
+export async function listSampleLinksByQuoteId(linkedQuoteId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(sampleLinks).where(eq(sampleLinks.linkedQuoteId, linkedQuoteId)).orderBy(desc(sampleLinks.createdAt));
+}
+
+/** Remove uma vinculação */
+export async function deleteSampleLink(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(sampleLinks).where(eq(sampleLinks.id, id));
+}
+
+/** Retorna totais de custo de amostras para o dashboard */
+export async function getSampleOrderStats(filters?: { startDate?: string; endDate?: string; sellerId?: number }) {
+  const db = await getDb();
+  if (!db) return { totalCost: 0, count: 0, activeCount: 0, linkedCount: 0 };
+  let periodCondition = sql`1=1`;
+  if (filters?.startDate && filters?.endDate) {
+    periodCondition = sql`so.createdAt >= ${filters.startDate} AND so.createdAt <= ${filters.endDate}`;
+  }
+  if (filters?.sellerId) {
+    periodCondition = sql`${periodCondition} AND so.sellerId = ${filters.sellerId}`;
+  }
+  const [result] = await db.execute(sql`
+    SELECT 
+      COALESCE(SUM(so.costAmount), 0) as totalCost,
+      COUNT(*) as count,
+      SUM(CASE WHEN so.status = 'active' THEN 1 ELSE 0 END) as activeCount,
+      (SELECT COUNT(DISTINCT sl.sampleOrderId) FROM sample_links sl INNER JOIN sample_orders so2 ON so2.id = sl.sampleOrderId WHERE ${periodCondition}) as linkedCount
+    FROM sample_orders so
+    WHERE ${periodCondition}
+  `);
+  return {
+    totalCost: Number((result as any)?.totalCost ?? 0),
+    count: Number((result as any)?.count ?? 0),
+    activeCount: Number((result as any)?.activeCount ?? 0),
+    linkedCount: Number((result as any)?.linkedCount ?? 0),
+  };
 }

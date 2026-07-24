@@ -139,6 +139,8 @@ export const quotes = mysqlTable("quotes", {
 	diluicaoDescricao: varchar({ length: 256 }),
 	/** Percentual de desconto global (0–1, ex: 0.10 = 10%). Aplicado após margem. */
 	discountPercent: decimal({ precision: 5, scale: 4 }).default('0'),
+	/** Se true, exibe desconto nos documentos (Excel, PDF, Preview) para o cliente */
+	showDiscount: boolean().default(false),
 },
 (table) => [
 	index("quotes_quoteNumber_unique").on(table.quoteNumber),
@@ -363,3 +365,60 @@ export const quoteAdditionalCosts = mysqlTable("quote_additional_costs", {
 ]);
 export type QuoteAdditionalCost = InferSelectModel<typeof quoteAdditionalCosts>;
 export type InsertQuoteAdditionalCost = InferInsertModel<typeof quoteAdditionalCosts>;
+
+/**
+ * Pedidos de Amostras — orçamentos convertidos em pedidos sem cobrança.
+ * Registra o custo para a empresa e permite vinculação futura a pedidos pagos.
+ */
+export const sampleOrders = mysqlTable("sample_orders", {
+	id: int().autoincrement().notNull(),
+	/** ID do orçamento original que foi convertido em amostra */
+	quoteId: int().notNull(),
+	/** Nome do cliente (desnormalizado para facilitar filtros) */
+	clientName: varchar({ length: 256 }).notNull(),
+	/** Nome da obra (desnormalizado para facilitar filtros) */
+	projectName: varchar({ length: 256 }),
+	/** Custo total da amostra para a empresa (totalAmount do orçamento no momento da conversão) */
+	costAmount: decimal({ precision: 12, scale: 2 }).notNull(),
+	/** Status do pedido de amostra */
+	status: varchar({ length: 32 }).notNull().default('active'),
+	/** Observações sobre a amostra */
+	notes: text(),
+	/** Vendedor responsável (desnormalizado) */
+	sellerName: varchar({ length: 256 }),
+	/** ID do vendedor */
+	sellerId: int(),
+	/** Usuário que converteu em amostra */
+	createdByUserId: int(),
+	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+}, (table) => [
+	index("sample_orders_quoteId_idx").on(table.quoteId),
+	index("sample_orders_clientName_idx").on(table.clientName),
+	index("sample_orders_status_idx").on(table.status),
+]);
+export type SampleOrder = InferSelectModel<typeof sampleOrders>;
+export type InsertSampleOrder = InferInsertModel<typeof sampleOrders>;
+
+/**
+ * Vinculação de pedidos de amostras a pedidos futuros.
+ * Permite rastrear se a amostra gerou venda e se o custo foi recuperado.
+ */
+export const sampleLinks = mysqlTable("sample_links", {
+	id: int().autoincrement().notNull(),
+	/** ID do pedido de amostra */
+	sampleOrderId: int().notNull(),
+	/** ID do orçamento futuro vinculado */
+	linkedQuoteId: int().notNull(),
+	/** Tipo de vinculação: 'cobrar' = cobrar o valor, 'diluir' = diluir no pedido, 'associar' = apenas associar sem cobrar */
+	linkType: varchar({ length: 32 }).notNull().default('associar'),
+	/** Observações sobre a vinculação */
+	notes: text(),
+	/** Usuário que criou a vinculação */
+	createdByUserId: int(),
+	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+}, (table) => [
+	index("sample_links_sampleOrderId_idx").on(table.sampleOrderId),
+	index("sample_links_linkedQuoteId_idx").on(table.linkedQuoteId),
+]);
+export type SampleLink = InferSelectModel<typeof sampleLinks>;
+export type InsertSampleLink = InferInsertModel<typeof sampleLinks>;
