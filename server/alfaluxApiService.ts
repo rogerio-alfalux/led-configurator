@@ -388,6 +388,8 @@ export interface AcessorioProduct {
   familia: string | null;
   dimensao: string | null;
   precoVenda: number | null;
+  /** Custo real do acessório (campo retornado pela API /api/acessorios/all) */
+  custo: number | null;
   fotoUrl: string | null;
   /** 'driver' = drivers/fontes; 'accessories' = acessórios físicos */
   source: 'driver' | 'accessories' | null;

@@ -1092,10 +1092,15 @@ export const appRouter = router({
 
         const products = await fetchAllAlfaluxProducts();
         const { items: componentes } = await fetchComponentes();
+        const acessorios = await fetchAcessoriosProducts();
 
         // Build maps for fast lookup
         const productBySku = new Map(products.map(p => [p.sku.toUpperCase(), p]));
         const componenteByCodigo = new Map(componentes.map(c => [c.codigo?.toUpperCase() ?? '', c]));
+        // Mapa unificado de acessórios por código (EQ/CP) — campo 'custo' é o custo real
+        const acessorioByCodigo = new Map(acessorios.filter(a => a.codigo).map(a => [a.codigo!.toUpperCase(), a]));
+        // Também indexar por SKU do acessório (alguns itens podem ter sido salvos com o SKU em vez do código)
+        const acessorioBySku = new Map(acessorios.filter(a => a.sku).map(a => [a.sku!.toUpperCase(), a]));
 
         // Margem do orçamento para estimar custo de itens especiais
         const marginPercent = Number(result.quote.marginPercent ?? 0.10);
@@ -1200,10 +1205,15 @@ export const appRouter = router({
                     custoDriverUnit = Number(segProduct.custoDriverDimTriac220v ?? 0); break;
                   }
                 }
-                // Fallback: buscar no componentes
+                // Fallback: buscar no componentes ou acessórios
                 if (custoDriverUnit === 0) {
                   const comp = componenteByCodigo.get(firstDriverCode);
-                  if (comp?.custoDriver) custoDriverUnit = Number(comp.custoDriver);
+                  if (comp?.custoDriver) {
+                    custoDriverUnit = Number(comp.custoDriver);
+                  } else {
+                    const acess = acessorioByCodigo.get(firstDriverCode);
+                    if (acess?.custo) custoDriverUnit = Number(acess.custo);
+                  }
                 }
               }
 
@@ -1216,7 +1226,12 @@ export const appRouter = router({
                 const dlCode = (data.driverLines[0].driverCode ?? '').toUpperCase();
                 if (dlCode && dlCode !== firstDriverCode) {
                   const comp = componenteByCodigo.get(dlCode);
-                  if (comp?.custoDriver) custoDriverUnit = Number(comp.custoDriver);
+                  if (comp?.custoDriver) {
+                    custoDriverUnit = Number(comp.custoDriver);
+                  } else {
+                    const acess = acessorioByCodigo.get(dlCode);
+                    if (acess?.custo) custoDriverUnit = Number(acess.custo);
+                  }
                 }
               }
 
@@ -1253,26 +1268,35 @@ export const appRouter = router({
             // ── ITENS SEM custoCorpoBase: buscar na API pelo SKU principal ──
             const product = productBySku.get(sku);
             if (!product) {
-              // Tentar buscar como componente/acessório pelo código
+              // Tentar buscar como componente pelo código EQ/CP na API de componentes
               const comp = componenteByCodigo.get(sku);
               if (comp && (comp.custoDriver ?? 0) > 0) {
-                // Componente/acessório encontrado na API de componentes
                 const custoUnit = Number(comp.custoDriver ?? 0);
                 const subtotal = custoUnit * qty;
                 totalCusto += subtotal;
                 temCusto = true;
                 itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: custoUnit, custoDriver: 0, qty, driverQty: 0, subtotal, source: 'componente' });
+                continue;
+              }
+              // Tentar buscar na API de acessórios pelo código EQ/CP ou SKU
+              const acess = acessorioByCodigo.get(sku) ?? acessorioBySku.get(sku);
+              if (acess && (acess.custo ?? 0) > 0) {
+                const custoUnit = Number(acess.custo!);
+                const subtotal = custoUnit * qty;
+                totalCusto += subtotal;
+                temCusto = true;
+                itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: custoUnit, custoDriver: 0, qty, driverQty: 0, subtotal, source: 'acessorio' });
+                continue;
+              }
+              // Não encontrado em nenhuma API — tentar estimar pela margem
+              const totalPrice = Number(data.totalPrice ?? 0);
+              if (totalPrice > 0 && marginPercent > 0) {
+                const custoEstimado = totalPrice / (1 + marginPercent);
+                totalCusto += custoEstimado;
+                temCusto = true;
+                itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: custoEstimado / qty, custoDriver: 0, qty, driverQty: 0, subtotal: custoEstimado, source: 'estimado_margem' });
               } else {
-                // Não encontrado em nenhuma API — tentar estimar pela margem
-                const totalPrice = Number(data.totalPrice ?? 0);
-                if (totalPrice > 0 && marginPercent > 0) {
-                  const custoEstimado = totalPrice / (1 + marginPercent);
-                  totalCusto += custoEstimado;
-                  temCusto = true;
-                  itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: custoEstimado / qty, custoDriver: 0, qty, driverQty: 0, subtotal: custoEstimado, source: 'estimado_margem' });
-                } else {
-                  itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: 0, custoDriver: 0, qty, driverQty: 0, subtotal: 0, source: 'nao_encontrado' });
-                }
+                itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: 0, custoDriver: 0, qty, driverQty: 0, subtotal: 0, source: 'nao_encontrado' });
               }
               continue;
             }
@@ -1308,10 +1332,15 @@ export const appRouter = router({
               // Fallback: usar custoLuminaria genérico ou custoCorpoOnoff220v
               custoCorpo = Number(product.custoCorpoOnoff220v ?? product.custoLuminaria ?? 0);
               custoDriver = Number(product.custoDriver220 ?? 0);
-              // Se não tem custo na API, tentar buscar o driver no componentes
+              // Se não tem custo na API, tentar buscar o driver no componentes ou acessórios
               if (custoDriver === 0 && driverCode) {
                 const comp = componenteByCodigo.get(driverCode);
-                if (comp?.custoDriver) custoDriver = Number(comp.custoDriver);
+                if (comp?.custoDriver) {
+                  custoDriver = Number(comp.custoDriver);
+                } else {
+                  const acess = acessorioByCodigo.get(driverCode);
+                  if (acess?.custo) custoDriver = Number(acess.custo);
+                }
               }
             }
 

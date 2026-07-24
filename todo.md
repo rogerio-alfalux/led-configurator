@@ -2278,3 +2278,9 @@
 - [x] Formato: "DIFAL (X.X%) + FCP (Y.Y%) — UF: R$ valor"
 - [x] Remover variáveis não utilizadas difalAmt/fcpAmt dos três arquivos
 - [x] Usar soma das alíquotas para calcular o valor corretamente (já usa combinedRate = difal + fcp)
+
+## Fix: Busca de custo por EQ/CP em TODAS as fontes da API (Jul 2026)
+
+- [x] calculateCost: buscar custo de itens por código EQ/CP em todas as fontes da API (produtos + componentes + acessórios)
+- [x] Garantir que EQ00448, EQ00438, EQ00440, EQ00450, EQ00603 (acessórios) são encontrados corretamente
+- [x] Funcionar para todos os orçamentos já cadastrados e futuros
