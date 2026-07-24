@@ -60,6 +60,8 @@ const PROFILE_RULES: Record<string, ProfileRule> = {
   "LLP-3435": { name: "SMART MINI",   allowD1: true,  allowD2: true,  allowD1D2: false },
   "LLS-3400": { name: "SMART MINI",   allowD1: true,  allowD2: false, allowD1D2: false },
   "LLA-5010": { name: "SMART MINI",   allowD1: true,  allowD2: true,  allowD1D2: false },
+  // SHIFT
+  "LLE-4846": { name: "SHIFT",        allowD1: true,  allowD2: false, allowD1D2: false },
 };
 
 // ── Mapeamento de tipo de instalação ─────────────────────────────────────────
@@ -75,7 +77,10 @@ const INSTALL_MAP: Record<string, InstallType> = {
 //   "BLAZE A IF 1B 575MM"        → tipo=IF, barras=1,   comp=575
 //   "EASY PRIME E ML 2.8B 1630MM"→ tipo=ML, barras=2.8, comp=1630
 //   "FLOW P IN 2.6B 1510MM"      → tipo=IN, barras=2.6, comp=1510
+//   "SHIFT E 1020MM ML"          → tipo=ML, barras=1,   comp=1020 (SHIFT pattern)
 const NAME_PATTERN = /\b(IF|ML|IN)\s+([\d.]+)B\s+(\d+)MM\b/i;
+// SHIFT uses a different name pattern: "SHIFT E 1020MM ML"
+const SHIFT_NAME_PATTERN = /SHIFT\s+\w+\s+(\d+(?:,\d+)?)\s*MM\s+(ML|IF|IN)/i;
 
 interface ParsedModule {
   type: "IN" | "IF" | "ML";
@@ -84,13 +89,26 @@ interface ParsedModule {
 }
 
 function parseModuleName(name: string): ParsedModule | null {
+  // Try standard pattern first
   const m = NAME_PATTERN.exec(name);
-  if (!m) return null;
-  return {
-    type: m[1].toUpperCase() as "IN" | "IF" | "ML",
-    bars: parseFloat(m[2]),
-    length: parseInt(m[3], 10),
-  };
+  if (m) {
+    return {
+      type: m[1].toUpperCase() as "IN" | "IF" | "ML",
+      bars: parseFloat(m[2]),
+      length: parseInt(m[3], 10),
+    };
+  }
+  // Try SHIFT pattern: "SHIFT E 1020MM ML"
+  const sm = SHIFT_NAME_PATTERN.exec(name);
+  if (sm) {
+    const compStr = sm[1].replace(',', '.');
+    return {
+      type: sm[2].toUpperCase() as "IN" | "IF" | "ML",
+      bars: 1, // SHIFT doesn't use bars concept, use 1 as default
+      length: Math.round(parseFloat(compStr)),
+    };
+  }
+  return null;
 }
 
 // ── Extrai o código de perfil base do SKU ────────────────────────────────────
@@ -291,7 +309,12 @@ export function adaptProfileProducts(
 
     const entry = variantMap[profileCode];
     const moduleData: ModuleData = { length: parsed.length, sku: p.sku };
-    const barsKey = String(parsed.bars);
+    // SHIFT uses bars=1 for all modules, so we need unique keys.
+    // Use sequential index (1, 2, 3...) based on how many modules of this type already exist.
+    const isShiftProfile = rule.name === "SHIFT";
+    const barsKey = isShiftProfile
+      ? String(Object.keys(entry.modules[parsed.type]).length + 1)
+      : String(parsed.bars);
 
     entry.modules[parsed.type][barsKey] = moduleData;
   }

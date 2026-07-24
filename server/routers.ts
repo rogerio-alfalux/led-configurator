@@ -230,6 +230,43 @@ export const appRouter = router({
         })),
       };
     }),
+
+    // Módulos SHIFT (S01) — retorna agrupados por nome único com CCTs disponíveis
+    shiftModules: publicProcedure.query(async () => {
+      const products = await fetchAllAlfaluxProducts();
+      const s01 = products.filter(p => p.sku.startsWith("S01"));
+      // Group by name (some have same SKU but different optics like 10° vs 48°)
+      const grouped = new Map<string, {
+        sku: string;
+        name: string;
+        fotoUrl: string | null;
+        wattage: number | null;
+        dimensions: string | null;
+        availableCCTs: string[];
+        driverCode: string | null;
+        driverModel: string | null;
+      }>();
+      for (const p of s01) {
+        const key = p.name; // Use full name as key (includes optics)
+        if (!grouped.has(key)) {
+          // Extract wattage from name (e.g. "7W", "8W")
+          const wMatch = p.name.match(/(\d+)W/);
+          // Extract dimensions from name (e.g. "303 X 36 X 33MM")
+          const dimMatch = p.name.match(/\((.*?)\)/);
+          grouped.set(key, {
+            sku: p.sku,
+            name: p.name,
+            fotoUrl: p.fotoUrl ?? null,
+            wattage: wMatch ? parseInt(wMatch[1]) : null,
+            dimensions: dimMatch ? dimMatch[1] : null,
+            availableCCTs: (p as any).temperaturasCor ?? [],
+            driverCode: (p as any).driver220?.code ?? null,
+            driverModel: (p as any).driver220?.model ?? null,
+          });
+        }
+      }
+      return Array.from(grouped.values());
+    }),
   }),
 
   cart: router({

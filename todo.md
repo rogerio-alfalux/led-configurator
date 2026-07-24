@@ -2298,3 +2298,13 @@
 ## Feature: Card Receita Bruta no Dashboard
 
 - [x] Adicionar card "Receita Bruta" como primeiro card na sequência: Receita Bruta, Lucro Bruto, Lucro Líquido, Taxa de Conversão, Ticket Médio
+
+## Feature: Produto SHIFT — Perfil Modular com Acessórios Obrigatórios
+
+- [x] Investigar API: dados do SHIFT (LLE/LLS/LLP) e módulos S01
+- [x] Filtrar produtos S01 da seleção inicial (não mostrar na aba de perfis)
+- [x] Fluxo simplificado SHIFT: sem formato (só reto), sem potência, sem CCT
+- [x] Fluxo: Perfil → Instalação (reto) → Tipo de controle → Comprimento → Acessórios obrigatórios → Carrinho
+- [x] Tela visual/intuitiva de seleção de acessórios S01 com limite por comprimento (comprimento ÷ 300mm)
+- [x] Não permitir enviar ao carrinho sem selecionar acessórios S01
+- [x] Integrar com algoritmo de perfis modulares (IN, IF, ML)

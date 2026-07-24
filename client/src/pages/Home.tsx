@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench, Briefcase, Star, Package2, Search as SearchIcon, Minus, Plus, DollarSign, Ban, ArrowLeftRight } from "lucide-react";
+import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench, Briefcase, Star, Package2, Search as SearchIcon, Minus, Plus, DollarSign, Ban, ArrowLeftRight, Package } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -85,6 +85,8 @@ import {
 import type { SearchSuggestion, ProductSearchCatalogs } from "@/components/ProductSearch";
 import ColorPickerModal from "@/components/ColorPickerModal";
 import type { CorPeca } from "@/components/ColorPickerModal";
+import { ShiftModuleSelector } from "@/components/ShiftModuleSelector";
+import type { ShiftModuleOption, ShiftModuleSelection } from "@/components/ShiftModuleSelector";
 import type {
   CompositionResult,
   ConfigInput,
@@ -1510,7 +1512,7 @@ function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onA
       )}
 
       {/* Alerta Driver Remoto */}
-      {result.isRemoteDriver && (
+      {result.isRemoteDriver && result.profileName !== "SHIFT" && (
         <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700/50">
           <MapPin className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
           <div>
@@ -1562,13 +1564,23 @@ function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onA
                   </p>
                 </div>
                 <div className="rounded-lg bg-muted/40 p-3 border border-border">
-                  <p className="text-xs text-muted-foreground mb-1">
-                    {isDual ? "Potência D1 / D2" : "Potência"}
-                  </p>
-                  <p className="text-sm font-bold text-foreground font-display">
-                    {isDual ? `${result.powerD1}W / ${result.powerD2}W` : `${result.powerD1}W`}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{result.cct} · {result.voltage}</p>
+                  {result.profileName === "SHIFT" ? (
+                    <>
+                      <p className="text-xs text-muted-foreground mb-1">Tipo</p>
+                      <p className="text-sm font-bold text-foreground font-display">Perfil Modular</p>
+                      <p className="text-xs text-muted-foreground">Módulos definem potência/CCT</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        {isDual ? "Potência D1 / D2" : "Potência"}
+                      </p>
+                      <p className="text-sm font-bold text-foreground font-display">
+                        {isDual ? `${result.powerD1}W / ${result.powerD2}W` : `${result.powerD1}W`}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{result.cct} · {result.voltage}</p>
+                    </>
+                  )}
                 </div>
                 <div className="rounded-lg bg-muted/40 p-3 border border-border">
                   <p className="text-xs text-muted-foreground mb-1">Comprimento</p>
@@ -1603,13 +1615,23 @@ function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onA
                 </p>
               </div>
               <div className="rounded-lg bg-muted/40 p-3 border border-border">
-                <p className="text-xs text-muted-foreground mb-1">
-                  {isDual ? "Potência D1 / D2" : "Potência"}
-                </p>
-                <p className="text-sm font-bold text-foreground font-display">
-                  {isDual ? `${result.powerD1}W / ${result.powerD2}W` : `${result.powerD1}W`}
-                </p>
-                <p className="text-xs text-muted-foreground">{result.cct} · {result.voltage}</p>
+                {result.profileName === "SHIFT" ? (
+                  <>
+                    <p className="text-xs text-muted-foreground mb-1">Tipo</p>
+                    <p className="text-sm font-bold text-foreground font-display">Perfil Modular</p>
+                    <p className="text-xs text-muted-foreground">Módulos definem potência/CCT</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground mb-1">
+                      {isDual ? "Potência D1 / D2" : "Potência"}
+                    </p>
+                    <p className="text-sm font-bold text-foreground font-display">
+                      {isDual ? `${result.powerD1}W / ${result.powerD2}W` : `${result.powerD1}W`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{result.cct} · {result.voltage}</p>
+                  </>
+                )}
               </div>
               <div className="rounded-lg bg-muted/40 p-3 border border-border">
                 <p className="text-xs text-muted-foreground mb-1">Comprimento</p>
@@ -1626,17 +1648,19 @@ function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onA
           )}
 
           {/* Barra Stripflex/Stripline */}
-          <div className="rounded-lg bg-muted/30 border border-border p-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-              {result.stripMethod === "STRIPLINE" ? "Barra Stripline" : "Barra Stripflex"}
-            </p>
-            <p className="text-sm font-medium text-foreground font-mono">
-              {result.stripflexName}
-              {result.stripflexEq && (
-                <span className="ml-2 text-xs text-muted-foreground font-mono">({result.stripflexEq})</span>
-              )}
-            </p>
-          </div>
+          {result.profileName !== "SHIFT" && (
+            <div className="rounded-lg bg-muted/30 border border-border p-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                {result.stripMethod === "STRIPLINE" ? "Barra Stripline" : "Barra Stripflex"}
+              </p>
+              <p className="text-sm font-medium text-foreground font-mono">
+                {result.stripflexName}
+                {result.stripflexEq && (
+                  <span className="ml-2 text-xs text-muted-foreground font-mono">({result.stripflexEq})</span>
+                )}
+              </p>
+            </div>
+          )}
 
           {/* Difusor SHARP */}
           {(result.diffuserD1 || result.diffuserD2) && (
@@ -1736,7 +1760,7 @@ function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onA
       )}
 
       {/* Drivers por SKU */}
-      {(result.driversD1.length > 0 || result.driversD2.length > 0) && (
+      {result.profileName !== "SHIFT" && (result.driversD1.length > 0 || result.driversD2.length > 0) && (
         <Card className="shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
@@ -2253,15 +2277,17 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                 const item: CartItemData = {
                   category: "Perfis",
                   sku: result.profileCode,
-                  description: `${result.profileName} ${INSTALL_LABELS[result.installType]} ${result.application !== 'D1' ? result.application + ' ' : ''}${result.powerD1}W ${result.cct} ${result.controlType === 'dimDali' ? 'DIM DALI' : result.controlType === 'dim110v' ? 'DIM 1-10V' : 'ON/OFF'} ${result.voltage} ${result.realizedLength}mm`,
-                  power: `${result.powerD1}W`,
-                  cct: result.cct,
+                  description: result.profileName === "SHIFT"
+                    ? `SHIFT EMBUTIR ${result.controlType === 'dimDali' ? 'DIM DALI' : result.controlType === 'dim110v' ? 'DIM 1-10V' : 'ON/OFF'} ${result.realizedLength}mm`
+                    : `${result.profileName} ${INSTALL_LABELS[result.installType]} ${result.application !== 'D1' ? result.application + ' ' : ''}${result.powerD1}W ${result.cct} ${result.controlType === 'dimDali' ? 'DIM DALI' : result.controlType === 'dim110v' ? 'DIM 1-10V' : 'ON/OFF'} ${result.voltage} ${result.realizedLength}mm`,
+                  power: result.profileName === "SHIFT" ? undefined : `${result.powerD1}W`,
+                  cct: result.profileName === "SHIFT" ? "A definir (módulos)" : result.cct,
                   qty: globalQty,
                   unitPrice: _flexUnitPrice,
                   totalPrice: _flexTotalPrice,
                   priceFromApi: modulePriceResult != null && precoTotal != null,
                   photoUrl: photo ?? "",
-                  moduloLed: `Stripflex 562,5 x 10mm 36L ${result.cct}`,
+                  moduloLed: result.profileName === "SHIFT" ? "Módulos SHIFT (ver acessórios)" : `Stripflex 562,5 x 10mm 36L ${result.cct}`,
                   drivers: "",
                   orderSummary: generateOrderSummary(result),
                   quoteSummary: summary,
@@ -2804,6 +2830,9 @@ export default function Home() {
   // Buscar produtos da API Alfalux diretamente no browser (client-side)
   // Isso evita restrições de rede do servidor sandbox e garante dados sempre frescos
   const { products: alfaluxApiProducts, isLoading: alfaluxLoading, refetch: refetchAlfaluxProducts } = useAlfaluxProducts();
+  // SHIFT modules (S01) query
+  const { data: shiftModulesData } = trpc.alfalux.shiftModules.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+
   // Mapa de overrides de custo de driver (código EQ → custo customizado)
   // Usado para substituir o custoDriver220/Bivolt/etc. da API quando há override cadastrado
   const { data: driverCostOverrideMap = {} } = trpc.driverPriceOverrides.getMap.useQuery(undefined, { staleTime: 60 * 1000 });
@@ -4424,6 +4453,22 @@ export default function Home() {
   const [shapeSideV, setShapeSideV] = useState<string>("1200");
   const [shapeResult, setShapeResult] = useState<ShapeResult | null>(null);
   const [shapeRequestedMm, setShapeRequestedMm] = useState<number>(0);
+  // SHIFT module selection state
+  interface ShiftModuleSelection {
+    sku: string;
+    name: string;
+    cct: string;
+    quantity: number;
+    fotoUrl?: string;
+    wattage?: number;
+    dimensions?: string;
+    driverCode?: string;
+    driverModel?: string;
+  }
+  const [shiftModules, setShiftModules] = useState<ShiftModuleSelection[]>([]);
+  const [shiftModulesConfirmed, setShiftModulesConfirmed] = useState(false);
+  const [shiftModuleModalOpen, setShiftModuleModalOpen] = useState(false);
+  const isShift = profileName === "SHIFT";
   // Result state
   const [result, setResult] = useState<CompositionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -4479,12 +4524,19 @@ export default function Home() {
   // Reset ao trocar perfil
   const handleProfileChange = (name: string) => {
     setProfileName(name);
-    setInstallType("");
     setApplication("D1");
     setProfileShape("STRAIGHT");
     setShapeResult(null);
     setResult(null);
     setError(null);
+    // SHIFT: auto-select EMBUTIR (only option) and reset shift modules
+    if (name === "SHIFT") {
+      setInstallType("EMBUTIR");
+      setShiftModules([]);
+      setShiftModulesConfirmed(false);
+    } else {
+      setInstallType("");
+    }
   };
 
   // Reset ao trocar instalação
@@ -4535,19 +4587,25 @@ export default function Home() {
       }
     }
 
+    // SHIFT defaults: no power/CCT/driver - use safe defaults for the engine
+    const shiftPowerD1 = isShift ? 18 : powerD1;
+    const shiftCct = isShift ? "3000K" : cct;
+    const shiftVoltage = isShift ? "220Vac" as const : voltage;
+    const shiftStripMethod = isShift ? "STRIPFLEX" as const : undefined;
+
     const input: ConfigInput = {
       profileCode,
       application: effectiveApplication,
-      powerD1,
+      powerD1: shiftPowerD1,
       powerD2: isDual ? powerD2 : undefined,
-      cct,
-      voltage,
+      cct: shiftCct,
+      voltage: shiftVoltage,
       // REGRA INEGOCIÁVEL: determinar stripMethod com base na potência e nos módulos disponíveis.
       // Se a variante tem AMBOS os módulos (ex: BLAZE H com 18W=STRIPFLEX e 28W=STRIPLINE),
       // usar a potência para decidir: 18W → STRIPFLEX, 28W → STRIPLINE.
       // Se a variante tem apenas um tipo, usar esse tipo.
       // Se não tem nenhum, usar a lógica legada (36W = STRIPLINE, outros = STRIPFLEX).
-      stripMethod: (() => {
+      stripMethod: shiftStripMethod ?? (() => {
         const hasBothMethods = selectedVariant?.ledModuleStripflex && selectedVariant?.ledModuleStripline;
         if (hasBothMethods) {
           // Perfis com ambos os métodos: decidir pela potência
@@ -4602,7 +4660,7 @@ export default function Home() {
       const msg = e instanceof Error ? e.message : "Erro ao calcular composição.";
       setError(msg);
     }
-  }, [profileCode, effectiveApplication, powerD1, powerD2, cct, voltage, stripMethod, totalLength, allowLongModules, allowFractional, adjustToLarger, allowMixedIF, effectiveIndependent, isDual, hasDiffuser, diffuserD1, diffuserD2, controlType, selectedVariant]);
+  }, [profileCode, effectiveApplication, powerD1, powerD2, cct, voltage, stripMethod, totalLength, allowLongModules, allowFractional, adjustToLarger, allowMixedIF, effectiveIndependent, isDual, hasDiffuser, diffuserD1, diffuserD2, controlType, selectedVariant, isShift]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -5997,7 +6055,7 @@ export default function Home() {
                 {/* fim fluxo LED BAR */}
 
                 {/* 2. Instalação */}
-                {profileName && availableInstallTypes.length > 0 && (
+                {profileName && availableInstallTypes.length > 0 && !isShift && (
                   <div>
                     <FieldLabel>Instalação</FieldLabel>
                     <div className="grid grid-cols-2 gap-2">
@@ -6035,7 +6093,7 @@ export default function Home() {
                 )}
 
                 {/* 2b. Formato do Perfil (apenas para perfis que suportam EM L) */}
-                {selectedVariant && profileSupportsLShape(profileCode) && (
+                {selectedVariant && profileSupportsLShape(profileCode) && !isShift && (
                   <div>
                     <FieldLabel>Formato</FieldLabel>
                     <div className="grid grid-cols-4 gap-2">
@@ -6088,8 +6146,8 @@ export default function Home() {
                     )}
                   </div>
                 )}
-                {/* 3. Aplicação (oculto para embutir) */}
-                {selectedVariant && !isEmbutir && (
+                {/* 3. Aplicação (oculto para embutir e SHIFT) */}
+                {selectedVariant && !isEmbutir && !isShift && (
                   <div>
                     <FieldLabel>Aplicação</FieldLabel>
                     <div className="grid grid-cols-3 gap-2">
@@ -6126,7 +6184,7 @@ export default function Home() {
                 )}
 
                 {/* 4. Potência D1 */}
-                {selectedVariant && (
+                {selectedVariant && !isShift && (
                   <div>
                     <FieldLabel hint={isDual ? "D1" : undefined}>Potência</FieldLabel>
                     <div className="grid grid-cols-3 gap-2">
@@ -6241,10 +6299,10 @@ export default function Home() {
                   </>
                 )}
 
-                {selectedVariant && <Separator />}
+                {selectedVariant && !isShift && <Separator />}
 
                 {/* 6. CCT e Tensão */}
-                {selectedVariant && (
+                {selectedVariant && !isShift && (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <FieldLabel>CCT</FieldLabel>
@@ -6322,8 +6380,53 @@ export default function Home() {
                     )}
                   </div>
                 )}
+                {/* SHIFT: Simplified flow — Control Type + Comprimento */}
+                {selectedVariant && isShift && (
+                  <div className="space-y-4">
+                    <Separator />
+                    <div>
+                      <FieldLabel>Tipo de Controle</FieldLabel>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(["onoff", ...(selectedVariant?.driverDimDali ? ["dimDali"] : []), ...(selectedVariant?.driverDim110v ? ["dim110v"] : [])] as import("@/lib/ledEngine").ControlType[]).map((ct) => (
+                          <button
+                            key={ct}
+                            onClick={() => setControlType(ct)}
+                            className={[
+                              "px-3 py-2.5 rounded-md text-sm font-semibold border transition-all",
+                              controlType === ct
+                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50",
+                            ].join(" ")}
+                          >
+                            {ct === "onoff" ? "ON/OFF" : ct === "dimDali" ? "DIM DALI" : "DIM 1-10V"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <FieldLabel>Comprimento (mm)</FieldLabel>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          value={totalLength}
+                          onChange={(e) => setTotalLength(e.target.value)}
+                          min={500}
+                          max={3100}
+                          step={1}
+                          className="w-full h-10 px-3 pr-12 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
+                          placeholder="ex: 2000"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">
+                          mm
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">Máx. módulos: {Math.floor(parseInt(totalLength || "0") / 300) || 0} (1 módulo ≈ 300mm)</p>
+                    </div>
+                  </div>
+                )}
+
                 {/* 7. Comprimento Total / Dimensões */}
-                {selectedVariant && profileShape === "STRAIGHT" && (
+                {selectedVariant && profileShape === "STRAIGHT" && !isShift && (
                   <div>
                     <FieldLabel>Comprimento Total</FieldLabel>
                     {isDual && (
@@ -6443,10 +6546,10 @@ export default function Home() {
                   </div>
                 )}
 
-                {selectedVariant && <Separator />}
+                {selectedVariant && !isShift && <Separator />}
 
                 {/* 8. Toggles (acendimento independente oculto para embutir) */}
-                {selectedVariant && (
+                {selectedVariant && !isShift && (
                   <div className="space-y-3">
                     {/* Acendimento Independente — oculto para embutir */}
                     {!isEmbutir && (
@@ -9070,7 +9173,59 @@ export default function Home() {
                 </CardContent>
               </Card>
             ) : (
-              <ResultBlock result={result} profilePriceMap={profilePriceMap} profileVariant={activeProfileCatalog[result.profileCode]} skuPriceMap={skuPriceMap} onAddToQuote={(appendToQuoteId || replaceInQuoteId) ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }} pendingAccessoriesCount={pendingAccessories.length} globalPavimento={globalPavimento} />
+              <>
+                <ResultBlock result={result} profilePriceMap={profilePriceMap} profileVariant={activeProfileCatalog[result.profileCode]} skuPriceMap={skuPriceMap} onAddToQuote={isShift && !shiftModulesConfirmed ? undefined : ((appendToQuoteId || replaceInQuoteId) ? ((item: CartItemData) => {
+                    // SHIFT: inject modules as linked accessories
+                    if (isShift && shiftModulesConfirmed && shiftModules.length > 0) {
+                      const shiftAccessories: import("@/lib/cartTypes").LinkedAccessory[] = shiftModules.map(m => ({
+                        codigo: m.sku,
+                        descricao: `${m.name} ${m.cct}K`,
+                        qty: m.quantity,
+                        unitPrice: null,
+                        fotoUrl: m.fotoUrl || null,
+                        familia: "SHIFT MÓDULO",
+                      }));
+                      const existingAcc = item.accessories ?? [];
+                      handleAddItemOrToQuote({ ...item, accessories: [...existingAcc, ...shiftAccessories] });
+                    } else {
+                      handleAddItemOrToQuote(item);
+                    }
+                  }) : undefined)} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }} pendingAccessoriesCount={pendingAccessories.length} globalPavimento={globalPavimento} />
+                {/* SHIFT: Obrigatório selecionar módulos antes de enviar ao carrinho */}
+                {isShift && (
+                  <Card className="mt-4 shadow-sm border-primary/30">
+                    <CardContent className="py-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">
+                            {shiftModulesConfirmed
+                              ? `✅ ${shiftModules.reduce((s, m) => s + m.quantity, 0)} módulo(s) selecionado(s)`
+                              : "⚠️ Selecione os módulos SHIFT (obrigatório)"}
+                          </p>
+                          {shiftModulesConfirmed && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {shiftModules.map(m => `${m.name.replace(/^SHIFT\s+MÓDULO\s*/i, "")} ${m.cct}K ×${m.quantity}`).join(", ")}
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={shiftModulesConfirmed ? "outline" : "default"}
+                          onClick={() => setShiftModuleModalOpen(true)}
+                        >
+                          <Package className="w-4 h-4 mr-1.5" />
+                          {shiftModulesConfirmed ? "Alterar" : "Escolher Módulos"}
+                        </Button>
+                      </div>
+                      {!shiftModulesConfirmed && (
+                        <p className="text-xs text-amber-600 mt-2">
+                          Não é possível adicionar ao orçamento sem selecionar os módulos.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </>
             ))}
             {/* Resultado EM L */}
             {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && !glowMode && !tubeLightMode && !tubeLightResult && profileShape !== "STRAIGHT" && (
@@ -13530,6 +13685,27 @@ export default function Home() {
         isAdding={appendToQuoteId ? appendItemsMutation.isPending : isAddingToCart}
         productName={pendingCartItem?.sku ?? ""}
         excludedColors={pendingCartItem?.category === "LED BAR" ? ["Branco Fosco Micro"] : []}
+      />
+      {/* SHIFT Module Selector Modal */}
+      <ShiftModuleSelector
+        open={shiftModuleModalOpen}
+        onOpenChange={setShiftModuleModalOpen}
+        modules={(shiftModulesData ?? []).map(m => ({
+          sku: m.sku,
+          name: m.name,
+          fotoUrl: m.fotoUrl ?? undefined,
+          wattage: m.wattage ?? undefined,
+          dimensions: m.dimensions ?? undefined,
+          availableCCTs: m.availableCCTs,
+          driverCode: m.driverCode ?? undefined,
+          driverModel: m.driverModel ?? undefined,
+        }))}
+        maxModules={Math.floor(parseInt(totalLength || "0") / 300) || 1}
+        currentSelections={shiftModules}
+        onConfirm={(selections) => {
+          setShiftModules(selections);
+          setShiftModulesConfirmed(selections.length > 0);
+        }}
       />
     </div>
   );
