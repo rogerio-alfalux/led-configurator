@@ -4359,61 +4359,10 @@ export default function QuoteDetail() {
           const isCostPriv = (user as any)?.role === 'admin' || COST_PRIVILEGED_EMAILS.map(e => e.toLowerCase()).includes(ue);
           if (!isCostPriv) return null;
 
-          // ── Calcular métricas de lucro usando a mesma fórmula do dashboard principal ──
-          const IMPOSTOS_PADRAO = 0.12;
-          const tf = Number(quote.totalFinal ?? quote.totalAmount ?? 0); // receita total (com DIFAL/frete)
-          const ta = Number(quote.totalAmount ?? 0); // base sem RT/margem (para RT)
-
-          // Custo dos produtos: custoCorpoBase×qty + custoDriverBase×driverQty
-          let custoProdutos = 0;
-          let temCusto = false;
-          for (const item of currentItemsMigrated) {
-            const d = parseCartItemData(item.itemData);
-            if (!d) continue;
-            const qty = Number(d.qty ?? 1);
-            const custoCorpo = Number(d.custoCorpoBase ?? 0);
-            const custoDriver = Number(d.custoDriverBase ?? 0);
-            let driverQty = 0;
-            if (Array.isArray(d.driverLines) && d.driverLines.length > 0) {
-              driverQty = d.driverLines.reduce((s, dl) => s + Number((dl as any).driverQty ?? 0), 0);
-            } else if ((d as any).driverQtyPerUnit) {
-              driverQty = Number((d as any).driverQtyPerUnit) * qty;
-            }
-            if (custoCorpo > 0) {
-              custoProdutos += custoCorpo * qty + custoDriver * driverQty;
-              temCusto = true;
-            }
-          }
-
-          // Deduções
-          const impostos = tf * IMPOSTOS_PADRAO;
-          const comm1 = Number(quote.commissionPercent ?? 0);
-          const comm2 = Number((quote as any).commissionPercent2 ?? 0);
-          const comissoes = tf * (comm1 + comm2);
-          const rt = Number(quote.rtPercent ?? 0);
-          const rtVal = ta * rt;
-          const difal = Number(quote.difalValue ?? 0) + Number(quote.fcpValue ?? 0);
-          const freteIncluded = !!(quote as any).freteIncluded;
-          const frete = freteIncluded ? 0 : Number((quote as any).freteValue ?? 0);
-
-          // Lucro Bruto = Receita - Custo Produtos
-          const lucroBruto = tf - custoProdutos;
-          // Lucro Líquido = Lucro Bruto - Impostos - Comissões - RT - DIFAL/FCP - Frete
-          const lucroLiquidoBase = lucroBruto - impostos - comissoes - rtVal - difal - frete;
-
           return (
             <QuoteProfitDashboard
               quoteId={quote.id}
-              totalReceita={tf}
-              custoProdutos={custoProdutos}
-              temCusto={temCusto}
-              impostos={impostos}
-              comissoes={comissoes}
-              rtVal={rtVal}
-              difal={difal}
-              frete={frete}
-              lucroBruto={lucroBruto}
-              lucroLiquidoBase={lucroLiquidoBase}
+              quote={quote}
               user={user}
             />
           );
@@ -4837,28 +4786,18 @@ export default function QuoteDetail() {
 // ─── Dashboard de Lucro por Orçamento ─────────────────────────────────────────
 interface QuoteProfitDashboardProps {
   quoteId: number;
-  totalReceita: number;
-  custoProdutos: number;
-  temCusto: boolean;
-  impostos: number;
-  comissoes: number;
-  rtVal: number;
-  difal: number;
-  frete: number;
-  lucroBruto: number;
-  lucroLiquidoBase: number;
+  quote: any;
   user: unknown;
 }
 
-function QuoteProfitDashboard({
-  quoteId, totalReceita, custoProdutos, temCusto, impostos, comissoes, rtVal, difal, frete,
-  lucroBruto, lucroLiquidoBase, user
-}: QuoteProfitDashboardProps) {
+function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProps) {
   const [addCostOpen, setAddCostOpen] = useState(false);
   const [newCostDesc, setNewCostDesc] = useState("");
   const [newCostValor, setNewCostValor] = useState("");
   const utils = trpc.useUtils();
 
+  // Buscar custo real dos produtos na API
+  const costQuery = trpc.quotes.calculateCost.useQuery({ quoteId });
   const costsQuery = trpc.quoteAdditionalCosts.list.useQuery({ quoteId });
   const createCostMutation = trpc.quoteAdditionalCosts.create.useMutation({
     onSuccess: () => {
@@ -4881,9 +4820,29 @@ function QuoteProfitDashboard({
   const additionalCosts = costsQuery.data ?? [];
   const totalAdditionalCosts = additionalCosts.reduce((s, c) => s + parseFloat(String(c.valor)), 0);
 
-  // Fórmula idêntica ao dashboard principal:
+  // Dados do custo real vindo da API
+  const custoProdutos = costQuery.data?.custoProdutos ?? 0;
+  const temCusto = costQuery.data?.temCusto ?? false;
+  const isLoadingCost = costQuery.isLoading;
+
+  // Calcular deduções usando a mesma fórmula do dashboard principal
+  const IMPOSTOS_PADRAO = 0.12;
+  const totalReceita = Number(quote.totalFinal ?? quote.totalAmount ?? 0);
+  const ta = Number(quote.totalAmount ?? 0);
+  const impostos = totalReceita * IMPOSTOS_PADRAO;
+  const comm1 = Number(quote.commissionPercent ?? 0);
+  const comm2 = Number(quote.commissionPercent2 ?? 0);
+  const comissoes = totalReceita * (comm1 + comm2);
+  const rt = Number(quote.rtPercent ?? 0);
+  const rtVal = ta * rt;
+  const difal = Number(quote.difalValue ?? 0) + Number(quote.fcpValue ?? 0);
+  const freteIncluded = !!quote.freteIncluded;
+  const frete = freteIncluded ? 0 : Number(quote.freteValue ?? 0);
+
   // Lucro Bruto = Receita - Custo Produtos
-  // Lucro Líquido = Lucro Bruto - Impostos(12%) - Comissões - RT - DIFAL/FCP - Frete
+  const lucroBruto = totalReceita - custoProdutos;
+  // Lucro Líquido = Lucro Bruto - Impostos - Comissões - RT - DIFAL/FCP - Frete
+  const lucroLiquidoBase = lucroBruto - impostos - comissoes - rtVal - difal - frete;
   // Lucro Líquido Final = Lucro Líquido - Custos Adicionais
   const lucroLiquido = lucroLiquidoBase - totalAdditionalCosts;
   const margemBruta = totalReceita > 0 ? (lucroBruto / totalReceita) * 100 : 0;
@@ -4900,7 +4859,12 @@ function QuoteProfitDashboard({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {!temCusto && (
+        {isLoadingCost && (
+          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md px-3 py-2 text-xs text-blue-700 dark:text-blue-400">
+            Carregando custo dos produtos da API...
+          </div>
+        )}
+        {!isLoadingCost && !temCusto && (
           <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
             ⚠ Custo de produto não disponível para este orçamento. Lucro Bruto não pode ser calculado.
           </div>

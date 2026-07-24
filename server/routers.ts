@@ -1081,10 +1081,133 @@ export const appRouter = router({
             empresa: input.empresa,
           }),
         });
-        return { success: true };
+                return { success: true };
+      }),
+    // Calcula custo real dos produtos buscando na API (para itens sem custoCorpoBase salvo)
+    calculateCost: protectedProcedure
+      .input(z.object({ quoteId: z.number() }))
+      .query(async ({ input }) => {
+        const result = await getQuoteById(input.quoteId);
+        if (!result) return { custoProdutos: 0, temCusto: false, items: [] };
+
+        const products = await fetchAllAlfaluxProducts();
+        const { items: componentes } = await fetchComponentes();
+
+        // Build maps for fast lookup
+        const productBySku = new Map(products.map(p => [p.sku.toUpperCase(), p]));
+        const componenteByCodigo = new Map(componentes.map(c => [c.codigo?.toUpperCase() ?? '', c]));
+
+        let totalCusto = 0;
+        let temCusto = false;
+        const itemDetails: Array<{ itemNumber: number; sku: string; custoCorpo: number; custoDriver: number; qty: number; driverQty: number; subtotal: number; source: string }> = [];
+
+        for (const row of result.items) {
+          try {
+            const data = typeof row.itemData === 'string' ? JSON.parse(row.itemData) : row.itemData;
+            const sku = (data.sku ?? '').toUpperCase();
+            const qty = Number(data.qty ?? 1);
+
+            // Se já tem custoCorpoBase salvo, usar diretamente
+            if (Number(data.custoCorpoBase ?? 0) > 0) {
+              const custoCorpo = Number(data.custoCorpoBase);
+              const custoDriver = Number(data.custoDriverBase ?? 0);
+              let driverQty = 0;
+              if (Array.isArray(data.driverLines) && data.driverLines.length > 0) {
+                driverQty = data.driverLines.reduce((s: number, d: any) => s + Number(d.driverQty ?? 0), 0);
+              } else if (data.driverQtyPerUnit) {
+                driverQty = Number(data.driverQtyPerUnit) * qty;
+              }
+              const subtotal = custoCorpo * qty + custoDriver * driverQty;
+              totalCusto += subtotal;
+              temCusto = true;
+              itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo, custoDriver, qty, driverQty, subtotal, source: 'salvo' });
+              continue;
+            }
+
+            // Item Especial sem custo de produto
+            if (data.isSpecialItem || data.category === 'Item Especial' || data.category === 'especial') {
+              itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: 0, custoDriver: 0, qty, driverQty: 0, subtotal: 0, source: 'especial' });
+              continue;
+            }
+
+            // Buscar na API pelo SKU
+            const product = productBySku.get(sku);
+            if (!product) {
+              itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: 0, custoDriver: 0, qty, driverQty: 0, subtotal: 0, source: 'nao_encontrado' });
+              continue;
+            }
+
+            // Determinar tipo de controle pelo driverCode do item
+            let driverCode = '';
+            if (Array.isArray(data.driverLines) && data.driverLines.length > 0) {
+              driverCode = (data.driverLines[0].driverCode ?? '').toUpperCase();
+            } else if (Array.isArray(data.profileSegments) && data.profileSegments.length > 0) {
+              driverCode = (data.profileSegments[0].driverCode ?? '').toUpperCase();
+            }
+
+            // Identificar qual campo de custo usar baseado no driver
+            let custoCorpo = 0;
+            let custoDriver = 0;
+            if (driverCode && product.driver220?.code?.toUpperCase() === driverCode) {
+              custoCorpo = Number(product.custoCorpoOnoff220v ?? product.custoLuminaria ?? 0);
+              custoDriver = Number(product.custoDriver220 ?? 0);
+            } else if (driverCode && product.driverBivolt?.code?.toUpperCase() === driverCode) {
+              custoCorpo = Number(product.custoCorpoOnoffBivolt ?? product.custoLuminaria ?? 0);
+              custoDriver = Number(product.custoDriverBivolt ?? 0);
+            } else if (driverCode && product.driverDim110v?.code?.toUpperCase() === driverCode) {
+              custoCorpo = Number(product.custoCorpoDim110v ?? product.custoLuminaria ?? 0);
+              custoDriver = Number(product.custoDriverDim110v ?? 0);
+            } else if (driverCode && product.driverDimDali?.code?.toUpperCase() === driverCode) {
+              custoCorpo = Number(product.custoCorpoDimDali ?? product.custoLuminaria ?? 0);
+              custoDriver = Number(product.custoDriverDimDali ?? 0);
+            } else if (driverCode && product.driverDimTriac110v?.code?.toUpperCase() === driverCode) {
+              custoCorpo = Number(product.custoCorpoDimTriac110v ?? product.custoLuminaria ?? 0);
+              custoDriver = Number(product.custoDriverDimTriac110v ?? 0);
+            } else if (driverCode && product.driverDimTriac220v?.code?.toUpperCase() === driverCode) {
+              custoCorpo = Number(product.custoCorpoDimTriac220v ?? product.custoLuminaria ?? 0);
+              custoDriver = Number(product.custoDriverDimTriac220v ?? 0);
+            } else {
+              // Fallback: usar custoLuminaria genérico ou custoCorpoOnoff220v
+              custoCorpo = Number(product.custoCorpoOnoff220v ?? product.custoLuminaria ?? 0);
+              custoDriver = Number(product.custoDriver220 ?? 0);
+              // Se não tem custo na API, tentar buscar o driver no componentes
+              if (custoDriver === 0 && driverCode) {
+                const comp = componenteByCodigo.get(driverCode);
+                if (comp?.custoDriver) custoDriver = Number(comp.custoDriver);
+              }
+            }
+
+            // Calcular quantidade de drivers
+            let driverQty = 0;
+            if (Array.isArray(data.driverLines) && data.driverLines.length > 0) {
+              driverQty = data.driverLines.reduce((s: number, d: any) => s + Number(d.driverQty ?? 0), 0);
+            } else if (data.driverQtyPerUnit) {
+              driverQty = Number(data.driverQtyPerUnit) * qty;
+            } else if (Array.isArray(data.profileSegments) && data.profileSegments.length > 0) {
+              // Para perfis modulares: somar driverQtyPerPiece * qty de cada segmento * qty do item
+              driverQty = data.profileSegments.reduce((s: number, seg: any) => s + (Number(seg.driverQtyPerPiece ?? 0) * Number(seg.qty ?? 1)), 0) * qty;
+            } else {
+              // Tentar inferir da API (driverQtd220, etc.)
+              const driverQtdPerUnit = Number(product.driverQtd220 ?? product.driverQtdBivolt ?? 1);
+              driverQty = driverQtdPerUnit * qty;
+            }
+
+            if (custoCorpo > 0) {
+              const subtotal = custoCorpo * qty + custoDriver * driverQty;
+              totalCusto += subtotal;
+              temCusto = true;
+              itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo, custoDriver, qty, driverQty, subtotal, source: 'api' });
+            } else {
+              itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: 0, custoDriver: 0, qty, driverQty: 0, subtotal: 0, source: 'sem_custo_api' });
+            }
+          } catch {
+            // Item com itemData inválido
+          }
+        }
+
+        return { custoProdutos: totalCusto, temCusto, items: itemDetails };
       }),
   }),
-
   // ─── Sellers & Assistants ─────────────────────────────────────────────────
   sellers: router({
     list: protectedProcedure.query(async () => listSellers()),

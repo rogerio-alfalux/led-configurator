@@ -2264,6 +2264,8 @@
 - [x] Corrigir divisão de equipamentos do Item Especial por tipo na ficha de produção (campo tipo não está sendo salvo/lido corretamente; fallback por familia para itens antigos)
 - [x] Garantir que equipamentos do Item Especial aparecem na requisição de materiais (verifica isSpecialItem, category='Item Especial' e category='especial')
 - [x] Dashboard de Lucro no detalhe do orçamento: aplicar fórmula correta (receita - custo - comissão - impostos = lucro bruto; lucro bruto - custos adicionais = lucro líquido)
+- [x] Buscar custo real dos produtos/drivers na API para cálculo do lucro (endpoint quotes.calculateCost)
+- [x] Dashboard de Lucro visível apenas para Dennis, Vivian e admins (COST_PRIVILEGED_EMAILS)
 
 ## v35 — Unificar DIFAL + FCP em linha única (Jul 2026)
 
