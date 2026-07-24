@@ -1107,7 +1107,112 @@ export const appRouter = router({
             const sku = (data.sku ?? '').toUpperCase();
             const qty = Number(data.qty ?? 1);
 
-            // Se já tem custoCorpoBase salvo, usar diretamente
+            // Item Especial sem custo de produto (verificar primeiro)
+            if (data.isSpecialItem || data.category === 'Item Especial' || data.category === 'especial') {
+              itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: 0, custoDriver: 0, qty, driverQty: 0, subtotal: 0, source: 'especial' });
+              continue;
+            }
+
+            // ── PERFIS MODULARES: cada segmento tem seu próprio SKU com custo individual ──
+            if (Array.isArray(data.profileSegments) && data.profileSegments.length > 0) {
+              let custoCorpoTotal = 0;
+              let custoDriverTotal = 0;
+              let totalDriverQty = 0;
+              let allFound = false;
+
+              // Determinar tipo de controle pelo driverCode do primeiro segmento
+              const firstDriverCode = (data.profileSegments[0].driverCode ?? '').toUpperCase();
+
+              // Buscar custo de cada módulo/segmento individualmente na API
+              for (const seg of data.profileSegments) {
+                const segSku = (seg.sku ?? '').toUpperCase();
+                const segQty = Number(seg.qty ?? 1);
+                const segDriverQtyPerPiece = Number(seg.driverQtyPerPiece ?? 0);
+
+                // Buscar o produto do módulo na API pelo SKU do segmento
+                const segProduct = productBySku.get(segSku);
+                if (segProduct) {
+                  // Determinar custo do corpo baseado no tipo de controle
+                  let segCusto = 0;
+                  if (firstDriverCode && segProduct.driver220?.code?.toUpperCase() === firstDriverCode) {
+                    segCusto = Number(segProduct.custoCorpoOnoff220v ?? segProduct.custoLuminaria ?? 0);
+                  } else if (firstDriverCode && segProduct.driverBivolt?.code?.toUpperCase() === firstDriverCode) {
+                    segCusto = Number(segProduct.custoCorpoOnoffBivolt ?? segProduct.custoLuminaria ?? 0);
+                  } else if (firstDriverCode && segProduct.driverDimDali?.code?.toUpperCase() === firstDriverCode) {
+                    segCusto = Number(segProduct.custoCorpoDimDali ?? segProduct.custoLuminaria ?? 0);
+                  } else if (firstDriverCode && segProduct.driverDim110v?.code?.toUpperCase() === firstDriverCode) {
+                    segCusto = Number(segProduct.custoCorpoDim110v ?? segProduct.custoLuminaria ?? 0);
+                  } else if (firstDriverCode && segProduct.driverDimTriac110v?.code?.toUpperCase() === firstDriverCode) {
+                    segCusto = Number(segProduct.custoCorpoDimTriac110v ?? segProduct.custoLuminaria ?? 0);
+                  } else if (firstDriverCode && segProduct.driverDimTriac220v?.code?.toUpperCase() === firstDriverCode) {
+                    segCusto = Number(segProduct.custoCorpoDimTriac220v ?? segProduct.custoLuminaria ?? 0);
+                  } else {
+                    // Fallback: usar custoCorpoOnoff220v (padrão)
+                    segCusto = Number(segProduct.custoCorpoOnoff220v ?? segProduct.custoLuminaria ?? 0);
+                  }
+                  custoCorpoTotal += segCusto * segQty;
+                  if (segCusto > 0) allFound = true;
+                }
+
+                // Somar drivers deste segmento
+                totalDriverQty += segDriverQtyPerPiece * segQty;
+              }
+
+              // Buscar custo do driver (usar primeiro segmento como referência)
+              let custoDriverUnit = 0;
+              if (firstDriverCode) {
+                // Tentar buscar do primeiro produto de segmento que tenha o driver
+                for (const seg of data.profileSegments) {
+                  const segProduct = productBySku.get((seg.sku ?? '').toUpperCase());
+                  if (!segProduct) continue;
+                  if (segProduct.driver220?.code?.toUpperCase() === firstDriverCode) {
+                    custoDriverUnit = Number(segProduct.custoDriver220 ?? 0); break;
+                  } else if (segProduct.driverBivolt?.code?.toUpperCase() === firstDriverCode) {
+                    custoDriverUnit = Number(segProduct.custoDriverBivolt ?? 0); break;
+                  } else if (segProduct.driverDimDali?.code?.toUpperCase() === firstDriverCode) {
+                    custoDriverUnit = Number(segProduct.custoDriverDimDali ?? 0); break;
+                  } else if (segProduct.driverDim110v?.code?.toUpperCase() === firstDriverCode) {
+                    custoDriverUnit = Number(segProduct.custoDriverDim110v ?? 0); break;
+                  } else if (segProduct.driverDimTriac110v?.code?.toUpperCase() === firstDriverCode) {
+                    custoDriverUnit = Number(segProduct.custoDriverDimTriac110v ?? 0); break;
+                  } else if (segProduct.driverDimTriac220v?.code?.toUpperCase() === firstDriverCode) {
+                    custoDriverUnit = Number(segProduct.custoDriverDimTriac220v ?? 0); break;
+                  }
+                }
+                // Fallback: buscar no componentes
+                if (custoDriverUnit === 0) {
+                  const comp = componenteByCodigo.get(firstDriverCode);
+                  if (comp?.custoDriver) custoDriverUnit = Number(comp.custoDriver);
+                }
+              }
+
+              // Também considerar driverLines se existirem (podem ter drivers diferentes)
+              let driverQtyFinal = totalDriverQty * qty;
+              if (Array.isArray(data.driverLines) && data.driverLines.length > 0) {
+                // Se tem driverLines explícitas, usar elas para quantidade e custo
+                driverQtyFinal = data.driverLines.reduce((s: number, d: any) => s + Number(d.driverQty ?? 0), 0);
+                // Se o driverCode das driverLines é diferente, buscar custo específico
+                const dlCode = (data.driverLines[0].driverCode ?? '').toUpperCase();
+                if (dlCode && dlCode !== firstDriverCode) {
+                  const comp = componenteByCodigo.get(dlCode);
+                  if (comp?.custoDriver) custoDriverUnit = Number(comp.custoDriver);
+                }
+              }
+
+              custoDriverTotal = custoDriverUnit * driverQtyFinal;
+              const subtotal = custoCorpoTotal * qty + custoDriverTotal;
+
+              if (allFound) {
+                totalCusto += subtotal;
+                temCusto = true;
+                itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: custoCorpoTotal, custoDriver: custoDriverUnit, qty, driverQty: driverQtyFinal, subtotal, source: 'api_perfil' });
+              } else {
+                itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: 0, custoDriver: 0, qty, driverQty: 0, subtotal: 0, source: 'perfil_sem_custo' });
+              }
+              continue;
+            }
+
+            // ── ITENS COM custoCorpoBase SALVO (não-perfil) ──
             if (Number(data.custoCorpoBase ?? 0) > 0) {
               const custoCorpo = Number(data.custoCorpoBase);
               const custoDriver = Number(data.custoDriverBase ?? 0);
@@ -1124,13 +1229,7 @@ export const appRouter = router({
               continue;
             }
 
-            // Item Especial sem custo de produto
-            if (data.isSpecialItem || data.category === 'Item Especial' || data.category === 'especial') {
-              itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: 0, custoDriver: 0, qty, driverQty: 0, subtotal: 0, source: 'especial' });
-              continue;
-            }
-
-            // Buscar na API pelo SKU
+            // ── ITENS SEM custoCorpoBase: buscar na API pelo SKU principal ──
             const product = productBySku.get(sku);
             if (!product) {
               itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: 0, custoDriver: 0, qty, driverQty: 0, subtotal: 0, source: 'nao_encontrado' });
@@ -1141,8 +1240,6 @@ export const appRouter = router({
             let driverCode = '';
             if (Array.isArray(data.driverLines) && data.driverLines.length > 0) {
               driverCode = (data.driverLines[0].driverCode ?? '').toUpperCase();
-            } else if (Array.isArray(data.profileSegments) && data.profileSegments.length > 0) {
-              driverCode = (data.profileSegments[0].driverCode ?? '').toUpperCase();
             }
 
             // Identificar qual campo de custo usar baseado no driver
@@ -1183,9 +1280,6 @@ export const appRouter = router({
               driverQty = data.driverLines.reduce((s: number, d: any) => s + Number(d.driverQty ?? 0), 0);
             } else if (data.driverQtyPerUnit) {
               driverQty = Number(data.driverQtyPerUnit) * qty;
-            } else if (Array.isArray(data.profileSegments) && data.profileSegments.length > 0) {
-              // Para perfis modulares: somar driverQtyPerPiece * qty de cada segmento * qty do item
-              driverQty = data.profileSegments.reduce((s: number, seg: any) => s + (Number(seg.driverQtyPerPiece ?? 0) * Number(seg.qty ?? 1)), 0) * qty;
             } else {
               // Tentar inferir da API (driverQtd220, etc.)
               const driverQtdPerUnit = Number(product.driverQtd220 ?? product.driverQtdBivolt ?? 1);
