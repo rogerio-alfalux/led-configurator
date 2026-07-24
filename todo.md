@@ -2249,3 +2249,12 @@
 - [x] Adicionar prop canEditMkp ao SortableEditItem no QuoteDetail.tsx
 - [x] Implementar barra deslizante de MKP (range slider) com min/padrão/max no QuoteDetail
 - [x] Passar canEditMkp=true para gerentes/admin nos call sites do SortableEditItem
+
+## v35 — Unificar DIFAL + FCP em linha única (Jul 2026)
+
+- [x] ExcelPreviewModal: unificar DIFAL e FCP em uma única linha com cálculo correto
+- [x] quoteExcelGenerator: unificar DIFAL e FCP em uma única linha
+- [x] quotePdfGenerator: unificar DIFAL e FCP em uma única linha
+- [x] Formato: "DIFAL (X.X%) + FCP (Y.Y%) — UF: R$ valor"
+- [x] Remover variáveis não utilizadas difalAmt/fcpAmt dos três arquivos
+- [x] Usar soma das alíquotas para calcular o valor corretamente (já usa combinedRate = difal + fcp)

@@ -1267,8 +1267,7 @@ async function _generateExcelBuffer(
     ? baseParaImposto / (1 - combinedRate / 100)
     : baseParaImposto;
   const combinedAmt = totalComDifal - baseParaImposto;
-  const difalAmt = stateInfo && stateInfo.combined > 0 ? combinedAmt * (stateInfo.difal / stateInfo.combined) : 0;
-  const fcpAmt   = stateInfo && stateInfo.combined > 0 ? combinedAmt * (stateInfo.fcp   / stateInfo.combined) : 0;
+  // difalAmt e fcpAmt removidos — agora exibimos combinedAmt em linha única
   let nextRow = currentRow + items.length + floorHeaderCount;
 
   // Espaço após a tabela
@@ -1392,38 +1391,19 @@ async function _generateExcelBuffer(
   }
 
   // ── Linhas de DIFAL e FCP (quando aplicáveis) ──────────────────────────
-  if (difalAmt > 0) {
+  if (combinedAmt > 0 && formData.difalEnabled && difalAplicavelExcel) {
     ws.getRow(nextRow).height = 24;
     ws.mergeCells(`C${nextRow}:D${nextRow}`);
     {
       const c = ws.getCell(`C${nextRow}`);
-      c.value = `DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%) — ${formData.destState ?? ""}:`;
+      c.value = `DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%) + FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%) — ${formData.destState ?? ""}:`;
       c.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FFCC0000" } };
       c.alignment = { horizontal: "left", vertical: "middle" };
     }
     ws.mergeCells(`E${nextRow}:N${nextRow}`);
     {
       const c = ws.getCell(`E${nextRow}`);
-      c.value = difalAmt;
-      c.numFmt = '"R$"#,##0.00';
-      c.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FFCC0000" } };
-      c.alignment = { horizontal: "left", vertical: "middle" };
-    }
-    nextRow++;
-  }
-  if (fcpAmt > 0) {
-    ws.getRow(nextRow).height = 24;
-    ws.mergeCells(`C${nextRow}:D${nextRow}`);
-    {
-      const c = ws.getCell(`C${nextRow}`);
-      c.value = `FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%) — ${formData.destState ?? ""}:`;
-      c.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FFCC0000" } };
-      c.alignment = { horizontal: "left", vertical: "middle" };
-    }
-    ws.mergeCells(`E${nextRow}:N${nextRow}`);
-    {
-      const c = ws.getCell(`E${nextRow}`);
-      c.value = fcpAmt;
+      c.value = combinedAmt;
       c.numFmt = '"R$"#,##0.00';
       c.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FFCC0000" } };
       c.alignment = { horizontal: "left", vertical: "middle" };
@@ -1560,15 +1540,9 @@ async function _generateExcelBuffer(
     const c = ws.getCell(`C${nextRow}`);
     // Montar texto de observação com DIFAL/FCP se aplicado
     let obsText = "Pode ser acrescido o valor de DIFAL, de acordo com o Estado e classificação fiscal da empresa.";
-    const difalParts: string[] = [];
-    if (formData.difalEnabled && formData.difalValue && formData.difalValue > 0) {
-      difalParts.push(`DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%): R$ ${formData.difalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
-    }
-    if (formData.fcpEnabled && formData.fcpValue && formData.fcpValue > 0) {
-      difalParts.push(`FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%): R$ ${formData.fcpValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
-    }
-    if (difalParts.length > 0) {
-      obsText = `DIFAL/FCP aplicado para ${formData.destState ?? ""}: ${difalParts.join(" | ")}. Valores já incluídos na proposta.`;
+    if (formData.difalEnabled && combinedAmt > 0) {
+      const _cAmt = combinedAmt.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      obsText = `DIFAL/FCP aplicado para ${formData.destState ?? ""}: DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%) + FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%): R$ ${_cAmt}. Valores já incluídos na proposta.`;
     }
     // Usar rich text para ter "Observação:" em negrito + texto normal
     c.value = { richText: [

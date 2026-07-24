@@ -480,8 +480,7 @@ ${htmlContent}
     ? baseParaImpostoPreview / (1 - combinedRatePreview / 100)
     : baseParaImpostoPreview;
   const combinedAmtPreview = totalComDifal - baseParaImpostoPreview;
-  const difalAmt = stateInfoPreview && stateInfoPreview.combined > 0 ? combinedAmtPreview * (stateInfoPreview.difal / stateInfoPreview.combined) : 0;
-  const fcpAmt   = stateInfoPreview && stateInfoPreview.combined > 0 ? combinedAmtPreview * (stateInfoPreview.fcp   / stateInfoPreview.combined) : 0;
+  // difalAmt e fcpAmt removidos — agora exibimos combinedAmtPreview em linha única
 
   // Totais com/sem driver (apenas para orçamentos novos com driverLines)
   const hasDriverBreakdown = sortedItems.some(it => it.driverLines && it.driverLines.length > 0);
@@ -1037,16 +1036,10 @@ ${htmlContent}
                       </span>
                     </td>
                   </tr>
-                  {difalAmt > 0 && (
+                  {combinedAmtPreview > 0 && formData.difalEnabled && difalAplicavel && (
                     <tr>
-                      <td style={{ color: "#CC0000", fontWeight: "bold" }}>DIFAL ({(formData.difalPercent ?? 0).toFixed(1)}%) — {formData.destState ?? ""}:</td>
-                      <td style={{ color: "#CC0000", fontWeight: "bold" }}>{formatBRL(difalAmt)}</td>
-                    </tr>
-                  )}
-                  {fcpAmt > 0 && (
-                    <tr>
-                      <td style={{ color: "#CC0000", fontWeight: "bold" }}>FCP ({(formData.fcpPercent ?? 0).toFixed(1)}%) — {formData.destState ?? ""}:</td>
-                      <td style={{ color: "#CC0000", fontWeight: "bold" }}>{formatBRL(fcpAmt)}</td>
+                      <td style={{ color: "#CC0000", fontWeight: "bold" }}>DIFAL ({(formData.difalPercent ?? 0).toFixed(1)}%) + FCP ({(formData.fcpPercent ?? 0).toFixed(1)}%) — {formData.destState ?? ""}:</td>
+                      <td style={{ color: "#CC0000", fontWeight: "bold" }}>{formatBRL(combinedAmtPreview)}</td>
                     </tr>
                   )}
                   {formData.difalEnabled && difalAplicavel && (
@@ -1129,15 +1122,9 @@ ${htmlContent}
 
               {/* Observação */}
               {(() => {
-                const _difalParts: string[] = [];
-                if (formData.difalEnabled && formData.difalValue && formData.difalValue > 0) {
-                  _difalParts.push(`DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%): ${formatBRL(formData.difalValue)}`);
-                }
-                if (formData.fcpEnabled && formData.fcpValue && formData.fcpValue > 0) {
-                  _difalParts.push(`FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%): ${formatBRL(formData.fcpValue)}`);
-                }
-                const _obsText = _difalParts.length > 0
-                  ? `DIFAL/FCP aplicado para ${formData.destState ?? ""}: ${_difalParts.join(" | ")}. Valores já incluídos na proposta.`
+                const _hasDifal = formData.difalEnabled && combinedAmtPreview > 0;
+                const _obsText = _hasDifal
+                  ? `DIFAL/FCP aplicado para ${formData.destState ?? ""}: DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%) + FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%): ${formatBRL(combinedAmtPreview)}. Valores já incluídos na proposta.`
                   : "Pode ser acrescido o valor de DIFAL, de acordo com o Estado e classificação fiscal da empresa.";
                 return (
                   <div style={{ marginTop: 10, fontSize: 12 }}>

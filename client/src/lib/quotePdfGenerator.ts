@@ -158,8 +158,7 @@ async function _generatePdfBlob(
     ? baseParaImposto / (1 - combinedRate / 100)
     : baseParaImposto;
   const combinedAmt = totalComDifal - baseParaImposto;
-  const difalAmt = stateInfo && stateInfo.combined > 0 ? combinedAmt * (stateInfo.difal / stateInfo.combined) : 0;
-  const fcpAmt   = stateInfo && stateInfo.combined > 0 ? combinedAmt * (stateInfo.fcp   / stateInfo.combined) : 0;
+  // difalAmt e fcpAmt removidos — agora exibimos combinedAmt em linha única
   const freteValorNum = formData.freteValue && formData.freteValue > 0 && !formData.freteIsento
     ? formData.freteValue : 0;
 
@@ -537,14 +536,9 @@ async function _generatePdfBlob(
   // Total dos produtos
   addRow("Valor total dos produtos:", fmtBRL(totalFinal), { bgColor: TOTAL_BG_RGB, bold: true, fontSize: 11 });
 
-  // DIFAL / FCP
-  if (difalAmt > 0) {
-    addRow(`DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%):`, fmtBRL(difalAmt), { bgColor: TOTAL_BG_RGB });
-  }
-  if (fcpAmt > 0) {
-    addRow(`FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%):`, fmtBRL(fcpAmt), { bgColor: TOTAL_BG_RGB });
-  }
-  if (difalAmt > 0 || fcpAmt > 0) {
+  // DIFAL + FCP (linha única)
+  if (combinedAmt > 0 && formData.difalEnabled && difalAplicavel) {
+    addRow(`DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%) + FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%) — ${formData.destState ?? ""}:`, fmtBRL(combinedAmt), { bgColor: TOTAL_BG_RGB });
     addRow("TOTAL GERAL (com FRETE + DIFAL/FCP):", fmtBRL(totalComDifal), { bgColor: TOTAL_BG_RGB, bold: true, fontSize: 12 });
   }
 
@@ -578,15 +572,8 @@ async function _generatePdfBlob(
   doc.setTextColor(0, 0, 0);
 
   let obsText = "Pode ser acrescido o valor de DIFAL, de acordo com o Estado e classificação fiscal da empresa.";
-  const difalParts: string[] = [];
-  if (formData.difalEnabled && formData.difalValue && formData.difalValue > 0) {
-    difalParts.push(`DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%): ${fmtBRL(formData.difalValue)}`);
-  }
-  if (formData.fcpEnabled && formData.fcpValue && formData.fcpValue > 0) {
-    difalParts.push(`FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%): ${fmtBRL(formData.fcpValue)}`);
-  }
-  if (difalParts.length > 0) {
-    obsText = `DIFAL/FCP aplicado para ${formData.destState ?? ""}: ${difalParts.join(" | ")}. Valores já incluídos na proposta.`;
+  if (formData.difalEnabled && combinedAmt > 0) {
+    obsText = `DIFAL/FCP aplicado para ${formData.destState ?? ""}: DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%) + FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%): ${fmtBRL(combinedAmt)}. Valores já incluídos na proposta.`;
   }
   // Renderizar "Observação:" em negrito + texto normal na mesma linha usando largura total
   doc.setFont("helvetica", "bold");
