@@ -970,13 +970,13 @@ export default function QuoteDetail() {
   }, [editDialogOpen, editSellers, editAssistants, pendingQuoteIds]);
 
   // Catálogo de produtos para resolver fotos atualizadas (URLs CloudFront expiram)
-  const productsQuery = trpc.alfalux.products.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const productsQuery = trpc.alfalux.products.useQuery(undefined, { staleTime: 0 });
   // Produtos de revenda para resolver fotos frescas (RV00050, RV00051, etc.)
-  const revendaProductsQuery = trpc.alfalux.revendaProducts.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const revendaProductsQuery = trpc.alfalux.revendaProducts.useQuery(undefined, { staleTime: 0 });
   // Catálogo de acessórios para resolver fotos frescas (URLs CloudFront expiram)
-  const acessoriosQuery = trpc.alfalux.acessoriosProducts.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const acessoriosQuery = trpc.alfalux.acessoriosProducts.useQuery(undefined, { staleTime: 0 });
   // Componentes (drivers, módulos LED, etc.) para migrar itens legados sem driverLines
-  const componentesQuery = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const componentesQuery = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 0 });
   /** Mapa código EQ -> precoVenda para busca rápida de preço de driver */
   const componentePriceMap = useMemo(() => {
     const map = new Map<string, number>();

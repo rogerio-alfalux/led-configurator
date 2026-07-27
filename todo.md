@@ -2323,3 +2323,10 @@
 - [x] Detectar tipo correto de cada componente (MÓDULOS LED, LENTES, DISSIPADORES, SUPORTES)
 - [x] Respeitar quantidade por unidade (ex: "2x MÓDULO LED..." = 2 por item)
 - [x] Garantir que funciona para Downlights, Spots, Painéis, Arandelas, Área Externa, Balizadores, Decorativas
+
+## Fix: Cache de API e Tensão Desabilitada
+
+- [x] Remover/contornar cache de catálogo de produtos para que API sempre retorne dados atualizados (staleTime=0 em todos os lugares)
+- [x] Desabilitar opções de tensão (ex: 220V) quando a API não retornar driver para essa opção
+- [x] Auto-selecionar tensão quando só uma opção disponível (Balizador Fixo, Glow, TubeLight, Alda)
+- [x] Garantir que funciona para Downlights, Spots, Painéis, Arandelas, Área Externa, Balizadores, Decorativas

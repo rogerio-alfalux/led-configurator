@@ -14,7 +14,7 @@
  */
 
 const ALFALUX_BASE = "https://alfaluxprod-c8zmg2fn.manus.space";
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+const CACHE_TTL_MS = 0; // Sem cache — sempre buscar dados frescos da API
 
 /** Formato de um driver retornado pelo /api/products/all */
 export interface DriverInfo {

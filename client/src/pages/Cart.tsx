@@ -644,7 +644,7 @@ export default function Cart() {
   const assistants = assistantsQuery.data ?? [];
 
   // Catálogo de acessórios para resolver fotos frescas (URLs CloudFront expiram)
-  const acessoriosQuery = trpc.alfalux.acessoriosProducts.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const acessoriosQuery = trpc.alfalux.acessoriosProducts.useQuery(undefined, { staleTime: 0 });
   const acessorioPhotoMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const p of acessoriosQuery.data ?? []) {
@@ -656,9 +656,9 @@ export default function Cart() {
 
   // Todos os produtos Alfalux para resolver fotos frescas de Painéis, Spots, etc.
   // URLs CloudFront expiram em ~1h; buscamos sempre frescos com staleTime curto
-  const allProductsQuery = trpc.alfalux.products.useQuery(undefined, { staleTime: 3 * 60 * 1000 });
+  const allProductsQuery = trpc.alfalux.products.useQuery(undefined, { staleTime: 0 });
   // Produtos de revenda para resolver fotos frescas (RV00050, RV00051, etc.)
-  const revendaProductsQuery = trpc.alfalux.revendaProducts.useQuery(undefined, { staleTime: 3 * 60 * 1000 });
+  const revendaProductsQuery = trpc.alfalux.revendaProducts.useQuery(undefined, { staleTime: 0 });
   /** Mapa sku -> fotoUrl fresca para substituir URLs expiradas no preview.
    * Cobre: produtos principais (Downlights, Painéis, Spots, etc.),
    * produtos de revenda (RV*) e acessórios (EQ*, CP*). */

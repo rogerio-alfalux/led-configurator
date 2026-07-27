@@ -1136,7 +1136,7 @@ export default function FactoryOrderDetail() {
   // Acessórios
   const { data: acessoriosData = [] } = trpc.alfalux.acessoriosProducts.useQuery();
   /** Mapa código EQ -> descrição canônica da API (para normalizar driverModel) */
-  const { data: componentesData, isLoading: componentesLoading } = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 5 * 60 * 1000, retry: 3, retryDelay: 2000, refetchOnMount: "always", refetchOnWindowFocus: true });
+  const { data: componentesData, isLoading: componentesLoading } = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 0, retry: 3, retryDelay: 2000, refetchOnMount: "always", refetchOnWindowFocus: true });
   const componenteDescMapFO = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of componentesData?.items ?? []) {
@@ -1174,7 +1174,7 @@ export default function FactoryOrderDetail() {
     return map;
   }, [componentesData]);
   /** Produtos da API para fallback de driver (SKU → driver info) e resolução de ledModuleCode (Migração 4) */
-  const { data: allProductsFO } = trpc.alfalux.products.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const { data: allProductsFO } = trpc.alfalux.products.useQuery(undefined, { staleTime: 0 });
   const productSkuMapFO = useMemo(() => {
     const map = new Map<string, ApiProductDriverInfo>();
     for (const p of (allProductsFO ?? []) as Array<{ sku: string; name?: string; categoria?: string; driver220?: { model: string; code: string | null } | null; driverBivolt?: { model: string; code: string | null } | null; driverQtd220?: number | null; driverQtdBivolt?: number | null; ledModuleEq2700?: string | null; ledModuleEq3000?: string | null; ledModuleEq4000?: string | null; ledModuleEq5000?: string | null; ledModuleEq?: string | null }>) {

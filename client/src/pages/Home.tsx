@@ -1897,7 +1897,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
   const [markupLuminariaOverride, setMarkupLuminariaOverride] = useState<number | null>(null);
 
   // ── Query de componentes para preço de driver por código EQ ──────────────────────
-  const { data: componentesData } = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const { data: componentesData } = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 0 });
   const componentePriceMapLocal = useMemo(() => {
     if (!componentesData) return new Map<string, number>();
     const m = new Map<string, number>();
@@ -2831,7 +2831,7 @@ export default function Home() {
   // Isso evita restrições de rede do servidor sandbox e garante dados sempre frescos
   const { products: alfaluxApiProducts, isLoading: alfaluxLoading, refetch: refetchAlfaluxProducts } = useAlfaluxProducts();
   // SHIFT modules (S01) query
-  const { data: shiftModulesData } = trpc.alfalux.shiftModules.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const { data: shiftModulesData } = trpc.alfalux.shiftModules.useQuery(undefined, { staleTime: 0 });
 
   // Mapa de overrides de custo de driver (código EQ → custo customizado)
   // Usado para substituir o custoDriver220/Bivolt/etc. da API quando há override cadastrado
@@ -3621,7 +3621,7 @@ export default function Home() {
   const acessoriosProducts = acessoriosQuery.data ?? [];
 
   // Componentes e overrides de custo para calcular preço de drivers adicionados como acessório
-  const { data: acComponentesData } = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const { data: acComponentesData } = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 0 });
   const { data: acDriverCostOverrideMap = {} } = trpc.driverPriceOverrides.getMap.useQuery(undefined, { staleTime: 60 * 1000 });
   // Mapa: código EQ → preço de venda calculado (custo × mkpPadrao, com override de custo quando disponível)
   const acDriverPriceMap = useMemo(() => {
@@ -5136,12 +5136,17 @@ export default function Home() {
                           value={bfProductKey ?? ""}
                           onValueChange={(v) => {
                             setBfProductKey(v);
-                            setBfVoltage(null);
                             setBfResult(null);
                             const [s, ...np] = v.split('::');
                             const newProd = activeBageoFixoCatalog.find(p => p.sku === s && p.name === np.join('::'));
                             const availCCTs = newProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
                             if (!availCCTs.includes(bfCCT)) setBfCCT(availCCTs[0] ?? "3000K");
+                            // Auto-selecionar tensão quando só uma opção disponível
+                            const newHas220 = newProd?.driver220 != null;
+                            const newHasBivolt = newProd?.driverBivolt != null;
+                            if (!newHas220 && newHasBivolt) setBfVoltage("Bivolt");
+                            else if (newHas220 && !newHasBivolt) setBfVoltage("220V");
+                            else setBfVoltage(null);
                           }}
                         >
                           <SelectTrigger className="h-10">
@@ -5424,12 +5429,17 @@ export default function Home() {
                         value={glowProductKey ?? ""}
                         onValueChange={(v) => {
                           setGlowProductKey(v);
-                          setGlowVoltage(null);
                           setGlowResult(null);
                           const [s, ...np] = v.split('::');
                           const prod = activeGlowCatalog.find(p => p.sku === s && p.name === np.join('::'));
                           const availCCTs = prod?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
                           if (!availCCTs.includes(glowCCT)) setGlowCCT(availCCTs[0] ?? "3000K");
+                          // Auto-selecionar tensão quando só uma opção disponível
+                          const gNewHas220 = prod?.driver220 != null;
+                          const gNewHasBivolt = prod?.driverBivolt != null;
+                          if (!gNewHas220 && gNewHasBivolt) setGlowVoltage("Bivolt");
+                          else if (gNewHas220 && !gNewHasBivolt) setGlowVoltage("220V");
+                          else setGlowVoltage(null);
                         }}
                       >
                         <SelectTrigger className="h-10">
@@ -5529,12 +5539,17 @@ export default function Home() {
                         value={tubeLightProductKey ?? ""}
                         onValueChange={(v) => {
                           setTubeLightProductKey(v);
-                          setTubeLightVoltage(null);
                           setTubeLightResult(null);
                           const [s, ...np] = v.split('::');
                           const prod = activeTubeLightCatalog.find(p => p.sku === s && p.name === np.join('::'));
                           const availCCTs = prod?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
                           if (!availCCTs.includes(tubeLightCCT)) setTubeLightCCT(availCCTs[0] ?? "3000K");
+                          // Auto-selecionar tensão quando só uma opção disponível
+                          const tlNewHas220 = prod?.driver220 != null;
+                          const tlNewHasBivolt = prod?.driverBivolt != null;
+                          if (!tlNewHas220 && tlNewHasBivolt) setTubeLightVoltage("Bivolt");
+                          else if (tlNewHas220 && !tlNewHasBivolt) setTubeLightVoltage("220V");
+                          else setTubeLightVoltage(null);
                         }}
                       >
                         <SelectTrigger className="h-10">
@@ -5672,12 +5687,17 @@ export default function Home() {
                           value={aldaProductKey ?? ""}
                           onValueChange={(v) => {
                             setAldaProductKey(v);
-                            setAldaVoltage(null);
                             setAldaResult(null);
                             const [s, ...np] = v.split('::');
                             const newProd = activeAldaCatalog.find(p => p.sku === s && p.name === np.join('::'));
                             const availCCTs = newProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
                             if (!availCCTs.includes(aldaCCT)) setAldaCCT(availCCTs[0] ?? "3000K");
+                            // Auto-selecionar tensão quando só uma opção disponível
+                            const aldaNewHas220 = newProd?.driver220 != null;
+                            const aldaNewHasBivolt = newProd?.driverBivolt != null;
+                            if (!aldaNewHas220 && aldaNewHasBivolt) setAldaVoltage("Bivolt");
+                            else if (aldaNewHas220 && !aldaNewHasBivolt) setAldaVoltage("220V");
+                            else setAldaVoltage(null);
                           }}
                         >
                           <SelectTrigger className="h-10">
