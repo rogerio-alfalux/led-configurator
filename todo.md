@@ -2308,3 +2308,10 @@
 - [x] Tela visual/intuitiva de seleção de acessórios S01 com limite por comprimento (comprimento ÷ 300mm)
 - [x] Não permitir enviar ao carrinho sem selecionar acessórios S01
 - [x] Integrar com algoritmo de perfis modulares (IN, IF, ML)
+
+## Fix: Ficha de Produção — Equipamentos e Stripflex
+
+- [x] Coluna Equipamentos: mostrar drivers por unidade do produto (não multiplicar pela QTD do item no orçamento)
+- [x] Quantidade de Stripflex: remover zeros à esquerda (ex: "003.4" → "3.4")
+- [x] Coluna Fonte de Luz: mostrar módulos por unidade do produto (não multiplicar pela QTD)
+- [x] Aplicar retroativamente para itens já salvos e futuros (lógica no gerador, não nos dados salvos)

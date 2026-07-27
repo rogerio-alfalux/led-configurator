@@ -14,8 +14,7 @@ import type { MaterialTipo } from "./materialRequisition";
 function fmtQty(n: number): string {
   // Arredondar para cima com 1 decimal para módulos LED (podem ser fracionários)
   const rounded = Math.ceil(n * 10) / 10;
-  const s = rounded % 1 === 0 ? String(Math.round(rounded)) : rounded.toFixed(1);
-  return s.padStart(s.includes(".") ? 5 : 2, "0");
+  return rounded % 1 === 0 ? String(Math.round(rounded)) : rounded.toFixed(1);
 }
 
 function buildProfileSkuText(item: CartItemData): string {
@@ -35,9 +34,7 @@ function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, stri
     const modEqSuffix = item.moduloLedCode && !alreadyHasEq ? ` (${esc(item.moduloLedCode)})` : "";
     return `${esc(modName)}${modEqSuffix}`;
   }
-  const itemQty = item.qty ?? 1;
-
-  // Agrupar por código EQ do módulo e somar quantidades totais
+  // Agrupar por código EQ do módulo e somar quantidades POR UNIDADE
   const totals = new Map<string, { qty: number; eqCode: string | null; name: string }>();
   for (const seg of item.profileSegments) {
     const eqCode = (seg as any).ledModuleCode ?? null;
@@ -45,7 +42,7 @@ function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, stri
     const apiDesc = eqCode ? descMap?.get(eqCode) : undefined;
     const barName = apiDesc ?? item.moduloLed ?? eqCode ?? "Módulo LED";
     const mapKey = eqCode ?? barName;
-    const totalBars = seg.qty * seg.barsPerPiece * itemQty;
+    const totalBars = seg.qty * seg.barsPerPiece;
     const existing = totals.get(mapKey);
     if (existing) {
       totals.set(mapKey, { qty: existing.qty + totalBars, eqCode, name: barName });
@@ -85,16 +82,14 @@ function buildProfileEquipamentosText(item: CartItemData): string {
     return esc(item.drivers ?? "");
   }
 
-  const itemQty = item.qty ?? 1;
-
-  // Agrupar por modelo+código e somar quantidades totais
+  // Agrupar por modelo+código e somar quantidades POR UNIDADE
   const totals = new Map<string, { model: string; code: string; qty: number }>();
 
   for (const seg of item.profileSegments) {
     // Driver combo
     if (seg.driverModel.includes(" + ")) {
       const comboKey = seg.driverModel;
-      const totalQty = seg.qty * itemQty;
+      const totalQty = seg.qty;
       const existing = totals.get(comboKey);
       if (existing) {
         totals.set(comboKey, { ...existing, qty: existing.qty + totalQty });
@@ -109,7 +104,7 @@ function buildProfileEquipamentosText(item: CartItemData): string {
       ? ` (${seg.driverCode})`
       : "";
     const key = `${seg.driverModel}${codeSuffix}`;
-    const totalQty = seg.qty * seg.driverQtyPerPiece * itemQty;
+    const totalQty = seg.qty * seg.driverQtyPerPiece;
     const existing = totals.get(key);
     if (existing) {
       totals.set(key, { ...existing, qty: existing.qty + totalQty });

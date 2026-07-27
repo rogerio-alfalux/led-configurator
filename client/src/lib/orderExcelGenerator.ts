@@ -126,13 +126,12 @@ function valueCell(cell: ExcelJS.Cell, value: string | number | null) {
 }
 
 /**
- * Formata quantidade com zero à esquerda para 2 dígitos (ex: 2 → "02", 19 → "19").
+ * Formata quantidade sem zeros à esquerda (ex: 2 → "2", 3.4 → "3.4").
  */
 function fmtQty(n: number): string {
   // Arredondar para cima com 1 decimal para módulos LED (podem ser fracionários)
   const rounded = Math.ceil(n * 10) / 10;
-  const s = rounded % 1 === 0 ? String(Math.round(rounded)) : rounded.toFixed(1);
-  return s.padStart(s.includes(".") ? 5 : 2, "0");
+  return rounded % 1 === 0 ? String(Math.round(rounded)) : rounded.toFixed(1);
 }
 
 /**
@@ -151,14 +150,15 @@ function buildProfileSkuText(item: CartItemData): string {
 /**
  * Gera o texto da coluna FONTE DE LUZ para composições de perfis.
  *
- * Exibe a quantidade TOTAL de módulos (seg.qty × seg.barsPerPiece × item.qty),
+ * Exibe a quantidade de módulos POR UNIDADE (seg.qty × seg.barsPerPiece),
  * agrupando por nome de módulo quando há múltiplos segmentos com o mesmo tipo.
+ * A coluna QTD já indica quantas unidades do produto existem no pedido.
  * O SKU NÃO aparece nesta coluna — fica apenas na coluna SKU (E).
  *
  * Formato:
- *   "120 x Stripflex 562,5 x 10mm 36L 3000K"
+ *   "8 x Stripflex 562,5 x 10mm 36L 3000K"
  *   ou, se houver tipos diferentes:
- *   "40 x Stripflex 562,5 x 10mm 36L 3000K\n20 x Stripline 562,5 x 15mm 108L 3000K"
+ *   "4 x Stripflex 562,5 x 10mm 36L 3000K\n2 x Stripline 562,5 x 15mm 108L 3000K"
  */
 function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, string>): string {
   if (!item.profileSegments || item.profileSegments.length === 0) {
@@ -170,9 +170,7 @@ function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, stri
     return `${modName}${modEqSuffix}`;
   }
 
-  const itemQty = item.qty ?? 1;
-
-  // Agrupar por código EQ do módulo e somar quantidades totais
+  // Agrupar por código EQ do módulo e somar quantidades POR UNIDADE
   const totals = new Map<string, { qty: number; eqCode: string | null; name: string }>();
   for (const seg of item.profileSegments) {
     const eqCode = (seg as any).ledModuleCode ?? null;
@@ -180,7 +178,7 @@ function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, stri
     const apiDesc = eqCode ? descMap?.get(eqCode) : undefined;
     const barName = apiDesc ?? item.moduloLed ?? eqCode ?? "Módulo LED";
     const mapKey = eqCode ?? barName;
-    const totalBars = seg.qty * seg.barsPerPiece * itemQty;
+    const totalBars = seg.qty * seg.barsPerPiece;
     const existing = totals.get(mapKey);
     if (existing) {
       totals.set(mapKey, { qty: existing.qty + totalBars, eqCode, name: barName });
@@ -219,17 +217,18 @@ function buildLuminariaEquipamentosText(item: CartItemData): string {
 /**
  * Gera o texto da coluna EQUIPAMENTOS para composições de perfis.
  *
- * Exibe a quantidade TOTAL de drivers (seg.qty × seg.driverQtyPerPiece × item.qty),
+ * Exibe a quantidade de drivers POR UNIDADE (seg.qty × seg.driverQtyPerPiece),
  * agrupando por modelo+código quando há múltiplos segmentos com o mesmo driver.
+ * A coluna QTD já indica quantas unidades do produto existem no pedido.
  * O SKU NÃO aparece nesta coluna — fica apenas na coluna SKU (E).
  *
  * Para drivers combo (ex: Stripline 3 barras = 44W + 65W), o driverModel
  * já foi formatado como "1 x MODEL1 (CODE1) + 1 x MODEL2 (CODE2)" no Home.tsx.
  *
  * Formato:
- *   "35 x PHILIPS XITANIUM 65W 350MA (EQ00393)"
+ *   "2 x PHILIPS XITANIUM 65W 350MA (EQ00393)"
  *   ou, se houver modelos diferentes:
- *   "20 x PHILIPS XITANIUM 44W 350MA (EQ00347)\n15 x PHILIPS XITANIUM 65W 350MA (EQ00393)"
+ *   "2 x PHILIPS XITANIUM 44W 350MA (EQ00347)\n17 x PHILIPS XITANIUM 65W 350MA (EQ00393)"
  */
 function buildProfileEquipamentosText(item: CartItemData): string {
   if (!item.profileSegments || item.profileSegments.length === 0) {
@@ -240,9 +239,7 @@ function buildProfileEquipamentosText(item: CartItemData): string {
     return item.drivers ?? "";
   }
 
-  const itemQty = item.qty ?? 1;
-
-  // Agrupar por modelo+código e somar quantidades totais
+  // Agrupar por modelo+código e somar quantidades POR UNIDADE
   const totals = new Map<string, { model: string; code: string; qty: number; corrente?: string | null }>();
 
   for (const seg of item.profileSegments) {
@@ -250,7 +247,7 @@ function buildProfileEquipamentosText(item: CartItemData): string {
     if (seg.driverModel.includes(" + ")) {
       // Para combos, tratar como texto livre e acumular por segmento
       const comboKey = seg.driverModel;
-      const totalQty = seg.qty * itemQty;
+      const totalQty = seg.qty;
       const existing = totals.get(comboKey);
       if (existing) {
         totals.set(comboKey, { ...existing, qty: existing.qty + totalQty });
@@ -265,7 +262,7 @@ function buildProfileEquipamentosText(item: CartItemData): string {
       ? ` (${seg.driverCode})`
       : "";
     const key = `${seg.driverModel}${codeSuffix}`;
-    const totalQty = seg.qty * seg.driverQtyPerPiece * itemQty;
+    const totalQty = seg.qty * seg.driverQtyPerPiece;
     const corrente = seg.corrente ?? null;
     const existing = totals.get(key);
     if (existing) {
