@@ -2315,3 +2315,11 @@
 - [x] Quantidade de Stripflex: remover zeros à esquerda (ex: "003.4" → "3.4")
 - [x] Coluna Fonte de Luz: mostrar módulos por unidade do produto (não multiplicar pela QTD)
 - [x] Aplicar retroativamente para itens já salvos e futuros (lógica no gerador, não nos dados salvos)
+
+## Fix: Requisição de Materiais — Incluir TODOS os componentes (óticas, dissipadores, holders)
+
+- [x] Parsear campo moduloLed com separador " + " para extrair componentes individuais (módulo LED, óptica, holder, dissipador)
+- [x] Extrair código EQ/CP de cada componente (entre parênteses) e adicionar separadamente à requisição
+- [x] Detectar tipo correto de cada componente (MÓDULOS LED, LENTES, DISSIPADORES, SUPORTES)
+- [x] Respeitar quantidade por unidade (ex: "2x MÓDULO LED..." = 2 por item)
+- [x] Garantir que funciona para Downlights, Spots, Painéis, Arandelas, Área Externa, Balizadores, Decorativas

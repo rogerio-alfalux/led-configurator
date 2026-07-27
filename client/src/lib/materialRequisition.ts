@@ -135,14 +135,15 @@ function detectTipo(descricao: string, codigo: string): MaterialTipo {
     return "DISSIPADORES";
   }
 
-  // Suportes
+  // Suportes / Holders
   if (
     d.includes("SUPORTE") ||
     d.includes("BRACKET") ||
     d.includes("FIXAÇÃO") ||
     d.includes("FIXACAO") ||
     d.includes("CLIP") ||
-    d.includes("TRILHO")
+    d.includes("TRILHO") ||
+    d.includes("HOLDER")
   ) {
     return "SUPORTES";
   }
@@ -368,41 +369,68 @@ export function buildMaterialRequisition(
       }
     }
 
-    // ── MÓDULO LED (fonte de luz) para itens com driverLines ─────────────
-    // Downlights, spots, painéis e arandelas salvam o módulo LED em item.moduloLed
-    // (campo preenchido ao adicionar ao carrinho). Adicionar à lista de materiais
-    // agrupado pelo código EQ (moduloLedCode).
+    // ── COMPONENTES (fonte de luz) para itens com driverLines ─────────────
+    // Downlights, spots, painéis e arandelas salvam TODOS os componentes no campo
+    // item.moduloLed concatenados com " + " como separador. Exemplo:
+    //   "MÓDULO LED LUX ROUND 7W 3000K (EQ00123) + LENTE 24° (EQ00456) + HOLDER (EQ00789) + DISSIPADOR (EQ00999)"
+    // Cada componente é extraído individualmente com seu código EQ/CP e adicionado
+    // à requisição de materiais com o tipo correto (MÓDULOS LED, LENTES, DISSIPADORES, SUPORTES).
+    //
     // IMPORTANTE: itens de perfil (profileSegments) já contam o módulo LED via
     // profileSegments[].ledModuleCode — não contar novamente aqui para evitar duplicata.
-    // O tipo é determinado automaticamente pela descrição:
-    //   - FITAS LED: somente "FITA LED" na descrição (ex: EQ00586)
-    //   - MÓDULOS LED: Stripflex, Stripline, Lux Round, etc.
     const hasProfileSegments = item.profileSegments && item.profileSegments.length > 0;
     const isLedBar = item.category === "LED BAR";
-    if (!hasProfileSegments && !isLedBar && item.driverLines && item.driverLines.length > 0 && item.moduloLed) {
-      const ledCode =
-        item.moduloLedCode ??
-        resolveEqFromDesc(item.moduloLed) ??
-        item.moduloLed; // fallback: usar descrição como código
-      // Usar descrição canônica da API para detectar tipo correto (FITAS LED vs MÓDULOS LED)
-      const canonicalDesc = descMap?.get(ledCode) ?? item.moduloLed;
-      const ledTipo = detectTipo(canonicalDesc, ledCode);
+    const hasModuloLedComponents = !hasProfileSegments && !isLedBar && item.moduloLed;
+    if (hasModuloLedComponents) {
+      // Separar componentes pelo " + " e processar cada um individualmente
+      const componentParts = item.moduloLed!.split(" + ").map(p => p.trim()).filter(Boolean);
 
-      if (ledTipo === "FITAS LED") {
-        // Fitas LED em luminárias: contabilizar em METROS
-        // Extrair comprimento da descrição do produto (ex: "1260mm", "3030mm")
-        const lengthMatch = item.description?.match(/(\d+)\s*mm/i);
-        const lengthMm = lengthMatch ? parseInt(lengthMatch[1], 10) : 0;
-        if (lengthMm > 0) {
-          const totalMetros = (lengthMm / 1000) * itemQty;
-          add(ledCode, canonicalDesc, totalMetros, "m", "FITAS LED");
-        } else {
-          // Sem comprimento disponível: usar 1 unidade por peça
-          add(ledCode, canonicalDesc, itemQty, "un", "FITAS LED");
+      for (let partIdx = 0; partIdx < componentParts.length; partIdx++) {
+        const rawPart = componentParts[partIdx];
+
+        // Extrair quantidade prefixada (ex: "2x MÓDULO LED..." → qty=2)
+        const qtyPrefixMatch = rawPart.match(/^(\d+)x\s+/i);
+        const componentQtyPerUnit = qtyPrefixMatch ? parseInt(qtyPrefixMatch[1], 10) : 1;
+        const partWithoutQty = qtyPrefixMatch ? rawPart.slice(qtyPrefixMatch[0].length) : rawPart;
+
+        // Extrair código EQ/CP entre parênteses (ex: "(EQ00123)" ou "(CP00456)")
+        const codeMatch = partWithoutQty.match(/\((EQ\d+|CP\d+)\)\s*$/i);
+        let componentCode: string | null = codeMatch ? codeMatch[1].toUpperCase() : null;
+        const descWithoutCode = codeMatch
+          ? partWithoutQty.slice(0, partWithoutQty.lastIndexOf("(")).trim()
+          : partWithoutQty.trim();
+
+        // Para o primeiro componente, usar moduloLedCode como preferência (mais confiável)
+        if (partIdx === 0 && item.moduloLedCode) {
+          componentCode = item.moduloLedCode;
         }
-      } else {
-        // Módulos LED (Lux Round, etc.): contabilizar em UNIDADES
-        add(ledCode, canonicalDesc, itemQty, "un", ledTipo);
+
+        // Se não encontrou código, tentar resolver via descrição
+        if (!componentCode) {
+          componentCode = resolveEqFromDesc(descWithoutCode);
+        }
+
+        // Se ainda não tem código, pular (não podemos adicionar sem código)
+        if (!componentCode) continue;
+
+        // Usar descrição canônica da API quando disponível
+        const canonicalDesc = descMap?.get(componentCode) ?? descWithoutCode;
+        const componentTipo = detectTipo(canonicalDesc, componentCode);
+
+        if (componentTipo === "FITAS LED") {
+          // Fitas LED em luminárias: contabilizar em METROS
+          const lengthMatch = item.description?.match(/(\d+)\s*mm/i);
+          const lengthMm = lengthMatch ? parseInt(lengthMatch[1], 10) : 0;
+          if (lengthMm > 0) {
+            const totalMetros = (lengthMm / 1000) * componentQtyPerUnit * itemQty;
+            add(componentCode, canonicalDesc, totalMetros, "m", "FITAS LED");
+          } else {
+            add(componentCode, canonicalDesc, componentQtyPerUnit * itemQty, "un", "FITAS LED");
+          }
+        } else {
+          // Módulos LED, Lentes, Dissipadores, Suportes, etc.: contabilizar em UNIDADES
+          add(componentCode, canonicalDesc, componentQtyPerUnit * itemQty, "un", componentTipo);
+        }
       }
     }
 
