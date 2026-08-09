@@ -2330,3 +2330,10 @@
 - [x] Desabilitar opções de tensão (ex: 220V) quando a API não retornar driver para essa opção
 - [x] Auto-selecionar tensão quando só uma opção disponível (Balizador Fixo, Glow, TubeLight, Alda)
 - [x] Garantir que funciona para Downlights, Spots, Painéis, Arandelas, Área Externa, Balizadores, Decorativas
+
+## Fix: Remover Google Sheets e Corrigir Botão 220V
+
+- [ ] Remover dependência da planilha Google Sheets (obsoleta) - drivers agora vêm exclusivamente da API
+- [ ] Garantir que algoritmo de perfis continua funcionando sem Google Sheets
+- [ ] Corrigir botão 220V que ainda aparece habilitado quando API não retorna driver220
+- [ ] Remover botão "Atualizar Drivers" e toda lógica relacionada ao Google Sheets

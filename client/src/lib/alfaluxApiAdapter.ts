@@ -388,7 +388,7 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
     dissipador: p.dissipador ?? null,
     driver220: d220
       ? { model: driverModel(d220), code: driverCode(d220) }
-      : { model: "", code: "" },
+      : null,
     driverBivolt: dBivolt
       ? { model: driverModel(dBivolt), code: driverCode(dBivolt) }
       : null,
@@ -423,7 +423,7 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
 
   const driver220: PainelProduct["driver220"] = d220
     ? { model: driverModel(d220), code: driverCode(d220) }
-    : { model: "", code: "" };
+    : null;
 
   const driverBivolt: PainelProduct["driverBivolt"] = dBivolt
     ? { model: driverModel(dBivolt), code: driverCode(dBivolt) }
@@ -658,7 +658,7 @@ function toArandelaProduct(p: ApiProduct): ArandelaProduct {
     dissipador: p.dissipador ?? null,
     driver220: d220
       ? { model: driverModel(d220), code: driverCode(d220) }
-      : { model: "", code: "" },
+      : null,
     driverBivolt: dBivolt
       ? { model: driverModel(dBivolt), code: driverCode(dBivolt) }
       : null,

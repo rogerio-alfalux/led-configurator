@@ -64,8 +64,8 @@ export interface ArandelaProduct {
   holderQtd: number | null;
   /** Dissipador — null se não aplicável */
   dissipador: string | null;
-  /** Driver para 220Vac */
-  driver220: ArandelaDriver;
+  /** Driver para 220Vac — null se não houver opção */
+  driver220: ArandelaDriver | null;
   /** Driver para Bivolt — null se não houver opção */
   driverBivolt: ArandelaDriver | null;
   /** Quantidade de drivers ON/OFF 220V. null = driver não existe no produto. */

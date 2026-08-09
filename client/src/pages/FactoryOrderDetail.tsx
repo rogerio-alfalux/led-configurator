@@ -1130,8 +1130,6 @@ export default function FactoryOrderDetail() {
     setHasUnpublishedChanges(false);
   }, [effectiveOrderId]);
 
-  // Drivers da API
-  const { data: driversData = [] } = trpc.led.drivers.useQuery();
 
   // Acessórios
   const { data: acessoriosData = [] } = trpc.alfalux.acessoriosProducts.useQuery();
@@ -2020,7 +2018,7 @@ export default function FactoryOrderDetail() {
                         <EditableItem
                           key={item.id}
                           item={item}
-                          drivers={driversData}
+                          drivers={[]}
                           acessorios={acessoriosData}
                           onUpdate={handleUpdateItem}
                           onRemove={handleRemoveItem}

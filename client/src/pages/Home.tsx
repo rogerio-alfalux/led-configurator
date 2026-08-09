@@ -1910,6 +1910,15 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
     }
     return m;
   }, [componentesData]);
+  /** Mapa código EQ → descrição (nome do driver) da API de componentes */
+  const componenteDriverNameMap = useMemo(() => {
+    if (!componentesData) return new Map<string, string>();
+    const m = new Map<string, string>();
+    for (const c of componentesData.items) {
+      if (c.codigo && c.descricao) m.set(c.codigo, c.descricao);
+    }
+    return m;
+  }, [componentesData]);
 
   // ── Novo método: preço por SKU individual × quantidade (BLAZE H e futuros) ──────
   const isD1D2 = result.application === 'D1+D2';
@@ -2812,20 +2821,18 @@ export default function Home() {
       versionNotes: `+${pendingQuoteItems.length} item(s) adicionado(s) via configurador`,
     });
   }, [appendToQuoteId, pendingQuoteItems, appendItemsMutation]);
-  // Buscar drivers do Google Sheets (cache de 1h via React Query)
   const utils = trpc.useUtils();
-  const { data: sheetDrivers } = trpc.led.drivers.useQuery(undefined, {
-    staleTime: 60 * 60 * 1000, // 1 hora
-    refetchOnWindowFocus: false,
-  });
-
-  // Mutation para forçar atualização do cache de drivers no servidor
-  const refreshDriversMutation = trpc.led.refreshDrivers.useMutation({
-    onSuccess: (data) => {
-      utils.led.drivers.invalidate();
-      console.log(`[Drivers] Atualizado: ${data.available} disponíveis de ${data.count} total`);
-    },
-  });
+  // Mapa código EQ → descrição (nome do driver) da API de componentes
+  // Substitui a antiga dependência do Google Sheets
+  const { data: driverComponentesData } = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 0 });
+  const componenteDriverNameMap = useMemo(() => {
+    if (!driverComponentesData) return new Map<string, string>();
+    const m = new Map<string, string>();
+    for (const c of driverComponentesData.items) {
+      if (c.codigo && c.descricao) m.set(c.codigo, c.descricao);
+    }
+    return m;
+  }, [driverComponentesData]);
 
   // Buscar produtos da API Alfalux diretamente no browser (client-side)
   // Isso evita restrições de rede do servidor sandbox e garante dados sempre frescos
@@ -4627,7 +4634,7 @@ export default function Home() {
       independentLighting: effectiveIndependent,
       diffuserD1: hasDiffuser ? diffuserD1 : undefined,
       diffuserD2: hasDiffuser && isDual ? diffuserD2 : undefined,
-      sheetDrivers: sheetDrivers ?? [],
+      driverNameMap: componenteDriverNameMap,
       controlType,
       driver220: selectedVariant?.driver220 ?? null,
       driverBivolt: selectedVariant?.driverBivolt ?? null,
@@ -4705,16 +4712,7 @@ export default function Home() {
                 )}
               </Button>
             </Link>
-            <Button
-              variant="ghost"
-              size="icon"
-              title="Atualizar banco de drivers"
-              onClick={() => refreshDriversMutation.mutate()}
-              disabled={refreshDriversMutation.isPending}
-              className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            >
-              <RefreshCw className={`w-4 h-4 ${refreshDriversMutation.isPending ? 'animate-spin' : ''}`} />
-            </Button>
+
             <Button
               variant="ghost"
               size="icon"

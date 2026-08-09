@@ -2,7 +2,6 @@ import { COOKIE_NAME, COST_PRIVILEGED_EMAILS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
-import { fetchDrivers, invalidateDriverCache } from "./driverService";
 import {
   fetchAllAlfaluxProducts,
   invalidateAlfaluxCache,
@@ -131,17 +130,7 @@ export const appRouter = router({
     }),
   }),
 
-  led: router({
-    drivers: publicProcedure.query(async () => {
-      const drivers = await fetchDrivers();
-      return drivers;
-    }),
-    refreshDrivers: publicProcedure.mutation(async () => {
-      invalidateDriverCache();
-      const drivers = await fetchDrivers();
-      return { count: drivers.length, available: drivers.filter(d => d.available).length };
-    }),
-  }),
+
 
   alfalux: router({
     products: publicProcedure.query(async () => {

@@ -42,8 +42,8 @@ export interface PainelProduct {
   ledModuleEq5000?: string | null;
   /** CCTs disponíveis para este produto (ex: ["3000K", "4000K"]) */
   ccts: string[];
-  /** Driver para 220Vac */
-  driver220: PainelDriver;
+  /** Driver para 220Vac — null se não houver opção */
+  driver220: PainelDriver | null;
   /** Driver para Bivolt -- null se nao houver opcao */
   driverBivolt: PainelDriver | null;
   /** Driver DIM 1-10V -- null se nao disponivel */
@@ -1006,7 +1006,7 @@ export function calculatePainel(input: PainelInput, catalog?: PainelProduct[]): 
   } else if (input.tensao === "Bivolt" && product.driverBivolt) {
     driver = product.driverBivolt;
   } else {
-    driver = product.driver220;
+    driver = product.driver220 ?? { model: "", code: "" };
   }
 
   // Usar módulo LED específico por CCT quando disponível (novos campos da API)

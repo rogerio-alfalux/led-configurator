@@ -63,8 +63,8 @@ export interface SpotProduct {
   holderQtd: number | null;
   /** Dissipador — null se não aplicável */
   dissipador: string | null;
-  /** Driver para 220Vac */
-  driver220: SpotDriver;
+  /** Driver para 220Vac — null se não houver opção */
+  driver220: SpotDriver | null;
   /** Driver para Bivolt — null se não houver opção */
   driverBivolt: SpotDriver | null;
   /** Quantidade de drivers ON/OFF 220V. null = driver não existe no produto. */

@@ -16,8 +16,8 @@
 
 import { LED_CATALOG, MODULE_TYPE_LABELS, getActiveCatalog } from "./ledCatalog";
 import type { InstallType } from "./ledCatalog";
-import type { SheetDriver, DriverSelectionContext } from "./driverSelector";
-import { selectDriverFromSheet, selectDriverFallback, calcVOut, splitDriverForDualSimultaneous } from "./driverSelector";
+import type { DriverSelectionContext } from "./driverSelector";
+import { selectDriverFallback, calcVOut, splitDriverForDualSimultaneous } from "./driverSelector";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -124,8 +124,8 @@ export interface ConfigInput {
   independentLighting: boolean;
   diffuserD1?: DiffuserType;
   diffuserD2?: DiffuserType;
-  /** Lista de drivers do Google Sheets (opcional — usa fallback se ausente) */
-  sheetDrivers?: SheetDriver[];
+  /** Mapa código EQ → nome/modelo do driver (da API de componentes) */
+  driverNameMap?: Map<string, string>;
   /**
    * Quando false (padrão), usa apenas módulos com barras inteiras (1, 2, 3, 4, 5...).
    * Quando true, libera módulos com barras decimais (1.1, 1.2, 3.4, 4.2 etc).
@@ -278,13 +278,12 @@ export function getStriplineName(cct: CCT): string {
  * Cada SKU recebe seu próprio driver — nunca compartilhado entre SKUs.
  */
 /**
- * Resolve o nome real de um driver pelo código, usando os sheetDrivers da API.
+ * Resolve o nome real de um driver pelo código, usando o mapa de componentes da API.
  * Se não encontrar, retorna o nome estático do driverLookup.
  */
-function resolveDriverName(code: string, staticModel: string, sheetDrivers?: SheetDriver[]): string {
-  if (!sheetDrivers || sheetDrivers.length === 0) return staticModel;
-  const found = sheetDrivers.find(d => d.code === code);
-  return found ? found.model : staticModel;
+function resolveDriverName(code: string, staticModel: string, nameMap?: Map<string, string>): string {
+  if (!nameMap || nameMap.size === 0) return staticModel;
+  return nameMap.get(code) ?? staticModel;
 }
 
 function selectDriverForBars(
@@ -292,19 +291,19 @@ function selectDriverForBars(
   power: Power,
   voltage: Voltage,
   stripMethod: StripMethod,
-  sheetDrivers?: SheetDriver[],
+  nameMap?: Map<string, string>,
   driverContext?: Partial<DriverSelectionContext>
 ): DriverSpec {
   // Lógica v01: sempre usar o fallback determinístico (planilha desabilitada)
   const d = selectDriverFallback(totalBars, power, voltage, stripMethod, driverContext?.allowLongModules);
 
-  // Resolver nome real do driver pela API (sheetDrivers), substituindo o nome estático do driverLookup
-  const resolvedModel = resolveDriverName(d.code, d.model, sheetDrivers);
+  // Resolver nome real do driver pela API (nameMap), substituindo o nome estático do driverLookup
+  const resolvedModel = resolveDriverName(d.code, d.model, nameMap);
 
   // Para combos, resolver cada item individualmente
   const resolvedCombo = d.combo?.map(c => ({
     ...c,
-    model: resolveDriverName(c.code, c.model, sheetDrivers),
+    model: resolveDriverName(c.code, c.model, nameMap),
   }));
 
   return {
@@ -329,7 +328,7 @@ function buildSkuDriverList(
   power: Power,
   voltage: Voltage,
   stripMethod: StripMethod,
-  sheetDrivers?: SheetDriver[],
+  nameMap?: Map<string, string>,
   driverContext?: Partial<DriverSelectionContext>,
   dualSimultaneous = false  // D1+D2 sem acendimento independente: dobrar barras para dimensionar o driver
 ): SkuDriverEntry[] {
@@ -343,11 +342,11 @@ function buildSkuDriverList(
     if (dualSimultaneous) {
       const splitResult = splitDriverForDualSimultaneous(effectiveBars, power, voltage, stripMethod);
       if (splitResult) {
-        // Resolver nomes reais dos drivers pelo código via sheetDrivers
-        const resolvedModel = resolveDriverName(splitResult.code, splitResult.model, sheetDrivers);
+        // Resolver nomes reais dos drivers pelo código via nameMap
+        const resolvedModel = resolveDriverName(splitResult.code, splitResult.model, nameMap);
         const resolvedCombo = splitResult.combo?.map(c => ({
           ...c,
-          model: resolveDriverName(c.code, c.model, sheetDrivers),
+          model: resolveDriverName(c.code, c.model, nameMap),
         }));
         // Converter SelectedDriver para DriverSpec
         driver = {
@@ -360,10 +359,10 @@ function buildSkuDriverList(
           ...(resolvedCombo ? { combo: resolvedCombo } : {}),
         };
       } else {
-        driver = selectDriverForBars(effectiveBars, power, voltage, stripMethod, sheetDrivers, driverContext);
+        driver = selectDriverForBars(effectiveBars, power, voltage, stripMethod, nameMap, driverContext);
       }
     } else {
-      driver = selectDriverForBars(effectiveBars, power, voltage, stripMethod, sheetDrivers, driverContext);
+      driver = selectDriverForBars(effectiveBars, power, voltage, stripMethod, nameMap, driverContext);
     }
 
     return {
@@ -443,7 +442,7 @@ function toCompositionItems(
   power: Power,
   voltage: Voltage,
   stripMethod: StripMethod,
-  sheetDrivers?: SheetDriver[]
+  nameMap?: Map<string, string>
 ): CompositionItem[] {
   const skuMap = new Map<string, CompositionItem>();
   for (const item of rawItems) {
@@ -464,7 +463,7 @@ function toCompositionItems(
         barsTotal,
         quantity: 1,
         // driver calculado pelas barras de UMA peça individual
-        driverPerSku: selectDriverForBars(barsPerModule, power, voltage, stripMethod, sheetDrivers),
+        driverPerSku: selectDriverForBars(barsPerModule, power, voltage, stripMethod, nameMap),
       });
     }
   }
@@ -480,7 +479,7 @@ function tryInSingle(
   voltage: Voltage,
   allowLongModules: boolean,
   stripMethod: StripMethod,
-  sheetDrivers?: SheetDriver[],
+  nameMap?: Map<string, string>,
   allowFractional = false
 ): { composition: CompositionItem[]; realizedLength: number; remainingLength: number } | null {
   const inModules = getModules(profileCode, "IN", allowLongModules, stripMethod, power, false, allowFractional)
@@ -492,7 +491,7 @@ function tryInSingle(
   const best = inModules[0];
   const barsPerSection = stripMethod === "STRIPLINE" ? 1 : BARS_PER_SECTION_STRIPFLEX[power];
 
-  const composition = toCompositionItems([best], barsPerSection, power, voltage, stripMethod, sheetDrivers);
+  const composition = toCompositionItems([best], barsPerSection, power, voltage, stripMethod, nameMap);
   const realizedLength = best.length;
   const remainingLength = requestedLength - best.length;
 
@@ -533,7 +532,7 @@ function buildIfMlComposition(
   voltage: Voltage,
   allowLongModules: boolean,
   stripMethod: StripMethod,
-  sheetDrivers?: SheetDriver[],
+  nameMap?: Map<string, string>,
   allowFractional = false
 ): { composition: CompositionItem[]; realizedLength: number; remainingLength: number } | null {
   const ifModules = getModules(profileCode, "IF", allowLongModules, stripMethod, power, true, allowFractional)
@@ -643,7 +642,7 @@ function buildIfMlComposition(
       if (diff2 <= TWO_MODULE_TOLERANCE) {
         // Diferença aceitável: usar 2 módulos
         const rawItems: RawModule[] = [best2.ifMod, best2.ifMod, ...best2.mlItems];
-        const composition = toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod, sheetDrivers);
+        const composition = toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod, nameMap);
         return { composition, realizedLength: best2.realizedLength, remainingLength: diff2 };
       }
       // Diferença > 250mm: cair no ordenamento geral abaixo (permite mais módulos)
@@ -684,7 +683,7 @@ function buildIfMlComposition(
     }
   }
   const rawItems: RawModule[] = [best.ifMod, best.ifMod, ...best.mlItems];
-  const composition = toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod, sheetDrivers);
+  const composition = toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod, nameMap);
   const remainingLength = requestedLength - best.realizedLength;
 
   return { composition, realizedLength: best.realizedLength, remainingLength };
@@ -705,7 +704,7 @@ function buildIfMlCompositionMixed(
   voltage: Voltage,
   allowLongModules: boolean,
   stripMethod: StripMethod,
-  sheetDrivers?: SheetDriver[],
+  nameMap?: Map<string, string>,
   allowFractional = false
 ): { composition: CompositionItem[]; realizedLength: number; remainingLength: number } | null {
   const ifModules = getModules(profileCode, "IF", allowLongModules, stripMethod, power, true, allowFractional)
@@ -790,7 +789,7 @@ function buildIfMlCompositionMixed(
 
   const best = candidates[0];
   const rawItems: RawModule[] = [best.if1, best.if2, ...best.mlItems];
-  const composition = toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod, sheetDrivers);
+  const composition = toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod, nameMap);
   return { composition, realizedLength: best.realizedLength, remainingLength: best.remainingLength };
 }
 
@@ -803,7 +802,7 @@ export function buildComposition(
   voltage: Voltage,
   allowLongModules: boolean,
   stripMethod: StripMethod = "STRIPFLEX",
-  sheetDrivers?: SheetDriver[],
+  nameMap?: Map<string, string>,
   allowFractional = false,
   allowMixedIF = false
 ): {
@@ -840,17 +839,17 @@ export function buildComposition(
   const canFitInSingle = largestInWithinLimit !== undefined && requestedLength <= largestInWithinLimit.length;
 
   if (canFitInSingle) {
-    const inResult = tryInSingle(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, sheetDrivers, allowFractional);
+    const inResult = tryInSingle(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, nameMap, allowFractional);
     if (inResult) {
       return { ...inResult, compositionMode: "IN_SINGLE" };
     }
   }
 
-  const ifMlResult = buildIfMlComposition(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, sheetDrivers, allowFractional);
+  const ifMlResult = buildIfMlComposition(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, nameMap, allowFractional);
 
   // Estratégia 3: IF diferentes nas pontas (quando allowMixedIF=true)
   if (allowMixedIF) {
-    const mixedResult = buildIfMlCompositionMixed(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, sheetDrivers, allowFractional);
+    const mixedResult = buildIfMlCompositionMixed(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, nameMap, allowFractional);
     if (mixedResult) {
       // Usar mixed se for melhor (menor remainingLength) ou igual ao IF_ML_LINE
       const ifMlRemaining = ifMlResult ? ifMlResult.remainingLength : requestedLength;
@@ -885,7 +884,7 @@ export function buildComposition(
     }
   }
 
-  const composition = toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod, sheetDrivers);
+  const composition = toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod, nameMap);
   const realizedLength = requestedLength - remaining;
 
   return { composition, realizedLength, remainingLength: remaining, compositionMode: "IF_ML_LINE" };
@@ -1103,13 +1102,13 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
   };
 
   // ── Drivers por SKU (D1) ──
-  const driversD1: SkuDriverEntry[] = buildSkuDriverList(composition, powerD1, voltage, stripMethod, input.sheetDrivers, driverCtx);
+  const driversD1: SkuDriverEntry[] = buildSkuDriverList(composition, powerD1, voltage, stripMethod, input.driverNameMap, driverCtx);
 
   // ── Drivers por SKU (D2) — apenas D1+D2 independente ──
   let driversD2: SkuDriverEntry[] = [];
   if (effectiveApplication === "D1+D2" && isIndependent) {
     // D2 usa a mesma composição de módulos mas com potência D2
-    driversD2 = buildSkuDriverList(composition, effectivePowerD2, voltage, stripMethod, input.sheetDrivers, driverCtx);
+    driversD2 = buildSkuDriverList(composition, effectivePowerD2, voltage, stripMethod, input.driverNameMap, driverCtx);
   }
 
   // ── Nota de acendimento conjunto (D1+D2 não independente) ──
@@ -1175,7 +1174,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
   // Quando D1+D2 simultâneo: barras × 2 para dimensionar o driver (as duas fileiras compartilham o mesmo driver)
   const combinedDrivers: SkuDriverEntry[] | undefined =
     effectiveApplication === "D1+D2" && !isIndependent
-      ? buildSkuDriverList(composition, powerD1, voltage, stripMethod, input.sheetDrivers, driverCtx, true)
+      ? buildSkuDriverList(composition, powerD1, voltage, stripMethod, input.driverNameMap, driverCtx, true)
       : undefined;
 
   // ── Driver da API: substitui o driver estático quando a API fornece o driver exato ──
