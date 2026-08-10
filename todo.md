@@ -2337,3 +2337,10 @@
 - [ ] Garantir que algoritmo de perfis continua funcionando sem Google Sheets
 - [ ] Corrigir botão 220V que ainda aparece habilitado quando API não retorna driver220
 - [ ] Remover botão "Atualizar Drivers" e toda lógica relacionada ao Google Sheets
+
+## Feature: Produtos (FL) - Perfis vendidos por metro linear
+
+- [x] Identificar produtos com família terminando em (FL) na API
+- [x] Rotear produtos (FL) para cálculo tipo LED BAR (metro linear) em vez de perfil modular
+- [x] Mesmo comportamento de cálculo, seleção de tensão, CCT, controle que LED BAR
+- [x] Exibir na interface dentro da seção LED BAR (mesmo fluxo, sem difusor obrigatório)
