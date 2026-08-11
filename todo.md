@@ -2365,3 +2365,6 @@
 
 ## Ajuste: Categorias visíveis para LD Convidado
 - [x] Ocultar Revenda, Acessórios, Serviços, Item Especial, Customizados e Não Orçamos para usuários com role convidado
+
+## Correção: Imagens das categorias para LD Convidado
+- [x] Garantir entrega pública e compatível das imagens das categorias em sessão de convidado e navegação anônima

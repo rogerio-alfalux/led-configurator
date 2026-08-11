@@ -38,8 +38,25 @@ export function registerStorageProxy(app: Express) {
         return;
       }
 
-      res.set("Cache-Control", "no-store");
-      res.redirect(307, url);
+      // Entregar o arquivo pelo próprio domínio da aplicação. Isso evita que
+      // navegadores bloqueiem a imagem por redirecionamento cross-origin em
+      // contextos privados/convidados, mantendo a URL /manus-storage estável.
+      const assetResp = await fetch(url);
+      if (!assetResp.ok) {
+        console.error(`[StorageProxy] asset error: ${assetResp.status}`);
+        res.status(502).send("Storage asset unavailable");
+        return;
+      }
+
+      const contentType = assetResp.headers.get("content-type");
+      const contentLength = assetResp.headers.get("content-length");
+      if (contentType) res.set("Content-Type", contentType);
+      if (contentLength) res.set("Content-Length", contentLength);
+      res.set("Cache-Control", "public, max-age=3600");
+      res.set("X-Content-Type-Options", "nosniff");
+
+      const data = Buffer.from(await assetResp.arrayBuffer());
+      res.status(200).send(data);
     } catch (err) {
       console.error("[StorageProxy] failed:", err);
       res.status(502).send("Storage proxy error");
