@@ -1196,7 +1196,7 @@ export default function FactoryOrderDetail() {
   const { data: allProductsFO } = trpc.alfalux.products.useQuery(undefined, { staleTime: 0 });
   const productSkuMapFO = useMemo(() => {
     const map = new Map<string, ApiProductDriverInfo>();
-    for (const p of (allProductsFO ?? []) as Array<{ sku: string; name?: string; categoria?: string; driver220?: { model: string; code: string | null } | null; driverBivolt?: { model: string; code: string | null } | null; driverQtd220?: number | null; driverQtdBivolt?: number | null; ledModuleEq2700?: string | null; ledModuleEq3000?: string | null; ledModuleEq4000?: string | null; ledModuleEq5000?: string | null; ledModuleEq?: string | null }>) {
+    for (const p of (allProductsFO ?? []) as Array<{ sku: string; name?: string; categoria?: string; driver220?: { model: string; code: string | null } | null; driverBivolt?: { model: string; code: string | null } | null; driverQtd220?: number | null; driverQtdBivolt?: number | null; ledModuleEq2700?: string | null; ledModuleEq3000?: string | null; ledModuleEq4000?: string | null; ledModuleEq5000?: string | null; ledModuleEq?: string | null; ledModuleQtd?: number | null; ledModuleQtd2700?: number | null; ledModuleQtd3000?: number | null; ledModuleQtd4000?: number | null; ledModuleQtd5000?: number | null }>) {
       if (!p.sku) continue;
       const entry: ApiProductDriverInfo = {
         sku: p.sku,
@@ -1209,6 +1209,11 @@ export default function FactoryOrderDetail() {
         ledModuleEq4000: p.ledModuleEq4000 ?? null,
         ledModuleEq5000: p.ledModuleEq5000 ?? null,
         ledModuleEq: p.ledModuleEq ?? null,
+        ledModuleQtd: p.ledModuleQtd ?? null,
+        ledModuleQtd2700: p.ledModuleQtd2700 ?? null,
+        ledModuleQtd3000: p.ledModuleQtd3000 ?? null,
+        ledModuleQtd4000: p.ledModuleQtd4000 ?? null,
+        ledModuleQtd5000: p.ledModuleQtd5000 ?? null,
         name: p.name,
       };
       // Indexar por sku simples (primeiro registro vence) para compat

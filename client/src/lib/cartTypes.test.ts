@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseCartItemData } from "./cartTypes";
+import { migrateItemDrivers, parseCartItemData } from "./cartTypes";
 
 describe("parseCartItemData - correção de driverQty para perfis", () => {
   it("corrige driverQty quando está salvo apenas por luminária (BLAZE 45700mm, 12 lum, 17 drv/lum)", () => {
@@ -90,5 +90,45 @@ describe("parseCartItemData - correção de driverQty para perfis", () => {
 
   it("retorna null para JSON inválido", () => {
     expect(parseCartItemData("invalid json")).toBeNull();
+  });
+});
+
+describe("migrateItemDrivers - itens não-perfil consultam a API", () => {
+  it("corrige CCT/quantidade de módulo e total de drivers com os campos da API", () => {
+    const item = {
+      category: "Spots",
+      sku: "SP-API",
+      description: "SPOT TESTE 4000K 220Vac",
+      cct: "4000K",
+      qty: 145,
+      moduloLed: "MÓDULO ANTIGO 3000K (EQOLD)",
+      moduloLedCode: "EQOLD",
+      driverLines: [{ driverCode: "EQOLD-DRV", driverModel: "DRIVER ANTIGO", driverQty: 83, driverUnitPrice: 10, driverTotalPrice: 830 }],
+    } as any;
+    const productMap = new Map([[
+      "SP-API",
+      {
+        sku: "SP-API",
+        driver220: { code: "EQDRIVER", model: "DRIVER API 20W" },
+        driverBivolt: null,
+        driverQtd220: 1,
+        driverQtdBivolt: null,
+        ledModuleEq4000: "EQMOD4000",
+        ledModuleQtd4000: 2,
+      },
+    ]]);
+    const descMap = new Map([
+      ["EQDRIVER", "DRIVER API 20W 400MA"],
+      ["EQMOD4000", "MÓDULO LED API 4000K"],
+    ]);
+
+    const result = migrateItemDrivers(item, new Map([["EQDRIVER", 10]]), descMap, productMap);
+
+    expect(result.driverQtyPerUnit).toBe(1);
+    expect(result.driverLines).toEqual(expect.arrayContaining([
+      expect.objectContaining({ driverCode: "EQDRIVER", driverQty: 145, driverModel: "DRIVER API 20W 400MA" }),
+    ]));
+    expect(result.moduloLedCode).toBe("EQMOD4000");
+    expect(result.moduloLed).toContain("2x MÓDULO LED API 4000K (EQMOD4000)");
   });
 });

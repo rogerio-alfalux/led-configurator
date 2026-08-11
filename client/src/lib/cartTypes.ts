@@ -638,6 +638,12 @@ export interface ApiProductDriverInfo {
   ledModuleEq5000?: string | null;
   /** Código EQ genérico (fallback para RGBW/legados) */
   ledModuleEq?: string | null;
+  /** Quantidade do módulo LED por luminária, fornecida pela API. */
+  ledModuleQtd?: number | null;
+  ledModuleQtd2700?: number | null;
+  ledModuleQtd3000?: number | null;
+  ledModuleQtd4000?: number | null;
+  ledModuleQtd5000?: number | null;
   /** Nome do produto na API (para extractPowerLabelFromName) */
   name?: string;
 }
@@ -728,6 +734,68 @@ export function migrateItemDrivers(
     });
     if (anyChanged) {
       item = { ...item, profileSegments: newSegments };
+    }
+  }
+
+  // ── Migração 8: itens não-perfil — módulo LED e driver sempre da API ──────
+  // Itens antigos podem ter módulo/driver salvos com CCT ou quantidade incorretos.
+  // A API é a fonte de verdade: atualizamos o primeiro componente (módulo LED)
+  // mantendo óptica, holder e dissipador que já estejam vinculados ao item.
+  if ((!item.profileSegments || item.profileSegments.length === 0) && item.category !== "LED BAR" && item.sku) {
+    const apiProduct = productSkuMap.get(item.sku);
+    if (apiProduct) {
+      const cctKey = (item.cct ?? "").replace("K", "") as "2700" | "3000" | "4000" | "5000";
+      const hasCctKey = ["2700", "3000", "4000", "5000"].includes(cctKey);
+      const apiModuleCode = hasCctKey
+        ? (apiProduct[`ledModuleEq${cctKey}` as keyof ApiProductDriverInfo] as string | null | undefined) ?? apiProduct.ledModuleEq ?? null
+        : apiProduct.ledModuleEq ?? apiProduct.ledModuleEq3000 ?? apiProduct.ledModuleEq4000 ?? null;
+      const apiModuleQty = hasCctKey
+        ? (apiProduct[`ledModuleQtd${cctKey}` as keyof ApiProductDriverInfo] as number | null | undefined) ?? apiProduct.ledModuleQtd ?? null
+        : apiProduct.ledModuleQtd ?? null;
+
+      if (apiModuleCode) {
+        const existingParts = (item.moduloLed ?? "").split(" + ").map(part => part.trim()).filter(Boolean);
+        const savedQtyMatch = existingParts[0]?.match(/^(\d+)x\s+/i);
+        const moduleQty = apiModuleQty != null && apiModuleQty > 0
+          ? apiModuleQty
+          : (savedQtyMatch ? Number(savedQtyMatch[1]) : 1);
+        const canonical = descMap.get(apiModuleCode) ?? existingParts[0]?.replace(/^\d+x\s+/i, "").replace(/\s*\([^)]+\)\s*$/, "") ?? apiModuleCode;
+        const moduleText = `${moduleQty > 1 ? `${moduleQty}x ` : ""}${canonical} (${apiModuleCode})`;
+        const moduloLed = existingParts.length > 1
+          ? [moduleText, ...existingParts.slice(1)].join(" + ")
+          : moduleText;
+        item = { ...item, moduloLedCode: apiModuleCode, moduloLed };
+      }
+
+      // Recalcular drivers totais a partir da quantidade por luminária retornada
+      // pela API. Isso corrige itens antigos em que driverQty abrangia apenas um
+      // pavimento ou uma fração do item.
+      if (item.driverLines && item.driverLines.length > 0) {
+        const itemQty = item.qty ?? 1;
+        const contextText = [item.description, item.orderSummary, item.quoteSummary, item.drivers].filter(Boolean).join(" ");
+        const isBivolt = /bivolt/i.test(contextText);
+        const apiDriver = isBivolt
+          ? (apiProduct.driverBivolt ?? apiProduct.driver220)
+          : (apiProduct.driver220 ?? apiProduct.driverBivolt);
+        const apiDriverQty = isBivolt
+          ? (apiProduct.driverQtdBivolt ?? apiProduct.driverQtd220)
+          : (apiProduct.driverQtd220 ?? apiProduct.driverQtdBivolt);
+
+        if (apiDriver?.code && apiDriverQty != null && apiDriverQty > 0) {
+          const driverUnitPrice = priceMap.get(apiDriver.code) ?? item.driverLines[0]?.driverUnitPrice ?? null;
+          const totalQty = apiDriverQty * itemQty;
+          const driverModel = descMap.get(apiDriver.code) ?? apiDriver.model;
+          const driverLines: DriverLine[] = [{
+            driverCode: apiDriver.code,
+            driverModel,
+            driverQty: totalQty,
+            driverUnitPrice,
+            driverTotalPrice: driverUnitPrice != null ? Math.round(driverUnitPrice * totalQty * 100) / 100 : null,
+            corrente: correnteMap?.get(apiDriver.code) ?? item.driverLines[0]?.corrente ?? null,
+          }];
+          item = { ...item, driverLines, driverQtyPerUnit: apiDriverQty };
+        }
+      }
     }
   }
 

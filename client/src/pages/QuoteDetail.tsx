@@ -1352,7 +1352,7 @@ export default function QuoteDetail() {
     const _currentItems = _items.filter(i => i.quoteVersionId === _currentVersionId);
     // Mapa sku -> produto da API (para fallback de driver na Migração 3 e resolução de ledModuleCode na Migração 4)
     const productSkuMap = new Map<string, ApiProductDriverInfo>();
-    for (const p of (productsQuery.data ?? []) as Array<{ sku: string; name?: string; categoria?: string; driverBivolt?: { model: string; code: string | null } | null; driver220?: { model: string; code: string | null } | null; driverQtdBivolt?: number | null; driverQtd220?: number | null; ledModuleEq2700?: string | null; ledModuleEq3000?: string | null; ledModuleEq4000?: string | null; ledModuleEq5000?: string | null; ledModuleEq?: string | null }>) {
+    for (const p of (productsQuery.data ?? []) as Array<{ sku: string; name?: string; categoria?: string; driverBivolt?: { model: string; code: string | null } | null; driver220?: { model: string; code: string | null } | null; driverQtdBivolt?: number | null; driverQtd220?: number | null; ledModuleEq2700?: string | null; ledModuleEq3000?: string | null; ledModuleEq4000?: string | null; ledModuleEq5000?: string | null; ledModuleEq?: string | null; ledModuleQtd?: number | null; ledModuleQtd2700?: number | null; ledModuleQtd3000?: number | null; ledModuleQtd4000?: number | null; ledModuleQtd5000?: number | null }>) {
       if (!p.sku) continue;
       const entry: ApiProductDriverInfo = {
         sku: p.sku,
@@ -1365,6 +1365,11 @@ export default function QuoteDetail() {
         ledModuleEq4000: p.ledModuleEq4000 ?? null,
         ledModuleEq5000: p.ledModuleEq5000 ?? null,
         ledModuleEq: p.ledModuleEq ?? null,
+        ledModuleQtd: p.ledModuleQtd ?? null,
+        ledModuleQtd2700: p.ledModuleQtd2700 ?? null,
+        ledModuleQtd3000: p.ledModuleQtd3000 ?? null,
+        ledModuleQtd4000: p.ledModuleQtd4000 ?? null,
+        ledModuleQtd5000: p.ledModuleQtd5000 ?? null,
         name: p.name,
       };
       // Indexar por sku simples (primeiro registro vence) para compat

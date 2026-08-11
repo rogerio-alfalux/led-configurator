@@ -360,7 +360,9 @@ export function buildMaterialRequisition(
     if (item.driverLines && item.driverLines.length > 0) {
       for (const dl of item.driverLines) {
         if (!dl.driverCode) continue;
-        const qtyPerUnit = (dl as any).drvQtyPerUnit ?? Math.round(dl.driverQty / itemQty) ?? 1;
+        const qtyPerUnit = item.driverLines.length === 1 && item.driverQtyPerUnit != null
+          ? item.driverQtyPerUnit
+          : (itemQty > 0 ? dl.driverQty / itemQty : dl.driverQty);
         const totalDrivers = qtyPerUnit * itemQty;
         const isDriverFonte = dl.driverModel.toUpperCase().includes("FONTE 24V");
         const tipo: MaterialTipo = isDriverFonte ? "FONTES DE TENSÃO" : "DRIVERS";

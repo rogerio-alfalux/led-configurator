@@ -59,11 +59,16 @@ function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, stri
 
 function buildLuminariaEquipamentosText(item: CartItemData): string {
   if (!item.driverLines || item.driverLines.length === 0) {
-    return esc(item.drivers ?? "");
+    return item.drivers ?? "";
   }
   return item.driverLines.map(dl => {
     const codeSuffix = dl.driverCode ? ` (${esc(dl.driverCode)})` : "";
-    const linha = `${dl.driverQty}x ${esc(dl.driverModel)}${codeSuffix}`;
+    const itemQty = item.qty ?? 1;
+    const qtyPerUnit = item.driverLines!.length === 1 && item.driverQtyPerUnit != null
+      ? item.driverQtyPerUnit
+      : (itemQty > 0 ? dl.driverQty / itemQty : dl.driverQty);
+    const displayQty = Number.isInteger(qtyPerUnit) ? String(qtyPerUnit) : qtyPerUnit.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+    const linha = `${displayQty}x ${esc(dl.driverModel)}${codeSuffix}`;
     if (dl.corrente && !dl.driverModel.toUpperCase().includes("FONTE 24V")) {
       return `${linha}<br><span style="color:#555;font-style:italic">PROGRAMAÇÃO: ${esc(dl.corrente)}</span>`;
     }

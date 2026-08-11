@@ -369,3 +369,29 @@ describe("buildMaterialRequisition — componentes múltiplos (óticas, holders,
     expect(ledEntry?.tipo).toBe("MÓDULOS LED");
   });
 });
+
+describe("buildMaterialRequisition — luminárias não-perfil", () => {
+  it("soma módulo LED e driver usando quantidade por unidade e quantidade total do item", () => {
+    const items: CartItemData[] = [{
+      category: "Spots",
+      sku: "SP-API",
+      description: "SPOT 4000K",
+      qty: 145,
+      unitPrice: 100,
+      totalPrice: 14500,
+      photoUrl: null,
+      moduloLed: "2x MÓDULO LED API 4000K (EQMOD4000)",
+      moduloLedCode: "EQMOD4000",
+      driverQtyPerUnit: 1,
+      driverLines: [{ driverModel: "DRIVER API 20W", driverCode: "EQDRIVER", driverQty: 145, driverUnitPrice: 10, driverTotalPrice: 1450 }],
+    }];
+
+    const result = buildMaterialRequisition(items, new Map([
+      ["EQMOD4000", "MÓDULO LED API 4000K"],
+      ["EQDRIVER", "DRIVER API 20W"],
+    ]));
+
+    expect(result.find(entry => entry.codigo === "EQMOD4000")?.qty).toBe(290);
+    expect(result.find(entry => entry.codigo === "EQDRIVER")?.qty).toBe(145);
+  });
+});

@@ -2381,3 +2381,8 @@
 - [x] Preencher o campo PEDIDO da ficha de produção com o número do pedido de fábrica
 - [x] Remover a mesclagem da célula de prazo/data de entrega no Excel da ficha de produção
 - [x] Restringir a cor de todas as versões da luminária AURORA à opção Preto
+
+## Lote 2: Componentes de produtos não-perfil
+- [x] Corrigir a quantidade total de drivers de luminárias não-perfil na ficha de produção
+- [x] Garantir inclusão e soma correta de módulos LED de produtos não-perfil na requisição de materiais
+- [x] Usar exclusivamente os códigos, quantidades, CCT e componentes retornados pela API para itens não-perfil
