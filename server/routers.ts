@@ -617,6 +617,8 @@ export const appRouter = router({
         status: z.enum(["open", "approved", "lost", "cancelled", "invoiced"]).optional(),
         seller1Name: z.string().optional(),
         assistantName: z.string().optional(),
+        seller1Id: z.number().int().positive().optional(),
+        assistantId: z.number().int().positive().optional(),
         dateFrom: z.string().optional(),
         dateTo: z.string().optional(),
         limit: z.number().optional(),
@@ -633,15 +635,14 @@ export const appRouter = router({
               .where(and(eq(assistants.email, ctx.user.email), eq(assistants.active, true)))
               .limit(1);
             if (assistantRow[0]?.allowedSellerId) {
-              // Buscar o nome do vendedor vinculado
-              const sellerRow = await db
-                .select({ name: sellers.name })
+                // Forçar filtro pelo ID do vendedor vinculado, sem ambiguidade de nomes.
+                const sellerRow = await db
+                  .select({ id: sellers.id })
                 .from(sellers)
                 .where(eq(sellers.id, assistantRow[0].allowedSellerId))
                 .limit(1);
-              if (sellerRow[0]?.name) {
-                // Forçar filtro pelo nome do vendedor vinculado
-                return listQuotes({ ...input, seller1Name: sellerRow[0].name });
+              if (sellerRow[0]?.id) {
+                return listQuotes({ ...input, seller1Id: sellerRow[0].id });
               }
             }
           }

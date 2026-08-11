@@ -1196,7 +1196,7 @@ export default function QuoteDetail() {
     onSuccess: () => {
       utils.quotes.getById.invalidate({ id: Number(id) });
       utils.quotes.list.invalidate();
-      toast.success("Itens atualizados! Nova revisão criada.");
+      toast.success("Itens atualizados e salvos como rascunho.");
       setEditItemsDialogOpen(false);
     },
     onError: (err) => toast.error(`Erro: ${err.message}`),
@@ -1216,13 +1216,14 @@ export default function QuoteDetail() {
     onSuccess: () => {
       utils.quotes.getById.invalidate({ id: Number(id) });
       utils.quotes.list.invalidate();
-      toast.success("Orçamento atualizado! Nova revisão criada.");
+      toast.success("Orçamento atualizado e salvo como rascunho.");
       setEditDialogOpen(false);
     },
     onError: (err) => toast.error(`Erro: ${err.message}`),
   });
 
   const logProductionSheetMutation = trpc.quotes.logProductionSheet.useMutation();
+  const bumpRevisionMutation = trpc.quotes.bumpRevision.useMutation();
   const setRevisionMutation = trpc.quotes.setRevision.useMutation({
     onSuccess: () => {
       utils.quotes.getById.invalidate({ id: Number(id) });
@@ -1660,6 +1661,8 @@ export default function QuoteDetail() {
 
   const { quote, versions, items, canEdit, canSeeCommission = false, canEditCommission = false } = data as typeof data & { canSeeCommission?: boolean; canEditCommission?: boolean };
   const st = STATUS_LABELS[quote.status] ?? STATUS_LABELS.open;
+  const hasDraftRevision = versions.some((version: any) => version.status === 'draft');
+  const exportRevisionCount = (quote.revisionCount ?? 0) + (hasDraftRevision ? 1 : 0);
 
   // Itens da versão mais recente
   const currentVersionId = versions[0]?.id;
@@ -1762,7 +1765,8 @@ export default function QuoteDetail() {
   const handleGenerateQuote = async () => {
     setIsGenerating(true);
     try {
-      // Baixar Excel sem criar nova revisão — a revisão só é criada ao Salvar Orçamento
+      // A edição permanece em rascunho até a primeira exportação. Ao baixar,
+      // o rascunho é publicado e ganha uma nova RV.
       // Buscar telefones dos vendedores pelo ID no catálogo
       const s1 = quote.seller1Id ? editSellers.find(s => s.id === quote.seller1Id) : undefined;
       const s2 = quote.seller2Id ? editSellers.find(s => s.id === quote.seller2Id) : undefined;
@@ -1802,8 +1806,7 @@ export default function QuoteDetail() {
           freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
           freteIncluded: (quote as any).freteIncluded ?? false,
           diluicaoValor: (quote as any).diluicaoValor ? parseFloat(String((quote as any).diluicaoValor)) : undefined,
-          // O número de revisão do Excel é o revisionCount do banco (controlado pela Vivian)
-          revisionCount: quote.revisionCount ?? 0,
+          revisionCount: exportRevisionCount,
           deliveryDays: quote.deliveryDays ?? 20,
           commissionPercent: quote.commissionPercent ? parseFloat(String(quote.commissionPercent)) : undefined,
           paymentTerm: quote.paymentTerm ?? undefined,
@@ -1817,7 +1820,14 @@ export default function QuoteDetail() {
           quoteCreatedAt: quote.createdAt ? new Date(quote.createdAt).toISOString() : undefined,
         }
       );
-      toast.success("Orçamento Excel gerado!");
+      if (hasDraftRevision) {
+        const published = await bumpRevisionMutation.mutateAsync({ id: Number(id) });
+        await utils.quotes.getById.invalidate({ id: Number(id) });
+        await utils.quotes.list.invalidate();
+        toast.success(published.published ? `Orçamento Excel gerado e RV${published.revisionCount} arquivada.` : "Orçamento Excel gerado!");
+      } else {
+        toast.success("Orçamento Excel gerado!");
+      }
     } catch (err) {
       toast.error("Erro ao gerar orçamento.");
     } finally {
@@ -1825,7 +1835,17 @@ export default function QuoteDetail() {
     }
   };
 
-  const handleGeneratePdf = () => {
+  const handleGeneratePdf = async () => {
+    if (hasDraftRevision) {
+      try {
+        await bumpRevisionMutation.mutateAsync({ id: Number(id) });
+        await utils.quotes.getById.invalidate({ id: Number(id) });
+        await utils.quotes.list.invalidate();
+      } catch (err) {
+        toast.error("Não foi possível arquivar a revisão antes de gerar o PDF.");
+        return;
+      }
+    }
     setPdfPrintOpen(true);
   };
 
@@ -4625,34 +4645,34 @@ export default function QuoteDetail() {
         items={currentItemsMigrated.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null)}
         freshPhotoMap={productPhotoMap}
         formData={{
-          cliente: quote.clientName,
-          contato: quote.clientContact ?? "",
-          tel: quote.clientPhone ?? "",
-          email: quote.clientEmail ?? "",
-          obra: quote.projectName ?? "",
-          referencia: quote.projectRef ?? "",
-          numero: quote.quoteNumber,
-          data: toBrasiliaDate(quote.updatedAt ?? quote.createdAt),
-          arquiteto: (quote as any).arquiteto ?? undefined,
-          lightDesigner: (quote as any).lightDesigner ?? undefined,
-          seller1Name: quote.seller1Name ?? undefined,
-          seller1Phone: editSellers.find(s => s.id === quote.seller1Id)?.phone ?? undefined,
-          seller2Name: quote.seller2Name ?? undefined,
-          seller2Phone: editSellers.find(s => s.id === quote.seller2Id)?.phone ?? undefined,
-          assistantName: quote.assistantName ?? undefined,
-          rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) : undefined,
-          marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
-          discountPercent: (quote as any).discountPercent ? parseFloat(String((quote as any).discountPercent)) : undefined,
-          showDiscount: !!(quote as any).showDiscount,
-          freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
-          freteIsento: quote.freteIsento ?? false,
-          freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
-          freteCity: (quote as any).freteCity ?? undefined,
-          freteState: (quote as any).freteState ?? undefined,
-          freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
-          freteIncluded: (quote as any).freteIncluded ?? false,
-          revisionCount: quote.revisionCount ?? 0,
-          deliveryDays: quote.deliveryDays ?? 20,
+         cliente: quote.clientName,
+         contato: quote.clientContact ?? "",
+         tel: quote.clientPhone ?? "",
+         email: quote.clientEmail ?? "",
+         obra: quote.projectName ?? "",
+         referencia: quote.projectRef ?? "",
+         numero: quote.quoteNumber,
+         data: toBrasiliaDate(quote.updatedAt ?? quote.createdAt),
+         arquiteto: (quote as any).arquiteto ?? undefined,
+         lightDesigner: (quote as any).lightDesigner ?? undefined,
+         seller1Name: quote.seller1Name ?? undefined,
+         seller1Phone: editSellers.find(s => s.id === quote.seller1Id)?.phone ?? undefined,
+         seller2Name: quote.seller2Name ?? undefined,
+         seller2Phone: editSellers.find(s => s.id === quote.seller2Id)?.phone ?? undefined,
+         assistantName: quote.assistantName ?? undefined,
+         rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) : undefined,
+         marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
+         discountPercent: (quote as any).discountPercent ? parseFloat(String((quote as any).discountPercent)) : undefined,
+         showDiscount: !!(quote as any).showDiscount,
+         freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
+         freteIsento: quote.freteIsento ?? false,
+         freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
+         freteCity: (quote as any).freteCity ?? undefined,
+         freteState: (quote as any).freteState ?? undefined,
+         freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
+         freteIncluded: (quote as any).freteIncluded ?? false,
+          revisionCount: exportRevisionCount,
+         deliveryDays: quote.deliveryDays ?? 20,
           paymentTerm: quote.paymentTerm ?? undefined,
           destState: quote.destState ?? undefined,
           difalEnabled: quote.difalEnabled ?? false,
@@ -4699,7 +4719,7 @@ export default function QuoteDetail() {
           freteState: (quote as any).freteState ?? undefined,
           freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
           freteIncluded: (quote as any).freteIncluded ?? false,
-          revisionCount: quote.revisionCount ?? 0,
+          revisionCount: exportRevisionCount,
           deliveryDays: quote.deliveryDays ?? 20,
           paymentTerm: quote.paymentTerm ?? undefined,
           destState: quote.destState ?? undefined,

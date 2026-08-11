@@ -583,33 +583,51 @@ export async function addQuoteRevision(
   }).where(eq(quotes.id, quoteId));
 
   if (!bumpVersion) {
-    // Atualiza in-place: busca a versão atual e substitui seus itens
+    // Alterações sem exportação ficam em rascunho. A última versão publicada
+    // nunca é sobrescrita, mantendo o histórico disponível para consulta.
     const vRows = await db.select().from(quoteVersions)
       .where(eq(quoteVersions.quoteId, quoteId))
-      .orderBy(desc(quoteVersions.version))
+      .orderBy(desc(quoteVersions.createdAt))
       .limit(1);
-    const currentVId = vRows[0]?.id;
-    if (currentVId) {
-      // Atualiza header da versão
+    const latestVersion = vRows[0];
+    let draftVersionId = latestVersion?.status === 'draft' ? latestVersion.id : 0;
+
+    if (!draftVersionId) {
+      const draftResult = await db.insert(quoteVersions).values({
+        quoteId,
+        version: quote.currentVersion + 1,
+        headerSnapshot,
+        totalAmount: String(input.totalAmount),
+        totalFinal: input.totalFinal != null ? String(input.totalFinal) : String(input.totalAmount),
+        createdByUserId: input.createdByUserId,
+        assistantName: input.assistantName ?? null,
+        vendorName: input.vendorName ?? null,
+        versionNotes: input.versionNotes ?? null,
+        status: 'draft',
+      });
+      draftVersionId = (draftResult as unknown as { insertId: number }[])[0]?.insertId ?? 0;
+    } else {
       await db.update(quoteVersions).set({
         headerSnapshot,
         totalAmount: String(input.totalAmount),
         totalFinal: input.totalFinal != null ? String(input.totalFinal) : String(input.totalAmount),
-        versionNotes: input.versionNotes ?? vRows[0].versionNotes ?? null,
-      }).where(eq(quoteVersions.id, currentVId));
-      // Substitui itens
+        versionNotes: input.versionNotes ?? latestVersion?.versionNotes ?? null,
+      }).where(eq(quoteVersions.id, draftVersionId));
+    }
+
+    if (draftVersionId) {
+      await db.delete(quoteItems).where(eq(quoteItems.quoteVersionId, draftVersionId));
       if (input.items.length > 0) {
-        await db.delete(quoteItems).where(eq(quoteItems.quoteVersionId, currentVId));
         await db.insert(quoteItems).values(
           input.items.map((it) => ({
-            quoteVersionId: currentVId,
+            quoteVersionId: draftVersionId,
             quoteId,
             itemNumber: it.itemNumber,
             itemData: it.itemData,
           }))
         );
       }
-      return { versionId: currentVId, version: newVersion };
+      return { versionId: draftVersionId, version: quote.currentVersion + 1 };
     }
   }
 
@@ -624,6 +642,7 @@ export async function addQuoteRevision(
     assistantName: input.assistantName ?? null,
     vendorName: input.vendorName ?? null,
     versionNotes: input.versionNotes ?? null,
+    status: 'published',
   });
   const versionId = (vResult as unknown as { insertId: number }[])[0]?.insertId ?? 0;
 
@@ -648,6 +667,8 @@ export async function listQuotes(opts: {
   status?: "open" | "approved" | "lost" | "cancelled" | "invoiced";
   seller1Name?: string;
   assistantName?: string;
+  seller1Id?: number;
+  assistantId?: number;
   dateFrom?: string; // YYYY-MM-DD
   dateTo?: string;   // YYYY-MM-DD
   limit?: number;
@@ -658,6 +679,8 @@ export async function listQuotes(opts: {
 
   const conditions = [];
   if (opts.status) conditions.push(eq(quotes.status, opts.status));
+  if (opts.seller1Id != null) conditions.push(eq(quotes.seller1Id, opts.seller1Id));
+  if (opts.assistantId != null) conditions.push(eq(quotes.assistantId, opts.assistantId));
   if (opts.seller1Name) conditions.push(like(quotes.seller1Name, `%${opts.seller1Name}%`));
   if (opts.assistantName) conditions.push(like(quotes.assistantName, `%${opts.assistantName}%`));
   // Para status 'approved': filtrar por approvedAt (data de aprovação) para consistência com o dashboard
@@ -714,7 +737,7 @@ export async function getQuoteById(id: number) {
     .select()
     .from(quoteVersions)
     .where(eq(quoteVersions.quoteId, id))
-    .orderBy(desc(quoteVersions.version));
+    .orderBy(desc(quoteVersions.version), desc(quoteVersions.createdAt));
 
   const items = await db
     .select()
@@ -1332,6 +1355,7 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     freteValue: quotes.freteValue,
     freteIncluded: quotes.freteIncluded,
     rtPercent: quotes.rtPercent,
+    discountPercent: quotes.discountPercent,
     marginPercent: quotes.marginPercent,
   }).from(quotes).where(periodCondition);
 
@@ -1379,6 +1403,7 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     const ta = Number(quote.totalAmount ?? 0);
     totalVendas += tf;
     const marginPercent = Number(quote.marginPercent ?? 0.10);
+    const discountPercent = Math.min(Math.max(Number(quote.discountPercent ?? 0), 0), 0.99);
 
     // Custo dos produtos: buscar em todas as fontes (custoCorpoBase salvo, API produtos, componentes, acessórios)
     const items = itemsByQuote.get(quote.id) ?? [];
@@ -1389,6 +1414,22 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
         const data = typeof row.itemData === 'string' ? JSON.parse(row.itemData) : row.itemData;
         const qty = Number(data.qty ?? 1);
         const sku = (data.sku ?? '').toUpperCase();
+
+        // Acessórios vinculados são custo real do item. Consultar exclusivamente
+        // a API de acessórios/componentes pelo código, sem usar preço salvo.
+        const linkedAccessoryCost = Array.isArray(data.accessories)
+          ? data.accessories.reduce((sum: number, accessory: any) => {
+              const code = String(accessory.codigo ?? '').toUpperCase();
+              const apiAccessory = acessorioByCodigo.get(code) ?? acessorioBySku.get(code);
+              const apiComponent = componenteByCodigo.get(code);
+              const unitCost = Number(apiAccessory?.custo ?? apiComponent?.custoDriver ?? 0);
+              return sum + unitCost * Number(accessory.qty ?? 1) * qty;
+            }, 0)
+          : 0;
+        if (linkedAccessoryCost > 0) {
+          custoProdutos += linkedAccessoryCost;
+          temCusto = true;
+        }
 
         // 1. Item Especial: custoManual ou estimativa por margem
         if (data.isSpecialItem || data.category === 'Item Especial' || data.category === 'especial') {
@@ -1565,9 +1606,9 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     const comm2 = Number(quote.commissionPercent2 ?? 0);
     totalComissoes += tf * (comm1 + comm2);
 
-    // RT: rtPercent × totalAmount (base sem RT/margem)
+    // RT acompanha o valor efetivamente negociado após desconto.
     const rt = Number(quote.rtPercent ?? 0);
-    totalRt += ta * rt;
+    totalRt += ta * (1 - discountPercent) * rt;
 
     // DIFAL + FCP (valores absolutos já calculados)
     totalDifal += Number(quote.difalValue ?? 0) + Number(quote.fcpValue ?? 0);
@@ -2136,15 +2177,29 @@ export async function getRevisionItems(versionId: number) {
 }
 
 /** Incrementa o revisionCount do orçamento (chamado ao baixar o Excel) */
-export async function bumpQuoteRevision(quoteId: number): Promise<{ revisionCount: number }> {
+export async function bumpQuoteRevision(quoteId: number): Promise<{ revisionCount: number; published: boolean }> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+
+  const draftRows = await db.select({ id: quoteVersions.id }).from(quoteVersions)
+    .where(and(eq(quoteVersions.quoteId, quoteId), eq(quoteVersions.status, 'draft')))
+    .orderBy(desc(quoteVersions.createdAt))
+    .limit(1);
+
+  // Sem alterações pendentes, uma nova exportação não cria RV artificial.
+  if (!draftRows[0]) {
+    const rows = await db.select({ revisionCount: quotes.revisionCount }).from(quotes).where(eq(quotes.id, quoteId)).limit(1);
+    return { revisionCount: rows[0]?.revisionCount ?? 0, published: false };
+  }
+
+  await db.update(quoteVersions).set({ status: 'published' }).where(eq(quoteVersions.id, draftRows[0].id));
   await db.update(quotes).set({
     revisionCount: sql`revisionCount + 1`,
+    currentVersion: sql`currentVersion + 1`,
     updatedAt: sql`NOW()`,
   }).where(eq(quotes.id, quoteId));
   const rows = await db.select({ revisionCount: quotes.revisionCount }).from(quotes).where(eq(quotes.id, quoteId)).limit(1);
-  return { revisionCount: rows[0]?.revisionCount ?? 0 };
+  return { revisionCount: rows[0]?.revisionCount ?? 0, published: true };
 }
 
 /** Define manualmente o revisionCount do orçamento (somente gestores) */

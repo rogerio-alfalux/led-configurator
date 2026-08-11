@@ -47,6 +47,8 @@ export const quoteVersions = mysqlTable("quote_versions", {
 	headerSnapshot: text().notNull(),
 	totalAmount: decimal({ precision: 12, scale: 2 }).default('0'),
 	createdByUserId: int().notNull(),
+	/** Rascunho reúne alterações ainda não exportadas; publicada é uma revisão arquivada. */
+	status: mysqlEnum(['draft','published']).default('published').notNull(),
 	assistantName: varchar({ length: 128 }),
 	vendorName: varchar({ length: 128 }),
 	versionNotes: text(),

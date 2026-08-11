@@ -1,0 +1,1 @@
+ALTER TABLE `quote_versions` ADD `status` enum('draft','published') DEFAULT 'published' NOT NULL;

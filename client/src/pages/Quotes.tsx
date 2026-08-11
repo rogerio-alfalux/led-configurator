@@ -15,6 +15,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getLoginUrl } from "@/const";
 import { formatBRL } from "@/lib/cartTypes";
+import { getStoredCustomerTotal } from "@/lib/quoteTotals";
 import { toBrasiliaDate } from "@/lib/dateUtils";
 import { PERMISSIONS } from "@shared/permissions";
 
@@ -42,8 +43,8 @@ export default function Quotes() {
   const { data, isLoading } = trpc.quotes.list.useQuery({
     search: search || undefined,
     status: status !== "all" ? (status as "open" | "approved" | "lost" | "cancelled" | "invoiced") : undefined,
-    seller1Name: sellerFilter !== "all" ? sellerFilter : undefined,
-    assistantName: assistantFilter !== "all" ? assistantFilter : undefined,
+    seller1Id: sellerFilter !== "all" ? Number(sellerFilter) : undefined,
+    assistantId: assistantFilter !== "all" ? Number(assistantFilter) : undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
     limit,
@@ -56,8 +57,8 @@ export default function Quotes() {
   const { data: filteredAllData } = trpc.quotes.list.useQuery({
     search: search || undefined,
     status: status !== "all" ? (status as "open" | "approved" | "lost" | "cancelled" | "invoiced") : undefined,
-    seller1Name: sellerFilter !== "all" ? sellerFilter : undefined,
-    assistantName: assistantFilter !== "all" ? assistantFilter : undefined,
+    seller1Id: sellerFilter !== "all" ? Number(sellerFilter) : undefined,
+    assistantId: assistantFilter !== "all" ? Number(assistantFilter) : undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
     limit: 10000,
@@ -66,19 +67,19 @@ export default function Quotes() {
 
   // Listas únicas de vendedores e assistentes
   const uniqueSellers = useMemo(() => {
-    const names = new Set<string>();
+    const byId = new Map<number, string>();
     (allData?.rows ?? []).forEach(q => {
-      if (q.seller1Name) names.add(q.seller1Name);
+      if (q.seller1Id && q.seller1Name) byId.set(q.seller1Id, q.seller1Name);
     });
-    return Array.from(names).sort();
+    return Array.from(byId, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [allData]);
 
   const uniqueAssistants = useMemo(() => {
-    const names = new Set<string>();
+    const byId = new Map<number, string>();
     (allData?.rows ?? []).forEach(q => {
-      if (q.assistantName) names.add(q.assistantName);
+      if (q.assistantId && q.assistantName) byId.set(q.assistantId, q.assistantName);
     });
-    return Array.from(names).sort();
+    return Array.from(byId, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [allData]);
 
   // Permissão para ver diluição (mesma lógica do QuoteDetail)
@@ -92,15 +93,9 @@ export default function Quotes() {
     const approved = rows.filter(q => q.status === "approved").length;
     const lost = rows.filter(q => q.status === "lost").length;
     const invoiced = rows.filter(q => q.status === "invoiced").length;
-    // Usar totalFinal (inclui RT + margem + frete + DIFAL + FCP) com fallback para totalAmount
-    // Somar diluição se o usuário tem permissão
-    const getQuoteValue = (q: typeof rows[0]) => {
-      const base = Number(q.totalFinal) > 0 ? Number(q.totalFinal) : (Number(q.totalAmount) || 0);
-      const dil = canSeeCommission && (q as any).diluicaoValor ? Number((q as any).diluicaoValor) : 0;
-      // Incluir DIFAL/FCP no valor total (mesmo valor do PDF/Excel/Preview)
-      const difal = (q as any).difalEnabled ? (Number((q as any).difalValue ?? 0) + Number((q as any).fcpValue ?? 0)) : 0;
-      return base + dil + difal;
-    };
+    // totalFinal já é o total que o cliente paga. Não somar impostos,
+    // frete ou diluição novamente neste ponto.
+    const getQuoteValue = (q: typeof rows[0]) => getStoredCustomerTotal(q);
     const totalValue = rows.reduce((sum, q) => sum + getQuoteValue(q), 0);
     const approvedValue = rows.filter(q => q.status === "approved").reduce((sum, q) => sum + getQuoteValue(q), 0);
     const invoicedValue = rows.filter(q => q.status === "invoiced").reduce((sum, q) => sum + getQuoteValue(q), 0);
@@ -266,7 +261,7 @@ export default function Quotes() {
             <SelectContent>
               <SelectItem value="all">Todos os vendedores</SelectItem>
               {uniqueSellers.map(s => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
+                <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -280,7 +275,7 @@ export default function Quotes() {
             <SelectContent>
               <SelectItem value="all">Todos os assistentes</SelectItem>
               {uniqueAssistants.map(a => (
-                <SelectItem key={a} value={a}>{a}</SelectItem>
+                <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -424,9 +419,7 @@ export default function Quotes() {
                         <div className="text-right flex-shrink-0">
                           {(q.totalFinal && Number(q.totalFinal) > 0) || (q.totalAmount && Number(q.totalAmount) > 0) ? (
                             <p className="font-bold text-primary">{formatBRL(
-                              (Number(q.totalFinal) > 0 ? Number(q.totalFinal) : Number(q.totalAmount))
-                              + (canSeeCommission && (q as any).diluicaoValor ? Number((q as any).diluicaoValor) : 0)
-                              + ((q as any).difalEnabled ? (Number((q as any).difalValue ?? 0) + Number((q as any).fcpValue ?? 0)) : 0)
+                              getStoredCustomerTotal(q)
                             )}</p>
                           ) : (
                             <p className="text-xs text-muted-foreground italic">A consultar</p>

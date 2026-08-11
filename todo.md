@@ -2386,3 +2386,10 @@
 - [x] Corrigir a quantidade total de drivers de luminárias não-perfil na ficha de produção
 - [x] Garantir inclusão e soma correta de módulos LED de produtos não-perfil na requisição de materiais
 - [x] Usar exclusivamente os códigos, quantidades, CCT e componentes retornados pela API para itens não-perfil
+
+## Lote 3: Totais, descontos, revisões e filtros de orçamento
+- [x] Exibir valor final completo do orçamento na lista Meus Orçamentos e usar o mesmo valor no dashboard
+- [x] Propagar descontos para receita, margem, DIFAL/FCP, dashboard e demais totais do orçamento
+- [x] Restaurar arquivamento de revisões e criar nova revisão apenas ao exportar PDF ou Excel após alteração
+- [x] Garantir que filtros de assistente e vendedor retornem valores consistentes
+- [x] Buscar custo de acessórios na API para cálculo de lucro
