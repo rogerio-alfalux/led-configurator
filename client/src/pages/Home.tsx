@@ -2031,28 +2031,34 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
     let precoDriverTotal = 0;
     let driverModelApi: string | null = null;
     let driverCodeApi: string | null = null;
+    // Para D1+D2 simultâneo, o driver correto vem do combinedDrivers (barras×2),
+    // não da API individual por SKU. Usar modelo/código do combinedDrivers.
+    const isDualSimultaneousPrice = result.application === "D1+D2"
+      && !(result.independentLighting || result.forcedIndependent)
+      && result.combinedDrivers && result.combinedDrivers.length > 0;
+    if (isDualSimultaneousPrice) {
+      const cd = result.combinedDrivers![0];
+      driverModelApi = cd.driver.model ?? null;
+      driverCodeApi = cd.driver.code ?? null;
+    }
     if (firstSkuEntry) {
       let custoDriver: number | null = null;
       if (result.controlType === 'dimDali') {
         custoDriver = firstSkuEntry.custoDriverDimDali;
-        driverModelApi = firstSkuEntry.driverModelDimDali;
-        driverCodeApi = firstSkuEntry.driverCodeDimDali;
+        if (!isDualSimultaneousPrice) { driverModelApi = firstSkuEntry.driverModelDimDali; driverCodeApi = firstSkuEntry.driverCodeDimDali; }
       } else if (result.controlType === 'dim110v') {
         custoDriver = firstSkuEntry.custoDriverDim110v;
-        driverModelApi = firstSkuEntry.driverModelDim110v;
-        driverCodeApi = firstSkuEntry.driverCodeDim110v;
+        if (!isDualSimultaneousPrice) { driverModelApi = firstSkuEntry.driverModelDim110v; driverCodeApi = firstSkuEntry.driverCodeDim110v; }
       } else if (result.controlType === 'dimTriac110v') {
         custoDriver = firstSkuEntry.custoDriverDimTriac110v;
       } else if (result.controlType === 'dimTriac220v') {
         custoDriver = firstSkuEntry.custoDriverDimTriac220v;
       } else if (/bivolt/i.test(result.voltage)) {
         custoDriver = firstSkuEntry.custoDriverBivolt;
-        driverModelApi = firstSkuEntry.driverModelBivolt;
-        driverCodeApi = firstSkuEntry.driverCodeBivolt;
+        if (!isDualSimultaneousPrice) { driverModelApi = firstSkuEntry.driverModelBivolt; driverCodeApi = firstSkuEntry.driverCodeBivolt; }
       } else {
         custoDriver = firstSkuEntry.custoDriver220;
-        driverModelApi = firstSkuEntry.driverModel220;
-        driverCodeApi = firstSkuEntry.driverCode220;
+        if (!isDualSimultaneousPrice) { driverModelApi = firstSkuEntry.driverModel220; driverCodeApi = firstSkuEntry.driverCode220; }
       }
       const mkDriver = firstSkuEntry.markupMinimoDriver ?? 3;
       if (custoDriver != null) {
@@ -2221,7 +2227,11 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                   // encontrado para o profileCode), que pode ser o de 1 barra (EQ00346) mesmo
                   // quando o segmento tem 3+ barras (EQ00347). O skuPriceMap indexa por SKU
                   // individual e tem o driver e corrente corretos para cada produto.
-                  if (skuPriceMap && !d1Entry?.driver?.combo) {
+                  // EXCEÇÃO: quando D1+D2 simultâneo, o driver foi dimensionado para barras×2
+                  // (combinedDrivers). A API retorna o driver individual por SKU (para barras normais),
+                  // então NÃO devemos sobrescrever nesse caso — o driver combinado já está correto.
+                  const isDualSimultaneous = isDual && !isIndependent;
+                  if (skuPriceMap && !d1Entry?.driver?.combo && !isDualSimultaneous) {
                     const skuEntry = skuPriceMap[`${sku}|${currentPowerLabel}`] ?? skuPriceMap[sku];
                     if (skuEntry) {
                       let apiDriverModel: string | null = null;

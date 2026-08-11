@@ -2368,3 +2368,8 @@
 
 ## Correção: Imagens das categorias para LD Convidado
 - [x] Garantir entrega pública e compatível das imagens das categorias em sessão de convidado e navegação anônima
+
+## Correção: Driver D1+D2 simultâneo
+- [x] D1+D2 simultâneo: não sobrescrever driver combinado (barras×2) com driver individual da API
+- [x] modulePriceResult: exibir modelo/código do driver combinado (44W) em vez do individual (19W)
+- [x] Manter lógica de acendimento independente inalterada (dois drivers separados, cada um para barras normais)
