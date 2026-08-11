@@ -182,6 +182,15 @@ const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.E
 // Categoria Customizados — exibida separadamente como faixa horizontal
 const CUSTOMIZADOS_CATEGORY = { value: "Customizados" as ProductCategory, label: "Customizados", icon: Star };
 
+const GUEST_HIDDEN_CATEGORIES = new Set<ProductCategory>([
+  "Revenda",
+  "Acessórios",
+  "Serviços",
+  "Item Especial",
+  "Customizados",
+  "Não Orçamos",
+]);
+
 // ─── Auxiliar: quantidade de drivers por produto/controle/tensão ─────────────
 function driverQtyFor(
   product: { driverQtd220?: number | null; driverQtdBivolt?: number | null; driverQtdDim110v?: number | null; driverQtdDimDali?: number | null; driverQtdDimTriac110v?: number | null; driverQtdDimTriac220v?: number | null },
@@ -4831,7 +4840,7 @@ export default function Home() {
                 <div>
                   <FieldLabel>Categoria de Produto</FieldLabel>
                   <div className="grid grid-cols-4 gap-2">
-                    {PRODUCT_CATEGORIES.map(({ value, label, icon: Icon, image, available }) => (
+                    {PRODUCT_CATEGORIES.filter(({ value }) => !isConvidado || !GUEST_HIDDEN_CATEGORIES.has(value)).map(({ value, label, icon: Icon, image, available }) => (
                       <button
                         key={value}
                         onClick={() => {
@@ -4888,7 +4897,7 @@ export default function Home() {
                 </div>
 
                 {/* ── Faixa horizontal: Customizados ── */}
-                <div>
+                {!isConvidado && <div>
                   <button
                     onClick={() => {
                       setProductCategory(productCategory === "Customizados" ? "Perfis" : "Customizados");
@@ -4920,9 +4929,9 @@ export default function Home() {
                       productCategory === "Customizados" ? "rotate-90" : ""
                     }`}>›</span>
                   </button>
-                </div>
+                </div>}
                 {/* ── Faixa horizontal: Não Orçamos ── */}
-                <div>
+                {!isConvidado && <div>
                   <button
                     onClick={() => {
                       setProductCategory(productCategory === "Não Orçamos" ? "Perfis" : "Não Orçamos");
@@ -4944,7 +4953,7 @@ export default function Home() {
                       productCategory === "Não Orçamos" ? "rotate-90" : ""
                     }`}>›</span>
                   </button>
-                </div>
+                </div>}
 
                 {/* Painel de Edição de Custo de Drivers removido da visualização */}
 

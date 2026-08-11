@@ -2362,3 +2362,6 @@
 - [x] Frontend: UI de checkboxes no painel de gerenciamento de usuários
 - [x] Migrar permissões existentes: seed das permissões para os e-mails que já tinham acesso
 - [x] Conceder à Beatriz a permissão individual editar_precos
+
+## Ajuste: Categorias visíveis para LD Convidado
+- [x] Ocultar Revenda, Acessórios, Serviços, Item Especial, Customizados e Não Orçamos para usuários com role convidado
