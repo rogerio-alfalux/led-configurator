@@ -401,6 +401,8 @@ function PriceBreakdownBlock({
   /** Nome do produto — usado para desambiguar SKUs duplicados na API */
   productName?: string;
 }) {
+  const { user: _pbUser } = useAuth();
+  if ((_pbUser as any)?.role === "convidado") return null;
   const drvLines = buildLumDriverLines(sku, controle, tensao, qty, drvModel, drvCode, lumPriceMap, productName);
 
   if (drvLines) {
@@ -636,6 +638,8 @@ function ShapeResultCard({
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { addItem, isAdding: isAddingToCart } = useCart();
+  const { user: _srcUser } = useAuth();
+  const isConvidadoRB = (_srcUser as any)?.role === "convidado";
   const [colorModalOpen, setColorModalOpen] = useState(false);
   const [pendingItem, setPendingItem] = useState<CartItemData | null>(null);
   const [manualPreco, setManualPreco] = useState<string>("");
@@ -1030,7 +1034,7 @@ function ShapeResultCard({
             </Button>
             <Button
               size="sm"
-              className="gap-1.5 text-xs h-7 bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="gap-1.5 text-xs h-7 bg-emerald-600 hover:bg-emerald-700 text-white cart-action-btn"
               disabled={isAddingToCart}
               onClick={handleAddToCart}
             >
@@ -1158,7 +1162,7 @@ function ShapeResultCard({
 
         {/* Preço estimado ou entrada manual */}
         {/* Exibir preço do driver mesmo quando a luminária não tem preço na API */}
-        {(precoTotal !== null || precoDriver !== null) ? (
+        {!isConvidadoRB && (precoTotal !== null || precoDriver !== null) ? (
           <div className="space-y-1">
             {precoLuminaria != null && (
               <div className="flex items-center gap-2">
@@ -1237,7 +1241,7 @@ function ShapeResultCard({
             </CardContent>
     </Card>
     {/* Detalhamento de Preços — por módulo */}
-    {precoBreakdown.length > 0 && (
+    {!isConvidadoRB && precoBreakdown.length > 0 && (
       <Card className="shadow-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
@@ -1490,6 +1494,8 @@ type SkuPriceMap = Record<string, {
 }>;
 
 function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty, setGlobalQty, onOpenAccessoryModal, pendingAccessoriesCount, globalPavimento }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void; onOpenAccessoryModal?: () => void; pendingAccessoriesCount?: number; globalPavimento?: string }) {
+  const { user: _rbUser } = useAuth();
+  const isConvidadoRB = (_rbUser as any)?.role === "convidado";
   const efficiency = result.requestedLength > 0
     ? Math.round((result.realizedLength / result.requestedLength) * 100)
     : 0;
@@ -1886,6 +1892,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { addItem, isAdding: isAddingToCart } = useCart();
   const { user } = useAuth();
+  const isConvidadoQSC = (user as any)?.role === "convidado";
   const [colorModalOpen, setColorModalOpen] = useState(false);
   const [pendingItem, setPendingItem] = useState<CartItemData | null>(null);
   const [manualPreco, setManualPreco] = useState<string>("");
@@ -2147,7 +2154,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
             </Button>
             <Button
               size="sm"
-              className="gap-1.5 text-xs h-7 bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="gap-1.5 text-xs h-7 bg-emerald-600 hover:bg-emerald-700 text-white cart-action-btn"
               disabled={isAddingToCart}
               onClick={() => {
                 const photo = getProfilePhoto(result.profileCode, result.diffuserD1, result.diffuserD2);
@@ -2353,7 +2360,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
         />
         {/* Detalhamento: novo método por SKU (BLAZE H e futuros) — com destaque visual amber/blue/green */}
         {/* Controle de markup (apenas para Dennis e Vivian) */}
-        {canEditMarkup && modulePriceResult && (
+        {!isConvidadoQSC && canEditMarkup && modulePriceResult && (
           <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
             <span className="text-xs text-amber-700 dark:text-amber-400 font-medium whitespace-nowrap">
               Markup: {modulePriceResult.markupMinimo.toFixed(2)}× mín — {modulePriceResult.markupPadrao?.toFixed(2) ?? '?'}× padrão
@@ -2381,7 +2388,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
             )}
           </div>
         )}
-        {modulePriceResult && (
+        {!isConvidadoQSC && modulePriceResult && (
           <div className="mt-3 rounded-xl border border-border overflow-hidden">
             {/* Linha luminária (amber) */}
             <div className="flex flex-col px-4 py-2.5 bg-amber-500/8 border-b border-border">
@@ -2437,14 +2444,14 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
           </div>
         )}
         {/* Preço total — método antigo (catálogo estático) */}
-        {!modulePriceResult && precoTotal !== null && precoTotal !== undefined && (
+        {!isConvidadoQSC && !modulePriceResult && precoTotal !== null && precoTotal !== undefined && (
           <div className="flex items-center justify-between rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-3">
             <span className="text-sm font-semibold text-blue-400 uppercase tracking-wide">Preço Total</span>
             <span className="text-lg font-bold text-blue-300">{formatBRL(precoTotal)}</span>
           </div>
         )}
         {/* Campo de preço manual quando API e catálogo não retornam custo */}
-        {!modulePriceResult && precoTotal == null && (
+        {!isConvidadoQSC && !modulePriceResult && precoTotal == null && (
           <div className="space-y-1 rounded-lg border border-amber-500/30 bg-amber-50/30 dark:bg-amber-900/10 px-3 py-2">
             <span className="text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3 shrink-0" />API sem custo — informe o preço manualmente:</span>
             <div className="flex items-center gap-2">
@@ -2671,6 +2678,7 @@ export default function Home() {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   const isVivian = user?.email === "vivian@grupoalfalux.com.br";
+  const isConvidado = (user as any)?.role === "convidado";
   const { addItem, count: cartCount, isAdding: isAddingToCart } = useCart();
   const [pendingCartItem, setPendingCartItem] = useState<CartItemData | null>(null);
   const [colorModalOpen, setColorModalOpen] = useState(false);
@@ -4671,7 +4679,7 @@ export default function Home() {
   }, [profileCode, effectiveApplication, powerD1, powerD2, cct, voltage, stripMethod, totalLength, allowLongModules, allowFractional, adjustToLarger, allowMixedIF, effectiveIndependent, isDual, hasDiffuser, diffuserD1, diffuserD2, controlType, selectedVariant, isShift]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`min-h-screen bg-background${isConvidado ? " convidado-mode" : ""}`}>
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 border-b border-border bg-sidebar text-sidebar-foreground shadow-sm">
         <div className="container flex items-center justify-between h-16">
@@ -4698,7 +4706,7 @@ export default function Home() {
                 </span>
               )}
             </span>
-            <Link href="/carrinho">
+            {!isConvidado && <Link href="/carrinho">
               <Button
                 variant="ghost"
                 size="icon"
@@ -4712,8 +4720,20 @@ export default function Home() {
                   </span>
                 )}
               </Button>
-            </Link>
+            </Link>}
 
+            {(user as any)?.role === "admin" && (
+              <Link href="/usuarios">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="Gerenciar Usuários"
+                  className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                >
+                  <Users className="w-4 h-4" />
+                </Button>
+              </Link>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -13729,3 +13749,4 @@ export default function Home() {
     </div>
   );
 }
+import { Users } from "lucide-react";

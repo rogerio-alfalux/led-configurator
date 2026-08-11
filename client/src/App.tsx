@@ -14,6 +14,8 @@ import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import ApiKeys from "./pages/ApiKeys";
 import Backup from "./pages/Backup";
+import GuestLogin from "./pages/GuestLogin";
+import UserManagement from "./pages/UserManagement";
 
 function Router() {
   return (
@@ -27,6 +29,7 @@ function Router() {
       <Route path={"/admin"} component={Admin} />
       <Route path={"/api-keys"} component={ApiKeys} />
       <Route path={"/backup"} component={Backup} />
+      <Route path={"/usuarios"} component={UserManagement} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>
@@ -42,9 +45,14 @@ function App() {
       >
         <TooltipProvider>
           <Toaster />
-          <AuthGuard>
-            <Router />
-          </AuthGuard>
+          <Switch>
+            <Route path="/login-convidado" component={GuestLogin} />
+            <Route>
+              <AuthGuard>
+                <Router />
+              </AuthGuard>
+            </Route>
+          </Switch>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

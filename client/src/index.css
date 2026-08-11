@@ -252,3 +252,10 @@
     margin: 10mm;
   }
 }
+
+/* ─── LD Convidado: ocultar preços, custos e botões de carrinho ─────────────── */
+.convidado-mode .cart-action-btn,
+.convidado-mode button[class*="bg-emerald-600"],
+.convidado-mode button[class*="bg-purple-600"] {
+  display: none !important;
+}
