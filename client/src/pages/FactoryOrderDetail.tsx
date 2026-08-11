@@ -226,12 +226,18 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
   const [acessorioSearch, setAcessorioSearch] = useState("");
   const [acessorioFamilia, setAcessorioFamilia] = useState<string>("Todos");
   const [acQty, setAcQty] = useState<number>(1);
+  const [qtyDraft, setQtyDraft] = useState("");
 
   const parsed = useMemo(() => {
     const raw = parseCartItemData(item.itemData);
     if (!raw || !priceMap || !productSkuMap) return raw;
     return migrateItemDrivers(raw, priceMap, descMap ?? new Map(), productSkuMap, correnteMap, reverseDescMap);
   }, [item.itemData, priceMap, productSkuMap, descMap, correnteMap, reverseDescMap]);
+
+  useEffect(() => {
+    setQtyDraft(String(parsed?.qty ?? 1).replace(".", ","));
+  }, [item.id, parsed?.qty]);
+
   if (!parsed) return null;
 
   const update = (fields: Partial<CartItemData>) => {
@@ -403,10 +409,25 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
             <div>
               <Label className="text-xs">Quantidade</Label>
               <Input
-                type="number"
-                min={1}
-                value={parsed.qty}
-                onChange={e => update({ qty: Math.max(1, parseInt(e.target.value) || 1) })}
+                type="text"
+                inputMode="decimal"
+                value={qtyDraft}
+                onChange={e => {
+                  const next = e.target.value.replace(/[^0-9,.-]/g, "");
+                  setQtyDraft(next);
+                  const normalized = next.replace(",", ".");
+                  const qty = Number(normalized);
+                  if (Number.isFinite(qty) && qty > 0) update({ qty });
+                }}
+                onBlur={() => {
+                  const qty = Number(qtyDraft.replace(",", "."));
+                  if (!Number.isFinite(qty) || qty <= 0) {
+                    setQtyDraft("1");
+                    update({ qty: 1 });
+                  } else {
+                    setQtyDraft(String(qty).replace(".", ","));
+                  }
+                }}
                 className="mt-1 h-8 text-sm"
               />
             </div>
@@ -813,7 +834,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
               <Input
                 value={(() => {
                   if (parsed.profileSegments && parsed.profileSegments.length > 0) {
-                    return parsed.profileSegments.map(s => `${s.qty}x ${s.sku} - ${s.lengthMm}mm`).join(" | ");
+                    return Array.from(new Set(parsed.profileSegments.map(s => s.sku))).join(" | ");
                   }
                   return parsed.sku ?? "";
                 })()}

@@ -136,15 +136,13 @@ function fmtQty(n: number): string {
 
 /**
  * Gera o texto da coluna SKU para composições de perfis.
- * Formato: "02 x LLE-2810.3IF.18F - 1710mm" por segmento, um por linha.
+ * Exibe somente o código SKU por segmento, sem quantidade ou comprimento.
  */
 function buildProfileSkuText(item: CartItemData): string {
   if (!item.profileSegments || item.profileSegments.length === 0) {
     return item.sku ?? "";
   }
-  return item.profileSegments
-    .map((seg) => `${fmtQty(seg.qty)} x ${seg.sku} - ${seg.lengthMm}mm`)
-    .join("\n");
+  return Array.from(new Set(item.profileSegments.map((seg) => seg.sku))).join("\n");
 }
 
 /**
@@ -394,7 +392,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   labelCell(ws.getCell("F4"), "VENDEDOR:");
 
   // Col G: valor pedido (G3) e valor vendedor (G4)
-  valueCell(ws.getCell("G3"), form.orderNumber || form.quoteNumber);
+  valueCell(ws.getCell("G3"), form.orderNumber?.trim() || "NÃO INFORMADO");
   ws.getCell("G3").font = { bold: true, size: 11 };
   valueCell(ws.getCell("G4"), form.vendorName);
 
@@ -412,7 +410,6 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
         return toBrasiliaDate(addBusinessDays(base, displayDays));
       })();
     const prazoStr = `${displayDays} dias úteis → ${dateStr}`;
-    ws.mergeCells("J3:K3");
     const prazoCell = ws.getCell("J3");
     prazoCell.value = prazoStr;
     prazoCell.font = { bold: true, size: 10, color: { argb: "FFCC0000" } };
@@ -625,7 +622,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
 
   // ─── Rodapé com data/hora/revisão em todas as páginas ──────────────────────────────────────────────────────────────
   const emitidoEm = toBrasiliaDateTime(Date.now());
-  const pedidoFooter = form.orderNumber || form.quoteNumber;
+  const pedidoFooter = form.orderNumber?.trim() || "NÃO INFORMADO";
   ws.headerFooter = {
     oddFooter: `&L&8Ficha T\u00e9cnica de Produ\u00e7\u00e3o \u2014 ${pedidoFooter}&R&8Emitido em: ${emitidoEm} (Hor\u00e1rio de Bras\u00edlia) | ${form.quoteNumber}`,
     evenFooter: `&L&8Ficha T\u00e9cnica de Produ\u00e7\u00e3o \u2014 ${pedidoFooter}&R&8Emitido em: ${emitidoEm} (Hor\u00e1rio de Bras\u00edlia) | ${form.quoteNumber}`,

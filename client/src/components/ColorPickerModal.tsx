@@ -28,6 +28,10 @@ interface ColorPickerModalProps {
   productName?: string;
   /** Cores a serem excluídas da lista de opções */
   excludedColors?: string[];
+  /** Quando informado, restringe a lista exatamente às cores permitidas. */
+  allowedColors?: readonly CorPeca[];
+  /** Oculta a opção genérica "A Definir" quando a cor é obrigatória. */
+  hideUndefinedOption?: boolean;
 }
 
 // Mapeamento visual de cores para CSS
@@ -53,9 +57,11 @@ export default function ColorPickerModal({
   isAdding = false,
   productName,
   excludedColors = [],
+  allowedColors,
+  hideUndefinedOption = false,
 }: ColorPickerModalProps) {
   const [selected, setSelected] = useState<CorPeca | null>(null);
-  const availableColors = CORES_PECA.filter((c) => !excludedColors.includes(c));
+  const availableColors = (allowedColors ?? CORES_PECA).filter((c) => !excludedColors.includes(c));
 
   const handleConfirm = () => {
     onConfirm(selected ?? "A Definir");
@@ -110,6 +116,7 @@ export default function ColorPickerModal({
             ))}
           </div>
 
+          {!hideUndefinedOption && (
           <div className="flex items-center gap-2 pt-1">
             <button
               type="button"
@@ -125,6 +132,7 @@ export default function ColorPickerModal({
               <span>A Definir (Padrão Alfalux)</span>
             </button>
           </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2 mt-2">

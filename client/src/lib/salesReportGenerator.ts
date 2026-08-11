@@ -37,6 +37,14 @@ function pct(n: number): string {
   return (n * 100).toFixed(2) + "%";
 }
 
+export function isMainReportCurrencyColumn(index: number): boolean {
+  return index === 7 || index === 9 || index === 11;
+}
+
+export function isMainReportPercentColumn(index: number): boolean {
+  return index === 8 || index === 10;
+}
+
 export async function generateSalesReport(
   rows: SalesReportRow[],
   year: number,
@@ -132,11 +140,11 @@ export async function generateSalesReport(
       cell.alignment = { vertical: "middle" };
 
       // Formatar colunas numéricas
-      if (i === 6 || i === 8 || i === 10) {
+      if (isMainReportCurrencyColumn(i)) {
         // Valores monetários
         cell.numFmt = '"R$"#,##0.00';
         cell.alignment = { horizontal: "right", vertical: "middle" };
-      } else if (i === 7 || i === 9) {
+      } else if (isMainReportPercentColumn(i)) {
         // Percentuais
         cell.numFmt = "0.00%";
         cell.alignment = { horizontal: "center", vertical: "middle" };
@@ -171,7 +179,7 @@ export async function generateSalesReport(
       left: { style: "thin" }, right: { style: "thin" },
     };
     cell.alignment = { vertical: "middle" };
-    if (i === 6 || i === 8 || i === 10) {
+    if (isMainReportCurrencyColumn(i)) {
       cell.numFmt = '"R$"#,##0.00';
       cell.alignment = { horizontal: "right", vertical: "middle" };
     }

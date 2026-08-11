@@ -2373,3 +2373,11 @@
 - [x] D1+D2 simultâneo: não sobrescrever driver combinado (barras×2) com driver individual da API
 - [x] modulePriceResult: exibir modelo/código do driver combinado (44W) em vez do individual (19W)
 - [x] Manter lógica de acendimento independente inalterada (dois drivers separados, cada um para barras normais)
+
+## Lote 1: Correções pontuais de relatório, pedido e produto
+- [x] Corrigir unidades das colunas % Comissão, Valor Final, Comissão e % RT na exportação do Relatório Mensal de Vendas
+- [x] Permitir quantidades decimais com vírgula na tela de gerenciamento de pedido de fábrica
+- [x] Exibir somente o código SKU nos itens do pedido de fábrica, sem prefixo de quantidade ou comprimento
+- [x] Preencher o campo PEDIDO da ficha de produção com o número do pedido de fábrica
+- [x] Remover a mesclagem da célula de prazo/data de entrega no Excel da ficha de produção
+- [x] Restringir a cor de todas as versões da luminária AURORA à opção Preto

@@ -13743,6 +13743,8 @@ export default function Home() {
         isAdding={appendToQuoteId ? appendItemsMutation.isPending : isAddingToCart}
         productName={pendingCartItem?.sku ?? ""}
         excludedColors={pendingCartItem?.category === "LED BAR" ? ["Branco Fosco Micro"] : []}
+        allowedColors={/\bAURORA\b/i.test(pendingCartItem?.description ?? "") ? ["Preto Fosco Micro"] : undefined}
+        hideUndefinedOption={/\bAURORA\b/i.test(pendingCartItem?.description ?? "")}
       />
       {/* SHIFT Module Selector Modal */}
       <ShiftModuleSelector

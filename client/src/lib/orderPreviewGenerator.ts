@@ -21,9 +21,7 @@ function buildProfileSkuText(item: CartItemData): string {
   if (!item.profileSegments || item.profileSegments.length === 0) {
     return item.sku ?? "";
   }
-  return item.profileSegments
-    .map((seg) => `${fmtQty(seg.qty)} x ${seg.sku} - ${seg.lengthMm}mm`)
-    .join("<br>");
+  return Array.from(new Set(item.profileSegments.map((seg) => seg.sku))).join("<br>");
 }
 
 function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, string>): string {
