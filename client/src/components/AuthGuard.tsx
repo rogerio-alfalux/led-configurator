@@ -37,6 +37,9 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const { user, loading } = useAuth();
   const [accessDenied, setAccessDenied] = useState(false);
 
+  // Usuários cadastrados manualmente (login por senha) sempre têm acesso — independente do domínio
+  const isPasswordUser = (user as any)?.loginMethod === "password";
+
   // Detectar redirect do backend com ?access=denied
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -61,7 +64,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }
 
   // Tela de acesso negado por domínio (vinda do backend ou detectada no frontend)
-  if (accessDenied || (user && !isEmailAllowed(user.email))) {
+  if (!isPasswordUser && (accessDenied || (user && !isEmailAllowed(user.email)))) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="max-w-md w-full text-center space-y-6">
@@ -139,6 +142,11 @@ export function AuthGuard({ children }: AuthGuardProps) {
             Acesso restrito a colaboradores com e-mail{" "}
             <code className="bg-muted px-1 py-0.5 rounded font-mono">@grupoalfalux.com.br</code>
           </p>
+          <div className="pt-2 border-t border-border">
+            <a href="/login-convidado" className="text-xs text-primary hover:underline">
+              Acesso de convidado (e-mail + senha)
+            </a>
+          </div>
         </div>
       </div>
     );
