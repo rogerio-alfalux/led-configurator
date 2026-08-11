@@ -2340,13 +2340,25 @@
 
 ## Feature: Role "LD Convidado" + Painel Gerenciador de Usuários
 
-- [ ] Adicionar role 'convidado' ao enum de roles no schema
-- [ ] Criar tabela de convites (invites) com token, e-mail, mensagem, status
-- [ ] Adicionar campo passwordHash na tabela users para login por senha
-- [ ] Backend: endpoint de login por e-mail+senha para convidados
-- [ ] Backend: endpoint de criação de convite (admin-only) com envio de e-mail
-- [ ] Backend: endpoint de aceitação de convite (definir senha)
-- [ ] Frontend: ocultar preços, custos, carrinho, botão adicionar para role convidado
-- [ ] Frontend: página de login para convidados (e-mail + senha)
-- [ ] Frontend: painel gerenciador de usuários (admin-only, botão no header)
-- [ ] Frontend: formulário de convite com mensagem personalizada
+- [x] Adicionar role 'convidado' ao enum de roles no schema
+- [x] Criar tabela de convites (invites) com token, e-mail, mensagem, status
+- [x] Adicionar campo passwordHash na tabela users para login por senha
+- [x] Backend: endpoint de login por e-mail+senha para convidados
+- [x] Backend: procedures admin createUser/updateUserPassword/deleteUser (cadastro manual)
+- [x] Backend: updateUserRole aceita role convidado
+- [x] Frontend: ocultar preços, custos, carrinho, botão adicionar para role convidado
+- [x] Frontend: página de login para convidados (e-mail + senha) em /login-convidado
+- [x] Frontend: painel gerenciador de usuários (admin-only, botão no header) em /usuarios
+- [x] Frontend: cadastro manual de usuários com nome, e-mail, senha e role
+
+## Feature: Sistema de Permissões Granulares por Usuário
+- [x] Criar tabela user_permissions no banco (userId, permission, grantedAt)
+- [x] Definir permissões: editar_precos, editar_precos_driver, ver_custos, editar_descontos, editar_comissao, ver_dashboard, editar_metas, editar_markup, gerenciar_orcamentos
+- [x] Backend: procedures para listar/atribuir/revogar permissões (admin-only)
+- [x] Backend: expor permissões do usuário logado no contexto de auth (auth.me)
+- [x] Backend: substituir verificações críticas de permissões por consulta ao banco
+- [x] Frontend: hook usePermissions() para verificar permissões do usuário logado
+- [x] Frontend: substituir PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS, etc. por usePermissions() nas telas de carrinho, orçamento, dashboard e lista de orçamentos
+- [x] Frontend: UI de checkboxes no painel de gerenciamento de usuários
+- [x] Migrar permissões existentes: seed das permissões para os e-mails que já tinham acesso
+- [x] Conceder à Beatriz a permissão individual editar_precos

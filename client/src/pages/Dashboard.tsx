@@ -25,19 +25,6 @@ const MONTHS = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
-const MANAGER_EMAILS_FRONTEND = [
-  "daniel@grupoalfalux.com.br",
-  "dennis@grupoalfalux.com.br",
-  "vivian@grupoalfalux.com.br",
-];
-
-function isManagerOrAdmin(user: { role?: string | null; email?: string | null } | null | undefined): boolean {
-  if (!user) return false;
-  if (user.role === "admin" || user.role === "gerente") return true;
-  const email = user.email?.toLowerCase() ?? "";
-  return MANAGER_EMAILS_FRONTEND.includes(email);
-}
-
 function isAssistant(user: { role?: string | null } | null | undefined): boolean {
   return user?.role === "assistente";
 }
@@ -156,6 +143,7 @@ function GoalEditor({ year, month, currentValue, onSave }: {
 // ─── Página principal ─────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
+  const { hasPermission } = usePermissions();
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
@@ -170,7 +158,7 @@ export default function Dashboard() {
 
   const utils = trpc.useUtils();
 
-  const isManager = isManagerOrAdmin(user);
+  const isManager = hasPermission(PERMISSIONS.VER_DASHBOARD);
   const isAssist = isAssistant(user);
 
   // Quando filtro de data está ativo, ignorar ano/mês
@@ -434,7 +422,7 @@ export default function Dashboard() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <Label className="text-sm font-semibold">Meta Anual</Label>
-                    {user?.role === "admin" && (
+                    {hasPermission(PERMISSIONS.EDITAR_METAS) && (
                       <GoalEditor
                         year={year}
                         month={null}
@@ -458,7 +446,7 @@ export default function Dashboard() {
                   ) : (
                     <div className="space-y-2">
                       <p className="text-sm text-muted-foreground italic">
-                        {user?.role === "admin"
+                        {hasPermission(PERMISSIONS.EDITAR_METAS)
                           ? "Nenhuma meta anual definida. Clique em Editar para definir."
                           : "Meta anual não definida."}
                       </p>
@@ -500,7 +488,7 @@ export default function Dashboard() {
                               {mLabel}
                               {isCurrentMonth && <span className="ml-1">●</span>}
                             </span>
-                            {user?.role === "admin" && (
+                            {hasPermission(PERMISSIONS.EDITAR_METAS) && (
                               <GoalEditor
                                 year={year}
                                 month={mNum}
@@ -1127,3 +1115,5 @@ export default function Dashboard() {
     </div>
   );
 }
+import { usePermissions } from "@/hooks/usePermissions";
+import { PERMISSIONS } from "@shared/permissions";

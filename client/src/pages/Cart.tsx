@@ -49,7 +49,8 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 import { StateCitySelector, isSaoPauloCapital } from "@/components/StateCitySelector";
-import { PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS, DRIVER_PRICE_OVERRIDE_EMAILS, COST_PRIVILEGED_EMAILS, DISCOUNT_EDITORS_EMAILS } from "@shared/const";
+import { usePermissions } from "@/hooks/usePermissions";
+import { PERMISSIONS } from "@shared/permissions";
 import { toBrasiliaDate } from "@/lib/dateUtils";
 import { applyCCTChange } from "@/lib/cctUtils";
 
@@ -1028,7 +1029,8 @@ export default function Cart() {
   const FRETE_GRATIS_MINIMO = 1500;
   const userEmail = (user as any)?.email?.toLowerCase() ?? "";
   const userRole = (user as any)?.role;
-  const isManagerUser = userRole === 'admin' || userRole === 'gerente' || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
+  const { hasPermission: _hp } = usePermissions();
+  const isManagerUser = _hp(PERMISSIONS.EDITAR_COMISSAO);
 
   const freteCotadoValor = saveForm.freteValue ? parseFloat(saveForm.freteValue) : 0;
   let freteValor = 0;
@@ -2002,12 +2004,12 @@ export default function Cart() {
                                   className="w-24"
                                   value={saveForm.discountPercent}
                                   onChange={e => updateSaveForm("discountPercent", e.target.value)}
-                                  disabled={!DISCOUNT_EDITORS_EMAILS.map(e => e.toLowerCase()).includes(userEmail)}
+                                  disabled={!(_hp(PERMISSIONS.EDITAR_DESCONTOS))}
                                 />
                                 <span className="text-sm text-muted-foreground">%</span>
                               </div>
                               <p className="text-xs text-muted-foreground mt-0.5">
-                                {DISCOUNT_EDITORS_EMAILS.map(e => e.toLowerCase()).includes(userEmail)
+                                {(_hp(PERMISSIONS.EDITAR_DESCONTOS))
                                   ? "Desconto sobre o preço final (após margem)."
                                   : "Apenas gestores podem aplicar desconto."}
                               </p>
@@ -2640,10 +2642,10 @@ export default function Cart() {
               // Controle de preços por papel: admin e gerente podem editar preços da API
               const userRole = (user as any)?.role;
               const userEmail = (user as any)?.email?.toLowerCase() ?? "";
-              const canOverrideApiPrice = userRole === 'admin' || userRole === 'gerente' || PRICE_OVERRIDE_EMAILS.includes(userEmail);
-              const canEditDriverPrice = DRIVER_PRICE_OVERRIDE_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
+              const canOverrideApiPrice = _hp(PERMISSIONS.EDITAR_PRECOS);
+              const canEditDriverPrice = _hp(PERMISSIONS.EDITAR_PRECOS_DRIVER);
               const canEditPrice = !item?.data.priceFromApi || canOverrideApiPrice;
-              const canEditMkp = userRole === 'admin' || userRole === 'gerente' || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
+              const canEditMkp = _hp(PERMISSIONS.EDITAR_MARKUP);
               const hasMkpData = canEditMkp && item?.data.custoCorpoBase != null && item.data.custoCorpoBase > 0;
               if (isNaoOrcamos) return (
                 <>
@@ -3010,7 +3012,7 @@ export default function Cart() {
                     </div>
                   )}
                   {/* Custo Unitário e Markup para Item Especial — apenas privilegiados */}
-                  {item?.data.isSpecialItem && COST_PRIVILEGED_EMAILS.map(e => e.toLowerCase()).includes(userEmail) && (
+                  {item?.data.isSpecialItem && (_hp(PERMISSIONS.VER_CUSTOS)) && (
                     <div className="space-y-3 pt-2 border-t border-emerald-200 dark:border-emerald-800">
                       <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">Custo / Markup (interno)</p>
                       <div className="grid grid-cols-3 gap-3">
@@ -3210,8 +3212,8 @@ export default function Cart() {
               const patch: Record<string, unknown> = {};
               const userRoleSave = (user as any)?.role;
               const userEmailSave = (user as any)?.email?.toLowerCase() ?? "";
-              const canOverrideApiPriceSave = userRoleSave === 'admin' || userRoleSave === 'gerente' || PRICE_OVERRIDE_EMAILS.includes(userEmailSave);
-              const canEditDriverPriceSave = DRIVER_PRICE_OVERRIDE_EMAILS.map(e => e.toLowerCase()).includes(userEmailSave);
+              const canOverrideApiPriceSave = _hp(PERMISSIONS.EDITAR_PRECOS);
+              const canEditDriverPriceSave = _hp(PERMISSIONS.EDITAR_PRECOS_DRIVER);
               const canEditPriceSave = !item?.data.priceFromApi || canOverrideApiPriceSave;
               if (isNaoOrcamosSave) {
                 if (editFields.description.trim()) {

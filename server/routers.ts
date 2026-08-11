@@ -72,7 +72,7 @@ const SPECIAL_COMMISSION_SELLERS: Record<string, number> = {
 
 /**
  * Verifica se o usuário logado pode editar/excluir um orçamento.
- * Gestores (MANAGER_EMAILS) têm acesso irrestrito.
+ * Usuários com a permissão gerenciar_orcamentos têm acesso irrestrito.
  * Demais usuários só podem editar orçamentos onde seu email está vinculado
  * como seller1, seller2 ou assistente.
  */
@@ -85,8 +85,8 @@ async function canEditQuote(
   if (!userEmail && !userId) return false;
   // Admins têm acesso total
   if (userRole === "admin") return true;
-  // Gestores têm acesso total
-  if (userEmail && MANAGER_EMAILS.map(e => e.toLowerCase()).includes(userEmail.toLowerCase().trim())) return true;
+  // Usuários com permissão granular de gerenciamento têm acesso total
+  if (userId && await hasUserPermission(userId, userRole, PERMISSIONS.GERENCIAR_ORCAMENTOS)) return true;
   // Quem criou o orçamento sempre pode editá-lo (independente de ser seller/assistente)
   if (userId && quote.createdByUserId && userId === quote.createdByUserId) return true;
   if (!userEmail) return false;
@@ -122,7 +122,11 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
 export const appRouter = router({
   system: systemRouter,
   auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
+    me: publicProcedure.query(async (opts) => {
+      if (!opts.ctx.user) return null;
+      const permissions = await getEffectivePermissions(opts.ctx.user.id, opts.ctx.user.role);
+      return { ...opts.ctx.user, permissions };
+    }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
@@ -404,7 +408,11 @@ export const appRouter = router({
         // Verificar cap de comissão — gestores e admins ficam isentos
         // Gustavo tem cap de 10%; demais vendedores cap de 5% (soma das duas comissões)
         const userEmail = ctx.user.email?.toLowerCase().trim() ?? "";
-        const isManagerUser = ctx.user.role === "admin" || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
+        const isManagerUser = await hasUserPermission(
+          ctx.user.id,
+          ctx.user.role,
+          PERMISSIONS.EDITAR_COMISSAO,
+        );
         if (!isManagerUser) {
           const comm1 = input.commissionPercent ?? 0;
           const comm2 = input.commissionPercent2 ?? 0;
@@ -437,9 +445,13 @@ export const appRouter = router({
             });
           }
         }
-        // Validar permissão de desconto — apenas DISCOUNT_EDITORS_EMAILS podem definir desconto
+        // Validar permissão de desconto pelo controle granular do banco
         if (input.discountPercent && input.discountPercent > 0) {
-          const discountAllowed = DISCOUNT_EDITORS_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
+          const discountAllowed = await hasUserPermission(
+            ctx.user.id,
+            ctx.user.role,
+            PERMISSIONS.EDITAR_DESCONTOS,
+          );
           if (!discountAllowed) {
             throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para aplicar desconto." });
           }
@@ -529,7 +541,11 @@ export const appRouter = router({
         // Verificar cap de comissão — gestores e admins ficam isentos
         // Gustavo tem cap de 10%; demais vendedores cap de 5% (soma das duas comissões)
         const userEmailRev = ctx.user.email?.toLowerCase().trim() ?? "";
-        const isManagerRev = ctx.user.role === "admin" || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(userEmailRev);
+        const isManagerRev = await hasUserPermission(
+          ctx.user.id,
+          ctx.user.role,
+          PERMISSIONS.EDITAR_COMISSAO,
+        );
         if (!isManagerRev) {
           const comm1 = input.commissionPercent ?? 0;
           const comm2 = input.commissionPercent2 ?? 0;
@@ -561,7 +577,11 @@ export const appRouter = router({
         }
         // Validar permissão de desconto — apenas DISCOUNT_EDITORS_EMAILS podem definir desconto
         if (input.discountPercent && input.discountPercent > 0) {
-          const discountAllowed = DISCOUNT_EDITORS_EMAILS.map(e => e.toLowerCase()).includes(userEmailRev);
+          const discountAllowed = await hasUserPermission(
+            ctx.user.id,
+            ctx.user.role,
+            PERMISSIONS.EDITAR_DESCONTOS,
+          );
           if (!discountAllowed) {
             throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para aplicar desconto." });
           }
@@ -655,14 +675,18 @@ export const appRouter = router({
         }
         const canEdit = await canEditQuote(ctx.user.email, result.quote, ctx.user.role, ctx.user.id);
         // Permissão de comissão:
-        // - Admin ou MANAGER_EMAILS: vê e edita
+        // - Usuário com editar_comissao: vê e edita
         // - Vendedor que é seller1 ou seller2 do orçamento: vê (somente leitura)
         // - Demais (assistente, user, etc.): não vê
         const userEmail = (ctx.user.email ?? "").toLowerCase().trim();
-        const isAdminOrManager = ctx.user.role === "admin" || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
-        let canSeeCommission = isAdminOrManager;
-        let canEditCommission = isAdminOrManager;
-        if (!isAdminOrManager && ctx.user.role === "vendedor") {
+        const canManageCommission = await hasUserPermission(
+          ctx.user.id,
+          ctx.user.role,
+          PERMISSIONS.EDITAR_COMISSAO,
+        );
+        let canSeeCommission = canManageCommission;
+        let canEditCommission = canManageCommission;
+        if (!canManageCommission && ctx.user.role === "vendedor") {
           // Verificar se o vendedor logado é seller1 ou seller2
           const db = await getDb();
           if (db) {
@@ -1067,13 +1091,16 @@ export const appRouter = router({
         return result;
       }),
 
-    /** Define manualmente o revisionCount (somente gestores) */
+    /** Define manualmente o revisionCount (permissão gerenciar_orcamentos) */
     setRevision: protectedProcedure
       .input(z.object({ id: z.number(), revisionCount: z.number().int().min(0) }))
       .mutation(async ({ ctx, input }) => {
-        const userEmail = ctx.user.email?.toLowerCase().trim() ?? "";
-        const isManager = ctx.user.role === "admin" || ctx.user.role === "gerente" || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
-        if (!isManager) throw new TRPCError({ code: "FORBIDDEN", message: "Somente gestores podem alterar a revisão manualmente." });
+        const canManageQuotes = await hasUserPermission(
+          ctx.user.id,
+          ctx.user.role,
+          PERMISSIONS.GERENCIAR_ORCAMENTOS,
+        );
+        if (!canManageQuotes) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para alterar a revisão manualmente." });
         await setQuoteRevisionCount(input.id, input.revisionCount);
         await insertAuditLog({
           userId: ctx.user.id,
@@ -1634,11 +1661,12 @@ export const appRouter = router({
         dateTo: z.string().optional(),
       }))
       .query(async ({ ctx, input }) => {
-        const email = ctx.user.email?.toLowerCase() ?? '';
-        const isManager = ctx.user.role === 'admin' ||
-          ctx.user.role === 'gerente' ||
-          MANAGER_EMAILS.map(e => e.toLowerCase()).includes(email);
-        if (!isManager) throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso restrito a gerentes e administradores.' });
+        const canViewDashboard = await hasUserPermission(
+          ctx.user.id,
+          ctx.user.role,
+          PERMISSIONS.VER_DASHBOARD,
+        );
+        if (!canViewDashboard) throw new TRPCError({ code: 'FORBIDDEN', message: 'Você não tem permissão para acessar o dashboard gerencial.' });
         return getManagerDashboard(input.year, input.month, input.dateFrom, input.dateTo);
       }),
     /** Dados do próprio vendedor */
@@ -1662,14 +1690,22 @@ export const appRouter = router({
         if (ctx.user.role === 'assistente') throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado.' });
         return getSalesGoalsByYear(input.year);
       }),
-    /** Upsert de meta (somente admin) */
-    upsertGoal: adminProcedure
+    /** Upsert de meta (usuário com permissão editar_metas) */
+    upsertGoal: protectedProcedure
       .input(z.object({
         year: z.number(),
         month: z.number().nullable(),
         goalAmount: z.string(),
       }))
       .mutation(async ({ ctx, input }) => {
+        const canEditGoals = await hasUserPermission(
+          ctx.user.id,
+          ctx.user.role,
+          PERMISSIONS.EDITAR_METAS,
+        );
+        if (!canEditGoals) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Você não tem permissão para editar metas.' });
+        }
         const id = await upsertSalesGoal({
           year: input.year,
           month: input.month,
@@ -1747,15 +1783,65 @@ export const appRouter = router({
         await db.delete(users).where(eq(users.id, input.userId));
         return { success: true };
       }),
-    /** Relatório mensal de vendas com comissões (somente admin/gerente) */
+    /** Listar permissões de um usuário — admin only */
+    getUserPermissions: adminProcedure
+      .input(z.object({ userId: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        const { userPermissions } = await import('../drizzle/schema');
+        const rows = await db.select({ permission: userPermissions.permission })
+          .from(userPermissions)
+          .where(eq(userPermissions.userId, input.userId));
+        return rows.map(r => r.permission);
+      }),
+    /** Listar permissões de TODOS os usuários — admin only */
+    getAllPermissions: adminProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      const { userPermissions } = await import('../drizzle/schema');
+      return db.select({
+        userId: userPermissions.userId,
+        permission: userPermissions.permission,
+      }).from(userPermissions);
+    }),
+    /** Atribuir permissão a um usuário — admin only */
+    grantPermission: adminProcedure
+      .input(z.object({ userId: z.number(), permission: z.string() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const { userPermissions } = await import('../drizzle/schema');
+        // Upsert: ignore if already exists
+        await db.insert(userPermissions).values({
+          userId: input.userId,
+          permission: input.permission,
+        }).onDuplicateKeyUpdate({ set: { permission: input.permission } });
+        return { success: true };
+      }),
+    /** Revogar permissão de um usuário — admin only */
+    revokePermission: adminProcedure
+      .input(z.object({ userId: z.number(), permission: z.string() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const { userPermissions } = await import('../drizzle/schema');
+        const { and } = await import('drizzle-orm');
+        await db.delete(userPermissions).where(
+          and(eq(userPermissions.userId, input.userId), eq(userPermissions.permission, input.permission))
+        );
+        return { success: true };
+      }),
+    /** Relatório mensal de vendas com comissões (permissão ver_dashboard) */
     monthlyReport: protectedProcedure
       .input(z.object({ year: z.number(), month: z.number() }))
       .query(async ({ ctx, input }) => {
-        const email = ctx.user.email?.toLowerCase() ?? '';
-        const isManager = ctx.user.role === 'admin' ||
-          ctx.user.role === 'gerente' ||
-          MANAGER_EMAILS.map(e => e.toLowerCase()).includes(email);
-        if (!isManager) throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso restrito a gerentes e administradores.' });
+        const canViewDashboard = await hasUserPermission(
+          ctx.user.id,
+          ctx.user.role,
+          PERMISSIONS.VER_DASHBOARD,
+        );
+        if (!canViewDashboard) throw new TRPCError({ code: 'FORBIDDEN', message: 'Você não tem permissão para acessar este relatório.' });
         return getMonthlyReport(input.year, input.month);
       }),
     /** Lista usuários com seus roles (somente admin) */
@@ -2062,8 +2148,7 @@ export const appRouter = router({
     list: protectedProcedure
       .input(z.object({ quoteId: z.number() }))
       .query(async ({ ctx, input }) => {
-        const email = ctx.user.email?.toLowerCase().trim() ?? "";
-        const isPrivileged = ctx.user.role === 'admin' || COST_PRIVILEGED_EMAILS.map(e => e.toLowerCase()).includes(email);
+        const isPrivileged = await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.VER_CUSTOS);
         if (!isPrivileged) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito" });
         }
@@ -2078,8 +2163,7 @@ export const appRouter = router({
         valor: z.number().min(0),
       }))
       .mutation(async ({ ctx, input }) => {
-        const email = ctx.user.email?.toLowerCase().trim() ?? "";
-        const isPrivileged = ctx.user.role === 'admin' || COST_PRIVILEGED_EMAILS.map(e => e.toLowerCase()).includes(email);
+        const isPrivileged = await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.VER_CUSTOS);
         if (!isPrivileged) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito" });
         }
@@ -2090,8 +2174,7 @@ export const appRouter = router({
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        const email = ctx.user.email?.toLowerCase().trim() ?? "";
-        const isPrivileged = ctx.user.role === 'admin' || COST_PRIVILEGED_EMAILS.map(e => e.toLowerCase()).includes(email);
+        const isPrivileged = await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.VER_CUSTOS);
         if (!isPrivileged) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito" });
         }
@@ -2101,8 +2184,7 @@ export const appRouter = router({
 
     /** Retorna totais de custos adicionais agrupados por orçamento (para dashboard) */
     totals: protectedProcedure.query(async ({ ctx }) => {
-      const email = ctx.user.email?.toLowerCase().trim() ?? "";
-      const isPrivileged = ctx.user.role === 'admin' || COST_PRIVILEGED_EMAILS.map(e => e.toLowerCase()).includes(email);
+      const isPrivileged = await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.VER_CUSTOS);
       if (!isPrivileged) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito" });
       }
@@ -2363,3 +2445,5 @@ export const appRouter = router({
   }),
 });
 export type AppRouter = typeof appRouter;
+import { getEffectivePermissions, hasUserPermission } from "./permissionsService";
+import { PERMISSIONS } from "../shared/permissions";

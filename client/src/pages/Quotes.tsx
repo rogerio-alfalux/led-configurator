@@ -12,10 +12,11 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { getLoginUrl } from "@/const";
 import { formatBRL } from "@/lib/cartTypes";
 import { toBrasiliaDate } from "@/lib/dateUtils";
-import { MANAGER_EMAILS } from "@shared/const";
+import { PERMISSIONS } from "@shared/permissions";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   open: { label: "Em Aberto", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: <Clock className="w-3 h-3" /> },
@@ -27,6 +28,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.
 
 export default function Quotes() {
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [sellerFilter, setSellerFilter] = useState<string>("all");
@@ -80,11 +82,7 @@ export default function Quotes() {
   }, [allData]);
 
   // Permissão para ver diluição (mesma lógica do QuoteDetail)
-  const canSeeCommission = useMemo(() => {
-    if (!user) return false;
-    const email = ((user as any).email ?? "").toLowerCase().trim();
-    return (user as any).role === "admin" || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(email);
-  }, [user]);
+  const canSeeCommission = hasPermission(PERMISSIONS.EDITAR_COMISSAO);
 
   // Estatísticas refletem os filtros ativos
   const stats = useMemo(() => {

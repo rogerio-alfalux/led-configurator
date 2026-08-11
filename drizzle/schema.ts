@@ -203,6 +203,17 @@ export const invites = mysqlTable("invites", {
 	expiresAt: timestamp({ mode: 'string' }),
 });
 
+// ─── Permissões Granulares por Usuário ────────────────────────────────────────
+export const userPermissions = mysqlTable("user_permissions", {
+	id: int().autoincrement().notNull(),
+	userId: int().notNull(),
+	permission: varchar({ length: 64 }).notNull(),
+	grantedAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("user_permissions_userId_idx").on(table.userId),
+]);
+
 // ─── Pedidos de Fábrica ─────────────────────────────────────────────────────
 export const factoryOrders = mysqlTable("factory_orders", {
 	id: int().autoincrement().notNull(),

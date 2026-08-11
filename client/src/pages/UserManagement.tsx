@@ -8,9 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { UserPlus, Trash2, Key, Shield, ArrowLeft } from "lucide-react";
+import { UserPlus, Trash2, Key, Shield, ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { Link } from "wouter";
+import { ALL_PERMISSIONS } from "@shared/permissions";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Administrador",
@@ -34,6 +36,7 @@ export default function UserManagement() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
   const { data: users = [], isLoading } = trpc.admin.getUsers.useQuery();
+  const { data: permissionsRows = [] } = trpc.dashboard.getAllPermissions.useQuery();
 
   // Create user state
   const [showCreate, setShowCreate] = useState(false);
@@ -48,6 +51,7 @@ export default function UserManagement() {
 
   // Delete confirmation
   const [deleteUserId, setDeleteUserId] = useState<number | null>(null);
+  const [permissionsUserId, setPermissionsUserId] = useState<number | null>(null);
 
   const createMutation = trpc.dashboard.createUser.useMutation({
     onSuccess: () => {
@@ -73,6 +77,33 @@ export default function UserManagement() {
     onSuccess: () => { toast.success("Usuário excluído."); utils.admin.getUsers.invalidate(); setDeleteUserId(null); },
     onError: (err: any) => toast.error(err.message),
   });
+
+  const grantPermissionMutation = trpc.dashboard.grantPermission.useMutation({
+    onSuccess: () => {
+      utils.dashboard.getAllPermissions.invalidate();
+      toast.success("Permissão atribuída.");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const revokePermissionMutation = trpc.dashboard.revokePermission.useMutation({
+    onSuccess: () => {
+      utils.dashboard.getAllPermissions.invalidate();
+      toast.success("Permissão revogada.");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const permissionsForUser = (userId: number) =>
+    permissionsRows.filter((row: any) => row.userId === userId).map((row: any) => row.permission);
+
+  const togglePermission = (userId: number, permission: string, granted: boolean) => {
+    if (granted) {
+      revokePermissionMutation.mutate({ userId, permission });
+    } else {
+      grantPermissionMutation.mutate({ userId, permission });
+    }
+  };
 
   if (!user || (user as any).role !== "admin") {
     return (
@@ -202,6 +233,47 @@ export default function UserManagement() {
                             <Button onClick={() => updatePwMutation.mutate({ userId: u.id, password: pwValue })} disabled={!pwValue || updatePwMutation.isPending}>
                               Salvar
                             </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                      {/* Permissões individuais */}
+                      <Dialog open={permissionsUserId === u.id} onOpenChange={(open) => { if (!open) setPermissionsUserId(null); }}>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Gerenciar permissões" onClick={() => setPermissionsUserId(u.id)}>
+                            <SlidersHorizontal className="w-3.5 h-3.5" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-lg">
+                          <DialogHeader>
+                            <DialogTitle>Permissões — {u.name || u.email}</DialogTitle>
+                          </DialogHeader>
+                          {u.role === "admin" ? (
+                            <p className="rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">Administradores possuem todas as permissões por padrão.</p>
+                          ) : (
+                            <div className="space-y-2 py-2">
+                              <p className="text-xs text-muted-foreground">As permissões abaixo são independentes do tipo de usuário. Alterações são aplicadas imediatamente.</p>
+                              {ALL_PERMISSIONS.map((permission) => {
+                                const granted = permissionsForUser(u.id).includes(permission.key);
+                                const pending = grantPermissionMutation.isPending || revokePermissionMutation.isPending;
+                                return (
+                                  <label key={permission.key} className="flex items-start gap-3 rounded-md border p-3 cursor-pointer hover:bg-muted/40">
+                                    <Checkbox
+                                      checked={granted}
+                                      disabled={pending}
+                                      onCheckedChange={() => togglePermission(u.id, permission.key, granted)}
+                                      className="mt-0.5"
+                                    />
+                                    <span className="space-y-0.5">
+                                      <span className="block text-sm font-medium">{permission.label}</span>
+                                      <span className="block text-xs text-muted-foreground">{permission.description}</span>
+                                    </span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => setPermissionsUserId(null)}>Fechar</Button>
                           </DialogFooter>
                         </DialogContent>
                       </Dialog>

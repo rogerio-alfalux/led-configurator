@@ -122,7 +122,8 @@ import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator"
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 import { StateCitySelector, isSaoPauloCapital } from "@/components/StateCitySelector";
 import { toast } from "sonner";
-import { PRICE_OVERRIDE_EMAILS, MANAGER_EMAILS, DRIVER_PRICE_OVERRIDE_EMAILS, COST_PRIVILEGED_EMAILS, DISCOUNT_EDITORS_EMAILS } from "@shared/const";
+import { usePermissions } from "@/hooks/usePermissions";
+import { PERMISSIONS } from "@shared/permissions";
 import { applyCCTChange, applyUnitPriceChange, applyQtyChange } from "@/lib/cctUtils";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -867,6 +868,7 @@ function FloorGroupBarQD({
 export default function QuoteDetail() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
+  const { hasPermission: hasQuotePermission } = usePermissions();
   const { user } = useAuth();
   const utils = trpc.useUtils();
   const [showAllVersions, setShowAllVersions] = useState(false);
@@ -2471,16 +2473,10 @@ export default function QuoteDetail() {
                                     onReplace={(replIdx) => { setEditItemsDialogOpen(false); const d = editableItems[replIdx]?.parsed; navigate(`/?replaceInQuote=${quote.id}&replaceIndex=${replIdx}&replaceQty=${d?.qty ?? 1}&replaceItemEmPlanta=${encodeURIComponent(d?.itemEmPlanta ?? "")}`); }}
                                     onUpdate={(id, fields) => { let mergedFields = { ...fields }; if (fields.cct !== undefined) { const curItem = editableItems.find(it => it.id === id); if (curItem && fields.cct !== curItem.parsed.cct) { mergedFields = { ...applyCCTChange(curItem.parsed, fields.cct), ...fields }; } } setEditableItems(prev => prev.map(it => { if (it.id !== id) return it; const newParsed = { ...it.parsed, ...mergedFields }; if (fields.unitPrice !== undefined) { Object.assign(newParsed, applyUnitPriceChange(newParsed, fields.unitPrice, fields.qty ?? newParsed.qty)); } else if (fields.qty !== undefined) { Object.assign(newParsed, applyQtyChange(newParsed, fields.qty)); } return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) }; })); }}
                                     onUploadSpecialPhoto={async (id, base64, mimeType, fileName) => { const result = await uploadSpecialPhotoMutationQD.mutateAsync({ base64, mimeType, fileName }); setEditableItems(prev => prev.map(it => { if (it.id !== id) return it; const newParsed = { ...it.parsed, specialPhotoUrl: result.url, photoUrl: result.url }; return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) }; })); }}
-                                    canOverrideApiPrice={true}
-                                    canEditDriverPrice={
-                                      DRIVER_PRICE_OVERRIDE_EMAILS.map(e => e.toLowerCase()).includes(((user as any)?.email ?? "").toLowerCase())
-                                    }
-                                    isCostPrivileged={
-                                      (user as any)?.role === 'admin' || COST_PRIVILEGED_EMAILS.map(e => e.toLowerCase()).includes(((user as any)?.email ?? "").toLowerCase())
-                                    }
-                                    canEditMkp={
-                                      (user as any)?.role === 'admin' || (user as any)?.role === 'gerente' || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(((user as any)?.email ?? "").toLowerCase())
-                                    }
+                                    canOverrideApiPrice={hasQuotePermission(PERMISSIONS.EDITAR_PRECOS)}
+                                    canEditDriverPrice={hasQuotePermission(PERMISSIONS.EDITAR_PRECOS_DRIVER)}
+                                    isCostPrivileged={hasQuotePermission(PERMISSIONS.VER_CUSTOS)}
+                                    canEditMkp={hasQuotePermission(PERMISSIONS.EDITAR_MARKUP)}
                                   />
                                   );
                                 })}
@@ -2562,20 +2558,10 @@ export default function QuoteDetail() {
                               return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) };
                             }));
                           }}
-                          canOverrideApiPrice={
-                            (user as any)?.role === 'admin' ||
-                            (user as any)?.role === 'gerente' ||
-                            PRICE_OVERRIDE_EMAILS.includes(((user as any)?.email ?? "").toLowerCase())
-                          }
-                          canEditDriverPrice={
-                            DRIVER_PRICE_OVERRIDE_EMAILS.map(e => e.toLowerCase()).includes(((user as any)?.email ?? "").toLowerCase())
-                          }
-                          isCostPrivileged={
-                            (user as any)?.role === 'admin' || COST_PRIVILEGED_EMAILS.map(e => e.toLowerCase()).includes(((user as any)?.email ?? "").toLowerCase())
-                          }
-                          canEditMkp={
-                            (user as any)?.role === 'admin' || (user as any)?.role === 'gerente' || MANAGER_EMAILS.map(e => e.toLowerCase()).includes(((user as any)?.email ?? "").toLowerCase())
-                          }
+                          canOverrideApiPrice={hasQuotePermission(PERMISSIONS.EDITAR_PRECOS)}
+                          canEditDriverPrice={hasQuotePermission(PERMISSIONS.EDITAR_PRECOS_DRIVER)}
+                          isCostPrivileged={hasQuotePermission(PERMISSIONS.VER_CUSTOS)}
+                          canEditMkp={hasQuotePermission(PERMISSIONS.EDITAR_MARKUP)}
                         />
                       ))}
                     </div>
@@ -3263,13 +3249,13 @@ export default function QuoteDetail() {
                   <div>
                     <Label className="flex items-center gap-2"><Percent className="w-3 h-3" />Desconto</Label>
                     <div className="flex items-center gap-2 mt-1">
-                      <Input type="number" min={0} max={99} step={0.5} className="w-24" value={editForm.discountPercent} onChange={e => setEditForm(f => ({ ...f, discountPercent: e.target.value }))} disabled={!DISCOUNT_EDITORS_EMAILS.map(e => e.toLowerCase()).includes(((user as any)?.email ?? "").toLowerCase())} />
+                      <Input type="number" min={0} max={99} step={0.5} className="w-24" value={editForm.discountPercent} onChange={e => setEditForm(f => ({ ...f, discountPercent: e.target.value }))} disabled={!hasQuotePermission(PERMISSIONS.EDITAR_DESCONTOS)} />
                       <span className="text-sm text-muted-foreground">%</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {DISCOUNT_EDITORS_EMAILS.map(e => e.toLowerCase()).includes(((user as any)?.email ?? "").toLowerCase())
+                      {hasQuotePermission(PERMISSIONS.EDITAR_DESCONTOS)
                         ? "Desconto sobre o preço final (após margem)."
-                        : "Apenas gestores podem aplicar desconto."}
+                        : "Você não tem permissão para aplicar desconto."}
                     </p>
                     {parseFloat(editForm.discountPercent || "0") > 0 && (
                       <label className="flex items-center gap-2 mt-2 cursor-pointer">
@@ -4356,7 +4342,7 @@ export default function QuoteDetail() {
         {/* Dashboard de Lucro por Orçamento — apenas privilegiados */}
         {(() => {
           const ue = ((user as any)?.email ?? "").toLowerCase();
-          const isCostPriv = (user as any)?.role === 'admin' || COST_PRIVILEGED_EMAILS.map(e => e.toLowerCase()).includes(ue);
+          const isCostPriv = hasQuotePermission(PERMISSIONS.VER_CUSTOS);
           if (!isCostPriv) return null;
 
           return (
@@ -4378,7 +4364,7 @@ export default function QuoteDetail() {
                   Histórico de Revisões ({versions.length})
                 </CardTitle>
                 {/* Botão de edição manual de revisão — somente gestores */}
-                {((user as any)?.role === 'admin' || (user as any)?.role === 'gerente' || MANAGER_EMAILS.includes(((user as any)?.email ?? "").toLowerCase())) && (
+                {hasQuotePermission(PERMISSIONS.EDITAR_COMISSAO) && (
                   <Button
                     variant="outline"
                     size="sm"
