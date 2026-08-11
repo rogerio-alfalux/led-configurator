@@ -18,7 +18,7 @@ import {
   updateFactoryOrder, addFactoryOrderItem, updateFactoryOrderItem,
   deleteFactoryOrderItem, createFactoryOrderRevision, deleteFactoryOrder,
   createFactoryOrderExcel, listFactoryOrderExcels, getSubOrders,
-  getManagerDashboard, getSellerDashboard, getSalesGoalsByYear, upsertSalesGoal,
+  getManagerDashboard, getSellerDashboard, getSalesGoalsByYear, upsertSalesGoal, getMonthlyBillingsByYear, upsertMonthlyBilling,
   getMonthlyReport,
   duplicateQuote,
   checkDuplicateProject,
@@ -50,7 +50,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { storagePut } from "./storage";
 import { getDb } from "./db";
-import { sellers, assistants, quoteItems } from "../drizzle/schema";
+import { sellers, assistants, quoteItems, quotes } from "../drizzle/schema";
 import { eq, inArray, and } from "drizzle-orm";
 import { DISCOUNT_EDITORS_EMAILS } from "../shared/const";
 
@@ -648,6 +648,20 @@ export const appRouter = router({
           }
         }
         return listQuotes(input);
+      }),
+
+    /** Marca ou remove a classificação de prospecção de lighting designer. */
+    setProspecting: protectedProcedure
+      .input(z.object({ id: z.number(), isProspecting: z.boolean() }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await getQuoteById(input.id);
+        if (!result) throw new TRPCError({ code: 'NOT_FOUND', message: 'Orçamento não encontrado.' });
+        const canEdit = await canEditQuote(ctx.user.email, result.quote, ctx.user.role, ctx.user.id);
+        if (!canEdit) throw new TRPCError({ code: 'FORBIDDEN', message: 'Sem permissão para alterar este orçamento.' });
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        await db.update(quotes).set({ isProspecting: input.isProspecting }).where(eq(quotes.id, input.id));
+        return { success: true };
       }),
 
     getById: protectedProcedure
@@ -1715,6 +1729,25 @@ export const appRouter = router({
         });
         return { id };
       }),
+    /** Faturamentos efetivamente realizados, informados por mês. */
+    billings: protectedProcedure
+      .input(z.object({ year: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const canViewDashboard = await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.VER_DASHBOARD);
+        if (!canViewDashboard) throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado.' });
+        return getMonthlyBillingsByYear(input.year);
+      }),
+    /** Upsert de faturamento manual, protegido pela mesma permissão das metas. */
+    upsertBilling: protectedProcedure
+      .input(z.object({ year: z.number(), month: z.number().int().min(1).max(12), amount: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const canEditGoals = await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.EDITAR_METAS);
+        if (!canEditGoals) throw new TRPCError({ code: 'FORBIDDEN', message: 'Você não tem permissão para informar faturamento.' });
+        const amount = Number(input.amount.replace(',', '.'));
+        if (!Number.isFinite(amount) || amount < 0) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Informe um valor de faturamento válido.' });
+        const id = await upsertMonthlyBilling({ year: input.year, month: input.month, amount: String(amount), setByUserId: ctx.user.id });
+        return { id };
+      }),
     /** Atualiza role de um usuário (somente admin) */
     updateUserRole: adminProcedure
       .input(z.object({
@@ -2251,12 +2284,18 @@ export const appRouter = router({
       .input(z.object({
         quoteId: z.number(),
         notes: z.string().optional(),
+        kind: z.enum(['sample', 'maintenance']).default('sample'),
       }))
       .mutation(async ({ ctx, input }) => {
-        // Verificar se já existe amostra para este orçamento
-        const existing = await getSampleOrderByQuoteId(input.quoteId);
+        // Amostra e manutenção são registros independentes para o mesmo orçamento.
+        const existing = await getSampleOrderByQuoteId(input.quoteId, input.kind);
         if (existing) {
-          throw new TRPCError({ code: "CONFLICT", message: "Este orçamento já foi convertido em pedido de amostra." });
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: input.kind === 'maintenance'
+              ? "Este orçamento já possui pedido de manutenção."
+              : "Este orçamento já foi convertido em pedido de amostra.",
+          });
         }
         // Buscar dados do orçamento
         const quoteData = await getQuoteById(input.quoteId);
@@ -2299,6 +2338,7 @@ export const appRouter = router({
           sellerName: (quote as any).seller1Name ?? undefined,
           sellerId: quote.seller1Id ?? undefined,
           createdByUserId: ctx.user.id,
+          kind: input.kind,
         });
         // Marcar orçamento como amostra (status)
         await updateQuoteStatus(input.quoteId, "sample");
@@ -2306,10 +2346,10 @@ export const appRouter = router({
           userId: ctx.user.id,
           userEmail: ctx.user.email ?? "",
           userName: ctx.user.name ?? "",
-          action: "sample_created",
+          action: input.kind === 'maintenance' ? "maintenance_created" : "sample_created",
           entityType: "sample_order",
           entityId: result.id,
-          details: JSON.stringify({ quoteId: input.quoteId, clientName: quote.clientName }),
+          details: JSON.stringify({ quoteId: input.quoteId, clientName: quote.clientName, kind: input.kind }),
         });
         return result;
       }),
@@ -2320,6 +2360,7 @@ export const appRouter = router({
         clientName: z.string().optional(),
         status: z.string().optional(),
         sellerId: z.number().optional(),
+        kind: z.enum(['sample', 'maintenance']).optional(),
       }).optional())
       .query(async ({ input }) => {
         return listSampleOrders(input ?? undefined);
@@ -2338,9 +2379,9 @@ export const appRouter = router({
 
     /** Verifica se um orçamento já é amostra */
     getByQuoteId: protectedProcedure
-      .input(z.object({ quoteId: z.number() }))
+      .input(z.object({ quoteId: z.number(), kind: z.enum(['sample', 'maintenance']).optional() }))
       .query(async ({ input }) => {
-        return getSampleOrderByQuoteId(input.quoteId);
+        return getSampleOrderByQuoteId(input.quoteId, input.kind);
       }),
 
     /** Atualiza status/notas de um pedido de amostra */

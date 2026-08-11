@@ -2393,3 +2393,10 @@
 - [x] Restaurar arquivamento de revisões e criar nova revisão apenas ao exportar PDF ou Excel após alteração
 - [x] Garantir que filtros de assistente e vendedor retornem valores consistentes
 - [x] Buscar custo de acessórios na API para cálculo de lucro
+
+## Lote 4: Duplicados, prospecções, manutenção e faturamento
+- [x] Identificar orçamentos duplicados por obra e valor final, sem contá-los mais de uma vez no valor real
+- [x] Criar filtro e indicadores para todos, duplicados e valores sem duplicação na lista de orçamentos
+- [x] Criar flag de prospecção de lighting designer e separar seus valores dos indicadores comerciais
+- [x] Criar conversão em manutenção, vinculável a pedido existente, com a mesma estrutura de pedidos de amostra
+- [x] Adicionar campo de faturamento mensal informado manualmente no dashboard

@@ -7,6 +7,7 @@ import {
   factoryOrders, factoryOrderItems, InsertFactoryOrder, InsertFactoryOrderItem,
   factoryOrderExcels,
   salesGoals, InsertSalesGoal,
+  monthlyBillings,
   quoteNumberSequences,
   driverPriceOverrides,
   quoteAdditionalCosts,
@@ -15,6 +16,7 @@ import {
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { fetchAllAlfaluxProducts, fetchComponentes, fetchAcessoriosProducts } from './alfaluxApiService';
+import { getDuplicateQuoteGroupSizes, getDuplicateQuoteKey } from '../shared/quoteGrouping';
 // ─── Utilitários de data no fuso de Brasília ────────────────────────────────
 const BRASILIA_TZ = "America/Sao_Paulo";
 
@@ -722,7 +724,21 @@ export async function listQuotes(opts: {
     .from(quotes)
     .where(where);
 
-  return { rows, total: Number(countResult[0]?.count ?? 0) };
+  // Duplicidade comercial: mesma obra normalizada e mesmo valor final. Usamos
+  // o conjunto integral do filtro (não apenas a página atual) para que o badge
+  // e os indicadores não dependam da paginação.
+  const duplicateCandidates = await db
+    .select({ id: quotes.id, projectName: quotes.projectName, totalFinal: quotes.totalFinal })
+    .from(quotes)
+    .where(where);
+  const duplicateGroupCounts = getDuplicateQuoteGroupSizes(duplicateCandidates);
+  const enrichedRows = rows.map((row) => {
+    const duplicateKey = getDuplicateQuoteKey(row.projectName, row.totalFinal);
+    const duplicateGroupSize = duplicateKey ? (duplicateGroupCounts.get(duplicateKey) ?? 0) : 0;
+    return { ...row, duplicateKey, duplicateGroupSize, isDuplicate: duplicateGroupSize > 1 };
+  });
+
+  return { rows: enrichedRows, total: Number(countResult[0]?.count ?? 0) };
 }
 
 /** Busca um orçamento completo com todas as versões e itens */
@@ -1248,6 +1264,33 @@ export async function upsertSalesGoal(data: { year: number; month: number | null
     });
     return (result as any).insertId as number;
   }
+}
+
+/** Retorna o faturamento efetivamente informado para cada mês do ano. */
+export async function getMonthlyBillingsByYear(year: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(monthlyBillings)
+    .where(eq(monthlyBillings.year, year))
+    .orderBy(asc(monthlyBillings.month));
+}
+
+/** Cria ou atualiza o faturamento efetivamente realizado em um mês. */
+export async function upsertMonthlyBilling(data: { year: number; month: number; amount: string; setByUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error('DB não disponível');
+  const existing = await db.select({ id: monthlyBillings.id })
+    .from(monthlyBillings)
+    .where(and(eq(monthlyBillings.year, data.year), eq(monthlyBillings.month, data.month)))
+    .limit(1);
+  if (existing[0]) {
+    await db.update(monthlyBillings)
+      .set({ amount: data.amount, setByUserId: data.setByUserId })
+      .where(eq(monthlyBillings.id, existing[0].id));
+    return existing[0].id;
+  }
+  const result = await db.insert(monthlyBillings).values(data);
+  return (result as unknown as { insertId: number }[])[0]?.insertId ?? 0;
 }
 
 // ─── Dashboard Gerencial ──────────────────────────────────────────────────────
@@ -1789,6 +1832,10 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
 
   // ── Metas ─────────────────────────────────────────────────────────────────
   const goals = await getSalesGoalsByYear(year);
+  const manualBillings = await getMonthlyBillingsByYear(year);
+  const manualBillingAmount = month
+    ? Number(manualBillings.find((entry) => entry.month === month)?.amount ?? 0)
+    : manualBillings.reduce((sum, entry) => sum + Number(entry.amount ?? 0), 0);
 
   return {
     periodTotals,
@@ -1808,6 +1855,8 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
       qtdUnidades: number;
       valorTotal: number;
     }>,
+    manualBillings,
+    manualBillingAmount,
   };
 }
 
@@ -2328,6 +2377,7 @@ export async function createSampleOrder(data: {
   sellerName?: string;
   sellerId?: number;
   createdByUserId: number;
+  kind?: 'sample' | 'maintenance';
 }): Promise<{ id: number }> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -2340,6 +2390,7 @@ export async function createSampleOrder(data: {
     sellerName: data.sellerName ?? null,
     sellerId: data.sellerId ?? null,
     createdByUserId: data.createdByUserId,
+    kind: data.kind ?? 'sample',
   });
   const id = (result as unknown as { insertId: number }[])[0]?.insertId ?? 0;
   return { id };
@@ -2350,6 +2401,7 @@ export async function listSampleOrders(filters?: {
   clientName?: string;
   status?: string;
   sellerId?: number;
+  kind?: 'sample' | 'maintenance';
 }): Promise<any[]> {
   const db = await getDb();
   if (!db) return [];
@@ -2362,6 +2414,9 @@ export async function listSampleOrders(filters?: {
   }
   if (filters?.sellerId) {
     conditions.push(eq(sampleOrders.sellerId, filters.sellerId));
+  }
+  if (filters?.kind) {
+    conditions.push(eq(sampleOrders.kind, filters.kind));
   }
   const query = conditions.length > 0
     ? db.select().from(sampleOrders).where(and(...conditions)).orderBy(desc(sampleOrders.createdAt))
@@ -2377,11 +2432,14 @@ export async function getSampleOrderById(id: number) {
   return rows[0] ?? null;
 }
 
-/** Busca pedido de amostra por quoteId */
-export async function getSampleOrderByQuoteId(quoteId: number) {
+/** Busca pedido de amostra/manutenção por quoteId e natureza opcional. */
+export async function getSampleOrderByQuoteId(quoteId: number, kind?: 'sample' | 'maintenance') {
   const db = await getDb();
   if (!db) return null;
-  const rows = await db.select().from(sampleOrders).where(eq(sampleOrders.quoteId, quoteId));
+  const condition = kind
+    ? and(eq(sampleOrders.quoteId, quoteId), eq(sampleOrders.kind, kind))
+    : eq(sampleOrders.quoteId, quoteId);
+  const rows = await db.select().from(sampleOrders).where(condition);
   return rows[0] ?? null;
 }
 

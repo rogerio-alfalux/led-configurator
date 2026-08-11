@@ -203,11 +203,23 @@ export default function Dashboard() {
     },
     onError: (err) => toast.error(`Erro ao salvar meta: ${err.message}`),
   });
+  const upsertBillingMutation = trpc.dashboard.upsertBilling.useMutation({
+    onSuccess: () => {
+      utils.dashboard.managerData.invalidate({ year, month });
+      toast.success("Faturamento informado salvo com sucesso!");
+    },
+    onError: (err) => toast.error(`Erro ao salvar faturamento: ${err.message}`),
+  });
 
   const handleSaveGoal = (goalYear: number, goalMonth: number | null, value: string) => {
     const amount = parseFloat(value.replace(",", "."));
     if (isNaN(amount) || amount < 0) { toast.error("Valor inválido"); return; }
     upsertGoalMutation.mutate({ year: goalYear, month: goalMonth, goalAmount: amount.toFixed(2) });
+  };
+  const handleSaveBilling = (billingYear: number, billingMonth: number, value: string) => {
+    const amount = parseFloat(value.replace(",", "."));
+    if (isNaN(amount) || amount < 0) { toast.error("Valor inválido"); return; }
+    upsertBillingMutation.mutate({ year: billingYear, month: billingMonth, amount: amount.toFixed(2) });
   };
 
   // Calcular progresso anual (sempre total do ano, independente do filtro de mês)
@@ -227,6 +239,10 @@ export default function Dashboard() {
       return (managerData as any).monthlyInvoiced.reduce((s: number, m: any) => s + Number(m.amount ?? 0), 0);
     }
     return 0;
+  }, [isManager, managerData]);
+  const annualManualBilling = useMemo(() => {
+    if (!isManager) return 0;
+    return ((managerData as any)?.manualBillings ?? []).reduce((sum: number, entry: any) => sum + Number(entry.amount ?? 0), 0);
   }, [isManager, managerData]);
 
   const annualGoal = goalsData.find(g => g.month == null);
@@ -442,6 +458,11 @@ export default function Dashboard() {
                         <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
                         Aprovado (pedido fechado): <span className="font-medium text-foreground">{formatBRL(annualApproved)}</span>
                       </div>
+                      {isManager && (
+                        <div className="text-xs text-sky-700 dark:text-sky-400">
+                          Faturamento informado (peças entregues): <span className="font-medium">{formatBRL(annualManualBilling)}</span>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -477,6 +498,10 @@ export default function Dashboard() {
                         : null;
                       const approvedAmt = Number(progress?.amount ?? 0);
                       const invoicedAmt = Number(invoicedProgress?.amount ?? 0);
+                      const manualBilling = isManager
+                        ? ((managerData as any)?.manualBillings ?? []).find((entry: any) => Number(entry.month) === mNum)
+                        : null;
+                      const manualBillingAmt = Number(manualBilling?.amount ?? 0);
                       const currentAmt = invoicedAmt; // meta é baseada em faturado (NF emitida)
                       const goalAmt = Number(goal?.goalAmount ?? 0);
                       const isCurrentMonth = mNum === currentMonth && year === currentYear;
@@ -512,6 +537,18 @@ export default function Dashboard() {
                               {approvedAmt > 0 && <div>Aprovado: {formatBRL(approvedAmt)}</div>}
                               {invoicedAmt === 0 && approvedAmt === 0 && <div>Sem movimentação</div>}
                               {user?.role !== "admin" && goalAmt === 0 && " · sem meta"}
+                            </div>
+                          )}
+                          {isManager && (
+                            <div className="mt-2 pt-2 border-t border-border/70 text-xs">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-sky-700 dark:text-sky-400">Entregue/recebido</span>
+                                {hasPermission(PERMISSIONS.EDITAR_METAS) ? (
+                                  <GoalEditor year={year} month={mNum} currentValue={manualBillingAmt} onSave={v => handleSaveBilling(year, mNum, v)} />
+                                ) : (
+                                  <span className="font-medium">{formatBRL(manualBillingAmt)}</span>
+                                )}
+                              </div>
                             </div>
                           )}
                         </div>

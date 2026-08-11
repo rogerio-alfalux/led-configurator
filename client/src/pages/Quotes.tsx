@@ -34,12 +34,15 @@ export default function Quotes() {
   const [status, setStatus] = useState<string>("all");
   const [sellerFilter, setSellerFilter] = useState<string>("all");
   const [assistantFilter, setAssistantFilter] = useState<string>("all");
+  const [duplicateFilter, setDuplicateFilter] = useState<"all" | "duplicates" | "unique">("all");
+  const [prospectingFilter, setProspectingFilter] = useState<"all" | "prospecting" | "commercial">("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [datePreset, setDatePreset] = useState("all");
   const [page, setPage] = useState(0);
   const limit = 20;
 
+  const clientFilterActive = duplicateFilter !== "all" || prospectingFilter !== "all";
   const { data, isLoading } = trpc.quotes.list.useQuery({
     search: search || undefined,
     status: status !== "all" ? (status as "open" | "approved" | "lost" | "cancelled" | "invoiced") : undefined,
@@ -47,8 +50,8 @@ export default function Quotes() {
     assistantId: assistantFilter !== "all" ? Number(assistantFilter) : undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
-    limit,
-    offset: page * limit,
+    limit: clientFilterActive ? 10000 : limit,
+    offset: clientFilterActive ? 0 : page * limit,
   });
 
   // Buscar todos os orçamentos sem filtro — apenas para popular dropdowns de vendedor/assistente
@@ -89,26 +92,39 @@ export default function Quotes() {
   const stats = useMemo(() => {
     const rows = filteredAllData?.rows ?? [];
     const total = rows.length;
-    const open = rows.filter(q => q.status === "open").length;
-    const approved = rows.filter(q => q.status === "approved").length;
-    const lost = rows.filter(q => q.status === "lost").length;
-    const invoiced = rows.filter(q => q.status === "invoiced").length;
+    const commercialRows = rows.filter(q => !(q as any).isProspecting);
+    const open = commercialRows.filter(q => q.status === "open").length;
+    const approved = commercialRows.filter(q => q.status === "approved").length;
+    const lost = commercialRows.filter(q => q.status === "lost").length;
+    const invoiced = commercialRows.filter(q => q.status === "invoiced").length;
     // totalFinal já é o total que o cliente paga. Não somar impostos,
     // frete ou diluição novamente neste ponto.
     const getQuoteValue = (q: typeof rows[0]) => getStoredCustomerTotal(q);
-    const totalValue = rows.reduce((sum, q) => sum + getQuoteValue(q), 0);
-    const approvedValue = rows.filter(q => q.status === "approved").reduce((sum, q) => sum + getQuoteValue(q), 0);
-    const invoicedValue = rows.filter(q => q.status === "invoiced").reduce((sum, q) => sum + getQuoteValue(q), 0);
-    return { total, open, approved, lost, invoiced, totalValue, approvedValue, invoicedValue };
+    const totalValue = commercialRows.reduce((sum, q) => sum + getQuoteValue(q), 0);
+    const seenDuplicateGroups = new Set<string>();
+    const withoutDuplicates = commercialRows.filter((q: any) => {
+      if (!q.isDuplicate || !q.duplicateKey) return true;
+      if (seenDuplicateGroups.has(q.duplicateKey)) return false;
+      seenDuplicateGroups.add(q.duplicateKey);
+      return true;
+    });
+    const realValue = withoutDuplicates.reduce((sum, q) => sum + getQuoteValue(q), 0);
+    const duplicateCount = commercialRows.filter((q: any) => q.isDuplicate).length;
+    const prospectingValue = rows.filter((q: any) => q.isProspecting).reduce((sum, q) => sum + getQuoteValue(q), 0);
+    const approvedValue = commercialRows.filter(q => q.status === "approved").reduce((sum, q) => sum + getQuoteValue(q), 0);
+    const invoicedValue = commercialRows.filter(q => q.status === "invoiced").reduce((sum, q) => sum + getQuoteValue(q), 0);
+    return { total, open, approved, lost, invoiced, totalValue, realValue, duplicateCount, prospectingValue, approvedValue, invoicedValue };
   }, [filteredAllData, canSeeCommission]);
 
-  const hasFilters = status !== "all" || sellerFilter !== "all" || assistantFilter !== "all" || search.trim() !== "" || dateFrom !== "" || dateTo !== "" || datePreset !== "all";
+  const hasFilters = status !== "all" || sellerFilter !== "all" || assistantFilter !== "all" || duplicateFilter !== "all" || prospectingFilter !== "all" || search.trim() !== "" || dateFrom !== "" || dateTo !== "" || datePreset !== "all";
 
   const clearFilters = () => {
     setSearch("");
     setStatus("all");
     setSellerFilter("all");
     setAssistantFilter("all");
+    setDuplicateFilter("all");
+    setProspectingFilter("all");
     setDateFrom("");
     setDateTo("");
     setDatePreset("all");
@@ -165,6 +181,17 @@ export default function Quotes() {
 
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
+  const visibleRows = rows.filter((quote: any) => {
+    if (duplicateFilter === "duplicates" && !quote.isDuplicate) return false;
+    if (duplicateFilter === "unique" && quote.isDuplicate) return false;
+    if (prospectingFilter === "prospecting" && !quote.isProspecting) return false;
+    if (prospectingFilter === "commercial" && quote.isProspecting) return false;
+    return true;
+  });
+  const displayRows = clientFilterActive
+    ? visibleRows.slice(page * limit, (page + 1) * limit)
+    : visibleRows;
+  const displayTotal = clientFilterActive ? visibleRows.length : total;
 
   return (
     <div className="min-h-screen bg-background">
@@ -206,14 +233,16 @@ export default function Quotes() {
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-5">
 
         {/* Cards de estatísticas */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-8 gap-3">
           {[
             { label: "Total", value: stats.total, color: "text-foreground", icon: <ClipboardList className="w-4 h-4" />, isValue: false },
             { label: "Em Aberto", value: stats.open, color: "text-blue-600", icon: <Clock className="w-4 h-4 text-blue-500" />, isValue: false },
             { label: "Aprovados", value: stats.approved, color: "text-green-600", icon: <CheckCircle className="w-4 h-4 text-green-500" />, isValue: false },
             { label: "Perdidos", value: stats.lost, color: "text-red-600", icon: <TrendingDown className="w-4 h-4 text-red-500" />, isValue: false },
             { label: "Faturados", value: stats.invoiced, color: "text-purple-600", icon: <Receipt className="w-4 h-4 text-purple-500" />, isValue: false },
-            { label: "Valor Total", value: formatBRL(stats.totalValue), color: "text-primary", icon: <BarChart2 className="w-4 h-4 text-primary" />, isValue: true },
+            { label: "Valor listado", value: formatBRL(stats.totalValue), color: "text-primary", icon: <BarChart2 className="w-4 h-4 text-primary" />, isValue: true },
+            { label: "Valor sem duplicados", value: formatBRL(stats.realValue), color: "text-emerald-600", icon: <CheckCircle className="w-4 h-4 text-emerald-500" />, isValue: true },
+            { label: "Prospecções LD", value: formatBRL(stats.prospectingValue), color: "text-indigo-600", icon: <Users className="w-4 h-4 text-indigo-500" />, isValue: true },
           ].map(s => (
             <Card key={s.label} className="p-3 min-w-0">
               <div className="flex items-center gap-1.5 mb-1 min-w-0">
@@ -277,6 +306,28 @@ export default function Quotes() {
               {uniqueAssistants.map(a => (
                 <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={duplicateFilter} onValueChange={v => { setDuplicateFilter(v as "all" | "duplicates" | "unique"); setPage(0); }}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Duplicidade" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os registros</SelectItem>
+              <SelectItem value="duplicates">Somente duplicados ({stats.duplicateCount})</SelectItem>
+              <SelectItem value="unique">Sem duplicados</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={prospectingFilter} onValueChange={v => { setProspectingFilter(v as "all" | "prospecting" | "commercial"); setPage(0); }}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Carteira" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Comercial + prospecção</SelectItem>
+              <SelectItem value="commercial">Somente comercial</SelectItem>
+              <SelectItem value="prospecting">Prospecções LD</SelectItem>
             </SelectContent>
           </Select>
 
@@ -348,7 +399,7 @@ export default function Quotes() {
         {/* Tabela de orçamentos */}
         {isLoading ? (
           <div className="text-center py-16 text-muted-foreground">Carregando orçamentos...</div>
-        ) : rows.length === 0 ? (
+        ) : displayRows.length === 0 ? (
           <Card className="text-center py-16">
             <div className="flex flex-col items-center gap-4">
               <ClipboardList className="w-12 h-12 text-muted-foreground" />
@@ -380,7 +431,7 @@ export default function Quotes() {
               {hasFilters && <span className="ml-2 text-primary font-medium"><Filter className="w-3 h-3 inline mr-0.5" />Filtros ativos</span>}
             </div>
             <div className="space-y-2">
-              {rows.map(q => {
+              {displayRows.map(q => {
                 const st = STATUS_LABELS[q.status] ?? STATUS_LABELS.open;
                 return (
                   <Card key={q.id} className="hover:border-primary/40 transition-colors">
@@ -393,6 +444,16 @@ export default function Quotes() {
                             {st.icon}
                             {st.label}
                           </span>
+                          {(q as any).isDuplicate && (
+                            <Badge variant="outline" className="mt-1 border-orange-300 text-orange-700 dark:text-orange-400">
+                              Duplicado ({(q as any).duplicateGroupSize}x)
+                            </Badge>
+                          )}
+                          {(q as any).isProspecting && (
+                            <Badge variant="outline" className="mt-1 border-indigo-300 text-indigo-700 dark:text-indigo-400">
+                              Prospecção LD
+                            </Badge>
+                          )}
                         </div>
 
                         {/* Dados principais */}
@@ -444,7 +505,7 @@ export default function Quotes() {
             </div>
 
             {/* Paginação */}
-            {total > limit && (
+            {displayTotal > limit && (
               <div className="flex justify-center gap-2 pt-2">
                 <Button
                   variant="outline"
@@ -455,12 +516,12 @@ export default function Quotes() {
                   Anterior
                 </Button>
                 <span className="text-sm text-muted-foreground self-center">
-                  Página {page + 1} de {Math.ceil(total / limit)}
+                  Página {page + 1} de {Math.ceil(displayTotal / limit)}
                 </span>
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={(page + 1) * limit >= total}
+                  disabled={(page + 1) * limit >= displayTotal}
                   onClick={() => setPage(p => p + 1)}
                 >
                   Próxima

@@ -143,6 +143,8 @@ export const quotes = mysqlTable("quotes", {
 	discountPercent: decimal({ precision: 5, scale: 4 }).default('0'),
 	/** Se true, exibe desconto nos documentos (Excel, PDF, Preview) para o cliente */
 	showDiscount: boolean().default(false),
+	/** Prospecção de lighting designer: acompanha separadamente a carteira comercial. */
+	isProspecting: boolean().default(false).notNull(),
 },
 (table) => [
 	index("quotes_quoteNumber_unique").on(table.quoteNumber),
@@ -376,6 +378,21 @@ export const salesGoals = mysqlTable("sales_goals", {
 export type SalesGoal = InferSelectModel<typeof salesGoals>;
 export type InsertSalesGoal = InferInsertModel<typeof salesGoals>;
 
+/** Faturamento efetivamente realizado, informado pelo gestor para cada mês. */
+export const monthlyBillings = mysqlTable("monthly_billings", {
+	id: int().autoincrement().notNull(),
+	year: int().notNull(),
+	month: int().notNull(),
+	amount: decimal({ precision: 14, scale: 2 }).notNull(),
+	setByUserId: int(),
+	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+	index("monthly_billings_year_month_idx").on(table.year, table.month),
+]);
+export type MonthlyBilling = InferSelectModel<typeof monthlyBillings>;
+export type InsertMonthlyBilling = InferInsertModel<typeof monthlyBillings>;
+
 // ─── Custos Adicionais por Orçamento ─────────────────────────────────────────
 export const quoteAdditionalCosts = mysqlTable("quote_additional_costs", {
 	id: int().autoincrement().notNull().primaryKey(),
@@ -410,6 +427,8 @@ export const sampleOrders = mysqlTable("sample_orders", {
 	costAmount: decimal({ precision: 12, scale: 2 }).notNull(),
 	/** Status do pedido de amostra */
 	status: varchar({ length: 32 }).notNull().default('active'),
+	/** Natureza do pedido sem cobrança: amostra comercial ou manutenção em garantia. */
+	kind: mysqlEnum(['sample', 'maintenance']).default('sample').notNull(),
 	/** Observações sobre a amostra */
 	notes: text(),
 	/** Vendedor responsável (desnormalizado) */

@@ -876,7 +876,10 @@ export default function QuoteDetail() {
   const [newStatus, setNewStatus] = useState<string>("");
   const [sampleDialogOpen, setSampleDialogOpen] = useState(false);
   const [sampleNotes, setSampleNotes] = useState("");
+  const [conversionKind, setConversionKind] = useState<"sample" | "maintenance">("sample");
   const [sampleLinkDialogOpen, setSampleLinkDialogOpen] = useState(false);
+  const [linkSourceOrderId, setLinkSourceOrderId] = useState<number | null>(null);
+  const [linkSourceKind, setLinkSourceKind] = useState<"sample" | "maintenance">("sample");
   const [sampleLinkQuoteNumber, setSampleLinkQuoteNumber] = useState("");
   const [sampleLinkType, setSampleLinkType] = useState<"cobrar" | "diluir" | "associar">("associar");
   const [sampleLinkNotes, setSampleLinkNotes] = useState("");
@@ -1296,19 +1299,31 @@ export default function QuoteDetail() {
 
   // ─── Pedido de Amostra ───
   const createSampleMutation = trpc.samples.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (_result, variables) => {
       utils.quotes.getById.invalidate({ id: Number(id) });
-      toast.success("Orçamento convertido em Pedido de Amostra!");
+      toast.success(variables.kind === "maintenance" ? "Orçamento convertido em Pedido de Manutenção!" : "Orçamento convertido em Pedido de Amostra!");
       setSampleDialogOpen(false);
       setSampleNotes("");
+      setConversionKind("sample");
     },
     onError: (err) => toast.error(`Erro: ${err.message}`),
   });
 
   const sampleQuery = trpc.samples.getByQuoteId.useQuery(
-    { quoteId: Number(id) },
+    { quoteId: Number(id), kind: "sample" },
     { enabled: !!id }
   );
+  const maintenanceQuery = trpc.samples.getByQuoteId.useQuery(
+    { quoteId: Number(id), kind: "maintenance" },
+    { enabled: !!id }
+  );
+  const setProspectingMutation = trpc.quotes.setProspecting.useMutation({
+    onSuccess: () => {
+      utils.quotes.getById.invalidate({ id: Number(id) });
+      utils.quotes.list.invalidate();
+    },
+    onError: (err) => toast.error(`Erro ao atualizar prospecção: ${err.message}`),
+  });
 
   const linkSampleMutation = trpc.samples.link.useMutation({
     onSuccess: () => {
@@ -1317,6 +1332,7 @@ export default function QuoteDetail() {
       setSampleLinkQuoteNumber("");
       setSampleLinkNotes("");
       sampleQuery.refetch();
+      maintenanceQuery.refetch();
     },
     onError: (err) => toast.error(`Erro: ${err.message}`),
   });
@@ -2753,16 +2769,43 @@ export default function QuoteDetail() {
             <Button
               variant="outline"
               className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/30"
-              onClick={() => setSampleDialogOpen(true)}
+              onClick={() => { setConversionKind("sample"); setSampleDialogOpen(true); }}
             >
               <FlaskConical className="w-4 h-4" />
               Converter em Amostra
+            </Button>
+          )}
+          {canEdit && !maintenanceQuery.data && (
+            <Button
+              variant="outline"
+              className="gap-2 border-sky-300 text-sky-700 hover:bg-sky-50 dark:border-sky-700 dark:text-sky-400 dark:hover:bg-sky-950/30"
+              onClick={() => { setConversionKind("maintenance"); setSampleDialogOpen(true); }}
+            >
+              <Wrench className="w-4 h-4" />
+              Converter em Manutenção
+            </Button>
+          )}
+          {canEdit && (
+            <Button
+              variant={quote.isProspecting ? "default" : "outline"}
+              className="gap-2"
+              onClick={() => setProspectingMutation.mutate({ id: Number(id), isProspecting: !quote.isProspecting })}
+              disabled={setProspectingMutation.isPending}
+            >
+              <Bookmark className="w-4 h-4" />
+              {quote.isProspecting ? "Prospecção LD" : "Marcar Prospecção LD"}
             </Button>
           )}
           {(quote.status as string) === "sample" && (
             <Badge variant="outline" className="gap-1 border-amber-400 text-amber-700 dark:text-amber-400 px-3 py-1">
               <FlaskConical className="w-3 h-3" />
               Pedido de Amostra
+            </Badge>
+          )}
+          {maintenanceQuery.data && (
+            <Badge variant="outline" className="gap-1 border-sky-400 text-sky-700 dark:text-sky-400 px-3 py-1">
+              <Wrench className="w-3 h-3" />
+              Pedido de Manutenção
             </Badge>
           )}
 
@@ -3825,19 +3868,21 @@ export default function QuoteDetail() {
             </DialogContent>
           </Dialog>}
 
-          {/* Dialog: Converter em Amostra */}
+          {/* Dialog: Converter em Amostra ou Manutenção */}
           <Dialog open={sampleDialogOpen} onOpenChange={(open) => { setSampleDialogOpen(open); if (!open) setSampleNotes(""); }}>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <FlaskConical className="w-5 h-5 text-amber-600" />
-                  Converter em Pedido de Amostra
+                  {conversionKind === "maintenance" ? <Wrench className="w-5 h-5 text-sky-600" /> : <FlaskConical className="w-5 h-5 text-amber-600" />}
+                  {conversionKind === "maintenance" ? "Converter em Pedido de Manutenção" : "Converter em Pedido de Amostra"}
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-2">
-                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
-                  <p className="text-sm text-amber-700 dark:text-amber-400">
-                    Ao converter em amostra, o valor de venda será zerado. O custo será registrado como investimento da empresa.
+                <div className={`p-3 rounded-lg border ${conversionKind === "maintenance" ? "bg-sky-50 dark:bg-sky-950/30 border-sky-200 dark:border-sky-800" : "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800"}`}>
+                  <p className={`text-sm ${conversionKind === "maintenance" ? "text-sky-700 dark:text-sky-400" : "text-amber-700 dark:text-amber-400"}`}>
+                    {conversionKind === "maintenance"
+                      ? "Ao converter em manutenção, o valor de venda será zerado. O custo será registrado para acompanhamento da empresa e poderá ser vinculado a um orçamento futuro."
+                      : "Ao converter em amostra, o valor de venda será zerado. O custo será registrado como investimento da empresa."}
                   </p>
                 </div>
                 <div>
@@ -3847,31 +3892,31 @@ export default function QuoteDetail() {
                     rows={3}
                     value={sampleNotes}
                     onChange={e => setSampleNotes(e.target.value)}
-                    placeholder="Ex: Amostra para apresentação ao cliente..."
+                    placeholder={conversionKind === "maintenance" ? "Ex: Troca em garantia / ajuste de instalação..." : "Ex: Amostra para apresentação ao cliente..."}
                   />
                 </div>
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setSampleDialogOpen(false)}>Cancelar</Button>
                 <Button
-                  className="bg-amber-600 hover:bg-amber-700 text-white"
-                  onClick={() => createSampleMutation.mutate({ quoteId: Number(id), notes: sampleNotes || undefined })}
+                  className={conversionKind === "maintenance" ? "bg-sky-600 hover:bg-sky-700 text-white" : "bg-amber-600 hover:bg-amber-700 text-white"}
+                  onClick={() => createSampleMutation.mutate({ quoteId: Number(id), notes: sampleNotes || undefined, kind: conversionKind })}
                   disabled={createSampleMutation.isPending}
                 >
-                  {createSampleMutation.isPending ? "Convertendo..." : "Confirmar Conversão"}
+                  {createSampleMutation.isPending ? "Convertendo..." : conversionKind === "maintenance" ? "Confirmar Manutenção" : "Confirmar Conversão"}
                 </Button>
               </div>
             </DialogContent>
           </Dialog>
 
-          {/* Dialog: Vincular Amostra a Orçamento */}
-          {sampleQuery.data && (
+          {/* Dialog: Vincular Amostra ou Manutenção a Orçamento */}
+          {(sampleQuery.data || maintenanceQuery.data) && (
             <Dialog open={sampleLinkDialogOpen} onOpenChange={(open) => { setSampleLinkDialogOpen(open); if (!open) { setSampleLinkQuoteNumber(""); setSampleLinkNotes(""); } }}>
               <DialogContent className="max-w-md">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     <Link2 className="w-5 h-5 text-blue-600" />
-                    Vincular Amostra a Orçamento
+                    Vincular {linkSourceKind === "maintenance" ? "Manutenção" : "Amostra"} a Orçamento
                   </DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-2">
@@ -3898,8 +3943,8 @@ export default function QuoteDetail() {
                     </Select>
                     <p className="text-xs text-muted-foreground mt-1">
                       {sampleLinkType === "associar" && "Vincula sem cobrar — apenas para rastreabilidade."}
-                      {sampleLinkType === "cobrar" && "O valor da amostra será cobrado integralmente no pedido vinculado."}
-                      {sampleLinkType === "diluir" && "O valor da amostra será diluído proporcionalmente no pedido."}
+                      {sampleLinkType === "cobrar" && `O valor ${linkSourceKind === "maintenance" ? "da manutenção" : "da amostra"} será cobrado integralmente no pedido vinculado.`}
+                      {sampleLinkType === "diluir" && `O valor ${linkSourceKind === "maintenance" ? "da manutenção" : "da amostra"} será diluído proporcionalmente no pedido.`}
                     </p>
                   </div>
                   <div>
@@ -3921,8 +3966,10 @@ export default function QuoteDetail() {
                       const allQuotes = utils.quotes.list.getData() as any;
                       const target = (allQuotes?.rows ?? allQuotes ?? [])?.find((q: any) => q.quoteNumber === sampleLinkQuoteNumber.trim());
                       if (!target) { toast.error("Orçamento não encontrado. Verifique o número."); return; }
+                      const sourceOrderId = linkSourceOrderId ?? sampleQuery.data?.id ?? maintenanceQuery.data?.id;
+                      if (!sourceOrderId) { toast.error("Pedido de origem não encontrado."); return; }
                       linkSampleMutation.mutate({
-                        sampleOrderId: sampleQuery.data!.id,
+                        sampleOrderId: sourceOrderId,
                         linkedQuoteId: target.id,
                         linkType: sampleLinkType,
                         notes: sampleLinkNotes || undefined,
@@ -3975,7 +4022,7 @@ export default function QuoteDetail() {
                 </div>
               )}
               <div className="flex gap-2 mt-2 flex-wrap">
-                <Button variant="outline" size="sm" className="gap-1" onClick={() => setSampleLinkDialogOpen(true)}>
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => { setLinkSourceOrderId(sampleQuery.data!.id); setLinkSourceKind("sample"); setSampleLinkDialogOpen(true); }}>
                   <Link2 className="w-3 h-3" />
                   Vincular a Orçamento
                 </Button>
@@ -3992,6 +4039,36 @@ export default function QuoteDetail() {
                 >
                   <XIcon className="w-3 h-3" />
                   {cancelSampleMutation.isPending ? "Cancelando..." : "Cancelar Amostra"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {maintenanceQuery.data && (
+          <Card className="border-sky-200 dark:border-sky-800 bg-sky-50/50 dark:bg-sky-950/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2 text-sky-700 dark:text-sky-400">
+                <Wrench className="w-4 h-4" />
+                Pedido de Manutenção
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Custo registrado:</span>
+                <span className="font-medium">{formatBRL(parseFloat(String(maintenanceQuery.data.costAmount)))}</span>
+              </div>
+              {maintenanceQuery.data.notes && <div className="text-muted-foreground italic">"{maintenanceQuery.data.notes}"</div>}
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Status:</span>
+                <Badge variant="outline" className={maintenanceQuery.data.status === "linked" ? "border-green-400 text-green-700" : "border-sky-400 text-sky-700"}>
+                  {maintenanceQuery.data.status === "active" ? "Ativo" : maintenanceQuery.data.status === "linked" ? "Vinculado" : maintenanceQuery.data.status}
+                </Badge>
+              </div>
+              <div className="flex gap-2 mt-2 flex-wrap">
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => { setLinkSourceOrderId(maintenanceQuery.data!.id); setLinkSourceKind("maintenance"); setSampleLinkDialogOpen(true); }}>
+                  <Link2 className="w-3 h-3" />
+                  Vincular a Orçamento
                 </Button>
               </div>
             </CardContent>
