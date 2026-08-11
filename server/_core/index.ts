@@ -10,6 +10,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import apiV1Router from "../apiV1Router";
+import guestAuthRouter from "../guestAuth";
 import { dailyBackupHandler } from "../backupHandler";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -42,6 +43,8 @@ async function startServer() {
   registerOAuthRoutes(app);
   // Heartbeat: backup automático diário
   app.post("/api/scheduled/daily-backup", dailyBackupHandler);
+  // Guest auth (login por senha para convidados)
+  app.use(guestAuthRouter);
   // API REST v1 — somente leitura, autenticada por API Key
   app.use("/api/v1", apiV1Router);
   // tRPC API

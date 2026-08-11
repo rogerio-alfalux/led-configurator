@@ -1682,13 +1682,69 @@ export const appRouter = router({
     updateUserRole: adminProcedure
       .input(z.object({
         userId: z.number(),
-        role: z.enum(['user', 'admin', 'gerente', 'vendedor', 'assistente']),
+        role: z.enum(['user', 'admin', 'gerente', 'vendedor', 'assistente', 'convidado']),
       }))
       .mutation(async ({ input }) => {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
         const { users } = await import('../drizzle/schema');
         await db.update(users).set({ role: input.role }).where(eq(users.id, input.userId));
+        return { success: true };
+      }),
+    /** Criar usuário manualmente (com senha) — admin only */
+    createUser: adminProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        email: z.string().email(),
+        password: z.string().min(4),
+        role: z.enum(['user', 'admin', 'gerente', 'vendedor', 'assistente', 'convidado']).default('convidado'),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const { users } = await import('../drizzle/schema');
+        const bcrypt = await import('bcryptjs');
+        // Verificar se e-mail já existe
+        const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, input.email.toLowerCase().trim())).limit(1);
+        if (existing.length > 0) {
+          throw new TRPCError({ code: 'CONFLICT', message: 'Já existe um usuário com este e-mail.' });
+        }
+        const passwordHash = await bcrypt.hash(input.password, 10);
+        // Gerar openId único para usuários com senha (prefixo "pwd_")
+        const openId = `pwd_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+        await db.insert(users).values({
+          openId,
+          name: input.name,
+          email: input.email.toLowerCase().trim(),
+          role: input.role,
+          passwordHash,
+          loginMethod: 'password',
+        });
+        return { success: true };
+      }),
+    /** Atualizar senha de um usuário — admin only */
+    updateUserPassword: adminProcedure
+      .input(z.object({
+        userId: z.number(),
+        password: z.string().min(4),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const { users } = await import('../drizzle/schema');
+        const bcrypt = await import('bcryptjs');
+        const passwordHash = await bcrypt.hash(input.password, 10);
+        await db.update(users).set({ passwordHash }).where(eq(users.id, input.userId));
+        return { success: true };
+      }),
+    /** Excluir usuário — admin only */
+    deleteUser: adminProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const { users } = await import('../drizzle/schema');
+        await db.delete(users).where(eq(users.id, input.userId));
         return { success: true };
       }),
     /** Relatório mensal de vendas com comissões (somente admin/gerente) */

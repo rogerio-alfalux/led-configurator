@@ -179,7 +179,8 @@ export const users = mysqlTable("users", {
 	name: text(),
 	email: varchar({ length: 320 }),
 	loginMethod: varchar({ length: 64 }),
-	role: mysqlEnum(['user','admin','gerente','vendedor','assistente']).default('user').notNull(),
+	role: mysqlEnum(['user','admin','gerente','vendedor','assistente','convidado']).default('user').notNull(),
+	passwordHash: varchar({ length: 255 }),
 	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 	updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 	lastSignedIn: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
@@ -187,6 +188,20 @@ export const users = mysqlTable("users", {
 (table) => [
 	index("users_openId_unique").on(table.openId),
 ]);
+
+// ─── Convites de Usuário ──────────────────────────────────────────────────────
+export const invites = mysqlTable("invites", {
+	id: int().autoincrement().notNull(),
+	email: varchar({ length: 320 }).notNull(),
+	token: varchar({ length: 128 }).notNull(),
+	role: mysqlEnum(['user','convidado','vendedor','assistente','gerente']).default('convidado').notNull(),
+	message: text(),
+	invitedByUserId: int(),
+	status: mysqlEnum(['pending','accepted','expired','revoked']).default('pending').notNull(),
+	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	acceptedAt: timestamp({ mode: 'string' }),
+	expiresAt: timestamp({ mode: 'string' }),
+});
 
 // ─── Pedidos de Fábrica ─────────────────────────────────────────────────────
 export const factoryOrders = mysqlTable("factory_orders", {

@@ -2337,3 +2337,16 @@
 - [ ] Garantir que algoritmo de perfis continua funcionando sem Google Sheets
 - [ ] Corrigir botão 220V que ainda aparece habilitado quando API não retorna driver220
 - [ ] Remover botão "Atualizar Drivers" e toda lógica relacionada ao Google Sheets
+
+## Feature: Role "LD Convidado" + Painel Gerenciador de Usuários
+
+- [ ] Adicionar role 'convidado' ao enum de roles no schema
+- [ ] Criar tabela de convites (invites) com token, e-mail, mensagem, status
+- [ ] Adicionar campo passwordHash na tabela users para login por senha
+- [ ] Backend: endpoint de login por e-mail+senha para convidados
+- [ ] Backend: endpoint de criação de convite (admin-only) com envio de e-mail
+- [ ] Backend: endpoint de aceitação de convite (definir senha)
+- [ ] Frontend: ocultar preços, custos, carrinho, botão adicionar para role convidado
+- [ ] Frontend: página de login para convidados (e-mail + senha)
+- [ ] Frontend: painel gerenciador de usuários (admin-only, botão no header)
+- [ ] Frontend: formulário de convite com mensagem personalizada
