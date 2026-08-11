@@ -815,9 +815,9 @@ function ShapeResultCard({
         lines.push(`LUMINÁRIA: ${formatBRL(precoLuminaria)} (sem driver)`);
         lines.push(`DRIVERS: ${formatBRL(precoDriver)}`);
       }
-      if (precoEfetivo !== null) {
+      if (!isConvidadoRB && precoEfetivo !== null) {
         lines.push(`PREÇO ESTIMADO: ${formatBRL(precoEfetivo)} (ON/OFF 220V)`);
-      } else if (precoDriver != null) {
+      } else if (!isConvidadoRB && precoDriver != null) {
         lines.push(`DRIVERS: ${formatBRL(precoDriver)} (luminária a definir)`);
       }
     }
@@ -2090,7 +2090,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
   const manualPrecoNum = manualPreco !== "" ? parseFloat(manualPreco.replace(",", ".")) : null;
   const precoEfetivo = precoTotal ?? (manualPrecoNum != null && !isNaN(manualPrecoNum) && manualPrecoNum > 0 ? manualPrecoNum : null);
 
-  const summary = generateQuoteSummary(result, precoEfetivo);
+  const summary = generateQuoteSummary(result, isConvidadoQSC ? null : precoEfetivo);
 
   const handleCopy = async () => {
     try {
@@ -2476,7 +2476,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
           Clique no texto para selecionar ou use o botão "Copiar Resumo" para copiar diretamente.
         </p>
         {/* Detalhamento de Preços por módulo */}
-        {modulePriceResult && modulePriceResult.breakdown.length > 0 && (
+        {!isConvidadoQSC && modulePriceResult && modulePriceResult.breakdown.length > 0 && (
           <div className="mt-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 mb-2">
               <DollarSign className="w-3.5 h-3.5" />
@@ -9447,7 +9447,7 @@ export default function Home() {
                     const isPerfilFlex = /^PERFIL FLEXIVEL/i.test(r.product.familia ?? "");
                     const orcamentoLines = [
                       [`${r.product.name} ${r.cct} ${r.voltage}`, nT > 1 ? `${nT} TRECHOS DE ${mm}MM` : `${mm}MM`].join(" "),
-                      lbPreco !== null
+                      !isConvidado && lbPreco !== null
                         ? isPerfilFlex
                           ? `PREÇO PERFIL: ${formatBRL(lbPreco)} (drivers não incluídos)`
                           : `PREÇO: ${formatBRL(lbPreco)}`
@@ -9794,7 +9794,7 @@ export default function Home() {
                   const r = bgResult;
                   const comprStr = `${r.comprimento}MM`;
                   const cortesStr = r.nCortes > 1 ? ` (${r.nCortes} CORTES DE ${r.comprimentoPorCorte}MM)` : "";
-                  const precoLine = r.precoTotal !== null ? `PREÇO: ${formatBRL(r.precoTotal)}` : null;
+                  const precoLine = (!isConvidado && r.precoTotal !== null) ? `PREÇO: ${formatBRL(r.precoTotal)}` : null;
                   const orcamento = [
                     `${r.product.name} ${r.cct} ${r.controle} ${comprStr}${cortesStr}`,
                     precoLine,
@@ -9865,7 +9865,7 @@ export default function Home() {
                           >
                             {orcamento}
                           </div>
-                          {r.precoPerfil !== null && r.precoPerfil !== undefined ? (
+                          {!isConvidado && r.precoPerfil !== null && r.precoPerfil !== undefined ? (
                             <div className="mt-3 space-y-1.5">
                               <div className="flex items-center justify-between rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-2.5">
                                 <span className="text-sm font-semibold text-blue-400 uppercase tracking-wide">Corpo (perfil)</span>
@@ -9882,12 +9882,12 @@ export default function Home() {
                                 <span className="text-lg font-bold text-emerald-300">{formatBRL((r.precoPerfil ?? 0) + (r.precoDriverTotal ?? 0))}</span>
                               </div>
                             </div>
-                          ) : r.precoTotal !== null && r.precoTotal !== undefined ? (
+                          ) : !isConvidado && r.precoTotal !== null && r.precoTotal !== undefined ? (
                             <div className="flex items-center justify-between rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-3 mt-3">
                               <span className="text-sm font-semibold text-blue-400 uppercase tracking-wide">Preço Total</span>
                               <span className="text-lg font-bold text-blue-300">{formatBRL(r.precoTotal)}</span>
                             </div>
-                          ) : (
+                          ) : !isConvidado ? (
                             <div className="space-y-1 rounded-lg border border-amber-500/30 bg-amber-50/30 dark:bg-amber-900/10 px-3 py-2 mt-3">
                               <span className="text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3 shrink-0" />API sem custo — informe o preço manualmente:</span>
                               <div className="flex items-center gap-2">
@@ -9905,7 +9905,7 @@ export default function Home() {
                               </div>
                               <p className="text-xs text-muted-foreground">Este preço será usado no orçamento.</p>
                             </div>
-                          )}
+                          ) : null}
                           <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
                           <div className="flex flex-wrap items-center gap-2 mt-2">
                             <div className="flex items-center gap-1.5">
@@ -10122,7 +10122,7 @@ export default function Home() {
                         onClick={() => {
                           const preco = getPrecoForControle(bfResult.product, bfResult.controle, bfResult.tensao);
                           const lines = [`${bfResult.product.name} ${bfResult.cct} ${bfResult.tensao}`.toUpperCase()];
-                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          if (!isConvidado && preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
                           navigator.clipboard.writeText(lines.join("\n"));
                           toast.success("Copiado!");
                         }}
@@ -10198,7 +10198,7 @@ export default function Home() {
                           if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
                           const totalCalc = (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) ? drvLines.priceWithoutDriver + totalDrv : null;
                           if (totalCalc !== null) lines.push(`TOTAL: ${formatBRL(totalCalc)}`);
-                          else if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                          else if (!isConvidado && preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
                         } else if (preco !== null) {
                           lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
                         }
@@ -10271,7 +10271,7 @@ export default function Home() {
                         onClick={() => {
                           const preco = getPrecoForControle(aldaResult.product, aldaResult.controle, aldaResult.tensao);
                           const lines = [`${aldaResult.product.name} ${aldaResult.cct} ${aldaResult.tensao}`.toUpperCase()];
-                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          if (!isConvidado && preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
                           navigator.clipboard.writeText(lines.join("\n"));
                           toast.success("Copiado!");
                         }}
@@ -10381,7 +10381,7 @@ export default function Home() {
                           if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
                           const totalCalc = (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) ? drvLines.priceWithoutDriver + totalDrv : null;
                           if (totalCalc !== null) lines.push(`TOTAL: ${formatBRL(totalCalc)}`);
-                          else if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                          else if (!isConvidado && preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
                         } else if (preco !== null) {
                           lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
                         }
@@ -10511,7 +10511,7 @@ export default function Home() {
                         onClick={() => {
                           const preco = getPrecoForControle(glowResult.product, glowResult.controle, glowResult.tensao);
                           const lines = [`${glowResult.product.name} ${glowResult.cct} ${glowResult.tensao}`.toUpperCase()];
-                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          if (!isConvidado && preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
                           navigator.clipboard.writeText(lines.join("\n"));
                           toast.success("Copiado!");
                         }}
@@ -10588,7 +10588,7 @@ export default function Home() {
                           if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
                           const totalCalc = (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) ? drvLines.priceWithoutDriver + totalDrv : null;
                           if (totalCalc !== null) lines.push(`TOTAL: ${formatBRL(totalCalc)}`);
-                          else if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                          else if (!isConvidado && preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
                         } else if (preco !== null) {
                           lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
                         }
@@ -10718,7 +10718,7 @@ export default function Home() {
                         onClick={() => {
                           const preco = getPrecoForControle(tubeLightResult.product, tubeLightResult.controle, tubeLightResult.tensao);
                           const lines = [`${tubeLightResult.product.name} ${tubeLightResult.cct} ${tubeLightResult.tensao}`.toUpperCase()];
-                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          if (!isConvidado && preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
                           navigator.clipboard.writeText(lines.join("\n"));
                           toast.success("Copiado!");
                         }}
@@ -10795,7 +10795,7 @@ export default function Home() {
                           if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
                           const totalCalc = (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) ? drvLines.priceWithoutDriver + totalDrv : null;
                           if (totalCalc !== null) lines.push(`TOTAL: ${formatBRL(totalCalc)}`);
-                          else if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                          else if (!isConvidado && preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
                         } else if (preco !== null) {
                           lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
                         }
@@ -10939,7 +10939,7 @@ export default function Home() {
                           onClick={() => {
                             const lines = [`${dProd.name} ${decCCT}`.toUpperCase()];
                             if (dDriverStr) lines.push(`DRIVER: ${dDriverStr.toUpperCase()}`);
-                            if (dPreco !== null) lines.push(`PREÇO: ${formatBRL(dPreco)}`);
+                            if (!isConvidado && dPreco !== null) lines.push(`PREÇO: ${formatBRL(dPreco)}`);
                             navigator.clipboard.writeText(lines.join("\n"));
                             toast.success("Copiado!");
                           }}
@@ -11006,7 +11006,7 @@ export default function Home() {
                         {(() => {
                           const lines = [`${dProd.name} ${decCCT}`.toUpperCase()];
                           if (dDriverStr) lines.push(`DRIVER: ${dDriverStr.toUpperCase()}`);
-                          if (dPreco !== null) lines.push(`PREÇO: ${formatBRL(dPreco)}`);
+                          if (!isConvidado && dPreco !== null) lines.push(`PREÇO: ${formatBRL(dPreco)}`);
                           return lines.join("\n");
                         })()}
                       </div>
@@ -11144,7 +11144,7 @@ export default function Home() {
                           onClick={() => {
                             const lines = [`${bProd.name} ${balCCT}`.toUpperCase()];
                             if (bDriverStr) lines.push(`DRIVER: ${bDriverStr.toUpperCase()}`);
-                            if (bPreco !== null) lines.push(`PREÇO: ${formatBRL(bPreco)}`);
+                            if (!isConvidado && bPreco !== null) lines.push(`PREÇO: ${formatBRL(bPreco)}`);
                             navigator.clipboard.writeText(lines.join("\n"));
                             toast.success("Copiado!");
                           }}
@@ -11212,7 +11212,7 @@ export default function Home() {
                         {(() => {
                           const lines = [`${bProd.name} ${balCCT}`.toUpperCase()];
                           if (bDriverStr) lines.push(`DRIVER: ${bDriverStr.toUpperCase()}`);
-                          if (bPreco !== null) lines.push(`PREÇO: ${formatBRL(bPreco)}`);
+                          if (!isConvidado && bPreco !== null) lines.push(`PREÇO: ${formatBRL(bPreco)}`);
                           return lines.join("\n");
                         })()}
                       </div>
@@ -11408,7 +11408,7 @@ export default function Home() {
                         onClick={() => {
                           const preco = getPrecoForControle(dlResult.product, dlResult.controle, dlResult.tensao);
                           const lines = [`${dlResult.product.name} ${dlResult.cct} ${dlResult.tensao}`.toUpperCase()];
-                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          if (!isConvidado && preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
                           const txt = lines.join("\n");
                           navigator.clipboard.writeText(txt);
                           toast.success("Copiado!");
@@ -11494,7 +11494,7 @@ export default function Home() {
                             if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
                             const totalCalc = (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) ? drvLines.priceWithoutDriver + totalDrv : null;
                             if (totalCalc !== null) lines.push(`TOTAL: ${formatBRL(totalCalc)}`);
-                            else if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                            else if (!isConvidado && preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
                           } else if (preco !== null) {
                             lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
                           }
@@ -11713,7 +11713,7 @@ export default function Home() {
                         onClick={() => {
                           const preco = getPrecoForControle(aeResult.product, aeResult.controle, aeResult.tensao);
                           const lines = [`${aeResult.product.name} ${aeResult.cct} ${aeResult.tensao}`.toUpperCase()];
-                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          if (!isConvidado && preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
                           navigator.clipboard.writeText(lines.join("\n"));
                           toast.success("Copiado!");
                         }}
@@ -11791,7 +11791,7 @@ export default function Home() {
                             if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
                             const totalCalc = (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) ? drvLines.priceWithoutDriver + totalDrv : null;
                             if (totalCalc !== null) lines.push(`TOTAL: ${formatBRL(totalCalc)}`);
-                            else if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                            else if (!isConvidado && preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
                           } else if (preco !== null) {
                             lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
                           }
@@ -12264,7 +12264,7 @@ export default function Home() {
                         onClick={() => {
                           const preco = getPrecoForControle(panelResult.product, panelResult.controle, panelResult.tensao);
                           const lines = [`${panelResult.product.name} ${panelResult.cct} ${panelResult.tensao}`.toUpperCase()];
-                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          if (!isConvidado && preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
                           const txt = lines.join("\n");
                           navigator.clipboard.writeText(txt);
                           toast.success("Copiado!");
@@ -12383,7 +12383,7 @@ export default function Home() {
                             if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
                             const totalCalc = (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) ? drvLines.priceWithoutDriver + totalDrv : null;
                             if (totalCalc !== null) lines.push(`TOTAL: ${formatBRL(totalCalc)}`);
-                            else if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                            else if (!isConvidado && preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
                           } else if (preco !== null) {
                             lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
                           }
@@ -12604,7 +12604,7 @@ export default function Home() {
                         onClick={() => {
                           const preco = getPrecoForControle(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao);
                           const lines = [`${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.tensao}`.toUpperCase()];
-                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          if (!isConvidado && preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
                           const txt = lines.join("\n");
                           navigator.clipboard.writeText(txt);
                           toast.success("Copiado!");
@@ -12682,7 +12682,7 @@ export default function Home() {
                             if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
                             const totalCalc = (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) ? drvLines.priceWithoutDriver + totalDrv : null;
                             if (totalCalc !== null) lines.push(`TOTAL: ${formatBRL(totalCalc)}`);
-                            else if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                            else if (!isConvidado && preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
                           } else if (preco !== null) {
                             lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
                           }
@@ -12907,7 +12907,7 @@ export default function Home() {
                         onClick={() => {
                           const preco = getPrecoForControle(spotResult.product, spotResult.controle, spotResult.tensao);
                           const lines = [`${spotResult.product.name} ${spotResult.cct} ${spotResult.tensao}`.toUpperCase()];
-                          if (preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
+                          if (!isConvidado && preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
                           const txt = lines.join("\n");
                           navigator.clipboard.writeText(txt);
                           toast.success("Copiado!");
@@ -12985,7 +12985,7 @@ export default function Home() {
                             if (totalDrv > 0) lines.push(`DRIVERS: ${formatBRL(totalDrv)}`);
                             const totalCalc = (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) ? drvLines.priceWithoutDriver + totalDrv : null;
                             if (totalCalc !== null) lines.push(`TOTAL: ${formatBRL(totalCalc)}`);
-                            else if (preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
+                            else if (!isConvidado && preco !== null) lines.push(`TOTAL: ${formatBRL(preco * globalQty)}`);
                           } else if (preco !== null) {
                             lines.push(`PREÇO: ${formatBRL(preco * globalQty)}`);
                           }
