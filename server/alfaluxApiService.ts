@@ -198,6 +198,9 @@ interface CacheEntry {
 }
 
 let cache: CacheEntry | null = null;
+// Compartilha somente a requisição que já está em andamento. Quando ela termina,
+// o próximo acesso consulta a API novamente; portanto não é cache de catálogo.
+let productsFetchInFlight: Promise<AlfaluxProduct[]> | null = null;
 
 export async function fetchAllAlfaluxProducts(): Promise<AlfaluxProduct[]> {
   const now = Date.now();
@@ -205,6 +208,9 @@ export async function fetchAllAlfaluxProducts(): Promise<AlfaluxProduct[]> {
     return cache.data;
   }
 
+  if (productsFetchInFlight) return productsFetchInFlight;
+
+  const freshFetch = (async (): Promise<AlfaluxProduct[]> => {
   console.log("[AlfaluxAPI] Buscando produtos via /api/products/all...");
   const url = `${ALFALUX_BASE}/api/products/all`;
   const res = await fetch(url, {
@@ -332,6 +338,14 @@ export async function fetchAllAlfaluxProducts(): Promise<AlfaluxProduct[]> {
   console.log(`[AlfaluxAPI] ${all.length} produtos carregados.`);
   cache = { data: all, fetchedAt: now };
   return all;
+  })();
+
+  productsFetchInFlight = freshFetch;
+  try {
+    return await freshFetch;
+  } finally {
+    if (productsFetchInFlight === freshFetch) productsFetchInFlight = null;
+  }
 }
 
 export function invalidateAlfaluxCache(): void {

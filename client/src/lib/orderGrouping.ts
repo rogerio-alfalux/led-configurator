@@ -44,6 +44,7 @@ function buildGroupKey(item: CartItemData): string {
       item.sku ?? "",
       item.description ?? "",
       item.specialDescription ?? "",
+      item.specialDimensions ?? "",
       item.corPeca ?? "",
       item.specialColor ?? "",
       item.specialPower ?? "",

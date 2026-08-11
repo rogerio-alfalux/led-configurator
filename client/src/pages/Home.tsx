@@ -342,13 +342,21 @@ function buildLumDriverLines(
     drvQtyPerUnit = entry.driverQtd220 ?? 1;
   }
 
-  // Se não há custo do driver, não é possível desmembrar
-  if (custoDriver == null || custoDriver === 0) return null;
-
-  const mkDriver = markupDriver ?? entry.markupMinimoDriver ?? 3;
-  const totalDrvQty = drvQtyPerUnit * itemQty;
-  const driverUnitPrice = Math.round(custoDriver * mkDriver * 100) / 100;
-  const driverTotalPrice = Math.round(driverUnitPrice * totalDrvQty * 100) / 100;
+  // A API é a fonte exclusiva de equipamentos. Se ela não retornar modelo,
+  // código, quantidade ou custo de driver, o produto é tratado como sem
+  // equipamento: não criamos linha nem somamos preço/custo de driver.
+  const hasApiDriver = Boolean(driverModel?.trim() && driverCode?.trim())
+    && custoDriver != null
+    && custoDriver > 0
+    && drvQtyPerUnit > 0;
+  const mkDriver = hasApiDriver ? (markupDriver ?? entry.markupMinimoDriver ?? 3) : null;
+  const totalDrvQty = hasApiDriver ? drvQtyPerUnit * itemQty : 0;
+  const driverUnitPrice = hasApiDriver && mkDriver != null
+    ? Math.round(custoDriver! * mkDriver * 100) / 100
+    : null;
+  const driverTotalPrice = driverUnitPrice != null
+    ? Math.round(driverUnitPrice * totalDrvQty * 100) / 100
+    : null;
 
   // Preço sem driver = preço do corpo × markup do corpo × qty
   // Se custoCorpo é null, o usuário deverá informar manualmente
@@ -362,14 +370,14 @@ function buildLumDriverLines(
 
   const unitPriceDriver = driverUnitPrice;
 
-  const driverLines: import("@/lib/cartTypes").DriverLine[] = [{
+  const driverLines: import("@/lib/cartTypes").DriverLine[] = hasApiDriver && driverUnitPrice != null ? [{
     driverModel,
     driverCode,
     driverQty: totalDrvQty,
     driverUnitPrice,
     driverTotalPrice,
     corrente: driverCorrente ?? null,
-  }];
+  }] : [];
 
   const markupMinimoCorpo: number | null = (() => {
     if (controle === 'DIM DALI') return entry.markupMinimoDimDali ?? null;
@@ -379,7 +387,7 @@ function buildLumDriverLines(
     if (tensao === 'Bivolt') return entry.markupMinimoOnoffBivolt ?? null;
     return entry.markupMinimoOnoff220v ?? null;
   })();
-  return { driverLines, priceWithoutDriver, unitPriceLuminaria, unitPriceDriver, luminariaHasApiPrice, custoCorpoBase: custoCorpo, custoDriverBase: custoDriver, markupPadraoApi: markupCorpo, markupMinimoApi: markupMinimoCorpo, markupMinimoDriverApi: entry.markupMinimoDriver, drvQtyPerUnit };
+  return { driverLines, priceWithoutDriver, unitPriceLuminaria, unitPriceDriver, luminariaHasApiPrice, custoCorpoBase: custoCorpo, custoDriverBase: hasApiDriver ? custoDriver : null, markupPadraoApi: markupCorpo, markupMinimoApi: markupMinimoCorpo, markupMinimoDriverApi: hasApiDriver ? entry.markupMinimoDriver : null, drvQtyPerUnit: hasApiDriver ? drvQtyPerUnit : 0 };
 }
 
 // ─── Componente de Breakdown de Preço ────────────────────────────────────────────────────────────────────
@@ -3346,6 +3354,7 @@ export default function Home() {
   const [glowProductKey, setGlowProductKey] = useState<string | null>(null);
   const [glowVoltage, setGlowVoltage] = useState<"220V" | "Bivolt" | null>(null);
   const [glowCCT, setGlowCCT] = useState<string>("3000K");
+  const [glowControle, setGlowControle] = useState<ControleType>("ON/OFF");
   const [glowResult, setGlowResult] = useState<DownlightResult | null>(null);
   // ── Estados de TUBE LIGHT (perfil fixo, sem composição) ────────────────────────────
   const [tubeLightMode, setTubeLightMode] = useState<boolean>(false);
@@ -5472,6 +5481,8 @@ export default function Home() {
                           const prod = activeGlowCatalog.find(p => p.sku === s && p.name === np.join('::'));
                           const availCCTs = prod?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
                           if (!availCCTs.includes(glowCCT)) setGlowCCT(availCCTs[0] ?? "3000K");
+                          if (glowControle === "DIM DALI" && !prod?.driverDimDali) setGlowControle("ON/OFF");
+                          if (glowControle === "DIM 1-10V" && !prod?.driverDim110v) setGlowControle("ON/OFF");
                           // Auto-selecionar tensão quando só uma opção disponível
                           const gNewHas220 = prod?.driver220 != null;
                           const gNewHasBivolt = prod?.driverBivolt != null;
@@ -5491,12 +5502,36 @@ export default function Home() {
                         </SelectContent>
                       </Select>
                     </div>
+                    {/* Controle — habilitado somente quando a API informar o driver correspondente */}
+                    {glowProductKey !== null && (() => {
+                      const [_gSku, ..._gNP] = (glowProductKey ?? '::').split('::');
+                      const gSelProdCtrl = activeGlowCatalog.find(p => p.sku === _gSku && p.name === _gNP.join('::'));
+                      const hasDim110v = gSelProdCtrl?.driverDim110v != null;
+                      const hasDimDali = gSelProdCtrl?.driverDimDali != null;
+                      return (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Controle</Label>
+                          <div className="flex gap-2">
+                            {(["ON/OFF", "DIM 1-10V", "DIM DALI"] as ControleType[]).map((ctrl) => {
+                              const isAvailable = ctrl === "ON/OFF" || (ctrl === "DIM 1-10V" && hasDim110v) || (ctrl === "DIM DALI" && hasDimDali);
+                              return (
+                                <button key={ctrl} disabled={!isAvailable} onClick={() => { if (isAvailable) { setGlowControle(ctrl); setGlowResult(null); } }} title={!isAvailable ? "Driver não cadastrado na API para este produto" : undefined}
+                                  className={["flex-1 py-2 rounded-lg text-xs font-medium border transition-all", glowControle === ctrl && isAvailable ? "bg-primary text-primary-foreground border-primary" : "bg-background text-foreground border-border hover:border-primary/50", !isAvailable ? "opacity-40 cursor-not-allowed" : ""].join(" ")}
+                                >{ctrl}</button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
                     {/* Tensão */}
                     {glowProductKey !== null && (() => {
                       const [_gSku, ..._gNP] = (glowProductKey ?? '::').split('::');
                       const gSelProd = activeGlowCatalog.find(p => p.sku === _gSku && p.name === _gNP.join('::'));
-                      const hasBivolt = gSelProd?.driverBivolt != null;
-                      const has220Glow = gSelProd?.driver220 != null;
+                      const dimDriver = glowControle === "DIM DALI" ? gSelProd?.driverDimDali : glowControle === "DIM 1-10V" ? gSelProd?.driverDim110v : null;
+                      const dimIsBivolt = dimDriver != null && /bivolt/i.test(dimDriver.model);
+                      const hasBivolt = glowControle === "ON/OFF" ? gSelProd?.driverBivolt != null : dimIsBivolt;
+                      const has220Glow = glowControle === "ON/OFF" ? gSelProd?.driver220 != null : (dimDriver != null && !dimIsBivolt);
                       return (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
@@ -5556,7 +5591,7 @@ export default function Home() {
                           const gName = gNP.join('::');
                           const gProd = activeGlowCatalog.find(p => p.sku === gSku && p.name === gName);
                           if (!gProd) { toast.error("Produto GLOW não encontrado."); return; }
-                          const res = calculateDownlight({ productSku: gProd.sku ?? "", productName: gProd.name, cct: glowCCT, controle: "ON/OFF", tensao: glowVoltage }, activeGlowCatalog);
+                          const res = calculateDownlight({ productSku: gProd.sku ?? "", productName: gProd.name, cct: glowCCT, controle: glowControle, tensao: glowVoltage }, activeGlowCatalog);
                           if (!res) { toast.error("Não foi possível calcular. Verifique as opções."); return; }
                           setGlowResult(res);
                         }}

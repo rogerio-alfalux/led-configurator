@@ -181,6 +181,27 @@ describe("materialRequisition", () => {
 });
 
 describe("buildMaterialRequisition — componentes múltiplos (óticas, holders, dissipadores)", () => {
+  it("não deve requisitar driver, módulo, lente, holder ou dissipador de item sem equipamento", () => {
+    const items: CartItemData[] = [{
+      category: "Downlights",
+      sku: "DL-SEM-EQUIPAMENTO",
+      description: "DOWNLIGHT SEM EQUIPAMENTO",
+      qty: 2,
+      unitPrice: 100,
+      totalPrice: 200,
+      photoUrl: null,
+      withoutEquipment: true,
+      moduloLed: "MÓDULO LED (EQ00123) + LENTE (EQ00456) + HOLDER (EQ00789) + DISSIPADOR (EQ00999)",
+      moduloLedCode: "EQ00123",
+      driverLines: [{ driverModel: "DRIVER OSRAM", driverCode: "EQ00220", driverQty: 2 }],
+    } as any];
+
+    const result = buildMaterialRequisition(items);
+    expect(result.map(entry => entry.codigo)).not.toEqual(expect.arrayContaining([
+      "EQ00123", "EQ00456", "EQ00789", "EQ00999", "EQ00220",
+    ]));
+  });
+
   it("deve extrair módulo LED, lente, holder e dissipador de moduloLed concatenado", () => {
     const items: CartItemData[] = [
       {

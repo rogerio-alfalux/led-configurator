@@ -2400,3 +2400,13 @@
 - [x] Criar flag de prospecção de lighting designer e separar seus valores dos indicadores comerciais
 - [x] Criar conversão em manutenção, vinculável a pedido existente, com a mesma estrutura de pedidos de amostra
 - [x] Adicionar campo de faturamento mensal informado manualmente no dashboard
+
+## Lote 5: Regras comerciais, permissões e itens especiais
+- [x] Restringir conversão, cancelamento e vínculo de amostras a Vivian, Rogério e Dennis
+- [x] Permitir DIM DALI para GLOW quando a API retornar driver compatível
+- [x] Garantir que acessórios vinculados participem da margem e do RT do orçamento
+- [x] Remover custo de driver de itens cujo produto não possui equipamento pela API
+- [x] Usar custos reais de frete e custos adicionais no resultado financeiro
+- [x] Não agrupar itens especiais de medidas diferentes
+- [x] Manter dados de configuração e API padronizados entre usuários
+- [x] Otimizar carregamento sem comprometer dados atualizados da API

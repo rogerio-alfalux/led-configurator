@@ -802,7 +802,7 @@ export default function Cart() {
 
   // Edição inline de campos do item
   const [editItemId, setEditItemId] = useState<number | null>(null);
-  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; driverUnitPriceOverride: string; itemNote: string; itemObs: string; itemObsShowInExcel: boolean; itemMarginPercent: string; floorId: string; floorName: string; ambiente: string; specialColorTemp: string; specialEquipments: SpecialEquipment[]; mkpCustom: string; specialDescription: string; specialDimensions: string; specialPower: string; specialDim: string; specialVoltage: string; specialColor: string; description: string; itemEmPlanta: string; specialCustoUnitario: string; specialMarkup: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', driverUnitPriceOverride: '', itemNote: '', itemObs: '', itemObsShowInExcel: false, itemMarginPercent: '', floorId: '', floorName: '', ambiente: '', specialColorTemp: '', specialEquipments: [], mkpCustom: '', specialDescription: '', specialDimensions: '', specialPower: '', specialDim: '', specialVoltage: '', specialColor: '', description: '', itemEmPlanta: '', specialCustoUnitario: '', specialMarkup: '' });
+  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; driverUnitPriceOverride: string; itemNote: string; itemObs: string; itemObsShowInExcel: boolean; withoutEquipment?: boolean; itemMarginPercent: string; floorId: string; floorName: string; ambiente: string; specialColorTemp: string; specialEquipments: SpecialEquipment[]; mkpCustom: string; specialDescription: string; specialDimensions: string; specialPower: string; specialDim: string; specialVoltage: string; specialColor: string; description: string; itemEmPlanta: string; specialCustoUnitario: string; specialMarkup: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', driverUnitPriceOverride: '', itemNote: '', itemObs: '', itemObsShowInExcel: false, withoutEquipment: false, itemMarginPercent: '', floorId: '', floorName: '', ambiente: '', specialColorTemp: '', specialEquipments: [], mkpCustom: '', specialDescription: '', specialDimensions: '', specialPower: '', specialDim: '', specialVoltage: '', specialColor: '', description: '', itemEmPlanta: '', specialCustoUnitario: '', specialMarkup: '' });
   // Estados para edição de foto de Item Especial
   const [editSpecialPhotoUrl, setEditSpecialPhotoUrl] = useState<string | null>(null);
   const [editSpecialPhotoPreview, setEditSpecialPhotoPreview] = useState<string | null>(null);
@@ -989,7 +989,8 @@ export default function Cart() {
     const pct = Math.min(Math.max(itemMarginPercent / 100, 0), 0.99);
     return base / (1 - pct);
   };
-  // totalGeral inclui luminária + drivers de cada item + margem individual
+  // Acessórios vinculados acompanham a quantidade da luminária e entram na
+  // base comercial do item, recebendo margem e RT como o restante do orçamento.
   const totalGeral = entries.reduce((acc, e) => {
     // Itens "Não Orçamos" são apenas indicativos e não entram no total
     if (e.data.category === 'Não Orçamos') return acc;
@@ -1012,8 +1013,9 @@ export default function Cart() {
     } else {
       itemTotal = e.data.totalPrice ?? 0;
     }
-    // Aplicar margem individual do item (acréscimo sobre o preço base)
-    return acc + applyItemMargin(itemTotal, e.data.itemMarginPercent);
+    const accessoryTotal = (e.data.accessories ?? []).reduce((sum, accessory) =>
+      sum + (Number(accessory.unitPrice ?? 0) * Number(accessory.qty ?? 0) * Number(e.data.qty ?? 1)), 0);
+    return acc + applyItemMargin(itemTotal + accessoryTotal, e.data.itemMarginPercent);
   }, 0);
 
   // Cálculo de RT e Margem
@@ -2766,6 +2768,19 @@ export default function Cart() {
                     </Select>
                   </div>
                   )}
+                  {!item?.data.isSpecialItem && (
+                    <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-800 dark:bg-amber-950/20">
+                      <Checkbox
+                        id="without-equipment"
+                        checked={Boolean(editFields.withoutEquipment)}
+                        onCheckedChange={(value) => setEditFields(prev => ({ ...prev, withoutEquipment: Boolean(value) }))}
+                      />
+                      <div className="space-y-0.5">
+                        <Label htmlFor="without-equipment" className="cursor-pointer text-sm font-medium">Produto sem equipamento</Label>
+                        <p className="text-xs text-muted-foreground">Remove driver e componentes técnicos do orçamento, ficha de produção e requisição de materiais, usando somente o corpo da luminária.</p>
+                      </div>
+                    </div>
+                  )}
                   {/* Campo de preço: desmembrado (luminária + driver) ou unitário */}
                   {item?.data.driverLines && item.data.driverLines.length > 0 ? (
                     <>
@@ -3241,8 +3256,24 @@ export default function Cart() {
                 }
                 if (editFields.corPeca && editFields.corPeca !== 'A Definir') patch.corPeca = editFields.corPeca;
                 else if (editFields.corPeca === 'A Definir') patch.corPeca = '';
+                patch.withoutEquipment = Boolean(editFields.withoutEquipment);
+                if (editFields.withoutEquipment && item?.data) {
+                  const qty = parseInt(editFields.qty) || item.data.qty || 1;
+                  const bodyUnitPrice = item.data.unitPriceLuminaria
+                    ?? (item.data.priceWithoutDriver != null ? item.data.priceWithoutDriver / Math.max(item.data.qty ?? 1, 1) : item.data.unitPrice ?? 0);
+                  patch.driverLines = [];
+                  patch.drivers = '';
+                  patch.unitPriceDriver = null;
+                  patch.custoDriverBase = null;
+                  patch.moduloLed = '';
+                  patch.moduloLedCode = null;
+                  patch.unitPriceLuminaria = bodyUnitPrice;
+                  patch.priceWithoutDriver = Math.round(bodyUnitPrice * qty * 100) / 100;
+                  patch.unitPrice = bodyUnitPrice;
+                  patch.totalPrice = Math.round(bodyUnitPrice * qty * 100) / 100;
+                }
                 // Salvar preço manual
-                if (item?.data.driverLines && item.data.driverLines.length > 0) {
+                if (item?.data.driverLines && item.data.driverLines.length > 0 && !editFields.withoutEquipment) {
                   // Item com driver desmembrado: editFields.unitPrice é o preço da luminária
                   const canEditLuminaria = !item.data.luminariaHasApiPrice || canOverrideApiPriceSave;
                   // Override do preço do driver (apenas para quem tem permissão)

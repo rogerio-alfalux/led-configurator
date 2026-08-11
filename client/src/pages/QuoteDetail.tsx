@@ -1676,6 +1676,7 @@ export default function QuoteDetail() {
   }
 
   const { quote, versions, items, canEdit, canSeeCommission = false, canEditCommission = false } = data as typeof data & { canSeeCommission?: boolean; canEditCommission?: boolean };
+  const canManageSamples = hasQuotePermission(PERMISSIONS.GERENCIAR_AMOSTRAS);
   const st = STATUS_LABELS[quote.status] ?? STATUS_LABELS.open;
   const hasDraftRevision = versions.some((version: any) => version.status === 'draft');
   const exportRevisionCount = (quote.revisionCount ?? 0) + (hasDraftRevision ? 1 : 0);
@@ -2765,7 +2766,7 @@ export default function QuoteDetail() {
           </Sheet>}
 
           {/* Converter em Pedido de Amostra */}
-          {(quote.status as string) !== "sample" && canEdit && (
+          {(quote.status as string) !== "sample" && canEdit && canManageSamples && (
             <Button
               variant="outline"
               className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/30"
@@ -2775,7 +2776,7 @@ export default function QuoteDetail() {
               Converter em Amostra
             </Button>
           )}
-          {canEdit && !maintenanceQuery.data && (
+          {canEdit && canManageSamples && !maintenanceQuery.data && (
             <Button
               variant="outline"
               className="gap-2 border-sky-300 text-sky-700 hover:bg-sky-50 dark:border-sky-700 dark:text-sky-400 dark:hover:bg-sky-950/30"
@@ -2785,7 +2786,7 @@ export default function QuoteDetail() {
               Converter em Manutenção
             </Button>
           )}
-          {canEdit && (
+          {canEdit && canManageSamples && (
             <Button
               variant={quote.isProspecting ? "default" : "outline"}
               className="gap-2"

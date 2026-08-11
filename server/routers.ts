@@ -2287,6 +2287,9 @@ export const appRouter = router({
         kind: z.enum(['sample', 'maintenance']).default('sample'),
       }))
       .mutation(async ({ ctx, input }) => {
+        if (!await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.GERENCIAR_AMOSTRAS)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Você não possui permissão para converter em amostra ou manutenção." });
+        }
         // Amostra e manutenção são registros independentes para o mesmo orçamento.
         const existing = await getSampleOrderByQuoteId(input.quoteId, input.kind);
         if (existing) {
@@ -2392,6 +2395,9 @@ export const appRouter = router({
         notes: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
+        if (!await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.GERENCIAR_AMOSTRAS)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Você não possui permissão para editar pedidos sem cobrança." });
+        }
         await updateSampleOrder(input.id, { status: input.status, notes: input.notes });
         await insertAuditLog({
           userId: ctx.user.id,
@@ -2414,6 +2420,9 @@ export const appRouter = router({
         notes: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
+        if (!await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.GERENCIAR_AMOSTRAS)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Você não possui permissão para vincular pedidos sem cobrança." });
+        }
         const result = await createSampleLink({
           sampleOrderId: input.sampleOrderId,
           linkedQuoteId: input.linkedQuoteId,
@@ -2439,6 +2448,9 @@ export const appRouter = router({
     unlink: protectedProcedure
       .input(z.object({ id: z.number(), sampleOrderId: z.number() }))
       .mutation(async ({ ctx, input }) => {
+        if (!await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.GERENCIAR_AMOSTRAS)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Você não possui permissão para desvincular pedidos sem cobrança." });
+        }
         await deleteSampleLink(input.id);
         // Verificar se ainda tem links; se não, voltar status para active
         const remaining = await listSampleLinks(input.sampleOrderId);
@@ -2459,6 +2471,9 @@ export const appRouter = router({
     cancel: protectedProcedure
       .input(z.object({ id: z.number(), quoteId: z.number() }))
       .mutation(async ({ ctx, input }) => {
+        if (!await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.GERENCIAR_AMOSTRAS)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Você não possui permissão para cancelar pedidos sem cobrança." });
+        }
         const sample = await getSampleOrderById(input.id);
         if (!sample) throw new TRPCError({ code: "NOT_FOUND", message: "Pedido de amostra não encontrado." });
         await deleteSampleOrder(input.id, input.quoteId);

@@ -215,6 +215,8 @@ export interface CartItemData {
    * Aparecem indentados abaixo do produto pai no carrinho, orçamento e ficha de produção.
    */
   accessories?: LinkedAccessory[];
+  /** Produto fornecido sem equipamento: não incluir driver, módulo LED, ópticas, holder ou dissipador. */
+  withoutEquipment?: boolean;
 
   // ─── Campos de v32.24 ─────────────────────────────────────────────────────
   /**

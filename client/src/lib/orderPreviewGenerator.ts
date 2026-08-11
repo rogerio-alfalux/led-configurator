@@ -25,6 +25,7 @@ function buildProfileSkuText(item: CartItemData): string {
 }
 
 function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, string>): string {
+  if (item.withoutEquipment) return "";
   if (!item.profileSegments || item.profileSegments.length === 0) {
     const modName = item.moduloLed ?? [item.power, item.cct].filter(Boolean).join(" | ") ?? "";
     // Não duplicar EQ se já está embutido no moduloLed
@@ -58,6 +59,7 @@ function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, stri
 }
 
 function buildLuminariaEquipamentosText(item: CartItemData): string {
+  if (item.withoutEquipment) return "";
   if (!item.driverLines || item.driverLines.length === 0) {
     return item.drivers ?? "";
   }
@@ -77,6 +79,7 @@ function buildLuminariaEquipamentosText(item: CartItemData): string {
 }
 
 function buildProfileEquipamentosText(item: CartItemData): string {
+  if (item.withoutEquipment) return "";
   if (!item.profileSegments || item.profileSegments.length === 0) {
     // Se tem driverLines (luminária com driver desmembrado), usar buildLuminariaEquipamentosText
     if (item.driverLines && item.driverLines.length > 0) {
@@ -149,6 +152,7 @@ function isLedBar(item: CartItemData): boolean {
 }
 
 function buildLedBarFonteLuzText(item: CartItemData): string {
+  if (item.withoutEquipment) return "";
   const nCortes = item.ledBarNCortes ?? 1;
   const mm = item.ledBarComprimentoPorTrechoMm ?? item.ledBarComprimentoTotalMm ?? 0;
   const modulo = item.moduloLed ?? "";
@@ -164,6 +168,7 @@ function buildLedBarFonteLuzText(item: CartItemData): string {
 }
 
 function buildLedBarEquipamentosText(item: CartItemData): string {
+  if (item.withoutEquipment) return "";
   const nCortes = item.ledBarNCortes ?? 1;
   const model = item.ledBarDriverModel ?? "";
   const code = item.ledBarDriverCode ?? "";

@@ -357,7 +357,7 @@ export function buildMaterialRequisition(
     }
 
     // ── LUMINÁRIAS COM driverLines (downlights, painéis, spots) ──────────
-    if (item.driverLines && item.driverLines.length > 0) {
+    if (!item.withoutEquipment && item.driverLines && item.driverLines.length > 0) {
       for (const dl of item.driverLines) {
         if (!dl.driverCode) continue;
         const qtyPerUnit = item.driverLines.length === 1 && item.driverQtyPerUnit != null
@@ -382,7 +382,7 @@ export function buildMaterialRequisition(
     // profileSegments[].ledModuleCode — não contar novamente aqui para evitar duplicata.
     const hasProfileSegments = item.profileSegments && item.profileSegments.length > 0;
     const isLedBar = item.category === "LED BAR";
-    const hasModuloLedComponents = !hasProfileSegments && !isLedBar && item.moduloLed;
+    const hasModuloLedComponents = !item.withoutEquipment && !hasProfileSegments && !isLedBar && item.moduloLed;
     if (hasModuloLedComponents) {
       // Separar componentes pelo " + " e processar cada um individualmente
       const componentParts = item.moduloLed!.split(" + ").map(p => p.trim()).filter(Boolean);
