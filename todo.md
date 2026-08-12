@@ -2430,3 +2430,6 @@
 ## Correção: Driver D1+D2 da API para pendentes e arandelas
 - [x] Corrigir a resolução por SKU da composição D1+D2 da API para EASY H PLUS, HIT e BLAZE H
 - [x] Aplicar a mesma regra a instalações Pendente e Arandela, mostrando o driver exato cadastrado na API
+
+## Correção: Fotos das categorias para LD Convidado
+- [x] Garantir carregamento das fotos das categorias na sessão autenticada por senha de LD Convidado
