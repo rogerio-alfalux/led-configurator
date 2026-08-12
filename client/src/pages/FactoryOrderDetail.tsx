@@ -25,6 +25,7 @@ import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator"
 import { OrderPreviewModal } from "@/components/OrderPreviewModal";
 import type { OrderFormData } from "@/lib/orderExcelGenerator";
 import { toBrasiliaDate, toBrasiliaDateTime } from "@/lib/dateUtils";
+import { formatProfileSkuLines } from "@/lib/profileSkuFormatter";
 import { toast } from "sonner";
 
 // ─── Funções auxiliares para Fonte de Luz e Equipamentos ────────────────────
@@ -368,7 +369,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold truncate">{(() => {
               if (parsed.profileSegments && parsed.profileSegments.length > 0) {
-                return parsed.profileSegments.map(s => `${s.qty}x ${s.sku}`).join(" + ");
+                return formatProfileSkuLines(parsed.profileSegments).join(" + ");
               }
               return parsed.sku || parsed.description;
             })()}</p>
@@ -834,7 +835,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
               <Input
                 value={(() => {
                   if (parsed.profileSegments && parsed.profileSegments.length > 0) {
-                    return Array.from(new Set(parsed.profileSegments.map(s => s.sku))).join(" | ");
+                    return formatProfileSkuLines(parsed.profileSegments).join(" | ");
                   }
                   return parsed.sku ?? "";
                 })()}

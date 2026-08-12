@@ -9,6 +9,7 @@ import type { OrderFormData } from "./orderExcelGenerator";
 import { toBrasiliaDateTime } from "./dateUtils";
 import { groupOrderItems } from "./orderGrouping";
 import { buildMaterialRequisition, groupByTipo } from "./materialRequisition";
+import { formatProfileSkuLines } from "./profileSkuFormatter";
 import type { MaterialTipo } from "./materialRequisition";
 
 function fmtQty(n: number): string {
@@ -17,11 +18,11 @@ function fmtQty(n: number): string {
   return rounded % 1 === 0 ? String(Math.round(rounded)) : rounded.toFixed(1);
 }
 
-function buildProfileSkuText(item: CartItemData): string {
+export function buildProfileSkuText(item: Pick<CartItemData, "sku" | "profileSegments">): string {
   if (!item.profileSegments || item.profileSegments.length === 0) {
-    return item.sku ?? "";
+    return esc(item.sku ?? "");
   }
-  return Array.from(new Set(item.profileSegments.map((seg) => seg.sku))).join("<br>");
+  return formatProfileSkuLines(item.profileSegments).map(esc).join("<br>");
 }
 
 function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, string>): string {

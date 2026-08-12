@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import { CartItemData } from "./cartTypes";
 import type { LinkedAccessory } from "./cartTypes";
+import { formatProfileSkuLines } from "./profileSkuFormatter";
 import { toBrasiliaDate, toBrasiliaDateTime, toBrasiliaFileDate } from "./dateUtils";
 import { groupOrderItems } from "./orderGrouping";
 import { buildMaterialRequisition, groupByTipo } from "./materialRequisition";
@@ -143,15 +144,7 @@ export function buildProfileSkuText(item: Pick<CartItemData, "sku" | "profileSeg
   if (!item.profileSegments || item.profileSegments.length === 0) {
     return item.sku ?? "";
   }
-  const quantitiesBySku = new Map<string, number>();
-  for (const segment of item.profileSegments) {
-    const sku = segment.sku?.trim();
-    if (!sku) continue;
-    quantitiesBySku.set(sku, (quantitiesBySku.get(sku) ?? 0) + Number(segment.qty ?? 0));
-  }
-  return Array.from(quantitiesBySku.entries())
-    .map(([sku, quantity]) => `${fmtQty(quantity || 1)} x ${sku}`)
-    .join("\n");
+  return formatProfileSkuLines(item.profileSegments).join("\n");
 }
 
 /**

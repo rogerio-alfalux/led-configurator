@@ -1,5 +1,7 @@
 # LED Configurator - TODO
 
+- [x] Aplicar retroativamente o detalhamento de quantidade por SKU na ficha de produção para todos os orçamentos, incluindo 33.9995-26
+- [x] Unificar o editor de pedido de fábrica com o formatter de quantidade por SKU da ficha técnica
 - [x] Restaurar na ficha de produção o detalhamento de composição dos perfis com quantidade por SKU
 - [x] Reorganizar os oito indicadores do Dashboard em uma grade 2x4 responsiva, sem truncar rótulos ou valores
 - [x] Corrigir o dashboard do orçamento 20.0442-26 para mostrar somente R$ 4.400,93 de custo do corpo da BAGEO, sem incluir drivers nem alterar preço de venda
