@@ -12,6 +12,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { CartItemData, QuoteFormData } from "./cartTypes";
+import { getPersistedItemPhotoUrl } from "./itemPhoto";
 import { toBrasiliaDate } from "./dateUtils";
 import { getStateInfo } from "./difalTable";
 
@@ -90,7 +91,7 @@ async function _generatePdfBlob(
   // ── Pré-carregar fotos dos produtos ────────────────────────────────────────
   const photoCache = new Map<string, string>();
  const photoUrls = items
-   .map(i => i.photoUrl)
+   .map(getPersistedItemPhotoUrl)
     .filter((u): u is string => !!u && (u.startsWith("/manus-storage/") || u.startsWith("/api/assets/") || u.startsWith("http")));
  await Promise.allSettled(
    photoUrls.map(async (url) => {
@@ -371,7 +372,7 @@ async function _generatePdfBlob(
       String(item.qty ?? 1),
       itemTotal > 0 ? fmtBRL(itemTotal) : "—",
     ]);
-    rowMeta.push({ photoUrl: item.photoUrl || null });
+    rowMeta.push({ photoUrl: getPersistedItemPhotoUrl(item) || null });
 
     // Linhas de driver
     if (item.driverLines && item.driverLines.length > 0) {

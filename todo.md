@@ -3,6 +3,7 @@
 - [x] Corrigir e validar explicitamente o agrupamento de itens tecnicamente equivalentes na ficha de produção, incluindo 04.0173-26 Parcial 1
 - [x] Requisição de materiais: corrigir duplicação de drivers para perfis (profileSegments já contabiliza, driverLines não deve duplicar)
 - [x] Requisição de materiais: adicionar coluna "Itens" indicando quais itens do pedido usam cada componente
+- [x] Persistir foto manual de Item Especial e exibi-la no carrinho, orçamento, PDF, Excel e consultas futuras
 - [x] Exibir painel de amostra/manutenção para todos os administradores e excluir valores convertidos dos totais do dashboard
 - [x] Persistir valor comercial zero em amostras/manutenções e restaurar com segurança no cancelamento
 - [x] Corrigir o prazo de produção no Excel da ficha para usar a mesma data em dias úteis da prévia

@@ -36,6 +36,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCart } from "@/hooks/useCart";
 import { formatBRL, QuoteFormData, CartItemData, parseCartItemData } from "@/lib/cartTypes";
+import { getPersistedItemPhotoUrl } from "@/lib/itemPhoto";
 import type { LinkedAccessory, SpecialEquipment } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
@@ -236,9 +237,9 @@ function SortableCartItem({
             </div>
 
             {/* Foto */}
-            {entry.data.photoUrl ? (
+            {getPersistedItemPhotoUrl(entry.data) ? (
               <img
-                src={entry.data.photoUrl}
+                src={getPersistedItemPhotoUrl(entry.data)}
                 alt={entry.data.description}
                 className="w-16 h-16 object-contain rounded border bg-white flex-shrink-0"
               />

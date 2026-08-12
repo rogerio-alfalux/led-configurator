@@ -21,6 +21,7 @@
 
 import ExcelJS from "exceljs";
 import type { CartItemData, LinkedAccessory, QuoteFormData } from "./cartTypes";
+import { getPersistedItemPhotoUrl } from "./itemPhoto";
 import { toBrasiliaDate } from "./dateUtils";
 import { getStateInfo } from "./difalTable";
 
@@ -727,7 +728,7 @@ async function _generateExcelBuffer(
 
     // D = FOTO (imagem do produto — centralizada na célula quadrada)
     // Buscar URL fresca via API para evitar expiração de CloudFront signed URLs
-    const freshPhotoUrl = await getFreshPhotoUrl(item.sku || "", item.photoUrl);
+    const freshPhotoUrl = await getFreshPhotoUrl(item.sku || "", getPersistedItemPhotoUrl(item));
     if (freshPhotoUrl) {
      try {
        let fetchUrl: string;

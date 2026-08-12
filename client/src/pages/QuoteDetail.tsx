@@ -41,6 +41,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { CartItemData, formatBRL, parseCartItemData, extractPowerLabelFromName, toPowerLabel } from "@/lib/cartTypes";
+import { getPersistedItemPhotoUrl } from "@/lib/itemPhoto";
 import type { ApiProductDriverInfo } from "@/lib/cartTypes";
 
 /** Aplica margem individual do item (itemMarginPercent em %) sobre um valor base */
@@ -245,8 +246,8 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
             />
           )}
         </div>
-        {resolvePhoto(d.sku, d.photoUrl) ? (
-          <img src={resolvePhoto(d.sku, d.photoUrl)!} alt={d.description} className="w-12 h-12 object-contain rounded border bg-white flex-shrink-0" />
+        {resolvePhoto(d.sku, getPersistedItemPhotoUrl(d) ?? null) ? (
+          <img src={resolvePhoto(d.sku, getPersistedItemPhotoUrl(d) ?? null)!} alt={d.description} className="w-12 h-12 object-contain rounded border bg-white flex-shrink-0" />
         ) : (
           <div className="w-12 h-12 rounded border bg-muted flex items-center justify-center flex-shrink-0">
             <Package className="w-5 h-5 text-muted-foreground" />
@@ -4285,8 +4286,8 @@ export default function QuoteDetail() {
                                 <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
                                   {itemIdx}
                                 </span>
-                                {resolvePhoto(d.sku, d.photoUrl) ? (
-                                  <img src={resolvePhoto(d.sku, d.photoUrl)!} alt={d.description} className="w-12 h-12 object-contain rounded border bg-white flex-shrink-0" />
+                                {resolvePhoto(d.sku, getPersistedItemPhotoUrl(d) ?? null) ? (
+                                  <img src={resolvePhoto(d.sku, getPersistedItemPhotoUrl(d) ?? null)!} alt={d.description} className="w-12 h-12 object-contain rounded border bg-white flex-shrink-0" />
                                 ) : (
                                   <div className="w-12 h-12 rounded border bg-muted flex items-center justify-center flex-shrink-0">
                                     <Package className="w-5 h-5 text-muted-foreground" />
