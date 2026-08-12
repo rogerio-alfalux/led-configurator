@@ -1,5 +1,6 @@
 # LED Configurator - TODO
 
+- [x] Adicionar filtro por tipo de usuário no Gerenciamento de Usuários (Todos, Admin, Vendedor, Assistente, Usuário e LD Convidado)
 - [x] Corrigir contagem de drivers em orçamentos de perfis com múltiplos segmentos (33.9995-26 mostra 2 ao invés de 5)
 - [x] Exibir composição de módulos/SKUs na tela do orçamento, abaixo das tags de potência/CCT
 - [x] Aplicar retroativamente o detalhamento de quantidade por SKU na ficha de produção para todos os orçamentos, incluindo 33.9995-26

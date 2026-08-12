@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { UserPlus, Trash2, Key, Shield, ArrowLeft, SlidersHorizontal, Pencil } from "lucide-react";
 import { Link } from "wouter";
 import { ALL_PERMISSIONS } from "@shared/permissions";
+import { filterUsersByRole, USER_ROLE_FILTERS } from "@/lib/userRoleFilter";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Administrador",
@@ -54,6 +55,9 @@ export default function UserManagement() {
   // Delete confirmation
   const [deleteUserId, setDeleteUserId] = useState<number | null>(null);
   const [permissionsUserId, setPermissionsUserId] = useState<number | null>(null);
+  const [roleFilter, setRoleFilter] = useState("all");
+
+  const filteredUsers = filterUsersByRole(users as any[], roleFilter);
 
   const createMutation = trpc.dashboard.createUser.useMutation({
     onSuccess: () => {
@@ -140,7 +144,11 @@ export default function UserManagement() {
             </Link>
             <div>
               <h1 className="text-2xl font-bold">Gerenciamento de Usuários</h1>
-              <p className="text-sm text-muted-foreground">{users.length} usuário{users.length !== 1 ? "s" : ""} cadastrado{users.length !== 1 ? "s" : ""}</p>
+              <p className="text-sm text-muted-foreground">
+                {roleFilter === "all"
+                  ? `${users.length} usuário${users.length !== 1 ? "s" : ""} cadastrado${users.length !== 1 ? "s" : ""}`
+                  : `${filteredUsers.length} de ${users.length} usuário${users.length !== 1 ? "s" : ""}`}
+              </p>
             </div>
           </div>
           <Dialog open={showCreate} onOpenChange={setShowCreate}>
@@ -193,12 +201,31 @@ export default function UserManagement() {
 
         {/* Users list */}
         <Card>
+          <CardHeader className="py-3 px-4 border-b">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <CardTitle className="text-sm font-medium">Filtrar usuários por função</CardTitle>
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-full sm:w-[220px] h-9 text-sm">
+                  <SelectValue placeholder="Todos os tipos" />
+                </SelectTrigger>
+                <SelectContent>
+                  {USER_ROLE_FILTERS.map((filter) => (
+                    <SelectItem key={filter.value} value={filter.value}>{filter.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
           <CardContent className="p-0">
             {isLoading ? (
               <div className="p-8 text-center text-muted-foreground">Carregando...</div>
             ) : (
               <div className="divide-y">
-                {users.map((u: any) => (
+                {filteredUsers.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">
+                    Nenhum usuário encontrado para a função selecionada.
+                  </div>
+                ) : filteredUsers.map((u: any) => (
                   <div key={u.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
