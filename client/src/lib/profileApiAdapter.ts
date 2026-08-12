@@ -111,6 +111,18 @@ function parseModuleName(name: string): ParsedModule | null {
   return null;
 }
 
+function buildD1D2VariantKey(sku: string, name: string): string {
+  const powers = Array.from(name.matchAll(/(\d+)W/gi), (match) => Number(match[1]));
+  const d1 = powers[0] ?? 0;
+  const d2 = powers[1] ?? d1;
+  const stripMethod = /\b36W\s+SL\b/i.test(name)
+    ? "STRIPLINE"
+    : /\b36W\s+SF\b/i.test(name)
+      ? "STRIPFLEX"
+      : "DEFAULT";
+  return `${sku}|${d1}|${d2}|${stripMethod}`;
+}
+
 // ── Extrai o código de perfil base do SKU ────────────────────────────────────
 // Ex: "LLA-5945.1IF.39F" → "LLA-5945"
 function extractProfileCode(sku: string): string {
@@ -311,7 +323,9 @@ export function adaptProfileProducts(
 
     const entry = variantMap[profileCode];
     if (p.possuiOpcaoD1D2 && p.composicaoD1D2) {
-      entry.apiD1D2BySku[p.sku] = p.composicaoD1D2;
+      // O mesmo SKU pode aparecer para potências diferentes (18W, 26W,
+      // 36W SF/SL). A chave precisa preservar essa variante da API.
+      entry.apiD1D2BySku[buildD1D2VariantKey(p.sku, p.name)] = p.composicaoD1D2;
     }
     const moduleData: ModuleData = { length: parsed.length, sku: p.sku };
     // SHIFT uses bars=1 for all modules, so we need unique keys.

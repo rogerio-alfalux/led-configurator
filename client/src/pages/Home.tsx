@@ -4595,10 +4595,11 @@ export default function Home() {
   // Aplicações permitidas para esta variante
   const allowD1 = selectedVariant?.allowD1 ?? true;
   const allowD2 = selectedVariant?.allowD2 ?? true;
-  const isApiDrivenD1D2Pendant = installType === "PENDENTE" && ["EASY H PLUS", "HIT", "BLAZE H"].includes(profileName);
+  const isApiDrivenD1D2Profile = ["PENDENTE", "ARANDELA"].includes(installType)
+    && ["EASY H PLUS", "HIT", "BLAZE H"].includes(profileName);
   const hasApiD1D2Variant = !!selectedVariant?.apiD1D2BySku && Object.keys(selectedVariant.apiD1D2BySku).length > 0;
   // Para os pendentes com versão D1+D2, a API é a única autoridade sobre a disponibilidade.
-  const allowD1D2 = isApiDrivenD1D2Pendant
+  const allowD1D2 = isApiDrivenD1D2Profile
     ? hasApiD1D2Variant
     : (selectedVariant?.allowD1D2 ?? false);
   const hasDiffuser = selectedVariant?.hasDiffuser ?? false;

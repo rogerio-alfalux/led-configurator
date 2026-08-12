@@ -4,7 +4,7 @@ import { calculateComposition } from "./ledEngine";
 describe("composição D1+D2 fornecida pela API", () => {
   it("usa quantidade de módulos e driver da variante D1+D2 da API para BLAZE H pendente", () => {
     const baseInput = {
-      profileCode: "LLP-6060",
+      profileCode: "LLA-4450",
       application: "D1+D2" as const,
       powerD1: 18 as const,
       powerD2: 18 as const,
@@ -20,7 +20,7 @@ describe("composição D1+D2 fornecida pela API", () => {
     const result = calculateComposition({
       ...baseInput,
       apiD1D2BySku: {
-        [selectedSku]: {
+        [`LLP-${selectedSku.slice(4)}|18|18|DEFAULT`]: {
           qtdModuloLed: 2,
           drivers: [{
             tipo: "DRIVER_ONOFF_220",

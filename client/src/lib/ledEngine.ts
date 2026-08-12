@@ -1073,13 +1073,38 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
 
   const { composition, realizedLength, remainingLength, compositionMode } = buildResult;
   const apiD1D2BySku = effectiveApplication === "D1+D2" ? input.apiD1D2BySku : undefined;
-  const hasApiD1D2Composition = !!apiD1D2BySku && Object.keys(apiD1D2BySku).length > 0;
+  const resolveApiD1D2Variant = (sku: string): ApiD1D2SkuComposition | undefined => {
+    if (!apiD1D2BySku) return undefined;
+    // A API pode cadastrar a família como Pendente (LLP) ou Arandela (LLA).
+    // Ambas as instalações compartilham a composição D1+D2 da mesma família.
+    const compatibleSkus = [sku];
+    if (sku.startsWith("LLA-")) compatibleSkus.push(`LLP-${sku.slice(4)}`);
+    if (sku.startsWith("LLP-")) compatibleSkus.push(`LLA-${sku.slice(4)}`);
+    const methods = stripMethod === "STRIPLINE"
+      ? ["STRIPLINE", "DEFAULT"]
+      : ["STRIPFLEX", "DEFAULT"];
+    for (const compatibleSku of compatibleSkus) {
+      for (const method of methods) {
+        const key = `${compatibleSku}|${powerD1}|${effectivePowerD2}|${method}`;
+        const variant = apiD1D2BySku[key];
+        if (variant) return variant;
+      }
+    }
+    return undefined;
+  };
+  const resolvedApiD1D2BySku = Object.fromEntries(
+    composition.flatMap((item) => {
+      const variant = resolveApiD1D2Variant(item.sku);
+      return variant ? [[item.sku, variant]] : [];
+    })
+  ) as Record<string, ApiD1D2SkuComposition>;
+  const hasApiD1D2Composition = Object.keys(resolvedApiD1D2BySku).length > 0;
   // A seleção de comprimento e módulos continua no algoritmo atual. Quando a
   // API fornece a versão D1+D2, apenas seus componentes substituem os dados
   // normais de cada SKU — sem dobrar barras por inferência local.
   const apiVariantComposition = hasApiD1D2Composition
     ? composition.map((item) => {
-        const apiVariant = apiD1D2BySku?.[item.sku];
+        const apiVariant = resolvedApiD1D2BySku[item.sku];
         const barsPerModule = apiVariant?.qtdModuloLed ?? item.barsPerModule;
         return {
           ...item,
@@ -1219,7 +1244,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
         : "DRIVER_ONOFF_BIVOLT";
   const apiCombinedDrivers = effectiveApplication === "D1+D2" && !isIndependent && hasApiD1D2Composition
     ? composition.flatMap((item) => {
-        const apiVariant = apiD1D2BySku?.[item.sku];
+        const apiVariant = resolvedApiD1D2BySku[item.sku];
         const apiDrivers = apiVariant?.drivers?.filter((driver) => driver.tipo === apiDriverType) ?? [];
         return apiDrivers.map((driver) => {
           const codeMatch = driver.modelo.match(/\b(EQ\d+)\b/i);
@@ -1294,7 +1319,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     driversD1: finalDriversD1,
     driversD2: finalDriversD2,
     combinedDrivers: finalCombinedDrivers,
-    ...(hasApiD1D2Composition && apiD1D2BySku ? { apiD1D2BySku } : {}),
+    ...(hasApiD1D2Composition ? { apiD1D2BySku: resolvedApiD1D2BySku } : {}),
     stripflexName,
     stripflexEq,
     engineeringNotes,

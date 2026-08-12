@@ -2426,3 +2426,7 @@
 - [x] Detectar a flag e o SKU de variante D1+D2 retornados pela API para EASY H PLUS, HIT e BLAZE H
 - [x] Usar barras, componentes, drivers e preços do produto D1+D2 retornado pela API ao selecionar essa opção
 - [x] Preservar o algoritmo de composição existente e aplicar a variante em todas as potências e formatos dos três pendentes
+
+## Correção: Driver D1+D2 da API para pendentes e arandelas
+- [x] Corrigir a resolução por SKU da composição D1+D2 da API para EASY H PLUS, HIT e BLAZE H
+- [x] Aplicar a mesma regra a instalações Pendente e Arandela, mostrando o driver exato cadastrado na API
