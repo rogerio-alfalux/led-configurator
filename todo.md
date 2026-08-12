@@ -1,5 +1,6 @@
 # LED Configurator - TODO
 
+- [x] Dashboard de lucro: custo dos produtos deve ser sempre buscado em tempo real da API, não do custoCorpoBase salvo no item
 - [x] BAGEO SINUOSA: preço não propaga ao carrinho (mostra 'Definir preço') apesar de ter custo/mkp na API; corrigir lógica de preço por metro
 - [x] Orçamento 20.0442-26: custo do produto calculado para 2000mm ao invés de 15700mm; corrigir dados e lógica
 - [x] Auditar e corrigir exclusivamente o total do orçamento 20.0428-26, sem alterar outros orçamentos

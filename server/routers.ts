@@ -1446,24 +1446,7 @@ export const appRouter = router({
               continue;
             }
 
-            // ── ITENS COM custoCorpoBase SALVO (não-perfil) ──
-            if (Number(data.custoCorpoBase ?? 0) > 0) {
-              const custoCorpo = Number(data.custoCorpoBase);
-              const custoDriver = Number(data.custoDriverBase ?? 0);
-              let driverQty = 0;
-              if (Array.isArray(data.driverLines) && data.driverLines.length > 0) {
-                driverQty = data.driverLines.reduce((s: number, d: any) => s + Number(d.driverQty ?? 0), 0);
-              } else if (data.driverQtyPerUnit) {
-                driverQty = Number(data.driverQtyPerUnit) * qty;
-              }
-              const subtotal = custoCorpo * qty + custoDriver * driverQty;
-              totalCusto += subtotal;
-              temCusto = true;
-              itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo, custoDriver, qty, driverQty, subtotal, source: 'salvo' });
-              continue;
-            }
-
-            // ── ITENS SEM custoCorpoBase: buscar na API pelo SKU principal ──
+            // ── SEMPRE buscar custo na API pelo SKU (tempo real) ──
             const product = productBySku.get(sku);
             if (!product) {
               // Tentar buscar como componente pelo código EQ/CP na API de componentes
@@ -1555,10 +1538,16 @@ export const appRouter = router({
             }
 
             if (custoCorpo > 0) {
-              const subtotal = custoCorpo * qty + custoDriver * driverQty;
+              // Para itens vendidos por metro (BAGEO, LED BAR), multiplicar custo/m pelo comprimento
+              const comprimentoMm = Number(data.ledBarComprimentoTotalMm ?? 0);
+              const isPerMeter = comprimentoMm > 0 && (data.category === 'BAGEO' || data.category === 'LED BAR');
+              const custoCorpoEfetivo = isPerMeter
+                ? Math.round(custoCorpo * (comprimentoMm / 1000) * 100) / 100
+                : custoCorpo;
+              const subtotal = custoCorpoEfetivo * qty + custoDriver * driverQty;
               totalCusto += subtotal;
               temCusto = true;
-              itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo, custoDriver, qty, driverQty, subtotal, source: 'api' });
+              itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: custoCorpoEfetivo, custoDriver, qty, driverQty, subtotal, source: 'api' });
             } else {
               itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: 0, custoDriver: 0, qty, driverQty: 0, subtotal: 0, source: 'sem_custo_api' });
             }
