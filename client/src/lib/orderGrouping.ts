@@ -25,6 +25,20 @@ interface EtiquetaEntry {
 type GroupedItem = CartItemData & { _groupEntries: EtiquetaEntry[] };
 
 /**
+ * Normaliza textos técnicos legados que podem ter as mesmas linhas em ordens
+ * diferentes. Preserva o conteúdo de cada linha para não misturar composições
+ * distintas, mas remove diferenças de espaçamento e de capitalização.
+ */
+function normalizeLegacyTechnicalText(value?: string): string {
+  return (value ?? "")
+    .split(/\r?\n/)
+    .map(line => line.replace(/\s+/g, " ").trim().toUpperCase())
+    .filter(Boolean)
+    .sort()
+    .join("\n");
+}
+
+/**
  * Gera uma chave de agrupamento para um item.
  * Itens com a mesma chave são considerados tecnicamente idênticos e podem ser agrupados.
  */
@@ -81,15 +95,29 @@ function buildGroupKey(item: CartItemData): string {
       )
     : "";
 
+  // Perfis possuem composição técnica estruturada em profileSegments. Para eles,
+  // a descrição legada, moduloLed e drivers são apenas textos de exibição e podem
+  // variar de formatação entre itens tecnicamente iguais. Não devem impedir o
+  // agrupamento da ficha de produção.
+  const isProfile = /^perfis?$/i.test(item.category ?? "");
+  const hasProfileComposition = (item.profileSegments?.length ?? 0) > 0;
+  const powerInLegacyDescription = item.description?.match(/\b(\d+(?:[.,]\d+)?)\s*W\b/i)?.[1];
+  const technicalPower = item.power ?? (powerInLegacyDescription ? `${powerInLegacyDescription}W` : "");
+
   return [
     item.category ?? "",
     item.sku ?? "",
-    item.description ?? "",
+    // Para perfis, potência + composição normalizada já definem a peça técnica.
+    // Para os demais produtos, preservar descrição para não agrupar variações comerciais.
+    isProfile ? "" : (item.description ?? ""),
+    technicalPower,
     item.cct ?? "",
     item.corPeca ?? "",
     item.stripMethod ?? "",
-    item.moduloLed ?? "",
-    item.drivers ?? "",
+    // Itens históricos de perfil podem não ter profileSegments. Nestes casos,
+    // usar moduloLed e drivers normalizados como composição técnica de fallback.
+    hasProfileComposition ? "" : (isProfile ? normalizeLegacyTechnicalText(item.moduloLed) : (item.moduloLed ?? "")),
+    hasProfileComposition ? "" : (isProfile ? normalizeLegacyTechnicalText(item.drivers) : (item.drivers ?? "")),
     item.ledBarDriverModel ?? "",
     item.ledBarDriverCode ?? "",
     String(item.ledBarNCortes ?? ""),

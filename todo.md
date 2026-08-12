@@ -1,5 +1,6 @@
 # LED Configurator - TODO
 
+- [x] Corrigir e validar explicitamente o agrupamento de itens tecnicamente equivalentes na ficha de produção, incluindo 04.0173-26 Parcial 1
 - [x] Otimizar composição dos formatos L, Quadrado, Retangular e U para aproximar das dimensões solicitadas (sem alterar linear reto)
 - [x] Permitir que quem possui a permissão Gerenciar Orçamentos edite e salve orçamentos de qualquer pessoa
 - [x] Adicionar filtro por tipo de usuário no Gerenciamento de Usuários (Todos, Admin, Vendedor, Assistente, Usuário e LD Convidado)
