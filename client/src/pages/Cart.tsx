@@ -639,10 +639,24 @@ export default function Cart() {
   });
 
   // Sellers & Assistants
+  const userEmail = (user as any)?.email?.toLowerCase() ?? "";
+  const userRole = (user as any)?.role;
   const sellersQuery = trpc.sellers.list.useQuery();
   const assistantsQuery = trpc.assistants.list.useQuery();
   const sellers = sellersQuery.data ?? [];
   const assistants = assistantsQuery.data ?? [];
+  const isSellerLogin = userRole === "vendedor";
+  const isAssistantLogin = userRole === "assistente";
+  const ownSeller = useMemo(
+    () => sellers.find((seller) => seller.email?.toLowerCase() === userEmail),
+    [sellers, userEmail],
+  );
+  const ownAssistant = useMemo(
+    () => assistants.find((assistant) => assistant.email?.toLowerCase() === userEmail),
+    [assistants, userEmail],
+  );
+  const visibleSellers = isSellerLogin ? (ownSeller ? [ownSeller] : []) : sellers;
+  const visibleAssistants = isAssistantLogin ? (ownAssistant ? [ownAssistant] : []) : assistants;
 
   // Catálogo de acessórios para resolver fotos frescas (URLs CloudFront expiram)
   const acessoriosQuery = trpc.alfalux.acessoriosProducts.useQuery(undefined, { staleTime: 0 });
@@ -898,6 +912,38 @@ export default function Cart() {
     } catch { /* ignore */ }
     return defaultSaveForm;
   });
+  // A equipe de vendedores/assistentes não é escolhida livremente por quem está criando.
+  // O servidor repete a mesma validação para impedir manipulação do payload pelo navegador.
+  useEffect(() => {
+    if (isSellerLogin && ownSeller) {
+      setSaveForm((previous) => ({
+        ...previous,
+        seller1Id: String(ownSeller.id),
+        seller1Name: ownSeller.name,
+        seller2Id: "",
+        seller2Name: "",
+        assistantId: "VENDEDOR",
+        assistantName: "VENDEDOR",
+      }));
+      return;
+    }
+    if (isAssistantLogin && ownAssistant) {
+      const linkedSeller = ownAssistant.allowedSellerId
+        ? sellers.find((seller) => seller.id === ownAssistant.allowedSellerId)
+        : undefined;
+      setSaveForm((previous) => ({
+        ...previous,
+        assistantId: String(ownAssistant.id),
+        assistantName: ownAssistant.name,
+        ...(linkedSeller ? {
+          seller1Id: String(linkedSeller.id),
+          seller1Name: linkedSeller.name,
+          seller2Id: "",
+          seller2Name: "",
+        } : {}),
+      }));
+    }
+  }, [isSellerLogin, isAssistantLogin, ownSeller, ownAssistant, sellers]);
   // Persistir saveForm no localStorage sempre que mudar
   useEffect(() => {
     try {
@@ -1029,8 +1075,6 @@ export default function Cart() {
   // Cálculo de frete
   const FRETE_NOTURNO = 2000;
   const FRETE_GRATIS_MINIMO = 1500;
-  const userEmail = (user as any)?.email?.toLowerCase() ?? "";
-  const userRole = (user as any)?.role;
   const { hasPermission: _hp } = usePermissions();
   const isManagerUser = _hp(PERMISSIONS.EDITAR_COMISSAO);
 
@@ -1766,6 +1810,7 @@ export default function Cart() {
                               <Label>Vendedor 1 *</Label>
                               <Select
                                 value={saveForm.seller1Id}
+                                disabled={isSellerLogin}
                                 onValueChange={(v) => {
                                   const sel = sellers.find(s => String(s.id) === v);
                                   updateSaveForm("seller1Id", v);
@@ -1787,7 +1832,7 @@ export default function Cart() {
                                   <SelectValue placeholder="Selecione o vendedor principal" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {sellers.map(s => (
+                                  {visibleSellers.map(s => (
                                     <SelectItem key={s.id} value={String(s.id)}>
                                       {s.name}
                                     </SelectItem>
@@ -1810,6 +1855,7 @@ export default function Cart() {
                               <Label>Vendedor 2 (opcional)</Label>
                               <Select
                                 value={saveForm.seller2Id || "none"}
+                                disabled={isSellerLogin}
                                 onValueChange={(v) => {
                                   if (v === "none") {
                                     updateSaveForm("seller2Id", "");
@@ -1848,6 +1894,7 @@ export default function Cart() {
                               <Label>Assistente Comercial *</Label>
                               <Select
                                 value={saveForm.assistantId}
+                                disabled={isSellerLogin || isAssistantLogin}
                                 onValueChange={(v) => {
                                   if (v === "VENDEDOR") {
                                     updateSaveForm("assistantId", "VENDEDOR");
@@ -1864,7 +1911,7 @@ export default function Cart() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="VENDEDOR">VENDEDOR (o próprio vendedor)</SelectItem>
-                                  {assistants.map(a => (
+                                  {visibleAssistants.map(a => (
                                     <SelectItem key={a.id} value={String(a.id)}>
                                       {a.name}
                                     </SelectItem>

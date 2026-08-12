@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { UserPlus, Trash2, Key, Shield, ArrowLeft, SlidersHorizontal } from "lucide-react";
+import { UserPlus, Trash2, Key, Shield, ArrowLeft, SlidersHorizontal, Pencil } from "lucide-react";
 import { Link } from "wouter";
 import { ALL_PERMISSIONS } from "@shared/permissions";
 
@@ -48,6 +48,8 @@ export default function UserManagement() {
   // Change password state
   const [pwUserId, setPwUserId] = useState<number | null>(null);
   const [pwValue, setPwValue] = useState("");
+  const [renameUserId, setRenameUserId] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   // Delete confirmation
   const [deleteUserId, setDeleteUserId] = useState<number | null>(null);
@@ -70,6 +72,16 @@ export default function UserManagement() {
 
   const updatePwMutation = trpc.dashboard.updateUserPassword.useMutation({
     onSuccess: () => { toast.success("Senha atualizada!"); setPwUserId(null); setPwValue(""); },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const updateNameMutation = trpc.dashboard.updateUserName.useMutation({
+    onSuccess: () => {
+      toast.success("Nome atualizado!");
+      utils.admin.getUsers.invalidate();
+      setRenameUserId(null);
+      setRenameValue("");
+    },
     onError: (err: any) => toast.error(err.message),
   });
 
@@ -215,6 +227,31 @@ export default function UserManagement() {
                           <SelectItem value="admin">Admin</SelectItem>
                         </SelectContent>
                       </Select>
+                      {/* Editar nome */}
+                      <Dialog open={renameUserId === u.id} onOpenChange={(open) => { if (!open) { setRenameUserId(null); setRenameValue(""); } }}>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="Editar nome"
+                            onClick={() => { setRenameUserId(u.id); setRenameValue(u.name || ""); }}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader><DialogTitle>Editar nome — {u.email}</DialogTitle></DialogHeader>
+                          <div className="space-y-2 py-2">
+                            <Label htmlFor={`name-${u.id}`}>Nome exibido</Label>
+                            <Input id={`name-${u.id}`} value={renameValue} onChange={e => setRenameValue(e.target.value)} placeholder="Nome completo" autoFocus />
+                          </div>
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => setRenameUserId(null)}>Cancelar</Button>
+                            <Button onClick={() => updateNameMutation.mutate({ userId: u.id, name: renameValue })} disabled={!renameValue.trim() || updateNameMutation.isPending}>Salvar</Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
                       {/* Change password */}
                       <Dialog open={pwUserId === u.id} onOpenChange={(open) => { if (!open) { setPwUserId(null); setPwValue(""); } }}>
                         <DialogTrigger asChild>

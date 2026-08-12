@@ -4771,11 +4771,12 @@ export default function Home() {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    size="icon"
+                    size="sm"
                     title="Conta: entrar, trocar conta ou sair"
-                    className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    className="max-w-[190px] gap-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   >
-                    <UserRound className="w-4 h-4" />
+                    <UserRound className="w-4 h-4 shrink-0" />
+                    <span className="truncate">{user?.name || "Minha conta"}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-60">

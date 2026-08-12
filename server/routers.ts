@@ -53,6 +53,7 @@ import { getDb } from "./db";
 import { sellers, assistants, quoteItems, quotes } from "../drizzle/schema";
 import { eq, inArray, and } from "drizzle-orm";
 import { DISCOUNT_EDITORS_EMAILS } from "../shared/const";
+import { commercialQuoteAccess } from "../shared/quoteOwnership";
 
 // ─── Controle de acesso a orçamentos ─────────────────────────────────────────
 /** Emails dos gestores com acesso irrestrito a todos os orçamentos */
@@ -69,6 +70,88 @@ const MANAGER_EMAILS = [
 const SPECIAL_COMMISSION_SELLERS: Record<string, number> = {
   "gustavo@grupoalfalux.com.br": 0.10, // Gustavo Gatti Casagrande — cap de 10%
 };
+
+type QuoteTeamFields = {
+  seller1Id?: number | null;
+  seller1Name?: string | null;
+  seller2Id?: number | null;
+  seller2Name?: string | null;
+  assistantId?: number | null;
+  assistantName?: string | null;
+};
+
+/**
+ * Para vendedores e assistentes, os responsáveis do orçamento são derivados do
+ * e-mail da sessão — nunca de um valor enviado pelo navegador. Em uma edição,
+ * a equipe original é preservada; o audit log registra o editor.
+ */
+async function getIdentityBoundTeam(
+  user: { email?: string | null; role?: string | null },
+  existing?: QuoteTeamFields,
+): Promise<Partial<QuoteTeamFields>> {
+  const email = user.email?.toLowerCase().trim();
+  if (!email || !user.role) return {};
+  const db = await getDb();
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados indisponível." });
+
+  if (user.role === "vendedor") {
+    const seller = (await db.select({ id: sellers.id, name: sellers.name })
+      .from(sellers).where(eq(sellers.email, email)).limit(1))[0];
+    if (!seller) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Seu login não está vinculado a um vendedor cadastrado." });
+    }
+    if (existing) {
+      if (existing.seller1Id !== seller.id) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Vendedores só podem alterar orçamentos criados em seu próprio nome." });
+      }
+      return {
+        seller1Id: existing.seller1Id, seller1Name: existing.seller1Name,
+        seller2Id: existing.seller2Id, seller2Name: existing.seller2Name,
+        assistantId: existing.assistantId, assistantName: existing.assistantName,
+      };
+    }
+    return {
+      seller1Id: seller.id,
+      seller1Name: seller.name,
+      seller2Id: undefined,
+      seller2Name: undefined,
+      assistantId: undefined,
+      assistantName: "VENDEDOR",
+    };
+  }
+
+  if (user.role === "assistente") {
+    const assistant = (await db.select({ id: assistants.id, name: assistants.name, allowedSellerId: assistants.allowedSellerId })
+      .from(assistants).where(eq(assistants.email, email)).limit(1))[0];
+    if (!assistant) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Seu login não está vinculado a um assistente cadastrado." });
+    }
+    if (existing) {
+      if (existing.assistantId !== assistant.id) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Assistentes só podem alterar orçamentos registrados em seu próprio nome." });
+      }
+      return {
+        seller1Id: existing.seller1Id, seller1Name: existing.seller1Name,
+        seller2Id: existing.seller2Id, seller2Name: existing.seller2Name,
+        assistantId: existing.assistantId, assistantName: existing.assistantName,
+      };
+    }
+    const ownAssistant: Partial<QuoteTeamFields> = { assistantId: assistant.id, assistantName: assistant.name };
+    if (assistant.allowedSellerId) {
+      const seller = (await db.select({ id: sellers.id, name: sellers.name })
+        .from(sellers).where(eq(sellers.id, assistant.allowedSellerId)).limit(1))[0];
+      if (seller) {
+        ownAssistant.seller1Id = seller.id;
+        ownAssistant.seller1Name = seller.name;
+        ownAssistant.seller2Id = undefined;
+        ownAssistant.seller2Name = undefined;
+      }
+    }
+    return ownAssistant;
+  }
+
+  return {};
+}
 
 /**
  * Verifica se o usuário logado pode editar/excluir um orçamento.
@@ -87,12 +170,24 @@ async function canEditQuote(
   if (userRole === "admin") return true;
   // Usuários com permissão granular de gerenciamento têm acesso total
   if (userId && await hasUserPermission(userId, userRole, PERMISSIONS.GERENCIAR_ORCAMENTOS)) return true;
-  // Quem criou o orçamento sempre pode editá-lo (independente de ser seller/assistente)
-  if (userId && quote.createdByUserId && userId === quote.createdByUserId) return true;
   if (!userEmail) return false;
   const email = userEmail.toLowerCase().trim();
   const db = await getDb();
   if (!db) return false;
+  if (userRole === "vendedor" || userRole === "assistente") {
+    const seller = quote.seller1Id
+      ? await db.select({ email: sellers.email }).from(sellers).where(eq(sellers.id, quote.seller1Id)).limit(1)
+      : [];
+    const assistant = quote.assistantId
+      ? await db.select({ email: assistants.email }).from(assistants).where(eq(assistants.id, quote.assistantId)).limit(1)
+      : [];
+    return commercialQuoteAccess(userRole, email, {
+      seller1Email: seller[0]?.email,
+      assistantEmail: assistant[0]?.email,
+    }) ?? false;
+  }
+  // Usuários sem papel comercial só podem editar orçamentos que criaram.
+  if (userId && quote.createdByUserId && userId === quote.createdByUserId) return true;
   // Verificar se o email corresponde a algum seller vinculado ao orçamento
   if (quote.seller1Id) {
     const s1 = await db.select({ email: sellers.email }).from(sellers).where(eq(sellers.id, quote.seller1Id)).limit(1);
@@ -395,6 +490,17 @@ export const appRouter = router({
         showDiscount: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
+        const identityTeam = await getIdentityBoundTeam(ctx.user);
+        const boundInput = { ...input, ...identityTeam };
+        const saveInput = {
+          ...boundInput,
+          seller1Id: boundInput.seller1Id ?? undefined,
+          seller1Name: boundInput.seller1Name ?? undefined,
+          seller2Id: boundInput.seller2Id ?? undefined,
+          seller2Name: boundInput.seller2Name ?? undefined,
+          assistantId: boundInput.assistantId ?? undefined,
+          assistantName: boundInput.assistantName ?? undefined,
+        };
         // Verificar obra duplicada — BLOQUEIA a criação se já existir obra com mesmo nome
         if (input.projectName?.trim()) {
           const dup = await checkDuplicateProject(input.projectName.trim());
@@ -425,8 +531,8 @@ export const appRouter = router({
           // Verificar se o seller1 ou seller2 do orçamento tem cap especial (busca pelo email do seller no banco)
           const db = await getDb();
           let sellerSpecialCap = 0;
-          if (db && (input.seller1Id || input.seller2Id)) {
-            const sellerIds = [input.seller1Id, input.seller2Id].filter((id): id is number => typeof id === "number");
+          if (db && (boundInput.seller1Id || boundInput.seller2Id)) {
+            const sellerIds = [boundInput.seller1Id, boundInput.seller2Id].filter((id): id is number => typeof id === "number");
             if (sellerIds.length > 0) {
               const sellerRows = await db.select({ email: sellers.email })
                 .from(sellers)
@@ -456,7 +562,7 @@ export const appRouter = router({
             throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para aplicar desconto." });
           }
         }
-        const result = await createQuote({ ...input, createdByUserId: ctx.user.id });
+        const result = await createQuote({ ...saveInput, createdByUserId: ctx.user.id });
         await insertAuditLog({
           userId: ctx.user.id,
           userEmail: ctx.user.email,
@@ -467,8 +573,11 @@ export const appRouter = router({
           details: JSON.stringify({
             quoteNumber: result.quoteNumber,
             clientName: input.clientName,
-            totalAmount: input.totalAmount,
-            itemCount: input.items.length,
+            totalAmount: boundInput.totalAmount,
+            itemCount: boundInput.items.length,
+            seller1Id: saveInput.seller1Id,
+            assistantId: saveInput.assistantId,
+            identityBound: Object.keys(identityTeam).length > 0,
           }),
         });
         return result;
@@ -538,6 +647,17 @@ export const appRouter = router({
         if (!existingForRevision) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
         const hasPermission = await canEditQuote(ctx.user.email, existingForRevision.quote, ctx.user.role, ctx.user.id);
         if (!hasPermission) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para editar este orçamento." });
+        const identityTeam = await getIdentityBoundTeam(ctx.user, existingForRevision.quote);
+        const boundRest = { ...rest, ...identityTeam };
+        const saveRevisionInput = {
+          ...boundRest,
+          seller1Id: boundRest.seller1Id ?? undefined,
+          seller1Name: boundRest.seller1Name ?? undefined,
+          seller2Id: boundRest.seller2Id ?? undefined,
+          seller2Name: boundRest.seller2Name ?? undefined,
+          assistantId: boundRest.assistantId ?? undefined,
+          assistantName: boundRest.assistantName ?? undefined,
+        };
         // Verificar cap de comissão — gestores e admins ficam isentos
         // Gustavo tem cap de 10%; demais vendedores cap de 5% (soma das duas comissões)
         const userEmailRev = ctx.user.email?.toLowerCase().trim() ?? "";
@@ -555,8 +675,8 @@ export const appRouter = router({
           const specialCapRev = SPECIAL_COMMISSION_SELLERS[userEmailRev];
           const dbRev = await getDb();
           let sellerSpecialCapRev = 0;
-          if (dbRev && (input.seller1Id || input.seller2Id)) {
-            const sellerIdsRev = [input.seller1Id, input.seller2Id].filter((id): id is number => typeof id === "number");
+          if (dbRev && (boundRest.seller1Id || boundRest.seller2Id)) {
+            const sellerIdsRev = [boundRest.seller1Id, boundRest.seller2Id].filter((id): id is number => typeof id === "number");
             if (sellerIdsRev.length > 0) {
               const sellerRowsRev = await dbRev.select({ email: sellers.email })
                 .from(sellers)
@@ -588,7 +708,7 @@ export const appRouter = router({
         }
         // Garantir que 0 seja passado explicitamente (não undefined) para limpar RT/Margem
         const result = await addQuoteRevision(quoteId, {
-          ...rest,
+          ...saveRevisionInput,
           rtPercent: input.rtPercent ?? 0,
           marginPercent: input.marginPercent ?? 0,
           discountPercent: input.discountPercent ?? 0,
@@ -606,6 +726,11 @@ export const appRouter = router({
             clientName: input.clientName,
             totalAmount: input.totalAmount,
             versionNotes: input.versionNotes,
+            originalCreatedByUserId: existingForRevision.quote.createdByUserId,
+            originalAssistantId: existingForRevision.quote.assistantId,
+            originalAssistantName: existingForRevision.quote.assistantName,
+            editorRole: ctx.user.role,
+            identityBound: Object.keys(identityTeam).length > 0,
           }),
         });
         return result;
@@ -756,6 +881,11 @@ export const appRouter = router({
         newAssistantName: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
+        const source = await getQuoteById(input.id);
+        if (!source) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado." });
+        const canDuplicate = await canEditQuote(ctx.user.email, source.quote, ctx.user.role, ctx.user.id);
+        if (!canDuplicate) throw new TRPCError({ code: "FORBIDDEN", message: "Você não pode duplicar um orçamento de outro vendedor ou assistente." });
+        const identityTeam = await getIdentityBoundTeam(ctx.user);
         // Validar unicidade do número personalizado antes de duplicar
         if (input.newQuoteNumber) {
           const dup = await checkDuplicateQuoteNumber(input.newQuoteNumber);
@@ -774,9 +904,9 @@ export const appRouter = router({
           input.newClientContact,
           input.newClientPhone,
           input.newClientEmail,
-          input.newSellerId,
-          input.newAssistantId,
-          input.newAssistantName,
+          identityTeam.seller1Id ?? input.newSellerId,
+          identityTeam.assistantId ?? input.newAssistantId,
+          identityTeam.assistantName ?? input.newAssistantName,
         );
         await insertAuditLog({
           userId: ctx.user.id,
@@ -785,7 +915,7 @@ export const appRouter = router({
           action: "quote_duplicated",
           entityType: "quote",
           entityId: input.id,
-          details: JSON.stringify({ newQuoteNumber: result.quoteNumber }),
+          details: JSON.stringify({ newQuoteNumber: result.quoteNumber, identityBound: Object.keys(identityTeam).length > 0 }),
         });
         return result;
       }),
@@ -1759,6 +1889,16 @@ export const appRouter = router({
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
         const { users } = await import('../drizzle/schema');
         await db.update(users).set({ role: input.role }).where(eq(users.id, input.userId));
+        return { success: true };
+      }),
+    /** Atualiza o nome exibido de um usuário (somente admin). */
+    updateUserName: adminProcedure
+      .input(z.object({ userId: z.number(), name: z.string().trim().min(1).max(256) }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const { users } = await import('../drizzle/schema');
+        await db.update(users).set({ name: input.name }).where(eq(users.id, input.userId));
         return { success: true };
       }),
     /** Criar usuário manualmente (com senha) — admin only */

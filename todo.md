@@ -2413,3 +2413,11 @@
 
 ## Ajuste: Controle de conta no cabeçalho
 - [x] Adicionar botão universal de entrar, trocar conta e sair ao lado do carrinho na página inicial
+
+## Ajuste: Identidade, autoria e auditoria de orçamentos
+- [x] Permitir que o administrador edite o nome de qualquer usuário cadastrado
+- [x] Exibir o nome do usuário autenticado no cabeçalho da página inicial
+- [x] Restringir criação de orçamento ao próprio vendedor e ao próprio assistente autenticados
+- [x] Preservar assistente original ao vendedor editar orçamento próprio criado por sua assistente
+- [x] Impedir vendedor de criar ou editar orçamento de outro vendedor
+- [x] Registrar quem criou e quem alterou cada orçamento e revisão

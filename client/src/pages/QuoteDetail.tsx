@@ -933,6 +933,20 @@ export default function QuoteDetail() {
   const assistantsQuery = trpc.assistants.list.useQuery();
   const editSellers = sellersQuery.data ?? [];
   const editAssistants = assistantsQuery.data ?? [];
+  const quoteUserEmail = ((user as any)?.email ?? "").toLowerCase();
+  const quoteUserRole = (user as any)?.role;
+  const isSellerEditing = quoteUserRole === "vendedor";
+  const isAssistantEditing = quoteUserRole === "assistente";
+  const ownEditSeller = useMemo(
+    () => editSellers.find((seller) => seller.email?.toLowerCase() === quoteUserEmail),
+    [editSellers, quoteUserEmail],
+  );
+  const ownEditAssistant = useMemo(
+    () => editAssistants.find((assistant) => assistant.email?.toLowerCase() === quoteUserEmail),
+    [editAssistants, quoteUserEmail],
+  );
+  const visibleEditSellers = isSellerEditing ? (ownEditSeller ? [ownEditSeller] : []) : editSellers;
+  const visibleEditAssistants = isAssistantEditing ? (ownEditAssistant ? [ownEditAssistant] : []) : editAssistants;
 
   // IDs do orçamento pendentes de sincronização (populados quando o Dialog abre)
   // Necessário porque sellersQuery/assistantsQuery podem terminar DEPOIS do Dialog abrir
@@ -2842,14 +2856,14 @@ export default function QuoteDetail() {
                 {/* Vendedor (opcional — para mudar o vendedor na duplicação) */}
                 <div className="space-y-1.5">
                   <Label>Vendedor 1 <span className="text-muted-foreground font-normal">(opcional — mantém o original se não alterar)</span></Label>
-                  <Select value={duplicateSellerId || "_original"} onValueChange={v => {
+                  <Select value={duplicateSellerId || "_original"} disabled={isSellerEditing || isAssistantEditing} onValueChange={v => {
                     setDuplicateSellerId(v === "_original" ? "" : v);
                     setDuplicateQuoteNumber(""); // limpa número manual ao trocar vendedor
                   }}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="_original">Manter vendedor original ({quote.seller1Name ?? "—"})</SelectItem>
-                      {editSellers.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                      {visibleEditSellers.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -2857,14 +2871,14 @@ export default function QuoteDetail() {
                 {/* Assistente (opcional) */}
                 <div className="space-y-1.5">
                   <Label>Assistente <span className="text-muted-foreground font-normal">(opcional — limpa se não selecionar)</span></Label>
-                  <Select value={duplicateAssistantId || "_none"} onValueChange={v => {
+                  <Select value={duplicateAssistantId || "_none"} disabled={isSellerEditing || isAssistantEditing} onValueChange={v => {
                     setDuplicateAssistantId(v === "_none" ? "" : v);
                   }}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="_none">Sem assistente</SelectItem>
                       <SelectItem value="VENDEDOR">VENDEDOR</SelectItem>
-                      {editAssistants.map(a => <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>)}
+                      {visibleEditAssistants.map(a => <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -3131,17 +3145,17 @@ export default function QuoteDetail() {
                 <TabsContent value="equipe" className="space-y-3 pt-3">
                   <div>
                     <Label>Vendedor 1</Label>
-                    <Select value={editForm.seller1Id} onValueChange={(v) => {
+                    <Select value={editForm.seller1Id} disabled={isSellerEditing || isAssistantEditing} onValueChange={(v) => {
                       const sel = editSellers.find(s => String(s.id) === v);
                       setEditForm(f => ({ ...f, seller1Id: v, seller1Name: sel?.name ?? "" }));
                     }}>
                       <SelectTrigger><SelectValue placeholder="Selecione o vendedor principal" /></SelectTrigger>
-                      <SelectContent>{editSellers.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}</SelectContent>
+                      <SelectContent>{visibleEditSellers.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div>
                     <Label>Vendedor 2 (opcional)</Label>
-                    <Select value={editForm.seller2Id || "none"} onValueChange={(v) => {
+                    <Select value={editForm.seller2Id || "none"} disabled={isSellerEditing || isAssistantEditing} onValueChange={(v) => {
                       if (v === "none") {
                         // Removeu 2º vendedor: voltar comissão para 5% no 1º
                         setEditForm(f => ({ ...f, seller2Id: "", seller2Name: "", commissionPercent: "5", commissionPercent2: "0" }));
@@ -3160,13 +3174,13 @@ export default function QuoteDetail() {
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Nenhum</SelectItem>
-                        {editSellers.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                        {visibleEditSellers.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
                     <Label>Assistente Comercial</Label>
-                    <Select value={editForm.assistantId} onValueChange={(v) => {
+                    <Select value={editForm.assistantId} disabled={isSellerEditing || isAssistantEditing} onValueChange={(v) => {
                       if (v === "VENDEDOR") {
                         setEditForm(f => ({ ...f, assistantId: "VENDEDOR", assistantName: "VENDEDOR" }));
                       } else {
@@ -3177,7 +3191,7 @@ export default function QuoteDetail() {
                       <SelectTrigger><SelectValue placeholder="Selecione o assistente" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="VENDEDOR">VENDEDOR (o próprio vendedor)</SelectItem>
-                        {editAssistants.map(a => <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>)}
+                        {visibleEditAssistants.map(a => <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
