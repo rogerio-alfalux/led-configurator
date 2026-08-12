@@ -677,12 +677,13 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
       reqTitleCell.alignment = { horizontal: "center", vertical: "middle" };
       reqRow++;
 
-      // Cabeçalho: A=TIPO, B=CÓDIGO, C-H=DESCRIÇÃO (mesclado), I=UN, J=QTD
+      // Cabeçalho: A=TIPO, B=CÓDIGO, C-G=DESCRIÇÃO (mesclado), H=ITENS, I=UN, J=QTD
       ws.getRow(reqRow).height = 18;
       headerCell(ws.getCell(`A${reqRow}`), "TIPO", 10);
       headerCell(ws.getCell(`B${reqRow}`), "CÓDIGO", 10);
-      ws.mergeCells(`C${reqRow}:H${reqRow}`);
+      ws.mergeCells(`C${reqRow}:G${reqRow}`);
       headerCell(ws.getCell(`C${reqRow}`), "DESCRIÇÃO", 10);
+      headerCell(ws.getCell(`H${reqRow}`), "ITENS", 10);
       headerCell(ws.getCell(`I${reqRow}`), "UN", 10);
       headerCell(ws.getCell(`J${reqRow}`), "QTD", 10);
       reqRow++;
@@ -693,18 +694,19 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
         const bgColor = TIPO_COLORS[tipo] ?? "FFFFFFFF";
         for (const entry of entries) {
           ws.getRow(reqRow).height = 16;
-          ws.mergeCells(`C${reqRow}:H${reqRow}`);
+          ws.mergeCells(`C${reqRow}:G${reqRow}`);
           const applyReqCell = (col: string, value: string | number, bold = false) => {
             const cell = ws.getCell(`${col}${reqRow}`);
             cell.value = value;
             cell.font = { size: 10, bold };
             cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bgColor } };
-            cell.alignment = { horizontal: (col === "I" || col === "J") ? "center" : "left", vertical: "middle", wrapText: col === "C" };
+            cell.alignment = { horizontal: (col === "H" || col === "I" || col === "J") ? "center" : "left", vertical: "middle", wrapText: col === "C" };
             applyBorder(cell);
           };
           applyReqCell("A", entry.tipo);
           applyReqCell("B", entry.codigo, true);
           applyReqCell("C", entry.descricao);
+          applyReqCell("H", entry.sourceItems.length > 0 ? entry.sourceItems.join(", ") : "");
           applyReqCell("I", entry.unidade.toUpperCase());
           applyReqCell("J", entry.qty, true);
           reqRow++;

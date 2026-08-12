@@ -27,6 +27,8 @@ export interface MaterialEntry {
   unidade: "un" | "m";
   /** Tipo/família do material para agrupamento */
   tipo: MaterialTipo;
+  /** Números dos itens do pedido que usam este material */
+  sourceItems: number[];
 }
 
 export type MaterialTipo =
@@ -268,7 +270,8 @@ export function buildMaterialRequisition(
     descricao: string,
     qty: number,
     unidade: "un" | "m",
-    tipo?: MaterialTipo
+    tipo?: MaterialTipo,
+    itemNumber?: number
   ) {
     if (!codigo || !descricao || qty <= 0) return;
     // Usar descrição canônica da API se disponível
@@ -277,9 +280,12 @@ export function buildMaterialRequisition(
     const key = `${codigo}||${unidade}`;
     const existing = map.get(key);
     if (existing) {
-      map.set(key, { ...existing, qty: existing.qty + qty });
+      const newSourceItems = itemNumber != null && !existing.sourceItems.includes(itemNumber)
+        ? [...existing.sourceItems, itemNumber]
+        : existing.sourceItems;
+      map.set(key, { ...existing, qty: existing.qty + qty, sourceItems: newSourceItems });
     } else {
-      map.set(key, { codigo, descricao: canonicalDesc, qty, unidade, tipo: resolvedTipo });
+      map.set(key, { codigo, descricao: canonicalDesc, qty, unidade, tipo: resolvedTipo, sourceItems: itemNumber != null ? [itemNumber] : [] });
     }
   }
 
@@ -288,6 +294,8 @@ export function buildMaterialRequisition(
     if (!item.category || item.category === "Não Orçamos") continue;
 
     const itemQty = item.qty ?? 1;
+    // Número do item no pedido (1-based, baseado na posição no array + 1)
+    const itemIdx = items.indexOf(item) + 1;
 
     // ── PERFIS: profileSegments ──────────────────────────────────────────
     if (item.profileSegments && item.profileSegments.length > 0) {
@@ -296,7 +304,7 @@ export function buildMaterialRequisition(
         if (seg.sku && seg.lengthMm > 0) {
           const totalMetros = (seg.qty * seg.lengthMm / 1000) * itemQty;
           const perfilBase = extractPerfilBase(seg.sku);
-          add(perfilBase, perfilBase, totalMetros, "m", "PERFIS");
+          add(perfilBase, perfilBase, totalMetros, "m", "PERFIS", itemIdx);
         }
 
         // 2. Módulo LED (Stripflex/Stripline/Fita LED/Lux Round)
@@ -322,13 +330,13 @@ export function buildMaterialRequisition(
             const finalBarras = isStripflexDupla ? totalBarras * 2 : totalBarras;
             // Cada barra de fita cobre o comprimento do perfil (seg.lengthMm)
             const totalMetros = finalBarras * (seg.lengthMm / 1000);
-            add(ledCode, barName, totalMetros, "m", "FITAS LED");
+            add(ledCode, barName, totalMetros, "m", "FITAS LED", itemIdx);
           } else {
             // Módulos LED (Lux Round, etc.): contabilizar em UNIDADES
             const totalUnidades = seg.qty * seg.barsPerPiece * itemQty;
             const isStripflexDupla = item.stripMethod === "STRIPFLEX" && (item.power === "36" || item.power === "36W");
             const finalUnidades = isStripflexDupla ? totalUnidades * 2 : totalUnidades;
-            add(ledCode, barName, finalUnidades, "un", ledTipo);
+            add(ledCode, barName, finalUnidades, "un", ledTipo, itemIdx);
           }
         }
 
@@ -336,7 +344,7 @@ export function buildMaterialRequisition(
         if (seg.driverCode && seg.driverCode !== "ERRO" && !seg.driverModel.includes(" + ")) {
           const totalDrivers = seg.qty * seg.driverQtyPerPiece * itemQty;
           const correnteSuffix = seg.corrente ? ` - PROG: ${seg.corrente}` : "";
-          add(seg.driverCode, `${seg.driverModel}${correnteSuffix}`, totalDrivers, "un", "DRIVERS");
+          add(seg.driverCode, `${seg.driverModel}${correnteSuffix}`, totalDrivers, "un", "DRIVERS", itemIdx);
         }
 
         // 4. Driver combo: "1 x MODEL1 (CODE1) + 1 x MODEL2 (CODE2)"
@@ -349,7 +357,7 @@ export function buildMaterialRequisition(
               const drvModel = match[2].trim();
               const drvCode = match[3].trim();
               const totalDrivers = seg.qty * drvQtyPerPiece * itemQty;
-              add(drvCode, drvModel, totalDrivers, "un", "DRIVERS");
+              add(drvCode, drvModel, totalDrivers, "un", "DRIVERS", itemIdx);
             }
           }
         }
@@ -357,7 +365,9 @@ export function buildMaterialRequisition(
     }
 
     // ── LUMINÁRIAS COM driverLines (downlights, painéis, spots) ──────────
-    if (!item.withoutEquipment && item.driverLines && item.driverLines.length > 0) {
+    // Apenas para itens SEM profileSegments (perfis já contabilizam drivers via seg.driverCode)
+    const hasProfileSegs = item.profileSegments && item.profileSegments.length > 0;
+    if (!item.withoutEquipment && !hasProfileSegs && item.driverLines && item.driverLines.length > 0) {
       for (const dl of item.driverLines) {
         if (!dl.driverCode) continue;
         const qtyPerUnit = item.driverLines.length === 1 && item.driverQtyPerUnit != null
@@ -367,7 +377,7 @@ export function buildMaterialRequisition(
         const isDriverFonte = dl.driverModel.toUpperCase().includes("FONTE 24V");
         const tipo: MaterialTipo = isDriverFonte ? "FONTES DE TENSÃO" : "DRIVERS";
         const correnteSuffix = dl.corrente && !isDriverFonte ? ` - PROG: ${dl.corrente}` : "";
-        add(dl.driverCode, `${dl.driverModel}${correnteSuffix}`, totalDrivers, "un", tipo);
+        add(dl.driverCode, `${dl.driverModel}${correnteSuffix}`, totalDrivers, "un", tipo, itemIdx);
       }
     }
 
@@ -425,13 +435,13 @@ export function buildMaterialRequisition(
           const lengthMm = lengthMatch ? parseInt(lengthMatch[1], 10) : 0;
           if (lengthMm > 0) {
             const totalMetros = (lengthMm / 1000) * componentQtyPerUnit * itemQty;
-            add(componentCode, canonicalDesc, totalMetros, "m", "FITAS LED");
+            add(componentCode, canonicalDesc, totalMetros, "m", "FITAS LED", itemIdx);
           } else {
-            add(componentCode, canonicalDesc, componentQtyPerUnit * itemQty, "un", "FITAS LED");
+            add(componentCode, canonicalDesc, componentQtyPerUnit * itemQty, "un", "FITAS LED", itemIdx);
           }
         } else {
           // Módulos LED, Lentes, Dissipadores, Suportes, etc.: contabilizar em UNIDADES
-          add(componentCode, canonicalDesc, componentQtyPerUnit * itemQty, "un", componentTipo);
+          add(componentCode, canonicalDesc, componentQtyPerUnit * itemQty, "un", componentTipo, itemIdx);
         }
       }
     }
@@ -442,7 +452,7 @@ export function buildMaterialRequisition(
       if (item.sku && item.ledBarComprimentoTotalMm) {
         const totalMetros = (item.ledBarComprimentoTotalMm / 1000) * itemQty;
         const perfilBase = extractPerfilBase(item.sku);
-        add(perfilBase, perfilBase, totalMetros, "m", "PERFIS");
+        add(perfilBase, perfilBase, totalMetros, "m", "PERFIS", itemIdx);
       }
 
       // Driver do LED BAR
@@ -453,7 +463,8 @@ export function buildMaterialRequisition(
           item.ledBarDriverModel,
           nCortes * itemQty,
           "un",
-          "FONTES DE TENSÃO"
+          "FONTES DE TENSÃO",
+          itemIdx
         );
       }
 
@@ -464,7 +475,7 @@ export function buildMaterialRequisition(
         const fitaCode = item.moduloLedCode
           ?? resolveEqFromDesc(item.moduloLed)
           ?? item.moduloLed; // fallback: usar descrição como código (sem prefixo)
-        add(fitaCode, item.moduloLed, totalMetros, "m", "FITAS LED");
+        add(fitaCode, item.moduloLed, totalMetros, "m", "FITAS LED", itemIdx);
       }
     }
 
@@ -474,7 +485,7 @@ export function buildMaterialRequisition(
       for (const eq of item.specialEquipments) {
         if (!eq.codigo) continue;
         const tipo = detectTipo(eq.descricao, eq.codigo);
-        add(eq.codigo, eq.descricao, eq.qty * itemQty, "un", tipo);
+        add(eq.codigo, eq.descricao, eq.qty * itemQty, "un", tipo, itemIdx);
       }
     }
 
@@ -483,7 +494,7 @@ export function buildMaterialRequisition(
       for (const acc of item.accessories) {
         if (!acc.codigo) continue;
         const tipo = detectTipo(acc.descricao, acc.codigo);
-        add(acc.codigo, acc.descricao, acc.qty * itemQty, "un", tipo);
+        add(acc.codigo, acc.descricao, acc.qty * itemQty, "un", tipo, itemIdx);
       }
     }
   }

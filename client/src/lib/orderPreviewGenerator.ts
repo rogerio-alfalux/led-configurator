@@ -527,6 +527,7 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
           <td style="text-align:left;font-size:9px">${esc(entry.tipo)}</td>
           <td style="text-align:center;font-weight:bold;font-size:9px;font-family:monospace">${esc(entry.codigo)}</td>
           <td style="text-align:left;font-size:9px">${esc(entry.descricao)}</td>
+          <td style="text-align:center;font-size:9px">${esc(entry.sourceItems.length > 0 ? entry.sourceItems.join(", ") : "")}</td>
           <td style="text-align:center;font-size:9px">${esc(entry.unidade.toUpperCase())}</td>
           <td style="text-align:center;font-weight:bold;font-size:10px">${esc(String(entry.qty))}</td>
         </tr>`;
@@ -544,6 +545,7 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
           <th style="background:#1f3864;color:#fff;padding:5px 3px;border:1.5px solid #8ea9c1;text-align:center;width:120px">TIPO</th>
           <th style="background:#1f3864;color:#fff;padding:5px 3px;border:1.5px solid #8ea9c1;text-align:center;width:80px">CÓDIGO</th>
           <th style="background:#1f3864;color:#fff;padding:5px 3px;border:1.5px solid #8ea9c1;text-align:center">DESCRIÇÃO</th>
+          <th style="background:#1f3864;color:#fff;padding:5px 3px;border:1.5px solid #8ea9c1;text-align:center;width:60px">ITENS</th>
           <th style="background:#1f3864;color:#fff;padding:5px 3px;border:1.5px solid #8ea9c1;text-align:center;width:30px">UN</th>
           <th style="background:#1f3864;color:#fff;padding:5px 3px;border:1.5px solid #8ea9c1;text-align:center;width:50px">QTD</th>
         </tr>
