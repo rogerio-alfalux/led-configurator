@@ -20,3 +20,15 @@ export function commercialQuoteAccess(
   if (role === "assistente") return quote.assistantEmail?.toLowerCase().trim() === normalizedEmail;
   return null;
 }
+
+/**
+ * Vendedores e assistentes normalmente ficam vinculados ao próprio cadastro
+ * comercial. A permissão granular GERENCIAR_ORCAMENTOS remove essa restrição
+ * para que possam operar qualquer orçamento sem perder o registro de auditoria.
+ */
+export function shouldBindCommercialQuoteTeam(
+  role: string | null | undefined,
+  canManageQuotes: boolean,
+): boolean {
+  return (role === "vendedor" || role === "assistente") && !canManageQuotes;
+}

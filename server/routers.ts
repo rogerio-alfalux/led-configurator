@@ -54,7 +54,7 @@ import { getDb } from "./db";
 import { sellers, assistants, quoteItems, quotes } from "../drizzle/schema";
 import { eq, inArray, and } from "drizzle-orm";
 import { DISCOUNT_EDITORS_EMAILS } from "../shared/const";
-import { commercialQuoteAccess } from "../shared/quoteOwnership";
+import { commercialQuoteAccess, shouldBindCommercialQuoteTeam } from "../shared/quoteOwnership";
 
 // ─── Controle de acesso a orçamentos ─────────────────────────────────────────
 /** Emails dos gestores com acesso irrestrito a todos os orçamentos */
@@ -87,13 +87,22 @@ type QuoteTeamFields = {
  * a equipe original é preservada; o audit log registra o editor.
  */
 async function getIdentityBoundTeam(
-  user: { email?: string | null; role?: string | null },
+  user: { id?: number | null; email?: string | null; role?: string | null },
   existing?: QuoteTeamFields,
 ): Promise<Partial<QuoteTeamFields>> {
   const email = user.email?.toLowerCase().trim();
   if (!email || !user.role) return {};
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados indisponível." });
+
+  const canManageQuotes = user.id != null && await hasUserPermission(
+    user.id,
+    user.role,
+    PERMISSIONS.GERENCIAR_ORCAMENTOS,
+  );
+  if (!shouldBindCommercialQuoteTeam(user.role, canManageQuotes)) {
+    return {};
+  }
 
   if (user.role === "vendedor") {
     const seller = (await db.select({ id: sellers.id, name: sellers.name })

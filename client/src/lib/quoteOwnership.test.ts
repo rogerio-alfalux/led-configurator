@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { commercialQuoteAccess } from "@shared/quoteOwnership";
+import { commercialQuoteAccess, shouldBindCommercialQuoteTeam } from "@shared/quoteOwnership";
 
 describe("commercialQuoteAccess", () => {
   const quote = { seller1Email: "vendedor@grupoalfalux.com.br", assistantEmail: "camille@grupoalfalux.com.br" };
@@ -16,5 +16,12 @@ describe("commercialQuoteAccess", () => {
 
   it("deixa roles não comerciais seguirem para as demais regras do servidor", () => {
     expect(commercialQuoteAccess("admin", "admin@grupoalfalux.com.br", quote)).toBeNull();
+  });
+
+  it("libera assistente com Gerenciar Orçamentos para editar qualquer orçamento", () => {
+    expect(shouldBindCommercialQuoteTeam("assistente", true)).toBe(false);
+    expect(shouldBindCommercialQuoteTeam("vendedor", true)).toBe(false);
+    expect(shouldBindCommercialQuoteTeam("assistente", false)).toBe(true);
+    expect(shouldBindCommercialQuoteTeam("vendedor", false)).toBe(true);
   });
 });
