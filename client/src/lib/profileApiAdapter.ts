@@ -14,7 +14,7 @@
  */
 
 import type { ApiProduct as AlfaluxProduct } from "./alfaluxApiAdapter";
-import type { ProfileVariant, InstallType, ModuleData, ProfileModules } from "./ledCatalog";
+import type { ProfileVariant, InstallType, ModuleData, ProfileModules, ApiLinearProfileVariant } from "./ledCatalog";
 
 // ── Regras de negócio por código de perfil ──────────────────────────────────
 // Estas regras são estáticas e refletem as restrições de aplicação de cada perfil.
@@ -123,6 +123,60 @@ function buildD1D2VariantKey(sku: string, name: string): string {
   return `${sku}|${d1}|${d2}|${stripMethod}`;
 }
 
+/** Identifica a versão linear individual que a API cadastrou para o módulo. */
+function buildLinearVariantKey(name: string): "18W" | "26W" | "36W SF" | "36W SL" {
+  if (/\b36W\s+SL\b/i.test(name)) return "36W SL";
+  if (/\b36W\s+SF\b/i.test(name)) return "36W SF";
+  if (/\b26W\b/i.test(name)) return "26W";
+  return "18W";
+}
+
+function createApiLinearVariant(product: AlfaluxProduct): ApiLinearProfileVariant {
+  const api = product as any;
+  return {
+    modules: { IN: {}, IF: {}, ML: {} },
+    driver220: product.driver220 ?? null,
+    driverBivolt: product.driverBivolt ?? null,
+    driverDimDali: product.driverDimDali ?? null,
+    driverDim110v: product.driverDim110v ?? null,
+    correnteDriver: api.correnteDriver ?? null,
+    ledModuleStripflex: null,
+    ledModuleStripline: null,
+    ledModuleStripflex2700: null,
+    ledModuleStripflex3000: null,
+    ledModuleStripflex4000: null,
+    ledModuleStripflex5000: null,
+    ledModuleStripline2700: null,
+    ledModuleStripline3000: null,
+    ledModuleStripline4000: null,
+    ledModuleStripline5000: null,
+    ledModuleStripflexEq2700: null,
+    ledModuleStripflexEq3000: null,
+    ledModuleStripflexEq4000: null,
+    ledModuleStripflexEq5000: null,
+    ledModuleStriplineEq2700: null,
+    ledModuleStriplineEq3000: null,
+    ledModuleStriplineEq4000: null,
+    ledModuleStriplineEq5000: null,
+  };
+}
+
+function fillApiLinearLedModule(target: ApiLinearProfileVariant, product: AlfaluxProduct) {
+  if (!product.ledModule) return;
+  const api = product as any;
+  const clean = product.ledModule.replace(/\[CCT\]/gi, "").trim();
+  const kind = clean.toUpperCase().includes("STRIPLINE") ? "Stripline" : clean.toUpperCase().includes("STRIPFLEX") ? "Stripflex" : null;
+  if (!kind) return;
+  const genericKey = `ledModule${kind}` as keyof ApiLinearProfileVariant;
+  if (!target[genericKey]) (target as any)[genericKey] = clean;
+  for (const cct of ["2700", "3000", "4000", "5000"] as const) {
+    const nameKey = `ledModule${kind}${cct}` as keyof ApiLinearProfileVariant;
+    const eqKey = `ledModule${kind}Eq${cct}` as keyof ApiLinearProfileVariant;
+    if (!(target as any)[nameKey] && api[`ledModule${cct}`]) (target as any)[nameKey] = api[`ledModule${cct}`];
+    if (!(target as any)[eqKey] && api[`ledModuleEq${cct}`]) (target as any)[eqKey] = api[`ledModuleEq${cct}`];
+  }
+}
+
 // ── Extrai o código de perfil base do SKU ────────────────────────────────────
 // Ex: "LLA-5945.1IF.39F" → "LLA-5945"
 function extractProfileCode(sku: string): string {
@@ -203,6 +257,7 @@ export function adaptProfileProducts(
       markupMinimoDimTriac220v: number | null;
       markupMinimoDriver: number | null;
       apiD1D2BySku: NonNullable<ProfileVariant["apiD1D2BySku"]>;
+      apiLinearVariants: NonNullable<ProfileVariant["apiLinearVariants"]>;
     }
   > = {};
 
@@ -275,6 +330,7 @@ export function adaptProfileProducts(
         markupMinimoDimTriac220v: pa.markupMinimoDimTriac220v ?? null,
         markupMinimoDriver: pa.markupMinimoDriver ?? null,
         apiD1D2BySku: {},
+        apiLinearVariants: {},
       };
     } else {
       // Atualizar drivers se ainda não preenchidos (usar o primeiro produto que tiver)
@@ -322,6 +378,15 @@ export function adaptProfileProducts(
     
 
     const entry = variantMap[profileCode];
+    const linearVariantKey = buildLinearVariantKey(p.name);
+    const linearVariant = entry.apiLinearVariants[linearVariantKey] ??= createApiLinearVariant(p);
+    // Completar campos somente com outro módulo da MESMA versão API.
+    if (!linearVariant.driver220 && p.driver220) linearVariant.driver220 = p.driver220;
+    if (!linearVariant.driverBivolt && p.driverBivolt) linearVariant.driverBivolt = p.driverBivolt;
+    if (!linearVariant.driverDimDali && p.driverDimDali) linearVariant.driverDimDali = p.driverDimDali;
+    if (!linearVariant.driverDim110v && p.driverDim110v) linearVariant.driverDim110v = p.driverDim110v;
+    if (!linearVariant.correnteDriver && pa2.correnteDriver) linearVariant.correnteDriver = pa2.correnteDriver;
+    fillApiLinearLedModule(linearVariant, p);
     if (p.possuiOpcaoD1D2 && p.composicaoD1D2) {
       // O mesmo SKU pode aparecer para potências diferentes (18W, 26W,
       // 36W SF/SL). A chave precisa preservar essa variante da API.
@@ -336,6 +401,7 @@ export function adaptProfileProducts(
       : String(parsed.bars);
 
     entry.modules[parsed.type][barsKey] = moduleData;
+    linearVariant.modules[parsed.type][barsKey] = moduleData;
   }
 
   if (Object.keys(variantMap).length === 0) return null;
@@ -358,6 +424,7 @@ export function adaptProfileProducts(
       allowD2: rule.allowD2,
       allowD1D2: rule.allowD1D2,
       ...(Object.keys(entry.apiD1D2BySku).length > 0 ? { apiD1D2BySku: entry.apiD1D2BySku } : {}),
+      ...(Object.keys(entry.apiLinearVariants).length > 0 ? { apiLinearVariants: entry.apiLinearVariants } : {}),
       ...(rule.hasDiffuser !== undefined ? { hasDiffuser: rule.hasDiffuser } : {}),
       ...(rule.requiresRemoteDriver ? { requiresRemoteDriver: true } : {}),
       ...(derivedStripMethod ? { stripMethod: derivedStripMethod } : {}),

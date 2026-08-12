@@ -652,8 +652,12 @@ export interface ApiProductDriverInfo {
   sku: string;
   driver220: { model: string; code: string | null } | null;
   driverBivolt: { model: string; code: string | null } | null;
+  driverDimDali?: { model: string; code: string | null } | null;
+  driverDim110v?: { model: string; code: string | null } | null;
   driverQtd220: number | null;
   driverQtdBivolt: number | null;
+  /** Corrente de programação da versão exata retornada pela API. */
+  correnteDriver?: string | null;
   /** Código EQ do módulo LED por CCT — para Migração 4 */
   ledModuleEq2700?: string | null;
   ledModuleEq3000?: string | null;
@@ -715,6 +719,44 @@ export function migrateItemDrivers(
   correnteMap?: Map<string, string | null>,
   reverseDescMap?: Map<string, string>,
 ): CartItemData {
+  // ── Migração de perfis: cada potência/método possui cadastro próprio na API ──
+  // Nunca reutilizar driver ou corrente salvos de outra versão (18W/26W/36W SF/SL).
+  if (item.profileSegments && item.profileSegments.length > 0 && item.power) {
+    const powerNum = parseInt(item.power, 10);
+    const powerLabel = toPowerLabel(isNaN(powerNum) ? undefined : powerNum, item.stripMethod);
+    const itemSkuBase = (item.sku ?? "").match(/^([A-Z]{2,3}-\d{4})/i)?.[1]?.toUpperCase() ?? "";
+    const contextText = [item.description, item.orderSummary, item.quoteSummary, item.drivers].filter(Boolean).join(" ");
+    const useBivolt = /bivolt/i.test(contextText);
+    let resolvedFromApi = false;
+    const profileSegments = item.profileSegments.map((segment) => {
+      const segmentSkuBase = segment.sku.match(/^([A-Z]{2,3}-\d{4})/i)?.[1]?.toUpperCase() ?? "";
+      const apiProduct =
+        productSkuMap.get(`${segment.sku}|${powerLabel}`) ??
+        (segmentSkuBase ? productSkuMap.get(`${segmentSkuBase}|${powerLabel}`) : undefined) ??
+        (itemSkuBase ? productSkuMap.get(`${itemSkuBase}|${powerLabel}`) : undefined) ??
+        productSkuMap.get(`${segment.sku}|${powerLabel}`.toUpperCase());
+      if (!apiProduct) return segment;
+      const apiDriver = useBivolt
+        ? (apiProduct.driverBivolt ?? apiProduct.driver220)
+        : (apiProduct.driver220 ?? apiProduct.driverBivolt);
+      if (!apiDriver?.code) return segment;
+      resolvedFromApi = true;
+      const driverQtyPerPiece = useBivolt
+        ? (apiProduct.driverQtdBivolt ?? apiProduct.driverQtd220 ?? 1)
+        : (apiProduct.driverQtd220 ?? apiProduct.driverQtdBivolt ?? 1);
+      return {
+        ...segment,
+        driverCode: apiDriver.code,
+        driverModel: apiDriver.model,
+        driverQtyPerPiece,
+        corrente: apiProduct.correnteDriver ?? null,
+      };
+    });
+    // Limpar linhas anteriores força a Migração 1 abaixo a consolidar apenas
+    // drivers e correntes que acabaram de ser lidos da variante API exata.
+    if (resolvedFromApi) item = { ...item, profileSegments, driverLines: undefined };
+  }
+
   // ── Migração 4: Corrigir ledModuleCode nos profileSegments ──
   // Busca o produto correto da API pelo SKU do perfil + potência + stripMethod
   // e sobrescreve o ledModuleCode com o EQ correto para a CCT do item.
@@ -862,7 +904,7 @@ export function migrateItemDrivers(
   if (item.profileSegments && item.profileSegments.length > 0 &&
       item.profileSegments.some(seg => seg.driverCode)) {
     const itemQty = item.qty ?? 1;
-    const drvMap = new Map<string, { driverCode: string; driverModel: string; qtyPerLuminaria: number }>();
+    const drvMap = new Map<string, { driverCode: string; driverModel: string; qtyPerLuminaria: number; corrente?: string | null }>();
     for (const seg of item.profileSegments) {
       if (!seg.driverCode) continue;
       const key = seg.driverCode;
@@ -870,7 +912,7 @@ export function migrateItemDrivers(
       if (drvMap.has(key)) {
         drvMap.get(key)!.qtyPerLuminaria += qtyPerSeg;
       } else {
-        drvMap.set(key, { driverCode: seg.driverCode, driverModel: seg.driverModel ?? seg.driverCode, qtyPerLuminaria: qtyPerSeg });
+        drvMap.set(key, { driverCode: seg.driverCode, driverModel: seg.driverModel ?? seg.driverCode, qtyPerLuminaria: qtyPerSeg, corrente: seg.corrente ?? null });
       }
     }
     const driverEntries = Array.from(drvMap.values());
@@ -880,7 +922,7 @@ export function migrateItemDrivers(
       const unitPrice = priceMap.get(drv.driverCode) ?? null;
       const totalPrice = unitPrice != null ? unitPrice * totalQty : null;
       if (totalPrice != null) totalDriverCost += totalPrice;
-      const corrente = correnteMap?.get(drv.driverCode) ?? null;
+      const corrente = drv.corrente ?? correnteMap?.get(drv.driverCode) ?? null;
       return { driverCode: drv.driverCode, driverModel: descMap.get(drv.driverCode) ?? drv.driverModel, driverQty: totalQty, driverUnitPrice: unitPrice, driverTotalPrice: totalPrice, ...(corrente ? { corrente } : {}) };
     });
     const totalPrice = item.totalPrice ?? 0;

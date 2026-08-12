@@ -166,3 +166,23 @@ describe("parseCartItemData - múltiplos modelos de driver (caso 33.9995-26)", (
     expect(result.moduloLed).toContain("2x MÓDULO LED API 4000K (EQMOD4000)");
   });
 });
+
+describe("migrateItemDrivers - perfis usam a variante API da potência selecionada", () => {
+  it("substitui driver e programação antigos pela variante 26W/500mA da API", () => {
+    const item = {
+      category: "Perfis", sku: "LLP-6060", description: "BLAZE H 26W", power: "26W", cct: "3000K", qty: 1,
+      unitPrice: null, totalPrice: null, photoUrl: null, stripMethod: "STRIPFLEX",
+      profileSegments: [{ sku: "LLP-6060.2IF.26F", qty: 2, lengthMm: 1180, barsPerPiece: 2, driverQtyPerPiece: 1, driverModel: "DRIVER ANTIGO", driverCode: "EQOLD", corrente: "350mA" }],
+      driverLines: [{ driverCode: "EQOLD", driverModel: "DRIVER ANTIGO", driverQty: 2, driverUnitPrice: null, driverTotalPrice: null, corrente: "350mA" }],
+    } as any;
+    const productMap = new Map([["LLP-6060.2IF.26F|26W", {
+      sku: "LLP-6060.2IF.26F", driver220: { model: "DRIVER API 26W", code: "EQ0026" }, driverBivolt: null,
+      driverQtd220: 1, driverQtdBivolt: null, correnteDriver: "500mA",
+    }]]);
+
+    const migrated = migrateItemDrivers(item, new Map([["EQ0026", 50]]), new Map([["EQ0026", "DRIVER API 26W"]]), productMap);
+    expect(migrated.profileSegments?.[0].driverCode).toBe("EQ0026");
+    expect(migrated.profileSegments?.[0].corrente).toBe("500mA");
+    expect(migrated.driverLines?.[0]).toMatchObject({ driverCode: "EQ0026", driverQty: 2, corrente: "500mA" });
+  });
+});

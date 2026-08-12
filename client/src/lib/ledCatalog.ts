@@ -15,6 +15,35 @@ export interface ProfileModules {
   ML: Record<string, ModuleData>;
 }
 
+/** Cadastro modular de uma versão específica retornada pela API. */
+export interface ApiLinearProfileVariant {
+  modules: ProfileModules;
+  driver220?: { model: string; code: string | null } | null;
+  driverBivolt?: { model: string; code: string | null } | null;
+  driverDimDali?: { model: string; code: string | null } | null;
+  driverDim110v?: { model: string; code: string | null } | null;
+  /** Corrente de programação cadastrada na API para esta versão. */
+  correnteDriver?: string | null;
+  ledModuleStripflex?: string | null;
+  ledModuleStripline?: string | null;
+  ledModuleStripflex2700?: string | null;
+  ledModuleStripflex3000?: string | null;
+  ledModuleStripflex4000?: string | null;
+  ledModuleStripflex5000?: string | null;
+  ledModuleStripline2700?: string | null;
+  ledModuleStripline3000?: string | null;
+  ledModuleStripline4000?: string | null;
+  ledModuleStripline5000?: string | null;
+  ledModuleStripflexEq2700?: string | null;
+  ledModuleStripflexEq3000?: string | null;
+  ledModuleStripflexEq4000?: string | null;
+  ledModuleStripflexEq5000?: string | null;
+  ledModuleStriplineEq2700?: string | null;
+  ledModuleStriplineEq3000?: string | null;
+  ledModuleStriplineEq4000?: string | null;
+  ledModuleStriplineEq5000?: string | null;
+}
+
 export interface ProfileVariant {
   /** Nome do perfil (ex: HIT, BLAZE H) */
   name: string;
@@ -38,6 +67,8 @@ export interface ProfileVariant {
       custo?: string | number | null;
     }> | null;
   }>;
+  /** Variantes lineares independentes retornadas pela API: 18W, 26W, 36W SF e 36W SL. */
+  apiLinearVariants?: Record<string, ApiLinearProfileVariant>;
   /** SHARP: requer seleção de difusor (DA/DB/DC) */
   hasDiffuser?: boolean;
   /** Alerta de driver remoto obrigatório */

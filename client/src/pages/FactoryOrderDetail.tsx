@@ -1197,14 +1197,17 @@ export default function FactoryOrderDetail() {
   const { data: allProductsFO } = trpc.alfalux.products.useQuery(undefined, { staleTime: 0 });
   const productSkuMapFO = useMemo(() => {
     const map = new Map<string, ApiProductDriverInfo>();
-    for (const p of (allProductsFO ?? []) as Array<{ sku: string; name?: string; categoria?: string; driver220?: { model: string; code: string | null } | null; driverBivolt?: { model: string; code: string | null } | null; driverQtd220?: number | null; driverQtdBivolt?: number | null; ledModuleEq2700?: string | null; ledModuleEq3000?: string | null; ledModuleEq4000?: string | null; ledModuleEq5000?: string | null; ledModuleEq?: string | null; ledModuleQtd?: number | null; ledModuleQtd2700?: number | null; ledModuleQtd3000?: number | null; ledModuleQtd4000?: number | null; ledModuleQtd5000?: number | null }>) {
+    for (const p of (allProductsFO ?? []) as Array<{ sku: string; name?: string; categoria?: string; driver220?: { model: string; code: string | null } | null; driverBivolt?: { model: string; code: string | null } | null; driverDimDali?: { model: string; code: string | null } | null; driverDim110v?: { model: string; code: string | null } | null; driverQtd220?: number | null; driverQtdBivolt?: number | null; correnteDriver?: string | null; ledModuleEq2700?: string | null; ledModuleEq3000?: string | null; ledModuleEq4000?: string | null; ledModuleEq5000?: string | null; ledModuleEq?: string | null; ledModuleQtd?: number | null; ledModuleQtd2700?: number | null; ledModuleQtd3000?: number | null; ledModuleQtd4000?: number | null; ledModuleQtd5000?: number | null }>) {
       if (!p.sku) continue;
       const entry: ApiProductDriverInfo = {
         sku: p.sku,
         driver220: p.driver220 ?? null,
         driverBivolt: p.driverBivolt ?? null,
+        driverDimDali: p.driverDimDali ?? null,
+        driverDim110v: p.driverDim110v ?? null,
         driverQtd220: p.driverQtd220 ?? null,
         driverQtdBivolt: p.driverQtdBivolt ?? null,
+        correnteDriver: p.correnteDriver ?? null,
         ledModuleEq2700: p.ledModuleEq2700 ?? null,
         ledModuleEq3000: p.ledModuleEq3000 ?? null,
         ledModuleEq4000: p.ledModuleEq4000 ?? null,
@@ -1223,6 +1226,10 @@ export default function FactoryOrderDetail() {
       if ((p.categoria ?? "").toUpperCase() === "PERFIS" && p.name) {
         const powerLabel = extractPowerLabelFromName(p.name);
         map.set(`${p.sku}|${powerLabel}`, entry);
+        const profileBase = p.sku.match(/^([A-Z]{2,3}-\d{4})/i)?.[1]?.toUpperCase();
+        if (profileBase && !map.has(`${profileBase}|${powerLabel}`)) {
+          map.set(`${profileBase}|${powerLabel}`, entry);
+        }
         // Indexar LED BAR por sku|potenciaW/m (ex: "LED BAR U DA|5W/M")
         const potMatch = (p.name ?? "").match(/(\d+)\s*W\/M/i);
         if (potMatch) {

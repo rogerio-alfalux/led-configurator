@@ -4702,6 +4702,22 @@ export default function Home() {
     const shiftVoltage = isShift ? "220Vac" as const : voltage;
     const shiftStripMethod = isShift ? "STRIPFLEX" as const : undefined;
 
+    const effectiveStripMethod = shiftStripMethod ?? (() => {
+      const hasBothMethods = selectedVariant?.ledModuleStripflex && selectedVariant?.ledModuleStripline;
+      if (hasBothMethods) {
+        if (powerD1 === 18 || powerD1 === 26) return "STRIPFLEX" as const;
+        return stripMethod;
+      }
+      if (selectedVariant?.stripMethod) return selectedVariant.stripMethod;
+      return powerD1 === 36 ? stripMethod : "STRIPFLEX" as const;
+    })();
+    const apiLinearVariant = selectedVariant?.apiLinearVariants?.[toPowerLabel(shiftPowerD1, effectiveStripMethod)];
+    if (!isShift && selectedVariant?.apiLinearVariants && !apiLinearVariant) {
+      setError(`A API não retornou o cadastro da variante ${toPowerLabel(shiftPowerD1, effectiveStripMethod)} para este perfil.`);
+      return;
+    }
+    const resolvedApiVariant = apiLinearVariant ?? selectedVariant;
+
     const input: ConfigInput = {
       profileCode,
       application: effectiveApplication,
@@ -4709,25 +4725,7 @@ export default function Home() {
       powerD2: isDual ? powerD2 : undefined,
       cct: shiftCct,
       voltage: shiftVoltage,
-      // REGRA INEGOCIÁVEL: determinar stripMethod com base na potência e nos módulos disponíveis.
-      // Se a variante tem AMBOS os módulos (ex: BLAZE H com 18W=STRIPFLEX e 28W=STRIPLINE),
-      // usar a potência para decidir: 18W → STRIPFLEX, 28W → STRIPLINE.
-      // Se a variante tem apenas um tipo, usar esse tipo.
-      // Se não tem nenhum, usar a lógica legada (36W = STRIPLINE, outros = STRIPFLEX).
-      stripMethod: shiftStripMethod ?? (() => {
-        const hasBothMethods = selectedVariant?.ledModuleStripflex && selectedVariant?.ledModuleStripline;
-        if (hasBothMethods) {
-          // Perfis com ambos os métodos: decidir pela potência
-          // 18W e 26W são sempre Stripflex
-          if (powerD1 === 18 || powerD1 === 26) return "STRIPFLEX";
-          // 36W: usar a preferência do usuário (stripMethod state)
-          return stripMethod;
-        }
-        // Variante com apenas um método definido
-        if (selectedVariant?.stripMethod) return selectedVariant.stripMethod;
-        // Fallback legado: 36W = STRIPLINE, outros = STRIPFLEX
-        return powerD1 === 36 ? stripMethod : "STRIPFLEX";
-      })(),
+      stripMethod: effectiveStripMethod,
       totalLength: len,
       allowLongModules,
       allowFractional,
@@ -4738,29 +4736,30 @@ export default function Home() {
       diffuserD2: hasDiffuser && isDual ? diffuserD2 : undefined,
       driverNameMap: componenteDriverNameMap,
       controlType,
-      driver220: selectedVariant?.driver220 ?? null,
-      driverBivolt: selectedVariant?.driverBivolt ?? null,
-      driverDimDali: selectedVariant?.driverDimDali ?? null,
-      driverDim110v: selectedVariant?.driverDim110v ?? null,
+      driver220: resolvedApiVariant?.driver220 ?? null,
+      driverBivolt: resolvedApiVariant?.driverBivolt ?? null,
+      driverDimDali: resolvedApiVariant?.driverDimDali ?? null,
+      driverDim110v: resolvedApiVariant?.driverDim110v ?? null,
+      correnteDriver: resolvedApiVariant?.correnteDriver ?? null,
       apiD1D2BySku: effectiveApplication === "D1+D2" ? selectedVariant?.apiD1D2BySku : undefined,
-      ledModuleStripflex: selectedVariant?.ledModuleStripflex ?? null,
-      ledModuleStripline: selectedVariant?.ledModuleStripline ?? null,
-      ledModuleStripflex2700: selectedVariant?.ledModuleStripflex2700 ?? null,
-      ledModuleStripflex3000: selectedVariant?.ledModuleStripflex3000 ?? null,
-      ledModuleStripflex4000: selectedVariant?.ledModuleStripflex4000 ?? null,
-      ledModuleStripflex5000: selectedVariant?.ledModuleStripflex5000 ?? null,
-      ledModuleStripline2700: selectedVariant?.ledModuleStripline2700 ?? null,
-      ledModuleStripline3000: selectedVariant?.ledModuleStripline3000 ?? null,
-      ledModuleStripline4000: selectedVariant?.ledModuleStripline4000 ?? null,
-      ledModuleStripline5000: selectedVariant?.ledModuleStripline5000 ?? null,
-      ledModuleStripflexEq2700: selectedVariant?.ledModuleStripflexEq2700 ?? null,
-      ledModuleStripflexEq3000: selectedVariant?.ledModuleStripflexEq3000 ?? null,
-      ledModuleStripflexEq4000: selectedVariant?.ledModuleStripflexEq4000 ?? null,
-      ledModuleStripflexEq5000: selectedVariant?.ledModuleStripflexEq5000 ?? null,
-      ledModuleStriplineEq2700: selectedVariant?.ledModuleStriplineEq2700 ?? null,
-      ledModuleStriplineEq3000: selectedVariant?.ledModuleStriplineEq3000 ?? null,
-      ledModuleStriplineEq4000: selectedVariant?.ledModuleStriplineEq4000 ?? null,
-      ledModuleStriplineEq5000: selectedVariant?.ledModuleStriplineEq5000 ?? null,
+      ledModuleStripflex: resolvedApiVariant?.ledModuleStripflex ?? null,
+      ledModuleStripline: resolvedApiVariant?.ledModuleStripline ?? null,
+      ledModuleStripflex2700: resolvedApiVariant?.ledModuleStripflex2700 ?? null,
+      ledModuleStripflex3000: resolvedApiVariant?.ledModuleStripflex3000 ?? null,
+      ledModuleStripflex4000: resolvedApiVariant?.ledModuleStripflex4000 ?? null,
+      ledModuleStripflex5000: resolvedApiVariant?.ledModuleStripflex5000 ?? null,
+      ledModuleStripline2700: resolvedApiVariant?.ledModuleStripline2700 ?? null,
+      ledModuleStripline3000: resolvedApiVariant?.ledModuleStripline3000 ?? null,
+      ledModuleStripline4000: resolvedApiVariant?.ledModuleStripline4000 ?? null,
+      ledModuleStripline5000: resolvedApiVariant?.ledModuleStripline5000 ?? null,
+      ledModuleStripflexEq2700: resolvedApiVariant?.ledModuleStripflexEq2700 ?? null,
+      ledModuleStripflexEq3000: resolvedApiVariant?.ledModuleStripflexEq3000 ?? null,
+      ledModuleStripflexEq4000: resolvedApiVariant?.ledModuleStripflexEq4000 ?? null,
+      ledModuleStripflexEq5000: resolvedApiVariant?.ledModuleStripflexEq5000 ?? null,
+      ledModuleStriplineEq2700: resolvedApiVariant?.ledModuleStriplineEq2700 ?? null,
+      ledModuleStriplineEq3000: resolvedApiVariant?.ledModuleStriplineEq3000 ?? null,
+      ledModuleStriplineEq4000: resolvedApiVariant?.ledModuleStriplineEq4000 ?? null,
+      ledModuleStriplineEq5000: resolvedApiVariant?.ledModuleStriplineEq5000 ?? null,
     };
 
     try {

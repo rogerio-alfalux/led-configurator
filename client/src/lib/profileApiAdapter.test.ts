@@ -221,6 +221,26 @@ describe("adaptProfileProducts", () => {
     expect(variant.driverDimDali?.model).toBe("OSRAM ETI 75W DALI");
   });
 
+  it("preserva módulos, drivers e corrente separados para 18W, 26W, 36W SF e 36W SL", () => {
+    const products = [
+      makePerfilProduct({ sku: "LLP-6060.2IF.18F", name: "BLAZE H P IF 2B 1180MM 18W", instalacao: "PENDENTE", familia: "BLAZE H", driver220: makeDriver("DRIVER 18W", "EQ0018"), ...( { correnteDriver: "350mA" } as any) }),
+      makePerfilProduct({ sku: "LLP-6060.2IF.26F", name: "BLAZE H P IF 2B 1180MM 26W", instalacao: "PENDENTE", familia: "BLAZE H", driver220: makeDriver("DRIVER 26W", "EQ0026"), ...( { correnteDriver: "500mA" } as any) }),
+      makePerfilProduct({ sku: "LLP-6060.2IF.36SF", name: "BLAZE H P IF 2B 1180MM 36W SF", instalacao: "PENDENTE", familia: "BLAZE H", driver220: makeDriver("DRIVER 36W SF", "EQ0036SF"), ...( { correnteDriver: "350mA" } as any) }),
+      makePerfilProduct({ sku: "LLP-6060.2IF.36SL", name: "BLAZE H P IF 2B 1180MM 36W SL", instalacao: "PENDENTE", familia: "BLAZE H", driver220: makeDriver("DRIVER 36W SL", "EQ0036SL"), ...( { correnteDriver: "250mA" } as any) }),
+    ];
+    const variant = adaptProfileProducts(products)!["LLP-6060"];
+
+    expect(variant.apiLinearVariants?.["18W"].driver220?.code).toBe("EQ0018");
+    expect(variant.apiLinearVariants?.["18W"].correnteDriver).toBe("350mA");
+    expect(variant.apiLinearVariants?.["26W"].driver220?.code).toBe("EQ0026");
+    expect(variant.apiLinearVariants?.["26W"].correnteDriver).toBe("500mA");
+    expect(variant.apiLinearVariants?.["36W SF"].driver220?.code).toBe("EQ0036SF");
+    expect(variant.apiLinearVariants?.["36W SF"].correnteDriver).toBe("350mA");
+    expect(variant.apiLinearVariants?.["36W SL"].driver220?.code).toBe("EQ0036SL");
+    expect(variant.apiLinearVariants?.["36W SL"].correnteDriver).toBe("250mA");
+    expect(variant.apiLinearVariants?.["26W"].modules.IF["2"].sku).toBe("LLP-6060.2IF.26F");
+  });
+
   it("retorna catálogo com todos os 20 perfis quando dados completos são fornecidos", () => {
     const profileCodes = [
       "LLE-2580", "LLP-4536", "LLE-2052", "LLS-3945", "LLA-5945",

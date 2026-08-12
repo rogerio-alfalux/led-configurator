@@ -411,7 +411,14 @@ const MIN_BARS_FOR_COMPOSITION = 2;
 function getModules(profileCode: string, type: ModuleType, allowLongModules: boolean, stripMethod?: StripMethod, power?: Power, forComposition = false, allowFractional = false): RawModule[] {
   const profile = getActiveCatalog()[profileCode];
   if (!profile) return [];
-  const mods = profile.modules[type];
+  const powerLabel = power === 26
+    ? "26W"
+    : power === 36
+      ? (stripMethod === "STRIPLINE" ? "36W SL" : "36W SF")
+      : "18W";
+  // Quando a API fornece cadastros modulares separados, a composição usa SOMENTE
+  // os módulos da potência/método selecionados. O catálogo agregado é legado.
+  const mods = profile.apiLinearVariants?.[powerLabel]?.modules[type] ?? profile.modules[type];
   if (!mods) return [];
   return Object.entries(mods)
     .filter(([, data]) => data.sku && data.sku !== "")
