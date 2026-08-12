@@ -1458,7 +1458,7 @@ export default function FactoryOrderDetail() {
     setIsGenerating(true);
     try {
       const { quote } = quoteData;
-      const deliveryDays = orderToUse.deliveryDays ?? 19;
+      const deliveryDays = orderToUse.deliveryDays ?? 20;
       const approvedAtIso = quote.approvedAt
         ? new Date(quote.approvedAt).toISOString()
         : new Date().toISOString();
@@ -1664,7 +1664,7 @@ export default function FactoryOrderDetail() {
                   onClick={async () => {
                     if (!quoteData) return;
                     const { quote } = quoteData;
-                    const deliveryDays = currentOrder.deliveryDays ?? 19;
+                    const deliveryDays = currentOrder.deliveryDays ?? 20;
                     const approvedAtIso = quote.approvedAt
                       ? new Date(quote.approvedAt).toISOString()
                       : new Date().toISOString();

@@ -250,7 +250,7 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
   const pedidoDisplay = form.orderNumber && /^\d{6}(-\d+)?$/.test(form.orderNumber)
     ? form.orderNumber
     : "NÃO INFORMADO";
-  const displayDays = form.precomputedDisplayDays ?? (form.deliveryDays ?? 20) - 1;
+  const displayDays = form.precomputedDisplayDays ?? (form.deliveryDays ?? 20);
   const prazoStr = form.prazoStr ?? `${displayDays} dias úteis`;
 
   // ── Linhas de dados ──────────────────────────────────────────────────────

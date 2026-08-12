@@ -3,6 +3,7 @@
 - [x] Corrigir e validar explicitamente o agrupamento de itens tecnicamente equivalentes na ficha de produção, incluindo 04.0173-26 Parcial 1
 - [x] Requisição de materiais: corrigir duplicação de drivers para perfis (profileSegments já contabiliza, driverLines não deve duplicar)
 - [x] Requisição de materiais: adicionar coluna "Itens" indicando quais itens do pedido usam cada componente
+- [x] Corrigir a data de prazo das fichas de produção para calcular dias úteis e excluir fins de semana em todos os pedidos de fábrica
 - [x] Requisição de materiais: excluir LED BAR do bloco driverLines para evitar duplicação de fontes (item 15) — testado
 - [x] Requisição de materiais: incluir ledModuleQtd como prefixo no moduloLed de spots (FOCO com 4x TRACE) — testado
 - [x] Requisição de materiais: garantir módulo LED de FOCO (TRACE Ø50MM) classificado como MÓDULOS LED — testado

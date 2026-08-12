@@ -17,7 +17,7 @@ export interface OrderFormData {
   date: string;
   /** Empresa fabricante: "ALFALUX" (padrão) ou "LUMINEW" */
   empresa?: "ALFALUX" | "LUMINEW";
-  /** Prazo acordado em dias úteis (padrão: 20). O Excel exibe prazo - 1 (logística). */
+  /** Prazo acordado em dias úteis (padrão: 20). */
   deliveryDays?: number;
   /** Data de aprovação do orçamento (ISO string) para calcular prazo */
   approvedAt?: string;
@@ -26,10 +26,7 @@ export interface OrderFormData {
    * Formato: "DD/MM/YYYY"
    */
   precomputedDeliveryDate?: string;
-  /**
-   * Número de dias úteis já calculado (prazo - 1).
-   * Se fornecido, usa este valor em vez de calcular.
-   */
+  /** Número de dias úteis já calculado. Se fornecido, usa este valor em vez de calcular. */
   precomputedDisplayDays?: number;
 }
 
@@ -54,7 +51,7 @@ async function fetchHolidays(year: number): Promise<Set<string>> {
  * Calcula data de entrega adicionando dias úteis (seg-sex) a partir de uma data base,
  * descontando feriados nacionais.
  */
-function addBusinessDays(start: Date, days: number, holidays: Set<string> = new Set()): Date {
+export function addBusinessDays(start: Date, days: number, holidays: Set<string> = new Set()): Date {
   const result = new Date(start);
   let added = 0;
   while (added < days) {
@@ -68,14 +65,14 @@ function addBusinessDays(start: Date, days: number, holidays: Set<string> = new 
 
 /**
  * Calcula a data de entrega para o pedido de fábrica.
- * - Prazo exibido = deliveryDays - 1 (1 dia reservado para logística)
- * - Desconta feriados nacionais via BrasilAPI
+ * - Aplica integralmente o prazo informado em dias úteis
+ * - Desconta sábados, domingos e feriados nacionais via BrasilAPI
  */
 export async function calcDeliveryDate(
   approvedAt: string | undefined,
   deliveryDays: number = 20
 ): Promise<{ displayDays: number; deliveryDate: Date; deliveryDateStr: string }> {
-  const displayDays = deliveryDays - 1;
+  const displayDays = Math.max(0, Math.trunc(deliveryDays));
   const base = approvedAt ? new Date(approvedAt) : new Date();
   const startYear = base.getFullYear();
   const [h1, h2] = await Promise.all([
@@ -414,13 +411,11 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   ws.getCell("H3").alignment = { horizontal: "left", vertical: "middle" };
   // Calcular e exibir data de entrega prevista
   {
-    // Se já foi pré-calculado (com feriados), usar diretamente
-    const displayDays = form.precomputedDisplayDays ?? (form.deliveryDays ?? 20) - 1;
-    const dateStr = form.precomputedDeliveryDate
-      ?? (() => {
-        const base = form.approvedAt ? new Date(form.approvedAt) : new Date();
-        return toBrasiliaDate(addBusinessDays(base, displayDays));
-      })();
+    // Sempre usar a data pré-calculada pelos dias úteis. No fallback, calcular
+    // da mesma forma, incluindo fins de semana e feriados nacionais.
+    const fallbackDelivery = await calcDeliveryDate(form.approvedAt, form.deliveryDays ?? 20);
+    const displayDays = form.precomputedDisplayDays ?? fallbackDelivery.displayDays;
+    const dateStr = form.precomputedDeliveryDate ?? fallbackDelivery.deliveryDateStr;
     const prazoStr = `${displayDays} dias úteis → ${dateStr}`;
     const prazoCell = ws.getCell("J3");
     prazoCell.value = prazoStr;
