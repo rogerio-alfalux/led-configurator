@@ -52,6 +52,17 @@ export interface SkuDriverEntry {
   barsPerPiece: number;
 }
 
+/** Composição específica da versão D1+D2 retornada pela API para um SKU. */
+export interface ApiD1D2SkuComposition {
+  qtdModuloLed?: number | null;
+  drivers?: Array<{
+    tipo: string;
+    modelo: string;
+    qtd: number;
+    custo?: string | number | null;
+  }> | null;
+}
+
 export interface CompositionItem {
   sku: string;
   moduleType: ModuleType;
@@ -109,6 +120,8 @@ export interface CompositionResult {
   controlType: ControlType;
   /** Driver DIM selecionado quando controlType != onoff */
   driverDimSelected?: { model: string; code: string | null } | null;
+  /** Componentes D1+D2 da API usados no resultado, quando aplicável. */
+  apiD1D2BySku?: Record<string, ApiD1D2SkuComposition>;
 }
 
 export interface ConfigInput {
@@ -150,6 +163,8 @@ export interface ConfigInput {
   driverDimDali?: { model: string; code: string | null } | null;
   /** Driver DIM 1-10V disponível para este perfil (da API) */
   driverDim110v?: { model: string; code: string | null } | null;
+  /** Componentes específicos por SKU da versão D1+D2 cadastrada na API. */
+  apiD1D2BySku?: Record<string, ApiD1D2SkuComposition>;
   /** Corrente de programação do driver (ex: "programar em 350mA"). Campo direto da API. */
   correnteDriver?: string | null;
   /**
@@ -1057,6 +1072,22 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
   }
 
   const { composition, realizedLength, remainingLength, compositionMode } = buildResult;
+  const apiD1D2BySku = effectiveApplication === "D1+D2" ? input.apiD1D2BySku : undefined;
+  const hasApiD1D2Composition = !!apiD1D2BySku && Object.keys(apiD1D2BySku).length > 0;
+  // A seleção de comprimento e módulos continua no algoritmo atual. Quando a
+  // API fornece a versão D1+D2, apenas seus componentes substituem os dados
+  // normais de cada SKU — sem dobrar barras por inferência local.
+  const apiVariantComposition = hasApiD1D2Composition
+    ? composition.map((item) => {
+        const apiVariant = apiD1D2BySku?.[item.sku];
+        const barsPerModule = apiVariant?.qtdModuloLed ?? item.barsPerModule;
+        return {
+          ...item,
+          barsPerModule,
+          barsTotal: barsPerModule * item.quantity,
+        };
+      })
+    : composition;
 
   if (compositionMode === "IN_SINGLE") {
     engineeringNotes.push("Composição: Módulo Inteiro (IN) — peça única dentro do limite de barras.");
@@ -1147,7 +1178,9 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
   }
 
   const totalBars = effectiveApplication === "D1+D2"
-    ? totalBarsD1 + totalBarsD2
+    ? (hasApiD1D2Composition
+        ? apiVariantComposition.reduce((sum, item) => sum + item.barsTotal, 0)
+        : totalBarsD1 + totalBarsD2)
     : totalBarsD1;
 
   // Usar nome da barra da API quando disponível; prioridade: campo específico por CCT > genérico + CCT > fallback estático
@@ -1177,6 +1210,35 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
       ? buildSkuDriverList(composition, powerD1, voltage, stripMethod, input.driverNameMap, driverCtx, true)
       : undefined;
 
+  const apiDriverType = input.controlType === "dimDali"
+    ? "DRIVER_DIM_DALI"
+    : input.controlType === "dim110v"
+      ? "DRIVER_DIM_110"
+      : voltage === "220Vac"
+        ? "DRIVER_ONOFF_220"
+        : "DRIVER_ONOFF_BIVOLT";
+  const apiCombinedDrivers = effectiveApplication === "D1+D2" && !isIndependent && hasApiD1D2Composition
+    ? composition.flatMap((item) => {
+        const apiVariant = apiD1D2BySku?.[item.sku];
+        const apiDrivers = apiVariant?.drivers?.filter((driver) => driver.tipo === apiDriverType) ?? [];
+        return apiDrivers.map((driver) => {
+          const codeMatch = driver.modelo.match(/\b(EQ\d+)\b/i);
+          return {
+            sku: item.sku,
+            quantity: item.quantity,
+            barsPerPiece: apiVariant?.qtdModuloLed ?? item.barsPerModule,
+            driver: {
+              code: codeMatch?.[1]?.toUpperCase(),
+              model: driver.modelo,
+              power: 0,
+              current: input.correnteDriver ?? "",
+              quantity: driver.qtd,
+            },
+          } satisfies SkuDriverEntry;
+        });
+      })
+    : undefined;
+
   // ── Driver da API: substitui o driver estático quando a API fornece o driver exato ──
   // Para DIM DALI / DIM 1-10V usa os campos dim; para ON/OFF usa driver220 ou driverBivolt
   const apiDriverInfo = input.controlType === "dimDali"
@@ -1203,7 +1265,12 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
 
   const finalDriversD1 = applyDimDriver(driversD1);
   const finalDriversD2 = applyDimDriver(driversD2);
-  const finalCombinedDrivers = combinedDrivers ? applyDimDriver(combinedDrivers) : undefined;
+  const finalCombinedDrivers = apiCombinedDrivers && apiCombinedDrivers.length > 0
+    ? apiCombinedDrivers
+    : combinedDrivers ? applyDimDriver(combinedDrivers) : undefined;
+  if (apiCombinedDrivers && apiCombinedDrivers.length > 0) {
+    engineeringNotes.push("D1+D2: drivers e quantidade de módulos aplicados conforme a composição específica retornada pela API.");
+  }
 
   return {
     profileCode,
@@ -1222,11 +1289,12 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     requestedLength: totalLength,
     realizedLength,
     remainingLength,
-    composition,
+    composition: apiVariantComposition,
     totalBars,
     driversD1: finalDriversD1,
     driversD2: finalDriversD2,
     combinedDrivers: finalCombinedDrivers,
+    ...(hasApiD1D2Composition && apiD1D2BySku ? { apiD1D2BySku } : {}),
     stripflexName,
     stripflexEq,
     engineeringNotes,

@@ -2421,3 +2421,8 @@
 - [x] Preservar assistente original ao vendedor editar orçamento próprio criado por sua assistente
 - [x] Impedir vendedor de criar ou editar orçamento de outro vendedor
 - [x] Registrar quem criou e quem alterou cada orçamento e revisão
+
+## Ajuste: Versão D1+D2 de pendentes baseada na API
+- [x] Detectar a flag e o SKU de variante D1+D2 retornados pela API para EASY H PLUS, HIT e BLAZE H
+- [x] Usar barras, componentes, drivers e preços do produto D1+D2 retornado pela API ao selecionar essa opção
+- [x] Preservar o algoritmo de composição existente e aplicar a variante em todas as potências e formatos dos três pendentes

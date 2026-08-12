@@ -24,6 +24,17 @@ export interface DriverInfo {
   corrente?: string | null;
 }
 
+/** Componentes específicos da versão D1+D2 retornada pela API de produtos. */
+export interface D1D2Composition {
+  qtdModuloLed?: number | null;
+  drivers?: Array<{
+    tipo: string;
+    modelo: string;
+    qtd: number;
+    custo?: string | number | null;
+  }> | null;
+}
+
 export interface AlfaluxProduct {
   categoria: string;
   instalacao: string;
@@ -180,6 +191,10 @@ export interface AlfaluxProduct {
   /** Preço por metro (D1+D2 duplo) — DIM TRIAC 220V */
   precoDimTriac220vD1D2?: number | null;
   precoMetro?: number | null;
+  /** Indica que a API disponibiliza uma versão D1+D2 distinta para este SKU. */
+  possuiOpcaoD1D2?: boolean | null;
+  /** Componentes, quantidade de módulos e drivers da versão D1+D2 da API. */
+  composicaoD1D2?: D1D2Composition | null;
   /** Produto com lâmpada (ex: NONA) — sem driver na composição */
   moduloLampada?: boolean | null;
   /** Corrente de programação do driver (ex: "programar em 350mA"). Campo direto da API. */

@@ -163,6 +163,18 @@ export interface ApiProduct {
   /** Preço por metro (D1+D2 duplo) — DIM DALI */
   precoDimDaliD1D2?: number | null;
   precoMetro?: number | null;
+  /** A versão D1+D2 foi cadastrada para este SKU na API. */
+  possuiOpcaoD1D2?: boolean | null;
+  /** Componentes específicos da versão D1+D2, fornecidos pela API. */
+  composicaoD1D2?: {
+    qtdModuloLed?: number | null;
+    drivers?: Array<{
+      tipo: string;
+      modelo: string;
+      qtd: number;
+      custo?: string | number | null;
+    }> | null;
+  } | null;
   /** Produto com lâmpada (ex: NONA) — sem driver na composição */
   moduloLampada?: boolean | null;
 }

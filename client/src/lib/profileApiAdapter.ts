@@ -190,6 +190,7 @@ export function adaptProfileProducts(
       markupPadraoDimTriac220v: number | null;
       markupMinimoDimTriac220v: number | null;
       markupMinimoDriver: number | null;
+      apiD1D2BySku: NonNullable<ProfileVariant["apiD1D2BySku"]>;
     }
   > = {};
 
@@ -261,6 +262,7 @@ export function adaptProfileProducts(
         markupPadraoDimTriac220v: pa.markupPadraoDimTriac220v ?? null,
         markupMinimoDimTriac220v: pa.markupMinimoDimTriac220v ?? null,
         markupMinimoDriver: pa.markupMinimoDriver ?? null,
+        apiD1D2BySku: {},
       };
     } else {
       // Atualizar drivers se ainda não preenchidos (usar o primeiro produto que tiver)
@@ -308,6 +310,9 @@ export function adaptProfileProducts(
     
 
     const entry = variantMap[profileCode];
+    if (p.possuiOpcaoD1D2 && p.composicaoD1D2) {
+      entry.apiD1D2BySku[p.sku] = p.composicaoD1D2;
+    }
     const moduleData: ModuleData = { length: parsed.length, sku: p.sku };
     // SHIFT uses bars=1 for all modules, so we need unique keys.
     // Use sequential index (1, 2, 3...) based on how many modules of this type already exist.
@@ -338,6 +343,7 @@ export function adaptProfileProducts(
       allowD1: rule.allowD1,
       allowD2: rule.allowD2,
       allowD1D2: rule.allowD1D2,
+      ...(Object.keys(entry.apiD1D2BySku).length > 0 ? { apiD1D2BySku: entry.apiD1D2BySku } : {}),
       ...(rule.hasDiffuser !== undefined ? { hasDiffuser: rule.hasDiffuser } : {}),
       ...(rule.requiresRemoteDriver ? { requiresRemoteDriver: true } : {}),
       ...(derivedStripMethod ? { stripMethod: derivedStripMethod } : {}),

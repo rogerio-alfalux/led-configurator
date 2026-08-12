@@ -2051,6 +2051,21 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
       driverModelApi = cd.driver.model ?? null;
       driverCodeApi = cd.driver.code ?? null;
     }
+    const apiD1D2DriverType = result.controlType === "dimDali"
+      ? "DRIVER_DIM_DALI"
+      : result.controlType === "dim110v"
+        ? "DRIVER_DIM_110"
+        : /bivolt/i.test(result.voltage)
+          ? "DRIVER_ONOFF_BIVOLT"
+          : "DRIVER_ONOFF_220";
+    const apiD1D2DriverPrice = isDualSimultaneousPrice && result.apiD1D2BySku
+      ? result.combinedDrivers!.reduce((total, entry) => {
+          const component = result.apiD1D2BySku?.[entry.sku]?.drivers
+            ?.find((driver) => driver.tipo === apiD1D2DriverType);
+          const cost = component?.custo == null ? null : Number(component.custo);
+          return total + (Number.isFinite(cost) ? cost! * entry.quantity * (component?.qtd ?? 1) : 0);
+        }, 0)
+      : null;
     if (firstSkuEntry) {
       let custoDriver: number | null = null;
       if (result.controlType === 'dimDali') {
@@ -2071,7 +2086,14 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
         if (!isDualSimultaneousPrice) { driverModelApi = firstSkuEntry.driverModel220; driverCodeApi = firstSkuEntry.driverCode220; }
       }
       const mkDriver = firstSkuEntry.markupMinimoDriver ?? 3;
-      if (custoDriver != null) {
+      if (apiD1D2DriverPrice != null && apiD1D2DriverPrice > 0) {
+        precoDriverTotal = Math.round(apiD1D2DriverPrice * mkDriver * 100) / 100;
+        const apiDriverUnit = Math.round((precoDriverTotal / Math.max(nModules, 1)) * 100) / 100;
+        for (const b of breakdown) {
+          b.driverUnit = apiDriverUnit;
+          b.driverSubtotal = Math.round(apiDriverUnit * b.quantity * 100) / 100;
+        }
+      } else if (custoDriver != null) {
         precoDriverTotal = Math.round(custoDriver * nModules * mkDriver * 100) / 100;
         const driverUnit = Math.round(custoDriver * mkDriver * 100) / 100;
         // Distribuir driverUnit por módulo no breakdown
@@ -4573,7 +4595,12 @@ export default function Home() {
   // Aplicações permitidas para esta variante
   const allowD1 = selectedVariant?.allowD1 ?? true;
   const allowD2 = selectedVariant?.allowD2 ?? true;
-  const allowD1D2 = selectedVariant?.allowD1D2 ?? false;
+  const isApiDrivenD1D2Pendant = installType === "PENDENTE" && ["EASY H PLUS", "HIT", "BLAZE H"].includes(profileName);
+  const hasApiD1D2Variant = !!selectedVariant?.apiD1D2BySku && Object.keys(selectedVariant.apiD1D2BySku).length > 0;
+  // Para os pendentes com versão D1+D2, a API é a única autoridade sobre a disponibilidade.
+  const allowD1D2 = isApiDrivenD1D2Pendant
+    ? hasApiD1D2Variant
+    : (selectedVariant?.allowD1D2 ?? false);
   const hasDiffuser = selectedVariant?.hasDiffuser ?? false;
 
   const effectiveApplication: Application = isEmbutir ? "D1" : application;
@@ -4693,6 +4720,7 @@ export default function Home() {
       driverBivolt: selectedVariant?.driverBivolt ?? null,
       driverDimDali: selectedVariant?.driverDimDali ?? null,
       driverDim110v: selectedVariant?.driverDim110v ?? null,
+      apiD1D2BySku: effectiveApplication === "D1+D2" ? selectedVariant?.apiD1D2BySku : undefined,
       ledModuleStripflex: selectedVariant?.ledModuleStripflex ?? null,
       ledModuleStripline: selectedVariant?.ledModuleStripline ?? null,
       ledModuleStripflex2700: selectedVariant?.ledModuleStripflex2700 ?? null,

@@ -28,6 +28,16 @@ export interface ProfileVariant {
   allowD2: boolean;
   /** Permite aplicação D1+D2 simultâneos */
   allowD1D2: boolean;
+  /** Variantes D1+D2 específicas por SKU, recebidas diretamente da API. */
+  apiD1D2BySku?: Record<string, {
+    qtdModuloLed?: number | null;
+    drivers?: Array<{
+      tipo: string;
+      modelo: string;
+      qtd: number;
+      custo?: string | number | null;
+    }> | null;
+  }>;
   /** SHARP: requer seleção de difusor (DA/DB/DC) */
   hasDiffuser?: boolean;
   /** Alerta de driver remoto obrigatório */
