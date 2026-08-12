@@ -1,5 +1,6 @@
 # LED Configurator - TODO
 
+- [x] Vincular o usuário já cadastrado Geysa aos assistentes comerciais, preservando seu perfil e permitindo salvar orçamentos somente em seu próprio nome
 - [x] Corrigir imagens (logo + categorias) no domínio publicado: rota /api/assets/ contorna interceptação da plataforma em /manus-storage/
 - [x] Inicializar projeto web-db-user
 - [x] Configurar tema visual Alfalux (CSS, cores, tipografia dark/light)
