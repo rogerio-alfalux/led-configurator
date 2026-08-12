@@ -94,7 +94,9 @@ function detectTipo(descricao: string, codigo: string): MaterialTipo {
     d.includes("MODULO LED") ||
     d.includes("MÓDULO LUX") ||
     d.includes("MODULO LUX") ||
-    (d.includes("LED") && (d.includes("BARRA") || d.includes("BAR")))
+    (d.includes("LED") && (d.includes("BARRA") || d.includes("BAR"))) ||
+    d.includes("TRACE") ||
+    d.includes("COB")
   ) {
     return "MÓDULOS LED";
   }
@@ -367,7 +369,8 @@ export function buildMaterialRequisition(
     // ── LUMINÁRIAS COM driverLines (downlights, painéis, spots) ──────────
     // Apenas para itens SEM profileSegments (perfis já contabilizam drivers via seg.driverCode)
     const hasProfileSegs = item.profileSegments && item.profileSegments.length > 0;
-    if (!item.withoutEquipment && !hasProfileSegs && item.driverLines && item.driverLines.length > 0) {
+    const isLedBarItem = item.category === "LED BAR";
+    if (!item.withoutEquipment && !hasProfileSegs && !isLedBarItem && item.driverLines && item.driverLines.length > 0) {
       for (const dl of item.driverLines) {
         if (!dl.driverCode) continue;
         const qtyPerUnit = item.driverLines.length === 1 && item.driverQtyPerUnit != null

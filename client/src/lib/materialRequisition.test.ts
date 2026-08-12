@@ -415,4 +415,59 @@ describe("buildMaterialRequisition — luminárias não-perfil", () => {
     expect(result.find(entry => entry.codigo === "EQMOD4000")?.qty).toBe(290);
     expect(result.find(entry => entry.codigo === "EQDRIVER")?.qty).toBe(145);
   });
+
+  it("spot com ledModuleQtd=4 (ex: FOCO) deve incluir módulo LED com quantidade correta", () => {
+    const items: CartItemData[] = [{
+      category: "Spots",
+      qty: 5,
+      description: "FOCO 7W 3000K ON/OFF 220V",
+      sku: "LDS-1234",
+      moduloLed: "4x TRACE Ø50MM 6 LEDS 900LM 3000K (EQ00555) + LENTE 36° (CP00119)",
+      moduloLedCode: "EQ00555",
+      driverLines: [{ driverModel: "DRIVER 19W", driverCode: "EQ00346", driverQty: 5, driverUnitPrice: 54, driverTotalPrice: 270 }],
+      withoutEquipment: false,
+    } as any];
+    const descMap = new Map([
+      ["EQ00555", "TRACE Ø50MM 6 LEDS 900LM 3000K"],
+      ["CP00119", "LENTE 36°"],
+    ]);
+    const result = buildMaterialRequisition(items, descMap);
+    // Módulo LED: 4 por unidade × 5 unidades = 20
+    const modulo = result.find(e => e.codigo === "EQ00555");
+    expect(modulo).toBeDefined();
+    expect(modulo!.qty).toBe(20);
+    expect(modulo!.tipo).toBe("MÓDULOS LED");
+    // Lente: 1 por unidade × 5 unidades = 5
+    const lente = result.find(e => e.codigo === "CP00119");
+    expect(lente).toBeDefined();
+    expect(lente!.qty).toBe(5);
+    // Driver: 1 por unidade × 5 unidades = 5
+    const driver = result.find(e => e.codigo === "EQ00346");
+    expect(driver).toBeDefined();
+    expect(driver!.qty).toBe(5);
+    // sourceItems
+    expect(modulo!.sourceItems).toContain(1);
+  });
+
+  it("LED BAR não deve duplicar fontes (driverLines + ledBarDriverCode)", () => {
+    const items: CartItemData[] = [{
+      category: "LED BAR",
+      qty: 5,
+      description: "LED BAR 3000K 3750mm (2 CORTES)",
+      sku: "LLB-1234",
+      ledBarNCortes: 2,
+      ledBarComprimentoTotalMm: 3750,
+      ledBarDriverCode: "EQ00400",
+      ledBarDriverModel: "DRIVER 24V 100W",
+      driverLines: [{ driverModel: "DRIVER 24V 100W", driverCode: "EQ00400", driverQty: 10, driverUnitPrice: 80, driverTotalPrice: 800 }],
+      withoutEquipment: false,
+    } as any];
+    const result = buildMaterialRequisition(items);
+    const fontes = result.filter(e => e.codigo === "EQ00400");
+    // Deve haver apenas UMA entrada de fontes, não duplicada
+    expect(fontes.length).toBe(1);
+    // 2 cortes × 5 unidades = 10 fontes
+    expect(fontes[0].qty).toBe(10);
+    expect(fontes[0].tipo).toBe("FONTES DE TENSÃO");
+  });
 });

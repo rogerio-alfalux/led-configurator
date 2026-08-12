@@ -3,9 +3,11 @@
 - [x] Corrigir e validar explicitamente o agrupamento de itens tecnicamente equivalentes na ficha de produção, incluindo 04.0173-26 Parcial 1
 - [x] Requisição de materiais: corrigir duplicação de drivers para perfis (profileSegments já contabiliza, driverLines não deve duplicar)
 - [x] Requisição de materiais: adicionar coluna "Itens" indicando quais itens do pedido usam cada componente
-- [ ] Requisição de materiais: validar que barsPerPiece reflete a API (item 13 — 4 barras ao invés de 2)
-- [ ] Requisição de materiais: validar fontes LED BAR sem duplicação (item 15 — 10 e não 20)
-- [ ] Requisição de materiais: garantir módulo LED de FOCO (TRACE Ø50MM) quando cadastrado na API
+- [x] Requisição de materiais: excluir LED BAR do bloco driverLines para evitar duplicação de fontes (item 15) — testado
+- [x] Requisição de materiais: incluir ledModuleQtd como prefixo no moduloLed de spots (FOCO com 4x TRACE) — testado
+- [x] Requisição de materiais: garantir módulo LED de FOCO (TRACE Ø50MM) classificado como MÓDULOS LED — testado
+- [x] Requisição de materiais: nova coluna ITENS no Excel e prévia HTML indicando quais itens usam cada componente
+- [x] Requisição de materiais: drivers de perfis agrupados não duplicam (bloco profileSegments exclui driverLines)
 - [x] Otimizar composição dos formatos L, Quadrado, Retangular e U para aproximar das dimensões solicitadas (sem alterar linear reto)
 - [x] Permitir que quem possui a permissão Gerenciar Orçamentos edite e salve orçamentos de qualquer pessoa
 - [x] Adicionar filtro por tipo de usuário no Gerenciamento de Usuários (Todos, Admin, Vendedor, Assistente, Usuário e LD Convidado)
