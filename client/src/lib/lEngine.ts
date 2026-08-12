@@ -211,7 +211,8 @@ function findBestSegmentOptimal(
   allowLongModules: boolean,
   allowFractionalBars: boolean,
   moduleTypeFilter: "ML" | "IF" | "both" = "both",
-  allowSmallModules = true
+  allowSmallModules = true,
+  prioritizeCloseness = false
 ): StraightSegment {
   const empty: StraightSegment = {
     availableLength,
@@ -298,24 +299,35 @@ function findBestSegmentOptimal(
     if (l < 0) continue;
     const desvio = availableLength - l;
     if (desvio < 0) continue; // não pode ultrapassar
-    if (desvio <= MAX_DESVIO) {
-      // Solução aceitável: preferir menos peças, depois maior comprimento
-      if (p < bestPcs || (p === bestPcs && l > bestLen)) {
+    if (prioritizeCloseness) {
+      // Modo formatos geométricos: priorizar menor desvio absoluto, depois menos peças
+      if (desvio < bestDesvio || (desvio === bestDesvio && p < bestPcs)) {
+        bestDesvio = desvio;
         bestPcs = p;
         bestLen = l;
         bestSlots = i;
-        bestDesvio = desvio;
       }
-    } else if (bestSlots < 0) {
-      // Nenhuma solução aceitável ainda: guardar a de menor desvio
-      if (l > bestLen) {
-        bestLen = l;
-        bestPcs = p;
-        bestSlots = i;
-        bestDesvio = desvio;
+    } else {
+      if (desvio <= MAX_DESVIO) {
+        // Solução aceitável: preferir menos peças, depois maior comprimento
+        if (p < bestPcs || (p === bestPcs && l > bestLen)) {
+          bestPcs = p;
+          bestLen = l;
+          bestSlots = i;
+          bestDesvio = desvio;
+        }
+      } else if (bestSlots < 0) {
+        // Nenhuma solução aceitável ainda: guardar a de menor desvio
+        if (l > bestLen) {
+          bestLen = l;
+          bestPcs = p;
+          bestSlots = i;
+          bestDesvio = desvio;
+        }
       }
     }
   }
+
 
   if (bestSlots < 0) return empty;
 
@@ -414,7 +426,8 @@ function findBestEndCappedSegment(
       allowLongModules,
       allowFractionalBars,
       "ML",
-      allowSmallInMl // permitir módulos de 1 barra quando medidas quebradas está ativo
+      allowSmallInMl, // permitir módulos de 1 barra quando medidas quebradas está ativo
+      true // priorizar proximidade da medida solicitada
     );
     const actualLength = ifMod.length + mlSegment.actualLength;
     const deviation = availableLength - actualLength;
@@ -708,7 +721,7 @@ export function calculateSquare(
   // Cada lado = canto + reto(s) + canto → disponível = side - 2 × cornerLen
   const availPerSide = side - 2 * cornerLen;
 
-  const seg = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availPerSide, allowLongModules, allowFractionalBars, "ML", allowFractionalBars);
+  const seg = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availPerSide, allowLongModules, allowFractionalBars, "both", allowFractionalBars, true);
 
   const actualSide = 2 * cornerLen + seg.actualLength;
 
@@ -807,8 +820,8 @@ export function calculateRectangle(
   const availWidth = width - 2 * cornerLen;
   const availHeight = height - 2 * cornerLen;
 
-  const segWidth = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availWidth, allowLongModules, allowFractionalBars, "ML", allowFractionalBars);
-  const segHeight = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availHeight, allowLongModules, allowFractionalBars, "ML", allowFractionalBars);
+  const segWidth = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availWidth, allowLongModules, allowFractionalBars, "both", allowFractionalBars, true);
+  const segHeight = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availHeight, allowLongModules, allowFractionalBars, "both", allowFractionalBars, true);
 
   const actualWidth = 2 * cornerLen + segWidth.actualLength;
   const actualHeight = 2 * cornerLen + segHeight.actualLength;
@@ -967,8 +980,9 @@ export function calculateUShape(
     availBase,
     allowLongModules,
     allowFractionalBars,
-    "ML",
-    allowFractionalBars // permitir módulos de 1 barra quando medidas quebradas está ativo
+    "both",
+    allowFractionalBars, // permitir módulos de 1 barra quando medidas quebradas está ativo
+    true // priorizar proximidade da medida solicitada
   );
   if (!segDepth) return null;
 

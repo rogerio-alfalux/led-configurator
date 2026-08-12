@@ -1,5 +1,6 @@
 # LED Configurator - TODO
 
+- [x] Otimizar composição dos formatos L, Quadrado, Retangular e U para aproximar das dimensões solicitadas (sem alterar linear reto)
 - [x] Permitir que quem possui a permissão Gerenciar Orçamentos edite e salve orçamentos de qualquer pessoa
 - [x] Adicionar filtro por tipo de usuário no Gerenciamento de Usuários (Todos, Admin, Vendedor, Assistente, Usuário e LD Convidado)
 - [x] Corrigir contagem de drivers em orçamentos de perfis com múltiplos segmentos (33.9995-26 mostra 2 ao invés de 5)

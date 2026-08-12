@@ -145,38 +145,35 @@ describe("calculateSquare/calculateRectangle — sem ajuste de cabeceira e módu
 
   // ─── Testes: quadrado/retangular usam ML (nunca IF) ───
 
-  it("calculateSquare LLP-6060 (BLAZE H): módulos retos devem ser ML (sem IF no quadrado)", () => {
+  it("calculateSquare LLP-6060 (BLAZE H): módulos retos devem ser ML ou IF (otimização de proximidade)", () => {
     // cornerLen LLP-6060 = 565mm (canto 1x1)
     // Quadrado 3000mm: availPerSide = 3000 - 2*565 = 1870mm
-    // Quadrado usa apenas ML + cantos (sem IF)
+    // Quadrado usa ML e/ou IF + cantos para melhor proximidade
     const result = calculateSquare("LLP-6060", 3000, baseParams);
     expect(result).not.toBeNull();
     const straightPieces = result!.pieces.filter(p => p.type !== "CORNER");
     expect(straightPieces.length).toBeGreaterThan(0);
     straightPieces.forEach(p => {
-      expect(p.type).toBe("STRAIGHT_ML");
-    });
-    straightPieces.forEach(p => {
-      expect(p.sku).toMatch(/ML|ml/i);
+      expect(["STRAIGHT_ML", "STRAIGHT_IF"]).toContain(p.type);
     });
   });
 
   it("calculateSquare LLP-6060 (BLAZE H) 8000mm: otimização usa módulos ML maiores primeiro", () => {
     // cornerLen = 565mm; availPerSide = 8000 - 2*565 = 6870mm
-    // DP otimiza com ML para melhor preenchimento (sem IF no quadrado)
+    // DP otimiza com ML+IF para melhor proximidade da medida solicitada
     const result = calculateSquare("LLP-6060", 8000, baseParams);
     expect(result).not.toBeNull();
     const straightPieces = result!.pieces.filter(p => p.type !== "CORNER");
-    // Deve ter pelo menos 2 tipos de módulo diferentes
-    expect(straightPieces.length).toBeGreaterThanOrEqual(2);
-    // Todos devem ser ML (sem IF no quadrado)
-    straightPieces.forEach(p => expect(p.type).toBe("STRAIGHT_ML"));
+    // Deve ter pelo menos 1 tipo de módulo reto
+    expect(straightPieces.length).toBeGreaterThanOrEqual(1);
+    // Módulos podem ser ML ou IF (ambos permitidos para otimizar proximidade)
+    straightPieces.forEach(p => expect(["STRAIGHT_ML", "STRAIGHT_IF"]).toContain(p.type));
     // Número total de peças deve ser menor que 24 (antigo: 6×4=24 peças de 2 barras)
     const totalQty = straightPieces.reduce((s, p) => s + p.quantity, 0);
     expect(totalQty).toBeLessThan(24);
   });
 
-  it("calculateRectangle LLP-6060 (BLAZE H): módulos retos devem ser ML (sem IF no retângulo)", () => {
+  it("calculateRectangle LLP-6060 (BLAZE H): módulos retos podem ser ML ou IF (otimização de proximidade)", () => {
     // cornerLen = 565mm
     // Retângulo 4000mm × 2000mm:
     // availWidth = 4000 - 2*565 = 2870mm
