@@ -208,6 +208,52 @@ describe("calculateBageo", () => {
     expect(result!.driverQtd).toBe(2); // ceil(1250/2300)=1 × 2 trechos = 2
   });
 
+  it("usa custo e markup atuais da API para BAGEO SINUOSA E 20W/M", () => {
+    const bageoE: BageoProduct = {
+      familia: "BAGEO SINUOSA E",
+      sku: "LDE-7035",
+      name: "BAGEO SINUOSA E 20W/M",
+      instalacao: "EMBUTIR",
+      aplicacao: "D1",
+      ledModule: "FITA LED 20W/M [CCT]",
+      ledModuleQtd: 2,
+      ccts: ["3000K"],
+      driver220: null,
+      driverBivolt: { model: "FONTE 36W 24V IP20 BIVOLT", code: "EQ00801" },
+      driverDim110v: null,
+      driverDimDali: null,
+      precoOnOff220: null,
+      precoOnOffBivolt: null,
+      precoDim110v: null,
+      precoDimDali: null,
+      custoCorpoOnoff220v: 346.53,
+      custoCorpoOnoffBivolt: 346.53,
+      markupPadraoOnoff220v: 3,
+      markupPadraoOnoffBivolt: 3,
+      markupMinimoOnoff220v: 2,
+      markupMinimoOnoffBivolt: 2,
+      custoDriverBivolt: 29.99,
+      markupPadraoDriverOnoffBivolt: 3,
+      driverQtdBivolt: 1,
+      fotoUrl: null,
+    };
+
+    const result = calculateBageo([bageoE], {
+      product: bageoE,
+      controle: "ON/OFF 220V",
+      cct: "3000K",
+      comprimento: 12700,
+      nCortes: 7,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.precoPorMetro).toBe(1039.59);
+    expect(result!.precoPerfil).toBe(13202.79);
+    expect(result!.precoDriverPorUnidade).toBe(89.97);
+    expect(result!.precoDriverTotal).toBe(629.79);
+    expect(result!.precoTotal).toBe(13832.58);
+  });
+
   it("seleciona driver DIM DALI corretamente", () => {
     const result = calculateBageo(mockCatalog, {
       product: mockCatalog[0],

@@ -1,5 +1,6 @@
 # LED Configurator - TODO
 
+- [x] Corrigir somente o custo do orçamento 20.0442-26 e garantir custo/preço API corretos para novos itens BAGEO, preservando o preço de venda já salvo
 - [x] Padronizar todas as datas e horários exibidos, relatórios e referências de backup para Horário de Brasília (America/Sao_Paulo), incluindo registros históricos
 - [x] Dashboard de lucro: custo dos produtos deve ser sempre buscado em tempo real da API, não do custoCorpoBase salvo no item
 - [x] BAGEO SINUOSA: preço não propaga ao carrinho (mostra 'Definir preço') apesar de ter custo/mkp na API; corrigir lógica de preço por metro

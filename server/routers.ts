@@ -2,6 +2,7 @@ import { COOKIE_NAME, COST_PRIVILEGED_EMAILS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
+import { selectActiveQuoteItems } from "./quoteCostUtils";
 import {
   fetchAllAlfaluxProducts,
   invalidateAlfaluxCache,
@@ -1287,6 +1288,7 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const result = await getQuoteById(input.quoteId);
         if (!result) return { custoProdutos: 0, temCusto: false, items: [] };
+        const activeItems = selectActiveQuoteItems(result.versions, result.items);
 
         const products = await fetchAllAlfaluxProducts();
         const { items: componentes } = await fetchComponentes();
@@ -1307,7 +1309,7 @@ export const appRouter = router({
         let temCusto = false;
         const itemDetails: Array<{ itemNumber: number; sku: string; custoCorpo: number; custoDriver: number; qty: number; driverQty: number; subtotal: number; source: string }> = [];
 
-        for (const row of result.items) {
+        for (const row of activeItems) {
           try {
             const data = typeof row.itemData === 'string' ? JSON.parse(row.itemData) : row.itemData;
             const sku = (data.sku ?? '').toUpperCase();
