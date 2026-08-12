@@ -94,6 +94,40 @@ describe("parseCartItemData - correção de driverQty para perfis", () => {
 });
 
 describe("migrateItemDrivers - itens não-perfil consultam a API", () => {
+describe("parseCartItemData - múltiplos modelos de driver (caso 33.9995-26)", () => {
+  it("adiciona linhas de driver faltantes para segmentos com códigos distintos", () => {
+    const item = {
+      sku: "LLP-6060",
+      description: "BLAZE H Pendente 18W 3000K ON/OFF 220Vac 9605mm",
+      qty: 1,
+      unitPriceDriver: 54,
+      driverLines: [
+        { driverCode: "EQ00346", driverModel: "LED DRIVER XITANIUM 19W", driverQty: 2, driverUnitPrice: 54, driverTotalPrice: 108 },
+      ],
+      profileSegments: [
+        { sku: "LLP-6060.2IF.48F", qty: 2, driverQtyPerPiece: 1, driverCode: "EQ00346", driverModel: "LED DRIVER XITANIUM 19W" },
+        { sku: "LLP-6060.5ML.48F", qty: 2, driverQtyPerPiece: 1, driverCode: "EQ00347", driverModel: "LED DRIVER XITANIUM 44W" },
+        { sku: "LLP-6060.3ML.48F", qty: 1, driverQtyPerPiece: 1, driverCode: "EQ00347", driverModel: "LED DRIVER XITANIUM 44W" },
+      ],
+    };
+
+    const result = parseCartItemData(JSON.stringify(item));
+    expect(result).not.toBeNull();
+    expect(result!.driverLines).toHaveLength(2);
+
+    const dl346 = result!.driverLines!.find(dl => dl.driverCode === "EQ00346");
+    const dl347 = result!.driverLines!.find(dl => dl.driverCode === "EQ00347");
+
+    expect(dl346).toBeDefined();
+    expect(dl346!.driverQty).toBe(2); // 2 segmentos IF × 1 driver/peça
+    expect(dl346!.driverTotalPrice).toBe(108); // 54 × 2
+
+    expect(dl347).toBeDefined();
+    expect(dl347!.driverQty).toBe(3); // 2 segmentos ML + 1 segmento ML × 1 driver/peça
+    expect(dl347!.driverModel).toBe("LED DRIVER XITANIUM 44W");
+  });
+});
+
   it("corrige CCT/quantidade de módulo e total de drivers com os campos da API", () => {
     const item = {
       category: "Spots",

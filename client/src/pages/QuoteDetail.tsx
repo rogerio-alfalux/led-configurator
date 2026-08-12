@@ -4295,16 +4295,30 @@ export default function QuoteDetail() {
                                 <div className="flex-1 min-w-0">
                                   {d.category !== 'Não Orçamos' && <p className="text-xs text-muted-foreground font-mono">{d.sku}</p>}
                                   <p className="text-sm font-medium leading-tight">{d.description}</p>
-                                  <div className="flex gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
-                                    {d.power && <span className="flex items-center gap-0.5"><Zap className="w-3 h-3" />{d.power}</span>}
-                                    {d.cct && <span>{d.cct}</span>}
-                                    <span>{d.category}</span>
-                                    {d.itemEmPlanta && (
-                                      <span className="inline-flex items-center gap-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded px-1.5 py-0.5 font-medium">
-                                        <MapPin className="w-3 h-3" />{d.itemEmPlanta}
-                                      </span>
-                                    )}
-                                  </div>
+                                 <div className="flex gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
+                                   {d.power && <span className="flex items-center gap-0.5"><Zap className="w-3 h-3" />{d.power}</span>}
+                                   {d.cct && <span>{d.cct}</span>}
+                                   <span>{d.category}</span>
+                                   {d.itemEmPlanta && (
+                                     <span className="inline-flex items-center gap-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded px-1.5 py-0.5 font-medium">
+                                       <MapPin className="w-3 h-3" />{d.itemEmPlanta}
+                                     </span>
+                                   )}
+                                 </div>
+                                 {d.profileSegments && d.profileSegments.length > 0 && (
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                      {(() => {
+                                        const qtyBySku = new Map<string, number>();
+                                        for (const seg of d.profileSegments) {
+                                          const sku = seg.sku?.trim();
+                                          if (!sku) continue;
+                                          const q = Number(seg.qty);
+                                          qtyBySku.set(sku, (qtyBySku.get(sku) ?? 0) + (Number.isFinite(q) && q > 0 ? q : 1));
+                                        }
+                                        return Array.from(qtyBySku.entries()).map(([sku, qty]) => `${qty}× ${sku}`).join("  +  ");
+                                      })()}
+                                    </p>
+                                  )}
                                   {d.itemObs && (
                                     <div className="mt-1.5 flex items-start gap-1 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded px-2 py-1">
                                       <span className="font-medium flex-shrink-0">Obs:</span>

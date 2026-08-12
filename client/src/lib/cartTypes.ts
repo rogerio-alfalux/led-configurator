@@ -488,7 +488,8 @@ export function parseCartItemData(json: string): CartItemData | null {
         drvPerLumMap.set(seg.driverCode, (drvPerLumMap.get(seg.driverCode) ?? 0) + qtyPerSeg);
       }
       if (drvPerLumMap.size > 0) {
-        data.driverLines = data.driverLines.map(dl => {
+        // Primeiro: corrigir quantidades das linhas existentes
+        const correctedLines = data.driverLines.map(dl => {
           const drvPerLum = drvPerLumMap.get(dl.driverCode ?? '') ?? null;
           if (drvPerLum == null) return dl;
           const correctTotal = drvPerLum * itemQty;
@@ -504,6 +505,26 @@ export function parseCartItemData(json: string): CartItemData | null {
               : dl.driverTotalPrice,
           };
         });
+        // Segundo: adicionar linhas para drivers que existem nos segmentos mas não nas driverLines
+        const existingCodes = new Set(correctedLines.map(dl => dl.driverCode ?? ''));
+        for (const seg of data.profileSegments) {
+          if (!seg.driverCode || existingCodes.has(seg.driverCode)) continue;
+          const drvPerLum = drvPerLumMap.get(seg.driverCode) ?? 0;
+          if (drvPerLum === 0) continue;
+          const correctTotal = drvPerLum * itemQty;
+          // Usar unitPriceDriver do item como fallback (melhor estimativa disponível)
+          const unitPrice = (data as any).unitPriceDriver ?? correctedLines[0]?.driverUnitPrice ?? null;
+          correctedLines.push({
+            driverModel: seg.driverModel || "Driver",
+            driverCode: seg.driverCode,
+            driverQty: correctTotal,
+            driverUnitPrice: unitPrice,
+            driverTotalPrice: unitPrice != null ? Math.round(unitPrice * correctTotal * 100) / 100 : null,
+            corrente: seg.corrente ?? undefined,
+          });
+          existingCodes.add(seg.driverCode);
+        }
+        data.driverLines = correctedLines;
       }
     }
     return data;

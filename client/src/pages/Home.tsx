@@ -2310,28 +2310,49 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                   };
                 });
 
-                // Separar driver quando modulePriceResult tem custo de driver
-                // Fallback: usar componentePriceMapLocal (custoDriver × mkpPadrao) quando custoDriver220 não está na API do SKU
-                const driverCode0 = profileSegments[0]?.driverCode || "";
-                const driverModel0 = profileSegments[0]?.driverModel || "Driver";
-                const driverUnitFromApi = modulePriceResult && modulePriceResult.precoDriverTotal > 0
-                  ? Math.round(modulePriceResult.precoDriverTotal / nModules * 100) / 100
-                  : null;
-                const driverUnitFromComponent = driverCode0 ? (componentePriceMapLocal.get(driverCode0) ?? null) : null;
-                const driverUnitEffective = driverUnitFromApi ?? driverUnitFromComponent;
-                const driverTotalEffective = driverUnitEffective != null ? Math.round(driverUnitEffective * nModules * 100) / 100 : 0;
-                const corrente0 = profileSegments[0]?.corrente ?? null;
-                const perfilDrvLines: import("@/lib/cartTypes").DriverLine[] | undefined =
-                  driverUnitEffective != null && modulePriceResult
-                    ? [{
-                        driverModel: driverModel0,
-                        driverCode: driverCode0,
-                        driverQty: nModules,
-                        driverUnitPrice: driverUnitEffective,
-                        driverTotalPrice: driverTotalEffective,
-                        corrente: corrente0 ?? undefined,
-                      }]
-                    : undefined;
+               // Separar driver quando modulePriceResult tem custo de driver
+               // Fallback: usar componentePriceMapLocal (custoDriver × mkpPadrao) quando custoDriver220 não está na API do SKU
+                // Agrupar drivers distintos da composição com quantidades corretas
+                const driverGroupMap = new Map<string, { model: string; code: string; qty: number; corrente?: string }>();
+                for (const seg of profileSegments) {
+                  const code = seg.driverCode;
+                  if (!code) continue;
+                  const existing = driverGroupMap.get(code);
+                  if (existing) {
+                    existing.qty += (seg.qty ?? 1) * (seg.driverQtyPerPiece ?? 1);
+                  } else {
+                    driverGroupMap.set(code, {
+                      model: seg.driverModel || "Driver",
+                      code,
+                      qty: (seg.qty ?? 1) * (seg.driverQtyPerPiece ?? 1),
+                      corrente: seg.corrente ?? undefined,
+                    });
+                  }
+                }
+                // Construir driverLines com preço por driver (API ou fallback componentes)
+                let perfilDrvLines: import("@/lib/cartTypes").DriverLine[] | undefined = undefined;
+               if (driverGroupMap.size > 0 && modulePriceResult) {
+                 const lines: import("@/lib/cartTypes").DriverLine[] = [];
+                  for (const [code, group] of Array.from(driverGroupMap.entries())) {
+                    const unitFromComponent = componentePriceMapLocal.get(code) ?? null;
+                    // Se a API retorna precoDriverTotal, distribuir proporcionalmente
+                    const totalDriversInComposition = Array.from(driverGroupMap.values()).reduce((s: number, g) => s + g.qty, 0);
+                    const unitFromApi = modulePriceResult.precoDriverTotal > 0
+                      ? Math.round(modulePriceResult.precoDriverTotal / totalDriversInComposition * 100) / 100
+                      : null;
+                    const unitPrice = unitFromApi ?? unitFromComponent;
+                    if (unitPrice == null) continue;
+                    lines.push({
+                      driverModel: group.model,
+                      driverCode: code,
+                      driverQty: group.qty,
+                      driverUnitPrice: unitPrice,
+                      driverTotalPrice: Math.round(unitPrice * group.qty * 100) / 100,
+                      corrente: group.corrente,
+                    });
+                  }
+                  if (lines.length > 0) perfilDrvLines = lines;
+                }
                 const perfilPrecoSemDriver = perfilDrvLines
                   ? Math.round(modulePriceResult!.precoLuminariaTotal * globalQty * 100) / 100
                   : null;

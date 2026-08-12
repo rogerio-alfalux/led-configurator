@@ -1,5 +1,7 @@
 # LED Configurator - TODO
 
+- [x] Corrigir contagem de drivers em orçamentos de perfis com múltiplos segmentos (33.9995-26 mostra 2 ao invés de 5)
+- [x] Exibir composição de módulos/SKUs na tela do orçamento, abaixo das tags de potência/CCT
 - [x] Aplicar retroativamente o detalhamento de quantidade por SKU na ficha de produção para todos os orçamentos, incluindo 33.9995-26
 - [x] Unificar o editor de pedido de fábrica com o formatter de quantidade por SKU da ficha técnica
 - [x] Restaurar na ficha de produção o detalhamento de composição dos perfis com quantidade por SKU
