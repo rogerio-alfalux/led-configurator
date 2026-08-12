@@ -1,5 +1,6 @@
 # LED Configurator - TODO
 
+- [x] Auditar e corrigir o vínculo comercial de todas as contas com perfil de assistente, permitindo salvar somente em seu próprio nome
 - [x] Vincular o usuário já cadastrado Geysa aos assistentes comerciais, preservando seu perfil e permitindo salvar orçamentos somente em seu próprio nome
 - [x] Corrigir imagens (logo + categorias) no domínio publicado: rota /api/assets/ contorna interceptação da plataforma em /manus-storage/
 - [x] Inicializar projeto web-db-user

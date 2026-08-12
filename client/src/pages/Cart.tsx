@@ -53,6 +53,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@shared/permissions";
 import { toBrasiliaDate } from "@/lib/dateUtils";
 import { applyCCTChange } from "@/lib/cctUtils";
+import { getQuoteTeamValidationError, isSellerRequiredForQuote } from "@/lib/quoteTeamValidation";
 
 /**
  * REGRA INEGOCIÁVEL: Para perfis (com profileSegments), o driverQty total é sempre
@@ -1218,12 +1219,13 @@ export default function Cart() {
       toast.error("Informe o Número do Projeto ou marque \"Sem Projeto\".");
       return;
     }
-    if (!saveForm.seller1Id) {
-      toast.error("Selecione o Vendedor 1.");
-      return;
-    }
-    if (!saveForm.assistantId) {
-      toast.error("Selecione o Assistente Comercial.");
+    const teamValidationError = getQuoteTeamValidationError({
+      role: userRole,
+      sellerId: saveForm.seller1Id,
+      assistantId: saveForm.assistantId,
+    });
+    if (teamValidationError) {
+      toast.error(teamValidationError);
       return;
     }
     if (entries.length === 0) {
@@ -1807,7 +1809,7 @@ export default function Cart() {
                           {/* ─── Aba Equipe ─── */}
                           <TabsContent value="equipe" className="space-y-3 pt-3">
                             <div>
-                              <Label>Vendedor 1 *</Label>
+                              <Label>Vendedor 1{isSellerRequiredForQuote(userRole) ? " *" : " (opcional)"}</Label>
                               <Select
                                 value={saveForm.seller1Id}
                                 disabled={isSellerLogin}
