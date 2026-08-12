@@ -18,6 +18,7 @@ import { formatBRL } from "@/lib/cartTypes";
 import { getStoredCustomerTotal } from "@/lib/quoteTotals";
 import { toBrasiliaDate, toBrasiliaFileDate, toBrasiliaMonthYear } from "@/lib/dateUtils";
 import { PERMISSIONS } from "@shared/permissions";
+import { getCommercialQuoteValue, isNonCommercialQuoteStatus } from "@shared/commercialQuote";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   open: { label: "Em Aberto", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: <Clock className="w-3 h-3" /> },
@@ -91,15 +92,17 @@ export default function Quotes() {
   // Estatísticas refletem os filtros ativos
   const stats = useMemo(() => {
     const rows = filteredAllData?.rows ?? [];
-    const total = rows.length;
-    const commercialRows = rows.filter(q => !(q as any).isProspecting);
+    const total = rows.filter(q => !(q as any).isProspecting && !isNonCommercialQuoteStatus(q.status)).length;
+    // Amostras e manutenções não são receita comercial: mantêm o registro e o custo,
+    // mas seu valor de venda é zerado nos indicadores gerais.
+    const commercialRows = rows.filter(q => !(q as any).isProspecting && !isNonCommercialQuoteStatus(q.status));
     const open = commercialRows.filter(q => q.status === "open").length;
     const approved = commercialRows.filter(q => q.status === "approved").length;
     const lost = commercialRows.filter(q => q.status === "lost").length;
     const invoiced = commercialRows.filter(q => q.status === "invoiced").length;
     // totalFinal já é o total que o cliente paga. Não somar impostos,
     // frete ou diluição novamente neste ponto.
-    const getQuoteValue = (q: typeof rows[0]) => getStoredCustomerTotal(q);
+    const getQuoteValue = (q: typeof rows[0]) => getCommercialQuoteValue(q.status, getStoredCustomerTotal(q));
     const totalValue = commercialRows.reduce((sum, q) => sum + getQuoteValue(q), 0);
     const seenDuplicateGroups = new Set<string>();
     const withoutDuplicates = commercialRows.filter((q: any) => {
@@ -480,7 +483,7 @@ export default function Quotes() {
                         <div className="text-right flex-shrink-0">
                           {(q.totalFinal && Number(q.totalFinal) > 0) || (q.totalAmount && Number(q.totalAmount) > 0) ? (
                             <p className="font-bold text-primary">{formatBRL(
-                              getStoredCustomerTotal(q)
+                              getCommercialQuoteValue(q.status, getStoredCustomerTotal(q))
                             )}</p>
                           ) : (
                             <p className="text-xs text-muted-foreground italic">A consultar</p>

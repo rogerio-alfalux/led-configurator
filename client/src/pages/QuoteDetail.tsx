@@ -1690,7 +1690,7 @@ export default function QuoteDetail() {
   }
 
   const { quote, versions, items, canEdit, canSeeCommission = false, canEditCommission = false } = data as typeof data & { canSeeCommission?: boolean; canEditCommission?: boolean };
-  const canManageSamples = hasQuotePermission(PERMISSIONS.GERENCIAR_AMOSTRAS);
+  const canManageSamples = user?.role === "admin" || hasQuotePermission(PERMISSIONS.GERENCIAR_AMOSTRAS);
   const st = STATUS_LABELS[quote.status] ?? STATUS_LABELS.open;
   const hasDraftRevision = versions.some((version: any) => version.status === 'draft');
   const exportRevisionCount = (quote.revisionCount ?? 0) + (hasDraftRevision ? 1 : 0);

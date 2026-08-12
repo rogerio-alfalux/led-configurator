@@ -3,7 +3,12 @@ import { getDb } from "./db";
 import { userPermissions } from "../drizzle/schema";
 import { ALL_PERMISSIONS, PERMISSIONS, type Permission } from "../shared/permissions";
 
-/** Retorna todas as permissões efetivas do usuário. A gestão de amostras é sempre explícita. */
+/** Administradores têm acesso a todas as funções administrativas, inclusive amostras. */
+export function roleGrantsAllPermissions(role?: string | null): boolean {
+  return role === "admin";
+}
+
+/** Retorna todas as permissões efetivas do usuário. Administradores têm acesso completo. */
 export async function getEffectivePermissions(
   userId: number,
   role?: string | null,
@@ -17,13 +22,8 @@ export async function getEffectivePermissions(
     .where(eq(userPermissions.userId, userId));
 
   const explicit = rows.map((row) => row.permission);
-  if (role !== "admin") return explicit;
-  // Administradores mantêm permissões amplas, mas amostras/manutenções só são
-  // liberadas para quem recebeu a autorização individual definida pela empresa.
-  return Array.from(new Set([
-    ...ALL_PERMISSIONS.filter((item) => item.key !== PERMISSIONS.GERENCIAR_AMOSTRAS).map((item) => item.key),
-    ...explicit,
-  ]));
+  if (!roleGrantsAllPermissions(role)) return explicit;
+  return Array.from(new Set([...ALL_PERMISSIONS.map((item) => item.key), ...explicit]));
 }
 
 /** Verifica uma única permissão, sempre consultando a fonte de verdade no banco. */
@@ -35,7 +35,7 @@ export async function hasUserPermission(
   const db = await getDb();
   if (!db) return false;
 
-  if (role === "admin" && permission !== PERMISSIONS.GERENCIAR_AMOSTRAS) return true;
+  if (roleGrantsAllPermissions(role)) return true;
 
   const rows = await db
     .select({ permission: userPermissions.permission })

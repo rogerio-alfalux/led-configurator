@@ -17,6 +17,7 @@ import {
 import { ENV } from './_core/env';
 import { fetchAllAlfaluxProducts, fetchComponentes, fetchAcessoriosProducts } from './alfaluxApiService';
 import { getDuplicateQuoteGroupSizes, getDuplicateQuoteKey } from '../shared/quoteGrouping';
+import { getCommercialTotalsToRestore, getNonCommercialQuoteStatus, type NonCommercialQuoteKind } from '../shared/nonCommercialQuoteFinancial';
 // ─── Utilitários de data no fuso de Brasília ────────────────────────────────
 const BRASILIA_TZ = "America/Sao_Paulo";
 
@@ -799,14 +800,14 @@ export async function getQuoteStats() {
 
   const [totals] = await db
     .select({
-      total: sql<number>`count(*)`,
+      total: sql<number>`sum(case when status != 'sample' then 1 else 0 end)`,
       open: sql<number>`sum(case when status = 'open' then 1 else 0 end)`,
       approved: sql<number>`sum(case when status = 'approved' then 1 else 0 end)`,
       lost: sql<number>`sum(case when status = 'lost' then 1 else 0 end)`,
       cancelled: sql<number>`sum(case when status = 'cancelled' then 1 else 0 end)`,
       invoiced: sql<number>`sum(case when status = 'invoiced' then 1 else 0 end)`,
       invoicedValue: sql<number>`sum(case when status = 'invoiced' then (case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end) else 0 end)`,
-        totalAmount: sql<number>`sum(case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end)`,
+        totalAmount: sql<number>`sum(case when status != 'sample' then (case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end) else 0 end)`,
       approvedAmount: sql<number>`sum(case when status = 'approved' then (case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end) else 0 end)`,
     })
     .from(quotes);
@@ -814,8 +815,8 @@ export async function getQuoteStats() {
   const topVendors = await db
     .select({
       name: quotes.vendorName,
-      count: sql<number>`count(*)`,
-      amount: sql<number>`sum(case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end)`,
+      count: sql<number>`sum(case when status != 'sample' then 1 else 0 end)`,
+      amount: sql<number>`sum(case when status != 'sample' then (case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end) else 0 end)`,
     })
     .from(quotes)
     .groupBy(quotes.vendorName)
@@ -835,8 +836,8 @@ export async function getQuoteStats() {
   const byMonth = await db
     .select({
       month: sql<string>`DATE_FORMAT(createdAt, '%Y-%m')`,
-      count: sql<number>`count(*)`,
-      amount: sql<number>`sum(case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end)`,
+      count: sql<number>`sum(case when status != 'sample' then 1 else 0 end)`,
+      amount: sql<number>`sum(case when status != 'sample' then (case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end) else 0 end)`,
     })
     .from(quotes)
     .where(sql`createdAt >= DATE_SUB(NOW(), INTERVAL 12 MONTH)`)
@@ -1303,10 +1304,10 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
   if (!db) return null;
 
   const periodCondition = (dateFrom && dateTo)
-    ? sql`approvedAt >= ${dateFrom} AND approvedAt <= ${dateTo + ' 23:59:59'} AND status = 'approved'`
+    ? sql`approvedAt >= ${dateFrom} AND approvedAt <= ${dateTo + ' 23:59:59'} AND status = 'approved' AND status != 'sample'`
     : month
-      ? sql`YEAR(approvedAt) = ${year} AND MONTH(approvedAt) = ${month} AND status = 'approved'`
-      : sql`YEAR(approvedAt) = ${year} AND status = 'approved'`;
+      ? sql`YEAR(approvedAt) = ${year} AND MONTH(approvedAt) = ${month} AND status = 'approved' AND status != 'sample'`
+      : sql`YEAR(approvedAt) = ${year} AND status = 'approved' AND status != 'sample'`;
 
   const [periodTotals] = await db.select({
     approvedCount: sql<number>`count(*)`,
@@ -1746,10 +1747,10 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
 
   // ── Taxa de conversão (total criado no período vs aprovados) ─────────────────
   const createdCondition = (dateFrom && dateTo)
-    ? sql`createdAt >= ${dateFrom} AND createdAt <= ${dateTo + ' 23:59:59'}`
+    ? sql`createdAt >= ${dateFrom} AND createdAt <= ${dateTo + ' 23:59:59'} AND status != 'sample'`
     : month
-      ? sql`YEAR(createdAt) = ${year} AND MONTH(createdAt) = ${month}`
-      : sql`YEAR(createdAt) = ${year}`;
+      ? sql`YEAR(createdAt) = ${year} AND MONTH(createdAt) = ${month} AND status != 'sample'`
+      : sql`YEAR(createdAt) = ${year} AND status != 'sample'`;
 
   const [conversionMetrics] = await db.select({
     totalCreated: sql<number>`count(*)`,
@@ -1770,7 +1771,7 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
       SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.totalPrice')) AS DECIMAL(14,2))) AS valorTotal
     FROM quote_items qi
     INNER JOIN quotes q ON q.id = qi.quoteId
-    WHERE q.status = 'approved'
+    WHERE q.status = 'approved' AND q.status != 'sample'
       AND ${
         (dateFrom && dateTo)
           ? sql`q.approvedAt >= ${dateFrom} AND q.approvedAt <= ${dateTo + ' 23:59:59'}`
@@ -1792,16 +1793,16 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     amount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
   })
     .from(quotes)
-    .where(sql`YEAR(approvedAt) = ${year} AND status = 'approved'`)
+    .where(sql`YEAR(approvedAt) = ${year} AND status = 'approved' AND status != 'sample'`)
     .groupBy(sql`MONTH(approvedAt)`)
     .orderBy(sql`MONTH(approvedAt)`);
 
   // ── Faturamento (invoiced) ────────────────────────────────────────────────
   const invoicedCondition = (dateFrom && dateTo)
-    ? sql`invoicedAt >= ${dateFrom} AND invoicedAt <= ${dateTo + ' 23:59:59'} AND status = 'invoiced'`
+    ? sql`invoicedAt >= ${dateFrom} AND invoicedAt <= ${dateTo + ' 23:59:59'} AND status = 'invoiced' AND status != 'sample'`
     : month
-      ? sql`YEAR(invoicedAt) = ${year} AND MONTH(invoicedAt) = ${month} AND status = 'invoiced'`
-      : sql`YEAR(invoicedAt) = ${year} AND status = 'invoiced'`;
+      ? sql`YEAR(invoicedAt) = ${year} AND MONTH(invoicedAt) = ${month} AND status = 'invoiced' AND status != 'sample'`
+      : sql`YEAR(invoicedAt) = ${year} AND status = 'invoiced' AND status != 'sample'`;
 
   const [invoicedTotals] = await db.select({
     invoicedCount: sql<number>`count(*)`,
@@ -1815,7 +1816,7 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     amount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
   })
     .from(quotes)
-    .where(sql`YEAR(invoicedAt) = ${year} AND status = 'invoiced'`)
+    .where(sql`YEAR(invoicedAt) = ${year} AND status = 'invoiced' AND status != 'sample'`)
     .groupBy(sql`MONTH(invoicedAt)`)
     .orderBy(sql`MONTH(invoicedAt)`);
 
@@ -1879,16 +1880,16 @@ export async function getSellerDashboard(sellerEmail: string, year: number, mont
   const sellerFilter = sql`(seller1Id = ${seller.id} OR seller2Id = ${seller.id})`;
   const periodCondition = (dateFrom && dateTo)
     ? and(
-        sql`approvedAt >= ${dateFrom} AND approvedAt <= ${dateTo + ' 23:59:59'} AND status = 'approved'`,
+        sql`approvedAt >= ${dateFrom} AND approvedAt <= ${dateTo + ' 23:59:59'} AND status = 'approved' AND status != 'sample'`,
         sellerFilter
       )
     : month
       ? and(
-          sql`YEAR(approvedAt) = ${year} AND MONTH(approvedAt) = ${month} AND status = 'approved'`,
+          sql`YEAR(approvedAt) = ${year} AND MONTH(approvedAt) = ${month} AND status = 'approved' AND status != 'sample'`,
           sellerFilter
         )
       : and(
-          sql`YEAR(approvedAt) = ${year} AND status = 'approved'`,
+          sql`YEAR(approvedAt) = ${year} AND status = 'approved' AND status != 'sample'`,
           sellerFilter
         );
 
@@ -1908,7 +1909,7 @@ export async function getSellerDashboard(sellerEmail: string, year: number, mont
     .from(quotes)
     .where(
       and(
-        sql`YEAR(approvedAt) = ${year} AND status = 'approved'`,
+        sql`YEAR(approvedAt) = ${year} AND status = 'approved' AND status != 'sample'`,
         sql`(seller1Id = ${seller.id} OR seller2Id = ${seller.id})`
       )
     )
@@ -2373,6 +2374,8 @@ export async function createSampleOrder(data: {
   clientName: string;
   projectName?: string;
   costAmount: number;
+  originalTotalAmount?: number;
+  originalTotalFinal?: number;
   notes?: string;
   sellerName?: string;
   sellerId?: number;
@@ -2386,6 +2389,8 @@ export async function createSampleOrder(data: {
     clientName: data.clientName,
     projectName: data.projectName ?? null,
     costAmount: String(data.costAmount),
+    originalTotalAmount: data.originalTotalAmount != null ? String(data.originalTotalAmount) : null,
+    originalTotalFinal: data.originalTotalFinal != null ? String(data.originalTotalFinal) : null,
     notes: data.notes ?? null,
     sellerName: data.sellerName ?? null,
     sellerId: data.sellerId ?? null,
@@ -2394,6 +2399,17 @@ export async function createSampleOrder(data: {
   });
   const id = (result as unknown as { insertId: number }[])[0]?.insertId ?? 0;
   return { id };
+}
+
+/** Converte o orçamento em pedido sem cobrança, preservando os valores no pedido vinculado. */
+export async function markQuoteAsNonCommercial(id: number, kind: NonCommercialQuoteKind): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(quotes).set({
+    status: getNonCommercialQuoteStatus(kind),
+    totalAmount: '0',
+    totalFinal: '0',
+  }).where(eq(quotes.id, id));
 }
 
 /** Lista todos os pedidos de amostras com filtros opcionais */
@@ -2455,16 +2471,29 @@ export async function updateSampleOrder(id: number, data: { status?: string; not
   }
 }
 
-/** Cancela/remove um pedido de amostra e reverte o status do orçamento para 'open' */
+/** Cancela pedido sem cobrança e restaura valores apenas quando não houver outro pedido ativo. */
 export async function deleteSampleOrder(id: number, quoteId: number): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  const [sample] = await db.select({
+    originalTotalAmount: sampleOrders.originalTotalAmount,
+    originalTotalFinal: sampleOrders.originalTotalFinal,
+  }).from(sampleOrders).where(eq(sampleOrders.id, id));
   // Remover vinculações primeiro
   await db.delete(sampleLinks).where(eq(sampleLinks.sampleOrderId, id));
   // Remover o pedido de amostra
   await db.delete(sampleOrders).where(eq(sampleOrders.id, id));
-  // Reverter status do orçamento para 'open'
-  await db.update(quotes).set({ status: 'open' }).where(eq(quotes.id, quoteId));
+  const remaining = await db.select({ id: sampleOrders.id })
+    .from(sampleOrders).where(eq(sampleOrders.quoteId, quoteId)).limit(1);
+  const restoredTotals = getCommercialTotalsToRestore(sample, remaining.length > 0);
+  if (restoredTotals) {
+    const restored: Record<string, string> = {
+      status: 'open',
+      totalAmount: String(restoredTotals.totalAmount),
+      totalFinal: String(restoredTotals.totalFinal),
+    };
+    await db.update(quotes).set(restored).where(eq(quotes.id, quoteId));
+  }
 }
 
 /** Cria uma vinculação entre pedido de amostra e orçamento futuro */

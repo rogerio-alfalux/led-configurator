@@ -423,9 +423,13 @@ export const sampleOrders = mysqlTable("sample_orders", {
 	clientName: varchar({ length: 256 }).notNull(),
 	/** Nome da obra (desnormalizado para facilitar filtros) */
 	projectName: varchar({ length: 256 }),
-	/** Custo total da amostra para a empresa (totalAmount do orçamento no momento da conversão) */
-	costAmount: decimal({ precision: 12, scale: 2 }).notNull(),
-	/** Status do pedido de amostra */
+  /** Custo total da amostra para a empresa (totalAmount do orçamento no momento da conversão) */
+  costAmount: decimal({ precision: 12, scale: 2 }).notNull(),
+  /** Valor comercial original preservado para restaurar o orçamento caso o pedido seja cancelado. */
+  originalTotalAmount: decimal({ precision: 14, scale: 2 }),
+  /** Total final original preservado para restaurar o orçamento caso o pedido seja cancelado. */
+  originalTotalFinal: decimal({ precision: 14, scale: 2 }),
+  /** Status do pedido de amostra */
 	status: varchar({ length: 32 }).notNull().default('active'),
 	/** Natureza do pedido sem cobrança: amostra comercial ou manutenção em garantia. */
 	kind: mysqlEnum(['sample', 'maintenance']).default('sample').notNull(),

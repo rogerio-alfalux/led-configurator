@@ -13,7 +13,7 @@ import {
 } from "./alfaluxApiService";
 import {
   addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty, updateCartItemData, updateCartItemsSortOrder, createQuote, addQuoteRevision, listQuotes, getQuoteById, approveQuote, getRevisionItems,
-  updateQuoteStatus, getQuoteStats, deleteQuote, suggestQuoteNumber,
+  updateQuoteStatus, markQuoteAsNonCommercial, getQuoteStats, deleteQuote, suggestQuoteNumber,
   insertAuditLog, getAuditLogs, listSellers, listAssistants,
   createFactoryOrder, getFactoryOrdersByQuoteId, getFactoryOrderById,
   updateFactoryOrder, addFactoryOrderItem, updateFactoryOrderItem,
@@ -55,6 +55,7 @@ import { sellers, assistants, quoteItems, quotes } from "../drizzle/schema";
 import { eq, inArray, and } from "drizzle-orm";
 import { DISCOUNT_EDITORS_EMAILS } from "../shared/const";
 import { commercialQuoteAccess, shouldBindCommercialQuoteTeam } from "../shared/quoteOwnership";
+import { resolveOriginalCommercialTotals } from "../shared/nonCommercialQuoteFinancial";
 
 // ─── Controle de acesso a orçamentos ─────────────────────────────────────────
 /** Emails dos gestores com acesso irrestrito a todos os orçamentos */
@@ -2446,6 +2447,8 @@ export const appRouter = router({
         const quoteData = await getQuoteById(input.quoteId);
         if (!quoteData) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado." });
         const { quote, items } = quoteData;
+        const relatedNonCommercialOrder = await getSampleOrderByQuoteId(input.quoteId);
+        const originalCommercialTotals = resolveOriginalCommercialTotals(quote, relatedNonCommercialOrder);
         // Calcular custo real (sem markup) somando custoCorpoBase * qty de cada item
         // custoCorpoBase é o custo da API antes de aplicar qualquer markup
         let totalCusto = 0;
@@ -2479,14 +2482,17 @@ export const appRouter = router({
           clientName: quote.clientName,
           projectName: (quote as any).projectName ?? undefined,
           costAmount,
+          originalTotalAmount: originalCommercialTotals.totalAmount,
+          originalTotalFinal: originalCommercialTotals.totalFinal,
           notes: input.notes,
           sellerName: (quote as any).seller1Name ?? undefined,
           sellerId: quote.seller1Id ?? undefined,
           createdByUserId: ctx.user.id,
           kind: input.kind,
         });
-        // Marcar orçamento como amostra (status)
-        await updateQuoteStatus(input.quoteId, "sample");
+        // Amostra e manutenção são pedidos sem cobrança; ambos usam o status
+        // comercial "sample" para que todos os indicadores de receita os excluam.
+        await markQuoteAsNonCommercial(input.quoteId, input.kind);
         await insertAuditLog({
           userId: ctx.user.id,
           userEmail: ctx.user.email ?? "",
