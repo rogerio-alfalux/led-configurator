@@ -1,5 +1,6 @@
 # LED Configurator - TODO
 
+- [x] Reorganizar os oito indicadores do Dashboard em uma grade 2x4 responsiva, sem truncar rótulos ou valores
 - [x] Corrigir o dashboard do orçamento 20.0442-26 para mostrar somente R$ 4.400,93 de custo do corpo da BAGEO, sem incluir drivers nem alterar preço de venda
 - [x] Corrigir somente o custo do orçamento 20.0442-26 e garantir custo/preço API corretos para novos itens BAGEO, preservando o preço de venda já salvo
 - [x] Padronizar todas as datas e horários exibidos, relatórios e referências de backup para Horário de Brasília (America/Sao_Paulo), incluindo registros históricos

@@ -233,7 +233,7 @@ export default function Quotes() {
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-5">
 
         {/* Cards de estatísticas */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-8 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {[
             { label: "Total", value: stats.total, color: "text-foreground", icon: <ClipboardList className="w-4 h-4" />, isValue: false },
             { label: "Em Aberto", value: stats.open, color: "text-blue-600", icon: <Clock className="w-4 h-4 text-blue-500" />, isValue: false },
@@ -244,12 +244,12 @@ export default function Quotes() {
             { label: "Valor sem duplicados", value: formatBRL(stats.realValue), color: "text-emerald-600", icon: <CheckCircle className="w-4 h-4 text-emerald-500" />, isValue: true },
             { label: "Prospecções LD", value: formatBRL(stats.prospectingValue), color: "text-indigo-600", icon: <Users className="w-4 h-4 text-indigo-500" />, isValue: true },
           ].map(s => (
-            <Card key={s.label} className="p-3 min-w-0">
-              <div className="flex items-center gap-1.5 mb-1 min-w-0">
+            <Card key={s.label} className="p-4 min-w-0 min-h-[104px] overflow-visible">
+              <div className="flex items-start gap-2 mb-2 min-w-0 min-h-8">
                 <span className="shrink-0">{s.icon}</span>
-                <span className="text-xs text-muted-foreground truncate">{s.label}</span>
+                <span className="text-xs leading-4 text-muted-foreground">{s.label}</span>
               </div>
-              <p className={`font-bold ${s.color} ${s.isValue ? "text-sm leading-tight break-all" : "text-2xl"}`}>{s.value}</p>
+              <p className={`font-bold tabular-nums ${s.color} ${s.isValue ? "text-base sm:text-lg lg:text-xl leading-tight whitespace-nowrap" : "text-2xl"}`}>{s.value}</p>
             </Card>
           ))}
         </div>
