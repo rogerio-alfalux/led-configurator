@@ -136,13 +136,22 @@ function fmtQty(n: number): string {
 
 /**
  * Gera o texto da coluna SKU para composições de perfis.
- * Exibe somente o código SKU por segmento, sem quantidade ou comprimento.
+ * Exibe a quantidade por SKU da composição de uma luminária. A coluna QTD
+ * representa a quantidade de luminárias solicitada e não deve ser aplicada aqui.
  */
-function buildProfileSkuText(item: CartItemData): string {
+export function buildProfileSkuText(item: Pick<CartItemData, "sku" | "profileSegments">): string {
   if (!item.profileSegments || item.profileSegments.length === 0) {
     return item.sku ?? "";
   }
-  return Array.from(new Set(item.profileSegments.map((seg) => seg.sku))).join("\n");
+  const quantitiesBySku = new Map<string, number>();
+  for (const segment of item.profileSegments) {
+    const sku = segment.sku?.trim();
+    if (!sku) continue;
+    quantitiesBySku.set(sku, (quantitiesBySku.get(sku) ?? 0) + Number(segment.qty ?? 0));
+  }
+  return Array.from(quantitiesBySku.entries())
+    .map(([sku, quantity]) => `${fmtQty(quantity || 1)} x ${sku}`)
+    .join("\n");
 }
 
 /**
