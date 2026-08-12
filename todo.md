@@ -2410,3 +2410,6 @@
 - [x] Não agrupar itens especiais de medidas diferentes
 - [x] Manter dados de configuração e API padronizados entre usuários
 - [x] Otimizar carregamento sem comprometer dados atualizados da API
+
+## Ajuste: Controle de conta no cabeçalho
+- [x] Adicionar botão universal de entrar, trocar conta e sair ao lado do carrinho na página inicial

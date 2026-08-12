@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench, Briefcase, Star, Package2, Search as SearchIcon, Minus, Plus, DollarSign, Ban, ArrowLeftRight, Package } from "lucide-react";
+import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench, Briefcase, Star, Package2, Search as SearchIcon, Minus, Plus, DollarSign, Ban, ArrowLeftRight, Package, LogIn, LogOut, UserRound } from "lucide-react";
 // v32.63 - 2026-08-10
 import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/useCart";
@@ -15,8 +15,10 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useTheme } from "@/contexts/ThemeContext";
 import { toast } from "sonner";
+import { getLoginUrl } from "@/const";
 import {
   LED_CATALOG,
   MODULE_TYPE_LABELS,
@@ -2703,13 +2705,27 @@ function ProductionTemplateCard({ result }: { result: CompositionResult }) {
 
 export default function Home() {
   const { theme, toggleTheme } = useTheme();
-  const { user } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
   const isVivian = user?.email === "vivian@grupoalfalux.com.br";
   const isConvidado = (user as any)?.role === "convidado";
   const { addItem, count: cartCount, isAdding: isAddingToCart } = useCart();
   const [pendingCartItem, setPendingCartItem] = useState<CartItemData | null>(null);
   const [colorModalOpen, setColorModalOpen] = useState(false);
   const [, navigate] = useLocation();
+
+  const leaveCurrentAccount = useCallback(async (destination: string) => {
+    try {
+      await logout();
+    } catch {
+      // Mesmo que a sessão já tenha expirado, direcionar o usuário ao acesso escolhido.
+    } finally {
+      window.location.assign(destination);
+    }
+  }, [logout]);
+
+  const handleSwitchAccount = useCallback(() => leaveCurrentAccount(getLoginUrl()), [leaveCurrentAccount]);
+  const handleGuestLogin = useCallback(() => leaveCurrentAccount("/login-convidado"), [leaveCurrentAccount]);
+  const handleLogout = useCallback(() => leaveCurrentAccount(getLoginUrl()), [leaveCurrentAccount]);
 
   // ── Modo "Adicionar ao Orçamento" ─────────────────────────────────────────
   // Detecta ?appendToQuote=ID na URL e ativa o modo de adição direta ao orçamento
@@ -4749,6 +4765,51 @@ export default function Home() {
                 )}
               </Button>
             </Link>}
+
+            {isAuthenticated ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="Conta: entrar, trocar conta ou sair"
+                    className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  >
+                    <UserRound className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-60">
+                  <DropdownMenuLabel className="font-normal">
+                    <p className="text-sm font-medium truncate">{user?.name || "Usuário"}</p>
+                    <p className="text-xs text-muted-foreground truncate mt-1">{user?.email || ""}</p>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSwitchAccount} className="cursor-pointer">
+                    <ArrowLeftRight className="mr-2 h-4 w-4" />
+                    <span>Trocar conta</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleGuestLogin} className="cursor-pointer">
+                    <LogIn className="mr-2 h-4 w-4" />
+                    <span>Entrar com e-mail e senha</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sair</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Entrar"
+                onClick={() => window.location.assign(getLoginUrl())}
+                className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              >
+                <LogIn className="w-4 h-4" />
+              </Button>
+            )}
 
             {(user as any)?.role === "admin" && (
               <Link href="/usuarios">
