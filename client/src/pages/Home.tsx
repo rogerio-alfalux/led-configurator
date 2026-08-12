@@ -9741,26 +9741,34 @@ export default function Home() {
                                     category: "LED BAR",
                                     sku: r.product.sku ?? "",
                                     description: `${r.product.name} ${r.cct} ${r.controle} ${r.voltage} ${r.comprimentoTotalMm}MM`,
-                                    power: `${r.product.potencia}W/m`,
-                                    cct: r.cct,
-                                    qty: globalQty,
-                                    unitPrice: lbDrvLines && lbUnitPriceLuminaria != null ? lbUnitPriceLuminaria : (lbPreco ?? null),
-                                    totalPrice: lbTotalPriceFinal,
-                                    photoUrl: r.product.fotoUrl ?? "",
-                                    orderSummary: pedido,
-                                    quoteSummary: orcamento,
-                                    moduloLed: r.ledModuleWithCCT ?? r.product.ledModule ?? "",
-                                    moduloLedCode: r.ledModuleEqCode ?? null,
-                                    drivers: lbDriverCode ? `${r.nCortes}x ${lbDriverModel} (${lbDriverCode})` : `${r.nCortes}x ${lbDriverModel}`,
-                                    ledBarNCortes: r.nCortes,
-                                    ledBarComprimentoPorTrechoMm: r.comprimentoPorTrechoMm,
-                                    ledBarComprimentoTotalMm: r.comprimentoTotalMm,
-                                    ledBarDriverModel: lbDriverModel,
-                                    ledBarDriverCode: lbDriverCode,
-                                    availableCCTs: r.product.ccts,
-                                    itemEmPlanta: globalItemEmPlanta,
-                                    ...getCustoForControle(r.product, r.controle, r.voltage),
-                                    ...(lbDrvLines ? {
+                                   power: `${r.product.potencia}W/m`,
+                                   cct: r.cct,
+                                   qty: globalQty,
+                                   unitPrice: lbDrvLines && lbUnitPriceLuminaria != null ? lbUnitPriceLuminaria : (lbPreco ?? null),
+                                   totalPrice: lbTotalPriceFinal,
+                                   photoUrl: r.product.fotoUrl ?? "",
+                                   orderSummary: pedido,
+                                   quoteSummary: orcamento,
+                                   moduloLed: r.ledModuleWithCCT ?? r.product.ledModule ?? "",
+                                   moduloLedCode: r.ledModuleEqCode ?? null,
+                                   drivers: lbDriverCode ? `${r.nCortes}x ${lbDriverModel} (${lbDriverCode})` : `${r.nCortes}x ${lbDriverModel}`,
+                                   ledBarNCortes: r.nCortes,
+                                   ledBarComprimentoPorTrechoMm: r.comprimentoPorTrechoMm,
+                                   ledBarComprimentoTotalMm: r.comprimentoTotalMm,
+                                   ledBarDriverModel: lbDriverModel,
+                                   ledBarDriverCode: lbDriverCode,
+                                   availableCCTs: r.product.ccts,
+                                   itemEmPlanta: globalItemEmPlanta,
+                                    // Custo por metro × metros para LED BAR (mesma lógica da BAGEO)
+                                    ...(() => {
+                                      const base = getCustoForControle(r.product, r.controle, r.voltage);
+                                      const metros = r.comprimentoTotalMm / 1000;
+                                      return {
+                                        ...base,
+                                        custoCorpoBase: base.custoCorpoBase != null ? Math.round(base.custoCorpoBase * metros * 100) / 100 : null,
+                                      };
+                                    })(),
+                                   ...(lbDrvLines ? {
                                       driverLines: lbDrvLines,
                                       priceWithoutDriver: lbPrecoSemDriver,
                                       unitPriceLuminaria: lbUnitPriceLuminaria,
@@ -10099,29 +10107,43 @@ export default function Home() {
                                       }]
                                     : undefined;
                                 const item: CartItemData = {
-                                  category: "BAGEO",
-                                  sku: r.product.sku ?? "",
-                                  description: `${r.product.name} ${r.product.aplicacao !== 'D1' ? r.product.aplicacao + ' ' : ''}${r.cct} ${r.controle} ${r.comprimento}MM (${r.nCortes} CORTE${r.nCortes !== 1 ? 'S' : ''} DE ${r.comprimentoPorCorte}MM)`,
-                                  power: "",
-                                  cct: r.cct,
-                                  qty: 1,
-                                  unitPrice: bgDrvLines ? (bgPrecoSemDriver ?? bgPrecoEfetivo ?? null) : (bgPrecoEfetivo ?? null),
-                                  totalPrice: bgDrvLines ? (bgPrecoSemDriver ?? bgPrecoEfetivo ?? null) : (bgPrecoEfetivo ?? null),
-                                  priceFromApi: r.precoPerfil !== null || r.precoDriverPorUnidade !== null,
-                                  photoUrl: r.product.fotoUrl ?? "",
-                                  orderSummary: pedido,
-                                  quoteSummary: orcamento,
-                                  moduloLed: r.product.ledModule ?? "",
-                                  moduloLedCode: r.ledModuleEqCode ?? null,
-                                  drivers: r.driver.model ?? "",
-                                  availableCCTs: r.product.ccts,
-                                  itemEmPlanta: globalItemEmPlanta,
-                                  ledBarNCortes: r.nCortes,
-                                  ledBarComprimentoPorTrechoMm: r.comprimentoPorCorte,
-                                  ledBarComprimentoTotalMm: r.comprimento,
-                                  ...getCustoForControle(r.product, r.controle ?? 'ON/OFF', '220V'),
-                                  ...(bgDrvLines ? { driverLines: bgDrvLines } : {}),
-                                };
+                                 category: "BAGEO",
+                                 sku: r.product.sku ?? "",
+                                 description: `${r.product.name} ${r.product.aplicacao !== 'D1' ? r.product.aplicacao + ' ' : ''}${r.cct} ${r.controle} ${r.comprimento}MM (${r.nCortes} CORTE${r.nCortes !== 1 ? 'S' : ''} DE ${r.comprimentoPorCorte}MM)`,
+                                 power: "",
+                                 cct: r.cct,
+                                 qty: 1,
+                                 unitPrice: bgDrvLines ? (bgPrecoSemDriver ?? bgPrecoEfetivo ?? null) : (bgPrecoEfetivo ?? null),
+                                 totalPrice: bgDrvLines ? (bgPrecoSemDriver ?? bgPrecoEfetivo ?? null) : (bgPrecoEfetivo ?? null),
+                                 priceFromApi: r.precoPerfil !== null || r.precoDriverPorUnidade !== null,
+                                 photoUrl: r.product.fotoUrl ?? "",
+                                 orderSummary: pedido,
+                                 quoteSummary: orcamento,
+                                 moduloLed: r.product.ledModule ?? "",
+                                 moduloLedCode: r.ledModuleEqCode ?? null,
+                                 drivers: r.driver.model ?? "",
+                                 availableCCTs: r.product.ccts,
+                                 itemEmPlanta: globalItemEmPlanta,
+                                 ledBarNCortes: r.nCortes,
+                                 ledBarComprimentoPorTrechoMm: r.comprimentoPorCorte,
+                                 ledBarComprimentoTotalMm: r.comprimento,
+                                  // Custo e markup: para BAGEO, custoCorpoBase deve ser o custo TOTAL (por metro × metros),
+                                  // não apenas o custo por metro, pois o dashboard multiplica por qty (=1).
+                                  ...(() => {
+                                    const base = getCustoForControle(r.product, r.controle ?? 'ON/OFF', '220V');
+                                    return {
+                                      ...base,
+                                      custoCorpoBase: base.custoCorpoBase != null ? Math.round(base.custoCorpoBase * r.comprimentoMetros * 100) / 100 : null,
+                                    };
+                                  })(),
+                                  // Campos obrigatórios para exibição desmembrada no carrinho
+                                  unitPriceLuminaria: bgPrecoSemDriver ?? bgPrecoEfetivo ?? null,
+                                  priceWithoutDriver: bgPrecoSemDriver ?? bgPrecoEfetivo ?? null,
+                                  luminariaHasApiPrice: r.precoPerfil !== null,
+                                  unitPriceDriver: bgPrecoPorUnidadeDriver,
+                                  driverQtyPerUnit: r.driverQtd,
+                                 ...(bgDrvLines ? { driverLines: bgDrvLines } : {}),
+                               };
                                   if (appendToQuoteId || replaceInQuoteId) {
                                     handleAddItemOrToQuote(item);
                                   } else {
