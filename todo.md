@@ -1,5 +1,6 @@
 # LED Configurator - TODO
 
+- [x] Corrigir imagens (logo + categorias) no domínio publicado: rota /api/assets/ contorna interceptação da plataforma em /manus-storage/
 - [x] Inicializar projeto web-db-user
 - [x] Configurar tema visual Alfalux (CSS, cores, tipografia dark/light)
 - [x] Criar catálogo JSON completo com 12 perfis do Excel (HIT, EASY H PLUS, SKYLINE, BLAZE, etc.)
@@ -2433,3 +2434,6 @@
 
 ## Correção: Fotos das categorias para LD Convidado
 - [x] Garantir carregamento das fotos das categorias na sessão autenticada por senha de LD Convidado
+
+## Correção: Rota pública de fotos das categorias
+- [ ] Servir fotos das categorias por rota própria da aplicação, sem depender de /manus-storage no domínio publicado

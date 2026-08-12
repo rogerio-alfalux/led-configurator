@@ -22,7 +22,7 @@ import { getStateInfo } from "@/lib/difalTable";
 function getProxiedPhotoSrc(url: string | null | undefined): string | null {
   if (!url) return null;
   // URLs internas (manus-storage) não precisam de proxy
-  if (url.startsWith("/manus-storage/") || url.startsWith("/api/image-proxy")) return url;
+  if (url.startsWith("/manus-storage/") || url.startsWith("/api/assets/") || url.startsWith("/api/image-proxy")) return url;
   // URLs externas (CloudFront, alfalux, etc.) → passar pelo proxy
   if (url.startsWith("http://") || url.startsWith("https://")) {
     return `/api/image-proxy?url=${encodeURIComponent(url)}`;
@@ -137,7 +137,7 @@ const CONDITIONS = [
   { num: "9)", text: "Cancelamento total ou parcial, será aceito somente no período de 48 horas da aprovação do pedido, após haverá a cobrança de 10% sobre o valor dos itens cancelados, em função da interrupção do processo fabril e ressarcimento de despesas geradas com a compra de matéria prima e mão de obra. Não aceitamos o cancelamento de produtos especiais, nesta hipótese haverá a cobrança do valor integral do produto." },
 ];
 
-const LOGO_URL = "/manus-storage/alfalux-logo-excel_8e8ca9f4.png";
+const LOGO_URL = "/api/assets/alfalux-logo-excel_8e8ca9f4.png";
 
 interface Props {
   open: boolean;

@@ -1066,12 +1066,12 @@ export default function QuoteDetail() {
   }, [acessoriosQuery.data]);
 
   /** Passa URL externa pelo proxy para evitar bloqueio CORS */
-  const proxyPhoto = (url: string | null | undefined): string | null => {
-    if (!url) return null;
-    if (url.startsWith("/manus-storage/") || url.startsWith("/api/image-proxy")) return url;
-    if (url.startsWith("http://") || url.startsWith("https://")) return `/api/image-proxy?url=${encodeURIComponent(url)}`;
-    return url;
-  };
+ const proxyPhoto = (url: string | null | undefined): string | null => {
+   if (!url) return null;
+    if (url.startsWith("/manus-storage/") || url.startsWith("/api/assets/") || url.startsWith("/api/image-proxy")) return url;
+   if (url.startsWith("http://") || url.startsWith("https://")) return `/api/image-proxy?url=${encodeURIComponent(url)}`;
+   return url;
+ };
 
   /** Retorna a URL de foto mais fresca: catálogo > salva no banco > null */
   const resolvePhoto = (sku: string | undefined, savedUrl: string | null): string | null => {

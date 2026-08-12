@@ -78,9 +78,9 @@ async function _generatePdfBlob(
 
   // ── Carregar logo ──────────────────────────────────────────────────────────
   let logoDataUrl: string | null = null;
-  try {
-    const resp = await fetch("/manus-storage/alfalux-logo-excel_8e8ca9f4.png");
-    if (resp.ok) {
+ try {
+    const resp = await fetch("/api/assets/alfalux-logo-excel_8e8ca9f4.png");
+   if (resp.ok) {
       const buf = await resp.arrayBuffer();
       const b64 = btoa(Array.from(new Uint8Array(buf), c => String.fromCharCode(c)).join(""));
       logoDataUrl = `data:image/png;base64,${b64}`;
@@ -89,14 +89,14 @@ async function _generatePdfBlob(
 
   // ── Pré-carregar fotos dos produtos ────────────────────────────────────────
   const photoCache = new Map<string, string>();
-  const photoUrls = items
-    .map(i => i.photoUrl)
-    .filter((u): u is string => !!u && (u.startsWith("/manus-storage/") || u.startsWith("http")));
-  await Promise.allSettled(
-    photoUrls.map(async (url) => {
-      try {
-        const fetchUrl = url.startsWith("/manus-storage/") ? url : url;
-        const r = await fetch(fetchUrl);
+ const photoUrls = items
+   .map(i => i.photoUrl)
+    .filter((u): u is string => !!u && (u.startsWith("/manus-storage/") || u.startsWith("/api/assets/") || u.startsWith("http")));
+ await Promise.allSettled(
+   photoUrls.map(async (url) => {
+     try {
+        const fetchUrl = (url.startsWith("/manus-storage/") || url.startsWith("/api/assets/")) ? url : url;
+       const r = await fetch(fetchUrl);
         if (!r.ok) return;
         const buf = await r.arrayBuffer();
         const b64 = btoa(Array.from(new Uint8Array(buf), c => String.fromCharCode(c)).join(""));

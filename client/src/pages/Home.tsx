@@ -167,17 +167,17 @@ type ProductCategory =
   | "Não Orçamos";
 
 const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; icon: React.ElementType; image?: string; available: boolean }[] = [
-  { value: "Perfis",       label: "Perfis",        icon: Layers,      image: "/manus-storage/PERFIS_e65318d1.png",      available: true  },
-  { value: "Downlights",   label: "Downlights",    icon: Lightbulb,   image: "/manus-storage/DOWNLIGHTS_938e9ef2.png",  available: true  },
-  { value: "Painéis",      label: "Painéis",       icon: Grid2X2,     image: "/manus-storage/PAINEIS_34c70c2f.png",     available: true },
-  { value: "Spots",        label: "Spots",         icon: Focus,       image: "/manus-storage/spots-nobg_a12052bc.png",   available: true },
-  { value: "Arandelas",    label: "Arandelas",     icon: Lamp,        image: "/manus-storage/ARANDELAS_324ddfb0.webp",  available: true },
-  { value: "Área Externa", label: "Área Externa",  icon: TreePine,    image: "/manus-storage/AREAEXTERNA_5811f7cb.png", available: true },
-  { value: "Balizadores",  label: "Balizadores",   icon: Navigation,  image: "/manus-storage/BALIZADORES_482d54f1.png", available: true },
-  { value: "Decorativas",  label: "Decorativas",   icon: Sparkles,    image: "/manus-storage/DECORATIVAS_4ee44c0e.png", available: true },
-  { value: "Item Especial", label: "Item Especial",  icon: PackagePlus, image: "/manus-storage/item-especial-icon_c570c491.png", available: true  },
-  { value: "Revenda",       label: "Revenda",        icon: ShoppingBag, image: "/manus-storage/revenda-icon-nobg_245d52aa.png", available: true  },
-  { value: "Acessórios",    label: "Acessórios",     icon: Wrench,      image: "/manus-storage/trilho_nobg_cf2a6de2.png", available: true  },
+  { value: "Perfis",       label: "Perfis",        icon: Layers,      image: "/api/assets/PERFIS_e65318d1.png",      available: true  },
+  { value: "Downlights",   label: "Downlights",    icon: Lightbulb,   image: "/api/assets/DOWNLIGHTS_938e9ef2.png",  available: true  },
+  { value: "Painéis",      label: "Painéis",       icon: Grid2X2,     image: "/api/assets/PAINEIS_34c70c2f.png",     available: true },
+  { value: "Spots",        label: "Spots",         icon: Focus,       image: "/api/assets/spots-nobg_a12052bc.png",   available: true },
+  { value: "Arandelas",    label: "Arandelas",     icon: Lamp,        image: "/api/assets/ARANDELAS_324ddfb0.webp",  available: true },
+  { value: "Área Externa", label: "Área Externa",  icon: TreePine,    image: "/api/assets/AREAEXTERNA_5811f7cb.png", available: true },
+  { value: "Balizadores",  label: "Balizadores",   icon: Navigation,  image: "/api/assets/BALIZADORES_482d54f1.png", available: true },
+  { value: "Decorativas",  label: "Decorativas",   icon: Sparkles,    image: "/api/assets/DECORATIVAS_4ee44c0e.png", available: true },
+  { value: "Item Especial", label: "Item Especial",  icon: PackagePlus, image: "/api/assets/item-especial-icon_c570c491.png", available: true  },
+  { value: "Revenda",       label: "Revenda",        icon: ShoppingBag, image: "/api/assets/revenda-icon-nobg_245d52aa.png", available: true  },
+  { value: "Acessórios",    label: "Acessórios",     icon: Wrench,      image: "/api/assets/trilho_nobg_cf2a6de2.png", available: true  },
   { value: "Serviços",       label: "Serviços",        icon: Briefcase,   available: true  },
 ];
 
@@ -4757,9 +4757,9 @@ export default function Home() {
       <header className="sticky top-0 z-50 border-b border-border bg-sidebar text-sidebar-foreground shadow-sm">
         <div className="container flex items-center justify-between h-16">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center">
-              <img src="/manus-storage/alfalux-icon-192_36cf164c.png" alt="Alfalux" className="w-8 h-8 object-cover" />
-            </div>
+           <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center">
+              <img src="/api/assets/alfalux-icon-192_36cf164c.png" alt="Alfalux" className="w-8 h-8 object-cover" />
+           </div>
             <div>
               <h1 className="text-base font-bold font-display text-sidebar-foreground leading-none">
                 Sistema Luna

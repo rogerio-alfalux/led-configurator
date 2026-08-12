@@ -11,6 +11,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import apiV1Router from "../apiV1Router";
 import guestAuthRouter from "../guestAuth";
+import assetsRouter from "../assetsProxy";
 import { dailyBackupHandler } from "../backupHandler";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -45,6 +46,8 @@ async function startServer() {
   app.post("/api/scheduled/daily-backup", dailyBackupHandler);
   // Guest auth (login por senha para convidados)
   app.use(guestAuthRouter);
+  // Assets proxy — rota pública que serve imagens sem interceptação da plataforma
+  app.use(assetsRouter);
   // API REST v1 — somente leitura, autenticada por API Key
   app.use("/api/v1", apiV1Router);
   // tRPC API

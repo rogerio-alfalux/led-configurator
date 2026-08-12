@@ -729,11 +729,11 @@ async function _generateExcelBuffer(
     // Buscar URL fresca via API para evitar expiração de CloudFront signed URLs
     const freshPhotoUrl = await getFreshPhotoUrl(item.sku || "", item.photoUrl);
     if (freshPhotoUrl) {
-      try {
-        let fetchUrl: string;
-        if (freshPhotoUrl.startsWith("/manus-storage/")) {
-          fetchUrl = freshPhotoUrl;
-        } else {
+     try {
+       let fetchUrl: string;
+        if (freshPhotoUrl.startsWith("/manus-storage/") || freshPhotoUrl.startsWith("/api/assets/")) {
+         fetchUrl = freshPhotoUrl;
+       } else {
           fetchUrl = `/api/image-proxy?url=${encodeURIComponent(freshPhotoUrl)}`;
         }
         const response = await fetch(fetchUrl);
@@ -1023,10 +1023,10 @@ async function _generateExcelBuffer(
         // D = foto do acessório (se disponível)
         const freshAccUrl = await getFreshAccPhotoUrl(acc.codigo ?? "", acc.fotoUrl);
         if (freshAccUrl) {
-          try {
-            let fetchUrl = freshAccUrl.startsWith("/manus-storage/")
-              ? freshAccUrl
-              : `/api/image-proxy?url=${encodeURIComponent(freshAccUrl)}`;
+         try {
+            let fetchUrl = freshAccUrl.startsWith("/manus-storage/") || freshAccUrl.startsWith("/api/assets/")
+             ? freshAccUrl
+             : `/api/image-proxy?url=${encodeURIComponent(freshAccUrl)}`;
             const accImgRes = await fetch(fetchUrl);
             if (accImgRes.ok) {
               const accBuf = await accImgRes.arrayBuffer();
@@ -1702,9 +1702,9 @@ async function _generateExcelBuffer(
   // ExcelJS usa EMU_PER_PIXEL = 9525 para ext (width/height em px → EMU)
   // Para nativeColOff/nativeRowOff usamos EMU diretamente via IAnchor
   //
-  try {
-    const logoUrl = "/manus-storage/alfalux-logo-excel_8e8ca9f4.png";
-    const logoResponse = await fetch(logoUrl);
+ try {
+    const logoUrl = "/api/assets/alfalux-logo-excel_8e8ca9f4.png";
+   const logoResponse = await fetch(logoUrl);
     if (logoResponse.ok) {
       const logoBuffer = await logoResponse.arrayBuffer();
 
