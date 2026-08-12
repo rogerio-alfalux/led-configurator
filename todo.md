@@ -3,6 +3,7 @@
 - [x] Corrigir e validar explicitamente o agrupamento de itens tecnicamente equivalentes na ficha de produção, incluindo 04.0173-26 Parcial 1
 - [x] Requisição de materiais: corrigir duplicação de drivers para perfis (profileSegments já contabiliza, driverLines não deve duplicar)
 - [x] Requisição de materiais: adicionar coluna "Itens" indicando quais itens do pedido usam cada componente
+- [x] Corrigir o prazo de produção no Excel da ficha para usar a mesma data em dias úteis da prévia
 - [x] Corrigir drivers e programação de corrente dos perfis lineares para usar exclusivamente a variante correspondente da API (18W, 26W, 36W SF e 36W SL)
 - [x] Corrigir a data de prazo das fichas de produção para calcular dias úteis e excluir fins de semana em todos os pedidos de fábrica
 - [x] Requisição de materiais: excluir LED BAR do bloco driverLines para evitar duplicação de fontes (item 15) — testado

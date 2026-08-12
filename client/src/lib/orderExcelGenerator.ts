@@ -413,9 +413,12 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   {
     // Sempre usar a data pré-calculada pelos dias úteis. No fallback, calcular
     // da mesma forma, incluindo fins de semana e feriados nacionais.
-    const fallbackDelivery = await calcDeliveryDate(form.approvedAt, form.deliveryDays ?? 20);
-    const displayDays = form.precomputedDisplayDays ?? fallbackDelivery.displayDays;
-    const dateStr = form.precomputedDeliveryDate ?? fallbackDelivery.deliveryDateStr;
+    const hasPrecomputedDeadline = form.precomputedDisplayDays != null && !!form.precomputedDeliveryDate;
+    const fallbackDelivery = hasPrecomputedDeadline
+      ? null
+      : await calcDeliveryDate(form.approvedAt, form.deliveryDays ?? 20);
+    const displayDays = form.precomputedDisplayDays ?? fallbackDelivery!.displayDays;
+    const dateStr = form.precomputedDeliveryDate ?? fallbackDelivery!.deliveryDateStr;
     const prazoStr = `${displayDays} dias úteis → ${dateStr}`;
     const prazoCell = ws.getCell("J3");
     prazoCell.value = prazoStr;
@@ -432,9 +435,6 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   brandCell.font = { bold: true, size: 10 };
   brandCell.alignment = { horizontal: "left", vertical: "middle" };
   applyBorder(brandCell);
-
-  // Col J3: data
-  valueCell(ws.getCell("J3"), form.date);
 
   // ─── Linha 5: Espaço ─────────────────────────────────────────────────────
   ws.getRow(5).height = 6;
@@ -711,16 +711,18 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   }
   // ─── Gerar, baixar e retornar buffer ──────────────────────────────────────────────────────────────
   const buffer = await wb.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `PEDIDO-FABRICA-${form.orderNumber || form.quoteNumber}-${form.clientName.replace(/\s+/g, "_")}.xlsx`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  if (typeof document !== "undefined") {
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `PEDIDO-FABRICA-${form.orderNumber || form.quoteNumber}-${form.clientName.replace(/\s+/g, "_")}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
   return buffer as ArrayBuffer;
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { addBusinessDays, buildProfileSkuText } from "./orderExcelGenerator";
+import ExcelJS from "exceljs";
+import { addBusinessDays, buildProfileSkuText, generateOrderExcel } from "./orderExcelGenerator";
 
 describe("buildProfileSkuText", () => {
   it("informa a quantidade de cada SKU da composição na ficha de produção", () => {
@@ -49,5 +50,25 @@ describe("addBusinessDays", () => {
 
     // Sexta é feriado e o fim de semana é ignorado: próximo dia útil é segunda.
     expect(delivery.toISOString().slice(0, 10)).toBe("2026-08-10");
+  });
+});
+
+describe("generateOrderExcel", () => {
+  it("mantém em J3 o prazo pré-calculado, sem sobrescrevê-lo pela data de hoje", async () => {
+    const buffer = await generateOrderExcel([], {
+      clientName: "Cliente Teste",
+      projectName: "Obra Teste",
+      quoteNumber: "04.0173-26",
+      vendorName: "Vendedor Teste",
+      date: "12/08/2026",
+      deliveryDays: 20,
+      precomputedDisplayDays: 20,
+      precomputedDeliveryDate: "09/09/2026",
+    });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
+    const worksheet = workbook.worksheets[0];
+
+    expect(worksheet.getCell("J3").value).toBe("20 dias úteis → 09/09/2026");
   });
 });
