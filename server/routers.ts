@@ -2,7 +2,7 @@ import { COOKIE_NAME, COST_PRIVILEGED_EMAILS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
-import { selectActiveQuoteItems } from "./quoteCostUtils";
+import { calculateDashboardProductCost, selectActiveQuoteItems, selectApiProductForQuoteItem } from "./quoteCostUtils";
 import {
   fetchAllAlfaluxProducts,
   invalidateAlfaluxCache,
@@ -1449,7 +1449,7 @@ export const appRouter = router({
             }
 
             // ── SEMPRE buscar custo na API pelo SKU (tempo real) ──
-            const product = productBySku.get(sku);
+            const product = selectApiProductForQuoteItem(products, sku, data.description);
             if (!product) {
               // Tentar buscar como componente pelo código EQ/CP na API de componentes
               const comp = componenteByCodigo.get(sku);
@@ -1540,16 +1540,18 @@ export const appRouter = router({
             }
 
             if (custoCorpo > 0) {
-              // Para itens vendidos por metro (BAGEO, LED BAR), multiplicar custo/m pelo comprimento
               const comprimentoMm = Number(data.ledBarComprimentoTotalMm ?? 0);
-              const isPerMeter = comprimentoMm > 0 && (data.category === 'BAGEO' || data.category === 'LED BAR');
-              const custoCorpoEfetivo = isPerMeter
-                ? Math.round(custoCorpo * (comprimentoMm / 1000) * 100) / 100
-                : custoCorpo;
-              const subtotal = custoCorpoEfetivo * qty + custoDriver * driverQty;
-              totalCusto += subtotal;
+              const calculatedCost = calculateDashboardProductCost({
+                category: data.category,
+                bodyCost: custoCorpo,
+                driverCost: custoDriver,
+                qty,
+                driverQty,
+                lengthMm: comprimentoMm,
+              });
+              totalCusto += calculatedCost.subtotal;
               temCusto = true;
-              itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: custoCorpoEfetivo, custoDriver, qty, driverQty, subtotal, source: 'api' });
+              itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: calculatedCost.custoCorpo, custoDriver: calculatedCost.custoDriver, qty, driverQty, subtotal: calculatedCost.subtotal, source: data.category === 'BAGEO' ? 'api_bageo_corpo' : 'api' });
             } else {
               itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: 0, custoDriver: 0, qty, driverQty: 0, subtotal: 0, source: 'sem_custo_api' });
             }

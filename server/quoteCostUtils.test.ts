@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { selectActiveQuoteItems } from "./quoteCostUtils";
+import { calculateDashboardProductCost, selectActiveQuoteItems, selectApiProductForQuoteItem } from "./quoteCostUtils";
 
 describe("selectActiveQuoteItems", () => {
   it("nunca soma itens de revisões históricas ao custo da revisão ativa", () => {
@@ -24,5 +24,35 @@ describe("selectActiveQuoteItems", () => {
     );
 
     expect(items).toEqual([{ quoteVersionId: 2 }]);
+  });
+
+  it("resolve BAGEO pela potência da descrição quando o SKU é compartilhado", () => {
+    const product = selectApiProductForQuoteItem(
+      [
+        { sku: "LDE-7035", name: "BAGEO SINUOSA E 20W/M", custo: 346.53 },
+        { sku: "LDE-7035", name: "BAGEO SINUOSA E 40W/M", custo: 381.01 },
+      ],
+      "LDE-7035",
+      "BAGEO SINUOSA E 20W/M 3000K ON/OFF 220V 12700MM",
+    );
+
+    expect(product?.custo).toBe(346.53);
+  });
+
+  it("mostra somente o custo do corpo da BAGEO por metro no dashboard", () => {
+    const result = calculateDashboardProductCost({
+      category: "BAGEO",
+      bodyCost: 346.53,
+      driverCost: 29.99,
+      qty: 1,
+      driverQty: 7,
+      lengthMm: 12700,
+    });
+
+    expect(result).toEqual({
+      custoCorpo: 4400.93,
+      custoDriver: 0,
+      subtotal: 4400.93,
+    });
   });
 });
