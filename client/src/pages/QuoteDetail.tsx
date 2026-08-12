@@ -5144,7 +5144,7 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
                       <div>
                         <span className="text-sm">{cost.descricao}</span>
                         <span className="text-xs text-muted-foreground ml-2">
-                          {cost.createdAt ? new Date(cost.createdAt).toLocaleDateString('pt-BR') : ''}
+                          {cost.createdAt ? toBrasiliaDate(cost.createdAt) : ''}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">

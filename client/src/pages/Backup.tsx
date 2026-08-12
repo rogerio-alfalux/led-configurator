@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { toBrasiliaDateTime, toBrasiliaDateTimeShort, toBrasiliaFileDate } from "@/lib/dateUtils";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -19,10 +20,7 @@ function formatBytes(bytes: number): string {
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleString("pt-BR", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
+  return toBrasiliaDateTimeShort(dateStr);
 }
 
 export default function Backup() {
@@ -60,7 +58,7 @@ export default function Backup() {
       const blob = new Blob([sql], { type: "text/plain;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      const dateStr = new Date(generatedAt).toISOString().slice(0, 10);
+      const dateStr = toBrasiliaFileDate(generatedAt);
       a.href = url;
       a.download = `backup-sistema-luna-${dateStr}.sql`;
       a.click();
@@ -92,9 +90,9 @@ export default function Backup() {
         "Número Pedido": q.orderNumber ?? "",
         "Empresa Faturadora": q.billingCompany ?? "",
         "Valor Total": q.totalFinal ?? q.totalAmount ?? 0,
-        "Criado em": q.createdAt ? new Date(q.createdAt).toLocaleString("pt-BR") : "",
-        "Aprovado em": q.approvedAt ? new Date(q.approvedAt).toLocaleString("pt-BR") : "",
-        "Faturado em": q.invoicedAt ? new Date(q.invoicedAt).toLocaleString("pt-BR") : "",
+        "Criado em": q.createdAt ? toBrasiliaDateTime(q.createdAt) : "",
+        "Aprovado em": q.approvedAt ? toBrasiliaDateTime(q.approvedAt) : "",
+        "Faturado em": q.invoicedAt ? toBrasiliaDateTime(q.invoicedAt) : "",
         "Observações": q.notes ?? "",
       }));
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(quotesRows), "Orçamentos");
@@ -104,7 +102,7 @@ export default function Backup() {
         "ID Orçamento": v.quoteId,
         "Revisão Nº": v.version,
         "Nota": v.versionNotes ?? "",
-        "Criado em": v.createdAt ? new Date(v.createdAt).toLocaleString("pt-BR") : "",
+        "Criado em": v.createdAt ? toBrasiliaDateTime(v.createdAt) : "",
       }));
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(versionsRows), "Revisões");
 
@@ -129,7 +127,7 @@ export default function Backup() {
       });
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(itemsRows), "Itens");
 
-      const dateStr = new Date(generatedAt).toISOString().slice(0, 10);
+      const dateStr = toBrasiliaFileDate(generatedAt);
       XLSX.writeFile(wb, `backup-orcamentos-${dateStr}.xlsx`);
       toast.success(`Backup Excel gerado — ${quotes.length} orçamentos · ${items.length} itens`);
     } catch {

@@ -11,6 +11,7 @@ import { X, FileDown } from "lucide-react";
 import type { CartItemData, QuoteFormData } from "@/lib/cartTypes";
 import { formatBRL } from "@/lib/cartTypes";
 import { getStateInfo } from "@/lib/difalTable";
+import { toBrasiliaDate } from "@/lib/dateUtils";
 
 // ── Helpers (mesmos do gerador Excel) ────────────────────────────────────────
 
@@ -696,7 +697,7 @@ ${htmlContent}
                   {(formData.numero || "") + rvSuffix}
                 </div>
                 <div style={{ background: BLUE, color: WHITE, fontWeight: "bold", fontSize: 15, padding: "4px 14px", borderRadius: 2 }}>
-                  {formData.data || new Date().toLocaleDateString("pt-BR")}
+                  {formData.data || toBrasiliaDate(new Date())}
                 </div>
               </div>
               {/* Tabela de campos */}

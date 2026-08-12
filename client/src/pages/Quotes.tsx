@@ -16,7 +16,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { getLoginUrl } from "@/const";
 import { formatBRL } from "@/lib/cartTypes";
 import { getStoredCustomerTotal } from "@/lib/quoteTotals";
-import { toBrasiliaDate } from "@/lib/dateUtils";
+import { toBrasiliaDate, toBrasiliaFileDate, toBrasiliaMonthYear } from "@/lib/dateUtils";
 import { PERMISSIONS } from "@shared/permissions";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -136,7 +136,7 @@ export default function Quotes() {
     setDatePreset(preset);
     setPage(0);
     const today = new Date();
-    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    const fmt = (d: Date) => toBrasiliaFileDate(d);
     if (preset === "all") {
       setDateFrom(""); setDateTo("");
     } else if (preset === "7d") {
@@ -161,7 +161,7 @@ export default function Quotes() {
     for (let i = 0; i < 12; i++) {
       const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
       const y = d.getFullYear(); const m = d.getMonth() + 1;
-      const label = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+      const label = toBrasiliaMonthYear(d);
       months.push({ value: `month:${y}:${m}`, label: label.charAt(0).toUpperCase() + label.slice(1) });
     }
     return months;

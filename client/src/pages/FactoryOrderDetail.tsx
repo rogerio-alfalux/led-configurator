@@ -24,7 +24,7 @@ import { CORES_PECA } from "@/components/ColorPickerModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
 import { OrderPreviewModal } from "@/components/OrderPreviewModal";
 import type { OrderFormData } from "@/lib/orderExcelGenerator";
-import { toBrasiliaDate } from "@/lib/dateUtils";
+import { toBrasiliaDate, toBrasiliaDateTime } from "@/lib/dateUtils";
 import { toast } from "sonner";
 
 // ─── Funções auxiliares para Fonte de Luz e Equipamentos ────────────────────
@@ -1920,7 +1920,7 @@ export default function FactoryOrderDetail() {
                                 <div className="flex items-center gap-2 min-w-0">
                                   <span className="font-mono font-semibold text-orange-700 dark:text-orange-400">{ex.orderNumber}</span>
                                   <span className="text-muted-foreground">Rev. {ex.revision}</span>
-                                  <span className="text-muted-foreground truncate">{new Date(ex.generatedAt).toLocaleString('pt-BR')}</span>
+                                  <span className="text-muted-foreground truncate">{toBrasiliaDateTime(ex.generatedAt)}</span>
                                 </div>
                                 <a
                                   href={ex.excelUrl}

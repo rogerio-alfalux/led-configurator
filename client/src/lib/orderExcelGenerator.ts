@@ -1,7 +1,7 @@
 import ExcelJS from "exceljs";
 import { CartItemData } from "./cartTypes";
 import type { LinkedAccessory } from "./cartTypes";
-import { toBrasiliaDate, toBrasiliaDateTime } from "./dateUtils";
+import { toBrasiliaDate, toBrasiliaDateTime, toBrasiliaFileDate } from "./dateUtils";
 import { groupOrderItems } from "./orderGrouping";
 import { buildMaterialRequisition, groupByTipo } from "./materialRequisition";
 import type { MaterialTipo } from "./materialRequisition";
@@ -59,7 +59,7 @@ function addBusinessDays(start: Date, days: number, holidays: Set<string> = new 
   while (added < days) {
     result.setDate(result.getDate() + 1);
     const dow = result.getDay();
-    const dateStr = result.toISOString().slice(0, 10);
+    const dateStr = toBrasiliaFileDate(result);
     if (dow !== 0 && dow !== 6 && !holidays.has(dateStr)) added++;
   }
   return result;
