@@ -40,8 +40,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { CartItemData, formatBRL, parseCartItemData, extractPowerLabelFromName, toPowerLabel } from "@/lib/cartTypes";
+import { CartItemData, formatBRL, parseCartItemData, extractPowerLabelFromName, toPowerLabel, type QuoteFormData } from "@/lib/cartTypes";
 import { getPersistedItemPhotoUrl } from "@/lib/itemPhoto";
+import { isLdRequestLinkedToQuote } from "@/lib/ldRequestUtils";
 import type { ApiProductDriverInfo } from "@/lib/cartTypes";
 
 /** Aplica margem individual do item (itemMarginPercent em %) sobre um valor base */
@@ -116,7 +117,7 @@ import type { LinkedAccessory, SpecialEquipment } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
-import { generateQuotePdf } from "@/lib/quotePdfGenerator";
+import { generateQuotePdfBlob } from "@/lib/quotePdfGenerator";
 import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
 import { OrderPreviewModal } from "@/components/OrderPreviewModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
@@ -1209,6 +1210,21 @@ export default function QuoteDetail() {
   }, [id, reorderItemsMutation]);
 
   const { data, isLoading, error } = trpc.quotes.getById.useQuery({ id: Number(id) });
+  const ldRequestsQuery = trpc.ldRequests.adminList.useQuery(undefined, {
+    enabled: user?.role === "admin",
+    staleTime: 0,
+  });
+  const attachLdPdfMutation = trpc.ldRequests.adminAttachPdf.useMutation({
+    onSuccess: () => {
+      utils.ldRequests.adminList.invalidate();
+      toast.success("PDF validado enviado ao LD Convidado.");
+    },
+    onError: (err) => toast.error(`Não foi possível enviar o PDF: ${err.message}`),
+  });
+  const linkedLdRequest = useMemo(
+    () => (ldRequestsQuery.data ?? []).find((request: any) => isLdRequestLinkedToQuote(request, Number(id))) ?? null,
+    [ldRequestsQuery.data, id],
+  );
 
   const addRevisionForItemsMutation = trpc.quotes.addRevision.useMutation({
     onSuccess: () => {
@@ -1881,6 +1897,71 @@ export default function QuoteDetail() {
     setPdfPrintOpen(true);
   };
 
+  const handleSendPdfToLd = async () => {
+    if (!linkedLdRequest || !quote) return;
+    setIsGenerating(true);
+    try {
+      const pdfItems = currentItemsMigrated
+        .map((item) => parseCartItemData(item.itemData))
+        .filter((item): item is CartItemData => item !== null);
+      const formData: QuoteFormData = {
+        cliente: quote.clientName,
+        contato: quote.clientContact ?? "",
+        tel: quote.clientPhone ?? "",
+        email: quote.clientEmail ?? "",
+        obra: quote.projectName ?? "",
+        referencia: quote.projectRef ?? "",
+        numero: quote.quoteNumber,
+        data: toBrasiliaDate(quote.updatedAt ?? quote.createdAt),
+        arquiteto: (quote as any).arquiteto ?? undefined,
+        lightDesigner: (quote as any).lightDesigner ?? undefined,
+        seller1Name: quote.seller1Name ?? undefined,
+        seller1Phone: editSellers.find((seller) => seller.id === quote.seller1Id)?.phone ?? undefined,
+        seller2Name: quote.seller2Name ?? undefined,
+        seller2Phone: editSellers.find((seller) => seller.id === quote.seller2Id)?.phone ?? undefined,
+        assistantName: quote.assistantName ?? undefined,
+        rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) : undefined,
+        marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
+        discountPercent: (quote as any).discountPercent ? parseFloat(String((quote as any).discountPercent)) : undefined,
+        showDiscount: !!(quote as any).showDiscount,
+        freteType: (quote.freteType as QuoteFormData["freteType"]) ?? "free",
+        freteIsento: quote.freteIsento ?? false,
+        freteLocalidade: (quote.freteLocalidade as QuoteFormData["freteLocalidade"]) ?? "sp",
+        freteCity: (quote as any).freteCity ?? undefined,
+        freteState: (quote as any).freteState ?? undefined,
+        freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
+        freteIncluded: (quote as any).freteIncluded ?? false,
+        revisionCount: exportRevisionCount,
+        deliveryDays: quote.deliveryDays ?? 20,
+        paymentTerm: quote.paymentTerm ?? undefined,
+        destState: quote.destState ?? undefined,
+        difalEnabled: quote.difalEnabled ?? false,
+        difalPercent: quote.difalPercent ? parseFloat(String(quote.difalPercent)) : undefined,
+        difalValue: quote.difalValue ? parseFloat(String(quote.difalValue)) : undefined,
+        fcpEnabled: quote.fcpEnabled ?? false,
+        fcpPercent: quote.fcpPercent ? parseFloat(String(quote.fcpPercent)) : undefined,
+        fcpValue: quote.fcpValue ? parseFloat(String(quote.fcpValue)) : undefined,
+        quoteCreatedAt: quote.createdAt ? new Date(quote.createdAt).toISOString() : undefined,
+      };
+      const pdfBlob = await generateQuotePdfBlob(pdfItems, formData);
+      const bytes = new Uint8Array(await pdfBlob.arrayBuffer());
+      let binary = "";
+      for (let offset = 0; offset < bytes.length; offset += 8192) {
+        const chunk = bytes.subarray(offset, offset + 8192);
+        for (let index = 0; index < chunk.length; index += 1) binary += String.fromCharCode(chunk[index]);
+      }
+      await attachLdPdfMutation.mutateAsync({
+        requestId: linkedLdRequest.id,
+        pdfBase64: btoa(binary),
+        fileName: `Alfalux_${quote.quoteNumber.replace(/[^a-zA-Z0-9_-]/g, "_")}.pdf`,
+      });
+    } catch (err) {
+      if (!attachLdPdfMutation.isError) toast.error("Não foi possível gerar o PDF para envio.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   /** Abre o modal de pré-visualização com os dados do pedido de fábrica */
   const handleOpenOrderPreview = async (empresa: "ALFALUX" | "LUMINEW") => {
     if (orderNumberInput.length !== 6) { toast.error("Número do pedido deve ter exatamente 6 dígitos."); return; }
@@ -2276,6 +2357,25 @@ export default function QuoteDetail() {
             <FileDown className="w-4 h-4" />
             {isGenerating ? "Gerando..." : "Baixar PDF"}
           </Button>
+          {user?.role === "admin" && linkedLdRequest && (
+            <>
+              <Button
+                variant="outline"
+                className="gap-2 border-emerald-500/40 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950"
+                onClick={handleSendPdfToLd}
+                disabled={isGenerating || attachLdPdfMutation.isPending}
+                title="Gerar o PDF validado e disponibilizá-lo para o LD Convidado"
+              >
+                <FileDown className="w-4 h-4" />
+                {attachLdPdfMutation.isPending ? "Enviando PDF..." : "Enviar PDF ao LD"}
+              </Button>
+              <Link href="/solicitacoes-ld">
+                <Badge variant="outline" className="h-9 px-3 cursor-pointer border-primary/40 text-primary hover:bg-primary/5">
+                  <ClipboardList className="w-3.5 h-3.5 mr-1.5" /> Solicitação LD #{linkedLdRequest.id}
+                </Badge>
+              </Link>
+            </>
+          )}
           <Button
             variant="outline"
             className="gap-2 border-amber-500/40 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950"

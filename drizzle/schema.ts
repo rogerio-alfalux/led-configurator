@@ -24,12 +24,40 @@ export const auditLogs = mysqlTable("audit_logs", {
 });
 
 export const cartItems = mysqlTable("cart_items", {
-	id: int().autoincrement().notNull(),
-	userId: int().notNull(),
-	itemData: text().notNull(),
-	sortOrder: int().default(0).notNull(),
-	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  id: int().autoincrement().notNull(),
+  userId: int().notNull(),
+  itemData: text().notNull(),
+  sortOrder: int().default(0).notNull(),
+  createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 });
+
+// ─── Solicitações de orçamento de LD Convidado ────────────────────────────────
+// Guarda uma fotografia do carrinho configurado, sem expor valores ao convidado.
+export const guestQuoteRequests = mysqlTable("guest_quote_requests", {
+  id: int().autoincrement().notNull(),
+  guestUserId: int().notNull(),
+  guestName: varchar({ length: 256 }).notNull(),
+  guestEmail: varchar({ length: 320 }),
+  officeName: varchar({ length: 256 }).notNull(),
+  finalClientName: varchar({ length: 256 }).notNull(),
+  constructorName: varchar({ length: 256 }),
+  itemsData: text().notNull(),
+  status: mysqlEnum(['pending', 'in_review', 'quote_ready', 'cancelled']).default('pending').notNull(),
+  adminQuoteId: int(),
+  reviewedByUserId: int(),
+  validatedPdfUrl: text(),
+  submittedAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  convertedAt: timestamp({ mode: 'string' }),
+  pdfSentAt: timestamp({ mode: 'string' }),
+  createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+  (table) => [
+    index("guest_quote_requests_guest_idx").on(table.guestUserId),
+    index("guest_quote_requests_status_idx").on(table.status),
+    index("guest_quote_requests_quote_idx").on(table.adminQuoteId),
+  ],
+);
 
 export const quoteItems = mysqlTable("quote_items", {
 	id: int().autoincrement().notNull(),

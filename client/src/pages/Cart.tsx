@@ -55,6 +55,7 @@ import { PERMISSIONS } from "@shared/permissions";
 import { toBrasiliaDate } from "@/lib/dateUtils";
 import { applyCCTChange } from "@/lib/cctUtils";
 import { getQuoteTeamValidationError, isSellerRequiredForQuote } from "@/lib/quoteTeamValidation";
+import { LdGuestCartItemCard } from "@/components/LdGuestCards";
 
 /**
  * REGRA INEGOCIÁVEL: Para perfis (com profileSegments), o driverQty total é sempre
@@ -592,7 +593,7 @@ function FreteIbgeCitySelect({
   );
 }
 
-export default function Cart() {
+function StandardCart() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const search = useSearch();
@@ -3516,4 +3517,89 @@ export default function Cart() {
       />
     </div>
   );
+}
+
+/** Carrinho exclusivo do LD Convidado: mantém toda a configuração, mas nunca renderiza valores. */
+function GuestCart() {
+  const { user } = useAuth();
+  const [, navigate] = useLocation();
+  const { entries, isLoading, removeItem, clearCart, isRemoving } = useCart();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [officeName, setOfficeName] = useState((user as any)?.name ?? "");
+  const [finalClientName, setFinalClientName] = useState("");
+  const [constructorName, setConstructorName] = useState("");
+  const utils = trpc.useUtils();
+  const submitRequest = trpc.ldRequests.submit.useMutation({
+    onSuccess: async () => {
+      await clearCart();
+      await utils.ldRequests.mine.invalidate();
+      toast.success("Solicitação enviada para análise da equipe Alfalux.");
+      setDialogOpen(false);
+      navigate("/minhas-solicitacoes-ld");
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
+  const submit = () => {
+    submitRequest.mutate({
+      officeName,
+      finalClientName,
+      constructorName: constructorName || undefined,
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="border-b bg-card">
+        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
+          <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium hover:text-primary">
+            <ArrowLeft className="w-4 h-4" /> Voltar ao Configurador
+          </Link>
+          <Link href="/minhas-solicitacoes-ld">
+            <Button variant="ghost" size="sm" className="gap-2"><ClipboardList className="w-4 h-4" /> Minhas solicitações</Button>
+          </Link>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto px-4 py-7 space-y-5">
+        <div>
+          <h1 className="text-2xl font-bold">Produtos configurados</h1>
+          <p className="text-sm text-muted-foreground mt-1">Revise as configurações e envie sua solicitação de orçamento para a equipe Alfalux.</p>
+        </div>
+
+        {isLoading ? <div className="py-16 text-center text-muted-foreground">Carregando itens...</div> : entries.length === 0 ? (
+          <Card className="py-14 text-center"><CardContent className="space-y-3">
+            <Package className="w-10 h-10 mx-auto text-muted-foreground" />
+            <p className="font-semibold">Nenhum produto configurado</p>
+            <Link href="/"><Button>Ir ao Configurador</Button></Link>
+          </CardContent></Card>
+        ) : <>
+          <div className="space-y-3">
+            {entries.map((entry, index) => <LdGuestCartItemCard key={entry.id} item={entry.data} index={index} onRemove={() => removeItem(entry.id)} disabled={isRemoving} />)}
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-center rounded-lg border bg-card p-4">
+            <p className="text-sm text-muted-foreground">{entries.length} {entries.length === 1 ? "produto configurado" : "produtos configurados"}</p>
+            <Button className="gap-2" onClick={() => setDialogOpen(true)}><ClipboardList className="w-4 h-4" /> Enviar para o orçamento</Button>
+          </div>
+        </>}
+      </main>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Enviar solicitação de orçamento</DialogTitle><DialogDescription>Essas informações serão encaminhadas à equipe responsável pela elaboração do orçamento.</DialogDescription></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5"><Label htmlFor="ld-office">Escritório</Label><Input id="ld-office" value={officeName} onChange={e => setOfficeName(e.target.value)} placeholder="Nome do escritório" /></div>
+            <div className="space-y-1.5"><Label htmlFor="ld-client">Cliente final</Label><Input id="ld-client" value={finalClientName} onChange={e => setFinalClientName(e.target.value)} placeholder="Nome do cliente final" /></div>
+            <div className="space-y-1.5"><Label htmlFor="ld-constructor">Construtora <span className="text-muted-foreground">(opcional)</span></Label><Input id="ld-constructor" value={constructorName} onChange={e => setConstructorName(e.target.value)} placeholder="Nome da construtora" /></div>
+          </div>
+          <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button><Button disabled={!officeName.trim() || !finalClientName.trim() || submitRequest.isPending} onClick={submit}>{submitRequest.isPending ? "Enviando..." : "Enviar para o orçamento"}</Button></div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+export default function Cart() {
+  const { user } = useAuth();
+  return (user as any)?.role === "convidado" ? <GuestCart /> : <StandardCart />;
 }

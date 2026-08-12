@@ -13,6 +13,7 @@ import {
   quoteAdditionalCosts,
   sampleOrders,
   sampleLinks,
+  guestQuoteRequests,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { fetchAllAlfaluxProducts, fetchComponentes, fetchAcessoriosProducts } from './alfaluxApiService';
@@ -161,6 +162,83 @@ export async function clearCart(userId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(cartItems).where(eq(cartItems.userId, userId));
+}
+
+// ─── Solicitações de orçamento LD Convidado ──────────────────────────────────
+
+export type CreateGuestQuoteRequestInput = {
+  guestUserId: number;
+  guestName: string;
+  guestEmail?: string | null;
+  officeName: string;
+  finalClientName: string;
+  constructorName?: string | null;
+  itemsData: string;
+};
+
+export async function createGuestQuoteRequest(input: CreateGuestQuoteRequestInput): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(guestQuoteRequests).values({
+    ...input,
+    guestEmail: input.guestEmail ?? null,
+    constructorName: input.constructorName ?? null,
+    status: "pending",
+  });
+  return (result as unknown as { insertId: number }[])[0]?.insertId ?? 0;
+}
+
+export async function listGuestQuoteRequests(status?: "pending" | "in_review" | "quote_ready" | "cancelled") {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(guestQuoteRequests)
+    .where(status ? eq(guestQuoteRequests.status, status) : undefined)
+    .orderBy(desc(guestQuoteRequests.submittedAt), desc(guestQuoteRequests.id));
+}
+
+export async function listGuestQuoteRequestsForGuest(guestUserId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(guestQuoteRequests)
+    .where(eq(guestQuoteRequests.guestUserId, guestUserId))
+    .orderBy(desc(guestQuoteRequests.submittedAt), desc(guestQuoteRequests.id));
+}
+
+export async function getGuestQuoteRequestById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  return (await db.select().from(guestQuoteRequests).where(eq(guestQuoteRequests.id, id)).limit(1))[0];
+}
+
+export async function markGuestQuoteRequestInReview(id: number, adminUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(guestQuoteRequests).set({
+    status: "in_review",
+    reviewedByUserId: adminUserId,
+  }).where(eq(guestQuoteRequests.id, id));
+}
+
+export async function linkGuestQuoteRequestQuote(id: number, quoteId: number, adminUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(guestQuoteRequests).set({
+    status: "in_review",
+    adminQuoteId: quoteId,
+    reviewedByUserId: adminUserId,
+    convertedAt: nowBrasiliaStr(),
+  }).where(eq(guestQuoteRequests.id, id));
+}
+
+export async function attachGuestQuoteRequestPdf(id: number, pdfUrl: string, adminUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(guestQuoteRequests).set({
+    status: "quote_ready",
+    validatedPdfUrl: pdfUrl,
+    reviewedByUserId: adminUserId,
+    pdfSentAt: nowBrasiliaStr(),
+  }).where(eq(guestQuoteRequests.id, id));
 }
 
 export async function updateCartItemQty(id: number, userId: number, qty: number) {

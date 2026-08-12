@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench, Briefcase, Star, Package2, Search as SearchIcon, Minus, Plus, DollarSign, Ban, ArrowLeftRight, Package, LogIn, LogOut, UserRound } from "lucide-react";
+import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench, Briefcase, Star, Package2, Search as SearchIcon, Minus, Plus, DollarSign, Ban, ArrowLeftRight, Package, LogIn, LogOut, UserRound, ClipboardList } from "lucide-react";
 // v32.63 - 2026-08-10
 import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/useCart";
@@ -2751,6 +2751,8 @@ export default function Home() {
   const { user, logout, isAuthenticated } = useAuth();
   const isVivian = user?.email === "vivian@grupoalfalux.com.br";
   const isConvidado = (user as any)?.role === "convidado";
+  const pendingLdRequests = trpc.ldRequests.adminList.useQuery(undefined, { enabled: (user as any)?.role === "admin", staleTime: 0 });
+  const pendingLdRequestCount = (pendingLdRequests.data ?? []).filter((request: any) => request.status === "pending").length;
   const { addItem, count: cartCount, isAdding: isAddingToCart } = useCart();
   const [pendingCartItem, setPendingCartItem] = useState<CartItemData | null>(null);
   const [colorModalOpen, setColorModalOpen] = useState(false);
@@ -4799,7 +4801,7 @@ export default function Home() {
                 </span>
               )}
             </span>
-            {!isConvidado && <Link href="/carrinho">
+            <Link href="/carrinho">
               <Button
                 variant="ghost"
                 size="icon"
@@ -4812,6 +4814,13 @@ export default function Home() {
                     {cartCount > 9 ? "9+" : cartCount}
                   </span>
                 )}
+              </Button>
+            </Link>
+
+            {(user as any)?.role === "admin" && <Link href="/solicitacoes-ld">
+              <Button variant="ghost" size="icon" title="Solicitações LD" className="relative text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+                <ClipboardList className="w-4 h-4" />
+                {pendingLdRequestCount > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">{pendingLdRequestCount > 9 ? "9+" : pendingLdRequestCount}</span>}
               </Button>
             </Link>}
 

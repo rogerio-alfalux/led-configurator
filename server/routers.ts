@@ -46,6 +46,13 @@ import {
   deleteSampleLink,
   deleteSampleOrder,
   getSampleOrderStats,
+  createGuestQuoteRequest,
+  listGuestQuoteRequests,
+  listGuestQuoteRequestsForGuest,
+  getGuestQuoteRequestById,
+  markGuestQuoteRequestInReview,
+  linkGuestQuoteRequestQuote,
+  attachGuestQuoteRequestPdf,
 } from "./db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -56,6 +63,7 @@ import { eq, inArray, and } from "drizzle-orm";
 import { DISCOUNT_EDITORS_EMAILS } from "../shared/const";
 import { commercialQuoteAccess, shouldBindCommercialQuoteTeam } from "../shared/quoteOwnership";
 import { resolveOriginalCommercialTotals } from "../shared/nonCommercialQuoteFinancial";
+import { canAccessCommercialQuotes } from "../shared/guestCommercialAccess";
 
 // ─── Controle de acesso a orçamentos ─────────────────────────────────────────
 /** Emails dos gestores com acesso irrestrito a todos os orçamentos */
@@ -72,6 +80,14 @@ const MANAGER_EMAILS = [
 const SPECIAL_COMMISSION_SELLERS: Record<string, number> = {
   "gustavo@grupoalfalux.com.br": 0.10, // Gustavo Gatti Casagrande — cap de 10%
 };
+
+/** LD Convidado configura itens e recebe somente o PDF validado, sem rotas comerciais. */
+const commercialQuoteProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if (!canAccessCommercialQuotes(ctx.user.role)) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "LD Convidado não possui acesso a orçamentos comerciais." });
+  }
+  return next({ ctx });
+});
 
 type QuoteTeamFields = {
   seller1Id?: number | null;
@@ -238,6 +254,138 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
+  }),
+
+  // Solicitações enviadas por LD Convidado não criam orçamento comercial até a revisão administrativa.
+  ldRequests: router({
+    submit: protectedProcedure
+      .input(z.object({
+        officeName: z.string().trim().min(2).max(256),
+        finalClientName: z.string().trim().min(2).max(256),
+        constructorName: z.string().trim().max(256).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "convidado") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Este envio é exclusivo para LD Convidado." });
+        }
+        const cart = await getCartItems(ctx.user.id);
+        if (!cart.length) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Adicione ao menos um produto antes de enviar a solicitação." });
+        }
+        const id = await createGuestQuoteRequest({
+          guestUserId: ctx.user.id,
+          guestName: ctx.user.name ?? "LD Convidado",
+          guestEmail: ctx.user.email ?? null,
+          officeName: input.officeName,
+          finalClientName: input.finalClientName,
+          constructorName: input.constructorName?.trim() || null,
+          itemsData: JSON.stringify(cart.map(item => ({ itemData: item.itemData, sortOrder: item.sortOrder }))),
+        });
+        await clearCart(ctx.user.id);
+        await insertAuditLog({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email ?? null,
+          userName: ctx.user.name ?? null,
+          action: "ld_quote_request_submitted",
+          entityType: "guest_quote_request",
+          entityId: id,
+          details: JSON.stringify({ officeName: input.officeName, finalClientName: input.finalClientName }),
+        });
+        return { id };
+      }),
+
+    mine: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "convidado") return [];
+      const requests = await listGuestQuoteRequestsForGuest(ctx.user.id);
+      return requests.map(request => ({
+        id: request.id,
+        officeName: request.officeName,
+        finalClientName: request.finalClientName,
+        constructorName: request.constructorName,
+        status: request.status,
+        adminQuoteId: request.adminQuoteId,
+        submittedAt: request.submittedAt,
+        pdfAvailable: request.status === "quote_ready" && Boolean(request.validatedPdfUrl),
+        pdfSentAt: request.pdfSentAt,
+      }));
+    }),
+
+    myPdf: protectedProcedure
+      .input(z.object({ requestId: z.number().int().positive() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "convidado") throw new TRPCError({ code: "FORBIDDEN" });
+        const request = await getGuestQuoteRequestById(input.requestId);
+        if (!request || request.guestUserId !== ctx.user.id || request.status !== "quote_ready" || !request.validatedPdfUrl) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "PDF ainda não está disponível." });
+        }
+        return { url: request.validatedPdfUrl };
+      }),
+
+    adminList: adminProcedure
+      .input(z.object({ status: z.enum(["pending", "in_review", "quote_ready", "cancelled"]).optional() }).optional())
+      .query(async ({ input }) => listGuestQuoteRequests(input?.status)),
+
+    adminStartReview: adminProcedure
+      .input(z.object({ requestId: z.number().int().positive() }))
+      .mutation(async ({ ctx, input }) => {
+        const request = await getGuestQuoteRequestById(input.requestId);
+        if (!request) throw new TRPCError({ code: "NOT_FOUND" });
+        if (request.status === "pending") await markGuestQuoteRequestInReview(input.requestId, ctx.user.id);
+        return { requestId: input.requestId };
+      }),
+
+    adminConvertToQuote: adminProcedure
+      .input(z.object({ requestId: z.number().int().positive() }))
+      .mutation(async ({ ctx, input }) => {
+        const request = await getGuestQuoteRequestById(input.requestId);
+        if (!request) throw new TRPCError({ code: "NOT_FOUND" });
+        if (request.adminQuoteId) return { quoteId: request.adminQuoteId, alreadyConverted: true };
+
+        let snapshot: Array<{ itemData: string; sortOrder?: number }>;
+        try { snapshot = JSON.parse(request.itemsData); } catch { throw new TRPCError({ code: "BAD_REQUEST", message: "Itens da solicitação inválidos." }); }
+        const items = snapshot
+          .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+          .map((item, index) => ({ itemNumber: index + 1, itemData: item.itemData }));
+        const totalAmount = items.reduce((sum, item) => {
+          try { return sum + (Number(JSON.parse(item.itemData).totalPrice) || 0); } catch { return sum; }
+        }, 0);
+        const created = await createQuote({
+          clientName: request.finalClientName,
+          projectName: request.officeName,
+          notes: `Solicitação LD Convidado\nEscritório: ${request.officeName}\nCliente final: ${request.finalClientName}${request.constructorName ? `\nConstrutora: ${request.constructorName}` : ""}\nSolicitante: ${request.guestName}`,
+          totalAmount,
+          totalFinal: totalAmount,
+          items,
+          createdByUserId: ctx.user.id,
+        });
+        await linkGuestQuoteRequestQuote(request.id, created.quoteId, ctx.user.id);
+        await insertAuditLog({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email ?? null,
+          userName: ctx.user.name ?? null,
+          action: "ld_quote_request_converted",
+          entityType: "guest_quote_request",
+          entityId: request.id,
+          details: JSON.stringify({ quoteId: created.quoteId, quoteNumber: created.quoteNumber }),
+        });
+        return { quoteId: created.quoteId, quoteNumber: created.quoteNumber, alreadyConverted: false };
+      }),
+
+    adminAttachPdf: adminProcedure
+      .input(z.object({
+        requestId: z.number().int().positive(),
+        pdfBase64: z.string().min(16),
+        fileName: z.string().trim().min(1).max(180),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const request = await getGuestQuoteRequestById(input.requestId);
+        if (!request?.adminQuoteId) throw new TRPCError({ code: "BAD_REQUEST", message: "Converta a solicitação em orçamento antes de enviar o PDF." });
+        const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const key = `ld-quotes/${request.guestUserId}/${request.id}/${Date.now()}-${safeName}`;
+        const { url } = await storagePut(key, Buffer.from(input.pdfBase64, "base64"), "application/pdf");
+        await attachGuestQuoteRequestPdf(request.id, url, ctx.user.id);
+        return { url };
+      }),
   }),
 
 
@@ -445,7 +593,7 @@ export const appRouter = router({
 
   // ─── Orçamentos ────────────────────────────────────────────────────────────
   quotes: router({
-    save: protectedProcedure
+    save: commercialQuoteProcedure
       .input(z.object({
         quoteNumber: z.string().optional(),
         clientName: z.string().min(1),
@@ -594,7 +742,7 @@ export const appRouter = router({
         return result;
       }),
 
-    addRevision: protectedProcedure
+    addRevision: commercialQuoteProcedure
       .input(z.object({
         quoteId: z.number(),
         clientName: z.string().min(1),
@@ -747,7 +895,7 @@ export const appRouter = router({
         return result;
       }),
 
-    list: protectedProcedure
+    list: commercialQuoteProcedure
       .input(z.object({
         search: z.string().optional(),
         status: z.enum(["open", "approved", "lost", "cancelled", "invoiced"]).optional(),
@@ -787,7 +935,7 @@ export const appRouter = router({
       }),
 
     /** Marca ou remove a classificação de prospecção de lighting designer. */
-    setProspecting: protectedProcedure
+    setProspecting: commercialQuoteProcedure
       .input(z.object({ id: z.number(), isProspecting: z.boolean() }))
       .mutation(async ({ ctx, input }) => {
         const result = await getQuoteById(input.id);
@@ -800,7 +948,7 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    getById: protectedProcedure
+    getById: commercialQuoteProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ ctx, input }) => {
         const result = await getQuoteById(input.id);
@@ -863,7 +1011,7 @@ export const appRouter = router({
         return { ...result, quote: quoteData, canEdit, canSeeCommission, canEditCommission };
       }),
 
-    approve: protectedProcedure
+    approve: commercialQuoteProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         await approveQuote(input.id);
@@ -879,7 +1027,7 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    duplicate: protectedProcedure
+    duplicate: commercialQuoteProcedure
       .input(z.object({
         id: z.number(),
         newClientName: z.string().optional(),
@@ -930,7 +1078,7 @@ export const appRouter = router({
         });
         return result;
       }),
-    updateStatus: protectedProcedure
+    updateStatus: commercialQuoteProcedure
       .input(z.object({
         id: z.number(),
         status: z.enum(["open", "approved", "lost", "cancelled", "invoiced"]),
@@ -969,11 +1117,11 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    stats: protectedProcedure.query(async () => {
+    stats: commercialQuoteProcedure.query(async () => {
       return getQuoteStats();
     }),
 
-    delete: protectedProcedure
+    delete: commercialQuoteProcedure
       .input(z.object({ id: z.number(), quoteNumber: z.string().optional() }))
       .mutation(async ({ ctx, input }) => {
         const qForDelete = await getQuoteById(input.id);
@@ -994,7 +1142,7 @@ export const appRouter = router({
       }),
 
     /** Adiciona novos itens a um orçamento existente criando uma nova revisão */
-    appendItems: protectedProcedure
+    appendItems: commercialQuoteProcedure
       .input(z.object({
         quoteId: z.number(),
         newItems: z.array(z.object({ itemNumber: z.number(), itemData: z.string() })),
@@ -1083,7 +1231,7 @@ export const appRouter = router({
         return { ...result, quoteNumber: quote.quoteNumber };
       }),
 
-    replaceItem: protectedProcedure
+    replaceItem: commercialQuoteProcedure
       .input(z.object({
         quoteId: z.number(),
         replaceIndex: z.number(), // 0-based index of the item to replace
@@ -1176,7 +1324,7 @@ export const appRouter = router({
         return { ...result, quoteNumber: quote.quoteNumber };
       }),
 
-    suggestNumber: protectedProcedure
+    suggestNumber: commercialQuoteProcedure
       .input(z.object({ sellerId: z.number().optional() }))
       .query(async ({ input }) => {
         const suggested = await suggestQuoteNumber(input.sellerId);
@@ -1184,7 +1332,7 @@ export const appRouter = router({
       }),
 
     /** Verifica se um número de orçamento já está em uso */
-    checkNumber: protectedProcedure
+    checkNumber: commercialQuoteProcedure
       .input(z.object({
         quoteNumber: z.string(),
         excludeQuoteId: z.number().optional(),
@@ -1195,7 +1343,7 @@ export const appRouter = router({
       }),
 
     /** Reordena os itens da versão atual sem criar nova revisão */
-    reorderItems: protectedProcedure
+    reorderItems: commercialQuoteProcedure
       .input(z.object({
         quoteId: z.number(),
         orderedItemIds: z.array(z.number()),
@@ -1210,7 +1358,7 @@ export const appRouter = router({
       }),
 
     /** Retorna os itens de uma revisão específica */
-    getRevisionItems: protectedProcedure
+    getRevisionItems: commercialQuoteProcedure
       .input(z.object({
         quoteId: z.number(),
         versionId: z.number(),
@@ -1227,7 +1375,7 @@ export const appRouter = router({
         return { version, items: revItems };
       }),
     /** Incrementa revisionCount ao baixar Excel (chamado pelo frontend) */
-    bumpRevision: protectedProcedure
+    bumpRevision: commercialQuoteProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const q = await getQuoteById(input.id);
@@ -1248,7 +1396,7 @@ export const appRouter = router({
       }),
 
     /** Define manualmente o revisionCount (permissão gerenciar_orcamentos) */
-    setRevision: protectedProcedure
+    setRevision: commercialQuoteProcedure
       .input(z.object({ id: z.number(), revisionCount: z.number().int().min(0) }))
       .mutation(async ({ ctx, input }) => {
         const canManageQuotes = await hasUserPermission(
@@ -1271,7 +1419,7 @@ export const appRouter = router({
       }),
 
     /** Registra geração de ficha de produção */
-    logProductionSheet: protectedProcedure
+    logProductionSheet: commercialQuoteProcedure
       .input(z.object({
         quoteId: z.number(),
         quoteNumber: z.string(),
@@ -1293,7 +1441,7 @@ export const appRouter = router({
                 return { success: true };
       }),
     // Calcula custo real dos produtos buscando na API (para itens sem custoCorpoBase salvo)
-    calculateCost: protectedProcedure
+    calculateCost: commercialQuoteProcedure
       .input(z.object({ quoteId: z.number() }))
       .query(async ({ input }) => {
         const result = await getQuoteById(input.quoteId);
@@ -1572,7 +1720,7 @@ export const appRouter = router({
 
         return { custoProdutos: totalCusto, temCusto, items: itemDetails };
       }),
-    setCustoManual: protectedProcedure
+    setCustoManual: commercialQuoteProcedure
       .input(z.object({ quoteId: z.number(), itemNumber: z.number(), custoManual: z.number() }))
       .mutation(async ({ input }) => {
         const db = await getDb();

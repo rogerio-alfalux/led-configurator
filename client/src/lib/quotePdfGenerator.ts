@@ -706,6 +706,14 @@ async function _generatePdfBlob(
   return doc.output("blob");
 }
 
+/** Gera o PDF oficial como Blob para fluxos que precisam armazená-lo antes do download. */
+export async function generateQuotePdfBlob(
+  items: CartItemData[],
+  formData: QuoteFormData
+): Promise<Blob> {
+  return _generatePdfBlob(items, formData);
+}
+
 /** Gera e baixa o PDF do orçamento */
 export async function generateQuotePdf(
   items: CartItemData[],

@@ -3,6 +3,16 @@
 - [x] Corrigir e validar explicitamente o agrupamento de itens tecnicamente equivalentes na ficha de produção, incluindo 04.0173-26 Parcial 1
 - [x] Requisição de materiais: corrigir duplicação de drivers para perfis (profileSegments já contabiliza, driverLines não deve duplicar)
 - [x] Requisição de materiais: adicionar coluna "Itens" indicando quais itens do pedido usam cada componente
+- [x] Criar carrinho sem valores para LD Convidado, com envio de solicitação de orçamento e formulário de escritório, cliente final e construtora
+- [x] Criar caixa administrativa de solicitações LD, conversão em orçamento e retorno controlado do PDF validado ao convidado
+- [x] Garantir isolamento total de preços e custos no novo fluxo LD Convidado, sem afetar os demais perfis
+- [x] Validar explicitamente o isolamento de preços e custos em todas as telas acessíveis ao LD Convidado
+- [x] Adicionar testes direcionados para as salvaguardas de acesso e exibição do fluxo LD Convidado
+- [x] Bloquear no servidor o acesso direto de LD Convidado a listas e detalhes de orçamentos com valores
+- [x] Adicionar testes de UI para verificar que carrinho e histórico do LD não renderizam campos monetários
+- [x] Documentar a revisão explícita das superfícies acessíveis ao LD Convidado e a preservação do fluxo interno
+- [x] Extrair e testar por renderização os cartões do carrinho e histórico do LD sem valores monetários
+- [x] Cobrir por renderização os estados com item configurado e PDF disponível para LD Convidado
 - [x] Persistir foto manual de Item Especial e exibi-la no carrinho, orçamento, PDF, Excel e consultas futuras
 - [x] Exibir painel de amostra/manutenção para todos os administradores e excluir valores convertidos dos totais do dashboard
 - [x] Persistir valor comercial zero em amostras/manutenções e restaurar com segurança no cancelamento
