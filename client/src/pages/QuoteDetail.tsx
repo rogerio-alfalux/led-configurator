@@ -1351,6 +1351,8 @@ export default function QuoteDetail() {
     { quoteId: Number(id), kind: "maintenance" },
     { enabled: !!id }
   );
+  const sampleFinancialTransfer = ((sampleQuery.data as any)?.links ?? []).find((link: any) => !!link.financialTransferredAt);
+  const maintenanceFinancialTransfer = ((maintenanceQuery.data as any)?.links ?? []).find((link: any) => !!link.financialTransferredAt);
   const sampleLinkTargetQuery = trpc.samples.findQuoteByNumber.useQuery(
     sampleLinkLookupInput,
     { enabled: sampleLinkDialogOpen && sampleLinkLookupInput.quoteNumber.length >= 5, retry: false, staleTime: 0 }
@@ -4164,18 +4166,19 @@ export default function QuoteDetail() {
             </CardHeader>
             <CardContent className="text-sm space-y-2">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Custo registrado:</span>
-                <span className="font-medium">{formatBRL(parseFloat(String(sampleQuery.data.costAmount)))}</span>
+                <span className="text-muted-foreground">{sampleFinancialTransfer ? "Custo no pedido original:" : "Custo registrado:"}</span>
+                <span className="font-medium">{formatBRL(sampleFinancialTransfer ? 0 : parseFloat(String(sampleQuery.data.costAmount)))}</span>
               </div>
               {sampleQuery.data.notes && (
                 <div className="text-muted-foreground italic">"{sampleQuery.data.notes}"</div>
               )}
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Status:</span>
-                <Badge variant="outline" className={sampleQuery.data.status === "linked" ? "border-green-400 text-green-700" : "border-amber-400 text-amber-700"}>
-                  {sampleQuery.data.status === "active" ? "Ativo" : sampleQuery.data.status === "linked" ? "Vinculado" : sampleQuery.data.status}
+                <Badge variant="outline" className={sampleFinancialTransfer ? "border-sky-400 text-sky-700" : sampleQuery.data.status === "linked" ? "border-green-400 text-green-700" : "border-amber-400 text-amber-700"}>
+                  {sampleFinancialTransfer ? "Quitado e transferido" : sampleQuery.data.status === "active" ? "Ativo" : sampleQuery.data.status === "linked" ? "Vinculado" : sampleQuery.data.status}
                 </Badge>
               </div>
+              {sampleFinancialTransfer && <p className="rounded bg-sky-100 px-2 py-1 text-xs text-sky-800 dark:bg-sky-900/30 dark:text-sky-300">Custo e receita transferidos ao orçamento vinculado por {sampleFinancialTransfer.linkType === "diluir" ? "diluição" : "cobrança"}.</p>}
               {(sampleQuery.data as any).links?.length > 0 && (
                 <div className="border-t pt-2 mt-2 space-y-1">
                   <p className="text-xs font-medium text-muted-foreground">Vinculações:</p>
@@ -4223,16 +4226,17 @@ export default function QuoteDetail() {
             </CardHeader>
             <CardContent className="text-sm space-y-2">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Custo registrado:</span>
-                <span className="font-medium">{formatBRL(parseFloat(String(maintenanceQuery.data.costAmount)))}</span>
+                <span className="text-muted-foreground">{maintenanceFinancialTransfer ? "Custo no pedido original:" : "Custo registrado:"}</span>
+                <span className="font-medium">{formatBRL(maintenanceFinancialTransfer ? 0 : parseFloat(String(maintenanceQuery.data.costAmount)))}</span>
               </div>
               {maintenanceQuery.data.notes && <div className="text-muted-foreground italic">"{maintenanceQuery.data.notes}"</div>}
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Status:</span>
-                <Badge variant="outline" className={maintenanceQuery.data.status === "linked" ? "border-green-400 text-green-700" : "border-sky-400 text-sky-700"}>
-                  {maintenanceQuery.data.status === "active" ? "Ativo" : maintenanceQuery.data.status === "linked" ? "Vinculado" : maintenanceQuery.data.status}
+                <Badge variant="outline" className={maintenanceFinancialTransfer ? "border-sky-400 text-sky-700" : maintenanceQuery.data.status === "linked" ? "border-green-400 text-green-700" : "border-sky-400 text-sky-700"}>
+                  {maintenanceFinancialTransfer ? "Quitada e transferida" : maintenanceQuery.data.status === "active" ? "Ativo" : maintenanceQuery.data.status === "linked" ? "Vinculado" : maintenanceQuery.data.status}
                 </Badge>
               </div>
+              {maintenanceFinancialTransfer && <p className="rounded bg-sky-100 px-2 py-1 text-xs text-sky-800 dark:bg-sky-900/30 dark:text-sky-300">Custo e receita transferidos ao orçamento vinculado por {maintenanceFinancialTransfer.linkType === "diluir" ? "diluição" : "cobrança"}.</p>}
               <div className="flex gap-2 mt-2 flex-wrap">
                 <Button variant="outline" size="sm" className="gap-1" onClick={() => { setLinkSourceOrderId(maintenanceQuery.data!.id); setLinkSourceKind("maintenance"); setSampleLinkDialogOpen(true); }}>
                   <Link2 className="w-3 h-3" />
@@ -5081,6 +5085,7 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
 
   // Buscar custo real dos produtos na API
   const costQuery = trpc.quotes.calculateCost.useQuery({ quoteId });
+  const commercialAdjustmentsQuery = trpc.samples.commercialAdjustments.useQuery({ quoteId });
   const costsQuery = trpc.quoteAdditionalCosts.list.useQuery({ quoteId });
   const createCostMutation = trpc.quoteAdditionalCosts.create.useMutation({
     onSuccess: () => {
@@ -5119,6 +5124,9 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
 
   // Calcular deduções usando a mesma fórmula do dashboard principal
   const IMPOSTOS_PADRAO = 0.12;
+  const revenueTransferredIn = (commercialAdjustmentsQuery.data ?? [])
+    .filter((adjustment) => !!adjustment.financialTransferredAt)
+    .reduce((sum, adjustment) => sum + Number(adjustment.transferredRevenue ?? 0), 0);
   const totalReceita = Number(quote.totalFinal ?? quote.totalAmount ?? 0);
   const ta = Number(quote.totalAmount ?? 0);
   const impostos = totalReceita * IMPOSTOS_PADRAO;
@@ -5151,6 +5159,16 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {costQuery.data?.transferredOut && (
+          <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-300">
+            {`Pedido sem cobrança quitado por transferência: receita e custo foram lançados no orçamento ${costQuery.data.transferredOut.linkedQuoteNumber ?? `#${costQuery.data.transferredOut.linkedQuoteId}`}.`}
+          </div>
+        )}
+        {revenueTransferredIn > 0 && (
+          <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+            {`Este orçamento absorve ${formatBRL(revenueTransferredIn)} em amostra(s) ou manutenção(ões) vinculada(s), incluindo os respectivos custos no resultado.`}
+          </div>
+        )}
         {isLoadingCost && (
           <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md px-3 py-2 text-xs text-blue-700 dark:text-blue-400">
             Carregando custo dos produtos da API...

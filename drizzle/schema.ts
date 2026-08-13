@@ -492,6 +492,12 @@ export const sampleLinks = mysqlTable("sample_links", {
 	linkType: varchar({ length: 32 }).notNull().default('associar'),
 	/** Observações sobre a vinculação */
 	notes: text(),
+	/** Receita comercial transferida para o orçamento de destino ao cobrar ou diluir. */
+	transferredRevenue: decimal({ precision: 14, scale: 2 }),
+	/** Custo do pedido sem cobrança transferido para o orçamento de destino. */
+	transferredCost: decimal({ precision: 14, scale: 2 }),
+	/** Momento em que a transferência financeira foi efetivada. Nulo em vínculo simples. */
+	financialTransferredAt: timestamp({ mode: 'string' }),
 	/** Usuário que criou a vinculação */
 	createdByUserId: int(),
 	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),

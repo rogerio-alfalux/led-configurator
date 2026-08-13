@@ -3,6 +3,7 @@ import {
   getCommercialTotalsToRestore,
   getNonCommercialQuoteStatus,
   resolveOriginalCommercialTotals,
+  transfersNonCommercialFinance,
 } from "@shared/nonCommercialQuoteFinancial";
 
 describe("nonCommercialQuoteFinancial", () => {
@@ -29,5 +30,11 @@ describe("nonCommercialQuoteFinancial", () => {
   it("aplica o mesmo regime sem cobrança a amostra e manutenção", () => {
     expect(getNonCommercialQuoteStatus("sample")).toBe("sample");
     expect(getNonCommercialQuoteStatus("maintenance")).toBe("sample");
+  });
+
+  it("transfere finanças somente para cobrar e diluir", () => {
+    expect(transfersNonCommercialFinance("cobrar")).toBe(true);
+    expect(transfersNonCommercialFinance("diluir")).toBe(true);
+    expect(transfersNonCommercialFinance("associar")).toBe(false);
   });
 });

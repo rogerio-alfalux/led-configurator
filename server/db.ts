@@ -18,7 +18,7 @@ import {
 import { ENV } from './_core/env';
 import { fetchAllAlfaluxProducts, fetchComponentes, fetchAcessoriosProducts } from './alfaluxApiService';
 import { getDuplicateQuoteGroupSizes, getDuplicateQuoteKey } from '../shared/quoteGrouping';
-import { getCommercialTotalsToRestore, getNonCommercialQuoteStatus, type NonCommercialQuoteKind } from '../shared/nonCommercialQuoteFinancial';
+import { getCommercialTotalsToRestore, getNonCommercialQuoteStatus, transfersNonCommercialFinance, type NonCommercialQuoteKind, type NonCommercialLinkType } from '../shared/nonCommercialQuoteFinancial';
 import { normalizeQuoteNumberForLookup } from '../shared/quoteNumberLookup';
 // ─── Utilitários de data no fuso de Brasília ────────────────────────────────
 const BRASILIA_TZ = "America/Sao_Paulo";
@@ -2531,7 +2531,18 @@ export async function listSampleOrders(filters?: {
   const query = conditions.length > 0
     ? db.select().from(sampleOrders).where(and(...conditions)).orderBy(desc(sampleOrders.createdAt))
     : db.select().from(sampleOrders).orderBy(desc(sampleOrders.createdAt));
-  return query;
+  const orders = await query;
+  return Promise.all(orders.map(async (order) => {
+    const links = await listSampleLinks(order.id);
+    const financialTransfer = links.find((link) => !!link.financialTransferredAt) ?? null;
+    return {
+      ...order,
+      financialTransferredAt: financialTransfer?.financialTransferredAt ?? null,
+      transferredLinkType: financialTransfer?.linkType ?? null,
+      transferredRevenue: financialTransfer?.transferredRevenue ?? null,
+      transferredCost: financialTransfer?.transferredCost ?? null,
+    };
+  }));
 }
 
 /** Busca um pedido de amostra por ID */
@@ -2594,9 +2605,11 @@ export async function deleteSampleOrder(id: number, quoteId: number): Promise<vo
 export async function createSampleLink(data: {
   sampleOrderId: number;
   linkedQuoteId: number;
-  linkType: string;
+  linkType: NonCommercialLinkType;
   notes?: string;
   createdByUserId: number;
+  transferredRevenue?: number;
+  transferredCost?: number;
 }): Promise<{ id: number }> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -2605,10 +2618,33 @@ export async function createSampleLink(data: {
     linkedQuoteId: data.linkedQuoteId,
     linkType: data.linkType,
     notes: data.notes ?? null,
+    transferredRevenue: transfersNonCommercialFinance(data.linkType) ? String(data.transferredRevenue ?? 0) : null,
+    transferredCost: transfersNonCommercialFinance(data.linkType) ? String(data.transferredCost ?? 0) : null,
+    financialTransferredAt: transfersNonCommercialFinance(data.linkType) ? nowBrasiliaStr() : null,
     createdByUserId: data.createdByUserId,
   });
   const id = (result as unknown as { insertId: number }[])[0]?.insertId ?? 0;
   return { id };
+}
+
+/** Aplica a receita de amostra ou manutenção cobrada/diluída ao orçamento que a absorveu. */
+export async function applyNonCommercialRevenueTransfer(linkedQuoteId: number, revenue: number) {
+  const db = await getDb();
+  if (!db || !Number.isFinite(revenue) || revenue <= 0) return;
+  await db.update(quotes).set({
+    totalAmount: sql`CAST(${quotes.totalAmount} AS DECIMAL(14,2)) + ${revenue}`,
+    totalFinal: sql`CAST(${quotes.totalFinal} AS DECIMAL(14,2)) + ${revenue}`,
+  }).where(eq(quotes.id, linkedQuoteId));
+}
+
+/** Reverte a receita anteriormente transferida quando a vinculação é removida. */
+export async function reverseNonCommercialRevenueTransfer(linkedQuoteId: number, revenue: number) {
+  const db = await getDb();
+  if (!db || !Number.isFinite(revenue) || revenue <= 0) return;
+  await db.update(quotes).set({
+    totalAmount: sql`GREATEST(0, CAST(${quotes.totalAmount} AS DECIMAL(14,2)) - ${revenue})`,
+    totalFinal: sql`GREATEST(0, CAST(${quotes.totalFinal} AS DECIMAL(14,2)) - ${revenue})`,
+  }).where(eq(quotes.id, linkedQuoteId));
 }
 
 /** Lista vinculações de um pedido de amostra */
@@ -2616,6 +2652,14 @@ export async function listSampleLinks(sampleOrderId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(sampleLinks).where(eq(sampleLinks.sampleOrderId, sampleOrderId)).orderBy(desc(sampleLinks.createdAt));
+}
+
+/** Busca uma vinculação para reverter sua transferência financeira quando necessário. */
+export async function getSampleLinkById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(sampleLinks).where(eq(sampleLinks.id, id)).limit(1);
+  return rows[0] ?? null;
 }
 
 /** Lista vinculações de um orçamento (para saber se ele tem amostras vinculadas) */
@@ -2638,6 +2682,9 @@ export async function getSampleCommercialAdjustments(linkedQuoteId: number) {
       sourceQuoteNumber: quotes.quoteNumber,
       originalTotalAmount: sampleOrders.originalTotalAmount,
       originalTotalFinal: sampleOrders.originalTotalFinal,
+      transferredRevenue: sampleLinks.transferredRevenue,
+      transferredCost: sampleLinks.transferredCost,
+      financialTransferredAt: sampleLinks.financialTransferredAt,
     })
     .from(sampleLinks)
     .innerJoin(sampleOrders, eq(sampleOrders.id, sampleLinks.sampleOrderId))
@@ -2667,6 +2714,45 @@ export async function getSampleCommercialAdjustments(linkedQuoteId: number) {
   }));
 }
 
+/** Transferências financeiras para compor receita e custo do orçamento de destino. */
+export async function getNonCommercialFinancialTransfersByTargetQuoteId(linkedQuoteId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    linkId: sampleLinks.id,
+    linkType: sampleLinks.linkType,
+    sourceQuoteId: sampleOrders.quoteId,
+    sourceQuoteNumber: quotes.quoteNumber,
+    kind: sampleOrders.kind,
+    revenue: sampleLinks.transferredRevenue,
+    cost: sampleLinks.transferredCost,
+    transferredAt: sampleLinks.financialTransferredAt,
+  })
+    .from(sampleLinks)
+    .innerJoin(sampleOrders, eq(sampleOrders.id, sampleLinks.sampleOrderId))
+    .innerJoin(quotes, eq(quotes.id, sampleOrders.quoteId))
+    .where(and(eq(sampleLinks.linkedQuoteId, linkedQuoteId), sql`${sampleLinks.financialTransferredAt} IS NOT NULL`));
+}
+
+/** Retorna a transferência feita pelo orçamento original, quando houver. */
+export async function getNonCommercialFinancialTransferBySourceQuoteId(sourceQuoteId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select({
+    linkId: sampleLinks.id,
+    linkedQuoteId: sampleLinks.linkedQuoteId,
+    linkType: sampleLinks.linkType,
+    revenue: sampleLinks.transferredRevenue,
+    cost: sampleLinks.transferredCost,
+    transferredAt: sampleLinks.financialTransferredAt,
+  })
+    .from(sampleLinks)
+    .innerJoin(sampleOrders, eq(sampleOrders.id, sampleLinks.sampleOrderId))
+    .where(and(eq(sampleOrders.quoteId, sourceQuoteId), sql`${sampleLinks.financialTransferredAt} IS NOT NULL`))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 /** Remove uma vinculação */
 export async function deleteSampleLink(id: number) {
   const db = await getDb();
@@ -2687,9 +2773,16 @@ export async function getSampleOrderStats(filters?: { startDate?: string; endDat
   }
   const [result] = await db.execute(sql`
     SELECT 
-      COALESCE(SUM(so.costAmount), 0) as totalCost,
+      COALESCE(SUM(CASE WHEN NOT EXISTS (
+        SELECT 1 FROM sample_links sl
+        WHERE sl.sampleOrderId = so.id AND sl.financialTransferredAt IS NOT NULL
+      ) THEN so.costAmount ELSE 0 END), 0) as totalCost,
       COUNT(*) as count,
       SUM(CASE WHEN so.status = 'active' THEN 1 ELSE 0 END) as activeCount,
+      SUM(CASE WHEN EXISTS (
+        SELECT 1 FROM sample_links sl
+        WHERE sl.sampleOrderId = so.id AND sl.financialTransferredAt IS NOT NULL
+      ) THEN 1 ELSE 0 END) as transferredCount,
       (SELECT COUNT(DISTINCT sl.sampleOrderId) FROM sample_links sl INNER JOIN sample_orders so2 ON so2.id = sl.sampleOrderId WHERE ${periodCondition}) as linkedCount
     FROM sample_orders so
     WHERE ${periodCondition}
@@ -2699,5 +2792,6 @@ export async function getSampleOrderStats(filters?: { startDate?: string; endDat
     count: Number((result as any)?.count ?? 0),
     activeCount: Number((result as any)?.activeCount ?? 0),
     linkedCount: Number((result as any)?.linkedCount ?? 0),
+    transferredCount: Number((result as any)?.transferredCount ?? 0),
   };
 }

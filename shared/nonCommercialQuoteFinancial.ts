@@ -4,6 +4,12 @@ export type CommercialTotals = {
 };
 
 export type NonCommercialQuoteKind = 'sample' | 'maintenance';
+export type NonCommercialLinkType = 'cobrar' | 'diluir' | 'associar';
+
+/** Cobrar e diluir transferem financeiramente o pedido original; associar preserva seu custo. */
+export function transfersNonCommercialFinance(linkType: NonCommercialLinkType): boolean {
+  return linkType === 'cobrar' || linkType === 'diluir';
+}
 
 /** Ambos os tipos usam o mesmo status comercial para exclusão de receita e comissão. */
 export function getNonCommercialQuoteStatus(kind: NonCommercialQuoteKind): 'sample' {

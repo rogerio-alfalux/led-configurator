@@ -23,6 +23,18 @@
 - [x] Diluir no valor comercial do orçamento de destino a amostra vinculada com tipo diluir, sem menção documental
 - [x] Exibir cobrança de amostra nos documentos comerciais e excluí-la da ficha de produção
 - [x] Corrigir retroativamente o vínculo 33.9995-26 para 33.9996-26 conforme o tipo de cobrança selecionado
+- [x] Transferir custo e receita de amostras ou manutenções cobradas/diluídas para o orçamento de destino
+- [x] Zerar custo e receita do pedido original quando houver transferência financeira vinculada
+- [x] Manter custo e receita zerada no pedido original em vínculo simples, preservando o custo nos dashboards
+- [x] Sinalizar nos pedidos e dashboards quando a amostra ou manutenção tiver sido transferida e cobrada
+- [x] Corrigir retroativamente a transferência financeira de 33.9995-26 para 33.9996-26
+- [x] Cobrir por testes a transferência de receita e custo, a reversão e a preservação de custo em vínculo simples
+- [x] Reverter a receita transferida ao cancelar uma amostra ou manutenção já vinculada financeiramente
+- [x] Cobrir por integração o custo mantido em vínculo simples e o custo transferido entre pedido original e orçamento de destino
+- [x] Sinalizar no dashboard principal as transferências quitadas de amostra e manutenção
+- [x] Validar o caso 33.9995-26 para 33.9996-26 com receita no destino e custo transferido corretamente
+- [x] Cobrir por integração o vínculo simples preservando custo no pedido original e sem custo no destino
+- [x] Identificar explicitamente amostras e manutenções quitadas no dashboard principal
 - [x] Persistir foto manual de Item Especial e exibi-la no carrinho, orçamento, PDF, Excel e consultas futuras
 - [x] Exibir painel de amostra/manutenção para todos os administradores e excluir valores convertidos dos totais do dashboard
 - [x] Persistir valor comercial zero em amostras/manutenções e restaurar com segurança no cancelamento

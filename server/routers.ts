@@ -42,8 +42,13 @@ import {
   updateSampleOrder,
   createSampleLink,
   listSampleLinks,
+  getSampleLinkById,
   listSampleLinksByQuoteId,
   getSampleCommercialAdjustments,
+  getNonCommercialFinancialTransfersByTargetQuoteId,
+  getNonCommercialFinancialTransferBySourceQuoteId,
+  applyNonCommercialRevenueTransfer,
+  reverseNonCommercialRevenueTransfer,
   deleteSampleLink,
   deleteSampleOrder,
   getSampleOrderStats,
@@ -1448,7 +1453,25 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const result = await getQuoteById(input.quoteId);
         if (!result) return { custoProdutos: 0, temCusto: false, items: [] };
+        const sourceTransfer = await getNonCommercialFinancialTransferBySourceQuoteId(input.quoteId);
+        if (sourceTransfer) {
+          const linkedQuote = await getQuoteById(sourceTransfer.linkedQuoteId);
+          return {
+            custoProdutos: 0,
+            temCusto: true,
+            items: [],
+            transferredOut: {
+              linkedQuoteId: sourceTransfer.linkedQuoteId,
+              linkedQuoteNumber: linkedQuote?.quote.quoteNumber ?? null,
+              linkType: sourceTransfer.linkType,
+              cost: Number(sourceTransfer.cost ?? 0),
+              revenue: Number(sourceTransfer.revenue ?? 0),
+              transferredAt: sourceTransfer.transferredAt,
+            },
+          };
+        }
         const activeItems = selectActiveQuoteItems(result.versions, result.items);
+        const inboundTransfers = await getNonCommercialFinancialTransfersByTargetQuoteId(input.quoteId);
 
         const products = await fetchAllAlfaluxProducts();
         const { items: componentes } = await fetchComponentes();
@@ -1720,7 +1743,24 @@ export const appRouter = router({
           }
         }
 
-        return { custoProdutos: totalCusto, temCusto, items: itemDetails };
+        const transferredCost = inboundTransfers.reduce((sum, transfer) => sum + Number(transfer.cost ?? 0), 0);
+        if (transferredCost > 0) {
+          totalCusto += transferredCost;
+          temCusto = true;
+          for (const transfer of inboundTransfers) {
+            itemDetails.push({
+              itemNumber: -Number(transfer.linkId),
+              sku: "AMOSTRA/MANUTENÇÃO",
+              custoCorpo: Number(transfer.cost ?? 0),
+              custoDriver: 0,
+              qty: 1,
+              driverQty: 0,
+              subtotal: Number(transfer.cost ?? 0),
+              source: `transferido_${transfer.linkType}_${transfer.sourceQuoteNumber}`,
+            });
+          }
+        }
+        return { custoProdutos: totalCusto, temCusto, items: itemDetails, transferredCost, inboundTransfers };
       }),
     setCustoManual: commercialQuoteProcedure
       .input(z.object({ quoteId: z.number(), itemNumber: z.number(), custoManual: z.number() }))
@@ -2755,7 +2795,15 @@ export const appRouter = router({
           linkType: input.linkType,
           notes: input.notes,
           createdByUserId: ctx.user.id,
+          transferredRevenue: Number(sourceOrder.originalTotalFinal ?? sourceOrder.originalTotalAmount ?? 0),
+          transferredCost: Number(sourceOrder.costAmount ?? 0),
         });
+        if (input.linkType === "cobrar" || input.linkType === "diluir") {
+          await applyNonCommercialRevenueTransfer(
+            input.linkedQuoteId,
+            Number(sourceOrder.originalTotalFinal ?? sourceOrder.originalTotalAmount ?? 0),
+          );
+        }
         // Atualizar status da amostra para 'linked'
         await updateSampleOrder(input.sampleOrderId, { status: "linked" });
         await insertAuditLog({
@@ -2776,6 +2824,10 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         if (!await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.GERENCIAR_AMOSTRAS)) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Você não possui permissão para desvincular pedidos sem cobrança." });
+        }
+        const existingLink = await getSampleLinkById(input.id);
+        if (existingLink?.financialTransferredAt) {
+          await reverseNonCommercialRevenueTransfer(existingLink.linkedQuoteId, Number(existingLink.transferredRevenue ?? 0));
         }
         await deleteSampleLink(input.id);
         // Verificar se ainda tem links; se não, voltar status para active
@@ -2812,6 +2864,12 @@ export const appRouter = router({
         }
         const sample = await getSampleOrderById(input.id);
         if (!sample) throw new TRPCError({ code: "NOT_FOUND", message: "Pedido de amostra não encontrado." });
+        const links = await listSampleLinks(input.id);
+        for (const link of links) {
+          if (link.financialTransferredAt) {
+            await reverseNonCommercialRevenueTransfer(link.linkedQuoteId, Number(link.transferredRevenue ?? 0));
+          }
+        }
         await deleteSampleOrder(input.id, input.quoteId);
         await insertAuditLog({
           userId: ctx.user.id,

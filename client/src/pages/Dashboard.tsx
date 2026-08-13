@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   ArrowLeft, ClipboardList, CheckCircle, DollarSign, BarChart2, Target,
   Award, Percent, Edit2, Save, X, ShieldAlert, ChevronDown, ChevronUp, Coins,
-  Users, FileDown, TrendingUp, Package, PieChart, AlertCircle, Activity, FlaskConical, Link2, Receipt,
+  Users, FileDown, TrendingUp, Package, PieChart, AlertCircle, Activity, FlaskConical, Link2, Receipt, Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1088,7 +1088,7 @@ export default function Dashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <div className="text-center">
                       <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">{samplesStats.count}</p>
                       <p className="text-xs text-muted-foreground">Total</p>
@@ -1105,6 +1105,10 @@ export default function Dashboard() {
                       <p className="text-2xl font-bold text-green-600">{samplesStats.linkedCount}</p>
                       <p className="text-xs text-muted-foreground">Vinculados</p>
                     </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-sky-600">{samplesStats.transferredCount ?? 0}</p>
+                      <p className="text-xs text-muted-foreground">Quitados</p>
+                    </div>
                   </div>
                   {samplesData && (samplesData as any[]).length > 0 && (
                     <div className="mt-4 border-t pt-3">
@@ -1113,14 +1117,19 @@ export default function Dashboard() {
                         {(samplesData as any[]).slice(0, 5).map((s: any) => (
                           <div key={s.id} className="flex items-center justify-between text-xs bg-amber-50/50 dark:bg-amber-950/20 rounded px-2 py-1">
                             <div className="flex items-center gap-2">
-                              <FlaskConical className="w-3 h-3 text-amber-600" />
+                              {s.kind === 'maintenance'
+                                ? <Wrench className="w-3 h-3 text-sky-600" />
+                                : <FlaskConical className="w-3 h-3 text-amber-600" />}
+                              <span className={`font-medium ${s.kind === 'maintenance' ? 'text-sky-700 dark:text-sky-300' : 'text-amber-700 dark:text-amber-300'}`}>
+                                {s.kind === 'maintenance' ? 'Manutenção' : 'Amostra'}
+                              </span>
                               <span className="font-medium">{s.clientName}</span>
                               {s.projectName && <span className="text-muted-foreground">— {s.projectName}</span>}
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-red-600 font-medium">{formatBRL(parseFloat(String(s.costAmount)))}</span>
-                              <Badge variant="outline" className={`text-[10px] px-1 ${s.status === 'linked' ? 'border-green-400 text-green-700' : 'border-amber-400 text-amber-700'}`}>
-                                {s.status === 'active' ? 'Ativo' : s.status === 'linked' ? 'Vinculado' : s.status}
+                              <span className="text-red-600 font-medium">{formatBRL(s.financialTransferredAt ? 0 : parseFloat(String(s.costAmount)))}</span>
+                              <Badge variant="outline" className={`text-[10px] px-1 ${s.financialTransferredAt ? 'border-sky-400 text-sky-700' : s.status === 'linked' ? 'border-green-400 text-green-700' : 'border-amber-400 text-amber-700'}`}>
+                                {s.financialTransferredAt ? 'Quitado' : s.status === 'active' ? 'Ativo' : s.status === 'linked' ? 'Vinculado' : s.status}
                               </Badge>
                               <Link href={`/orcamentos/${s.quoteId}`}>
                                 <Button variant="ghost" size="sm" className="h-5 px-1">
