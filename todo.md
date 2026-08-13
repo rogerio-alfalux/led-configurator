@@ -64,6 +64,8 @@
 - [x] Cobrir por renderização a supressão dos cartões comerciais de Arandela e Spot no modo LD Convidado
 - [x] Aplicar no JSX a supressão de resumos comerciais de Arandela e Spot para LD Convidado
 - [x] Validar por renderização que Arandela e Spot mantêm os resumos para perfis internos e os removem para LD
+- [x] Posicionar o CTA verde Enviar ao carrinho no topo do Resumo da Configuração de perfis para LD Convidado
+- [x] Cobrir por regressão o CTA de carrinho no resumo de perfis para LD Convidado
 - [x] Persistir foto manual de Item Especial e exibi-la no carrinho, orçamento, PDF, Excel e consultas futuras
 - [x] Exibir painel de amostra/manutenção para todos os administradores e excluir valores convertidos dos totais do dashboard
 - [x] Persistir valor comercial zero em amostras/manutenções e restaurar com segurança no cancelamento

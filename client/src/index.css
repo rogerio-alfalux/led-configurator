@@ -263,3 +263,8 @@
 .convidado-mode .border-green-500\/30 {
   display: none !important;
 }
+
+/* O resumo técnico de formatos especiais continua disponível e pode conter o CTA do carrinho. */
+.convidado-mode .ld-configuration-summary {
+  display: block !important;
+}

@@ -1021,7 +1021,7 @@ function ShapeResultCard({
     <div className="space-y-4">
 
     {/* Card principal: Resumo da Configuração */}
-    <Card className="shadow-sm border-blue-500/30">
+    <Card className="ld-configuration-summary shadow-sm border-blue-500/30">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
@@ -1555,11 +1555,12 @@ function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onA
 
       {/* Resumo Geral */}
       <Card className="shadow-sm">
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3">
           <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-green-500" />
             Resumo da Configuração
           </CardTitle>
+          {isConvidadoRB && <Button size="sm" className="ld-result-cart-action shrink-0 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => document.getElementById("profile-add-cart")?.click()}><ShoppingCart className="w-3.5 h-3.5" /> Enviar ao carrinho</Button>}
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Layout com foto: imagem à esquerda + métricas 2×2 à direita */}
@@ -2205,6 +2206,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
               )}
             </Button>
             <Button
+              id="profile-add-cart"
               size="sm"
               className="gap-1.5 text-xs h-7 bg-emerald-600 hover:bg-emerald-700 text-white cart-action-btn"
               disabled={isAddingToCart}
