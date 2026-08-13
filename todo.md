@@ -19,6 +19,10 @@
 - [x] Adicionar testes integrados do servidor para resolução e validação de vínculos por número de orçamento
 - [x] Adicionar teste do fluxo de manutenção para garantir o vínculo correto por número informado
 - [x] Garantir por teste sequencial que o número informado resolve o orçamento e vincula a manutenção correta
+- [x] Cobrar no orçamento de destino o valor original de amostra vinculada com tipo cobrar
+- [x] Diluir no valor comercial do orçamento de destino a amostra vinculada com tipo diluir, sem menção documental
+- [x] Exibir cobrança de amostra nos documentos comerciais e excluí-la da ficha de produção
+- [x] Corrigir retroativamente o vínculo 33.9995-26 para 33.9996-26 conforme o tipo de cobrança selecionado
 - [x] Persistir foto manual de Item Especial e exibi-la no carrinho, orçamento, PDF, Excel e consultas futuras
 - [x] Exibir painel de amostra/manutenção para todos os administradores e excluir valores convertidos dos totais do dashboard
 - [x] Persistir valor comercial zero em amostras/manutenções e restaurar com segurança no cancelamento

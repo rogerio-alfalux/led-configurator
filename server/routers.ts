@@ -43,6 +43,7 @@ import {
   createSampleLink,
   listSampleLinks,
   listSampleLinksByQuoteId,
+  getSampleCommercialAdjustments,
   deleteSampleLink,
   deleteSampleOrder,
   getSampleOrderStats,
@@ -2790,6 +2791,16 @@ export const appRouter = router({
       .input(z.object({ quoteId: z.number() }))
       .query(async ({ input }) => {
         return listSampleLinksByQuoteId(input.quoteId);
+      }),
+
+    /** Valores e produtos de amostras vinculadas que afetam somente documentos comerciais do orçamento de destino. */
+    commercialAdjustments: protectedProcedure
+      .input(z.object({ quoteId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (!canAccessCommercialQuotes(ctx.user.role)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "LD Convidado não possui acesso a ajustes comerciais." });
+        }
+        return getSampleCommercialAdjustments(input.quoteId);
       }),
 
     /** Cancela um pedido de amostra e reverte o status do orçamento */

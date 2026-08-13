@@ -74,6 +74,12 @@ export interface CartItemData {
   orderSummary?: string;
   /** Texto completo do resumo para orçamento. Opcional para itens especiais. */
   quoteSummary?: string;
+  /** Indica uma amostra já entregue que aparece somente em documentos comerciais. */
+  isCommercialSampleCharge?: boolean;
+  /** Valor final da amostra cobrada, preservado sem reaplicar markup ou desconto do orçamento de destino. */
+  sampleChargeFinalAmount?: number;
+  /** Número do orçamento no qual a amostra foi originalmente fornecida. */
+  sampleSourceQuoteNumber?: string;
   /** Cor da peça selecionada (ex: "Branco Fosco Micro", "A Definir") */
   corPeca?: string;
   /** Módulo LED (fonte de luz) para ficha de produção — usado por produtos não-perfil */

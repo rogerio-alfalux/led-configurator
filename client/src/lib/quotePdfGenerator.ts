@@ -136,13 +136,14 @@ async function _generatePdfBlob(
     const d = (it as any).itemDiscountPercent != null ? Math.min(Math.max((it as any).itemDiscountPercent / 100, 0), 0.99) : 0;
     return d > 0 ? base * (1 - d) : base;
   };
+  const _pdfDiluicaoParaDiluir = formData.diluicaoValor && formData.diluicaoValor > 0 ? formData.diluicaoValor : 0;
   const totalBase = items
     .filter(it => it.category !== 'Não Orçamos')
     .reduce((sum, it) => {
       const lum = _pdfCalcItemLumTotal(it);
       const drv = _pdfCalcItemDrvTotal(it);
       return sum + _pdfApplyItemMgn(lum + drv, it);
-    }, 0);
+    }, 0) + _pdfDiluicaoParaDiluir;
   const rtPct     = Math.min(Math.max(formData.rtPercent    ?? 0, 0), 0.99);
   const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
   const discountPct = Math.min(Math.max(formData.discountPercent ?? 0, 0), 0.99);
@@ -319,9 +320,12 @@ async function _generatePdfBlob(
     const _pdfFreteFatorItem = (_pdfFreteParaDiluirGlobal > 0 && _pdfTotalBaseForFreteGlobal > 0)
       ? _pdfFreteParaDiluirGlobal * (itemRaw / _pdfTotalBaseForFreteGlobal)
       : 0;
+    const _pdfDiluicaoFatorItem = (_pdfDiluicaoParaDiluir > 0 && _pdfTotalBaseForFreteGlobal > 0)
+      ? _pdfDiluicaoParaDiluir * (itemRaw / _pdfTotalBaseForFreteGlobal)
+      : 0;
     const lumTotal = item.totalPrice ?? 0;
     const drvTotal = item.driverLines?.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0) ?? 0;
-    const itemTotal = _pdfApplyItemDiscount(_pdfApplyGlobalMarkupGlobal(itemRaw + _pdfFreteFatorItem), item);
+    const itemTotal = _pdfApplyItemDiscount(_pdfApplyGlobalMarkupGlobal(itemRaw + _pdfFreteFatorItem + _pdfDiluicaoFatorItem), item);
 
     // Modelo: SKU + descrição
     const modeloText = item.sku ? `${item.sku}\n${item.description || ""}` : (item.description || "");

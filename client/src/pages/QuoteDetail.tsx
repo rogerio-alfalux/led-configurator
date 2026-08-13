@@ -44,6 +44,7 @@ import { CartItemData, formatBRL, parseCartItemData, extractPowerLabelFromName, 
 import { getPersistedItemPhotoUrl } from "@/lib/itemPhoto";
 import { isLdRequestLinkedToQuote } from "@/lib/ldRequestUtils";
 import { linkSampleOrderByQuoteNumber } from "@/lib/sampleLinkFlow";
+import { buildSampleCommercialProjection } from "@/lib/sampleCommercialAdjustment";
 import type { ApiProductDriverInfo } from "@/lib/cartTypes";
 
 /** Aplica margem individual do item (itemMarginPercent em %) sobre um valor base */
@@ -1354,6 +1355,10 @@ export default function QuoteDetail() {
     sampleLinkLookupInput,
     { enabled: sampleLinkDialogOpen && sampleLinkLookupInput.quoteNumber.length >= 5, retry: false, staleTime: 0 }
   );
+  const sampleCommercialAdjustmentsQuery = trpc.samples.commercialAdjustments.useQuery(
+    { quoteId: Number(id) },
+    { enabled: !!id }
+  );
   const setProspectingMutation = trpc.quotes.setProspecting.useMutation({
     onSuccess: () => {
       utils.quotes.getById.invalidate({ id: Number(id) });
@@ -1709,6 +1714,36 @@ export default function QuoteDetail() {
     });
   }, [data, componentePriceMap, componenteDescMap, componenteCorrenteMap, componenteReverseDescMap, productsQuery.data]);
 
+  const sampleCommercialProjection = useMemo(() => buildSampleCommercialProjection({
+    links: (sampleCommercialAdjustmentsQuery.data ?? []).map((link) => ({
+      linkId: link.linkId,
+      linkType: link.linkType as "cobrar" | "diluir" | "associar",
+      sourceQuoteNumber: link.sourceQuoteNumber,
+      amount: link.amount,
+      productDescriptions: link.productDescriptions,
+    })),
+    rtPercent: data?.quote?.rtPercent ? parseFloat(String(data.quote.rtPercent)) : 0,
+    marginPercent: data?.quote?.marginPercent ? parseFloat(String(data.quote.marginPercent)) : 0,
+    discountPercent: (data?.quote as any)?.discountPercent ? parseFloat(String((data?.quote as any).discountPercent)) : 0,
+  }), [sampleCommercialAdjustmentsQuery.data, data?.quote?.rtPercent, data?.quote?.marginPercent, (data?.quote as any)?.discountPercent]);
+
+  const commercialItemsMigrated = useMemo(() => [
+    ...currentItemsMigrated,
+    ...sampleCommercialProjection.chargeItems.map((item, index) => ({
+      id: `sample-charge-${item.sampleSourceQuoteNumber ?? index}-${index}`,
+      quoteVersionId: "commercial-sample-charge",
+      itemData: JSON.stringify(item),
+    })),
+  ], [currentItemsMigrated, sampleCommercialProjection.chargeItems]);
+
+  const commercialQuoteItems = useMemo(() => commercialItemsMigrated
+    .map((item) => parseCartItemData(item.itemData))
+    .filter((item): item is CartItemData => item !== null), [commercialItemsMigrated]);
+  const commercialDiluicaoValor = ((data?.quote as any)?.diluicaoValor ? parseFloat(String((data?.quote as any).diluicaoValor)) : 0)
+    + sampleCommercialProjection.dilutionBaseAmount;
+  const commercialDiluicaoDisplayValor = ((data?.quote as any)?.diluicaoValor ? parseFloat(String((data?.quote as any).diluicaoValor)) : 0)
+    + sampleCommercialProjection.dilutionFinalAmount;
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -1789,9 +1824,9 @@ export default function QuoteDetail() {
   const _hdrFreteIncluded = !!(quote as any).freteIncluded;
   const _hdrFreteValue = (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : 0;
   const _hdrFreteParaDiluir = (_hdrFreteIncluded && _hdrFreteValue > 0) ? _hdrFreteValue : 0;
-  const _hdrDiluicao = (quote as any).diluicaoValor ? parseFloat(String((quote as any).diluicaoValor)) : 0;
+  const _hdrDiluicao = commercialDiluicaoValor;
   // Base dos itens (sem RT/margem global, mas com margem individual)
-  const _hdrTotalBase = currentItems.reduce((s, i) => {
+  const _hdrTotalBase = commercialItemsMigrated.reduce((s, i) => {
     const d = parseCartItemData(i.itemData);
     if (!d || d.category === 'Não Orçamos') return s;
     if (d.driverLines && d.driverLines.length > 0) {
@@ -1844,7 +1879,7 @@ export default function QuoteDetail() {
       const s1 = quote.seller1Id ? editSellers.find(s => s.id === quote.seller1Id) : undefined;
       const s2 = quote.seller2Id ? editSellers.find(s => s.id === quote.seller2Id) : undefined;
       await generateQuoteExcel(
-        currentItemsMigrated.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null),
+        commercialQuoteItems,
         {
           cliente: quote.clientName,
           contato: quote.clientContact ?? "",
@@ -1878,7 +1913,7 @@ export default function QuoteDetail() {
           freteState: (quote as any).freteState ?? undefined,
           freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
           freteIncluded: (quote as any).freteIncluded ?? false,
-          diluicaoValor: (quote as any).diluicaoValor ? parseFloat(String((quote as any).diluicaoValor)) : undefined,
+          diluicaoValor: commercialDiluicaoValor || undefined,
           revisionCount: exportRevisionCount,
           deliveryDays: quote.deliveryDays ?? 20,
           commissionPercent: quote.commissionPercent ? parseFloat(String(quote.commissionPercent)) : undefined,
@@ -1926,9 +1961,7 @@ export default function QuoteDetail() {
     if (!linkedLdRequest || !quote) return;
     setIsGenerating(true);
     try {
-      const pdfItems = currentItemsMigrated
-        .map((item) => parseCartItemData(item.itemData))
-        .filter((item): item is CartItemData => item !== null);
+      const pdfItems = commercialQuoteItems;
       const formData: QuoteFormData = {
         cliente: quote.clientName,
         contato: quote.clientContact ?? "",
@@ -1956,6 +1989,7 @@ export default function QuoteDetail() {
         freteState: (quote as any).freteState ?? undefined,
         freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
         freteIncluded: (quote as any).freteIncluded ?? false,
+        diluicaoValor: commercialDiluicaoValor || undefined,
         revisionCount: exportRevisionCount,
         deliveryDays: quote.deliveryDays ?? 20,
         paymentTerm: quote.paymentTerm ?? undefined,
@@ -4230,8 +4264,8 @@ export default function QuoteDetail() {
 
               // Agrupar itens por pavimento preservando a ordem de inserção
               const floorOrder: string[] = [];
-              const floorMap = new Map<string, typeof currentItemsMigrated>();
-              for (const item of currentItemsMigrated) {
+              const floorMap = new Map<string, typeof commercialItemsMigrated>();
+              for (const item of commercialItemsMigrated) {
                 const d = parseCartItemData(item.itemData);
                 const fid = d?.floorId?.trim() || '__sem_pavimento__';
                 if (!floorMap.has(fid)) { floorMap.set(fid, []); floorOrder.push(fid); }
@@ -4244,11 +4278,17 @@ export default function QuoteDetail() {
               let totalDriver = 0;
               let totalGeral = 0;
               let hasDriverBreakdown = false;
-              for (const item of currentItemsMigrated) {
+              for (const item of commercialItemsMigrated) {
                 const d = parseCartItemData(item.itemData);
                 if (!d) continue;
                 // Itens "Não Orçamos" são apenas indicativos e não entram no total
                 if (d.category === 'Não Orçamos') continue;
+                const fixedSampleCharge = d.isCommercialSampleCharge ? (d.sampleChargeFinalAmount ?? d.totalPrice ?? 0) : null;
+                if (fixedSampleCharge != null) {
+                  totalGeral += fixedSampleCharge;
+                  totalLuminaria += fixedSampleCharge;
+                  continue;
+                }
                 if (d.driverLines && d.driverLines.length > 0) {
                   hasDriverBreakdown = true;
                   // Resolver priceWithoutDriver: campo dedicado, fallback derivado de (totalPrice - driversTotalPrice), ou unitPrice
@@ -4280,7 +4320,7 @@ export default function QuoteDetail() {
               }
 
               // Diluição proporcional por item
-              const _diluicaoTotal = (quote as any).diluicaoValor != null ? parseFloat(String((quote as any).diluicaoValor)) : 0;
+              const _diluicaoTotal = commercialDiluicaoDisplayValor;
               // Frete diluído nos itens: quando freteIncluded=true, o valor do frete é distribuído proporcionalmente
               const _freteIncluded = (quote as any).freteIncluded ?? false;
               const _freteValue = (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : 0;
@@ -4293,7 +4333,7 @@ export default function QuoteDetail() {
                 return _diluicaoTotal * (itemTotal / _diluicaoBase);
               };
               // Frete diluído proporcional por item (baseado no totalPrice bruto, antes de RT/margem)
-              const _freteBase = currentItemsMigrated.reduce((s, it) => {
+              const _freteBase = commercialItemsMigrated.reduce((s, it) => {
                 const _d = parseCartItemData(it.itemData);
                 if (!_d || _d.category === 'Não Orçamos') return s;
                 return s + (_d.totalPrice ?? 0);
@@ -4321,10 +4361,15 @@ export default function QuoteDetail() {
                             const d = parseCartItemData(item.itemData);
                             if (!d) return null;
                             const itemIdx = ++globalIdx;
-                            const unitDisplay = d.unitPrice != null && d.unitPrice > 0
+                            const fixedSampleCharge = d.isCommercialSampleCharge ? (d.sampleChargeFinalAmount ?? d.totalPrice ?? 0) : null;
+                            const unitDisplay = fixedSampleCharge != null
+                              ? fixedSampleCharge / Math.max(d.qty, 1)
+                              : d.unitPrice != null && d.unitPrice > 0
                               ? applyMkupWithItem(d.unitPrice, d.itemMarginPercent)
                               : null;
-                            const totalDisplay = d.totalPrice != null && d.totalPrice > 0
+                            const totalDisplay = fixedSampleCharge != null
+                              ? fixedSampleCharge
+                              : d.totalPrice != null && d.totalPrice > 0
                               ? applyMkupWithItem(d.totalPrice, d.itemMarginPercent)
                               : null;
                             const hasBreakdown = !!(d.driverLines && d.driverLines.length > 0);
@@ -4372,7 +4417,9 @@ export default function QuoteDetail() {
                             const _correctTotalItem = hasBreakdown
                               ? (_lumTotalRaw + _driversTotalRaw)
                               : (d.totalPrice ?? 0);
-                            const _correctTotalWithMkup = _correctTotalItem > 0
+                            const _correctTotalWithMkup = fixedSampleCharge != null
+                              ? fixedSampleCharge
+                              : _correctTotalItem > 0
                               ? applyMkupWithItem(_correctTotalItem, d.itemMarginPercent)
                               : 0;
                             // Diluição proporcional ao peso deste item
@@ -4525,7 +4572,7 @@ export default function QuoteDetail() {
                         // Calcular subtotais com frete diluído na base
                         let _totalLumComFrete = 0;
                         let _totalDrvComFrete = 0;
-                        for (const _it of currentItemsMigrated) {
+                        for (const _it of commercialItemsMigrated) {
                           const _d2 = parseCartItemData(_it.itemData);
                           if (!_d2 || _d2.category === 'Não Orçamos') continue;
                           const _drvT2 = (_d2.driverLines && _d2.driverLines.length > 0)
@@ -4564,7 +4611,7 @@ export default function QuoteDetail() {
                           _freteParaDiluir > 0
                             ? (() => {
                                 // Recalcular total com frete na base (igual ao ExcelPreviewModal)
-                                const _totalBaseRaw = currentItemsMigrated.reduce((s, it) => {
+                                const _totalBaseRaw = commercialItemsMigrated.reduce((s, it) => {
                                   const _d = parseCartItemData(it.itemData);
                                   if (!_d || _d.category === 'Não Orçamos') return s;
                                   const _drvT = (_d.driverLines && _d.driverLines.length > 0)
@@ -4867,7 +4914,7 @@ export default function QuoteDetail() {
       <ExcelPreviewModal
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
-        items={currentItemsMigrated.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null)}
+        items={commercialQuoteItems}
         freshPhotoMap={productPhotoMap}
         formData={{
          cliente: quote.clientName,
@@ -4906,7 +4953,7 @@ export default function QuoteDetail() {
           fcpEnabled: quote.fcpEnabled ?? false,
           fcpPercent: quote.fcpPercent ? parseFloat(String(quote.fcpPercent)) : undefined,
           fcpValue: quote.fcpValue ? parseFloat(String(quote.fcpValue)) : undefined,
-          diluicaoValor: (quote as any).diluicaoValor ? parseFloat(String((quote as any).diluicaoValor)) : undefined,
+          diluicaoValor: commercialDiluicaoValor || undefined,
         }}
       />
 
@@ -4915,7 +4962,7 @@ export default function QuoteDetail() {
         open={pdfPrintOpen}
         onClose={() => setPdfPrintOpen(false)}
         autoPrint
-        items={currentItemsMigrated.map(i => parseCartItemData(i.itemData)).filter((d): d is CartItemData => d !== null)}
+        items={commercialQuoteItems}
         freshPhotoMap={productPhotoMap}
         formData={{
           cliente: quote.clientName,
@@ -4954,7 +5001,7 @@ export default function QuoteDetail() {
           fcpEnabled: quote.fcpEnabled ?? false,
           fcpPercent: quote.fcpPercent ? parseFloat(String(quote.fcpPercent)) : undefined,
           fcpValue: quote.fcpValue ? parseFloat(String(quote.fcpValue)) : undefined,
-          diluicaoValor: (quote as any).diluicaoValor ? parseFloat(String((quote as any).diluicaoValor)) : undefined,
+          diluicaoValor: commercialDiluicaoValor || undefined,
         }}
       />
       {/* Dialog de edição manual de revisão (somente gestores) */}

@@ -2625,6 +2625,48 @@ export async function listSampleLinksByQuoteId(linkedQuoteId: number) {
   return db.select().from(sampleLinks).where(eq(sampleLinks.linkedQuoteId, linkedQuoteId)).orderBy(desc(sampleLinks.createdAt));
 }
 
+/** Lista os ajustes comerciais de amostras/manutenções vinculadas a um orçamento de destino. */
+export async function getSampleCommercialAdjustments(linkedQuoteId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select({
+      linkId: sampleLinks.id,
+      linkType: sampleLinks.linkType,
+      notes: sampleLinks.notes,
+      sourceQuoteId: sampleOrders.quoteId,
+      sourceQuoteNumber: quotes.quoteNumber,
+      originalTotalAmount: sampleOrders.originalTotalAmount,
+      originalTotalFinal: sampleOrders.originalTotalFinal,
+    })
+    .from(sampleLinks)
+    .innerJoin(sampleOrders, eq(sampleOrders.id, sampleLinks.sampleOrderId))
+    .innerJoin(quotes, eq(quotes.id, sampleOrders.quoteId))
+    .where(eq(sampleLinks.linkedQuoteId, linkedQuoteId))
+    .orderBy(desc(sampleLinks.createdAt));
+
+  return Promise.all(rows.map(async (row) => {
+    const sourceItems = await db
+      .select({ itemData: quoteItems.itemData })
+      .from(quoteItems)
+      .where(eq(quoteItems.quoteId, row.sourceQuoteId))
+      .orderBy(asc(quoteItems.itemNumber));
+    const productDescriptions = sourceItems.flatMap(({ itemData }) => {
+      try {
+        const item = JSON.parse(itemData) as { description?: string };
+        return item.description?.trim() ? [item.description.trim()] : [];
+      } catch {
+        return [];
+      }
+    });
+    return {
+      ...row,
+      amount: row.originalTotalFinal ?? row.originalTotalAmount,
+      productDescriptions,
+    };
+  }));
+}
+
 /** Remove uma vinculação */
 export async function deleteSampleLink(id: number) {
   const db = await getDb();
