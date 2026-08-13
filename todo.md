@@ -66,6 +66,18 @@
 - [x] Validar por renderização que Arandela e Spot mantêm os resumos para perfis internos e os removem para LD
 - [x] Posicionar o CTA verde Enviar ao carrinho no topo do Resumo da Configuração de perfis para LD Convidado
 - [x] Cobrir por regressão o CTA de carrinho no resumo de perfis para LD Convidado
+- [x] Exibir Item em planta e Quantidade ao lado do CTA de perfis para LD Convidado
+- [x] Garantir que Item em planta e Quantidade sejam persistidos no item enviado ao carrinho pelo LD
+- [x] Cobrir por teste o CTA de perfis com os campos técnicos disponíveis para LD Convidado
+- [x] Permitir editar Item em planta e Quantidade no carrinho exclusivo do LD Convidado
+- [x] Cobrir por teste a edição dos campos técnicos no carrinho do LD Convidado
+- [x] Inserir Item em planta e Quantidade no Resumo da Configuração de perfis do LD
+- [x] Ligar os campos técnicos do resumo ao item de perfil enviado ao carrinho
+- [x] Cobrir a renderização dos campos técnicos no resultado de perfis para LD Convidado
+- [x] Cobrir por renderização o CTA e os campos técnicos do resultado de perfis em modo LD
+- [x] Cobrir a ligação de Item em planta e Quantidade ao item de perfil enviado ao carrinho do LD
+- [x] Extrair e testar a propagação de Item em planta e Quantidade para o item de perfil enviado ao carrinho
+- [x] Cobrir a integração do controle de perfil ao fluxo de resultado do LD Convidado
 - [x] Persistir foto manual de Item Especial e exibi-la no carrinho, orçamento, PDF, Excel e consultas futuras
 - [x] Exibir painel de amostra/manutenção para todos os administradores e excluir valores convertidos dos totais do dashboard
 - [x] Persistir valor comercial zero em amostras/manutenções e restaurar com segurança no cancelamento

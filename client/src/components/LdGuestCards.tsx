@@ -1,5 +1,5 @@
-import React from "react";
-import { FileText, Package, Trash2 } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { FileText, Minus, Package, Plus, Tag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { CartItemData } from "@/lib/cartTypes";
@@ -9,13 +9,19 @@ export function LdGuestCartItemCard({
   item,
   index,
   onRemove,
+  onUpdate,
   disabled = false,
 }: {
   item: CartItemData;
   index: number;
   onRemove: () => void;
+  onUpdate: (patch: Partial<Pick<CartItemData, "itemEmPlanta" | "qty">>) => void;
   disabled?: boolean;
 }) {
+  const [qty, setQty] = useState(item.qty ?? 1);
+  const [itemEmPlanta, setItemEmPlanta] = useState(item.itemEmPlanta ?? "");
+  useEffect(() => setQty(item.qty ?? 1), [item.qty]);
+  useEffect(() => setItemEmPlanta(item.itemEmPlanta ?? ""), [item.itemEmPlanta]);
   const configuration = [item.power, item.cct, item.corPeca, item.itemEmPlanta ? `Item em planta: ${item.itemEmPlanta}` : null].filter(Boolean);
   const moduleComposition = item.profileSegments?.length
     ? item.profileSegments.map((segment) => `${segment.qty}× ${segment.sku}`).join(" + ")
@@ -30,7 +36,20 @@ export function LdGuestCartItemCard({
       <p className="font-semibold leading-snug">{item.description}</p>
       {configuration.length > 0 && <p className="text-sm text-muted-foreground mt-1">{configuration.join(" · ")}</p>}
       {moduleComposition && <p className="text-xs text-muted-foreground mt-1 break-words">{moduleComposition}</p>}
-      <p className="text-xs text-muted-foreground mt-2">Quantidade: {item.qty ?? 1}</p>
+      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <label className="space-y-1">
+          <span className="text-xs text-muted-foreground flex items-center gap-1"><Tag className="w-3 h-3" /> Item em planta</span>
+          <input aria-label="Item em planta" value={itemEmPlanta} onChange={(event) => { const value = event.target.value; setItemEmPlanta(value); onUpdate({ itemEmPlanta: value }); }} placeholder="Ex.: L1, P2" disabled={disabled} className="h-8 w-full rounded-md border border-border bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+        </label>
+        <div className="space-y-1">
+          <span className="text-xs text-muted-foreground">Quantidade</span>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" size="icon" className="h-8 w-8" disabled={disabled || qty <= 1} onClick={() => { const next = Math.max(1, qty - 1); setQty(next); onUpdate({ qty: next }); }}><Minus className="w-3 h-3" /></Button>
+            <input aria-label="Quantidade" type="number" min={1} value={qty} disabled={disabled} onChange={(event) => { const next = Math.max(1, Number.parseInt(event.target.value, 10) || 1); setQty(next); onUpdate({ qty: next }); }} className="h-8 w-16 rounded-md border border-border bg-background px-2 text-center text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+            <Button type="button" variant="outline" size="icon" className="h-8 w-8" disabled={disabled} onClick={() => { const next = qty + 1; setQty(next); onUpdate({ qty: next }); }}><Plus className="w-3 h-3" /></Button>
+          </div>
+        </div>
+      </div>
     </div>
     <Button variant="ghost" size="icon" title="Remover item" disabled={disabled} onClick={onRemove}><Trash2 className="w-4 h-4" /></Button>
   </CardContent></Card>;

@@ -19,9 +19,10 @@ describe("LD Convidado UI isolation", () => {
       priceWithoutDriver: 9500,
       profileSegments: [{ sku: "LLP-6060.4IF.48F", qty: 2 }],
     } as CartItemData;
-    const html = renderToStaticMarkup(createElement(LdGuestCartItemCard, { item, index: 0, onRemove: () => undefined }));
+    const html = renderToStaticMarkup(createElement(LdGuestCartItemCard, { item, index: 0, onRemove: () => undefined, onUpdate: () => undefined }));
     expect(html).toContain("BLAZE H PENDENTE");
-    expect(html).toContain("Quantidade: 2");
+    expect(html).toContain('aria-label="Item em planta"');
+    expect(html).toContain('aria-label="Quantidade"');
     expect(html).not.toMatch(/9876|4938|9500|R\$/);
   });
 

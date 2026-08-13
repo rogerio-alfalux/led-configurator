@@ -24,6 +24,7 @@ describe("auditoria da Home para LD Convidado", () => {
     expect(homeSource).toContain('id="spot-add-cart"');
     expect(homeSource).toContain('id="profile-add-cart"');
     expect(homeSource).toContain('Resumo da Configuração');
+    expect(homeSource).toContain("LdProfileCartControls");
     expect(homeSource).toContain("ld-result-cart-action");
     expect(homeSource).toContain("onClick={() => handleAddRevendaItem");
     expect(homeSource).toContain("onClick={handleAddCustomizadoItem}");

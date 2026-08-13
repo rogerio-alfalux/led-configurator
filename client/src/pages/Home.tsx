@@ -9,6 +9,8 @@ import type { CartItemData, LinkedAccessory, ProfileSegment } from "@/lib/cartTy
 import { redactGuestQuoteSummary } from "@/lib/guestQuoteSummary";
 import { LdGuestTechnicalSummary } from "@/components/LdGuestTechnicalSummary";
 import { LdCommercialOnly } from "@/components/LdCommercialOnly";
+import { LdProfileCartControls } from "@/components/LdProfileCartControls";
+import { profileCartTechnicalFields } from "@/lib/profileCartTechnicalFields";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -1560,7 +1562,7 @@ function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onA
             <CheckCircle2 className="w-4 h-4 text-green-500" />
             Resumo da Configuração
           </CardTitle>
-          {isConvidadoRB && <Button size="sm" className="ld-result-cart-action shrink-0 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => document.getElementById("profile-add-cart")?.click()}><ShoppingCart className="w-3.5 h-3.5" /> Enviar ao carrinho</Button>}
+          {isConvidadoRB && <LdProfileCartControls itemEmPlanta={itemEmPlanta ?? ""} quantity={globalQty ?? 1} onItemEmPlantaChange={(value) => setItemEmPlanta?.(value)} onQuantityChange={(quantity) => setGlobalQty?.(quantity)} onSendToCart={() => document.getElementById("profile-add-cart")?.click()} />}
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Layout com foto: imagem à esquerda + métricas 2×2 à direita */}
@@ -2378,7 +2380,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                     : `${result.profileName} ${INSTALL_LABELS[result.installType]} ${result.application !== 'D1' ? result.application + ' ' : ''}${result.powerD1}W ${result.cct} ${result.controlType === 'dimDali' ? 'DIM DALI' : result.controlType === 'dim110v' ? 'DIM 1-10V' : 'ON/OFF'} ${result.voltage} ${result.realizedLength}mm`,
                   power: result.profileName === "SHIFT" ? undefined : `${result.powerD1}W`,
                   cct: result.profileName === "SHIFT" ? "A definir (módulos)" : result.cct,
-                  qty: globalQty,
+                  ...profileCartTechnicalFields(globalQty, itemEmPlanta),
                   unitPrice: _flexUnitPrice,
                   totalPrice: _flexTotalPrice,
                   priceFromApi: modulePriceResult != null && precoTotal != null,
@@ -2390,7 +2392,6 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                   profileSegments,
                   stripMethod: result.stripMethod,
                   availableCCTs: ["2700K", "3000K", "4000K", "5000K", "A definir"],
-                  itemEmPlanta: itemEmPlanta || "",
                   ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
                   ...(modulePriceResult ? { custoCorpoBase: (() => { let tc = 0; for (const ci of result.composition) { const e = skuPriceMap?.[`${ci.sku}|${currentPowerLabel}`] ?? skuPriceMap?.[ci.sku]; const c = isD1D2 ? (result.controlType === 'dimDali' ? e?.custoDimDaliD1D2 : result.controlType === 'dim110v' ? e?.custoDim110vD1D2 : /bivolt/i.test(result.voltage) ? e?.custoOnoffBivoltD1D2 : e?.custoOnoff220D1D2) : (result.controlType === 'dimDali' ? e?.custoDimDali : result.controlType === 'dim110v' ? e?.custoDim110v : /bivolt/i.test(result.voltage) ? e?.custoOnoffBivolt : e?.custoOnoff220); if (c == null) return 0; tc += c * ci.quantity; } return Math.round(tc * 100) / 100; })(), markupPadraoApi: modulePriceResult.markupPadrao, markupMinimoApi: modulePriceResult.markupMinimo } : {}),
                   ...(perfilDrvLines ? {

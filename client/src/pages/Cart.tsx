@@ -3523,7 +3523,7 @@ function StandardCart() {
 function GuestCart() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
-  const { entries, isLoading, removeItem, clearCart, isRemoving } = useCart();
+  const { entries, isLoading, removeItem, clearCart, isRemoving, updateItemField } = useCart();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [officeName, setOfficeName] = useState((user as any)?.name ?? "");
   const [finalClientName, setFinalClientName] = useState("");
@@ -3575,7 +3575,7 @@ function GuestCart() {
           </CardContent></Card>
         ) : <>
           <div className="space-y-3">
-            {entries.map((entry, index) => <LdGuestCartItemCard key={entry.id} item={entry.data} index={index} onRemove={() => removeItem(entry.id)} disabled={isRemoving} />)}
+            {entries.map((entry, index) => <LdGuestCartItemCard key={entry.id} item={entry.data} index={index} onRemove={() => removeItem(entry.id)} onUpdate={(patch) => updateItemField(entry.id, patch, 0)} disabled={isRemoving} />)}
           </div>
           <div className="flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-center rounded-lg border bg-card p-4">
             <p className="text-sm text-muted-foreground">{entries.length} {entries.length === 1 ? "produto configurado" : "produtos configurados"}</p>
