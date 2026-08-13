@@ -11,6 +11,7 @@ import { LdGuestTechnicalSummary } from "@/components/LdGuestTechnicalSummary";
 import { LdCommercialOnly } from "@/components/LdCommercialOnly";
 import { LdProfileCartControls } from "@/components/LdProfileCartControls";
 import { profileCartTechnicalFields } from "@/lib/profileCartTechnicalFields";
+import { ModularOptimizationControls } from "@/components/ModularOptimizationControls";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -4552,6 +4553,7 @@ export default function Home() {
   const [allowFractional, setAllowFractional] = useState(false);
   const [adjustToLarger, setAdjustToLarger] = useState(false);
   const [allowMixedIF, setAllowMixedIF] = useState(false);
+  const [optimizeModuleCount, setOptimizeModuleCount] = useState(false);
   const [independentLighting, setIndependentLighting] = useState(false);
   // SHARP difusor
   const [diffuserD1, setDiffuserD1] = useState<DiffuserType | undefined>(undefined);
@@ -4741,6 +4743,7 @@ export default function Home() {
       allowFractional,
       adjustToLarger,
       allowMixedIF,
+      optimizeModuleCount,
       independentLighting: effectiveIndependent,
       diffuserD1: hasDiffuser ? diffuserD1 : undefined,
       diffuserD2: hasDiffuser && isDual ? diffuserD2 : undefined,
@@ -4779,7 +4782,7 @@ export default function Home() {
       const msg = e instanceof Error ? e.message : "Erro ao calcular composição.";
       setError(msg);
     }
-  }, [profileCode, effectiveApplication, powerD1, powerD2, cct, voltage, stripMethod, totalLength, allowLongModules, allowFractional, adjustToLarger, allowMixedIF, effectiveIndependent, isDual, hasDiffuser, diffuserD1, diffuserD2, controlType, selectedVariant, isShift]);
+  }, [profileCode, effectiveApplication, powerD1, powerD2, cct, voltage, stripMethod, totalLength, allowLongModules, allowFractional, adjustToLarger, allowMixedIF, optimizeModuleCount, effectiveIndependent, isDual, hasDiffuser, diffuserD1, diffuserD2, controlType, selectedVariant, isShift]);
 
   return (
     <div className={`min-h-screen bg-background${isConvidado ? " convidado-mode" : ""}`}>
@@ -6772,6 +6775,7 @@ export default function Home() {
                 {/* 8. Toggles (acendimento independente oculto para embutir) */}
                 {selectedVariant && !isShift && (
                   <div className="space-y-3">
+                    {profileShape === "STRAIGHT" && <ModularOptimizationControls optimizeModuleCount={optimizeModuleCount} allowLongModules={allowLongModules} allowFractional={allowFractional} allowMixedIF={allowMixedIF} onOptimizeModuleCountChange={setOptimizeModuleCount} />}
                     {/* Acendimento Independente — oculto para embutir */}
                     {!isEmbutir && (
                       <div className="flex items-center justify-between">
@@ -6797,6 +6801,7 @@ export default function Home() {
                       </div>
                     )}
 
+                    {/* Otimizar Quantidade de Módulos — apenas para retos */}
                     {/* Módulos Longos */}
                     <div className="flex items-center justify-between">
                       <div>

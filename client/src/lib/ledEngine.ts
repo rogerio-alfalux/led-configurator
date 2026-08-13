@@ -208,6 +208,8 @@ export interface ConfigInput {
    * Restrição: nenhum IF pode ter menos de 2 barras (MIN_BARS_FOR_COMPOSITION).
    */
   allowMixedIF?: boolean;
+  /** Prioriza o menor número de módulos, aceitando maior diferença de comprimento. */
+  optimizeModuleCount?: boolean;
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -555,11 +557,15 @@ function buildIfMlComposition(
   allowLongModules: boolean,
   stripMethod: StripMethod,
   nameMap?: Map<string, string>,
-  allowFractional = false
+  allowFractional = false,
+  optimizeModuleCount = false
 ): { composition: CompositionItem[]; realizedLength: number; remainingLength: number } | null {
+  const quantityModuleLimit = (module: RawModule) => allowLongModules || module.barras <= IN_MAX_BARS_STANDARD;
   const ifModules = getModules(profileCode, "IF", allowLongModules, stripMethod, power, true, allowFractional)
+    .filter(quantityModuleLimit)
     .sort((a, b) => b.length - a.length);
   const mlModules = getModules(profileCode, "ML", allowLongModules, stripMethod, power, true, allowFractional)
+    .filter(quantityModuleLimit)
     .sort((a, b) => b.length - a.length);
 
   if (ifModules.length === 0) return null;
@@ -631,6 +637,22 @@ function buildIfMlComposition(
   }
 
   if (candidates.length === 0) return null;
+
+  if (optimizeModuleCount) {
+    candidates.sort((a, b) => {
+      if (a.moduleCount !== b.moduleCount) return a.moduleCount - b.moduleCount;
+      if (b.realizedLength !== a.realizedLength) return b.realizedLength - a.realizedLength;
+      if (a.skuVariety !== b.skuVariety) return a.skuVariety - b.skuVariety;
+      return a.balance - b.balance;
+    });
+    const best = candidates[0];
+    const rawItems: RawModule[] = [best.ifMod, best.ifMod, ...best.mlItems];
+    return {
+      composition: toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod, nameMap),
+      realizedLength: best.realizedLength,
+      remainingLength: requestedLength - best.realizedLength,
+    };
+  }
 
   // ── Lógica de seleção v3.2 ─────────────────────────────────────────────────
   //
@@ -727,11 +749,15 @@ function buildIfMlCompositionMixed(
   allowLongModules: boolean,
   stripMethod: StripMethod,
   nameMap?: Map<string, string>,
-  allowFractional = false
+  allowFractional = false,
+  optimizeModuleCount = false
 ): { composition: CompositionItem[]; realizedLength: number; remainingLength: number } | null {
+  const quantityModuleLimit = (module: RawModule) => allowLongModules || module.barras <= IN_MAX_BARS_STANDARD;
   const ifModules = getModules(profileCode, "IF", allowLongModules, stripMethod, power, true, allowFractional)
+    .filter(quantityModuleLimit)
     .sort((a, b) => b.length - a.length);
   const mlModules = getModules(profileCode, "ML", allowLongModules, stripMethod, power, true, allowFractional)
+    .filter(quantityModuleLimit)
     .sort((a, b) => b.length - a.length);
 
   if (ifModules.length < 2) return null;
@@ -804,6 +830,7 @@ function buildIfMlCompositionMixed(
 
   // Escolher: menor comprimento não realizado → menor número de módulos
   candidates.sort((a, b) => {
+    if (optimizeModuleCount && a.moduleCount !== b.moduleCount) return a.moduleCount - b.moduleCount;
     if (a.remainingLength !== b.remainingLength) return a.remainingLength - b.remainingLength;
     if (a.moduleCount !== b.moduleCount) return a.moduleCount - b.moduleCount;
     return 0;
@@ -826,7 +853,8 @@ export function buildComposition(
   stripMethod: StripMethod = "STRIPFLEX",
   nameMap?: Map<string, string>,
   allowFractional = false,
-  allowMixedIF = false
+  allowMixedIF = false,
+  optimizeModuleCount = false
 ): {
   composition: CompositionItem[];
   realizedLength: number;
@@ -867,15 +895,19 @@ export function buildComposition(
     }
   }
 
-  const ifMlResult = buildIfMlComposition(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, nameMap, allowFractional);
+  const ifMlResult = buildIfMlComposition(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, nameMap, allowFractional, optimizeModuleCount);
 
   // Estratégia 3: IF diferentes nas pontas (quando allowMixedIF=true)
   if (allowMixedIF) {
-    const mixedResult = buildIfMlCompositionMixed(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, nameMap, allowFractional);
+    const mixedResult = buildIfMlCompositionMixed(profileCode, requestedLength, power, voltage, allowLongModules, stripMethod, nameMap, allowFractional, optimizeModuleCount);
     if (mixedResult) {
       // Usar mixed se for melhor (menor remainingLength) ou igual ao IF_ML_LINE
       const ifMlRemaining = ifMlResult ? ifMlResult.remainingLength : requestedLength;
-      if (mixedResult.remainingLength < ifMlRemaining) {
+      const mixedModuleCount = mixedResult.composition.reduce((sum, item) => sum + item.quantity, 0);
+      const defaultModuleCount = ifMlResult?.composition.reduce((sum, item) => sum + item.quantity, 0) ?? Number.MAX_SAFE_INTEGER;
+      const mixedWinsForQuantity = mixedModuleCount < defaultModuleCount
+        || (mixedModuleCount === defaultModuleCount && mixedResult.remainingLength < ifMlRemaining);
+      if (optimizeModuleCount ? mixedWinsForQuantity : mixedResult.remainingLength < ifMlRemaining) {
         return { ...mixedResult, compositionMode: "IF_ML_MIXED" };
       }
     }
@@ -985,6 +1017,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
   }
 
   const allowMixedIF = input.allowMixedIF ?? false;
+  const optimizeModuleCount = input.optimizeModuleCount ?? false;
 
   // ── Composição de módulos ──
   let buildResult = buildComposition(
@@ -996,7 +1029,8 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     stripMethod,
     undefined,
     allowFractional,
-    allowMixedIF
+    allowMixedIF,
+    optimizeModuleCount
   );
 
   // ── Ajuste para medida maior ──
@@ -1023,18 +1057,18 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
       if (m.length > totalLength) candidateLengths.add(m.length);
     }
 
-    // b) Pares 2×IF acima do solicitado (IF com ≥ 2 barras).
-    //    Para IF/ML não há limite de barras por módulo individual — usar allowLongModules=true
-    //    pois módulos IF grandes são válidos em composições de linha longa.
-    const ifModulesAll = getModules(profileCode, "IF", true, stripMethod, powerD1, true, allowFractional)
-      .filter(m => m.barras >= MIN_BARS_FOR_COMPOSITION);
+    // b) Pares 2×IF acima do solicitado (IF com ≥ 2 barras), sempre respeitando
+    //    a opção explícita de módulos longos do usuário.
+    const ifModulesAll = getModules(profileCode, "IF", allowLongModules, stripMethod, powerD1, true, allowFractional)
+      .filter(m => m.barras >= MIN_BARS_FOR_COMPOSITION && (allowLongModules || m.barras <= IN_MAX_BARS_STANDARD));
     for (const ifMod of ifModulesAll) {
       const twoIfLen = 2 * ifMod.length;
       if (twoIfLen > totalLength) candidateLengths.add(twoIfLen);
     }
 
     // c) Pares 2×IF + MLs que resultem em comprimento > totalLength
-    const mlModulesAll = getModules(profileCode, "ML", true, stripMethod, powerD1, true, allowFractional);
+    const mlModulesAll = getModules(profileCode, "ML", allowLongModules, stripMethod, powerD1, true, allowFractional)
+      .filter(m => allowLongModules || m.barras <= IN_MAX_BARS_STANDARD);
     for (const ifMod of ifModulesAll) {
       const twoIfLen = 2 * ifMod.length;
       // Só adicionar MLs se 2×IF já não cobre (para não duplicar candidatos)
@@ -1058,17 +1092,18 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     // Ordenar candidatos crescente e tentar cada um
     const sortedCandidates = Array.from(candidateLengths).sort((a, b) => a - b);
     for (const targetLength of sortedCandidates) {
-      // Recalcular com allowLongModules=true para que IF/ML grandes sejam elegíveis
-      // (o targetLength já foi calculado com base em módulos válidos)
+      // Recalcular respeitando a mesma escolha de módulos longos da configuração.
       const adjustedResult = buildComposition(
         profileCode,
         targetLength,
         powerD1,
         voltage,
-        true, // allowLongModules=true: o targetLength garante que a composição é válida
+        allowLongModules,
         stripMethod,
         undefined,
-        allowFractional
+        allowFractional,
+        allowMixedIF,
+        optimizeModuleCount
       );
       if (adjustedResult.realizedLength >= totalLength) {
         buildResult = adjustedResult;

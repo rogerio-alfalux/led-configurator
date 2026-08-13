@@ -2835,3 +2835,44 @@ describe("adjustToLarger — EASY H PLUS (LLP-4450) com composição IF+ML", () 
     }
   });
 });
+
+describe("Otimizar Quantidade de Módulos", () => {
+  const baseInput = {
+    profileCode: "LLP-6060",
+    application: "D1" as const,
+    powerD1: 18 as const,
+    cct: "4000K" as const,
+    voltage: "220Vac" as const,
+    stripMethod: "STRIPFLEX" as const,
+    independentLighting: false,
+  };
+
+  it("prioriza dois módulos mesmo quando a composição mais próxima usaria mais peças", () => {
+    const closest = calculateComposition({ ...baseInput, totalLength: 5000, allowLongModules: false, allowFractional: true });
+    const optimized = calculateComposition({ ...baseInput, totalLength: 5000, allowLongModules: false, allowFractional: true, optimizeModuleCount: true });
+    const count = (result: CompositionResult) => result.composition.reduce((sum, item) => sum + item.quantity, 0);
+    expect(count(closest)).toBeGreaterThan(2);
+    expect(count(optimized)).toBe(2);
+    expect(optimized.realizedLength).toBeLessThanOrEqual(5000);
+  });
+
+  it("mantém o limite de cinco barras sem módulos longos e permite seis barras quando solicitado", () => {
+    const standard = calculateComposition({ ...baseInput, totalLength: 6770, allowLongModules: false, optimizeModuleCount: true });
+    const longEnabled = calculateComposition({ ...baseInput, totalLength: 6770, allowLongModules: true, optimizeModuleCount: true });
+    expect(standard.composition.every(item => item.barras <= 5)).toBe(true);
+    expect(longEnabled.composition.some(item => item.barras === 6)).toBe(true);
+  });
+
+  it("combina quantidade mínima com medidas quebradas e IFs diferentes", () => {
+    const result = calculateComposition({ ...baseInput, totalLength: 5000, allowLongModules: false, allowFractional: true, allowMixedIF: true, optimizeModuleCount: true });
+    expect(result.realizedLength).toBeLessThanOrEqual(5000);
+    expect(result.composition.every(item => item.barras <= 5)).toBe(true);
+  });
+
+  it("respeita o limite de cinco barras ao ajustar para medida maior sem módulos longos", () => {
+    const result = calculateComposition({ ...baseInput, totalLength: 6000, allowLongModules: false, adjustToLarger: true, optimizeModuleCount: true });
+    // A preferência por menor quantidade tem prioridade e pode aceitar comprimento menor.
+    // O ponto crítico é nunca liberar módulo de seis barras sem o toggle explícito.
+    expect(result.composition.every(item => item.barras <= 5)).toBe(true);
+  });
+});

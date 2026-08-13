@@ -78,6 +78,16 @@
 - [x] Cobrir a ligação de Item em planta e Quantidade ao item de perfil enviado ao carrinho do LD
 - [x] Extrair e testar a propagação de Item em planta e Quantidade para o item de perfil enviado ao carrinho
 - [x] Cobrir a integração do controle de perfil ao fluxo de resultado do LD Convidado
+- [x] Adicionar a opção Otimizar Quantidade de Módulos aos perfis modulares
+- [x] Limitar a otimização por quantidade a módulos de até cinco barras sem Permitir Módulos Longos
+- [x] Permitir combinar Otimizar Quantidade de Módulos com Medidas Quebradas e IFs Diferentes
+- [x] Exibir no configurador a lógica padrão ou as preferências modulares selecionadas
+- [x] Criar regressões para a nova preferência e suas combinações com as opções existentes
+- [x] Impedir módulos acima de cinco barras no ajuste para medida maior sem Permitir Módulos Longos
+- [x] Cobrir a combinação de ajuste para medida maior e otimização por quantidade sem módulos longos
+- [x] Extrair e renderizar o controle e indicador da nova lógica modular no configurador
+- [x] Extrair o toggle e o indicador da nova lógica modular para componente reutilizável
+- [x] Cobrir por renderização o componente de controle modular e seu indicador ativo
 - [x] Persistir foto manual de Item Especial e exibi-la no carrinho, orçamento, PDF, Excel e consultas futuras
 - [x] Exibir painel de amostra/manutenção para todos os administradores e excluir valores convertidos dos totais do dashboard
 - [x] Persistir valor comercial zero em amostras/manutenções e restaurar com segurança no cancelamento
