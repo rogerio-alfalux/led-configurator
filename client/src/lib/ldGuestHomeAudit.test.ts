@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { redactGuestQuoteSummary } from "./guestQuoteSummary";
 
 const homeSource = readFileSync(resolve(process.cwd(), "client/src/pages/Home.tsx"), "utf8");
+const cssSource = readFileSync(resolve(process.cwd(), "client/src/index.css"), "utf8");
 
 describe("auditoria da Home para LD Convidado", () => {
   it("sanitiza os dois resumos comerciais que podem conter preço", () => {
@@ -17,9 +18,29 @@ describe("auditoria da Home para LD Convidado", () => {
 
   it("mantém o carrinho e os botões de adicionar itens visíveis para o LD", () => {
     expect(homeSource).toContain('Link href="/carrinho"');
-    expect(homeSource).toContain("LdGuestCartAccess cartCount={cartCount}");
+    expect(homeSource).toContain('title="Carrinho de orçamento"');
+    expect(homeSource).toContain('id="downlight-add-cart"');
+    expect(homeSource).toContain('id="arandela-add-cart"');
+    expect(homeSource).toContain('id="spot-add-cart"');
+    expect(homeSource).toContain("ld-result-cart-action");
     expect(homeSource).toContain("onClick={() => handleAddRevendaItem");
     expect(homeSource).toContain("onClick={handleAddCustomizadoItem}");
+  });
+
+  it("oculta os resumos comerciais e a produção no modo LD, sem removê-los dos outros perfis", () => {
+    expect(homeSource).toContain('className="ld-commercial-only shadow-sm border-blue-500/30"');
+    expect(homeSource).toContain('<div className="ld-commercial-only">');
+  });
+
+  it("oculta explicitamente os resumos de Arandela e Spot no modo LD Convidado", () => {
+    const arandelaSection = homeSource.slice(homeSource.indexOf("Resultado — Arandela"), homeSource.indexOf("Resultado — Spot"));
+    const spotSection = homeSource.slice(homeSource.indexOf("Resultado — Spot"));
+    const guestHiddenCard = 'className={isConvidado ? "hidden" : "shadow-sm border-';
+    expect(arandelaSection).toContain(`${guestHiddenCard}blue-500/30"}`);
+    expect(arandelaSection).toContain(`${guestHiddenCard}green-500/30"}`);
+    expect(spotSection).toContain(`${guestHiddenCard}blue-500/30"}`);
+    expect(spotSection).toContain(`${guestHiddenCard}green-500/30"}`);
+    expect(cssSource).toContain('.convidado-mode .border-blue-500\\/30');
   });
 
   it("remove valores de resumos de luminária, LED BAR e produto com driver", () => {

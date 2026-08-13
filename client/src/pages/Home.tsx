@@ -8,7 +8,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import type { CartItemData, LinkedAccessory, ProfileSegment } from "@/lib/cartTypes";
 import { redactGuestQuoteSummary } from "@/lib/guestQuoteSummary";
 import { LdGuestTechnicalSummary } from "@/components/LdGuestTechnicalSummary";
-import { LdGuestCartAccess } from "@/components/LdGuestCartAccess";
+import { LdCommercialOnly } from "@/components/LdCommercialOnly";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -1903,7 +1903,9 @@ function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onA
       )}
 
       {/* Pedido de Produção — Template para cópia */}
-      <ProductionTemplateCard result={result} />
+      <div className="ld-commercial-only">
+        <ProductionTemplateCard result={result} />
+      </div>
     </div>
   );
 }
@@ -4805,23 +4807,19 @@ export default function Home() {
               )}
             </span>
             <Link href="/carrinho">
-              {isConvidado ? (
-                <LdGuestCartAccess cartCount={cartCount} />
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  title="Carrinho de orçamento"
-                  className="relative text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                >
-                  <ShoppingCart className="w-4 h-4" />
-                  {cartCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
-                      {cartCount > 9 ? "9+" : cartCount}
-                    </span>
-                  )}
-                </Button>
-              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Carrinho de orçamento"
+                className="relative text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                    {cartCount > 9 ? "9+" : cartCount}
+                  </span>
+                )}
+              </Button>
             </Link>
 
             {(user as any)?.role === "admin" && <Link href="/solicitacoes-ld">
@@ -11476,11 +11474,21 @@ export default function Home() {
               <div className="space-y-4">
                 {/* Card principal */}
                 <Card className="shadow-sm border-amber-500/30">
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3">
                     <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
                       <Lightbulb className="w-4 h-4 text-amber-500" />
                       Resultado — Downlight
                     </CardTitle>
+                    {isConvidado && (
+                      <Button
+                        size="sm"
+                        className="ld-result-cart-action shrink-0 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        disabled={isAddingToCart}
+                        onClick={() => document.getElementById("downlight-add-cart")?.click()}
+                      >
+                        <ShoppingCart className="w-3.5 h-3.5" /> Enviar ao carrinho
+                      </Button>
+                    )}
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {/* Foto do produto Downlight */}
@@ -11599,7 +11607,7 @@ export default function Home() {
                 )}
 
                 {/* Resumo para Orçamento */}
-                <Card className="shadow-sm border-blue-500/30">
+                <Card className="ld-commercial-only shadow-sm border-blue-500/30">
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">
                     <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-blue-500" />
@@ -11642,6 +11650,7 @@ export default function Home() {
                         <Copy className="w-3 h-3" /> Copiar Resumo
                       </Button>
                       <Button
+                        id="downlight-add-cart"
                         size="sm"
                         className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                         disabled={isAddingToCart}
@@ -12679,11 +12688,12 @@ export default function Home() {
             {productCategory === "Arandelas" && arandelaResult && (
               <div className="space-y-4">
                 <Card className="shadow-sm border-amber-500/30">
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3">
                     <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
                       <Lamp className="w-4 h-4 text-amber-500" />
                       Resultado — Arandela
                     </CardTitle>
+                    {isConvidado && <Button size="sm" className="ld-result-cart-action shrink-0 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={isAddingToCart} onClick={() => document.getElementById("arandela-add-cart")?.click()}><ShoppingCart className="w-3.5 h-3.5" /> Enviar ao carrinho</Button>}
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {/* Foto do produto */}
@@ -12797,7 +12807,7 @@ export default function Home() {
                   </div>
                 )}
                 {/* Resumo para Orçamento */}
-                <Card className="shadow-sm border-blue-500/30">
+                <Card className={isConvidado ? "hidden" : "shadow-sm border-blue-500/30"}>
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">
                     <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-blue-500" />
@@ -12838,6 +12848,7 @@ export default function Home() {
                         <Copy className="w-3 h-3" /> Copiar Orçamento
                       </Button>
                       <Button
+                        id="arandela-add-cart"
                         size="sm"
                         className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                         disabled={isAddingToCart}
@@ -12932,7 +12943,7 @@ export default function Home() {
                   </CardContent>
                 </Card>
                 {/* Resumo para Pedido */}
-                <Card className="shadow-sm border-green-500/30">
+                <Card className={isConvidado ? "hidden" : "shadow-sm border-green-500/30"}>
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">
                     <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
                       <ClipboardCheck className="w-4 h-4 text-green-500" />
@@ -12992,11 +13003,12 @@ export default function Home() {
             {productCategory === "Spots" && spotResult && (
               <div className="space-y-4">
                 <Card className="shadow-sm border-orange-500/30">
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3">
                     <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
                       <Focus className="w-4 h-4 text-orange-500" />
                       Resultado — Spot
                     </CardTitle>
+                    {isConvidado && <Button size="sm" className="ld-result-cart-action shrink-0 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={isAddingToCart} onClick={() => document.getElementById("spot-add-cart")?.click()}><ShoppingCart className="w-3.5 h-3.5" /> Enviar ao carrinho</Button>}
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {/* Foto do produto Spot */}
@@ -13103,7 +13115,7 @@ export default function Home() {
                   </div>
                 )}
                 {/* Resumo para Orçamento */}
-                <Card className="shadow-sm border-blue-500/30">
+                <Card className={isConvidado ? "hidden" : "shadow-sm border-blue-500/30"}>
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">
                     <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-blue-500" />
@@ -13144,6 +13156,7 @@ export default function Home() {
                         <Copy className="w-3 h-3" /> Copiar Resumo
                       </Button>
                       <Button
+                        id="spot-add-cart"
                         size="sm"
                         className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                         disabled={isAddingToCart}
@@ -13235,7 +13248,7 @@ export default function Home() {
                   </CardContent>
                 </Card>
                 {/* Resumo para Pedido */}
-                <Card className="shadow-sm border-green-500/30">
+                <Card className={isConvidado ? "hidden" : "shadow-sm border-green-500/30"}>
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">
                     <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
                       <ClipboardCheck className="w-4 h-4 text-green-500" />

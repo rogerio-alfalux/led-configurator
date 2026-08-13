@@ -54,6 +54,16 @@
 - [x] Auditar e liberar o cálculo sem tensão nos demais fluxos de produtos sem driver da API
 - [x] Padronizar a detecção de produtos sem driver para não depender apenas do campo de lâmpada
 - [x] Cobrir por regressão uma categoria adicional sem driver e manter a seleção de tensão em produtos com driver
+- [x] Restaurar o ícone padrão do carrinho no cabeçalho para LD Convidado
+- [x] Posicionar o botão Enviar ao carrinho no canto superior direito de cada cartão de resultado para LD Convidado
+- [x] Ocultar para LD Convidado os blocos Resumo para Orçamento, Resumo para Pedido e Pedido de Produção
+- [x] Cobrir por testes a presença do CTA no resultado e a ausência de blocos comerciais para LD Convidado
+- [x] Posicionar o CTA Enviar ao carrinho nos cartões de Arandela e Spot para LD Convidado
+- [x] Cobrir por regressão o CTA no cartão de Arandela e Spot e a ocultação dos resumos correspondentes
+- [x] Validar explicitamente que os resumos de orçamento e pedido de Arandela e Spot não aparecem para LD Convidado
+- [x] Cobrir por renderização a supressão dos cartões comerciais de Arandela e Spot no modo LD Convidado
+- [x] Aplicar no JSX a supressão de resumos comerciais de Arandela e Spot para LD Convidado
+- [x] Validar por renderização que Arandela e Spot mantêm os resumos para perfis internos e os removem para LD
 - [x] Persistir foto manual de Item Especial e exibi-la no carrinho, orçamento, PDF, Excel e consultas futuras
 - [x] Exibir painel de amostra/manutenção para todos os administradores e excluir valores convertidos dos totais do dashboard
 - [x] Persistir valor comercial zero em amostras/manutenções e restaurar com segurança no cancelamento

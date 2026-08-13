@@ -253,9 +253,13 @@
   }
 }
 
-/* ─── LD Convidado: ocultar preços, custos e botões de carrinho ─────────────── */
-.convidado-mode .cart-action-btn,
-.convidado-mode button[class*="bg-emerald-600"],
-.convidado-mode button[class*="bg-purple-600"] {
+/* ─── LD Convidado: ocultar somente blocos comerciais e de produção ────────── */
+.convidado-mode .ld-commercial-only {
+  display: none !important;
+}
+
+/* Os cartões azul e verde são os resumos comercial e de pedido de cada resultado. */
+.convidado-mode .border-blue-500\/30,
+.convidado-mode .border-green-500\/30 {
   display: none !important;
 }
