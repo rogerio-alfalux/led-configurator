@@ -42,6 +42,7 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { CartItemData, formatBRL, parseCartItemData, extractPowerLabelFromName, toPowerLabel, type QuoteFormData } from "@/lib/cartTypes";
 import { getPersistedItemPhotoUrl } from "@/lib/itemPhoto";
+import { formatLinkedCommercialQuote } from "@/lib/sampleLinkPresentation";
 import { isLdRequestLinkedToQuote } from "@/lib/ldRequestUtils";
 import { linkSampleOrderByQuoteNumber } from "@/lib/sampleLinkFlow";
 import { buildSampleCommercialProjection } from "@/lib/sampleCommercialAdjustment";
@@ -4184,7 +4185,9 @@ export default function QuoteDetail() {
                   <p className="text-xs font-medium text-muted-foreground">Vinculações:</p>
                   {((sampleQuery.data as any).links as any[]).map((link: any) => (
                     <div key={link.id} className="flex items-center justify-between text-xs bg-background rounded px-2 py-1">
-                      <span>Orç. #{link.linkedQuoteId} — {link.linkType === "cobrar" ? "Cobrar" : link.linkType === "diluir" ? "Diluir" : "Associar"}</span>
+                      <Link href={`/orcamentos/${link.linkedQuoteId}`} className="font-medium text-primary underline-offset-2 hover:underline">
+                        {formatLinkedCommercialQuote(link.linkedQuoteNumber, link.linkType)}
+                      </Link>
                       <Button variant="ghost" size="sm" className="h-5 px-1 text-red-500" onClick={() => unlinkSampleMutation.mutate({ id: link.id, sampleOrderId: sampleQuery.data!.id })}>
                         <XIcon className="w-3 h-3" />
                       </Button>
@@ -4237,6 +4240,21 @@ export default function QuoteDetail() {
                 </Badge>
               </div>
               {maintenanceFinancialTransfer && <p className="rounded bg-sky-100 px-2 py-1 text-xs text-sky-800 dark:bg-sky-900/30 dark:text-sky-300">Custo e receita transferidos ao orçamento vinculado por {maintenanceFinancialTransfer.linkType === "diluir" ? "diluição" : "cobrança"}.</p>}
+              {((maintenanceQuery.data as any).links?.length ?? 0) > 0 && (
+                <div className="border-t pt-2 mt-2 space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Vinculações:</p>
+                  {((maintenanceQuery.data as any).links as any[]).map((link: any) => (
+                    <div key={link.id} className="flex items-center justify-between text-xs bg-background rounded px-2 py-1">
+                      <Link href={`/orcamentos/${link.linkedQuoteId}`} className="font-medium text-primary underline-offset-2 hover:underline">
+                        {formatLinkedCommercialQuote(link.linkedQuoteNumber, link.linkType)}
+                      </Link>
+                      <Button variant="ghost" size="sm" className="h-5 px-1 text-red-500" onClick={() => unlinkSampleMutation.mutate({ id: link.id, sampleOrderId: maintenanceQuery.data!.id })}>
+                        <XIcon className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="flex gap-2 mt-2 flex-wrap">
                 <Button variant="outline" size="sm" className="gap-1" onClick={() => { setLinkSourceOrderId(maintenanceQuery.data!.id); setLinkSourceKind("maintenance"); setSampleLinkDialogOpen(true); }}>
                   <Link2 className="w-3 h-3" />

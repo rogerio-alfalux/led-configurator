@@ -35,6 +35,19 @@
 - [x] Validar o caso 33.9995-26 para 33.9996-26 com receita no destino e custo transferido corretamente
 - [x] Cobrir por integração o vínculo simples preservando custo no pedido original e sem custo no destino
 - [x] Identificar explicitamente amostras e manutenções quitadas no dashboard principal
+- [x] Exibir o número comercial correto e clicável do orçamento vinculado em amostras
+- [x] Aplicar número comercial clicável do orçamento vinculado em manutenções
+- [x] Corrigir a disponibilidade do carrinho para LD Convidado, incluindo o login vivian_rf@yahoo.com.br
+- [x] Cobrir por testes a resolução do número comercial e o acesso ao carrinho do LD Convidado
+- [x] Remover preços de luminária, driver e total do Resumo para Orçamento do LD Convidado
+- [x] Auditar e bloquear qualquer texto monetário remanescente nas telas acessíveis ao LD Convidado
+- [x] Validar por renderização o envio de produto ao carrinho e o acesso ao carrinho para LD Convidado
+- [x] Auditar os resumos e cards de preço das categorias acessíveis ao LD Convidado
+- [x] Adicionar regressão para ausência de texto monetário nos resumos técnicos das categorias acessíveis ao LD
+- [x] Criar componentes testáveis de resumo técnico e acesso ao carrinho para renderização do fluxo LD Convidado
+- [x] Cobrir por renderização ausência de valores e disponibilidade do carrinho nas categorias acessíveis ao LD
+- [x] Extrair e testar por renderização o CTA de acesso ao carrinho do LD Convidado
+- [x] Cobrir por renderização o resumo técnico de luminária e LED BAR sem textos monetários
 - [x] Persistir foto manual de Item Especial e exibi-la no carrinho, orçamento, PDF, Excel e consultas futuras
 - [x] Exibir painel de amostra/manutenção para todos os administradores e excluir valores convertidos dos totais do dashboard
 - [x] Persistir valor comercial zero em amostras/manutenções e restaurar com segurança no cancelamento

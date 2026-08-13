@@ -6,6 +6,9 @@ import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/_core/hooks/useAuth";
 import type { CartItemData, LinkedAccessory, ProfileSegment } from "@/lib/cartTypes";
+import { redactGuestQuoteSummary } from "@/lib/guestQuoteSummary";
+import { LdGuestTechnicalSummary } from "@/components/LdGuestTechnicalSummary";
+import { LdGuestCartAccess } from "@/components/LdGuestCartAccess";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -4802,19 +4805,23 @@ export default function Home() {
               )}
             </span>
             <Link href="/carrinho">
-              <Button
-                variant="ghost"
-                size="icon"
-                title="Carrinho de orçamento"
-                className="relative text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              >
-                <ShoppingCart className="w-4 h-4" />
-                {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
-                    {cartCount > 9 ? "9+" : cartCount}
-                  </span>
-                )}
-              </Button>
+              {isConvidado ? (
+                <LdGuestCartAccess cartCount={cartCount} />
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="Carrinho de orçamento"
+                  className="relative text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                      {cartCount > 9 ? "9+" : cartCount}
+                    </span>
+                  )}
+                </Button>
+              )}
             </Link>
 
             {(user as any)?.role === "admin" && <Link href="/solicitacoes-ld">
@@ -9645,7 +9652,7 @@ export default function Home() {
                           </CardHeader>
                           <CardContent>
                             {/* Detalhamento do preço (apenas para famílias com tabela de preço) */}
-                            {lbDetail !== null && (
+                            {!isConvidado && lbDetail !== null && (
                             <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3 mb-3 space-y-0.5">
                               {lbDetail.perfilFlexivel ? (
                                 // PERFIL FLEXÍVEL: mesmo detalhamento do LED BAR (perfil + drivers)
@@ -9692,17 +9699,21 @@ export default function Home() {
                               )}
                             </div>
                             )}
-                            {lbPreco === null && (
+                            {!isConvidado && lbPreco === null && (
                               <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2 mb-3">
                                 <span className="text-amber-400 text-xs font-medium flex items-center gap-1"><AlertTriangle className="w-3 h-3 shrink-0" />Preço não cadastrado — preencha manualmente no carrinho ou no orçamento.</span>
                               </div>
                             )}
-                            <div
-                              className="font-mono text-sm bg-muted/50 rounded-lg p-4 cursor-text select-all whitespace-pre-wrap"
-                              onClick={(e) => { const sel = window.getSelection(); sel?.selectAllChildren(e.currentTarget); }}
-                            >
-                              {orcamento}
-                            </div>
+                            {isConvidado ? (
+                              <LdGuestTechnicalSummary summary={orcamento} />
+                            ) : (
+                              <div
+                                className="font-mono text-sm bg-muted/50 rounded-lg p-4 cursor-text select-all whitespace-pre-wrap"
+                                onClick={(e) => { const sel = window.getSelection(); sel?.selectAllChildren(e.currentTarget); }}
+                              >
+                                {orcamento}
+                              </div>
+                            )}
                             <p className="text-xs text-muted-foreground mt-2">Clique no texto para selecionar ou use o botão para copiar.</p>
                             <div className="flex flex-wrap items-center gap-2 mt-2">
                               <div className="flex items-center gap-1.5">
@@ -9728,7 +9739,7 @@ export default function Home() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => { navigator.clipboard.writeText(orcamento); toast.success("Resumo copiado!"); }}
+                                onClick={() => { navigator.clipboard.writeText(isConvidado ? redactGuestQuoteSummary(orcamento) : orcamento); toast.success("Resumo copiado!"); }}
                               >
                                 <Copy className="w-3 h-3 mr-1" /> Copiar Resumo
                               </Button>
@@ -10041,12 +10052,16 @@ export default function Home() {
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div
-                            className="font-mono text-sm bg-muted/50 rounded-lg p-4 cursor-text select-all whitespace-pre-wrap"
-                            onClick={(e) => { const sel = window.getSelection(); sel?.selectAllChildren(e.currentTarget); }}
-                          >
-                            {orcamento}
-                          </div>
+                          {isConvidado ? (
+                            <LdGuestTechnicalSummary summary={orcamento} />
+                          ) : (
+                            <div
+                              className="font-mono text-sm bg-muted/50 rounded-lg p-4 cursor-text select-all whitespace-pre-wrap"
+                              onClick={(e) => { const sel = window.getSelection(); sel?.selectAllChildren(e.currentTarget); }}
+                            >
+                              {orcamento}
+                            </div>
+                          )}
                           {!isConvidado && r.precoPerfil !== null && r.precoPerfil !== undefined ? (
                             <div className="mt-3 space-y-1.5">
                               <div className="flex items-center justify-between rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-2.5">
@@ -10110,7 +10125,7 @@ export default function Home() {
                                 onChange={(e) => setGlobalQty(Math.max(1, parseInt(e.target.value) || 1))}
                               />
                             </div>
-                            <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(orcamento); toast.success("Resumo copiado!"); }}>
+                            <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(isConvidado ? redactGuestQuoteSummary(orcamento) : orcamento); toast.success("Resumo copiado!"); }}>
                               <Copy className="w-3 h-3 mr-1" /> Copiar Resumo
                             </Button>
                             <Button

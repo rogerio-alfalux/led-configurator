@@ -2651,7 +2651,22 @@ export async function reverseNonCommercialRevenueTransfer(linkedQuoteId: number,
 export async function listSampleLinks(sampleOrderId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(sampleLinks).where(eq(sampleLinks.sampleOrderId, sampleOrderId)).orderBy(desc(sampleLinks.createdAt));
+  return db.select({
+    id: sampleLinks.id,
+    sampleOrderId: sampleLinks.sampleOrderId,
+    linkedQuoteId: sampleLinks.linkedQuoteId,
+    linkedQuoteNumber: quotes.quoteNumber,
+    linkType: sampleLinks.linkType,
+    notes: sampleLinks.notes,
+    transferredRevenue: sampleLinks.transferredRevenue,
+    transferredCost: sampleLinks.transferredCost,
+    financialTransferredAt: sampleLinks.financialTransferredAt,
+    createdByUserId: sampleLinks.createdByUserId,
+    createdAt: sampleLinks.createdAt,
+  }).from(sampleLinks)
+    .innerJoin(quotes, eq(quotes.id, sampleLinks.linkedQuoteId))
+    .where(eq(sampleLinks.sampleOrderId, sampleOrderId))
+    .orderBy(desc(sampleLinks.createdAt));
 }
 
 /** Busca uma vinculação para reverter sua transferência financeira quando necessário. */
