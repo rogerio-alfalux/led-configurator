@@ -48,6 +48,12 @@
 - [x] Cobrir por renderização ausência de valores e disponibilidade do carrinho nas categorias acessíveis ao LD
 - [x] Extrair e testar por renderização o CTA de acesso ao carrinho do LD Convidado
 - [x] Cobrir por renderização o resumo técnico de luminária e LED BAR sem textos monetários
+- [x] Permitir calcular arandelas e demais produtos sem driver sem selecionar tensão de driver
+- [x] Ocultar ou desativar a seleção de tensão quando a API não informar driver para o produto
+- [x] Cobrir por testes produtos sem driver e preservar a exigência de tensão para produtos com driver
+- [x] Auditar e liberar o cálculo sem tensão nos demais fluxos de produtos sem driver da API
+- [x] Padronizar a detecção de produtos sem driver para não depender apenas do campo de lâmpada
+- [x] Cobrir por regressão uma categoria adicional sem driver e manter a seleção de tensão em produtos com driver
 - [x] Persistir foto manual de Item Especial e exibi-la no carrinho, orçamento, PDF, Excel e consultas futuras
 - [x] Exibir painel de amostra/manutenção para todos os administradores e excluir valores convertidos dos totais do dashboard
 - [x] Persistir valor comercial zero em amostras/manutenções e restaurar com segurança no cancelamento

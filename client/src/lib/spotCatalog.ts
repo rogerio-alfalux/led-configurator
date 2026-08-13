@@ -4,6 +4,7 @@
  * Revisão: 15/05/2026 -- 3 produtos (ZEUS)
  */
 import type { ControleType } from "./downlightCatalog";
+import { requiresExternalDriver } from "./driverRequirement";
 
 export interface SpotDriver {
   model: string;
@@ -136,6 +137,10 @@ export interface SpotResult {
   holderEq: string | null;
 }
 
+export function spotRequiresDriver(product: Pick<SpotProduct, "driver220" | "driverBivolt">): boolean {
+  return requiresExternalDriver(product);
+}
+
 /** Catálogo estático de fallback — será sobreposto pelos dados da API */
 export const SPOT_CATALOG: SpotProduct[] = [
   {
@@ -213,24 +218,6 @@ export function calculateSpot(catalog: SpotProduct[], input: SpotInput): SpotRes
   const driver = input.tensao === "Bivolt" && product.driverBivolt
     ? product.driverBivolt
     : product.driver220;
-
-  // Produto com lâmpada (sem driver, sem módulo LED): retornar resultado sem driver
-  if (!driver && product.isLamp) {
-    return {
-      product,
-      tensao: input.tensao,
-      cct: input.cct,
-      controle: input.controle,
-      driver: { model: "", code: "" },
-      ledModuleWithCCT: null,
-      ledModuleEq: null,
-      oticaEq: null,
-      oticaPrimariaEq: null,
-      oticaSecundariaEq: null,
-      dissipadorEq: null,
-      holderEq: null,
-    };
-  }
 
   // Produto RGBW: usar ledModule diretamente sem adicionar CCT
   let ledModuleWithCCT: string | null;

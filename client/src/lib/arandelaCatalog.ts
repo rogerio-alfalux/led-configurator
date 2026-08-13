@@ -5,6 +5,7 @@
  * Revisão: 25/05/2026 — 1 produto (TRICK)
  */
 import type { ControleType } from "./downlightCatalog";
+import { requiresExternalDriver } from "./driverRequirement";
 
 export interface ArandelaDriver {
   model: string;
@@ -137,6 +138,11 @@ export interface ArandelaResult {
   holderEq: string | null;
 }
 
+/** A seleção de tensão só é necessária quando a API informou ao menos um driver. */
+export function arandelaRequiresDriver(product: Pick<ArandelaProduct, "driver220" | "driverBivolt">): boolean {
+  return requiresExternalDriver(product);
+}
+
 /** Catálogo estático de fallback — será sobreposto pelos dados da API */
 export const ARANDELA_CATALOG: ArandelaProduct[] = [
   {
@@ -174,24 +180,6 @@ export function calculateArandela(catalog: ArandelaProduct[], input: ArandelaInp
   const driver = input.tensao === "Bivolt" && product.driverBivolt
     ? product.driverBivolt
     : product.driver220;
-
-  // Produto com lâmpada (sem driver, sem módulo LED): retornar resultado sem driver
-  if (!driver && product.isLamp) {
-    return {
-      product,
-      tensao: input.tensao,
-      cct: input.cct,
-      controle: input.controle,
-      driver: { model: "", code: "" },
-      ledModuleWithCCT: null,
-      ledModuleEq: null,
-      oticaEq: null,
-      oticaPrimariaEq: null,
-      oticaSecundariaEq: null,
-      dissipadorEq: null,
-      holderEq: null,
-    };
-  }
 
   // Produto RGBW: usar ledModule diretamente sem adicionar CCT
   let ledModuleWithCCT: string | null;

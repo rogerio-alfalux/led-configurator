@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SPOT_CATALOG, calculateSpot } from "./spotCatalog";
+import { SPOT_CATALOG, calculateSpot, spotRequiresDriver } from "./spotCatalog";
 
 describe("SPOT_CATALOG", () => {
   it("deve ter 3 produtos no catálogo de fallback", () => {
@@ -92,5 +92,26 @@ describe("calculateSpot", () => {
       const result = calculateSpot(SPOT_CATALOG, { productSku: p.sku, tensao: "220V", cct: "3000K", controle: "ON/OFF" });
       expect(result).not.toBeNull();
     }
+  });
+
+  it("calcula um spot com LED integrado e sem driver sem criar driver fictício", () => {
+    const spotWithoutDriver = {
+      ...zeusProduct,
+      sku: "SPOT-SEM-DRIVER",
+      name: "SPOT LED INTEGRADO 5W",
+      driver220: null,
+      driverBivolt: null,
+      driverQtd220: null,
+      driverQtdBivolt: null,
+      ledModule: "LED INTEGRADO [CCT]",
+    };
+    expect(spotRequiresDriver(spotWithoutDriver)).toBe(false);
+    const result = calculateSpot([spotWithoutDriver], { productSku: spotWithoutDriver.sku!, tensao: "220V", cct: "3000K", controle: "ON/OFF" });
+    expect(result?.driver).toEqual({ model: "", code: "" });
+    expect(result?.ledModuleWithCCT).toBe("LED INTEGRADO 3000K");
+  });
+
+  it("mantém o requisito de driver para um spot tradicional", () => {
+    expect(spotRequiresDriver(zeusProduct)).toBe(true);
   });
 });

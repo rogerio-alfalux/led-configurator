@@ -49,9 +49,9 @@ import {
   calculatePainel,
 } from "@/lib/painelCatalog";
 import type { PainelResult } from "@/lib/painelCatalog";
-import { SPOT_CATALOG, calculateSpot } from "@/lib/spotCatalog";
+import { SPOT_CATALOG, calculateSpot, spotRequiresDriver } from "@/lib/spotCatalog";
 import type { SpotProduct, SpotResult } from "@/lib/spotCatalog";
-import { ARANDELA_CATALOG, calculateArandela } from "@/lib/arandelaCatalog";
+import { ARANDELA_CATALOG, arandelaRequiresDriver, calculateArandela } from "@/lib/arandelaCatalog";
 import type { ArandelaProduct, ArandelaResult } from "@/lib/arandelaCatalog";
 import { adaptAlfaluxProducts } from "@/lib/alfaluxApiAdapter";
 import { useAlfaluxProducts } from "@/hooks/useAlfaluxProducts";
@@ -8003,7 +8003,8 @@ export default function Home() {
                           // Auto-selecionar tensão quando só há uma opção disponível
                           const newHas220Sp = newProd?.driver220 != null;
                           const newHasBivoltSp = newProd?.driverBivolt != null;
-                          if (!newHas220Sp && newHasBivoltSp) setSpotVoltage("Bivolt");
+                          if (newProd && !spotRequiresDriver(newProd)) setSpotVoltage("220V");
+                          else if (!newHas220Sp && newHasBivoltSp) setSpotVoltage("Bivolt");
                           else if (newHas220Sp && !newHasBivoltSp) setSpotVoltage("220V");
                           else setSpotVoltage(null);
                           if (newProd?.isRgbw) { setSpotCCT("RGBW"); }
@@ -8053,8 +8054,13 @@ export default function Home() {
                       <p className="text-xs text-muted-foreground">DIM 1-10V e DIM DALI serão habilitados quando os dados estiverem disponíveis.</p>
                     </div>
                   )}
-                  {/* Tensão */}
-                  {spotProductKey !== null && (
+                  {/* Tensão — só é aplicável quando a API informa driver. */}
+                  {spotProductKey !== null && (() => {
+                    const [_sSku, ..._sNameParts] = (spotProductKey ?? '::').split('::');
+                    const _sName = _sNameParts.join('::');
+                    const _sProd = activeSpotCatalog.find(p => p.sku === _sSku && p.name === _sName);
+                    if (!_sProd || !spotRequiresDriver(_sProd)) return null;
+                    return (
                     <div className="space-y-1.5">
                       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
                       <div className="flex gap-2">
@@ -8085,7 +8091,8 @@ export default function Home() {
                         </p>
                       )}
                     </div>
-                  )}
+                    );
+                  })()}
                   {/* CCT */}
                   {spotProductKey !== null && (() => {
                     const spotSelProd = activeSpotCatalog.find(p => { const [s, ...np] = (spotProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
@@ -8200,7 +8207,8 @@ export default function Home() {
                             // Auto-selecionar tensão quando só há uma opção disponível
                             const newHas220Ar = newProd.driver220 != null;
                             const newHasBivoltAr = newProd.driverBivolt != null;
-                            if (!newHas220Ar && newHasBivoltAr) setArandelaVoltage("Bivolt");
+                            if (!arandelaRequiresDriver(newProd)) setArandelaVoltage("220V");
+                            else if (!newHas220Ar && newHasBivoltAr) setArandelaVoltage("Bivolt");
                             else if (newHas220Ar && !newHasBivoltAr) setArandelaVoltage("220V");
                             else setArandelaVoltage(null);
                             if (newProd.isRgbw) { setArandelaCCT("RGBW"); }
@@ -8255,8 +8263,13 @@ export default function Home() {
                       </div>
                     );
                   })()}
-                  {/* Tensão */}
-                  {arandelaProductKey !== null && (
+                  {/* Tensão — só é aplicável quando a API informa driver. */}
+                  {arandelaProductKey !== null && (() => {
+                    const [_aSku, ..._aNameParts] = (arandelaProductKey ?? '::').split('::');
+                    const _aName = _aNameParts.join('::');
+                    const _aProd = activeArandelaCatalog.find(p => p.sku === _aSku && p.name === _aName);
+                    if (!_aProd || !arandelaRequiresDriver(_aProd)) return null;
+                    return (
                     <div className="space-y-1.5">
                       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
                       <div className="flex gap-2">
@@ -8282,7 +8295,8 @@ export default function Home() {
                         })}
                       </div>
                     </div>
-                  )}
+                    );
+                  })()}
                   {/* CCT */}
                   {arandelaProductKey !== null && (() => {
                     const arandelaSelProd = activeArandelaCatalog.find(p => { const [s, ...np] = (arandelaProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
@@ -8342,7 +8356,7 @@ export default function Home() {
                 )}
                 {arandelaProductKey !== null && !arandelaVoltage && (() => {
                   const arSelProdBtn = activeArandelaCatalog.find(p => { const [s, ...np] = (arandelaProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
-                  if (arSelProdBtn?.isLamp) return null;
+                  if (!arSelProdBtn || !arandelaRequiresDriver(arSelProdBtn)) return null;
                   return (
                     <p className="text-xs text-amber-500 flex items-center gap-1.5">
                       <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
@@ -8352,14 +8366,14 @@ export default function Home() {
                 <Button
                   disabled={arandelaProductKey === null || (() => {
                     const arSelProdBtn2 = activeArandelaCatalog.find(p => { const [s, ...np] = (arandelaProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
-                    return !arSelProdBtn2?.isLamp && !arandelaVoltage;
+                    return Boolean(arSelProdBtn2 && arandelaRequiresDriver(arSelProdBtn2) && !arandelaVoltage);
                   })()}
                   onClick={() => {
                     if (arandelaProductKey === null) return;
                     const [arandelaSku, ...arandelaNameParts] = (arandelaProductKey ?? '::').split('::');
                     const arandelaName = arandelaNameParts.join('::');
                     const arSelProdBtn3 = activeArandelaCatalog.find(p => p.sku === arandelaSku && p.name === arandelaName);
-                    const arTensaoToUse = (arSelProdBtn3?.isLamp ? "220V" : arandelaVoltage) as "220V" | "Bivolt";
+                    const arTensaoToUse = (arandelaRequiresDriver(arSelProdBtn3 ?? { driver220: null, driverBivolt: null }) ? arandelaVoltage : "220V") as "220V" | "Bivolt";
                     if (!arTensaoToUse) return;
                     setArandelaResult(calculateArandela(activeArandelaCatalog, { productSku: arandelaSku, productName: arandelaName, tensao: arTensaoToUse, cct: arandelaCCT, controle: arandelaControle }));
                   }}
@@ -8391,7 +8405,7 @@ export default function Home() {
                 )}
                 {spotProductKey !== null && !spotVoltage && (() => {
                   const spotSelProdBtn = activeSpotCatalog.find(p => { const [s, ...np] = (spotProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
-                  if (spotSelProdBtn?.isLamp) return null;
+                  if (!spotSelProdBtn || !spotRequiresDriver(spotSelProdBtn)) return null;
                   return (
                     <p className="text-xs text-amber-500 flex items-center gap-1.5">
                       <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
@@ -8401,14 +8415,14 @@ export default function Home() {
                 <Button
                   disabled={spotProductKey === null || (() => {
                     const spotSelProdBtn2 = activeSpotCatalog.find(p => { const [s, ...np] = (spotProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
-                    return !spotSelProdBtn2?.isLamp && !spotVoltage;
+                    return Boolean(spotSelProdBtn2 && spotRequiresDriver(spotSelProdBtn2) && !spotVoltage);
                   })()}
                   onClick={() => {
                     if (spotProductKey === null) return;
                     const [spotSku, ...spotNameParts] = (spotProductKey ?? '::').split('::');
                     const spotName = spotNameParts.join('::');
                     const spotSelProdBtn3 = activeSpotCatalog.find(p => p.sku === spotSku && p.name === spotName);
-                    const spotTensaoToUse = (spotSelProdBtn3?.isLamp ? "220V" : spotVoltage) as "220V" | "Bivolt";
+                    const spotTensaoToUse = (spotRequiresDriver(spotSelProdBtn3 ?? { driver220: null, driverBivolt: null }) ? spotVoltage : "220V") as "220V" | "Bivolt";
                     if (!spotTensaoToUse) return;
                     setSpotResult(calculateSpot(activeSpotCatalog, { productSku: spotSku, productName: spotName, tensao: spotTensaoToUse, cct: spotCCT, controle: spotControle }));
                   }}
@@ -12829,7 +12843,10 @@ export default function Home() {
                         disabled={isAddingToCart}
                         onClick={() => {
                           const preco = getPrecoForControle(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao);
-                          const arandelaDrvLines = buildLumDriverLines(arandelaResult.product.sku ?? "", arandelaResult.controle, arandelaResult.tensao, 1, arandelaResult.driver.model, arandelaResult.driver.code, lumPriceMap, arandelaResult.product.name ?? undefined, arandelaResult.driver.corrente ?? null);
+                          const arandelaHasDriver = Boolean(arandelaResult.driver.model.trim());
+                          const arandelaDrvLines = arandelaHasDriver
+                            ? buildLumDriverLines(arandelaResult.product.sku ?? "", arandelaResult.controle, arandelaResult.tensao, 1, arandelaResult.driver.model, arandelaResult.driver.code, lumPriceMap, arandelaResult.product.name ?? undefined, arandelaResult.driver.corrente ?? null)
+                            : null;
                           const item: CartItemData = {
                             category: "Arandelas",
                             sku: arandelaResult.product.sku ?? "",
@@ -12841,11 +12858,11 @@ export default function Home() {
                             totalPrice: preco ?? null,
                             priceFromApi: preco != null,
                             photoUrl: arandelaResult.product.fotoUrl ?? "",
-                            orderSummary: (() => { const parts: string[] = []; if (arandelaResult.ledModuleWithCCT) { const mQtd = arandelaResult.product.ledModuleQtd; const mPrefix = mQtd != null ? `${mQtd}x ` : ""; const arModEq = arandelaResult.ledModuleEq ? ` (${arandelaResult.ledModuleEq})` : ""; parts.push(`${mPrefix}${arandelaResult.ledModuleWithCCT.toUpperCase()}${arModEq}`); } if (arandelaResult.product.oticaPrimaria) { const oEq1 = arandelaResult.oticaPrimariaEq ? ` (${arandelaResult.oticaPrimariaEq})` : ""; parts.push(`${arandelaResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (arandelaResult.product.oticaSecundaria) { const oEq2 = arandelaResult.oticaSecundariaEq ? ` (${arandelaResult.oticaSecundariaEq})` : ""; parts.push(`${arandelaResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (arandelaResult.product.otica) { const oEq = arandelaResult.oticaEq ? ` (${arandelaResult.oticaEq})` : ""; parts.push(`${arandelaResult.product.otica.toUpperCase()}${oEq}`); } if (arandelaResult.product.holder) { const hEq = arandelaResult.holderEq ? ` (${arandelaResult.holderEq})` : ""; parts.push(`${arandelaResult.product.holder.toUpperCase()}${hEq}`); } if (arandelaResult.product.dissipador) { const dEq = arandelaResult.dissipadorEq ? ` (${arandelaResult.dissipadorEq})` : ""; parts.push(`${arandelaResult.product.dissipador.toUpperCase()}${dEq}`); } const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); parts.push(`${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`); const skuLine = arandelaResult.product.sku ? `CÓDIGO: ${arandelaResult.product.sku}\n` : ""; return `${skuLine}${arandelaResult.product.name.toUpperCase()} ${arandelaResult.cct} ${arandelaResult.controle.toUpperCase()} ${arandelaResult.tensao} MONTADA COM ${parts.join(" + ")}`; })(),
+                            orderSummary: (() => { const parts: string[] = []; if (arandelaResult.ledModuleWithCCT) { const mQtd = arandelaResult.product.ledModuleQtd; const mPrefix = mQtd != null ? `${mQtd}x ` : ""; const arModEq = arandelaResult.ledModuleEq ? ` (${arandelaResult.ledModuleEq})` : ""; parts.push(`${mPrefix}${arandelaResult.ledModuleWithCCT.toUpperCase()}${arModEq}`); } if (arandelaResult.product.oticaPrimaria) { const oEq1 = arandelaResult.oticaPrimariaEq ? ` (${arandelaResult.oticaPrimariaEq})` : ""; parts.push(`${arandelaResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (arandelaResult.product.oticaSecundaria) { const oEq2 = arandelaResult.oticaSecundariaEq ? ` (${arandelaResult.oticaSecundariaEq})` : ""; parts.push(`${arandelaResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (arandelaResult.product.otica) { const oEq = arandelaResult.oticaEq ? ` (${arandelaResult.oticaEq})` : ""; parts.push(`${arandelaResult.product.otica.toUpperCase()}${oEq}`); } if (arandelaResult.product.holder) { const hEq = arandelaResult.holderEq ? ` (${arandelaResult.holderEq})` : ""; parts.push(`${arandelaResult.product.holder.toUpperCase()}${hEq}`); } if (arandelaResult.product.dissipador) { const dEq = arandelaResult.dissipadorEq ? ` (${arandelaResult.dissipadorEq})` : ""; parts.push(`${arandelaResult.product.dissipador.toUpperCase()}${dEq}`); } if (arandelaHasDriver) { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); parts.push(`${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`); } const skuLine = arandelaResult.product.sku ? `CÓDIGO: ${arandelaResult.product.sku}\n` : ""; return `${skuLine}${arandelaResult.product.name.toUpperCase()} ${arandelaResult.cct} ${arandelaResult.controle.toUpperCase()} ${arandelaResult.tensao} MONTADA COM ${parts.join(" + ")}`; })(),
                             quoteSummary: `${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.controle} ${arandelaResult.tensao}`.toUpperCase(),
                             moduloLedCode: arandelaResult.ledModuleEq ?? null,
                             moduloLed: (() => { const mQtd = arandelaResult.product.ledModuleQtd; const mPrefix = mQtd != null ? `${mQtd}x ` : ""; const arModEq = arandelaResult.ledModuleEq ? ` (${arandelaResult.ledModuleEq})` : ""; const parts: string[] = [`${mPrefix}${arandelaResult.ledModuleWithCCT?.toUpperCase() ?? ""}${arModEq}`]; if (arandelaResult.product.oticaPrimaria) { const oEq1 = arandelaResult.oticaPrimariaEq ? ` (${arandelaResult.oticaPrimariaEq})` : ""; parts.push(`${arandelaResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (arandelaResult.product.oticaSecundaria) { const oEq2 = arandelaResult.oticaSecundariaEq ? ` (${arandelaResult.oticaSecundariaEq})` : ""; parts.push(`${arandelaResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (arandelaResult.product.otica) { const oEq = arandelaResult.oticaEq ? ` (${arandelaResult.oticaEq})` : ""; parts.push(`${arandelaResult.product.otica.toUpperCase()}${oEq}`); } if (arandelaResult.product.holder) { const hEq = arandelaResult.holderEq ? ` (${arandelaResult.holderEq})` : ""; parts.push(`${arandelaResult.product.holder.toUpperCase()}${hEq}`); } if (arandelaResult.product.dissipador) { const dEq = arandelaResult.dissipadorEq ? ` (${arandelaResult.dissipadorEq})` : ""; parts.push(`${arandelaResult.product.dissipador.toUpperCase()}${dEq}`); } return parts.filter(Boolean).join(" + ") || (arandelaResult.ledModuleWithCCT ?? ""); })(),
-                            drivers: (() => { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); return `${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
+                            drivers: arandelaHasDriver ? (() => { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); return `${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`; })() : "",
                             availableCCTs: arandelaResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
                             ...(arandelaDrvLines ? { driverLines: arandelaDrvLines.driverLines, priceWithoutDriver: arandelaDrvLines.priceWithoutDriver, unitPriceLuminaria: arandelaDrvLines.unitPriceLuminaria, unitPriceDriver: arandelaDrvLines.unitPriceDriver, luminariaHasApiPrice: arandelaDrvLines.luminariaHasApiPrice, custoCorpoBase: arandelaDrvLines.custoCorpoBase, custoDriverBase: arandelaDrvLines.custoDriverBase, markupPadraoApi: arandelaDrvLines.markupPadraoApi, markupMinimoApi: arandelaDrvLines.markupMinimoApi, markupMinimoDriverApi: arandelaDrvLines.markupMinimoDriverApi, driverQtyPerUnit: arandelaDrvLines.drvQtyPerUnit } : getCustoForControle(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao)),

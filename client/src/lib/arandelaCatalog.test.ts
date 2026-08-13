@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ARANDELA_CATALOG, calculateArandela } from "./arandelaCatalog";
+import { ARANDELA_CATALOG, arandelaRequiresDriver, calculateArandela } from "./arandelaCatalog";
 
 describe("ARANDELA_CATALOG", () => {
   it("deve conter pelo menos 1 produto no catálogo estático", () => {
@@ -93,5 +93,33 @@ describe("calculateArandela", () => {
       controle: "ON/OFF",
     });
     expect(result!.ledModuleWithCCT).toBeNull();
+  });
+
+  it("calcula uma arandela sem driver usando apenas seus componentes integrados", () => {
+    const kubuWithoutDriver = {
+      ...trickProduct,
+      sku: "KUBU-SEM-DRIVER",
+      name: "KUBU LED 11W IP65 D1+D2",
+      driver220: null,
+      driverBivolt: null,
+      driverQtd220: null,
+      driverQtdBivolt: null,
+      ledModule: "MÓDULO LED INTEGRADO [CCT]",
+    };
+    expect(arandelaRequiresDriver(kubuWithoutDriver)).toBe(false);
+    const result = calculateArandela([kubuWithoutDriver], {
+      productSku: kubuWithoutDriver.sku!,
+      productName: kubuWithoutDriver.name,
+      tensao: "220V",
+      cct: "3000K",
+      controle: "ON/OFF",
+    });
+    expect(result).not.toBeNull();
+    expect(result!.driver).toEqual({ model: "", code: "" });
+    expect(result!.ledModuleWithCCT).toBe("MÓDULO LED INTEGRADO 3000K");
+  });
+
+  it("mantém a exigência de driver para produtos que a API possui driver", () => {
+    expect(arandelaRequiresDriver(trickProduct)).toBe(true);
   });
 });
