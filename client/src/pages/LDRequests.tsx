@@ -9,6 +9,7 @@ import { parseCartItemData } from "@/lib/cartTypes";
 import { toBrasiliaDateTime } from "@/lib/dateUtils";
 import { isValidatedLdPdfAvailable } from "@/lib/ldRequestUtils";
 import { LdGuestRequestHistoryCard } from "@/components/LdGuestCards";
+import { openLdValidatedPdf } from "@/lib/ldPdfDownload";
 import { toast } from "sonner";
 
 const STATUS: Record<string, { label: string; className: string }> = {
@@ -63,7 +64,7 @@ export function LDGuestRequests() {
   const mine = trpc.ldRequests.mine.useQuery(undefined, { staleTime: 0, enabled: (user as any)?.role === "convidado" });
   const pdf = trpc.ldRequests.myPdf.useMutation();
   const download = async (requestId: number) => {
-    try { const { url } = await pdf.mutateAsync({ requestId }); window.open(url, "_blank", "noopener,noreferrer"); } catch { toast.error("Não foi possível abrir o PDF."); }
+    try { await openLdValidatedPdf(requestId, pdf.mutateAsync); } catch { toast.error("Não foi possível abrir o PDF."); }
   };
   if ((user as any)?.role !== "convidado") return <div className="p-8 text-center text-muted-foreground">Esta área é exclusiva para LD Convidado.</div>;
   return <div className="min-h-screen bg-background"><header className="border-b bg-card"><div className="max-w-4xl mx-auto px-4 h-14 flex items-center gap-3"><Link href="/" className="inline-flex items-center gap-2 text-sm font-medium hover:text-primary"><ArrowLeft className="w-4 h-4" /> Configurador</Link><span className="text-muted-foreground">/</span><span className="font-semibold">Minhas solicitações</span></div></header><main className="max-w-4xl mx-auto px-4 py-7 space-y-5"><div><h1 className="text-2xl font-bold">Minhas solicitações de orçamento</h1><p className="text-sm text-muted-foreground mt-1">A equipe Alfalux analisará suas configurações e disponibilizará o PDF do orçamento validado aqui.</p></div>{mine.isLoading ? <p className="py-12 text-center text-muted-foreground">Carregando...</p> : (mine.data ?? []).length === 0 ? <Card className="py-12 text-center"><Package className="w-9 h-9 mx-auto text-muted-foreground mb-3" /><p className="font-medium">Nenhuma solicitação enviada</p></Card> : <div className="space-y-3">{(mine.data ?? []).map(request => { const status = STATUS[request.status] ?? STATUS.pending; return <LdGuestRequestHistoryCard key={request.id} finalClientName={request.finalClientName} officeName={request.officeName} constructorName={request.constructorName} submittedAtLabel={toBrasiliaDateTime(request.submittedAt)} statusLabel={status.label} statusClassName={status.className} pdfAvailable={isValidatedLdPdfAvailable(request.status, request.pdfAvailable ? "available" : null)} onDownload={() => download(request.id)} isDownloading={pdf.isPending} />; })}</div>}</main></div>;

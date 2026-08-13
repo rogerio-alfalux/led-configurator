@@ -100,6 +100,11 @@
 - [x] Propagar drivers DIM e suas quantidades por SKU modular retornado pela API
 - [x] Usar drivers DIM individuais por SKU sem fallback por barras
 - [x] Cobrir por regressão a seleção DIM de um perfil modular a partir do cadastro da API
+- [x] Corrigir o download do PDF validado na página Minhas solicitações do LD Convidado
+- [x] Cobrir por teste a URL de download do PDF para evitar redirecionamento à rota 404
+- [x] Cobrir por integração a captura completa de chaves de PDF com subpastas no proxy de ativos
+- [x] Cobrir o fluxo do LD que abre a URL armazenada do PDF validado em /api/assets
+- [x] Cobrir a abertura do PDF na tela Minhas solicitações com a URL validada retornada ao LD
 - [x] Persistir foto manual de Item Especial e exibi-la no carrinho, orçamento, PDF, Excel e consultas futuras
 - [x] Exibir painel de amostra/manutenção para todos os administradores e excluir valores convertidos dos totais do dashboard
 - [x] Persistir valor comercial zero em amostras/manutenções e restaurar com segurança no cancelamento

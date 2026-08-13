@@ -8,7 +8,7 @@ const assetsRouter = Router();
  * Diferente de /manus-storage/ (interceptado pela plataforma de deploy com 307),
  * esta rota é processada pela aplicação e entrega o binário com HTTP 200.
  */
-assetsRouter.get("/api/assets/:key", async (req, res) => {
+assetsRouter.get("/api/assets/:key(*)", async (req, res) => {
   const key = req.params.key;
   if (!key) {
     res.status(400).send("Missing asset key");
