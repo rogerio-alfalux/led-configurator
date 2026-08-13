@@ -13,7 +13,7 @@ import {
 } from "./alfaluxApiService";
 import {
   addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty, updateCartItemData, updateCartItemsSortOrder, createQuote, addQuoteRevision, listQuotes, getQuoteById, approveQuote, getRevisionItems,
-  updateQuoteStatus, markQuoteAsNonCommercial, getQuoteStats, deleteQuote, suggestQuoteNumber,
+  updateQuoteStatus, markQuoteAsNonCommercial, getQuoteStats, deleteQuote, suggestQuoteNumber, findQuoteByNumber,
   insertAuditLog, getAuditLogs, listSellers, listAssistants,
   createFactoryOrder, getFactoryOrdersByQuoteId, getFactoryOrderById,
   updateFactoryOrder, addFactoryOrderItem, updateFactoryOrderItem,
@@ -64,6 +64,7 @@ import { DISCOUNT_EDITORS_EMAILS } from "../shared/const";
 import { commercialQuoteAccess, shouldBindCommercialQuoteTeam } from "../shared/quoteOwnership";
 import { resolveOriginalCommercialTotals } from "../shared/nonCommercialQuoteFinancial";
 import { canAccessCommercialQuotes } from "../shared/guestCommercialAccess";
+import { getSampleLinkValidationError } from "../shared/sampleLinkValidation";
 
 // ─── Controle de acesso a orçamentos ─────────────────────────────────────────
 /** Emails dos gestores com acesso irrestrito a todos os orçamentos */
@@ -2680,7 +2681,19 @@ export const appRouter = router({
     getByQuoteId: protectedProcedure
       .input(z.object({ quoteId: z.number(), kind: z.enum(['sample', 'maintenance']).optional() }))
       .query(async ({ input }) => {
-        return getSampleOrderByQuoteId(input.quoteId, input.kind);
+        const order = await getSampleOrderByQuoteId(input.quoteId, input.kind);
+        if (!order) return null;
+        return { ...order, links: await listSampleLinks(order.id) };
+      }),
+
+    /** Resolve o número informado no diálogo de vínculo sem depender da lista em cache do navegador. */
+    findQuoteByNumber: protectedProcedure
+      .input(z.object({ quoteNumber: z.string().min(1) }))
+      .query(async ({ ctx, input }) => {
+        if (!await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.GERENCIAR_AMOSTRAS)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Você não possui permissão para vincular pedidos sem cobrança." });
+        }
+        return findQuoteByNumber(input.quoteNumber);
       }),
 
     /** Atualiza status/notas de um pedido de amostra */
@@ -2719,6 +2732,22 @@ export const appRouter = router({
         if (!await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.GERENCIAR_AMOSTRAS)) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Você não possui permissão para vincular pedidos sem cobrança." });
         }
+        const [sourceOrder, targetQuote, existingLinks] = await Promise.all([
+          getSampleOrderById(input.sampleOrderId),
+          getQuoteById(input.linkedQuoteId),
+          listSampleLinks(input.sampleOrderId),
+        ]);
+        if (!sourceOrder) throw new TRPCError({ code: "NOT_FOUND", message: "Pedido de amostra ou manutenção não encontrado." });
+        if (!targetQuote) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento informado não encontrado." });
+        if (targetQuote.quote.status === "sample") {
+          throw new TRPCError({ code: "CONFLICT", message: "O orçamento informado já é um pedido sem cobrança e não pode receber uma vinculação." });
+        }
+        const validationError = getSampleLinkValidationError({
+          sourceQuoteId: sourceOrder.quoteId,
+          targetQuoteId: input.linkedQuoteId,
+          existingLinkedQuoteIds: existingLinks.map((link) => link.linkedQuoteId),
+        });
+        if (validationError) throw new TRPCError({ code: "CONFLICT", message: validationError });
         const result = await createSampleLink({
           sampleOrderId: input.sampleOrderId,
           linkedQuoteId: input.linkedQuoteId,

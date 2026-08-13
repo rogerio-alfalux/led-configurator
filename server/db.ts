@@ -19,6 +19,7 @@ import { ENV } from './_core/env';
 import { fetchAllAlfaluxProducts, fetchComponentes, fetchAcessoriosProducts } from './alfaluxApiService';
 import { getDuplicateQuoteGroupSizes, getDuplicateQuoteKey } from '../shared/quoteGrouping';
 import { getCommercialTotalsToRestore, getNonCommercialQuoteStatus, type NonCommercialQuoteKind } from '../shared/nonCommercialQuoteFinancial';
+import { normalizeQuoteNumberForLookup } from '../shared/quoteNumberLookup';
 // ─── Utilitários de data no fuso de Brasília ────────────────────────────────
 const BRASILIA_TZ = "America/Sao_Paulo";
 
@@ -841,6 +842,21 @@ export async function getQuoteById(id: number) {
     .orderBy(quoteItems.itemNumber);
 
   return { quote: qRows[0], versions, items };
+}
+
+/** Busca um orçamento pelo número digitado, tolerando o prefixo ORC e separadores. */
+export async function findQuoteByNumber(quoteNumber: string) {
+  const normalized = normalizeQuoteNumberForLookup(quoteNumber);
+  if (normalized.length < 5) return null;
+  const db = await getDb();
+  if (!db) return null;
+  const normalizedColumn = sql<string>`REPLACE(REPLACE(REPLACE(REPLACE(UPPER(TRIM(${quotes.quoteNumber})), 'ORC', ''), ' ', ''), '.', ''), '-', '')`;
+  const rows = await db
+    .select({ id: quotes.id, quoteNumber: quotes.quoteNumber, projectName: quotes.projectName, clientName: quotes.clientName, status: quotes.status })
+    .from(quotes)
+    .where(sql`${normalizedColumn} = ${normalized}`)
+    .limit(1);
+  return rows[0] ?? null;
 }
 
 /** Aprova um orçamento */

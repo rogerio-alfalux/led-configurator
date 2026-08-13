@@ -13,6 +13,12 @@
 - [x] Documentar a revisão explícita das superfícies acessíveis ao LD Convidado e a preservação do fluxo interno
 - [x] Extrair e testar por renderização os cartões do carrinho e histórico do LD sem valores monetários
 - [x] Cobrir por renderização os estados com item configurado e PDF disponível para LD Convidado
+- [x] Corrigir a busca e vinculação de amostra por número de orçamento informado
+- [x] Corrigir a busca e conversão em manutenção por número de orçamento informado
+- [x] Testar os fluxos de amostra e manutenção para números válidos, inválidos e formatos com prefixo
+- [x] Adicionar testes integrados do servidor para resolução e validação de vínculos por número de orçamento
+- [x] Adicionar teste do fluxo de manutenção para garantir o vínculo correto por número informado
+- [x] Garantir por teste sequencial que o número informado resolve o orçamento e vincula a manutenção correta
 - [x] Persistir foto manual de Item Especial e exibi-la no carrinho, orçamento, PDF, Excel e consultas futuras
 - [x] Exibir painel de amostra/manutenção para todos os administradores e excluir valores convertidos dos totais do dashboard
 - [x] Persistir valor comercial zero em amostras/manutenções e restaurar com segurança no cancelamento

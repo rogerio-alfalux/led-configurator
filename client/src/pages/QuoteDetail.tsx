@@ -43,6 +43,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { CartItemData, formatBRL, parseCartItemData, extractPowerLabelFromName, toPowerLabel, type QuoteFormData } from "@/lib/cartTypes";
 import { getPersistedItemPhotoUrl } from "@/lib/itemPhoto";
 import { isLdRequestLinkedToQuote } from "@/lib/ldRequestUtils";
+import { linkSampleOrderByQuoteNumber } from "@/lib/sampleLinkFlow";
 import type { ApiProductDriverInfo } from "@/lib/cartTypes";
 
 /** Aplica margem individual do item (itemMarginPercent em %) sobre um valor base */
@@ -885,6 +886,7 @@ export default function QuoteDetail() {
   const [sampleLinkQuoteNumber, setSampleLinkQuoteNumber] = useState("");
   const [sampleLinkType, setSampleLinkType] = useState<"cobrar" | "diluir" | "associar">("associar");
   const [sampleLinkNotes, setSampleLinkNotes] = useState("");
+  const sampleLinkLookupInput = useMemo(() => ({ quoteNumber: sampleLinkQuoteNumber.trim() }), [sampleLinkQuoteNumber]);
   const [orderNumberInput, setOrderNumberInput] = useState("");
   const [billingCompanyInput, setBillingCompanyInput] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -1348,6 +1350,10 @@ export default function QuoteDetail() {
     { quoteId: Number(id), kind: "maintenance" },
     { enabled: !!id }
   );
+  const sampleLinkTargetQuery = trpc.samples.findQuoteByNumber.useQuery(
+    sampleLinkLookupInput,
+    { enabled: sampleLinkDialogOpen && sampleLinkLookupInput.quoteNumber.length >= 5, retry: false, staleTime: 0 }
+  );
   const setProspectingMutation = trpc.quotes.setProspecting.useMutation({
     onSuccess: () => {
       utils.quotes.getById.invalidate({ id: Number(id) });
@@ -1358,7 +1364,7 @@ export default function QuoteDetail() {
 
   const linkSampleMutation = trpc.samples.link.useMutation({
     onSuccess: () => {
-      toast.success("Amostra vinculada com sucesso!");
+      toast.success(linkSourceKind === "maintenance" ? "Manutenção vinculada com sucesso!" : "Amostra vinculada com sucesso!");
       setSampleLinkDialogOpen(false);
       setSampleLinkQuoteNumber("");
       setSampleLinkNotes("");
@@ -1368,10 +1374,29 @@ export default function QuoteDetail() {
     onError: (err) => toast.error(`Erro: ${err.message}`),
   });
 
+  const handleSampleLink = async () => {
+    const sourceOrderId = linkSourceOrderId ?? sampleQuery.data?.id ?? maintenanceQuery.data?.id;
+    if (!sourceOrderId) { toast.error("Pedido de origem não encontrado."); return; }
+    try {
+      await linkSampleOrderByQuoteNumber({
+        quoteNumber: sampleLinkQuoteNumber,
+        sampleOrderId: sourceOrderId,
+        linkType: sampleLinkType,
+        notes: sampleLinkNotes || undefined,
+        resolveQuote: async (quoteNumber) => utils.samples.findQuoteByNumber.fetch({ quoteNumber }),
+        createLink: (payload) => linkSampleMutation.mutateAsync(payload),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Não foi possível vincular o pedido.";
+      if (!message.startsWith("Erro:")) toast.error(message);
+    }
+  };
+
   const unlinkSampleMutation = trpc.samples.unlink.useMutation({
     onSuccess: () => {
       toast.success("Vinculação removida.");
       sampleQuery.refetch();
+      maintenanceQuery.refetch();
     },
     onError: (err) => toast.error(`Erro: ${err.message}`),
   });
@@ -4038,12 +4063,19 @@ export default function QuoteDetail() {
                 <div className="space-y-4 py-2">
                   <div>
                     <Label>Número do Orçamento a vincular</Label>
-                    <Input
-                      className="mt-1"
-                      value={sampleLinkQuoteNumber}
-                      onChange={e => setSampleLinkQuoteNumber(e.target.value)}
-                      placeholder="Ex: ORC 04.0123-25"
-                    />
+                      <Input
+                        className="mt-1"
+                        value={sampleLinkQuoteNumber}
+                        onChange={e => setSampleLinkQuoteNumber(e.target.value)}
+                        placeholder="Ex: ORC 04.0123-25"
+                      />
+                      {sampleLinkLookupInput.quoteNumber.length >= 5 && (
+                        <div className="mt-2 text-xs">
+                          {sampleLinkTargetQuery.isFetching ? <span className="text-muted-foreground">Buscando orçamento...</span>
+                            : sampleLinkTargetQuery.data ? <span className="text-emerald-700 dark:text-emerald-400">Orçamento encontrado: <strong>{sampleLinkTargetQuery.data.quoteNumber}</strong>{sampleLinkTargetQuery.data.projectName ? ` · ${sampleLinkTargetQuery.data.projectName}` : ""}</span>
+                            : <span className="text-destructive">Nenhum orçamento encontrado com este número.</span>}
+                        </div>
+                      )}
                   </div>
                   <div>
                     <Label>Tipo de vinculação</Label>
@@ -4076,21 +4108,7 @@ export default function QuoteDetail() {
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={() => setSampleLinkDialogOpen(false)}>Cancelar</Button>
                   <Button
-                    onClick={async () => {
-                      if (!sampleLinkQuoteNumber.trim()) { toast.error("Informe o número do orçamento."); return; }
-                      // Buscar o quoteId pelo número
-                      const allQuotes = utils.quotes.list.getData() as any;
-                      const target = (allQuotes?.rows ?? allQuotes ?? [])?.find((q: any) => q.quoteNumber === sampleLinkQuoteNumber.trim());
-                      if (!target) { toast.error("Orçamento não encontrado. Verifique o número."); return; }
-                      const sourceOrderId = linkSourceOrderId ?? sampleQuery.data?.id ?? maintenanceQuery.data?.id;
-                      if (!sourceOrderId) { toast.error("Pedido de origem não encontrado."); return; }
-                      linkSampleMutation.mutate({
-                        sampleOrderId: sourceOrderId,
-                        linkedQuoteId: target.id,
-                        linkType: sampleLinkType,
-                        notes: sampleLinkNotes || undefined,
-                      });
-                    }}
+                    onClick={handleSampleLink}
                     disabled={linkSampleMutation.isPending || !sampleLinkQuoteNumber.trim()}
                   >
                     {linkSampleMutation.isPending ? "Vinculando..." : "Vincular"}
