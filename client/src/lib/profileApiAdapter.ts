@@ -392,7 +392,19 @@ export function adaptProfileProducts(
       // 36W SF/SL). A chave precisa preservar essa variante da API.
       entry.apiD1D2BySku[buildD1D2VariantKey(p.sku, p.name)] = p.composicaoD1D2;
     }
-    const moduleData: ModuleData = { length: parsed.length, sku: p.sku };
+    const moduleData: ModuleData = {
+      length: parsed.length,
+      sku: p.sku,
+      driver220: p.driver220 ?? null,
+      driverBivolt: p.driverBivolt ?? null,
+      driverDimDali: p.driverDimDali ?? null,
+      driverDim110v: p.driverDim110v ?? null,
+      driverQtd220: p.driverQtd220 ?? null,
+      driverQtdBivolt: p.driverQtdBivolt ?? null,
+      driverQtdDimDali: p.driverQtdDimDali ?? null,
+      driverQtdDim110v: p.driverQtdDim110v ?? null,
+      correnteDriver: (p as any).correnteDriver ?? null,
+    };
     // SHIFT uses bars=1 for all modules, so we need unique keys.
     // Use sequential index (1, 2, 3...) based on how many modules of this type already exist.
     const isShiftProfile = rule.name === "SHIFT";

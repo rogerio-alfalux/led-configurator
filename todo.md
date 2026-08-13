@@ -88,6 +88,18 @@
 - [x] Extrair e renderizar o controle e indicador da nova lógica modular no configurador
 - [x] Extrair o toggle e o indicador da nova lógica modular para componente reutilizável
 - [x] Cobrir por renderização o componente de controle modular e seu indicador ativo
+- [x] Criar controles reutilizáveis de Item em planta, Quantidade e Enviar ao carrinho para resultados de produto
+- [x] Aplicar os controles ao resultado de Painéis e às demais categorias configuráveis
+- [x] Persistir os campos técnicos de todas as categorias no item de carrinho
+- [x] Cobrir por testes a presença e a persistência dos controles técnicos em resultados de produto
+- [x] Integrar explicitamente os controles de Item em planta, Quantidade e carrinho em Downlights, Painéis, Arandelas e Spots
+- [x] Integrar explicitamente os mesmos controles nas demais categorias com resultado calculado
+- [x] Remover o acionamento genérico de carrinho por busca de texto em botões
+- [x] Resolver drivers de perfis exclusivamente pelo SKU e variante retornados pela API
+- [x] Criar regressão para LLP-6060.4IF.48F usar o driver API correto de 44W
+- [x] Propagar drivers DIM e suas quantidades por SKU modular retornado pela API
+- [x] Usar drivers DIM individuais por SKU sem fallback por barras
+- [x] Cobrir por regressão a seleção DIM de um perfil modular a partir do cadastro da API
 - [x] Persistir foto manual de Item Especial e exibi-la no carrinho, orçamento, PDF, Excel e consultas futuras
 - [x] Exibir painel de amostra/manutenção para todos os administradores e excluir valores convertidos dos totais do dashboard
 - [x] Persistir valor comercial zero em amostras/manutenções e restaurar com segurança no cancelamento

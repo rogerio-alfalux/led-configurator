@@ -7,6 +7,18 @@ export type InstallType = 'PENDENTE' | 'SOBREPOR' | 'EMBUTIR' | 'ARANDELA';
 export interface ModuleData {
   length: number;
   sku: string;
+  /** Drivers individuais deste SKU, conforme cadastro da API. */
+  driver220?: { model: string; code: string | null } | null;
+  driverBivolt?: { model: string; code: string | null } | null;
+  driverDimDali?: { model: string; code: string | null } | null;
+  driverDim110v?: { model: string; code: string | null } | null;
+  /** Quantidade de drivers por peça/SKU cadastrada na API. */
+  driverQtd220?: number | null;
+  driverQtdBivolt?: number | null;
+  driverQtdDimDali?: number | null;
+  driverQtdDim110v?: number | null;
+  /** Corrente de programação do driver individual, quando fornecida pela API. */
+  correnteDriver?: string | null;
 }
 
 export interface ProfileModules {

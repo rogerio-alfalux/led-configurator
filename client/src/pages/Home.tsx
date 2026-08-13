@@ -12,6 +12,7 @@ import { LdCommercialOnly } from "@/components/LdCommercialOnly";
 import { LdProfileCartControls } from "@/components/LdProfileCartControls";
 import { profileCartTechnicalFields } from "@/lib/profileCartTechnicalFields";
 import { ModularOptimizationControls } from "@/components/ModularOptimizationControls";
+import { ResultTechnicalCartControls } from "@/components/ResultTechnicalCartControls";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9394,8 +9395,6 @@ export default function Home() {
                   Composição calculada com base nos parâmetros informados.
                 </p>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-              </div>
             </div>
 
             {productCategory === "Perfis" && !lbFamilia && !bgInstalacao && bgMode !== "fixo" && !glowMode && !tubeLightMode && !tubeLightResult && !aldaMode && profileShape === "STRAIGHT" && (!result ? (
@@ -9516,11 +9515,12 @@ export default function Home() {
                 <div className="space-y-4">
                   {/* Card principal */}
                   <Card className="shadow-sm border-emerald-500/30">
-                    <CardHeader className="pb-3">
+                    <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3">
                       <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
                         <Zap className="w-4 h-4 text-emerald-500" />
                         Resultado — {lbResult.product.familia}
                       </CardTitle>
+                      {isConvidado && <ResultTechnicalCartControls itemEmPlanta={globalItemEmPlanta} quantity={globalQty} onItemEmPlantaChange={setGlobalItemEmPlanta} onQuantityChange={setGlobalQty} onSendToCart={() => document.getElementById("led-bar-add-cart")?.click()} disabled={isAddingToCart} />}
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {/* Foto do produto LED BAR */}
@@ -9764,6 +9764,7 @@ export default function Home() {
                                 <Copy className="w-3 h-3 mr-1" /> Copiar Resumo
                               </Button>
                               <Button
+                                id="led-bar-add-cart"
                                 size="sm"
                                 className="bg-emerald-600 hover:bg-emerald-700 text-white"
                                 disabled={isAddingToCart}
@@ -9904,11 +9905,12 @@ export default function Home() {
             {productCategory === "Perfis" && bgInstalacao && bgResult && (
               <div className="space-y-4">
                 <Card className="shadow-sm">
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3">
                     <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
                       <Zap className="w-4 h-4 text-primary" />
                       Resultado — BAGEO
                     </CardTitle>
+                    {isConvidado && <ResultTechnicalCartControls itemEmPlanta={globalItemEmPlanta} quantity={globalQty} onItemEmPlantaChange={setGlobalItemEmPlanta} onQuantityChange={setGlobalQty} onSendToCart={() => document.getElementById("bageo-add-cart")?.click()} disabled={isAddingToCart} />}
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {/* Layout padrão: foto pequena à esquerda + grid de métricas */}
@@ -10149,6 +10151,7 @@ export default function Home() {
                               <Copy className="w-3 h-3 mr-1" /> Copiar Resumo
                             </Button>
                             <Button
+                              id="bageo-add-cart"
                               size="sm"
                               className="bg-emerald-600 hover:bg-emerald-700 text-white"
                               disabled={isAddingToCart}
@@ -10176,7 +10179,7 @@ export default function Home() {
                                  description: `${r.product.name} ${r.product.aplicacao !== 'D1' ? r.product.aplicacao + ' ' : ''}${r.cct} ${r.controle} ${r.comprimento}MM (${r.nCortes} CORTE${r.nCortes !== 1 ? 'S' : ''} DE ${r.comprimentoPorCorte}MM)`,
                                  power: "",
                                  cct: r.cct,
-                                 qty: 1,
+                                 qty: globalQty,
                                  unitPrice: bgDrvLines ? (bgPrecoSemDriver ?? bgPrecoEfetivo ?? null) : (bgPrecoEfetivo ?? null),
                                  totalPrice: bgDrvLines ? (bgPrecoSemDriver ?? bgPrecoEfetivo ?? null) : (bgPrecoEfetivo ?? null),
                                  priceFromApi: r.precoPerfil !== null || r.precoDriverPorUnidade !== null,
@@ -10651,11 +10654,12 @@ export default function Home() {
             {productCategory === "Perfis" && glowResult && (
               <div className="space-y-4">
                 <Card className="shadow-sm border-amber-500/30">
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3">
                     <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
                       <Zap className="w-4 h-4 text-amber-500" />
                       Resultado — GLOW
                     </CardTitle>
+                    {isConvidado && <ResultTechnicalCartControls itemEmPlanta={globalItemEmPlanta} quantity={globalQty} onItemEmPlantaChange={setGlobalItemEmPlanta} onQuantityChange={setGlobalQty} onSendToCart={() => document.getElementById("glow-add-cart")?.click()} disabled={isAddingToCart} />}
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {(() => {
@@ -10750,6 +10754,7 @@ export default function Home() {
                         <Copy className="w-3 h-3" /> Copiar Resumo
                       </Button>
                       <Button
+                        id="glow-add-cart"
                         size="sm"
                         className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                         disabled={isAddingToCart}
@@ -10761,9 +10766,9 @@ export default function Home() {
                             description: `${glowResult.product.name} ${glowResult.cct} ${glowResult.tensao}`,
                             power: "",
                             cct: glowResult.cct,
-                            qty: 1,
+                            qty: globalQty,
                             unitPrice: preco ?? null,
-                            totalPrice: preco ?? null,
+                            totalPrice: preco != null ? preco * globalQty : null,
                             priceFromApi: preco != null,
                             photoUrl: adaptedCatalogs?.glowFotos?.[glowResult.product.sku ?? ""] ?? "",
                             orderSummary: `CÓDIGO: ${glowResult.product.sku}\n${glowResult.product.name.toUpperCase()} ${glowResult.cct} ${glowResult.tensao} COM DRIVER ${glowResult.driver.model.toUpperCase()} (${glowResult.driver.code})`,
@@ -10858,11 +10863,12 @@ export default function Home() {
             {productCategory === "Perfis" && tubeLightResult && (
               <div className="space-y-4">
                 <Card className="shadow-sm border-sky-500/30">
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3">
                     <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
                       <Zap className="w-4 h-4 text-sky-500" />
                       Resultado — TUBE LIGHT
                     </CardTitle>
+                    {isConvidado && <ResultTechnicalCartControls itemEmPlanta={globalItemEmPlanta} quantity={globalQty} onItemEmPlantaChange={setGlobalItemEmPlanta} onQuantityChange={setGlobalQty} onSendToCart={() => document.getElementById("tube-light-add-cart")?.click()} disabled={isAddingToCart} />}
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {(() => {
@@ -10957,6 +10963,7 @@ export default function Home() {
                         <Copy className="w-3 h-3" /> Copiar Resumo
                       </Button>
                       <Button
+                        id="tube-light-add-cart"
                         size="sm"
                         className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                         disabled={isAddingToCart}
@@ -10968,9 +10975,9 @@ export default function Home() {
                             description: `${tubeLightResult.product.name} ${tubeLightResult.cct} ${tubeLightResult.tensao}`,
                             power: "",
                             cct: tubeLightResult.cct,
-                            qty: 1,
+                            qty: globalQty,
                             unitPrice: preco ?? null,
-                            totalPrice: preco ?? null,
+                            totalPrice: preco != null ? preco * globalQty : null,
                             priceFromApi: preco != null,
                             photoUrl: adaptedCatalogs?.tubeLightFotos?.[tubeLightResult.product.sku ?? ""] ?? "",
                             orderSummary: `CÓDIGO: ${tubeLightResult.product.sku}\n${tubeLightResult.product.name.toUpperCase()} ${tubeLightResult.cct} ${tubeLightResult.tensao} COM DRIVER ${tubeLightResult.driver.model.toUpperCase()} (${tubeLightResult.driver.code})`,
@@ -11080,11 +11087,12 @@ export default function Home() {
               return (
                 <div className="space-y-4">
                   <Card className="shadow-sm border-amber-500/30">
-                    <CardHeader className="pb-3">
+                    <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3">
                       <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
                         <Sparkles className="w-4 h-4 text-amber-500" />
                         Resultado — Decorativa
                       </CardTitle>
+                      {isConvidado && <ResultTechnicalCartControls itemEmPlanta={globalItemEmPlanta} quantity={globalQty} onItemEmPlantaChange={setGlobalItemEmPlanta} onQuantityChange={setGlobalQty} onSendToCart={() => document.getElementById("decorativa-add-cart")?.click()} disabled={isAddingToCart} />}
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className={dPhoto ? "flex gap-3 items-stretch" : "grid grid-cols-2 gap-2"}>
@@ -11178,6 +11186,7 @@ export default function Home() {
                           <Copy className="w-3 h-3" /> Copiar Resumo
                         </Button>
                         <Button
+                          id="decorativa-add-cart"
                           size="sm"
                           className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                           disabled={isAddingToCart}
@@ -11276,11 +11285,12 @@ export default function Home() {
               return (
                 <div className="space-y-4">
                   <Card className="shadow-sm border-blue-500/30">
-                    <CardHeader className="pb-3">
+                    <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3">
                       <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
                         <Navigation className="w-4 h-4 text-blue-500" />
                         Resultado — Balizador
                       </CardTitle>
+                      {isConvidado && <ResultTechnicalCartControls itemEmPlanta={globalItemEmPlanta} quantity={globalQty} onItemEmPlantaChange={setGlobalItemEmPlanta} onQuantityChange={setGlobalQty} onSendToCart={() => document.getElementById("balizador-add-cart")?.click()} disabled={isAddingToCart} />}
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className={bPhoto ? "flex gap-3 items-stretch" : "grid grid-cols-2 gap-2"}>
@@ -11383,6 +11393,7 @@ export default function Home() {
                           <Copy className="w-3 h-3" /> Copiar Resumo
                         </Button>
                         <Button
+                          id="balizador-add-cart"
                           size="sm"
                           className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                           disabled={isAddingToCart}
@@ -11487,16 +11498,7 @@ export default function Home() {
                       <Lightbulb className="w-4 h-4 text-amber-500" />
                       Resultado — Downlight
                     </CardTitle>
-                    {isConvidado && (
-                      <Button
-                        size="sm"
-                        className="ld-result-cart-action shrink-0 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
-                        disabled={isAddingToCart}
-                        onClick={() => document.getElementById("downlight-add-cart")?.click()}
-                      >
-                        <ShoppingCart className="w-3.5 h-3.5" /> Enviar ao carrinho
-                      </Button>
-                    )}
+                    {isConvidado && <ResultTechnicalCartControls itemEmPlanta={globalItemEmPlanta} quantity={globalQty} onItemEmPlantaChange={setGlobalItemEmPlanta} onQuantityChange={setGlobalQty} onSendToCart={() => document.getElementById("downlight-add-cart")?.click()} disabled={isAddingToCart} />}
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {/* Foto do produto Downlight */}
@@ -11846,11 +11848,12 @@ export default function Home() {
             {productCategory === "Área Externa" && aeResult && (
               <div className="space-y-4">
                 <Card className="shadow-sm border-green-700/30">
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3">
                     <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
                       <TreePine className="w-4 h-4 text-green-600" />
                       Resultado — Área Externa
                     </CardTitle>
+                    {isConvidado && <ResultTechnicalCartControls itemEmPlanta={globalItemEmPlanta} quantity={globalQty} onItemEmPlantaChange={setGlobalItemEmPlanta} onQuantityChange={setGlobalQty} onSendToCart={() => document.getElementById("area-externa-add-cart")?.click()} disabled={isAddingToCart} />}
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {/* Foto do produto */}
@@ -11963,6 +11966,7 @@ export default function Home() {
                         <Copy className="w-3 h-3" /> Copiar Resumo
                       </Button>
                       <Button
+                        id="area-externa-add-cart"
                         size="sm"
                         className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                         disabled={isAddingToCart}
@@ -12398,11 +12402,12 @@ export default function Home() {
             {productCategory === "Painéis" && panelResult && (
               <div className="space-y-4">
                 <Card className="shadow-sm border-teal-500/30">
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3">
                     <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
                       <Grid2X2 className="w-4 h-4 text-teal-500" />
                       Resultado — Painél
                     </CardTitle>
+                    {isConvidado && <ResultTechnicalCartControls itemEmPlanta={globalItemEmPlanta} quantity={globalQty} onItemEmPlantaChange={setGlobalItemEmPlanta} onQuantityChange={setGlobalQty} onSendToCart={() => document.getElementById("panel-add-cart")?.click()} disabled={isAddingToCart} />}
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {/* Foto do produto Painél */}
@@ -12515,6 +12520,7 @@ export default function Home() {
                         <Copy className="w-3 h-3" /> Copiar Resumo
                       </Button>
                       <Button
+                        id="panel-add-cart"
                         size="sm"
                         className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                         disabled={isAddingToCart}
@@ -12701,7 +12707,7 @@ export default function Home() {
                       <Lamp className="w-4 h-4 text-amber-500" />
                       Resultado — Arandela
                     </CardTitle>
-                    {isConvidado && <Button size="sm" className="ld-result-cart-action shrink-0 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={isAddingToCart} onClick={() => document.getElementById("arandela-add-cart")?.click()}><ShoppingCart className="w-3.5 h-3.5" /> Enviar ao carrinho</Button>}
+                    {isConvidado && <ResultTechnicalCartControls itemEmPlanta={globalItemEmPlanta} quantity={globalQty} onItemEmPlantaChange={setGlobalItemEmPlanta} onQuantityChange={setGlobalQty} onSendToCart={() => document.getElementById("arandela-add-cart")?.click()} disabled={isAddingToCart} />}
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {/* Foto do produto */}
@@ -13016,7 +13022,7 @@ export default function Home() {
                       <Focus className="w-4 h-4 text-orange-500" />
                       Resultado — Spot
                     </CardTitle>
-                    {isConvidado && <Button size="sm" className="ld-result-cart-action shrink-0 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={isAddingToCart} onClick={() => document.getElementById("spot-add-cart")?.click()}><ShoppingCart className="w-3.5 h-3.5" /> Enviar ao carrinho</Button>}
+                    {isConvidado && <ResultTechnicalCartControls itemEmPlanta={globalItemEmPlanta} quantity={globalQty} onItemEmPlantaChange={setGlobalItemEmPlanta} onQuantityChange={setGlobalQty} onSendToCart={() => document.getElementById("spot-add-cart")?.click()} disabled={isAddingToCart} />}
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {/* Foto do produto Spot */}

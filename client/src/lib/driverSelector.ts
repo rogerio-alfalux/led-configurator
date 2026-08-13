@@ -19,7 +19,7 @@
  *   Stripline 562,5 x 15mm: ~75V por barra (250mA)
  */
 
-import type { Power, Voltage, StripMethod, CCT } from "./ledEngine";
+import type { Power, Voltage, StripMethod, CCT, ControlType } from "./ledEngine";
 import type { DriverRestrictions } from "@shared/driverRestrictions";
 
 export type { DriverRestrictions };
@@ -59,6 +59,8 @@ export interface DriverSelectionContext {
    * Necessário para usar Philips 100W e 150W (onlyLongModules=true).
    */
   allowLongModules?: boolean;
+  /** Controle selecionado, usado para escolher o driver DIM individual do SKU API. */
+  controlType?: ControlType;
 }
 
 /**

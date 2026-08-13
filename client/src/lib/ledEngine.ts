@@ -76,6 +76,10 @@ export interface CompositionItem {
   quantity: number;
   /** Driver associado a este SKU — calculado pelas barras de UMA peça individual */
   driverPerSku: DriverSpec;
+  /** Indica que o driver foi fornecido diretamente pelo cadastro do SKU na API. */
+  driverFromApi?: boolean;
+  /** Drivers individuais do SKU por tipo de controle, conforme cadastro da API. */
+  apiDrivers?: Partial<Record<"onoff220" | "onoffBivolt" | "dimDali" | "dim110v", DriverSpec>>;
 }
 
 export interface CompositionResult {
@@ -354,9 +358,17 @@ function buildSkuDriverList(
     // → usar barsPerModule × 2 para dimensionar corretamente
     const effectiveBars = dualSimultaneous ? item.barsPerModule * 2 : item.barsPerModule;
 
-    // Verificar se precisa de split (barras efetivas acima do limite da tabela)
+    // O driver cadastrado para este SKU na API é soberano e não pode ser substituído
+    // por tabela/fallback baseado em barras.
     let driver: DriverSpec;
-    if (dualSimultaneous) {
+    if (item.driverFromApi) {
+      const controlKey = driverContext?.controlType === "dimDali"
+        ? "dimDali"
+        : driverContext?.controlType === "dim110v"
+          ? "dim110v"
+          : voltage === "Bivolt" ? "onoffBivolt" : "onoff220";
+      driver = item.apiDrivers?.[controlKey] ?? (driverContext?.controlType && driverContext.controlType !== "onoff" ? missingApiDriver() : item.driverPerSku);
+    } else if (dualSimultaneous) {
       const splitResult = splitDriverForDualSimultaneous(effectiveBars, power, voltage, stripMethod);
       if (splitResult) {
         // Resolver nomes reais dos drivers pelo código via nameMap
@@ -398,6 +410,16 @@ interface RawModule {
   barras: number;
   length: number;
   sku: string;
+  driver220?: { model: string; code: string | null } | null;
+  driverBivolt?: { model: string; code: string | null } | null;
+  driverQtd220?: number | null;
+  driverQtdBivolt?: number | null;
+  driverDimDali?: { model: string; code: string | null } | null;
+  driverDim110v?: { model: string; code: string | null } | null;
+  driverQtdDimDali?: number | null;
+  driverQtdDim110v?: number | null;
+  correnteDriver?: string | null;
+  fromApiCatalog?: boolean;
 }
 
 /**
@@ -420,7 +442,8 @@ function getModules(profileCode: string, type: ModuleType, allowLongModules: boo
       : "18W";
   // Quando a API fornece cadastros modulares separados, a composição usa SOMENTE
   // os módulos da potência/método selecionados. O catálogo agregado é legado.
-  const mods = profile.apiLinearVariants?.[powerLabel]?.modules[type] ?? profile.modules[type];
+  const apiVariant = profile.apiLinearVariants?.[powerLabel];
+  const mods = apiVariant?.modules[type] ?? profile.modules[type];
   if (!mods) return [];
   return Object.entries(mods)
     .filter(([, data]) => data.sku && data.sku !== "")
@@ -457,7 +480,69 @@ function getModules(profileCode: string, type: ModuleType, allowLongModules: boo
       barras: parseFloat(barrasKey),
       length: data.length,
       sku: data.sku,
+      driver220: data.driver220,
+      driverBivolt: data.driverBivolt,
+      driverQtd220: data.driverQtd220,
+      driverQtdBivolt: data.driverQtdBivolt,
+      driverDimDali: data.driverDimDali,
+      driverDim110v: data.driverDim110v,
+      driverQtdDimDali: data.driverQtdDimDali,
+      driverQtdDim110v: data.driverQtdDim110v,
+      correnteDriver: data.correnteDriver,
+      fromApiCatalog: !!apiVariant,
     }));
+}
+
+function selectDriverFromModuleApi(module: RawModule, voltage: Voltage, controlType: ControlType = "onoff"): DriverSpec | null {
+  const dimDriver = controlType === "dimDali"
+    ? module.driverDimDali
+    : controlType === "dim110v"
+      ? module.driverDim110v
+      : null;
+  const dimQuantity = controlType === "dimDali"
+    ? module.driverQtdDimDali
+    : controlType === "dim110v"
+      ? module.driverQtdDim110v
+      : null;
+  const driver = dimDriver ?? (voltage === "Bivolt" ? module.driverBivolt : module.driver220);
+  const quantity = dimQuantity ?? (voltage === "Bivolt" ? module.driverQtdBivolt : module.driverQtd220);
+  if (!driver?.model) return null;
+  const model = driver.model.trim();
+  return {
+    code: driver.code ?? undefined,
+    model,
+    power: Number(model.match(/(\d+(?:[.,]\d+)?)\s*W/i)?.[1]?.replace(",", ".") ?? 0),
+    current: module.correnteDriver ?? "",
+    quantity: quantity && quantity > 0 ? quantity : 1,
+  };
+}
+
+function missingApiDriver(): DriverSpec {
+  return {
+    model: "DRIVER NÃO CADASTRADO NA API",
+    power: 0,
+    current: "",
+    quantity: 0,
+  };
+}
+
+function getModuleApiDrivers(module: RawModule): CompositionItem["apiDrivers"] {
+  const entries: NonNullable<CompositionItem["apiDrivers"]> = {};
+  const add = (key: "onoff220" | "onoffBivolt" | "dimDali" | "dim110v", driver: { model: string; code: string | null } | null | undefined, quantity: number | null | undefined) => {
+    if (!driver?.model) return;
+    entries[key] = {
+      code: driver.code ?? undefined,
+      model: driver.model.trim(),
+      power: Number(driver.model.match(/(\d+(?:[.,]\d+)?)\s*W/i)?.[1]?.replace(",", ".") ?? 0),
+      current: module.correnteDriver ?? "",
+      quantity: quantity && quantity > 0 ? quantity : 1,
+    };
+  };
+  add("onoff220", module.driver220, module.driverQtd220);
+  add("onoffBivolt", module.driverBivolt, module.driverQtdBivolt);
+  add("dimDali", module.driverDimDali, module.driverQtdDimDali);
+  add("dim110v", module.driverDim110v, module.driverQtdDim110v);
+  return entries;
 }
 
 function toCompositionItems(
@@ -477,6 +562,8 @@ function toCompositionItems(
     } else {
       const barsPerModule = item.barras * barsPerSection; // barras de UMA peça
       const barsTotal = barsPerModule; // inicia com 1 peça
+      const apiDriver = selectDriverFromModuleApi(item, voltage);
+      const apiDrivers = getModuleApiDrivers(item);
       skuMap.set(item.sku, {
         sku: item.sku,
         moduleType: item.type,
@@ -486,8 +573,10 @@ function toCompositionItems(
         barsPerModule, // barras de UMA peça — nunca muda
         barsTotal,
         quantity: 1,
-        // driver calculado pelas barras de UMA peça individual
-        driverPerSku: selectDriverForBars(barsPerModule, power, voltage, stripMethod, nameMap),
+        // O cadastro individual do SKU na API tem prioridade absoluta sobre qualquer fallback.
+        driverPerSku: apiDriver ?? (item.fromApiCatalog ? missingApiDriver() : selectDriverForBars(barsPerModule, power, voltage, stripMethod, nameMap)),
+        driverFromApi: !!apiDriver || !!item.fromApiCatalog,
+        apiDrivers,
       });
     }
   }
@@ -1197,6 +1286,7 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     isRemoteDriver,
     installType,
     allowLongModules,
+    controlType: input.controlType ?? "onoff",
   };
 
   // ── Drivers por SKU (D1) ──

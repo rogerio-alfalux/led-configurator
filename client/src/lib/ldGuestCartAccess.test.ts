@@ -10,6 +10,8 @@ describe("acesso ao carrinho do LD Convidado", () => {
     expect(source).toContain('downlight-add-cart');
     expect(source).toContain('arandela-add-cart');
     expect(source).toContain('spot-add-cart');
-    expect(source).toContain('ld-result-cart-action');
+    expect(source).toContain('ResultTechnicalCartControls');
+    expect(source).toContain('panel-add-cart');
+    expect(source).toContain('led-bar-add-cart');
   });
 });

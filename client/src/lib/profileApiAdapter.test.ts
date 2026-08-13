@@ -78,7 +78,7 @@ describe("adaptProfileProducts", () => {
     const products = [makePerfilProduct()];
     const result = adaptProfileProducts(products);
     const variant = result!["LLE-2580"];
-    expect(variant.modules.IF["1"]).toEqual({ length: 582, sku: "LLE-2580.1IF.18F" });
+    expect(variant.modules.IF["1"]).toMatchObject({ length: 582, sku: "LLE-2580.1IF.18F" });
     expect(variant.modules.IN).toEqual({});
     expect(variant.modules.ML).toEqual({});
   });
@@ -92,7 +92,7 @@ describe("adaptProfileProducts", () => {
     ];
     const result = adaptProfileProducts(products);
     const variant = result!["LLE-2580"];
-    expect(variant.modules.ML["1"]).toEqual({ length: 570, sku: "LLE-2580.1ML.18F" });
+    expect(variant.modules.ML["1"]).toMatchObject({ length: 570, sku: "LLE-2580.1ML.18F" });
   });
 
   it("popula módulos IN com barras decimais", () => {
@@ -104,7 +104,7 @@ describe("adaptProfileProducts", () => {
     ];
     const result = adaptProfileProducts(products);
     const variant = result!["LLE-2580"];
-    expect(variant.modules.IN["1.4"]).toEqual({ length: 839, sku: "LLE-2580.14I.18F" });
+    expect(variant.modules.IN["1.4"]).toMatchObject({ length: 839, sku: "LLE-2580.14I.18F" });
   });
 
   it("agrupa múltiplos módulos do mesmo perfil", () => {

@@ -9,14 +9,14 @@ import { calculateComposition } from "./ledEngine";
 import type { AlfaluxProduct } from "../../../server/alfaluxApiService";
 
 // Simular os produtos BLAZE H retornados pela API
-function makeBlazeHProduct(name: string, sku: string): AlfaluxProduct {
+function makeBlazeHProduct(name: string, sku: string, driver220 = { model: "LED DRIVER XITANIUM 19W 200-350MA 30-54VDC DS 230V", code: "EQ00346" }): AlfaluxProduct {
   return {
     sku,
     name,
     categoria: "PERFIS",
     instalacao: "PENDENTE",
     ledModule: "STRIPFLEX 562,5 X 10MM - 36 LEDS [CCT]",
-    driver220: { model: "LED DRIVER XITANIUM 19W 200-350MA 30-54VDC DS 230V", code: "EQ00346" },
+    driver220,
     driverBivolt: { model: "LED DRIVER 20W 350MA 25-57VDC BIV", code: "EQ00658" },
     driverDimDali: { model: "LED DRIVER 75W 120-500MA 54-240VDC 220V DALI SLIM", code: "EQ00221" },
     driverDim110v: null,
@@ -64,7 +64,7 @@ const BLAZE_H_PRODUCTS: AlfaluxProduct[] = [
   makeBlazeHProduct("BLAZE H P IF 3B 1700MM", "LLP-6060.3IF.48F"),
   makeBlazeHProduct("BLAZE H P IF 3.5B 2010MM", "LLP-6060.35F.48F"),
   makeBlazeHProduct("BLAZE H P IF 3.8B 2200MM", "LLP-6060.38F.48F"),
-  makeBlazeHProduct("BLAZE H P IF 4B 2260MM", "LLP-6060.4IF.48F"),
+  makeBlazeHProduct("BLAZE H P IF 4B 2260MM", "LLP-6060.4IF.48F", { model: "LED DRIVER XITANIUM 44W 200-700MA 30-54VDC DS 230V", code: "EQ00347" }),
   makeBlazeHProduct("BLAZE H P IF 4.6B 2635MM", "LLP-6060.46F.48F"),
   makeBlazeHProduct("BLAZE H P IF 4.8B 2760MM", "LLP-6060.48F.48F"),
   makeBlazeHProduct("BLAZE H P IF 5B 2825MM", "LLP-6060.5IF.48F"),
@@ -165,5 +165,61 @@ describe("catálogo dinâmico BLAZE H — módulo IN 1B e 600mm", () => {
     const driver = result.driversD1[0].driver;
     expect(driver.model).toBe("LED DRIVER XITANIUM 19W 200-350MA 30-54VDC DS 230V");
     expect(driver.code).toBe("EQ00346");
+  });
+
+  it("usa o driver individual de 44W cadastrado na API para LLP-6060.4IF.48F", () => {
+    const result = calculateComposition({
+      profileCode: "LLP-6060",
+      application: "D1",
+      powerD1: 18,
+      cct: "3000K",
+      voltage: "220Vac",
+      totalLength: 4520,
+      allowLongModules: false,
+      independentLighting: false,
+      sheetDrivers: [],
+      controlType: "onoff",
+      driver220: null,
+      driverBivolt: null,
+      driverDimDali: null,
+      driverDim110v: null,
+    });
+    const entry = result.driversD1.find((item) => item.sku === "LLP-6060.4IF.48F");
+    expect(entry).toBeDefined();
+    expect(entry?.driver.code).toBe("EQ00347");
+    expect(entry?.driver.model).toContain("44W");
+  });
+
+  it("usa o driver DIM DALI individual do SKU sem recorrer ao fallback por barras", () => {
+    const daliCatalog = adaptProfileProducts(BLAZE_H_PRODUCTS.map((product) =>
+      product.sku === "LLP-6060.4IF.48F"
+        ? {
+            ...product,
+            driverDimDali: { model: "DRIVER DALI API 44W", code: "EQ-DALI-44" },
+            driverQtdDimDali: 2,
+          }
+        : product
+    ));
+    setActiveCatalog(daliCatalog!);
+    const result = calculateComposition({
+      profileCode: "LLP-6060",
+      application: "D1",
+      powerD1: 18,
+      cct: "3000K",
+      voltage: "220Vac",
+      totalLength: 4520,
+      allowLongModules: false,
+      independentLighting: false,
+      sheetDrivers: [],
+      controlType: "dimDali",
+      driver220: null,
+      driverBivolt: null,
+      driverDimDali: null,
+      driverDim110v: null,
+    });
+    const entry = result.driversD1.find((item) => item.sku === "LLP-6060.4IF.48F");
+    expect(entry?.driver.code).toBe("EQ-DALI-44");
+    expect(entry?.driver.model).toBe("DRIVER DALI API 44W");
+    expect(entry?.driver.quantity).toBe(2);
   });
 });
