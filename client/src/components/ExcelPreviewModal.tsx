@@ -7,7 +7,7 @@
  */
 import { Fragment, useMemo, useEffect, useRef, useCallback, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, FileDown } from "lucide-react";
+import { X, FileDown, AlertCircle } from "lucide-react";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { capturePreviewPagePdf, downloadPdfBlob } from "@/lib/pdfVisualCapture";
@@ -179,7 +179,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
     if (!page) throw new Error("Prévia oficial indisponível para captura.");
     return capturePreviewPagePdf({
       page,
-      rasterize: (node) => html2canvas(node as HTMLElement, { backgroundColor: "#ffffff", scale: 2, useCORS: true, logging: false }),
+      rasterize: (node) => html2canvas(node as HTMLElement, { backgroundColor: "#ffffff", scale: 2, useCORS: true, allowTaint: true, logging: true }),
       createPdf: () => new jsPDF({ orientation: "landscape", unit: "pt", format: "a4", compress: true }),
     });
   }, []);
@@ -201,13 +201,27 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
     if (!open) capturedRef.current = false;
   }, [open]);
 
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
   // Baixa o mesmo Blob visual usado para o PDF devolvido ao LD.
   const handleDownloadPDF = useCallback(async () => {
     setIsDownloadingPdf(true);
+    setPdfError(null);
     try {
+      console.log("[PDF] Iniciando captura...");
       const blob = await captureVisiblePreviewPdf();
+      console.log("[PDF] Captura concluída. Blob size:", blob.size);
+      if (blob.size === 0) {
+        throw new Error("O PDF gerado está vazio.");
+      }
       downloadPdfBlob(blob, `${buildFileName()}.pdf`);
+      console.log("[PDF] Download disparado com sucesso.");
       return blob;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro desconhecido ao gerar PDF.";
+      console.error("[PDF] Erro:", msg, err);
+      setPdfError(msg);
+      throw err;
     } finally {
       setIsDownloadingPdf(false);
     }
@@ -535,6 +549,12 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
           >
             <FileDown size={16} /> {isDownloadingPdf ? "Gerando PDF..." : "Baixar PDF"}
           </button>
+          {pdfError && (
+            <span style={{ fontSize: 11, color: "#f87171", maxWidth: 200, lineHeight: 1.2 }}>
+              <AlertCircle size={12} style={{ display: "inline", marginRight: 3 }} />
+              {pdfError}
+            </span>
+          )}
           <button
             onClick={onClose}
             style={{

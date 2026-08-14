@@ -39,12 +39,22 @@ export function downloadPdfBlob(blob: Blob, fileName: string, documentRef?: Docu
   const createUrl = createObjectUrl ?? URL.createObjectURL;
   const revokeUrl = revokeObjectUrl ?? URL.revokeObjectURL;
   const url = createUrl(blob);
-  const anchor = activeDocument.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  anchor.style.display = "none";
-  activeDocument.body.appendChild(anchor);
-  anchor.click();
-  activeDocument.body.removeChild(anchor);
-  globalThis.setTimeout(() => revokeUrl(url), 10_000);
+  console.log("[PDF Download] Blob size:", blob.size, "URL:", url, "fileName:", fileName);
+  try {
+    // Método principal: anchor com download attribute
+    const anchor = activeDocument.createElement("a");
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.style.display = "none";
+    activeDocument.body.appendChild(anchor);
+    anchor.click();
+    activeDocument.body.removeChild(anchor);
+  } catch (e) {
+    // Fallback: abrir em nova aba
+    console.warn("[PDF Download] Anchor click falhou, abrindo em nova aba:", e);
+    window.open(url, "_blank");
+  }
+  globalThis.setTimeout(() => {
+    revokeUrl(url);
+  }, 60_000);
 }
