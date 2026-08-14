@@ -17,8 +17,10 @@ import { getLoginUrl } from "@/const";
 import { formatBRL } from "@/lib/cartTypes";
 import { getStoredCustomerTotal } from "@/lib/quoteTotals";
 import { toBrasiliaDate, toBrasiliaFileDate, toBrasiliaMonthYear } from "@/lib/dateUtils";
+import { generateFilteredQuotesExcel } from "@/lib/quotesExcelGenerator";
 import { PERMISSIONS } from "@shared/permissions";
 import { getCommercialQuoteValue, isNonCommercialQuoteStatus } from "@shared/commercialQuote";
+import { toast } from "sonner";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   open: { label: "Em Aberto", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: <Clock className="w-3 h-3" /> },
@@ -43,6 +45,7 @@ export default function Quotes() {
   const [dateTo, setDateTo] = useState("");
   const [datePreset, setDatePreset] = useState("all");
   const [page, setPage] = useState(0);
+  const [isExporting, setIsExporting] = useState(false);
   const limit = 20;
 
   const ldRequestsQuery = trpc.ldRequests.adminList.useQuery(undefined, { enabled: user?.role === "admin", staleTime: 0 });
@@ -195,9 +198,7 @@ export default function Quotes() {
     );
   }
 
-  const rows = data?.rows ?? [];
-  const total = data?.total ?? 0;
-  const visibleRows = rows.filter((quote: any) => {
+  const matchesClientFilters = (quote: any) => {
     if (duplicateFilter === "duplicates" && !quote.isDuplicate) return false;
     if (duplicateFilter === "unique" && quote.isDuplicate) return false;
     if (prospectingFilter === "prospecting" && !quote.isProspecting) return false;
@@ -207,11 +208,75 @@ export default function Quotes() {
     if (ldResponseFilter === "awaiting_pdf" && ldRequest?.status !== "in_review") return false;
     if (ldResponseFilter === "sent_pdf" && ldRequest?.status !== "quote_ready") return false;
     return true;
-  });
+  };
+  const rows = data?.rows ?? [];
+  const total = data?.total ?? 0;
+  const visibleRows = rows.filter(matchesClientFilters);
+  const exportRows = (filteredAllData?.rows ?? []).filter(matchesClientFilters);
   const displayRows = clientFilterActive
     ? visibleRows.slice(page * limit, (page + 1) * limit)
     : visibleRows;
   const displayTotal = clientFilterActive ? visibleRows.length : total;
+  const filtersSummary = useMemo(() => {
+    const sellerName = uniqueSellers.find(item => String(item.id) === sellerFilter)?.name;
+    const assistantName = uniqueAssistants.find(item => String(item.id) === assistantFilter)?.name;
+    const parts = [
+      search.trim() ? `Busca: ${search.trim()}` : "",
+      status !== "all" ? `Status: ${STATUS_LABELS[status]?.label ?? status}` : "",
+      sellerName ? `Vendedor: ${sellerName}` : "",
+      assistantName ? `Assistente: ${assistantName}` : "",
+      duplicateFilter === "duplicates" ? "Somente duplicados" : duplicateFilter === "unique" ? "Sem duplicados" : "",
+      prospectingFilter === "prospecting" ? "Prospecções LD" : prospectingFilter === "commercial" ? "Somente comercial" : "",
+      ldOriginFilter === "ld_only" ? "Origem: solicitações LD" : "",
+      ldResponseFilter === "awaiting_pdf" ? "LD: pendente de resposta" : ldResponseFilter === "sent_pdf" ? "LD: PDF enviado" : "",
+      dateFrom ? `De: ${toBrasiliaDate(`${dateFrom}T12:00:00-03:00`)}` : "",
+      dateTo ? `Até: ${toBrasiliaDate(`${dateTo}T12:00:00-03:00`)}` : "",
+    ].filter(Boolean);
+    return parts.length > 0 ? parts.join(" | ") : "Sem filtros";
+  }, [search, status, sellerFilter, assistantFilter, duplicateFilter, prospectingFilter, ldOriginFilter, ldResponseFilter, dateFrom, dateTo, uniqueSellers, uniqueAssistants]);
+
+  const exportFilteredQuotes = async () => {
+    if (user.role !== "admin") return;
+    if (exportRows.length === 0) {
+      toast.error("Não há orçamentos para exportar com os filtros atuais.");
+      return;
+    }
+    setIsExporting(true);
+    try {
+      await generateFilteredQuotesExcel(exportRows.map((quote: any) => {
+        const ldRequest = ldRequestByQuoteId.get(Number(quote.id));
+        return {
+          quoteNumber: quote.quoteNumber,
+          revisionCount: quote.revisionCount,
+          status: quote.status,
+          createdAt: quote.createdAt,
+          updatedAt: quote.updatedAt,
+          clientName: quote.clientName,
+          clientContact: quote.clientContact,
+          projectName: quote.projectName,
+          projectRef: quote.projectRef,
+          seller1Name: quote.seller1Name,
+          seller2Name: quote.seller2Name,
+          assistantName: quote.assistantName,
+          freteState: quote.freteState,
+          freteCity: quote.freteCity,
+          freteType: quote.freteType,
+          totalAmount: quote.totalAmount,
+          totalFinal: quote.totalFinal,
+          isProspecting: quote.isProspecting,
+          isDuplicate: quote.isDuplicate,
+          ldRequestNumber: ldRequest?.requestNumber,
+          ldRequestStatus: ldRequest?.status,
+        };
+      }), filtersSummary);
+      toast.success(`${exportRows.length} orçamento${exportRows.length === 1 ? "" : "s"} exportado${exportRows.length === 1 ? "" : "s"} para Excel.`);
+    } catch (error) {
+      console.error("Erro ao exportar orçamentos:", error);
+      toast.error("Não foi possível gerar o Excel dos orçamentos.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -464,9 +529,17 @@ export default function Quotes() {
           </Card>
         ) : (
           <>
-            <div className="text-sm text-muted-foreground">
-              {total} orçamento{total !== 1 ? "s" : ""} encontrado{total !== 1 ? "s" : ""}
-              {hasFilters && <span className="ml-2 text-primary font-medium"><Filter className="w-3 h-3 inline mr-0.5" />Filtros ativos</span>}
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="text-sm text-muted-foreground">
+                {displayTotal} orçamento{displayTotal !== 1 ? "s" : ""} encontrado{displayTotal !== 1 ? "s" : ""}
+                {hasFilters && <span className="ml-2 text-primary font-medium"><Filter className="w-3 h-3 inline mr-0.5" />Filtros ativos</span>}
+              </div>
+              {user.role === "admin" && (
+                <Button size="sm" className="gap-2 bg-emerald-600 hover:bg-emerald-700" onClick={exportFilteredQuotes} disabled={isExporting || exportRows.length === 0}>
+                  <Download className="w-4 h-4" />
+                  {isExporting ? "Gerando Excel..." : `Exportar Excel (${exportRows.length})`}
+                </Button>
+              )}
             </div>
             <div className="space-y-2">
               {displayRows.map(q => {

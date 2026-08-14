@@ -12,4 +12,12 @@ describe("filtros administrativos de origem LD", () => {
     expect(source).toContain('ldRequest?.status !== "quote_ready"');
     expect(source).toContain("Somente solicitações LD");
   });
+
+  it("exporta todos os resultados filtrados somente para administradores", () => {
+    expect(source).toContain("const exportRows = (filteredAllData?.rows ?? []).filter(matchesClientFilters)");
+    expect(source).toContain("if (user.role !== \"admin\") return;");
+    expect(source).toContain("generateFilteredQuotesExcel");
+    expect(source).toContain("user.role === \"admin\"");
+    expect(source).toContain("Exportar Excel");
+  });
 });

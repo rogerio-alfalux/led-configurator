@@ -2656,3 +2656,8 @@
 - [x] Cobrir por teste a criação do arquivo e a transição da solicitação para PDF disponível
 - [x] Restaurar envio automático interno do PDF oficial ao LD, sem salvar ou selecionar arquivo manualmente
 - [x] Garantir que o mesmo arquivo oficial seja anexado e disponibilizado ao LD pela solicitação
+
+## Exportação Excel de Meus Orçamentos para administradores
+- [x] Exportar para Excel exatamente os orçamentos filtrados na tela Meus Orçamentos
+- [x] Organizar a planilha com dados comerciais, equipe, obra, status, valores e datas
+- [x] Exibir o botão de exportação somente para administradores
