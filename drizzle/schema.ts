@@ -38,9 +38,15 @@ export const guestQuoteRequests = mysqlTable("guest_quote_requests", {
   guestUserId: int().notNull(),
   guestName: varchar({ length: 256 }).notNull(),
   guestEmail: varchar({ length: 320 }),
+  /** Nome da pessoa que solicitou, pois o login pode representar um escritório. */
+  contactName: varchar({ length: 256 }),
+  contactPhone: varchar({ length: 64 }),
   officeName: varchar({ length: 256 }).notNull(),
   finalClientName: varchar({ length: 256 }).notNull(),
   constructorName: varchar({ length: 256 }),
+  /** Localidade da obra que alimenta frete, DIFAL e FCP do orçamento administrativo. */
+  workState: varchar({ length: 2 }),
+  workCity: varchar({ length: 128 }),
   itemsData: text().notNull(),
   status: mysqlEnum(['pending', 'in_review', 'quote_ready', 'cancelled']).default('pending').notNull(),
   adminQuoteId: int(),
@@ -49,6 +55,8 @@ export const guestQuoteRequests = mysqlTable("guest_quote_requests", {
   submittedAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
   convertedAt: timestamp({ mode: 'string' }),
   pdfSentAt: timestamp({ mode: 'string' }),
+  /** Momento em que o LD visualizou uma resposta/PDF disponível. */
+  guestResponseViewedAt: timestamp({ mode: 'string' }),
   createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
   updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
@@ -58,6 +66,32 @@ export const guestQuoteRequests = mysqlTable("guest_quote_requests", {
     index("guest_quote_requests_quote_idx").on(table.adminQuoteId),
   ],
 );
+
+/** Dados de contato lembrados por login de LD Convidado para as próximas solicitações. */
+export const ldGuestContactProfiles = mysqlTable("ld_guest_contact_profiles", {
+  id: int().autoincrement().notNull(),
+  guestUserId: int().notNull(),
+  contactName: varchar({ length: 256 }).notNull(),
+  contactPhone: varchar({ length: 64 }).notNull(),
+  createdAt: timestamp({ mode: 'string' }).defaultNow().notNull(),
+  updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  unique("ld_guest_contact_profiles_guest_unique").on(table.guestUserId),
+]);
+
+/** Metadados de arquivos técnicos enviados pelo LD; os bytes ficam no armazenamento S3. */
+export const guestQuoteRequestAttachments = mysqlTable("guest_quote_request_attachments", {
+  id: int().autoincrement().notNull(),
+  requestId: int().notNull(),
+  fileName: varchar({ length: 256 }).notNull(),
+  storageKey: text().notNull(),
+  fileUrl: text().notNull(),
+  mimeType: varchar({ length: 128 }).notNull(),
+  fileSize: int().notNull(),
+  uploadedAt: timestamp({ mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+  index("guest_quote_request_attachments_request_idx").on(table.requestId),
+]);
 
 export const quoteItems = mysqlTable("quote_items", {
 	id: int().autoincrement().notNull(),

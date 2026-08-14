@@ -1,0 +1,2 @@
+ALTER TABLE `guest_quote_request_attachments` MODIFY COLUMN `uploadedAt` timestamp NOT NULL DEFAULT (now());--> statement-breakpoint
+ALTER TABLE `ld_guest_contact_profiles` MODIFY COLUMN `createdAt` timestamp NOT NULL DEFAULT (now());

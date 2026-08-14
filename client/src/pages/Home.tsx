@@ -13,6 +13,7 @@ import { LdProfileCartControls } from "@/components/LdProfileCartControls";
 import { profileCartTechnicalFields } from "@/lib/profileCartTechnicalFields";
 import { ModularOptimizationControls } from "@/components/ModularOptimizationControls";
 import { ResultTechnicalCartControls } from "@/components/ResultTechnicalCartControls";
+import { getLdNotificationBadge } from "@/lib/ldRequestNotifications";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -2761,8 +2762,10 @@ export default function Home() {
   const { user, logout, isAuthenticated } = useAuth();
   const isVivian = user?.email === "vivian@grupoalfalux.com.br";
   const isConvidado = (user as any)?.role === "convidado";
-  const pendingLdRequests = trpc.ldRequests.adminList.useQuery(undefined, { enabled: (user as any)?.role === "admin", staleTime: 0 });
-  const pendingLdRequestCount = (pendingLdRequests.data ?? []).filter((request: any) => request.status === "pending").length;
+  const ldNotifications = trpc.ldRequests.notifications.useQuery(undefined, { enabled: Boolean(user), staleTime: 0, refetchInterval: 30_000 });
+  const pendingLdRequestCount = ldNotifications.data?.adminPendingCount ?? 0;
+  const readyLdResponseCount = ldNotifications.data?.guestReadyCount ?? 0;
+  const ldNotificationBadge = getLdNotificationBadge((user as any)?.role, ldNotifications.data);
   const { addItem, count: cartCount, isAdding: isAddingToCart } = useCart();
   const [pendingCartItem, setPendingCartItem] = useState<CartItemData | null>(null);
   const [colorModalOpen, setColorModalOpen] = useState(false);
@@ -4829,10 +4832,17 @@ export default function Home() {
               </Button>
             </Link>
 
-            {(user as any)?.role === "admin" && <Link href="/solicitacoes-ld">
-              <Button variant="ghost" size="icon" title="Solicitações LD" className="relative text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+            {(user as any)?.role === "admin" && <Link href={ldNotificationBadge?.href ?? "/solicitacoes-ld"}>
+              <Button variant="ghost" size="icon" title={ldNotificationBadge?.title ?? "Solicitações LD"} className="relative text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
                 <ClipboardList className="w-4 h-4" />
                 {pendingLdRequestCount > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">{pendingLdRequestCount > 9 ? "9+" : pendingLdRequestCount}</span>}
+              </Button>
+            </Link>}
+
+            {isConvidado && <Link href={ldNotificationBadge?.href ?? "/minhas-solicitacoes-ld"}>
+              <Button variant="ghost" size="icon" title={ldNotificationBadge?.title ?? "Minhas solicitações LD"} className="relative text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+                <ClipboardList className="w-4 h-4" />
+                {readyLdResponseCount > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center">{readyLdResponseCount > 9 ? "9+" : readyLdResponseCount}</span>}
               </Button>
             </Link>}
 

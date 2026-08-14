@@ -105,6 +105,28 @@
 - [x] Cobrir por integração a captura completa de chaves de PDF com subpastas no proxy de ativos
 - [x] Cobrir o fluxo do LD que abre a URL armazenada do PDF validado em /api/assets
 - [x] Cobrir a abertura do PDF na tela Minhas solicitações com a URL validada retornada ao LD
+- [x] Adicionar localidade da obra com estado e cidade à solicitação LD
+- [x] Transferir estado e cidade ao orçamento criado pelo administrador para cálculo de DIFAL/FCP
+- [x] Persistir nome e telefone do contato LD para solicitações futuras do mesmo login
+- [x] Permitir anexar DWG, PDF e documentos técnicos à solicitação LD usando armazenamento seguro
+- [x] Exibir anexos, contato e localidade da obra para o administrador na solicitação LD
+- [x] Adicionar badges de solicitações pendentes ao administrador e respostas disponíveis ao LD Convidado
+- [x] Cobrir por testes dados, anexos, transferência fiscal e notificações da solicitação LD
+- [x] Reutilizar no PDF devolvido ao LD o mesmo gerador e dados visuais do botão Gerar PDF do orçamento
+- [x] Corrigir mapeamento de Obra, Cliente e e-mail de contato no cabeçalho do PDF devolvido ao LD
+- [x] Cobrir por regressão a equivalência do PDF LD com a geração oficial do orçamento
+- [x] Cobrir notificações de solicitação pendente para administrador e resposta disponível para LD
+- [x] Cobrir o payload completo de contato, localidade e anexos enviado pela solicitação LD
+- [x] Unificar o pipeline do PDF LD ao botão oficial ou provar a equivalência da captura visual
+- [x] Criar regressão do PDF LD para cabeçalho, fotos e estrutura visual oficial
+- [x] Cobrir o fluxo real de contagem e baixa das notificações LD ao visualizar respostas
+- [x] Criar regressão estrutural do PDF LD para cabeçalho, fotos e pipeline visual oficial
+- [x] Cobrir a tela Minhas solicitações chamando markResponsesViewed e atualizando o badge do LD
+- [x] Validar que a captura visual de PDF carrega fotos no download oficial e no PDF devolvido ao LD
+- [x] Cobrir em integração a abertura de Minhas solicitações e a baixa do badge LD no cabeçalho
+- [x] Cobrir em execução o carregamento de fotos antes da captura visual e o compartilhamento do Blob entre download oficial e envio LD
+- [x] Cobrir em integração a rota Minhas solicitações e o badge real do cabeçalho LD
+- [x] Cobrir em execução a captura html2canvas e o Blob compartilhado pelo download oficial e envio LD
 - [x] Persistir foto manual de Item Especial e exibi-la no carrinho, orçamento, PDF, Excel e consultas futuras
 - [x] Exibir painel de amostra/manutenção para todos os administradores e excluir valores convertidos dos totais do dashboard
 - [x] Persistir valor comercial zero em amostras/manutenções e restaurar com segurança no cancelamento

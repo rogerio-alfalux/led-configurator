@@ -1,5 +1,5 @@
 import { drizzle } from "drizzle-orm/mysql2";
-import { eq, like, or, desc, and, sql, asc } from "drizzle-orm";
+import { eq, like, or, desc, and, sql, asc, isNull } from "drizzle-orm";
 import {
   InsertUser, users, cartItems, InsertCartItem, sellers, assistants,
   quotes, quoteVersions, quoteItems, InsertQuote, InsertQuoteVersion, InsertQuoteItem,
@@ -14,6 +14,8 @@ import {
   sampleOrders,
   sampleLinks,
   guestQuoteRequests,
+  guestQuoteRequestAttachments,
+  ldGuestContactProfiles,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { fetchAllAlfaluxProducts, fetchComponentes, fetchAcessoriosProducts } from './alfaluxApiService';
@@ -171,9 +173,13 @@ export type CreateGuestQuoteRequestInput = {
   guestUserId: number;
   guestName: string;
   guestEmail?: string | null;
+  contactName: string;
+  contactPhone: string;
   officeName: string;
   finalClientName: string;
   constructorName?: string | null;
+  workState: string;
+  workCity: string;
   itemsData: string;
 };
 
@@ -187,6 +193,76 @@ export async function createGuestQuoteRequest(input: CreateGuestQuoteRequestInpu
     status: "pending",
   });
   return (result as unknown as { insertId: number }[])[0]?.insertId ?? 0;
+}
+
+export async function getLdGuestContactProfile(guestUserId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  return (await db.select().from(ldGuestContactProfiles)
+    .where(eq(ldGuestContactProfiles.guestUserId, guestUserId)).limit(1))[0];
+}
+
+export async function upsertLdGuestContactProfile(input: { guestUserId: number; contactName: string; contactPhone: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(ldGuestContactProfiles).values(input).onDuplicateKeyUpdate({
+    set: { contactName: input.contactName, contactPhone: input.contactPhone, updatedAt: nowBrasiliaStr() },
+  });
+}
+
+export type GuestQuoteRequestAttachmentInput = {
+  requestId: number;
+  fileName: string;
+  storageKey: string;
+  fileUrl: string;
+  mimeType: string;
+  fileSize: number;
+};
+
+export async function createGuestQuoteRequestAttachments(attachments: GuestQuoteRequestAttachmentInput[]) {
+  if (!attachments.length) return;
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(guestQuoteRequestAttachments).values(attachments);
+}
+
+export async function listGuestQuoteRequestAttachments(requestId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(guestQuoteRequestAttachments)
+    .where(eq(guestQuoteRequestAttachments.requestId, requestId))
+    .orderBy(asc(guestQuoteRequestAttachments.id));
+}
+
+export async function countPendingGuestQuoteRequests() {
+  const db = await getDb();
+  if (!db) return 0;
+  const rows = await db.select({ count: sql<number>`count(*)` }).from(guestQuoteRequests)
+    .where(eq(guestQuoteRequests.status, "pending"));
+  return Number(rows[0]?.count ?? 0);
+}
+
+export async function countGuestUnseenQuoteResponses(guestUserId: number) {
+  const db = await getDb();
+  if (!db) return 0;
+  const rows = await db.select({ count: sql<number>`count(*)` }).from(guestQuoteRequests)
+    .where(and(
+      eq(guestQuoteRequests.guestUserId, guestUserId),
+      eq(guestQuoteRequests.status, "quote_ready"),
+      isNull(guestQuoteRequests.guestResponseViewedAt),
+    ));
+  return Number(rows[0]?.count ?? 0);
+}
+
+export async function markGuestQuoteResponsesViewed(guestUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(guestQuoteRequests).set({ guestResponseViewedAt: nowBrasiliaStr() })
+    .where(and(
+      eq(guestQuoteRequests.guestUserId, guestUserId),
+      eq(guestQuoteRequests.status, "quote_ready"),
+      isNull(guestQuoteRequests.guestResponseViewedAt),
+    ));
 }
 
 export async function listGuestQuoteRequests(status?: "pending" | "in_review" | "quote_ready" | "cancelled") {

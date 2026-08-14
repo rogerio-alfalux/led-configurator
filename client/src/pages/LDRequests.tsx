@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, CheckCircle2, ClipboardList, Clock, FileText, Package, UserRound } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ClipboardList, Clock, FileText, MapPin, Package, Paperclip, Phone, UserRound } from "lucide-react";
+import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,8 @@ import { toBrasiliaDateTime } from "@/lib/dateUtils";
 import { isValidatedLdPdfAvailable } from "@/lib/ldRequestUtils";
 import { LdGuestRequestHistoryCard } from "@/components/LdGuestCards";
 import { openLdValidatedPdf } from "@/lib/ldPdfDownload";
+import { shouldMarkLdResponsesViewed } from "@/lib/ldResponseVisibility";
+import { markLdResponsesOnPageOpen } from "@/lib/ldResponsePageOpen";
 import { toast } from "sonner";
 
 const STATUS: Record<string, { label: string; className: string }> = {
@@ -50,7 +53,8 @@ export function LDRequestsAdmin() {
         const status = STATUS[request.status] ?? STATUS.pending;
         return <Card key={request.id}><CardHeader className="pb-3"><div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3"><div><CardTitle className="text-base flex items-center gap-2"><ClipboardList className="w-4 h-4 text-primary" /> Solicitação #{request.id}</CardTitle><p className="text-sm text-muted-foreground mt-1">Enviada em {toBrasiliaDateTime(request.submittedAt)}</p></div><Badge className={status.className}>{status.label}</Badge></div></CardHeader><CardContent className="space-y-4">
           <div className="grid sm:grid-cols-3 gap-3 text-sm"><div><p className="text-muted-foreground">Escritório</p><p className="font-medium">{request.officeName}</p></div><div><p className="text-muted-foreground">Cliente final</p><p className="font-medium">{request.finalClientName}</p></div><div><p className="text-muted-foreground">Construtora</p><p className="font-medium">{request.constructorName || "—"}</p></div></div>
-          <div className="rounded-md border bg-muted/30 p-3"><p className="text-xs font-semibold text-muted-foreground mb-2">SOLICITANTE</p><p className="text-sm"><UserRound className="inline w-3.5 h-3.5 mr-1" />{request.guestName} {request.guestEmail ? `· ${request.guestEmail}` : ""}</p></div>
+          <div className="grid md:grid-cols-2 gap-3"><div className="rounded-md border bg-muted/30 p-3"><p className="text-xs font-semibold text-muted-foreground mb-2">CONTATO SOLICITANTE</p><p className="text-sm"><UserRound className="inline w-3.5 h-3.5 mr-1" />{request.contactName || request.guestName}</p><p className="text-sm text-muted-foreground mt-1"><Phone className="inline w-3.5 h-3.5 mr-1" />{request.contactPhone || "Telefone não informado"}</p><p className="text-sm text-muted-foreground mt-1">{request.guestEmail || "E-mail não informado"}</p></div><div className="rounded-md border bg-muted/30 p-3"><p className="text-xs font-semibold text-muted-foreground mb-2">LOCALIDADE DA OBRA</p><p className="text-sm"><MapPin className="inline w-3.5 h-3.5 mr-1 text-primary" />{request.workCity || "Cidade não informada"}{request.workState ? ` · ${request.workState}` : ""}</p><p className="text-xs text-muted-foreground mt-2">Aplicada ao orçamento para frete, DIFAL e FCP.</p></div></div>
+          {(request.attachments ?? []).length > 0 && <div className="rounded-md border p-3 space-y-2"><p className="text-xs font-semibold text-muted-foreground">ANEXOS TÉCNICOS ({request.attachments.length})</p><div className="flex flex-wrap gap-2">{request.attachments.map((attachment: any) => <a key={attachment.id} href={attachment.fileUrl} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1.5 rounded-md border bg-muted/30 px-2.5 py-1.5 text-xs font-medium hover:bg-muted"><Paperclip className="w-3.5 h-3.5 text-primary shrink-0" /><span className="truncate max-w-52">{attachment.fileName}</span></a>)}</div></div>}
           <div className="rounded-md border p-3 space-y-2"><p className="text-xs font-semibold text-muted-foreground">PRODUTOS CONFIGURADOS ({items.length})</p>{items.map((item: any, index: number) => <div key={index} className="text-sm"><span className="font-medium">{index + 1}. {item.description}</span><span className="text-muted-foreground"> · Qtd. {item.qty ?? 1}{item.power ? ` · ${item.power}` : ""}{item.cct ? ` · ${item.cct}` : ""}</span></div>)}</div>
           <div className="flex flex-wrap gap-2 justify-end">{request.status === "pending" && <Button variant="outline" size="sm" onClick={() => startReview.mutate({ requestId: request.id })} disabled={startReview.isPending}><Clock className="w-4 h-4 mr-1" /> Assumir análise</Button>}{request.adminQuoteId ? <Link href={`/orcamentos/${request.adminQuoteId}`}><Button size="sm"><FileText className="w-4 h-4 mr-1" /> Abrir orçamento</Button></Link> : <Button size="sm" onClick={() => convert.mutate({ requestId: request.id })} disabled={convert.isPending}><CheckCircle2 className="w-4 h-4 mr-1" /> Criar orçamento para revisão</Button>}</div>
         </CardContent></Card>;
@@ -61,8 +65,18 @@ export function LDRequestsAdmin() {
 
 export function LDGuestRequests() {
   const { user } = useAuth();
+  const utils = trpc.useUtils();
   const mine = trpc.ldRequests.mine.useQuery(undefined, { staleTime: 0, enabled: (user as any)?.role === "convidado" });
+  const markResponsesViewed = trpc.ldRequests.markResponsesViewed.useMutation();
   const pdf = trpc.ldRequests.myPdf.useMutation();
+  useEffect(() => {
+    void markLdResponsesOnPageOpen({
+      role: (user as any)?.role,
+      requests: mine.data,
+      markViewed: () => markResponsesViewed.mutateAsync(),
+      invalidateBadge: () => utils.ldRequests.notifications.invalidate(),
+    });
+  }, [user, mine.data, markResponsesViewed, utils]);
   const download = async (requestId: number) => {
     try { await openLdValidatedPdf(requestId, pdf.mutateAsync); } catch { toast.error("Não foi possível abrir o PDF."); }
   };

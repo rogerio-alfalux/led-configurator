@@ -8,6 +8,9 @@
 import { Fragment, useMemo, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { X, FileDown } from "lucide-react";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
+import { capturePreviewPagePdf } from "@/lib/pdfVisualCapture";
 import type { CartItemData, QuoteFormData } from "@/lib/cartTypes";
 import { formatBRL } from "@/lib/cartTypes";
 import { getStateInfo } from "@/lib/difalTable";
@@ -149,10 +152,14 @@ interface Props {
   freshPhotoMap?: Map<string, string>;
   /** Se true, dispara o download de PDF automaticamente ao abrir (sem exibir o modal) */
   autoPrint?: boolean;
+  /** Captura a mesma página visual da prévia como Blob, para entrega arquivada ao LD. */
+  onCapturePdf?: (blob: Blob) => void;
+  onCapturePdfError?: (error: Error) => void;
 }
 
-export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMap, autoPrint }: Props) {
+export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMap, autoPrint, onCapturePdf, onCapturePdfError }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
+  const capturedRef = useRef(false);
 
   // Gera nome do arquivo no mesmo padrão do Excel
   const buildFileName = useCallback(() => {
@@ -166,138 +173,45 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
       .substring(0, 200);
   }, [formData]);
 
-  // Abre nova janela com o HTML do conteúdo e aciona print
-  const handleDownloadPDF = useCallback(async () => {
-    const el = contentRef.current;
-    if (!el) return;
-    const fileName = buildFileName();
-
-    // Converte todas as imagens relativas para base64 para que apareçam na janela de impressão (about:blank)
-    const imgEls = Array.from(el.querySelectorAll("img")) as HTMLImageElement[];
-    await Promise.all(imgEls.map(async (img) => {
-      const src = img.getAttribute("src") || "";
-      if (!src || src.startsWith("data:")) return;
-      try {
-        const absoluteSrc = src.startsWith("http") ? src : `${window.location.origin}${src.startsWith("/") ? "" : "/"}${src}`;
-        const resp = await fetch(absoluteSrc);
-        const blob = await resp.blob();
-        const b64 = await new Promise<string>((res) => {
-          const reader = new FileReader();
-          reader.onload = () => res(reader.result as string);
-          reader.readAsDataURL(blob);
-        });
-        img.setAttribute("data-print-src", b64);
-      } catch { /* ignora erros de imagem individual */ }
-    }));
-
-    // Substitui src por base64 no HTML serializado
-    let htmlContent = el.innerHTML;
-    imgEls.forEach((img) => {
-      const b64 = img.getAttribute("data-print-src");
-      const origSrc = img.getAttribute("src") || "";
-      if (b64 && origSrc && !origSrc.startsWith("data:")) {
-        // Escapa caracteres especiais do src original para usar como regex
-        const escaped = origSrc.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        htmlContent = htmlContent.replace(new RegExp(`src="${escaped}"`, "g"), `src="${b64}"`);
-      }
-      img.removeAttribute("data-print-src");
+  const captureVisiblePreviewPdf = useCallback(async () => {
+    const page = contentRef.current?.firstElementChild?.lastElementChild as HTMLElement | null;
+    if (!page) throw new Error("Prévia oficial indisponível para captura.");
+    return capturePreviewPagePdf({
+      page,
+      rasterize: (node) => html2canvas(node as HTMLElement, { backgroundColor: "#ffffff", scale: 2, useCORS: true, logging: false }),
+      createPdf: () => new jsPDF({ orientation: "landscape", unit: "pt", format: "a4", compress: true }),
     });
+  }, []);
 
-    const printWindow = window.open("", "_blank", "width=1200,height=900");
-    if (!printWindow) { alert("Permita popups para baixar o PDF."); return; }
-    printWindow.document.write(`<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <title>${fileName}</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body {
-      font-family: Calibri, Arial, sans-serif;
-      background: #fff;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-      color-adjust: exact !important;
-    }
-    /* Remover fundo cinza do wrapper de scroll */
-    [data-print-content] {
-      background: #fff !important;
-      padding: 0 !important;
-      overflow: visible !important;
-    }
-    /* Ocultar marca d'agua no PDF */
-    [aria-hidden="true"] {
-      display: none !important;
-    }
-    /* Container relativo da página */
-    [data-print-content] > div {
-      position: static !important;
-    }
-    /* Página branca: zoom para caber em A4 retrato */
-    [data-print-content] > div > div {
-      width: 1100px !important;
-      min-width: 1100px !important;
-      margin: 0 !important;
-      box-shadow: none !important;
-      padding: 16px 24px 32px !important;
-    }
-    @media print {
-      html, body {
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-        color-adjust: exact !important;
-        background: #fff !important;
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-      @page {
-        size: A4 portrait;
-        margin: 20mm 6mm 10mm 6mm;
-        /* Suprimir cabeçalhos e rodapés automáticos do navegador */
-        @top-left { content: none; }
-        @top-center { content: none; }
-        @top-right { content: none; }
-        @bottom-left { content: none; }
-        @bottom-center { content: none; }
-        @bottom-right { content: none; }
-      }
-      /* Escala para caber 1100px em A4 retrato (794px úteis a 96dpi → zoom ≈ 0.64) */
-      [data-print-content] > div > div {
-        zoom: 0.64 !important;
-        transform-origin: top left !important;
-      }
-      /* Evitar quebra de página dentro de linhas da tabela */
-      tr, td, th { page-break-inside: avoid; break-inside: avoid; }
-      /* Cabeçalho de pavimento nunca fica sozinho no fim da página */
-      thead { display: table-header-group; }
-      tfoot { display: table-footer-group; }
-    }
-  </style>
-</head>
-<body>
-${htmlContent}
-</body>
-</html>`);
-    printWindow.document.close();
-    // Aguardar imagens carregarem antes de imprimir
-    printWindow.onload = () => {
-      setTimeout(() => {
-        printWindow.focus();
-        printWindow.print();
-        printWindow.close();
-      }, 800);
-    };
-    // Fallback caso onload não dispare
-    setTimeout(() => {
+  useEffect(() => {
+    if (!open || !onCapturePdf || capturedRef.current) return;
+    capturedRef.current = true;
+    const timer = window.setTimeout(async () => {
       try {
-        if (!printWindow.closed) {
-          printWindow.focus();
-          printWindow.print();
-          printWindow.close();
-        }
-      } catch { /* janela já fechada */ }
-    }, 2500);
-  }, [buildFileName]);
+        onCapturePdf(await captureVisiblePreviewPdf());
+      } catch (error) {
+        onCapturePdfError?.(error instanceof Error ? error : new Error("Não foi possível capturar o PDF."));
+      }
+    }, 650);
+    return () => window.clearTimeout(timer);
+  }, [open, onCapturePdf, onCapturePdfError, captureVisiblePreviewPdf]);
+
+  useEffect(() => {
+    if (!open) capturedRef.current = false;
+  }, [open]);
+
+  // Baixa o mesmo Blob visual usado para o PDF devolvido ao LD.
+  const handleDownloadPDF = useCallback(async () => {
+    const blob = await captureVisiblePreviewPdf();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${buildFileName()}.pdf`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }, [buildFileName, captureVisiblePreviewPdf]);
 
   // Bloqueia scroll do body quando aberto
   useEffect(() => {

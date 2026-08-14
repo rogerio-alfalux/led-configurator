@@ -56,6 +56,7 @@ import { toBrasiliaDate } from "@/lib/dateUtils";
 import { applyCCTChange } from "@/lib/cctUtils";
 import { getQuoteTeamValidationError, isSellerRequiredForQuote } from "@/lib/quoteTeamValidation";
 import { LdGuestCartItemCard } from "@/components/LdGuestCards";
+import { buildLdRequestPayload } from "@/lib/ldRequestForm";
 
 /**
  * REGRA INEGOCIÁVEL: Para perfis (com profileSegments), o driverQty total é sempre
@@ -3528,11 +3529,23 @@ function GuestCart() {
   const [officeName, setOfficeName] = useState((user as any)?.name ?? "");
   const [finalClientName, setFinalClientName] = useState("");
   const [constructorName, setConstructorName] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [workState, setWorkState] = useState("SP");
+  const [workCity, setWorkCity] = useState("");
+  const [attachments, setAttachments] = useState<Array<{ fileName: string; mimeType: string; size: number; base64: string }>>([]);
   const utils = trpc.useUtils();
+  const contactDefaults = trpc.ldRequests.contactDefaults.useQuery(undefined, { enabled: (user as any)?.role === "convidado" });
+  useEffect(() => {
+    if (!contactDefaults.data) return;
+    setContactName(current => current || contactDefaults.data?.contactName || "");
+    setContactPhone(current => current || contactDefaults.data?.contactPhone || "");
+  }, [contactDefaults.data]);
   const submitRequest = trpc.ldRequests.submit.useMutation({
     onSuccess: async () => {
       await clearCart();
       await utils.ldRequests.mine.invalidate();
+      await utils.ldRequests.notifications.invalidate();
       toast.success("Solicitação enviada para análise da equipe Alfalux.");
       setDialogOpen(false);
       navigate("/minhas-solicitacoes-ld");
@@ -3540,12 +3553,32 @@ function GuestCart() {
     onError: (error) => toast.error(error.message),
   });
 
+  const readAttachments = async (files: FileList | null) => {
+    if (!files?.length) return;
+    const selected = Array.from(files);
+    if (attachments.length + selected.length > 6) {
+      toast.error("Envie no máximo 6 arquivos técnicos.");
+      return;
+    }
+    try {
+      const loaded = await Promise.all(selected.map(async (file) => {
+        if (file.size > 12 * 1024 * 1024) throw new Error(`${file.name} excede 12 MB.`);
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onerror = () => reject(new Error(`Não foi possível ler ${file.name}.`));
+          reader.onload = () => resolve(String(reader.result));
+          reader.readAsDataURL(file);
+        });
+        return { fileName: file.name, mimeType: file.type || "application/octet-stream", size: file.size, base64: dataUrl.split(",")[1] || "" };
+      }));
+      setAttachments(current => [...current, ...loaded]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível preparar os anexos.");
+    }
+  };
+
   const submit = () => {
-    submitRequest.mutate({
-      officeName,
-      finalClientName,
-      constructorName: constructorName || undefined,
-    });
+    submitRequest.mutate(buildLdRequestPayload({ officeName, finalClientName, constructorName, contactName, contactPhone, workState, workCity, attachments }));
   };
 
   return (
@@ -3585,14 +3618,38 @@ function GuestCart() {
       </main>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Enviar solicitação de orçamento</DialogTitle><DialogDescription>Essas informações serão encaminhadas à equipe responsável pela elaboração do orçamento.</DialogDescription></DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5"><Label htmlFor="ld-office">Escritório</Label><Input id="ld-office" value={officeName} onChange={e => setOfficeName(e.target.value)} placeholder="Nome do escritório" /></div>
-            <div className="space-y-1.5"><Label htmlFor="ld-client">Cliente final</Label><Input id="ld-client" value={finalClientName} onChange={e => setFinalClientName(e.target.value)} placeholder="Nome do cliente final" /></div>
-            <div className="space-y-1.5"><Label htmlFor="ld-constructor">Construtora <span className="text-muted-foreground">(opcional)</span></Label><Input id="ld-constructor" value={constructorName} onChange={e => setConstructorName(e.target.value)} placeholder="Nome da construtora" /></div>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Enviar solicitação de orçamento</DialogTitle><DialogDescription>Informe o contato e a localidade da obra para que a equipe prepare o orçamento com os tributos corretos.</DialogDescription></DialogHeader>
+          <div className="space-y-5 py-2">
+            <section className="rounded-lg border bg-muted/20 p-4 space-y-3">
+              <div className="flex items-center gap-2"><Building2 className="w-4 h-4 text-primary" /><h3 className="font-semibold text-sm">Dados da solicitação</h3></div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5"><Label htmlFor="ld-office">Escritório</Label><Input id="ld-office" value={officeName} onChange={e => setOfficeName(e.target.value)} placeholder="Nome do escritório" /></div>
+                <div className="space-y-1.5"><Label htmlFor="ld-client">Cliente final</Label><Input id="ld-client" value={finalClientName} onChange={e => setFinalClientName(e.target.value)} placeholder="Nome do cliente final" /></div>
+              </div>
+              <div className="space-y-1.5"><Label htmlFor="ld-constructor">Construtora <span className="text-muted-foreground">(opcional)</span></Label><Input id="ld-constructor" value={constructorName} onChange={e => setConstructorName(e.target.value)} placeholder="Nome da construtora" /></div>
+            </section>
+            <section className="rounded-lg border bg-muted/20 p-4 space-y-3">
+              <div className="flex items-center gap-2"><Users className="w-4 h-4 text-primary" /><h3 className="font-semibold text-sm">Contato responsável</h3></div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5"><Label htmlFor="ld-contact-name">Nome completo</Label><Input id="ld-contact-name" value={contactName} onChange={e => setContactName(e.target.value)} placeholder="Quem está solicitando?" /></div>
+                <div className="space-y-1.5"><Label htmlFor="ld-contact-phone">Telefone</Label><Input id="ld-contact-phone" value={contactPhone} onChange={e => setContactPhone(e.target.value)} placeholder="(00) 00000-0000" inputMode="tel" /></div>
+              </div>
+              <p className="text-xs text-muted-foreground">E-mail do contato: <span className="font-medium text-foreground">{(user as any)?.email || "e-mail do login"}</span>. O telefone será lembrado para a próxima solicitação deste login.</p>
+            </section>
+            <section className="rounded-lg border bg-muted/20 p-4 space-y-3">
+              <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary" /><h3 className="font-semibold text-sm">Localidade da obra</h3></div>
+              <StateCitySelector stateCode={workState} city={workCity} onStateChange={setWorkState} onCityChange={setWorkCity} stateLabel="Estado da obra" cityLabel="Cidade da obra" />
+              <p className="text-xs text-muted-foreground">A localidade será aplicada ao orçamento para cálculo automático de DIFAL/FCP e frete.</p>
+            </section>
+            <section className="rounded-lg border bg-muted/20 p-4 space-y-3">
+              <div className="flex items-center gap-2"><Upload className="w-4 h-4 text-primary" /><h3 className="font-semibold text-sm">Anexos técnicos <span className="font-normal text-muted-foreground">(opcional)</span></h3></div>
+              <Input type="file" multiple accept=".pdf,.dwg,.dxf,.zip,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" onChange={e => { void readAttachments(e.target.files); e.currentTarget.value = ""; }} />
+              <p className="text-xs text-muted-foreground">Envie plantas DWG, cadernos técnicos em PDF e documentos de apoio. Máximo de 6 arquivos, 12 MB por arquivo.</p>
+              {attachments.length > 0 && <div className="space-y-2">{attachments.map((attachment, index) => <div key={`${attachment.fileName}-${index}`} className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2 text-sm"><span className="min-w-0 truncate"><FileDown className="inline w-3.5 h-3.5 mr-1.5 text-primary" />{attachment.fileName}</span><Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setAttachments(current => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remover ${attachment.fileName}`}><X className="w-4 h-4" /></Button></div>)}</div>}
+            </section>
           </div>
-          <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button><Button disabled={!officeName.trim() || !finalClientName.trim() || submitRequest.isPending} onClick={submit}>{submitRequest.isPending ? "Enviando..." : "Enviar para o orçamento"}</Button></div>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2"><Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button><Button disabled={!officeName.trim() || !finalClientName.trim() || !contactName.trim() || !contactPhone.trim() || !workState || !workCity.trim() || submitRequest.isPending} onClick={submit}>{submitRequest.isPending ? "Enviando..." : "Enviar para o orçamento"}</Button></div>
         </DialogContent>
       </Dialog>
     </div>

@@ -53,9 +53,16 @@ import {
   deleteSampleOrder,
   getSampleOrderStats,
   createGuestQuoteRequest,
+  createGuestQuoteRequestAttachments,
+  listGuestQuoteRequestAttachments,
   listGuestQuoteRequests,
   listGuestQuoteRequestsForGuest,
   getGuestQuoteRequestById,
+  getLdGuestContactProfile,
+  upsertLdGuestContactProfile,
+  countPendingGuestQuoteRequests,
+  countGuestUnseenQuoteResponses,
+  markGuestQuoteResponsesViewed,
   markGuestQuoteRequestInReview,
   linkGuestQuoteRequestQuote,
   attachGuestQuoteRequestPdf,
@@ -71,6 +78,8 @@ import { commercialQuoteAccess, shouldBindCommercialQuoteTeam } from "../shared/
 import { resolveOriginalCommercialTotals } from "../shared/nonCommercialQuoteFinancial";
 import { canAccessCommercialQuotes } from "../shared/guestCommercialAccess";
 import { getSampleLinkValidationError } from "../shared/sampleLinkValidation";
+import { sanitizeLdAttachmentFileName, validateLdTechnicalAttachments, type LdTechnicalAttachment } from "./ldRequestAttachment";
+import { buildLdQuoteConversion } from "./ldQuoteConversion";
 
 // ─── Controle de acesso a orçamentos ─────────────────────────────────────────
 /** Emails dos gestores com acesso irrestrito a todos os orçamentos */
@@ -270,6 +279,16 @@ export const appRouter = router({
         officeName: z.string().trim().min(2).max(256),
         finalClientName: z.string().trim().min(2).max(256),
         constructorName: z.string().trim().max(256).optional(),
+        contactName: z.string().trim().min(2).max(256),
+        contactPhone: z.string().trim().min(8).max(64),
+        workState: z.string().trim().length(2).transform(value => value.toUpperCase()),
+        workCity: z.string().trim().min(2).max(128),
+        attachments: z.array(z.object({
+          fileName: z.string().trim().min(1).max(256),
+          mimeType: z.string().trim().min(1).max(128),
+          size: z.number().int().positive(),
+          base64: z.string().min(4),
+        })).max(6).default([]),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "convidado") {
@@ -279,15 +298,36 @@ export const appRouter = router({
         if (!cart.length) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Adicione ao menos um produto antes de enviar a solicitação." });
         }
+        try {
+          validateLdTechnicalAttachments(input.attachments as LdTechnicalAttachment[]);
+        } catch (error) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Anexos inválidos." });
+        }
         const id = await createGuestQuoteRequest({
           guestUserId: ctx.user.id,
           guestName: ctx.user.name ?? "LD Convidado",
           guestEmail: ctx.user.email ?? null,
+          contactName: input.contactName,
+          contactPhone: input.contactPhone,
           officeName: input.officeName,
           finalClientName: input.finalClientName,
           constructorName: input.constructorName?.trim() || null,
+          workState: input.workState,
+          workCity: input.workCity,
           itemsData: JSON.stringify(cart.map(item => ({ itemData: item.itemData, sortOrder: item.sortOrder }))),
         });
+        await upsertLdGuestContactProfile({
+          guestUserId: ctx.user.id,
+          contactName: input.contactName,
+          contactPhone: input.contactPhone,
+        });
+        const uploaded = await Promise.all(input.attachments.map(async (attachment, index) => {
+          const fileName = sanitizeLdAttachmentFileName(attachment.fileName);
+          const key = `ld-request-attachments/${ctx.user.id}/${id}/${Date.now()}-${index}-${fileName}`;
+          const { key: storageKey, url } = await storagePut(key, Buffer.from(attachment.base64, "base64"), attachment.mimeType);
+          return { requestId: id, fileName: attachment.fileName, storageKey, fileUrl: url, mimeType: attachment.mimeType, fileSize: attachment.size };
+        }));
+        await createGuestQuoteRequestAttachments(uploaded);
         await clearCart(ctx.user.id);
         await insertAuditLog({
           userId: ctx.user.id,
@@ -296,10 +336,27 @@ export const appRouter = router({
           action: "ld_quote_request_submitted",
           entityType: "guest_quote_request",
           entityId: id,
-          details: JSON.stringify({ officeName: input.officeName, finalClientName: input.finalClientName }),
+          details: JSON.stringify({ officeName: input.officeName, finalClientName: input.finalClientName, workState: input.workState, workCity: input.workCity, attachmentCount: uploaded.length }),
         });
         return { id };
       }),
+
+    contactDefaults: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "convidado") throw new TRPCError({ code: "FORBIDDEN" });
+      return (await getLdGuestContactProfile(ctx.user.id)) ?? null;
+    }),
+
+    notifications: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role === "admin") return { adminPendingCount: await countPendingGuestQuoteRequests(), guestReadyCount: 0 };
+      if (ctx.user.role === "convidado") return { adminPendingCount: 0, guestReadyCount: await countGuestUnseenQuoteResponses(ctx.user.id) };
+      return { adminPendingCount: 0, guestReadyCount: 0 };
+    }),
+
+    markResponsesViewed: protectedProcedure.mutation(async ({ ctx }) => {
+      if (ctx.user.role !== "convidado") throw new TRPCError({ code: "FORBIDDEN" });
+      await markGuestQuoteResponsesViewed(ctx.user.id);
+      return { success: true };
+    }),
 
     mine: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== "convidado") return [];
@@ -309,6 +366,10 @@ export const appRouter = router({
         officeName: request.officeName,
         finalClientName: request.finalClientName,
         constructorName: request.constructorName,
+        contactName: request.contactName,
+        contactPhone: request.contactPhone,
+        workState: request.workState,
+        workCity: request.workCity,
         status: request.status,
         adminQuoteId: request.adminQuoteId,
         submittedAt: request.submittedAt,
@@ -330,7 +391,10 @@ export const appRouter = router({
 
     adminList: adminProcedure
       .input(z.object({ status: z.enum(["pending", "in_review", "quote_ready", "cancelled"]).optional() }).optional())
-      .query(async ({ input }) => listGuestQuoteRequests(input?.status)),
+      .query(async ({ input }) => Promise.all((await listGuestQuoteRequests(input?.status)).map(async request => ({
+        ...request,
+        attachments: await listGuestQuoteRequestAttachments(request.id),
+      })))),
 
     adminStartReview: adminProcedure
       .input(z.object({ requestId: z.number().int().positive() }))
@@ -356,12 +420,26 @@ export const appRouter = router({
         const totalAmount = items.reduce((sum, item) => {
           try { return sum + (Number(JSON.parse(item.itemData).totalPrice) || 0); } catch { return sum; }
         }, 0);
+        const ldConversion = buildLdQuoteConversion(request, totalAmount);
         const created = await createQuote({
-          clientName: request.finalClientName,
-          projectName: request.officeName,
-          notes: `Solicitação LD Convidado\nEscritório: ${request.officeName}\nCliente final: ${request.finalClientName}${request.constructorName ? `\nConstrutora: ${request.constructorName}` : ""}\nSolicitante: ${request.guestName}`,
+          clientName: ldConversion.clientName,
+          clientContact: ldConversion.clientContact,
+          clientPhone: ldConversion.clientPhone,
+          clientEmail: ldConversion.clientEmail,
+          projectName: ldConversion.projectName,
+          notes: ldConversion.notes,
           totalAmount,
-          totalFinal: totalAmount,
+          totalFinal: ldConversion.totalFinal,
+          destState: ldConversion.destState,
+          freteState: ldConversion.freteState,
+          freteCity: ldConversion.freteCity,
+          freteLocalidade: ldConversion.freteLocalidade,
+          difalEnabled: ldConversion.difalEnabled,
+          difalPercent: ldConversion.difalPercent,
+          fcpEnabled: ldConversion.fcpEnabled,
+          fcpPercent: ldConversion.fcpPercent,
+          difalValue: ldConversion.difalValue,
+          fcpValue: ldConversion.fcpValue,
           items,
           createdByUserId: ctx.user.id,
         });

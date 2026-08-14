@@ -894,6 +894,7 @@ export default function QuoteDetail() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [pdfPrintOpen, setPdfPrintOpen] = useState(false);
+  const [ldPdfCaptureOpen, setLdPdfCaptureOpen] = useState(false);
 
   // Edit (add revision) dialog — full form with all tabs
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -1964,48 +1965,16 @@ export default function QuoteDetail() {
     if (!linkedLdRequest || !quote) return;
     setIsGenerating(true);
     try {
-      const pdfItems = commercialQuoteItems;
-      const formData: QuoteFormData = {
-        cliente: quote.clientName,
-        contato: quote.clientContact ?? "",
-        tel: quote.clientPhone ?? "",
-        email: quote.clientEmail ?? "",
-        obra: quote.projectName ?? "",
-        referencia: quote.projectRef ?? "",
-        numero: quote.quoteNumber,
-        data: toBrasiliaDate(quote.updatedAt ?? quote.createdAt),
-        arquiteto: (quote as any).arquiteto ?? undefined,
-        lightDesigner: (quote as any).lightDesigner ?? undefined,
-        seller1Name: quote.seller1Name ?? undefined,
-        seller1Phone: editSellers.find((seller) => seller.id === quote.seller1Id)?.phone ?? undefined,
-        seller2Name: quote.seller2Name ?? undefined,
-        seller2Phone: editSellers.find((seller) => seller.id === quote.seller2Id)?.phone ?? undefined,
-        assistantName: quote.assistantName ?? undefined,
-        rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) : undefined,
-        marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
-        discountPercent: (quote as any).discountPercent ? parseFloat(String((quote as any).discountPercent)) : undefined,
-        showDiscount: !!(quote as any).showDiscount,
-        freteType: (quote.freteType as QuoteFormData["freteType"]) ?? "free",
-        freteIsento: quote.freteIsento ?? false,
-        freteLocalidade: (quote.freteLocalidade as QuoteFormData["freteLocalidade"]) ?? "sp",
-        freteCity: (quote as any).freteCity ?? undefined,
-        freteState: (quote as any).freteState ?? undefined,
-        freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
-        freteIncluded: (quote as any).freteIncluded ?? false,
-        diluicaoValor: commercialDiluicaoValor || undefined,
-        revisionCount: exportRevisionCount,
-        deliveryDays: quote.deliveryDays ?? 20,
-        paymentTerm: quote.paymentTerm ?? undefined,
-        destState: quote.destState ?? undefined,
-        difalEnabled: quote.difalEnabled ?? false,
-        difalPercent: quote.difalPercent ? parseFloat(String(quote.difalPercent)) : undefined,
-        difalValue: quote.difalValue ? parseFloat(String(quote.difalValue)) : undefined,
-        fcpEnabled: quote.fcpEnabled ?? false,
-        fcpPercent: quote.fcpPercent ? parseFloat(String(quote.fcpPercent)) : undefined,
-        fcpValue: quote.fcpValue ? parseFloat(String(quote.fcpValue)) : undefined,
-        quoteCreatedAt: quote.createdAt ? new Date(quote.createdAt).toISOString() : undefined,
-      };
-      const pdfBlob = await generateQuotePdfBlob(pdfItems, formData);
+      setLdPdfCaptureOpen(true);
+    } catch (err) {
+      if (!attachLdPdfMutation.isError) toast.error("Não foi possível gerar o PDF para envio.");
+      setIsGenerating(false);
+    }
+  };
+
+  const handleOfficialPdfCapturedForLd = async (pdfBlob: Blob) => {
+    if (!linkedLdRequest || !quote) return;
+    try {
       const bytes = new Uint8Array(await pdfBlob.arrayBuffer());
       let binary = "";
       for (let offset = 0; offset < bytes.length; offset += 8192) {
@@ -2018,8 +1987,9 @@ export default function QuoteDetail() {
         fileName: `Alfalux_${quote.quoteNumber.replace(/[^a-zA-Z0-9_-]/g, "_")}.pdf`,
       });
     } catch (err) {
-      if (!attachLdPdfMutation.isError) toast.error("Não foi possível gerar o PDF para envio.");
+      toast.error("Não foi possível enviar o PDF visual ao LD.");
     } finally {
+      setLdPdfCaptureOpen(false);
       setIsGenerating(false);
     }
   };
@@ -4981,9 +4951,11 @@ export default function QuoteDetail() {
 
       {/* PDF automático — mesmo modal mas dispara print imediatamente */}
       <ExcelPreviewModal
-        open={pdfPrintOpen}
-        onClose={() => setPdfPrintOpen(false)}
-        autoPrint
+        open={pdfPrintOpen || ldPdfCaptureOpen}
+        onClose={() => { setPdfPrintOpen(false); setLdPdfCaptureOpen(false); if (ldPdfCaptureOpen) setIsGenerating(false); }}
+        autoPrint={pdfPrintOpen}
+        onCapturePdf={ldPdfCaptureOpen ? handleOfficialPdfCapturedForLd : undefined}
+        onCapturePdfError={ldPdfCaptureOpen ? () => { toast.error("Não foi possível capturar a prévia oficial para o LD."); setLdPdfCaptureOpen(false); setIsGenerating(false); } : undefined}
         items={commercialQuoteItems}
         freshPhotoMap={productPhotoMap}
         formData={{
