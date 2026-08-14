@@ -28,4 +28,14 @@ describe("captura visual de PDF", () => {
     expect(pdf.addImage).toHaveBeenCalledTimes(3);
     expect(pdf.output).toHaveBeenCalledWith("blob");
   });
+
+  it("respeita a área útil e as margens A4 do documento oficial", async () => {
+    const page = { querySelectorAll: vi.fn().mockReturnValue([]) } as unknown as HTMLElement;
+    const rasterize = vi.fn().mockResolvedValue({ width: 100, height: 200, toDataURL: vi.fn().mockReturnValue("data:image/jpeg;base64,foto") });
+    const blob = new Blob(["pdf"], { type: "application/pdf" });
+    const pdf = { internal: { pageSize: { getWidth: () => 100, getHeight: () => 100 } }, addPage: vi.fn(), addImage: vi.fn(), output: vi.fn().mockReturnValue(blob) };
+    await capturePreviewPagePdf({ page, rasterize, createPdf: () => pdf, margins: { top: 10, right: 10, bottom: 10, left: 10 } });
+    expect(pdf.addImage).toHaveBeenCalledWith(expect.any(String), "JPEG", 10, 10, 80, 160, undefined, "FAST");
+    expect(pdf.addPage).toHaveBeenCalledTimes(1);
+  });
 });

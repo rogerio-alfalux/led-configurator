@@ -235,6 +235,19 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
             }
           `;
           clonedDocument.head.appendChild(compatibilityStyle);
+          // Aplicar ao clone a mesma geometria da regra @media print que gera o
+          // arquivo oficial: A4 retrato, margens de 8 mm e tipografia compacta.
+          // A regra não toca na tela nem no PDF oficial já validado.
+          const officialPrintStyle = clonedDocument.createElement("style");
+          officialPrintStyle.textContent = `
+            html, body { width: 793px !important; margin: 0 !important; padding: 0 !important; background: #ffffff !important; }
+            [data-quote-pdf-page] { box-sizing: border-box !important; width: 793px !important; min-width: 0 !important; max-width: none !important; margin: 0 !important; padding: 10px 15px !important; box-shadow: none !important; font-size: 9px !important; }
+            [data-quote-pdf-page] table { width: 100% !important; font-size: 8px !important; }
+            [data-quote-pdf-page] th, [data-quote-pdf-page] td { padding: 2px 3px !important; font-size: 8px !important; }
+            [data-quote-pdf-page] img { max-width: 60px !important; max-height: 60px !important; }
+            [data-quote-pdf-page] img[alt="ALFALUX"] { max-width: 180px !important; max-height: 55px !important; width: auto !important; height: auto !important; }
+          `;
+          clonedDocument.head.appendChild(officialPrintStyle);
           // O tema pode propagar OKLCH por propriedades que não usam os tokens
           // acima (inclusive body/html, bordas e sombras). html2canvas falha ao
           // encontrar qualquer uma delas. Neutralizamos somente os valores que
@@ -276,6 +289,8 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
       // O PDF oficial validado é A4 retrato. A captura para o LD deve apenas
       // arquivar a mesma prévia oficial nesse formato — nunca usar um layout alternativo.
       createPdf: () => new jsPDF({ orientation: "portrait", unit: "pt", format: "a4", compress: true }),
+      // A regra @page oficial usa 8 mm nas quatro bordas (22,68 pt).
+      margins: { top: 22.68, right: 22.68, bottom: 22.68, left: 22.68 },
     });
   }, []);
 

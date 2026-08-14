@@ -10,11 +10,13 @@ export async function waitForPreviewImages(images: Array<Pick<HTMLImageElement, 
 
 type CanvasLike = { width: number; height: number; toDataURL: (type: string, quality?: number) => string };
 type PdfLike = { internal: { pageSize: { getWidth: () => number; getHeight: () => number } }; addPage: () => unknown; addImage: (...args: any[]) => unknown; output: (type: "blob") => Blob };
+type PdfMargins = { top: number; right: number; bottom: number; left: number };
 
 export async function capturePreviewPagePdf(input: {
   page: Pick<HTMLElement, "querySelectorAll">;
   rasterize: (page: unknown) => Promise<CanvasLike>;
   createPdf: () => PdfLike;
+  margins?: PdfMargins;
 }) {
   const images = Array.from(input.page.querySelectorAll("img")) as HTMLImageElement[];
   await waitForPreviewImages(images);
@@ -22,13 +24,16 @@ export async function capturePreviewPagePdf(input: {
   const pdf = input.createPdf();
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  const imageHeight = (canvas.height * pageWidth) / canvas.width;
+  const margins = input.margins ?? { top: 0, right: 0, bottom: 0, left: 0 };
+  const printableWidth = pageWidth - margins.left - margins.right;
+  const printableHeight = pageHeight - margins.top - margins.bottom;
+  const imageHeight = (canvas.height * printableWidth) / canvas.width;
   const imageData = canvas.toDataURL("image/jpeg", 0.95);
   let offset = 0;
   while (offset < imageHeight) {
     if (offset > 0) pdf.addPage();
-    pdf.addImage(imageData, "JPEG", 0, -offset, pageWidth, imageHeight, undefined, "FAST");
-    offset += pageHeight;
+    pdf.addImage(imageData, "JPEG", margins.left, margins.top - offset, printableWidth, imageHeight, undefined, "FAST");
+    offset += printableHeight;
   }
   return pdf.output("blob");
 }
