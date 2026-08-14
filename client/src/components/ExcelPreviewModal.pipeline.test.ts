@@ -13,6 +13,8 @@ describe("pipeline visual do PDF oficial e LD", () => {
     expect(quoteDetailSource).toContain("onCapturePdf={ldPdfCaptureOpen ? handleOfficialPdfCapturedForLd : undefined}");
     expect(previewSource).toContain("allowTaint: false");
     expect(previewSource).toContain("useCORS: true");
+    expect(previewSource).toContain('orientation: "portrait"');
+    expect(previewSource).toContain("layout alternativo");
   });
 
   it("usa window.print() para o download oficial do PDF", () => {

@@ -197,7 +197,9 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
         imageTimeout: 10_000,
         logging: false,
       }),
-      createPdf: () => new jsPDF({ orientation: "landscape", unit: "pt", format: "a4", compress: true }),
+      // O PDF oficial validado é A4 retrato. A captura para o LD deve apenas
+      // arquivar a mesma prévia oficial nesse formato — nunca usar um layout alternativo.
+      createPdf: () => new jsPDF({ orientation: "portrait", unit: "pt", format: "a4", compress: true }),
     });
   }, []);
 

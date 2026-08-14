@@ -2642,3 +2642,9 @@
 - [x] Adicionar filtros para LD Convidado: status, período/data, escritório e obra/cliente
 - [x] Adicionar filtro de origem LD na aba Meus Orçamentos para administradores
 - [x] Permitir filtrar orçamentos de solicitação LD por resposta enviada, pendente de análise e pendente de resposta
+
+## Regra permanente: PDF oficial e numeração de orçamentos LD
+- [x] Preservar integralmente o layout validado do PDF oficial, sem alterações sem solicitação expressa do usuário
+- [x] Fazer o download do LD usar exatamente o mesmo arquivo oficial gerado pelo administrador
+- [x] Não atribuir número definitivo automaticamente ao criar orçamento por solicitação LD antes da seleção do vendedor
+- [x] Preservar e salvar o número de orçamento alterado manualmente pelo usuário em orçamentos originados de LD

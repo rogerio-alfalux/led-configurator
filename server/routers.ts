@@ -58,6 +58,7 @@ import {
   listGuestQuoteRequests,
   listGuestQuoteRequestsForGuest,
   getGuestQuoteRequestById,
+  getGuestQuoteRequestByAdminQuoteId,
   getLdGuestContactProfile,
   upsertLdGuestContactProfile,
   countPendingGuestQuoteRequests,
@@ -80,6 +81,7 @@ import { canAccessCommercialQuotes } from "../shared/guestCommercialAccess";
 import { getSampleLinkValidationError } from "../shared/sampleLinkValidation";
 import { sanitizeLdAttachmentFileName, validateLdTechnicalAttachments, type LdTechnicalAttachment } from "./ldRequestAttachment";
 import { buildLdQuoteConversion } from "./ldQuoteConversion";
+import { buildLdDraftQuoteNumber, isLdDraftQuoteNumber } from "../shared/ldDraftQuoteNumber";
 
 // ─── Controle de acesso a orçamentos ─────────────────────────────────────────
 /** Emails dos gestores com acesso irrestrito a todos os orçamentos */
@@ -423,6 +425,9 @@ export const appRouter = router({
         }, 0);
         const ldConversion = buildLdQuoteConversion(request, totalAmount);
         const created = await createQuote({
+          // A solicitação LD não define um número comercial. Registramos apenas
+          // uma referência interna e aguardamos a escolha do vendedor e do número.
+          quoteNumber: buildLdDraftQuoteNumber(request.requestNumber, request.id),
           clientName: ldConversion.clientName,
           clientContact: ldConversion.clientContact,
           clientPhone: ldConversion.clientPhone,
@@ -892,6 +897,17 @@ export const appRouter = router({
         // Verificar permissão de edição
         const existingForRevision = await getQuoteById(quoteId);
         if (!existingForRevision) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
+        const linkedLdRequestForRevision = await getGuestQuoteRequestByAdminQuoteId(quoteId);
+        const needsLdCommercialNumber = Boolean(linkedLdRequestForRevision) && (
+          isLdDraftQuoteNumber(existingForRevision.quote.quoteNumber)
+          || (!existingForRevision.quote.seller1Id && existingForRevision.quote.quoteNumber.startsWith("ORC-"))
+        );
+        if (needsLdCommercialNumber && (!input.seller1Id || !input.quoteNumber?.trim() || isLdDraftQuoteNumber(input.quoteNumber))) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Selecione o vendedor e informe o número definitivo do orçamento antes de salvar uma solicitação LD.",
+          });
+        }
         const hasPermission = await canEditQuote(ctx.user.email, existingForRevision.quote, ctx.user.role, ctx.user.id);
         if (!hasPermission) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para editar este orçamento." });
         const identityTeam = await getIdentityBoundTeam(ctx.user, existingForRevision.quote);

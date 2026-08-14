@@ -303,6 +303,12 @@ export async function getGuestQuoteRequestById(id: number) {
   return (await db.select().from(guestQuoteRequests).where(eq(guestQuoteRequests.id, id)).limit(1))[0];
 }
 
+export async function getGuestQuoteRequestByAdminQuoteId(quoteId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  return (await db.select().from(guestQuoteRequests).where(eq(guestQuoteRequests.adminQuoteId, quoteId)).limit(1))[0];
+}
+
 export async function markGuestQuoteRequestInReview(id: number, adminUserId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");

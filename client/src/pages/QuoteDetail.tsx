@@ -123,6 +123,7 @@ import { CORES_PECA } from "@/components/ColorPickerModal";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
 import { generateQuotePdfBlob } from "@/lib/quotePdfGenerator";
 import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
+import { isLdDraftQuoteNumber } from "@shared/ldDraftQuoteNumber";
 import { OrderPreviewModal } from "@/components/OrderPreviewModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
@@ -899,6 +900,8 @@ export default function QuoteDetail() {
 
   // Edit (add revision) dialog — full form with all tabs
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [ldDraftNeedsCommercialNumber, setLdDraftNeedsCommercialNumber] = useState(false);
+  const [editNumberWasManuallyChanged, setEditNumberWasManuallyChanged] = useState(false);
   const [editForm, setEditForm] = useState({
     clientName: "", clientContact: "", clientPhone: "", clientEmail: "",
     projectName: "", projectRef: "", notes: "",
@@ -1279,6 +1282,17 @@ export default function QuoteDetail() {
     { quoteNumber: editForm.quoteNumber.trim(), excludeQuoteId: Number(id) },
     { enabled: editDialogOpen && !!editForm.quoteNumber.trim(), staleTime: 2000 }
   );
+  const editSuggestedNumberQuery = trpc.quotes.suggestNumber.useQuery(
+    { sellerId: editForm.seller1Id ? Number(editForm.seller1Id) : undefined },
+    { enabled: editDialogOpen && ldDraftNeedsCommercialNumber && !!editForm.seller1Id, staleTime: 0 },
+  );
+
+  useEffect(() => {
+    if (!editDialogOpen || !ldDraftNeedsCommercialNumber || editNumberWasManuallyChanged || !editSuggestedNumberQuery.data?.suggested) return;
+    setEditForm(form => form.seller1Id
+      ? { ...form, quoteNumber: editSuggestedNumberQuery.data.suggested }
+      : form);
+  }, [editDialogOpen, ldDraftNeedsCommercialNumber, editNumberWasManuallyChanged, editSuggestedNumberQuery.data?.suggested]);
 
   // Modal de visualização de revisão histórica
   const [revisionModalVersionId, setRevisionModalVersionId] = useState<number | null>(null);
@@ -1773,6 +1787,8 @@ export default function QuoteDetail() {
   }
 
   const { quote, versions, items, canEdit, canSeeCommission = false, canEditCommission = false } = data as typeof data & { canSeeCommission?: boolean; canEditCommission?: boolean };
+  const isLdProvisionalQuoteNumber = isLdDraftQuoteNumber(quote.quoteNumber)
+    || (Boolean(linkedLdRequest) && !quote.seller1Id && quote.quoteNumber.startsWith("ORC-"));
   const canManageSamples = user?.role === "admin" || hasQuotePermission(PERMISSIONS.GERENCIAR_AMOSTRAS);
   const st = STATUS_LABELS[quote.status] ?? STATUS_LABELS.open;
   const hasDraftRevision = versions.some((version: any) => version.status === 'draft');
@@ -3195,6 +3211,8 @@ export default function QuoteDetail() {
           {canEdit && <Dialog open={editDialogOpen} onOpenChange={(open) => {
             setEditDialogOpen(open);
             if (open) {
+              setLdDraftNeedsCommercialNumber(isLdProvisionalQuoteNumber);
+              setEditNumberWasManuallyChanged(false);
               // Salvar IDs do orçamento para re-sincronização caso sellersQuery ainda esteja carregando
               setPendingQuoteIds({
                 seller1Id: quote.seller1Id,
@@ -3250,7 +3268,7 @@ export default function QuoteDetail() {
                 freteIncluded: (quote as any).freteIncluded ?? false,
                 arquiteto: (quote as any).arquiteto ?? "",
                 lightDesigner: (quote as any).lightDesigner ?? "",
-                quoteNumber: quote.quoteNumber ?? "",
+                quoteNumber: isLdProvisionalQuoteNumber ? "" : quote.quoteNumber,
                 diluicaoValor: (quote as any).diluicaoValor != null ? String((quote as any).diluicaoValor) : "",
                 diluicaoDescricao: (quote as any).diluicaoDescricao ?? "",
                 discountPercent: (quote as any).discountPercent ? String(parseFloat(String((quote as any).discountPercent)) * 100) : "0",
@@ -3286,6 +3304,7 @@ export default function QuoteDetail() {
                     <Label>Vendedor 1</Label>
                     <Select value={editForm.seller1Id} disabled={isSellerEditing || isAssistantEditing} onValueChange={(v) => {
                       const sel = editSellers.find(s => String(s.id) === v);
+                      if (!editNumberWasManuallyChanged) setEditForm(f => ({ ...f, quoteNumber: "" }));
                       setEditForm(f => ({ ...f, seller1Id: v, seller1Name: sel?.name ?? "" }));
                     }}>
                       <SelectTrigger><SelectValue placeholder="Selecione o vendedor principal" /></SelectTrigger>
@@ -3356,11 +3375,11 @@ export default function QuoteDetail() {
                     <Label>Número do Orçamento</Label>
                     <Input
                       value={editForm.quoteNumber}
-                      onChange={e => setEditForm(f => ({ ...f, quoteNumber: e.target.value }))}
+                      onChange={e => { setEditNumberWasManuallyChanged(true); setEditForm(f => ({ ...f, quoteNumber: e.target.value })); }}
                       className="font-mono"
-                      placeholder="Ex: 31.0127-26"
+                      placeholder={ldDraftNeedsCommercialNumber && !editForm.seller1Id ? "Selecione o vendedor para sugerir" : "Ex: 31.0127-26"}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">Você pode editar o número manualmente. Se o Vendedor 1 for alterado, um novo número será gerado automaticamente ao salvar.</p>
+                    <p className="text-xs text-muted-foreground mt-1">{ldDraftNeedsCommercialNumber ? "Selecione o Vendedor 1 para sugerir o número. Você pode alterá-lo: o número informado por você é soberano." : "Você pode editar o número manualmente."}</p>
                   </div>
                   <div>
                     <Label>Notas desta revisão</Label>
