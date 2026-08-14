@@ -624,7 +624,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                 <img
                   src={LOGO_URL}
                   alt="ALFALUX"
-                  style={{ height: 70, objectFit: "contain" }}
+                  style={{ height: 50, objectFit: "contain" }}
                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                 />
               </div>
@@ -1125,7 +1125,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
               </div>
 
               {/* Rodapé azul */}
-              <div style={{ background: BLUE, color: WHITE, textAlign: "center", padding: "6px 0", marginTop: 24, fontSize: 10 }}>
+              <div style={{ background: BLUE, color: WHITE, textAlign: "center", padding: "3px 0", marginTop: 16, fontSize: 8 }}>
                 R. Agostino Togneri, nº 617 - Jurubatuba - São Paulo/SP  - CEP: 04690-090
               </div>
             </div>
