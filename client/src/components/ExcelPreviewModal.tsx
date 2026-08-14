@@ -166,9 +166,10 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   const buildFileName = useCallback(() => {
     const revCount = formData.revisionCount ?? 0;
     const rvSuffix = `(RV${revCount})`;
-    const numPart = formData.numero ? `${formData.numero} ${rvSuffix}` : rvSuffix;
-    const obraPart = formData.obra ? ` - ${formData.obra.toUpperCase()}` : "";
-    const clientePart = formData.cliente ? ` - ${formData.cliente.toUpperCase()}` : "";
+    // Padrão: 04.0366-26(RV0)-ORATÓRIO-REFORMAESCRITÓRIO-PROENGCONSTRUTORA
+    const numPart = formData.numero ? `${formData.numero}${rvSuffix}` : rvSuffix;
+    const obraPart = formData.obra ? `-${formData.obra.toUpperCase().replace(/\s+/g, "")}` : "";
+    const clientePart = formData.cliente ? `-${formData.cliente.toUpperCase().replace(/\s+/g, "")}` : "";
     return `${numPart}${obraPart}${clientePart}`
       .replace(/[\\\/:*?"<>|]/g, "-")
       .substring(0, 200);
@@ -203,29 +204,16 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
 
   const [pdfError, setPdfError] = useState<string | null>(null);
 
-  // Baixa o mesmo Blob visual usado para o PDF devolvido ao LD.
+  // Baixa o PDF usando window.print() — mesmo mecanismo do autoPrint
   const handleDownloadPDF = useCallback(async () => {
-    setIsDownloadingPdf(true);
     setPdfError(null);
-    try {
-      console.log("[PDF] Iniciando captura...");
-      const blob = await captureVisiblePreviewPdf();
-      console.log("[PDF] Captura concluída. Blob size:", blob.size);
-      if (blob.size === 0) {
-        throw new Error("O PDF gerado está vazio.");
-      }
-      downloadPdfBlob(blob, `${buildFileName()}.pdf`);
-      console.log("[PDF] Download disparado com sucesso.");
-      return blob;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro desconhecido ao gerar PDF.";
-      console.error("[PDF] Erro:", msg, err);
-      setPdfError(msg);
-      throw err;
-    } finally {
-      setIsDownloadingPdf(false);
-    }
-  }, [buildFileName, captureVisiblePreviewPdf]);
+    const originalTitle = document.title;
+    document.title = buildFileName();
+    window.print();
+    // Restaurar título após impressão
+    const restore = () => { document.title = originalTitle; };
+    window.addEventListener("afterprint", restore, { once: true });
+  }, [buildFileName]);
 
   // Bloqueia scroll do body quando aberto
   useEffect(() => {
@@ -248,19 +236,24 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   // autoPrint: abre a tela de impressão do navegador diretamente
   useEffect(() => {
     if (!open || !autoPrint) return;
+    // Definir o título da página para o nome do arquivo PDF (padrão: NUMERO(RVx)-OBRA-CLIENTE)
+    const originalTitle = document.title;
+    const pdfTitle = buildFileName();
+    document.title = pdfTitle;
     const timer = setTimeout(() => {
       window.print();
     }, 800);
-    return () => clearTimeout(timer);
-  }, [open, autoPrint]);
-
-  // Após imprimir, fecha o modal
-  useEffect(() => {
-    if (!open || !autoPrint) return;
-    const handleAfterPrint = () => { onClose(); };
+    const handleAfterPrint = () => {
+      document.title = originalTitle;
+      onClose();
+    };
     window.addEventListener("afterprint", handleAfterPrint);
-    return () => window.removeEventListener("afterprint", handleAfterPrint);
-  }, [open, autoPrint, onClose]);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("afterprint", handleAfterPrint);
+      document.title = originalTitle;
+    };
+  }, [open, autoPrint, buildFileName, onClose]);
 
   const revCount = formData.revisionCount ?? 0;
   const rvSuffix = ` (RV${revCount})`;
