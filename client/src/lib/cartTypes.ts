@@ -394,10 +394,12 @@ export interface QuoteFormData {
   seller1Id?: number;
   seller1Name?: string;
   seller1Phone?: string;
+  seller1Email?: string;
   /** Vendedor 2 (opcional) */
   seller2Id?: number;
   seller2Name?: string;
   seller2Phone?: string;
+  seller2Email?: string;
   /** Assistente comercial (obrigatório) */
   assistantId?: number;
   assistantName?: string;

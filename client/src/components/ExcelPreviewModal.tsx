@@ -1066,6 +1066,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                   <div style={{ fontSize: 12 }}>
                     <div style={{ fontWeight: "bold" }}>{vendedorText}</div>
                     {formData.seller1Phone && <div>CONTATO: {formData.seller1Phone}</div>}
+                    {formData.seller1Email && <div>E-MAIL: {formData.seller1Email}</div>}
                   </div>
                 )}
                 <img

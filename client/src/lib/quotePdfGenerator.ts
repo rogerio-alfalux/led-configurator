@@ -633,6 +633,13 @@ async function _generatePdfBlob(
       doc.text(`CONTATO: ${phones}`, marginL, fy + 4);
       fy += 6;
     }
+    const emails = [formData.seller1Email, formData.seller2Email].filter(Boolean).join(" / ");
+    if (emails) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text(`E-MAIL: ${emails}`, marginL, fy + 4);
+      fy += 6;
+    }
   }
 
   fy += 4;

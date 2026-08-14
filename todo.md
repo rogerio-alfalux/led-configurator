@@ -145,6 +145,17 @@
 - [x] Tornar o alvo de captura do PDF oficial explícito e resistente a mudanças de estrutura do modal
 - [x] Aguardar a captura e o download antes de fechar o modal automático de PDF
 - [x] Exibir estado de geração e validar a criação do Blob baixável do PDF oficial
+- [x] Cadastrar ANALICE COSTA como vendedora ativa com telefone e e-mail
+- [x] Validar a disponibilidade e os dados de contato de ANALICE COSTA nos documentos de orçamento
+- [x] Validar ANALICE COSTA no dropdown de vendedor e nos dados de preview, PDF e Excel
+- [x] Cobrir a presença de vendedores ativos recém-cadastrados nos dados documentais de orçamento
+- [x] Propagar e-mail de vendedor selecionado ao preview, PDF e Excel do orçamento
+- [x] Cobrir os dados documentais de telefone e e-mail de ANALICE COSTA em orçamento gerado
+- [ ] Validar ANALICE COSTA no dropdown a partir da lista de vendedores ativos
+- [ ] Cobrir o fluxo de vendedor selecionado da lista ativa até preview, PDF e Excel
+- [ ] Cobrir especificamente o preview com ANALICE COSTA selecionada no formulário de orçamento
+- [x] URGENTE: Corrigir botão Baixar PDF — restaurar download direto via jsPDF (generateQuotePdf)
+- [x] Atualizar código da vendedora ANALICE COSTA para 35 no banco
 - [x] Persistir foto manual de Item Especial e exibi-la no carrinho, orçamento, PDF, Excel e consultas futuras
 - [x] Exibir painel de amostra/manutenção para todos os administradores e excluir valores convertidos dos totais do dashboard
 - [x] Persistir valor comercial zero em amostras/manutenções e restaurar com segurança no cancelamento

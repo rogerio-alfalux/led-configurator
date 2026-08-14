@@ -5,12 +5,24 @@ import { resolve } from "node:path";
 describe("pipeline visual do PDF oficial e LD", () => {
   const previewSource = readFileSync(resolve(process.cwd(), "client/src/components/ExcelPreviewModal.tsx"), "utf8");
   const quoteDetailSource = readFileSync(resolve(process.cwd(), "client/src/pages/QuoteDetail.tsx"), "utf8");
+  const cartSource = readFileSync(resolve(process.cwd(), "client/src/pages/Cart.tsx"), "utf8");
 
-  it("usa a mesma captura visual para baixar o PDF oficial e para o PDF enviado ao LD", () => {
+  it("usa a captura visual html2canvas exclusivamente para o PDF enviado ao LD", () => {
     expect(previewSource).toContain("const captureVisiblePreviewPdf");
-    expect(previewSource).toContain("const blob = await captureVisiblePreviewPdf()");
     expect(previewSource).toContain("onCapturePdf(await captureVisiblePreviewPdf())");
     expect(quoteDetailSource).toContain("onCapturePdf={ldPdfCaptureOpen ? handleOfficialPdfCapturedForLd : undefined}");
+  });
+
+  it("usa o gerador jsPDF direto para o download oficial do PDF no Cart", () => {
+    expect(cartSource).toContain("generateQuotePdf(itemsWithPlanta, pdfForm)");
+    // O Cart não deve mais usar autoPrint no ExcelPreviewModal
+    expect(cartSource).not.toContain("autoPrint");
+  });
+
+  it("usa o gerador jsPDF direto para o download oficial do PDF no QuoteDetail", () => {
+    expect(quoteDetailSource).toContain("generateQuotePdf(commercialQuoteItems, pdfFormData)");
+    // O QuoteDetail não deve mais usar autoPrint no ExcelPreviewModal
+    expect(quoteDetailSource).not.toContain("autoPrint={pdfPrintOpen}");
   });
 
   it("mantém os campos de cabeçalho Obra, Cliente e E-mail na prévia capturada", () => {
@@ -19,7 +31,7 @@ describe("pipeline visual do PDF oficial e LD", () => {
     expect(previewSource).toContain('["E-MAIL", formData.email || ""]');
   });
 
-  it("aguarda e inclui imagens da prévia antes da captura visual", () => {
+  it("aguarda e inclui imagens da prévia antes da captura visual para LD", () => {
     expect(previewSource).toContain('capturePreviewPagePdf({');
     expect(previewSource).toContain('html2canvas(node as HTMLElement');
     const captureSource = readFileSync(resolve(process.cwd(), "client/src/lib/pdfVisualCapture.ts"), "utf8");

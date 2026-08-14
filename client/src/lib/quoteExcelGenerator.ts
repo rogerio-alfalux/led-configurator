@@ -1583,8 +1583,9 @@ async function _generateExcelBuffer(
   const vendorLogoRow = nextRow;
   nextRow++;
 
-  // Contato do vendedor — só mostra se seller1Phone ou seller2Phone existir (igual ao preview)
+  // Contato do vendedor — mantém telefone e e-mail alinhados à prévia e ao PDF.
   const phone = formData.seller1Phone || formData.seller2Phone;
+  const sellerEmail = formData.seller1Email || formData.seller2Email;
   ws.getRow(nextRow).height = 19.8;
   ws.mergeCells(`C${nextRow}:H${nextRow}`);
   {
@@ -1597,6 +1598,16 @@ async function _generateExcelBuffer(
   }
   const vendorLogoRow2 = nextRow;
   nextRow++;
+
+  if (sellerEmail) {
+    ws.getRow(nextRow).height = 19.8;
+    ws.mergeCells(`C${nextRow}:H${nextRow}`);
+    const c = ws.getCell(`C${nextRow}`);
+    c.value = `E-MAIL: ${sellerEmail}`;
+    c.font = { name: "Calibri", size: 11 };
+    c.alignment = { horizontal: "left", vertical: "middle" };
+    nextRow++;
+  }
 
   // Espaço
   nextRow++;

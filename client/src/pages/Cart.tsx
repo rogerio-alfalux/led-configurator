@@ -704,7 +704,6 @@ function StandardCart() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [pdfPrintOpen, setPdfPrintOpen] = useState(false);
 
   // Item em Planta — mapa local (UI imediata) + autosave via updateItemField
   const [itemEmPlantaMap, setItemEmPlantaMap] = useState<Record<number, string>>({});
@@ -1144,9 +1143,11 @@ function StandardCart() {
         seller1Id: saveForm.seller1Id ? Number(saveForm.seller1Id) : undefined,
         seller1Name: saveForm.seller1Name || undefined,
         seller1Phone: seller1Obj?.phone || undefined,
+        seller1Email: seller1Obj?.email || undefined,
         seller2Id: saveForm.seller2Id ? Number(saveForm.seller2Id) : undefined,
         seller2Name: saveForm.seller2Name || undefined,
         seller2Phone: seller2Obj?.phone || undefined,
+        seller2Email: seller2Obj?.email || undefined,
         assistantId: saveForm.assistantId && saveForm.assistantId !== "VENDEDOR" ? Number(saveForm.assistantId) : undefined,
         assistantName: saveForm.assistantName || undefined,
         rtPercent: rtPct > 0 ? rtPct : undefined,
@@ -1202,12 +1203,58 @@ function StandardCart() {
     }
   };
 
-  const handleGeneratePdf = () => {
+  const handleGeneratePdf = async () => {
     if (!form.cliente.trim()) {
       toast.error("Informe o nome do cliente.");
       return;
     }
-    setPdfPrintOpen(true);
+    setIsGenerating(true);
+    try {
+      const seller1Obj = saveForm.seller1Id ? sellers.find(s => String(s.id) === saveForm.seller1Id) : undefined;
+      const seller2Obj = saveForm.seller2Id ? sellers.find(s => String(s.id) === saveForm.seller2Id) : undefined;
+      const pdfForm: QuoteFormData = {
+        ...form,
+        seller1Name: saveForm.seller1Name || undefined,
+        seller1Phone: seller1Obj?.phone || undefined,
+        seller1Email: seller1Obj?.email || undefined,
+        seller2Name: saveForm.seller2Name || undefined,
+        seller2Phone: seller2Obj?.phone || undefined,
+        seller2Email: seller2Obj?.email || undefined,
+        rtPercent: rtPct > 0 ? rtPct : undefined,
+        marginPercent: marginPct !== 0 ? marginPct : undefined,
+        discountPercent: discountPct > 0 ? discountPct : undefined,
+        showDiscount: saveForm.showDiscount && discountPct > 0,
+        freteType: saveForm.freteType,
+        freteIsento: saveForm.freteIsento,
+        freteLocalidade: saveForm.freteStateCode === "SP" ? "sp" : "other",
+        freteCity: saveForm.freteCity || undefined,
+        freteState: saveForm.freteStateCode || undefined,
+        freteValue: saveForm.freteValue ? parseFloat(saveForm.freteValue) : undefined,
+        freteIncluded: saveForm.freteIncluded,
+        deliveryDays: parseInt(saveForm.deliveryDays) || 20,
+        paymentTerm: saveForm.paymentTerm || undefined,
+        revisionCount: 0,
+        difalEnabled: saveForm.difalEnabled,
+        difalPercent: saveForm.difalEnabled && saveForm.difalPercent ? parseFloat(saveForm.difalPercent) : undefined,
+        difalValue: saveForm.difalEnabled && saveForm.difalValue ? parseFloat(saveForm.difalValue) : undefined,
+        fcpEnabled: saveForm.fcpEnabled,
+        fcpPercent: saveForm.fcpEnabled && saveForm.fcpPercent ? parseFloat(saveForm.fcpPercent) : undefined,
+        fcpValue: saveForm.fcpEnabled && saveForm.fcpValue ? parseFloat(saveForm.fcpValue) : undefined,
+        destState: saveForm.destState || undefined,
+        numero: saveForm.quoteNumber.trim() || form.numero,
+      };
+      const itemsWithPlanta = orderedEntries.map((e) => ({
+        ...e.data,
+        itemEmPlanta: itemEmPlantaMap[e.id] ?? e.data.itemEmPlanta ?? "",
+      }));
+      await generateQuotePdf(itemsWithPlanta, pdfForm);
+      toast.success("PDF gerado com sucesso!");
+    } catch (err) {
+      console.error("Erro ao gerar PDF:", err);
+      toast.error("Erro ao gerar o PDF. Tente novamente.");
+    } finally {
+      setIsGenerating(false);
+    }
   };
   const handleSaveQuote = () => {
     if (!saveForm.clientName.trim()) {
@@ -3454,44 +3501,11 @@ function StandardCart() {
         formData={{
           ...form,
           seller1Name: saveForm.seller1Name || undefined,
+          seller1Phone: sellers.find(s => String(s.id) === saveForm.seller1Id)?.phone || undefined,
+          seller1Email: sellers.find(s => String(s.id) === saveForm.seller1Id)?.email || undefined,
           seller2Name: saveForm.seller2Name || undefined,
-          rtPercent: rtPct > 0 ? rtPct : undefined,
-          marginPercent: marginPct !== 0 ? marginPct : undefined,
-          discountPercent: discountPct > 0 ? discountPct : undefined,
-          showDiscount: saveForm.showDiscount && discountPct > 0,
-          freteType: saveForm.freteType,
-          freteIsento: saveForm.freteIsento,
-          freteLocalidade: saveForm.freteStateCode === "SP" ? "sp" : "other",
-          freteCity: saveForm.freteCity || undefined,
-          freteState: saveForm.freteStateCode || undefined,
-          freteValue: saveForm.freteValue ? parseFloat(saveForm.freteValue) : undefined,
-          freteIncluded: saveForm.freteIncluded,
-          deliveryDays: parseInt(saveForm.deliveryDays) || 20,
-          paymentTerm: saveForm.paymentTerm || undefined,
-          revisionCount: 0,
-          difalEnabled: saveForm.difalEnabled,
-          difalPercent: saveForm.difalEnabled && saveForm.difalPercent ? parseFloat(saveForm.difalPercent) : undefined,
-          difalValue: saveForm.difalEnabled && saveForm.difalValue ? parseFloat(saveForm.difalValue) : undefined,
-          fcpEnabled: saveForm.fcpEnabled,
-          fcpPercent: saveForm.fcpEnabled && saveForm.fcpPercent ? parseFloat(saveForm.fcpPercent) : undefined,
-          fcpValue: saveForm.fcpEnabled && saveForm.fcpValue ? parseFloat(saveForm.fcpValue) : undefined,
-          destState: saveForm.destState || undefined,
-        }}
-        freshPhotoMap={freshPhotoMap}
-      />
-      {/* PDF automático — abre o mesmo modal mas dispara print imediatamente */}
-      <ExcelPreviewModal
-        open={pdfPrintOpen}
-        onClose={() => setPdfPrintOpen(false)}
-        autoPrint
-        items={orderedEntries.map((e) => ({
-          ...e.data,
-          itemEmPlanta: itemEmPlantaMap[e.id] ?? e.data.itemEmPlanta ?? "",
-        }))}
-        formData={{
-          ...form,
-          seller1Name: saveForm.seller1Name || undefined,
-          seller2Name: saveForm.seller2Name || undefined,
+          seller2Phone: sellers.find(s => String(s.id) === saveForm.seller2Id)?.phone || undefined,
+          seller2Email: sellers.find(s => String(s.id) === saveForm.seller2Id)?.email || undefined,
           rtPercent: rtPct > 0 ? rtPct : undefined,
           marginPercent: marginPct !== 0 ? marginPct : undefined,
           discountPercent: discountPct > 0 ? discountPct : undefined,
