@@ -217,7 +217,10 @@
 /* ── Impressão / PDF via window.print() ──────────────────────────────────── */
 @media print {
   /* Ocultar tudo exceto o modal de pré-visualização */
-  body > *:not([data-print-target]) {
+  body > *:not([data-print-modal]) {
+    display: none !important;
+  }
+  body > #root {
     display: none !important;
   }
   /* Mostrar apenas o conteúdo da página branca dentro do modal */
@@ -225,6 +228,8 @@
     position: static !important;
     background: white !important;
     overflow: visible !important;
+    inset: auto !important;
+    z-index: auto !important;
   }
   [data-print-modal] > *:not([data-print-content]) {
     display: none !important;
@@ -236,8 +241,16 @@
     padding: 0 !important;
   }
   /* Remover marca d'água na impressão */
-  [aria-hidden="true"] {
+  [data-print-content] [aria-hidden="true"] {
     display: none !important;
+  }
+  /* Remover sombra e background cinza na impressão */
+  [data-quote-pdf-page] {
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 20px 30px !important;
+    width: 100% !important;
+    min-width: 0 !important;
   }
   /* Garantir que a tabela seja impressa corretamente */
   table {

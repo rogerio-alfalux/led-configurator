@@ -245,29 +245,22 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
     return () => window.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
-  // autoPrint: dispara download de PDF automaticamente após renderizar as imagens
+  // autoPrint: abre a tela de impressão do navegador diretamente
   useEffect(() => {
     if (!open || !autoPrint) return;
-    // Aguardar imagens carregarem antes de capturar
-    const timer = setTimeout(async () => {
-      try {
-        const page = contentRef.current?.querySelector<HTMLElement>("[data-quote-pdf-page]");
-        if (page) {
-          const imgs = Array.from(page.querySelectorAll("img")) as HTMLImageElement[];
-          await Promise.all(imgs.map(img => img.complete
-            ? Promise.resolve()
-            : new Promise<void>(r => { img.onload = () => r(); img.onerror = () => r(); setTimeout(r, 4000); })
-          ));
-        }
-        await handleDownloadPDF();
-        onClose();
-      } catch (err) {
-        console.error("[PDF autoPrint] Falha na captura:", err);
-        // Não fecha o modal — o botão manual fica disponível
-      }
-    }, 2000);
+    const timer = setTimeout(() => {
+      window.print();
+    }, 800);
     return () => clearTimeout(timer);
-  }, [open, autoPrint, handleDownloadPDF, onClose]);
+  }, [open, autoPrint]);
+
+  // Após imprimir, fecha o modal
+  useEffect(() => {
+    if (!open || !autoPrint) return;
+    const handleAfterPrint = () => { onClose(); };
+    window.addEventListener("afterprint", handleAfterPrint);
+    return () => window.removeEventListener("afterprint", handleAfterPrint);
+  }, [open, autoPrint, onClose]);
 
   const revCount = formData.revisionCount ?? 0;
   const rvSuffix = ` (RV${revCount})`;
