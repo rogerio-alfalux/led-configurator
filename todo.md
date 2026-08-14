@@ -2652,3 +2652,5 @@
 ## Regressão crítica: envio do PDF oficial ao LD
 - [x] Corrigir a falha de captura que impede o envio do PDF oficial ao LD
 - [x] Garantir anexo do PDF e transição da solicitação para PDF disponível após o envio
+- [x] Substituir a captura visual frágil por um fluxo robusto de entrega do PDF oficial ao LD
+- [x] Cobrir por teste a criação do arquivo e a transição da solicitação para PDF disponível

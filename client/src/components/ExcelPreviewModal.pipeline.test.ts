@@ -7,10 +7,14 @@ describe("pipeline visual do PDF oficial e LD", () => {
   const quoteDetailSource = readFileSync(resolve(process.cwd(), "client/src/pages/QuoteDetail.tsx"), "utf8");
   const cartSource = readFileSync(resolve(process.cwd(), "client/src/pages/Cart.tsx"), "utf8");
 
-  it("usa a captura visual html2canvas exclusivamente para o PDF enviado ao LD", () => {
+  it("mantém a captura visual isolada e entrega ao LD o arquivo oficial selecionado pelo administrador", () => {
     expect(previewSource).toContain("const captureVisiblePreviewPdf");
     expect(previewSource).toContain("await captureCallbacksRef.current.onCapturePdf?.(blob)");
-    expect(quoteDetailSource).toContain("onCapturePdf={ldPdfCaptureOpen ? handleOfficialPdfCapturedForLd : undefined}");
+    expect(quoteDetailSource).toContain("officialLdPdfInputRef");
+    expect(quoteDetailSource).toContain("handleOfficialLdPdfSelected");
+    expect(quoteDetailSource).toContain("fileName: pdfFile.name");
+    expect(quoteDetailSource).toContain('accept="application/pdf,.pdf"');
+    expect(quoteDetailSource).not.toContain("ldPdfCaptureOpen");
     expect(previewSource).toContain("allowTaint: false");
     expect(previewSource).toContain("useCORS: true");
     expect(previewSource).toContain('orientation: "portrait"');
