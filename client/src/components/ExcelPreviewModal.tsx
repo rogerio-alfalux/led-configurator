@@ -166,10 +166,10 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   const buildFileName = useCallback(() => {
     const revCount = formData.revisionCount ?? 0;
     const rvSuffix = `(RV${revCount})`;
-    // Padrão: 04.0366-26(RV0)-ORATÓRIO-REFORMAESCRITÓRIO-PROENGCONSTRUTORA
-    const numPart = formData.numero ? `${formData.numero}${rvSuffix}` : rvSuffix;
-    const obraPart = formData.obra ? `-${formData.obra.toUpperCase().replace(/\s+/g, "")}` : "";
-    const clientePart = formData.cliente ? `-${formData.cliente.toUpperCase().replace(/\s+/g, "")}` : "";
+    // Padrão: 04.0366-26 (RV0) - ORATÓRIO - REFORMA ESCRITÓRIO - PROENG CONSTRUTORA
+    const numPart = formData.numero ? `${formData.numero} ${rvSuffix}` : rvSuffix;
+    const obraPart = formData.obra ? ` - ${formData.obra.toUpperCase()}` : "";
+    const clientePart = formData.cliente ? ` - ${formData.cliente.toUpperCase()}` : "";
     return `${numPart}${obraPart}${clientePart}`
       .replace(/[\\\/:*?"<>|]/g, "-")
       .substring(0, 200);
