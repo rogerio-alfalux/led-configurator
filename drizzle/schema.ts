@@ -35,6 +35,7 @@ export const cartItems = mysqlTable("cart_items", {
 // Guarda uma fotografia do carrinho configurado, sem expor valores ao convidado.
 export const guestQuoteRequests = mysqlTable("guest_quote_requests", {
   id: int().autoincrement().notNull(),
+  requestNumber: varchar({ length: 16 }),
   guestUserId: int().notNull(),
   guestName: varchar({ length: 256 }).notNull(),
   guestEmail: varchar({ length: 320 }),

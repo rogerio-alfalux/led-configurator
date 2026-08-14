@@ -2622,3 +2622,16 @@
 
 ## Correção: Rota pública de fotos das categorias
 - [ ] Servir fotos das categorias por rota própria da aplicação, sem depender de /manus-storage no domínio publicado
+
+## Melhorias no fluxo de Solicitações LD
+- [x] Alterar número sequencial de solicitação LD de #30001 para formato LD-XXXX-26 (4 dígitos + ano)
+- [x] Fix visual: letras escondidas no formulário LD quando arquivo é anexado
+- [x] Auto-preenchimento ao criar orçamento da solicitação LD: puxar LD como campo Arquitetura/LD
+- [x] Auto-preenchimento: frete "A Calcular" quando localidade fora de SP
+- [x] Auto-preenchimento: número do orçamento sugerido ao selecionar vendedor
+- [ ] Primeira edição do orçamento criado via solicitação LD não conta como revisão (fica RV0 até enviar ao LD)
+- [ ] Feature: LD pode solicitar revisão do orçamento após receber o PDF (trocar/inserir/excluir produtos)
+
+## Correção: Ficha de produção usa drivers do orçamento aprovado
+- [x] Remover migrateItemDrivers do export da ficha de produção para usar drivers exatamente como salvos no orçamento
+- [x] Remover migrateItemDrivers da visualização de itens no FactoryOrderDetail

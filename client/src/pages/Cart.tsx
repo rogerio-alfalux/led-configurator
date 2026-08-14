@@ -3627,7 +3627,7 @@ function GuestCart() {
       </main>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto pb-6">
           <DialogHeader><DialogTitle>Enviar solicitação de orçamento</DialogTitle><DialogDescription>Informe o contato e a localidade da obra para que a equipe prepare o orçamento com os tributos corretos.</DialogDescription></DialogHeader>
           <div className="space-y-5 py-2">
             <section className="rounded-lg border bg-muted/20 p-4 space-y-3">

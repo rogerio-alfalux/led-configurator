@@ -187,8 +187,22 @@ export type CreateGuestQuoteRequestInput = {
 export async function createGuestQuoteRequest(input: CreateGuestQuoteRequestInput): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  // Gerar requestNumber no formato LD-XXXX-26 (sequencial de 4 dígitos + ano)
+  const year = new Date().getFullYear().toString().slice(-2); // "26"
+  const [lastRow] = await db.select({ requestNumber: guestQuoteRequests.requestNumber })
+    .from(guestQuoteRequests)
+    .where(sql`requestNumber LIKE ${"LD-%-" + year}`)
+    .orderBy(desc(guestQuoteRequests.id))
+    .limit(1);
+  let nextSeq = 1;
+  if (lastRow?.requestNumber) {
+    const match = lastRow.requestNumber.match(/LD-(\d+)-/);
+    if (match) nextSeq = parseInt(match[1], 10) + 1;
+  }
+  const requestNumber = `LD-${String(nextSeq).padStart(4, "0")}-${year}`;
   const result = await db.insert(guestQuoteRequests).values({
     ...input,
+    requestNumber,
     guestEmail: input.guestEmail ?? null,
     constructorName: input.constructorName ?? null,
     status: "pending",

@@ -428,6 +428,8 @@ export const appRouter = router({
           clientPhone: ldConversion.clientPhone,
           clientEmail: ldConversion.clientEmail,
           projectName: ldConversion.projectName,
+          lightDesigner: ldConversion.lightDesigner,
+          freteType: ldConversion.freteType,
           notes: ldConversion.notes,
           totalAmount,
           totalFinal: ldConversion.totalFinal,

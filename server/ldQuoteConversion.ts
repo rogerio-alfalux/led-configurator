@@ -18,12 +18,16 @@ export function buildLdQuoteConversion(source: LdQuoteConversionSource, totalAmo
   const fiscalInfo = getStateInfo(state);
   const fiscal = calculateDifal(totalAmount, state);
   const isSpCapital = state === "SP" && city.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === "sao paulo";
+  // Frete: se fora de SP, tipo "A Calcular" (consult)
+  const freteType: "free" | "paid" | "night" | "consult" | "pickup" | undefined = state && state !== "SP" ? "consult" : undefined;
   return {
     clientName: source.officeName,
     projectName: source.finalClientName,
     clientContact: source.contactName ?? source.guestName,
     clientPhone: source.contactPhone ?? undefined,
     clientEmail: source.guestEmail ?? undefined,
+    lightDesigner: source.contactName ?? source.guestName,
+    freteType,
     freteState: state || undefined,
     freteCity: city || undefined,
     freteLocalidade: isSpCapital ? "sp" as const : "other" as const,
