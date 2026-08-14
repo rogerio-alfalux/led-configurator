@@ -246,6 +246,12 @@
     background: white !important;
     padding: 0 !important;
   }
+  /* Remover o wrapper cinza do preview */
+  [data-print-content] > div {
+    background: white !important;
+    padding: 0 !important;
+    position: static !important;
+  }
   /* Remover marca d'água na impressão */
   [data-print-content] [aria-hidden="true"] {
     display: none !important;
@@ -276,8 +282,8 @@
   }
   /* Logos da Alfalux devem manter proporção maior */
   [data-quote-pdf-page] img[alt="ALFALUX"] {
-    max-width: 160px !important;
-    max-height: 50px !important;
+    max-width: 180px !important;
+    max-height: 55px !important;
     width: auto !important;
     height: auto !important;
   }

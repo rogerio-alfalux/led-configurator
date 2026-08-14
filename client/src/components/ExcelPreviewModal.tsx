@@ -624,7 +624,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                 <img
                   src={LOGO_URL}
                   alt="ALFALUX"
-                  style={{ height: 50, objectFit: "contain" }}
+                  style={{ height: 60, objectFit: "contain" }}
                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                 />
               </div>
