@@ -1043,7 +1043,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           {buildFreteText(formData, totalFinal)}
                         </td>
                       </tr>
-                      {formData.freteValue && formData.freteValue > 0 && !formData.freteIsento && (() => {
+                      {formData.freteValue != null && formData.freteValue > 0 && !formData.freteIsento && (() => {
                         // Quando DIFAL está ativo, totalComDifal já inclui o frete na base de cálculo
                         // (baseParaImpostoPreview = totalFinal + freteValue). Não somar frete novamente.
                         const _difalAtivoComFrete = formData.difalEnabled && difalAplicavel && _freteParaImpostoPreview > 0;

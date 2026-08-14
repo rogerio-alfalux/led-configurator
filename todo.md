@@ -2648,3 +2648,7 @@
 - [x] Fazer o download do LD usar exatamente o mesmo arquivo oficial gerado pelo administrador
 - [x] Não atribuir número definitivo automaticamente ao criar orçamento por solicitação LD antes da seleção do vendedor
 - [x] Preservar e salvar o número de orçamento alterado manualmente pelo usuário em orçamentos originados de LD
+
+## Regressão crítica: envio do PDF oficial ao LD
+- [x] Corrigir a falha de captura que impede o envio do PDF oficial ao LD
+- [x] Garantir anexo do PDF e transição da solicitação para PDF disponível após o envio

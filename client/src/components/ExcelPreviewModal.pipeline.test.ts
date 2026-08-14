@@ -15,6 +15,7 @@ describe("pipeline visual do PDF oficial e LD", () => {
     expect(previewSource).toContain("useCORS: true");
     expect(previewSource).toContain('orientation: "portrait"');
     expect(previewSource).toContain("layout alternativo");
+    expect(previewSource).toContain("formData.freteValue != null && formData.freteValue > 0");
   });
 
   it("usa window.print() para o download oficial do PDF", () => {
