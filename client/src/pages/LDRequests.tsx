@@ -1,9 +1,11 @@
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, CheckCircle2, ClipboardList, Clock, FileText, MapPin, Package, Paperclip, Phone, UserRound } from "lucide-react";
-import React from "react";
+import { ArrowLeft, CheckCircle2, ClipboardList, Clock, FileText, Filter, MapPin, Package, Paperclip, Phone, Search, UserRound, X } from "lucide-react";
+import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { parseCartItemData } from "@/lib/cartTypes";
@@ -19,6 +21,64 @@ const STATUS: Record<string, { label: string; className: string }> = {
   quote_ready: { label: "PDF disponível", className: "bg-emerald-100 text-emerald-800" },
   cancelled: { label: "Cancelada", className: "bg-gray-100 text-gray-700" },
 };
+
+type LdRequestFilter = {
+  search: string;
+  status: string;
+  dateFrom: string;
+  dateTo: string;
+};
+
+type FilterableLdRequest = {
+  submittedAt: string | Date;
+  status: string;
+  requestNumber?: string | null;
+  officeName?: string | null;
+  finalClientName?: string | null;
+  constructorName?: string | null;
+  workCity?: string | null;
+  workState?: string | null;
+};
+
+export function filterLdRequests<T extends FilterableLdRequest>(requests: T[], filters: LdRequestFilter): T[] {
+  const search = filters.search.trim().toLocaleLowerCase("pt-BR");
+  return requests.filter((request) => {
+    const submittedDate = String(request.submittedAt).slice(0, 10);
+    const searchable = [
+      request.requestNumber,
+      request.officeName,
+      request.finalClientName,
+      request.constructorName,
+      request.workCity,
+      request.workState,
+    ].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
+    return (!filters.status || filters.status === "all" || request.status === filters.status)
+      && (!filters.dateFrom || submittedDate >= filters.dateFrom)
+      && (!filters.dateTo || submittedDate <= filters.dateTo)
+      && (!search || searchable.includes(search));
+  });
+}
+
+function LdGuestFilters({ filters, onChange, resultCount }: { filters: LdRequestFilter; onChange: (next: LdRequestFilter) => void; resultCount: number }) {
+  const isActive = Boolean(filters.search || filters.status !== "all" || filters.dateFrom || filters.dateTo);
+  const reset = () => onChange({ search: "", status: "all", dateFrom: "", dateTo: "" });
+  return (
+    <Card className="border-dashed">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-sm font-semibold"><Filter className="w-4 h-4 text-primary" /> Filtrar solicitações</div>
+          <div className="flex items-center gap-3"><span className="text-xs text-muted-foreground">{resultCount} {resultCount === 1 ? "resultado" : "resultados"}</span>{isActive && <Button variant="ghost" size="sm" onClick={reset}><X className="w-3.5 h-3.5 mr-1" /> Limpar</Button>}</div>
+        </div>
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_150px_150px]">
+          <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input className="pl-9" value={filters.search} onChange={event => onChange({ ...filters, search: event.target.value })} placeholder="Número, escritório, obra, cliente ou cidade" aria-label="Buscar solicitações" /></div>
+          <Select value={filters.status} onValueChange={status => onChange({ ...filters, status })}><SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="all">Todos os status</SelectItem><SelectItem value="pending">Novas</SelectItem><SelectItem value="in_review">Em análise</SelectItem><SelectItem value="quote_ready">PDF disponível</SelectItem><SelectItem value="cancelled">Canceladas</SelectItem></SelectContent></Select>
+          <Input type="date" value={filters.dateFrom} onChange={event => onChange({ ...filters, dateFrom: event.target.value })} aria-label="Data inicial" />
+          <Input type="date" value={filters.dateTo} onChange={event => onChange({ ...filters, dateTo: event.target.value })} aria-label="Data final" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function requestItems(itemsData: string) {
   try {
@@ -64,14 +124,26 @@ export function LDRequestsAdmin() {
 export function LDGuestRequests() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
+  const [filters, setFilters] = useState<LdRequestFilter>({ search: "", status: "all", dateFrom: "", dateTo: "" });
   const mine = trpc.ldRequests.mine.useQuery(undefined, { staleTime: 0, enabled: (user as any)?.role === "convidado" });
   const pdf = trpc.ldRequests.myPdf.useMutation();
+  const visibleRequests = useMemo(() => filterLdRequests(mine.data ?? [], filters), [mine.data, filters]);
   const download = async (requestId: number) => {
     try {
       await openLdValidatedPdf(requestId, pdf.mutateAsync);
       await utils.ldRequests.notifications.invalidate();
+      await utils.ldRequests.mine.invalidate();
     } catch { toast.error("Não foi possível abrir o PDF."); }
   };
   if ((user as any)?.role !== "convidado") return <div className="p-8 text-center text-muted-foreground">Esta área é exclusiva para LD Convidado.</div>;
-  return <div className="min-h-screen bg-background"><header className="border-b bg-card"><div className="max-w-4xl mx-auto px-4 h-14 flex items-center gap-3"><Link href="/" className="inline-flex items-center gap-2 text-sm font-medium hover:text-primary"><ArrowLeft className="w-4 h-4" /> Configurador</Link><span className="text-muted-foreground">/</span><span className="font-semibold">Minhas solicitações</span></div></header><main className="max-w-4xl mx-auto px-4 py-7 space-y-5"><div><h1 className="text-2xl font-bold">Minhas solicitações de orçamento</h1><p className="text-sm text-muted-foreground mt-1">A equipe Alfalux analisará suas configurações e disponibilizará o PDF do orçamento validado aqui.</p></div>{mine.isLoading ? <p className="py-12 text-center text-muted-foreground">Carregando...</p> : (mine.data ?? []).length === 0 ? <Card className="py-12 text-center"><Package className="w-9 h-9 mx-auto text-muted-foreground mb-3" /><p className="font-medium">Nenhuma solicitação enviada</p></Card> : <div className="space-y-3">{(mine.data ?? []).map(request => { const status = STATUS[request.status] ?? STATUS.pending; return <LdGuestRequestHistoryCard key={request.id} finalClientName={request.finalClientName} officeName={request.officeName} constructorName={request.constructorName} submittedAtLabel={toBrasiliaDateTime(request.submittedAt)} statusLabel={status.label} statusClassName={status.className} pdfAvailable={isValidatedLdPdfAvailable(request.status, request.pdfAvailable ? "available" : null)} onDownload={() => download(request.id)} isDownloading={pdf.isPending} />; })}</div>}</main></div>;
+  return <div className="min-h-screen bg-background">
+    <header className="border-b bg-card"><div className="max-w-4xl mx-auto px-4 h-14 flex items-center gap-3"><Link href="/" className="inline-flex items-center gap-2 text-sm font-medium hover:text-primary"><ArrowLeft className="w-4 h-4" /> Configurador</Link><span className="text-muted-foreground">/</span><span className="font-semibold">Minhas solicitações</span></div></header>
+    <main className="max-w-4xl mx-auto px-4 py-7 space-y-5">
+      <div><h1 className="text-2xl font-bold">Minhas solicitações de orçamento</h1><p className="text-sm text-muted-foreground mt-1">A equipe Alfalux analisará suas configurações e disponibilizará o PDF do orçamento validado aqui.</p></div>
+      {mine.isLoading ? <p className="py-12 text-center text-muted-foreground">Carregando...</p> : (mine.data ?? []).length === 0 ? <Card className="py-12 text-center"><Package className="w-9 h-9 mx-auto text-muted-foreground mb-3" /><p className="font-medium">Nenhuma solicitação enviada</p></Card> : <>
+        <LdGuestFilters filters={filters} onChange={setFilters} resultCount={visibleRequests.length} />
+        {visibleRequests.length === 0 ? <Card className="py-10 text-center"><Filter className="w-8 h-8 mx-auto text-muted-foreground mb-2" /><p className="font-medium">Nenhuma solicitação encontrada</p><p className="text-sm text-muted-foreground mt-1">Ajuste ou limpe os filtros para ver outras solicitações.</p></Card> : <div className="space-y-3">{visibleRequests.map(request => { const status = STATUS[request.status] ?? STATUS.pending; return <LdGuestRequestHistoryCard key={request.id} finalClientName={request.finalClientName} officeName={request.officeName} constructorName={request.constructorName} submittedAtLabel={toBrasiliaDateTime(request.submittedAt)} statusLabel={status.label} statusClassName={status.className} pdfAvailable={isValidatedLdPdfAvailable(request.status, request.pdfAvailable ? "available" : null)} onDownload={() => download(request.id)} isDownloading={pdf.isPending} />; })}</div>}
+      </>}
+    </main>
+  </div>;
 }

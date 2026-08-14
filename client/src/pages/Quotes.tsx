@@ -37,13 +37,16 @@ export default function Quotes() {
   const [assistantFilter, setAssistantFilter] = useState<string>("all");
   const [duplicateFilter, setDuplicateFilter] = useState<"all" | "duplicates" | "unique">("all");
   const [prospectingFilter, setProspectingFilter] = useState<"all" | "prospecting" | "commercial">("all");
+  const [ldOriginFilter, setLdOriginFilter] = useState<"all" | "ld_only">("all");
+  const [ldResponseFilter, setLdResponseFilter] = useState<"all" | "awaiting_pdf" | "sent_pdf">("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [datePreset, setDatePreset] = useState("all");
   const [page, setPage] = useState(0);
   const limit = 20;
 
-  const clientFilterActive = duplicateFilter !== "all" || prospectingFilter !== "all";
+  const ldRequestsQuery = trpc.ldRequests.adminList.useQuery(undefined, { enabled: user?.role === "admin", staleTime: 0 });
+  const clientFilterActive = duplicateFilter !== "all" || prospectingFilter !== "all" || ldOriginFilter !== "all" || ldResponseFilter !== "all";
   const { data, isLoading } = trpc.quotes.list.useQuery({
     search: search || undefined,
     status: status !== "all" ? (status as "open" | "approved" | "lost" | "cancelled" | "invoiced") : undefined,
@@ -86,6 +89,14 @@ export default function Quotes() {
     return Array.from(byId, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [allData]);
 
+  const ldRequestByQuoteId = useMemo(() => {
+    const mapped = new Map<number, { status: string; requestNumber?: string | null }>();
+    (ldRequestsQuery.data ?? []).forEach((request: any) => {
+      if (request.adminQuoteId) mapped.set(Number(request.adminQuoteId), { status: request.status, requestNumber: request.requestNumber });
+    });
+    return mapped;
+  }, [ldRequestsQuery.data]);
+
   // Permissão para ver diluição (mesma lógica do QuoteDetail)
   const canSeeCommission = hasPermission(PERMISSIONS.EDITAR_COMISSAO);
 
@@ -119,7 +130,7 @@ export default function Quotes() {
     return { total, open, approved, lost, invoiced, totalValue, realValue, duplicateCount, prospectingValue, approvedValue, invoicedValue };
   }, [filteredAllData, canSeeCommission]);
 
-  const hasFilters = status !== "all" || sellerFilter !== "all" || assistantFilter !== "all" || duplicateFilter !== "all" || prospectingFilter !== "all" || search.trim() !== "" || dateFrom !== "" || dateTo !== "" || datePreset !== "all";
+  const hasFilters = status !== "all" || sellerFilter !== "all" || assistantFilter !== "all" || duplicateFilter !== "all" || prospectingFilter !== "all" || ldOriginFilter !== "all" || ldResponseFilter !== "all" || search.trim() !== "" || dateFrom !== "" || dateTo !== "" || datePreset !== "all";
 
   const clearFilters = () => {
     setSearch("");
@@ -128,6 +139,8 @@ export default function Quotes() {
     setAssistantFilter("all");
     setDuplicateFilter("all");
     setProspectingFilter("all");
+    setLdOriginFilter("all");
+    setLdResponseFilter("all");
     setDateFrom("");
     setDateTo("");
     setDatePreset("all");
@@ -189,6 +202,10 @@ export default function Quotes() {
     if (duplicateFilter === "unique" && quote.isDuplicate) return false;
     if (prospectingFilter === "prospecting" && !quote.isProspecting) return false;
     if (prospectingFilter === "commercial" && quote.isProspecting) return false;
+    const ldRequest = ldRequestByQuoteId.get(Number(quote.id));
+    if (ldOriginFilter === "ld_only" && !ldRequest) return false;
+    if (ldResponseFilter === "awaiting_pdf" && ldRequest?.status !== "in_review") return false;
+    if (ldResponseFilter === "sent_pdf" && ldRequest?.status !== "quote_ready") return false;
     return true;
   });
   const displayRows = clientFilterActive
@@ -333,6 +350,24 @@ export default function Quotes() {
               <SelectItem value="prospecting">Prospecções LD</SelectItem>
             </SelectContent>
           </Select>
+
+          {user?.role === "admin" && <>
+            <Select value={ldOriginFilter} onValueChange={v => { setLdOriginFilter(v as "all" | "ld_only"); setPage(0); }}>
+              <SelectTrigger className="w-48"><SelectValue placeholder="Origem do orçamento" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as origens</SelectItem>
+                <SelectItem value="ld_only">Somente solicitações LD</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={ldResponseFilter} onValueChange={v => { setLdResponseFilter(v as "all" | "awaiting_pdf" | "sent_pdf"); setPage(0); }}>
+              <SelectTrigger className="w-52"><SelectValue placeholder="Resposta ao LD" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os envios LD</SelectItem>
+                <SelectItem value="awaiting_pdf">Pendente de resposta ao LD</SelectItem>
+                <SelectItem value="sent_pdf">PDF enviado ao LD</SelectItem>
+              </SelectContent>
+            </Select>
+          </>}
 
           {/* Filtros de data — linha 2 */}
           <div className="flex items-center gap-2 flex-wrap w-full">

@@ -160,7 +160,12 @@ interface Props {
 export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMap, autoPrint, onCapturePdf, onCapturePdfError }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
   const capturedRef = useRef(false);
+  const captureCallbacksRef = useRef({ onCapturePdf, onCapturePdfError });
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
+  useEffect(() => {
+    captureCallbacksRef.current = { onCapturePdf, onCapturePdfError };
+  }, [onCapturePdf, onCapturePdfError]);
 
   // Gera nome do arquivo no mesmo padrão do Excel
   const buildFileName = useCallback(() => {
@@ -178,9 +183,20 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   const captureVisiblePreviewPdf = useCallback(async () => {
     const page = contentRef.current?.querySelector<HTMLElement>("[data-quote-pdf-page]");
     if (!page) throw new Error("Prévia oficial indisponível para captura.");
+    if (document.fonts?.ready) await document.fonts.ready;
     return capturePreviewPagePdf({
       page,
-      rasterize: (node) => html2canvas(node as HTMLElement, { backgroundColor: "#ffffff", scale: 2, useCORS: true, allowTaint: true, logging: true }),
+      // Nunca permitir canvas contaminado: allowTaint:true faz toDataURL falhar
+      // quando uma foto externa não oferece CORS. As fotos externas são servidas pelo
+      // proxy local e imagens que eventualmente falharem são omitidas sem interromper o PDF.
+      rasterize: (node) => html2canvas(node as HTMLElement, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+        allowTaint: false,
+        imageTimeout: 10_000,
+        logging: false,
+      }),
       createPdf: () => new jsPDF({ orientation: "landscape", unit: "pt", format: "a4", compress: true }),
     });
   }, []);
@@ -190,13 +206,14 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
     capturedRef.current = true;
     const timer = window.setTimeout(async () => {
       try {
-        onCapturePdf(await captureVisiblePreviewPdf());
+        const blob = await captureVisiblePreviewPdf();
+        await captureCallbacksRef.current.onCapturePdf?.(blob);
       } catch (error) {
-        onCapturePdfError?.(error instanceof Error ? error : new Error("Não foi possível capturar o PDF."));
+        captureCallbacksRef.current.onCapturePdfError?.(error instanceof Error ? error : new Error("Não foi possível capturar o PDF."));
       }
-    }, 650);
+    }, 1_100);
     return () => window.clearTimeout(timer);
-  }, [open, onCapturePdf, onCapturePdfError, captureVisiblePreviewPdf]);
+  }, [open, Boolean(onCapturePdf), captureVisiblePreviewPdf]);
 
   useEffect(() => {
     if (!open) capturedRef.current = false;
@@ -848,8 +865,8 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                         <tr key={`acc-${idx}-${accIdx}`} style={{ background: "#E0F7FA" }}>
                           <td style={{ ...tdStyle, fontSize: 9 }}></td>
                           <td style={{ ...tdStyle, fontSize: 9 }}>
-                            {acc.fotoUrl ? (
-                              <img src={acc.fotoUrl} alt={acc.descricao} style={{ width: 36, height: 36, objectFit: "contain" }}
+                            {getProxiedPhotoSrc(acc.fotoUrl) ? (
+                              <img src={getProxiedPhotoSrc(acc.fotoUrl)!} alt={acc.descricao} style={{ width: 36, height: 36, objectFit: "contain" }}
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                             ) : null}
                           </td>

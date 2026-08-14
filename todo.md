@@ -2635,3 +2635,10 @@
 ## Correção: Ficha de produção usa drivers do orçamento aprovado
 - [x] Remover migrateItemDrivers do export da ficha de produção para usar drivers exatamente como salvos no orçamento
 - [x] Remover migrateItemDrivers da visualização de itens no FactoryOrderDetail
+
+## Correção: Envio de PDF e filtros de Solicitações LD
+- [x] Corrigir a captura da prévia oficial ao enviar PDF para o LD Convidado
+- [x] Garantir que o envio do PDF atualize a solicitação LD para resposta disponível
+- [x] Adicionar filtros para LD Convidado: status, período/data, escritório e obra/cliente
+- [x] Adicionar filtro de origem LD na aba Meus Orçamentos para administradores
+- [x] Permitir filtrar orçamentos de solicitação LD por resposta enviada, pendente de análise e pendente de resposta

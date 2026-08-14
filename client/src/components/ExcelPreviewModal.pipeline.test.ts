@@ -9,8 +9,10 @@ describe("pipeline visual do PDF oficial e LD", () => {
 
   it("usa a captura visual html2canvas exclusivamente para o PDF enviado ao LD", () => {
     expect(previewSource).toContain("const captureVisiblePreviewPdf");
-    expect(previewSource).toContain("onCapturePdf(await captureVisiblePreviewPdf())");
+    expect(previewSource).toContain("await captureCallbacksRef.current.onCapturePdf?.(blob)");
     expect(quoteDetailSource).toContain("onCapturePdf={ldPdfCaptureOpen ? handleOfficialPdfCapturedForLd : undefined}");
+    expect(previewSource).toContain("allowTaint: false");
+    expect(previewSource).toContain("useCORS: true");
   });
 
   it("usa window.print() para o download oficial do PDF", () => {
