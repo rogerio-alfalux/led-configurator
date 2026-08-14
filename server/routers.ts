@@ -67,6 +67,7 @@ import {
   markGuestQuoteRequestInReview,
   linkGuestQuoteRequestQuote,
   attachGuestQuoteRequestPdf,
+  deleteGuestQuoteRequestForGuest,
 } from "./db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -360,6 +361,22 @@ export const appRouter = router({
       return { success: true };
     }),
 
+    deleteMine: protectedProcedure.input(z.object({ requestId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== "convidado") throw new TRPCError({ code: "FORBIDDEN" });
+      const deleted = await deleteGuestQuoteRequestForGuest(ctx.user.id, input.requestId);
+      if (!deleted) throw new TRPCError({ code: "NOT_FOUND", message: "Solicitação não encontrada." });
+      await insertAuditLog({
+        userId: ctx.user.id,
+        userEmail: ctx.user.email ?? null,
+        userName: ctx.user.name ?? null,
+        action: "ld_quote_request_deleted",
+        entityType: "guest_quote_request",
+        entityId: input.requestId,
+        details: JSON.stringify({ requestNumber: deleted.requestNumber, adminQuoteId: deleted.adminQuoteId }),
+      });
+      return { success: true, requestId: input.requestId };
+    }),
+
     mine: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== "convidado") return [];
       const requests = await listGuestQuoteRequestsForGuest(ctx.user.id);
@@ -390,6 +407,39 @@ export const appRouter = router({
         }
         await markGuestQuoteResponseViewed(ctx.user.id, request.id);
         return { url: request.validatedPdfUrl };
+      }),
+
+    /** Dados do orçamento vinculado, restritos ao LD dono da solicitação, para
+     * regenerar o PDF no layout vigente também em solicitações retroativas. */
+    currentPdfData: protectedProcedure
+      .input(z.object({ requestId: z.number().int().positive() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "convidado") throw new TRPCError({ code: "FORBIDDEN" });
+        const request = await getGuestQuoteRequestById(input.requestId);
+        if (!request || request.guestUserId !== ctx.user.id || request.status !== "quote_ready" || !request.adminQuoteId) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "PDF ainda não está disponível." });
+        }
+        const quoteData = await getQuoteById(request.adminQuoteId);
+        if (!quoteData) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento vinculado não encontrado." });
+        const currentVersion = quoteData.versions.find(version => version.version === quoteData.quote.currentVersion)
+          ?? quoteData.versions.find(version => version.status === "draft")
+          ?? quoteData.versions[0];
+        const currentItems = currentVersion
+          ? quoteData.items.filter(item => item.quoteVersionId === currentVersion.id)
+          : quoteData.items;
+        const sellerIds = [quoteData.quote.seller1Id, quoteData.quote.seller2Id].filter((id): id is number => Boolean(id));
+        const sellerRows = sellerIds.length
+          ? await (await getDb())?.select({ id: sellers.id, phone: sellers.phone, email: sellers.email }).from(sellers).where(inArray(sellers.id, sellerIds))
+          : [];
+        const sellerContactById = new Map((sellerRows ?? []).map(seller => [seller.id, seller]));
+        await markGuestQuoteResponseViewed(ctx.user.id, request.id);
+        return {
+          requestId: request.id,
+          quote: quoteData.quote,
+          items: currentItems,
+          seller1Contact: quoteData.quote.seller1Id ? sellerContactById.get(quoteData.quote.seller1Id) ?? null : null,
+          seller2Contact: quoteData.quote.seller2Id ? sellerContactById.get(quoteData.quote.seller2Id) ?? null : null,
+        };
       }),
 
     adminList: adminProcedure

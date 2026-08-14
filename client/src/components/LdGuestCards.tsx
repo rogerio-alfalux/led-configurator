@@ -64,7 +64,9 @@ export function LdGuestRequestHistoryCard({
   statusClassName,
   pdfAvailable,
   onDownload,
+  onDelete,
   isDownloading = false,
+  isDeleting = false,
 }: {
   finalClientName: string;
   officeName: string;
@@ -74,7 +76,9 @@ export function LdGuestRequestHistoryCard({
   statusClassName: string;
   pdfAvailable: boolean;
   onDownload: () => void;
+  onDelete: () => void;
   isDownloading?: boolean;
+  isDeleting?: boolean;
 }) {
   return <Card><CardContent className="p-4 flex flex-col sm:flex-row justify-between gap-3">
     <div>
@@ -82,9 +86,10 @@ export function LdGuestRequestHistoryCard({
       <p className="text-sm text-muted-foreground">{officeName}{constructorName ? ` · ${constructorName}` : ""}</p>
       <p className="text-xs text-muted-foreground mt-1">Enviada em {submittedAtLabel}</p>
     </div>
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2 flex-wrap justify-end">
       <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusClassName}`}>{statusLabel}</span>
-      {pdfAvailable && <Button size="sm" disabled={isDownloading} onClick={onDownload}><FileText className="w-4 h-4 mr-1" /> Baixar PDF</Button>}
+      {pdfAvailable && <Button size="sm" disabled={isDownloading || isDeleting} onClick={onDownload}><FileText className="w-4 h-4 mr-1" /> Baixar PDF</Button>}
+      <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" disabled={isDownloading || isDeleting} onClick={onDelete}><Trash2 className="w-4 h-4 mr-1" /> {isDeleting ? "Excluindo..." : "Excluir"}</Button>
     </div>
   </CardContent></Card>;
 }

@@ -8,12 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { parseCartItemData } from "@/lib/cartTypes";
-import { toBrasiliaDateTime } from "@/lib/dateUtils";
+import { parseCartItemData, type CartItemData, type QuoteFormData } from "@/lib/cartTypes";
+import { toBrasiliaDate, toBrasiliaDateTime } from "@/lib/dateUtils";
 import { isValidatedLdPdfAvailable } from "@/lib/ldRequestUtils";
 import { LdGuestRequestHistoryCard } from "@/components/LdGuestCards";
 import { openLdValidatedPdf } from "@/lib/ldPdfDownload";
+import { downloadPdfBlob } from "@/lib/pdfVisualCapture";
+import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
 import { toast } from "sonner";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const STATUS: Record<string, { label: string; className: string }> = {
   pending: { label: "Nova solicitação", className: "bg-amber-100 text-amber-800" },
@@ -86,6 +89,65 @@ function requestItems(itemsData: string) {
   } catch { return []; }
 }
 
+type LdCurrentPdfJob = { requestId: number; items: CartItemData[]; formData: QuoteFormData; fileName: string };
+
+function toNumber(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : undefined;
+}
+
+function buildCurrentLdPdfJob(payload: any): LdCurrentPdfJob {
+  const quote = payload.quote;
+  const quoteNumber = quote.quoteNumber || "Orçamento";
+  const items = (payload.items ?? []).map((item: { itemData: string }) => parseCartItemData(item.itemData)).filter((item: CartItemData | null): item is CartItemData => item !== null);
+  return {
+    requestId: payload.requestId,
+    items,
+    fileName: `${quoteNumber}.pdf`,
+    formData: {
+      cliente: quote.clientName,
+      contato: quote.clientContact ?? "",
+      tel: quote.clientPhone ?? "",
+      email: quote.clientEmail ?? "",
+      obra: quote.projectName ?? "",
+      referencia: quote.projectRef ?? "",
+      numero: quoteNumber,
+      data: toBrasiliaDate(quote.updatedAt ?? quote.createdAt),
+      arquiteto: quote.arquiteto ?? undefined,
+      lightDesigner: quote.lightDesigner ?? undefined,
+      seller1Name: quote.seller1Name ?? undefined,
+      seller1Phone: payload.seller1Contact?.phone ?? undefined,
+      seller1Email: payload.seller1Contact?.email ?? undefined,
+      seller2Name: quote.seller2Name ?? undefined,
+      seller2Phone: payload.seller2Contact?.phone ?? undefined,
+      seller2Email: payload.seller2Contact?.email ?? undefined,
+      assistantName: quote.assistantName ?? undefined,
+      rtPercent: toNumber(quote.rtPercent),
+      marginPercent: toNumber(quote.marginPercent),
+      discountPercent: toNumber(quote.discountPercent),
+      showDiscount: Boolean(quote.showDiscount),
+      freteType: quote.freteType ?? "free",
+      freteIsento: Boolean(quote.freteIsento),
+      freteLocalidade: quote.freteLocalidade ?? "sp",
+      freteCity: quote.freteCity ?? undefined,
+      freteState: quote.freteState ?? undefined,
+      freteValue: toNumber(quote.freteValue),
+      freteIncluded: Boolean(quote.freteIncluded),
+      revisionCount: Math.max(0, Number(quote.currentVersion ?? 1) - 1),
+      deliveryDays: quote.deliveryDays ?? 20,
+      paymentTerm: quote.paymentTerm ?? undefined,
+      destState: quote.destState ?? undefined,
+      difalEnabled: Boolean(quote.difalEnabled),
+      difalPercent: toNumber(quote.difalPercent),
+      difalValue: toNumber(quote.difalValue),
+      fcpEnabled: Boolean(quote.fcpEnabled),
+      fcpPercent: toNumber(quote.fcpPercent),
+      fcpValue: toNumber(quote.fcpValue),
+      diluicaoValor: toNumber(quote.diluicaoValor),
+    },
+  };
+}
+
 export function LDRequestsAdmin() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -125,15 +187,43 @@ export function LDGuestRequests() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
   const [filters, setFilters] = useState<LdRequestFilter>({ search: "", status: "all", dateFrom: "", dateTo: "" });
+  const [downloadingRequestId, setDownloadingRequestId] = useState<number | null>(null);
+  const [requestIdToDelete, setRequestIdToDelete] = useState<number | null>(null);
+  const [currentPdfJob, setCurrentPdfJob] = useState<LdCurrentPdfJob | null>(null);
   const mine = trpc.ldRequests.mine.useQuery(undefined, { staleTime: 0, enabled: (user as any)?.role === "convidado" });
   const pdf = trpc.ldRequests.myPdf.useMutation();
+  const currentPdfData = trpc.ldRequests.currentPdfData.useMutation();
+  const deleteRequest = trpc.ldRequests.deleteMine.useMutation();
   const visibleRequests = useMemo(() => filterLdRequests(mine.data ?? [], filters), [mine.data, filters]);
   const download = async (requestId: number) => {
+    if (downloadingRequestId !== null) return;
+    setDownloadingRequestId(requestId);
     try {
-      await openLdValidatedPdf(requestId, pdf.mutateAsync);
+      const payload = await currentPdfData.mutateAsync({ requestId });
+      const job = buildCurrentLdPdfJob(payload);
+      if (job.items.length === 0) throw new Error("O orçamento não possui itens para gerar o PDF.");
+      setCurrentPdfJob(job);
       await utils.ldRequests.notifications.invalidate();
       await utils.ldRequests.mine.invalidate();
-    } catch { toast.error("Não foi possível abrir o PDF."); }
+    } catch {
+      try {
+        await openLdValidatedPdf(requestId, pdf.mutateAsync);
+        await utils.ldRequests.notifications.invalidate();
+        await utils.ldRequests.mine.invalidate();
+      } catch { toast.error("Não foi possível gerar o PDF desta solicitação."); }
+      setDownloadingRequestId(null);
+    }
+  };
+  const confirmDelete = async () => {
+    if (requestIdToDelete === null) return;
+    try {
+      await deleteRequest.mutateAsync({ requestId: requestIdToDelete });
+      await Promise.all([utils.ldRequests.mine.invalidate(), utils.ldRequests.notifications.invalidate()]);
+      toast.success("Solicitação excluída.");
+      setRequestIdToDelete(null);
+    } catch (error: any) {
+      toast.error(error?.message ?? "Não foi possível excluir a solicitação.");
+    }
   };
   if ((user as any)?.role !== "convidado") return <div className="p-8 text-center text-muted-foreground">Esta área é exclusiva para LD Convidado.</div>;
   return <div className="min-h-screen bg-background">
@@ -142,8 +232,36 @@ export function LDGuestRequests() {
       <div><h1 className="text-2xl font-bold">Minhas solicitações de orçamento</h1><p className="text-sm text-muted-foreground mt-1">A equipe Alfalux analisará suas configurações e disponibilizará o PDF do orçamento validado aqui.</p></div>
       {mine.isLoading ? <p className="py-12 text-center text-muted-foreground">Carregando...</p> : (mine.data ?? []).length === 0 ? <Card className="py-12 text-center"><Package className="w-9 h-9 mx-auto text-muted-foreground mb-3" /><p className="font-medium">Nenhuma solicitação enviada</p></Card> : <>
         <LdGuestFilters filters={filters} onChange={setFilters} resultCount={visibleRequests.length} />
-        {visibleRequests.length === 0 ? <Card className="py-10 text-center"><Filter className="w-8 h-8 mx-auto text-muted-foreground mb-2" /><p className="font-medium">Nenhuma solicitação encontrada</p><p className="text-sm text-muted-foreground mt-1">Ajuste ou limpe os filtros para ver outras solicitações.</p></Card> : <div className="space-y-3">{visibleRequests.map(request => { const status = STATUS[request.status] ?? STATUS.pending; return <LdGuestRequestHistoryCard key={request.id} finalClientName={request.finalClientName} officeName={request.officeName} constructorName={request.constructorName} submittedAtLabel={toBrasiliaDateTime(request.submittedAt)} statusLabel={status.label} statusClassName={status.className} pdfAvailable={isValidatedLdPdfAvailable(request.status, request.pdfAvailable ? "available" : null)} onDownload={() => download(request.id)} isDownloading={pdf.isPending} />; })}</div>}
+        {visibleRequests.length === 0 ? <Card className="py-10 text-center"><Filter className="w-8 h-8 mx-auto text-muted-foreground mb-2" /><p className="font-medium">Nenhuma solicitação encontrada</p><p className="text-sm text-muted-foreground mt-1">Ajuste ou limpe os filtros para ver outras solicitações.</p></Card> : <div className="space-y-3">{visibleRequests.map(request => { const status = STATUS[request.status] ?? STATUS.pending; return <LdGuestRequestHistoryCard key={request.id} finalClientName={request.finalClientName} officeName={request.officeName} constructorName={request.constructorName} submittedAtLabel={toBrasiliaDateTime(request.submittedAt)} statusLabel={status.label} statusClassName={status.className} pdfAvailable={isValidatedLdPdfAvailable(request.status, request.pdfAvailable ? "available" : null)} onDownload={() => download(request.id)} onDelete={() => setRequestIdToDelete(request.id)} isDownloading={downloadingRequestId === request.id} isDeleting={deleteRequest.isPending && requestIdToDelete === request.id} />; })}</div>}
       </>}
     </main>
+    <AlertDialog open={requestIdToDelete !== null} onOpenChange={(open) => { if (!open && !deleteRequest.isPending) setRequestIdToDelete(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir solicitação?</AlertDialogTitle>
+          <AlertDialogDescription>Esta ação remove a solicitação e os anexos técnicos associados da sua lista. O orçamento já eventualmente criado pela equipe Alfalux não será alterado.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleteRequest.isPending}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={(event) => { event.preventDefault(); void confirmDelete(); }} disabled={deleteRequest.isPending} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir solicitação</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    {currentPdfJob && <ExcelPreviewModal
+      open
+      onClose={() => { setCurrentPdfJob(null); setDownloadingRequestId(null); }}
+      items={currentPdfJob.items}
+      formData={currentPdfJob.formData}
+      onCapturePdf={async (blob) => {
+        downloadPdfBlob(blob, currentPdfJob.fileName);
+        setCurrentPdfJob(null);
+        setDownloadingRequestId(null);
+      }}
+      onCapturePdfError={() => {
+        toast.error("Não foi possível gerar o PDF atualizado desta solicitação.");
+        setCurrentPdfJob(null);
+        setDownloadingRequestId(null);
+      }}
+    />}
   </div>;
 }

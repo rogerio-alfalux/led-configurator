@@ -249,6 +249,21 @@ export async function listGuestQuoteRequestAttachments(requestId: number) {
     .orderBy(asc(guestQuoteRequestAttachments.id));
 }
 
+/** Exclui uma solicitação e seus metadados de anexos, sempre limitada ao próprio LD. */
+export async function deleteGuestQuoteRequestForGuest(guestUserId: number, requestId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const request = (await db.select().from(guestQuoteRequests)
+    .where(and(eq(guestQuoteRequests.id, requestId), eq(guestQuoteRequests.guestUserId, guestUserId)))
+    .limit(1))[0];
+  if (!request) return null;
+  await db.transaction(async (tx) => {
+    await tx.delete(guestQuoteRequestAttachments).where(eq(guestQuoteRequestAttachments.requestId, requestId));
+    await tx.delete(guestQuoteRequests).where(and(eq(guestQuoteRequests.id, requestId), eq(guestQuoteRequests.guestUserId, guestUserId)));
+  });
+  return request;
+}
+
 export async function countPendingGuestQuoteRequests() {
   const db = await getDb();
   if (!db) return 0;

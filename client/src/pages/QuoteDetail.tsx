@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronUp, Factory, Trash2, PenLine,
   Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle, GripVertical, Wrench, Copy, Eye, Navigation2,
   Upload, X as XIcon, Layers, Receipt, Printer, Search,
-  User, Phone, FolderOpen, Bookmark, MapPin, Briefcase, Calendar, RefreshCw, ClipboardList, Zap, FileDown,
+  User, Phone, Mail, FolderOpen, Bookmark, MapPin, Briefcase, Calendar, RefreshCw, ClipboardList, Zap, FileDown,
   TrendingUp, DollarSign, Calculator, ArrowLeftRight, FlaskConical, Link2,
 } from "lucide-react";
 import {
@@ -2200,7 +2200,7 @@ export default function QuoteDetail() {
               <p className="font-semibold text-base">{quote.clientName}</p>
               {quote.clientContact && <p className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0" />{quote.clientContact}</p>}
               {quote.clientPhone && <p className="flex items-center gap-1"><Phone className="w-3.5 h-3.5 shrink-0" />{quote.clientPhone}</p>}
-              {quote.clientEmail && <p className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 shrink-0" />{quote.clientEmail}</p>}
+               {quote.clientEmail && <p className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 shrink-0" />{quote.clientEmail}</p>}
               {quote.projectName && <p className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 shrink-0" />Obra: <span className="font-medium">{quote.projectName}</span></p>}
               {quote.projectRef && <p className="flex items-center gap-1"><Bookmark className="w-3.5 h-3.5 shrink-0" />Ref: {quote.projectRef}</p>}
               {(quote as any).projectNumber && <p className="flex items-center gap-1"><FolderOpen className="w-3.5 h-3.5 shrink-0" />Nº Projeto: <span className="font-medium">{(quote as any).projectNumber}</span></p>}

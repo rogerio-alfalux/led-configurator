@@ -2667,3 +2667,9 @@
 - [x] Exportar para Excel exatamente os orçamentos filtrados na tela Meus Orçamentos
 - [x] Organizar a planilha com dados comerciais, equipe, obra, status, valores e datas
 - [x] Exibir o botão de exportação somente para administradores
+
+## Solicitações LD: download, retroatividade e gestão pelo convidado
+- [x] Garantir que o LD baixe somente o PDF da solicitação selecionada
+- [x] Aplicar o layout atual de PDF às solicitações LD anteriores e retroativas
+- [x] Permitir que o LD exclua sua solicitação após confirmação explícita
+- [x] Usar ícone de envelope para e-mail e manter o ícone de localização para Obra
