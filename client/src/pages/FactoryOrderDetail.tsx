@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { trpc } from "@/lib/trpc";
-import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, formatBRL, normalizeDriverModels, migrateItemDrivers, ApiProductDriverInfo, extractPowerLabelFromName } from "@/lib/cartTypes";
+import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, formatBRL, normalizeDriverModels, ApiProductDriverInfo, extractPowerLabelFromName } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { ComponentSearchField } from "@/components/ComponentSearchField";
 import type { ComponentOption } from "@/components/ComponentSearchField";
@@ -232,7 +232,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
   const parsed = useMemo(() => {
     const raw = parseCartItemData(item.itemData);
     if (!raw || !priceMap || !productSkuMap) return raw;
-    return migrateItemDrivers(raw, priceMap, descMap ?? new Map(), productSkuMap, correnteMap, reverseDescMap);
+    return normalizeDriverModels(raw, descMap ?? new Map());
   }, [item.itemData, priceMap, productSkuMap, descMap, correnteMap, reverseDescMap]);
 
   useEffect(() => {
