@@ -250,13 +250,29 @@
   [data-print-content] [aria-hidden="true"] {
     display: none !important;
   }
-  /* Remover sombra e background cinza na impressão */
+  /* Página branca: escalar para caber em A4 portrait */
   [data-quote-pdf-page] {
     box-shadow: none !important;
     margin: 0 !important;
-    padding: 20px 30px !important;
+    padding: 10px 15px !important;
     width: 100% !important;
     min-width: 0 !important;
+    max-width: 100% !important;
+    transform-origin: top left;
+    font-size: 9px !important;
+  }
+  [data-quote-pdf-page] table {
+    width: 100% !important;
+    font-size: 8px !important;
+  }
+  [data-quote-pdf-page] th,
+  [data-quote-pdf-page] td {
+    padding: 2px 3px !important;
+    font-size: 8px !important;
+  }
+  [data-quote-pdf-page] img {
+    max-width: 50px !important;
+    max-height: 50px !important;
   }
   /* Garantir que a tabela seja impressa corretamente */
   table {
@@ -268,7 +284,7 @@
   }
   @page {
     size: A4 portrait;
-    margin: 10mm;
+    margin: 8mm;
   }
 }
 
