@@ -210,6 +210,31 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
         windowWidth: (node as HTMLElement).scrollWidth,
         windowHeight: (node as HTMLElement).scrollHeight,
         onclone: (clonedDocument) => {
+          // html2canvas ainda não interpreta funções CSS OKLCH. O tema do sistema
+          // usa esses tokens, então a cópia efêmera usada para o PDF recebe apenas
+          // equivalentes HEX. O preview e o PDF oficial exibido ao administrador
+          // não são alterados por esta regra.
+          const compatibilityStyle = clonedDocument.createElement("style");
+          compatibilityStyle.textContent = `
+            [data-quote-pdf-page] {
+              --primary: #1a2b4a; --primary-foreground: #ffffff;
+              --background: #ffffff; --foreground: #1f2937;
+              --card: #ffffff; --card-foreground: #1f2937;
+              --popover: #ffffff; --popover-foreground: #1f2937;
+              --secondary: #eef2f7; --secondary-foreground: #1f2937;
+              --muted: #f4f6f8; --muted-foreground: #64748b;
+              --accent: #f0a84a; --accent-foreground: #1f2937;
+              --destructive: #c53030; --destructive-foreground: #ffffff;
+              --border: #d1d9e2; --input: #d1d9e2; --ring: #1a2b4a;
+              --chart-1: #1a2b4a; --chart-2: #2d5a8e; --chart-3: #f0a84a;
+              --chart-4: #2f855a; --chart-5: #c53030;
+              --sidebar: #1a2b4a; --sidebar-foreground: #ffffff;
+              --sidebar-primary: #f0a84a; --sidebar-primary-foreground: #1f2937;
+              --sidebar-accent: #253b5b; --sidebar-accent-foreground: #ffffff;
+              --sidebar-border: #253b5b; --sidebar-ring: #1a2b4a;
+            }
+          `;
+          clonedDocument.head.appendChild(compatibilityStyle);
           // As fotos já passam por rota de mesmo domínio, mas o atributo elimina
           // contaminação do canvas em navegadores que reavaliam as imagens clonadas.
           clonedDocument.querySelectorAll("img").forEach((image) => {

@@ -19,6 +19,8 @@ describe("pipeline visual do PDF oficial e LD", () => {
     expect(previewSource).toContain("const previewPageRef");
     expect(previewSource).toContain("const deadline = Date.now() + 8_000");
     expect(previewSource).toContain("ref={previewPageRef}");
+    expect(previewSource).toContain("html2canvas ainda não interpreta funções CSS OKLCH");
+    expect(previewSource).toContain("--primary: #1a2b4a");
     expect(previewSource).toContain("allowTaint: false");
     expect(previewSource).toContain("useCORS: true");
     expect(previewSource).toContain('orientation: "portrait"');

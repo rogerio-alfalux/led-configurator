@@ -2656,6 +2656,8 @@
 - [x] Cobrir por teste a criação do arquivo e a transição da solicitação para PDF disponível
 - [x] Restaurar envio automático interno do PDF oficial ao LD, sem salvar ou selecionar arquivo manualmente
 - [x] Garantir que o mesmo arquivo oficial seja anexado e disponibilizado ao LD pela solicitação
+- [x] Normalizar cores OKLCH somente no clone de captura do PDF oficial ao LD
+- [x] Cobrir a incompatibilidade de cor da biblioteca de captura sem alterar o layout oficial
 
 ## Exportação Excel de Meus Orçamentos para administradores
 - [x] Exportar para Excel exatamente os orçamentos filtrados na tela Meus Orçamentos
