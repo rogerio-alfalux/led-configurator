@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef, type ChangeEvent } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import {
   ArrowLeft, CheckCircle, XCircle, Clock, TrendingDown,
@@ -896,7 +896,7 @@ export default function QuoteDetail() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [pdfPrintOpen, setPdfPrintOpen] = useState(false);
-  const officialLdPdfInputRef = useRef<HTMLInputElement>(null);
+  const [ldPdfCaptureOpen, setLdPdfCaptureOpen] = useState(false);
 
   // Edit (add revision) dialog — full form with all tabs
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -1981,28 +1981,16 @@ export default function QuoteDetail() {
     setPdfPrintOpen(true);
   };
 
-  const handleSendPdfToLd = () => {
+  const handleSendPdfToLd = async () => {
     if (!linkedLdRequest || !quote) return;
-    officialLdPdfInputRef.current?.click();
+    setIsGenerating(true);
+    setLdPdfCaptureOpen(true);
   };
 
-  const handleOfficialLdPdfSelected = async (event: ChangeEvent<HTMLInputElement>) => {
-    const pdfFile = event.target.files?.[0];
-    event.target.value = "";
+  const handleOfficialPdfCapturedForLd = async (pdfBlob: Blob) => {
     if (!linkedLdRequest || !quote) return;
-    if (!pdfFile) return;
-    if (pdfFile.size > 20 * 1024 * 1024) {
-      toast.error("O PDF oficial deve ter no máximo 20 MB.");
-      return;
-    }
     try {
-      const bytes = new Uint8Array(await pdfFile.arrayBuffer());
-      const signature = String.fromCharCode(bytes[0] ?? 0, bytes[1] ?? 0, bytes[2] ?? 0, bytes[3] ?? 0);
-      if (signature !== "%PDF") {
-        toast.error("Selecione um arquivo PDF válido gerado pelo orçamento oficial.");
-        return;
-      }
-      setIsGenerating(true);
+      const bytes = new Uint8Array(await pdfBlob.arrayBuffer());
       let binary = "";
       for (let offset = 0; offset < bytes.length; offset += 8192) {
         const chunk = bytes.subarray(offset, offset + 8192);
@@ -2011,13 +1999,13 @@ export default function QuoteDetail() {
       await attachLdPdfMutation.mutateAsync({
         requestId: linkedLdRequest.id,
         pdfBase64: btoa(binary),
-        // O LD recebe o próprio arquivo oficial criado pelo administrador,
-        // preservando integralmente layout e nome já validados.
-        fileName: pdfFile.name,
+        fileName: `Alfalux_${quote.quoteNumber.replace(/[^a-zA-Z0-9_-]/g, "_")}.pdf`,
       });
     } catch (err) {
+      console.error("Falha ao anexar PDF oficial ao LD:", err);
       toast.error("Não foi possível anexar o PDF oficial ao LD.");
     } finally {
+      setLdPdfCaptureOpen(false);
       setIsGenerating(false);
     }
   };
@@ -2426,18 +2414,11 @@ export default function QuoteDetail() {
                 className="gap-2 border-emerald-500/40 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950"
                 onClick={handleSendPdfToLd}
                 disabled={isGenerating || attachLdPdfMutation.isPending}
-                title="Selecione o mesmo PDF oficial gerado pelo administrador para disponibilizá-lo ao LD Convidado"
+                title="Gerar e disponibilizar automaticamente o PDF oficial ao LD Convidado"
               >
                 <FileDown className="w-4 h-4" />
                 {attachLdPdfMutation.isPending ? "Enviando PDF..." : "Enviar PDF ao LD"}
               </Button>
-              <input
-                ref={officialLdPdfInputRef}
-                type="file"
-                accept="application/pdf,.pdf"
-                className="hidden"
-                onChange={handleOfficialLdPdfSelected}
-              />
               <Link href="/solicitacoes-ld">
                 <Badge variant="outline" className="h-9 px-3 cursor-pointer border-primary/40 text-primary hover:bg-primary/5">
                   <ClipboardList className="w-3.5 h-3.5 mr-1.5" /> Solicitação LD #{linkedLdRequest.id}
@@ -4991,11 +4972,13 @@ export default function QuoteDetail() {
         }}
       />
 
-      {/* PDF oficial do administrador — abre a impressão do navegador */}
+      {/* Prévia compartilhada: impressão direta para admin e captura interna para o LD. */}
       <ExcelPreviewModal
-        open={pdfPrintOpen}
-        onClose={() => setPdfPrintOpen(false)}
+        open={pdfPrintOpen || ldPdfCaptureOpen}
+        onClose={() => { setPdfPrintOpen(false); setLdPdfCaptureOpen(false); if (ldPdfCaptureOpen) setIsGenerating(false); }}
         autoPrint={pdfPrintOpen}
+        onCapturePdf={ldPdfCaptureOpen ? handleOfficialPdfCapturedForLd : undefined}
+        onCapturePdfError={ldPdfCaptureOpen ? (error) => { console.error("Falha na captura interna do PDF LD:", error); toast.error("Não foi possível gerar o PDF oficial para o LD."); setLdPdfCaptureOpen(false); setIsGenerating(false); } : undefined}
         items={commercialQuoteItems}
         freshPhotoMap={productPhotoMap}
         formData={{

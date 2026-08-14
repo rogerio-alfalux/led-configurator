@@ -159,6 +159,7 @@ interface Props {
 
 export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMap, autoPrint, onCapturePdf, onCapturePdfError }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
+  const previewPageRef = useRef<HTMLDivElement>(null);
   const capturedRef = useRef(false);
   const captureCallbacksRef = useRef({ onCapturePdf, onCapturePdfError });
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
@@ -181,9 +182,19 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   }, [formData]);
 
   const captureVisiblePreviewPdf = useCallback(async () => {
-    const page = contentRef.current?.querySelector<HTMLElement>("[data-quote-pdf-page]");
+    const deadline = Date.now() + 8_000;
+    let page = previewPageRef.current;
+    while ((!page || page.getBoundingClientRect().width <= 0 || page.getBoundingClientRect().height <= 0) && Date.now() < deadline) {
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+      page = previewPageRef.current;
+    }
     if (!page) throw new Error("Prévia oficial indisponível para captura.");
     if (document.fonts?.ready) await document.fonts.ready;
+    // A captura é feita somente com a página efetivamente renderizada. Isso evita
+    // PDFs vazios quando o portal ainda está concluindo a montagem do preview.
+    if (page.getBoundingClientRect().width <= 0 || page.getBoundingClientRect().height <= 0) {
+      throw new Error("Prévia oficial ainda não foi renderizada.");
+    }
     return capturePreviewPagePdf({
       page,
       // Nunca permitir canvas contaminado: allowTaint:true faz toDataURL falhar
@@ -194,8 +205,17 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
         scale: 2,
         useCORS: true,
         allowTaint: false,
-        imageTimeout: 10_000,
+        imageTimeout: 15_000,
         logging: false,
+        windowWidth: (node as HTMLElement).scrollWidth,
+        windowHeight: (node as HTMLElement).scrollHeight,
+        onclone: (clonedDocument) => {
+          // As fotos já passam por rota de mesmo domínio, mas o atributo elimina
+          // contaminação do canvas em navegadores que reavaliam as imagens clonadas.
+          clonedDocument.querySelectorAll("img").forEach((image) => {
+            image.setAttribute("crossorigin", "anonymous");
+          });
+        },
       }),
       // O PDF oficial validado é A4 retrato. A captura para o LD deve apenas
       // arquivar a mesma prévia oficial nesse formato — nunca usar um layout alternativo.
@@ -206,15 +226,24 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   useEffect(() => {
     if (!open || !onCapturePdf || capturedRef.current) return;
     capturedRef.current = true;
-    const timer = window.setTimeout(async () => {
+    let cancelled = false;
+    const capture = async (attempt: number) => {
       try {
         const blob = await captureVisiblePreviewPdf();
-        await captureCallbacksRef.current.onCapturePdf?.(blob);
+        if (!cancelled) await captureCallbacksRef.current.onCapturePdf?.(blob);
       } catch (error) {
-        captureCallbacksRef.current.onCapturePdfError?.(error instanceof Error ? error : new Error("Não foi possível capturar o PDF."));
+        // Imagens e fontes podem terminar de carregar depois da primeira pintura
+        // do portal. Uma única nova tentativa evita falhas transitórias sem mudar
+        // qualquer conteúdo ou formatação do PDF oficial.
+        if (!cancelled && attempt === 0) {
+          window.setTimeout(() => { void capture(1); }, 1_500);
+          return;
+        }
+        if (!cancelled) captureCallbacksRef.current.onCapturePdfError?.(error instanceof Error ? error : new Error("Não foi possível capturar o PDF."));
       }
-    }, 1_100);
-    return () => window.clearTimeout(timer);
+    };
+    const timer = window.setTimeout(() => { void capture(0); }, 1_800);
+    return () => { cancelled = true; window.clearTimeout(timer); };
   }, [open, Boolean(onCapturePdf), captureVisiblePreviewPdf]);
 
   useEffect(() => {
@@ -616,6 +645,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
           {/* Página branca — largura fixa de 1100px para simular A4 paisagem */}
           <div
             data-quote-pdf-page
+            ref={previewPageRef}
             style={{
               fontFamily: "Calibri, Arial, sans-serif",
               width: 1100,

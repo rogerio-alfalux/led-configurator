@@ -7,14 +7,18 @@ describe("pipeline visual do PDF oficial e LD", () => {
   const quoteDetailSource = readFileSync(resolve(process.cwd(), "client/src/pages/QuoteDetail.tsx"), "utf8");
   const cartSource = readFileSync(resolve(process.cwd(), "client/src/pages/Cart.tsx"), "utf8");
 
-  it("mantém a captura visual isolada e entrega ao LD o arquivo oficial selecionado pelo administrador", () => {
+  it("anexa automaticamente ao LD a mesma prévia oficial sem abrir diálogo de arquivo", () => {
     expect(previewSource).toContain("const captureVisiblePreviewPdf");
     expect(previewSource).toContain("await captureCallbacksRef.current.onCapturePdf?.(blob)");
-    expect(quoteDetailSource).toContain("officialLdPdfInputRef");
-    expect(quoteDetailSource).toContain("handleOfficialLdPdfSelected");
-    expect(quoteDetailSource).toContain("fileName: pdfFile.name");
-    expect(quoteDetailSource).toContain('accept="application/pdf,.pdf"');
-    expect(quoteDetailSource).not.toContain("ldPdfCaptureOpen");
+    expect(quoteDetailSource).toContain("setLdPdfCaptureOpen(true)");
+    expect(quoteDetailSource).toContain("onCapturePdf={ldPdfCaptureOpen ? handleOfficialPdfCapturedForLd : undefined}");
+    expect(quoteDetailSource).toContain("open={pdfPrintOpen || ldPdfCaptureOpen}");
+    expect(quoteDetailSource).not.toContain("officialLdPdfInputRef");
+    expect(previewSource).toContain("attempt === 0");
+    expect(previewSource).toContain("crossorigin\", \"anonymous");
+    expect(previewSource).toContain("const previewPageRef");
+    expect(previewSource).toContain("const deadline = Date.now() + 8_000");
+    expect(previewSource).toContain("ref={previewPageRef}");
     expect(previewSource).toContain("allowTaint: false");
     expect(previewSource).toContain("useCORS: true");
     expect(previewSource).toContain('orientation: "portrait"');

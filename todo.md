@@ -2654,3 +2654,5 @@
 - [x] Garantir anexo do PDF e transição da solicitação para PDF disponível após o envio
 - [x] Substituir a captura visual frágil por um fluxo robusto de entrega do PDF oficial ao LD
 - [x] Cobrir por teste a criação do arquivo e a transição da solicitação para PDF disponível
+- [x] Restaurar envio automático interno do PDF oficial ao LD, sem salvar ou selecionar arquivo manualmente
+- [x] Garantir que o mesmo arquivo oficial seja anexado e disponibilizado ao LD pela solicitação
