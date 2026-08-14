@@ -236,11 +236,11 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   // autoPrint: abre a tela de impressão do navegador diretamente
   useEffect(() => {
     if (!open || !autoPrint) return;
-    // Definir o título da página para o nome do arquivo PDF (padrão: NUMERO(RVx)-OBRA-CLIENTE)
     const originalTitle = document.title;
     const pdfTitle = buildFileName();
-    document.title = pdfTitle;
     const timer = setTimeout(() => {
+      // Definir título IMEDIATAMENTE antes de print para garantir que o navegador use como nome do arquivo
+      document.title = pdfTitle;
       window.print();
     }, 800);
     const handleAfterPrint = () => {
