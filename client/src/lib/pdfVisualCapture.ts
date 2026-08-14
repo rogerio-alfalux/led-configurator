@@ -32,3 +32,19 @@ export async function capturePreviewPagePdf(input: {
   }
   return pdf.output("blob");
 }
+
+export function downloadPdfBlob(blob: Blob, fileName: string, documentRef?: Document, createObjectUrl?: (value: Blob) => string, revokeObjectUrl?: (url: string) => void) {
+  if (blob.size === 0) throw new Error("O PDF gerado está vazio.");
+  const activeDocument = documentRef ?? document;
+  const createUrl = createObjectUrl ?? URL.createObjectURL;
+  const revokeUrl = revokeObjectUrl ?? URL.revokeObjectURL;
+  const url = createUrl(blob);
+  const anchor = activeDocument.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.style.display = "none";
+  activeDocument.body.appendChild(anchor);
+  anchor.click();
+  activeDocument.body.removeChild(anchor);
+  globalThis.setTimeout(() => revokeUrl(url), 10_000);
+}

@@ -139,6 +139,12 @@
 - [x] Cobrir em integração a sequência real de status e contagens de badges LD
 - [x] Cobrir em DOM o badge administrativo após o envio de PDF ao LD
 - [x] Cobrir em DOM a atualização visível do badge administrativo desencadeada pelo envio do PDF ao LD
+- [x] Corrigir o botão Baixar PDF do orçamento para todos os usuários
+- [x] Validar a geração e o download oficial sem afetar o PDF enviado ao LD
+- [x] Cobrir por testes a criação de arquivo e o acionamento do download de PDF oficial
+- [x] Tornar o alvo de captura do PDF oficial explícito e resistente a mudanças de estrutura do modal
+- [x] Aguardar a captura e o download antes de fechar o modal automático de PDF
+- [x] Exibir estado de geração e validar a criação do Blob baixável do PDF oficial
 - [x] Persistir foto manual de Item Especial e exibi-la no carrinho, orçamento, PDF, Excel e consultas futuras
 - [x] Exibir painel de amostra/manutenção para todos os administradores e excluir valores convertidos dos totais do dashboard
 - [x] Persistir valor comercial zero em amostras/manutenções e restaurar com segurança no cancelamento

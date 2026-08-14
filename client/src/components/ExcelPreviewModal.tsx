@@ -5,12 +5,12 @@
  * Exibe marca d'água "RASCUNHO" em diagonal para deixar claro que não é versão oficial.
  * Usa createPortal para garantir tela cheia real sem interferência do Dialog do shadcn.
  */
-import { Fragment, useMemo, useEffect, useRef, useCallback } from "react";
+import { Fragment, useMemo, useEffect, useRef, useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, FileDown } from "lucide-react";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
-import { capturePreviewPagePdf } from "@/lib/pdfVisualCapture";
+import { capturePreviewPagePdf, downloadPdfBlob } from "@/lib/pdfVisualCapture";
 import type { CartItemData, QuoteFormData } from "@/lib/cartTypes";
 import { formatBRL } from "@/lib/cartTypes";
 import { getStateInfo } from "@/lib/difalTable";
@@ -160,6 +160,7 @@ interface Props {
 export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMap, autoPrint, onCapturePdf, onCapturePdfError }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
   const capturedRef = useRef(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   // Gera nome do arquivo no mesmo padrão do Excel
   const buildFileName = useCallback(() => {
@@ -174,7 +175,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   }, [formData]);
 
   const captureVisiblePreviewPdf = useCallback(async () => {
-    const page = contentRef.current?.firstElementChild?.lastElementChild as HTMLElement | null;
+    const page = contentRef.current?.querySelector<HTMLElement>("[data-quote-pdf-page]");
     if (!page) throw new Error("Prévia oficial indisponível para captura.");
     return capturePreviewPagePdf({
       page,
@@ -202,15 +203,14 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
 
   // Baixa o mesmo Blob visual usado para o PDF devolvido ao LD.
   const handleDownloadPDF = useCallback(async () => {
-    const blob = await captureVisiblePreviewPdf();
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${buildFileName()}.pdf`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    setIsDownloadingPdf(true);
+    try {
+      const blob = await captureVisiblePreviewPdf();
+      downloadPdfBlob(blob, `${buildFileName()}.pdf`);
+      return blob;
+    } finally {
+      setIsDownloadingPdf(false);
+    }
   }, [buildFileName, captureVisiblePreviewPdf]);
 
   // Bloqueia scroll do body quando aberto
@@ -235,8 +235,13 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   useEffect(() => {
     if (!open || !autoPrint) return;
     const timer = setTimeout(() => {
-      handleDownloadPDF();
-      onClose();
+      void (async () => {
+        try {
+          await handleDownloadPDF();
+        } finally {
+          onClose();
+        }
+      })();
     }, 1500);
     return () => clearTimeout(timer);
   }, [open, autoPrint, handleDownloadPDF, onClose]);
@@ -503,12 +508,14 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
           </span>
           <button
             onClick={handleDownloadPDF}
+            disabled={isDownloadingPdf}
             style={{
               background: "#1e40af",
               border: "1px solid #3b82f6",
               borderRadius: 6,
               color: "#fff",
-              cursor: "pointer",
+              cursor: isDownloadingPdf ? "wait" : "pointer",
+              opacity: isDownloadingPdf ? 0.75 : 1,
               padding: "6px 12px",
               display: "flex",
               alignItems: "center",
@@ -517,7 +524,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
               fontWeight: "bold",
             }}
           >
-            <FileDown size={16} /> Baixar PDF
+            <FileDown size={16} /> {isDownloadingPdf ? "Gerando PDF..." : "Baixar PDF"}
           </button>
           <button
             onClick={onClose}
@@ -574,6 +581,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
 
           {/* Página branca — largura fixa de 1100px para simular A4 paisagem */}
           <div
+            data-quote-pdf-page
             style={{
               fontFamily: "Calibri, Arial, sans-serif",
               width: 1100,
