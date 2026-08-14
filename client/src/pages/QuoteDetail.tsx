@@ -121,7 +121,7 @@ import type { LinkedAccessory, SpecialEquipment } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
-import { generateQuotePdfBlob, generateQuotePdf } from "@/lib/quotePdfGenerator";
+import { generateQuotePdfBlob } from "@/lib/quotePdfGenerator";
 import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
 import { OrderPreviewModal } from "@/components/OrderPreviewModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
@@ -894,6 +894,7 @@ export default function QuoteDetail() {
   const [billingCompanyInput, setBillingCompanyInput] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [pdfPrintOpen, setPdfPrintOpen] = useState(false);
   const [ldPdfCaptureOpen, setLdPdfCaptureOpen] = useState(false);
 
   // Edit (add revision) dialog — full form with all tabs
@@ -1961,57 +1962,7 @@ export default function QuoteDetail() {
         return;
       }
     }
-    setIsGenerating(true);
-    try {
-      const pdfFormData: import("@/lib/cartTypes").QuoteFormData = {
-        cliente: quote!.clientName,
-        contato: quote!.clientContact ?? "",
-        tel: quote!.clientPhone ?? "",
-        email: quote!.clientEmail ?? "",
-        obra: quote!.projectName ?? "",
-        referencia: quote!.projectRef ?? "",
-        numero: quote!.quoteNumber,
-        data: toBrasiliaDate(quote!.updatedAt ?? quote!.createdAt),
-        arquiteto: (quote as any)?.arquiteto ?? undefined,
-        lightDesigner: (quote as any)?.lightDesigner ?? undefined,
-        seller1Name: quote!.seller1Name ?? undefined,
-        seller1Phone: editSellers.find(s => s.id === quote!.seller1Id)?.phone ?? undefined,
-        seller1Email: editSellers.find(s => s.id === quote!.seller1Id)?.email ?? undefined,
-        seller2Name: quote!.seller2Name ?? undefined,
-        seller2Phone: editSellers.find(s => s.id === quote!.seller2Id)?.phone ?? undefined,
-        seller2Email: editSellers.find(s => s.id === quote!.seller2Id)?.email ?? undefined,
-        assistantName: quote!.assistantName ?? undefined,
-        rtPercent: quote!.rtPercent ? parseFloat(String(quote!.rtPercent)) : undefined,
-        marginPercent: quote!.marginPercent ? parseFloat(String(quote!.marginPercent)) : undefined,
-        discountPercent: (quote as any)?.discountPercent ? parseFloat(String((quote as any).discountPercent)) : undefined,
-        showDiscount: !!(quote as any)?.showDiscount,
-        freteType: (quote!.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
-        freteIsento: quote!.freteIsento ?? false,
-        freteLocalidade: (quote!.freteLocalidade as "sp" | "other") ?? "sp",
-        freteCity: (quote as any)?.freteCity ?? undefined,
-        freteState: (quote as any)?.freteState ?? undefined,
-        freteValue: (quote as any)?.freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
-        freteIncluded: (quote as any)?.freteIncluded ?? false,
-        revisionCount: exportRevisionCount,
-        deliveryDays: quote!.deliveryDays ?? 20,
-        paymentTerm: quote!.paymentTerm ?? undefined,
-        destState: quote!.destState ?? undefined,
-        difalEnabled: quote!.difalEnabled ?? false,
-        difalPercent: quote!.difalPercent ? parseFloat(String(quote!.difalPercent)) : undefined,
-        difalValue: quote!.difalValue ? parseFloat(String(quote!.difalValue)) : undefined,
-        fcpEnabled: quote!.fcpEnabled ?? false,
-        fcpPercent: quote!.fcpPercent ? parseFloat(String(quote!.fcpPercent)) : undefined,
-        fcpValue: quote!.fcpValue ? parseFloat(String(quote!.fcpValue)) : undefined,
-        diluicaoValor: commercialDiluicaoValor || undefined,
-      };
-      await generateQuotePdf(commercialQuoteItems, pdfFormData);
-      toast.success("PDF gerado com sucesso!");
-    } catch (err) {
-      console.error("Erro ao gerar PDF:", err);
-      toast.error("Erro ao gerar o PDF. Tente novamente.");
-    } finally {
-      setIsGenerating(false);
-    }
+    setPdfPrintOpen(true);
   };
 
   const handleSendPdfToLd = async () => {
@@ -5008,8 +4959,9 @@ export default function QuoteDetail() {
 
       {/* PDF automático — mesmo modal mas dispara print imediatamente */}
       <ExcelPreviewModal
-        open={ldPdfCaptureOpen}
-        onClose={() => { setLdPdfCaptureOpen(false); setIsGenerating(false); }}
+        open={pdfPrintOpen || ldPdfCaptureOpen}
+        onClose={() => { setPdfPrintOpen(false); setLdPdfCaptureOpen(false); if (ldPdfCaptureOpen) setIsGenerating(false); }}
+        autoPrint={pdfPrintOpen}
         onCapturePdf={ldPdfCaptureOpen ? handleOfficialPdfCapturedForLd : undefined}
         onCapturePdfError={ldPdfCaptureOpen ? () => { toast.error("Não foi possível capturar a prévia oficial para o LD."); setLdPdfCaptureOpen(false); setIsGenerating(false); } : undefined}
         items={commercialQuoteItems}

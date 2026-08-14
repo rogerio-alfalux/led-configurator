@@ -234,15 +234,24 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   // autoPrint: dispara download de PDF automaticamente após renderizar as imagens
   useEffect(() => {
     if (!open || !autoPrint) return;
-    const timer = setTimeout(() => {
-      void (async () => {
-        try {
-          await handleDownloadPDF();
-        } finally {
-          onClose();
+    // Aguardar imagens carregarem antes de capturar
+    const timer = setTimeout(async () => {
+      try {
+        const page = contentRef.current?.querySelector<HTMLElement>("[data-quote-pdf-page]");
+        if (page) {
+          const imgs = Array.from(page.querySelectorAll("img")) as HTMLImageElement[];
+          await Promise.all(imgs.map(img => img.complete
+            ? Promise.resolve()
+            : new Promise<void>(r => { img.onload = () => r(); img.onerror = () => r(); setTimeout(r, 4000); })
+          ));
         }
-      })();
-    }, 1500);
+        await handleDownloadPDF();
+        onClose();
+      } catch (err) {
+        console.error("[PDF autoPrint] Falha na captura:", err);
+        // Não fecha o modal — o botão manual fica disponível
+      }
+    }, 2000);
     return () => clearTimeout(timer);
   }, [open, autoPrint, handleDownloadPDF, onClose]);
 
