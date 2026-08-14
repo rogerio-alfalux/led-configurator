@@ -30,4 +30,15 @@ describe("dados atuais de PDF para LD", () => {
     expect(result.items).toEqual([{ id: 2, quoteVersionId: 2, itemData: "vigente" }]);
     expect(dbMocks.markGuestQuoteResponseViewed).toHaveBeenCalledWith(77, 12);
   });
+
+  it("usa os itens existentes de orçamentos legados quando a revisão vigente não possui itens persistidos", async () => {
+    dbMocks.getGuestQuoteRequestById.mockResolvedValue({ id: 13, guestUserId: 77, status: "quote_ready", adminQuoteId: 91 });
+    dbMocks.getQuoteById.mockResolvedValue({
+      quote: { id: 91, currentVersion: 2, seller1Id: null, seller2Id: null },
+      versions: [{ id: 1, version: 0, status: "published" }, { id: 2, version: 2, status: "published" }],
+      items: [{ id: 1, quoteVersionId: 1, itemData: "legado" }],
+    });
+    const result = await appRouter.createCaller(context()).ldRequests.currentPdfData({ requestId: 13 });
+    expect(result.items).toEqual([{ id: 1, quoteVersionId: 1, itemData: "legado" }]);
+  });
 });

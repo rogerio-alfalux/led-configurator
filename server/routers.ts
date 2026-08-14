@@ -424,9 +424,13 @@ export const appRouter = router({
         const currentVersion = quoteData.versions.find(version => version.version === quoteData.quote.currentVersion)
           ?? quoteData.versions.find(version => version.status === "draft")
           ?? quoteData.versions[0];
-        const currentItems = currentVersion
+        const versionItems = currentVersion
           ? quoteData.items.filter(item => item.quoteVersionId === currentVersion.id)
           : quoteData.items;
+        // Registros antigos podem apontar currentVersion para uma revisão sem
+        // itens persistidos. Nesse caso, o PDF atualizado deve usar os itens
+        // existentes do orçamento, nunca forçar o LD a receber o arquivo legado.
+        const currentItems = versionItems.length > 0 ? versionItems : quoteData.items;
         const sellerIds = [quoteData.quote.seller1Id, quoteData.quote.seller2Id].filter((id): id is number => Boolean(id));
         const sellerRows = sellerIds.length
           ? await (await getDb())?.select({ id: sellers.id, phone: sellers.phone, email: sellers.email }).from(sellers).where(inArray(sellers.id, sellerIds))

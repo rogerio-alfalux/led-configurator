@@ -12,7 +12,6 @@ import { parseCartItemData, type CartItemData, type QuoteFormData } from "@/lib/
 import { toBrasiliaDate, toBrasiliaDateTime } from "@/lib/dateUtils";
 import { isValidatedLdPdfAvailable } from "@/lib/ldRequestUtils";
 import { LdGuestRequestHistoryCard } from "@/components/LdGuestCards";
-import { openLdValidatedPdf } from "@/lib/ldPdfDownload";
 import { downloadPdfBlob } from "@/lib/pdfVisualCapture";
 import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
 import { toast } from "sonner";
@@ -191,10 +190,23 @@ export function LDGuestRequests() {
   const [requestIdToDelete, setRequestIdToDelete] = useState<number | null>(null);
   const [currentPdfJob, setCurrentPdfJob] = useState<LdCurrentPdfJob | null>(null);
   const mine = trpc.ldRequests.mine.useQuery(undefined, { staleTime: 0, enabled: (user as any)?.role === "convidado" });
-  const pdf = trpc.ldRequests.myPdf.useMutation();
+  const productsQuery = trpc.alfalux.products.useQuery(undefined, { staleTime: 0, enabled: (user as any)?.role === "convidado" });
+  const revendaProductsQuery = trpc.alfalux.revendaProducts.useQuery(undefined, { staleTime: 0, enabled: (user as any)?.role === "convidado" });
+  const acessoriosQuery = trpc.alfalux.acessoriosProducts.useQuery(undefined, { staleTime: 0, enabled: (user as any)?.role === "convidado" });
   const currentPdfData = trpc.ldRequests.currentPdfData.useMutation();
   const deleteRequest = trpc.ldRequests.deleteMine.useMutation();
   const visibleRequests = useMemo(() => filterLdRequests(mine.data ?? [], filters), [mine.data, filters]);
+  const productPhotoMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const product of productsQuery.data ?? []) if (product.sku && product.fotoUrl) map.set(product.sku, product.fotoUrl);
+    for (const product of revendaProductsQuery.data ?? []) if (product.sku && product.fotoUrl) map.set(product.sku, product.fotoUrl);
+    for (const product of acessoriosQuery.data ?? []) {
+      const key = product.codigo ?? product.sku;
+      if (key && product.fotoUrl) map.set(key, product.fotoUrl);
+      if (product.sku && product.fotoUrl) map.set(product.sku, product.fotoUrl);
+    }
+    return map;
+  }, [productsQuery.data, revendaProductsQuery.data, acessoriosQuery.data]);
   const download = async (requestId: number) => {
     if (downloadingRequestId !== null) return;
     setDownloadingRequestId(requestId);
@@ -206,11 +218,9 @@ export function LDGuestRequests() {
       await utils.ldRequests.notifications.invalidate();
       await utils.ldRequests.mine.invalidate();
     } catch {
-      try {
-        await openLdValidatedPdf(requestId, pdf.mutateAsync);
-        await utils.ldRequests.notifications.invalidate();
-        await utils.ldRequests.mine.invalidate();
-      } catch { toast.error("Não foi possível gerar o PDF desta solicitação."); }
+      // Não abrir o arquivo armazenado como fallback: ele pode ser um PDF
+      // legado. Cada clique deve gerar exclusivamente o PDF atual desta linha.
+      toast.error("Não foi possível gerar o PDF atualizado desta solicitação.");
       setDownloadingRequestId(null);
     }
   };
@@ -251,6 +261,7 @@ export function LDGuestRequests() {
       open
       onClose={() => { setCurrentPdfJob(null); setDownloadingRequestId(null); }}
       items={currentPdfJob.items}
+      freshPhotoMap={productPhotoMap}
       formData={currentPdfJob.formData}
       onCapturePdf={async (blob) => {
         downloadPdfBlob(blob, currentPdfJob.fileName);

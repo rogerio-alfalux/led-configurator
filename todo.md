@@ -2673,3 +2673,7 @@
 - [x] Aplicar o layout atual de PDF às solicitações LD anteriores e retroativas
 - [x] Permitir que o LD exclua sua solicitação após confirmação explícita
 - [x] Usar ícone de envelope para e-mail e manter o ícone de localização para Obra
+- [ ] Corrigir a regressão persistente que ainda abre o PDF legado ou múltiplos downloads ao LD
+- [ ] Comprovar no navegador o download do PDF atualizado de uma única solicitação selecionada
+- [x] Remover o caminho residual que ainda baixa o PDF legado após abrir a prévia atual
+- [x] Aguardar a carga de fotos antes de capturar e baixar o PDF da prévia atual
