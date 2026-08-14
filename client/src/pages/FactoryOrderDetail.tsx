@@ -1473,7 +1473,7 @@ export default function FactoryOrderDetail() {
       const itemsData = orderToUse.items
         .map(i => parseCartItemData(i.itemData))
         .filter((d): d is CartItemData => d !== null)
-        .map(d => migrateItemDrivers(d, componentePriceMapFO, componenteDescMapFO, productSkuMapFO, componenteCorrenteMapFO, componenteReverseDescMapFO));
+        .map(d => normalizeDriverModels(d, componenteDescMapFO));
       const fileName = `PEDIDO-FABRICA-${orderNum}-${quote.clientName.replace(/\s+/g, "_")}.xlsx`;
       const buffer = await generateOrderExcel(itemsData, {
         clientName: quote.clientName,
@@ -1679,7 +1679,7 @@ export default function FactoryOrderDetail() {
                     const items = currentOrder.items
                       .map(i => parseCartItemData(i.itemData))
                       .filter((d): d is CartItemData => d !== null)
-                      .map(d => migrateItemDrivers(d, componentePriceMapFO, componenteDescMapFO, productSkuMapFO, componenteCorrenteMapFO, componenteReverseDescMapFO));
+                      .map(d => normalizeDriverModels(d, componenteDescMapFO));
                     setPreviewItems(items);
                     setPreviewForm({
                       clientName: quote.clientName,
