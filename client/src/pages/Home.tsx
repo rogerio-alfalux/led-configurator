@@ -10,6 +10,7 @@ import { redactGuestQuoteSummary } from "@/lib/guestQuoteSummary";
 import { LdGuestTechnicalSummary } from "@/components/LdGuestTechnicalSummary";
 import { LdCommercialOnly } from "@/components/LdCommercialOnly";
 import { LdProfileCartControls } from "@/components/LdProfileCartControls";
+import { LdRequestNotificationButton } from "@/components/LdRequestNotificationButton";
 import { profileCartTechnicalFields } from "@/lib/profileCartTechnicalFields";
 import { ModularOptimizationControls } from "@/components/ModularOptimizationControls";
 import { ResultTechnicalCartControls } from "@/components/ResultTechnicalCartControls";
@@ -4832,19 +4833,9 @@ export default function Home() {
               </Button>
             </Link>
 
-            {(user as any)?.role === "admin" && <Link href={ldNotificationBadge?.href ?? "/solicitacoes-ld"}>
-              <Button variant="ghost" size="icon" title={ldNotificationBadge?.title ?? "Solicitações LD"} className="relative text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
-                <ClipboardList className="w-4 h-4" />
-                {pendingLdRequestCount > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">{pendingLdRequestCount > 9 ? "9+" : pendingLdRequestCount}</span>}
-              </Button>
-            </Link>}
+            {(user as any)?.role === "admin" && <LdRequestNotificationButton href={ldNotificationBadge?.href ?? "/solicitacoes-ld"} title={ldNotificationBadge?.title ?? "Solicitações LD"} count={pendingLdRequestCount} tone="admin" />}
 
-            {isConvidado && <Link href={ldNotificationBadge?.href ?? "/minhas-solicitacoes-ld"}>
-              <Button variant="ghost" size="icon" title={ldNotificationBadge?.title ?? "Minhas solicitações LD"} className="relative text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
-                <ClipboardList className="w-4 h-4" />
-                {readyLdResponseCount > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center">{readyLdResponseCount > 9 ? "9+" : readyLdResponseCount}</span>}
-              </Button>
-            </Link>}
+            {isConvidado && <LdRequestNotificationButton href={ldNotificationBadge?.href ?? "/minhas-solicitacoes-ld"} title={ldNotificationBadge?.title ?? "Minhas solicitações LD"} count={readyLdResponseCount} tone="guest" />}
 
             {isAuthenticated ? (
               <DropdownMenu>

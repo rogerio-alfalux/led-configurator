@@ -1,9 +1,9 @@
 /** @vitest-environment jsdom */
 import React from "react";
-import { render, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-const markResponsesViewed = vi.fn().mockResolvedValue({ success: true });
+const downloadPdf = vi.fn().mockResolvedValue({ url: "/api/assets/ld-quotes/77/1/orcamento.pdf" });
 const invalidateBadge = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("@/_core/hooks/useAuth", () => ({ useAuth: () => ({ user: { role: "convidado" } }) }));
@@ -12,8 +12,7 @@ vi.mock("@/lib/trpc", () => ({
     useUtils: () => ({ ldRequests: { notifications: { invalidate: invalidateBadge } } }),
     ldRequests: {
       mine: { useQuery: () => ({ data: [{ id: 1, status: "quote_ready", finalClientName: "Cliente", officeName: "Escritório", constructorName: null, submittedAt: new Date(), pdfAvailable: true }], isLoading: false }) },
-      markResponsesViewed: { useMutation: () => ({ mutateAsync: markResponsesViewed }) },
-      myPdf: { useMutation: () => ({ mutateAsync: vi.fn(), isPending: false }) },
+      myPdf: { useMutation: () => ({ mutateAsync: downloadPdf, isPending: false }) },
     },
   },
 }));
@@ -21,9 +20,12 @@ vi.mock("@/lib/trpc", () => ({
 import { LDGuestRequests } from "./LDRequests";
 
 describe("LDGuestRequests", () => {
-  it("marca respostas prontas como vistas e invalida o badge ao abrir Minhas solicitações", async () => {
+  it("baixa o badge somente ao baixar o PDF da resposta pronta", async () => {
+    vi.stubGlobal("open", vi.fn());
     render(React.createElement(LDGuestRequests));
-    await waitFor(() => expect(markResponsesViewed).toHaveBeenCalledOnce());
+    expect(downloadPdf).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /baixar pdf/i }));
+    await waitFor(() => expect(downloadPdf).toHaveBeenCalledWith({ requestId: 1 }));
     await waitFor(() => expect(invalidateBadge).toHaveBeenCalledOnce());
   });
 });

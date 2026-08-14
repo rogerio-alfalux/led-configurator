@@ -62,7 +62,7 @@ import {
   upsertLdGuestContactProfile,
   countPendingGuestQuoteRequests,
   countGuestUnseenQuoteResponses,
-  markGuestQuoteResponsesViewed,
+  markGuestQuoteResponseViewed,
   markGuestQuoteRequestInReview,
   linkGuestQuoteRequestQuote,
   attachGuestQuoteRequestPdf,
@@ -352,9 +352,9 @@ export const appRouter = router({
       return { adminPendingCount: 0, guestReadyCount: 0 };
     }),
 
-    markResponsesViewed: protectedProcedure.mutation(async ({ ctx }) => {
+    markResponseViewed: protectedProcedure.input(z.object({ requestId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
       if (ctx.user.role !== "convidado") throw new TRPCError({ code: "FORBIDDEN" });
-      await markGuestQuoteResponsesViewed(ctx.user.id);
+      await markGuestQuoteResponseViewed(ctx.user.id, input.requestId);
       return { success: true };
     }),
 
@@ -386,6 +386,7 @@ export const appRouter = router({
         if (!request || request.guestUserId !== ctx.user.id || request.status !== "quote_ready" || !request.validatedPdfUrl) {
           throw new TRPCError({ code: "NOT_FOUND", message: "PDF ainda não está disponível." });
         }
+        await markGuestQuoteResponseViewed(ctx.user.id, request.id);
         return { url: request.validatedPdfUrl };
       }),
 

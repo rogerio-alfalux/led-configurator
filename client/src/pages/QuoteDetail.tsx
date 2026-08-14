@@ -44,6 +44,7 @@ import { CartItemData, formatBRL, parseCartItemData, extractPowerLabelFromName, 
 import { getPersistedItemPhotoUrl } from "@/lib/itemPhoto";
 import { formatLinkedCommercialQuote } from "@/lib/sampleLinkPresentation";
 import { isLdRequestLinkedToQuote } from "@/lib/ldRequestUtils";
+import { handleLdPdfSent } from "@/lib/ldAdminBadgeRefresh";
 import { linkSampleOrderByQuoteNumber } from "@/lib/sampleLinkFlow";
 import { buildSampleCommercialProjection } from "@/lib/sampleCommercialAdjustment";
 import type { ApiProductDriverInfo } from "@/lib/cartTypes";
@@ -1220,8 +1221,9 @@ export default function QuoteDetail() {
     staleTime: 0,
   });
   const attachLdPdfMutation = trpc.ldRequests.adminAttachPdf.useMutation({
-    onSuccess: () => {
-      utils.ldRequests.adminList.invalidate();
+    onSuccess: async () => {
+      await utils.ldRequests.adminList.invalidate();
+      await handleLdPdfSent(() => utils.ldRequests.notifications.invalidate());
       toast.success("PDF validado enviado ao LD Convidado.");
     },
     onError: (err) => toast.error(`Não foi possível enviar o PDF: ${err.message}`),

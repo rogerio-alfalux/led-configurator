@@ -127,6 +127,18 @@
 - [x] Cobrir em execução o carregamento de fotos antes da captura visual e o compartilhamento do Blob entre download oficial e envio LD
 - [x] Cobrir em integração a rota Minhas solicitações e o badge real do cabeçalho LD
 - [x] Cobrir em execução a captura html2canvas e o Blob compartilhado pelo download oficial e envio LD
+- [x] Diminuir o badge do LD Convidado individualmente quando cada PDF validado for baixado
+- [x] Diminuir o badge administrativo quando a solicitação for convertida e o PDF for enviado ao LD
+- [x] Preservar no badge administrativo apenas solicitações ainda não respondidas
+- [x] Cobrir por regressão as contagens de badges LD e administrador em cada transição de status
+- [x] Contar solicitações em análise no badge administrativo até o PDF ser enviado ao LD
+- [x] Marcar individualmente uma resposta LD como lida somente após o download do seu PDF
+- [x] Invalidar imediatamente o badge administrativo após enviar o PDF validado ao LD
+- [x] Cobrir as transições pending, in_review, quote_ready e PDF baixado nas contagens de badges LD
+- [x] Cobrir a atualização do badge administrativo no envio do PDF ao LD
+- [x] Cobrir em integração a sequência real de status e contagens de badges LD
+- [x] Cobrir em DOM o badge administrativo após o envio de PDF ao LD
+- [x] Cobrir em DOM a atualização visível do badge administrativo desencadeada pelo envio do PDF ao LD
 - [x] Persistir foto manual de Item Especial e exibi-la no carrinho, orçamento, PDF, Excel e consultas futuras
 - [x] Exibir painel de amostra/manutenção para todos os administradores e excluir valores convertidos dos totais do dashboard
 - [x] Persistir valor comercial zero em amostras/manutenções e restaurar com segurança no cancelamento

@@ -1,5 +1,5 @@
 import { drizzle } from "drizzle-orm/mysql2";
-import { eq, like, or, desc, and, sql, asc, isNull } from "drizzle-orm";
+import { eq, like, or, desc, and, sql, asc, isNull, inArray } from "drizzle-orm";
 import {
   InsertUser, users, cartItems, InsertCartItem, sellers, assistants,
   quotes, quoteVersions, quoteItems, InsertQuote, InsertQuoteVersion, InsertQuoteItem,
@@ -22,6 +22,7 @@ import { fetchAllAlfaluxProducts, fetchComponentes, fetchAcessoriosProducts } fr
 import { getDuplicateQuoteGroupSizes, getDuplicateQuoteKey } from '../shared/quoteGrouping';
 import { getCommercialTotalsToRestore, getNonCommercialQuoteStatus, transfersNonCommercialFinance, type NonCommercialQuoteKind, type NonCommercialLinkType } from '../shared/nonCommercialQuoteFinancial';
 import { normalizeQuoteNumberForLookup } from '../shared/quoteNumberLookup';
+import { ADMIN_PENDING_LD_STATUSES } from './ldRequestBadgeStatus';
 // ─── Utilitários de data no fuso de Brasília ────────────────────────────────
 const BRASILIA_TZ = "America/Sao_Paulo";
 
@@ -238,7 +239,7 @@ export async function countPendingGuestQuoteRequests() {
   const db = await getDb();
   if (!db) return 0;
   const rows = await db.select({ count: sql<number>`count(*)` }).from(guestQuoteRequests)
-    .where(eq(guestQuoteRequests.status, "pending"));
+    .where(inArray(guestQuoteRequests.status, ADMIN_PENDING_LD_STATUSES));
   return Number(rows[0]?.count ?? 0);
 }
 
@@ -254,11 +255,12 @@ export async function countGuestUnseenQuoteResponses(guestUserId: number) {
   return Number(rows[0]?.count ?? 0);
 }
 
-export async function markGuestQuoteResponsesViewed(guestUserId: number) {
+export async function markGuestQuoteResponseViewed(guestUserId: number, requestId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.update(guestQuoteRequests).set({ guestResponseViewedAt: nowBrasiliaStr() })
     .where(and(
+      eq(guestQuoteRequests.id, requestId),
       eq(guestQuoteRequests.guestUserId, guestUserId),
       eq(guestQuoteRequests.status, "quote_ready"),
       isNull(guestQuoteRequests.guestResponseViewedAt),
