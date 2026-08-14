@@ -2658,6 +2658,8 @@
 - [x] Garantir que o mesmo arquivo oficial seja anexado e disponibilizado ao LD pela solicitação
 - [x] Normalizar cores OKLCH somente no clone de captura do PDF oficial ao LD
 - [x] Cobrir a incompatibilidade de cor da biblioteca de captura sem alterar o layout oficial
+- [x] Normalizar propriedades de cor OKLCH herdadas restantes no clone de captura PDF LD
+- [x] Validar que nenhuma função de cor incompatível alcance a biblioteca de captura
 
 ## Exportação Excel de Meus Orçamentos para administradores
 - [x] Exportar para Excel exatamente os orçamentos filtrados na tela Meus Orçamentos

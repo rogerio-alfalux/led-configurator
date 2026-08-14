@@ -235,6 +235,37 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
             }
           `;
           clonedDocument.head.appendChild(compatibilityStyle);
+          // O tema pode propagar OKLCH por propriedades que não usam os tokens
+          // acima (inclusive body/html, bordas e sombras). html2canvas falha ao
+          // encontrar qualquer uma delas. Neutralizamos somente os valores que
+          // ainda contenham OKLCH no clone efêmero, mantendo os estilos em HEX
+          // definidos pelo documento oficial sempre que já forem compatíveis.
+          const cloneWindow = clonedDocument.defaultView;
+          const cloneNodes = [clonedDocument.documentElement, clonedDocument.body, ...Array.from(clonedDocument.querySelectorAll<HTMLElement>("*"))]
+            .filter((node): node is HTMLElement => Boolean(node));
+          cloneNodes.forEach((node) => {
+            const computed = cloneWindow?.getComputedStyle(node);
+            if (!computed) return;
+            const fallback = (property: string, value: string) => {
+              if (computed.getPropertyValue(property).includes("oklch(")) node.style.setProperty(property, value, "important");
+            };
+            fallback("color", "#1f2937");
+            fallback("background-color", "transparent");
+            fallback("border-top-color", "#d1d9e2");
+            fallback("border-right-color", "#d1d9e2");
+            fallback("border-bottom-color", "#d1d9e2");
+            fallback("border-left-color", "#d1d9e2");
+            fallback("outline-color", "#1f2937");
+            fallback("text-decoration-color", "#1f2937");
+            fallback("caret-color", "#1f2937");
+            fallback("fill", "#1f2937");
+            fallback("stroke", "#1f2937");
+            if (computed.boxShadow.includes("oklch(")) node.style.setProperty("box-shadow", "none", "important");
+            if (computed.textShadow.includes("oklch(")) node.style.setProperty("text-shadow", "none", "important");
+            if (computed.backgroundImage.includes("oklch(")) node.style.setProperty("background-image", "none", "important");
+          });
+          clonedDocument.documentElement.style.setProperty("background-color", "#ffffff", "important");
+          clonedDocument.body.style.setProperty("background-color", "#ffffff", "important");
           // As fotos já passam por rota de mesmo domínio, mas o atributo elimina
           // contaminação do canvas em navegadores que reavaliam as imagens clonadas.
           clonedDocument.querySelectorAll("img").forEach((image) => {

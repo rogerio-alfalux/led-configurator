@@ -21,6 +21,9 @@ describe("pipeline visual do PDF oficial e LD", () => {
     expect(previewSource).toContain("ref={previewPageRef}");
     expect(previewSource).toContain("html2canvas ainda não interpreta funções CSS OKLCH");
     expect(previewSource).toContain("--primary: #1a2b4a");
+    expect(previewSource).toContain("cloneNodes.forEach");
+    expect(previewSource).toContain("fallback(\"background-color\", \"transparent\")");
+    expect(previewSource).toContain("computed.boxShadow.includes(\"oklch(\")");
     expect(previewSource).toContain("allowTaint: false");
     expect(previewSource).toContain("useCORS: true");
     expect(previewSource).toContain('orientation: "portrait"');
