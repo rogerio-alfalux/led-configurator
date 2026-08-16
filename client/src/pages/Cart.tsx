@@ -34,6 +34,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { useCart } from "@/hooks/useCart";
 import { formatBRL, QuoteFormData, CartItemData, parseCartItemData } from "@/lib/cartTypes";
 import { getPersistedItemPhotoUrl } from "@/lib/itemPhoto";
@@ -3542,6 +3543,9 @@ function GuestCart() {
   const [contactPhone, setContactPhone] = useState("");
   const [workState, setWorkState] = useState("SP");
   const [workCity, setWorkCity] = useState("");
+  const [generalObservation, setGeneralObservation] = useState("");
+  const [desiredQuoteDate, setDesiredQuoteDate] = useState("");
+  const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState("");
   const [attachments, setAttachments] = useState<Array<{ fileName: string; mimeType: string; size: number; base64: string }>>([]);
   const utils = trpc.useUtils();
   const contactDefaults = trpc.ldRequests.contactDefaults.useQuery(undefined, { enabled: (user as any)?.role === "convidado" });
@@ -3587,7 +3591,7 @@ function GuestCart() {
   };
 
   const submit = () => {
-    submitRequest.mutate(buildLdRequestPayload({ officeName, finalClientName, constructorName, contactName, contactPhone, workState, workCity, attachments }));
+    submitRequest.mutate(buildLdRequestPayload({ officeName, finalClientName, constructorName, contactName, contactPhone, workState, workCity, generalObservation, desiredQuoteDate, estimatedDeliveryDate, attachments }));
   };
 
   return (
@@ -3650,6 +3654,14 @@ function GuestCart() {
               <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary" /><h3 className="font-semibold text-sm">Localidade da obra</h3></div>
               <StateCitySelector stateCode={workState} city={workCity} onStateChange={setWorkState} onCityChange={setWorkCity} stateLabel="Estado da obra" cityLabel="Cidade da obra" />
               <p className="text-xs text-muted-foreground">A localidade será aplicada ao orçamento para cálculo automático de DIFAL/FCP e frete.</p>
+            </section>
+            <section className="rounded-lg border bg-muted/20 p-4 space-y-3">
+              <div className="flex items-center gap-2"><ClipboardList className="w-4 h-4 text-primary" /><h3 className="font-semibold text-sm">Prazos e observações</h3></div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5"><Label htmlFor="ld-desired-quote-date">Prazo desejado para receber o orçamento</Label><Input id="ld-desired-quote-date" type="date" value={desiredQuoteDate} onChange={event => setDesiredQuoteDate(event.target.value)} /><p className="text-xs text-muted-foreground">Ajuda a equipe a priorizar a análise.</p></div>
+                <div className="space-y-1.5"><Label htmlFor="ld-estimated-delivery-date">Prazo estimado para entrega das luminárias <span className="text-muted-foreground">(opcional)</span></Label><Input id="ld-estimated-delivery-date" type="date" value={estimatedDeliveryDate} onChange={event => setEstimatedDeliveryDate(event.target.value)} /><p className="text-xs text-muted-foreground">Baliza o planejamento de produção e entrega.</p></div>
+              </div>
+              <div className="space-y-1.5"><Label htmlFor="ld-general-observation">Observação geral do projeto <span className="text-muted-foreground">(opcional)</span></Label><Textarea id="ld-general-observation" value={generalObservation} onChange={event => setGeneralObservation(event.target.value)} maxLength={4000} rows={4} placeholder="Descreva informações do projeto que a equipe deve considerar ao elaborar o orçamento." /><p className="text-xs text-muted-foreground">As observações por produto podem ser preenchidas diretamente em cada item do carrinho.</p></div>
             </section>
             <section className="rounded-lg border bg-muted/20 p-4 space-y-3">
               <div className="flex items-center gap-2"><Upload className="w-4 h-4 text-primary" /><h3 className="font-semibold text-sm">Anexos técnicos <span className="font-normal text-muted-foreground">(opcional)</span></h3></div>

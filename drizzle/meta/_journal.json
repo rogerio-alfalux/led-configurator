@@ -281,6 +281,13 @@
       "when": 1786732965135,
       "tag": "0039_daily_mad_thinker",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "5",
+      "when": 1786839562101,
+      "tag": "0040_lying_tomorrow_man",
+      "breakpoints": true
     }
   ]
 }

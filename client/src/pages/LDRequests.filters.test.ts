@@ -20,3 +20,13 @@ describe("filterLdRequests", () => {
     expect(filterLdRequests(requests, { search: "", status: "all", dateFrom: "2026-08-10", dateTo: "2026-08-31" }).map(request => request.id)).toEqual([2]);
   });
 });
+
+describe("priorização administrativa de solicitações LD", () => {
+  it("mantém prazo desejado como ordenação padrão e exibe observações recebidas", async () => {
+    const page = await (await import("node:fs/promises")).readFile(new URL("./LDRequests.tsx", import.meta.url), "utf8");
+    expect(page).toContain('useState<"desired_date" | "submitted_at">("desired_date")');
+    expect(page).toContain("Prazo desejado (mais próximo)");
+    expect(page).toContain("request.generalObservation");
+    expect(page).toContain("item.ldItemObservation");
+  });
+});

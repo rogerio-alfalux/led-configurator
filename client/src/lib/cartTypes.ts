@@ -104,6 +104,8 @@ export interface CartItemData {
    * e no campo correspondente do orçamento.
    */
   itemEmPlanta?: string;
+  /** Observação preenchida pelo LD Convidado para orientar a elaboração do orçamento. */
+  ldItemObservation?: string;
 
   // ─── Campos específicos do LED BAR U ──────────────────────────────────────
   /**

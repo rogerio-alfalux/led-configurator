@@ -181,6 +181,9 @@ export type CreateGuestQuoteRequestInput = {
   constructorName?: string | null;
   workState: string;
   workCity: string;
+  generalObservation?: string | null;
+  desiredQuoteDate?: string | null;
+  estimatedDeliveryDate?: string | null;
   itemsData: string;
 };
 

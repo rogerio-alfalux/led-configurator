@@ -286,6 +286,9 @@ export const appRouter = router({
         contactPhone: z.string().trim().min(8).max(64),
         workState: z.string().trim().length(2).transform(value => value.toUpperCase()),
         workCity: z.string().trim().min(2).max(128),
+        generalObservation: z.string().trim().max(4_000).optional(),
+        desiredQuoteDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        estimatedDeliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
         attachments: z.array(z.object({
           fileName: z.string().trim().min(1).max(256),
           mimeType: z.string().trim().min(1).max(128),
@@ -317,6 +320,9 @@ export const appRouter = router({
           constructorName: input.constructorName?.trim() || null,
           workState: input.workState,
           workCity: input.workCity,
+          generalObservation: input.generalObservation?.trim() || null,
+          desiredQuoteDate: input.desiredQuoteDate ?? null,
+          estimatedDeliveryDate: input.estimatedDeliveryDate ?? null,
           itemsData: JSON.stringify(cart.map(item => ({ itemData: item.itemData, sortOrder: item.sortOrder }))),
         });
         await upsertLdGuestContactProfile({
@@ -339,7 +345,7 @@ export const appRouter = router({
           action: "ld_quote_request_submitted",
           entityType: "guest_quote_request",
           entityId: id,
-          details: JSON.stringify({ officeName: input.officeName, finalClientName: input.finalClientName, workState: input.workState, workCity: input.workCity, attachmentCount: uploaded.length }),
+          details: JSON.stringify({ officeName: input.officeName, finalClientName: input.finalClientName, workState: input.workState, workCity: input.workCity, desiredQuoteDate: input.desiredQuoteDate ?? null, estimatedDeliveryDate: input.estimatedDeliveryDate ?? null, hasGeneralObservation: Boolean(input.generalObservation), attachmentCount: uploaded.length }),
         });
         return { id };
       }),

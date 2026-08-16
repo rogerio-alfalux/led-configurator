@@ -48,6 +48,12 @@ export const guestQuoteRequests = mysqlTable("guest_quote_requests", {
   /** Localidade da obra que alimenta frete, DIFAL e FCP do orçamento administrativo. */
   workState: varchar({ length: 2 }),
   workCity: varchar({ length: 128 }),
+  /** Observação geral do LD para contexto do projeto. */
+  generalObservation: text(),
+  /** Data ideal desejada pelo LD para receber o orçamento (YYYY-MM-DD). */
+  desiredQuoteDate: varchar({ length: 10 }),
+  /** Data estimada para entrega das luminárias, informada pelo LD (YYYY-MM-DD). */
+  estimatedDeliveryDate: varchar({ length: 10 }),
   itemsData: text().notNull(),
   status: mysqlEnum(['pending', 'in_review', 'quote_ready', 'cancelled']).default('pending').notNull(),
   adminQuoteId: int(),
@@ -65,6 +71,7 @@ export const guestQuoteRequests = mysqlTable("guest_quote_requests", {
     index("guest_quote_requests_guest_idx").on(table.guestUserId),
     index("guest_quote_requests_status_idx").on(table.status),
     index("guest_quote_requests_quote_idx").on(table.adminQuoteId),
+    index("guest_quote_requests_desired_quote_date_idx").on(table.desiredQuoteDate),
   ],
 );
 

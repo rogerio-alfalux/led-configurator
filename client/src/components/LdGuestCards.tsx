@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FileText, Minus, Package, Plus, Tag, Trash2 } from "lucide-react";
+import { FileText, MessageSquareText, Minus, Package, Plus, Tag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { CartItemData } from "@/lib/cartTypes";
@@ -15,13 +15,15 @@ export function LdGuestCartItemCard({
   item: CartItemData;
   index: number;
   onRemove: () => void;
-  onUpdate: (patch: Partial<Pick<CartItemData, "itemEmPlanta" | "qty">>) => void;
+  onUpdate: (patch: Partial<Pick<CartItemData, "itemEmPlanta" | "qty" | "ldItemObservation">>) => void;
   disabled?: boolean;
 }) {
   const [qty, setQty] = useState(item.qty ?? 1);
   const [itemEmPlanta, setItemEmPlanta] = useState(item.itemEmPlanta ?? "");
+  const [ldItemObservation, setLdItemObservation] = useState(item.ldItemObservation ?? "");
   useEffect(() => setQty(item.qty ?? 1), [item.qty]);
   useEffect(() => setItemEmPlanta(item.itemEmPlanta ?? ""), [item.itemEmPlanta]);
+  useEffect(() => setLdItemObservation(item.ldItemObservation ?? ""), [item.ldItemObservation]);
   const configuration = [item.power, item.cct, item.corPeca, item.itemEmPlanta ? `Item em planta: ${item.itemEmPlanta}` : null].filter(Boolean);
   const moduleComposition = item.profileSegments?.length
     ? item.profileSegments.map((segment) => `${segment.qty}× ${segment.sku}`).join(" + ")
@@ -50,6 +52,10 @@ export function LdGuestCartItemCard({
           </div>
         </div>
       </div>
+      <label className="mt-3 block space-y-1">
+        <span className="text-xs text-muted-foreground flex items-center gap-1"><MessageSquareText className="w-3 h-3" /> Observação deste item <span className="font-normal">(opcional)</span></span>
+        <textarea aria-label="Observação deste item" value={ldItemObservation} onChange={(event) => { const value = event.target.value; setLdItemObservation(value); onUpdate({ ldItemObservation: value }); }} placeholder="Ex.: posição na planta, acabamento, montagem ou detalhe importante" disabled={disabled} maxLength={1200} rows={2} className="w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+      </label>
     </div>
     <Button variant="ghost" size="icon" title="Remover item" disabled={disabled} onClick={onRemove}><Trash2 className="w-4 h-4" /></Button>
   </CardContent></Card>;

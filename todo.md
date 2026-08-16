@@ -2677,3 +2677,11 @@
 - [ ] Comprovar no navegador o download do PDF atualizado de uma única solicitação selecionada
 - [x] Remover o caminho residual que ainda baixa o PDF legado após abrir a prévia atual
 - [x] Aguardar a carga de fotos antes de capturar e baixar o PDF da prévia atual
+
+## Solicitações LD: observações e gestão por prazo
+- [x] Adicionar campo de observação por item no carrinho do LD Convidado
+- [x] Adicionar observação geral do projeto no formulário de envio da solicitação LD
+- [x] Adicionar prazo desejado para receber o orçamento com seleção por calendário
+- [x] Adicionar prazo estimado opcional para entrega das luminárias
+- [x] Persistir e apresentar observações e prazos ao administrador
+- [x] Permitir ordenar a fila administrativa de solicitações LD pelo prazo desejado

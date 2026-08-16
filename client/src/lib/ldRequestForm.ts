@@ -8,6 +8,9 @@ export function buildLdRequestPayload(input: {
   contactPhone: string;
   workState: string;
   workCity: string;
+  generalObservation: string;
+  desiredQuoteDate: string;
+  estimatedDeliveryDate: string;
   attachments: LdRequestAttachmentPayload[];
 }) {
   return {
@@ -18,6 +21,9 @@ export function buildLdRequestPayload(input: {
     contactPhone: input.contactPhone.trim(),
     workState: input.workState.trim().toUpperCase(),
     workCity: input.workCity.trim(),
+    generalObservation: input.generalObservation.trim() || undefined,
+    desiredQuoteDate: input.desiredQuoteDate || undefined,
+    estimatedDeliveryDate: input.estimatedDeliveryDate || undefined,
     attachments: input.attachments,
   };
 }
