@@ -63,6 +63,14 @@ export interface ProfileVariant {
   code: string;
   /** Tipo de instalação */
   installType: InstallType;
+  /** Foto do perfil retornada pela API. */
+  photoUrl?: string | null;
+  /** Componente LED fixo do perfil, sem associação a CCT (caso exclusivo do SHIFT). */
+  fixedLedModule?: string | null;
+  /** Código de material do componente LED fixo do perfil. */
+  fixedLedModuleCode?: string | null;
+  /** Quantidade do componente LED fixo por perfil. */
+  fixedLedModuleQty?: number | null;
   /** Permite aplicação D1 */
   allowD1: boolean;
   /** Permite aplicação D2 */

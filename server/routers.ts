@@ -682,6 +682,10 @@ export const appRouter = router({
         availableCCTs: string[];
         driverCode: string | null;
         driverModel: string | null;
+        unitCost: number | null;
+        markupPadrao: number | null;
+        markupMinimo: number | null;
+        unitPrice: number | null;
       }>();
       for (const p of s01) {
         const key = p.name; // Use full name as key (includes optics)
@@ -699,6 +703,17 @@ export const appRouter = router({
             availableCCTs: (p as any).temperaturasCor ?? [],
             driverCode: (p as any).driver220?.code ?? null,
             driverModel: (p as any).driver220?.model ?? null,
+            unitCost: (p as any).custoCorpoOnoff220v ?? p.custoLuminaria ?? null,
+            markupPadrao: (p as any).markupPadraoOnoff220v ?? null,
+            markupMinimo: (p as any).markupMinimoOnoff220v ?? null,
+            unitPrice: (() => {
+              if (typeof p.precoOnOff220 === "number") return p.precoOnOff220;
+              const cost = (p as any).custoCorpoOnoff220v ?? p.custoLuminaria ?? null;
+              const markup = (p as any).markupPadraoOnoff220v ?? null;
+              return typeof cost === "number" && typeof markup === "number"
+                ? Math.round(cost * markup * 100) / 100
+                : null;
+            })(),
           });
         }
       }
@@ -1149,10 +1164,18 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    /** Administrador pode incluir ou retirar uma duplicidade manual sem alterar o orçamento original. */
-    setManualDuplicate: adminProcedure
+    /** Usuário autorizado pode incluir ou retirar uma duplicidade manual sem alterar o orçamento original. */
+    setManualDuplicate: protectedProcedure
       .input(z.object({ id: z.number(), isManuallyDuplicate: z.boolean() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        const canMarkManualDuplicate = await hasUserPermission(
+          ctx.user.id,
+          ctx.user.role,
+          PERMISSIONS.MARCAR_DUPLICADOS_MANUALMENTE,
+        );
+        if (!canMarkManualDuplicate) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Você não tem permissão para marcar duplicados manualmente.' });
+        }
         const result = await getQuoteById(input.id);
         if (!result) throw new TRPCError({ code: 'NOT_FOUND', message: 'Orçamento não encontrado.' });
         if (input.isManuallyDuplicate && await getQuoteAutomaticDuplicateState(input.id)) {

@@ -550,10 +550,13 @@ async function _generateExcelBuffer(
     // totalPrice agora é apenas luminária (nova semântica)
     return it.totalPrice ?? 0;
   };
+  const calcItemAccessoriesTotal = (it: CartItemData): number =>
+    (it.accessories ?? []).reduce((sum, accessory) =>
+      sum + (Number(accessory.unitPrice ?? 0) * Number(accessory.qty ?? 0) * Number(it.qty ?? 1)), 0);
   // _totalBaseParaFrete: base para distribuição proporcional do frete por item
   // Para itens com driverLines, usa apenas o preço da luminária (sem drivers) para evitar duplicação
   // Itens "Não Orçamos" são apenas indicativos e não entram na base de cálculo do frete
-  const _totalBaseParaFrete = items.filter(it => it.category !== 'Não Orçamos').reduce((s, it) => s + calcItemLumTotal(it) + calcItemDrvTotal(it), 0);
+  const _totalBaseParaFrete = items.filter(it => it.category !== 'Não Orçamos').reduce((s, it) => s + calcItemLumTotal(it) + calcItemDrvTotal(it) + calcItemAccessoriesTotal(it), 0);
   const _freteParaDiluir = (formData.freteIncluded && formData.freteValue && formData.freteValue > 0)
     ? formData.freteValue
     : 0;
@@ -565,7 +568,7 @@ async function _generateExcelBuffer(
     if (item.unitPrice === null || item.unitPrice === undefined) return null;
     if (_freteParaDiluir <= 0 || _totalBaseParaFrete <= 0) return item.unitPrice;
     // Peso baseado no total real do item (luminária + drivers)
-    const itemTotalReal = calcItemLumTotal(item) + calcItemDrvTotal(item);
+    const itemTotalReal = calcItemLumTotal(item) + calcItemDrvTotal(item) + calcItemAccessoriesTotal(item);
     const peso = itemTotalReal / _totalBaseParaFrete;
     const freteItem = _freteParaDiluir * peso;
     return item.unitPrice + freteItem / Math.max(item.qty, 1);
@@ -577,7 +580,7 @@ async function _generateExcelBuffer(
     if (item.totalPrice === null || item.totalPrice === undefined) return null;
     if (_freteParaDiluir <= 0 || _totalBaseParaFrete <= 0) return item.totalPrice;
     // Peso baseado no total real do item (luminária + drivers)
-    const itemTotalReal = calcItemLumTotal(item) + calcItemDrvTotal(item);
+    const itemTotalReal = calcItemLumTotal(item) + calcItemDrvTotal(item) + calcItemAccessoriesTotal(item);
     const peso = itemTotalReal / _totalBaseParaFrete;
     return item.totalPrice + _freteParaDiluir * peso;
   };
@@ -594,7 +597,7 @@ async function _generateExcelBuffer(
     const base = _unitPriceComFrete(item);
     if (base === null) return null;
     if (_diluicaoParaDiluir <= 0 || _totalBaseParaFrete <= 0) return base;
-    const itemTotalReal = calcItemLumTotal(item) + calcItemDrvTotal(item);
+    const itemTotalReal = calcItemLumTotal(item) + calcItemDrvTotal(item) + calcItemAccessoriesTotal(item);
     const peso = itemTotalReal / _totalBaseParaFrete;
     const diluicaoItem = _diluicaoParaDiluir * peso;
     return base + diluicaoItem / Math.max(item.qty, 1);
@@ -606,7 +609,7 @@ async function _generateExcelBuffer(
     const base = _totalPriceComFrete(item);
     if (base === null) return null;
     if (_diluicaoParaDiluir <= 0 || _totalBaseParaFrete <= 0) return base;
-    const itemTotalReal = calcItemLumTotal(item) + calcItemDrvTotal(item);
+    const itemTotalReal = calcItemLumTotal(item) + calcItemDrvTotal(item) + calcItemAccessoriesTotal(item);
     const peso = itemTotalReal / _totalBaseParaFrete;
     return base + _diluicaoParaDiluir * peso;
   };
@@ -1064,7 +1067,8 @@ async function _generateExcelBuffer(
         for (const col of ["F", "G", "H", "I", "J", "K"]) {
           fillAcc(ws.getCell(`${col}${accRowNum}`), "");
         }
-        fillAcc(ws.getCell(`L${accRowNum}`), acc.qty, true);
+        const accQty = acc.qty * (item.qty ?? 1);
+        fillAcc(ws.getCell(`L${accRowNum}`), accQty, true);
         if (acc.unitPrice && acc.unitPrice > 0) {
           const mCell = ws.getCell(`M${accRowNum}`);
           mCell.value = acc.unitPrice;
@@ -1074,7 +1078,7 @@ async function _generateExcelBuffer(
           mCell.alignment = { horizontal: "center", vertical: "middle" };
           mCell.border = accBorder;
           const nCell = ws.getCell(`N${accRowNum}`);
-          nCell.value = acc.unitPrice * acc.qty;
+          nCell.value = acc.unitPrice * accQty;
           nCell.numFmt = '"R$"#,##0.00';
           nCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: ACC_COLOR } };
           nCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
@@ -1226,7 +1230,7 @@ async function _generateExcelBuffer(
   const totalBase = items.reduce((sum, it) => {
     const lum = calcItemLumTotal(it);
     const drv = calcItemDrvTotal(it);
-    return sum + _applyItemMgn(lum + drv, it);
+    return sum + _applyItemMgn(lum + drv + calcItemAccessoriesTotal(it), it);
   }, 0) + _freteParaDiluir + _diluicaoParaDiluir;
   // Totais com/sem driver (apenas para orçamentos novos com driverLines)
   // Usa mesma lógica do Cart.tsx: effectiveQty = storedQty <= 1 ? itemQty : storedQty

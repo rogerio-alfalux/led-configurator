@@ -2875,4 +2875,19 @@ describe("Otimizar Quantidade de Módulos", () => {
     // O ponto crítico é nunca liberar módulo de seis barras sem o toggle explícito.
     expect(result.composition.every(item => item.barras <= 5)).toBe(true);
   });
+
+  it("compõe 50.000mm sem colapsar para uma única composição curta", () => {
+    const result = calculateComposition({
+      ...baseInput,
+      totalLength: 50000,
+      allowLongModules: false,
+      allowFractional: true,
+      optimizeModuleCount: true,
+    });
+    const moduleCount = result.composition.reduce((sum, item) => sum + item.quantity, 0);
+    expect(result.realizedLength).toBeLessThanOrEqual(50000);
+    expect(result.realizedLength).toBeGreaterThanOrEqual(47000);
+    expect(moduleCount).toBeGreaterThan(5);
+    expect(result.composition.every(item => item.barras <= 5)).toBe(true);
+  });
 });

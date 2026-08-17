@@ -728,13 +728,22 @@ function buildIfMlComposition(
   if (candidates.length === 0) return null;
 
   if (optimizeModuleCount) {
-    candidates.sort((a, b) => {
+    // A prioridade por menor quantidade nunca pode aceitar uma composição que
+    // abandone quase toda a linha. Mantemos a opção de dois módulos em linhas
+    // curtas, mas para linhas longas exigimos que o candidato fique a, no
+    // máximo, um módulo permitido da medida solicitada. Assim, 50.000mm é
+    // preenchido por repetições de ML em vez de retornar apenas ~5.000mm.
+    const largestAllowedModule = Math.max(...[...ifModules, ...mlModules].map(module => module.length));
+    const minimumCoverage = Math.max(0, requestedLength - largestAllowedModule);
+    const quantityCandidates = candidates.filter(candidate => candidate.realizedLength >= minimumCoverage);
+    const candidatesToRank = quantityCandidates.length > 0 ? quantityCandidates : candidates;
+    candidatesToRank.sort((a, b) => {
       if (a.moduleCount !== b.moduleCount) return a.moduleCount - b.moduleCount;
       if (b.realizedLength !== a.realizedLength) return b.realizedLength - a.realizedLength;
       if (a.skuVariety !== b.skuVariety) return a.skuVariety - b.skuVariety;
       return a.balance - b.balance;
     });
-    const best = candidates[0];
+    const best = candidatesToRank[0];
     const rawItems: RawModule[] = [best.ifMod, best.ifMod, ...best.mlItems];
     return {
       composition: toCompositionItems(rawItems, barsPerSection, power, voltage, stripMethod, nameMap),

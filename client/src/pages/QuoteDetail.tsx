@@ -2198,7 +2198,7 @@ export default function QuoteDetail() {
             {st.icon}
             {st.label}
           </span>
-          {user?.role === "admin" && !duplicateStateQuery.data?.isAutomaticallyDuplicate && (
+          {hasQuotePermission(PERMISSIONS.MARCAR_DUPLICADOS_MANUALMENTE) && !duplicateStateQuery.data?.isAutomaticallyDuplicate && (
             <Button
               variant={(quote as any).isManuallyDuplicate ? "secondary" : "outline"}
               size="sm"
@@ -2216,7 +2216,7 @@ export default function QuoteDetail() {
               {(quote as any).isManuallyDuplicate ? "Duplicado manual" : "Marcar duplicado"}
             </Button>
           )}
-          {user?.role === "admin" && duplicateStateQuery.data?.isAutomaticallyDuplicate && (
+          {hasQuotePermission(PERMISSIONS.MARCAR_DUPLICADOS_MANUALMENTE) && duplicateStateQuery.data?.isAutomaticallyDuplicate && (
             <span className="text-xs text-muted-foreground" title="Duplicidades automáticas já seguem a regra comercial e não podem receber marcação manual.">
               Duplicidade automática
             </span>

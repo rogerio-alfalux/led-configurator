@@ -61,11 +61,46 @@ export async function getDb() {
   return _db;
 }
 
-export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.openId) {
-    throw new Error("User openId is required for upsert");
+export function prepareUserUpsert(user: InsertUser): { values: InsertUser; updateSet: Record<string, unknown> } {
+  if (!user.openId) throw new Error("User openId is required for upsert");
+  const values: InsertUser = { openId: user.openId };
+  const updateSet: Record<string, unknown> = {};
+
+  const textFields = ["name", "email", "loginMethod"] as const;
+  type TextField = (typeof textFields)[number];
+
+  const assignNullable = (field: TextField) => {
+    const value = user[field];
+    if (value === undefined) return;
+    const normalized = value ?? null;
+    values[field] = normalized;
+    // O nome exibido pode ser corrigido manualmente no painel de usuários.
+    // Em logins posteriores, o provedor OAuth pode reenviar um nome antigo;
+    // por isso ele só é usado ao inserir o registro e nunca sobrepõe um
+    // nome já definido pelo administrador.
+    if (field !== "name") updateSet[field] = normalized;
+  };
+
+  textFields.forEach(assignNullable);
+
+  if (user.lastSignedIn !== undefined) {
+    values.lastSignedIn = user.lastSignedIn;
+    updateSet.lastSignedIn = user.lastSignedIn;
+  }
+  if (user.role !== undefined) {
+    values.role = user.role;
+    updateSet.role = user.role;
+  } else if (user.openId === ENV.ownerOpenId) {
+    values.role = 'admin';
+    updateSet.role = 'admin';
   }
 
+  if (!values.lastSignedIn) values.lastSignedIn = nowBrasiliaStr();
+  if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = nowBrasiliaStr();
+  return { values, updateSet };
+}
+
+export async function upsertUser(user: InsertUser): Promise<void> {
   const db = await getDb();
   if (!db) {
     console.warn("[Database] Cannot upsert user: database not available");
@@ -73,44 +108,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   }
 
   try {
-    const values: InsertUser = {
-      openId: user.openId,
-    };
-    const updateSet: Record<string, unknown> = {};
-
-    const textFields = ["name", "email", "loginMethod"] as const;
-    type TextField = (typeof textFields)[number];
-
-    const assignNullable = (field: TextField) => {
-      const value = user[field];
-      if (value === undefined) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
-    };
-
-    textFields.forEach(assignNullable);
-
-    if (user.lastSignedIn !== undefined) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
-    }
-    if (user.role !== undefined) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
-    }
-
-    if (!values.lastSignedIn) {
-      values.lastSignedIn = nowBrasiliaStr();
-    }
-
-    if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = nowBrasiliaStr();
-    }
-
+    const { values, updateSet } = prepareUserUpsert(user);
     await db.insert(users).values(values).onDuplicateKeyUpdate({
       set: updateSet,
     });

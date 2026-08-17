@@ -64,6 +64,15 @@ const PROFILE_RULES: Record<string, ProfileRule> = {
   "LLE-4846": { name: "SHIFT",        allowD1: true,  allowD2: false, allowD1D2: false },
 };
 
+function getProfileRule(profileCode: string): ProfileRule | undefined {
+  // As versões futura pendente e sobrepor do SHIFT mantêm a referência 4846,
+  // variando somente o prefixo de instalação no SKU retornado pela API.
+  if (/^LL[EPS]-4846$/i.test(profileCode)) {
+    return { name: "SHIFT", allowD1: true, allowD2: false, allowD1D2: false };
+  }
+  return PROFILE_RULES[profileCode];
+}
+
 // ── Mapeamento de tipo de instalação ─────────────────────────────────────────
 const INSTALL_MAP: Record<string, InstallType> = {
   PENDENTE: "PENDENTE",
@@ -206,6 +215,10 @@ export function adaptProfileProducts(
     {
       rule: ProfileRule;
       installType: InstallType;
+      photoUrl: string | null;
+      fixedLedModule: string | null;
+      fixedLedModuleCode: string | null;
+      fixedLedModuleQty: number | null;
       modules: ProfileModules;
       driver220: { model: string; code: string | null } | null;
       driverBivolt: { model: string; code: string | null } | null;
@@ -263,7 +276,7 @@ export function adaptProfileProducts(
 
   for (const p of perfisProducts) {
     const profileCode = extractProfileCode(p.sku);
-    const rule = PROFILE_RULES[profileCode];
+    const rule = getProfileRule(profileCode);
 
     // Se não há regra para este código, pular (perfil desconhecido)
     if (!rule) continue;
@@ -279,6 +292,14 @@ export function adaptProfileProducts(
       variantMap[profileCode] = {
         rule,
         installType,
+        photoUrl: p.fotoUrl ?? null,
+        fixedLedModule: rule.name === "SHIFT" ? (p.ledModule ?? pa.ledModule2700 ?? null) : null,
+        fixedLedModuleCode: rule.name === "SHIFT"
+          ? (pa.ledModuleEq ?? pa.ledModuleEq2700 ?? pa.ledModuleEq3000 ?? pa.ledModuleEq4000 ?? pa.ledModuleEq5000 ?? null)
+          : null,
+        fixedLedModuleQty: rule.name === "SHIFT"
+          ? (p.ledModuleQtd ?? pa.ledModuleQtd2700 ?? pa.ledModuleQtd3000 ?? pa.ledModuleQtd4000 ?? pa.ledModuleQtd5000 ?? null)
+          : null,
         modules: { IN: {}, IF: {}, ML: {} },
         driver220: p.driver220 ?? null,
         driverBivolt: p.driverBivolt ?? null,
@@ -333,6 +354,18 @@ export function adaptProfileProducts(
         apiLinearVariants: {},
       };
     } else {
+      if (!variantMap[profileCode].photoUrl && p.fotoUrl) variantMap[profileCode].photoUrl = p.fotoUrl;
+      if (rule.name === "SHIFT") {
+        if (!variantMap[profileCode].fixedLedModule && (p.ledModule ?? pa.ledModule2700)) {
+          variantMap[profileCode].fixedLedModule = p.ledModule ?? pa.ledModule2700;
+        }
+        if (!variantMap[profileCode].fixedLedModuleCode) {
+          variantMap[profileCode].fixedLedModuleCode = pa.ledModuleEq ?? pa.ledModuleEq2700 ?? pa.ledModuleEq3000 ?? pa.ledModuleEq4000 ?? pa.ledModuleEq5000 ?? null;
+        }
+        if (variantMap[profileCode].fixedLedModuleQty == null) {
+          variantMap[profileCode].fixedLedModuleQty = p.ledModuleQtd ?? pa.ledModuleQtd2700 ?? pa.ledModuleQtd3000 ?? pa.ledModuleQtd4000 ?? pa.ledModuleQtd5000 ?? null;
+        }
+      }
       // Atualizar drivers se ainda não preenchidos (usar o primeiro produto que tiver)
       if (!variantMap[profileCode].driver220 && p.driver220) {
         variantMap[profileCode].driver220 = p.driver220;
@@ -421,7 +454,7 @@ export function adaptProfileProducts(
   // Monta o Record<string, ProfileVariant> final
   const catalog: Record<string, ProfileVariant> = {};
   for (const [code, entry] of Object.entries(variantMap)) {
-    const { rule, installType, modules, driver220, driverBivolt, driverDimDali, driverDim110v, ledModuleStripflex, ledModuleStripline, correnteDriver } = entry;
+    const { rule, installType, photoUrl, fixedLedModule, fixedLedModuleCode, fixedLedModuleQty, modules, driver220, driverBivolt, driverDimDali, driverDim110v, ledModuleStripflex, ledModuleStripline, correnteDriver } = entry;
     // Derivar stripMethod automaticamente a partir do módulo LED detectado.
     // REGRA INEGOCIÁVEL: se ledModuleStripline está preenchido → STRIPLINE;
     // se ledModuleStripflex está preenchido → STRIPFLEX.
@@ -432,6 +465,10 @@ export function adaptProfileProducts(
       name: rule.name,
       code,
       installType,
+      photoUrl,
+      fixedLedModule,
+      fixedLedModuleCode,
+      fixedLedModuleQty,
       allowD1: rule.allowD1,
       allowD2: rule.allowD2,
       allowD1D2: rule.allowD1D2,

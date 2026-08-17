@@ -94,6 +94,8 @@ export interface CartItemData {
    * SKU, FONTE DE LUZ e EQUIPAMENTOS no formato multi-linha por segmento.
    */
   profileSegments?: ProfileSegment[];
+  /** Componentes internos do perfil que devem ir somente à requisição de materiais. */
+  profileMaterialComponents?: ProfileMaterialComponent[];
   /**
    * Método de barra para perfis 36W: "STRIPFLEX" (fileira dupla) ou "STRIPLINE" (fileira única).
    * Determina qual nome usar na coluna FONTE DE LUZ da Ficha de Produção.
@@ -381,6 +383,18 @@ export interface LinkedAccessory {
   familia?: string;
   /** Dimensão do acessório (ex: "1,5m") */
   dimensao?: string;
+}
+
+/**
+ * Componente de material interno de um perfil. Não é uma sublinha comercial
+ * nem uma linha da ficha de produção, mas segue salvo no orçamento para
+ * alimentar a requisição de materiais.
+ */
+export interface ProfileMaterialComponent {
+  codigo: string;
+  descricao: string;
+  /** Quantidade por unidade do item de orçamento. */
+  qty: number;
 }
 
 export interface QuoteFormData {

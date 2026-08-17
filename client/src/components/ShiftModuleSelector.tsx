@@ -20,6 +20,10 @@ export interface ShiftModuleOption {
   availableCCTs: string[];
   driverCode?: string;
   driverModel?: string;
+  unitCost?: number | null;
+  markupPadrao?: number | null;
+  markupMinimo?: number | null;
+  unitPrice?: number | null;
 }
 
 export interface ShiftModuleSelection {
@@ -32,6 +36,10 @@ export interface ShiftModuleSelection {
   dimensions?: string;
   driverCode?: string;
   driverModel?: string;
+  unitCost?: number | null;
+  markupPadrao?: number | null;
+  markupMinimo?: number | null;
+  unitPrice?: number | null;
 }
 
 interface ShiftModuleSelectorProps {
@@ -41,6 +49,7 @@ interface ShiftModuleSelectorProps {
   maxModules: number;
   currentSelections: ShiftModuleSelection[];
   onConfirm: (selections: ShiftModuleSelection[]) => void;
+  hidePrices?: boolean;
 }
 
 export function ShiftModuleSelector({
@@ -50,6 +59,7 @@ export function ShiftModuleSelector({
   maxModules,
   currentSelections,
   onConfirm,
+  hidePrices = false,
 }: ShiftModuleSelectorProps) {
   // Local state for editing
   const [selections, setSelections] = useState<ShiftModuleSelection[]>(currentSelections);
@@ -83,6 +93,10 @@ export function ShiftModuleSelector({
         dimensions: mod.dimensions,
         driverCode: mod.driverCode,
         driverModel: mod.driverModel,
+        unitCost: mod.unitCost ?? null,
+        markupPadrao: mod.markupPadrao ?? null,
+        markupMinimo: mod.markupMinimo ?? null,
+        unitPrice: mod.unitPrice ?? null,
       }]);
     }
   };
@@ -164,6 +178,13 @@ export function ShiftModuleSelector({
                     <p className="text-[10px] text-muted-foreground">{mod.dimensions}</p>
                   )}
                   <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{mod.sku}</p>
+                  {!hidePrices && mod.unitPrice != null && (
+                    <p className="text-[10px] text-emerald-700 mt-1">
+                      Custo R$ {(mod.unitCost ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {mod.markupPadrao != null ? ` · MKP ${mod.markupPadrao.toFixed(2)}` : ""}
+                      {` · Preço R$ ${mod.unitPrice.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    </p>
+                  )}
                 </div>
               </div>
 

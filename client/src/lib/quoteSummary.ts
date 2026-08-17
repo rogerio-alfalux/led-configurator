@@ -95,6 +95,7 @@ export function generateQuoteSummary(result: CompositionResult, precoTotal?: num
   const productName = result.profileName.toUpperCase();
   const power = result.powerD1;
   const cct = result.cct;
+  const isShift = result.profileName === "SHIFT";
 
   const isDual = result.application === "D1+D2";
   const isIndependent = isDual && (result.independentLighting || result.forcedIndependent);
@@ -111,7 +112,14 @@ export function generateQuoteSummary(result: CompositionResult, precoTotal?: num
 
   // Nome base do produto para o orçamento: "BLAZE H P D1 18W 3000K"
   const appPart = applicationLabel ? ` ${applicationLabel}` : "";
-  const productLabel = `${productName} ${suffix}${appPart} ${power}W ${cct}`;
+  const controlLabel = result.controlType === "dimDali"
+    ? "DIM DALI"
+    : result.controlType === "dim110v"
+      ? "DIM 1-10V"
+      : "ON/OFF";
+  const productLabel = isShift
+    ? `SHIFT ${result.installType.charAt(0)}${result.installType.slice(1).toLowerCase()} ${controlLabel} ${result.voltage}`
+    : `${productName} ${suffix}${appPart} ${power}W ${cct}`;
 
   // Medida total realizada
   const totalMm = result.realizedLength;

@@ -2776,6 +2776,26 @@
 - [x] Garantir que o período selecionado inclua o último dia do mês
 - [x] Cobrir a filtragem de agosto e de outros meses com regressão
 
+## Perfil SHIFT
+- [x] Carregar foto e instalação do SHIFT exclusivamente da API
+- [x] Remover potência e CCT próprios do perfil SHIFT e ocultar seu módulo LED no resumo superior
+- [x] Tratar instalação SHIFT sem D2, exibindo apenas Embutir, Pendente ou Sobrepor conforme API
+- [x] Posicionar a seleção obrigatória de módulos SHIFT abaixo do Resumo da Configuração
+- [x] Impedir envio ao carrinho ou orçamento sem módulo SHIFT selecionado
+- [x] Detalhar custo, markup e preço do SHIFT conforme resposta da API
+- [x] Formatar o nome comercial do SHIFT sem SKU técnico ou potência do perfil
+- [x] Propagar módulos SHIFT como subitens com quantidades e preços ao carrinho, orçamento, prévia, PDF e Excel
+- [x] Propagar módulos SHIFT como subitens à ficha de produção
+- [x] Limitar módulos a 10 em embutir e 9 em pendente/sobrepor conforme instalação da API
+- [x] Propagar o módulo LED único do perfil por código MP e quantidade, sem CCT, até a requisição de materiais
+- [x] Cobrir o fluxo completo e regressões dos demais perfis
+
+## Otimizar Quantidade de Módulos: linhas longas
+- [x] Corrigir a busca de composição para medidas longas com módulos de até cinco barras
+- [x] Garantir que 50.000 mm não seja reduzido indevidamente para cerca de 5.000 mm
+- [x] Preservar o equilíbrio entre menor número de módulos e proximidade da medida desejada
+- [x] Cobrir medidas longas e regressões de otimização linear
+
 ## Regressão: indicadores gerais e duplicidade manual
 - [x] Incluir duplicidade manual no cálculo consolidado de Valor sem duplicados
 - [x] Atualizar os indicadores gerais imediatamente após marcar ou desmarcar duplicidade manual
@@ -2786,3 +2806,8 @@
 - [x] Evitar que o LD receba itens ou valores da primeira revisão após atualização do orçamento
 - [x] Exibir o desconto aplicado nos Dados Internos do orçamento
 - [x] Cobrir a revisão atual e a exibição de desconto no fluxo LD
+
+## Gerenciamento de usuários: nome e duplicidade manual
+- [x] Corrigir a persistência da edição de nome de usuário no cadastro e na listagem administrativa
+- [x] Adicionar a permissão individual para marcar orçamentos como duplicados manualmente
+- [x] Aplicar a autorização de duplicidade manual também no servidor e cobrir por regressão

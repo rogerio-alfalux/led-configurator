@@ -366,6 +366,17 @@ export function buildMaterialRequisition(
       }
     }
 
+    // Componentes internos do perfil, persistidos separadamente para não
+    // aparecerem na ficha de produção. O SHIFT usa este caminho para o seu
+    // módulo LED único, sem CCT, mantendo o código e a quantidade da API.
+    if (item.profileSegments && item.profileMaterialComponents && item.profileMaterialComponents.length > 0) {
+      for (const component of item.profileMaterialComponents) {
+        if (!component.codigo) continue;
+        const canonicalDesc = descMap?.get(component.codigo) ?? component.descricao;
+        add(component.codigo, canonicalDesc, component.qty * itemQty, "un", detectTipo(canonicalDesc, component.codigo), itemIdx);
+      }
+    }
+
     // ── LUMINÁRIAS COM driverLines (downlights, painéis, spots) ──────────
     // Apenas para itens SEM profileSegments (perfis já contabilizam drivers via seg.driverCode)
     const hasProfileSegs = item.profileSegments && item.profileSegments.length > 0;

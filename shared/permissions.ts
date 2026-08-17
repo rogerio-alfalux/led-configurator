@@ -23,6 +23,8 @@ export const PERMISSIONS = {
   GERENCIAR_ORCAMENTOS: "gerenciar_orcamentos",
   /** Pode converter, cancelar e vincular pedidos de amostra e manutenção */
   GERENCIAR_AMOSTRAS: "gerenciar_amostras",
+  /** Pode classificar um orçamento como duplicado manualmente */
+  MARCAR_DUPLICADOS_MANUALMENTE: "marcar_duplicados_manualmente",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -38,4 +40,5 @@ export const ALL_PERMISSIONS: { key: Permission; label: string; description: str
   { key: PERMISSIONS.EDITAR_MARKUP, label: "Editar Markup", description: "Editar markup de luminária" },
   { key: PERMISSIONS.GERENCIAR_ORCAMENTOS, label: "Gerenciar Orçamentos", description: "Editar, excluir e revisar qualquer orçamento" },
   { key: PERMISSIONS.GERENCIAR_AMOSTRAS, label: "Gerenciar Amostras e Manutenções", description: "Converter, cancelar e vincular pedidos sem cobrança" },
+  { key: PERMISSIONS.MARCAR_DUPLICADOS_MANUALMENTE, label: "Marcar Duplicados Manuais", description: "Classificar ou remover a classificação manual de orçamento duplicado" },
 ];

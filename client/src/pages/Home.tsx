@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import type { ReactNode } from "react";
 import { trpc } from "@/lib/trpc";
 import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench, Briefcase, Star, Package2, Search as SearchIcon, Minus, Plus, DollarSign, Ban, ArrowLeftRight, Package, LogIn, LogOut, UserRound, ClipboardList } from "lucide-react";
 // v32.63 - 2026-08-10
@@ -1521,14 +1522,14 @@ type SkuPriceMap = Record<string, {
   correnteDimDali: string|null; correnteDim110v: string|null;
 }>;
 
-function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty, setGlobalQty, onOpenAccessoryModal, pendingAccessoriesCount, globalPavimento }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void; onOpenAccessoryModal?: () => void; pendingAccessoriesCount?: number; globalPavimento?: string }) {
+function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty, setGlobalQty, onOpenAccessoryModal, pendingAccessoriesCount, globalPavimento, shiftModuleSelector, addBlockedReason, transformCartItem }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void; onOpenAccessoryModal?: () => void; pendingAccessoriesCount?: number; globalPavimento?: string; shiftModuleSelector?: ReactNode; addBlockedReason?: string; transformCartItem?: (item: CartItemData) => CartItemData }) {
   const { user: _rbUser } = useAuth();
   const isConvidadoRB = (_rbUser as any)?.role === "convidado";
   const efficiency = result.requestedLength > 0
     ? Math.round((result.realizedLength / result.requestedLength) * 100)
     : 0;
   const isDual = result.application === "D1+D2";
-  const profilePhoto = getProfilePhoto(result.profileCode, result.diffuserD1, result.diffuserD2);
+  const profilePhoto = profileVariant?.photoUrl ?? getProfilePhoto(result.profileCode, result.diffuserD1, result.diffuserD2);
   return (
     <div className="space-y-4">
 
@@ -1721,8 +1722,10 @@ function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onA
         </CardContent>
       </Card>
 
+      {shiftModuleSelector}
+
       {/* Resumo Para Orçamento — Resumo para o cliente */}
-      <QuoteSummaryCard result={result} profilePriceMap={profilePriceMap} profileVariant={profileVariant} skuPriceMap={skuPriceMap} onAddToQuote={onAddToQuote} itemEmPlanta={itemEmPlanta} setItemEmPlanta={setItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} onOpenAccessoryModal={onOpenAccessoryModal} pendingAccessoriesCount={pendingAccessoriesCount} globalPavimento={globalPavimento} />
+      <QuoteSummaryCard result={result} profilePriceMap={profilePriceMap} profileVariant={profileVariant} skuPriceMap={skuPriceMap} onAddToQuote={onAddToQuote} itemEmPlanta={itemEmPlanta} setItemEmPlanta={setItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} onOpenAccessoryModal={onOpenAccessoryModal} pendingAccessoriesCount={pendingAccessoriesCount} globalPavimento={globalPavimento} addBlockedReason={addBlockedReason} transformCartItem={transformCartItem} />
       {/* Resumo para Pedido — Ficha Comercial */}
       <OrderSummaryCard result={result} />
       {/* Composição de Módulos — bloco unificado */}
@@ -1918,7 +1921,7 @@ function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onA
 }
 
 //// ─── Resumo Para Orçamento (Resumo para o cliente) ──────────────────────────
-function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty = 1, setGlobalQty, onOpenAccessoryModal, pendingAccessoriesCount, globalPavimento }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void; onOpenAccessoryModal?: () => void; pendingAccessoriesCount?: number; globalPavimento?: string }) {
+function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty = 1, setGlobalQty, onOpenAccessoryModal, pendingAccessoriesCount, globalPavimento, addBlockedReason, transformCartItem }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void; onOpenAccessoryModal?: () => void; pendingAccessoriesCount?: number; globalPavimento?: string; addBlockedReason?: string; transformCartItem?: (item: CartItemData) => CartItemData }) {
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { addItem, isAdding: isAddingToCart } = useCart();
@@ -2215,9 +2218,14 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
               id="profile-add-cart"
               size="sm"
               className="gap-1.5 text-xs h-7 bg-emerald-600 hover:bg-emerald-700 text-white cart-action-btn"
-              disabled={isAddingToCart}
+              disabled={isAddingToCart || !!addBlockedReason}
+              title={addBlockedReason}
               onClick={() => {
-                const photo = getProfilePhoto(result.profileCode, result.diffuserD1, result.diffuserD2);
+                if (addBlockedReason) {
+                  toast.error(addBlockedReason);
+                  return;
+                }
+                const photo = profileVariant?.photoUrl ?? getProfilePhoto(result.profileCode, result.diffuserD1, result.diffuserD2);
 
                 // Construir segmentos da composição para a Ficha Técnica de Produção
                 const isDual = result.application === 'D1+D2';
@@ -2380,22 +2388,29 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                   category: "Perfis",
                   sku: result.profileCode,
                   description: result.profileName === "SHIFT"
-                    ? `SHIFT EMBUTIR ${result.controlType === 'dimDali' ? 'DIM DALI' : result.controlType === 'dim110v' ? 'DIM 1-10V' : 'ON/OFF'} ${result.realizedLength}mm`
+                    ? `SHIFT ${INSTALL_LABELS[result.installType]} ${result.controlType === 'dimDali' ? 'DIM DALI' : result.controlType === 'dim110v' ? 'DIM 1-10V' : 'ON/OFF'} ${result.voltage} ${result.realizedLength}mm`
                     : `${result.profileName} ${INSTALL_LABELS[result.installType]} ${result.application !== 'D1' ? result.application + ' ' : ''}${result.powerD1}W ${result.cct} ${result.controlType === 'dimDali' ? 'DIM DALI' : result.controlType === 'dim110v' ? 'DIM 1-10V' : 'ON/OFF'} ${result.voltage} ${result.realizedLength}mm`,
                   power: result.profileName === "SHIFT" ? undefined : `${result.powerD1}W`,
-                  cct: result.profileName === "SHIFT" ? "A definir (módulos)" : result.cct,
+                  cct: result.profileName === "SHIFT" ? undefined : result.cct,
                   ...profileCartTechnicalFields(globalQty, itemEmPlanta),
                   unitPrice: _flexUnitPrice,
                   totalPrice: _flexTotalPrice,
                   priceFromApi: modulePriceResult != null && precoTotal != null,
                   photoUrl: photo ?? "",
-                  moduloLed: result.profileName === "SHIFT" ? "Módulos SHIFT (ver acessórios)" : `Stripflex 562,5 x 10mm 36L ${result.cct}`,
+                  moduloLed: result.profileName === "SHIFT" ? undefined : `Stripflex 562,5 x 10mm 36L ${result.cct}`,
+                  ...(result.profileName === "SHIFT" && profileVariant?.fixedLedModule && profileVariant.fixedLedModuleCode && profileVariant.fixedLedModuleQty != null ? {
+                    profileMaterialComponents: [{
+                      codigo: profileVariant.fixedLedModuleCode,
+                      descricao: profileVariant.fixedLedModule,
+                      qty: profileVariant.fixedLedModuleQty,
+                    }],
+                  } : {}),
                   drivers: "",
                   orderSummary: generateOrderSummary(result),
                   quoteSummary: summary,
                   profileSegments,
                   stripMethod: result.stripMethod,
-                  availableCCTs: ["2700K", "3000K", "4000K", "5000K", "A definir"],
+                  availableCCTs: result.profileName === "SHIFT" ? [] : ["2700K", "3000K", "4000K", "5000K", "A definir"],
                   ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
                   ...(modulePriceResult ? { custoCorpoBase: (() => { let tc = 0; for (const ci of result.composition) { const e = skuPriceMap?.[`${ci.sku}|${currentPowerLabel}`] ?? skuPriceMap?.[ci.sku]; const c = isD1D2 ? (result.controlType === 'dimDali' ? e?.custoDimDaliD1D2 : result.controlType === 'dim110v' ? e?.custoDim110vD1D2 : /bivolt/i.test(result.voltage) ? e?.custoOnoffBivoltD1D2 : e?.custoOnoff220D1D2) : (result.controlType === 'dimDali' ? e?.custoDimDali : result.controlType === 'dim110v' ? e?.custoDim110v : /bivolt/i.test(result.voltage) ? e?.custoOnoffBivolt : e?.custoOnoff220); if (c == null) return 0; tc += c * ci.quantity; } return Math.round(tc * 100) / 100; })(), markupPadraoApi: modulePriceResult.markupPadrao, markupMinimoApi: modulePriceResult.markupMinimo } : {}),
                   ...(perfilDrvLines ? {
@@ -2406,10 +2421,11 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                     luminariaHasApiPrice: true,
                   } : {}),
                 };
+                const itemToAdd = transformCartItem ? transformCartItem(item) : item;
                 if (onAddToQuote) {
-                  onAddToQuote(item);
+                  onAddToQuote(itemToAdd);
                 } else {
-                  setPendingItem(item);
+                  setPendingItem(itemToAdd);
                   setColorModalOpen(true);
                 }
               }}
@@ -4584,6 +4600,10 @@ export default function Home() {
     dimensions?: string;
     driverCode?: string;
     driverModel?: string;
+    unitCost?: number | null;
+    markupPadrao?: number | null;
+    markupMinimo?: number | null;
+    unitPrice?: number | null;
   }
   const [shiftModules, setShiftModules] = useState<ShiftModuleSelection[]>([]);
   const [shiftModulesConfirmed, setShiftModulesConfirmed] = useState(false);
@@ -4655,9 +4675,9 @@ export default function Home() {
     setShapeResult(null);
     setResult(null);
     setError(null);
-    // SHIFT: auto-select EMBUTIR (only option) and reset shift modules
+    // SHIFT: usar a primeira instalação realmente cadastrada na API e resetar módulos.
     if (name === "SHIFT") {
-      setInstallType("EMBUTIR");
+      setInstallType(activeGetInstallTypesForProfile(name)[0] as InstallType | undefined ?? "");
       setShiftModules([]);
       setShiftModulesConfirmed(false);
     } else {
@@ -6281,7 +6301,7 @@ export default function Home() {
                 {/* fim fluxo LED BAR */}
 
                 {/* 2. Instalação */}
-                {profileName && availableInstallTypes.length > 0 && !isShift && (
+                {profileName && availableInstallTypes.length > 0 && (
                   <div>
                     <FieldLabel>Instalação</FieldLabel>
                     <div className="grid grid-cols-2 gap-2">
@@ -6309,7 +6329,7 @@ export default function Home() {
                         );
                       })}
                     </div>
-                    {isEmbutir && (
+                    {isEmbutir && !isShift && (
                       <p className="mt-1.5 text-xs text-muted-foreground flex items-center gap-1">
                         <Info className="w-3 h-3" />
                         Embutir: sempre D1 · driver remoto obrigatório
@@ -9414,26 +9434,18 @@ export default function Home() {
               </Card>
             ) : (
               <>
-                <ResultBlock result={result} profilePriceMap={profilePriceMap} profileVariant={activeProfileCatalog[result.profileCode]} skuPriceMap={skuPriceMap} onAddToQuote={isShift && !shiftModulesConfirmed ? undefined : ((appendToQuoteId || replaceInQuoteId) ? ((item: CartItemData) => {
-                    // SHIFT: inject modules as linked accessories
-                    if (isShift && shiftModulesConfirmed && shiftModules.length > 0) {
-                      const shiftAccessories: import("@/lib/cartTypes").LinkedAccessory[] = shiftModules.map(m => ({
-                        codigo: m.sku,
-                        descricao: `${m.name} ${m.cct}K`,
-                        qty: m.quantity,
-                        unitPrice: null,
-                        fotoUrl: m.fotoUrl || null,
-                        familia: "SHIFT MÓDULO",
-                      }));
-                      const existingAcc = item.accessories ?? [];
-                      handleAddItemOrToQuote({ ...item, accessories: [...existingAcc, ...shiftAccessories] });
-                    } else {
-                      handleAddItemOrToQuote(item);
-                    }
-                  }) : undefined)} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }} pendingAccessoriesCount={pendingAccessories.length} globalPavimento={globalPavimento} />
-                {/* SHIFT: Obrigatório selecionar módulos antes de enviar ao carrinho */}
-                {isShift && (
-                  <Card className="mt-4 shadow-sm border-primary/30">
+                <ResultBlock result={result} profilePriceMap={profilePriceMap} profileVariant={activeProfileCatalog[result.profileCode]} skuPriceMap={skuPriceMap} onAddToQuote={(appendToQuoteId || replaceInQuoteId) ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }} pendingAccessoriesCount={pendingAccessories.length} globalPavimento={globalPavimento} addBlockedReason={isShift && !shiftModulesConfirmed ? "Selecione ao menos um módulo SHIFT antes de enviar o produto ao carrinho ou orçamento." : undefined} transformCartItem={isShift ? ((item) => {
+                  const shiftAccessories: LinkedAccessory[] = shiftModules.map(m => ({
+                    codigo: m.sku,
+                    descricao: `${m.name} ${m.cct}K`,
+                    qty: m.quantity,
+                    unitPrice: m.unitPrice ?? null,
+                    fotoUrl: m.fotoUrl || null,
+                    familia: "SHIFT MÓDULO",
+                  }));
+                  return { ...item, accessories: [...(item.accessories ?? []), ...shiftAccessories] };
+                }) : undefined} shiftModuleSelector={isShift ? (
+                  <Card className="shadow-sm border-primary/30">
                     <CardContent className="py-4">
                       <div className="flex items-center justify-between">
                         <div>
@@ -9464,7 +9476,7 @@ export default function Home() {
                       )}
                     </CardContent>
                   </Card>
-                )}
+                ) : undefined} />
               </>
             ))}
             {/* Resultado EM L */}
@@ -13996,9 +14008,14 @@ export default function Home() {
           availableCCTs: m.availableCCTs,
           driverCode: m.driverCode ?? undefined,
           driverModel: m.driverModel ?? undefined,
+          unitCost: m.unitCost ?? null,
+          markupPadrao: m.markupPadrao ?? null,
+          markupMinimo: m.markupMinimo ?? null,
+          unitPrice: m.unitPrice ?? null,
         }))}
-        maxModules={Math.floor(parseInt(totalLength || "0") / 300) || 1}
+        maxModules={Math.max(1, Math.floor(parseInt(totalLength || "0") / 300) - (installType === "EMBUTIR" ? 0 : 1))}
         currentSelections={shiftModules}
+        hidePrices={isConvidado}
         onConfirm={(selections) => {
           setShiftModules(selections);
           setShiftModulesConfirmed(selections.length > 0);

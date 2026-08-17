@@ -128,6 +128,9 @@ async function _generatePdfBlob(
       return sd + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
     }, 0);
   };
+  const _pdfCalcItemAccessoriesTotal = (it: CartItemData): number =>
+    (it.accessories ?? []).reduce((sum, accessory) =>
+      sum + (Number(accessory.unitPrice ?? 0) * Number(accessory.qty ?? 0) * Number(it.qty ?? 1)), 0);
   const _pdfApplyItemMgn = (base: number, it: CartItemData): number => {
     const p = it.itemMarginPercent != null ? Math.min(Math.max(it.itemMarginPercent / 100, 0), 0.99) : 0;
     return p > 0 ? base / (1 - p) : base;
@@ -142,7 +145,7 @@ async function _generatePdfBlob(
     .reduce((sum, it) => {
       const lum = _pdfCalcItemLumTotal(it);
       const drv = _pdfCalcItemDrvTotal(it);
-      return sum + _pdfApplyItemMgn(lum + drv, it);
+      return sum + _pdfApplyItemMgn(lum + drv + _pdfCalcItemAccessoriesTotal(it), it);
     }, 0) + _pdfDiluicaoParaDiluir;
   const rtPct     = Math.min(Math.max(formData.rtPercent    ?? 0, 0), 0.99);
   const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
@@ -172,7 +175,7 @@ async function _generatePdfBlob(
     .reduce((sum, it) => {
       const lum = _pdfCalcItemLumTotal(it);
       const drv = _pdfCalcItemDrvTotal(it);
-      return sum + _pdfApplyItemMgn(lum + drv, it);
+      return sum + _pdfApplyItemMgn(lum + drv + _pdfCalcItemAccessoriesTotal(it), it);
     }, 0);
   const _pdfApplyGlobalMarkupGlobal = (base: number) => {
     const comRT = rtPct > 0 ? base / (1 - rtPct) : base;
@@ -294,7 +297,7 @@ async function _generatePdfBlob(
   });
 
   // Construir linhas da tabela
-  type RowMeta = { photoUrl: string | null; isFloorHeader?: boolean; isDriverRow?: boolean; isObsRow?: boolean };
+  type RowMeta = { photoUrl: string | null; isFloorHeader?: boolean; isDriverRow?: boolean; isAccessoryRow?: boolean; isObsRow?: boolean };
   const rowMeta: RowMeta[] = [];
   const tableBody: (string | { content: string; colSpan?: number; styles?: object })[][] = [];
   let lastFloor: string | undefined = undefined;
@@ -315,7 +318,8 @@ async function _generatePdfBlob(
 
     const lumRaw = _pdfCalcItemLumTotal(item);
     const drvRaw = _pdfCalcItemDrvTotal(item);
-    const itemRaw = _pdfApplyItemMgn(lumRaw + drvRaw, item);
+    const accessoryRaw = _pdfCalcItemAccessoriesTotal(item);
+    const itemRaw = _pdfApplyItemMgn(lumRaw + drvRaw + accessoryRaw, item);
     // Frete diluído proporcional a este item
     const _pdfFreteFatorItem = (_pdfFreteParaDiluirGlobal > 0 && _pdfTotalBaseForFreteGlobal > 0)
       ? _pdfFreteParaDiluirGlobal * (itemRaw / _pdfTotalBaseForFreteGlobal)
@@ -403,6 +407,24 @@ async function _generatePdfBlob(
       }
     }
 
+    // Módulos comerciais vinculados (SHIFT) e demais subitens de produto.
+    const nonRabichoAcc = item.accessories?.filter(acc => !acc.familia?.toLowerCase().includes("rabicho")) ?? [];
+    for (const acc of nonRabichoAcc) {
+      const accQty = (acc.qty ?? 0) * (item.qty ?? 1);
+      const accRaw = (acc.unitPrice ?? 0) * accQty;
+      const accWeight = itemRaw > 0 ? accRaw / itemRaw : 0;
+      const accFrete = _pdfFreteFatorItem * accWeight;
+      const accTotal = _pdfApplyItemDiscount(_pdfApplyGlobalMarkupGlobal(_pdfApplyItemMgn(accRaw + accFrete, item)), item);
+      tableBody.push([
+        "", "",
+        `  ↳ ${acc.familia === "SHIFT MÓDULO" ? "Módulo SHIFT" : "Subitem"}: ${acc.codigo} — ${acc.descricao}`,
+        "", "", "", "", "", "",
+        String(accQty),
+        accTotal > 0 ? fmtBRL(accTotal) : "—",
+      ]);
+      rowMeta.push({ photoUrl: null, isAccessoryRow: true });
+    }
+
     // Observação do item
     if (item.itemNote) {
       tableBody.push([
@@ -463,7 +485,7 @@ async function _generatePdfBlob(
       const meta = rowMeta[data.row.index];
       if (!meta) return;
       if (meta.isFloorHeader) return;
-      if (meta.isDriverRow) {
+      if (meta.isDriverRow || meta.isAccessoryRow) {
         data.cell.styles.textColor = [100, 100, 100] as [number, number, number];
         data.cell.styles.fontSize = 7;
         data.cell.styles.fillColor = [250, 250, 250] as [number, number, number];
@@ -480,7 +502,7 @@ async function _generatePdfBlob(
     didDrawCell: (data) => {
       if (data.column.index !== 1 || data.section !== "body") return;
       const meta = rowMeta[data.row.index];
-      if (!meta || meta.isFloorHeader || meta.isDriverRow || meta.isObsRow) return;
+      if (!meta || meta.isFloorHeader || meta.isDriverRow || meta.isAccessoryRow || meta.isObsRow) return;
       if (meta.photoUrl && photoCache.has(meta.photoUrl)) {
         const imgData = photoCache.get(meta.photoUrl)!;
         const pad = 1;

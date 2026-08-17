@@ -421,6 +421,9 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
     const p = it.itemMarginPercent != null ? Math.min(Math.max(it.itemMarginPercent / 100, 0), 0.99) : 0;
     return p > 0 ? base / (1 - p) : base;
   };
+  const getAccessoriesTotal = (it: CartItemData): number =>
+    (it.accessories ?? []).reduce((sum, accessory) =>
+      sum + (Number(accessory.unitPrice ?? 0) * Number(accessory.qty ?? 0) * Number(it.qty ?? 1)), 0);
   const totalBase = useMemo(() => sortedItems.reduce((s, it) => {
     const drvT = (it.driverLines && it.driverLines.length > 0)
       ? it.driverLines.reduce((sd, d) => {
@@ -443,7 +446,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
           ? it.priceWithoutDriver
           : Math.max(0, (it.totalPrice ?? 0) - drvT))
       : (it.totalPrice ?? 0);
-    return s + _applyItemMgnPreview(lumT + drvT, it);
+    return s + _applyItemMgnPreview(lumT + drvT + getAccessoriesTotal(it), it);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, 0), [sortedItems]);
 
@@ -482,23 +485,23 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
           ? it.priceWithoutDriver
           : Math.max(0, (it.totalPrice ?? 0) - drvT))
       : (it.totalPrice ?? 0);
-    return lumT + drvT;
+    return lumT + drvT + getAccessoriesTotal(it);
   };
 
   /**
    * Retorna o frete diluído para um item específico (em R$, sobre o totalPrice).
    * Distribui proporcionalmente ao valor total de cada linha.
    */
-  const getFreteItem = (item: { totalPrice: number | null }): number => {
+  const getFreteItem = (item: CartItemData): number => {
     if (freteParaDiluir <= 0 || totalBase <= 0) return 0;
-    const peso = (item.totalPrice ?? 0) / totalBase;
+    const peso = getItemTotalReal(item) / totalBase;
     return freteParaDiluir * peso;
   };
 
   /**
    * Preço unitário ajustado com frete diluído (antes do markup).
    */
-  const unitPriceComFrete = (item: { unitPrice: number | null; totalPrice: number | null; qty: number }): number | null => {
+  const unitPriceComFrete = (item: CartItemData): number | null => {
     if (item.unitPrice === null || item.unitPrice === undefined) return null;
     if (freteParaDiluir <= 0) return item.unitPrice;
     const freteItem = getFreteItem(item);
@@ -508,7 +511,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   /**
    * Preço total ajustado com frete diluído (antes do markup).
    */
-  const totalPriceComFrete = (item: { totalPrice: number | null }): number | null => {
+  const totalPriceComFrete = (item: CartItemData): number | null => {
     if (item.totalPrice === null || item.totalPrice === undefined) return null;
     if (freteParaDiluir <= 0) return item.totalPrice;
     return item.totalPrice + getFreteItem(item);
@@ -982,9 +985,9 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           {["", "", "", "", "", "", ""].map((_, i) => (
                             <td key={i} style={{ ...tdStyle, fontSize: 9 }}></td>
                           ))}
-                          <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold" }}>{acc.qty}</td>
+                          <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold" }}>{acc.qty * (item.qty ?? 1)}</td>
                           <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice) : "-"}</td>
-                          <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice * acc.qty) : "-"}</td>
+                          <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice * acc.qty * (item.qty ?? 1)) : "-"}</td>
                         </tr>
                       ))}
                       {/* Sub-linha de observação do item (quando itemObsShowInExcel=true) */}

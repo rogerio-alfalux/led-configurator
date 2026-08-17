@@ -80,6 +80,24 @@ export function generateOrderSummary(result: CompositionResult): string {
   const productName = result.profileName.toUpperCase();
   const cct = result.cct;
 
+  // SHIFT não tem potência, CCT nem barra próprios para apresentação técnica.
+  // Seus módulos comerciais S01 seguem como subitens vinculados do item pai.
+  if (result.profileName === "SHIFT") {
+    const skuOrder: string[] = [];
+    const skuMap = new Map<string, { length: number; quantity: number }>();
+    for (const item of result.composition) {
+      if (!skuMap.has(item.sku)) {
+        skuOrder.push(item.sku);
+        skuMap.set(item.sku, { length: item.length, quantity: item.quantity });
+      }
+    }
+    return skuOrder.map((sku, index) => {
+      const info = skuMap.get(sku)!;
+      const qtyPrefix = info.quantity > 1 ? `${info.quantity} x ` : "1 x ";
+      return `Item ${index + 1}\n${qtyPrefix}SHIFT ${installLabel} COM ${info.length}MM (${sku})`;
+    }).join("\n\n");
+  }
+
   // Usar nome da barra da API (stripflexName já inclui a CCT); remover CCT do final para não duplicar
   const barTypeBase = result.stripflexName
     ? result.stripflexName.replace(new RegExp(`\\s*${cct}\\s*$`, "i"), "").trim()

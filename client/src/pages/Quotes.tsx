@@ -702,7 +702,7 @@ export default function Quotes() {
 
                         {/* Ações */}
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          {user?.role === "admin" && !(q as any).isAutomaticallyDuplicate && (
+                          {hasPermission(PERMISSIONS.MARCAR_DUPLICADOS_MANUALMENTE) && !(q as any).isAutomaticallyDuplicate && (
                             <Button
                               variant={isManuallyDuplicate(q) ? "secondary" : "outline"}
                               size="sm"
@@ -720,7 +720,7 @@ export default function Quotes() {
                               {isManuallyDuplicate(q) ? "Remover duplicado" : "Marcar duplicado"}
                             </Button>
                           )}
-                          {user?.role === "admin" && (q as any).isAutomaticallyDuplicate && (
+                          {hasPermission(PERMISSIONS.MARCAR_DUPLICADOS_MANUALMENTE) && (q as any).isAutomaticallyDuplicate && (
                             <span className="text-xs text-muted-foreground" title="Duplicidades automáticas já seguem a regra comercial e não podem receber marcação manual.">
                               Duplicidade automática
                             </span>

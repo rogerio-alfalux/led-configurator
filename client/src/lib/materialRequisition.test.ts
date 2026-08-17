@@ -470,4 +470,34 @@ describe("buildMaterialRequisition — luminárias não-perfil", () => {
     expect(fontes[0].qty).toBe(10);
     expect(fontes[0].tipo).toBe("FONTES DE TENSÃO");
   });
+
+  it("deve levar o módulo LED fixo do SHIFT à requisição sem associá-lo a CCT", () => {
+    const items: CartItemData[] = [{
+      category: "Perfis",
+      sku: "LLE-4846",
+      description: "SHIFT Embutir ON/OFF 220Vac 1800mm",
+      qty: 2,
+      profileSegments: [{
+        sku: "LLE-4846.1IN",
+        qty: 1,
+        lengthMm: 1800,
+        barsPerPiece: 1,
+        driverQtyPerPiece: 0,
+        driverModel: "",
+        driverCode: "",
+      }],
+      profileMaterialComponents: [{
+        codigo: "EQ00999",
+        descricao: "MÓDULO LED FIXO SHIFT",
+        qty: 3,
+      }],
+    }];
+
+    const result = buildMaterialRequisition(items, new Map([["EQ00999", "MÓDULO LED FIXO SHIFT"]]));
+    const modulo = result.find(entry => entry.codigo === "EQ00999");
+    expect(modulo).toBeDefined();
+    expect(modulo!.qty).toBe(6);
+    expect(modulo!.tipo).toBe("MÓDULOS LED");
+    expect(modulo!.sourceItems).toEqual([1]);
+  });
 });
