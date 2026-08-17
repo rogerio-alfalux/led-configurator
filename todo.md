@@ -1750,7 +1750,7 @@
 ## Lote 22 — Bugs reportados (26/06/2026)
 
 - [x] BAGEO: não puxa driver e não mostra preço (luminária nem driver) — corrigido: calcPreco prioriza custo×MKP da API; driverQtdPorCorte usa campo da API; D1+D2 mostra 8x por lado (total 16x)
-- [ ] Downlights com preço definido: mostram R$0 no modal de edição e "A consultar" no total
+- [x] Downlights com preço definido: mostram R$0 no modal de edição e "A consultar" no total
 - [x] Preço editado manualmente não aparecia na pré-visualização Excel nem no download Excel (itens com driverLines)
 - [x] Carrinho: total de drivers não era multiplicado pela quantidade — corrigido: Cart.tsx, QuoteDetail.tsx e quoteExcelGenerator.ts agora incluem driverLines no total
 - [ ] Perfis: driver não separado no orçamento Excel (linha de driver sem destaque)

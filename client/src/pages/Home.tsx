@@ -45,6 +45,7 @@ import { DriverPriceEditor } from "@/components/DriverPriceEditor";
 import { generateQuoteSummary } from "@/lib/quoteSummary";
 // import { calculateTotalPrice } from "@/lib/priceCatalog"; // Oculto temporariamente
 import { getStaticPricePerMeter, calcModulePrice, usesModulePricing, toModuleControlType } from "@/lib/profilePriceCatalog";
+import { resolveDriverSplitCartPricing } from "@/lib/driverSplitPricing";
 import { getProfilePhoto, getDownlightPhoto, getPainelPhoto } from "@/lib/profilePhotos";
 import {
   DOWNLIGHT_CATALOG,
@@ -11682,6 +11683,13 @@ export default function Home() {
                           // Usar resolveDownlightPhoto (API primeiro) em vez de getDownlightPhoto (estático)
                           const dlPhoto = resolveDownlightPhoto(dlFamilia, dlResult.product.name);
                           const dlDrvLines = buildLumDriverLines(dlResult.product.sku ?? "", dlResult.controle, dlResult.tensao, 1, dlResult.driver.model, dlResult.driver.code, lumPriceMap, dlResult.product.name ?? undefined, dlResult.driver.corrente ?? null);
+                          const dlCommercialPrice = resolveDriverSplitCartPricing({
+                            fallbackUnitPrice: preco,
+                            unitPriceLuminaria: dlDrvLines?.unitPriceLuminaria,
+                            priceWithoutDriver: dlDrvLines?.priceWithoutDriver,
+                            quantity: 1,
+                            hasDriverLines: (dlDrvLines?.driverLines.length ?? 0) > 0,
+                          });
                           const item: CartItemData = {
                             category: "Downlights",
                             sku: dlResult.product.sku ?? "",
@@ -11689,9 +11697,9 @@ export default function Home() {
                             power: "",
                             cct: dlResult.cct,
                             qty: 1,
-                            unitPrice: preco ?? null,
-                            totalPrice: preco ?? null,
-                            priceFromApi: preco != null,
+                            unitPrice: dlCommercialPrice.unitPrice,
+                            totalPrice: dlCommercialPrice.totalPrice,
+                            priceFromApi: dlCommercialPrice.priceFromApi,
                             photoUrl: dlPhoto ?? "",
                              orderSummary: (() => { const modEqSuffix = dlResult.ledModuleEq ? ` (${dlResult.ledModuleEq})` : ""; const modName = dlResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") || dlResult.ledModuleWithCCT.toUpperCase().startsWith("ÉDULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`; const parts: string[] = [`${modName}${modEqSuffix}`]; if (dlResult.product.oticaPrimaria) { const oEq1 = dlResult.oticaPrimariaEq ? ` (${dlResult.oticaPrimariaEq})` : ""; parts.push(`${dlResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (dlResult.product.oticaSecundaria) { const oEq2 = dlResult.oticaSecundariaEq ? ` (${dlResult.oticaSecundariaEq})` : ""; parts.push(`${dlResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (dlResult.product.otica) { const oEq = dlResult.oticaEq ? ` (${dlResult.oticaEq})` : ""; parts.push(`${dlResult.product.otica.toUpperCase()}${oEq}`); } if (dlResult.product.holder) { const hEq = dlResult.holderEq ? ` (${dlResult.holderEq})` : ""; parts.push(`${dlResult.product.holder.toUpperCase()}${hEq}`); } if (dlResult.product.dissipador) { const dEq = dlResult.dissipadorEq ? ` (${dlResult.dissipadorEq})` : ""; parts.push(`${dlResult.product.dissipador.toUpperCase()}${dEq}`); } const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); parts.push(`${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`); return (`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.controle.toUpperCase()} ${dlResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim(); })(),
                             quoteSummary: `${dlResult.product.name} ${dlResult.cct} ${dlResult.controle} ${dlResult.tensao}`.toUpperCase(),
