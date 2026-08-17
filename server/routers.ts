@@ -22,6 +22,8 @@ import {
   getManagerDashboard, getSellerDashboard, getSalesGoalsByYear, upsertSalesGoal, getMonthlyBillingsByYear, upsertMonthlyBilling,
   getMonthlyReport,
   getQuoteAutomaticDuplicateState,
+  getQuoteMetricVisibilityPreference,
+  saveQuoteMetricVisibilityPreference,
   duplicateQuote,
   checkDuplicateProject,
   checkDuplicateQuoteNumber,
@@ -275,6 +277,18 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
+  }),
+
+  userPreferences: router({
+    quoteMetricVisibility: protectedProcedure.query(async ({ ctx }) => ({
+      visibility: await getQuoteMetricVisibilityPreference(ctx.user.id),
+    })),
+    saveQuoteMetricVisibility: protectedProcedure
+      .input(z.object({ visibility: z.record(z.string(), z.boolean()) }))
+      .mutation(async ({ ctx, input }) => {
+        await saveQuoteMetricVisibilityPreference(ctx.user.id, input.visibility);
+        return { success: true };
+      }),
   }),
 
   // Solicitações enviadas por LD Convidado não criam orçamento comercial até a revisão administrativa.

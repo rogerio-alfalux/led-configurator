@@ -16,6 +16,7 @@ import {
   guestQuoteRequests,
   guestQuoteRequestAttachments,
   ldGuestContactProfiles,
+  userDashboardPreferences,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { fetchAllAlfaluxProducts, fetchComponentes, fetchAcessoriosProducts } from './alfaluxApiService';
@@ -129,6 +130,33 @@ export async function getUserByOpenId(openId: string) {
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
 
   return result.length > 0 ? result[0] : undefined;
+}
+
+/** Preferência persistente das caixas de indicadores de Meus Orçamentos. */
+export async function getQuoteMetricVisibilityPreference(userId: number): Promise<Record<string, boolean> | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const preference = (await db.select().from(userDashboardPreferences)
+    .where(eq(userDashboardPreferences.userId, userId)).limit(1))[0];
+  if (!preference?.quoteMetricVisibility) return null;
+  try {
+    const parsed = JSON.parse(preference.quoteMetricVisibility);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveQuoteMetricVisibilityPreference(userId: number, visibility: Record<string, boolean>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const visibilityJson = JSON.stringify(visibility);
+  await db.insert(userDashboardPreferences).values({
+    userId,
+    quoteMetricVisibility: visibilityJson,
+  }).onDuplicateKeyUpdate({
+    set: { quoteMetricVisibility: visibilityJson },
+  });
 }
 
 // TODO: add feature queries here as your schema grows.

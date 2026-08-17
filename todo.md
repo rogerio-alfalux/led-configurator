@@ -2755,6 +2755,12 @@
 - [x] Manter por padrão as oito caixas atuais visíveis e a nova caixa de duplicados oculta
 - [x] Persistir a preferência de caixas no navegador do usuário
 
+## Preferências de indicadores por usuário
+- [x] Persistir a seleção de caixas de Meus Orçamentos no perfil autenticado do usuário
+- [x] Restaurar a seleção após navegar para outra página e retornar
+- [x] Restaurar a seleção após logoff e novo login
+- [x] Cobrir a leitura e a gravação das preferências por usuário
+
 ## Regressão: indicadores gerais e duplicidade manual
 - [x] Incluir duplicidade manual no cálculo consolidado de Valor sem duplicados
 - [x] Atualizar os indicadores gerais imediatamente após marcar ou desmarcar duplicidade manual

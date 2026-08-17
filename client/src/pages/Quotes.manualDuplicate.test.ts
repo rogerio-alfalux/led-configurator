@@ -23,5 +23,7 @@ describe("duplicidade manual de orçamentos", () => {
     expect(source).toContain('label: "Valor dos Duplicados"');
     expect(source).toContain("Personalizar caixas");
     expect(source).toContain("localStorage.setItem(QUOTE_METRIC_PREFERENCES_KEY");
+    expect(source).toContain("userPreferences.quoteMetricVisibility");
+    expect(source).toContain("saveQuoteMetricVisibility");
   });
 });

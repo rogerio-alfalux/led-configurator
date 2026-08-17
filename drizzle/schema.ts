@@ -267,6 +267,17 @@ export const users = mysqlTable("users", {
 	index("users_openId_unique").on(table.openId),
 ]);
 
+/** Preferências de interface que devem acompanhar o usuário entre sessões. */
+export const userDashboardPreferences = mysqlTable("user_dashboard_preferences", {
+	id: int().autoincrement().notNull(),
+	userId: int().notNull(),
+	quoteMetricVisibility: text(),
+	createdAt: timestamp({ mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+	unique("user_dashboard_preferences_user_unique").on(table.userId),
+]);
+
 // ─── Convites de Usuário ──────────────────────────────────────────────────────
 export const invites = mysqlTable("invites", {
 	id: int().autoincrement().notNull(),

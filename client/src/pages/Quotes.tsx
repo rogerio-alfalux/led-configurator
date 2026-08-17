@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Link } from "wouter";
 import {
   Search, Plus, ClipboardList, CheckCircle, XCircle, Clock,
@@ -70,6 +70,15 @@ export default function Quotes() {
       return DEFAULT_VISIBLE_METRICS;
     }
   });
+  const quoteMetricPreferencesQuery = trpc.userPreferences.quoteMetricVisibility.useQuery(undefined, { enabled: Boolean(user) });
+  const saveQuoteMetricPreferencesMutation = trpc.userPreferences.saveQuoteMetricVisibility.useMutation({
+    onError: () => toast.error("Não foi possível salvar suas preferências de indicadores."),
+  });
+  useEffect(() => {
+    if (quoteMetricPreferencesQuery.data?.visibility) {
+      setVisibleMetrics(previous => ({ ...previous, ...quoteMetricPreferencesQuery.data.visibility }));
+    }
+  }, [quoteMetricPreferencesQuery.data?.visibility]);
   const limit = 20;
 
   const ldRequestsQuery = trpc.ldRequests.adminList.useQuery(undefined, { enabled: user?.role === "admin", staleTime: 0 });
@@ -152,6 +161,7 @@ export default function Quotes() {
     setVisibleMetrics(previous => {
       const next = { ...previous, [id]: visible };
       window.localStorage.setItem(QUOTE_METRIC_PREFERENCES_KEY, JSON.stringify(next));
+      saveQuoteMetricPreferencesMutation.mutate({ visibility: next });
       return next;
     });
   };
