@@ -2821,3 +2821,9 @@
 - [x] Aplicar o preço individual retornado pela API a cada módulo SHIFT no carrinho
 - [x] Permitir preencher manualmente o preço de módulo SHIFT sem preço API, respeitando as permissões de preço
 - [x] Propagar o preço efetivo dos módulos SHIFT aos totais e documentos e cobrir por regressão
+
+## Módulos SHIFT: edição em orçamento e apresentação documental
+- [x] Permitir editar e salvar o preço individual de módulos SHIFT em orçamentos já existentes
+- [x] Recalcular os totais do orçamento com os preços alterados dos subitens SHIFT
+- [x] Exibir módulos SHIFT na prévia, PDF e Excel como subitens compactos, sem ocupar coluna adicional
+- [x] Cobrir a edição e a apresentação documental por regressão

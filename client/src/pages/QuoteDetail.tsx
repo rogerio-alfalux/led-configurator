@@ -133,6 +133,7 @@ import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@shared/permissions";
 import { applyCCTChange, applyUnitPriceChange, applyQtyChange } from "@/lib/cctUtils";
+import { calculateLinkedAccessoriesTotal, parseShiftModuleManualPrice } from "@/lib/shiftModulePrices";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   open: { label: "Em Aberto", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: <Clock className="w-3 h-3" /> },
@@ -169,6 +170,8 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
   const [specialUploading, setSpecialUploading] = useState(false);
   const [seqInputVal, setSeqInputVal] = useState<string>("");
   const d = item.parsed;
+  const shiftModules = (d.accessories ?? []).map((accessory, index) => ({ accessory, index }))
+    .filter(({ accessory }) => accessory.familia === "SHIFT MÓDULO");
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -437,7 +440,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
               return unitLum != null ? unitLum * d.qty : (d.totalPrice ?? 0);
             })();
             const drvTotal = d.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
-            const grandTotal = applyItemMarginQD(lumTotal + drvTotal, d.itemMarginPercent);
+            const grandTotal = applyItemMarginQD(lumTotal + drvTotal + calculateLinkedAccessoriesTotal(d), d.itemMarginPercent);
             return grandTotal > 0 ? (
               <>
                 <p className="text-xs text-muted-foreground">Total (lum. + drv.){d.itemMarginPercent != null && d.itemMarginPercent > 0 ? ` +${d.itemMarginPercent}% ind.` : ""}</p>
@@ -450,7 +453,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
             <>
               <p className="text-xs text-muted-foreground">Total{d.itemMarginPercent != null && d.itemMarginPercent > 0 ? ` +${d.itemMarginPercent}% ind.` : ""}</p>
               <p className="font-bold text-primary">
-                {d.totalPrice != null && d.totalPrice > 0 ? formatBRL(applyItemMarginQD(d.totalPrice, d.itemMarginPercent)) : "A consultar"}
+                {d.totalPrice != null && d.totalPrice > 0 ? formatBRL(applyItemMarginQD(d.totalPrice + calculateLinkedAccessoriesTotal(d), d.itemMarginPercent)) : "A consultar"}
               </p>
             </>
           )}
@@ -535,6 +538,51 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
               </div>
             ) : null;
           })()}
+        </div>
+      )}
+
+      {shiftModules.length > 0 && (
+        <div className="pt-2 border-t space-y-1.5">
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-semibold text-cyan-700 dark:text-cyan-300 uppercase tracking-wide">Módulos SHIFT</p>
+            <span className="text-[10px] text-muted-foreground">subitens comerciais</span>
+          </div>
+          {shiftModules.map(({ accessory, index }) => {
+            const canEditModulePrice = accessory.unitPrice == null || canOverrideApiPrice;
+            const totalQty = (accessory.qty ?? 0) * (d.qty ?? 1);
+            return (
+              <div key={`${accessory.codigo}-${index}`} className="flex items-center justify-between gap-2 text-xs bg-cyan-50/70 dark:bg-cyan-950/20 rounded px-2 py-1.5">
+                <div className="flex-1 min-w-0">
+                  <span className="font-mono text-cyan-700 dark:text-cyan-300">{accessory.codigo}</span>
+                  <span className="ml-1 text-foreground/80 truncate">{accessory.descricao}</span>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-muted-foreground">Qtd: <span className="font-medium text-foreground">{totalQty}</span></span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-muted-foreground">Unit:</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      defaultValue={accessory.unitPrice != null ? accessory.unitPrice.toFixed(2).replace(".", ",") : ""}
+                      readOnly={!canEditModulePrice}
+                      placeholder={canEditModulePrice ? "0,00" : "Preço API"}
+                      className={`h-6 w-20 rounded border px-1.5 text-xs text-foreground focus:outline-none focus:ring-1 ${canEditModulePrice ? "border-cyan-500/60 bg-background focus:ring-cyan-500" : "border-border bg-muted text-muted-foreground cursor-not-allowed"}`}
+                      onBlur={(event) => {
+                        if (!canEditModulePrice) return;
+                        const newUnitPrice = parseShiftModuleManualPrice(event.target.value);
+                        if (newUnitPrice === accessory.unitPrice) return;
+                        const accessories = (d.accessories ?? []).map((current, currentIndex) =>
+                          currentIndex === index ? { ...current, unitPrice: newUnitPrice } : current,
+                        );
+                        onUpdate(item.id, { accessories });
+                      }}
+                    />
+                  </div>
+                  <span className="font-semibold text-primary">{accessory.unitPrice != null && accessory.unitPrice > 0 ? formatBRL(accessory.unitPrice * totalQty) : "—"}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -2858,7 +2906,7 @@ export default function QuoteDetail() {
                       } else {
                         itemBase = p.totalPrice ?? 0;
                       }
-                      return s + applyItemMarginQD(itemBase, p.itemMarginPercent);
+                      return s + applyItemMarginQD(itemBase + calculateLinkedAccessoriesTotal(p), p.itemMarginPercent);
                     }, 0))}
                   </span>
                 </div>
@@ -2886,9 +2934,9 @@ export default function QuoteDetail() {
                             return unitLum != null ? unitLum * (p.qty ?? 1) : (p.totalPrice ?? 0);
                           })();
                           const drvT = p.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0);
-                          return s + applyItemMarginQD(lumT + drvT, p.itemMarginPercent);
+                          return s + applyItemMarginQD(lumT + drvT + calculateLinkedAccessoriesTotal(p), p.itemMarginPercent);
                         }
-                        return s + applyItemMarginQD(p.totalPrice ?? 0, p.itemMarginPercent);
+                        return s + applyItemMarginQD((p.totalPrice ?? 0) + calculateLinkedAccessoriesTotal(p), p.itemMarginPercent);
                       }, 0);
                       const rtPct = quote.rtPercent ? parseFloat(String(quote.rtPercent)) : 0;
                       const marginPct = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;

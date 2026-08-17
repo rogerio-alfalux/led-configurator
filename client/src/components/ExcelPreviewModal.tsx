@@ -982,7 +982,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                             <div style={{ fontFamily: "monospace", fontSize: 9, color: "#888" }}>{acc.codigo}</div>
                             <div>↳ Acessório: {acc.descricao}</div>
                           </td>
-                          {["", "", "", "", "", "", ""].map((_, i) => (
+                          {["", "", "", "", "", ""].map((_, i) => (
                             <td key={i} style={{ ...tdStyle, fontSize: 9 }}></td>
                           ))}
                           <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold" }}>{acc.qty * (item.qty ?? 1)}</td>

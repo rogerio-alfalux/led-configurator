@@ -1054,11 +1054,18 @@ async function _generateExcelBuffer(
         }
         const dCell = ws.getCell(`D${accRowNum}`);
         if (!freshAccUrl) {
-          dCell.value = `↳ Acessório: ${acc.descricao}`;
-          dCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: ACC_COLOR } };
-          dCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
-          dCell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
-          dCell.border = accBorder;
+          // SHIFT já é identificado integralmente na coluna MODELO (E). Não
+          // repetir sua descrição na coluna FOTO (D), o que criava uma coluna
+          // visual adicional apenas para esses subitens.
+          if (acc.familia === "SHIFT MÓDULO") {
+            fillAcc(dCell, "");
+          } else {
+            dCell.value = `↳ Acessório: ${acc.descricao}`;
+            dCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: ACC_COLOR } };
+            dCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
+            dCell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+            dCell.border = accBorder;
+          }
         } else {
           dCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
           dCell.border = accBorder;
