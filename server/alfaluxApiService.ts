@@ -230,12 +230,17 @@ export async function fetchAllAlfaluxProducts(): Promise<AlfaluxProduct[]> {
   const url = `${ALFALUX_BASE}/api/products/all`;
   const res = await fetch(url, {
     headers: { Accept: "application/json" },
-    signal: AbortSignal.timeout(30_000),
+    // O catálogo central é volumoso e, em conexões mais lentas, 30s o
+    // encerravam antes de chegarem os módulos SHIFT e os Customizados.
+    signal: AbortSignal.timeout(120_000),
   });
   if (!res.ok) throw new Error(`Alfalux API error: ${res.status}`);
 
   const body = await res.json() as ApiResponse;
   const all = body.products ?? [];
+  // As três etapas de enriquecimento usam a mesma origem. Compartilhar a
+  // requisição impede três esperas consecutivas pela API de componentes.
+  const componentesPromise = fetchComponentes();
 
   // Reportar SKUs duplicados (sem removê-los) para diagnóstico
   const skuCount = new Map<string, number>();
@@ -248,7 +253,7 @@ export async function fetchAllAlfaluxProducts(): Promise<AlfaluxProduct[]> {
 
   // Enriquecer produtos com código EQ do módulo via lookup em /api/componentes/all
   try {
-    const { items: componentes } = await fetchComponentes();
+    const { items: componentes } = await componentesPromise;
     // Construir mapa descricao.toUpperCase() -> codigo
     const eqMap = new Map<string, string>();
     for (const c of componentes) {
@@ -285,7 +290,7 @@ export async function fetchAllAlfaluxProducts(): Promise<AlfaluxProduct[]> {
 
   // Enriquecer ótica, dissipador e holder com código EQ via lookup em /api/componentes/all
   try {
-    const { items: componentes } = await fetchComponentes();
+    const { items: componentes } = await componentesPromise;
     const allEqMap = new Map<string, string>();
     for (const c of componentes) {
       if (c.codigo && c.descricao) {
@@ -307,7 +312,7 @@ export async function fetchAllAlfaluxProducts(): Promise<AlfaluxProduct[]> {
 
   // Enriquecer drivers com campo corrente e custoDriver (quando null no produto) via lookup em /api/componentes/all
   try {
-    const { items: componentes } = await fetchComponentes();
+    const { items: componentes } = await componentesPromise;
     // Construir mapa codigo.toUpperCase() -> { corrente, custoDriver, mkpPadrao, precoVenda }
     const driverCompMap = new Map<string, { corrente: string | null; custoDriver: number | null; mkpPadrao: number | null; precoVenda: number | null }>();
     for (const c of componentes) {

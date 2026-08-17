@@ -2811,3 +2811,8 @@
 - [x] Corrigir a persistência da edição de nome de usuário no cadastro e na listagem administrativa
 - [x] Adicionar a permissão individual para marcar orçamentos como duplicados manualmente
 - [x] Aplicar a autorização de duplicidade manual também no servidor e cobrir por regressão
+
+## Regressão: módulos SHIFT e produtos Customizados
+- [x] Corrigir a lista vazia de módulos no seletor SHIFT, preservando a origem exclusiva na API
+- [x] Restaurar o reconhecimento de produtos Customizados como disponíveis
+- [x] Cobrir as duas correções por regressão
