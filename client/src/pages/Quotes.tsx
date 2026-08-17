@@ -15,7 +15,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getLoginUrl } from "@/const";
 import { formatBRL } from "@/lib/cartTypes";
-import { getStoredCustomerTotal } from "@/lib/quoteTotals";
+import { getDisplayedCustomerTotal } from "@/lib/quoteTotals";
 import { toBrasiliaDate, toBrasiliaFileDate, toBrasiliaMonthYear } from "@/lib/dateUtils";
 import { generateFilteredQuotesExcel } from "@/lib/quotesExcelGenerator";
 import { PERMISSIONS } from "@shared/permissions";
@@ -114,9 +114,8 @@ export default function Quotes() {
     const approved = commercialRows.filter(q => q.status === "approved").length;
     const lost = commercialRows.filter(q => q.status === "lost").length;
     const invoiced = commercialRows.filter(q => q.status === "invoiced").length;
-    // totalFinal já é o total que o cliente paga. Não somar impostos,
-    // frete ou diluição novamente neste ponto.
-    const getQuoteValue = (q: typeof rows[0]) => getCommercialQuoteValue(q.status, getStoredCustomerTotal(q));
+    // Reconhece dados legados e usa a mesma regra comercial do detalhe: desconto → frete → DIFAL/FCP.
+    const getQuoteValue = (q: typeof rows[0]) => getCommercialQuoteValue(q.status, getDisplayedCustomerTotal(q));
     const totalValue = commercialRows.reduce((sum, q) => sum + getQuoteValue(q), 0);
     const seenDuplicateGroups = new Set<string>();
     const withoutDuplicates = commercialRows.filter((q: any) => {
@@ -262,9 +261,8 @@ export default function Quotes() {
           freteCity: quote.freteCity,
           freteType: quote.freteType,
           totalAmount: quote.totalAmount,
-          // Referência única para a exportação: total que o cliente efetivamente paga,
-          // já com frete, DIFAL/FCP e demais acréscimos persistidos no orçamento.
-          totalFinal: getStoredCustomerTotal(quote),
+          // Referência única para a exportação: total final comercial, inclusive para registros legados.
+          totalFinal: getDisplayedCustomerTotal(quote),
           isProspecting: quote.isProspecting,
           isDuplicate: quote.isDuplicate,
           ldRequestNumber: ldRequest?.requestNumber,
@@ -591,8 +589,8 @@ export default function Quotes() {
 
                         {/* Valor e data */}
                         <div className="text-right flex-shrink-0">
-                          {getStoredCustomerTotal(q) > 0 ? (
-                            <p className="font-bold text-primary">{formatBRL(getStoredCustomerTotal(q))}</p>
+                          {getDisplayedCustomerTotal(q) > 0 ? (
+                            <p className="font-bold text-primary">{formatBRL(getDisplayedCustomerTotal(q))}</p>
                           ) : (
                             <p className="text-xs text-muted-foreground italic">A consultar</p>
                           )}

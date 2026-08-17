@@ -21,8 +21,8 @@ describe("filtros administrativos de origem LD", () => {
     expect(source).toContain("Exportar Excel");
   });
 
-  it("usa o valor total final persistido como única referência de valor exibido e exportado", () => {
-    expect(source).toContain("totalFinal: getStoredCustomerTotal(quote)");
-    expect(source).toContain("formatBRL(getStoredCustomerTotal(q))");
+  it("recompõe o valor final descontado como referência de valor exibido e exportado", () => {
+    expect(source).toContain("totalFinal: getDisplayedCustomerTotal(quote)");
+    expect(source).toContain("formatBRL(getDisplayedCustomerTotal(q))");
   });
 });

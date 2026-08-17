@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyQuoteDiscount, calculateQuoteTotalWithDiscountAndTax, getStoredCustomerTotal } from './quoteTotals';
+import { applyQuoteDiscount, calculateQuoteTotalWithDiscountAndTax, getDisplayedCustomerTotal, getStoredCustomerTotal } from './quoteTotals';
 
 describe('getStoredCustomerTotal', () => {
   it('uses the persisted customer-paid total without re-adding taxes or dilution', () => {
@@ -28,5 +28,23 @@ describe('getStoredCustomerTotal', () => {
     expect(totals.baseForTax).toBe(1000);
     expect(totals.totalFinal).toBeCloseTo(1111.11, 2);
     expect(totals.taxAmount).toBeCloseTo(111.11, 2);
+  });
+
+  it('recompõe no cartão o total de um orçamento legado com desconto não persistido', () => {
+    const gross = calculateQuoteTotalWithDiscountAndTax({
+      productsBeforeDiscount: 1000,
+      freteValue: 100,
+      difalEnabled: true,
+      combinedTaxRate: 10,
+    }).totalFinal;
+    const displayed = getDisplayedCustomerTotal({
+      totalAmount: 1000,
+      totalFinal: gross,
+      discountPercent: 0.1,
+      freteValue: 100,
+      difalEnabled: true,
+      destState: 'RJ',
+    });
+    expect(displayed).toBeLessThan(gross);
   });
 });

@@ -2717,3 +2717,8 @@
 - [x] Exibir desconto e valor final correto na prévia, PDF e Excel do orçamento
 - [x] Exibir o valor final descontado em Meus Orçamentos e no relatório Excel exportado
 - [x] Cobrir a consistência de desconto, DIFAL/FCP e total final com regressões
+
+## Regressão: cartão de Meus Orçamentos e desconto
+- [x] Calcular o valor final comercial descontado para orçamentos legados no cartão da listagem
+- [x] Exibir no cartão de Meus Orçamentos o mesmo total final apresentado no detalhe
+- [x] Cobrir a exibição do total descontado em cartões com valores persistidos antigos
