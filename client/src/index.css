@@ -264,6 +264,7 @@
   /* Página branca: escalar para caber em A4 portrait */
   [data-quote-pdf-page] {
     box-shadow: none !important;
+    zoom: 1 !important;
     margin: 0 !important;
     padding: 10px 15px !important;
     width: 100% !important;

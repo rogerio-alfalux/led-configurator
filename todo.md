@@ -2695,3 +2695,7 @@
 - [x] Usar o valor total final do detalhe como referência única em Meus Orçamentos
 - [x] Usar o mesmo valor total final na exportação Excel de orçamentos filtrados
 - [x] Cobrir a consistência de frete, DIFAL/FCP e acréscimos no valor total exibido
+
+## Pré-visualização do orçamento em A4
+- [x] Ajustar a proporção visual da pré-visualização para A4 retrato
+- [x] Preservar integralmente o layout e a impressão A4 oficial existentes

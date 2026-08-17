@@ -713,7 +713,8 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
             RASCUNHO
           </div>
 
-          {/* Página branca — largura fixa de 1100px para simular A4 paisagem */}
+          {/* Página base de 1100px escalada em tela para a largura A4 retrato.
+              A impressão continua usando as regras A4 oficiais em index.css. */}
           <div
             data-quote-pdf-page
             ref={previewPageRef}
@@ -721,6 +722,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
               fontFamily: "Calibri, Arial, sans-serif",
               width: 1100,
               minWidth: 1100,
+              zoom: 0.721,
               margin: "0 auto",
               padding: "32px 40px 48px",
               background: "#fff",

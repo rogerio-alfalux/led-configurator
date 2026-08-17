@@ -38,6 +38,13 @@ describe("pipeline visual do PDF oficial e LD", () => {
     expect(previewSource).toContain("document.title = buildFileName()");
   });
 
+  it("mostra em tela a prévia na proporção A4 retrato sem alterar a escala da impressão", () => {
+    expect(previewSource).toContain("zoom: 0.721");
+    const printSource = readFileSync(resolve(process.cwd(), "client/src/index.css"), "utf8");
+    expect(printSource).toContain("zoom: 1 !important");
+    expect(printSource).toContain("size: A4 portrait");
+  });
+
   it("usa autoPrint no Cart para disparar impressão automática", () => {
     expect(cartSource).toContain("autoPrint");
     expect(cartSource).toContain("setPdfPrintOpen(true)");
