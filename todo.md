@@ -2771,6 +2771,11 @@
 - [x] Aplicar os mesmos filtros comerciais ao card Total e ao contador do botão de exportação
 - [x] Cobrir a igualdade das contagens em regressão
 
+## Regressão: filtro mensal de Meus Orçamentos
+- [x] Corrigir a comparação de datas do intervalo mensal no fuso de Brasília
+- [x] Garantir que o período selecionado inclua o último dia do mês
+- [x] Cobrir a filtragem de agosto e de outros meses com regressão
+
 ## Regressão: indicadores gerais e duplicidade manual
 - [x] Incluir duplicidade manual no cálculo consolidado de Valor sem duplicados
 - [x] Atualizar os indicadores gerais imediatamente após marcar ou desmarcar duplicidade manual

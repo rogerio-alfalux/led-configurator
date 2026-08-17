@@ -82,14 +82,12 @@ export default function Quotes() {
   const limit = 20;
 
   const ldRequestsQuery = trpc.ldRequests.adminList.useQuery(undefined, { enabled: user?.role === "admin", staleTime: 0 });
-  const clientFilterActive = duplicateFilter !== "all" || prospectingFilter !== "all" || ldOriginFilter !== "all" || ldResponseFilter !== "all";
+  const clientFilterActive = duplicateFilter !== "all" || prospectingFilter !== "all" || ldOriginFilter !== "all" || ldResponseFilter !== "all" || Boolean(dateFrom) || Boolean(dateTo);
   const { data, isLoading } = trpc.quotes.list.useQuery({
     search: search || undefined,
     status: status !== "all" ? (status as "open" | "approved" | "lost" | "cancelled" | "invoiced") : undefined,
     seller1Id: sellerFilter !== "all" ? Number(sellerFilter) : undefined,
     assistantId: assistantFilter !== "all" ? Number(assistantFilter) : undefined,
-    dateFrom: dateFrom || undefined,
-    dateTo: dateTo || undefined,
     limit: clientFilterActive ? 10000 : limit,
     offset: clientFilterActive ? 0 : page * limit,
   });
@@ -102,8 +100,6 @@ export default function Quotes() {
     status: status !== "all" ? (status as "open" | "approved" | "lost" | "cancelled" | "invoiced") : undefined,
     seller1Id: sellerFilter !== "all" ? Number(sellerFilter) : undefined,
     assistantId: assistantFilter !== "all" ? Number(assistantFilter) : undefined,
-    dateFrom: dateFrom || undefined,
-    dateTo: dateTo || undefined,
     limit: 10000,
     offset: 0,
   });
@@ -166,9 +162,19 @@ export default function Quotes() {
     });
   };
 
+  const isWithinSelectedDateRange = (quote: any) => {
+    const createdAt = String(quote.createdAt ?? "");
+    const createdDate = /^\d{4}-\d{2}-\d{2}/.test(createdAt)
+      ? createdAt.slice(0, 10)
+      : toBrasiliaFileDate(createdAt);
+    if (dateFrom && createdDate < dateFrom) return false;
+    if (dateTo && createdDate > dateTo) return false;
+    return true;
+  };
+
   // Estatísticas refletem os filtros ativos
   const stats = useMemo(() => {
-    const rows = filteredAllData?.rows ?? [];
+    const rows = (filteredAllData?.rows ?? []).filter(isWithinSelectedDateRange);
     // Total representa exatamente o mesmo conjunto filtrado que pode ser exportado.
     const total = rows.length;
     // Amostras e manutenções não são receita comercial: mantêm o registro e o custo,
@@ -199,7 +205,7 @@ export default function Quotes() {
       duplicateValue: Math.max(0, totalValue - realValue),
       duplicateCount, prospectingValue, approvedValue, invoicedValue,
     };
-  }, [filteredAllData, canSeeCommission, manualDuplicateOverrides]);
+  }, [filteredAllData, canSeeCommission, manualDuplicateOverrides, dateFrom, dateTo]);
 
   const hasFilters = status !== "all" || sellerFilter !== "all" || assistantFilter !== "all" || duplicateFilter !== "all" || prospectingFilter !== "all" || ldOriginFilter !== "all" || ldResponseFilter !== "all" || search.trim() !== "" || dateFrom !== "" || dateTo !== "" || datePreset !== "all";
 
@@ -267,6 +273,7 @@ export default function Quotes() {
   }
 
   const matchesClientFilters = (quote: any) => {
+    if (!isWithinSelectedDateRange(quote)) return false;
     const duplicate = isManuallyDuplicate(quote) || quote.isDuplicate;
     if (duplicateFilter === "duplicates" && !duplicate) return false;
     if (duplicateFilter === "unique" && duplicate) return false;
