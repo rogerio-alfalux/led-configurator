@@ -961,6 +961,19 @@ export async function listQuotes(opts: {
   return { rows: enrichedRows, total: Number(countResult[0]?.count ?? 0) };
 }
 
+/** Informa se o orçamento já pertence a uma duplicidade detectada automaticamente. */
+export async function getQuoteAutomaticDuplicateState(id: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const target = (await db.select({ id: quotes.id, projectName: quotes.projectName, totalFinal: quotes.totalFinal })
+    .from(quotes).where(eq(quotes.id, id)).limit(1))[0];
+  if (!target) return false;
+  const candidates = await db.select({ id: quotes.id, projectName: quotes.projectName, totalFinal: quotes.totalFinal }).from(quotes);
+  const sizes = getDuplicateQuoteGroupSizes(candidates);
+  const key = getDuplicateQuoteKey(target.projectName, target.totalFinal);
+  return Boolean(key && (sizes.get(key) ?? 0) > 1);
+}
+
 /** Busca um orçamento completo com todas as versões e itens */
 export async function getQuoteById(id: number) {
   const db = await getDb();

@@ -6,5 +6,6 @@ describe("procedure administrativa de duplicidade manual", () => {
     const source = await readFile(new URL("./routers.ts", import.meta.url), "utf8");
     expect(source).toContain("setManualDuplicate: adminProcedure");
     expect(source).toContain("isManuallyDuplicate: input.isManuallyDuplicate");
+    expect(source).toContain("getQuoteAutomaticDuplicateState(input.id)");
   });
 });

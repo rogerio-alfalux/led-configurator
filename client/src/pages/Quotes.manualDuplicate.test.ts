@@ -8,12 +8,20 @@ describe("duplicidade manual de orçamentos", () => {
     expect(source).toContain("if (isManuallyDuplicate(q)) return false;");
     expect(source).toContain("manualDuplicateOverrides");
     expect(source).toContain("await utils.quotes.list.refetch()");
-    expect(source).toContain("Marcar duplicado");
+    expect(source).toContain("isAutomaticallyDuplicate");
   });
 
   it("oferece o controle no cabeçalho do orçamento", async () => {
     const source = await readFile(new URL("./QuoteDetail.tsx", import.meta.url), "utf8");
     expect(source).toContain("Duplicado manual");
     expect(source).toContain("setManualDuplicateMutation");
+  });
+
+  it("oferece caixas configuráveis e mantém a nova caixa de duplicados oculta por padrão", async () => {
+    const source = await readFile(new URL("./Quotes.tsx", import.meta.url), "utf8");
+    expect(source).toContain("duplicateValue: false");
+    expect(source).toContain('label: "Valor dos Duplicados"');
+    expect(source).toContain("Personalizar caixas");
+    expect(source).toContain("localStorage.setItem(QUOTE_METRIC_PREFERENCES_KEY");
   });
 });

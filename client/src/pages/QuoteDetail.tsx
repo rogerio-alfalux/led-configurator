@@ -887,6 +887,10 @@ export default function QuoteDetail() {
     },
     onError: (error) => toast.error(error.message),
   });
+  const duplicateStateQuery = trpc.quotes.duplicateState.useQuery(
+    { id: Number(id) },
+    { enabled: Number.isFinite(Number(id)) },
+  );
   const [showAllVersions, setShowAllVersions] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<string>("");
@@ -2194,7 +2198,7 @@ export default function QuoteDetail() {
             {st.icon}
             {st.label}
           </span>
-          {user?.role === "admin" && (
+          {user?.role === "admin" && !duplicateStateQuery.data?.isAutomaticallyDuplicate && (
             <Button
               variant={(quote as any).isManuallyDuplicate ? "secondary" : "outline"}
               size="sm"
@@ -2211,6 +2215,11 @@ export default function QuoteDetail() {
               <Copy className="w-3.5 h-3.5" />
               {(quote as any).isManuallyDuplicate ? "Duplicado manual" : "Marcar duplicado"}
             </Button>
+          )}
+          {user?.role === "admin" && duplicateStateQuery.data?.isAutomaticallyDuplicate && (
+            <span className="text-xs text-muted-foreground" title="Duplicidades automáticas já seguem a regra comercial e não podem receber marcação manual.">
+              Duplicidade automática
+            </span>
           )}
           <h1 className="text-lg font-semibold font-mono text-primary">{quote.quoteNumber}</h1>
         </div>

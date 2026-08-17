@@ -2747,6 +2747,14 @@
 - [x] Restringir controles e mutação de duplicidade manual exclusivamente a administradores
 - [x] Cobrir a agregação financeira e a autorização administrativa
 
+## Duplicidade automática e personalização de indicadores
+- [x] Bloquear a marcação manual quando o orçamento já for duplicado automaticamente
+- [x] Cobrir o bloqueio da mutação e do botão para duplicidades automáticas
+- [x] Adicionar indicador Valor dos Duplicados como diferença entre Valor listado e Valor sem duplicados
+- [x] Permitir mostrar ou ocultar individualmente as caixas do topo de Meus Orçamentos
+- [x] Manter por padrão as oito caixas atuais visíveis e a nova caixa de duplicados oculta
+- [x] Persistir a preferência de caixas no navegador do usuário
+
 ## Regressão: indicadores gerais e duplicidade manual
 - [x] Incluir duplicidade manual no cálculo consolidado de Valor sem duplicados
 - [x] Atualizar os indicadores gerais imediatamente após marcar ou desmarcar duplicidade manual

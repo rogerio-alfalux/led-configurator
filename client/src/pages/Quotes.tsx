@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   Search, Plus, ClipboardList, CheckCircle, XCircle, Clock,
   TrendingDown, ArrowLeft, BarChart2, ShoppingCart, Eye,
-  Users, UserCheck, Filter, X, Receipt, Download, User, Copy,
+  Users, UserCheck, Filter, X, Receipt, Download, User, Copy, Settings2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,19 @@ const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.
   invoiced: { label: "Faturado", color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300", icon: <Receipt className="w-3 h-3" /> },
 };
 
+const QUOTE_METRIC_PREFERENCES_KEY = "sistema-luna:meus-orcamentos-metricas";
+const DEFAULT_VISIBLE_METRICS: Record<string, boolean> = {
+  total: true,
+  open: true,
+  approved: true,
+  lost: true,
+  invoiced: true,
+  listedValue: true,
+  valueWithoutDuplicates: true,
+  ldProspecting: true,
+  duplicateValue: false,
+};
+
 export default function Quotes() {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
@@ -48,6 +61,15 @@ export default function Quotes() {
   const [page, setPage] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
   const [manualDuplicateOverrides, setManualDuplicateOverrides] = useState<Record<number, boolean>>({});
+  const [visibleMetrics, setVisibleMetrics] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return DEFAULT_VISIBLE_METRICS;
+    try {
+      const stored = window.localStorage.getItem(QUOTE_METRIC_PREFERENCES_KEY);
+      return stored ? { ...DEFAULT_VISIBLE_METRICS, ...JSON.parse(stored) } : DEFAULT_VISIBLE_METRICS;
+    } catch {
+      return DEFAULT_VISIBLE_METRICS;
+    }
+  });
   const limit = 20;
 
   const ldRequestsQuery = trpc.ldRequests.adminList.useQuery(undefined, { enabled: user?.role === "admin", staleTime: 0 });
@@ -126,6 +148,13 @@ export default function Quotes() {
     const override = manualDuplicateOverrides[Number(quote.id)];
     return override ?? Boolean(quote.isManuallyDuplicate);
   };
+  const updateMetricVisibility = (id: string, visible: boolean) => {
+    setVisibleMetrics(previous => {
+      const next = { ...previous, [id]: visible };
+      window.localStorage.setItem(QUOTE_METRIC_PREFERENCES_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
 
   // Estatísticas refletem os filtros ativos
   const stats = useMemo(() => {
@@ -154,7 +183,11 @@ export default function Quotes() {
     const prospectingValue = rows.filter((q: any) => q.isProspecting).reduce((sum, q) => sum + getQuoteValue(q), 0);
     const approvedValue = commercialRows.filter(q => q.status === "approved").reduce((sum, q) => sum + getQuoteValue(q), 0);
     const invoicedValue = commercialRows.filter(q => q.status === "invoiced").reduce((sum, q) => sum + getQuoteValue(q), 0);
-    return { total, open, approved, lost, invoiced, totalValue, realValue, duplicateCount, prospectingValue, approvedValue, invoicedValue };
+    return {
+      total, open, approved, lost, invoiced, totalValue, realValue,
+      duplicateValue: Math.max(0, totalValue - realValue),
+      duplicateCount, prospectingValue, approvedValue, invoicedValue,
+    };
   }, [filteredAllData, canSeeCommission, manualDuplicateOverrides]);
 
   const hasFilters = status !== "all" || sellerFilter !== "all" || assistantFilter !== "all" || duplicateFilter !== "all" || prospectingFilter !== "all" || ldOriginFilter !== "all" || ldResponseFilter !== "all" || search.trim() !== "" || dateFrom !== "" || dateTo !== "" || datePreset !== "all";
@@ -345,26 +378,49 @@ export default function Quotes() {
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-5">
 
         {/* Cards de estatísticas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {[
-            { label: "Total", value: stats.total, color: "text-foreground", icon: <ClipboardList className="w-4 h-4" />, isValue: false },
-            { label: "Em Aberto", value: stats.open, color: "text-blue-600", icon: <Clock className="w-4 h-4 text-blue-500" />, isValue: false },
-            { label: "Aprovados", value: stats.approved, color: "text-green-600", icon: <CheckCircle className="w-4 h-4 text-green-500" />, isValue: false },
-            { label: "Perdidos", value: stats.lost, color: "text-red-600", icon: <TrendingDown className="w-4 h-4 text-red-500" />, isValue: false },
-            { label: "Faturados", value: stats.invoiced, color: "text-purple-600", icon: <Receipt className="w-4 h-4 text-purple-500" />, isValue: false },
-            { label: "Valor listado", value: formatBRL(stats.totalValue), color: "text-primary", icon: <BarChart2 className="w-4 h-4 text-primary" />, isValue: true },
-            { label: "Valor sem duplicados", value: formatBRL(stats.realValue), color: "text-emerald-600", icon: <CheckCircle className="w-4 h-4 text-emerald-500" />, isValue: true },
-            { label: "Prospecções LD", value: formatBRL(stats.prospectingValue), color: "text-indigo-600", icon: <Users className="w-4 h-4 text-indigo-500" />, isValue: true },
-          ].map(s => (
-            <Card key={s.label} className="p-4 min-w-0 min-h-[104px] overflow-visible">
-              <div className="flex items-start gap-2 mb-2 min-w-0 min-h-8">
-                <span className="shrink-0">{s.icon}</span>
-                <span className="text-xs leading-4 text-muted-foreground">{s.label}</span>
+        {(() => {
+          const metricCards = [
+            { id: "total", label: "Total", value: stats.total, color: "text-foreground", icon: <ClipboardList className="w-4 h-4" />, isValue: false },
+            { id: "open", label: "Em Aberto", value: stats.open, color: "text-blue-600", icon: <Clock className="w-4 h-4 text-blue-500" />, isValue: false },
+            { id: "approved", label: "Aprovados", value: stats.approved, color: "text-green-600", icon: <CheckCircle className="w-4 h-4 text-green-500" />, isValue: false },
+            { id: "lost", label: "Perdidos", value: stats.lost, color: "text-red-600", icon: <TrendingDown className="w-4 h-4 text-red-500" />, isValue: false },
+            { id: "invoiced", label: "Faturados", value: stats.invoiced, color: "text-purple-600", icon: <Receipt className="w-4 h-4 text-purple-500" />, isValue: false },
+            { id: "listedValue", label: "Valor listado", value: formatBRL(stats.totalValue), color: "text-primary", icon: <BarChart2 className="w-4 h-4 text-primary" />, isValue: true },
+            { id: "valueWithoutDuplicates", label: "Valor sem duplicados", value: formatBRL(stats.realValue), color: "text-emerald-600", icon: <CheckCircle className="w-4 h-4 text-emerald-500" />, isValue: true },
+            { id: "ldProspecting", label: "Prospecções LD", value: formatBRL(stats.prospectingValue), color: "text-indigo-600", icon: <Users className="w-4 h-4 text-indigo-500" />, isValue: true },
+            { id: "duplicateValue", label: "Valor dos Duplicados", value: formatBRL(stats.duplicateValue), color: "text-orange-600", icon: <Copy className="w-4 h-4 text-orange-500" />, isValue: true },
+          ];
+          return <>
+            <details className="group rounded-md border border-dashed border-border bg-muted/20 px-3 py-2">
+              <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Settings2 className="w-4 h-4" /> Personalizar caixas
+              </summary>
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {metricCards.map(metric => (
+                  <label key={metric.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" checked={visibleMetrics[metric.id] !== false} onChange={event => updateMetricVisibility(metric.id, event.target.checked)} />
+                    {metric.label}
+                  </label>
+                ))}
               </div>
-              <p className={`font-bold tabular-nums ${s.color} ${s.isValue ? "text-base sm:text-lg lg:text-xl leading-tight whitespace-nowrap" : "text-2xl"}`}>{s.value}</p>
-            </Card>
-          ))}
-        </div>
+            </details>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {metricCards.filter(metric => visibleMetrics[metric.id] !== false).map(s => (
+                <Card key={s.id} className="p-4 min-w-0 min-h-[104px] overflow-visible">
+                  <div className="flex items-start gap-2 mb-2 min-w-0 min-h-8">
+                    <span className="shrink-0">{s.icon}</span>
+                    <span className="text-xs leading-4 text-muted-foreground">{s.label}</span>
+                    <label className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground cursor-pointer">
+                      <input type="checkbox" className="h-3 w-3" checked={visibleMetrics[s.id] !== false} onChange={event => updateMetricVisibility(s.id, event.target.checked)} aria-label={`Exibir ${s.label}`} />
+                      Exibir
+                    </label>
+                  </div>
+                  <p className={`font-bold tabular-nums ${s.color} ${s.isValue ? "text-base sm:text-lg lg:text-xl leading-tight whitespace-nowrap" : "text-2xl"}`}>{s.value}</p>
+                </Card>
+              ))}
+            </div>
+          </>;
+        })()}
 
         {/* Filtros */}
         <div className="flex gap-3 flex-wrap items-center">
@@ -628,7 +684,7 @@ export default function Quotes() {
 
                         {/* Ações */}
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          {user?.role === "admin" && (
+                          {user?.role === "admin" && !(q as any).isAutomaticallyDuplicate && (
                             <Button
                               variant={isManuallyDuplicate(q) ? "secondary" : "outline"}
                               size="sm"
@@ -645,6 +701,11 @@ export default function Quotes() {
                               <Copy className="w-4 h-4" />
                               {isManuallyDuplicate(q) ? "Remover duplicado" : "Marcar duplicado"}
                             </Button>
+                          )}
+                          {user?.role === "admin" && (q as any).isAutomaticallyDuplicate && (
+                            <span className="text-xs text-muted-foreground" title="Duplicidades automáticas já seguem a regra comercial e não podem receber marcação manual.">
+                              Duplicidade automática
+                            </span>
                           )}
                           <Link href={`/orcamentos/${q.id}`}>
                             <Button variant="outline" size="sm" className="gap-2">

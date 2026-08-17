@@ -21,6 +21,7 @@ import {
   createFactoryOrderExcel, listFactoryOrderExcels, getSubOrders,
   getManagerDashboard, getSellerDashboard, getSalesGoalsByYear, upsertSalesGoal, getMonthlyBillingsByYear, upsertMonthlyBilling,
   getMonthlyReport,
+  getQuoteAutomaticDuplicateState,
   duplicateQuote,
   checkDuplicateProject,
   checkDuplicateQuoteNumber,
@@ -1140,6 +1141,12 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const result = await getQuoteById(input.id);
         if (!result) throw new TRPCError({ code: 'NOT_FOUND', message: 'Orçamento não encontrado.' });
+        if (input.isManuallyDuplicate && await getQuoteAutomaticDuplicateState(input.id)) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: 'Este orçamento já é duplicado automaticamente e não pode receber marcação manual.',
+          });
+        }
         const db = await getDb();
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
         await db.update(quotes)
@@ -1147,6 +1154,10 @@ export const appRouter = router({
           .where(eq(quotes.id, input.id));
         return { success: true, isManuallyDuplicate: input.isManuallyDuplicate };
       }),
+
+    duplicateState: commercialQuoteProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => ({ isAutomaticallyDuplicate: await getQuoteAutomaticDuplicateState(input.id) })),
 
     getById: commercialQuoteProcedure
       .input(z.object({ id: z.number() }))
