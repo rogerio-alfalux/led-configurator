@@ -15,6 +15,7 @@ import type { CartItemData, QuoteFormData } from "@/lib/cartTypes";
 import { formatBRL } from "@/lib/cartTypes";
 import { getStateInfo } from "@/lib/difalTable";
 import { toBrasiliaDate } from "@/lib/dateUtils";
+import { QUOTE_PREVIEW_COLUMN_COUNT, QUOTE_PREVIEW_SUBITEM_BLANK_COLUMN_COUNT } from "@/lib/quotePreviewLayout";
 
 // ── Helpers (mesmos do gerador Excel) ────────────────────────────────────────
 
@@ -817,7 +818,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                         (sortedItems[idx - 1]?.floorId ?? "").trim().toLowerCase() !== (item.floorId ?? "").trim().toLowerCase()
                       ) && (
                         <tr>
-                          <td colSpan={12} style={{ background: "#1A3A5C", color: WHITE, fontWeight: "bold", fontSize: 12, padding: "4px 8px", border: "2px solid #444" }}>
+                          <td colSpan={QUOTE_PREVIEW_COLUMN_COUNT} style={{ background: "#1A3A5C", color: WHITE, fontWeight: "bold", fontSize: 12, padding: "4px 8px", border: "2px solid #444" }}>
                             {item.floorName || item.floorId}
                           </td>
                         </tr>
@@ -982,7 +983,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                             <div style={{ fontFamily: "monospace", fontSize: 9, color: "#888" }}>{acc.codigo}</div>
                             <div>↳ Acessório: {acc.descricao}</div>
                           </td>
-                          {["", "", "", "", "", ""].map((_, i) => (
+                          {Array.from({ length: QUOTE_PREVIEW_SUBITEM_BLANK_COLUMN_COUNT }, (_, i) => (
                             <td key={i} style={{ ...tdStyle, fontSize: 9 }}></td>
                           ))}
                           <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold" }}>{acc.qty * (item.qty ?? 1)}</td>
@@ -1033,7 +1034,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                             {drv.driverCode && <div style={{ fontFamily: "monospace", fontSize: 9, color: "#888" }}>{drv.driverCode}</div>}
                             <div>↳ Driver: {drv.driverModel}</div>
                           </td>
-                          {["", "", "", "", "", ""].map((_, i) => (
+                          {Array.from({ length: QUOTE_PREVIEW_SUBITEM_BLANK_COLUMN_COUNT }, (_, i) => (
                             <td key={i} style={{ ...tdStyle, fontSize: 9 }}></td>
                           ))}
                           <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold", color: "#E65100" }}>{_effectiveDrvQty}</td>
@@ -1058,7 +1059,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                               <div style={{ fontFamily: "monospace", fontSize: 9, color: "#888" }}>{ldrv.driverCode}</div>
                               <div>↳ Driver: {ldrv.driverModel} — incluído no preço</div>
                             </td>
-                            {["", "", "", "", "", ""].map((_, i) => (
+                            {Array.from({ length: QUOTE_PREVIEW_SUBITEM_BLANK_COLUMN_COUNT }, (_, i) => (
                               <td key={i} style={{ ...tdStyle, fontSize: 9 }}></td>
                             ))}
                             <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold", color: "#E65100" }}>{ldrv.totalQty}</td>
