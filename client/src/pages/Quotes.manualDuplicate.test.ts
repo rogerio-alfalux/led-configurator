@@ -27,4 +27,10 @@ describe("duplicidade manual de orçamentos", () => {
     expect(source).toContain("userPreferences.quoteMetricVisibility");
     expect(source).toContain("saveQuoteMetricVisibility");
   });
+
+  it("usa o mesmo conjunto filtrado para o card Total e para a exportação", async () => {
+    const source = await readFile(new URL("./Quotes.tsx", import.meta.url), "utf8");
+    expect(source).toContain("const total = rows.length;");
+    expect(source).toContain("const exportRows = (filteredAllData?.rows ?? []).filter(matchesClientFilters);");
+  });
 });

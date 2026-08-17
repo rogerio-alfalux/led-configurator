@@ -2766,6 +2766,11 @@
 - [x] Ocultar Prospecções LD por padrão em Meus Orçamentos
 - [x] Preservar preferências de caixas já personalizadas pelos usuários
 
+## Consistência de contagem em Meus Orçamentos
+- [x] Usar o mesmo conjunto de orçamentos para o card Total e para a exportação Excel
+- [x] Aplicar os mesmos filtros comerciais ao card Total e ao contador do botão de exportação
+- [x] Cobrir a igualdade das contagens em regressão
+
 ## Regressão: indicadores gerais e duplicidade manual
 - [x] Incluir duplicidade manual no cálculo consolidado de Valor sem duplicados
 - [x] Atualizar os indicadores gerais imediatamente após marcar ou desmarcar duplicidade manual

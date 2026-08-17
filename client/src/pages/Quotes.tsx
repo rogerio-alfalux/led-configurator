@@ -169,7 +169,8 @@ export default function Quotes() {
   // Estatísticas refletem os filtros ativos
   const stats = useMemo(() => {
     const rows = filteredAllData?.rows ?? [];
-    const total = rows.filter(q => !(q as any).isProspecting && !isNonCommercialQuoteStatus(q.status)).length;
+    // Total representa exatamente o mesmo conjunto filtrado que pode ser exportado.
+    const total = rows.length;
     // Amostras e manutenções não são receita comercial: mantêm o registro e o custo,
     // mas seu valor de venda é zerado nos indicadores gerais.
     const commercialRows = rows.filter(q => !(q as any).isProspecting && !isNonCommercialQuoteStatus(q.status));
