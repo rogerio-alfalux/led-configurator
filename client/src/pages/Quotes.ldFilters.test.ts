@@ -20,4 +20,9 @@ describe("filtros administrativos de origem LD", () => {
     expect(source).toContain("user.role === \"admin\"");
     expect(source).toContain("Exportar Excel");
   });
+
+  it("usa o valor total final persistido como única referência de valor exibido e exportado", () => {
+    expect(source).toContain("totalFinal: getStoredCustomerTotal(quote)");
+    expect(source).toContain("formatBRL(getStoredCustomerTotal(q))");
+  });
 });

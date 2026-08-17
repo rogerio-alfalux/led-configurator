@@ -46,6 +46,7 @@ describe("generateFilteredQuotesExcel", () => {
     expect(sheet?.getCell("A4").value).toBe("04.0366-26");
     expect(sheet?.getCell("B4").value).toBe("RV0");
     expect(sheet?.getCell("M4").value).toBe("A calcular");
+    expect(sheet?.getCell("O3").value).toBe("Valor total final (R$)");
     expect(sheet?.getCell("P4").value).toBe("Solicitação LD");
     expect(sheet?.getCell("Q4").value).toBe("LD-0002-26 — PDF enviado");
     expect(sheet?.getCell("N6").value).toBe(1200);

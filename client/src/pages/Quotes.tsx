@@ -262,7 +262,9 @@ export default function Quotes() {
           freteCity: quote.freteCity,
           freteType: quote.freteType,
           totalAmount: quote.totalAmount,
-          totalFinal: quote.totalFinal,
+          // Referência única para a exportação: total que o cliente efetivamente paga,
+          // já com frete, DIFAL/FCP e demais acréscimos persistidos no orçamento.
+          totalFinal: getStoredCustomerTotal(quote),
           isProspecting: quote.isProspecting,
           isDuplicate: quote.isDuplicate,
           ldRequestNumber: ldRequest?.requestNumber,
@@ -589,10 +591,8 @@ export default function Quotes() {
 
                         {/* Valor e data */}
                         <div className="text-right flex-shrink-0">
-                          {(q.totalFinal && Number(q.totalFinal) > 0) || (q.totalAmount && Number(q.totalAmount) > 0) ? (
-                            <p className="font-bold text-primary">{formatBRL(
-                              getCommercialQuoteValue(q.status, getStoredCustomerTotal(q))
-                            )}</p>
+                          {getStoredCustomerTotal(q) > 0 ? (
+                            <p className="font-bold text-primary">{formatBRL(getStoredCustomerTotal(q))}</p>
                           ) : (
                             <p className="text-xs text-muted-foreground italic">A consultar</p>
                           )}

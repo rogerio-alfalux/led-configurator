@@ -2690,3 +2690,8 @@
 - [x] Adicionar botão de pré-visualização para o LD em solicitações com orçamento disponível
 - [x] Exibir ao LD o mesmo layout oficial utilizado pelo administrador
 - [x] Permitir imprimir ou salvar como PDF pelo diálogo do navegador sem conversão visual
+
+## Padronização do valor total final dos orçamentos
+- [x] Usar o valor total final do detalhe como referência única em Meus Orçamentos
+- [x] Usar o mesmo valor total final na exportação Excel de orçamentos filtrados
+- [x] Cobrir a consistência de frete, DIFAL/FCP e acréscimos no valor total exibido

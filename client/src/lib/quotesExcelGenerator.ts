@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { toBrasiliaDateTime, toBrasiliaFileDate } from "./dateUtils";
+import { getStoredCustomerTotal } from "./quoteTotals";
 
 export interface QuoteExcelExportRow {
   quoteNumber: string;
@@ -107,7 +108,7 @@ export async function generateFilteredQuotesExcel(rows: QuoteExcelExportRow[], f
 
   const headers = [
     "Nº Orçamento", "Revisão", "Status", "Criação", "Atualização", "Cliente", "Contato", "Obra", "Referência",
-    "Vendedor(es)", "Assistente", "Destino", "Tipo de frete", "Valor base (R$)", "Valor final (R$)", "Origem", "Solicitação LD / resposta",
+    "Vendedor(es)", "Assistente", "Destino", "Tipo de frete", "Valor de produtos (R$)", "Valor total final (R$)", "Origem", "Solicitação LD / resposta",
   ];
   const headerRow = sheet.getRow(3);
   headerRow.height = 32;
@@ -143,7 +144,7 @@ export async function generateFilteredQuotesExcel(rows: QuoteExcelExportRow[], f
       destination,
       FRETE[row.freteType ?? ""] ?? "—",
       number(row.totalAmount),
-      number(row.totalFinal),
+      getStoredCustomerTotal(row),
       origin(row) + (row.isDuplicate ? " · Duplicado" : ""),
       ldInfo,
     ];
@@ -164,7 +165,7 @@ export async function generateFilteredQuotesExcel(rows: QuoteExcelExportRow[], f
   const totalRow = sheet.getRow(rows.length + 4);
   totalRow.height = 22;
   const totalBase = rows.reduce((sum, row) => sum + number(row.totalAmount), 0);
-  const totalFinal = rows.reduce((sum, row) => sum + number(row.totalFinal), 0);
+  const totalFinal = rows.reduce((sum, row) => sum + getStoredCustomerTotal(row), 0);
   ["TOTAL", "", "", "", "", "", "", "", "", "", "", "", "", totalBase, totalFinal, "", ""].forEach((value, column) => {
     const cell = totalRow.getCell(column + 1);
     cell.value = value;
@@ -202,7 +203,7 @@ export async function generateFilteredQuotesExcel(rows: QuoteExcelExportRow[], f
   const groups = new Map<string, { count: number; value: number }>();
   rows.forEach(row => {
     const group = groups.get(row.status) ?? { count: 0, value: 0 };
-    groups.set(row.status, { count: group.count + 1, value: group.value + number(row.totalFinal) });
+    groups.set(row.status, { count: group.count + 1, value: group.value + getStoredCustomerTotal(row) });
   });
   Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b)).forEach(([status, group], index) => {
     const row = summary.getRow(index + 3);
