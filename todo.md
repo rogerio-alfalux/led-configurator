@@ -2817,6 +2817,10 @@
 - [x] Restaurar o reconhecimento de produtos Customizados como disponíveis
 - [x] Cobrir as duas correções por regressão
 
+## Regressão: indisponibilidade transitória de Customizados
+- [x] Preservar a última resposta válida da API de Customizados quando uma nova consulta externa falhar
+- [x] Cobrir a resposta de erro sem introduzir catálogo estático local
+
 ## Módulos SHIFT: preço individual
 - [x] Aplicar o preço individual retornado pela API a cada módulo SHIFT no carrinho
 - [x] Permitir preencher manualmente o preço de módulo SHIFT sem preço API, respeitando as permissões de preço

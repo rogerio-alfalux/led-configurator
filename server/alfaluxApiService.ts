@@ -480,6 +480,11 @@ interface CustomizadosCacheEntry {
 
 let customizadosCache: CustomizadosCacheEntry | null = null;
 
+/** Mantém somente dados que já vieram com sucesso da API, nunca catálogo local. */
+export function recoverCustomizadosAfterApiFailure(cache: CustomizadosCacheEntry | null): CustomizadoProduct[] {
+  return cache?.data.length ? cache.data : [];
+}
+
 export async function fetchCustomizadosProducts(): Promise<CustomizadoProduct[]> {
   const now = Date.now();
   if (customizadosCache && now - customizadosCache.fetchedAt < CACHE_TTL_MS) {
@@ -507,7 +512,14 @@ export async function fetchCustomizadosProducts(): Promise<CustomizadoProduct[]>
     return customizados;
   } catch (err) {
     console.warn(`[AlfaluxAPI] Erro ao buscar produtos customizados:`, err instanceof Error ? err.message : err);
-    customizadosCache = { data: [], fetchedAt: now };
+    const lastKnownProducts = recoverCustomizadosAfterApiFailure(customizadosCache);
+    if (lastKnownProducts.length > 0) {
+      // A fonte continua sendo a API: apenas preservamos a última resposta API
+      // válida enquanto o endpoint externo se recupera, sem substituir por dados estáticos.
+      customizadosCache = { data: lastKnownProducts, fetchedAt: now };
+      console.warn(`[AlfaluxAPI] Mantendo ${lastKnownProducts.length} Customizados da última resposta válida da API.`);
+      return lastKnownProducts;
+    }
     return [];
   }
 }
