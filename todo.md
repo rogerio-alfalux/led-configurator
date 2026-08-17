@@ -2740,3 +2740,9 @@
 - [x] Adicionar controle no cabeçalho do orçamento perto do status e do número
 - [x] Adicionar controle de duplicidade em Meus Orçamentos
 - [x] Cobrir autorização, persistência e apresentação da marcação manual
+
+## Regressão: revisão LD e desconto nos Dados Internos
+- [x] Carregar a revisão vigente do orçamento na pré-visualização do LD
+- [x] Evitar que o LD receba itens ou valores da primeira revisão após atualização do orçamento
+- [x] Exibir o desconto aplicado nos Dados Internos do orçamento
+- [x] Cobrir a revisão atual e a exibição de desconto no fluxo LD

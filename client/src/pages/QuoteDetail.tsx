@@ -2294,6 +2294,7 @@ export default function QuoteDetail() {
                 const freteIncluded = (quote as any).freteIncluded ?? false;
                 const freteState = (quote as any).freteState ?? '';
                 const freteCity = (quote as any).freteCity ?? '';
+                const discountPct = Number(quote.discountPercent ?? 0);
 
                 // Monta label do frete — simplificado
                 let freteLabel = '';
@@ -2329,6 +2330,12 @@ export default function QuoteDetail() {
                     {marginPct > 0 && (
                       <p className="text-xs flex items-center gap-1 text-muted-foreground">
                         <span className="font-medium text-foreground">Margem:</span> {(marginPct * 100).toFixed(1)}%
+                      </p>
+                    )}
+                    {discountPct > 0 && (
+                      <p className="text-xs flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-400">
+                        <Percent className="w-3.5 h-3.5" />
+                        Desconto aplicado: {(discountPct * 100).toFixed(1)}%
                       </p>
                     )}
 

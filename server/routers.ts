@@ -428,9 +428,12 @@ export const appRouter = router({
         }
         const quoteData = await getQuoteById(request.adminQuoteId);
         if (!quoteData) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento vinculado não encontrado." });
-        const currentVersion = quoteData.versions.find(version => version.version === quoteData.quote.currentVersion)
-          ?? quoteData.versions.find(version => version.status === "draft")
-          ?? quoteData.versions[0];
+        // O LD deve sempre visualizar a versão mais recente que o administrador salvou.
+        // Ordenamos também aqui para manter a regra estável mesmo quando a origem dos dados
+        // não preservar a ordenação esperada.
+        const currentVersion = [...quoteData.versions]
+          .sort((left, right) => Number(right.version) - Number(left.version)
+            || String(right.createdAt ?? "").localeCompare(String(left.createdAt ?? "")))[0];
         const versionItems = currentVersion
           ? quoteData.items.filter(item => item.quoteVersionId === currentVersion.id)
           : quoteData.items;
@@ -447,6 +450,7 @@ export const appRouter = router({
         return {
           requestId: request.id,
           quote: quoteData.quote,
+          selectedVersion: currentVersion?.version ?? quoteData.quote.currentVersion,
           items: currentItems,
           seller1Contact: quoteData.quote.seller1Id ? sellerContactById.get(quoteData.quote.seller1Id) ?? null : null,
           seller2Contact: quoteData.quote.seller2Id ? sellerContactById.get(quoteData.quote.seller2Id) ?? null : null,

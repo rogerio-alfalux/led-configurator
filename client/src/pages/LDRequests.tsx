@@ -137,7 +137,7 @@ function buildCurrentLdPdfJob(payload: any): LdCurrentPdfJob {
       freteState: quote.freteState ?? undefined,
       freteValue: toNumber(quote.freteValue),
       freteIncluded: Boolean(quote.freteIncluded),
-      revisionCount: Math.max(0, Number(quote.currentVersion ?? 1) - 1),
+      revisionCount: Math.max(0, Number(payload.selectedVersion ?? quote.currentVersion ?? 1) - 1),
       deliveryDays: quote.deliveryDays ?? 20,
       paymentTerm: quote.paymentTerm ?? undefined,
       destState: quote.destState ?? undefined,
