@@ -1276,40 +1276,41 @@ async function _generateExcelBuffer(
   ws.getRow(nextRow).height = 10;
   nextRow++;
 
-  // ── Prazo de fabricação e entrega ────────────────────────────────────────
-  ws.getRow(nextRow).height = 29.4;
+  // ── Desconto aplicado: sempre antes do prazo ─────────────────────────────
+  ws.getRow(nextRow).height = 28;
+  ws.getRow(nextRow).hidden = discountPct <= 0;
   ws.mergeCells(`C${nextRow}:D${nextRow}`);
   {
     const c = ws.getCell(`C${nextRow}`);
-    c.value = "Prazo de fabricação e entrega:";
-    c.font = { name: "Calibri", size: 12, bold: true };
+    c.value = `Desconto aplicado (${(discountPct * 100).toFixed(1)}%):`;
+    c.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FF006600" } };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
   ws.mergeCells(`E${nextRow}:N${nextRow}`);
   {
     const c = ws.getCell(`E${nextRow}`);
-    const prazo = formData.deliveryDays ?? 20;
-    c.value = `${prazo} dias úteis`;
-    c.font = { name: "Calibri", size: 12, bold: true, color: { argb: RED_TXT } };
+    c.value = discountPct > 0 ? -(totalComMargem - totalFinal) : 0;
+    c.numFmt = '"R$"#,##0.00';
+    c.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FF006600" } };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
   nextRow++;
-  // ── Desconto concedido (se showDiscount=true) ──────────────────────────────────────
-  if (formData.showDiscount && discountPct > 0) {
-    ws.getRow(nextRow).height = 28;
+  // ── Prazo de fabricação e entrega ────────────────────────────────────────
+  if (true) {
+    ws.getRow(nextRow).height = 29.4;
     ws.mergeCells(`C${nextRow}:D${nextRow}`);
     {
       const c = ws.getCell(`C${nextRow}`);
-      c.value = `Desconto concedido (${(discountPct * 100).toFixed(1)}%):`;
-      c.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FF006600" } };
+      c.value = "Prazo de fabricação e entrega:";
+      c.font = { name: "Calibri", size: 12, bold: true };
       c.alignment = { horizontal: "left", vertical: "middle" };
     }
     ws.mergeCells(`E${nextRow}:N${nextRow}`);
     {
       const c = ws.getCell(`E${nextRow}`);
-      c.value = -(totalComMargem - totalFinal);
-      c.numFmt = '"R$"#,##0.00';
-      c.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FF006600" } };
+      const prazo = formData.deliveryDays ?? 20;
+      c.value = `${prazo} dias úteis`;
+      c.font = { name: "Calibri", size: 12, bold: true, color: { argb: RED_TXT } };
       c.alignment = { horizontal: "left", vertical: "middle" };
     }
     nextRow++;

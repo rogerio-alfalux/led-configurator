@@ -2727,3 +2727,9 @@
 - [x] Recalcular a receita do Dashboard usando o total final descontado para orçamentos legados
 - [x] Recalcular DIFAL/FCP e deduções do Dashboard sobre a base já descontada
 - [x] Cobrir a receita e o lucro do Dashboard com desconto aplicado
+
+## Documentos: linha destacada de desconto
+- [x] Inserir desconto aplicado em verde acima do prazo na pré-visualização
+- [x] Inserir desconto aplicado em verde acima do prazo no PDF
+- [x] Inserir desconto aplicado em verde acima do prazo no Excel
+- [x] Cobrir a posição e a condição de exibição do desconto nos documentos

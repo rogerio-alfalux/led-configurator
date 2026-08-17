@@ -1074,16 +1074,16 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
             <div style={{ marginTop: 16, fontFamily: "Calibri, Arial, sans-serif", fontSize: 12 }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <tbody>
+                  {discountPct > 0 && (
+                    <tr>
+                      <td style={{ fontWeight: "bold", width: 320, paddingRight: 8, paddingTop: 4, paddingBottom: 4, color: "#006600" }}>Desconto aplicado ({(discountPct * 100).toFixed(1)}%):</td>
+                      <td style={{ fontWeight: "bold", color: "#006600" }}>− {formatBRL(totalComMargem - totalFinal)}</td>
+                    </tr>
+                  )}
                   <tr>
                     <td style={{ fontWeight: "bold", width: 320, paddingRight: 8, paddingTop: 4, paddingBottom: 4 }}>Prazo de fabricação e entrega:</td>
                     <td style={{ color: RED, fontWeight: "bold" }}>{formData.deliveryDays ?? 20} dias úteis</td>
                   </tr>
-                  {formData.showDiscount && discountPct > 0 && (
-                    <tr>
-                      <td style={{ fontWeight: "bold", paddingTop: 8, color: "#006600" }}>Desconto concedido ({(discountPct * 100).toFixed(1)}%):</td>
-                      <td style={{ fontWeight: "bold", color: "#006600" }}>− {formatBRL(totalComMargem - totalFinal)}</td>
-                    </tr>
-                  )}
                   <tr>
                     <td style={{ fontWeight: "bold", paddingTop: 8 }}>
                       {freteParaDiluir > 0
