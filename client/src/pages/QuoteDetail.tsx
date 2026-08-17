@@ -47,7 +47,7 @@ import { isLdRequestLinkedToQuote } from "@/lib/ldRequestUtils";
 import { handleLdPdfSent } from "@/lib/ldAdminBadgeRefresh";
 import { linkSampleOrderByQuoteNumber } from "@/lib/sampleLinkFlow";
 import { buildSampleCommercialProjection } from "@/lib/sampleCommercialAdjustment";
-import { applyQuoteDiscount, calculateQuoteTotalWithDiscountAndTax } from "@/lib/quoteTotals";
+import { applyQuoteDiscount, calculateQuoteTotalWithDiscountAndTax, getDisplayedCustomerTotal } from "@/lib/quoteTotals";
 import type { ApiProductDriverInfo } from "@/lib/cartTypes";
 
 /** Aplica margem individual do item (itemMarginPercent em %) sobre um valor base */
@@ -5154,18 +5154,29 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
   const revenueTransferredIn = (commercialAdjustmentsQuery.data ?? [])
     .filter((adjustment) => !!adjustment.financialTransferredAt)
     .reduce((sum, adjustment) => sum + Number(adjustment.transferredRevenue ?? 0), 0);
-  // totalFinal é persistido após aplicar desconto, frete e DIFAL/FCP no salvamento comercial.
-  const totalReceita = Number(quote.totalFinal ?? quote.totalAmount ?? 0);
-  const ta = Number(quote.totalAmount ?? 0);
+  const discountPercent = Number(quote.discountPercent ?? 0);
+  const freteIncluded = !!quote.freteIncluded;
+  const frete = freteIncluded ? 0 : Number(quote.freteValue ?? 0);
+  const dashboardStateInfo = quote.destState ? getStateInfo(quote.destState) : undefined;
+  const dashboardTotals = calculateQuoteTotalWithDiscountAndTax({
+    productsBeforeDiscount: Number(quote.totalAmount ?? 0),
+    discountPercent,
+    freteValue: frete,
+    difalEnabled: Boolean(quote.difalEnabled) && !!dashboardStateInfo && dashboardStateInfo.combined > 0,
+    combinedTaxRate: dashboardStateInfo?.combined,
+  });
+  // Reconstrói registros legados para que a Receita Total não mantenha valor anterior ao desconto.
+  const totalReceita = getDisplayedCustomerTotal(quote);
+  const ta = discountPercent > 0 ? dashboardTotals.productsAfterDiscount : Number(quote.totalAmount ?? 0);
   const impostos = totalReceita * IMPOSTOS_PADRAO;
   const comm1 = Number(quote.commissionPercent ?? 0);
   const comm2 = Number(quote.commissionPercent2 ?? 0);
   const comissoes = totalReceita * (comm1 + comm2);
   const rt = Number(quote.rtPercent ?? 0);
   const rtVal = ta * rt;
-  const difal = Number(quote.difalValue ?? 0) + Number(quote.fcpValue ?? 0);
-  const freteIncluded = !!quote.freteIncluded;
-  const frete = freteIncluded ? 0 : Number(quote.freteValue ?? 0);
+  const difal = discountPercent > 0
+    ? dashboardTotals.taxAmount
+    : Number(quote.difalValue ?? 0) + Number(quote.fcpValue ?? 0);
 
   // Lucro Bruto = Receita - Custo Produtos
   const lucroBruto = totalReceita - custoProdutos;

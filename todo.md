@@ -2722,3 +2722,8 @@
 - [x] Calcular o valor final comercial descontado para orçamentos legados no cartão da listagem
 - [x] Exibir no cartão de Meus Orçamentos o mesmo total final apresentado no detalhe
 - [x] Cobrir a exibição do total descontado em cartões com valores persistidos antigos
+
+## Regressão: Dashboard de Lucro e desconto
+- [x] Recalcular a receita do Dashboard usando o total final descontado para orçamentos legados
+- [x] Recalcular DIFAL/FCP e deduções do Dashboard sobre a base já descontada
+- [x] Cobrir a receita e o lucro do Dashboard com desconto aplicado
