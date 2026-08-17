@@ -53,6 +53,7 @@ import { StateCitySelector, isSaoPauloCapital } from "@/components/StateCitySele
 import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@shared/permissions";
 import { toBrasiliaDate } from "@/lib/dateUtils";
+import { parseShiftModuleManualPrice } from "@/lib/shiftModulePrices";
 import { applyCCTChange } from "@/lib/cctUtils";
 import { getQuoteTeamValidationError, isSellerRequiredForQuote } from "@/lib/quoteTeamValidation";
 import { LdGuestCartItemCard } from "@/components/LdGuestCards";
@@ -334,6 +335,15 @@ function SortableCartItem({
                           {acc.qty > 1 && <span className="text-muted-foreground">x{acc.qty}</span>}
                           {acc.unitPrice != null && acc.unitPrice > 0 && (
                             <span className="ml-auto text-muted-foreground">{formatBRL(acc.unitPrice)}</span>
+                          )}
+                          {acc.familia === "SHIFT MÓDULO" && (acc.unitPrice == null || acc.unitPrice <= 0) && (
+                            <button
+                              type="button"
+                              className="ml-auto text-amber-600 dark:text-amber-400 italic hover:underline"
+                              onClick={() => onEditClick(entry.id, entry.data)}
+                            >
+                              Definir preço
+                            </button>
                           )}
                         </div>
                       );
@@ -821,6 +831,7 @@ function StandardCart() {
   // Edição inline de campos do item
   const [editItemId, setEditItemId] = useState<number | null>(null);
   const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; driverUnitPriceOverride: string; itemNote: string; itemObs: string; itemObsShowInExcel: boolean; withoutEquipment?: boolean; itemMarginPercent: string; floorId: string; floorName: string; ambiente: string; specialColorTemp: string; specialEquipments: SpecialEquipment[]; mkpCustom: string; specialDescription: string; specialDimensions: string; specialPower: string; specialDim: string; specialVoltage: string; specialColor: string; description: string; itemEmPlanta: string; specialCustoUnitario: string; specialMarkup: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', driverUnitPriceOverride: '', itemNote: '', itemObs: '', itemObsShowInExcel: false, withoutEquipment: false, itemMarginPercent: '', floorId: '', floorName: '', ambiente: '', specialColorTemp: '', specialEquipments: [], mkpCustom: '', specialDescription: '', specialDimensions: '', specialPower: '', specialDim: '', specialVoltage: '', specialColor: '', description: '', itemEmPlanta: '', specialCustoUnitario: '', specialMarkup: '' });
+  const [shiftModulePriceDrafts, setShiftModulePriceDrafts] = useState<Record<string, string>>({});
   // Estados para edição de foto de Item Especial
   const [editSpecialPhotoUrl, setEditSpecialPhotoUrl] = useState<string | null>(null);
   const [editSpecialPhotoPreview, setEditSpecialPhotoPreview] = useState<string | null>(null);
@@ -2910,6 +2921,37 @@ function StandardCart() {
                       )}
                     </div>
                   )}
+                  {item?.data.accessories?.some((accessory) => accessory.familia === "SHIFT MÓDULO") && (
+                    <div className="space-y-2 rounded-lg border border-cyan-500/30 bg-cyan-50/30 dark:bg-cyan-950/10 p-3">
+                      <div>
+                        <Label className="text-cyan-800 dark:text-cyan-300">Preços dos módulos SHIFT</Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">Valores da API são preservados. Quando não houver valor cadastrado, informe o preço unitário do módulo.</p>
+                      </div>
+                      {(item.data.accessories ?? []).map((accessory, accessoryIndex) => {
+                        if (accessory.familia !== "SHIFT MÓDULO") return null;
+                        const draftKey = `${editItemId ?? "item"}:${accessoryIndex}:${accessory.codigo}`;
+                        const hasDraft = Object.prototype.hasOwnProperty.call(shiftModulePriceDrafts, draftKey);
+                        const canEditModulePrice = (user as any)?.role !== "convidado" && (accessory.unitPrice == null || canOverrideApiPrice);
+                        return (
+                          <div key={draftKey} className="grid grid-cols-[1fr_7.5rem] gap-2 items-center">
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium truncate">{accessory.descricao}</p>
+                              <p className="text-[10px] text-muted-foreground font-mono">{accessory.codigo} · {accessory.qty} un.</p>
+                            </div>
+                            <Input
+                              inputMode="decimal"
+                              value={hasDraft ? shiftModulePriceDrafts[draftKey] : (accessory.unitPrice != null ? accessory.unitPrice.toFixed(2).replace(".", ",") : "")}
+                              onChange={canEditModulePrice ? (event) => setShiftModulePriceDrafts((previous) => ({ ...previous, [draftKey]: event.target.value })) : undefined}
+                              readOnly={!canEditModulePrice}
+                              placeholder={canEditModulePrice ? "0,00" : "Preço da API"}
+                              className={!canEditModulePrice ? "bg-muted text-muted-foreground cursor-not-allowed" : accessory.unitPrice == null ? "border-amber-500" : ""}
+                              aria-label={`Preço do módulo ${accessory.descricao}`}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                   {/* Campo de MKP — apenas para gerentes/admin quando custo base disponível */}
                   {hasMkpData && (() => {
                     const custoCorpo = item!.data.custoCorpoBase!;
@@ -3429,6 +3471,16 @@ function StandardCart() {
                 const mkpVal2 = parseFloat(editFields.specialMarkup.replace(',', '.'));
                 patch.specialCustoUnitario = !isNaN(custoVal) && custoVal > 0 ? custoVal : null;
                 patch.specialMarkup = !isNaN(mkpVal2) && mkpVal2 > 0 ? mkpVal2 : null;
+              }
+              if (item?.data.accessories?.some((accessory) => accessory.familia === "SHIFT MÓDULO")) {
+                patch.accessories = item.data.accessories.map((accessory, accessoryIndex) => {
+                  if (accessory.familia !== "SHIFT MÓDULO") return accessory;
+                  const draftKey = `${editItemId}:${accessoryIndex}:${accessory.codigo}`;
+                  if (!Object.prototype.hasOwnProperty.call(shiftModulePriceDrafts, draftKey)) return accessory;
+                  const canEditModulePrice = (user as any)?.role !== "convidado" && (accessory.unitPrice == null || canOverrideApiPriceSave);
+                  if (!canEditModulePrice) return accessory;
+                  return { ...accessory, unitPrice: parseShiftModuleManualPrice(shiftModulePriceDrafts[draftKey]) };
+                });
               }
               const totalForUpdate = isRevenda
                 ? (parseInt(editFields.qty) || 1) * (parseFloat(editFields.unitPrice.replace(',', '.')) || 0)

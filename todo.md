@@ -2816,3 +2816,8 @@
 - [x] Corrigir a lista vazia de módulos no seletor SHIFT, preservando a origem exclusiva na API
 - [x] Restaurar o reconhecimento de produtos Customizados como disponíveis
 - [x] Cobrir as duas correções por regressão
+
+## Módulos SHIFT: preço individual
+- [x] Aplicar o preço individual retornado pela API a cada módulo SHIFT no carrinho
+- [x] Permitir preencher manualmente o preço de módulo SHIFT sem preço API, respeitando as permissões de preço
+- [x] Propagar o preço efetivo dos módulos SHIFT aos totais e documentos e cobrir por regressão
