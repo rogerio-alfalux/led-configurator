@@ -879,6 +879,14 @@ export default function QuoteDetail() {
   const { hasPermission: hasQuotePermission } = usePermissions();
   const { user } = useAuth();
   const utils = trpc.useUtils();
+  const setManualDuplicateMutation = trpc.quotes.setManualDuplicate.useMutation({
+    onSuccess: (_result, variables) => {
+      utils.quotes.getById.invalidate({ id: Number(id) });
+      utils.quotes.list.invalidate();
+      toast.success(variables.isManuallyDuplicate ? "Orçamento marcado como duplicado manual." : "Marcação manual de duplicidade removida.");
+    },
+    onError: (error) => toast.error(error.message),
+  });
   const [showAllVersions, setShowAllVersions] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<string>("");
@@ -2186,6 +2194,24 @@ export default function QuoteDetail() {
             {st.icon}
             {st.label}
           </span>
+          {user?.role === "admin" && (
+            <Button
+              variant={(quote as any).isManuallyDuplicate ? "secondary" : "outline"}
+              size="sm"
+              className="gap-1.5"
+              disabled={setManualDuplicateMutation.isPending}
+              onClick={() => {
+                const isManuallyDuplicate = !(quote as any).isManuallyDuplicate;
+                const message = isManuallyDuplicate
+                  ? `Marcar ${quote.quoteNumber} como duplicado manual? Ele seguirá a mesma regra comercial dos duplicados automáticos.`
+                  : `Remover a marcação manual de duplicidade de ${quote.quoteNumber}?`;
+                if (window.confirm(message)) setManualDuplicateMutation.mutate({ id: quote.id, isManuallyDuplicate });
+              }}
+            >
+              <Copy className="w-3.5 h-3.5" />
+              {(quote as any).isManuallyDuplicate ? "Duplicado manual" : "Marcar duplicado"}
+            </Button>
+          )}
           <h1 className="text-lg font-semibold font-mono text-primary">{quote.quoteNumber}</h1>
         </div>
       </div>

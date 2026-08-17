@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   Search, Plus, ClipboardList, CheckCircle, XCircle, Clock,
   TrendingDown, ArrowLeft, BarChart2, ShoppingCart, Eye,
-  Users, UserCheck, Filter, X, Receipt, Download, User,
+  Users, UserCheck, Filter, X, Receipt, Download, User, Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.
 export default function Quotes() {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
+  const utils = trpc.useUtils();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [sellerFilter, setSellerFilter] = useState<string>("all");
@@ -73,6 +74,13 @@ export default function Quotes() {
     dateTo: dateTo || undefined,
     limit: 10000,
     offset: 0,
+  });
+  const setManualDuplicateMutation = trpc.quotes.setManualDuplicate.useMutation({
+    onSuccess: (_result, variables) => {
+      utils.quotes.list.invalidate();
+      toast.success(variables.isManuallyDuplicate ? "Orçamento marcado como duplicado." : "Marcação manual de duplicidade removida.");
+    },
+    onError: (error) => toast.error(error.message),
   });
 
   // Listas únicas de vendedores e assistentes
@@ -119,6 +127,7 @@ export default function Quotes() {
     const totalValue = commercialRows.reduce((sum, q) => sum + getQuoteValue(q), 0);
     const seenDuplicateGroups = new Set<string>();
     const withoutDuplicates = commercialRows.filter((q: any) => {
+      if (q.isManuallyDuplicate) return false;
       if (!q.isDuplicate || !q.duplicateKey) return true;
       if (seenDuplicateGroups.has(q.duplicateKey)) return false;
       seenDuplicateGroups.add(q.duplicateKey);
@@ -265,6 +274,7 @@ export default function Quotes() {
           totalFinal: getDisplayedCustomerTotal(quote),
           isProspecting: quote.isProspecting,
           isDuplicate: quote.isDuplicate,
+          isManuallyDuplicate: quote.isManuallyDuplicate,
           ldRequestNumber: ldRequest?.requestNumber,
           ldRequestStatus: ldRequest?.status,
         };
@@ -557,7 +567,7 @@ export default function Quotes() {
                           </span>
                           {(q as any).isDuplicate && (
                             <Badge variant="outline" className="mt-1 border-orange-300 text-orange-700 dark:text-orange-400">
-                              Duplicado ({(q as any).duplicateGroupSize}x)
+                              {(q as any).isManuallyDuplicate ? "Duplicado manual" : `Duplicado (${(q as any).duplicateGroupSize}x)`}
                             </Badge>
                           )}
                           {(q as any).isProspecting && (
@@ -599,13 +609,33 @@ export default function Quotes() {
                           </p>
                         </div>
 
-                        {/* Ação */}
-                        <Link href={`/orcamentos/${q.id}`}>
-                          <Button variant="outline" size="sm" className="gap-2 flex-shrink-0">
-                            <Eye className="w-4 h-4" />
-                            Ver
-                          </Button>
-                        </Link>
+                        {/* Ações */}
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {user?.role === "admin" && (
+                            <Button
+                              variant={(q as any).isManuallyDuplicate ? "secondary" : "outline"}
+                              size="sm"
+                              className="gap-2"
+                              disabled={setManualDuplicateMutation.isPending}
+                              onClick={() => {
+                                const isManuallyDuplicate = !(q as any).isManuallyDuplicate;
+                                const message = isManuallyDuplicate
+                                  ? `Marcar ${q.quoteNumber} como duplicado manual? Ele seguirá a mesma regra comercial dos duplicados automáticos.`
+                                  : `Remover a marcação manual de duplicidade de ${q.quoteNumber}?`;
+                                if (window.confirm(message)) setManualDuplicateMutation.mutate({ id: q.id, isManuallyDuplicate });
+                              }}
+                            >
+                              <Copy className="w-4 h-4" />
+                              {(q as any).isManuallyDuplicate ? "Remover duplicado" : "Marcar duplicado"}
+                            </Button>
+                          )}
+                          <Link href={`/orcamentos/${q.id}`}>
+                            <Button variant="outline" size="sm" className="gap-2">
+                              <Eye className="w-4 h-4" />
+                              Ver
+                            </Button>
+                          </Link>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

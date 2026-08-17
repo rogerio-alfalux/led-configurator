@@ -1130,6 +1130,20 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    /** Administrador pode incluir ou retirar uma duplicidade manual sem alterar o orçamento original. */
+    setManualDuplicate: adminProcedure
+      .input(z.object({ id: z.number(), isManuallyDuplicate: z.boolean() }))
+      .mutation(async ({ input }) => {
+        const result = await getQuoteById(input.id);
+        if (!result) throw new TRPCError({ code: 'NOT_FOUND', message: 'Orçamento não encontrado.' });
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        await db.update(quotes)
+          .set({ isManuallyDuplicate: input.isManuallyDuplicate })
+          .where(eq(quotes.id, input.id));
+        return { success: true, isManuallyDuplicate: input.isManuallyDuplicate };
+      }),
+
     getById: commercialQuoteProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ ctx, input }) => {

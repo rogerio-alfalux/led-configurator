@@ -946,7 +946,16 @@ export async function listQuotes(opts: {
   const enrichedRows = rows.map((row) => {
     const duplicateKey = getDuplicateQuoteKey(row.projectName, row.totalFinal);
     const duplicateGroupSize = duplicateKey ? (duplicateGroupCounts.get(duplicateKey) ?? 0) : 0;
-    return { ...row, duplicateKey, duplicateGroupSize, isDuplicate: duplicateGroupSize > 1 };
+    const isAutomaticallyDuplicate = duplicateGroupSize > 1;
+    const isManuallyDuplicate = Boolean(row.isManuallyDuplicate);
+    return {
+      ...row,
+      duplicateKey,
+      duplicateGroupSize,
+      isAutomaticallyDuplicate,
+      isManuallyDuplicate,
+      isDuplicate: isAutomaticallyDuplicate || isManuallyDuplicate,
+    };
   });
 
   return { rows: enrichedRows, total: Number(countResult[0]?.count ?? 0) };

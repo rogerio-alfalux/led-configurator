@@ -1,0 +1,1 @@
+ALTER TABLE `quotes` ADD `isManuallyDuplicate` boolean DEFAULT false NOT NULL;

@@ -22,6 +22,7 @@ export interface QuoteExcelExportRow {
   totalFinal?: number | string | null;
   isProspecting?: boolean | null;
   isDuplicate?: boolean | null;
+  isManuallyDuplicate?: boolean | null;
   ldRequestNumber?: string | null;
   ldRequestStatus?: string | null;
 }
@@ -145,7 +146,7 @@ export async function generateFilteredQuotesExcel(rows: QuoteExcelExportRow[], f
       FRETE[row.freteType ?? ""] ?? "—",
       number(row.totalAmount),
       getStoredCustomerTotal(row),
-      origin(row) + (row.isDuplicate ? " · Duplicado" : ""),
+      origin(row) + (row.isDuplicate ? (row.isManuallyDuplicate ? " · Duplicado manual" : " · Duplicado") : ""),
       ldInfo,
     ];
     values.forEach((value, column) => {

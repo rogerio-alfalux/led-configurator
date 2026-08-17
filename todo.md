@@ -2733,3 +2733,10 @@
 - [x] Inserir desconto aplicado em verde acima do prazo no PDF
 - [x] Inserir desconto aplicado em verde acima do prazo no Excel
 - [x] Cobrir a posição e a condição de exibição do desconto nos documentos
+
+## Duplicidade manual de orçamentos
+- [x] Persistir uma marcação manual de duplicidade independente da detecção automática
+- [x] Aplicar a mesma regra comercial e os mesmos indicadores da duplicidade automática
+- [x] Adicionar controle no cabeçalho do orçamento perto do status e do número
+- [x] Adicionar controle de duplicidade em Meus Orçamentos
+- [x] Cobrir autorização, persistência e apresentação da marcação manual

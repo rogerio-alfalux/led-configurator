@@ -295,6 +295,13 @@
       "when": 1786979587310,
       "tag": "0041_damp_sasquatch",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "5",
+      "when": 1786987307710,
+      "tag": "0042_lame_blink",
+      "breakpoints": true
     }
   ]
 }

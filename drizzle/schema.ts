@@ -217,6 +217,8 @@ export const quotes = mysqlTable("quotes", {
 	showDiscount: boolean().default(false),
 	/** Prospecção de lighting designer: acompanha separadamente a carteira comercial. */
 	isProspecting: boolean().default(false).notNull(),
+	/** Marca manual definida por administrador; segue a mesma regra comercial de duplicidade. */
+	isManuallyDuplicate: boolean().default(false).notNull(),
 },
 (table) => [
 	index("quotes_quoteNumber_unique").on(table.quoteNumber),
