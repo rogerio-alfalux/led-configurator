@@ -2710,3 +2710,10 @@
 - [x] Manter a solicitação excluída pelo LD visível e administrável na fila do administrador
 - [x] Preservar a exclusão definitiva apenas para ação explícita do administrador
 - [x] Sinalizar na fila administrativa a solicitação que foi excluída pelo LD
+
+## Correção: desconto, total final e base de DIFAL/FCP
+- [x] Aplicar o desconto ao valor comercial antes do cálculo de DIFAL/FCP
+- [x] Atualizar o Dashboard com o valor final já descontado
+- [x] Exibir desconto e valor final correto na prévia, PDF e Excel do orçamento
+- [x] Exibir o valor final descontado em Meus Orçamentos e no relatório Excel exportado
+- [x] Cobrir a consistência de desconto, DIFAL/FCP e total final com regressões

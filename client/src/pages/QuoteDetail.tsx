@@ -47,6 +47,7 @@ import { isLdRequestLinkedToQuote } from "@/lib/ldRequestUtils";
 import { handleLdPdfSent } from "@/lib/ldAdminBadgeRefresh";
 import { linkSampleOrderByQuoteNumber } from "@/lib/sampleLinkFlow";
 import { buildSampleCommercialProjection } from "@/lib/sampleCommercialAdjustment";
+import { applyQuoteDiscount, calculateQuoteTotalWithDiscountAndTax } from "@/lib/quoteTotals";
 import type { ApiProductDriverInfo } from "@/lib/cartTypes";
 
 /** Aplica margem individual do item (itemMarginPercent em %) sobre um valor base */
@@ -2850,21 +2851,26 @@ export default function QuoteDetail() {
                       const rtPct = quote.rtPercent ? parseFloat(String(quote.rtPercent)) : 0;
                       const marginPct = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;
                       const totalComRT = rtPct > 0 ? totalBase / (1 - rtPct) : totalBase;
-                      const totalFinal = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
+                      const totalComMargem = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
+                      const discountPct = Math.min(Math.max(Number((quote as any).discountPercent ?? 0), 0), 0.99);
+                      const totalFinal = applyQuoteDiscount(totalComMargem, discountPct);
                       // Incluir frete e DIFAL/FCP (alíquota combinada, fórmula por dentro)
                       // Frete separado (não diluído) entra na base do DIFAL; frete diluído já está no totalFinal
                       const itemsFreteValor = !(quote as any).freteIncluded && (quote as any).freteValue && !(quote as any).freteIsento ? parseFloat(String((quote as any).freteValue)) : 0;
                       const itemsStateInfo = quote.destState ? getStateInfo(quote.destState) : undefined;
                       const itemsCombinedRate = itemsStateInfo ? itemsStateInfo.combined : 0;
                       const itemsDifalAplicavel = !!itemsStateInfo && itemsCombinedRate > 0;
-                      const baseComFrete = totalFinal + itemsFreteValor;
-                      const totalFinalComImposto = quote.difalEnabled && itemsDifalAplicavel
-                        ? baseComFrete / (1 - itemsCombinedRate / 100)
-                        : baseComFrete;
-                      const itemsCombinedAmt = totalFinalComImposto - baseComFrete;
+                      const itemTotals = calculateQuoteTotalWithDiscountAndTax({
+                        productsBeforeDiscount: totalComMargem,
+                        discountPercent: discountPct,
+                        freteValue: itemsFreteValor,
+                        difalEnabled: quote.difalEnabled && itemsDifalAplicavel,
+                        combinedTaxRate: itemsCombinedRate,
+                      });
+                      const itemsCombinedAmt = itemTotals.taxAmount;
                       const itemsDifalValRecalc = itemsStateInfo && itemsStateInfo.combined > 0 ? itemsCombinedAmt * (itemsStateInfo.difal / itemsStateInfo.combined) : 0;
                       const itemsFcpValRecalc = itemsStateInfo && itemsStateInfo.combined > 0 ? itemsCombinedAmt * (itemsStateInfo.fcp / itemsStateInfo.combined) : 0;
-                      const totalFinalCompleto = totalFinalComImposto;
+                      const totalFinalCompleto = itemTotals.totalFinal;
                       addRevisionForItemsMutation.mutate({
                         quoteId: Number(id),
                         clientName: quote.clientName,
@@ -2918,6 +2924,8 @@ export default function QuoteDetail() {
                         freteIncluded: (quote as any).freteIncluded ?? false,
                         diluicaoValor: (quote as any).diluicaoValor != null ? parseFloat(String((quote as any).diluicaoValor)) : undefined,
                         diluicaoDescricao: (quote as any).diluicaoDescricao ?? undefined,
+                        discountPercent: discountPct,
+                        showDiscount: !!(quote as any).showDiscount && discountPct > 0,
                         quoteNumber: quote.quoteNumber ?? undefined,
                       });
                     }}
@@ -3861,26 +3869,30 @@ export default function QuoteDetail() {
                     const editRtPctVal = Math.min(Math.max(parseFloat(editForm.rtPercent || "0") / 100, 0), 0.99);
                     const editMarginPctVal = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, 0), 0.99);
                     const totalComRTVal = editRtPctVal > 0 ? editTotalBase / (1 - editRtPctVal) : editTotalBase;
-                    const totalFinalVal = editMarginPctVal > 0 ? totalComRTVal / (1 - editMarginPctVal) : totalComRTVal;
+                    const totalComMargemVal = editMarginPctVal > 0 ? totalComRTVal / (1 - editMarginPctVal) : totalComRTVal;
+                    const totalFinalVal = applyQuoteDiscount(totalComMargemVal, editDiscountPct);
                     // Calcular frete e DIFAL/FCP (alíquota combinada, fórmula por dentro)
                     // Frete separado (não diluído) entra na base do DIFAL; frete diluído já está no editTotalFinal
                     const editFreteValor = !editForm.freteIncluded && editForm.freteValue && !editForm.freteIsento ? parseFloat(editForm.freteValue) : 0;
                     const editStateInfo = editForm.destState ? getStateInfo(editForm.destState) : undefined;
-                    const baseComFrete = totalFinalVal + editFreteValor;
                     // Alíquota combinada DIFAL + FCP
                     const editCombinedRate = editStateInfo ? editStateInfo.combined : 0;
-                    const totalFinalComImposto = editForm.difalEnabled && editCombinedRate > 0
-                      ? baseComFrete / (1 - editCombinedRate / 100)
-                      : baseComFrete;
+                    const editTotals = calculateQuoteTotalWithDiscountAndTax({
+                      productsBeforeDiscount: totalComMargemVal,
+                      discountPercent: editDiscountPct,
+                      freteValue: editFreteValor,
+                      difalEnabled: editForm.difalEnabled && editCombinedRate > 0,
+                      combinedTaxRate: editCombinedRate,
+                    });
                     // Decompor para salvar separadamente
-                    const editCombinedVal = totalFinalComImposto - baseComFrete;
+                    const editCombinedVal = editTotals.taxAmount;
                     const editDifalVal = editStateInfo && editStateInfo.combined > 0
                       ? editCombinedVal * (editStateInfo.difal / editStateInfo.combined)
                       : (editForm.difalEnabled && editForm.difalValue ? parseFloat(editForm.difalValue) : 0);
                     const editFcpVal = editStateInfo && editStateInfo.combined > 0
                       ? editCombinedVal * (editStateInfo.fcp / editStateInfo.combined)
                       : (editForm.fcpEnabled && editForm.fcpValue ? parseFloat(editForm.fcpValue) : 0);
-                    const totalFinalCompleto = totalFinalComImposto;
+                    const totalFinalCompleto = editTotals.totalFinal;
                     addRevisionMutation.mutate({
                       quoteId: Number(id),
                       clientName: editForm.clientName.trim(),
@@ -5142,6 +5154,7 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
   const revenueTransferredIn = (commercialAdjustmentsQuery.data ?? [])
     .filter((adjustment) => !!adjustment.financialTransferredAt)
     .reduce((sum, adjustment) => sum + Number(adjustment.transferredRevenue ?? 0), 0);
+  // totalFinal é persistido após aplicar desconto, frete e DIFAL/FCP no salvamento comercial.
   const totalReceita = Number(quote.totalFinal ?? quote.totalAmount ?? 0);
   const ta = Number(quote.totalAmount ?? 0);
   const impostos = totalReceita * IMPOSTOS_PADRAO;
