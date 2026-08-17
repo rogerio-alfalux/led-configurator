@@ -3,6 +3,7 @@ import type { TrpcContext } from "./_core/context";
 
 const dbMocks = vi.hoisted(() => ({
   deleteGuestQuoteRequestForGuest: vi.fn(),
+  deleteGuestQuoteRequestForAdmin: vi.fn(),
   insertAuditLog: vi.fn(),
 }));
 
@@ -26,5 +27,16 @@ describe("exclusão de solicitações LD", () => {
 
   it("impede que administradores usem o endpoint de exclusão do convidado", async () => {
     await expect(appRouter.createCaller(context("admin")).ldRequests.deleteMine({ requestId: 12 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("permite ao administrador excluir a solicitação e preserva o orçamento vinculado", async () => {
+    dbMocks.deleteGuestQuoteRequestForAdmin.mockResolvedValue({ id: 16, requestNumber: "LD-0004-26", adminQuoteId: 91 });
+    await expect(appRouter.createCaller(context("admin")).ldRequests.adminDelete({ requestId: 16 })).resolves.toEqual({ success: true, requestId: 16 });
+    expect(dbMocks.deleteGuestQuoteRequestForAdmin).toHaveBeenCalledWith(16);
+    expect(dbMocks.insertAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "ld_quote_request_admin_deleted", entityId: 16, details: expect.stringContaining('"adminQuoteId":91') }));
+  });
+
+  it("impede o LD de usar o endpoint de exclusão administrativa", async () => {
+    await expect(appRouter.createCaller(context("convidado")).ldRequests.adminDelete({ requestId: 16 })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

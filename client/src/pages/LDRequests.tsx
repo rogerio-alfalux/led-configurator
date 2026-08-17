@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, CalendarClock, CheckCircle2, ClipboardList, Clock, FileText, Filter, Mail, MapPin, Package, Paperclip, Phone, Search, UserRound, X } from "lucide-react";
+import { ArrowLeft, CalendarClock, CheckCircle2, ClipboardList, Clock, FileText, Filter, Mail, MapPin, Package, Paperclip, Phone, Search, Trash2, UserRound, X } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -158,6 +158,7 @@ export function LDRequestsAdmin() {
   const utils = trpc.useUtils();
   const requests = trpc.ldRequests.adminList.useQuery(undefined, { staleTime: 0, enabled: (user as any)?.role === "admin" });
   const startReview = trpc.ldRequests.adminStartReview.useMutation({ onSuccess: () => utils.ldRequests.adminList.invalidate() });
+  const deleteRequest = trpc.ldRequests.adminDelete.useMutation();
   const convert = trpc.ldRequests.adminConvertToQuote.useMutation({
     onSuccess: async (data) => {
       await utils.ldRequests.adminList.invalidate();
@@ -167,6 +168,18 @@ export function LDRequestsAdmin() {
     onError: error => toast.error(error.message),
   });
   const [sortBy, setSortBy] = useState<"desired_date" | "submitted_at">("desired_date");
+  const [requestIdToDelete, setRequestIdToDelete] = useState<number | null>(null);
+  const confirmDelete = async () => {
+    if (requestIdToDelete === null) return;
+    try {
+      await deleteRequest.mutateAsync({ requestId: requestIdToDelete });
+      await Promise.all([utils.ldRequests.adminList.invalidate(), utils.ldRequests.notifications.invalidate()]);
+      toast.success("Solicitação LD excluída. O orçamento vinculado foi preservado.");
+      setRequestIdToDelete(null);
+    } catch (error: any) {
+      toast.error(error?.message ?? "Não foi possível excluir a solicitação LD.");
+    }
+  };
   const orderedRequests = useMemo(() => [...(requests.data ?? [])].sort((left, right) => {
     if (sortBy === "submitted_at") return String(right.submittedAt).localeCompare(String(left.submittedAt));
     const leftDeadline = left.desiredQuoteDate || "9999-12-31";
@@ -188,10 +201,22 @@ export function LDRequestsAdmin() {
           {(request.attachments ?? []).length > 0 && <div className="rounded-md border p-3 space-y-2"><p className="text-xs font-semibold text-muted-foreground">ANEXOS TÉCNICOS ({request.attachments.length})</p><div className="flex flex-wrap gap-2">{request.attachments.map((attachment: any) => <a key={attachment.id} href={attachment.fileUrl} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1.5 rounded-md border bg-muted/30 px-2.5 py-1.5 text-xs font-medium hover:bg-muted"><Paperclip className="w-3.5 h-3.5 text-primary shrink-0" /><span className="truncate max-w-52">{attachment.fileName}</span></a>)}</div></div>}
           {request.generalObservation && <div className="rounded-md border border-primary/20 bg-primary/5 p-3"><p className="text-xs font-semibold text-muted-foreground mb-1">OBSERVAÇÃO GERAL DO PROJETO</p><p className="text-sm whitespace-pre-wrap">{request.generalObservation}</p></div>}
           <div className="rounded-md border p-3 space-y-2"><p className="text-xs font-semibold text-muted-foreground">PRODUTOS CONFIGURADOS ({items.length})</p>{items.map((item: any, index: number) => <div key={index} className="text-sm"><span className="font-medium">{index + 1}. {item.description}</span><span className="text-muted-foreground"> · Qtd. {item.qty ?? 1}{item.power ? ` · ${item.power}` : ""}{item.cct ? ` · ${item.cct}` : ""}</span>{item.ldItemObservation && <p className="mt-1 ml-4 text-xs text-muted-foreground whitespace-pre-wrap">Observação do LD: {item.ldItemObservation}</p>}</div>)}</div>
-          <div className="flex flex-wrap gap-2 justify-end">{request.status === "pending" && <Button variant="outline" size="sm" onClick={() => startReview.mutate({ requestId: request.id })} disabled={startReview.isPending}><Clock className="w-4 h-4 mr-1" /> Assumir análise</Button>}{request.adminQuoteId ? <Link href={`/orcamentos/${request.adminQuoteId}`}><Button size="sm"><FileText className="w-4 h-4 mr-1" /> Abrir orçamento</Button></Link> : <Button size="sm" onClick={() => convert.mutate({ requestId: request.id })} disabled={convert.isPending}><CheckCircle2 className="w-4 h-4 mr-1" /> Criar orçamento para revisão</Button>}</div>
+          <div className="flex flex-wrap gap-2 justify-end">{request.status === "pending" && <Button variant="outline" size="sm" onClick={() => startReview.mutate({ requestId: request.id })} disabled={startReview.isPending}><Clock className="w-4 h-4 mr-1" /> Assumir análise</Button>}{request.adminQuoteId ? <Link href={`/orcamentos/${request.adminQuoteId}`}><Button size="sm"><FileText className="w-4 h-4 mr-1" /> Abrir orçamento</Button></Link> : <Button size="sm" onClick={() => convert.mutate({ requestId: request.id })} disabled={convert.isPending}><CheckCircle2 className="w-4 h-4 mr-1" /> Criar orçamento para revisão</Button>}<Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setRequestIdToDelete(request.id)} disabled={deleteRequest.isPending}><Trash2 className="w-4 h-4 mr-1" /> Excluir</Button></div>
         </CardContent></Card>;
       })}</div>}
     </main>
+    <AlertDialog open={requestIdToDelete !== null} onOpenChange={(open) => { if (!open && !deleteRequest.isPending) setRequestIdToDelete(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir solicitação LD?</AlertDialogTitle>
+          <AlertDialogDescription>Esta ação remove a solicitação e os anexos técnicos da fila. O orçamento eventualmente criado a partir dela será preservado.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleteRequest.isPending}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={(event) => { event.preventDefault(); void confirmDelete(); }} disabled={deleteRequest.isPending} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir solicitação</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>;
 }
 

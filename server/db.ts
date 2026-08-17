@@ -267,6 +267,22 @@ export async function deleteGuestQuoteRequestForGuest(guestUserId: number, reque
   return request;
 }
 
+/** Exclui uma solicitação e seus metadados de anexos por ação administrativa.
+ * O orçamento eventualmente vinculado não é tocado. */
+export async function deleteGuestQuoteRequestForAdmin(requestId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const request = (await db.select().from(guestQuoteRequests)
+    .where(eq(guestQuoteRequests.id, requestId))
+    .limit(1))[0];
+  if (!request) return null;
+  await db.transaction(async (tx) => {
+    await tx.delete(guestQuoteRequestAttachments).where(eq(guestQuoteRequestAttachments.requestId, requestId));
+    await tx.delete(guestQuoteRequests).where(eq(guestQuoteRequests.id, requestId));
+  });
+  return request;
+}
+
 export async function countPendingGuestQuoteRequests() {
   const db = await getDb();
   if (!db) return 0;

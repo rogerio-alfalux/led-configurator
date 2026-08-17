@@ -68,6 +68,7 @@ import {
   linkGuestQuoteRequestQuote,
   attachGuestQuoteRequestPdf,
   deleteGuestQuoteRequestForGuest,
+  deleteGuestQuoteRequestForAdmin,
 } from "./db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -466,6 +467,23 @@ export const appRouter = router({
         if (!request) throw new TRPCError({ code: "NOT_FOUND" });
         if (request.status === "pending") await markGuestQuoteRequestInReview(input.requestId, ctx.user.id);
         return { requestId: input.requestId };
+      }),
+
+    adminDelete: adminProcedure
+      .input(z.object({ requestId: z.number().int().positive() }))
+      .mutation(async ({ ctx, input }) => {
+        const deleted = await deleteGuestQuoteRequestForAdmin(input.requestId);
+        if (!deleted) throw new TRPCError({ code: "NOT_FOUND", message: "Solicitação não encontrada." });
+        await insertAuditLog({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email ?? null,
+          userName: ctx.user.name ?? null,
+          action: "ld_quote_request_admin_deleted",
+          entityType: "guest_quote_request",
+          entityId: input.requestId,
+          details: JSON.stringify({ requestNumber: deleted.requestNumber, adminQuoteId: deleted.adminQuoteId }),
+        });
+        return { success: true, requestId: input.requestId };
       }),
 
     adminConvertToQuote: adminProcedure

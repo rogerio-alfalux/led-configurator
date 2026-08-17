@@ -2699,3 +2699,8 @@
 ## Pré-visualização do orçamento em A4
 - [x] Ajustar a proporção visual da pré-visualização para A4 retrato
 - [x] Preservar integralmente o layout e a impressão A4 oficial existentes
+
+## Solicitações LD: exclusão administrativa
+- [x] Permitir que administradores excluam solicitações LD com confirmação explícita
+- [x] Preservar o orçamento vinculado ao excluir apenas a solicitação e seus anexos
+- [x] Cobrir a autorização administrativa e a confirmação de exclusão
