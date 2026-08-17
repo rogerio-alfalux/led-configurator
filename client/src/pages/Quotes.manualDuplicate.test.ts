@@ -17,9 +17,10 @@ describe("duplicidade manual de orçamentos", () => {
     expect(source).toContain("setManualDuplicateMutation");
   });
 
-  it("oferece caixas configuráveis e mantém a nova caixa de duplicados oculta por padrão", async () => {
+  it("oferece caixas configuráveis com Valor dos Duplicados no padrão atual", async () => {
     const source = await readFile(new URL("./Quotes.tsx", import.meta.url), "utf8");
-    expect(source).toContain("duplicateValue: false");
+    expect(source).toContain("duplicateValue: true");
+    expect(source).toContain("ldProspecting: false");
     expect(source).toContain('label: "Valor dos Duplicados"');
     expect(source).toContain("Personalizar caixas");
     expect(source).toContain("localStorage.setItem(QUOTE_METRIC_PREFERENCES_KEY");

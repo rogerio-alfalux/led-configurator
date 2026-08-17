@@ -2761,6 +2761,11 @@
 - [x] Restaurar a seleção após logoff e novo login
 - [x] Cobrir a leitura e a gravação das preferências por usuário
 
+## Composição padrão de indicadores
+- [x] Exibir Valor dos Duplicados por padrão em Meus Orçamentos
+- [x] Ocultar Prospecções LD por padrão em Meus Orçamentos
+- [x] Preservar preferências de caixas já personalizadas pelos usuários
+
 ## Regressão: indicadores gerais e duplicidade manual
 - [x] Incluir duplicidade manual no cálculo consolidado de Valor sem duplicados
 - [x] Atualizar os indicadores gerais imediatamente após marcar ou desmarcar duplicidade manual

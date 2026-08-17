@@ -39,8 +39,8 @@ const DEFAULT_VISIBLE_METRICS: Record<string, boolean> = {
   invoiced: true,
   listedValue: true,
   valueWithoutDuplicates: true,
-  ldProspecting: true,
-  duplicateValue: false,
+  ldProspecting: false,
+  duplicateValue: true,
 };
 
 export default function Quotes() {
