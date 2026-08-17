@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FileText, MessageSquareText, Minus, Package, Plus, Tag, Trash2 } from "lucide-react";
+import { Eye, MessageSquareText, Minus, Package, Plus, Tag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { CartItemData } from "@/lib/cartTypes";
@@ -69,7 +69,7 @@ export function LdGuestRequestHistoryCard({
   statusLabel,
   statusClassName,
   pdfAvailable,
-  onDownload,
+  onPreview,
   onDelete,
   isDownloading = false,
   isDeleting = false,
@@ -81,7 +81,7 @@ export function LdGuestRequestHistoryCard({
   statusLabel: string;
   statusClassName: string;
   pdfAvailable: boolean;
-  onDownload: () => void;
+  onPreview: () => void;
   onDelete: () => void;
   isDownloading?: boolean;
   isDeleting?: boolean;
@@ -94,7 +94,7 @@ export function LdGuestRequestHistoryCard({
     </div>
     <div className="flex items-center gap-2 flex-wrap justify-end">
       <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusClassName}`}>{statusLabel}</span>
-      {pdfAvailable && <Button size="sm" disabled={isDownloading || isDeleting} onClick={onDownload}><FileText className="w-4 h-4 mr-1" /> Baixar PDF</Button>}
+      {pdfAvailable && <Button size="sm" disabled={isDownloading || isDeleting} onClick={onPreview}><Eye className="w-4 h-4 mr-1" /> Pré-visualizar orçamento</Button>}
       <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" disabled={isDownloading || isDeleting} onClick={onDelete}><Trash2 className="w-4 h-4 mr-1" /> {isDeleting ? "Excluindo..." : "Excluir"}</Button>
     </div>
   </CardContent></Card>;

@@ -12,7 +12,6 @@ import { parseCartItemData, type CartItemData, type QuoteFormData } from "@/lib/
 import { toBrasiliaDate, toBrasiliaDateTime } from "@/lib/dateUtils";
 import { isValidatedLdPdfAvailable } from "@/lib/ldRequestUtils";
 import { LdGuestRequestHistoryCard } from "@/components/LdGuestCards";
-import { downloadPdfBlob } from "@/lib/pdfVisualCapture";
 import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -221,7 +220,7 @@ export function LDGuestRequests() {
     }
     return map;
   }, [productsQuery.data, revendaProductsQuery.data, acessoriosQuery.data]);
-  const download = async (requestId: number) => {
+  const openOfficialPreview = async (requestId: number) => {
     if (downloadingRequestId !== null) return;
     setDownloadingRequestId(requestId);
     try {
@@ -229,8 +228,6 @@ export function LDGuestRequests() {
       const job = buildCurrentLdPdfJob(payload);
       if (job.items.length === 0) throw new Error("O orçamento não possui itens para gerar o PDF.");
       setCurrentPdfJob(job);
-      await utils.ldRequests.notifications.invalidate();
-      await utils.ldRequests.mine.invalidate();
     } catch {
       // Não abrir o arquivo armazenado como fallback: ele pode ser um PDF
       // legado. Cada clique deve gerar exclusivamente o PDF atual desta linha.
@@ -256,7 +253,7 @@ export function LDGuestRequests() {
       <div><h1 className="text-2xl font-bold">Minhas solicitações de orçamento</h1><p className="text-sm text-muted-foreground mt-1">A equipe Alfalux analisará suas configurações e disponibilizará o PDF do orçamento validado aqui.</p></div>
       {mine.isLoading ? <p className="py-12 text-center text-muted-foreground">Carregando...</p> : (mine.data ?? []).length === 0 ? <Card className="py-12 text-center"><Package className="w-9 h-9 mx-auto text-muted-foreground mb-3" /><p className="font-medium">Nenhuma solicitação enviada</p></Card> : <>
         <LdGuestFilters filters={filters} onChange={setFilters} resultCount={visibleRequests.length} />
-        {visibleRequests.length === 0 ? <Card className="py-10 text-center"><Filter className="w-8 h-8 mx-auto text-muted-foreground mb-2" /><p className="font-medium">Nenhuma solicitação encontrada</p><p className="text-sm text-muted-foreground mt-1">Ajuste ou limpe os filtros para ver outras solicitações.</p></Card> : <div className="space-y-3">{visibleRequests.map(request => { const status = STATUS[request.status] ?? STATUS.pending; return <LdGuestRequestHistoryCard key={request.id} finalClientName={request.finalClientName} officeName={request.officeName} constructorName={request.constructorName} submittedAtLabel={toBrasiliaDateTime(request.submittedAt)} statusLabel={status.label} statusClassName={status.className} pdfAvailable={isValidatedLdPdfAvailable(request.status, request.pdfAvailable ? "available" : null)} onDownload={() => download(request.id)} onDelete={() => setRequestIdToDelete(request.id)} isDownloading={downloadingRequestId === request.id} isDeleting={deleteRequest.isPending && requestIdToDelete === request.id} />; })}</div>}
+        {visibleRequests.length === 0 ? <Card className="py-10 text-center"><Filter className="w-8 h-8 mx-auto text-muted-foreground mb-2" /><p className="font-medium">Nenhuma solicitação encontrada</p><p className="text-sm text-muted-foreground mt-1">Ajuste ou limpe os filtros para ver outras solicitações.</p></Card> : <div className="space-y-3">{visibleRequests.map(request => { const status = STATUS[request.status] ?? STATUS.pending; return <LdGuestRequestHistoryCard key={request.id} finalClientName={request.finalClientName} officeName={request.officeName} constructorName={request.constructorName} submittedAtLabel={toBrasiliaDateTime(request.submittedAt)} statusLabel={status.label} statusClassName={status.className} pdfAvailable={isValidatedLdPdfAvailable(request.status, request.pdfAvailable ? "available" : null)} onPreview={() => openOfficialPreview(request.id)} onDelete={() => setRequestIdToDelete(request.id)} isDownloading={downloadingRequestId === request.id} isDeleting={deleteRequest.isPending && requestIdToDelete === request.id} />; })}</div>}
       </>}
     </main>
     <AlertDialog open={requestIdToDelete !== null} onOpenChange={(open) => { if (!open && !deleteRequest.isPending) setRequestIdToDelete(null); }}>
@@ -277,16 +274,6 @@ export function LDGuestRequests() {
       items={currentPdfJob.items}
       freshPhotoMap={productPhotoMap}
       formData={currentPdfJob.formData}
-      onCapturePdf={async (blob) => {
-        downloadPdfBlob(blob, currentPdfJob.fileName);
-        setCurrentPdfJob(null);
-        setDownloadingRequestId(null);
-      }}
-      onCapturePdfError={() => {
-        toast.error("Não foi possível gerar o PDF atualizado desta solicitação.");
-        setCurrentPdfJob(null);
-        setDownloadingRequestId(null);
-      }}
     />}
   </div>;
 }

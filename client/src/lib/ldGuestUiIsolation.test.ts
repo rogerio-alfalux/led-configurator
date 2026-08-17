@@ -34,10 +34,10 @@ describe("LD Convidado UI isolation", () => {
       statusLabel: "PDF disponível",
       statusClassName: "bg-emerald-100",
       pdfAvailable: true,
-      onDownload: () => undefined,
+      onPreview: () => undefined,
     }));
     expect(html).toContain("PDF disponível");
-    expect(html).toContain("Baixar PDF");
+    expect(html).toContain("Pré-visualizar orçamento");
     expect(html).not.toMatch(/R\$|valor|preço|custo/i);
   });
 });

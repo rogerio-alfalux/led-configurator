@@ -2685,3 +2685,8 @@
 - [x] Adicionar prazo estimado opcional para entrega das luminárias
 - [x] Persistir e apresentar observações e prazos ao administrador
 - [x] Permitir ordenar a fila administrativa de solicitações LD pelo prazo desejado
+
+## Solicitações LD: pré-visualização oficial
+- [x] Adicionar botão de pré-visualização para o LD em solicitações com orçamento disponível
+- [x] Exibir ao LD o mesmo layout oficial utilizado pelo administrador
+- [x] Permitir imprimir ou salvar como PDF pelo diálogo do navegador sem conversão visual

@@ -26,11 +26,11 @@ vi.mock("@/lib/trpc", () => ({
 import { LDGuestRequests } from "./LDRequests";
 
 describe("LDGuestRequests", () => {
-  it("solicita o PDF atual de uma única resposta pronta, sem abrir o arquivo legado", async () => {
+  it("abre a pré-visualização oficial de uma única resposta pronta, sem abrir o arquivo legado", async () => {
     vi.stubGlobal("open", vi.fn());
     render(React.createElement(LDGuestRequests));
     expect(currentPdfData).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: /baixar pdf/i }));
+    fireEvent.click(screen.getByRole("button", { name: /pré-visualizar orçamento/i }));
     await waitFor(() => expect(currentPdfData).toHaveBeenCalledWith({ requestId: 1 }));
     expect(currentPdfData).toHaveBeenCalledTimes(1);
     expect(invalidateBadge).not.toHaveBeenCalled();
@@ -45,12 +45,13 @@ describe("LDGuestRequests", () => {
     await waitFor(() => expect(deleteRequest).toHaveBeenCalledWith({ requestId: 1 }));
   });
 
-  it("prioriza a geração atual do orçamento vinculado para PDFs de solicitações retroativas", () => {
+  it("prioriza a pré-visualização atual do orçamento vinculado para solicitações retroativas", () => {
     const source = readFileSync(resolve(process.cwd(), "client/src/pages/LDRequests.tsx"), "utf8");
     expect(source).toContain("ldRequests.currentPdfData.useMutation");
     expect(source).toContain("buildCurrentLdPdfJob(payload)");
-    expect(source).toContain("onCapturePdf={async (blob)");
     expect(source).toContain("freshPhotoMap={productPhotoMap}");
+    expect(source).toContain("onPreview={() => openOfficialPreview(request.id)}");
+    expect(source).not.toContain("downloadPdfBlob(blob, currentPdfJob.fileName)");
     expect(source).not.toContain("openLdValidatedPdf");
   });
 });
