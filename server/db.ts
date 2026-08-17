@@ -252,18 +252,16 @@ export async function listGuestQuoteRequestAttachments(requestId: number) {
     .orderBy(asc(guestQuoteRequestAttachments.id));
 }
 
-/** Exclui uma solicitação e seus metadados de anexos, sempre limitada ao próprio LD. */
+/** Oculta uma solicitação somente da lista do próprio LD, preservando-a para a equipe administrativa. */
 export async function deleteGuestQuoteRequestForGuest(guestUserId: number, requestId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const request = (await db.select().from(guestQuoteRequests)
-    .where(and(eq(guestQuoteRequests.id, requestId), eq(guestQuoteRequests.guestUserId, guestUserId)))
+    .where(and(eq(guestQuoteRequests.id, requestId), eq(guestQuoteRequests.guestUserId, guestUserId), isNull(guestQuoteRequests.guestDeletedAt)))
     .limit(1))[0];
   if (!request) return null;
-  await db.transaction(async (tx) => {
-    await tx.delete(guestQuoteRequestAttachments).where(eq(guestQuoteRequestAttachments.requestId, requestId));
-    await tx.delete(guestQuoteRequests).where(and(eq(guestQuoteRequests.id, requestId), eq(guestQuoteRequests.guestUserId, guestUserId)));
-  });
+  await db.update(guestQuoteRequests).set({ guestDeletedAt: nowBrasiliaStr() })
+    .where(and(eq(guestQuoteRequests.id, requestId), eq(guestQuoteRequests.guestUserId, guestUserId), isNull(guestQuoteRequests.guestDeletedAt)));
   return request;
 }
 
@@ -299,6 +297,7 @@ export async function countGuestUnseenQuoteResponses(guestUserId: number) {
       eq(guestQuoteRequests.guestUserId, guestUserId),
       eq(guestQuoteRequests.status, "quote_ready"),
       isNull(guestQuoteRequests.guestResponseViewedAt),
+      isNull(guestQuoteRequests.guestDeletedAt),
     ));
   return Number(rows[0]?.count ?? 0);
 }
@@ -327,7 +326,7 @@ export async function listGuestQuoteRequestsForGuest(guestUserId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(guestQuoteRequests)
-    .where(eq(guestQuoteRequests.guestUserId, guestUserId))
+    .where(and(eq(guestQuoteRequests.guestUserId, guestUserId), isNull(guestQuoteRequests.guestDeletedAt)))
     .orderBy(desc(guestQuoteRequests.submittedAt), desc(guestQuoteRequests.id));
 }
 

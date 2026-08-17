@@ -22,7 +22,7 @@ describe("exclusão de solicitações LD", () => {
     dbMocks.deleteGuestQuoteRequestForGuest.mockResolvedValue({ id: 12, requestNumber: "LD-0002-26", adminQuoteId: 90 });
     await expect(appRouter.createCaller(context("convidado")).ldRequests.deleteMine({ requestId: 12 })).resolves.toEqual({ success: true, requestId: 12 });
     expect(dbMocks.deleteGuestQuoteRequestForGuest).toHaveBeenCalledWith(77, 12);
-    expect(dbMocks.insertAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "ld_quote_request_deleted", entityId: 12 }));
+    expect(dbMocks.insertAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "ld_quote_request_hidden_by_guest", entityId: 12 }));
   });
 
   it("impede que administradores usem o endpoint de exclusão do convidado", async () => {

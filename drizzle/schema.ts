@@ -64,6 +64,8 @@ export const guestQuoteRequests = mysqlTable("guest_quote_requests", {
   pdfSentAt: timestamp({ mode: 'string' }),
   /** Momento em que o LD visualizou uma resposta/PDF disponível. */
   guestResponseViewedAt: timestamp({ mode: 'string' }),
+  /** Quando preenchido, a solicitação fica oculta somente para o LD que a enviou. */
+  guestDeletedAt: timestamp({ mode: 'string' }),
   createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
   updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },

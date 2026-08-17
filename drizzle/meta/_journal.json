@@ -288,6 +288,13 @@
       "when": 1786839562101,
       "tag": "0040_lying_tomorrow_man",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "5",
+      "when": 1786979587310,
+      "tag": "0041_damp_sasquatch",
+      "breakpoints": true
     }
   ]
 }

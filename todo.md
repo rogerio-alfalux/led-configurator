@@ -2704,3 +2704,9 @@
 - [x] Permitir que administradores excluam solicitações LD com confirmação explícita
 - [x] Preservar o orçamento vinculado ao excluir apenas a solicitação e seus anexos
 - [x] Cobrir a autorização administrativa e a confirmação de exclusão
+
+## Solicitações LD: exclusão apenas da visualização do convidado
+- [x] Fazer a exclusão do LD ocultar a solicitação apenas para o próprio LD
+- [x] Manter a solicitação excluída pelo LD visível e administrável na fila do administrador
+- [x] Preservar a exclusão definitiva apenas para ação explícita do administrador
+- [x] Sinalizar na fila administrativa a solicitação que foi excluída pelo LD

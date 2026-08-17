@@ -376,7 +376,7 @@ export const appRouter = router({
         userId: ctx.user.id,
         userEmail: ctx.user.email ?? null,
         userName: ctx.user.name ?? null,
-        action: "ld_quote_request_deleted",
+          action: "ld_quote_request_hidden_by_guest",
         entityType: "guest_quote_request",
         entityId: input.requestId,
         details: JSON.stringify({ requestNumber: deleted.requestNumber, adminQuoteId: deleted.adminQuoteId }),
@@ -409,7 +409,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "convidado") throw new TRPCError({ code: "FORBIDDEN" });
         const request = await getGuestQuoteRequestById(input.requestId);
-        if (!request || request.guestUserId !== ctx.user.id || request.status !== "quote_ready" || !request.validatedPdfUrl) {
+        if (!request || request.guestUserId !== ctx.user.id || request.guestDeletedAt || request.status !== "quote_ready" || !request.validatedPdfUrl) {
           throw new TRPCError({ code: "NOT_FOUND", message: "PDF ainda não está disponível." });
         }
         await markGuestQuoteResponseViewed(ctx.user.id, request.id);
@@ -423,7 +423,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "convidado") throw new TRPCError({ code: "FORBIDDEN" });
         const request = await getGuestQuoteRequestById(input.requestId);
-        if (!request || request.guestUserId !== ctx.user.id || request.status !== "quote_ready" || !request.adminQuoteId) {
+        if (!request || request.guestUserId !== ctx.user.id || request.guestDeletedAt || request.status !== "quote_ready" || !request.adminQuoteId) {
           throw new TRPCError({ code: "NOT_FOUND", message: "PDF ainda não está disponível." });
         }
         const quoteData = await getQuoteById(request.adminQuoteId);

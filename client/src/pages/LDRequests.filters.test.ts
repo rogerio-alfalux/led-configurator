@@ -28,5 +28,7 @@ describe("priorização administrativa de solicitações LD", () => {
     expect(page).toContain("Prazo desejado (mais próximo)");
     expect(page).toContain("request.generalObservation");
     expect(page).toContain("item.ldItemObservation");
+    expect(page).toContain("request.guestDeletedAt");
+    expect(page).toContain("Excluída pelo LD");
   });
 });

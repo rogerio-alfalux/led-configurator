@@ -1,0 +1,1 @@
+ALTER TABLE `guest_quote_requests` ADD `guestDeletedAt` timestamp;
