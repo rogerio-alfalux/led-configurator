@@ -2741,6 +2741,17 @@
 - [x] Adicionar controle de duplicidade em Meus Orçamentos
 - [x] Cobrir autorização, persistência e apresentação da marcação manual
 
+## Regressão: indicadores e acesso à duplicidade manual
+- [x] Incluir duplicidade manual no cálculo consolidado de Valor sem duplicados
+- [x] Atualizar os indicadores gerais imediatamente após marcar ou desmarcar duplicidade manual
+- [x] Restringir controles e mutação de duplicidade manual exclusivamente a administradores
+- [x] Cobrir a agregação financeira e a autorização administrativa
+
+## Regressão: indicadores gerais e duplicidade manual
+- [x] Incluir duplicidade manual no cálculo consolidado de Valor sem duplicados
+- [x] Atualizar os indicadores gerais imediatamente após marcar ou desmarcar duplicidade manual
+- [x] Cobrir a agregação financeira da duplicidade manual nos indicadores
+
 ## Regressão: revisão LD e desconto nos Dados Internos
 - [x] Carregar a revisão vigente do orçamento na pré-visualização do LD
 - [x] Evitar que o LD receba itens ou valores da primeira revisão após atualização do orçamento

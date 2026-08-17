@@ -47,6 +47,7 @@ export default function Quotes() {
   const [datePreset, setDatePreset] = useState("all");
   const [page, setPage] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
+  const [manualDuplicateOverrides, setManualDuplicateOverrides] = useState<Record<number, boolean>>({});
   const limit = 20;
 
   const ldRequestsQuery = trpc.ldRequests.adminList.useQuery(undefined, { enabled: user?.role === "admin", staleTime: 0 });
@@ -76,8 +77,19 @@ export default function Quotes() {
     offset: 0,
   });
   const setManualDuplicateMutation = trpc.quotes.setManualDuplicate.useMutation({
-    onSuccess: (_result, variables) => {
-      utils.quotes.list.invalidate();
+    onSuccess: async (_result, variables) => {
+      // Atualiza a agregação imediatamente, inclusive enquanto as consultas são renovadas.
+      setManualDuplicateOverrides(previous => ({
+        ...previous,
+        [variables.id]: variables.isManuallyDuplicate,
+      }));
+      await utils.quotes.list.invalidate();
+      await utils.quotes.list.refetch();
+      setManualDuplicateOverrides(previous => {
+        const next = { ...previous };
+        delete next[variables.id];
+        return next;
+      });
       toast.success(variables.isManuallyDuplicate ? "Orçamento marcado como duplicado." : "Marcação manual de duplicidade removida.");
     },
     onError: (error) => toast.error(error.message),
@@ -110,6 +122,10 @@ export default function Quotes() {
 
   // Permissão para ver diluição (mesma lógica do QuoteDetail)
   const canSeeCommission = hasPermission(PERMISSIONS.EDITAR_COMISSAO);
+  const isManuallyDuplicate = (quote: any) => {
+    const override = manualDuplicateOverrides[Number(quote.id)];
+    return override ?? Boolean(quote.isManuallyDuplicate);
+  };
 
   // Estatísticas refletem os filtros ativos
   const stats = useMemo(() => {
@@ -127,7 +143,7 @@ export default function Quotes() {
     const totalValue = commercialRows.reduce((sum, q) => sum + getQuoteValue(q), 0);
     const seenDuplicateGroups = new Set<string>();
     const withoutDuplicates = commercialRows.filter((q: any) => {
-      if (q.isManuallyDuplicate) return false;
+      if (isManuallyDuplicate(q)) return false;
       if (!q.isDuplicate || !q.duplicateKey) return true;
       if (seenDuplicateGroups.has(q.duplicateKey)) return false;
       seenDuplicateGroups.add(q.duplicateKey);
@@ -139,7 +155,7 @@ export default function Quotes() {
     const approvedValue = commercialRows.filter(q => q.status === "approved").reduce((sum, q) => sum + getQuoteValue(q), 0);
     const invoicedValue = commercialRows.filter(q => q.status === "invoiced").reduce((sum, q) => sum + getQuoteValue(q), 0);
     return { total, open, approved, lost, invoiced, totalValue, realValue, duplicateCount, prospectingValue, approvedValue, invoicedValue };
-  }, [filteredAllData, canSeeCommission]);
+  }, [filteredAllData, canSeeCommission, manualDuplicateOverrides]);
 
   const hasFilters = status !== "all" || sellerFilter !== "all" || assistantFilter !== "all" || duplicateFilter !== "all" || prospectingFilter !== "all" || ldOriginFilter !== "all" || ldResponseFilter !== "all" || search.trim() !== "" || dateFrom !== "" || dateTo !== "" || datePreset !== "all";
 
@@ -207,8 +223,9 @@ export default function Quotes() {
   }
 
   const matchesClientFilters = (quote: any) => {
-    if (duplicateFilter === "duplicates" && !quote.isDuplicate) return false;
-    if (duplicateFilter === "unique" && quote.isDuplicate) return false;
+    const duplicate = isManuallyDuplicate(quote) || quote.isDuplicate;
+    if (duplicateFilter === "duplicates" && !duplicate) return false;
+    if (duplicateFilter === "unique" && duplicate) return false;
     if (prospectingFilter === "prospecting" && !quote.isProspecting) return false;
     if (prospectingFilter === "commercial" && quote.isProspecting) return false;
     const ldRequest = ldRequestByQuoteId.get(Number(quote.id));
@@ -273,8 +290,8 @@ export default function Quotes() {
           // Referência única para a exportação: total final comercial, inclusive para registros legados.
           totalFinal: getDisplayedCustomerTotal(quote),
           isProspecting: quote.isProspecting,
-          isDuplicate: quote.isDuplicate,
-          isManuallyDuplicate: quote.isManuallyDuplicate,
+          isDuplicate: isManuallyDuplicate(quote) || quote.isDuplicate,
+          isManuallyDuplicate: isManuallyDuplicate(quote),
           ldRequestNumber: ldRequest?.requestNumber,
           ldRequestStatus: ldRequest?.status,
         };
@@ -565,9 +582,9 @@ export default function Quotes() {
                             {st.icon}
                             {st.label}
                           </span>
-                          {(q as any).isDuplicate && (
+                          {(isManuallyDuplicate(q) || (q as any).isDuplicate) && (
                             <Badge variant="outline" className="mt-1 border-orange-300 text-orange-700 dark:text-orange-400">
-                              {(q as any).isManuallyDuplicate ? "Duplicado manual" : `Duplicado (${(q as any).duplicateGroupSize}x)`}
+                              {isManuallyDuplicate(q) ? "Duplicado manual" : `Duplicado (${(q as any).duplicateGroupSize}x)`}
                             </Badge>
                           )}
                           {(q as any).isProspecting && (
@@ -613,20 +630,20 @@ export default function Quotes() {
                         <div className="flex items-center gap-2 flex-shrink-0">
                           {user?.role === "admin" && (
                             <Button
-                              variant={(q as any).isManuallyDuplicate ? "secondary" : "outline"}
+                              variant={isManuallyDuplicate(q) ? "secondary" : "outline"}
                               size="sm"
                               className="gap-2"
                               disabled={setManualDuplicateMutation.isPending}
                               onClick={() => {
-                                const isManuallyDuplicate = !(q as any).isManuallyDuplicate;
-                                const message = isManuallyDuplicate
+                                const nextManualDuplicate = !isManuallyDuplicate(q);
+                                const message = nextManualDuplicate
                                   ? `Marcar ${q.quoteNumber} como duplicado manual? Ele seguirá a mesma regra comercial dos duplicados automáticos.`
                                   : `Remover a marcação manual de duplicidade de ${q.quoteNumber}?`;
-                                if (window.confirm(message)) setManualDuplicateMutation.mutate({ id: q.id, isManuallyDuplicate });
+                                if (window.confirm(message)) setManualDuplicateMutation.mutate({ id: q.id, isManuallyDuplicate: nextManualDuplicate });
                               }}
                             >
                               <Copy className="w-4 h-4" />
-                              {(q as any).isManuallyDuplicate ? "Remover duplicado" : "Marcar duplicado"}
+                              {isManuallyDuplicate(q) ? "Remover duplicado" : "Marcar duplicado"}
                             </Button>
                           )}
                           <Link href={`/orcamentos/${q.id}`}>

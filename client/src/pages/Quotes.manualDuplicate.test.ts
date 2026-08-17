@@ -5,7 +5,9 @@ describe("duplicidade manual de orçamentos", () => {
   it("oferece o controle na listagem e exclui duplicados manuais do valor sem duplicados", async () => {
     const source = await readFile(new URL("./Quotes.tsx", import.meta.url), "utf8");
     expect(source).toContain("setManualDuplicate");
-    expect(source).toContain("if (q.isManuallyDuplicate) return false;");
+    expect(source).toContain("if (isManuallyDuplicate(q)) return false;");
+    expect(source).toContain("manualDuplicateOverrides");
+    expect(source).toContain("await utils.quotes.list.refetch()");
     expect(source).toContain("Marcar duplicado");
   });
 
