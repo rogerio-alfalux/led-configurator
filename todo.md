@@ -2858,3 +2858,8 @@
 - [x] Diferenciar o ícone de Meus Orçamentos do ícone de Solicitações LD no cabeçalho
 - [x] Preservar os destinos e as notificações existentes em ambos os acessos
 - [x] Cobrir a diferenciação visual por regressão
+
+## Requisição de materiais: acessórios de pedido de fábrica
+- [x] Corrigir a multiplicação de quantidade de acessórios adicionados no gerenciamento do pedido de fábrica
+- [x] Corrigir o pedido 20.0428-26 sem alterar as quantidades dos demais componentes
+- [x] Cobrir a agregação de acessórios por regressão para pedidos futuros

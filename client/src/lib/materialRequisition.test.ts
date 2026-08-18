@@ -392,6 +392,50 @@ describe("buildMaterialRequisition — componentes múltiplos (óticas, holders,
 });
 
 describe("buildMaterialRequisition — luminárias não-perfil", () => {
+  it("não multiplica novamente o acessório informado como quantidade total no pedido de fábrica", () => {
+    const items: CartItemData[] = [{
+      category: "Downlights",
+      sku: "LUNA-TEST",
+      description: "LUNA TESTE",
+      qty: 188,
+      unitPrice: 100,
+      totalPrice: 18800,
+      photoUrl: null,
+      accessories: [{
+        codigo: "CP00526",
+        descricao: "RABICHO CABO PP 3X 0,50",
+        qty: 188,
+        unitPrice: 14.5,
+        quantityScope: "order_total",
+      }],
+    }];
+
+    const result = buildMaterialRequisition(items);
+    expect(result.find(entry => entry.codigo === "CP00526")?.qty).toBe(188);
+  });
+
+  it("mantém a multiplicação dos acessórios definidos por unidade de luminária", () => {
+    const items: CartItemData[] = [{
+      category: "Downlights",
+      sku: "LUNA-TEST",
+      description: "LUNA TESTE",
+      qty: 4,
+      unitPrice: 100,
+      totalPrice: 400,
+      photoUrl: null,
+      accessories: [{
+        codigo: "CP00526",
+        descricao: "RABICHO CABO PP 3X 0,50",
+        qty: 2,
+        unitPrice: 14.5,
+        quantityScope: "per_unit",
+      }],
+    }];
+
+    const result = buildMaterialRequisition(items);
+    expect(result.find(entry => entry.codigo === "CP00526")?.qty).toBe(8);
+  });
+
   it("soma módulo LED e driver usando quantidade por unidade e quantidade total do item", () => {
     const items: CartItemData[] = [{
       category: "Spots",

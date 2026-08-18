@@ -383,6 +383,12 @@ export interface LinkedAccessory {
   familia?: string;
   /** Dimensão do acessório (ex: "1,5m") */
   dimensao?: string;
+  /**
+   * Indica como a quantidade foi informada. Acessórios adicionados no pedido
+   * de fábrica já recebem a quantidade total do pedido e não devem ser
+   * multiplicados novamente pela quantidade do item na requisição.
+   */
+  quantityScope?: "per_unit" | "order_total";
 }
 
 /**

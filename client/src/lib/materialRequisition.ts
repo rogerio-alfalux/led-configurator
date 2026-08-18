@@ -508,7 +508,14 @@ export function buildMaterialRequisition(
       for (const acc of item.accessories) {
         if (!acc.codigo) continue;
         const tipo = detectTipo(acc.descricao, acc.codigo);
-        add(acc.codigo, acc.descricao, acc.qty * itemQty, "un", tipo, itemIdx);
+        // Acessórios do carrinho são quantificados por luminária. Já os
+        // acessórios inseridos no gerenciamento do pedido de fábrica são
+        // preenchidos como quantidade total do pedido e não podem ser
+        // multiplicados novamente por item.qty.
+        const materialQty = acc.quantityScope === "order_total"
+          ? acc.qty
+          : acc.qty * itemQty;
+        add(acc.codigo, acc.descricao, materialQty, "un", tipo, itemIdx);
       }
     }
   }

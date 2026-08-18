@@ -273,6 +273,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
       fotoUrl: ac.fotoUrl,
       familia: ac.familia ?? undefined,
       dimensao: ac.dimensao ?? undefined,
+      quantityScope: "order_total",
     };
     const existing = parsed.accessories ?? [];
     update({ accessories: [...existing, newAcc] });
@@ -978,7 +979,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
           {/* Quantidade + botões */}
           <div className="flex items-center justify-between gap-3 pt-2 border-t">
             <div className="flex items-center gap-2">
-              <Label className="text-sm text-muted-foreground whitespace-nowrap">Quantidade:</Label>
+              <Label className="text-sm text-muted-foreground whitespace-nowrap">Quantidade no pedido:</Label>
               <Input
                 type="number"
                 min={1}
