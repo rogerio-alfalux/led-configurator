@@ -455,9 +455,11 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   // Agrupar itens idênticos (mesmo produto, CCT, cor, drivers) somando quantidades e concatenando etiquetas com pavimento
   const orderItems = groupOrderItems(items.filter(item => item.category !== 'Não Orçamos'));
 
+  // Cursor de linha: as sublinhas de acessórios ocupam linhas próprias e não
+  // podem ser sobrescritas pelo próximo item do loop.
+  let rowNum = DATA_START;
   for (let i = 0; i < orderItems.length; i++) {
     const item = orderItems[i];
-    const rowNum = DATA_START + i;
     const row = ws.getRow(rowNum);
 
     // Altura dinâmica: perfis com múltiplos segmentos precisam de mais espaço
@@ -587,8 +589,8 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     // ── Sub-linhas de acessórios vinculados ──────────────────────────────
     if (item.accessories && item.accessories.length > 0) {
       (item.accessories as LinkedAccessory[]).forEach((acc) => {
-        ws.spliceRows(rowNum + 1, 0, []);
-        const accRowNum = rowNum + 1;
+        rowNum += 1;
+        const accRowNum = rowNum;
         ws.getRow(accRowNum).height = 20;
         const ACC_BG = "FFE0F7FA";
         const fillAcc = (cell: ExcelJS.Cell, value: string | number | null, bold = false) => {
@@ -615,12 +617,13 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
         fillAcc(ws.getCell(`J${accRowNum}`), "");
       });
     }
+    rowNum += 1;
   }
   // Aguardar todas as imagenss
   await Promise.allSettled(imagePromises);
 
   // ─── Linha de observações gerais ─────────────────────────────────────────
-  const obsRow = DATA_START + orderItems.length + 1;
+  const obsRow = rowNum + 1;
   ws.getRow(obsRow).height = 22;
   ws.mergeCells(`A${obsRow}:C${obsRow}`);
   labelCell(ws.getCell(`A${obsRow}`), "OBSERVAÇÕES GERAIS");

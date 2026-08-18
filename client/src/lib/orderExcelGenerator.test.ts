@@ -71,4 +71,45 @@ describe("generateOrderExcel", () => {
 
     expect(worksheet.getCell("J3").value).toBe("20 dias úteis → 09/09/2026");
   });
+
+  it("mantém uma sublinha de acessório para cada item no Excel", async () => {
+    const buffer = await generateOrderExcel([
+      {
+        category: "Downlights",
+        sku: "DL-01",
+        description: "DOWNLIGHT 01",
+        qty: 2,
+        unitPrice: 100,
+        totalPrice: 200,
+        photoUrl: null,
+        accessories: [{ codigo: "CP001", descricao: "RABICHO 01", qty: 2, unitPrice: 10, quantityScope: "order_total" }],
+      },
+      {
+        category: "Downlights",
+        sku: "DL-02",
+        description: "DOWNLIGHT 02",
+        qty: 3,
+        unitPrice: 100,
+        totalPrice: 300,
+        photoUrl: null,
+        accessories: [{ codigo: "CP002", descricao: "RABICHO 02", qty: 3, unitPrice: 10, quantityScope: "order_total" }],
+      },
+    ] as any, {
+      clientName: "Cliente Teste",
+      projectName: "Obra Teste",
+      quoteNumber: "20.0428-26",
+      vendorName: "Vendedor Teste",
+      date: "18/08/2026",
+      precomputedDisplayDays: 20,
+      precomputedDeliveryDate: "15/09/2026",
+    });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
+    const worksheet = workbook.worksheets[0];
+
+    expect(worksheet.getCell("D8").value).toBe("↳ Acessório: RABICHO 01");
+    expect(worksheet.getCell("D10").value).toBe("↳ Acessório: RABICHO 02");
+    expect(worksheet.getCell("H8").value).toBe(2);
+    expect(worksheet.getCell("H10").value).toBe(3);
+  });
 });

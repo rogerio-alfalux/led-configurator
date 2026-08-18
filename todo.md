@@ -2868,3 +2868,8 @@
 - [x] Identificar a origem da quantidade acumulada de CP00526 no item de pedido de fábrica
 - [x] Corrigir CP00526 para 982 unidades no pedido 20.0428-26
 - [x] Impedir que futuras edições de acessórios repliquem uma quantidade já totalizada
+
+## Pedido de fábrica: acessórios no Excel
+- [x] Exibir no Excel todas as linhas de acessórios vinculados mostradas na prévia
+- [x] Corrigir a omissão de acessórios nos itens 1 a 8 do pedido 20.0428-26
+- [x] Cobrir a paridade de acessórios entre Excel e prévia por regressão
