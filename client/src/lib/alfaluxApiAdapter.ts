@@ -53,15 +53,18 @@ export interface ApiProduct {
   /** Módulo LED específico por CCT (novos campos da API) */
   ledModule2700?: string | null;
   ledModule3000?: string | null;
+  ledModule3500?: string | null;
   ledModule4000?: string | null;
   ledModule5000?: string | null;
   ledModuleQtd2700?: number | null;
   ledModuleQtd3000?: number | null;
+  ledModuleQtd3500?: number | null;
   ledModuleQtd4000?: number | null;
   ledModuleQtd5000?: number | null;
   /** Código EQ do módulo por CCT — enriquecido pelo servidor via lookup em /api/componentes/all */
   ledModuleEq2700?: string | null;
   ledModuleEq3000?: string | null;
+  ledModuleEq3500?: string | null;
   ledModuleEq4000?: string | null;
   ledModuleEq5000?: string | null;
   /** Código EQ do módulo LED genérico (para RGBW e legados) — enriquecido pelo servidor */
@@ -267,7 +270,7 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
   const semDriver = !d220 && !dBivolt && !dDim110v && !dDimDali && !dDimTriac110v && !dDimTriac220v;
   const tensaoEmbutida = semDriver ? extractTensaoEmbutida(p.ledModule) : null;
   // Detectar produto RGBW: algum ledModule* contém "RGBW" no texto
-  const allLedModules = [p.ledModule, p.ledModule2700, p.ledModule3000, p.ledModule4000, p.ledModule5000].filter(Boolean);
+  const allLedModules = [p.ledModule, p.ledModule2700, p.ledModule3000, p.ledModule3500, p.ledModule4000, p.ledModule5000].filter(Boolean);
   const isRgbw = allLedModules.some(m => /RGBW/i.test(m ?? ''));
   // Detectar produto com lâmpada: campo moduloLampada da API ou (nenhum módulo LED e sem driver)
   const hasAnyLedModule = allLedModules.length > 0;
@@ -363,7 +366,7 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
   const d220 = p.driver220;
   const dBivolt = p.driverBivolt;
   const ccts = normalizeCCTs(p.temperaturasCor);
-  const allLedModulesSpot = [p.ledModule, p.ledModule2700, p.ledModule3000, p.ledModule4000, p.ledModule5000].filter(Boolean);
+  const allLedModulesSpot = [p.ledModule, p.ledModule2700, p.ledModule3000, p.ledModule3500, p.ledModule4000, p.ledModule5000].filter(Boolean);
   const isRgbwSpot = allLedModulesSpot.some(m => /RGBW/i.test(m ?? ''));
   const isLampSpot = !!(p.moduloLampada) || (allLedModulesSpot.length === 0 && !d220 && !dBivolt);
 
@@ -634,7 +637,7 @@ function toArandelaProduct(p: ApiProduct): ArandelaProduct {
   const d220 = p.driver220;
   const dBivolt = p.driverBivolt;
   const ccts = normalizeCCTs(p.temperaturasCor);
-  const allLedModulesAr = [p.ledModule, p.ledModule2700, p.ledModule3000, p.ledModule4000, p.ledModule5000].filter(Boolean);
+  const allLedModulesAr = [p.ledModule, p.ledModule2700, p.ledModule3000, p.ledModule3500, p.ledModule4000, p.ledModule5000].filter(Boolean);
   const isRgbwAr = allLedModulesAr.some(m => /RGBW/i.test(m ?? ''));
   const isLampAr = !!(p.moduloLampada) || (allLedModulesAr.length === 0 && !d220 && !dBivolt);
   return {
@@ -881,14 +884,17 @@ function toBageoProduct(p: ApiProduct): BageoProduct | null {
     // Para BAGEO 40W/M: ledModuleQtd2700/3000/4000/5000 = 4 (4 voltas de fita 10W/M)
     ledModule2700: p.ledModule2700 ?? null,
     ledModule3000: p.ledModule3000 ?? null,
+    ledModule3500: p.ledModule3500 ?? null,
     ledModule4000: p.ledModule4000 ?? null,
     ledModule5000: p.ledModule5000 ?? null,
     ledModuleQtd2700: p.ledModuleQtd2700 ?? null,
     ledModuleQtd3000: p.ledModuleQtd3000 ?? null,
+    ledModuleQtd3500: p.ledModuleQtd3500 ?? null,
     ledModuleQtd4000: p.ledModuleQtd4000 ?? null,
     ledModuleQtd5000: p.ledModuleQtd5000 ?? null,
     ledModuleEq2700: p.ledModuleEq2700 ?? null,
     ledModuleEq3000: p.ledModuleEq3000 ?? null,
+    ledModuleEq3500: p.ledModuleEq3500 ?? null,
     ledModuleEq4000: p.ledModuleEq4000 ?? null,
     ledModuleEq5000: p.ledModuleEq5000 ?? null,
   };

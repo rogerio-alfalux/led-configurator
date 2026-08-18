@@ -38,7 +38,7 @@ function makeProduct(overrides: Partial<ApiProduct> = {}): ApiProduct {
 
 describe("parseCCTs", () => {
   it("converte array de CCTs para strings com K", () => {
-    expect(parseCCTs(["2700", "3000", "4000", "5000"])).toEqual(["2700K", "3000K", "4000K", "5000K"]);
+    expect(parseCCTs(["2700", "3000", "3500", "4000", "5000"])).toEqual(["2700K", "3000K", "3500K", "4000K", "5000K"]);
   });
 
   it("mantém K se já presente no array", () => {

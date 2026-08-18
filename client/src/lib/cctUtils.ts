@@ -17,7 +17,7 @@
 
 import type { CartItemData } from "./cartTypes";
 
-const CCT_PATTERN = /\b(2700K|3000K|4000K|5000K|A definir)\b/gi;
+const CCT_PATTERN = /\b(2700K|3000K|3500K|4000K|5000K|A definir)\b/gi;
 
 /**
  * Substitui todas as ocorrências de qualquer CCT padrão por `newCCT` em uma string.

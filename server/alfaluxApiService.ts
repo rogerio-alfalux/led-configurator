@@ -48,15 +48,18 @@ export interface AlfaluxProduct {
   /** Módulo LED específico por CCT (novos campos da API — usam [CCT] como placeholder quando genérico) */
   ledModule2700?: string | null;
   ledModule3000?: string | null;
+  ledModule3500?: string | null;
   ledModule4000?: string | null;
   ledModule5000?: string | null;
   ledModuleQtd2700?: number | null;
   ledModuleQtd3000?: number | null;
+  ledModuleQtd3500?: number | null;
   ledModuleQtd4000?: number | null;
   ledModuleQtd5000?: number | null;
   /** Código EQ do módulo por CCT — enriquecido via lookup em /api/componentes/all */
   ledModuleEq2700?: string | null;
   ledModuleEq3000?: string | null;
+  ledModuleEq3500?: string | null;
   ledModuleEq4000?: string | null;
   ledModuleEq5000?: string | null;
   /** Código EQ do módulo LED genérico (para RGBW e legados) — enriquecido via lookup */
@@ -261,7 +264,7 @@ export async function fetchAllAlfaluxProducts(): Promise<AlfaluxProduct[]> {
         eqMap.set(c.descricao.toUpperCase().trim(), c.codigo);
       }
     }
-    const cctKeys = ['2700', '3000', '4000', '5000'] as const;
+    const cctKeys = ['2700', '3000', '3500', '4000', '5000'] as const;
     for (const p of all) {
       for (const cct of cctKeys) {
         const modField = `ledModule${cct}` as keyof typeof p;

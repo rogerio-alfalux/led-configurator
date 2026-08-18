@@ -157,6 +157,28 @@ describe("getBageoAvailableControles", () => {
 // ─── Testes do engine de cálculo ──────────────────────────────────────────────
 
 describe("calculateBageo", () => {
+  it("usa os dados específicos de 3500K quando a API os informa", () => {
+    const product: BageoProduct = {
+      ...mockCatalog[0],
+      ccts: ["3000K", "3500K"],
+      ledModule3500: "FITA LED API 3500K",
+      ledModuleQtd3500: 3,
+      ledModuleEq3500: "EQ03500",
+    };
+    const result = calculateBageo([product], {
+      product,
+      controle: "ON/OFF 220V",
+      cct: "3500K",
+      comprimento: 1000,
+    });
+
+    expect(result).toMatchObject({
+      ledModuleWithCCT: "FITA LED API 3500K",
+      ledModuleQtd: 3,
+      ledModuleEqCode: "EQ03500",
+    });
+  });
+
   it("calcula corretamente para 1000mm (1 metro) com ON/OFF 220V", () => {
     const result = calculateBageo(mockCatalog, {
       product: mockCatalog[0],

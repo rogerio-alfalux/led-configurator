@@ -2842,3 +2842,9 @@
 - [x] Usar custo estimado somente quando a API não retornar um valor de custo utilizável
 - [x] Corrigir a apuração do orçamento 34.0003-26 e cobrir a priorização por regressão
 - [x] Persistir o custo definido manualmente e refletir imediatamente o novo valor no dashboard
+
+## Compatibilidade: CCT 3500K da API
+- [x] Aceitar 3500K na normalização de CCT retornada pela API
+- [x] Exibir 3500K somente quando estiver disponível no produto selecionado
+- [x] Propagar 3500K corretamente ao cálculo, carrinho, orçamento e documentos
+- [x] Cobrir a disponibilidade condicional de 3500K por regressão
