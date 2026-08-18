@@ -2853,3 +2853,8 @@
 - [x] Adicionar acesso direto a Meus Orçamentos no cabeçalho ao lado do carrinho
 - [x] Retornar do dashboard administrativo para Meus Orçamentos em vez da tela inicial
 - [x] Cobrir as rotas de navegação por regressão
+
+## Navegação: ícones de Orçamentos e Solicitações LD
+- [x] Diferenciar o ícone de Meus Orçamentos do ícone de Solicitações LD no cabeçalho
+- [x] Preservar os destinos e as notificações existentes em ambos os acessos
+- [x] Cobrir a diferenciação visual por regressão
