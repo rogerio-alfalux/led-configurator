@@ -2836,3 +2836,9 @@
 - [x] Recalcular os totais do orçamento com os preços alterados dos subitens SHIFT
 - [x] Exibir módulos SHIFT na prévia, PDF e Excel como subitens compactos, sem ocupar coluna adicional
 - [x] Cobrir a edição e a apresentação documental por regressão
+
+## Regressão: custo da API no dashboard de lucro
+- [x] Priorizar custo retornado pela API para revenda, produtos, acessórios e componentes
+- [x] Usar custo estimado somente quando a API não retornar um valor de custo utilizável
+- [x] Corrigir a apuração do orçamento 34.0003-26 e cobrir a priorização por regressão
+- [x] Persistir o custo definido manualmente e refletir imediatamente o novo valor no dashboard

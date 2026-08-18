@@ -26,6 +26,7 @@ vi.mock("./alfaluxApiService", async (importOriginal) => ({
   fetchAllAlfaluxProducts: vi.fn().mockResolvedValue([]),
   fetchComponentes: vi.fn().mockResolvedValue({ items: [] }),
   fetchAcessoriosProducts: vi.fn().mockResolvedValue([]),
+  fetchRevendaProducts: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("./db", async (importOriginal) => ({

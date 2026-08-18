@@ -381,6 +381,8 @@ export interface RevendaProduct {
   fornecedor: string | null;
   fotoUrl: string | null;
   precoVenda: number | null;
+  /** Custo real do produto de revenda, quando a API o expõe. */
+  custo?: number | null;
 }
 
 interface RevendaCacheEntry {

@@ -5378,13 +5378,13 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
         </div>
 
         {/* Itens especiais/estimados com opção de preencher custo manual */}
-        {costQuery.data?.items && costQuery.data.items.filter(i => i.source === 'especial_estimado' || i.source === 'especial_sem_preco' || i.source === 'especial_manual' || i.source === 'estimado_margem').length > 0 && (
+        {costQuery.data?.items && costQuery.data.items.filter(i => i.source === 'especial_estimado' || i.source === 'especial_sem_preco' || i.source === 'especial_manual' || i.source === 'manual' || i.source === 'estimado_margem').length > 0 && (
           <div className="bg-amber-50/50 dark:bg-amber-950/20 rounded-md px-3 py-2 space-y-2">
             <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide">Itens com custo estimado/manual</p>
-            {costQuery.data.items.filter(i => i.source === 'especial_estimado' || i.source === 'especial_sem_preco' || i.source === 'especial_manual' || i.source === 'estimado_margem').map(item => (
+            {costQuery.data.items.filter(i => i.source === 'especial_estimado' || i.source === 'especial_sem_preco' || i.source === 'especial_manual' || i.source === 'manual' || i.source === 'estimado_margem').map(item => (
               <div key={item.itemNumber} className="flex items-center justify-between text-xs gap-2">
                 <span className="text-muted-foreground truncate flex-1">#{item.itemNumber} {item.sku}</span>
-                {item.source === 'especial_manual' ? (
+                {item.source === 'especial_manual' || item.source === 'manual' ? (
                   <span className="text-emerald-600 font-medium">R$ {item.custoCorpo.toFixed(2)}/un (manual)</span>
                 ) : item.source === 'especial_estimado' || item.source === 'estimado_margem' ? (
                   <span className="text-amber-600 font-medium">~R$ {item.custoCorpo.toFixed(2)}/un (estimado)</span>

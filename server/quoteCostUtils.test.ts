@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateDashboardProductCost, selectActiveQuoteItems, selectApiProductForQuoteItem } from "./quoteCostUtils";
+import { calculateDashboardProductCost, getActiveQuoteVersionId, getManualUnitCost, selectActiveQuoteItems, selectApiProductForQuoteItem } from "./quoteCostUtils";
 
 describe("selectActiveQuoteItems", () => {
   it("nunca soma itens de revisões históricas ao custo da revisão ativa", () => {
@@ -24,6 +24,13 @@ describe("selectActiveQuoteItems", () => {
     );
 
     expect(items).toEqual([{ quoteVersionId: 2 }]);
+  });
+
+  it("identifica a revisão ativa usada para gravar ajustes manuais", () => {
+    expect(getActiveQuoteVersionId([
+      { id: 9, status: "published" },
+      { id: 12, status: "draft" },
+    ])).toBe(12);
   });
 
   it("resolve BAGEO pela potência da descrição quando o SKU é compartilhado", () => {
@@ -54,5 +61,16 @@ describe("selectActiveQuoteItems", () => {
       custoDriver: 0,
       subtotal: 4400.93,
     });
+  });
+});
+
+describe("getManualUnitCost", () => {
+  it("preserva um custo manual positivo como substituição explícita", () => {
+    expect(getManualUnitCost(190.46)).toBe(190.46);
+  });
+
+  it("não converte valores ausentes ou inválidos em custo manual", () => {
+    expect(getManualUnitCost(null)).toBe(0);
+    expect(getManualUnitCost("não informado")).toBe(0);
   });
 });

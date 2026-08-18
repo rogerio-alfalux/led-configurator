@@ -19,7 +19,8 @@ import {
   userDashboardPreferences,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
-import { fetchAllAlfaluxProducts, fetchComponentes, fetchAcessoriosProducts } from './alfaluxApiService';
+import { fetchAllAlfaluxProducts, fetchComponentes, fetchAcessoriosProducts, fetchRevendaProducts } from './alfaluxApiService';
+import { getManualUnitCost } from './quoteCostUtils';
 import { getDuplicateQuoteGroupSizes, getDuplicateQuoteKey } from '../shared/quoteGrouping';
 import { getCommercialTotalsToRestore, getNonCommercialQuoteStatus, transfersNonCommercialFinance, type NonCommercialQuoteKind, type NonCommercialLinkType } from '../shared/nonCommercialQuoteFinancial';
 import { normalizeQuoteNumberForLookup } from '../shared/quoteNumberLookup';
@@ -1694,15 +1695,17 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
   }
 
   // ── Buscar dados da API para cálculo de custo real (cache de 5min) ─────────────
-  const [apiProducts, apiCompResult, apiAcessorios] = await Promise.all([
+  const [apiProducts, apiCompResult, apiAcessorios, apiRevendas] = await Promise.all([
     fetchAllAlfaluxProducts(),
     fetchComponentes(),
     fetchAcessoriosProducts(),
+    fetchRevendaProducts(),
   ]);
   const productBySku = new Map(apiProducts.map(p => [p.sku.toUpperCase(), p]));
   const componenteByCodigo = new Map(apiCompResult.items.filter(c => c.codigo).map(c => [c.codigo!.toUpperCase(), c]));
   const acessorioByCodigo = new Map(apiAcessorios.filter(a => a.codigo).map(a => [a.codigo!.toUpperCase(), a]));
   const acessorioBySku = new Map(apiAcessorios.filter(a => a.sku).map(a => [a.sku!.toUpperCase(), a]));
+  const revendaBySku = new Map(apiRevendas.map(item => [item.codigo.toUpperCase(), item]));
 
   // Calcula lucro bruto e líquido por orçamento
   let totalVendas = 0;
@@ -1732,6 +1735,13 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
         const qty = Number(data.qty ?? 1);
         const sku = (data.sku ?? '').toUpperCase();
 
+        const custoManual = getManualUnitCost(data.custoManual);
+        if (custoManual > 0) {
+          custoProdutos += custoManual * qty;
+          temCusto = true;
+          continue;
+        }
+
         // Acessórios vinculados são custo real do item. Consultar exclusivamente
         // a API de acessórios/componentes pelo código, sem usar preço salvo.
         const linkedAccessoryCost = Array.isArray(data.accessories)
@@ -1750,16 +1760,10 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
 
         // 1. Item Especial: custoManual ou estimativa por margem
         if (data.isSpecialItem || data.category === 'Item Especial' || data.category === 'especial') {
-          const custoManual = Number(data.custoManual ?? 0);
-          if (custoManual > 0) {
-            custoProdutos += custoManual * qty;
+          const totalPrice = Number(data.totalPrice ?? 0);
+          if (totalPrice > 0 && marginPercent > 0) {
+            custoProdutos += totalPrice / (1 + marginPercent);
             temCusto = true;
-          } else {
-            const totalPrice = Number(data.totalPrice ?? 0);
-            if (totalPrice > 0 && marginPercent > 0) {
-              custoProdutos += totalPrice / (1 + marginPercent);
-              temCusto = true;
-            }
           }
           continue;
         }
@@ -1829,6 +1833,13 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
         }
 
         // 4. Buscar na API de produtos pelo SKU
+        const revenda = revendaBySku.get(sku);
+        const custoRevenda = Number(revenda?.custo ?? 0);
+        if (custoRevenda > 0) {
+          custoProdutos += custoRevenda * qty;
+          temCusto = true;
+          continue;
+        }
         const product = productBySku.get(sku);
         if (!product) {
           // 4a. Buscar como componente pelo código EQ/CP

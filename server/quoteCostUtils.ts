@@ -6,11 +6,14 @@ export function selectActiveQuoteItems<
   Version extends { id: number; status?: string | null },
   Item extends { quoteVersionId: number }
 >(versions: Version[], items: Item[]): Item[] {
-  // A revisão em rascunho é a que a tela apresenta como ativa. Sem rascunho,
-  // as versões chegam ordenadas da mais recente para a mais antiga.
-  const activeVersion = versions.find((version) => version.status === "draft") ?? versions[0];
-  if (!activeVersion) return [];
-  return items.filter((item) => item.quoteVersionId === activeVersion.id);
+  const activeVersionId = getActiveQuoteVersionId(versions);
+  if (activeVersionId == null) return [];
+  return items.filter((item) => item.quoteVersionId === activeVersionId);
+}
+
+/** A revisão em rascunho é a exibida; sem rascunho, a primeira é a mais recente. */
+export function getActiveQuoteVersionId<Version extends { id: number; status?: string | null }>(versions: Version[]): number | undefined {
+  return (versions.find((version) => version.status === "draft") ?? versions[0])?.id;
 }
 
 /**
@@ -51,4 +54,10 @@ export function calculateDashboardProductCost(input: {
     custoDriver,
     subtotal: custoCorpo * input.qty + custoDriver * input.driverQty,
   };
+}
+
+/** Um custo manual é uma substituição comercial explícita, não uma estimativa. */
+export function getManualUnitCost(value: unknown): number {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }

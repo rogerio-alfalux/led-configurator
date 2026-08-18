@@ -2,7 +2,7 @@ import { COOKIE_NAME, COST_PRIVILEGED_EMAILS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
-import { calculateDashboardProductCost, selectActiveQuoteItems, selectApiProductForQuoteItem } from "./quoteCostUtils";
+import { calculateDashboardProductCost, getActiveQuoteVersionId, getManualUnitCost, selectActiveQuoteItems, selectApiProductForQuoteItem } from "./quoteCostUtils";
 import {
   fetchAllAlfaluxProducts,
   invalidateAlfaluxCache,
@@ -1714,9 +1714,12 @@ export const appRouter = router({
         const activeItems = selectActiveQuoteItems(result.versions, result.items);
         const inboundTransfers = await getNonCommercialFinancialTransfersByTargetQuoteId(input.quoteId);
 
-        const products = await fetchAllAlfaluxProducts();
-        const { items: componentes } = await fetchComponentes();
-        const acessorios = await fetchAcessoriosProducts();
+        const [products, { items: componentes }, acessorios, revendas] = await Promise.all([
+          fetchAllAlfaluxProducts(),
+          fetchComponentes(),
+          fetchAcessoriosProducts(),
+          fetchRevendaProducts(),
+        ]);
 
         // Build maps for fast lookup
         const productBySku = new Map(products.map(p => [p.sku.toUpperCase(), p]));
@@ -1725,6 +1728,7 @@ export const appRouter = router({
         const acessorioByCodigo = new Map(acessorios.filter(a => a.codigo).map(a => [a.codigo!.toUpperCase(), a]));
         // Também indexar por SKU do acessório (alguns itens podem ter sido salvos com o SKU em vez do código)
         const acessorioBySku = new Map(acessorios.filter(a => a.sku).map(a => [a.sku!.toUpperCase(), a]));
+        const revendaBySku = new Map(revendas.map(item => [item.codigo.toUpperCase(), item]));
 
         // Margem do orçamento para estimar custo de itens especiais
         const marginPercent = Number(result.quote.marginPercent ?? 0.10);
@@ -1739,26 +1743,28 @@ export const appRouter = router({
             const sku = (data.sku ?? '').toUpperCase();
             const qty = Number(data.qty ?? 1);
 
+            // Uma edição manual é deliberada e deve prevalecer sobre qualquer
+            // valor calculado, mantendo o dashboard da revisão ativa sincronizado.
+            const custoManual = getManualUnitCost(data.custoManual);
+            if (custoManual > 0) {
+              const subtotal = custoManual * qty;
+              totalCusto += subtotal;
+              temCusto = true;
+              itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: custoManual, custoDriver: 0, qty, driverQty: 0, subtotal, source: 'manual' });
+              continue;
+            }
+
             // Item Especial: usar custoManual se preenchido, senão estimar pela margem
             if (data.isSpecialItem || data.category === 'Item Especial' || data.category === 'especial') {
-              const custoManual = Number(data.custoManual ?? 0);
-              if (custoManual > 0) {
-                // Custo manual preenchido pelo usuário
-                const subtotal = custoManual * qty;
-                totalCusto += subtotal;
+              // Estimar custo pela margem média: precoVenda / (1 + margem)
+              const totalPrice = Number(data.totalPrice ?? 0);
+              if (totalPrice > 0 && marginPercent > 0) {
+                const custoEstimado = totalPrice / (1 + marginPercent);
+                totalCusto += custoEstimado;
                 temCusto = true;
-                itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: custoManual, custoDriver: 0, qty, driverQty: 0, subtotal, source: 'especial_manual' });
+                itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: custoEstimado / qty, custoDriver: 0, qty, driverQty: 0, subtotal: custoEstimado, source: 'especial_estimado' });
               } else {
-                // Estimar custo pela margem média: precoVenda / (1 + margem)
-                const totalPrice = Number(data.totalPrice ?? 0);
-                if (totalPrice > 0 && marginPercent > 0) {
-                  const custoEstimado = totalPrice / (1 + marginPercent);
-                  totalCusto += custoEstimado;
-                  temCusto = true;
-                  itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: custoEstimado / qty, custoDriver: 0, qty, driverQty: 0, subtotal: custoEstimado, source: 'especial_estimado' });
-                } else {
-                  itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: 0, custoDriver: 0, qty, driverQty: 0, subtotal: 0, source: 'especial_sem_preco' });
-                }
+                itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: 0, custoDriver: 0, qty, driverQty: 0, subtotal: 0, source: 'especial_sem_preco' });
               }
               continue;
             }
@@ -1873,6 +1879,15 @@ export const appRouter = router({
             }
 
             // ── SEMPRE buscar custo na API pelo SKU (tempo real) ──
+            const revenda = revendaBySku.get(sku);
+            const custoRevenda = Number(revenda?.custo ?? 0);
+            if (custoRevenda > 0) {
+              const subtotal = custoRevenda * qty;
+              totalCusto += subtotal;
+              temCusto = true;
+              itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: custoRevenda, custoDriver: 0, qty, driverQty: 0, subtotal, source: 'api_revenda' });
+              continue;
+            }
             const product = selectApiProductForQuoteItem(products, sku, data.description);
             if (!product) {
               // Tentar buscar como componente pelo código EQ/CP na API de componentes
@@ -2008,9 +2023,18 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB unavailable' });
-        // Buscar o item
+        // Buscar somente o item da revisão ativa — revisões históricas não podem
+        // receber uma edição que o dashboard atual não consegue enxergar.
+        const quoteResult = await getQuoteById(input.quoteId);
+        if (!quoteResult) throw new TRPCError({ code: 'NOT_FOUND', message: 'Orçamento não encontrado' });
+        const activeVersionId = getActiveQuoteVersionId(quoteResult.versions);
+        if (activeVersionId == null) throw new TRPCError({ code: 'NOT_FOUND', message: 'Revisão ativa não encontrada' });
         const [item] = await db.select().from(quoteItems)
-          .where(and(eq(quoteItems.quoteId, input.quoteId), eq(quoteItems.itemNumber, input.itemNumber)))
+          .where(and(
+            eq(quoteItems.quoteId, input.quoteId),
+            eq(quoteItems.quoteVersionId, activeVersionId),
+            eq(quoteItems.itemNumber, input.itemNumber),
+          ))
           .limit(1);
         if (!item) throw new TRPCError({ code: 'NOT_FOUND', message: 'Item não encontrado' });
         // Atualizar itemData com custoManual
