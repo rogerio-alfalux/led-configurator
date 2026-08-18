@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   DOWNLIGHT_CATALOG,
   calculateDownlight,
+  getAvailableDownlightVoltages,
 } from "./downlightCatalog";
 
 // ─── Catálogo ──────────────────────────────────────────────────────────────
@@ -91,6 +92,28 @@ describe("DOWNLIGHT_CATALOG", () => {
         expect(p.driverBivolt.code).toMatch(/^(EQ\d{5}|S|)$/);
       }
     }
+  });
+});
+
+describe("getAvailableDownlightVoltages", () => {
+  const baseProduct = DOWNLIGHT_CATALOG[0]!;
+
+  it("habilita somente 220V quando o driver TRIAC 220V existe", () => {
+    const product = {
+      ...baseProduct,
+      driverDimTriac110v: null,
+      driverDimTriac220v: { model: "TRIAC 220V", code: "EQ-TRIAC-220" },
+    };
+    expect(getAvailableDownlightVoltages(product, "DIM TRIAC 220V")).toEqual(["220V"]);
+  });
+
+  it("habilita somente 110V quando o driver TRIAC 110V existe", () => {
+    const product = {
+      ...baseProduct,
+      driverDimTriac110v: { model: "TRIAC 110V", code: "EQ-TRIAC-110" },
+      driverDimTriac220v: null,
+    };
+    expect(getAvailableDownlightVoltages(product, "DIM TRIAC 110V")).toEqual(["110V"]);
   });
 });
 

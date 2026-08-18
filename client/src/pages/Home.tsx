@@ -50,8 +50,9 @@ import { getProfilePhoto, getDownlightPhoto, getPainelPhoto } from "@/lib/profil
 import {
   DOWNLIGHT_CATALOG,
   calculateDownlight,
+  getAvailableDownlightVoltages,
 } from "@/lib/downlightCatalog";
-import type { DownlightResult, ControleType } from "@/lib/downlightCatalog";
+import type { DownlightResult, ControleType, DownlightVoltage } from "@/lib/downlightCatalog";
 import {
   PAINEL_CATALOG,
   calculatePainel,
@@ -3353,7 +3354,7 @@ export default function Home() {
   const [dlInstalacao, setDlInstalacao] = useState<string | null>(null);
   const [dlFamilia, setDlFamilia] = useState<string | null>(null);
   const [dlProductKey, setDlProductKey] = useState<string | null>(null);
-  const [dlVoltage, setDlVoltage] = useState<"220V" | "Bivolt" | null>(null);
+  const [dlVoltage, setDlVoltage] = useState<DownlightVoltage | null>(null);
   const [dlCCT, setDlCCT] = useState<string>("3000K");
   const [dlControle, setDlControle] = useState<ControleType>("ON/OFF");
   const [dlResult, setDlResult] = useState<DownlightResult | null>(null);
@@ -7215,12 +7216,9 @@ export default function Home() {
                               // Reset CCT para primeiro valor disponível do produto
                               const [s, ...np] = v.split('::');
                               const newProd = activeDlCatalog.find(p => p.sku === s && p.name === np.join('::'));
-                              // Auto-selecionar tensão quando só há uma opção disponível
-                              const newHas220Dl = newProd?.driver220 != null;
-                              const newHasBivoltDl = newProd?.driverBivolt != null;
-                              if (!newHas220Dl && newHasBivoltDl) setDlVoltage("Bivolt");
-                              else if (newHas220Dl && !newHasBivoltDl) setDlVoltage("220V");
-                              else setDlVoltage(null);
+                              // Selecionar uma tensão válida exclusivamente a partir do driver API.
+                              const availableVoltages = newProd ? getAvailableDownlightVoltages(newProd, "ON/OFF") : [];
+                              setDlVoltage(availableVoltages.length === 1 ? availableVoltages[0] : null);
                               if (newProd?.isRgbw) { setDlCCT("RGBW"); }
                               else if (newProd?.isLamp) { /* sem CCT */ }
                               else {
@@ -7268,15 +7266,10 @@ export default function Home() {
                                     if (!isAvailable) return;
                                     setDlControle(ctrl);
                                     setDlResult(null);
-                                    // Se DIM selecionado e driver não suporta bivolt, resetar para 220V
-                                    if (ctrl !== 'ON/OFF') {
-                                      const dimDrv = ctrl === 'DIM DALI' ? dlSelProdCtrl?.driverDimDali
-                                        : ctrl === 'DIM 1-10V' ? dlSelProdCtrl?.driverDim110v
-                                        : ctrl === 'DIM TRIAC 110V' ? (dlSelProdCtrl as any)?.driverDimTriac110v
-                                        : (dlSelProdCtrl as any)?.driverDimTriac220v;
-                                      const dimBivolt = dimDrv != null && /bivolt/i.test(dimDrv.model);
-                                      if (!dimBivolt && dlVoltage === 'Bivolt') setDlVoltage('220V');
-                                    }
+                                    const availableVoltages = dlSelProdCtrl
+                                      ? getAvailableDownlightVoltages(dlSelProdCtrl, ctrl)
+                                      : [];
+                                    setDlVoltage(availableVoltages[0] ?? null);
                                   }}
                                   title={!isAvailable ? "Driver não cadastrado para este produto" : undefined}
                                   className={[
@@ -7305,17 +7298,16 @@ export default function Home() {
                       const dlSelProdV = activeDlCatalog.find(p => p.sku === _dlVSku && p.name === _dlVName);
                       // Produto sem driver: não exibir tensão
                       if (dlSelProdV?.semDriver) return null;
-                      // Verificar se o driver DIM selecionado suporta bivolt
-                      const dlDimDrv = dlControle === 'DIM DALI' ? dlSelProdV?.driverDimDali : dlControle === 'DIM 1-10V' ? dlSelProdV?.driverDim110v : null;
-                      const dlDimBivolt = dlDimDrv != null && /bivolt/i.test(dlDimDrv.model);
-                      const hasBivoltDl = dlControle !== 'ON/OFF' ? dlDimBivolt : (dlSelProdV?.driverBivolt != null);
-                      const has220Dl = dlControle !== 'ON/OFF' ? (dlDimDrv != null && !/bivolt/i.test(dlDimDrv.model)) : (dlSelProdV?.driver220 != null);
+                      const dlAvailableVoltages = dlSelProdV
+                        ? getAvailableDownlightVoltages(dlSelProdV, dlControle)
+                        : [];
+                      const dlDimBivolt = dlAvailableVoltages.includes("Bivolt");
                       return (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
                           <div className="flex gap-2">
-                            {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
-                              const disabled = (v === "Bivolt" && !hasBivoltDl) || (v === "220V" && !has220Dl);
+                            {(["110V", "220V", "Bivolt"] as DownlightVoltage[]).map((v) => {
+                              const disabled = !dlAvailableVoltages.includes(v);
                               return (
                                 <button
                                   key={v}
@@ -7334,8 +7326,8 @@ export default function Home() {
                               );
                             })}
                           </div>
-                          {dlControle !== 'ON/OFF' && !dlDimBivolt && (
-                            <p className="text-xs text-muted-foreground">Driver DIM selecionado é somente 220V.</p>
+                          {dlControle !== 'ON/OFF' && !dlDimBivolt && dlAvailableVoltages.length === 1 && (
+                            <p className="text-xs text-muted-foreground">Driver DIM selecionado é somente {dlAvailableVoltages[0]}.</p>
                           )}
                           {dlControle === 'ON/OFF' && dlVoltage === "Bivolt" && !dlSelProdV?.driverBivolt && (
                             <p className="text-xs text-destructive flex items-center gap-1">

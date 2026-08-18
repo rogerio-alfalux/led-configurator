@@ -2821,6 +2821,11 @@
 - [x] Preservar a última resposta válida da API de Customizados quando uma nova consulta externa falhar
 - [x] Cobrir a resposta de erro sem introduzir catálogo estático local
 
+## Regressão: tensão DIM TRIAC em LUNA G LED 17W RE
+- [x] Habilitar exclusivamente 220V quando o driver TRIAC retornado pela API for 220V
+- [x] Habilitar exclusivamente 110V quando o driver TRIAC retornado pela API for 110V
+- [x] Manter o cálculo disponível ao selecionar DIM TRIAC e cobrir por regressão
+
 ## Módulos SHIFT: preço individual
 - [x] Aplicar o preço individual retornado pela API a cada módulo SHIFT no carrinho
 - [x] Permitir preencher manualmente o preço de módulo SHIFT sem preço API, respeitando as permissões de preço

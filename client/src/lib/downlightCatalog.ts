@@ -12,6 +12,7 @@ export interface DownlightDriver {
 }
 
 export type ControleType = "ON/OFF" | "DIM 1-10V" | "DIM DALI" | "DIM TRIAC 110V" | "DIM TRIAC 220V";
+export type DownlightVoltage = "110V" | "220V" | "Bivolt";
 
 export interface DownlightProduct {
   /** Tipo de instalacao: "EMBUTIR" | "NO FRAME" */
@@ -150,19 +151,37 @@ export interface DownlightProduct {
   fotoUrl?: string | null;
 }
 
+/**
+ * Determina as tensões que podem ser selecionadas a partir do driver que a API
+ * cadastrou para o controle escolhido. TRIAC é sempre monovolt na sua versão.
+ */
+export function getAvailableDownlightVoltages(product: DownlightProduct, controle: ControleType): DownlightVoltage[] {
+  if (controle === "DIM TRIAC 110V") return product.driverDimTriac110v ? ["110V"] : [];
+  if (controle === "DIM TRIAC 220V") return product.driverDimTriac220v ? ["220V"] : [];
+  if (controle === "DIM 1-10V") return product.driverDim110v ? ["220V"] : [];
+  if (controle === "DIM DALI") {
+    if (!product.driverDimDali) return [];
+    return /bivolt/i.test(product.driverDimDali.model) ? ["220V", "Bivolt"] : ["220V"];
+  }
+  const opts: DownlightVoltage[] = [];
+  if (product.driver220) opts.push("220V");
+  if (product.driverBivolt) opts.push("Bivolt");
+  return opts;
+}
+
 export interface DownlightInput {
   /** SKU do produto (campo `sku` no catálogo) */
   productSku: string;
   /** Nome do produto -- combinado com productSku para identificar unicamente produtos com SKU duplicado */
   productName?: string;
-  tensao: "220V" | "Bivolt";
+  tensao: DownlightVoltage;
   cct: string;
   controle: ControleType;
 }
 
 export interface DownlightResult {
   product: DownlightProduct;
-  tensao: "220V" | "Bivolt";
+  tensao: DownlightVoltage;
   cct: string;
   controle: ControleType;
   driver: DownlightDriver;
@@ -3828,7 +3847,7 @@ export function calculateDownlight(input: DownlightInput, catalog?: DownlightPro
       : product.ledModule ? product.ledModule + " " + input.cct : "";
     return {
       product,
-      tensao: (product.tensaoEmbutida ?? input.tensao) as "220V" | "Bivolt",
+      tensao: (product.tensaoEmbutida ?? input.tensao) as DownlightVoltage,
       cct: input.cct,
       controle: input.controle,
       driver: { model: "", code: "" },
