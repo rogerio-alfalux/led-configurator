@@ -2848,3 +2848,8 @@
 - [x] Exibir 3500K somente quando estiver disponível no produto selecionado
 - [x] Propagar 3500K corretamente ao cálculo, carrinho, orçamento e documentos
 - [x] Cobrir a disponibilidade condicional de 3500K por regressão
+
+## Navegação: Meus Orçamentos e Dashboard
+- [x] Adicionar acesso direto a Meus Orçamentos no cabeçalho ao lado do carrinho
+- [x] Retornar do dashboard administrativo para Meus Orçamentos em vez da tela inicial
+- [x] Cobrir as rotas de navegação por regressão

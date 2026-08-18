@@ -6,6 +6,7 @@ import {
   Users, FileDown, TrendingUp, Package, PieChart, AlertCircle, Activity, FlaskConical, Link2, Receipt, Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { QUOTES_ROUTE } from "@/lib/quotesNavigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -332,10 +333,10 @@ export default function Dashboard() {
       {/* Header */}
       <div className="border-b bg-card sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3 flex-wrap">
-          <Link href="/">
+          <Link href={QUOTES_ROUTE}>
             <Button variant="ghost" size="sm" className="gap-2">
               <ArrowLeft className="w-4 h-4" />
-              Início
+              Meus Orçamentos
             </Button>
           </Link>
           <Separator orientation="vertical" className="h-6" />

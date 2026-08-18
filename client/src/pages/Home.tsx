@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import type { ReactNode } from "react";
 import { trpc } from "@/lib/trpc";
+import { canOpenQuotesFromHome, QUOTES_ROUTE } from "@/lib/quotesNavigation";
 import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, RefreshCw, Copy, ClipboardCheck, Layers, Lightbulb, Grid2X2, Focus, Lamp, TreePine, Navigation, Sparkles, ShoppingCart, PackagePlus, Upload, X as XIcon, Image as ImageIcon, ShoppingBag, ArrowLeft, FileCheck, Wrench, Briefcase, Star, Package2, Search as SearchIcon, Minus, Plus, DollarSign, Ban, ArrowLeftRight, Package, LogIn, LogOut, UserRound, ClipboardList } from "lucide-react";
 // v32.63 - 2026-08-10
 import { Link, useLocation } from "wouter";
@@ -4839,6 +4840,20 @@ export default function Home() {
                 </span>
               )}
             </span>
+            {canOpenQuotesFromHome(isAuthenticated, isConvidado) && (
+              <Link href={QUOTES_ROUTE}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="Meus Orçamentos"
+                  aria-label="Abrir Meus Orçamentos"
+                  data-testid="home-quotes-access"
+                  className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                >
+                  <ClipboardList className="w-4 h-4" />
+                </Button>
+              </Link>
+            )}
             <Link href="/carrinho">
               <Button
                 variant="ghost"
