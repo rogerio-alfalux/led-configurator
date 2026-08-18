@@ -2863,3 +2863,8 @@
 - [x] Corrigir a multiplicação de quantidade de acessórios adicionados no gerenciamento do pedido de fábrica
 - [x] Corrigir o pedido 20.0428-26 sem alterar as quantidades dos demais componentes
 - [x] Cobrir a agregação de acessórios por regressão para pedidos futuros
+
+## Regressão: quantidade persistida de CP00526 no pedido 20.0428-26
+- [x] Identificar a origem da quantidade acumulada de CP00526 no item de pedido de fábrica
+- [x] Corrigir CP00526 para 982 unidades no pedido 20.0428-26
+- [x] Impedir que futuras edições de acessórios repliquem uma quantidade já totalizada

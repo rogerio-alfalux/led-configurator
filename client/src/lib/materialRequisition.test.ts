@@ -414,6 +414,29 @@ describe("buildMaterialRequisition — luminárias não-perfil", () => {
     expect(result.find(entry => entry.codigo === "CP00526")?.qty).toBe(188);
   });
 
+  it("soma acessórios totais de vários itens sem reaplicar a quantidade de cada produto", () => {
+    const quantities = [188, 257, 12, 3, 4, 4, 497, 8, 9];
+    const items: CartItemData[] = quantities.map((accessoryQty, index) => ({
+      category: "Downlights",
+      sku: `LUNA-${index + 1}`,
+      description: `LUNA ${index + 1}`,
+      qty: [188, 257, 4, 1, 2, 1, 497, 8, 9][index],
+      unitPrice: 100,
+      totalPrice: 100,
+      photoUrl: null,
+      accessories: [{
+        codigo: "CP00526",
+        descricao: "RABICHO CABO PP 3X 0,50",
+        qty: accessoryQty,
+        unitPrice: 14.5,
+        quantityScope: "order_total",
+      }],
+    }));
+
+    const result = buildMaterialRequisition(items);
+    expect(result.find(entry => entry.codigo === "CP00526")?.qty).toBe(982);
+  });
+
   it("mantém a multiplicação dos acessórios definidos por unidade de luminária", () => {
     const items: CartItemData[] = [{
       category: "Downlights",
