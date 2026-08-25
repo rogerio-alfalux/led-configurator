@@ -15,7 +15,7 @@
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 export type LedBarDifusor = "DA" | "DB" | "DC" | "NF";
-export type LedBarPotencia = 5 | 10 | 20 | 25;
+export type LedBarPotencia = 5 | 10 | 14.4 | 20 | 25;
 export type LedBarControle = "ON/OFF" | "DIM 0-10V" | "DIM DALI" | "DIM TRIAC";
 export type LedBarVoltage = "110V" | "220V" | "Bivolt";
 
@@ -185,14 +185,14 @@ export const PERFIL_FLEXIVEL_MAX_LENGTH_MM = 5000;
  * Se não houver dados da API, calcLedBarPrice retorna null e o usuário preenche manualmente.
  * Nota: LED BAR EC, LED BAR E e LED BAR 45 foram removidas pois a API já retorna custoCorpo/custoDriver.
  */
-export const LED_BAR_FAMILIES_NO_PRICE = /^(LED BAR WW|FLOOR|MEIA LUA|MILANO)/i;
+export const LED_BAR_FAMILIES_NO_PRICE = /^(LED BAR WW|LED BAR 45(?: NEW)?|FLOOR|MEIA LUA|MILANO)/i;
 
 /**
  * Tabela de preços estáticos por metro linear (R$) por potência.
  * Usada apenas como fallback quando a API não retornar precoMetro.
  * @deprecated Preferir precoMetro vindo da API.
  */
-export const LED_BAR_PRECO_POR_METRO: Record<LedBarPotencia, number> = {
+export const LED_BAR_PRECO_POR_METRO: Partial<Record<LedBarPotencia, number>> = {
   5:  106.40,
   10: 120.00,
   20: 126.00,
@@ -401,6 +401,7 @@ export function calcLedBarPriceDetail(
 export const LED_BAR_POTENCIA_OPTIONS: { value: LedBarPotencia; label: string }[] = [
   { value: 5,  label: "5 W/m" },
   { value: 10, label: "10 W/m" },
+  { value: 14.4, label: "14,4 W/m" },
   { value: 20, label: "20 W/m" },
   { value: 25, label: "25 W/m" },
 ];
@@ -426,10 +427,10 @@ export const LED_BAR_CONTROLE_OPTIONS: { value: LedBarControle; label: string }[
  * Ex: "LED BAR U DB 10W/M" → 10
  */
 export function parsePotenciaFromName(name: string): LedBarPotencia | null {
-  const m = name.match(/(\d+)\s*W\/M/i);
+  const m = name.match(/(\d+(?:[.,]\d+)?)\s*W\s*\/\s*M/i);
   if (!m) return null;
-  const v = parseInt(m[1], 10);
-  if (v === 5 || v === 10 || v === 20 || v === 25) return v;
+  const v = Number(m[1].replace(",", "."));
+  if (v === 5 || v === 10 || v === 14.4 || v === 20 || v === 25) return v;
   return null;
 }
 

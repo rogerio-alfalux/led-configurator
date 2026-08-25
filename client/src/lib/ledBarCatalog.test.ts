@@ -35,6 +35,7 @@ const mockProduct: LedBarProduct = {
 describe("parsePotenciaFromName", () => {
   it("extrai 5W/m", () => expect(parsePotenciaFromName("LED BAR U DB 5W/M")).toBe(5));
   it("extrai 10W/m", () => expect(parsePotenciaFromName("LED BAR U DB 10W/M")).toBe(10));
+  it("extrai 14,4W/m com vírgula", () => expect(parsePotenciaFromName("LED BAR 45 NEW 14,4W/M")).toBe(14.4));
   it("extrai 25W/m", () => expect(parsePotenciaFromName("LED BAR U DB 25W/M")).toBe(25));
   it("retorna null para nome sem potência", () => expect(parsePotenciaFromName("LED BAR U DB")).toBeNull());
   it("retorna null para potência desconhecida", () => expect(parsePotenciaFromName("LED BAR U DB 15W/M")).toBeNull());

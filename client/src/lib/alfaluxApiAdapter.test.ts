@@ -197,6 +197,28 @@ describe("adaptAlfaluxProducts - separação de categorias", () => {
   });
 });
 
+describe("adaptAlfaluxProducts - LED BAR", () => {
+  it("inclui LED BAR 45 NEW de 14,4W/m no catálogo LED BAR vindo da API", () => {
+    const product = makeProduct({
+      categoria: "PERFIS",
+      familia: "LED BAR 45 NEW",
+      sku: "LB45NEW-144",
+      name: "LED BAR 45 NEW 14,4W/M",
+      precoMetro: 123.45,
+    });
+
+    const result = adaptAlfaluxProducts([product]);
+
+    expect(result.ledBars).toHaveLength(1);
+    expect(result.ledBars[0]).toMatchObject({
+      familia: "LED BAR 45 NEW",
+      potencia: 14.4,
+      difusor: "NF",
+      precoMetro: 123.45,
+    });
+  });
+});
+
 describe("dados da API usados sem modificação — sem inferência de quantidade", () => {
   it("EASY LED POINT 3X3: ledModule, otica e holder usados exatamente como a API retorna", () => {
     const p = makeProduct({

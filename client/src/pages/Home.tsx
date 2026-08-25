@@ -67,7 +67,6 @@ import { adaptAlfaluxProducts } from "@/lib/alfaluxApiAdapter";
 import { useAlfaluxProducts } from "@/hooks/useAlfaluxProducts";
 import {
   LED_BAR_CATALOG,
-  LED_BAR_POTENCIA_OPTIONS,
   LED_BAR_DIFUSOR_OPTIONS,
   LED_BAR_CONTROLE_OPTIONS,
   LED_BAR_MAX_LENGTH_MM,
@@ -4073,11 +4072,26 @@ export default function Home() {
     [activeLedBarCatalog]
   );
 
-  // Famílias que não têm seleção de difusor (MILANO, MEIA LUA — difusor fixo NF)
-  const lbIsNoDifusorFamily = useMemo(() =>
-    lbFamilia ? /^(MILANO|MEIA LUA|PERFIL FLEXIVEL|LED BAR WW|FLOOR)/i.test(lbFamilia) : false,
-    [lbFamilia]
-  );
+  // A API é a fonte de verdade das potências disponíveis em cada família LED BAR.
+  // Isso inclui variantes novas, como LED BAR 45 NEW em 14,4W/m.
+  const lbPotenciaOptions = useMemo(() => {
+    if (!lbFamilia) return [];
+    return Array.from(new Set(
+      activeLedBarCatalog
+        .filter(p => p.familia === lbFamilia && (!/^PERFIL FLEXIVEL/i.test(lbFamilia) || !lbInstalacao || p.instalacao === lbInstalacao))
+        .map(p => p.potencia)
+    )).sort((a, b) => a - b).map(value => ({
+      value,
+      label: `${value.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} W/m`,
+    }));
+  }, [activeLedBarCatalog, lbFamilia, lbInstalacao]);
+
+  // A própria API define se a família usa difusor fixo NF ou oferece seleção de difusor.
+  const lbIsNoDifusorFamily = useMemo(() => {
+    if (!lbFamilia) return false;
+    const familyProducts = activeLedBarCatalog.filter(p => p.familia === lbFamilia);
+    return familyProducts.length > 0 && familyProducts.every(p => p.difusor === "NF");
+  }, [activeLedBarCatalog, lbFamilia]);
 
   // Produto LED BAR selecionado (potência + difusor + instalação para Perfil Flexível)
   const lbIsPerfilFlexivel = useMemo(() =>
@@ -6081,32 +6095,13 @@ export default function Home() {
                   {/* Potência */}            <div>
                     <FieldLabel>Potência</FieldLabel>
                     <div className="grid grid-cols-3 gap-2">
-                      {LED_BAR_POTENCIA_OPTIONS.filter((opt) => {
-                        // 20 W/m exclusivo da família MEIA LUA
-                        if (opt.value === 20 && !(/^MEIA LUA/i.test(lbFamilia ?? ""))) return false;
-                        // Para famílias sem difusor (PERFIL FLEXIVEL, MILANO, MEIA LUA),
-                        // ocultar potências que não existem no catálogo para essa família
-                        if (lbIsNoDifusorFamily) {
-                          return activeLedBarCatalog.some(p =>
-                            p.familia === lbFamilia && p.potencia === opt.value &&
-                            (!lbIsPerfilFlexivel || !lbInstalacao || p.instalacao === lbInstalacao)
-                          );
-                        }
-                        return true;
-                      }).map((opt) => {
-                        const exists = activeLedBarCatalog.some(
-                          p => p.familia === lbFamilia && p.potencia === opt.value &&
-                            (!lbIsPerfilFlexivel || !lbInstalacao || p.instalacao === lbInstalacao)
-                        );
+                      {lbPotenciaOptions.map((opt) => {
                         return (
                           <button
                             key={opt.value}
-                            onClick={() => { if (exists) { setLbPotencia(opt.value); setLbDifusor(null); setLbResult(null); } }}
-                            disabled={!exists}
+                            onClick={() => { setLbPotencia(opt.value); setLbDifusor(null); setLbResult(null); }}
                             className={`px-3 py-2 rounded-md text-sm font-medium border transition-all ${
-                              !exists
-                                ? "opacity-30 cursor-not-allowed bg-muted text-muted-foreground border-border"
-                                : lbPotencia === opt.value
+                              lbPotencia === opt.value
                                 ? "bg-primary text-primary-foreground border-primary shadow-sm"
                                 : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
                             }`}

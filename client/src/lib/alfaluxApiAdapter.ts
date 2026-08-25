@@ -701,7 +701,7 @@ function toArandelaProduct(p: ApiProduct): ArandelaProduct {
 
 /** Converte um produto da API para LedBarProduct */
 /** Famílias que usam o fluxo LED BAR mas não têm difusor no nome (ex: MILANO NF, MEIA LUA, PERFIL FLEXIVEL) */
-const LED_BAR_FAMILIES_NO_DIFUSOR = /^(MILANO|MEIA LUA|PERFIL FLEXIVEL|LED BAR WW|FLOOR)/i;
+const LED_BAR_FAMILIES_NO_DIFUSOR = /^(MILANO|MEIA LUA|PERFIL FLEXIVEL|LED BAR WW|LED BAR 45(?: NEW)?|FLOOR)/i;
 
 function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
   const potencia = parsePotenciaFromName(p.name);

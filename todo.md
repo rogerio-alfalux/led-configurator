@@ -2928,3 +2928,9 @@
 - [x] Exibir valor unitário cheio e com desconto de cada driver no cartão de item
 - [x] Manter os totais por item e o layout legíveis com desconto ativo
 - [x] Cobrir os cálculos unitários descontados por regressão
+
+## Catálogo: LED BAR 45 NEW
+- [x] Exibir LED BAR 45 NEW no dropdown de produtos da família LED BAR
+- [x] Aplicar a mesma lógica de cálculo e drivers do LED BAR 45
+- [x] Expor a potência 14,4W quando estiver disponível pela API
+- [x] Cobrir a nova família e potência por regressão
