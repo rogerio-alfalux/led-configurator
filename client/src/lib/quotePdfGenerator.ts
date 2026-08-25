@@ -15,6 +15,7 @@ import type { CartItemData, QuoteFormData } from "./cartTypes";
 import { getPersistedItemPhotoUrl } from "./itemPhoto";
 import { toBrasiliaDate } from "./dateUtils";
 import { getStateInfo } from "./difalTable";
+import { appendQuoteGeneralObservation } from "./quoteDocumentObservation";
 
 // ── Cores (mesmas do template Excel) ────────────────────────────────────────
 const BLUE_RGB      = [91, 155, 213]  as [number, number, number]; // #5B9BD5
@@ -438,7 +439,7 @@ async function _generatePdfBlob(
 
   // Colwidths: soma = 190mm
   // [planta, foto, modelo, comp, pot, dim, tensao, cor, cct, qtd, total]
-  const colWidths = [11, 17, 47, 13, 10, 12, 11, 14, 14, 9, 22];
+  const colWidths = [11, 17, 44, 13, 10, 12, 11, 14, 14, 9, 25];
 
   autoTable(doc, {
     startY: y,
@@ -602,6 +603,7 @@ async function _generatePdfBlob(
   if (formData.difalEnabled && combinedAmt > 0) {
     obsText = `DIFAL/FCP aplicado para ${formData.destState ?? ""}: DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%) + FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%): ${fmtBRL(combinedAmt)}. Valores já incluídos na proposta.`;
   }
+  obsText = appendQuoteGeneralObservation(obsText, formData.notes);
   // Renderizar "Observação:" em negrito + texto normal na mesma linha usando largura total
   doc.setFont("helvetica", "bold");
   const obsLabel = "Observação: ";

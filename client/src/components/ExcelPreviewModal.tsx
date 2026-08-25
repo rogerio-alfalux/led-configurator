@@ -16,6 +16,7 @@ import { formatBRL } from "@/lib/cartTypes";
 import { getStateInfo } from "@/lib/difalTable";
 import { toBrasiliaDate } from "@/lib/dateUtils";
 import { QUOTE_PREVIEW_COLUMN_COUNT, QUOTE_PREVIEW_SUBITEM_BLANK_COLUMN_COUNT } from "@/lib/quotePreviewLayout";
+import { appendQuoteGeneralObservation } from "@/lib/quoteDocumentObservation";
 
 // ── Helpers (mesmos do gerador Excel) ────────────────────────────────────────
 
@@ -795,7 +796,18 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
             </div>
 
             {/* ── Tabela de produtos ── */}
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <style>{`
+              .quote-items-table td:nth-child(11), .quote-items-table td:nth-child(12) {
+                white-space: nowrap !important;
+                word-break: normal !important;
+                overflow-wrap: normal !important;
+                font-size: 10px !important;
+              }
+            `}</style>
+            <table className="quote-items-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, tableLayout: "fixed" }}>
+              <colgroup>
+                {[5, 7, 23, 7, 6, 6, 6, 8, 8, 4, 10, 10].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
+              </colgroup>
               <thead>
                 <tr>
                   {["ITEM EM\nPLANTA", "FOTO", "MODELO ALFALUX", "COMPRIMENTO\n(mm)", "POTÊNCIA\n(W)", "DIM", "TENSÃO\n(V)", "COR", "TEMPERATURA\nDE COR (K)", "QTD", "PREÇO\nUNITÁRIO", "PREÇO\nTOTAL"].map((h) => (
@@ -1190,10 +1202,11 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                 const _obsText = _hasDifal
                   ? `DIFAL/FCP aplicado para ${formData.destState ?? ""}: DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%) + FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%): ${formatBRL(combinedAmtPreview)}. Valores já incluídos na proposta.`
                   : "Pode ser acrescido o valor de DIFAL, de acordo com o Estado e classificação fiscal da empresa.";
+                const _fullObsText = appendQuoteGeneralObservation(_obsText, formData.notes);
                 return (
                   <div style={{ marginTop: 10, fontSize: 12 }}>
                     <span style={{ fontWeight: "bold" }}>Observação:</span>{" "}
-                    <span>{_obsText}</span>
+                    <span>{_fullObsText}</span>
                   </div>
                 );
               })()}

@@ -24,6 +24,7 @@ import type { CartItemData, LinkedAccessory, QuoteFormData } from "./cartTypes";
 import { getPersistedItemPhotoUrl } from "./itemPhoto";
 import { toBrasiliaDate } from "./dateUtils";
 import { getStateInfo } from "./difalTable";
+import { appendQuoteGeneralObservation } from "./quoteDocumentObservation";
 
 // ── Cores do template ────────────────────────────────────────────────────────
 const BLUE      = "FF5B9BD5"; // Azul do template (cabeçalho tabela, número, data)
@@ -1557,6 +1558,7 @@ async function _generateExcelBuffer(
       const _cAmt = combinedAmt.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       obsText = `DIFAL/FCP aplicado para ${formData.destState ?? ""}: DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%) + FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%): R$ ${_cAmt}. Valores já incluídos na proposta.`;
     }
+    obsText = appendQuoteGeneralObservation(obsText, formData.notes);
     // Usar rich text para ter "Observação:" em negrito + texto normal
     c.value = { richText: [
       { text: "Observação: ", font: { name: "Calibri", size: 11, bold: true } },

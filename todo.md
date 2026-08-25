@@ -2901,3 +2901,14 @@
 - [x] Manter bloqueada a edição de equipamentos para Revenda e Acessórios
 - [x] Preservar componentes existentes e refletir alterações na ficha e requisição de materiais
 - [x] Cobrir permissões de edição por categoria por regressão
+
+## Orçamento: observações gerais nos documentos
+- [x] Exibir a observação geral editada no orçamento abaixo do frete na prévia
+- [x] Exibir a observação geral no PDF oficial sem alterar seu layout validado
+- [x] Exibir a observação geral na linha correspondente do Excel
+- [x] Cobrir a propagação do campo por regressão documental
+
+## Orçamento: valores altos nas colunas de preço
+- [x] Ajustar as larguras de Preço Unitário e Preço Total na prévia sem quebrar valores altos
+- [x] Ajustar as larguras correspondentes no PDF oficial sem alterar sua estrutura validada
+- [x] Cobrir a apresentação de valores altos por regressão documental

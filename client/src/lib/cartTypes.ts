@@ -459,6 +459,8 @@ export interface QuoteFormData {
   commissionPercent?: number;
   /** Condição de pagamento (ex: "30% Sinal e 70% a 28DDF") */
   paymentTerm?: string;
+  /** Observação geral informada na edição do orçamento. */
+  notes?: string;
   /** Estado destino para cálculo de DIFAL/FCP (ex: "RJ") */
   destState?: string;
   /** Se true, aplica DIFAL ao total */
