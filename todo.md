@@ -2873,3 +2873,13 @@
 - [x] Exibir no Excel todas as linhas de acessórios vinculados mostradas na prévia
 - [x] Corrigir a omissão de acessórios nos itens 1 a 8 do pedido 20.0428-26
 - [x] Cobrir a paridade de acessórios entre Excel e prévia por regressão
+
+## Regressão: visibilidade de Meus Orçamentos para Geysa
+- [ ] Identificar por que a busca de 32.0099 retorna lista e indicadores zerados para a Geysa
+- [ ] Corrigir a regra de visibilidade para assistentes com permissão de gerenciar orçamentos
+- [ ] Cobrir a listagem e busca de orçamentos por assistente autorizada
+
+## Investigação: histórico de orçamentos possivelmente ausente após backup
+- [ ] Preservar o estado atual antes de investigar qualquer recuperação de dados
+- [ ] Verificar se os históricos ausentes existem em versões, auditorias ou backups disponíveis
+- [ ] Solicitar confirmação explícita antes de qualquer restauração que possa afetar dados atuais
