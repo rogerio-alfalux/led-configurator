@@ -2912,3 +2912,8 @@
 - [x] Ajustar as larguras de Preço Unitário e Preço Total na prévia sem quebrar valores altos
 - [x] Ajustar as larguras correspondentes no PDF oficial sem alterar sua estrutura validada
 - [x] Cobrir a apresentação de valores altos por regressão documental
+
+## Regressão: persistência de observação geral do orçamento
+- [x] Corrigir o salvamento de Observações do editor no campo usado por prévia, PDF e Excel
+- [x] Manter a observação geral ao recarregar ou abrir nova revisão do orçamento
+- [x] Cobrir persistência e propagação de observação geral por regressão
