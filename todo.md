@@ -2934,3 +2934,7 @@
 - [x] Aplicar a mesma lógica de cálculo e drivers do LED BAR 45
 - [x] Expor a potência 14,4W quando estiver disponível pela API
 - [x] Cobrir a nova família e potência por regressão
+
+## Correção: driver LUMIGRID E 36W
+- [x] Localizar e corrigir a origem do preço do driver para usar custo e markup vigentes da API
+- [x] Cobrir por regressão o custo R$ 21,76 com markup 3 do driver LUMIGRID E 36W

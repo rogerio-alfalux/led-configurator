@@ -47,6 +47,7 @@ import { generateQuoteSummary } from "@/lib/quoteSummary";
 // import { calculateTotalPrice } from "@/lib/priceCatalog"; // Oculto temporariamente
 import { getStaticPricePerMeter, calcModulePrice, usesModulePricing, toModuleControlType } from "@/lib/profilePriceCatalog";
 import { resolveDriverSplitCartPricing } from "@/lib/driverSplitPricing";
+import { getLumPriceMapKeys, resolveLumPriceMapEntry } from "@/lib/lumPriceMapKeys";
 import { getProfilePhoto, getDownlightPhoto, getPainelPhoto } from "@/lib/profilePhotos";
 import {
   DOWNLIGHT_CATALOG,
@@ -318,9 +319,9 @@ function buildLumDriverLines(
   /** Corrente de programação do driver (ex: "350MA"). Exibida apenas na ficha de produção. */
   driverCorrente?: string | null
 ): { driverLines: import("@/lib/cartTypes").DriverLine[]; priceWithoutDriver: number | null; unitPriceLuminaria: number | null; unitPriceDriver: number | null; luminariaHasApiPrice: boolean; custoCorpoBase: number | null; custoDriverBase: number | null; markupPadraoApi: number | null; markupMinimoApi: number | null; markupMinimoDriverApi: number | null; drvQtyPerUnit: number } | null {
-  // Usar chave composta sku||name para evitar colisão com SKUs duplicados na API
-  const compositeKey = productName ? `${sku}||${productName}` : sku;
-  const entry = lumPriceMap[compositeKey] ?? lumPriceMap[sku];
+  // SKU é a chave preferencial; quando a API não informar SKU, usa o nome
+  // para não descartar custo e markup vigentes do produto.
+  const entry = resolveLumPriceMapEntry(lumPriceMap, sku, productName);
   if (!entry) return null;
 
   // Selecionar custo do corpo e custo do driver pelo controle/tensão
@@ -3249,11 +3250,11 @@ export default function Home() {
       const inFam = FAMILIA_PRICE_INCLUDE.includes(fam);
       if (!inCat && !inFam) continue;
       const sku = p.sku ?? "";
-      if (!sku) continue;
       const name = p.name ?? "";
+      const [compositeKey, skuKey] = getLumPriceMapKeys(sku, name);
+      if (!compositeKey) continue;
       // Usar chave composta sku||name para evitar colisão com SKUs duplicados na API.
-      // O fallback para sku simples é mantido em buildLumDriverLines para compatibilidade.
-      const compositeKey = name ? `${sku}||${name}` : sku;
+      // Produtos sem SKU usam a chave ||nome, preservando seus dados API.
       const entryData = {
         custoCorpoOnoff220v: p.custoCorpoOnoff220v ?? null,
         custoCorpoOnoffBivolt: p.custoCorpoOnoffBivolt ?? null,
@@ -3296,7 +3297,7 @@ export default function Home() {
       // Registrar com chave composta (preferência) e chave simples (fallback)
       map[compositeKey] = entryData;
       // Só registrar chave simples se ainda não existir (evita sobrescrever com produto errado)
-      if (!map[sku]) map[sku] = entryData;
+      if (skuKey && !map[skuKey]) map[skuKey] = entryData;
     }
     // Aplicar overrides de custo de driver no lumPriceMap
     // O lumPriceMap não armazena códigos EQ, então precisamos buscar o código via alfaluxApiProducts
