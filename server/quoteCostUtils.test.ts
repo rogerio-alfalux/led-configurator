@@ -46,6 +46,16 @@ describe("selectActiveQuoteItems", () => {
     expect(product?.custo).toBe(346.53);
   });
 
+  it("encontra o LUNA mesmo quando o SKU salvo usa espaços e a API usa hífens", () => {
+    const product = selectApiProductForQuoteItem(
+      [{ sku: "LDE-6450.140.18B", name: "LUNA G LED 17W RE", custo: 66.6 }],
+      "LDE 6450.140.18B",
+      "LUNA G LED 17W RE 3000K ON/OFF 220V",
+    );
+
+    expect(product?.custo).toBe(66.6);
+  });
+
   it("mostra somente o custo do corpo da BAGEO por metro no dashboard", () => {
     const result = calculateDashboardProductCost({
       category: "BAGEO",

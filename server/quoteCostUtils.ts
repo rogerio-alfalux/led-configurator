@@ -24,9 +24,9 @@ export function getActiveQuoteVersionId<Version extends { id: number; status?: s
 export function selectApiProductForQuoteItem<
   Product extends { sku: string; name?: string | null }
 >(products: Product[], sku: string, description?: string | null): Product | undefined {
-  const normalizedSku = sku.trim().toUpperCase();
+  const normalizedSku = sku.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
   const normalizedDescription = (description ?? "").trim().toUpperCase();
-  const skuMatches = products.filter((product) => product.sku.trim().toUpperCase() === normalizedSku);
+  const skuMatches = products.filter((product) => product.sku.trim().toUpperCase().replace(/[^A-Z0-9]/g, "") === normalizedSku);
 
   return skuMatches.find((product) => {
     const name = product.name?.trim().toUpperCase();

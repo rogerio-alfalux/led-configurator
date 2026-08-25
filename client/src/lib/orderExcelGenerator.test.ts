@@ -140,6 +140,8 @@ describe("generateOrderExcel", () => {
     }] as any, {
       clientName: "Cliente Teste", projectName: "Obra Teste", quoteNumber: "20.0000-26",
       vendorName: "Vendedor Teste", date: "25/08/2026",
+      precomputedDisplayDays: 20,
+      precomputedDeliveryDate: "22/09/2026",
     });
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);

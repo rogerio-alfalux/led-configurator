@@ -2917,3 +2917,8 @@
 - [x] Corrigir o salvamento de Observações do editor no campo usado por prévia, PDF e Excel
 - [x] Manter a observação geral ao recarregar ou abrir nova revisão do orçamento
 - [x] Cobrir persistência e propagação de observação geral por regressão
+
+## Orçamento: valor cheio, desconto e custo LUNA
+- [x] Exibir lado a lado o valor cheio e o valor com desconto na tela do orçamento
+- [x] Priorizar o custo API do LUNA G LED 17W RE no dashboard de lucro
+- [x] Corrigir a apuração do orçamento 33.x1x1-26 e cobrir desconto e custo por regressão

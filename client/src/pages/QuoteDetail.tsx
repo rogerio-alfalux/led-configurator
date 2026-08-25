@@ -4442,6 +4442,10 @@ export default function QuoteDetail() {
               const _freteValue = (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : 0;
               const _freteIsento = (quote as any).freteIsento ?? false;
               const _freteParaDiluir = (_freteIncluded && !_freteIsento && _freteValue > 0) ? _freteValue : 0;
+              const _discountRate = Math.max(0, Number((quote as any).discountPercent) || 0);
+              const _storedFullTotal = Number((quote as any).totalAmount) || 0;
+              const _storedDiscountedTotal = getDisplayedCustomerTotal(quote);
+              const _showDiscountedTotal = _discountRate > 0 && _storedDiscountedTotal > 0;
               // Calcular peso total (soma dos totais de cada item antes da diluição) para distribuição proporcional
               const _diluicaoBase = totalGeral; // totalGeral já é a soma com markup
               const getItemDiluicaoFrac = (itemTotal: number): number => {
@@ -4721,28 +4725,41 @@ export default function QuoteDetail() {
                           </div>
                         );
                       })()}
-                      <div className="px-4 py-3 flex justify-between items-center border-t border-primary/10">
-                        <span className="text-sm font-medium">Total{_freteParaDiluir > 0 ? " (c/ frete diluído)" : ""}</span>
-                        <span className="text-xl font-bold text-primary">{formatBRL(
-                          _freteParaDiluir > 0
-                            ? (() => {
-                                // Recalcular total com frete na base (igual ao ExcelPreviewModal)
-                                const _totalBaseRaw = commercialItemsMigrated.reduce((s, it) => {
-                                  const _d = parseCartItemData(it.itemData);
-                                  if (!_d || _d.category === 'Não Orçamos') return s;
-                                  const _drvT = (_d.driverLines && _d.driverLines.length > 0)
-                                    ? _d.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0) : 0;
-                                  const _lumT = (_d.driverLines && _d.driverLines.length > 0)
-                                    ? (_d.priceWithoutDriver != null && _d.priceWithoutDriver > 0 ? _d.priceWithoutDriver : Math.max(0, (_d.totalPrice ?? 0) - _drvT))
-                                    : (_d.totalPrice ?? 0);
-                                  const _itemRaw = _lumT + _drvT;
-                                  const _itemFrete = _freteBase > 0 ? _freteParaDiluir * (_itemRaw / _freteBase) : 0;
-                                  return s + applyMkupWithItem(_itemRaw + _itemFrete, _d.itemMarginPercent);
-                                }, 0);
-                                return _totalBaseRaw + _diluicaoTotal;
-                              })()
-                            : totalGeral + _diluicaoTotal
-                        )}</span>
+                      <div className="px-4 py-3 border-t border-primary/10">
+                        {(() => {
+                          const calculatedFullTotal = _freteParaDiluir > 0
+                            ? commercialItemsMigrated.reduce((s, it) => {
+                                const _d = parseCartItemData(it.itemData);
+                                if (!_d || _d.category === 'Não Orçamos') return s;
+                                const _drvT = (_d.driverLines && _d.driverLines.length > 0)
+                                  ? _d.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0) : 0;
+                                const _lumT = (_d.driverLines && _d.driverLines.length > 0)
+                                  ? (_d.priceWithoutDriver != null && _d.priceWithoutDriver > 0 ? _d.priceWithoutDriver : Math.max(0, (_d.totalPrice ?? 0) - _drvT))
+                                  : (_d.totalPrice ?? 0);
+                                const _itemRaw = _lumT + _drvT;
+                                const _itemFrete = _freteBase > 0 ? _freteParaDiluir * (_itemRaw / _freteBase) : 0;
+                                return s + applyMkupWithItem(_itemRaw + _itemFrete, _d.itemMarginPercent);
+                              }, 0) + _diluicaoTotal
+                            : totalGeral + _diluicaoTotal;
+                          const fullTotal = _storedFullTotal > 0 ? _storedFullTotal : calculatedFullTotal;
+                          return _showDiscountedTotal ? (
+                            <div className="grid grid-cols-2 gap-5">
+                              <div>
+                                <p className="text-xs text-muted-foreground">Valor cheio{_freteParaDiluir > 0 ? " (c/ frete diluído)" : ""}</p>
+                                <p className="text-lg font-bold text-primary">{formatBRL(fullTotal)}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Com desconto ({(_discountRate * 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%)</p>
+                                <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{formatBRL(_storedDiscountedTotal)}</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-medium">Total{_freteParaDiluir > 0 ? " (c/ frete diluído)" : ""}</span>
+                              <span className="text-xl font-bold text-primary">{formatBRL(fullTotal)}</span>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   )}
