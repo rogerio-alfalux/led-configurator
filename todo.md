@@ -2938,3 +2938,7 @@
 ## Correção: driver LUMIGRID E 36W
 - [x] Localizar e corrigir a origem do preço do driver para usar custo e markup vigentes da API
 - [x] Cobrir por regressão o custo R$ 21,76 com markup 3 do driver LUMIGRID E 36W
+
+## Numeração: Daniel Pugliese
+- [x] Sugerir 04.0395-26 como próximo orçamento de Daniel Pugliese
+- [x] Cobrir por regressão a sugestão de número do vendedor Daniel Pugliese
