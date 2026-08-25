@@ -12,6 +12,14 @@ export interface ComponentOption {
   observacoes?: string | null;
 }
 
+/** Converte entradas brasileiras como "1,2" em quantidade numérica sem perder a digitação parcial. */
+export function parseDecimalQuantity(value: string): number | null {
+  const normalized = value.trim().replace(",", ".");
+  if (!normalized || normalized === ".") return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
 interface ComponentSearchFieldProps {
   /** Rótulo do campo */
   label: string;
@@ -50,8 +58,10 @@ export function ComponentSearchField({
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [focused, setFocused] = useState(false);
+  const [qtyDraft, setQtyDraft] = useState(() => String(qty).replace(".", ","));
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const editingQtyRef = useRef(false);
 
   // Fechar dropdown ao clicar fora
   useEffect(() => {
@@ -64,6 +74,10 @@ export function ComponentSearchField({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!editingQtyRef.current) setQtyDraft(String(qty).replace(".", ","));
+  }, [qty]);
 
   // Filtrar opções pelo termo de busca
   const filtered = useMemo(() => {
@@ -101,11 +115,26 @@ export function ComponentSearchField({
         <div className="w-20 shrink-0">
           <Label className="text-xs text-muted-foreground/70">Qtd.</Label>
           <Input
-            type="number"
-            min={0}
-            step={0.1}
-            value={qty}
-            onChange={e => onQtyChange(parseFloat(e.target.value) || 0)}
+            type="text"
+            inputMode="decimal"
+            value={qtyDraft}
+            onFocus={() => { editingQtyRef.current = true; }}
+            onChange={e => {
+              const next = e.target.value.replace(/[^0-9,.-]/g, "");
+              setQtyDraft(next);
+              const parsed = parseDecimalQuantity(next);
+              if (parsed !== null) onQtyChange(parsed);
+            }}
+            onBlur={() => {
+              editingQtyRef.current = false;
+              const parsed = parseDecimalQuantity(qtyDraft);
+              if (parsed === null) {
+                setQtyDraft(String(qty).replace(".", ","));
+                return;
+              }
+              setQtyDraft(String(parsed).replace(".", ","));
+              onQtyChange(parsed);
+            }}
             disabled={readOnly}
             className="h-8 text-sm text-center mt-1"
           />

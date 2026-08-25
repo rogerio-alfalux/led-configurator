@@ -65,6 +65,7 @@ function buildGroupKey(item: CartItemData): string {
       item.specialDim ?? "",
       item.specialVoltage ?? "",
       item.specialColorTemp ?? "",
+      item.productionObservation ?? "",
       specialEquips,
     ].join("|");
   }
@@ -123,6 +124,7 @@ function buildGroupKey(item: CartItemData): string {
     String(item.ledBarNCortes ?? ""),
     String(item.ledBarComprimentoPorTrechoMm ?? ""),
     String(item.ledBarComprimentoTotalMm ?? ""),
+    item.productionObservation ?? "",
     segments,
     driverLines,
   ].join("|__|");

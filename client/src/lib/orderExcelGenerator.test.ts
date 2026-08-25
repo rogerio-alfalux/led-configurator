@@ -112,4 +112,21 @@ describe("generateOrderExcel", () => {
     expect(worksheet.getCell("H8").value).toBe(2);
     expect(worksheet.getCell("H10").value).toBe(3);
   });
+
+  it("leva observações por item e gerais à ficha de produção", async () => {
+    const buffer = await generateOrderExcel([{
+      category: "Downlights", sku: "DL-OBS", description: "DOWNLIGHT OBS", qty: 1,
+      unitPrice: 100, totalPrice: 100, photoUrl: null,
+      productionObservation: "Usar acabamento especial",
+    }] as any, {
+      clientName: "Cliente Teste", projectName: "Obra Teste", quoteNumber: "20.0000-26",
+      vendorName: "Vendedor Teste", date: "25/08/2026", notes: "Conferir antes de embalar",
+    });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
+    const worksheet = workbook.worksheets[0];
+
+    expect(worksheet.getCell("J7").value).toBe("Usar acabamento especial");
+    expect(worksheet.getCell("D9").value).toBe("Conferir antes de embalar");
+  });
 });

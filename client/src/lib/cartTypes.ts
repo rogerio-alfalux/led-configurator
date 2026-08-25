@@ -220,6 +220,11 @@ export interface CartItemData {
    */
   itemNote?: string;
   /**
+   * Observação operacional por item, preenchida no gerenciamento do pedido de fábrica.
+   * É exibida na coluna OBSERVAÇÕES da ficha técnica e não aparece no orçamento comercial.
+   */
+  productionObservation?: string;
+  /**
    * Acessórios opcionais vinculados a este item (ex: rabicho, conector, suporte).
    * São montados na própria luminária — não são itens independentes no carrinho.
    * Aparecem indentados abaixo do produto pai no carrinho, orçamento e ficha de produção.

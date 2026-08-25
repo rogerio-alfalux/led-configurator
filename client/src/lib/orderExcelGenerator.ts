@@ -28,6 +28,8 @@ export interface OrderFormData {
   precomputedDeliveryDate?: string;
   /** Número de dias úteis já calculado. Se fornecido, usa este valor em vez de calcular. */
   precomputedDisplayDays?: number;
+  /** Observação geral persistida no pedido de fábrica. */
+  notes?: string;
 }
 
 /** Cache de feriados nacionais por ano */
@@ -583,8 +585,9 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
       : (item.corPeca ?? "A Definir");
     fillRow(ws.getCell(`I${rowNum}`), corPecaValue);
 
-    // OBSERVAÇÕES (J) — para Item Especial: observações internas; para outros: deixar em branco
-    const obsValue = item.category === "Item Especial" ? (item.specialInternalNotes || "") : "";
+    // OBSERVAÇÕES (J) — observação operacional preenchida no pedido, com fallback legado do item especial
+    const obsValue = item.productionObservation?.trim()
+      || (item.category === "Item Especial" ? (item.specialInternalNotes || "") : "");
     fillRow(ws.getCell(`J${rowNum}`), obsValue);
     // ── Sub-linhas de acessórios vinculados ──────────────────────────────
     if (item.accessories && item.accessories.length > 0) {
@@ -628,7 +631,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   ws.mergeCells(`A${obsRow}:C${obsRow}`);
   labelCell(ws.getCell(`A${obsRow}`), "OBSERVAÇÕES GERAIS");
   ws.mergeCells(`D${obsRow}:J${obsRow}`);
-  valueCell(ws.getCell(`D${obsRow}`), "");
+  valueCell(ws.getCell(`D${obsRow}`), form.notes?.trim() || "");
 
   // ─── Rodapé com data/hora/revisão em todas as páginas ──────────────────────────────────────────────────────────────
   const emitidoEm = toBrasiliaDateTime(Date.now());

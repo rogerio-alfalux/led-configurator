@@ -294,6 +294,9 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
   };
 
   const isSpecial = parsed.isSpecialItem;
+  const currentColor = parsed.corPeca?.trim() ?? "";
+  const isCustomColor = !!currentColor && currentColor !== "A Definir" && !CORES_PECA.includes(currentColor as typeof CORES_PECA[number]);
+  const colorSelectValue = isCustomColor ? "__custom__" : (currentColor || "A Definir");
 
   // Valor seguro para o Select de driver — nunca string vazia
   const driverValue = parsed.drivers && parsed.drivers.trim() !== "" ? parsed.drivers : "__none__";
@@ -438,8 +441,8 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
             <div>
               <Label className="text-xs">Cor da Peça</Label>
               <Select
-                value={parsed.corPeca && parsed.corPeca.trim() !== "" ? parsed.corPeca : "A Definir"}
-                onValueChange={v => update({ corPeca: v === "A Definir" ? "" : v })}
+                value={colorSelectValue}
+                onValueChange={v => update({ corPeca: v === "A Definir" ? "" : v === "__custom__" ? "COR ESPECIAL" : v })}
               >
                 <SelectTrigger className="mt-1 h-8 text-sm">
                   <SelectValue />
@@ -449,8 +452,17 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                   {CORES_PECA.map(c => (
                     <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
+                  <SelectItem value="__custom__">Cor especial…</SelectItem>
                 </SelectContent>
               </Select>
+              {isCustomColor && (
+                <Input
+                  value={currentColor === "COR ESPECIAL" ? "" : currentColor}
+                  onChange={e => update({ corPeca: e.target.value || "COR ESPECIAL" })}
+                  placeholder="Digite a cor"
+                  className="mt-2 h-8 text-sm"
+                />
+              )}
             </div>
 
             {/* Temperatura de Cor */}
@@ -470,6 +482,17 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                 className="mt-1 h-8 text-sm"
               />
             </div>
+          </div>
+
+          <div>
+            <Label className="text-xs">Observação da ficha de produção</Label>
+            <Textarea
+              value={parsed.productionObservation ?? ""}
+              onChange={e => update({ productionObservation: e.target.value })}
+              placeholder="Ex.: acabamento, montagem ou detalhe técnico deste item"
+              rows={2}
+              className="mt-1 text-sm"
+            />
           </div>
 
           {/* Módulo LED / Fonte de Luz e Equipamentos (apenas para itens não-especiais) */}
@@ -667,8 +690,8 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
               // CORREÇÃO: Extrair prefixo "Nx" do moduloLed para mostrar no campo Qtd separado
               // Ex: "2x STRIPFLEX 562.5 X 10MM..." → qty=2, desc="STRIPFLEX 562.5 X 10MM..."
               const moduloLedRaw = parsed.moduloLed ?? "";
-              const moduloLedPrefixMatch = moduloLedRaw.match(/^(\d+)[xX]\s+(.+)$/);
-              const moduloLedQtyPerUnit = moduloLedPrefixMatch ? parseInt(moduloLedPrefixMatch[1], 10) : 1;
+              const moduloLedPrefixMatch = moduloLedRaw.match(/^(\d+(?:[.,]\d+)?)[xX]\s+(.+)$/);
+              const moduloLedQtyPerUnit = moduloLedPrefixMatch ? Number(moduloLedPrefixMatch[1].replace(",", ".")) : 1;
               const moduloLedDescClean = moduloLedPrefixMatch ? moduloLedPrefixMatch[2] : moduloLedRaw;
               // Não duplicar EQ se já está embutido no moduloLed
               const _alreadyHasEq1 = parsed.moduloLedCode && moduloLedDescClean.includes(`(${parsed.moduloLedCode})`);
@@ -763,8 +786,8 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
             // ── ITENS SIMPLES (sem profileSegments, sem driverLines, sem ledBar) ──
             // CORREÇÃO: Extrair prefixo "Nx" do moduloLed e drivers para mostrar no campo Qtd separado
             const moduloLedSimpleRaw = parsed.moduloLed ?? "";
-            const moduloSimplePrefixMatch = moduloLedSimpleRaw.match(/^(\d+)[xX]\s+(.+)$/);
-            const moduloSimpleQty = moduloSimplePrefixMatch ? parseInt(moduloSimplePrefixMatch[1], 10) : 1;
+            const moduloSimplePrefixMatch = moduloLedSimpleRaw.match(/^(\d+(?:[.,]\d+)?)[xX]\s+(.+)$/);
+            const moduloSimpleQty = moduloSimplePrefixMatch ? Number(moduloSimplePrefixMatch[1].replace(",", ".")) : 1;
             const moduloSimpleDesc = moduloSimplePrefixMatch ? moduloSimplePrefixMatch[2] : moduloLedSimpleRaw;
             // Não duplicar EQ se já está embutido no moduloLed
             const _alreadyHasEq2 = parsed.moduloLedCode && moduloSimpleDesc.includes(`(${parsed.moduloLedCode})`);
@@ -773,8 +796,8 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
               : "";
 
             const driverSimpleRaw = parsed.drivers ?? "";
-            const driverSimplePrefixMatch = driverSimpleRaw.match(/^(\d+)[xX]\s+(.+)$/);
-            const driverSimpleQty = driverSimplePrefixMatch ? parseInt(driverSimplePrefixMatch[1], 10) : 1;
+            const driverSimplePrefixMatch = driverSimpleRaw.match(/^(\d+(?:[.,]\d+)?)[xX]\s+(.+)$/);
+            const driverSimpleQty = driverSimplePrefixMatch ? Number(driverSimplePrefixMatch[1].replace(",", ".")) : 1;
             const driverSimpleDesc = driverSimplePrefixMatch ? driverSimplePrefixMatch[2] : driverSimpleRaw;
 
             return (
@@ -1488,6 +1511,7 @@ export default function FactoryOrderDetail() {
         approvedAt: approvedAtIso,
         precomputedDisplayDays: displayDays,
         precomputedDeliveryDate: deliveryDateStr,
+        notes: orderToUse.notes ?? "",
       });
       toast.success(`Excel Rev. ${orderToUse.revision} gerado com sucesso!`);
       // Atualizar snapshot — a partir daqui não há mais alterações pendentes
@@ -1694,6 +1718,7 @@ export default function FactoryOrderDetail() {
                       approvedAt: approvedAtIso,
                       precomputedDisplayDays: displayDays,
                       precomputedDeliveryDate: deliveryDateStr,
+                      notes: currentOrder.notes ?? "",
                       prazoStr: `${displayDays} dias úteis → ${deliveryDateStr}`,
                     });
                     setPreviewOpen(true);

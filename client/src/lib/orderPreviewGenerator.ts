@@ -297,7 +297,7 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
         <td style="text-align:left;font-size:9px">${equipText}</td>
         <td style="text-align:center;font-weight:bold">${esc(item.qty)}</td>
         <td style="text-align:center">${esc(corPecaValue)}</td>
-        <td style="text-align:left;font-size:9px">${item.category === "Item Especial" ? escNl(item.specialInternalNotes) : ""}</td>
+        <td style="text-align:left;font-size:9px">${escNl(item.productionObservation?.trim() || (item.category === "Item Especial" ? item.specialInternalNotes : ""))}</td>
       </tr>`;
 
     // Sub-linhas de acessórios
@@ -484,7 +484,7 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
       ${dataRows}
       <tr class="obs-row">
         <td colspan="3">OBSERVAÇÕES GERAIS</td>
-        <td colspan="7"></td>
+        <td colspan="7">${escNl(form.notes?.trim() || "")}</td>
       </tr>
     </tbody>
   </table>

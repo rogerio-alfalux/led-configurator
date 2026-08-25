@@ -2883,3 +2883,15 @@
 - [ ] Preservar o estado atual antes de investigar qualquer recuperação de dados
 - [ ] Verificar se os históricos ausentes existem em versões, auditorias ou backups disponíveis
 - [ ] Solicitar confirmação explícita antes de qualquer restauração que possa afetar dados atuais
+
+## Investigação: orçamentos de 21/08 possivelmente ausentes
+- [ ] Pesquisar BIOGEN, BRUMANI, AACD HALL RECEPÇÃO, HSTERN RJ, 25.0242-26 e EMBELLEZE RJ em registros atuais e históricos
+- [ ] Verificar vestígios em versões, auditorias, solicitações LD e sequências comerciais
+- [ ] Avaliar recuperação exclusivamente a partir de backup posterior a 21/08, sem sobrescrever os dados atuais
+
+## Ficha de produção: cor, observações e quantidades decimais
+- [x] Permitir informar uma cor especial livre além das opções padronizadas por item
+- [x] Adicionar observação por item e propagá-la ao campo de observações da ficha
+- [x] Adicionar e persistir observação geral do pedido abaixo do último item da ficha
+- [x] Aceitar e preservar quantidades decimais com vírgula em módulos LED e campos técnicos aplicáveis
+- [x] Cobrir os novos dados e sua presença no Excel por regressão
