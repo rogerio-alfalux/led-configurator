@@ -2922,3 +2922,9 @@
 - [x] Exibir lado a lado o valor cheio e o valor com desconto na tela do orçamento
 - [x] Priorizar o custo API do LUNA G LED 17W RE no dashboard de lucro
 - [x] Corrigir a apuração do orçamento 33.x1x1-26 e cobrir desconto e custo por regressão
+
+## Orçamento: desconto nos valores unitários do item
+- [x] Exibir valor unitário cheio e com desconto da luminária no cartão de item
+- [x] Exibir valor unitário cheio e com desconto de cada driver no cartão de item
+- [x] Manter os totais por item e o layout legíveis com desconto ativo
+- [x] Cobrir os cálculos unitários descontados por regressão

@@ -4566,6 +4566,15 @@ export default function QuoteDetail() {
                             const _lumDiluicaoFrac = _itemTotalForRatio > 0 ? _totalAdicional * (_lumWithMkup / _itemTotalForRatio) : _totalAdicional;
                             const lumTotalDisplayWithDil = lumTotalDisplay != null ? lumTotalDisplay + _lumDiluicaoFrac : null;
                             const lumUnitDisplayWithDil = lumUnitDisplay != null && d.qty > 0 ? lumTotalDisplayWithDil != null ? lumTotalDisplayWithDil / d.qty : null : null;
+                            const lumUnitDiscountedWithDil = lumUnitDisplay != null && d.qty > 0
+                              ? applyQuoteDiscount(lumUnitDisplay, _discountRate) + (_lumDiluicaoFrac / d.qty)
+                              : null;
+                            const simpleUnitDisplayWithDil = unitDisplay != null
+                              ? unitDisplay + ((_itemDiluicao + _itemFreteComMkup) / (d.qty || 1))
+                              : null;
+                            const simpleUnitDiscountedWithDil = unitDisplay != null
+                              ? applyQuoteDiscount(unitDisplay, _discountRate) + ((_itemDiluicao + _itemFreteComMkup) / (d.qty || 1))
+                              : null;
                             return (
                               <div key={String(item.id)} className="flex items-start gap-3 px-4 py-3">
                                 <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -4629,13 +4638,18 @@ export default function QuoteDetail() {
                                   )}
 
                                 </div>
-                                <div className="text-right flex-shrink-0 min-w-[110px]">
+                                <div className="text-right flex-shrink-0 min-w-[128px]">
                                   <p className="text-xs text-muted-foreground mb-1">Qtd: {d.qty}</p>
                                   {hasBreakdown ? (
                                     <>
                                       <div className="mb-1">
                                         <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Luminária</p>
-                                        {lumUnitDisplayWithDil != null && <p className="text-xs text-muted-foreground">{formatBRL(lumUnitDisplayWithDil)}/un</p>}
+                                        {lumUnitDisplayWithDil != null && (_discountRate > 0 && lumUnitDiscountedWithDil != null ? (
+                                          <>
+                                            <p className="text-[10px] text-muted-foreground">Cheio: {formatBRL(lumUnitDisplayWithDil)}/un</p>
+                                            <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">C/ desc.: {formatBRL(lumUnitDiscountedWithDil)}/un</p>
+                                          </>
+                                        ) : <p className="text-xs text-muted-foreground">{formatBRL(lumUnitDisplayWithDil)}/un</p>)}
                                         {lumTotalDisplayWithDil != null
                                           ? <p className="font-semibold text-foreground text-sm">{formatBRL(lumTotalDisplayWithDil)}</p>
                                           : <p className="text-xs italic text-muted-foreground">A consultar</p>}
@@ -4648,11 +4662,19 @@ export default function QuoteDetail() {
                                         const _drvAdicional = _itemTotalForRatio > 0 ? _totalAdicional * (_drvItemWeight / _itemTotalForRatio) : 0;
                                         const drvTotalWithDil = drvTotalRaw != null ? drvTotalRaw + _drvAdicional : null;
                                         const drvUnitWithDil = drvUnitRaw != null && dl.driverQty > 0 ? drvTotalWithDil != null ? drvTotalWithDil / dl.driverQty : null : null;
+                                        const drvUnitDiscountedWithDil = drvUnitRaw != null && dl.driverQty > 0
+                                          ? applyQuoteDiscount(drvUnitRaw, _discountRate) + (_drvAdicional / dl.driverQty)
+                                          : null;
                                         return (
                                           <div key={di} className="mb-1">
                                             <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Driver{d.driverLines!.length > 1 ? ` ${di + 1}` : ''}</p>
                                             <p className="text-[10px] font-mono text-muted-foreground">{dl.driverCode}</p>
-                                            {drvUnitWithDil != null && <p className="text-xs text-muted-foreground">{formatBRL(drvUnitWithDil)}/un</p>}
+                                            {drvUnitWithDil != null && (_discountRate > 0 && drvUnitDiscountedWithDil != null ? (
+                                              <>
+                                                <p className="text-[10px] text-muted-foreground">Cheio: {formatBRL(drvUnitWithDil)}/un</p>
+                                                <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">C/ desc.: {formatBRL(drvUnitDiscountedWithDil)}/un</p>
+                                              </>
+                                            ) : <p className="text-xs text-muted-foreground">{formatBRL(drvUnitWithDil)}/un</p>)}
                                             {drvTotalWithDil != null
                                               ? <p className="font-semibold text-foreground text-sm">{formatBRL(drvTotalWithDil)}</p>
                                               : <p className="text-xs italic text-muted-foreground">A consultar</p>}
@@ -4672,7 +4694,12 @@ export default function QuoteDetail() {
                                   ) : (
                                     <>
                                       {/* Para itens sem breakdown, diluição + frete já estão em _itemDiluicao + _itemFreteComMkup */}
-                                      {unitDisplay != null && <p className="text-xs text-muted-foreground">{formatBRL(unitDisplay + ((_itemDiluicao + _itemFreteComMkup) / (d.qty || 1)))}/un</p>}
+                                      {simpleUnitDisplayWithDil != null && (_discountRate > 0 && simpleUnitDiscountedWithDil != null ? (
+                                        <>
+                                          <p className="text-[10px] text-muted-foreground">Cheio: {formatBRL(simpleUnitDisplayWithDil)}/un</p>
+                                          <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">C/ desc.: {formatBRL(simpleUnitDiscountedWithDil)}/un</p>
+                                        </>
+                                      ) : <p className="text-xs text-muted-foreground">{formatBRL(simpleUnitDisplayWithDil)}/un</p>)}
                                       {totalDisplay != null
                                         ? <p className="font-bold text-primary text-sm">{formatBRL(totalDisplay + _itemDiluicao + _itemFreteComMkup)}</p>
                                         : <p className="text-xs italic text-muted-foreground">A consultar</p>}

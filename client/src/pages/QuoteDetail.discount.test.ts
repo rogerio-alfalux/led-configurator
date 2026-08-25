@@ -17,4 +17,13 @@ describe("persistência comercial de desconto", () => {
     expect(source).toContain("const difal = discountPercent > 0");
     expect(source).toContain("dashboardTotals.taxAmount");
   });
+
+  it("exibe preço unitário cheio e com desconto para luminária, driver e item simples", async () => {
+    const source = await readFile(new URL("./QuoteDetail.tsx", import.meta.url), "utf8");
+    expect(source).toContain("Cheio:");
+    expect(source).toContain("C/ desc.:");
+    expect(source).toContain("lumUnitDiscountedWithDil");
+    expect(source).toContain("drvUnitDiscountedWithDil");
+    expect(source).toContain("simpleUnitDiscountedWithDil");
+  });
 });
