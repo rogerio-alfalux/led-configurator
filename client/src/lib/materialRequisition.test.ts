@@ -567,4 +567,18 @@ describe("buildMaterialRequisition — luminárias não-perfil", () => {
     expect(modulo!.tipo).toBe("MÓDULOS LED");
     expect(modulo!.sourceItems).toEqual([1]);
   });
+
+  it("inclui equipamentos técnicos adicionados na ficha para categorias não especiais", () => {
+    const result = buildMaterialRequisition([{
+      category: "Downlights",
+      sku: "DL-EQUIPAMENTO",
+      description: "DOWNLIGHT EQUIPADO",
+      qty: 3,
+      productionEquipments: [{ codigo: "EQ00998", descricao: "DISSIPADOR TÉCNICO", qty: 2, tipo: "DISSIPADOR" }],
+    } as any]);
+
+    expect(result).toContainEqual(expect.objectContaining({
+      codigo: "EQ00998", qty: 6, tipo: "DISSIPADORES",
+    }));
+  });
 });

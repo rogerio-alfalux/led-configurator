@@ -2895,3 +2895,9 @@
 - [x] Adicionar e persistir observação geral do pedido abaixo do último item da ficha
 - [x] Aceitar e preservar quantidades decimais com vírgula em módulos LED e campos técnicos aplicáveis
 - [x] Cobrir os novos dados e sua presença no Excel por regressão
+
+## Ficha de produção: equipamentos editáveis por categoria
+- [x] Permitir incluir e alterar módulos, drivers, lentes, dissipadores e equipamentos em produtos técnicos
+- [x] Manter bloqueada a edição de equipamentos para Revenda e Acessórios
+- [x] Preservar componentes existentes e refletir alterações na ficha e requisição de materiais
+- [x] Cobrir permissões de edição por categoria por regressão

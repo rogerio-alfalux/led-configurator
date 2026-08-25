@@ -526,8 +526,11 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
       if (familia) { const f = familia.toUpperCase(); return f.includes("MÓDULO") || f.includes("MODULO") || f.includes("ÓPTICA") || f.includes("OPTICA") || f.includes("HOLDER") || f.includes("DISSIPADOR"); }
       return false;
     };
-    const buildSpecialFonteLuzText = () => {
-      const equips = (item as any).specialEquipments as Array<{ codigo?: string; descricao: string; qty: number; familia?: string; tipo?: string }> | undefined;
+    const manualEquipments = (item.category === "Item Especial" || item.isSpecialItem)
+      ? item.specialEquipments
+      : item.productionEquipments;
+    const buildManualFonteLuzText = () => {
+      const equips = manualEquipments as Array<{ codigo?: string; descricao: string; qty: number; familia?: string; tipo?: string }> | undefined;
       if (equips && equips.length > 0) {
         const fonteLuzEquips = equips.filter(e => isFonteLuzTipo(e.tipo, e.familia));
         if (fonteLuzEquips.length > 0) {
@@ -537,11 +540,15 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
       // Fallback: potência + dim + tensão
       return [item.specialPower, item.specialDim, item.specialVoltage].filter(Boolean).join(" | ") || "-";
     };
-    const fonteText = item.category === "Item Especial"
-      ? buildSpecialFonteLuzText()
+    const baseFonteText = item.category === "Item Especial"
+      ? buildManualFonteLuzText()
       : isLedBar(item)
         ? buildLedBarFonteLuzText(item)
         : buildProfileFonteLuzText(item, descMap);
+    const manualFonteText = item.category === "Item Especial" ? "" : buildManualFonteLuzText();
+    const fonteText = manualFonteText && manualFonteText !== "-"
+      ? [baseFonteText, manualFonteText].filter(Boolean).join("\n")
+      : baseFonteText;
     const fCell = ws.getCell(`F${rowNum}`);
     fCell.value = fonteText;
     fCell.font = { size: 10 };
@@ -551,8 +558,8 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
 
     // EQUIPAMENTOS (G) — Para Item Especial: apenas Drivers
     // Para outros: LED BAR: QTY x driver; perfis: multi-segmento
-    const buildSpecialEquipText = () => {
-      const equips = (item as any).specialEquipments as Array<{ codigo?: string; descricao: string; qty: number; familia?: string; tipo?: string }> | undefined;
+    const buildManualEquipText = () => {
+      const equips = manualEquipments as Array<{ codigo?: string; descricao: string; qty: number; familia?: string; tipo?: string }> | undefined;
       if (equips && equips.length > 0) {
         // Apenas drivers vão para a coluna EQUIPAMENTOS
         const driverEquips = equips.filter(e => isDriverTipo(e.tipo, e.familia));
@@ -563,11 +570,15 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
       }
       return "A DEFINIR";
     };
-    const equipText = item.category === "Item Especial"
-      ? buildSpecialEquipText()
+    const baseEquipText = item.category === "Item Especial"
+      ? buildManualEquipText()
       : isLedBar(item)
         ? buildLedBarEquipamentosText(item)
         : buildProfileEquipamentosText(item);
+    const manualEquipText = item.category === "Item Especial" ? "" : buildManualEquipText();
+    const equipText = manualEquipText && manualEquipText !== "A DEFINIR"
+      ? [baseEquipText, manualEquipText].filter(Boolean).join("\n")
+      : baseEquipText;
     const gCell = ws.getCell(`G${rowNum}`);
     gCell.value = equipText;
     gCell.font = { size: 10 };

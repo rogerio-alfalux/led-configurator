@@ -201,6 +201,12 @@ export interface CartItemData {
   specialEquipments?: SpecialEquipment[];
 
   /**
+   * Equipamentos técnicos incluídos manualmente no gerenciamento do pedido de fábrica.
+   * Aplicável a produtos técnicos; Revenda e Acessórios não recebem esse campo.
+   */
+  productionEquipments?: SpecialEquipment[];
+
+  /**
    * Indica se o preço unitário veio da API (true) ou foi definido manualmente (false/undefined).
    * Quando true, o campo de preço é somente leitura no carrinho e no orçamento.
    */

@@ -129,4 +129,20 @@ describe("generateOrderExcel", () => {
     expect(worksheet.getCell("J7").value).toBe("Usar acabamento especial");
     expect(worksheet.getCell("D9").value).toBe("Conferir antes de embalar");
   });
+
+  it("exibe equipamento técnico manual de produto não especial na ficha", async () => {
+    const buffer = await generateOrderExcel([{
+      category: "Downlights", sku: "DL-EQ", description: "DOWNLIGHT EQUIPADO", qty: 1,
+      unitPrice: 0, totalPrice: 0, photoUrl: null,
+      productionEquipments: [{ codigo: "EQ00999", descricao: "DISSIPADOR TESTE", qty: 2, tipo: "DISSIPADOR" }],
+    }] as any, {
+      clientName: "Cliente Teste", projectName: "Obra Teste", quoteNumber: "20.0000-26",
+      vendorName: "Vendedor Teste", date: "25/08/2026",
+    });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
+    const worksheet = workbook.worksheets[0];
+
+    expect(String(worksheet.getCell("F7").value)).toContain("DISSIPADOR TESTE");
+  });
 });

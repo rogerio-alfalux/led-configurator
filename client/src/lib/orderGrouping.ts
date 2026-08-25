@@ -125,6 +125,9 @@ function buildGroupKey(item: CartItemData): string {
     String(item.ledBarComprimentoPorTrechoMm ?? ""),
     String(item.ledBarComprimentoTotalMm ?? ""),
     item.productionObservation ?? "",
+    item.productionEquipments
+      ? JSON.stringify([...item.productionEquipments].sort((a, b) => a.codigo.localeCompare(b.codigo)).map(e => ({ codigo: e.codigo, qty: e.qty })))
+      : "",
     segments,
     driverLines,
   ].join("|__|");

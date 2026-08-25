@@ -21,6 +21,7 @@ import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { ComponentSearchField } from "@/components/ComponentSearchField";
 import type { ComponentOption } from "@/components/ComponentSearchField";
 import { CORES_PECA } from "@/components/ColorPickerModal";
+import { canEditProductionEquipments } from "@/lib/factoryEquipmentPolicy";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
 import { OrderPreviewModal } from "@/components/OrderPreviewModal";
 import type { OrderFormData } from "@/lib/orderExcelGenerator";
@@ -294,6 +295,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
   };
 
   const isSpecial = parsed.isSpecialItem;
+  const canEditEquipment = canEditProductionEquipments(parsed.category);
   const currentColor = parsed.corPeca?.trim() ?? "";
   const isCustomColor = !!currentColor && currentColor !== "A Definir" && !CORES_PECA.includes(currentColor as typeof CORES_PECA[number]);
   const colorSelectValue = isCustomColor ? "__custom__" : (currentColor || "A Definir");
@@ -882,12 +884,14 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
             </div>
           </div>
 
-          {/* Equipamentos do Item Especial */}
-          {isSpecial && (
+          {/* Equipamentos técnicos — disponíveis para todas as categorias, exceto Revenda e Acessórios */}
+          {canEditEquipment && (
             <div>
               <SpecialEquipmentsEditor
-                value={parsed.specialEquipments ?? []}
-                onChange={(equips: SpecialEquipment[]) => update({ specialEquipments: equips })}
+                value={isSpecial ? (parsed.specialEquipments ?? []) : (parsed.productionEquipments ?? [])}
+                onChange={(equips: SpecialEquipment[]) => update(
+                  isSpecial ? { specialEquipments: equips } : { productionEquipments: equips }
+                )}
               />
             </div>
           )}

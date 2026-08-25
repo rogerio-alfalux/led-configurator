@@ -199,8 +199,10 @@ const isFonteLuzTipoPreview = (tipo?: string, familia?: string) => {
   return false;
 };
 
-function buildSpecialFonteLuzText(item: CartItemData): string {
-  const equips = (item as any).specialEquipments as Array<{ codigo?: string; descricao: string; qty: number; tipo?: string; familia?: string }> | undefined;
+function buildManualFonteLuzText(item: CartItemData): string {
+  const equips = ((item.category === "Item Especial" || item.isSpecialItem)
+    ? item.specialEquipments
+    : item.productionEquipments) as Array<{ codigo?: string; descricao: string; qty: number; tipo?: string; familia?: string }> | undefined;
   if (equips && equips.length > 0) {
     const fonteLuzEquips = equips.filter(e => isFonteLuzTipoPreview(e.tipo, e.familia));
     if (fonteLuzEquips.length > 0) {
@@ -211,8 +213,10 @@ function buildSpecialFonteLuzText(item: CartItemData): string {
   return esc([item.specialPower, item.specialDim, item.specialVoltage].filter(Boolean).join(" | ") || "-");
 }
 
-function buildSpecialEquipText(item: CartItemData): string {
-  const equips = (item as any).specialEquipments as Array<{ codigo?: string; descricao: string; qty: number; tipo?: string; familia?: string }> | undefined;
+function buildManualEquipText(item: CartItemData): string {
+  const equips = ((item.category === "Item Especial" || item.isSpecialItem)
+    ? item.specialEquipments
+    : item.productionEquipments) as Array<{ codigo?: string; descricao: string; qty: number; tipo?: string; familia?: string }> | undefined;
   if (equips && equips.length > 0) {
     // Apenas drivers vão para a coluna EQUIPAMENTOS
     const driverEquips = equips.filter(e => isDriverTipoPreview(e.tipo, e.familia));
@@ -270,17 +274,25 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
       ? esc(item.sku || "ITEM ESPECIAL")
       : buildProfileSkuText(item);
 
-    const fonteText = item.category === "Item Especial"
-      ? buildSpecialFonteLuzText(item)
+    const baseFonteText = item.category === "Item Especial"
+      ? buildManualFonteLuzText(item)
       : isLedBar(item)
         ? buildLedBarFonteLuzText(item)
         : buildProfileFonteLuzText(item, descMap);
+    const manualFonteText = item.category === "Item Especial" ? "" : buildManualFonteLuzText(item);
+    const fonteText = manualFonteText && manualFonteText !== "-"
+      ? [baseFonteText, manualFonteText].filter(Boolean).join("<br>")
+      : baseFonteText;
 
-    const equipText = item.category === "Item Especial"
-      ? buildSpecialEquipText(item)
+    const baseEquipText = item.category === "Item Especial"
+      ? buildManualEquipText(item)
       : isLedBar(item)
         ? buildLedBarEquipamentosText(item)
         : buildProfileEquipamentosText(item);
+    const manualEquipText = item.category === "Item Especial" ? "" : buildManualEquipText(item);
+    const equipText = manualEquipText && manualEquipText !== "A DEFINIR"
+      ? [baseEquipText, manualEquipText].filter(Boolean).join("<br>")
+      : baseEquipText;
 
     const corPecaValue = item.category === "Item Especial"
       ? (item.specialColor || item.corPeca || "A Definir")

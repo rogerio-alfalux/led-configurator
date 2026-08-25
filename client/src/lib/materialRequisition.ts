@@ -493,10 +493,11 @@ export function buildMaterialRequisition(
       }
     }
 
-    // ── ITEM ESPECIAL: specialEquipments ─────────────────────────────────
+    // ── Equipamentos editados no pedido de fábrica ─────────────────────────
     const isSpecialItemCheck = item.isSpecialItem || item.category === "Item Especial" || (item.category ?? "").toLowerCase() === "especial";
-    if (isSpecialItemCheck && item.specialEquipments && item.specialEquipments.length > 0) {
-      for (const eq of item.specialEquipments) {
+    const factoryEquipments = isSpecialItemCheck ? item.specialEquipments : item.productionEquipments;
+    if (factoryEquipments && factoryEquipments.length > 0) {
+      for (const eq of factoryEquipments) {
         if (!eq.codigo) continue;
         const tipo = detectTipo(eq.descricao, eq.codigo);
         add(eq.codigo, eq.descricao, eq.qty * itemQty, "un", tipo, itemIdx);
