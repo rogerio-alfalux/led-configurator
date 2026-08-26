@@ -2967,3 +2967,8 @@
 - [x] Confirmar o driver DIM DALI vigente do produto no catálogo da API
 - [x] Exibir DIM DALI quando o driver correspondente vier da API
 - [x] Cobrir por regressão a disponibilidade de controle do ZEUS
+
+## Correção: ícones DS, IES e DT ausentes
+- [x] Confirmar o payload documental recebido pelo Sistema Luna para LUNA G LED 17W RE
+- [x] Corrigir a propagação para o cartão calculado e exibir os ícones de download disponíveis
+- [x] Validar visualmente e por regressão a presença dos links DS, IES e DT
