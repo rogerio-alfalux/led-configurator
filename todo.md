@@ -2951,3 +2951,7 @@
 ## Documento comercial: equilíbrio de colunas
 - [x] Restaurar a largura da coluna de foto sem reduzir a legibilidade de preço unitário e total
 - [x] Cobrir por regressão a distribuição das colunas no preview, PDF e Excel do orçamento
+
+## Documento comercial: contenção da imagem
+- [x] Ampliar a coluna de foto para conter integralmente a imagem do produto
+- [x] Cobrir por regressão a largura útil da célula de foto no preview e PDF comercial

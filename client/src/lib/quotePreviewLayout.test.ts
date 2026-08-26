@@ -12,10 +12,10 @@ describe("layout da prévia comercial", () => {
     expect(3 + QUOTE_PREVIEW_SUBITEM_BLANK_COLUMN_COUNT + 3).toBe(QUOTE_PREVIEW_COLUMN_COUNT);
   });
 
-  it("reserva espaço para a foto sem reduzir preços unitário e total a ponto de quebrar", () => {
+  it("reserva 10% para a foto de 64px e mantém preços unitário e total legíveis", () => {
     expect(QUOTE_PREVIEW_COLUMN_WIDTHS).toHaveLength(QUOTE_PREVIEW_COLUMN_COUNT);
     expect(QUOTE_PREVIEW_COLUMN_WIDTHS.reduce((sum, width) => sum + width, 0)).toBe(100);
-    expect(QUOTE_PREVIEW_COLUMN_WIDTHS[1]).toBeGreaterThanOrEqual(8);
+    expect(QUOTE_PREVIEW_COLUMN_WIDTHS[1]).toBe(10);
     expect(QUOTE_PREVIEW_COLUMN_WIDTHS[10]).toBeGreaterThanOrEqual(9);
     expect(QUOTE_PREVIEW_COLUMN_WIDTHS[11]).toBeGreaterThanOrEqual(9);
   });
