@@ -3,6 +3,7 @@ import { Download, FileText, Ruler, ScanLine } from "lucide-react";
 import type { ComponentType } from "react";
 import type { ProductDocument, ProductDocuments, ProductDocumentType } from "@/lib/productDocuments";
 import { hasProductDocuments } from "@/lib/productDocuments";
+import { createProductDocumentDownloadUrl } from "@/lib/productDocumentDownload";
 
 const DOCUMENT_CONFIG: Record<ProductDocumentType, {
   label: string;
@@ -53,9 +54,7 @@ export function ProductDocumentDownloads({ documents }: { documents?: ProductDoc
           return (
             <a
               key={type}
-              href={document.url}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={createProductDocumentDownloadUrl(document)}
               download={document.nome}
               title={`Baixar ${config.label}: ${document.nome}`}
               className="group flex min-w-0 items-center gap-2 rounded-md border border-border bg-card px-2.5 py-2 text-left transition-colors hover:border-primary/40 hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"

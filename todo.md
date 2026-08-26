@@ -2972,3 +2972,7 @@
 - [x] Confirmar o payload documental recebido pelo Sistema Luna para LUNA G LED 17W RE
 - [x] Corrigir a propagação para o cartão calculado e exibir os ícones de download disponíveis
 - [x] Validar visualmente e por regressão a presença dos links DS, IES e DT
+
+## Documentos: nome exato no download
+- [x] Fazer o navegador baixar DS, IES e DT com o nome exato recebido no campo `nome` da API
+- [x] Cobrir espaços, acentos e extensões originais por regressão

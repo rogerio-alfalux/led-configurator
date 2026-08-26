@@ -6,6 +6,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { registerImageProxy } from "../imageProxy";
+import { registerProductDocumentProxy } from "../productDocumentProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -41,6 +42,7 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);
   registerImageProxy(app);
+  registerProductDocumentProxy(app);
   registerOAuthRoutes(app);
   // Heartbeat: backup automático diário
   app.post("/api/scheduled/daily-backup", dailyBackupHandler);

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ProductDocumentDownloads } from "../components/ProductDocumentDownloads";
 
 describe("ProductDocumentDownloads", () => {
-  it("exibe somente os documentos disponíveis com links diretos da API", () => {
+  it("exibe somente os documentos disponíveis com download pelo nome exato da API", () => {
     const html = renderToStaticMarkup(createElement(
       ProductDocumentDownloads,
       {
@@ -20,8 +20,10 @@ describe("ProductDocumentDownloads", () => {
     expect(html).toContain("Datasheet");
     expect(html).toContain("Fotometria");
     expect(html).not.toContain("Desenho técnico");
-    expect(html).toContain('href="https://api.example/luna-ds.pdf"');
-    expect(html).toContain('href="https://api.example/luna.ies"');
+    expect(html).toContain("/api/product-document-download?");
+    expect(html).toContain("filename=Ficha+LUNA.pdf");
+    expect(html).toContain("filename=LUNA.ies");
+    expect(html).toContain('download="Ficha LUNA.pdf"');
   });
 
   it("não cria espaço no resumo quando o produto não possui documentos", () => {
