@@ -16,6 +16,7 @@ import { LdRequestNotificationButton } from "@/components/LdRequestNotificationB
 import { profileCartTechnicalFields } from "@/lib/profileCartTechnicalFields";
 import { ModularOptimizationControls } from "@/components/ModularOptimizationControls";
 import { ResultTechnicalCartControls } from "@/components/ResultTechnicalCartControls";
+import { ProductDocumentDownloads } from "@/components/ProductDocumentDownloads";
 import { getLdNotificationBadge } from "@/lib/ldRequestNotifications";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11561,6 +11562,7 @@ export default function Home() {
                       ) : null;
                     })()
                     }
+                    <ProductDocumentDownloads documents={dlResult.product.documentos} />
                     <div className="grid grid-cols-2 gap-3">
                       {!dlFamilia || !resolveDownlightPhoto(dlFamilia, dlResult.product.name) ? (
                         <>

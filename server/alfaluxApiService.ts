@@ -24,6 +24,18 @@ export interface DriverInfo {
   corrente?: string | null;
 }
 
+export interface AlfaluxProductDocument {
+  nome: string;
+  mimeType: string;
+  url: string;
+}
+
+export interface AlfaluxProductDocuments {
+  datasheet: AlfaluxProductDocument | null;
+  fotometria: AlfaluxProductDocument | null;
+  desenhoTecnico: AlfaluxProductDocument | null;
+}
+
 /** Componentes específicos da versão D1+D2 retornada pela API de produtos. */
 export interface D1D2Composition {
   qtdModuloLed?: number | null;
@@ -84,6 +96,11 @@ export interface AlfaluxProduct {
   holderQtd: number | null;
   dissipador: string | null;
   fotoUrl: string | null;
+  /** Documentos fornecidos diretamente pela API e mantidos como links externos. */
+  documentos?: AlfaluxProductDocuments | null;
+  datasheetUrl?: string | null;
+  fotometriaIesUrl?: string | null;
+  desenhoTecnicoUrl?: string | null;
   temperaturasCor: string[];
   /** Driver On/Off 220V */
   driver220: DriverInfo | null;

@@ -4,6 +4,8 @@
  * Revisão: 14/05/2026 — 156 produtos
  */
 
+import type { ProductDocuments } from "./productDocuments";
+
 export interface DownlightDriver {
   model: string;
   code: string;
@@ -149,6 +151,8 @@ export interface DownlightProduct {
   isLamp?: boolean;
   /** Foto URL do produto */
   fotoUrl?: string | null;
+  /** DS, IES e DT retornados diretamente pela API. */
+  documentos?: ProductDocuments | null;
 }
 
 /**

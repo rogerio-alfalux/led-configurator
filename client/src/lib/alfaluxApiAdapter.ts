@@ -27,6 +27,8 @@ import type { LedBarProduct, LedBarPotencia, LedBarDifusor } from "./ledBarCatal
 import { parsePotenciaFromName, parseDifusorFromName } from "./ledBarCatalog";
 import type { BageoProduct, BageoAplicacao, BageoInstalacao } from "./bageoCatalog";
 import { parseAplicacaoFromName, parseInstalacaoFromApi } from "./bageoCatalog";
+import type { ProductDocumentSource } from "./productDocuments";
+import { normalizeProductDocuments } from "./productDocuments";
 
 /** Formato de um driver retornado pelo /api/products/all */
 export interface DriverInfo {
@@ -40,7 +42,7 @@ export interface DriverInfo {
  * Formato retornado pela API Alfalux via tRPC (espelha AlfaluxProduct no servidor).
  * Todos os campos de driver são objetos { model, code } | null.
  */
-export interface ApiProduct {
+export interface ApiProduct extends ProductDocumentSource {
   categoria: string;
   instalacao: string;
   familia: string;
@@ -358,6 +360,7 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
     isRgbw,
     isLamp,
     fotoUrl: p.fotoUrl ?? null,
+    documentos: normalizeProductDocuments(p),
   };
 }
 

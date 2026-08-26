@@ -2957,10 +2957,11 @@
 - [x] Cobrir por regressão a largura útil da célula de foto no preview e PDF comercial
 
 ## Configurador: documentos de produto da API
-- [ ] Confirmar os campos de Datasheet, Fotometria e Desenho Técnico retornados pela API Alfalux
-- [ ] Propagar DS, IES e DT no catálogo adaptado sem armazenar arquivos localmente
-- [ ] Exibir downloads claros e responsivos junto à foto e descrição do resumo do produto
-- [ ] Cobrir a adaptação e a visibilidade dos documentos por regressão
+- [x] Confirmar os campos de Datasheet, Fotometria e Desenho Técnico retornados pela API Alfalux
+- [x] Validar o contrato documental no JSON do LUNA G LED 17W RE enviado pelo usuário
+- [x] Propagar DS, IES e DT no catálogo adaptado sem armazenar arquivos localmente
+- [x] Exibir downloads claros e responsivos junto à foto e descrição do resumo do produto
+- [x] Cobrir a adaptação e a visibilidade dos documentos por regressão
 
 ## Controle: ZEUS 17W 36° TRL
 - [x] Confirmar o driver DIM DALI vigente do produto no catálogo da API

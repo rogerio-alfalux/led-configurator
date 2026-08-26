@@ -122,6 +122,23 @@ describe("adaptAlfaluxProducts - Downlights", () => {
     // Caminhos relativos passam pelo proxy para evitar bloqueio de autenticação
     expect(result.downlightFotos["LUNA|LUNA PP LED 13W"]).toBe("/api/image-proxy?url=https%3A%2F%2Falfaluxprod-c8zmg2fn.manus.space%2Fmanus-storage%2Ffoto.jpg");
   });
+
+  it("propaga DS, IES e DT do contrato documental da API sem alterar as URLs", () => {
+    const products = [makeProduct({
+      documentos: {
+        datasheet: { nome: "Ficha LUNA.pdf", mimeType: "application/pdf", url: "https://api.example/luna-ds.pdf" },
+        fotometria: { nome: "LUNA.ies", mimeType: "application/octet-stream", url: "https://api.example/luna.ies" },
+        desenhoTecnico: null,
+      },
+      desenhoTecnicoUrl: "https://api.example/luna-dt.pdf",
+    })];
+
+    const result = adaptAlfaluxProducts(products);
+
+    expect(result.downlights[0].documentos?.datasheet?.nome).toBe("Ficha LUNA.pdf");
+    expect(result.downlights[0].documentos?.fotometria?.url).toBe("https://api.example/luna.ies");
+    expect(result.downlights[0].documentos?.desenhoTecnico?.url).toBe("https://api.example/luna-dt.pdf");
+  });
 });
 
 describe("adaptAlfaluxProducts - Painéis", () => {
