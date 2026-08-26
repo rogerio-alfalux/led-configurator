@@ -172,6 +172,26 @@ describe("adaptAlfaluxProducts - Painéis", () => {
   });
 });
 
+describe("adaptAlfaluxProducts - Spots", () => {
+  it("propaga o driver DIM DALI do ZEUS para o catálogo de Spots", () => {
+    const result = adaptAlfaluxProducts([makeProduct({
+      categoria: "SPOTS",
+      instalacao: "SOBREPOR",
+      familia: "ZEUS",
+      sku: "LDS-2300.1CO.01B",
+      name: "ZEUS 17W 36° TRL",
+      driverDimDali: makeDriver("LED DRIVER P/ TRILHO 44W DALI", "EQ00945"),
+      driverQtdDimDali: 1,
+    })]);
+
+    expect(result.spots[0].driverDimDali).toMatchObject({
+      model: "LED DRIVER P/ TRILHO 44W DALI",
+      code: "EQ00945",
+    });
+    expect(result.spots[0].driverQtdDimDali).toBe(1);
+  });
+});
+
 describe("adaptAlfaluxProducts - separação de categorias", () => {
   it("separa Downlights e Painéis corretamente", () => {
     const products = [

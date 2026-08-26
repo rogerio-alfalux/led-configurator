@@ -73,6 +73,18 @@ describe("calculateSpot", () => {
     expect(result!.driver.code).toBe("EQ00353");
   });
 
+  it("usa o driver DIM DALI retornado pela API para o ZEUS", () => {
+    const zeusDali = {
+      ...zeusProduct,
+      sku: "LDS-2300.1CO.01B-DALI",
+      name: "ZEUS 17W 36° TRL",
+      driverDimDali: { model: "LED DRIVER P/ TRILHO 44W DALI", code: "EQ00945" },
+      driverQtdDimDali: 1,
+    };
+    const result = calculateSpot([zeusDali], { productSku: zeusDali.sku!, tensao: "220V", cct: "3000K", controle: "DIM DALI" });
+    expect(result?.driver).toMatchObject({ model: "LED DRIVER P/ TRILHO 44W DALI", code: "EQ00945" });
+  });
+
   it("deve substituir [CCT] no módulo LED pelo valor selecionado", () => {
     const result = calculateSpot(SPOT_CATALOG, { productSku: zeusProduct.sku!, tensao: "220V", cct: "2700K", controle: "ON/OFF" });
     expect(result).not.toBeNull();

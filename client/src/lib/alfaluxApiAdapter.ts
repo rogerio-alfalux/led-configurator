@@ -365,6 +365,8 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
 function toSpotProduct(p: ApiProduct): SpotProduct {
   const d220 = p.driver220;
   const dBivolt = p.driverBivolt;
+  const dDim110v = p.driverDim110v;
+  const dDimDali = p.driverDimDali;
   const ccts = normalizeCCTs(p.temperaturasCor);
   const allLedModulesSpot = [p.ledModule, p.ledModule2700, p.ledModule3000, p.ledModule3500, p.ledModule4000, p.ledModule5000].filter(Boolean);
   const isRgbwSpot = allLedModulesSpot.some(m => /RGBW/i.test(m ?? ''));
@@ -407,8 +409,16 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
     driverBivolt: dBivolt
       ? { model: driverModel(dBivolt), code: driverCode(dBivolt) }
       : null,
+    driverDim110v: dDim110v
+      ? { model: driverModel(dDim110v), code: driverCode(dDim110v), corrente: dDim110v.corrente ?? null }
+      : null,
+    driverDimDali: dDimDali
+      ? { model: driverModel(dDimDali), code: driverCode(dDimDali), corrente: dDimDali.corrente ?? null }
+      : null,
     driverQtd220: p.driverQtd220 ?? null,
     driverQtdBivolt: p.driverQtdBivolt ?? null,
+    driverQtdDim110v: p.driverQtdDim110v ?? null,
+    driverQtdDimDali: p.driverQtdDimDali ?? null,
     ccts,
     fotoUrl: normalizeFotoUrl(p.fotoUrl),
     precoOnOff220: p.precoOnOff220 ?? null,

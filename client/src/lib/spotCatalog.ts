@@ -68,10 +68,18 @@ export interface SpotProduct {
   driver220: SpotDriver | null;
   /** Driver para Bivolt — null se não houver opção */
   driverBivolt: SpotDriver | null;
+  /** Driver DIM 1-10V — null se não houver opção */
+  driverDim110v?: SpotDriver | null;
+  /** Driver DIM DALI — null se não houver opção */
+  driverDimDali?: SpotDriver | null;
   /** Quantidade de drivers ON/OFF 220V. null = driver não existe no produto. */
   driverQtd220: number | null;
   /** Quantidade de drivers Bivolt. null = driver não existe no produto. */
   driverQtdBivolt: number | null;
+  /** Quantidade de drivers DIM 1-10V. null = driver não existe no produto. */
+  driverQtdDim110v?: number | null;
+  /** Quantidade de drivers DIM DALI. null = driver não existe no produto. */
+  driverQtdDimDali?: number | null;
   /** CCTs disponíveis para este produto */
   ccts: string[];
   /** URL da foto do produto */
@@ -215,9 +223,13 @@ export function calculateSpot(catalog: SpotProduct[], input: SpotInput): SpotRes
     : catalog.find(p => p.sku === input.productSku);
   if (!product) return null;
 
-  const driver = input.tensao === "Bivolt" && product.driverBivolt
-    ? product.driverBivolt
-    : product.driver220;
+  const driver = input.controle === "DIM DALI"
+    ? product.driverDimDali ?? null
+    : input.controle === "DIM 1-10V"
+      ? product.driverDim110v ?? null
+      : input.tensao === "Bivolt" && product.driverBivolt
+        ? product.driverBivolt
+        : product.driver220;
 
   // Produto RGBW: usar ledModule diretamente sem adicionar CCT
   let ledModuleWithCCT: string | null;

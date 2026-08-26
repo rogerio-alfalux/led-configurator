@@ -8029,6 +8029,7 @@ export default function Home() {
                         onValueChange={(v) => {
                           setSpotProductKey(v);
                           setSpotResult(null);
+                          setSpotControle("ON/OFF");
                           // Reset CCT para primeiro valor disponível do produto
                           const [s, ...np] = v.split('::');
                           const newProd = activeSpotCatalog.find(p => p.sku === s && p.name === np.join('::'));
@@ -8063,13 +8064,25 @@ export default function Home() {
                       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Controle</Label>
                       <div className="flex gap-2">
                         {(["ON/OFF", "DIM 1-10V", "DIM DALI"] as ControleType[]).map((ctrl) => {
-                          const isAvailable = ctrl === "ON/OFF";
+                          const [_sSku, ..._sNameParts] = (spotProductKey ?? '::').split('::');
+                          const _sProd = activeSpotCatalog.find(p => p.sku === _sSku && p.name === _sNameParts.join('::'));
+                          const controlDriver = ctrl === "DIM DALI"
+                            ? _sProd?.driverDimDali
+                            : ctrl === "DIM 1-10V"
+                              ? _sProd?.driverDim110v
+                              : null;
+                          const isAvailable = ctrl === "ON/OFF" || controlDriver != null;
                           return (
                             <button
                               key={ctrl}
                               disabled={!isAvailable}
-                              onClick={() => { if (isAvailable) { setSpotControle(ctrl); setSpotResult(null); } }}
-                              title={!isAvailable ? "Opção ainda não disponível" : undefined}
+                              onClick={() => {
+                                if (!isAvailable) return;
+                                setSpotControle(ctrl);
+                                if (controlDriver) setSpotVoltage(/bivolt/i.test(controlDriver.model) ? "Bivolt" : "220V");
+                                setSpotResult(null);
+                              }}
+                              title={!isAvailable ? "Driver não cadastrado na API para este produto" : undefined}
                               className={[
                                 "flex-1 py-2 rounded-lg text-xs font-medium border transition-all",
                                 spotControle === ctrl && isAvailable
@@ -8083,7 +8096,7 @@ export default function Home() {
                           );
                         })}
                       </div>
-                      <p className="text-xs text-muted-foreground">DIM 1-10V e DIM DALI serão habilitados quando os dados estiverem disponíveis.</p>
+                      <p className="text-xs text-muted-foreground">DIM 1-10V e DIM DALI são habilitados somente quando a API retorna o driver correspondente.</p>
                     </div>
                   )}
                   {/* Tensão — só é aplicável quando a API informa driver. */}
@@ -8097,7 +8110,7 @@ export default function Home() {
                       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
                       <div className="flex gap-2">
                         {(["220V", "Bivolt"] as ("220V" | "Bivolt")[]).map((v) => {
-                          const [_sSku, ..._sNameParts] = (spotProductKey ?? '::').split('::'); const _sName = _sNameParts.join('::'); const _sProd = activeSpotCatalog.find(p => p.sku === _sSku && p.name === _sName); const hasBivolt = _sProd?.driverBivolt !== null; const has220Spot = _sProd?.driver220 !== null;
+                          const [_sSku, ..._sNameParts] = (spotProductKey ?? '::').split('::'); const _sName = _sNameParts.join('::'); const _sProd = activeSpotCatalog.find(p => p.sku === _sSku && p.name === _sName); const dimDriver = spotControle === "DIM DALI" ? _sProd?.driverDimDali : spotControle === "DIM 1-10V" ? _sProd?.driverDim110v : null; const dimIsBivolt = dimDriver != null && /bivolt/i.test(dimDriver.model); const hasBivolt = dimDriver != null ? dimIsBivolt : _sProd?.driverBivolt != null; const has220Spot = dimDriver != null ? !dimIsBivolt : _sProd?.driver220 != null;
                           const disabled = (v === "Bivolt" && !hasBivolt) || (v === "220V" && !has220Spot);
                           return (
                             <button

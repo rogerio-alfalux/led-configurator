@@ -2955,3 +2955,14 @@
 ## Documento comercial: contenção da imagem
 - [x] Ampliar a coluna de foto para conter integralmente a imagem do produto
 - [x] Cobrir por regressão a largura útil da célula de foto no preview e PDF comercial
+
+## Configurador: documentos de produto da API
+- [ ] Confirmar os campos de Datasheet, Fotometria e Desenho Técnico retornados pela API Alfalux
+- [ ] Propagar DS, IES e DT no catálogo adaptado sem armazenar arquivos localmente
+- [ ] Exibir downloads claros e responsivos junto à foto e descrição do resumo do produto
+- [ ] Cobrir a adaptação e a visibilidade dos documentos por regressão
+
+## Controle: ZEUS 17W 36° TRL
+- [x] Confirmar o driver DIM DALI vigente do produto no catálogo da API
+- [x] Exibir DIM DALI quando o driver correspondente vier da API
+- [x] Cobrir por regressão a disponibilidade de controle do ZEUS
