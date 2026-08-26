@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   QUOTE_PREVIEW_COLUMN_COUNT,
+  QUOTE_PREVIEW_COLUMN_WIDTHS,
   QUOTE_PREVIEW_SUBITEM_BLANK_COLUMN_COUNT,
 } from "./quotePreviewLayout";
 
@@ -9,5 +10,13 @@ describe("layout da prévia comercial", () => {
     expect(QUOTE_PREVIEW_COLUMN_COUNT).toBe(12);
     expect(QUOTE_PREVIEW_SUBITEM_BLANK_COLUMN_COUNT).toBe(6);
     expect(3 + QUOTE_PREVIEW_SUBITEM_BLANK_COLUMN_COUNT + 3).toBe(QUOTE_PREVIEW_COLUMN_COUNT);
+  });
+
+  it("reserva espaço para a foto sem reduzir preços unitário e total a ponto de quebrar", () => {
+    expect(QUOTE_PREVIEW_COLUMN_WIDTHS).toHaveLength(QUOTE_PREVIEW_COLUMN_COUNT);
+    expect(QUOTE_PREVIEW_COLUMN_WIDTHS.reduce((sum, width) => sum + width, 0)).toBe(100);
+    expect(QUOTE_PREVIEW_COLUMN_WIDTHS[1]).toBeGreaterThanOrEqual(8);
+    expect(QUOTE_PREVIEW_COLUMN_WIDTHS[10]).toBeGreaterThanOrEqual(9);
+    expect(QUOTE_PREVIEW_COLUMN_WIDTHS[11]).toBeGreaterThanOrEqual(9);
   });
 });

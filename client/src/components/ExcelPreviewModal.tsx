@@ -15,7 +15,7 @@ import type { CartItemData, QuoteFormData } from "@/lib/cartTypes";
 import { formatBRL } from "@/lib/cartTypes";
 import { getStateInfo } from "@/lib/difalTable";
 import { toBrasiliaDate } from "@/lib/dateUtils";
-import { QUOTE_PREVIEW_COLUMN_COUNT, QUOTE_PREVIEW_SUBITEM_BLANK_COLUMN_COUNT } from "@/lib/quotePreviewLayout";
+import { QUOTE_PREVIEW_COLUMN_COUNT, QUOTE_PREVIEW_COLUMN_WIDTHS, QUOTE_PREVIEW_SUBITEM_BLANK_COLUMN_COUNT } from "@/lib/quotePreviewLayout";
 import { appendQuoteGeneralObservation } from "@/lib/quoteDocumentObservation";
 
 // ── Helpers (mesmos do gerador Excel) ────────────────────────────────────────
@@ -806,7 +806,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
             `}</style>
             <table className="quote-items-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, tableLayout: "fixed" }}>
               <colgroup>
-                {[5, 7, 23, 7, 6, 6, 6, 8, 8, 4, 10, 10].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
+                {QUOTE_PREVIEW_COLUMN_WIDTHS.map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
               </colgroup>
               <thead>
                 <tr>

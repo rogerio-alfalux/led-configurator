@@ -2942,3 +2942,12 @@
 ## Numeração: Daniel Pugliese
 - [x] Sugerir 04.0395-26 como próximo orçamento de Daniel Pugliese
 - [x] Cobrir por regressão a sugestão de número do vendedor Daniel Pugliese
+
+## Exportação: dump completo do banco
+- [x] Inventariar todas as tabelas e suas contagens em modo somente leitura
+- [x] Gerar dump SQL MySQL completo, com esquema e dados de todas as tabelas
+- [x] Verificar o arquivo de exportação e entregar o inventário final com segurança
+
+## Documento comercial: equilíbrio de colunas
+- [x] Restaurar a largura da coluna de foto sem reduzir a legibilidade de preço unitário e total
+- [x] Cobrir por regressão a distribuição das colunas no preview, PDF e Excel do orçamento
