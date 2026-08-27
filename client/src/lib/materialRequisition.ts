@@ -88,6 +88,8 @@ function detectTipo(descricao: string, codigo: string): MaterialTipo {
     d.includes("STRIPLUX") ||
     d.includes("MÓDULO LED") ||
     d.includes("MODULO LED") ||
+    (d.includes("MÓDULO") && d.includes("LED")) ||
+    (d.includes("MODULO") && d.includes("LED")) ||
     d.includes("MÓDULO LUX") ||
     d.includes("MODULO LUX") ||
     (d.includes("LED") && (d.includes("BARRA") || d.includes("BAR"))) ||
@@ -181,11 +183,11 @@ export function buildMaterialRequisition(
   items: CartItemData[],
   descMap?: Map<string, string>
 ): MaterialEntry[] {
-  // Mapa reverso: descrição (uppercase) → código EQ para resolver itens sem moduloLedCode
+  // Mapa reverso: descrição (uppercase) → código de material da API para resolver itens sem moduloLedCode
   const reverseDescMap = new Map<string, string>();
   if (descMap) {
     descMap.forEach((desc, code) => {
-      if ((code.startsWith("EQ") || code.startsWith("CP") || code.startsWith("PT")) && desc) {
+      if ((code.startsWith("EQ") || code.startsWith("CP") || code.startsWith("PT") || code.startsWith("P")) && desc) {
         const normalized = desc.toUpperCase().trim().replace(/\s+/g, " ");
         reverseDescMap.set(normalized, code);
       }
@@ -220,8 +222,10 @@ export function buildMaterialRequisition(
       const fromNoEq = reverseDescMap.get(withoutEqSuffix);
       if (fromNoEq) return fromNoEq;
     }
-    // 3. Extrair código EQ diretamente se presente na string — APENAS EQ e CP (não PT)
-    const eqMatch = rawDesc.match(/\((EQ\d+|CP\d+)\)/i);
+    // 3. Extrair o código fornecido pela API quando presente na string.
+    // Módulos LED TRACE são publicados com código P (ex.: P0001840),
+    // enquanto os demais componentes usam EQ ou CP.
+    const eqMatch = rawDesc.match(/\((EQ\d+|CP\d+|P\d+)\)/i);
     if (eqMatch) return eqMatch[1].toUpperCase();
     // 4. Busca normalizada (fuzzy): remove PT, Ø/D antes de números, etc.
     const inputNorm = normForSearch(normalized);
@@ -415,8 +419,8 @@ export function buildMaterialRequisition(
         const componentQtyPerUnit = qtyPrefixMatch ? parseInt(qtyPrefixMatch[1], 10) : 1;
         const partWithoutQty = qtyPrefixMatch ? rawPart.slice(qtyPrefixMatch[0].length) : rawPart;
 
-        // Extrair código EQ/CP entre parênteses (ex: "(EQ00123)" ou "(CP00456)")
-        const codeMatch = partWithoutQty.match(/\((EQ\d+|CP\d+)\)\s*$/i);
+        // Extrair código API entre parênteses (EQ, CP ou P).
+        const codeMatch = partWithoutQty.match(/\((EQ\d+|CP\d+|P\d+)\)\s*$/i);
         let componentCode: string | null = codeMatch ? codeMatch[1].toUpperCase() : null;
         const descWithoutCode = codeMatch
           ? partWithoutQty.slice(0, partWithoutQty.lastIndexOf("(")).trim()

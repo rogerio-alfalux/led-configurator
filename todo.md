@@ -3016,3 +3016,9 @@
 ## Numeração: Daniel Pugliese 04.0404-26
 - [x] Atualizar a próxima sugestão de Daniel Pugliese para 04.0404-26
 - [x] Confirmar que a sugestão permanece disponível e persistida
+
+## Requisição de materiais: pedido 27.0012-26
+- [x] Identificar por que o módulo LED não foi incluído na requisição do pedido 27.0012-26
+- [x] Corrigir a requisição desse pedido usando código e quantidade retornados pela API
+- [x] Impedir a omissão de módulos LED API nos próximos pedidos
+- [x] Cobrir a agregação de módulos LED por regressão

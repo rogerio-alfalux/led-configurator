@@ -289,6 +289,43 @@ describe("buildMaterialRequisition — componentes múltiplos (óticas, holders,
     expect(lensEntry?.qty).toBe(5);
   });
 
+  it("inclui módulo LED TRACE com código P da API mesmo sem moduloLedCode persistido", () => {
+    const items: CartItemData[] = [
+      {
+        category: "Downlights",
+        sku: "LLE-2488.051.18F",
+        description: "EASY LED POINT 1X6 13W 48º 3000K ON/OFF 220V",
+        qty: 8,
+        unitPrice: 309.96,
+        totalPrice: 2479.68,
+        photoUrl: null,
+        // Formato real retornado pela API no pedido 27.0012-26.
+        moduloLed: "MODULO LINEAR 6 LEDS 930-3000K 1300LM 154X23MM CNB (P0001840) 18V + LENTE OTICA 6 PONTOS 48º (CP00121) + MASCARA (CP00185)",
+        moduloLedCode: null,
+        driverLines: [{
+          driverModel: "LED DRIVER 30W 700MA 9-42VDC 220V FLICKERFREE",
+          driverCode: "EQ00892",
+          driverQty: 8,
+          driverUnitPrice: 38.7,
+          driverTotalPrice: 309.6,
+        }],
+      } as any,
+    ];
+
+    const result = buildMaterialRequisition(items);
+    const traceModule = result.find(entry => entry.codigo === "P0001840");
+
+    expect(traceModule).toMatchObject({
+      codigo: "P0001840",
+      qty: 8,
+      unidade: "un",
+      tipo: "MÓDULOS LED",
+      sourceItems: [1],
+    });
+    expect(result.find(entry => entry.codigo === "CP00121")?.qty).toBe(8);
+    expect(result.find(entry => entry.codigo === "CP00185")?.qty).toBe(8);
+  });
+
   it("deve funcionar com item sem driverLines (item antigo) mas com moduloLed", () => {
     const items: CartItemData[] = [
       {
