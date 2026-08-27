@@ -2976,3 +2976,8 @@
 ## Documentos: nome exato no download
 - [x] Fazer o navegador baixar DS, IES e DT com o nome exato recebido no campo `nome` da API
 - [x] Cobrir espaços, acentos e extensões originais por regressão
+
+## Perfis: SKU API do formato L do BLAZE S
+- [x] Localizar a conversão indevida do SKU de módulo `LLS` para `LLP` no detalhamento
+- [x] Preservar exclusivamente o SKU retornado pela API no cabeçalho e na composição exibida
+- [x] Cobrir por regressão o formato L do BLAZE S e os demais formatos especiais
