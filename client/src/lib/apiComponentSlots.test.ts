@@ -7,7 +7,7 @@ import {
 
 describe("apiComponentSlots", () => {
   const options = [
-    { codigo: "EQ00147", descricao: "MODULO LINEAR 6 LEDS", tipo: "MODULO_LED", disponivel: true },
+    { codigo: "EQ00147", descricao: "MÓDULO LED MODULO LINEAR 6 LEDS", tipo: "MODULO_LED", disponivel: true },
     { codigo: "CP00121", descricao: "LENTE OTICA 6 PONTOS 48º", tipo: "OTICA", disponivel: true },
     { codigo: "CP00185", descricao: "MASCARA PARA LENTE", tipo: "HOLDER", disponivel: true },
     { codigo: "CP00999", descricao: "DISSIPADOR ALUMINIO", tipo: "DISSIPADOR", disponivel: true },

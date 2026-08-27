@@ -342,14 +342,14 @@ describe("buildMaterialRequisition — componentes múltiplos (óticas, holders,
       photoUrl: null,
       moduloLed: "2X STRIPLINE 562.5X15MM 108LEDS 28W 850-5000K (LC) 75V (EQ00415)",
       moduloLedCode: "EQ00415",
-      drivers: "DRIVER LED DRIVER 65W 200-350MA 120-185VDC 230V (EQ00393)",
+      drivers: "LED DRIVER XITANIUM 65W 200-350MA 120-185VDC DS 230V (EQ00348)",
     } as any], new Map([
       ["EQ00415", "STRIPLINE 562.5X15MM 108LEDS 28W 850-5000K (LC) 75V"],
-      ["EQ00393", "LED DRIVER 65W 200-350MA 120-185VDC 230V"],
+      ["EQ00348", "LED DRIVER XITANIUM 65W 200-350MA 120-185VDC DS 230V"],
     ]));
 
     expect(result.find(entry => entry.codigo === "EQ00415")).toMatchObject({ qty: 74, tipo: "MÓDULOS LED" });
-    expect(result.find(entry => entry.codigo === "EQ00393")).toMatchObject({ qty: 37, tipo: "DRIVERS" });
+    expect(result.find(entry => entry.codigo === "EQ00348")).toMatchObject({ qty: 37, tipo: "DRIVERS" });
   });
 
   it("não duplica módulos e drivers automáticos repetidos em equipamentos especiais históricos", () => {
@@ -376,10 +376,10 @@ describe("buildMaterialRequisition — componentes múltiplos (óticas, holders,
         photoUrl: null,
         moduloLed: "2x STRIPLINE 562.5X15MM 108LEDS 28W (EQ00415)",
         moduloLedCode: "EQ00415",
-        drivers: "LED DRIVER 65W (EQ00393)",
+        drivers: "LED DRIVER XITANIUM 65W 200-350MA 120-185VDC DS 230V (EQ00348)",
         specialEquipments: [
           { codigo: "EQ00415", descricao: "STRIPLINE 562.5X15MM 108LEDS 28W", qty: 2 },
-          { codigo: "EQ00393", descricao: "LED DRIVER 65W", qty: 1 },
+          { codigo: "EQ00348", descricao: "LED DRIVER XITANIUM 65W", qty: 1 },
           { codigo: "CP00777", descricao: "SUPORTE ADICIONAL", qty: 1 },
         ],
       },
@@ -388,8 +388,8 @@ describe("buildMaterialRequisition — componentes múltiplos (óticas, holders,
     // 2 módulos por peça: (2 × 37) + (2 × 4) = 82.
     expect(result.find(entry => entry.codigo === "EQ00415")?.qty).toBe(82);
     // Drivers: 1 × 37 no item 1 e 1 × 4 no item 2, sem a duplicata migrada.
-    expect(result.find(entry => entry.codigo === "EQ00348")?.qty).toBe(37);
-    expect(result.find(entry => entry.codigo === "EQ00393")?.qty).toBe(4);
+    expect(result.find(entry => entry.codigo === "EQ00348")?.qty).toBe(41);
+    expect(result.map(entry => entry.codigo)).not.toContain("EQ00393");
     // Um equipamento realmente adicional continua contabilizado por peça.
     expect(result.find(entry => entry.codigo === "CP00777")?.qty).toBe(4);
   });

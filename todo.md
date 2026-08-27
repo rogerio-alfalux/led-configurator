@@ -3052,3 +3052,9 @@
 - [x] Apurar os módulos LED por peça e por item conforme a API
 - [x] Corrigir a multiplicação dos módulos LED na requisição
 - [x] Cobrir a apuração conjunta de módulos e drivers por regressão
+
+## Correção: driver e descrição oficial dos pedidos 27.0011-26 e 27.0012-26
+- [x] Confirmar que EQ00348 é o único driver oficial aplicável ao pedido 27.0011-26
+- [x] Remover EQ00393 do item 2 e da requisição de materiais
+- [x] Exibir no pedido 27.0012-26 a descrição do módulo exatamente como recebida da API
+- [x] Cobrir a precedência do driver e a descrição sem prefixo por regressão

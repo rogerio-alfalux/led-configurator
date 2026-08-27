@@ -58,6 +58,12 @@ function withoutCodes(value: string): string {
     .trim();
 }
 
+/** Remove somente o rótulo genérico acrescentado antes da descrição oficial. */
+function withoutGenericModuleLabel(value: string, kind: ApiComponentKind): string {
+  if (kind !== "MODULO_LED") return value;
+  return value.replace(/^M[ÓO]DULO\s+LED\s+/i, "").trim();
+}
+
 /**
  * Decompõe a composição concatenada retornada pela API em campos editáveis.
  * Só expõe partes com código oficial de material (EQ, CP ou PT), nunca um
@@ -88,7 +94,7 @@ export function getApiModuleComponentSlots(
     return [{
       partIndex,
       code,
-      description: option?.descricao ?? withoutCodes(partWithoutQuantity),
+      description: withoutGenericModuleLabel(option?.descricao ?? withoutCodes(partWithoutQuantity), kind),
       kind,
       label: `${KIND_LABELS[kind]}${count > 1 ? ` ${count}` : ""}`,
       qty: Number.isFinite(qty) && qty > 0 ? qty : 1,
