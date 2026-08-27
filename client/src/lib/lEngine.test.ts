@@ -10,9 +10,13 @@
  * 4. Formato Quadrado/Retangular: cabeceira nunca é somada (apenas EM L).
  */
 
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect } from "vitest";
 import { calculateLShape, calculateSquare, calculateRectangle } from "./lEngine";
 import { getCabeceiraMm } from "./lCatalog";
+import { adaptProfileProducts } from "./profileApiAdapter";
+import { resetActiveCatalog, setActiveCatalog } from "./ledCatalog";
+
+afterEach(() => resetActiveCatalog());
 
 // ─── Testes de getCabeceiraMm ────────────────────────────────────────────────
 
@@ -110,6 +114,35 @@ describe("calculateLShape — cabeceira para perfis embutir", () => {
     expect(result).not.toBeNull();
     expect(result!.dimensions[0]).toBe(610); // sem cabeceira
     expect(result!.dimensions[1]).toBe(610); // sem cabeceira
+  });
+});
+
+describe("calculateLShape — SKU do canto vindo exclusivamente da API", () => {
+  it("mantém LLS-3945 no detalhamento do formato L do BLAZE S", () => {
+    const catalog = adaptProfileProducts([
+      {
+        sku: "LLS-3945.1L1.38F",
+        name: "BLAZE S ML 1B X 1B 600 X 600MM 18W",
+        categoria: "PERFIS",
+        familia: "BLAZE",
+        instalacao: "SOBREPOR",
+      } as any,
+    ]);
+    expect(catalog).not.toBeNull();
+    setActiveCatalog(catalog!);
+
+    const result = calculateLShape("LLS-3945", 600, 600, {
+      power: 18,
+      voltage: "220V",
+      stripMethod: "STRIPLINE",
+      allowLongModules: false,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.pieces).toHaveLength(1);
+    expect(result!.pieces[0].sku).toBe("LLS-3945.1L1.38F");
+    expect(result!.summary).toContain("LLS-3945.1L1.38F");
+    expect(result!.summary).not.toContain("LLP-4945");
   });
 });
 

@@ -40,6 +40,31 @@ import { getActiveCatalog, type ProfileVariant } from "./ledCatalog";
 import { selectDriverFallback } from "./driverSelector";
 import type { Power, Voltage, StripMethod } from "./ledEngine";
 
+type ResolvedShapeCorner = Pick<LCornerModule, "sku" | "barsLong" | "barsShort" | "lengthLong" | "lengthShort">;
+
+function getApiVariantLabel(power: Power, stripMethod: StripMethod): "18W" | "26W" | "36W SF" | "36W SL" {
+  if (power === 26) return "26W";
+  if (power === 36) return stripMethod === "STRIPLINE" ? "36W SL" : "36W SF";
+  return "18W";
+}
+
+function resolveShapeCorner(
+  profileCode: string,
+  profileEntry: ProfileVariant,
+  driverParams?: ShapeDriverParams,
+): ResolvedShapeCorner | null {
+  if (driverParams) {
+    const variantLabel = getApiVariantLabel(driverParams.power, driverParams.stripMethod);
+    const apiCorner = profileEntry.apiLinearVariants?.[variantLabel]?.shapeCorners
+      ?.find((corner) => corner.barsLong === 1 && corner.barsShort === 1);
+    if (apiCorner) return apiCorner;
+  }
+
+  // Catálogo API nunca pode receber SKU comercial substituído pelo catálogo estático.
+  if (profileEntry.catalogSource === "api") return null;
+  return getCorner1x1(profileCode);
+}
+
 /**
  * Comprimento máximo de módulo sem módulos longos habilitados.
  * Módulos com comprimento > 2840mm (tipicamente 6 barras) só são incluídos
@@ -479,11 +504,10 @@ export function calculateLShape(
   const lConfig = getLConfig(profileCode);
   if (!lConfig) return null;
 
-  const corner = getCorner1x1(profileCode);
-  if (!corner) return null;
-
   const profileEntry = getActiveCatalog()[profileCode];
   if (!profileEntry) return null;
+  const corner = resolveShapeCorner(profileCode, profileEntry, driverParams);
+  if (!corner) return null;
 
   const allowLongModules = driverParams?.allowLongModules ?? false;
   const allowFractionalBars = driverParams?.allowFractionalBars ?? false;
@@ -707,11 +731,10 @@ export function calculateSquare(
   const lConfig = getLConfig(profileCode);
   if (!lConfig) return null;
 
-  const corner = getCorner1x1(profileCode);
-  if (!corner) return null;
-
   const profileEntry = getActiveCatalog()[profileCode];
   if (!profileEntry) return null;
+  const corner = resolveShapeCorner(profileCode, profileEntry, driverParams);
+  if (!corner) return null;
 
   const allowLongModules = driverParams?.allowLongModules ?? false;
   const allowFractionalBars = driverParams?.allowFractionalBars ?? false;
@@ -805,11 +828,10 @@ export function calculateRectangle(
   const lConfig = getLConfig(profileCode);
   if (!lConfig) return null;
 
-  const corner = getCorner1x1(profileCode);
-  if (!corner) return null;
-
   const profileEntry = getActiveCatalog()[profileCode];
   if (!profileEntry) return null;
+  const corner = resolveShapeCorner(profileCode, profileEntry, driverParams);
+  if (!corner) return null;
 
   const allowLongModules = driverParams?.allowLongModules ?? false;
   const allowFractionalBars = driverParams?.allowFractionalBars ?? false;
@@ -951,11 +973,10 @@ export function calculateUShape(
   const lConfig = getLConfig(profileCode);
   if (!lConfig) return null;
 
-  const corner = getCorner1x1(profileCode);
-  if (!corner) return null;
-
   const profileEntry = getActiveCatalog()[profileCode];
   if (!profileEntry) return null;
+  const corner = resolveShapeCorner(profileCode, profileEntry, driverParams);
+  if (!corner) return null;
 
   const allowLongModules = driverParams?.allowLongModules ?? false;
   const allowFractionalBars = driverParams?.allowFractionalBars ?? false;

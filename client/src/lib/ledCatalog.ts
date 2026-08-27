@@ -27,9 +27,20 @@ export interface ProfileModules {
   ML: Record<string, ModuleData>;
 }
 
+/** Módulo de canto para formatos especiais, preservado exatamente como recebido da API. */
+export interface ApiProfileShapeCorner {
+  sku: string;
+  barsLong: number;
+  barsShort: number;
+  lengthLong: number;
+  lengthShort: number;
+}
+
 /** Cadastro modular de uma versão específica retornada pela API. */
 export interface ApiLinearProfileVariant {
   modules: ProfileModules;
+  /** Cantos em L desta potência/método, recebidos diretamente da API. */
+  shapeCorners?: ApiProfileShapeCorner[];
   driver220?: { model: string; code: string | null } | null;
   driverBivolt?: { model: string; code: string | null } | null;
   driverDimDali?: { model: string; code: string | null } | null;
@@ -61,6 +72,8 @@ export interface ProfileVariant {
   name: string;
   /** Código do produto (ex: LLP-4251) */
   code: string;
+  /** Identifica catálogo dinâmico para impedir fallback comercial/SKU estático. */
+  catalogSource?: "api";
   /** Tipo de instalação */
   installType: InstallType;
   /** Foto do perfil retornada pela API. */

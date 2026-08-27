@@ -241,6 +241,29 @@ describe("adaptProfileProducts", () => {
     expect(variant.apiLinearVariants?.["26W"].modules.IF["2"].sku).toBe("LLP-6060.2IF.26F");
   });
 
+  it("preserva o SKU LLS do canto em L do BLAZE S exatamente como recebido da API", () => {
+    const products = [
+      makePerfilProduct({
+        sku: "LLS-3945.1L1.38F",
+        name: "BLAZE S ML 1B X 1B 600 X 600MM 18W",
+        instalacao: "SOBREPOR",
+        familia: "BLAZE",
+      }),
+    ];
+    const variant = adaptProfileProducts(products)!["LLS-3945"];
+
+    expect(variant.catalogSource).toBe("api");
+    expect(variant.apiLinearVariants?.["18W"].shapeCorners).toEqual([
+      {
+        sku: "LLS-3945.1L1.38F",
+        barsLong: 1,
+        barsShort: 1,
+        lengthLong: 600,
+        lengthShort: 600,
+      },
+    ]);
+  });
+
   it("retorna catálogo com todos os 20 perfis quando dados completos são fornecidos", () => {
     const profileCodes = [
       "LLE-2580", "LLP-4536", "LLE-2052", "LLS-3945", "LLA-5945",

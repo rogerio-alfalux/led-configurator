@@ -14,7 +14,7 @@
  */
 
 import type { ApiProduct as AlfaluxProduct } from "./alfaluxApiAdapter";
-import type { ProfileVariant, InstallType, ModuleData, ProfileModules, ApiLinearProfileVariant } from "./ledCatalog";
+import type { ProfileVariant, InstallType, ModuleData, ProfileModules, ApiLinearProfileVariant, ApiProfileShapeCorner } from "./ledCatalog";
 
 // ── Regras de negócio por código de perfil ──────────────────────────────────
 // Estas regras são estáticas e refletem as restrições de aplicação de cada perfil.
@@ -88,6 +88,7 @@ const INSTALL_MAP: Record<string, InstallType> = {
 //   "FLOW P IN 2.6B 1510MM"      → tipo=IN, barras=2.6, comp=1510
 //   "SHIFT E 1020MM ML"          → tipo=ML, barras=1,   comp=1020 (SHIFT pattern)
 const NAME_PATTERN = /\b(IF|ML|IN)\s+([\d.]+)B\s+(\d+)MM\b/i;
+const SHAPE_CORNER_NAME_PATTERN = /\bML\s+([\d.,]+)B\s*X\s*([\d.,]+)B\s+(\d+)\s*X\s*(\d+)\s*MM\b/i;
 // SHIFT uses a different name pattern: "SHIFT E 1020MM ML"
 const SHIFT_NAME_PATTERN = /SHIFT\s+\w+\s+(\d+(?:,\d+)?)\s*MM\s+(ML|IF|IN)/i;
 
@@ -120,6 +121,17 @@ function parseModuleName(name: string): ParsedModule | null {
   return null;
 }
 
+function parseShapeCornerName(name: string): Omit<ApiProfileShapeCorner, "sku"> | null {
+  const match = SHAPE_CORNER_NAME_PATTERN.exec(name);
+  if (!match) return null;
+  return {
+    barsLong: Number(match[1].replace(",", ".")),
+    barsShort: Number(match[2].replace(",", ".")),
+    lengthLong: Number(match[3]),
+    lengthShort: Number(match[4]),
+  };
+}
+
 function buildD1D2VariantKey(sku: string, name: string): string {
   const powers = Array.from(name.matchAll(/(\d+)W/gi), (match) => Number(match[1]));
   const d1 = powers[0] ?? 0;
@@ -144,6 +156,7 @@ function createApiLinearVariant(product: AlfaluxProduct): ApiLinearProfileVarian
   const api = product as any;
   return {
     modules: { IN: {}, IF: {}, ML: {} },
+    shapeCorners: [],
     driver220: product.driver220 ?? null,
     driverBivolt: product.driverBivolt ?? null,
     driverDimDali: product.driverDimDali ?? null,
@@ -285,7 +298,8 @@ export function adaptProfileProducts(
     if (!installType) continue;
 
     const parsed = parseModuleName(p.name);
-    if (!parsed) continue;
+    const parsedCorner = parseShapeCornerName(p.name);
+    if (!parsed && !parsedCorner) continue;
 
       const pa = p as any;
       if (!variantMap[profileCode]) {
@@ -425,6 +439,15 @@ export function adaptProfileProducts(
       // 36W SF/SL). A chave precisa preservar essa variante da API.
       entry.apiD1D2BySku[buildD1D2VariantKey(p.sku, p.name)] = p.composicaoD1D2;
     }
+    if (parsedCorner) {
+      const shapeCorner: ApiProfileShapeCorner = { sku: p.sku, ...parsedCorner };
+      if (!linearVariant.shapeCorners?.some((corner) => corner.sku === p.sku)) {
+        linearVariant.shapeCorners ??= [];
+        linearVariant.shapeCorners.push(shapeCorner);
+      }
+      continue;
+    }
+    if (!parsed) continue;
     const moduleData: ModuleData = {
       length: parsed.length,
       sku: p.sku,
@@ -464,6 +487,7 @@ export function adaptProfileProducts(
     catalog[code] = {
       name: rule.name,
       code,
+      catalogSource: "api",
       installType,
       photoUrl,
       fixedLedModule,
