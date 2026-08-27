@@ -34,6 +34,18 @@ export default function Backup() {
     refetchOnWindowFocus: false,
     refetchInterval: 60_000, // atualiza a cada 1 min
   });
+  const runBackupNowMutation = trpc.backup.runNow.useMutation({
+    onSuccess: async result => {
+      await backupListQuery.refetch();
+      toast.success(
+        `Backup atualizado — ${result.counts.totalTables} tabelas · ${result.counts.totalRows} registros`,
+      );
+    },
+    onError: error => {
+      void backupListQuery.refetch();
+      toast.error(error.message || "Erro ao gerar backup atualizado");
+    },
+  });
 
   const isAdmin = (user as any)?.role === "admin";
 
@@ -179,10 +191,12 @@ export default function Backup() {
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => backupListQuery.refetch()}
-              disabled={backupListQuery.isFetching}
+              onClick={() => runBackupNowMutation.mutate()}
+              disabled={runBackupNowMutation.isPending}
+              aria-label="Gerar backup atualizado agora"
+              title="Gerar backup atualizado agora"
             >
-              <RefreshCw className={`w-4 h-4 ${backupListQuery.isFetching ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-4 h-4 ${runBackupNowMutation.isPending ? "animate-spin" : ""}`} />
             </Button>
           </div>
         </CardContent>
@@ -245,6 +259,12 @@ export default function Backup() {
       {/* Histórico de backups automáticos */}
       <div>
         <h2 className="text-base font-semibold mb-3">Histórico de Backups Automáticos</h2>
+        {runBackupNowMutation.isPending && (
+          <div className="mb-3 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+            <RefreshCw className="h-4 w-4 animate-spin" />
+            Gerando o backup completo e salvando no histórico...
+          </div>
+        )}
         {backupListQuery.isLoading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
             <RefreshCw className="w-4 h-4 animate-spin" /> Carregando histórico...

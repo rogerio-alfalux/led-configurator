@@ -87,6 +87,7 @@ import { getSampleLinkValidationError } from "../shared/sampleLinkValidation";
 import { sanitizeLdAttachmentFileName, validateLdTechnicalAttachments, type LdTechnicalAttachment } from "./ldRequestAttachment";
 import { buildLdQuoteConversion } from "./ldQuoteConversion";
 import { buildLdDraftQuoteNumber, isLdDraftQuoteNumber } from "../shared/ldDraftQuoteNumber";
+import { generateAndStoreCompleteBackup } from "./backupService";
 
 // ─── Controle de acesso a orçamentos ─────────────────────────────────────────
 /** Emails dos gestores com acesso irrestrito a todos os orçamentos */
@@ -2501,6 +2502,18 @@ export const appRouter = router({
       const { desc } = await import("drizzle-orm");
       const rows = await db.select().from(backups).orderBy(desc(backups.createdAt)).limit(100);
       return rows;
+    }),
+
+    runNow: adminProcedure.mutation(async () => {
+      try {
+        return await generateAndStoreCompleteBackup({ trigger: "manual" });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Não foi possível gerar o backup: ${message}`,
+        });
+      }
     }),
 
     exportSQL: adminProcedure.query(async () => {

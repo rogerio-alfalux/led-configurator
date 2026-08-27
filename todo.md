@@ -2981,3 +2981,9 @@
 - [x] Localizar a conversão indevida do SKU de módulo `LLS` para `LLP` no detalhamento
 - [x] Preservar exclusivamente o SKU retornado pela API no cabeçalho e na composição exibida
 - [x] Cobrir por regressão o formato L do BLAZE S e os demais formatos especiais
+
+## Backup: atualização manual imediata
+- [x] Fazer o botão Atualizar executar imediatamente um backup completo
+- [x] Salvar o backup gerado no Histórico de Backups Automáticos
+- [x] Atualizar o status e a listagem após sucesso ou falha da execução
+- [x] Cobrir geração, persistência e autorização por regressão
