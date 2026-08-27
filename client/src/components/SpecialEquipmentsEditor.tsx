@@ -30,6 +30,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2, Package, Search, ChevronDown, ChevronUp } from "lucide-react";
 import type { SpecialEquipment } from "@/lib/cartTypes";
+import { getProductionEquipmentUnit } from "@/lib/ledStripUnits";
 
 // Mapeamento de tipo técnico → rótulo amigável
 const TIPO_LABELS: Record<string, string> = {
@@ -277,11 +278,13 @@ export function SpecialEquipmentsEditor({ value, onChange, readOnly = false }: P
               {readOnly ? "Nenhum equipamento definido." : "Nenhum equipamento adicionado. Clique em \"Adicionar\" para selecionar da API."}
             </p>
           ) : (
-            value.map((eq, idx) => (
-              <div
-                key={idx}
-                className="flex items-center gap-2 bg-muted/40 rounded-md px-3 py-2 border border-border/50"
-              >
+            value.map((eq, idx) => {
+              const qtyUnit = getProductionEquipmentUnit(eq);
+              return (
+                <div
+                  key={idx}
+                  className="flex items-center gap-2 bg-muted/40 rounded-md px-3 py-2 border border-border/50"
+                >
                 {eq.codigo && (
                   <span className="text-xs font-mono text-muted-foreground shrink-0">{eq.codigo}</span>
                 )}
@@ -296,11 +299,13 @@ export function SpecialEquipmentsEditor({ value, onChange, readOnly = false }: P
                     <Input
                       type="number"
                       min={1}
+                      step={qtyUnit === "mm" ? 1 : "any"}
                       value={eq.qty}
-                      onChange={e => handleQtyChange(idx, parseInt(e.target.value) || 1)}
-                      className="h-6 w-14 text-xs text-center p-1"
+                      onChange={e => handleQtyChange(idx, Number(e.target.value) || 1)}
+                      aria-label={`Quantidade em ${qtyUnit}`}
+                      className="h-6 w-20 text-xs text-center p-1"
                     />
-                    <span className="text-xs text-muted-foreground shrink-0">un</span>
+                    <span className="text-xs text-muted-foreground shrink-0">{qtyUnit}</span>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -311,10 +316,11 @@ export function SpecialEquipmentsEditor({ value, onChange, readOnly = false }: P
                     </Button>
                   </>
                 ) : (
-                  <span className="text-xs text-muted-foreground shrink-0">{eq.qty}×</span>
+                  <span className="text-xs text-muted-foreground shrink-0">{eq.qty} {qtyUnit}</span>
                 )}
-              </div>
-            ))
+                </div>
+              );
+            })
           )}
         </div>
       )}

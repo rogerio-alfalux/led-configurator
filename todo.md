@@ -2994,3 +2994,9 @@
 - [x] Garantir que salvamentos, alterações e auditorias sejam registrados com instante consistente e exibidos em Brasília
 - [x] Mostrar data e horário da revisão nos cartões de Meus Orçamentos
 - [x] Cobrir os principais fluxos temporais e a revisão por regressão
+
+## Ficha de produção: unidade da FITA LED
+- [x] Exibir e editar a quantidade de qualquer módulo FITA LED em milímetros no gerenciamento
+- [x] Converter a quantidade da FITA LED para metros na requisição de materiais
+- [x] Preservar corretamente quantidades por item e totais sem multiplicação ou conversão duplicada
+- [x] Cobrir as unidades e conversões da FITA LED por regressão

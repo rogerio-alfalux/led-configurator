@@ -15,6 +15,7 @@
  */
 
 import type { CartItemData, ProfileSegment } from "./cartTypes";
+import { convertProductionEquipmentToMaterial, isLedStripDescription } from "./ledStripUnits";
 
 export interface MaterialEntry {
   /** Código EQ, CP ou SKU do material */
@@ -75,12 +76,7 @@ function detectTipo(descricao: string, codigo: string): MaterialTipo {
 
   // Fitas LED: SOMENTE itens com "FITA LED" na descrição (ex: EQ00586 "FITA LED 2835...")
   // Stripflex/Stripline NÃO são fitas — são módulos LED
-  if (
-    (d.includes("FITA") && d.includes("LED")) &&
-    !d.includes("STRIPFLEX") &&
-    !d.includes("STRIPLINE") &&
-    !d.includes("STRIPLUX")
-  ) {
+  if (isLedStripDescription(descricao)) {
     return "FITAS LED";
   }
 
@@ -500,7 +496,8 @@ export function buildMaterialRequisition(
       for (const eq of factoryEquipments) {
         if (!eq.codigo) continue;
         const tipo = detectTipo(eq.descricao, eq.codigo);
-        add(eq.codigo, eq.descricao, eq.qty * itemQty, "un", tipo, itemIdx);
+        const material = convertProductionEquipmentToMaterial(eq, itemQty);
+        add(eq.codigo, eq.descricao, material.qty, material.unidade, tipo, itemIdx);
       }
     }
 

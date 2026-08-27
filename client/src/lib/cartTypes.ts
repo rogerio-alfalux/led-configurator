@@ -37,7 +37,7 @@ export interface SpecialEquipment {
   codigo: string;
   /** Descrição completa do componente */
   descricao: string;
-  /** Quantidade de unidades deste componente por item especial */
+  /** Quantidade por item: milímetros para FITA LED; unidades para os demais componentes. */
   qty: number;
   /** Preço unitário do componente (null = a definir) */
   unitPrice: number | null;

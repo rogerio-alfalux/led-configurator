@@ -6,6 +6,7 @@ import { toBrasiliaDate, toBrasiliaDateTime, toBrasiliaFileDate } from "./dateUt
 import { groupOrderItems } from "./orderGrouping";
 import { buildMaterialRequisition, groupByTipo } from "./materialRequisition";
 import type { MaterialTipo } from "./materialRequisition";
+import { formatProductionEquipmentPrefix } from "./ledStripUnits";
 
 export interface OrderFormData {
   clientName: string;
@@ -534,7 +535,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
       if (equips && equips.length > 0) {
         const fonteLuzEquips = equips.filter(e => isFonteLuzTipo(e.tipo, e.familia));
         if (fonteLuzEquips.length > 0) {
-          return fonteLuzEquips.map(e => `${e.qty}x ${e.descricao}${e.codigo ? ` (${e.codigo})` : ''}`).join('\n');
+          return fonteLuzEquips.map(e => `${formatProductionEquipmentPrefix(e)} ${e.descricao}${e.codigo ? ` (${e.codigo})` : ''}`).join('\n');
         }
       }
       // Fallback: potência + dim + tensão

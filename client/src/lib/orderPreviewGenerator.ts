@@ -11,6 +11,7 @@ import { groupOrderItems } from "./orderGrouping";
 import { buildMaterialRequisition, groupByTipo } from "./materialRequisition";
 import { formatProfileSkuLines } from "./profileSkuFormatter";
 import type { MaterialTipo } from "./materialRequisition";
+import { formatProductionEquipmentPrefix } from "./ledStripUnits";
 
 function fmtQty(n: number): string {
   // Arredondar para cima com 1 decimal para módulos LED (podem ser fracionários)
@@ -206,7 +207,7 @@ function buildManualFonteLuzText(item: CartItemData): string {
   if (equips && equips.length > 0) {
     const fonteLuzEquips = equips.filter(e => isFonteLuzTipoPreview(e.tipo, e.familia));
     if (fonteLuzEquips.length > 0) {
-      return fonteLuzEquips.map(e => `${e.qty}x ${esc(e.descricao)}${e.codigo ? ` (${esc(e.codigo)})` : ''}`).join('<br>');
+      return fonteLuzEquips.map(e => `${formatProductionEquipmentPrefix(e)} ${esc(e.descricao)}${e.codigo ? ` (${esc(e.codigo)})` : ''}`).join('<br>');
     }
   }
   // Fallback: potência + dim + tensão

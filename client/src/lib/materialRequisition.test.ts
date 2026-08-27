@@ -581,4 +581,50 @@ describe("buildMaterialRequisition — luminárias não-perfil", () => {
       codigo: "EQ00998", qty: 6, tipo: "DISSIPADORES",
     }));
   });
+
+  it("converte a FITA LED editada em mm para metros sem multiplicação duplicada", () => {
+    const result = buildMaterialRequisition([{
+      category: "Perfis",
+      sku: "LLS-3336.200.39I",
+      description: "MINI BLAZE SOBREPOR COM 2000MM 10W/M",
+      qty: 3,
+      productionEquipments: [{
+        codigo: "EQ00557",
+        descricao: "FITA LED 2835 128LEDS 24V 10W/M IP20 IRC80 3000K 1500LM/M",
+        qty: 2000,
+        tipo: "MODULO_LED",
+        familia: "MÓDULOS LED",
+      }],
+    } as any]);
+
+    expect(result).toContainEqual(expect.objectContaining({
+      codigo: "EQ00557",
+      qty: 6,
+      unidade: "m",
+      tipo: "FITAS LED",
+    }));
+  });
+
+  it("soma em metros a FITA LED usada por itens diferentes", () => {
+    const result = buildMaterialRequisition([{
+      category: "Perfis",
+      sku: "LLS-A",
+      description: "PERFIL A",
+      qty: 3,
+      productionEquipments: [{ codigo: "EQ00557", descricao: "FITA LED COB 24V", qty: 2000 }],
+    }, {
+      category: "Perfis",
+      sku: "LLS-B",
+      description: "PERFIL B",
+      qty: 2,
+      productionEquipments: [{ codigo: "EQ00557", descricao: "FITA LED COB 24V", qty: 500 }],
+    }] as any);
+
+    expect(result).toContainEqual(expect.objectContaining({
+      codigo: "EQ00557",
+      qty: 7,
+      unidade: "m",
+      sourceItems: [1, 2],
+    }));
+  });
 });
