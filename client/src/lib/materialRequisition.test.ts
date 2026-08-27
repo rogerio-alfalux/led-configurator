@@ -289,7 +289,7 @@ describe("buildMaterialRequisition — componentes múltiplos (óticas, holders,
     expect(lensEntry?.qty).toBe(5);
   });
 
-  it("inclui módulo LED TRACE atualizado pela API mesmo sem moduloLedCode persistido", () => {
+  it("resolve o EQ oficial da API para módulo LED TRACE mesmo quando a descrição contém o identificador P", () => {
     const items: CartItemData[] = [
       {
         category: "Downlights",
@@ -300,7 +300,7 @@ describe("buildMaterialRequisition — componentes múltiplos (óticas, holders,
         totalPrice: 2479.68,
         photoUrl: null,
         // Formato vigente retornado pela API no pedido 27.0012-26.
-        moduloLed: "MODULO LINEAR 6 LEDS 830-3000K 1500LM ADV CNB (P0000786) 18V/700MA + LENTE OTICA 6 PONTOS 48º (CP00121) + MASCARA (CP00185)",
+        moduloLed: "MODULO LINEAR 6 LEDS 830-3000K 1500LM 154X23MM ADV CNB (P0000786) 18V/700MA + LENTE OTICA 6 PONTOS 48º (CP00121) + MASCARA (CP00185)",
         moduloLedCode: null,
         driverLines: [{
           driverModel: "LED DRIVER 30W 700MA 9-42VDC 220V FLICKERFREE",
@@ -312,11 +312,15 @@ describe("buildMaterialRequisition — componentes múltiplos (óticas, holders,
       } as any,
     ];
 
-    const result = buildMaterialRequisition(items);
-    const traceModule = result.find(entry => entry.codigo === "P0000786");
+    const result = buildMaterialRequisition(items, new Map([
+      ["EQ00147", "MODULO LINEAR 6 LEDS 830-3000K 1500LM 154X23MM ADV CNB (P0000786) 18V/700MA"],
+      ["CP00121", "LENTE OTICA 6 PONTOS 48º"],
+      ["CP00185", "MASCARA"],
+    ]));
+    const traceModule = result.find(entry => entry.codigo === "EQ00147");
 
     expect(traceModule).toMatchObject({
-      codigo: "P0000786",
+      codigo: "EQ00147",
       qty: 8,
       unidade: "un",
       tipo: "MÓDULOS LED",
@@ -324,6 +328,28 @@ describe("buildMaterialRequisition — componentes múltiplos (óticas, holders,
     });
     expect(result.find(entry => entry.codigo === "CP00121")?.qty).toBe(8);
     expect(result.find(entry => entry.codigo === "CP00185")?.qty).toBe(8);
+    expect(result.map(entry => entry.codigo)).not.toContain("P0000786");
+  });
+
+  it("inclui drivers legados de perfis quando o item ainda não possui driverLines estruturado", () => {
+    const result = buildMaterialRequisition([{
+      category: "Perfis",
+      sku: "LLS-9465.115.65F",
+      description: "GLOW S 54W 1154MM 5000K 220V",
+      qty: 37,
+      unitPrice: 265,
+      totalPrice: 9805,
+      photoUrl: null,
+      moduloLed: "2X STRIPLINE 562.5X15MM 108LEDS 28W 850-5000K (LC) 75V (EQ00415)",
+      moduloLedCode: "EQ00415",
+      drivers: "DRIVER LED DRIVER 65W 200-350MA 120-185VDC 230V (EQ00393)",
+    } as any], new Map([
+      ["EQ00415", "STRIPLINE 562.5X15MM 108LEDS 28W 850-5000K (LC) 75V"],
+      ["EQ00393", "LED DRIVER 65W 200-350MA 120-185VDC 230V"],
+    ]));
+
+    expect(result.find(entry => entry.codigo === "EQ00415")).toMatchObject({ qty: 74, tipo: "MÓDULOS LED" });
+    expect(result.find(entry => entry.codigo === "EQ00393")).toMatchObject({ qty: 37, tipo: "DRIVERS" });
   });
 
   it("deve funcionar com item sem driverLines (item antigo) mas com moduloLed", () => {

@@ -3027,3 +3027,17 @@
 - [x] Consultar o módulo LED vigente do SKU na API Alfalux
 - [x] Substituir o módulo histórico pelo código, descrição e quantidade atuais da API
 - [x] Confirmar a requisição de materiais após a atualização
+
+## Requisição de materiais: códigos EQ e itens omitidos
+- [x] Corrigir o módulo do pedido 27.0012-26 para usar o EQ00147 oficial da API
+- [x] Comparar os dois itens do pedido 27.0011-26 com módulos, equipamentos e drivers da API
+- [x] Corrigir a agregação para priorizar códigos EQ oficiais e incluir todos os componentes API
+- [x] Atualizar os pedidos históricos afetados sem alterar componentes não relacionados
+- [x] Cobrir módulos, equipamentos e drivers por regressão de requisição de materiais
+
+## Ficha de produção: edição independente de componentes API
+- [x] Derivar os campos técnicos apenas dos componentes retornados pela API para cada produto
+- [x] Exibir separadamente e permitir editar driver, módulo LED, ótica, holder e dissipador disponíveis
+- [x] Ocultar campos sem componente correspondente na API
+- [x] Preservar códigos e quantidades oficiais na requisição de materiais após a edição
+- [x] Cobrir a estrutura condicional e a edição independente por regressão

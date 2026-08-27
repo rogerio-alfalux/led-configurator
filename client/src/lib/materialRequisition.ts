@@ -187,7 +187,7 @@ export function buildMaterialRequisition(
   const reverseDescMap = new Map<string, string>();
   if (descMap) {
     descMap.forEach((desc, code) => {
-      if ((code.startsWith("EQ") || code.startsWith("CP") || code.startsWith("PT") || code.startsWith("P")) && desc) {
+      if ((code.startsWith("EQ") || code.startsWith("CP") || code.startsWith("PT")) && desc) {
         const normalized = desc.toUpperCase().trim().replace(/\s+/g, " ");
         reverseDescMap.set(normalized, code);
       }
@@ -222,25 +222,22 @@ export function buildMaterialRequisition(
       const fromNoEq = reverseDescMap.get(withoutEqSuffix);
       if (fromNoEq) return fromNoEq;
     }
-    // 3. Extrair o código fornecido pela API quando presente na string.
-    // Módulos LED TRACE são publicados com código P (ex.: P0001840),
-    // enquanto os demais componentes usam EQ ou CP.
-    const eqMatch = rawDesc.match(/\((EQ\d+|CP\d+|P\d+)\)/i);
-    if (eqMatch) return eqMatch[1].toUpperCase();
-    // 4. Busca normalizada (fuzzy): remove PT, Ø/D antes de números, etc.
+    // 3. Busca normalizada (fuzzy): remove identificadores auxiliares P,
+    // Ø/D antes de números e variações de espaçamento. Esta etapa precede
+    // qualquer código textual porque EQ/CP da API é o código de requisição.
     const inputNorm = normForSearch(normalized);
     for (const [key, code] of Array.from(reverseDescMap.entries())) {
       const keyNorm = normForSearch(key);
       if (keyNorm === inputNorm) return code;
     }
-    // 5. Busca parcial normalizada: verificar se uma contém a outra
+    // 4. Busca parcial normalizada: verificar se uma contém a outra
     for (const [key, code] of Array.from(reverseDescMap.entries())) {
       const keyNorm = normForSearch(key);
       if (keyNorm.includes(inputNorm) || inputNorm.includes(keyNorm)) {
         return code;
       }
     }
-    // 6. Busca por tokens em comum: se 80%+ dos tokens coincidem (ignora ordem)
+    // 5. Busca por tokens em comum: se 80%+ dos tokens coincidem (ignora ordem)
     const inputTokens = new Set(inputNorm.split(/[\s\-\/]+/).filter(t => t.length > 1));
     let bestMatch: string | null = null;
     let bestScore = 0;
@@ -261,6 +258,11 @@ export function buildMaterialRequisition(
       }
     }
     if (bestMatch) return bestMatch;
+    // 6. Sem correspondência de descrição, aceitar somente códigos oficiais
+    // de material. Identificadores P são referência interna do fabricante,
+    // não código de requisição.
+    const eqMatch = rawDesc.match(/\((EQ\d+|CP\d+|PT\d+)\)/i);
+    if (eqMatch) return eqMatch[1].toUpperCase();
     return null;
   }
 
@@ -395,6 +397,22 @@ export function buildMaterialRequisition(
       }
     }
 
+    // Itens históricos podiam registrar o driver somente no texto `drivers`.
+    // Quando não houver linhas estruturadas, reaproveitar o código oficial
+    // presente nesse texto para não omitir o equipamento da requisição.
+    if (!item.withoutEquipment && !hasProfileSegs && !isLedBarItem && (!item.driverLines || item.driverLines.length === 0) && item.drivers) {
+      const legacyDriverParts = item.drivers.split(" + ").map(part => part.trim()).filter(Boolean);
+      for (const rawDriver of legacyDriverParts) {
+        const qtyMatch = rawDriver.match(/^(\d+)x\s+/i);
+        const driverQtyPerUnit = qtyMatch ? Number(qtyMatch[1]) : 1;
+        const driverText = qtyMatch ? rawDriver.slice(qtyMatch[0].length).trim() : rawDriver;
+        const driverCode = resolveEqFromDesc(driverText);
+        if (!driverCode) continue;
+        const driverDescription = descMap?.get(driverCode) ?? driverText.replace(/\s*\([A-Z]{2}\d+\)\s*$/, "").trim();
+        add(driverCode, driverDescription, driverQtyPerUnit * itemQty, "un", "DRIVERS", itemIdx);
+      }
+    }
+
     // ── COMPONENTES (fonte de luz) para itens com driverLines ─────────────
     // Downlights, spots, painéis e arandelas salvam TODOS os componentes no campo
     // item.moduloLed concatenados com " + " como separador. Exemplo:
@@ -426,15 +444,18 @@ export function buildMaterialRequisition(
           ? partWithoutQty.slice(0, partWithoutQty.lastIndexOf("(")).trim()
           : partWithoutQty.trim();
 
-        // Para o primeiro componente, usar moduloLedCode como preferência (mais confiável)
-        if (partIdx === 0 && item.moduloLedCode) {
-          componentCode = item.moduloLedCode;
-        }
+        // O campo oficial moduloLedCode (EQ/CP) tem precedência. Quando o
+        // histórico traz apenas o identificador P, a descrição é resolvida no
+        // catálogo API para obter primeiro o código oficial de requisição.
+        const savedOfficialCode = partIdx === 0 && item.moduloLedCode && /^(EQ|CP|PT)\d+$/i.test(item.moduloLedCode)
+          ? item.moduloLedCode.toUpperCase()
+          : null;
+        const resolvedOfficialCode = resolveEqFromDesc(descWithoutCode);
+        componentCode = savedOfficialCode ?? resolvedOfficialCode ?? componentCode;
 
-        // Se não encontrou código, tentar resolver via descrição
-        if (!componentCode) {
-          componentCode = resolveEqFromDesc(descWithoutCode);
-        }
+        // Identificadores P não são códigos de requisição. Sem código EQ/CP/PT
+        // retornado pela API, não gerar uma linha comercialmente incorreta.
+        if (componentCode?.startsWith("P")) componentCode = null;
 
         // Se ainda não tem código, pular (não podemos adicionar sem código)
         if (!componentCode) continue;

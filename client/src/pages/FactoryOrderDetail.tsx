@@ -20,6 +20,7 @@ import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, for
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { ComponentSearchField } from "@/components/ComponentSearchField";
 import type { ComponentOption } from "@/components/ComponentSearchField";
+import { formatApiComponentSlot, getApiModuleComponentSlots, replaceApiModuleComponentSlot } from "@/lib/apiComponentSlots";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { canEditProductionEquipments } from "@/lib/factoryEquipmentPolicy";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
@@ -313,6 +314,23 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
   const driverOptions = useMemo(() => {
     return componentesData.filter(c => c.tipo.startsWith("DRIVER_"));
   }, [componentesData]);
+
+  // Estrutura técnica retornada pela API: cada componente oficial recebe seu
+  // próprio campo, sem transformar componentes concatenados em equipamentos
+  // genéricos. Assim, só aparecem Módulo, Óptica, Holder ou Dissipador quando
+  // o produto realmente os possui no cadastro API.
+  const apiModuleComponentSlots = getApiModuleComponentSlots(parsed, componentesData);
+  const getOptionsForApiComponent = (slot: typeof apiModuleComponentSlots[number]) => {
+    const exactType = componentesData.filter(component => component.tipo === slot.tipo);
+    if (exactType.length > 0) return exactType;
+    const byKind = componentesData.filter(component => component.tipo === slot.kind);
+    return byKind.length > 0 ? byKind : componentesData;
+  };
+  const updateApiModuleComponent = (slot: typeof apiModuleComponentSlots[number], description: string, code: string, qty = slot.qty) => {
+    const moduloLed = replaceApiModuleComponentSlot(parsed.moduloLed, slot, description, code, qty);
+    const moduloLedCode = slot.kind === "MODULO_LED" ? (code || null) : parsed.moduloLedCode;
+    update({ moduloLed, moduloLedCode });
+  };
 
   // Helper para extrair código EQ de uma string como "DESCRIÇÃO (EQ00125)"
   const extractCode = (val: string) => val.match(/\(([A-Z]{2}\d+)\)/)?.[1] ?? "";
@@ -644,7 +662,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                 : "";
               return (
                 <div className="space-y-4">
-                  <div>
+                  {moduloVal && <div>
                     <Label className="text-xs font-semibold text-foreground">Módulo LED / Fonte de Luz</Label>
                     <div className="mt-2 space-y-2">
                       <ComponentSearchField
@@ -667,8 +685,8 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                         />
                       </div>
                     </div>
-                  </div>
-                  <div>
+                  </div>}
+                  {driverVal && <div>
                     <Label className="text-xs font-semibold text-foreground">Equipamentos / Drivers</Label>
                     <div className="mt-2">
                       <ComponentSearchField
@@ -682,7 +700,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                         placeholder="Buscar driver..."
                       />
                     </div>
-                  </div>
+                  </div>}
                 </div>
               );
             }
@@ -707,33 +725,27 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
 
               return (
                 <div className="space-y-4">
-                  {(parsed.moduloLed || moduloLedOptions.length > 0) && (
+                  {apiModuleComponentSlots.length > 0 && (
                     <div>
-                      <Label className="text-xs font-semibold text-foreground">Módulo LED / Fonte de Luz</Label>
-                      <div className="mt-2">
-                        <ComponentSearchField
-                          label=""
-                          value={moduloVal}
-                          qty={moduloLedQtyPerUnit}
-                          onValueChange={(desc, code) => {
-                            // Ao mudar o componente, preservar o prefixo de quantidade
-                            const prefix = moduloLedQtyPerUnit > 1 ? `${moduloLedQtyPerUnit}x ` : "";
-                            const newModuloLed = desc ? `${prefix}${desc}` : "";
-                            update({ moduloLed: newModuloLed, moduloLedCode: code || null });
-                          }}
-                          onQtyChange={qty => {
-                            // Ao mudar a qty por peça, atualizar o prefixo no moduloLed
-                            const prefix = qty > 1 ? `${qty}x ` : "";
-                            const newModuloLed = moduloLedDescClean ? `${prefix}${moduloLedDescClean}` : "";
-                            update({ moduloLed: newModuloLed });
-                          }}
-                          options={moduloLedOptions}
-                          isLoading={componentesLoading}
-                          placeholder="Buscar módulo LED..."
-                        />
+                      <Label className="text-xs font-semibold text-foreground">Componentes retornados pela API</Label>
+                      <div className="mt-2 space-y-3">
+                        {apiModuleComponentSlots.map(slot => (
+                          <ComponentSearchField
+                            key={`${slot.partIndex}-${slot.code}`}
+                            label={slot.label}
+                            value={formatApiComponentSlot(slot)}
+                            qty={slot.qty}
+                            onValueChange={(desc, code) => updateApiModuleComponent(slot, desc, code)}
+                            onQtyChange={qty => updateApiModuleComponent(slot, slot.description, slot.code, qty)}
+                            options={getOptionsForApiComponent(slot)}
+                            isLoading={componentesLoading}
+                            placeholder={`Buscar ${slot.label.toLowerCase()}...`}
+                          />
+                        ))}
                       </div>
                     </div>
                   )}
+                  {apiModuleComponentSlots.length > 0 && <Separator className="opacity-60" />}
                   <div>
                     <Label className="text-xs font-semibold text-foreground">Equipamentos / Drivers</Label>
                     <div className="mt-2 space-y-3">
@@ -804,30 +816,26 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
 
             return (
               <div className="space-y-4">
-                <div>
-                  <Label className="text-xs font-semibold text-foreground">Módulo LED / Fonte de Luz</Label>
-                  <div className="mt-2">
-                    <ComponentSearchField
-                      label=""
-                      value={moduloVal}
-                      qty={moduloSimpleQty}
-                      onValueChange={(desc, code) => {
-                        const prefix = moduloSimpleQty > 1 ? `${moduloSimpleQty}x ` : "";
-                        const newModuloLed = desc ? `${prefix}${desc}` : "";
-                        update({ moduloLed: newModuloLed, moduloLedCode: code || null });
-                      }}
-                      onQtyChange={qty => {
-                        const prefix = qty > 1 ? `${qty}x ` : "";
-                        const newModuloLed = moduloSimpleDesc ? `${prefix}${moduloSimpleDesc}` : "";
-                        update({ moduloLed: newModuloLed });
-                      }}
-                      options={moduloLedOptions}
-                      isLoading={componentesLoading}
-                      placeholder="Buscar módulo LED..."
-                    />
+                {apiModuleComponentSlots.length > 0 && <div>
+                  <Label className="text-xs font-semibold text-foreground">Componentes retornados pela API</Label>
+                  <div className="mt-2 space-y-3">
+                    {apiModuleComponentSlots.map(slot => (
+                      <ComponentSearchField
+                        key={`${slot.partIndex}-${slot.code}`}
+                        label={slot.label}
+                        value={formatApiComponentSlot(slot)}
+                        qty={slot.qty}
+                        onValueChange={(desc, code) => updateApiModuleComponent(slot, desc, code)}
+                        onQtyChange={qty => updateApiModuleComponent(slot, slot.description, slot.code, qty)}
+                        options={getOptionsForApiComponent(slot)}
+                        isLoading={componentesLoading}
+                        placeholder={`Buscar ${slot.label.toLowerCase()}...`}
+                      />
+                    ))}
                   </div>
-                </div>
-                <div>
+                </div>}
+                {apiModuleComponentSlots.length > 0 && <Separator className="opacity-60" />}
+                {driverSimpleDesc && <div>
                   <Label className="text-xs font-semibold text-foreground">Equipamentos / Drivers</Label>
                   <div className="mt-2">
                     <ComponentSearchField
@@ -849,7 +857,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                       placeholder="Buscar driver..."
                     />
                   </div>
-                </div>
+                </div>}
               </div>
             );
           })()}
