@@ -11,6 +11,7 @@ import {
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { toBrasiliaDateTime, toBrasiliaDateTimeShort, toBrasiliaFileDate } from "@/lib/dateUtils";
+import { mergeConfirmedBackupRows } from "@/lib/backupHistory";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -25,6 +26,7 @@ function formatDate(dateStr: string | null | undefined): string {
 
 export default function Backup() {
   const { user } = useAuth();
+  const utils = trpc.useUtils();
   const [sqlLoading, setSqlLoading] = useState(false);
   const [excelLoading, setExcelLoading] = useState(false);
 
@@ -36,6 +38,9 @@ export default function Backup() {
   });
   const runBackupNowMutation = trpc.backup.runNow.useMutation({
     onSuccess: async result => {
+      utils.backup.list.setData(undefined, current =>
+        mergeConfirmedBackupRows(current, result.historyRows),
+      );
       await backupListQuery.refetch();
       toast.success(
         `Backup atualizado — ${result.counts.totalTables} tabelas · ${result.counts.totalRows} registros`,

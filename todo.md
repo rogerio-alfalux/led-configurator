@@ -3006,3 +3006,9 @@
 - [x] Corrigir a duplicação para preservar exatamente o preço unitário e total da peça original
 - [x] Garantir que o preço do driver e os demais componentes permaneçam inalterados
 - [x] Cobrir duplicações sucessivas e itens sem margem por regressão
+
+## Backup: histórico após atualização manual
+- [x] Confirmar se a execução informada como concluída gerou registros persistidos
+- [x] Corrigir a atualização imediata do Histórico de Backups Automáticos
+- [x] Informar sucesso somente após confirmar a presença dos arquivos no histórico
+- [x] Cobrir a persistência e a atualização da listagem por regressão e execução real

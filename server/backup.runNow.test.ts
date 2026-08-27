@@ -41,6 +41,10 @@ describe("backup.runNow", () => {
         sql: { key: "backups/test.sql", url: "/api/assets/backups/test.sql", bytes: 100, fileName: "test.sql" },
         excel: { key: "backups/test.tsv", url: "/api/assets/backups/test.tsv", bytes: 80, fileName: "test.tsv" },
       },
+      historyRows: [
+        { id: 2, type: "sql", fileName: "test.sql" },
+        { id: 3, type: "excel", fileName: "test.tsv" },
+      ],
       elapsedMs: 50,
     });
   });
@@ -48,7 +52,11 @@ describe("backup.runNow", () => {
   it("permite ao administrador gerar e persistir o backup imediatamente", async () => {
     const result = await appRouter.createCaller(createContext("admin")).backup.runNow();
     expect(generateBackupMock).toHaveBeenCalledWith({ trigger: "manual" });
-    expect(result).toMatchObject({ ok: true, counts: { totalTables: 27, totalRows: 33512 } });
+    expect(result).toMatchObject({
+      ok: true,
+      counts: { totalTables: 27, totalRows: 33512 },
+      historyRows: [{ id: 2, type: "sql" }, { id: 3, type: "excel" }],
+    });
   });
 
   it("impede usuários não administradores de executar o backup", async () => {

@@ -1,4 +1,5 @@
 import mysql, { type RowDataPacket } from "mysql2/promise";
+import { desc, inArray } from "drizzle-orm";
 import { backups } from "../drizzle/schema";
 import { getDb } from "./db";
 import { ENV } from "./_core/env";
@@ -18,6 +19,7 @@ export type BackupExecutionResult = {
     sql: { key: string; url: string; bytes: number; fileName: string };
     excel: { key: string; url: string; bytes: number; fileName: string };
   };
+  historyRows: Array<typeof backups.$inferSelect>;
   elapsedMs: number;
 };
 
@@ -237,6 +239,18 @@ async function executeCompleteBackup(options?: {
       },
     ]);
 
+    const uploadedKeys = [sqlUpload.key, excelUpload.key];
+    const matchingRows = await db
+      .select()
+      .from(backups)
+      .where(inArray(backups.fileKey, uploadedKeys))
+      .orderBy(desc(backups.id));
+    const persistedSql = matchingRows.find(row => row.type === "sql" && row.fileKey === sqlUpload.key);
+    const persistedExcel = matchingRows.find(row => row.type === "excel" && row.fileKey === excelUpload.key);
+    if (!persistedSql || !persistedExcel) {
+      throw new Error("Os arquivos foram gerados, mas o registro do backup não foi confirmado no histórico");
+    }
+
     return {
       ok: true,
       generatedAt: startedAt.toISOString(),
@@ -245,6 +259,7 @@ async function executeCompleteBackup(options?: {
         sql: { key: sqlUpload.key, url: sqlUpload.url, bytes: sqlBuffer.length, fileName: sqlFileName },
         excel: { key: excelUpload.key, url: excelUpload.url, bytes: excelBuffer.length, fileName: excelFileName },
       },
+      historyRows: [persistedSql, persistedExcel],
       elapsedMs: Date.now() - startedMs,
     };
   } catch (error) {

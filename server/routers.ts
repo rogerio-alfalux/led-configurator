@@ -2500,7 +2500,7 @@ export const appRouter = router({
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
       const { backups } = await import("../drizzle/schema");
       const { desc } = await import("drizzle-orm");
-      const rows = await db.select().from(backups).orderBy(desc(backups.createdAt)).limit(100);
+      const rows = await db.select().from(backups).orderBy(desc(backups.createdAt), desc(backups.id)).limit(100);
       return rows;
     }),
 
