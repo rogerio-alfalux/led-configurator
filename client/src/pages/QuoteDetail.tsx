@@ -134,6 +134,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@shared/permissions";
 import { applyCCTChange, applyUnitPriceChange, applyQtyChange } from "@/lib/cctUtils";
 import { calculateLinkedAccessoriesTotal, parseShiftModuleManualPrice } from "@/lib/shiftModulePrices";
+import { cloneCartItemData, getEditableBodyUnitPrice } from "@/lib/splitItemPricing";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   open: { label: "Em Aberto", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: <Clock className="w-3 h-3" /> },
@@ -404,7 +405,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
             type="number"
             min={0}
             step={0.01}
-            value={d.unitPrice ?? ""}
+            value={getEditableBodyUnitPrice(d) ?? ""}
             onChange={(d.priceFromApi && !canOverrideApiPrice) ? undefined : (e => {
               const newUnitPrice = e.target.value ? parseFloat(e.target.value) : null;
               onUpdate(item.id, {
@@ -2768,7 +2769,7 @@ export default function QuoteDetail() {
                                     onReorderToSeq={handleEditReorderToSeq}
                                     resolvePhoto={resolvePhoto}
                                     onDelete={(id) => setEditableItems(prev => prev.filter(it => it.id !== id))}
-                                    onDuplicate={(id) => setEditableItems(prev => { const i = prev.findIndex(it => it.id === id); if (i === -1) return prev; const src = prev[i]; const cloned = { ...src, id: Date.now() + Math.random(), itemData: src.itemData }; const next = [...prev]; next.splice(i + 1, 0, cloned); return next; })}
+                                    onDuplicate={(id) => setEditableItems(prev => { const i = prev.findIndex(it => it.id === id); if (i === -1) return prev; const src = prev[i]; const parsed = cloneCartItemData(src.parsed); const cloned = { ...src, id: Date.now() + Math.random(), parsed, itemData: JSON.stringify(parsed) }; const next = [...prev]; next.splice(i + 1, 0, cloned); return next; })}
                                     onReplace={(replIdx) => { setEditItemsDialogOpen(false); const d = editableItems[replIdx]?.parsed; navigate(`/?replaceInQuote=${quote.id}&replaceIndex=${replIdx}&replaceQty=${d?.qty ?? 1}&replaceItemEmPlanta=${encodeURIComponent(d?.itemEmPlanta ?? "")}`); }}
                                     onUpdate={(id, fields) => { let mergedFields = { ...fields }; if (fields.cct !== undefined) { const curItem = editableItems.find(it => it.id === id); if (curItem && fields.cct !== curItem.parsed.cct) { mergedFields = { ...applyCCTChange(curItem.parsed, fields.cct), ...fields }; } } setEditableItems(prev => prev.map(it => { if (it.id !== id) return it; const newParsed = { ...it.parsed, ...mergedFields }; if (fields.unitPrice !== undefined) { Object.assign(newParsed, applyUnitPriceChange(newParsed, fields.unitPrice, fields.qty ?? newParsed.qty)); } else if (fields.qty !== undefined) { Object.assign(newParsed, applyQtyChange(newParsed, fields.qty)); } return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) }; })); }}
                                     onUploadSpecialPhoto={async (id, base64, mimeType, fileName) => { const result = await uploadSpecialPhotoMutationQD.mutateAsync({ base64, mimeType, fileName }); setEditableItems(prev => prev.map(it => { if (it.id !== id) return it; const newParsed = { ...it.parsed, specialPhotoUrl: result.url, photoUrl: result.url }; return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) }; })); }}
@@ -2826,7 +2827,8 @@ export default function QuoteDetail() {
                               const idx = prev.findIndex(it => it.id === id);
                               if (idx === -1) return prev;
                               const src = prev[idx];
-                              const cloned = { ...src, id: Date.now() + Math.random(), itemData: src.itemData };
+                              const parsed = cloneCartItemData(src.parsed);
+                              const cloned = { ...src, id: Date.now() + Math.random(), parsed, itemData: JSON.stringify(parsed) };
                               const next = [...prev];
                               next.splice(idx + 1, 0, cloned);
                               return next;

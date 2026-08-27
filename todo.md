@@ -3000,3 +3000,9 @@
 - [x] Converter a quantidade da FITA LED para metros na requisição de materiais
 - [x] Preservar corretamente quantidades por item e totais sem multiplicação ou conversão duplicada
 - [x] Cobrir as unidades e conversões da FITA LED por regressão
+
+## Orçamento: preço ao duplicar item para outro pavimento
+- [x] Comparar os itens duplicados do orçamento 20.0503-26 e identificar a divergência do preço da peça
+- [x] Corrigir a duplicação para preservar exatamente o preço unitário e total da peça original
+- [x] Garantir que o preço do driver e os demais componentes permaneçam inalterados
+- [x] Cobrir duplicações sucessivas e itens sem margem por regressão

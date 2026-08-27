@@ -58,6 +58,7 @@ import { applyCCTChange } from "@/lib/cctUtils";
 import { getQuoteTeamValidationError, isSellerRequiredForQuote } from "@/lib/quoteTeamValidation";
 import { LdGuestCartItemCard } from "@/components/LdGuestCards";
 import { buildLdRequestPayload } from "@/lib/ldRequestForm";
+import { buildSplitBodyPricePatch, cloneCartItemData, getEditableBodyUnitPrice } from "@/lib/splitItemPricing";
 
 /**
  * REGRA INEGOCIÁVEL: Para perfis (com profileSegments), o driverQty total é sempre
@@ -1505,10 +1506,11 @@ function StandardCart() {
                           updateQtyMutation={updateQtyMutation}
                           isRemoving={isRemoving}
                           acessorioPhotoMap={acessorioPhotoMap}
-                          onDuplicate={(data) => { addItem({ ...data, itemEmPlanta: data.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
+                          onDuplicate={(data) => { const cloned = cloneCartItemData(data); addItem({ ...cloned, itemEmPlanta: cloned.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
                           onEditClick={(id, data) => {
                             setEditItemId(id);
-                                    setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', driverUnitPriceOverride: data.driverLines && data.driverLines.length > 0 && data.driverLines[0].driverUnitPrice != null ? String(data.driverLines[0].driverUnitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: (data.itemMarginPercent != null && data.itemMarginPercent > 0) ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '', description: data.description ?? '', itemEmPlanta: data.itemEmPlanta ?? '', specialCustoUnitario: data.specialCustoUnitario != null ? String(data.specialCustoUnitario).replace('.', ',') : '', specialMarkup: data.specialMarkup != null ? String(data.specialMarkup).replace('.', ',') : '' });
+                                    const editableBodyPrice = getEditableBodyUnitPrice(data);
+                                    setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: editableBodyPrice != null ? String(editableBodyPrice).replace('.', ',') : '', driverUnitPriceOverride: data.driverLines && data.driverLines.length > 0 && data.driverLines[0].driverUnitPrice != null ? String(data.driverLines[0].driverUnitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: (data.itemMarginPercent != null && data.itemMarginPercent > 0) ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '', description: data.description ?? '', itemEmPlanta: data.itemEmPlanta ?? '', specialCustoUnitario: data.specialCustoUnitario != null ? String(data.specialCustoUnitario).replace('.', ',') : '', specialMarkup: data.specialMarkup != null ? String(data.specialMarkup).replace('.', ',') : '' });
                                                         if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
                           }}
                           applyItemMargin={applyItemMargin}
@@ -1580,10 +1582,11 @@ function StandardCart() {
                                   updateQtyMutation={updateQtyMutation}
                                   isRemoving={isRemoving}
                                   acessorioPhotoMap={acessorioPhotoMap}
-                                  onDuplicate={(data) => { addItem({ ...data, itemEmPlanta: data.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
+                                  onDuplicate={(data) => { const cloned = cloneCartItemData(data); addItem({ ...cloned, itemEmPlanta: cloned.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
                                   onEditClick={(id, data) => {
                                     setEditItemId(id);
-                                    setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: data.unitPrice ? String(data.unitPrice).replace('.', ',') : '', driverUnitPriceOverride: data.driverLines && data.driverLines.length > 0 && data.driverLines[0].driverUnitPrice != null ? String(data.driverLines[0].driverUnitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: (data.itemMarginPercent != null && data.itemMarginPercent > 0) ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '', description: data.description ?? '', itemEmPlanta: data.itemEmPlanta ?? '', specialCustoUnitario: data.specialCustoUnitario != null ? String(data.specialCustoUnitario).replace('.', ',') : '', specialMarkup: data.specialMarkup != null ? String(data.specialMarkup).replace('.', ',') : '' });
+                                    const editableBodyPrice = getEditableBodyUnitPrice(data);
+                                    setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: editableBodyPrice != null ? String(editableBodyPrice).replace('.', ',') : '', driverUnitPriceOverride: data.driverLines && data.driverLines.length > 0 && data.driverLines[0].driverUnitPrice != null ? String(data.driverLines[0].driverUnitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: (data.itemMarginPercent != null && data.itemMarginPercent > 0) ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '', description: data.description ?? '', itemEmPlanta: data.itemEmPlanta ?? '', specialCustoUnitario: data.specialCustoUnitario != null ? String(data.specialCustoUnitario).replace('.', ',') : '', specialMarkup: data.specialMarkup != null ? String(data.specialMarkup).replace('.', ',') : '' });
                                     if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
                                   }}
                                   applyItemMargin={applyItemMargin}
@@ -3398,25 +3401,13 @@ function StandardCart() {
                   if (canEditLuminaria && editFields.unitPrice.trim()) {
                     const qty = parseInt(editFields.qty) || item?.data.qty || 1;
                     const lumUnitPrice = parseFloat(editFields.unitPrice.replace(',', '.')) || 0;
-                    patch.unitPriceLuminaria = lumUnitPrice;
-                    patch.priceWithoutDriver = Math.round(lumUnitPrice * qty * 100) / 100;
-                    // REGRA: totalPrice = apenas luminária (sem driver)
-                    // O driver aparece separado em driverLines; não somar aqui para evitar duplicação
-                    patch.totalPrice = Math.round(lumUnitPrice * qty * 100) / 100;
-                    const drvQtyPerLum = getProfileDrvQtyPerLuminaria(item.data);
-                    const drvQtyForUnit = drvQtyPerLum != null ? drvQtyPerLum : (item.data.driverLines[0]?.driverQty ?? 1);
-                    patch.unitPrice = Math.round((lumUnitPrice + (effectiveDriverUnitPrice ?? 0) * drvQtyForUnit) * 100) / 100;
-                    patch.luminariaHasApiPrice = item.data.luminariaHasApiPrice;
+                    Object.assign(patch, buildSplitBodyPricePatch(item.data, lumUnitPrice, qty));
                   } else if (canEditDriverPriceSave && editFields.driverUnitPriceOverride.trim() && !editFields.unitPrice.trim()) {
                     // Apenas o driver foi alterado (sem alterar luminária): recalcular unitPrice e totalPrice
                     const qty = parseInt(editFields.qty) || item?.data.qty || 1;
-                    const lumUnitPrice = item.data.unitPriceLuminaria ?? 0;
-                    const drvQtyPerLum = getProfileDrvQtyPerLuminaria(item.data);
-                    const drvQtyForUnit = drvQtyPerLum != null ? drvQtyPerLum : (item.data.driverLines[0]?.driverQty ?? 1);
+                    const lumUnitPrice = getEditableBodyUnitPrice(item.data) ?? 0;
                     if (lumUnitPrice > 0 && effectiveDriverUnitPrice != null) {
-                      patch.unitPrice = Math.round((lumUnitPrice + effectiveDriverUnitPrice * drvQtyForUnit) * 100) / 100;
-                      patch.totalPrice = Math.round(lumUnitPrice * qty * 100) / 100;
-                      patch.priceWithoutDriver = Math.round(lumUnitPrice * qty * 100) / 100;
+                      Object.assign(patch, buildSplitBodyPricePatch(item.data, lumUnitPrice, qty));
                     }
                   }
                 } else if (canEditPriceSave && editFields.unitPrice.trim()) {
