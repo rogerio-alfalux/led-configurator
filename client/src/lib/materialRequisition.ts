@@ -158,6 +158,38 @@ function detectTipo(descricao: string, codigo: string): MaterialTipo {
   return "OUTROS";
 }
 
+const OFFICIAL_MATERIAL_CODE = /\b(EQ\d+|CP\d+|PT\d+)\b/gi;
+
+/**
+ * Equipamentos manuais são adicionais. Quando um item histórico carrega no
+ * mesmo campo um módulo ou driver que já está no próprio produto, aquele
+ * registro é uma duplicação de migração e não pode ser contado novamente.
+ */
+function getAutomaticMaterialCodes(item: CartItemData): Set<string> {
+  const codes = new Set<string>();
+  const addFromText = (value?: string | null) => {
+    if (!value) return;
+    OFFICIAL_MATERIAL_CODE.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = OFFICIAL_MATERIAL_CODE.exec(value)) !== null) {
+      codes.add(match[1].toUpperCase());
+    }
+  };
+
+  addFromText(item.moduloLed);
+  addFromText(item.moduloLedCode);
+  addFromText(item.drivers);
+  addFromText(item.ledBarDriverCode);
+  for (const line of item.driverLines ?? []) addFromText(line.driverCode);
+  for (const segment of item.profileSegments ?? []) {
+    addFromText(segment.ledModuleCode);
+    addFromText(segment.driverCode);
+    addFromText(segment.driverModel);
+  }
+  for (const component of item.profileMaterialComponents ?? []) addFromText(component.codigo);
+  return codes;
+}
+
 /**
  * Extrai o código-base de um SKU de perfil.
  * Ex: "LLE-2810.35F.18F" → "LLE-2810"
@@ -518,8 +550,12 @@ export function buildMaterialRequisition(
     const isSpecialItemCheck = item.isSpecialItem || item.category === "Item Especial" || (item.category ?? "").toLowerCase() === "especial";
     const factoryEquipments = isSpecialItemCheck ? item.specialEquipments : item.productionEquipments;
     if (factoryEquipments && factoryEquipments.length > 0) {
+      const automaticCodes = getAutomaticMaterialCodes(item);
       for (const eq of factoryEquipments) {
         if (!eq.codigo) continue;
+        // Nunca contabilizar como equipamento adicional um código que já foi
+        // contabilizado pela composição automática do mesmo item.
+        if (automaticCodes.has(eq.codigo.toUpperCase())) continue;
         const tipo = detectTipo(eq.descricao, eq.codigo);
         const material = convertProductionEquipmentToMaterial(eq, itemQty);
         add(eq.codigo, eq.descricao, material.qty, material.unidade, tipo, itemIdx);

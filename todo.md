@@ -3041,3 +3041,14 @@
 - [x] Ocultar campos sem componente correspondente na API
 - [x] Preservar códigos e quantidades oficiais na requisição de materiais após a edição
 - [x] Cobrir a estrutura condicional e a edição independente por regressão
+
+## Requisição de materiais: quantidade de drivers do pedido 27.0011-26
+- [x] Apurar a quantidade de drivers por peça e a quantidade de luminárias dos dois itens
+- [x] Corrigir a multiplicação de drivers na requisição de materiais
+- [x] Atualizar o pedido histórico somente com as quantidades apuradas
+- [x] Cobrir drivers legados por quantidade de item em regressão
+
+## Requisição de materiais: quantidade de módulos do pedido 27.0011-26
+- [x] Apurar os módulos LED por peça e por item conforme a API
+- [x] Corrigir a multiplicação dos módulos LED na requisição
+- [x] Cobrir a apuração conjunta de módulos e drivers por regressão

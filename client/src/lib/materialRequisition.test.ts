@@ -352,6 +352,48 @@ describe("buildMaterialRequisition — componentes múltiplos (óticas, holders,
     expect(result.find(entry => entry.codigo === "EQ00393")).toMatchObject({ qty: 37, tipo: "DRIVERS" });
   });
 
+  it("não duplica módulos e drivers automáticos repetidos em equipamentos especiais históricos", () => {
+    const result = buildMaterialRequisition([
+      {
+        category: "Perfis",
+        sku: "LLS-9465.115.65F",
+        description: "GLOW S 54W 1154MM 5000K 220V",
+        qty: 37,
+        unitPrice: null,
+        totalPrice: null,
+        photoUrl: null,
+        moduloLed: "2X STRIPLINE 562.5X15MM 108LEDS 28W (EQ00415)",
+        moduloLedCode: "EQ00415",
+        drivers: "LED DRIVER XITANIUM 65W (EQ00348)",
+      },
+      {
+        category: "Item Especial",
+        sku: "LLS-9465.115.70E",
+        description: "GLOW S 54W 1154MM 5000K 220V C/ MÓDULO DE EMERGENCIA",
+        qty: 4,
+        unitPrice: null,
+        totalPrice: null,
+        photoUrl: null,
+        moduloLed: "2x STRIPLINE 562.5X15MM 108LEDS 28W (EQ00415)",
+        moduloLedCode: "EQ00415",
+        drivers: "LED DRIVER 65W (EQ00393)",
+        specialEquipments: [
+          { codigo: "EQ00415", descricao: "STRIPLINE 562.5X15MM 108LEDS 28W", qty: 2 },
+          { codigo: "EQ00393", descricao: "LED DRIVER 65W", qty: 1 },
+          { codigo: "CP00777", descricao: "SUPORTE ADICIONAL", qty: 1 },
+        ],
+      },
+    ] as any);
+
+    // 2 módulos por peça: (2 × 37) + (2 × 4) = 82.
+    expect(result.find(entry => entry.codigo === "EQ00415")?.qty).toBe(82);
+    // Drivers: 1 × 37 no item 1 e 1 × 4 no item 2, sem a duplicata migrada.
+    expect(result.find(entry => entry.codigo === "EQ00348")?.qty).toBe(37);
+    expect(result.find(entry => entry.codigo === "EQ00393")?.qty).toBe(4);
+    // Um equipamento realmente adicional continua contabilizado por peça.
+    expect(result.find(entry => entry.codigo === "CP00777")?.qty).toBe(4);
+  });
+
   it("deve funcionar com item sem driverLines (item antigo) mas com moduloLed", () => {
     const items: CartItemData[] = [
       {
