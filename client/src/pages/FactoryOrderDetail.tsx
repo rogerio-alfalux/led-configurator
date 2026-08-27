@@ -25,7 +25,7 @@ import { canEditProductionEquipments } from "@/lib/factoryEquipmentPolicy";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
 import { OrderPreviewModal } from "@/components/OrderPreviewModal";
 import type { OrderFormData } from "@/lib/orderExcelGenerator";
-import { toBrasiliaDate, toBrasiliaDateTime } from "@/lib/dateUtils";
+import { toBrasiliaDate, toBrasiliaDateTime, toBrasiliaDateTimeShort } from "@/lib/dateUtils";
 import { formatProfileSkuLines } from "@/lib/profileSkuFormatter";
 import { toast } from "sonner";
 
@@ -1804,7 +1804,7 @@ export default function FactoryOrderDetail() {
                       )}
                       <p className="text-xs text-muted-foreground mt-0.5">{order.empresa}</p>
                       <p className="text-xs text-muted-foreground">
-                        {toBrasiliaDate(order.createdAt)}
+                        {toBrasiliaDateTimeShort(order.createdAt)}
                       </p>
                     </button>
                     {/* Botão excluir pedido/subpedido */}
@@ -1941,7 +1941,7 @@ export default function FactoryOrderDetail() {
                           Rev. {currentOrder.revision}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
-                          Criado em {toBrasiliaDate(currentOrder.createdAt)}
+                          Criado em {toBrasiliaDateTimeShort(currentOrder.createdAt)}
                         </span>
                       </div>
 

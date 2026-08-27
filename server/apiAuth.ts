@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 import { getDb } from "./db";
 import { apiKeys } from "../drizzle/schema";
 import { eq, and } from "drizzle-orm";
+import { toUtcSqlTimestamp } from "./timeUtils";
 
 /**
  * Gera um hash SHA-256 da chave bruta para armazenamento seguro.
@@ -53,7 +54,7 @@ export async function apiKeyAuth(req: Request, res: Response, next: NextFunction
 
     // Atualiza lastUsedAt de forma assíncrona (não bloqueia a resposta)
     db.update(apiKeys)
-      .set({ lastUsedAt: new Date().toISOString().slice(0, 19).replace("T", " ") })
+      .set({ lastUsedAt: toUtcSqlTimestamp() })
       .where(eq(apiKeys.id, rows[0].id))
       .execute()
       .catch(() => {});

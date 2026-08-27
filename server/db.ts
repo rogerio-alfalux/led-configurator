@@ -25,26 +25,14 @@ import { getDuplicateQuoteGroupSizes, getDuplicateQuoteKey } from '../shared/quo
 import { getCommercialTotalsToRestore, getNonCommercialQuoteStatus, transfersNonCommercialFinance, type NonCommercialQuoteKind, type NonCommercialLinkType } from '../shared/nonCommercialQuoteFinancial';
 import { normalizeQuoteNumberForLookup } from '../shared/quoteNumberLookup';
 import { ADMIN_PENDING_LD_STATUSES } from './ldRequestBadgeStatus';
-// ─── Utilitários de data no fuso de Brasília ────────────────────────────────
-const BRASILIA_TZ = "America/Sao_Paulo";
+import { getBrasiliaYear2, toBrasiliaSqlTimestamp, toUtcSqlTimestamp } from './timeUtils';
 
-/** Retorna a data/hora atual no fuso de Brasília como string MySQL (YYYY-MM-DD HH:MM:SS) */
-export function nowBrasiliaStr(): string {
-  const now = new Date();
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: BRASILIA_TZ,
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit",
-    hour12: false,
-  }).formatToParts(now);
-  const get = (t: string) => parts.find(p => p.type === t)?.value ?? "00";
-  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")}`;
-}
-
-/** Retorna o ano atual no fuso de Brasília (2 dígitos, ex: "26") */
-export function nowBrasiliaYear2(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: BRASILIA_TZ, year: "2-digit" }).format(new Date());
-}
+/** Mantido para textos e metadados que precisam da hora civil de Brasília. */
+export const nowBrasiliaStr = () => toBrasiliaSqlTimestamp();
+/** Ano comercial calculado no fuso de Brasília. */
+export const nowBrasiliaYear2 = () => getBrasiliaYear2();
+/** Instante persistido em UTC; a interface converte explicitamente para Brasília. */
+export const nowUtcStr = () => toUtcSqlTimestamp();
 
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -96,8 +84,8 @@ export function prepareUserUpsert(user: InsertUser): { values: InsertUser; updat
     updateSet.role = 'admin';
   }
 
-  if (!values.lastSignedIn) values.lastSignedIn = nowBrasiliaStr();
-  if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = nowBrasiliaStr();
+  if (!values.lastSignedIn) values.lastSignedIn = nowUtcStr();
+  if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = nowUtcStr();
   return { values, updateSet };
 }
 
@@ -218,7 +206,7 @@ export async function createGuestQuoteRequest(input: CreateGuestQuoteRequestInpu
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   // Gerar requestNumber no formato LD-XXXX-26 (sequencial de 4 dígitos + ano)
-  const year = new Date().getFullYear().toString().slice(-2); // "26"
+  const year = nowBrasiliaYear2(); // "26"
   const [lastRow] = await db.select({ requestNumber: guestQuoteRequests.requestNumber })
     .from(guestQuoteRequests)
     .where(sql`requestNumber LIKE ${"LD-%-" + year}`)
@@ -251,7 +239,7 @@ export async function upsertLdGuestContactProfile(input: { guestUserId: number; 
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.insert(ldGuestContactProfiles).values(input).onDuplicateKeyUpdate({
-    set: { contactName: input.contactName, contactPhone: input.contactPhone, updatedAt: nowBrasiliaStr() },
+    set: { contactName: input.contactName, contactPhone: input.contactPhone, updatedAt: nowUtcStr() },
   });
 }
 
@@ -287,7 +275,7 @@ export async function deleteGuestQuoteRequestForGuest(guestUserId: number, reque
     .where(and(eq(guestQuoteRequests.id, requestId), eq(guestQuoteRequests.guestUserId, guestUserId), isNull(guestQuoteRequests.guestDeletedAt)))
     .limit(1))[0];
   if (!request) return null;
-  await db.update(guestQuoteRequests).set({ guestDeletedAt: nowBrasiliaStr() })
+  await db.update(guestQuoteRequests).set({ guestDeletedAt: nowUtcStr() })
     .where(and(eq(guestQuoteRequests.id, requestId), eq(guestQuoteRequests.guestUserId, guestUserId), isNull(guestQuoteRequests.guestDeletedAt)));
   return request;
 }
@@ -332,7 +320,7 @@ export async function countGuestUnseenQuoteResponses(guestUserId: number) {
 export async function markGuestQuoteResponseViewed(guestUserId: number, requestId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.update(guestQuoteRequests).set({ guestResponseViewedAt: nowBrasiliaStr() })
+  await db.update(guestQuoteRequests).set({ guestResponseViewedAt: nowUtcStr() })
     .where(and(
       eq(guestQuoteRequests.id, requestId),
       eq(guestQuoteRequests.guestUserId, guestUserId),
@@ -385,7 +373,7 @@ export async function linkGuestQuoteRequestQuote(id: number, quoteId: number, ad
     status: "in_review",
     adminQuoteId: quoteId,
     reviewedByUserId: adminUserId,
-    convertedAt: nowBrasiliaStr(),
+    convertedAt: nowUtcStr(),
   }).where(eq(guestQuoteRequests.id, id));
 }
 
@@ -396,7 +384,7 @@ export async function attachGuestQuoteRequestPdf(id: number, pdfUrl: string, adm
     status: "quote_ready",
     validatedPdfUrl: pdfUrl,
     reviewedByUserId: adminUserId,
-    pdfSentAt: nowBrasiliaStr(),
+    pdfSentAt: nowUtcStr(),
   }).where(eq(guestQuoteRequests.id, id));
 }
 
@@ -819,7 +807,7 @@ export async function addQuoteRevision(
     discountPercent: input.discountPercent != null ? String(input.discountPercent) : (quote.discountPercent ?? '0'),
     showDiscount: input.showDiscount !== undefined ? input.showDiscount : (quote.showDiscount ?? false),
     ...(input.quoteNumber ? { quoteNumber: input.quoteNumber } : {}),
-    updatedAt: sql`NOW()`,
+    updatedAt: nowUtcStr(),
   }).where(eq(quotes.id, quoteId));
 
   if (!bumpVersion) {
@@ -925,9 +913,9 @@ export async function listQuotes(opts: {
   if (opts.assistantName) conditions.push(like(quotes.assistantName, `%${opts.assistantName}%`));
   // Para status 'approved': filtrar por approvedAt (data de aprovação) para consistência com o dashboard
   // Para outros status: filtrar por createdAt (data de criação)
-  const dateField = opts.status === 'approved' ? 'approvedAt' : 'createdAt';
-  if (opts.dateFrom) conditions.push(sql`DATE(${sql.raw(dateField)}) >= ${opts.dateFrom}`);
-  if (opts.dateTo) conditions.push(sql`DATE(${sql.raw(dateField)}) <= ${opts.dateTo}`);
+  const dateField = opts.status === 'approved' ? quotes.approvedAt : quotes.createdAt;
+  if (opts.dateFrom) conditions.push(sql`DATE(DATE_SUB(${dateField}, INTERVAL 3 HOUR)) >= ${opts.dateFrom}`);
+  if (opts.dateTo) conditions.push(sql`DATE(DATE_SUB(${dateField}, INTERVAL 3 HOUR)) <= ${opts.dateTo}`);
   if (opts.search) {
     // Busca case-insensitive: banco usa utf8mb4_bin (case-sensitive), por isso usamos LOWER()
     const sLower = `%${opts.search.toLowerCase()}%`;
@@ -1045,7 +1033,7 @@ export async function approveQuote(id: number) {
   if (!db) throw new Error("Database not available");
   await db.update(quotes).set({
     status: "approved",
-    approvedAt: nowBrasiliaStr(),
+    approvedAt: nowUtcStr(),
   }).where(eq(quotes.id, id));
 }
 
@@ -1059,11 +1047,11 @@ export async function updateQuoteStatus(
   if (!db) throw new Error("Database not available");
   const updateData: Record<string, unknown> = { status };
   if (status === "approved") {
-    updateData.approvedAt = nowBrasiliaStr();
+    updateData.approvedAt = nowUtcStr();
     if (opts?.orderNumber) updateData.orderNumber = opts.orderNumber;
     if (opts?.billingCompany) updateData.billingCompany = opts.billingCompany;
   }
-  if (status === "invoiced") updateData.invoicedAt = nowBrasiliaStr();
+  if (status === "invoiced") updateData.invoicedAt = nowUtcStr();
   await db.update(quotes).set(updateData).where(eq(quotes.id, id));
 }
 
@@ -1109,14 +1097,14 @@ export async function getQuoteStats() {
   // Orçamentos por mês (últimos 12 meses)
   const byMonth = await db
     .select({
-      month: sql<string>`DATE_FORMAT(createdAt, '%Y-%m')`,
+      month: sql<string>`DATE_FORMAT(DATE_SUB(createdAt, INTERVAL 3 HOUR), '%Y-%m')`,
       count: sql<number>`sum(case when status != 'sample' then 1 else 0 end)`,
       amount: sql<number>`sum(case when status != 'sample' then (case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end) else 0 end)`,
     })
     .from(quotes)
     .where(sql`createdAt >= DATE_SUB(NOW(), INTERVAL 12 MONTH)`)
-    .groupBy(sql`DATE_FORMAT(createdAt, '%Y-%m')`)
-    .orderBy(sql`DATE_FORMAT(createdAt, '%Y-%m')`);
+    .groupBy(sql`DATE_FORMAT(DATE_SUB(createdAt, INTERVAL 3 HOUR), '%Y-%m')`)
+    .orderBy(sql`DATE_FORMAT(DATE_SUB(createdAt, INTERVAL 3 HOUR), '%Y-%m')`);
 
   return { totals, topVendors, topAssistants, byMonth };
 }
@@ -1578,10 +1566,10 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
   if (!db) return null;
 
   const periodCondition = (dateFrom && dateTo)
-    ? sql`approvedAt >= ${dateFrom} AND approvedAt <= ${dateTo + ' 23:59:59'} AND status = 'approved' AND status != 'sample'`
+    ? sql`DATE(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) >= ${dateFrom} AND DATE(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) <= ${dateTo} AND status = 'approved' AND status != 'sample'`
     : month
-      ? sql`YEAR(approvedAt) = ${year} AND MONTH(approvedAt) = ${month} AND status = 'approved' AND status != 'sample'`
-      : sql`YEAR(approvedAt) = ${year} AND status = 'approved' AND status != 'sample'`;
+      ? sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${month} AND status = 'approved' AND status != 'sample'`
+      : sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND status = 'approved' AND status != 'sample'`;
 
   const [periodTotals] = await db.select({
     approvedCount: sql<number>`count(*)`,
@@ -2031,10 +2019,10 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
 
   // ── Taxa de conversão (total criado no período vs aprovados) ─────────────────
   const createdCondition = (dateFrom && dateTo)
-    ? sql`createdAt >= ${dateFrom} AND createdAt <= ${dateTo + ' 23:59:59'} AND status != 'sample'`
+    ? sql`DATE(DATE_SUB(createdAt, INTERVAL 3 HOUR)) >= ${dateFrom} AND DATE(DATE_SUB(createdAt, INTERVAL 3 HOUR)) <= ${dateTo} AND status != 'sample'`
     : month
-      ? sql`YEAR(createdAt) = ${year} AND MONTH(createdAt) = ${month} AND status != 'sample'`
-      : sql`YEAR(createdAt) = ${year} AND status != 'sample'`;
+      ? sql`YEAR(DATE_SUB(createdAt, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(createdAt, INTERVAL 3 HOUR)) = ${month} AND status != 'sample'`
+      : sql`YEAR(DATE_SUB(createdAt, INTERVAL 3 HOUR)) = ${year} AND status != 'sample'`;
 
   const [conversionMetrics] = await db.select({
     totalCreated: sql<number>`count(*)`,
@@ -2058,10 +2046,10 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     WHERE q.status = 'approved' AND q.status != 'sample'
       AND ${
         (dateFrom && dateTo)
-          ? sql`q.approvedAt >= ${dateFrom} AND q.approvedAt <= ${dateTo + ' 23:59:59'}`
+          ? sql`DATE(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) >= ${dateFrom} AND DATE(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) <= ${dateTo}`
           : month
-            ? sql`YEAR(q.approvedAt) = ${year} AND MONTH(q.approvedAt) = ${month}`
-            : sql`YEAR(q.approvedAt) = ${year}`
+            ? sql`YEAR(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) = ${month}`
+            : sql`YEAR(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) = ${year}`
       }
       AND JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.category')) IS NOT NULL
       AND JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.totalPrice')) IS NOT NULL
@@ -2072,21 +2060,21 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
 
   // ── Progresso mensal (todos os meses do ano) ──────────────────────────────
   const monthlyProgress = await db.select({
-    month: sql<number>`MONTH(approvedAt)`,
+    month: sql<number>`MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR))`,
     count: sql<number>`count(*)`,
     amount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
   })
     .from(quotes)
-    .where(sql`YEAR(approvedAt) = ${year} AND status = 'approved' AND status != 'sample'`)
-    .groupBy(sql`MONTH(approvedAt)`)
-    .orderBy(sql`MONTH(approvedAt)`);
+    .where(sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND status = 'approved' AND status != 'sample'`)
+    .groupBy(sql`MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR))`)
+    .orderBy(sql`MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR))`);
 
   // ── Faturamento (invoiced) ────────────────────────────────────────────────
   const invoicedCondition = (dateFrom && dateTo)
-    ? sql`invoicedAt >= ${dateFrom} AND invoicedAt <= ${dateTo + ' 23:59:59'} AND status = 'invoiced' AND status != 'sample'`
+    ? sql`DATE(DATE_SUB(invoicedAt, INTERVAL 3 HOUR)) >= ${dateFrom} AND DATE(DATE_SUB(invoicedAt, INTERVAL 3 HOUR)) <= ${dateTo} AND status = 'invoiced' AND status != 'sample'`
     : month
-      ? sql`YEAR(invoicedAt) = ${year} AND MONTH(invoicedAt) = ${month} AND status = 'invoiced' AND status != 'sample'`
-      : sql`YEAR(invoicedAt) = ${year} AND status = 'invoiced' AND status != 'sample'`;
+      ? sql`YEAR(DATE_SUB(invoicedAt, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(invoicedAt, INTERVAL 3 HOUR)) = ${month} AND status = 'invoiced' AND status != 'sample'`
+      : sql`YEAR(DATE_SUB(invoicedAt, INTERVAL 3 HOUR)) = ${year} AND status = 'invoiced' AND status != 'sample'`;
 
   const [invoicedTotals] = await db.select({
     invoicedCount: sql<number>`count(*)`,
@@ -2095,14 +2083,14 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
 
   // Progresso mensal de faturamento
   const monthlyInvoiced = await db.select({
-    month: sql<number>`MONTH(invoicedAt)`,
+    month: sql<number>`MONTH(DATE_SUB(invoicedAt, INTERVAL 3 HOUR))`,
     count: sql<number>`count(*)`,
     amount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
   })
     .from(quotes)
-    .where(sql`YEAR(invoicedAt) = ${year} AND status = 'invoiced' AND status != 'sample'`)
-    .groupBy(sql`MONTH(invoicedAt)`)
-    .orderBy(sql`MONTH(invoicedAt)`);
+    .where(sql`YEAR(DATE_SUB(invoicedAt, INTERVAL 3 HOUR)) = ${year} AND status = 'invoiced' AND status != 'sample'`)
+    .groupBy(sql`MONTH(DATE_SUB(invoicedAt, INTERVAL 3 HOUR))`)
+    .orderBy(sql`MONTH(DATE_SUB(invoicedAt, INTERVAL 3 HOUR))`);
 
   // Faturamento por vendedor
   const invoicedBySeller = await db.select({
@@ -2164,16 +2152,16 @@ export async function getSellerDashboard(sellerEmail: string, year: number, mont
   const sellerFilter = sql`(seller1Id = ${seller.id} OR seller2Id = ${seller.id})`;
   const periodCondition = (dateFrom && dateTo)
     ? and(
-        sql`approvedAt >= ${dateFrom} AND approvedAt <= ${dateTo + ' 23:59:59'} AND status = 'approved' AND status != 'sample'`,
+        sql`DATE(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) >= ${dateFrom} AND DATE(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) <= ${dateTo} AND status = 'approved' AND status != 'sample'`,
         sellerFilter
       )
     : month
       ? and(
-          sql`YEAR(approvedAt) = ${year} AND MONTH(approvedAt) = ${month} AND status = 'approved' AND status != 'sample'`,
+          sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${month} AND status = 'approved' AND status != 'sample'`,
           sellerFilter
         )
       : and(
-          sql`YEAR(approvedAt) = ${year} AND status = 'approved' AND status != 'sample'`,
+          sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND status = 'approved' AND status != 'sample'`,
           sellerFilter
         );
 
@@ -2185,7 +2173,7 @@ export async function getSellerDashboard(sellerEmail: string, year: number, mont
 
   // Progresso mensal do vendedor
   const monthlyProgress = await db.select({
-    month: sql<number>`MONTH(approvedAt)`,
+    month: sql<number>`MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR))`,
     count: sql<number>`count(*)`,
     amount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
     commission: sql<number>`sum(cast(totalFinal as decimal(14,2)) * cast(commissionPercent as decimal(5,4)))`,
@@ -2193,12 +2181,12 @@ export async function getSellerDashboard(sellerEmail: string, year: number, mont
     .from(quotes)
     .where(
       and(
-        sql`YEAR(approvedAt) = ${year} AND status = 'approved' AND status != 'sample'`,
+        sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND status = 'approved' AND status != 'sample'`,
         sql`(seller1Id = ${seller.id} OR seller2Id = ${seller.id})`
       )
     )
-    .groupBy(sql`MONTH(approvedAt)`)
-    .orderBy(sql`MONTH(approvedAt)`);
+    .groupBy(sql`MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR))`)
+    .orderBy(sql`MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR))`);
 
   // Metas (visíveis para todos)
   const goals = await getSalesGoalsByYear(year);
@@ -2240,7 +2228,7 @@ export async function getMonthlyReport(year: number, month: number) {
     approvedAt: sql<string>`approvedAt`,
   })
     .from(quotes)
-    .where(sql`YEAR(approvedAt) = ${year} AND MONTH(approvedAt) = ${month} AND status = 'approved'`)
+    .where(sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${month} AND status = 'approved'`)
     .orderBy(sql`approvedAt`);
 
   return rows.map(r => ({
@@ -2530,7 +2518,7 @@ export async function bumpQuoteRevision(quoteId: number): Promise<{ revisionCoun
   await db.update(quotes).set({
     revisionCount: sql`revisionCount + 1`,
     currentVersion: sql`currentVersion + 1`,
-    updatedAt: sql`NOW()`,
+    updatedAt: nowUtcStr(),
   }).where(eq(quotes.id, quoteId));
   const rows = await db.select({ revisionCount: quotes.revisionCount }).from(quotes).where(eq(quotes.id, quoteId)).limit(1);
   return { revisionCount: rows[0]?.revisionCount ?? 0, published: true };
@@ -2542,7 +2530,7 @@ export async function setQuoteRevisionCount(quoteId: number, revisionCount: numb
   if (!db) throw new Error("Database not available");
   await db.update(quotes).set({
     revisionCount,
-    updatedAt: sql`NOW()`,
+    updatedAt: nowUtcStr(),
   }).where(eq(quotes.id, quoteId));
 }
 
@@ -2573,7 +2561,7 @@ export async function upsertDriverPriceOverride(
       driverModel,
       customCusto: customCusto.toFixed(2) as any,
       updatedByUserId,
-      updatedAt: sql`NOW()`,
+      updatedAt: nowUtcStr(),
     },
   });
 }
@@ -2637,10 +2625,10 @@ export async function getTotalAdditionalCostsForPeriod(year: number, month?: num
   const db = await getDb();
   if (!db) return { total: 0, count: 0 };
   const periodCondition = (dateFrom && dateTo)
-    ? sql`q.approvedAt >= ${dateFrom} AND q.approvedAt <= ${dateTo + ' 23:59:59'} AND q.status = 'approved'`
+    ? sql`DATE(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) >= ${dateFrom} AND DATE(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) <= ${dateTo} AND q.status = 'approved'`
     : month
-      ? sql`YEAR(q.approvedAt) = ${year} AND MONTH(q.approvedAt) = ${month} AND q.status = 'approved'`
-      : sql`YEAR(q.approvedAt) = ${year} AND q.status = 'approved'`;
+      ? sql`YEAR(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) = ${month} AND q.status = 'approved'`
+      : sql`YEAR(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) = ${year} AND q.status = 'approved'`;
   const [result] = await db.execute(sql`
     SELECT COALESCE(SUM(ac.valor), 0) AS total, COUNT(ac.id) AS count
     FROM quote_additional_costs ac
@@ -2810,7 +2798,7 @@ export async function createSampleLink(data: {
     notes: data.notes ?? null,
     transferredRevenue: transfersNonCommercialFinance(data.linkType) ? String(data.transferredRevenue ?? 0) : null,
     transferredCost: transfersNonCommercialFinance(data.linkType) ? String(data.transferredCost ?? 0) : null,
-    financialTransferredAt: transfersNonCommercialFinance(data.linkType) ? nowBrasiliaStr() : null,
+    financialTransferredAt: transfersNonCommercialFinance(data.linkType) ? nowUtcStr() : null,
     createdByUserId: data.createdByUserId,
   });
   const id = (result as unknown as { insertId: number }[])[0]?.insertId ?? 0;

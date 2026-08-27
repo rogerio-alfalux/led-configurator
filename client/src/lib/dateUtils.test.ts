@@ -21,5 +21,13 @@ describe("formatadores de data em Horário de Brasília", () => {
     expect(toBrasiliaDateTime(historicalUtc)).toBe("11/08/2026, 21:30:00");
     expect(toBrasiliaDateTimeShort(historicalUtc)).toBe("11/08/2026, 21:30");
   });
-});
 
+  it("interpreta timestamps MySQL sem sufixo como UTC antes de exibir Brasília", () => {
+    expect(toBrasiliaDateTimeShort("2026-08-27 13:12:36")).toBe("27/08/2026, 10:12");
+  });
+
+  it("preserva datas civis sem horário no próprio dia de Brasília", () => {
+    expect(toBrasiliaDate("2026-08-27")).toBe("27/08/2026");
+    expect(toBrasiliaFileDate("2026-08-27")).toBe("2026-08-27");
+  });
+});

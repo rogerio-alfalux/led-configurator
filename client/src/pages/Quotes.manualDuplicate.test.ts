@@ -34,10 +34,11 @@ describe("duplicidade manual de orçamentos", () => {
     expect(source).toContain("const exportRows = (filteredAllData?.rows ?? []).filter(matchesClientFilters);");
   });
 
-  it("aplica o intervalo mensal a partir das datas comerciais armazenadas em Brasília", async () => {
+  it("aplica o intervalo mensal e exibe o horário da revisão no fuso de Brasília", async () => {
     const source = await readFile(new URL("./Quotes.tsx", import.meta.url), "utf8");
     expect(source).toContain("const isWithinSelectedDateRange");
-    expect(source).toContain("createdAt.slice(0, 10)");
+    expect(source).toContain("const createdDate = toBrasiliaFileDate(createdAt);");
     expect(source).toContain("if (dateTo && createdDate > dateTo) return false;");
+    expect(source).toContain("toBrasiliaDateTimeShort(q.updatedAt ?? q.createdAt)");
   });
 });

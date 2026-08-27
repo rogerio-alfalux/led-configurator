@@ -16,7 +16,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { getLoginUrl } from "@/const";
 import { formatBRL } from "@/lib/cartTypes";
 import { getDisplayedCustomerTotal } from "@/lib/quoteTotals";
-import { toBrasiliaDate, toBrasiliaFileDate, toBrasiliaMonthYear } from "@/lib/dateUtils";
+import { toBrasiliaDate, toBrasiliaDateTimeShort, toBrasiliaFileDate, toBrasiliaMonthYear } from "@/lib/dateUtils";
 import { generateFilteredQuotesExcel } from "@/lib/quotesExcelGenerator";
 import { PERMISSIONS } from "@shared/permissions";
 import { getCommercialQuoteValue, isNonCommercialQuoteStatus } from "@shared/commercialQuote";
@@ -164,9 +164,7 @@ export default function Quotes() {
 
   const isWithinSelectedDateRange = (quote: any) => {
     const createdAt = String(quote.createdAt ?? "");
-    const createdDate = /^\d{4}-\d{2}-\d{2}/.test(createdAt)
-      ? createdAt.slice(0, 10)
-      : toBrasiliaFileDate(createdAt);
+    const createdDate = toBrasiliaFileDate(createdAt);
     if (dateFrom && createdDate < dateFrom) return false;
     if (dateTo && createdDate > dateTo) return false;
     return true;
@@ -696,7 +694,7 @@ export default function Quotes() {
                             <p className="text-xs text-muted-foreground italic">A consultar</p>
                           )}
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            <span className="font-mono font-semibold text-foreground/70">RV{q.revisionCount ?? 0}</span> · v{q.currentVersion} · {toBrasiliaDate(q.createdAt)}
+                            <span className="font-mono font-semibold text-foreground/70">RV{q.revisionCount ?? 0}</span> · v{q.currentVersion} · {toBrasiliaDateTimeShort(q.updatedAt ?? q.createdAt)}
                           </p>
                         </div>
 

@@ -6,6 +6,7 @@ import type { Request } from "express";
 import { SignJWT, jwtVerify } from "jose";
 import type { User } from "../../drizzle/schema";
 import * as db from "../db";
+import { toUtcSqlTimestamp } from "../timeUtils";
 import { ENV } from "./env";
 import type {
   ExchangeTokenRequest,
@@ -32,7 +33,7 @@ export type AuthenticatedUser = User & {
 };
 
 function buildCronUser(userInfo: GetUserInfoWithJwtResponse): AuthenticatedUser {
-  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const now = toUtcSqlTimestamp();
   return {
     id: -1,
     openId: userInfo.openId,
@@ -298,7 +299,7 @@ class SDKServer {
     }
 
     const sessionUserId = session.openId;
-    const signedInAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    const signedInAt = toUtcSqlTimestamp();
     let user = await db.getUserByOpenId(sessionUserId);
 
     // If user not in DB, sync from OAuth server automatically

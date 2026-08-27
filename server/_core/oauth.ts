@@ -2,6 +2,7 @@ import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { isEmailAllowed, isAdminEmail, isExceptionAssistantEmail, insertAuditLog } from "../db";
+import { toUtcSqlTimestamp } from "../timeUtils";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 
@@ -63,7 +64,7 @@ export function registerOAuthRoutes(app: Express) {
         name: userInfo.name || null,
         email,
         loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
-        lastSignedIn: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        lastSignedIn: toUtcSqlTimestamp(),
         ...(role ? { role } : {}),
       });
 

@@ -8,6 +8,7 @@ import { SignJWT } from "jose";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { ENV } from "./_core/env";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { toUtcSqlTimestamp } from "./timeUtils";
 
 const router = Router();
 
@@ -61,7 +62,7 @@ router.post("/api/guest/login", async (req, res) => {
     res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: ONE_YEAR_MS });
 
     // Atualizar lastSignedIn
-    const signedInAt = new Date().toISOString().slice(0, 19).replace("T", " ");
+    const signedInAt = toUtcSqlTimestamp();
     await db.update(users).set({ lastSignedIn: signedInAt }).where(eq(users.id, user.id));
 
     return res.json({

@@ -34,7 +34,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { toBrasiliaDate, toBrasiliaDateTime } from "@/lib/dateUtils";
+import { toBrasiliaDate, toBrasiliaDateTime, toBrasiliaDateTimeShort } from "@/lib/dateUtils";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -2306,16 +2306,16 @@ export default function QuoteDetail() {
                 <p className="flex items-center gap-1"><Briefcase className="w-3.5 h-3.5 shrink-0" />2º Vendedor: <span className="font-medium">{(quote as any).seller2Name}</span></p>
               )}
               {quote.assistantName && <p className="flex items-center gap-1"><Pencil className="w-3.5 h-3.5 shrink-0" />Assistente: <span className="font-medium">{quote.assistantName}</span></p>}
-              <p className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" />Criado em: {toBrasiliaDate(quote.createdAt)}</p>
+              <p className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" />Criado em: {toBrasiliaDateTimeShort(quote.createdAt)}</p>
               <p className="flex items-center gap-1"><RefreshCw className="w-3.5 h-3.5 shrink-0" />Versão: <span className="font-bold font-mono">RV{quote.revisionCount ?? 0}</span></p>
               {quote.approvedAt && (
                 <p className="text-green-600 dark:text-green-400 font-medium flex items-center gap-1">
-                  <CheckCircle className="w-3.5 h-3.5 shrink-0" />Aprovado em: {toBrasiliaDate(quote.approvedAt)}
+                  <CheckCircle className="w-3.5 h-3.5 shrink-0" />Aprovado em: {toBrasiliaDateTimeShort(quote.approvedAt)}
                 </p>
               )}
               {(quote as any).invoicedAt && (
                 <p className="text-purple-600 dark:text-purple-400 font-medium">
-                  <Receipt className="w-3.5 h-3.5 inline mr-1" />Faturado em: {toBrasiliaDate((quote as any).invoicedAt)}
+                  <Receipt className="w-3.5 h-3.5 inline mr-1" />Faturado em: {toBrasiliaDateTimeShort((quote as any).invoicedAt)}
                 </p>
               )}
               {/* Número do pedido e empresa faturadora */}
@@ -4957,7 +4957,7 @@ export default function QuoteDetail() {
                   if (!v) return 'Revisão';
                   const isCurrentV = v.version === quote.currentVersion;
                   const label = isCurrentV ? `RV${quote.revisionCount ?? 0}` : `Snapshot ${versionToRV(v.id)}`;
-                  return `${label} — ${toBrasiliaDate(v.createdAt)}`;
+                  return `${label} — ${toBrasiliaDateTimeShort(v.createdAt)}`;
                 })()}
               </DialogTitle>
             </DialogHeader>
@@ -5518,7 +5518,7 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
                       <div>
                         <span className="text-sm">{cost.descricao}</span>
                         <span className="text-xs text-muted-foreground ml-2">
-                          {cost.createdAt ? toBrasiliaDate(cost.createdAt) : ''}
+                          {cost.createdAt ? toBrasiliaDateTimeShort(cost.createdAt) : ''}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">

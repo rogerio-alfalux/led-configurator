@@ -9,7 +9,14 @@ export const BRASILIA_TIME_ZONE = "America/Sao_Paulo";
 type DateValue = Date | string | number;
 
 function asDate(value: DateValue): Date {
-  return value instanceof Date ? value : new Date(value);
+  if (value instanceof Date) return value;
+  if (typeof value === "number") return new Date(value);
+  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? `${value}T12:00:00-03:00`
+    : /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(value)
+      ? `${value.replace(" ", "T")}Z`
+      : value;
+  return new Date(normalized);
 }
 
 /** Formata data como "dd/mm/aaaa" no fuso de Brasília. */

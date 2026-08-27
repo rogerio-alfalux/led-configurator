@@ -157,7 +157,7 @@ export default function Backup() {
       <div>
         <h1 className="text-2xl font-bold">Exportação e Backup</h1>
         <p className="text-muted-foreground mt-1">
-          Backups automáticos diários são gerados às 03:00 UTC e armazenados com segurança.
+          Backups automáticos diários são gerados à meia-noite, no horário de Brasília, e armazenados com segurança.
           Você também pode gerar um backup manual a qualquer momento.
         </p>
       </div>
@@ -173,7 +173,7 @@ export default function Backup() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium">
                 {lastSuccess
-                  ? "Backup automático ativo — execução diária às 03:00 UTC"
+                  ? "Backup automático ativo — execução diária às 00:00 (Brasília)"
                   : "Backup automático configurado — aguardando primeira execução"}
               </p>
               {lastSuccess && (
@@ -274,7 +274,7 @@ export default function Backup() {
             <CardContent className="py-8 text-center text-muted-foreground text-sm">
               <Clock className="w-8 h-8 mx-auto mb-2 opacity-40" />
               Nenhum backup automático registrado ainda.
-              <br />O primeiro backup será gerado na próxima execução agendada (03:00 UTC).
+              <br />O primeiro backup será gerado na próxima execução agendada (00:00, horário de Brasília).
             </CardContent>
           </Card>
         ) : (

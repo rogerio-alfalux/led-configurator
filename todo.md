@@ -2987,3 +2987,10 @@
 - [x] Salvar o backup gerado no Histórico de Backups Automáticos
 - [x] Atualizar o status e a listagem após sucesso ou falha da execução
 - [x] Cobrir geração, persistência e autorização por regressão
+
+## Sistema: datas e horários de Brasília
+- [x] Auditar todas as formatações de data e hora exibidas no frontend e documentos
+- [x] Centralizar a apresentação no fuso `America/Sao_Paulo`
+- [x] Garantir que salvamentos, alterações e auditorias sejam registrados com instante consistente e exibidos em Brasília
+- [x] Mostrar data e horário da revisão nos cartões de Meus Orçamentos
+- [x] Cobrir os principais fluxos temporais e a revisão por regressão
