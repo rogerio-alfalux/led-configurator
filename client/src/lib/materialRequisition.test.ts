@@ -289,7 +289,7 @@ describe("buildMaterialRequisition — componentes múltiplos (óticas, holders,
     expect(lensEntry?.qty).toBe(5);
   });
 
-  it("inclui módulo LED TRACE com código P da API mesmo sem moduloLedCode persistido", () => {
+  it("inclui módulo LED TRACE atualizado pela API mesmo sem moduloLedCode persistido", () => {
     const items: CartItemData[] = [
       {
         category: "Downlights",
@@ -299,8 +299,8 @@ describe("buildMaterialRequisition — componentes múltiplos (óticas, holders,
         unitPrice: 309.96,
         totalPrice: 2479.68,
         photoUrl: null,
-        // Formato real retornado pela API no pedido 27.0012-26.
-        moduloLed: "MODULO LINEAR 6 LEDS 930-3000K 1300LM 154X23MM CNB (P0001840) 18V + LENTE OTICA 6 PONTOS 48º (CP00121) + MASCARA (CP00185)",
+        // Formato vigente retornado pela API no pedido 27.0012-26.
+        moduloLed: "MODULO LINEAR 6 LEDS 830-3000K 1500LM ADV CNB (P0000786) 18V/700MA + LENTE OTICA 6 PONTOS 48º (CP00121) + MASCARA (CP00185)",
         moduloLedCode: null,
         driverLines: [{
           driverModel: "LED DRIVER 30W 700MA 9-42VDC 220V FLICKERFREE",
@@ -313,10 +313,10 @@ describe("buildMaterialRequisition — componentes múltiplos (óticas, holders,
     ];
 
     const result = buildMaterialRequisition(items);
-    const traceModule = result.find(entry => entry.codigo === "P0001840");
+    const traceModule = result.find(entry => entry.codigo === "P0000786");
 
     expect(traceModule).toMatchObject({
-      codigo: "P0001840",
+      codigo: "P0000786",
       qty: 8,
       unidade: "un",
       tipo: "MÓDULOS LED",

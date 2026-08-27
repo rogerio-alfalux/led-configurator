@@ -3022,3 +3022,8 @@
 - [x] Corrigir a requisição desse pedido usando código e quantidade retornados pela API
 - [x] Impedir a omissão de módulos LED API nos próximos pedidos
 - [x] Cobrir a agregação de módulos LED por regressão
+
+## Requisição de materiais: atualização API do pedido 27.0012-26
+- [x] Consultar o módulo LED vigente do SKU na API Alfalux
+- [x] Substituir o módulo histórico pelo código, descrição e quantidade atuais da API
+- [x] Confirmar a requisição de materiais após a atualização
