@@ -3071,3 +3071,10 @@
 - [x] Comparar o item 2 do pedido com os dados da prévia, Excel e API
 - [x] Restaurar o campo de módulo LED no gerenciamento sem alterar componentes já persistidos
 - [x] Cobrir a recuperação de módulo LED em itens legados por regressão
+
+## Configurador: família BLAZE FL
+- [x] Confirmar famílias, instalações, potências, CCTs, preços e componentes BLAZE FL no catálogo API
+- [x] Exibir BLAZE FL no fluxo por metro linear de LED BAR
+- [x] Ocultar a seleção de difusor para BLAZE FL
+- [x] Propagar drivers e componentes API para carrinho, ficha de produção e requisição de materiais
+- [x] Cobrir a família sem difusor e suas quantidades por regressão

@@ -56,6 +56,10 @@ describe("isLedBarFamilyWithoutDifusor", () => {
     expect(isLedBarFamilyWithoutDifusor("SKYLINE FL")).toBe(true);
   });
 
+  it("reconhece BLAZE FL sem difusor comercial", () => {
+    expect(isLedBarFamilyWithoutDifusor("BLAZE FL")).toBe(true);
+  });
+
   it("mantém famílias LED BAR convencionais com seleção de difusor", () => {
     expect(isLedBarFamilyWithoutDifusor("LED BAR U")).toBe(false);
   });
@@ -70,6 +74,16 @@ describe("getLedBarAvailableInstallations", () => {
     ];
 
     expect(getLedBarAvailableInstallations(catalog, "SKYLINE FL")).toEqual(["EMBUTIR", "PENDENTE"]);
+  });
+
+  it("lista somente instalações BLAZE FL disponibilizadas pela API", () => {
+    const catalog: LedBarProduct[] = [
+      { ...mockProduct, familia: "BLAZE FL", instalacao: "EMBUTIR", difusor: "NF" },
+      { ...mockProduct, familia: "BLAZE FL", instalacao: "PENDENTE", difusor: "NF" },
+      { ...mockProduct, familia: "LED BAR U", instalacao: "SOBREPOR" },
+    ];
+
+    expect(getLedBarAvailableInstallations(catalog, "BLAZE FL")).toEqual(["EMBUTIR", "PENDENTE"]);
   });
 });
 
@@ -212,8 +226,37 @@ describe("calculateLedBar", () => {
     expect(res.trechos.every((trecho) => trecho.driver.code === "EQ00801")).toBe(true);
   });
 
+  it("calcula BLAZE FL com FITA LED, CCT e uma fonte por trecho", () => {
+    const blazeFl: LedBarProduct = {
+      ...mockProduct,
+      familia: "BLAZE FL",
+      sku: "LLP-6060",
+      name: "BLAZE H P FL 25W/M",
+      potencia: 25,
+      difusor: "NF",
+      instalacao: "PENDENTE",
+      ledModule3000: "FITA LED 2835 240LEDS/M 24V 25W/M IP20 IRC90 3000K 2650LM/M",
+      ledModuleEq3000: "EQ00732",
+      ccts: ["3000K", "4000K"],
+      driver220: null,
+      driverBivolt: { model: "FONTE DE TENSÃO ALFALUX 100W 24V IP20 BIVOLT", code: "EQ00803" },
+    };
+
+    const res = calculateLedBar({ product: blazeFl, comprimentoMm: 6000, nCortes: 2, controle: "ON/OFF", voltage: "Bivolt", cct: "3000K" });
+
+    expect(res.errors).toHaveLength(0);
+    expect(res.ledModuleWithCCT).toMatch(/^FITA LED/);
+    expect(res.ledModuleEqCode).toBe("EQ00732");
+    expect(res.trechos).toHaveLength(2);
+    expect(res.trechos.every((trecho) => trecho.driver.code === "EQ00803")).toBe(true);
+  });
+
   it("não usa tabela comercial estática quando SKYLINE FL não tem preço API", () => {
     expect(calcLedBarPrice(10, 1000, 1, "SKYLINE FL")).toBeNull();
+  });
+
+  it("não usa tabela comercial estática quando BLAZE FL não tem preço API", () => {
+    expect(calcLedBarPrice(25, 1000, 1, "BLAZE FL")).toBeNull();
   });
 });
 

@@ -799,7 +799,7 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
 
 /** Verifica se um produto PERFIS usa o fluxo LED BAR (por metro linear com fonte de tensão) */
 function isLedBarProduct(p: ApiProduct): boolean {
-  return /^(LED BAR|MILANO|MEIA LUA|PERFIL FLEXIVEL|FLOOR|SKYLINE FL)\b/i.test(p.familia ?? "");
+  return /^(LED BAR|MILANO|MEIA LUA|PERFIL FLEXIVEL|FLOOR|SKYLINE FL|BLAZE FL)\b/i.test(p.familia ?? "");
 }
 /** Verifica se um produto PERFIS é da família GLOW (excluindo TUBE LIGHT que tem família própria) */
 function isGlowProduct(p: ApiProduct): boolean {

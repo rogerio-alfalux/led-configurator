@@ -680,6 +680,43 @@ describe("buildMaterialRequisition — luminárias não-perfil", () => {
     });
   });
 
+  it("BLAZE FL contabiliza FITA LED em metros e fonte por trecho sem duplicação", () => {
+    const result = buildMaterialRequisition([{
+      category: "LED BAR",
+      qty: 2,
+      sku: "LLP-6060",
+      description: "BLAZE H P FL 25W/M 3000K ON/OFF Bivolt 6000MM",
+      ledBarNCortes: 2,
+      ledBarComprimentoTotalMm: 6000,
+      ledBarComprimentoPorTrechoMm: 3000,
+      ledBarDriverCode: "EQ00803",
+      ledBarDriverModel: "FONTE DE TENSÃO ALFALUX 100W 24V IP20 BIVOLT",
+      moduloLed: "FITA LED 2835 240LEDS/M 24V 25W/M IP20 IRC90 3000K 2650LM/M",
+      moduloLedCode: "EQ00732",
+      driverLines: [{
+        driverModel: "FONTE DE TENSÃO ALFALUX 100W 24V IP20 BIVOLT",
+        driverCode: "EQ00803",
+        driverQty: 4,
+      }],
+    } as any], new Map([
+      ["EQ00732", "FITA LED 2835 240LEDS/M 24V 25W/M IP20 IRC90 3000K 2650LM/M"],
+      ["EQ00803", "FONTE DE TENSÃO ALFALUX 100W 24V IP20 BIVOLT"],
+    ]));
+
+    expect(result.find(entry => entry.codigo === "EQ00732")).toMatchObject({
+      qty: 12,
+      unidade: "m",
+      tipo: "FITAS LED",
+      sourceItems: [1],
+    });
+    expect(result.find(entry => entry.codigo === "EQ00803")).toMatchObject({
+      qty: 4,
+      unidade: "un",
+      tipo: "FONTES DE TENSÃO",
+      sourceItems: [1],
+    });
+  });
+
   it("deve levar o módulo LED fixo do SHIFT à requisição sem associá-lo a CCT", () => {
     const items: CartItemData[] = [{
       category: "Perfis",

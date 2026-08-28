@@ -285,6 +285,39 @@ describe("adaptAlfaluxProducts - LED BAR", () => {
       driverBivolt: { code: "EQ00801" },
     });
   });
+
+  it("inclui BLAZE FL com a instalação e os componentes definidos pela API", () => {
+    const product = makeProduct({
+      categoria: "PERFIS",
+      familia: "BLAZE FL",
+      instalacao: "PENDENTE",
+      sku: "LLP-6060",
+      name: "BLAZE H P FL 25W/M",
+      temperaturasCor: ["3000", "4000"],
+      ledModule3000: "FITA LED 2835 240LEDS/M 24V 25W/M IP20 IRC90 3000K 2650LM/M",
+      ledModuleEq3000: "EQ00732",
+      driver220: null,
+      driverBivolt: makeDriver("FONTE DE TENSÃO ALFALUX 100W 24V IP20 BIVOLT", "EQ00803"),
+      driverDimDali: makeDriver("FONTE DE TENSÃO 75W 24V 220V DIM DALI DT6", "EQ00192"),
+      custoCorpoOnoffBivolt: 174.44,
+      markupPadraoOnoffBivolt: 3,
+    });
+
+    const result = adaptAlfaluxProducts([product]);
+
+    expect(result.ledBars).toHaveLength(1);
+    expect(result.ledBars[0]).toMatchObject({
+      familia: "BLAZE FL",
+      instalacao: "PENDENTE",
+      sku: "LLP-6060",
+      potencia: 25,
+      difusor: "NF",
+      ccts: ["3000K", "4000K"],
+      ledModuleEq3000: "EQ00732",
+      driverBivolt: { code: "EQ00803" },
+      driverDimDali: { code: "EQ00192" },
+    });
+  });
 });
 
 describe("dados da API usados sem modificação — sem inferência de quantidade", () => {

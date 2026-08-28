@@ -185,7 +185,7 @@ export const PERFIL_FLEXIVEL_MAX_LENGTH_MM = 5000;
  * Se não houver dados da API, calcLedBarPrice retorna null e o usuário preenche manualmente.
  * Nota: LED BAR EC, LED BAR E e LED BAR 45 foram removidas pois a API já retorna custoCorpo/custoDriver.
  */
-export const LED_BAR_FAMILIES_NO_PRICE = /^(LED BAR WW|LED BAR 45(?: NEW)?|FLOOR|MEIA LUA|MILANO|SKYLINE FL)\b/i;
+export const LED_BAR_FAMILIES_NO_PRICE = /^(LED BAR WW|LED BAR 45(?: NEW)?|FLOOR|MEIA LUA|MILANO|SKYLINE FL|BLAZE FL)\b/i;
 
 /**
  * Tabela de preços estáticos por metro linear (R$) por potência.
@@ -427,7 +427,7 @@ export const LED_BAR_CONTROLE_OPTIONS: { value: LedBarControle; label: string }[
  * sentinela interna para compatibilidade com o motor; a interface não o exibe.
  */
 export function isLedBarFamilyWithoutDifusor(familia: string | null | undefined): boolean {
-  return /^(MILANO|MEIA LUA|PERFIL FLEXIVEL|LED BAR WW|LED BAR 45(?: NEW)?|FLOOR|SKYLINE FL)\b/i.test(familia?.trim() ?? "");
+  return /^(MILANO|MEIA LUA|PERFIL FLEXIVEL|LED BAR WW|LED BAR 45(?: NEW)?|FLOOR|SKYLINE FL|BLAZE FL)\b/i.test(familia?.trim() ?? "");
 }
 
 /** Retorna somente as instalações efetivamente disponíveis para uma família da API. */
