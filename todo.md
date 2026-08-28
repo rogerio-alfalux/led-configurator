@@ -3101,3 +3101,8 @@
 - [x] Ocultar a seleção de difusor para MINI BLAZE FL
 - [x] Propagar drivers e componentes API para carrinho, ficha de produção e requisição de materiais
 - [x] Cobrir a família sem difusor e suas quantidades por regressão
+
+## Configurador: CCT A Definir
+- [x] Localizar a normalização que substitui A Definir por 2700K
+- [x] Preservar A Definir no cálculo, carrinho, orçamento e documentos
+- [x] Cobrir a seleção A Definir por regressão

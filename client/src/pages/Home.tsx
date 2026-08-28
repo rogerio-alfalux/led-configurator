@@ -67,6 +67,7 @@ import { ARANDELA_CATALOG, arandelaRequiresDriver, calculateArandela } from "@/l
 import type { ArandelaProduct, ArandelaResult } from "@/lib/arandelaCatalog";
 import { adaptAlfaluxProducts } from "@/lib/alfaluxApiAdapter";
 import { useAlfaluxProducts } from "@/hooks/useAlfaluxProducts";
+import { isCctSelectionAvailable } from "@/lib/cctSelection";
 import {
   LED_BAR_CATALOG,
   LED_BAR_DIFUSOR_OPTIONS,
@@ -4178,7 +4179,7 @@ export default function Home() {
 
   // Reset CCT quando muda produto
   useEffect(() => {
-    if (!lbAvailableCCTs.includes(lbCCT)) {
+    if (!isCctSelectionAvailable(lbCCT, lbAvailableCCTs)) {
       setLbCCT(lbAvailableCCTs[0] ?? "3000K");
     }
   }, [lbAvailableCCTs, lbCCT]);
@@ -4238,7 +4239,7 @@ export default function Home() {
   }, [bgControles, bgControle]);
   // Reset CCT quando muda produto
   useEffect(() => {
-    if (!bgAvailableCCTs.includes(bgCCT)) {
+    if (!isCctSelectionAvailable(bgCCT, bgAvailableCCTs)) {
       setBgCCT(bgAvailableCCTs[0] ?? "3000K");
     }
   }, [bgAvailableCCTs, bgCCT]);
@@ -5417,7 +5418,7 @@ export default function Home() {
                             const [s, ...np] = v.split('::');
                             const newProd = activeBageoFixoCatalog.find(p => p.sku === s && p.name === np.join('::'));
                             const availCCTs = newProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
-                            if (!availCCTs.includes(bfCCT)) setBfCCT(availCCTs[0] ?? "3000K");
+                            if (!isCctSelectionAvailable(bfCCT, availCCTs)) setBfCCT(availCCTs[0] ?? "3000K");
                             // Auto-selecionar tensão quando só uma opção disponível
                             const newHas220 = newProd?.driver220 != null;
                             const newHasBivolt = newProd?.driverBivolt != null;
@@ -5710,7 +5711,7 @@ export default function Home() {
                           const [s, ...np] = v.split('::');
                           const prod = activeGlowCatalog.find(p => p.sku === s && p.name === np.join('::'));
                           const availCCTs = prod?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
-                          if (!availCCTs.includes(glowCCT)) setGlowCCT(availCCTs[0] ?? "3000K");
+                            if (!isCctSelectionAvailable(glowCCT, availCCTs)) setGlowCCT(availCCTs[0] ?? "3000K");
                           if (glowControle === "DIM DALI" && !prod?.driverDimDali) setGlowControle("ON/OFF");
                           if (glowControle === "DIM 1-10V" && !prod?.driverDim110v) setGlowControle("ON/OFF");
                           // Auto-selecionar tensão quando só uma opção disponível
@@ -5846,7 +5847,7 @@ export default function Home() {
                           const [s, ...np] = v.split('::');
                           const prod = activeTubeLightCatalog.find(p => p.sku === s && p.name === np.join('::'));
                           const availCCTs = prod?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
-                          if (!availCCTs.includes(tubeLightCCT)) setTubeLightCCT(availCCTs[0] ?? "3000K");
+                            if (!isCctSelectionAvailable(tubeLightCCT, availCCTs)) setTubeLightCCT(availCCTs[0] ?? "3000K");
                           // Auto-selecionar tensão quando só uma opção disponível
                           const tlNewHas220 = prod?.driver220 != null;
                           const tlNewHasBivolt = prod?.driverBivolt != null;
@@ -5994,7 +5995,7 @@ export default function Home() {
                             const [s, ...np] = v.split('::');
                             const newProd = activeAldaCatalog.find(p => p.sku === s && p.name === np.join('::'));
                             const availCCTs = newProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
-                            if (!availCCTs.includes(aldaCCT)) setAldaCCT(availCCTs[0] ?? "3000K");
+                            if (!isCctSelectionAvailable(aldaCCT, availCCTs)) setAldaCCT(availCCTs[0] ?? "3000K");
                             // Auto-selecionar tensão quando só uma opção disponível
                             const aldaNewHas220 = newProd?.driver220 != null;
                             const aldaNewHasBivolt = newProd?.driverBivolt != null;
@@ -7020,7 +7021,7 @@ export default function Home() {
                               const [s, ...np] = v.split('::');
                               const prod = activeBalizadoresCatalog.find(p => p.sku === s && p.name === np.join('::'));
                               const availCCTs = prod?.ccts ?? ["2700K", "3000K", "4000K"];
-                              if (!availCCTs.includes(balCCT)) setBalCCT(availCCTs[0] ?? "3000K");
+                              if (!isCctSelectionAvailable(balCCT, availCCTs)) setBalCCT(availCCTs[0] ?? "3000K");
                             }}
                           >
                             <SelectTrigger className="h-10">
@@ -7096,7 +7097,7 @@ export default function Home() {
                               const [s, ...np] = v.split('::');
                               const prod = activeDecorativasCatalog.find(p => p.sku === s && p.name === np.join('::'));
                               const availCCTs = prod?.ccts ?? ["2700K", "3000K", "4000K"];
-                              if (!availCCTs.includes(decCCT)) setDecCCT(availCCTs[0] ?? "3000K");
+                              if (!isCctSelectionAvailable(decCCT, availCCTs)) setDecCCT(availCCTs[0] ?? "3000K");
                               // Auto-selecionar tensão com base no que está disponível
                               const hasBivolt = !!(prod?.driverBivolt?.model);
                               const has220 = !!(prod?.driver220?.model);
@@ -7298,7 +7299,7 @@ export default function Home() {
                               else if (newProd?.isLamp) { /* sem CCT */ }
                               else {
                                 const availCCTs = newProd?.ccts?.length ? newProd.ccts : ["2700K", "3000K", "4000K", "5000K"];
-                                if (!availCCTs.includes(dlCCT)) setDlCCT(availCCTs[0] ?? "3000K");
+                                if (!isCctSelectionAvailable(dlCCT, availCCTs)) setDlCCT(availCCTs[0] ?? "3000K");
                               }
                             }}
                           >
@@ -7522,7 +7523,7 @@ export default function Home() {
                             else if (newProd?.isLamp) { /* sem CCT */ }
                             else {
                               const availCCTs = newProd?.ccts?.length ? newProd.ccts : ["2700K", "3000K", "4000K", "5000K"];
-                              if (!availCCTs.includes(aeCCT)) setAeCCT(availCCTs[0] ?? "3000K");
+                              if (!isCctSelectionAvailable(aeCCT, availCCTs)) setAeCCT(availCCTs[0] ?? "3000K");
                             }
                           }}
                         >
@@ -7736,7 +7737,7 @@ export default function Home() {
                               const [s, ...np] = v.split('::');
                               const newProd = activePanelCatalog.find(p => p.sku === s && p.name === np.join('::'));
                               const availCCTs = newProd?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
-                              if (!availCCTs.includes(panelCCT)) setPanelCCT(availCCTs[0] ?? "3000K");
+                              if (!isCctSelectionAvailable(panelCCT, availCCTs)) setPanelCCT(availCCTs[0] ?? "3000K");
                               // Auto-select tensão: se só tem bivolt, selecionar Bivolt; se só tem 220V, selecionar 220V
                               const newHas220Panel = newProd?.driver220 != null;
                               const newHasBivoltPanel = newProd?.driverBivolt != null;
@@ -8108,7 +8109,7 @@ export default function Home() {
                           else if (newProd?.isLamp) { /* sem CCT */ }
                           else {
                             const availCCTs = newProd?.ccts?.length ? newProd.ccts : ["2700K", "3000K", "4000K", "5000K"];
-                            if (!availCCTs.includes(spotCCT)) setSpotCCT(availCCTs[0] ?? "3000K");
+                            if (!isCctSelectionAvailable(spotCCT, availCCTs)) setSpotCCT(availCCTs[0] ?? "3000K");
                           }
                         }}
                       >
