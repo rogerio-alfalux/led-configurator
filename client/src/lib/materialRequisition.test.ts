@@ -643,6 +643,43 @@ describe("buildMaterialRequisition — luminárias não-perfil", () => {
     expect(fontes[0].tipo).toBe("FONTES DE TENSÃO");
   });
 
+  it("SKYLINE FL contabiliza FITA LED em metros e fonte por trecho sem duplicação", () => {
+    const result = buildMaterialRequisition([{
+      category: "LED BAR",
+      qty: 3,
+      sku: "LLE-2052",
+      description: "SKYLINE E FL 10W/M 4000K ON/OFF Bivolt 6000MM",
+      ledBarNCortes: 2,
+      ledBarComprimentoTotalMm: 6000,
+      ledBarComprimentoPorTrechoMm: 3000,
+      ledBarDriverCode: "EQ00801",
+      ledBarDriverModel: "FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT",
+      moduloLed: "FITA LED 2835 120LEDS/M 24V 10W/M IP20 IRC80 4000K 1500LM",
+      moduloLedCode: "EQ00081",
+      driverLines: [{
+        driverModel: "FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT",
+        driverCode: "EQ00801",
+        driverQty: 6,
+      }],
+    } as any], new Map([
+      ["EQ00081", "FITA LED 2835 120LEDS/M 24V 10W/M IP20 IRC80 4000K 1500LM"],
+      ["EQ00801", "FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT"],
+    ]));
+
+    expect(result.find(entry => entry.codigo === "EQ00081")).toMatchObject({
+      qty: 18,
+      unidade: "m",
+      tipo: "FITAS LED",
+      sourceItems: [1],
+    });
+    expect(result.find(entry => entry.codigo === "EQ00801")).toMatchObject({
+      qty: 6,
+      unidade: "un",
+      tipo: "FONTES DE TENSÃO",
+      sourceItems: [1],
+    });
+  });
+
   it("deve levar o módulo LED fixo do SHIFT à requisição sem associá-lo a CCT", () => {
     const items: CartItemData[] = [{
       category: "Perfis",

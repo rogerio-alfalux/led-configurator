@@ -254,6 +254,37 @@ describe("adaptAlfaluxProducts - LED BAR", () => {
       precoMetro: 123.45,
     });
   });
+
+  it("inclui SKYLINE FL como perfil linear sem expor difusor comercial", () => {
+    const product = makeProduct({
+      categoria: "PERFIS",
+      familia: "SKYLINE FL",
+      sku: "LLE-2052",
+      name: "SKYLINE E FL 10W/M",
+      temperaturasCor: ["2700", "3000", "4000", "5000"],
+      ledModule3000: "FITA LED 2835 128LEDS 24V 10W/M IP20 IRC80 3000K 1500LM/M",
+      ledModuleEq3000: "EQ00587",
+      driver220: null,
+      driverBivolt: makeDriver("FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT", "EQ00801"),
+      custoCorpoOnoffBivolt: 56.61,
+      markupPadraoOnoffBivolt: 3,
+      custoDriverBivolt: 39.16,
+    });
+
+    const result = adaptAlfaluxProducts([product]);
+
+    expect(result.ledBars).toHaveLength(1);
+    expect(result.ledBars[0]).toMatchObject({
+      familia: "SKYLINE FL",
+      sku: "LLE-2052",
+      potencia: 10,
+      difusor: "NF",
+      instalacao: "EMBUTIR",
+      ccts: ["2700K", "3000K", "4000K", "5000K"],
+      ledModuleEq3000: "EQ00587",
+      driverBivolt: { code: "EQ00801" },
+    });
+  });
 });
 
 describe("dados da API usados sem modificação — sem inferência de quantidade", () => {

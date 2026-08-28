@@ -3058,3 +3058,11 @@
 - [x] Remover EQ00393 do item 2 e da requisição de materiais
 - [x] Exibir no pedido 27.0012-26 a descrição do módulo exatamente como recebida da API
 - [x] Cobrir a precedência do driver e a descrição sem prefixo por regressão
+
+## Configurador: família SKYLINE FL
+- [x] Confirmar famílias, potências, CCTs, preços e componentes SKYLINE FL no catálogo API
+- [x] Exibir SKYLINE FL no fluxo por metro linear de LED BAR
+- [x] Ocultar a seleção de difusor para SKYLINE FL
+- [x] Propagar drivers e componentes API para carrinho, ficha de produção e requisição de materiais
+- [x] Cobrir a família sem difusor e suas quantidades por regressão
+- [x] Exibir e exigir a instalação SKYLINE FL somente quando a API retornar mais de uma versão

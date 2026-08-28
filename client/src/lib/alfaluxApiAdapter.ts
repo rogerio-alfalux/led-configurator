@@ -24,7 +24,7 @@ import type { PainelProduct } from "./painelCatalog";
 import type { SpotProduct } from "./spotCatalog";
 import type { ArandelaProduct } from "./arandelaCatalog";
 import type { LedBarProduct, LedBarPotencia, LedBarDifusor } from "./ledBarCatalog";
-import { parsePotenciaFromName, parseDifusorFromName } from "./ledBarCatalog";
+import { isLedBarFamilyWithoutDifusor, parsePotenciaFromName, parseDifusorFromName } from "./ledBarCatalog";
 import type { BageoProduct, BageoAplicacao, BageoInstalacao } from "./bageoCatalog";
 import { parseAplicacaoFromName, parseInstalacaoFromApi } from "./bageoCatalog";
 import type { ProductDocumentSource } from "./productDocuments";
@@ -713,13 +713,10 @@ function toArandelaProduct(p: ApiProduct): ArandelaProduct {
 }
 
 /** Converte um produto da API para LedBarProduct */
-/** Famílias que usam o fluxo LED BAR mas não têm difusor no nome (ex: MILANO NF, MEIA LUA, PERFIL FLEXIVEL) */
-const LED_BAR_FAMILIES_NO_DIFUSOR = /^(MILANO|MEIA LUA|PERFIL FLEXIVEL|LED BAR WW|LED BAR 45(?: NEW)?|FLOOR)/i;
-
 function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
   const potencia = parsePotenciaFromName(p.name);
-  // Famílias sem difusor no nome usam "NF" como difusor padrão
-  const isNoDifusorFamily = LED_BAR_FAMILIES_NO_DIFUSOR.test(p.familia ?? "");
+  // Famílias sem difusor no nome usam "NF" exclusivamente como sentinela interna.
+  const isNoDifusorFamily = isLedBarFamilyWithoutDifusor(p.familia);
   const difusor = parseDifusorFromName(p.name) ?? (isNoDifusorFamily ? "NF" as const : null);
   if (!potencia || !difusor) return null; // não conseguiu parsear potência ou difusor
 
@@ -802,7 +799,7 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
 
 /** Verifica se um produto PERFIS usa o fluxo LED BAR (por metro linear com fonte de tensão) */
 function isLedBarProduct(p: ApiProduct): boolean {
-  return /^(LED BAR|MILANO|MEIA LUA|PERFIL FLEXIVEL|FLOOR)/i.test(p.familia ?? "");
+  return /^(LED BAR|MILANO|MEIA LUA|PERFIL FLEXIVEL|FLOOR|SKYLINE FL)\b/i.test(p.familia ?? "");
 }
 /** Verifica se um produto PERFIS é da família GLOW (excluindo TUBE LIGHT que tem família própria) */
 function isGlowProduct(p: ApiProduct): boolean {

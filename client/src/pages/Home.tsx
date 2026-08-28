@@ -73,6 +73,7 @@ import {
   LED_BAR_CONTROLE_OPTIONS,
   LED_BAR_MAX_LENGTH_MM,
   PERFIL_FLEXIVEL_MAX_LENGTH_MM,
+  getLedBarAvailableInstallations,
   getAvailableVoltages,
   calculateLedBar,
   calcLedBarPrice,
@@ -3394,7 +3395,7 @@ export default function Home() {
   const [arandelaResult, setArandelaResult] = useState<ArandelaResult | null>(null);
   // ── Estados de LED BAR ───────────────────────────────────────────────────────
   const [lbFamilia, setLbFamilia] = useState<string | null>(null);
-  const [lbInstalacao, setLbInstalacao] = useState<"EMBUTIR" | "SOBREPOR" | null>(null);
+  const [lbInstalacao, setLbInstalacao] = useState<"EMBUTIR" | "PENDENTE" | "SOBREPOR" | null>(null);
   const [lbPotencia, setLbPotencia] = useState<LedBarPotencia | null>(null);
   const [lbDifusor, setLbDifusor] = useState<LedBarDifusor | null>(null);
   const [lbControle, setLbControle] = useState<LedBarControle>("ON/OFF");
@@ -4074,13 +4075,36 @@ export default function Home() {
     [activeLedBarCatalog]
   );
 
+  const lbIsPerfilFlexivel = useMemo(() =>
+    lbFamilia ? /^PERFIL FLEXIVEL/i.test(lbFamilia) : false,
+    [lbFamilia]
+  );
+  const lbIsSkylineFl = useMemo(() =>
+    lbFamilia ? /^SKYLINE FL\b/i.test(lbFamilia) : false,
+    [lbFamilia]
+  );
+  const lbSkylineInstallations = useMemo(() =>
+    lbIsSkylineFl ? getLedBarAvailableInstallations(activeLedBarCatalog, lbFamilia) : [],
+    [activeLedBarCatalog, lbFamilia, lbIsSkylineFl]
+  );
+  const lbRequiresInstallation = lbIsPerfilFlexivel || lbIsSkylineFl;
+
+  // SKYLINE FL mantém a instalação visível e selecionada a partir da API. Quando
+  // só há uma versão, ela é pré-selecionada; versões futuras permanecem selecionáveis.
+  useEffect(() => {
+    if (!lbIsSkylineFl) return;
+    if (!lbSkylineInstallations.includes(lbInstalacao ?? "")) {
+      setLbInstalacao((lbSkylineInstallations[0] as "EMBUTIR" | "PENDENTE" | "SOBREPOR" | undefined) ?? null);
+    }
+  }, [lbIsSkylineFl, lbSkylineInstallations, lbInstalacao]);
+
   // A API é a fonte de verdade das potências disponíveis em cada família LED BAR.
   // Isso inclui variantes novas, como LED BAR 45 NEW em 14,4W/m.
   const lbPotenciaOptions = useMemo(() => {
     if (!lbFamilia) return [];
     return Array.from(new Set(
       activeLedBarCatalog
-        .filter(p => p.familia === lbFamilia && (!/^PERFIL FLEXIVEL/i.test(lbFamilia) || !lbInstalacao || p.instalacao === lbInstalacao))
+        .filter(p => p.familia === lbFamilia && (!lbRequiresInstallation || !lbInstalacao || p.instalacao === lbInstalacao))
         .map(p => p.potencia)
     )).sort((a, b) => a - b).map(value => ({
       value,
@@ -4095,23 +4119,19 @@ export default function Home() {
     return familyProducts.length > 0 && familyProducts.every(p => p.difusor === "NF");
   }, [activeLedBarCatalog, lbFamilia]);
 
-  // Produto LED BAR selecionado (potência + difusor + instalação para Perfil Flexível)
-  const lbIsPerfilFlexivel = useMemo(() =>
-    lbFamilia ? /^PERFIL FLEXIVEL/i.test(lbFamilia) : false,
-    [lbFamilia]
-  );
+  // Produto LED BAR selecionado (potência + difusor + instalação quando aplicável).
   const lbSelectedProduct = useMemo<LedBarProduct | null>(() => {
     if (!lbFamilia || !lbPotencia) return null;
-    // Perfil Flexível requer seleção de instalação antes de selecionar produto
-    if (lbIsPerfilFlexivel && !lbInstalacao) return null;
+    // Famílias com versões de instalação requerem escolha conforme catálogo API.
+    if (lbRequiresInstallation && !lbInstalacao) return null;
     // Para famílias sem difusor (NF), usa difusor NF diretamente
     const difusorEfetivo = lbIsNoDifusorFamily ? "NF" : lbDifusor;
     if (!difusorEfetivo) return null;
     return activeLedBarCatalog.find(
       p => p.familia === lbFamilia && p.potencia === lbPotencia && p.difusor === difusorEfetivo
-        && (!lbIsPerfilFlexivel || p.instalacao === lbInstalacao)
+        && (!lbRequiresInstallation || p.instalacao === lbInstalacao)
     ) ?? null;
-  }, [lbFamilia, lbPotencia, lbDifusor, lbIsNoDifusorFamily, lbInstalacao, lbIsPerfilFlexivel, activeLedBarCatalog]);
+  }, [lbFamilia, lbPotencia, lbDifusor, lbIsNoDifusorFamily, lbInstalacao, lbRequiresInstallation, activeLedBarCatalog]);
 
   // Tensões disponíveis para o produto e controle selecionados
   const lbAvailableVoltages = useMemo<LedBarVoltage[]>(() => {
@@ -5295,6 +5315,14 @@ export default function Home() {
                           ))}
                         </>
                       )}
+                      {lbFamilias.filter(f => /^SKYLINE FL\b/i.test(f)).length > 0 && (
+                        <>
+                          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">SKYLINE FL</div>
+                          {lbFamilias.filter(f => /^SKYLINE FL\b/i.test(f)).map((fam) => (
+                            <SelectItem key={`__LEDBAR__${fam}`} value={`__LEDBAR__${fam}`}>{fam}</SelectItem>
+                          ))}
+                        </>
+                      )}
                       {(activeBageoCatalog.length > 0 || activeBageoFixoCatalog.length > 0) && (
                         <>
                           <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">BAGEO</div>
@@ -6092,6 +6120,25 @@ export default function Home() {
                         </button>
                       ))}
                     </div>
+                  </div>
+                  )}
+                  {/* Instalação SKYLINE FL — opções lidas exclusivamente do catálogo API */}
+                  {lbIsSkylineFl && (
+                  <div>
+                    <FieldLabel hint={lbSkylineInstallations.length > 1 ? "obrigatório" : undefined}>Instalação</FieldLabel>
+                    <select
+                      value={lbInstalacao ?? ""}
+                      onChange={(e) => { setLbInstalacao((e.target.value as "EMBUTIR" | "PENDENTE" | "SOBREPOR") || null); setLbPotencia(null); setLbResult(null); }}
+                      className="h-10 rounded-md border border-border bg-background text-foreground text-sm px-3 py-1 focus:outline-none focus:ring-2 focus:ring-primary/50 w-full"
+                      disabled={lbSkylineInstallations.length === 0}
+                    >
+                      <option value="" disabled>Selecione a instalação...</option>
+                      {lbSkylineInstallations.map((instalacao) => (
+                        <option key={instalacao} value={instalacao}>
+                          {instalacao.charAt(0) + instalacao.slice(1).toLowerCase()}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   )}
                   {/* Potência */}            <div>

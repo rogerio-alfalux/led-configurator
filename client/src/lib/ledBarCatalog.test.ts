@@ -9,6 +9,9 @@ import {
   getAvailableVoltages,
   parsePotenciaFromName,
   parseDifusorFromName,
+  isLedBarFamilyWithoutDifusor,
+  getLedBarAvailableInstallations,
+  calcLedBarPrice,
   dim010vIsBivolt,
   daliIsBivolt,
   LED_BAR_CATALOG,
@@ -46,6 +49,28 @@ describe("parseDifusorFromName", () => {
   it("extrai DB", () => expect(parseDifusorFromName("LED BAR U DB 10W/M")).toBe("DB"));
   it("extrai DC", () => expect(parseDifusorFromName("LED BAR U DC 10W/M")).toBe("DC"));
   it("retorna null para nome sem difusor", () => expect(parseDifusorFromName("LED BAR U 10W/M")).toBeNull());
+});
+
+describe("isLedBarFamilyWithoutDifusor", () => {
+  it("reconhece SKYLINE FL sem difusor comercial", () => {
+    expect(isLedBarFamilyWithoutDifusor("SKYLINE FL")).toBe(true);
+  });
+
+  it("mantém famílias LED BAR convencionais com seleção de difusor", () => {
+    expect(isLedBarFamilyWithoutDifusor("LED BAR U")).toBe(false);
+  });
+});
+
+describe("getLedBarAvailableInstallations", () => {
+  it("lista somente instalações SKYLINE FL disponibilizadas pela API", () => {
+    const catalog: LedBarProduct[] = [
+      { ...mockProduct, familia: "SKYLINE FL", instalacao: "EMBUTIR", difusor: "NF" },
+      { ...mockProduct, familia: "SKYLINE FL", instalacao: "PENDENTE", difusor: "NF" },
+      { ...mockProduct, familia: "LED BAR U", instalacao: "SOBREPOR" },
+    ];
+
+    expect(getLedBarAvailableInstallations(catalog, "SKYLINE FL")).toEqual(["EMBUTIR", "PENDENTE"]);
+  });
 });
 
 describe("dim010vIsBivolt", () => {
@@ -162,6 +187,33 @@ describe("calculateLedBar", () => {
   it("comprimento 0 → erro de validação", () => {
     const res = calculateLedBar({ product: mockProduct, comprimentoMm: 0, nCortes: 1, controle: "ON/OFF", voltage: "220V", cct: "3000K" });
     expect(res.errors.length).toBeGreaterThan(0);
+  });
+
+  it("calcula SKYLINE FL com FITA LED, CCT e um driver por trecho", () => {
+    const skyline: LedBarProduct = {
+      ...mockProduct,
+      familia: "SKYLINE FL",
+      sku: "LLE-2052",
+      name: "SKYLINE E FL 10W/M",
+      difusor: "NF",
+      ledModule3000: "FITA LED 2835 128LEDS 24V 10W/M IP20 IRC80 3000K 1500LM/M",
+      ledModuleEq3000: "EQ00587",
+      ccts: ["2700K", "3000K", "4000K", "5000K"],
+      driver220: null,
+      driverBivolt: { model: "FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT", code: "EQ00801" },
+    };
+
+    const res = calculateLedBar({ product: skyline, comprimentoMm: 6000, nCortes: 2, controle: "ON/OFF", voltage: "Bivolt", cct: "3000K" });
+
+    expect(res.errors).toHaveLength(0);
+    expect(res.ledModuleWithCCT).toMatch(/^FITA LED/);
+    expect(res.ledModuleEqCode).toBe("EQ00587");
+    expect(res.trechos).toHaveLength(2);
+    expect(res.trechos.every((trecho) => trecho.driver.code === "EQ00801")).toBe(true);
+  });
+
+  it("não usa tabela comercial estática quando SKYLINE FL não tem preço API", () => {
+    expect(calcLedBarPrice(10, 1000, 1, "SKYLINE FL")).toBeNull();
   });
 });
 

@@ -16,6 +16,11 @@
 const ALFALUX_BASE = "https://alfaluxprod-c8zmg2fn.manus.space";
 const CACHE_TTL_MS = 0; // Sem cache — sempre buscar dados frescos da API
 
+/** Normaliza a descrição técnica sem alterar conteúdo comercial para lookup na API. */
+export function normalizeAlfaluxComponentDescription(value: string | null | undefined): string {
+  return String(value ?? "").trim().toUpperCase().replace(/\s+/g, " ");
+}
+
 /** Formato de um driver retornado pelo /api/products/all */
 export interface DriverInfo {
   model: string;
@@ -274,11 +279,11 @@ export async function fetchAllAlfaluxProducts(): Promise<AlfaluxProduct[]> {
   // Enriquecer produtos com código EQ do módulo via lookup em /api/componentes/all
   try {
     const { items: componentes } = await componentesPromise;
-    // Construir mapa descricao.toUpperCase() -> codigo
+    // Construir mapa descrição normalizada -> código oficial retornado pela API.
     const eqMap = new Map<string, string>();
     for (const c of componentes) {
       if (c.tipo === 'MODULO_LED' && c.codigo && c.descricao) {
-        eqMap.set(c.descricao.toUpperCase().trim(), c.codigo);
+        eqMap.set(normalizeAlfaluxComponentDescription(c.descricao), c.codigo);
       }
     }
     const cctKeys = ['2700', '3000', '3500', '4000', '5000'] as const;
@@ -288,9 +293,13 @@ export async function fetchAllAlfaluxProducts(): Promise<AlfaluxProduct[]> {
         const eqField = `ledModuleEq${cct}` as keyof typeof p;
         const modName = p[modField] as string | null | undefined;
         if (modName) {
-          // Remover prefixo de quantidade (ex: '10x ') antes de buscar
-          const cleanName = modName.replace(/^\d+x\s+/i, '').trim().toUpperCase();
-          const eq = eqMap.get(cleanName) ?? null;
+          // Se a API publicar o código no próprio produto, ele tem precedência.
+          // Caso contrário, resolver pela descrição normalizada do catálogo de componentes.
+          const directCode = (p as unknown as Record<string, unknown>)[`ledModuleCode${cct}`];
+          const cleanName = normalizeAlfaluxComponentDescription(modName.replace(/^\d+x\s+/i, ""));
+          const eq = typeof directCode === "string" && /^(EQ|CP|PT)\d+$/i.test(directCode)
+            ? directCode.toUpperCase()
+            : (eqMap.get(cleanName) ?? null);
           (p as unknown as Record<string, unknown>)[eqField] = eq;
         }
       }
@@ -298,8 +307,11 @@ export async function fetchAllAlfaluxProducts(): Promise<AlfaluxProduct[]> {
     // Também enriquecer ledModule genérico (para RGBW e legados)
     for (const p of all) {
       if (p.ledModule) {
-        const cleanName = p.ledModule.replace(/^\d+x\s+/i, '').trim().toUpperCase();
-        const eq = eqMap.get(cleanName) ?? null;
+        const directCode = (p as unknown as Record<string, unknown>)["ledModuleCode"];
+        const cleanName = normalizeAlfaluxComponentDescription(p.ledModule.replace(/^\d+x\s+/i, ""));
+        const eq = typeof directCode === "string" && /^(EQ|CP|PT)\d+$/i.test(directCode)
+          ? directCode.toUpperCase()
+          : (eqMap.get(cleanName) ?? null);
         (p as unknown as Record<string, unknown>)['ledModuleEq'] = eq;
       }
     }
