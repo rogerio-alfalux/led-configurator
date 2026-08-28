@@ -1850,7 +1850,8 @@ export default function QuoteDetail() {
     );
   }
 
-  const { quote, versions, items, canEdit, canSeeCommission = false, canEditCommission = false } = data as typeof data & { canSeeCommission?: boolean; canEditCommission?: boolean };
+  const { quote, versions, items, canEdit, canInvoice = false, canSeeCommission = false, canEditCommission = false } = data as typeof data & { canInvoice?: boolean; canSeeCommission?: boolean; canEditCommission?: boolean };
+  const canChangeStatus = canEdit || canInvoice;
   const isLdProvisionalQuoteNumber = isLdDraftQuoteNumber(quote.quoteNumber)
     || (Boolean(linkedLdRequest) && !quote.seller1Id && quote.quoteNumber.startsWith("ORC-"));
   const canManageSamples = user?.role === "admin" || hasQuotePermission(PERMISSIONS.GERENCIAR_AMOSTRAS);
@@ -3236,7 +3237,7 @@ export default function QuoteDetail() {
           </Dialog>
 
           {/* Alterar Status */}
-          {canEdit && <Dialog open={statusDialogOpen} onOpenChange={(open) => {
+          {canChangeStatus && <Dialog open={statusDialogOpen} onOpenChange={(open) => {
             setStatusDialogOpen(open);
             if (!open) { setNewStatus(""); setOrderNumberInput(""); setBillingCompanyInput(""); }
           }}>
@@ -3258,17 +3259,19 @@ export default function QuoteDetail() {
                       <SelectValue placeholder="Selecione o status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="open">Em Aberto</SelectItem>
-                      <SelectItem value="approved">Aprovado (Pedido Fechado)</SelectItem>
-                      <SelectItem value="lost">Perdido</SelectItem>
-                      <SelectItem value="cancelled">Cancelado</SelectItem>
-                      <SelectItem
+                      {canEdit && <>
+                        <SelectItem value="open">Em Aberto</SelectItem>
+                        <SelectItem value="approved">Aprovado (Pedido Fechado)</SelectItem>
+                        <SelectItem value="lost">Perdido</SelectItem>
+                        <SelectItem value="cancelled">Cancelado</SelectItem>
+                      </>}
+                      {canInvoice && <SelectItem
                         value="invoiced"
                         disabled={quote.status !== "approved"}
                       >
                         Faturado (NF emitida)
                         {quote.status !== "approved" && " — exige status Aprovado"}
-                      </SelectItem>
+                      </SelectItem>}
                     </SelectContent>
                   </Select>
                 </div>

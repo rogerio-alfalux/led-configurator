@@ -16,4 +16,8 @@ describe("roleGrantsAllPermissions", () => {
   it("expõe a permissão granular de marcação manual de duplicidade", () => {
     expect(ALL_PERMISSIONS.map((permission) => permission.key)).toContain(PERMISSIONS.MARCAR_DUPLICADOS_MANUALMENTE);
   });
+
+  it("expõe a permissão nominal de faturar orçamentos aprovados", () => {
+    expect(ALL_PERMISSIONS.map((permission) => permission.key)).toContain(PERMISSIONS.FATURAR_ORCAMENTOS);
+  });
 });

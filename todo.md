@@ -3088,3 +3088,9 @@
 - [x] Identificar os caminhos que omitem a programação de corrente em Equipamentos
 - [x] Exibir a programação retornada pela API na prévia e no Excel da ficha
 - [x] Cobrir a exibição condicional da programação por regressão
+
+## Permissão: faturar orçamentos aprovados
+- [x] Localizar a regra de status Faturado e as permissões de usuários existentes
+- [x] Criar a autorização exclusiva para faturar qualquer orçamento já aprovado
+- [x] Conceder a permissão à Camille Batista e expor o controle no painel administrativo
+- [x] Cobrir a autorização, a exclusividade e a transição Aprovado para Faturado por regressão

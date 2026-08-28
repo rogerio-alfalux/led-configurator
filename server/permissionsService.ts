@@ -44,3 +44,22 @@ export async function hasUserPermission(
 
   return rows.some((row) => row.permission === permission);
 }
+
+/**
+ * Verifica uma permissão atribuída nominalmente, sem o acesso implícito do papel
+ * administrativo. Usada para funções deliberadamente exclusivas, como faturar.
+ */
+export async function hasExplicitUserPermission(
+  userId: number,
+  permission: Permission | string,
+): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  const rows = await db
+    .select({ permission: userPermissions.permission })
+    .from(userPermissions)
+    .where(eq(userPermissions.userId, userId));
+
+  return rows.some((row) => row.permission === permission);
+}

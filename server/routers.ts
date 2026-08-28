@@ -88,6 +88,7 @@ import { sanitizeLdAttachmentFileName, validateLdTechnicalAttachments, type LdTe
 import { buildLdQuoteConversion } from "./ldQuoteConversion";
 import { buildLdDraftQuoteNumber, isLdDraftQuoteNumber } from "../shared/ldDraftQuoteNumber";
 import { generateAndStoreCompleteBackup } from "./backupService";
+import { getQuoteStatusAuthorizationError } from "./quoteStatusPolicy";
 
 // ─── Controle de acesso a orçamentos ─────────────────────────────────────────
 /** Emails dos gestores com acesso irrestrito a todos os orçamentos */
@@ -1126,8 +1127,10 @@ export const appRouter = router({
         offset: z.number().optional(),
       }))
       .query(async ({ ctx, input }) => {
-        // Assistentes com allowedSellerId só podem ver orçamentos do vendedor vinculado
-        if (ctx.user.role === 'assistente' && ctx.user.email) {
+        const canInvoiceAnyQuote = await hasExplicitUserPermission(ctx.user.id, PERMISSIONS.FATURAR_ORCAMENTOS);
+        // Assistentes com allowedSellerId só podem ver orçamentos do vendedor vinculado.
+        // A responsável nominal de faturamento precisa localizar qualquer orçamento aprovado.
+        if (!canInvoiceAnyQuote && ctx.user.role === 'assistente' && ctx.user.email) {
           const db = await getDb();
           if (db) {
             const assistantRow = await db
@@ -1202,8 +1205,9 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => {
         const result = await getQuoteById(input.id);
         if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
+        const canInvoiceAnyQuote = await hasExplicitUserPermission(ctx.user.id, PERMISSIONS.FATURAR_ORCAMENTOS);
         // Assistentes com allowedSellerId só podem ver orçamentos do vendedor vinculado
-        if (ctx.user.role === 'assistente' && ctx.user.email) {
+        if (!canInvoiceAnyQuote && ctx.user.role === 'assistente' && ctx.user.email) {
           const db = await getDb();
           if (db) {
             const assistantRow = await db
@@ -1257,7 +1261,7 @@ export const appRouter = router({
           commissionPercent: null,
           commissionPercent2: null,
         };
-        return { ...result, quote: quoteData, canEdit, canSeeCommission, canEditCommission };
+        return { ...result, quote: quoteData, canEdit, canInvoice: canInvoiceAnyQuote, canSeeCommission, canEditCommission };
       }),
 
     approve: commercialQuoteProcedure
@@ -1338,12 +1342,19 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const qForStatus = await getQuoteById(input.id);
         if (!qForStatus) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
+        const canInvoiceAnyQuote = await hasExplicitUserPermission(ctx.user.id, PERMISSIONS.FATURAR_ORCAMENTOS);
         const canEditStatus = await canEditQuote(ctx.user.email, qForStatus.quote, ctx.user.role, ctx.user.id);
-        if (!canEditStatus) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para alterar o status deste orçamento." });
-        // Número de pedido e empresa faturadora são solicitados apenas ao gerar o Pedido de Fábrica, não ao aprovar
-        // Faturado só pode ser acionado a partir de um pedido fechado (approved)
-        if (input.status === "invoiced" && qForStatus.quote.status !== "approved") {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "O status 'Faturado' só pode ser definido a partir de um pedido fechado (Aprovado)." });
+        const statusError = getQuoteStatusAuthorizationError({
+          targetStatus: input.status,
+          currentStatus: qForStatus.quote.status as "open" | "approved" | "lost" | "cancelled" | "invoiced",
+          canEditStatus,
+          canInvoiceAnyQuote,
+        });
+        if (statusError) {
+          throw new TRPCError({
+            code: input.status === "invoiced" && qForStatus.quote.status !== "approved" ? "BAD_REQUEST" : "FORBIDDEN",
+            message: statusError,
+          });
         }
         await updateQuoteStatus(input.id, input.status, {
           orderNumber: input.orderNumber,
@@ -3174,5 +3185,5 @@ export const appRouter = router({
   }),
 });
 export type AppRouter = typeof appRouter;
-import { getEffectivePermissions, hasUserPermission } from "./permissionsService";
+import { getEffectivePermissions, hasExplicitUserPermission, hasUserPermission } from "./permissionsService";
 import { PERMISSIONS } from "../shared/permissions";
