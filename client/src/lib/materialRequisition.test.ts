@@ -717,6 +717,43 @@ describe("buildMaterialRequisition — luminárias não-perfil", () => {
     });
   });
 
+  it("MINI BLAZE FL contabiliza FITA LED em metros e fonte por trecho sem duplicação", () => {
+    const result = buildMaterialRequisition([{
+      category: "LED BAR",
+      qty: 2,
+      sku: "LLS-3336",
+      description: "MINI BLAZE S FL 10W/M 3000K ON/OFF Bivolt 6000MM",
+      ledBarNCortes: 2,
+      ledBarComprimentoTotalMm: 6000,
+      ledBarComprimentoPorTrechoMm: 3000,
+      ledBarDriverCode: "EQ00801",
+      ledBarDriverModel: "FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT",
+      moduloLed: "FITA LED 2835 128LEDS 24V 10W/M IP20 IRC80 3000K 1500LM/M",
+      moduloLedCode: "EQ00587",
+      driverLines: [{
+        driverModel: "FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT",
+        driverCode: "EQ00801",
+        driverQty: 4,
+      }],
+    } as any], new Map([
+      ["EQ00587", "FITA LED 2835 128LEDS 24V 10W/M IP20 IRC80 3000K 1500LM/M"],
+      ["EQ00801", "FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT"],
+    ]));
+
+    expect(result.find(entry => entry.codigo === "EQ00587")).toMatchObject({
+      qty: 12,
+      unidade: "m",
+      tipo: "FITAS LED",
+      sourceItems: [1],
+    });
+    expect(result.find(entry => entry.codigo === "EQ00801")).toMatchObject({
+      qty: 4,
+      unidade: "un",
+      tipo: "FONTES DE TENSÃO",
+      sourceItems: [1],
+    });
+  });
+
   it("deve levar o módulo LED fixo do SHIFT à requisição sem associá-lo a CCT", () => {
     const items: CartItemData[] = [{
       category: "Perfis",

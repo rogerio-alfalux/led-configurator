@@ -60,6 +60,10 @@ describe("isLedBarFamilyWithoutDifusor", () => {
     expect(isLedBarFamilyWithoutDifusor("BLAZE FL")).toBe(true);
   });
 
+  it("reconhece MINI BLAZE FL sem difusor comercial", () => {
+    expect(isLedBarFamilyWithoutDifusor("MINI BLAZE FL")).toBe(true);
+  });
+
   it("mantém famílias LED BAR convencionais com seleção de difusor", () => {
     expect(isLedBarFamilyWithoutDifusor("LED BAR U")).toBe(false);
   });
@@ -257,6 +261,10 @@ describe("calculateLedBar", () => {
 
   it("não usa tabela comercial estática quando BLAZE FL não tem preço API", () => {
     expect(calcLedBarPrice(25, 1000, 1, "BLAZE FL")).toBeNull();
+  });
+
+  it("não usa tabela comercial estática quando MINI BLAZE FL não tem preço API", () => {
+    expect(calcLedBarPrice(10, 1000, 1, "MINI BLAZE FL")).toBeNull();
   });
 });
 

@@ -3094,3 +3094,10 @@
 - [x] Criar a autorização exclusiva para faturar qualquer orçamento já aprovado
 - [x] Conceder a permissão à Camille Batista e expor o controle no painel administrativo
 - [x] Cobrir a autorização, a exclusividade e a transição Aprovado para Faturado por regressão
+
+## Configurador: família MINI BLAZE FL
+- [x] Confirmar famílias, instalações, potências, CCTs, preços e componentes MINI BLAZE FL no catálogo API
+- [x] Exibir MINI BLAZE FL no fluxo por metro linear de LED BAR
+- [x] Ocultar a seleção de difusor para MINI BLAZE FL
+- [x] Propagar drivers e componentes API para carrinho, ficha de produção e requisição de materiais
+- [x] Cobrir a família sem difusor e suas quantidades por regressão
