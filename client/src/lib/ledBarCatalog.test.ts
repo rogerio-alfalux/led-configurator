@@ -9,6 +9,7 @@ import {
   getAvailableVoltages,
   parsePotenciaFromName,
   parseDifusorFromName,
+  isLedBarFitaFamily,
   isLedBarFamilyWithoutDifusor,
   getLedBarAvailableInstallations,
   calcLedBarPrice,
@@ -64,8 +65,24 @@ describe("isLedBarFamilyWithoutDifusor", () => {
     expect(isLedBarFamilyWithoutDifusor("MINI BLAZE FL")).toBe(true);
   });
 
+  it("reconhece futuras famílias FL sem difusor comercial", () => {
+    expect(isLedBarFamilyWithoutDifusor("NOVA FAMÍLIA FL")).toBe(true);
+  });
+
   it("mantém famílias LED BAR convencionais com seleção de difusor", () => {
     expect(isLedBarFamilyWithoutDifusor("LED BAR U")).toBe(false);
+  });
+});
+
+describe("isLedBarFitaFamily", () => {
+  it("reconhece as famílias FL atuais e futuras", () => {
+    expect(isLedBarFitaFamily("SKYLINE FL")).toBe(true);
+    expect(isLedBarFitaFamily("MINI BLAZE FL")).toBe(true);
+    expect(isLedBarFitaFamily("PERFIL FUTURO FL")).toBe(true);
+  });
+
+  it("não inclui perfis sem o sufixo FL", () => {
+    expect(isLedBarFitaFamily("LED BAR 45")).toBe(false);
   });
 });
 
@@ -265,6 +282,10 @@ describe("calculateLedBar", () => {
 
   it("não usa tabela comercial estática quando MINI BLAZE FL não tem preço API", () => {
     expect(calcLedBarPrice(10, 1000, 1, "MINI BLAZE FL")).toBeNull();
+  });
+
+  it("não usa tabela comercial estática para futuras famílias FL sem preço API", () => {
+    expect(calcLedBarPrice(10, 1000, 1, "NOVA FAMÍLIA FL")).toBeNull();
   });
 });
 

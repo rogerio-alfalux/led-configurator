@@ -24,7 +24,7 @@ import type { PainelProduct } from "./painelCatalog";
 import type { SpotProduct } from "./spotCatalog";
 import type { ArandelaProduct } from "./arandelaCatalog";
 import type { LedBarProduct, LedBarPotencia, LedBarDifusor } from "./ledBarCatalog";
-import { isLedBarFamilyWithoutDifusor, parsePotenciaFromName, parseDifusorFromName } from "./ledBarCatalog";
+import { isLedBarFamilyWithoutDifusor, isLedBarFitaFamily, parsePotenciaFromName, parseDifusorFromName } from "./ledBarCatalog";
 import type { BageoProduct, BageoAplicacao, BageoInstalacao } from "./bageoCatalog";
 import { parseAplicacaoFromName, parseInstalacaoFromApi } from "./bageoCatalog";
 import type { ProductDocumentSource } from "./productDocuments";
@@ -799,7 +799,9 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
 
 /** Verifica se um produto PERFIS usa o fluxo LED BAR (por metro linear com fonte de tensão) */
 function isLedBarProduct(p: ApiProduct): boolean {
-  return /^(LED BAR|MILANO|MEIA LUA|PERFIL FLEXIVEL|FLOOR|SKYLINE FL|BLAZE FL|MINI BLAZE FL)\b/i.test(p.familia ?? "");
+  const familia = p.familia?.trim() ?? "";
+  return /^(LED BAR|MILANO|MEIA LUA|PERFIL FLEXIVEL|FLOOR)\b/i.test(familia)
+    || isLedBarFitaFamily(familia);
 }
 /** Verifica se um produto PERFIS é da família GLOW (excluindo TUBE LIGHT que tem família própria) */
 function isGlowProduct(p: ApiProduct): boolean {

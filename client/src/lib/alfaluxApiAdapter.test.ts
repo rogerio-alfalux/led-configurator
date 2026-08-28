@@ -348,6 +348,27 @@ describe("adaptAlfaluxProducts - LED BAR", () => {
       driverBivolt: { code: "EQ00801" },
     });
   });
+
+  it("inclui futuras famílias FL no fluxo linear sem depender de uma lista estática", () => {
+    const product = makeProduct({
+      categoria: "PERFIS",
+      familia: "NOVA FAMÍLIA FL",
+      instalacao: "EMBUTIR",
+      sku: "LLE-9999",
+      name: "NOVA FAMÍLIA FL 10W/M",
+      driver220: null,
+      driverBivolt: makeDriver("FONTE 36W 24V BIVOLT", "EQ00801"),
+    });
+
+    const result = adaptAlfaluxProducts([product]);
+
+    expect(result.ledBars).toHaveLength(1);
+    expect(result.ledBars[0]).toMatchObject({
+      familia: "NOVA FAMÍLIA FL",
+      difusor: "NF",
+      potencia: 10,
+    });
+  });
 });
 
 describe("dados da API usados sem modificação — sem inferência de quantidade", () => {

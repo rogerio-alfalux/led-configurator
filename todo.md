@@ -3106,3 +3106,8 @@
 - [x] Localizar a normalização que substitui A Definir por 2700K
 - [x] Preservar A Definir no cálculo, carrinho, orçamento e documentos
 - [x] Cobrir a seleção A Definir por regressão
+
+## Configurador: agrupamento Perfis com Fita
+- [x] Localizar os agrupamentos atuais do seletor de perfis
+- [x] Agrupar dinamicamente famílias cujo nome termina em FL em Perfis com Fita
+- [x] Cobrir o agrupamento sem alterar as categorias LED BAR existentes

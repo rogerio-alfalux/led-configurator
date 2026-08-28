@@ -76,6 +76,7 @@ import {
   PERFIL_FLEXIVEL_MAX_LENGTH_MM,
   getLedBarAvailableInstallations,
   getAvailableVoltages,
+  isLedBarFitaFamily,
   calculateLedBar,
   calcLedBarPrice,
   calcLedBarPriceDetail,
@@ -4081,8 +4082,12 @@ export default function Home() {
     [lbFamilia]
   );
   const lbIsFlLedBar = useMemo(() =>
-    lbFamilia ? /^(SKYLINE FL|BLAZE FL|MINI BLAZE FL)\b/i.test(lbFamilia) : false,
+    isLedBarFitaFamily(lbFamilia),
     [lbFamilia]
+  );
+  const lbPerfisComFita = useMemo(() =>
+    lbFamilias.filter(isLedBarFitaFamily),
+    [lbFamilias],
   );
   const lbFlInstallations = useMemo(() =>
     lbIsFlLedBar ? getLedBarAvailableInstallations(activeLedBarCatalog, lbFamilia) : [],
@@ -5292,10 +5297,10 @@ export default function Home() {
                           ))}
                         </>
                       )}
-                      {lbFamilias.filter(f => /^LED BAR/i.test(f)).length > 0 && (
+                      {lbFamilias.filter(f => /^LED BAR/i.test(f) && !isLedBarFitaFamily(f)).length > 0 && (
                         <>
                           <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">LED BAR</div>
-                          {lbFamilias.filter(f => /^LED BAR/i.test(f)).map((fam) => (
+                          {lbFamilias.filter(f => /^LED BAR/i.test(f) && !isLedBarFitaFamily(f)).map((fam) => (
                             <SelectItem key={`__LEDBAR__${fam}`} value={`__LEDBAR__${fam}`}>{fam}</SelectItem>
                           ))}
                         </>
@@ -5316,26 +5321,10 @@ export default function Home() {
                           ))}
                         </>
                       )}
-                      {lbFamilias.filter(f => /^SKYLINE FL\b/i.test(f)).length > 0 && (
+                      {lbPerfisComFita.length > 0 && (
                         <>
-                          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">SKYLINE FL</div>
-                          {lbFamilias.filter(f => /^SKYLINE FL\b/i.test(f)).map((fam) => (
-                            <SelectItem key={`__LEDBAR__${fam}`} value={`__LEDBAR__${fam}`}>{fam}</SelectItem>
-                          ))}
-                        </>
-                      )}
-                      {lbFamilias.filter(f => /^BLAZE FL\b/i.test(f)).length > 0 && (
-                        <>
-                          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">BLAZE FL</div>
-                          {lbFamilias.filter(f => /^BLAZE FL\b/i.test(f)).map((fam) => (
-                            <SelectItem key={`__LEDBAR__${fam}`} value={`__LEDBAR__${fam}`}>{fam}</SelectItem>
-                          ))}
-                        </>
-                      )}
-                      {lbFamilias.filter(f => /^MINI BLAZE FL\b/i.test(f)).length > 0 && (
-                        <>
-                          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">MINI BLAZE FL</div>
-                          {lbFamilias.filter(f => /^MINI BLAZE FL\b/i.test(f)).map((fam) => (
+                          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">Perfis com Fita</div>
+                          {lbPerfisComFita.map((fam) => (
                             <SelectItem key={`__LEDBAR__${fam}`} value={`__LEDBAR__${fam}`}>{fam}</SelectItem>
                           ))}
                         </>
