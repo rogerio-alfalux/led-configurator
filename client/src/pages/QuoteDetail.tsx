@@ -40,7 +40,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { CartItemData, formatBRL, parseCartItemData, extractPowerLabelFromName, toPowerLabel, type QuoteFormData } from "@/lib/cartTypes";
+import { CartItemData, formatBRL, parseCartItemData, extractPowerLabelFromName, toPowerLabel, enrichDriverCurrentsFromApi, type QuoteFormData } from "@/lib/cartTypes";
 import { getPersistedItemPhotoUrl } from "@/lib/itemPhoto";
 import { formatLinkedCommercialQuote } from "@/lib/sampleLinkPresentation";
 import { isLdRequestLinkedToQuote } from "@/lib/ldRequestUtils";
@@ -1546,8 +1546,10 @@ export default function QuoteDetail() {
       }
     }
     return _currentItems.map(item => {
-      const parsed = parseCartItemData(item.itemData as string);
-      if (!parsed) return item;
+      const parsedFromStorage = parseCartItemData(item.itemData as string);
+      if (!parsedFromStorage) return item;
+      let parsed = enrichDriverCurrentsFromApi(parsedFromStorage, componenteCorrenteMap);
+      const currentEnriched = parsed !== parsedFromStorage;
       // ── Migração 4: Corrigir ledModuleCode nos profileSegments ──
       // Busca o produto correto da API pelo SKU do perfil + potência + stripMethod
       if (parsed.profileSegments && parsed.profileSegments.length > 0 && parsed.power && parsed.cct) {
@@ -1792,7 +1794,7 @@ export default function QuoteDetail() {
           return { ...item, itemData: JSON.stringify(migratedParsed) };
         }
       }
-      return item;
+      return currentEnriched ? { ...item, itemData: JSON.stringify(parsed) } : item;
     });
   }, [data, componentePriceMap, componenteDescMap, componenteCorrenteMap, componenteReverseDescMap, productsQuery.data]);
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import ExcelJS from "exceljs";
-import { addBusinessDays, buildProfileSkuText, generateOrderExcel } from "./orderExcelGenerator";
+import { addBusinessDays, buildLedBarEquipamentosText, buildLuminariaEquipamentosText, buildProfileSkuText, generateOrderExcel } from "./orderExcelGenerator";
 
 describe("buildProfileSkuText", () => {
   it("informa a quantidade de cada SKU da composição na ficha de produção", () => {
@@ -31,6 +31,25 @@ describe("buildProfileSkuText", () => {
     } as any);
 
     expect(text).toBe("2 x LLP-6060.2IF.48F\n1 x LLP-6060.5ML.48F");
+  });
+});
+
+describe("programação de corrente — Excel da ficha", () => {
+  it("exibe a corrente API inclusive para fonte 24V", () => {
+    const luminaria = buildLuminariaEquipamentosText({
+      qty: 1,
+      driverLines: [{ driverCode: "EQ00348", driverModel: "DRIVER 44W", driverQty: 1, driverUnitPrice: null, driverTotalPrice: null, corrente: "350mA" }],
+    } as any);
+    const ledBar = buildLedBarEquipamentosText({
+      category: "LED BAR",
+      ledBarNCortes: 2,
+      ledBarDriverModel: "FONTE 60W 24V",
+      ledBarDriverCode: "EQ00801",
+      ledBarDriverCorrente: "250mA",
+    } as any);
+
+    expect(luminaria).toContain("PROGRAMAÇÃO: 350mA");
+    expect(ledBar).toContain("PROGRAMAÇÃO: 250mA");
   });
 });
 

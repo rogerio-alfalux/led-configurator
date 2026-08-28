@@ -60,7 +60,7 @@ function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, stri
     .join("<br>");
 }
 
-function buildLuminariaEquipamentosText(item: CartItemData): string {
+export function buildLuminariaEquipamentosText(item: CartItemData): string {
   if (item.withoutEquipment) return "";
   if (!item.driverLines || item.driverLines.length === 0) {
     return item.drivers ?? "";
@@ -73,14 +73,14 @@ function buildLuminariaEquipamentosText(item: CartItemData): string {
       : (itemQty > 0 ? dl.driverQty / itemQty : dl.driverQty);
     const displayQty = Number.isInteger(qtyPerUnit) ? String(qtyPerUnit) : qtyPerUnit.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
     const linha = `${displayQty}x ${esc(dl.driverModel)}${codeSuffix}`;
-    if (dl.corrente && !dl.driverModel.toUpperCase().includes("FONTE 24V")) {
+    if (dl.corrente) {
       return `${linha}<br><span style="color:#555;font-style:italic">PROGRAMAÇÃO: ${esc(dl.corrente)}</span>`;
     }
     return linha;
   }).join("<br>");
 }
 
-function buildProfileEquipamentosText(item: CartItemData): string {
+export function buildProfileEquipamentosText(item: CartItemData): string {
   if (item.withoutEquipment) return "";
   if (!item.profileSegments || item.profileSegments.length === 0) {
     // Se tem driverLines (luminária com driver desmembrado), usar buildLuminariaEquipamentosText
@@ -132,14 +132,9 @@ function buildProfileEquipamentosText(item: CartItemData): string {
       return `${fmtQty(entry.qty)} x ${esc(entry.model)}${esc(entry.code)}`;
     });
 
-  // Adicionar linha de programação se houver corrente e não for fonte 24V
+  // Adicionar linha de programação sempre que ela tiver sido retornada pela API.
   if (correnteSegmento) {
-    const isDriverFonte = Array.from(totals.values()).every(e =>
-      e.model.toUpperCase().includes("FONTE 24V")
-    );
-    if (!isDriverFonte) {
-      linhas.push(`<span style="color:#555;font-style:italic">PROGRAMAÇÃO: ${esc(correnteSegmento)}</span>`);
-    }
+    linhas.push(`<span style="color:#555;font-style:italic">PROGRAMAÇÃO: ${esc(correnteSegmento)}</span>`);
   }
 
   return linhas.join("<br>");
@@ -169,14 +164,17 @@ function buildLedBarFonteLuzText(item: CartItemData): string {
   return linhas.join("<br>");
 }
 
-function buildLedBarEquipamentosText(item: CartItemData): string {
+export function buildLedBarEquipamentosText(item: CartItemData): string {
   if (item.withoutEquipment) return "";
   const nCortes = item.ledBarNCortes ?? 1;
   const model = item.ledBarDriverModel ?? "";
   const code = item.ledBarDriverCode ?? "";
   if (!model) return item.drivers ?? "";
   const codeSuffix = code ? ` (${code})` : "";
-  return `${nCortes}x ${model}${codeSuffix}`;
+  const programacao = item.ledBarDriverCorrente
+    ? `<br><span style="color:#555;font-style:italic">PROGRAMAÇÃO: ${esc(item.ledBarDriverCorrente)}</span>`
+    : "";
+  return `${nCortes}x ${model}${codeSuffix}${programacao}`;
 }
 
 // Classifica equipamento como driver (coluna EQUIPAMENTOS) ou fonte de luz (coluna FONTE DE LUZ)

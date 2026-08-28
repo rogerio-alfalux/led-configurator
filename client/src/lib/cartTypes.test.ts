@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { migrateItemDrivers, parseCartItemData } from "./cartTypes";
+import { enrichDriverCurrentsFromApi, migrateItemDrivers, parseCartItemData } from "./cartTypes";
 
 describe("parseCartItemData - correção de driverQty para perfis", () => {
   it("corrige driverQty quando está salvo apenas por luminária (BLAZE 45700mm, 12 lum, 17 drv/lum)", () => {
@@ -184,5 +184,34 @@ describe("migrateItemDrivers - perfis usam a variante API da potência seleciona
     expect(migrated.profileSegments?.[0].driverCode).toBe("EQ0026");
     expect(migrated.profileSegments?.[0].corrente).toBe("500mA");
     expect(migrated.driverLines?.[0]).toMatchObject({ driverCode: "EQ0026", driverQty: 2, corrente: "500mA" });
+  });
+});
+
+describe("enrichDriverCurrentsFromApi", () => {
+  it("preenche somente a programação dos drivers persistidos pelos códigos da API", () => {
+    const item = {
+      category: "LED BAR",
+      sku: "LLE-2052",
+      description: "SKYLINE FL 10W/M",
+      qty: 1,
+      unitPrice: null,
+      totalPrice: null,
+      photoUrl: null,
+      ledBarNCortes: 2,
+      ledBarDriverCode: "EQ00801",
+      ledBarDriverModel: "FONTE 60W 24V",
+      driverLines: [{ driverCode: "EQ00348", driverModel: "DRIVER 44W", driverQty: 1, driverUnitPrice: null, driverTotalPrice: null }],
+      profileSegments: [{ sku: "LLP-6060.2IF.48F", qty: 1, lengthMm: 1180, barsPerPiece: 2, driverQtyPerPiece: 1, driverCode: "EQ00348", driverModel: "DRIVER 44W" }],
+    } as any;
+
+    const enriched = enrichDriverCurrentsFromApi(item, new Map([
+      ["EQ00348", "350mA"],
+      ["EQ00801", "250mA"],
+    ]));
+
+    expect(enriched.driverLines?.[0]).toMatchObject({ driverCode: "EQ00348", corrente: "350mA" });
+    expect(enriched.profileSegments?.[0]).toMatchObject({ driverCode: "EQ00348", corrente: "350mA" });
+    expect(enriched.ledBarDriverCorrente).toBe("250mA");
+    expect(enriched.driverLines?.[0]?.driverModel).toBe("DRIVER 44W");
   });
 });

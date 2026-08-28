@@ -3083,3 +3083,8 @@
 - [x] Localizar o filtro atual e preservar a busca por nome
 - [x] Aceitar SKU completo e parcial com normalização de separadores
 - [x] Cobrir a busca por SKU e evitar regressões na busca textual
+
+## Ficha de produção: programação de corrente da API
+- [x] Identificar os caminhos que omitem a programação de corrente em Equipamentos
+- [x] Exibir a programação retornada pela API na prévia e no Excel da ficha
+- [x] Cobrir a exibição condicional da programação por regressão

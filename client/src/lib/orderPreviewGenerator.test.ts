@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildProfileSkuText } from "./orderPreviewGenerator";
+import { buildLedBarEquipamentosText, buildLuminariaEquipamentosText, buildProfileSkuText } from "./orderPreviewGenerator";
 
 describe("buildProfileSkuText — prévia de ficha técnica", () => {
   it("mostra a quantidade por SKU também para orçamentos históricos", () => {
@@ -16,3 +16,21 @@ describe("buildProfileSkuText — prévia de ficha técnica", () => {
   });
 });
 
+describe("programação de corrente — prévia da ficha", () => {
+  it("exibe a corrente API para luminária e fonte 24V", () => {
+    const luminaria = buildLuminariaEquipamentosText({
+      qty: 1,
+      driverLines: [{ driverCode: "EQ00348", driverModel: "DRIVER 44W", driverQty: 1, driverUnitPrice: null, driverTotalPrice: null, corrente: "350mA" }],
+    } as any);
+    const ledBar = buildLedBarEquipamentosText({
+      category: "LED BAR",
+      ledBarNCortes: 2,
+      ledBarDriverModel: "FONTE 60W 24V",
+      ledBarDriverCode: "EQ00801",
+      ledBarDriverCorrente: "250mA",
+    } as any);
+
+    expect(luminaria).toContain("PROGRAMAÇÃO: 350mA");
+    expect(ledBar).toContain("PROGRAMAÇÃO: 250mA");
+  });
+});

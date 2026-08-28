@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { trpc } from "@/lib/trpc";
-import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, formatBRL, normalizeDriverModels, ApiProductDriverInfo, extractPowerLabelFromName } from "@/lib/cartTypes";
+import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, formatBRL, normalizeDriverModels, ApiProductDriverInfo, extractPowerLabelFromName, enrichDriverCurrentsFromApi } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { ComponentSearchField } from "@/components/ComponentSearchField";
 import type { ComponentOption } from "@/components/ComponentSearchField";
@@ -106,7 +106,8 @@ function buildEquipamentosText(item: CartItemData): string {
     const code = item.ledBarDriverCode ?? "";
     if (!model) return item.drivers ?? "";
     const codeSuffix = code ? ` (${code})` : "";
-    return `${nCortes}x ${model}${codeSuffix}`;
+    const programacao = item.ledBarDriverCorrente ? `\nPROGRAMAÇÃO: ${item.ledBarDriverCorrente}` : "";
+    return `${nCortes}x ${model}${codeSuffix}${programacao}`;
   }
   if (!item.profileSegments || item.profileSegments.length === 0) {
     // Luminária com driverLines desmembradas
@@ -118,7 +119,7 @@ function buildEquipamentosText(item: CartItemData): string {
         const codeSuffix = dl.driverCode ? ` (${dl.driverCode})` : "";
         const qtyPerUnit = drvPerUnit ?? Math.max(1, Math.round(dl.driverQty / itemQtyDl));
         const linha = `${qtyPerUnit}x ${dl.driverModel}${codeSuffix}`;
-        if (dl.corrente && !dl.driverModel.toUpperCase().includes("FONTE 24V")) {
+        if (dl.corrente) {
           return `${linha}\nPROGRAMAÇÃO: ${dl.corrente}`;
         }
         return linha;
@@ -167,14 +168,9 @@ function buildEquipamentosText(item: CartItemData): string {
       return `${String(entry.qty).padStart(2, "0")} x ${entry.model}${entry.code}`;
     });
 
-  // Adicionar linha de programação se houver corrente e não for fonte 24V
+  // Adicionar linha de programação sempre que ela tiver sido retornada pela API.
   if (correnteSegmento) {
-    const isDriverFonte = Array.from(driverTotals.values()).every(e =>
-      e.model.toUpperCase().includes("FONTE 24V")
-    );
-    if (!isDriverFonte) {
-      linhas.push(`PROGRAMAÇÃO: ${correnteSegmento}`);
-    }
+    linhas.push(`PROGRAMAÇÃO: ${correnteSegmento}`);
   }
 
   return linhas.join("\n");
@@ -234,7 +230,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
   const parsed = useMemo(() => {
     const raw = parseCartItemData(item.itemData);
     if (!raw || !priceMap || !productSkuMap) return raw;
-    return normalizeDriverModels(raw, descMap ?? new Map());
+    return normalizeDriverModels(enrichDriverCurrentsFromApi(raw, correnteMap), descMap ?? new Map());
   }, [item.itemData, priceMap, productSkuMap, descMap, correnteMap, reverseDescMap]);
 
   useEffect(() => {
@@ -1509,7 +1505,7 @@ export default function FactoryOrderDetail() {
       const itemsData = orderToUse.items
         .map(i => parseCartItemData(i.itemData))
         .filter((d): d is CartItemData => d !== null)
-        .map(d => normalizeDriverModels(d, componenteDescMapFO));
+        .map(d => normalizeDriverModels(enrichDriverCurrentsFromApi(d, componenteCorrenteMapFO), componenteDescMapFO));
       const fileName = `PEDIDO-FABRICA-${orderNum}-${quote.clientName.replace(/\s+/g, "_")}.xlsx`;
       const buffer = await generateOrderExcel(itemsData, {
         clientName: quote.clientName,
@@ -1716,7 +1712,7 @@ export default function FactoryOrderDetail() {
                     const items = currentOrder.items
                       .map(i => parseCartItemData(i.itemData))
                       .filter((d): d is CartItemData => d !== null)
-                      .map(d => normalizeDriverModels(d, componenteDescMapFO));
+                      .map(d => normalizeDriverModels(enrichDriverCurrentsFromApi(d, componenteCorrenteMapFO), componenteDescMapFO));
                     setPreviewItems(items);
                     setPreviewForm({
                       clientName: quote.clientName,

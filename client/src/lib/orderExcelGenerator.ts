@@ -201,7 +201,7 @@ function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, stri
  * com driverLines — inclui a corrente de programação do driver logo após o nome.
  * Formato: "1x DRIVER PHILIPS CERTADRIVE 20W 500MA (EQ00353)\nPROGRAMAÇÃO: 500MA"
  */
-function buildLuminariaEquipamentosText(item: CartItemData): string {
+export function buildLuminariaEquipamentosText(item: CartItemData): string {
   if (item.withoutEquipment) return "";
   if (!item.driverLines || item.driverLines.length === 0) {
     return item.drivers ?? "";
@@ -214,7 +214,7 @@ function buildLuminariaEquipamentosText(item: CartItemData): string {
       : (itemQty > 0 ? dl.driverQty / itemQty : dl.driverQty);
     const displayQty = Number.isInteger(qtyPerUnit) ? String(qtyPerUnit) : qtyPerUnit.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
     const linha = `${displayQty}x ${dl.driverModel}${codeSuffix}`;
-    if (dl.corrente && !dl.driverModel.toUpperCase().includes("FONTE 24V")) {
+    if (dl.corrente) {
       return `${linha}\nPROGRAMAÇÃO: ${dl.corrente}`;
     }
     return linha;
@@ -237,7 +237,7 @@ function buildLuminariaEquipamentosText(item: CartItemData): string {
  *   ou, se houver modelos diferentes:
  *   "2 x PHILIPS XITANIUM 44W 350MA (EQ00347)\n17 x PHILIPS XITANIUM 65W 350MA (EQ00393)"
  */
-function buildProfileEquipamentosText(item: CartItemData): string {
+export function buildProfileEquipamentosText(item: CartItemData): string {
   if (item.withoutEquipment) return "";
   if (!item.profileSegments || item.profileSegments.length === 0) {
     // Se tem driverLines (luminária com driver desmembrado), usar buildLuminariaEquipamentosText
@@ -286,8 +286,8 @@ function buildProfileEquipamentosText(item: CartItemData): string {
       const base = !entry.code
         ? `${fmtQty(entry.qty)} x ${_key}`
         : `${fmtQty(entry.qty)} x ${entry.model}${entry.code}`;
-      // Adicionar PROGRAMAÇÃO se corrente disponível e não é fonte 24V
-      if (entry.corrente && !entry.model.toUpperCase().includes("FONTE 24V")) {
+      // Adicionar PROGRAMAÇÃO sempre que a API informar a corrente.
+      if (entry.corrente) {
         return `${base}\nPROGRAMAÇÃO: ${entry.corrente}`;
       }
       return base;
@@ -337,14 +337,15 @@ function buildLedBarFonteLuzText(item: CartItemData): string {
  * Gera o texto da coluna EQUIPAMENTOS para o LED BAR U.
  * Formato: "2x FONTE DE TENSÃO 60W 24V IP20 BIV DIP SLIM (EQ00112)"
  */
-function buildLedBarEquipamentosText(item: CartItemData): string {
+export function buildLedBarEquipamentosText(item: CartItemData): string {
   if (item.withoutEquipment) return "";
   const nCortes = item.ledBarNCortes ?? 1;
   const model = item.ledBarDriverModel ?? "";
   const code = item.ledBarDriverCode ?? "";
   if (!model) return item.drivers ?? "";
   const codeSuffix = code ? ` (${code})` : "";
-  return `${nCortes}x ${model}${codeSuffix}`;
+  const programacao = item.ledBarDriverCorrente ? `\nPROGRAMAÇÃO: ${item.ledBarDriverCorrente}` : "";
+  return `${nCortes}x ${model}${codeSuffix}${programacao}`;
 }
 
 export async function generateOrderExcel(items: CartItemData[], form: OrderFormData, descMap?: Map<string, string>): Promise<ArrayBuffer> {

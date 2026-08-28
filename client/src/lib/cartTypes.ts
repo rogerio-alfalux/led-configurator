@@ -133,6 +133,8 @@ export interface CartItemData {
    * Código do driver do LED BAR U (ex: "EQ00112").
    */
   ledBarDriverCode?: string;
+  /** Corrente de programação do driver LED BAR retornada pela API. */
+  ledBarDriverCorrente?: string | null;
 
   // ─── Campos específicos de Item Especial ──────────────────────────────────
   /**
@@ -740,6 +742,45 @@ export function extractPowerLabelFromName(name: string): string {
   if (/36W\s*SF/i.test(name)) return "36W SF";
   if (/26W/i.test(name)) return "26W";
   return "18W";
+}
+
+/**
+ * Completa somente a corrente de programação a partir dos componentes retornados
+ * pela API. Não altera modelo, código, quantidade ou driver originalmente salvo.
+ */
+export function enrichDriverCurrentsFromApi(
+  item: CartItemData,
+  correnteMap?: Map<string, string | null>,
+): CartItemData {
+  if (!correnteMap || correnteMap.size === 0) return item;
+
+  let changed = false;
+  const driverLines = item.driverLines?.map(line => {
+    const corrente = line.driverCode ? correnteMap.get(line.driverCode) : undefined;
+    if (corrente == null || corrente === line.corrente) return line;
+    changed = true;
+    return { ...line, corrente };
+  });
+  const profileSegments = item.profileSegments?.map(segment => {
+    const corrente = segment.driverCode ? correnteMap.get(segment.driverCode) : undefined;
+    if (corrente == null || corrente === segment.corrente) return segment;
+    changed = true;
+    return { ...segment, corrente };
+  });
+  const ledBarDriverCorrente = item.ledBarDriverCode
+    ? correnteMap.get(item.ledBarDriverCode)
+    : undefined;
+  if (ledBarDriverCorrente != null && ledBarDriverCorrente !== item.ledBarDriverCorrente) {
+    changed = true;
+  }
+
+  if (!changed) return item;
+  return {
+    ...item,
+    ...(driverLines ? { driverLines } : {}),
+    ...(profileSegments ? { profileSegments } : {}),
+    ...(ledBarDriverCorrente != null ? { ledBarDriverCorrente } : {}),
+  };
 }
 
 /**

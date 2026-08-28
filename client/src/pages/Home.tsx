@@ -9858,6 +9858,7 @@ export default function Home() {
                                   const lbDriverInfo = r.trechos[0]?.driver;
                                   const lbDriverCode = lbDriverInfo?.code ?? "";
                                   const lbDriverModel = lbDriverInfo?.model ?? "";
+                                  const lbDriverCorrente = (lbDriverInfo as { corrente?: string | null } | undefined)?.corrente ?? null;
                                   // Construir driverLines para separar driver no orçamento
                                   // LED BAR: nCortes drivers por unidade (cada trecho tem 1 driver)
                                   const lbDrvLines: import("@/lib/cartTypes").DriverLine[] | undefined =
@@ -9868,6 +9869,7 @@ export default function Home() {
                                           driverQty: r.nCortes,
                                           driverUnitPrice: lbDetail.precoDriverPorCorte,
                                           driverTotalPrice: Math.round(lbDetail.precoDriverPorCorte * r.nCortes * 100) / 100,
+                                          corrente: lbDriverCorrente,
                                         }]
                                       : undefined;
                                   const lbPrecoSemDriver = lbDrvLines && lbDetail
@@ -9904,6 +9906,7 @@ export default function Home() {
                                    ledBarComprimentoTotalMm: r.comprimentoTotalMm,
                                    ledBarDriverModel: lbDriverModel,
                                    ledBarDriverCode: lbDriverCode,
+                                   ledBarDriverCorrente: lbDriverCorrente,
                                    availableCCTs: r.product.ccts,
                                    itemEmPlanta: globalItemEmPlanta,
                                     // Custo por metro × metros para LED BAR (mesma lógica da BAGEO)
