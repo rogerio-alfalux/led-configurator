@@ -3066,3 +3066,8 @@
 - [x] Propagar drivers e componentes API para carrinho, ficha de produção e requisição de materiais
 - [x] Cobrir a família sem difusor e suas quantidades por regressão
 - [x] Exibir e exigir a instalação SKYLINE FL somente quando a API retornar mais de uma versão
+
+## Ficha de produção: módulo LED ausente no gerenciamento do pedido 25.0259-26
+- [x] Comparar o item 2 do pedido com os dados da prévia, Excel e API
+- [x] Restaurar o campo de módulo LED no gerenciamento sem alterar componentes já persistidos
+- [x] Cobrir a recuperação de módulo LED em itens legados por regressão

@@ -35,4 +35,21 @@ describe("apiComponentSlots", () => {
 
     expect(updated).toBe("MODULO LINEAR 6 LEDS (EQ00147) + 2x LENTE OTICA 6 PONTOS 36º (CP00777) + MASCARA PARA LENTE (CP00185)");
   });
+
+  it("exibe o módulo LED técnico de item legado mesmo sem código EQ persistido", () => {
+    const description = "STRIPFLEX 562.5 X 10MM - 36 LEDS 840 - 4000K (LC) 25V";
+    const slots = getApiModuleComponentSlots({
+      moduloLed: `1.6X ${description}`,
+      moduloLedCode: null,
+    }, []);
+
+    expect(slots).toEqual([expect.objectContaining({
+      label: "Módulo LED",
+      kind: "MODULO_LED",
+      description,
+      code: "",
+      qty: 1.6,
+    })]);
+    expect(formatApiComponentSlot(slots[0])).toBe(description);
+  });
 });

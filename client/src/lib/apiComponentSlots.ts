@@ -58,6 +58,14 @@ function withoutCodes(value: string): string {
     .trim();
 }
 
+function normalizeComponentDescription(value: string): string {
+  return withoutCodes(value)
+    .replace(/^\d+(?:[.,]\d+)?\s*[xX]\s+/i, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+}
+
 /** Remove somente o rótulo genérico acrescentado antes da descrição oficial. */
 function withoutGenericModuleLabel(value: string, kind: ApiComponentKind): string {
   if (kind !== "MODULO_LED") return value;
@@ -66,8 +74,10 @@ function withoutGenericModuleLabel(value: string, kind: ApiComponentKind): strin
 
 /**
  * Decompõe a composição concatenada retornada pela API em campos editáveis.
- * Só expõe partes com código oficial de material (EQ, CP ou PT), nunca um
- * identificador interno P isolado.
+ * Prioriza códigos oficiais de material (EQ, CP ou PT), nunca um identificador
+ * interno P isolado. Para preservar itens legados, uma descrição técnica de
+ * módulo sem código explícito continua editável e recebe o código da API quando
+ * houver correspondência exata no catálogo de componentes.
  */
 export function getApiModuleComponentSlots(
   item: Pick<CartItemData, "moduloLed" | "moduloLedCode">,
@@ -78,16 +88,19 @@ export function getApiModuleComponentSlots(
     .map(part => part.trim())
     .filter(Boolean);
   const optionByCode = new Map(options.map(option => [option.codigo.toUpperCase(), option]));
+  const optionByDescription = new Map(
+    options.map(option => [normalizeComponentDescription(option.descricao), option]),
+  );
   const labelCounts = new Map<ApiComponentKind, number>();
 
   return rawParts.flatMap((rawPart, partIndex) => {
     const quantityMatch = rawPart.match(QUANTITY_PREFIX);
     const qty = quantityMatch ? Number(quantityMatch[1].replace(",", ".")) : 1;
     const partWithoutQuantity = quantityMatch ? quantityMatch[2] : rawPart;
-    const code = getOfficialCode(partWithoutQuantity, partIndex === 0 ? item.moduloLedCode : null);
-    if (!code) return [];
-
-    const option = optionByCode.get(code);
+    const explicitCode = getOfficialCode(partWithoutQuantity, partIndex === 0 ? item.moduloLedCode : null);
+    const matchedOption = optionByDescription.get(normalizeComponentDescription(partWithoutQuantity));
+    const code = explicitCode || matchedOption?.codigo?.toUpperCase() || "";
+    const option = code ? optionByCode.get(code) : matchedOption;
     const kind = getKind(partWithoutQuantity, option);
     const count = (labelCounts.get(kind) ?? 0) + 1;
     labelCounts.set(kind, count);
@@ -104,7 +117,7 @@ export function getApiModuleComponentSlots(
 }
 
 export function formatApiComponentSlot(slot: Pick<ApiComponentSlot, "description" | "code">): string {
-  return `${slot.description} (${slot.code})`;
+  return slot.code ? `${slot.description} (${slot.code})` : slot.description;
 }
 
 /** Atualiza somente uma parte da composição concatenada, preservando as demais. */
