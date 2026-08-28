@@ -3078,3 +3078,8 @@
 - [x] Ocultar a seleção de difusor para BLAZE FL
 - [x] Propagar drivers e componentes API para carrinho, ficha de produção e requisição de materiais
 - [x] Cobrir a família sem difusor e suas quantidades por regressão
+
+## Configurador: busca rápida por SKU
+- [x] Localizar o filtro atual e preservar a busca por nome
+- [x] Aceitar SKU completo e parcial com normalização de separadores
+- [x] Cobrir a busca por SKU e evitar regressões na busca textual

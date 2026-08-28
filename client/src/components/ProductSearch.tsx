@@ -128,118 +128,91 @@ const CATEGORY_COLORS: Record<ProductCategory, string> = {
 
 // ─── Lógica de busca ─────────────────────────────────────────────────────────
 
-function buildSuggestions(catalogs: ProductSearchCatalogs): SearchSuggestion[] {
+export function buildSuggestions(catalogs: ProductSearchCatalogs): SearchSuggestion[] {
   const suggestions: SearchSuggestion[] = [];
 
-  // Perfis lineares — deduplica por nome (cada nome pode ter múltiplos installTypes)
-  const seenProfiles = new Set<string>();
+  // Mantém cada SKU individual para que uma consulta por código selecione a variante correta.
   for (const variant of Object.values(catalogs.profiles)) {
-    if (!seenProfiles.has(variant.name)) {
-      seenProfiles.add(variant.name);
-      suggestions.push({
-        category: "Perfis",
-        name: variant.name,
-        familia: variant.name,
-        code: variant.code,
-        fotoUrl: null,
-        instalacao: variant.installType,
-      });
-    }
+    suggestions.push({
+      category: "Perfis",
+      name: variant.name,
+      familia: variant.name,
+      code: variant.code,
+      fotoUrl: null,
+      instalacao: variant.installType,
+    });
   }
 
-  // LED BAR — deduplica por família
-  const seenLedBars = new Set<string>();
+  // LED BAR — cada potência/instalação permanece pesquisável pelo SKU publicado pela API.
   for (const p of catalogs.ledBars) {
-    if (!seenLedBars.has(p.familia)) {
-      seenLedBars.add(p.familia);
-      suggestions.push({
-        category: "LED BAR",
-        name: p.name,
-        familia: p.familia,
-        code: p.sku,
-        fotoUrl: p.fotoUrl,
-        potencia: String(p.potencia) + "W/m",
-      });
-    }
+    suggestions.push({
+      category: "LED BAR",
+      name: p.name,
+      familia: p.familia,
+      code: p.sku,
+      fotoUrl: p.fotoUrl,
+      instalacao: p.instalacao ?? undefined,
+      potencia: String(p.potencia) + "W/m",
+    });
   }
 
-  // BAGEO — deduplica por família
-  const seenBageos = new Set<string>();
+  // BAGEO — cada SKU precisa permanecer disponível na pesquisa.
   for (const p of catalogs.bageos) {
-    if (!seenBageos.has(p.familia)) {
-      seenBageos.add(p.familia);
-      suggestions.push({
-        category: "BAGEO",
-        name: p.name,
-        familia: p.familia,
-        code: p.sku,
-        fotoUrl: p.fotoUrl,
-      });
-    }
+    suggestions.push({
+      category: "BAGEO",
+      name: p.name,
+      familia: p.familia,
+      code: p.sku,
+      fotoUrl: p.fotoUrl,
+    });
   }
 
-  // Downlights — deduplica por família
-  const seenDl = new Set<string>();
+  // Downlights — cada SKU precisa permanecer disponível na pesquisa.
   for (const p of catalogs.downlights) {
-    if (!seenDl.has(p.familia)) {
-      seenDl.add(p.familia);
-      suggestions.push({
-        category: "Downlights",
-        name: p.name,
-        familia: p.familia,
-        code: p.sku,
-        fotoUrl: null,
-        instalacao: p.instalacao,
-      });
-    }
+    suggestions.push({
+      category: "Downlights",
+      name: p.name,
+      familia: p.familia,
+      code: p.sku,
+      fotoUrl: null,
+      instalacao: p.instalacao,
+    });
   }
 
-  // Painéis — deduplica por família
-  const seenPaineis = new Set<string>();
+  // Painéis — cada SKU precisa permanecer disponível na pesquisa.
   for (const p of catalogs.paineis) {
-    if (!seenPaineis.has(p.familia)) {
-      seenPaineis.add(p.familia);
-      suggestions.push({
-        category: "Painéis",
-        name: p.name,
-        familia: p.familia,
-        code: p.sku,
-        fotoUrl: p.fotoUrl ?? null,
-        instalacao: p.instalacao,
-      });
-    }
+    suggestions.push({
+      category: "Painéis",
+      name: p.name,
+      familia: p.familia,
+      code: p.sku,
+      fotoUrl: p.fotoUrl ?? null,
+      instalacao: p.instalacao,
+    });
   }
 
-  // Spots — deduplica por família
-  const seenSpots = new Set<string>();
+  // Spots — cada SKU precisa permanecer disponível na pesquisa.
   for (const p of catalogs.spots) {
-    if (!seenSpots.has(p.familia)) {
-      seenSpots.add(p.familia);
-      suggestions.push({
-        category: "Spots",
-        name: p.name,
-        familia: p.familia,
-        code: p.sku,
-        fotoUrl: p.fotoUrl,
-        instalacao: p.instalacao,
-      });
-    }
+    suggestions.push({
+      category: "Spots",
+      name: p.name,
+      familia: p.familia,
+      code: p.sku,
+      fotoUrl: p.fotoUrl,
+      instalacao: p.instalacao,
+    });
   }
 
-  // Arandelas — deduplica por família
-  const seenArandelas = new Set<string>();
+  // Arandelas — cada SKU precisa permanecer disponível na pesquisa.
   for (const p of catalogs.arandelas) {
-    if (!seenArandelas.has(p.familia)) {
-      seenArandelas.add(p.familia);
-      suggestions.push({
-        category: "Arandelas",
-        name: p.name,
-        familia: p.familia,
-        code: p.sku,
-        fotoUrl: p.fotoUrl,
-        instalacao: p.instalacao,
-      });
-    }
+    suggestions.push({
+      category: "Arandelas",
+      name: p.name,
+      familia: p.familia,
+      code: p.sku,
+      fotoUrl: p.fotoUrl,
+      instalacao: p.instalacao,
+    });
   }
 
   // Revenda — cada produto individualmente (sem deduplicação, pois são itens únicos)
@@ -254,52 +227,40 @@ function buildSuggestions(catalogs: ProductSearchCatalogs): SearchSuggestion[] {
     });
   }
 
-  // Área Externa — deduplica por família
-  const seenAe = new Set<string>();
+  // Área Externa — cada SKU precisa permanecer disponível na pesquisa.
   for (const p of catalogs.areaExterna) {
-    if (!seenAe.has(p.familia)) {
-      seenAe.add(p.familia);
-      suggestions.push({
-        category: "Área Externa",
-        name: p.name,
-        familia: p.familia,
-        code: p.sku,
-        fotoUrl: (p as any).fotoUrl ?? null,
-        instalacao: p.instalacao,
-      });
-    }
+    suggestions.push({
+      category: "Área Externa",
+      name: p.name,
+      familia: p.familia,
+      code: p.sku,
+      fotoUrl: (p as any).fotoUrl ?? null,
+      instalacao: p.instalacao,
+    });
   }
 
-  // Balizadores — deduplica por família
-  const seenBal = new Set<string>();
+  // Balizadores — cada SKU precisa permanecer disponível na pesquisa.
   for (const p of catalogs.balizadores) {
-    if (!seenBal.has(p.familia)) {
-      seenBal.add(p.familia);
-      suggestions.push({
-        category: "Balizadores",
-        name: p.name,
-        familia: p.familia,
-        code: p.sku,
-        fotoUrl: (p as any).fotoUrl ?? null,
-        instalacao: p.instalacao,
-      });
-    }
+    suggestions.push({
+      category: "Balizadores",
+      name: p.name,
+      familia: p.familia,
+      code: p.sku,
+      fotoUrl: (p as any).fotoUrl ?? null,
+      instalacao: p.instalacao,
+    });
   }
 
-  // Decorativas — deduplica por família
-  const seenDec = new Set<string>();
+  // Decorativas — cada SKU precisa permanecer disponível na pesquisa.
   for (const p of catalogs.decorativas) {
-    if (!seenDec.has(p.familia)) {
-      seenDec.add(p.familia);
-      suggestions.push({
-        category: "Decorativas",
-        name: p.name,
-        familia: p.familia,
-        code: p.sku,
-        fotoUrl: (p as any).fotoUrl ?? null,
-        instalacao: p.instalacao,
-      });
-    }
+    suggestions.push({
+      category: "Decorativas",
+      name: p.name,
+      familia: p.familia,
+      code: p.sku,
+      fotoUrl: (p as any).fotoUrl ?? null,
+      instalacao: p.instalacao,
+    });
   }
 
   // Acessórios — cada produto individualmente
@@ -319,18 +280,29 @@ function buildSuggestions(catalogs: ProductSearchCatalogs): SearchSuggestion[] {
   return suggestions;
 }
 
-function filterSuggestions(
+function normalizeSearchValue(value: string): string {
+  return value.toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]/g, "");
+}
+
+export function filterSuggestions(
   all: SearchSuggestion[],
   query: string
 ): SearchSuggestion[] {
   if (!query.trim()) return [];
-  const q = query.trim().toLowerCase();
+  const q = query.trim().toLocaleLowerCase("pt-BR");
+  const normalizedQuery = normalizeSearchValue(q);
+  const matches = (value: string | null | undefined) => {
+    const candidate = value?.toLocaleLowerCase("pt-BR") ?? "";
+    return candidate.includes(q) || (
+      normalizedQuery.length > 0 && normalizeSearchValue(candidate).includes(normalizedQuery)
+    );
+  };
   return all
     .filter(
       (s) =>
-        s.name.toLowerCase().includes(q) ||
-        s.familia.toLowerCase().includes(q) ||
-        (s.code ?? "").toLowerCase().includes(q)
+        matches(s.name) ||
+        matches(s.familia) ||
+        matches(s.code)
     )
     .slice(0, 12); // máximo de 12 sugestões
 }
@@ -437,7 +409,7 @@ export function ProductSearch({ catalogs, onSelect }: ProductSearchProps) {
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onFocus={() => query.trim() && setOpen(true)}
-          placeholder="Buscar produto... (ex: BLAZE, ZEUS, ORBIT, Tartaruga)"
+          placeholder="Buscar produto ou SKU... (ex: BLAZE, LLE-2142.618.20F)"
           className="w-full h-10 pl-9 pr-9 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
           autoComplete="off"
           spellCheck={false}
