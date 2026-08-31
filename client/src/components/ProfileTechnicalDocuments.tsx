@@ -1,6 +1,8 @@
-import React from "react";
-import { Download, FileText, Ruler, ScanLine } from "lucide-react";
+import React, { useState } from "react";
+import { Archive, Download, FileText, LoaderCircle, Ruler, ScanLine } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { createProductDocumentDownloadUrl } from "@/lib/productDocumentDownload";
+import { downloadProfileTechnicalDocumentsZip, getProfileTechnicalDocumentsZipEntries } from "@/lib/profileTechnicalDocumentsZip";
 import {
   hasProfileTechnicalDocuments,
   type ProfileTechnicalDocuments,
@@ -47,7 +49,22 @@ function DocumentLink({
 
 /** Apresenta DS/IES únicos e desenhos técnicos específicos de cada SKU calculado. */
 export function ProfileTechnicalDocuments({ documents }: { documents: ProfileTechnicalDocuments }) {
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   if (!hasProfileTechnicalDocuments(documents)) return null;
+  const documentCount = getProfileTechnicalDocumentsZipEntries(documents).length;
+
+  const handleDownloadAll = async () => {
+    setIsDownloadingAll(true);
+    setDownloadError(null);
+    try {
+      await downloadProfileTechnicalDocumentsZip(documents);
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Não foi possível preparar o pacote de documentos.");
+    } finally {
+      setIsDownloadingAll(false);
+    }
+  };
 
   return (
     <section className="rounded-lg border border-border bg-background/70 p-3" aria-label="Documentos técnicos da composição" data-testid="profile-technical-documents">
@@ -56,8 +73,21 @@ export function ProfileTechnicalDocuments({ documents }: { documents: ProfileTec
           <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Documentos técnicos</p>
           <p className="text-[11px] text-muted-foreground">Datasheet e IES da composição; desenho técnico para cada SKU calculado.</p>
         </div>
-        <Download className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="-mr-1 -mt-1 h-8 w-8 shrink-0"
+          onClick={handleDownloadAll}
+          disabled={isDownloadingAll || documentCount === 0}
+          title={`Baixar ${documentCount} arquivo${documentCount === 1 ? "" : "s"} em ZIP`}
+          aria-label={`Baixar todos os ${documentCount} documentos técnicos em ZIP`}
+          data-testid="download-profile-documents-zip"
+        >
+          {isDownloadingAll ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Archive className="h-4 w-4" aria-hidden="true" />}
+        </Button>
       </div>
+      {downloadError ? <p role="alert" className="mb-3 rounded-md border border-destructive/30 bg-destructive/5 px-2.5 py-2 text-[11px] text-destructive">{downloadError}</p> : null}
 
       {(documents.datasheet || documents.fotometria) ? (
         <div className="grid gap-2 sm:grid-cols-2">

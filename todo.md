@@ -3132,3 +3132,9 @@
 - [x] Mapear a formação do total e a apresentação atual de BAGEO
 - [x] Destacar separadamente corpo, driver e total no resultado BAGEO
 - [x] Cobrir a separação de preços por regressão
+
+## Documentos técnicos: download ZIP
+- [x] Consolidar documentos técnicos sem duplicação para download conjunto
+- [x] Gerar ZIP preservando nomes de arquivo da API
+- [x] Exibir estado de progresso e mensagem de erro no botão de download geral
+- [x] Cobrir geração de ZIP e indisponibilidade de arquivo por regressão

@@ -17,5 +17,6 @@ describe("ProfileTechnicalDocuments", () => {
     expect(html).toContain("Fotometria Base");
     expect(html).toContain("Desenhos técnicos por SKU");
     expect(html).toContain("LLP-1000.1IF");
+    expect(html).toContain("Baixar todos os 3 documentos técnicos em ZIP");
   });
 });
