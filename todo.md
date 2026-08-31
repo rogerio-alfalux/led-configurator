@@ -3151,3 +3151,7 @@
 - [x] Identificar gravações, consultas e recálculos que bloqueiam a digitação no gerenciamento do pedido
 - [x] Tornar campos e sugestões do gerenciamento fluidos, mantendo persistência segura dos dados
 - [x] Cobrir catálogo, origem das barras e desempenho da edição por regressão
+
+## Ambiente de desenvolvimento: recorrência da conexão WebSocket
+- [x] Identificar por que o HMR tenta conectar ao destino incorreto ou perde o canal após reinicializações
+- [x] Restaurar e validar a conexão HTTP e WebSocket da prévia sem afetar produção
