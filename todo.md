@@ -3127,3 +3127,8 @@
 - [x] Garantir confirmação no banco e atualização imediata da lista de backups
 - [x] Renomear Fotometria da composição para Fotometria Base
 - [x] Cobrir a atualização do histórico e o rótulo técnico por regressão
+
+## Configurador: preços separados da família BAGEO
+- [x] Mapear a formação do total e a apresentação atual de BAGEO
+- [x] Destacar separadamente corpo, driver e total no resultado BAGEO
+- [x] Cobrir a separação de preços por regressão

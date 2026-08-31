@@ -51,6 +51,7 @@ import { generateQuoteSummary } from "@/lib/quoteSummary";
 import { getStaticPricePerMeter, calcModulePrice, usesModulePricing, toModuleControlType } from "@/lib/profilePriceCatalog";
 import { resolveDriverSplitCartPricing } from "@/lib/driverSplitPricing";
 import { getLumPriceMapKeys, resolveLumPriceMapEntry } from "@/lib/lumPriceMapKeys";
+import { isApiPricedFixedProfileFamily } from "@/lib/profilePriceFamilies";
 import { getProfilePhoto, getDownlightPhoto, getPainelPhoto } from "@/lib/profilePhotos";
 import {
   DOWNLIGHT_CATALOG,
@@ -3251,13 +3252,11 @@ export default function Home() {
       driverQtdDimTriac220v: number | null;
     }> = {};
     const NON_PROFILE_CATS = ["DOWNLIGHTS", "SPOTS", "PAINÉIS", "PAINEIS", "ARANDELAS", "ÁREA EXTERNA", "AREA EXTERNA", "BALIZADORES", "DECORATIVAS"];
-    // Famílias de perfis fixos (categoria PERFIS) que também precisam de preço
-    const FAMILIA_PRICE_INCLUDE = ["GLOW", "TUBE LIGHT"];
     for (const p of alfaluxApiProducts) {
       const cat = (p.categoria ?? "").toUpperCase();
       const fam = (p.familia ?? "").toUpperCase();
       const inCat = NON_PROFILE_CATS.includes(cat);
-      const inFam = FAMILIA_PRICE_INCLUDE.includes(fam);
+      const inFam = isApiPricedFixedProfileFamily(fam);
       if (!inCat && !inFam) continue;
       const sku = p.sku ?? "";
       const name = p.name ?? "";
