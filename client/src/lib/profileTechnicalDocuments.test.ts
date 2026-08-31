@@ -14,7 +14,7 @@ describe("ProfileTechnicalDocuments", () => {
     }));
 
     expect(html).toContain("Datasheet da composição");
-    expect(html).toContain("Fotometria da composição");
+    expect(html).toContain("Fotometria Base");
     expect(html).toContain("Desenhos técnicos por SKU");
     expect(html).toContain("LLP-1000.1IF");
   });

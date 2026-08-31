@@ -62,7 +62,7 @@ export function ProfileTechnicalDocuments({ documents }: { documents: ProfileTec
       {(documents.datasheet || documents.fotometria) ? (
         <div className="grid gap-2 sm:grid-cols-2">
           {documents.datasheet ? <DocumentLink document={documents.datasheet} label="Datasheet da composição" badge="DS" Icon={FileText} accent="text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-300 dark:bg-blue-950/30 dark:border-blue-800" /> : null}
-          {documents.fotometria ? <DocumentLink document={documents.fotometria} label="Fotometria da composição" badge="IES" Icon={ScanLine} accent="text-violet-700 bg-violet-50 border-violet-200 dark:text-violet-300 dark:bg-violet-950/30 dark:border-violet-800" /> : null}
+          {documents.fotometria ? <DocumentLink document={documents.fotometria} label="Fotometria Base" badge="IES" Icon={ScanLine} accent="text-violet-700 bg-violet-50 border-violet-200 dark:text-violet-300 dark:bg-violet-950/30 dark:border-violet-800" /> : null}
         </div>
       ) : null}
 

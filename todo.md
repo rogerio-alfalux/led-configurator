@@ -3117,3 +3117,13 @@
 - [x] Consolidar um Datasheet e uma IES por composição e desenhos técnicos por SKU
 - [x] Exibir os documentos no resumo após cada cálculo de perfil
 - [x] Cobrir deduplicação, agrupamento e ausência de anexos por regressão
+
+## Ambiente de desenvolvimento: conexão em tempo real
+- [x] Verificar a indisponibilidade do canal de atualização do ambiente de desenvolvimento
+- [x] Restaurar o serviço sem alterar a aplicação publicada
+
+## Backup manual e documentos técnicos
+- [x] Investigar por que o backup manual concluído não entra no histórico
+- [x] Garantir confirmação no banco e atualização imediata da lista de backups
+- [x] Renomear Fotometria da composição para Fotometria Base
+- [x] Cobrir a atualização do histórico e o rótulo técnico por regressão

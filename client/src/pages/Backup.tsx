@@ -30,7 +30,6 @@ export default function Backup() {
   const [sqlLoading, setSqlLoading] = useState(false);
   const [excelLoading, setExcelLoading] = useState(false);
 
-  const exportSQLQuery = trpc.backup.exportSQL.useQuery(undefined, { enabled: false });
   const exportExcelQuery = trpc.backup.exportQuotesExcel.useQuery(undefined, { enabled: false });
   const backupListQuery = trpc.backup.list.useQuery(undefined, {
     refetchOnWindowFocus: false,
@@ -69,20 +68,17 @@ export default function Backup() {
   const handleExportSQL = async () => {
     setSqlLoading(true);
     try {
-      const result = await exportSQLQuery.refetch();
-      if (!result.data) throw new Error("Sem dados");
-      const { sql, generatedAt, counts } = result.data;
-      const blob = new Blob([sql], { type: "text/plain;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
+      // O download manual sempre nasce do mesmo backup que é persistido no histórico.
+      // Assim, não existe uma exportação local sem registro verificável de conclusão.
+      const result = await runBackupNowMutation.mutateAsync();
+      const file = result.files.sql;
       const a = document.createElement("a");
-      const dateStr = toBrasiliaFileDate(generatedAt);
-      a.href = url;
-      a.download = `backup-sistema-luna-${dateStr}.sql`;
+      a.href = file.url;
+      a.download = file.fileName;
       a.click();
-      URL.revokeObjectURL(url);
-      toast.success(`Backup SQL gerado — ${counts.quotes} orçamentos · ${counts.items} itens · ${counts.users} usuários`);
-    } catch {
-      toast.error("Erro ao gerar backup SQL");
+      toast.success(`Backup SQL salvo no histórico e baixado — ${result.counts.totalTables} tabelas · ${result.counts.totalRows} registros`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao gerar backup SQL");
     } finally {
       setSqlLoading(false);
     }
@@ -197,11 +193,11 @@ export default function Backup() {
               size="sm"
               variant="ghost"
               onClick={() => runBackupNowMutation.mutate()}
-              disabled={runBackupNowMutation.isPending}
+              disabled={runBackupNowMutation.isPending || sqlLoading}
               aria-label="Gerar backup atualizado agora"
               title="Gerar backup atualizado agora"
             >
-              <RefreshCw className={`w-4 h-4 ${runBackupNowMutation.isPending ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-4 h-4 ${(runBackupNowMutation.isPending || sqlLoading) ? "animate-spin" : ""}`} />
             </Button>
           </div>
         </CardContent>
@@ -227,10 +223,10 @@ export default function Backup() {
                   <Badge key={t} variant="secondary">{t}</Badge>
                 ))}
               </div>
-              <Button className="w-full gap-2" onClick={handleExportSQL} disabled={sqlLoading}>
-                {sqlLoading
+              <Button className="w-full gap-2" onClick={handleExportSQL} disabled={sqlLoading || runBackupNowMutation.isPending}>
+                {sqlLoading || runBackupNowMutation.isPending
                   ? <><RefreshCw className="w-4 h-4 animate-spin" /> Gerando...</>
-                  : <><Download className="w-4 h-4" /> Baixar .sql</>}
+                  : <><Download className="w-4 h-4" /> Gerar, salvar e baixar .sql</>}
               </Button>
             </CardContent>
           </Card>
@@ -261,10 +257,10 @@ export default function Backup() {
         </div>
       </div>
 
-      {/* Histórico de backups automáticos */}
+      {/* Histórico de backups persistidos, automáticos e manuais */}
       <div>
-        <h2 className="text-base font-semibold mb-3">Histórico de Backups Automáticos</h2>
-        {runBackupNowMutation.isPending && (
+        <h2 className="text-base font-semibold mb-3">Histórico de Backups</h2>
+        {(runBackupNowMutation.isPending || sqlLoading) && (
           <div className="mb-3 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
             <RefreshCw className="h-4 w-4 animate-spin" />
             Gerando o backup completo e salvando no histórico...
@@ -278,8 +274,8 @@ export default function Backup() {
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground text-sm">
               <Clock className="w-8 h-8 mx-auto mb-2 opacity-40" />
-              Nenhum backup automático registrado ainda.
-              <br />O primeiro backup será gerado na próxima execução agendada (00:00, horário de Brasília).
+              Nenhum backup registrado ainda.
+              <br />Gere um backup completo para salvá-lo aqui, ou aguarde a próxima execução agendada (00:00, horário de Brasília).
             </CardContent>
           </Card>
         ) : (
