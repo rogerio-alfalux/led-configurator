@@ -178,9 +178,69 @@ describe("materialRequisition", () => {
     // 36W Stripflex dupla: 1 seg × 4 barsPerPiece × 2 itemQty × 2 (dupla) = 16 unidades
     expect(stripflexEntry!.qty).toBe(16);
   });
+
+  it("soma trechos STRIPFLEX em nonos antes de arredondar a requisição", () => {
+    const items: CartItemData[] = [{
+      sku: "LLP-6060",
+      description: "BLAZE H PENDENTE 18W 3000K",
+      category: "Perfil",
+      qty: 10,
+      moduloLed: "STRIPFLEX 562.5 X 10MM - 36 LEDS 830 - 3000K (LC) 25V",
+      moduloLedCode: "EQ00125",
+      stripMethod: "STRIPFLEX",
+      power: "18",
+      profileSegments: [
+        {
+          sku: "LLP-6060.44F.48F",
+          lengthMm: 2500,
+          qty: 1,
+          barsPerPiece: 4.4,
+          driverModel: "DRIVER API",
+          driverCode: "EQ00347",
+          driverQtyPerPiece: 1,
+          ledModuleCode: "EQ00125",
+        },
+        {
+          sku: "LLP-6060.19F.48F",
+          lengthMm: 1125,
+          qty: 1,
+          barsPerPiece: 1.9,
+          driverModel: "DRIVER API",
+          driverCode: "EQ00346",
+          driverQtyPerPiece: 1,
+          ledModuleCode: "EQ00125",
+        },
+      ],
+    } as any];
+
+    const result = buildMaterialRequisition(items, descMap);
+    const stripflexEntry = result.find(entry => entry.codigo === "EQ00125");
+
+    // (40 + 18) trechos × 10 luminárias = 580/9 barras; compra em barras inteiras = 65.
+    expect(stripflexEntry?.qty).toBe(65);
+  });
 });
 
 describe("buildMaterialRequisition — componentes múltiplos (óticas, holders, dissipadores)", () => {
+  it("interpreta quantidade STRIPFLEX decimal de luminária como trechos de 1/9", () => {
+    const items: CartItemData[] = [{
+      category: "Downlights",
+      sku: "LDE-TESTE",
+      description: "LUMINÁRIA 3000K",
+      qty: 60,
+      moduloLed: "4.4x STRIPFLEX 562.5 X 10MM - 36 LEDS 830 - 3000K (EQ00125)",
+      moduloLedCode: "EQ00125",
+    } as any];
+
+    const result = buildMaterialRequisition(items, new Map([
+      ["EQ00125", "STRIPFLEX 562.5 X 10MM - 36 LEDS 830 - 3000K (LC) 25V"],
+    ]));
+    const stripflexEntry = result.find(entry => entry.codigo === "EQ00125");
+
+    // 4 barras + 4/9 por luminária × 60 = 266,67; requisição compra 267 barras.
+    expect(stripflexEntry?.qty).toBe(267);
+  });
+
   it("não deve requisitar driver, módulo, lente, holder ou dissipador de item sem equipamento", () => {
     const items: CartItemData[] = [{
       category: "Downlights",

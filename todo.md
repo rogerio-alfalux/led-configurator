@@ -3138,3 +3138,9 @@
 - [x] Gerar ZIP preservando nomes de arquivo da API
 - [x] Exibir estado de progresso e mensagem de erro no botão de download geral
 - [x] Cobrir geração de ZIP e indisponibilidade de arquivo por regressão
+
+## STRIPFLEX: quantidades fracionadas em nonos
+- [x] Mapear os cálculos e totalizações atuais de barras STRIPFLEX
+- [x] Centralizar a conversão da parte decimal em trechos de 1/9 de barra
+- [x] Aplicar a regra à exibição, ficha e requisição de materiais
+- [x] Cobrir 1,9, 4,4, soma entre itens e multiplicação pela quantidade por regressão

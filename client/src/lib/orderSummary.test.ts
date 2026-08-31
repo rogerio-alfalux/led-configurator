@@ -47,6 +47,15 @@ describe("generateOrderSummary — estrutura básica", () => {
     // Quando não há ledModule da API (teste unitário), usa o fallback estático
     expect(summary.toLowerCase()).toContain("stripflex");
   });
+
+  it("normaliza 1,9 STRIPFLEX para duas barras completas no resumo", () => {
+    const result = calculateComposition(makeInput({ powerD1: 18, stripMethod: "STRIPFLEX" }));
+    result.composition[0].barsPerModule = 1.9;
+    result.composition[0].barsTotal = 1.9;
+    if (result.driversD1[0]) result.driversD1[0].barsPerPiece = 1.9;
+
+    expect(generateOrderSummary(result).toUpperCase()).toContain("MONTADO COM 2 BARRAS STRIPFLEX");
+  });
 });
 
 // ─── Observação 36W Stripline ─────────────────────────────────────────────────

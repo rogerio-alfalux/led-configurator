@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildLedBarEquipamentosText, buildLuminariaEquipamentosText, buildProfileSkuText } from "./orderPreviewGenerator";
+import { buildLedBarEquipamentosText, buildLuminariaEquipamentosText, buildProfileFonteLuzText, buildProfileSkuText } from "./orderPreviewGenerator";
 
 describe("buildProfileSkuText — prévia de ficha técnica", () => {
   it("mostra a quantidade por SKU também para orçamentos históricos", () => {
@@ -32,5 +32,28 @@ describe("programação de corrente — prévia da ficha", () => {
 
     expect(luminaria).toContain("PROGRAMAÇÃO: 350mA");
     expect(ledBar).toContain("PROGRAMAÇÃO: 250mA");
+  });
+});
+
+describe("STRIPFLEX em nonos — prévia da ficha", () => {
+  it("mostra 1,9 como duas barras completas", () => {
+    const text = buildProfileFonteLuzText({
+      moduloLed: "STRIPFLEX 562.5 X 10MM 3000K",
+      profileSegments: [{ qty: 1, barsPerPiece: 1.9 }],
+    } as any);
+
+    expect(text).toContain("2 x STRIPFLEX");
+  });
+
+  it("soma duas quantidades 4,4 como 8,8 barras", () => {
+    const text = buildProfileFonteLuzText({
+      moduloLed: "STRIPFLEX 562.5 X 10MM 3000K",
+      profileSegments: [
+        { qty: 1, barsPerPiece: 4.4 },
+        { qty: 1, barsPerPiece: 4.4 },
+      ],
+    } as any);
+
+    expect(text).toContain("8,8 x STRIPFLEX");
   });
 });

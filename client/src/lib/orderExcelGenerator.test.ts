@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import ExcelJS from "exceljs";
-import { addBusinessDays, buildLedBarEquipamentosText, buildLuminariaEquipamentosText, buildProfileSkuText, generateOrderExcel } from "./orderExcelGenerator";
+import { addBusinessDays, buildLedBarEquipamentosText, buildLuminariaEquipamentosText, buildProfileFonteLuzText, buildProfileSkuText, generateOrderExcel } from "./orderExcelGenerator";
 
 describe("buildProfileSkuText", () => {
   it("informa a quantidade de cada SKU da composição na ficha de produção", () => {
@@ -50,6 +50,25 @@ describe("programação de corrente — Excel da ficha", () => {
 
     expect(luminaria).toContain("PROGRAMAÇÃO: 350mA");
     expect(ledBar).toContain("PROGRAMAÇÃO: 250mA");
+  });
+});
+
+describe("STRIPFLEX em nonos — Excel da ficha", () => {
+  it("normaliza 1,9 e soma trechos antes de exibir a Fonte de Luz", () => {
+    const normalized = buildProfileFonteLuzText({
+      moduloLed: "STRIPFLEX 562.5 X 10MM 4000K",
+      profileSegments: [{ qty: 1, barsPerPiece: 1.9 }],
+    } as any);
+    const summed = buildProfileFonteLuzText({
+      moduloLed: "STRIPFLEX 562.5 X 10MM 4000K",
+      profileSegments: [
+        { qty: 1, barsPerPiece: 4.4 },
+        { qty: 1, barsPerPiece: 4.4 },
+      ],
+    } as any);
+
+    expect(normalized).toContain("2 x STRIPFLEX");
+    expect(summed).toContain("8,8 x STRIPFLEX");
   });
 });
 

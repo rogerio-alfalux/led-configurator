@@ -6,6 +6,7 @@
  */
 
 import type { CompositionResult, SkuDriverEntry } from "./ledEngine";
+import { formatStripflexQuantity, multiplyStripflexQuantity } from "./ledStripUnits";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -56,6 +57,13 @@ function buildModuleBlock(
 ): string {
   const lines: string[] = [];
   const barName = getBarName(result.stripMethod, result.cct, result.stripflexName, result.stripflexEq);
+  const stripflexRowsPerModule = barras > 0 ? Math.max(1, Math.round(barsTotal / barras)) : 1;
+  const barsPerPiece = result.stripMethod === "STRIPFLEX"
+    ? multiplyStripflexQuantity(barras, stripflexRowsPerModule)
+    : barsTotal;
+  const totalModuleBars = result.stripMethod === "STRIPFLEX"
+    ? multiplyStripflexQuantity(barsPerPiece, moduleQty)
+    : barsTotal * moduleQty;
 
   lines.push(`Módulo: ${sku}${label ? ` [${label}]` : ""}`);
   lines.push(`Comprimento: ${length}mm`);
@@ -63,11 +71,13 @@ function buildModuleBlock(
   // Barras por peça (barsTotal = barras da peça individual)
   if (result.powerD1 === 36 && result.stripMethod === "STRIPFLEX") {
     // Fileira dupla: barsTotal = barras × 2 (lado a lado)
-    lines.push(`Barras por peça: ${barsTotal}x ${barName} (${barras} seções × 2 fileiras)`);
-    lines.push(`Barras totais: ${barsTotal * moduleQty}x ${barName}`);
+    lines.push(`Barras por peça: ${formatStripflexQuantity(barsPerPiece)}x ${barName} (${formatStripflexQuantity(barras)} seções × 2 fileiras)`);
+    lines.push(`Barras totais: ${formatStripflexQuantity(totalModuleBars)}x ${barName}`);
   } else {
-    lines.push(`Barras por peça: ${barsTotal}x ${barName}`);
-    lines.push(`Barras totais: ${barsTotal * moduleQty}x ${barName}`);
+    const displayPerPiece = result.stripMethod === "STRIPFLEX" ? formatStripflexQuantity(barsPerPiece) : barsPerPiece;
+    const displayTotal = result.stripMethod === "STRIPFLEX" ? formatStripflexQuantity(totalModuleBars) : totalModuleBars;
+    lines.push(`Barras por peça: ${displayPerPiece}x ${barName}`);
+    lines.push(`Barras totais: ${displayTotal}x ${barName}`);
   }
 
   // Consolidar drivers: 1 driver por peça × quantidade de módulos

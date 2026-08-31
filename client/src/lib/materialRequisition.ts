@@ -15,7 +15,12 @@
  */
 
 import type { CartItemData, ProfileSegment } from "./cartTypes";
-import { convertProductionEquipmentToMaterial, isLedStripDescription } from "./ledStripUnits";
+import {
+  convertProductionEquipmentToMaterial,
+  isLedStripDescription,
+  isStripflexDescription,
+  stripflexQuantityToPhysicalBars,
+} from "./ledStripUnits";
 
 export interface MaterialEntry {
   /** Código EQ, CP ou SKU do material */
@@ -369,7 +374,10 @@ export function buildMaterialRequisition(
             add(ledCode, barName, totalMetros, "m", "FITAS LED", itemIdx);
           } else {
             // Módulos LED (Lux Round, etc.): contabilizar em UNIDADES
-            const totalUnidades = seg.qty * seg.barsPerPiece * itemQty;
+            const barsPerPiece = isStripflexDescription(barName)
+              ? stripflexQuantityToPhysicalBars(seg.barsPerPiece)
+              : seg.barsPerPiece;
+            const totalUnidades = seg.qty * barsPerPiece * itemQty;
             const isStripflexDupla = item.stripMethod === "STRIPFLEX" && (item.power === "36" || item.power === "36W");
             const finalUnidades = isStripflexDupla ? totalUnidades * 2 : totalUnidades;
             add(ledCode, barName, finalUnidades, "un", ledTipo, itemIdx);
@@ -465,8 +473,10 @@ export function buildMaterialRequisition(
         const rawPart = componentParts[partIdx];
 
         // Extrair quantidade prefixada (ex: "2x MÓDULO LED..." → qty=2)
-        const qtyPrefixMatch = rawPart.match(/^(\d+)x\s+/i);
-        const componentQtyPerUnit = qtyPrefixMatch ? parseInt(qtyPrefixMatch[1], 10) : 1;
+        const qtyPrefixMatch = rawPart.match(/^(\d+(?:[.,]\d+)?)x\s+/i);
+        const componentQtyPerUnit = qtyPrefixMatch
+          ? Number.parseFloat(qtyPrefixMatch[1].replace(",", "."))
+          : 1;
         const partWithoutQty = qtyPrefixMatch ? rawPart.slice(qtyPrefixMatch[0].length) : rawPart;
 
         // Extrair código API entre parênteses (EQ, CP ou P).
@@ -508,7 +518,10 @@ export function buildMaterialRequisition(
           }
         } else {
           // Módulos LED, Lentes, Dissipadores, Suportes, etc.: contabilizar em UNIDADES
-          add(componentCode, canonicalDesc, componentQtyPerUnit * itemQty, "un", componentTipo, itemIdx);
+          const totalComponentQty = isStripflexDescription(canonicalDesc)
+            ? stripflexQuantityToPhysicalBars(componentQtyPerUnit) * itemQty
+            : componentQtyPerUnit * itemQty;
+          add(componentCode, canonicalDesc, totalComponentQty, "un", componentTipo, itemIdx);
         }
       }
     }

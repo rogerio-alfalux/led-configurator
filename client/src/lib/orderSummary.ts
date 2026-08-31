@@ -14,6 +14,7 @@
  */
 
 import type { CompositionResult, SkuDriverEntry } from "./ledEngine";
+import { addStripflexQuantities, formatStripflexQuantity, multiplyStripflexQuantity, normalizeStripflexQuantity } from "./ledStripUnits";
 
 const INSTALL_LABELS_PT: Record<string, string> = {
   EMBUTIR: "DE EMBUTIR",
@@ -158,7 +159,12 @@ export function generateOrderSummary(result: CompositionResult): string {
 
     // barsPerPiece: preferir o valor do SkuDriverEntry (já considera D1+D2 simultâneo)
     const d1Entry = driverEntriesD1.find((e) => e.sku === sku);
-    const barsPerPiece = d1Entry ? d1Entry.barsPerPiece : info.barsPerPiece;
+    const rawBarsPerPiece = d1Entry ? d1Entry.barsPerPiece : info.barsPerPiece;
+    const barsPerPiece = result.stripMethod === "STRIPFLEX"
+      ? (isDual && !isIndependent
+        ? multiplyStripflexQuantity(info.barsPerPiece, 2)
+        : normalizeStripflexQuantity(rawBarsPerPiece))
+      : rawBarsPerPiece;
 
     const qty = info.quantity;
     const qtyPrefix = qty > 1 ? `${qty} x ` : `1 x `;
@@ -173,13 +179,19 @@ export function generateOrderSummary(result: CompositionResult): string {
 
       const appPart = applicationLabel ? ` ${applicationLabel}` : "";
       const line1 = `${qtyPrefix}${productName}${appPart} ${installLabel} COM ${info.length}MM ${powerLabel} (${sku})`;
-      const line2 = `MONTADO COM ${fmtBR(barsPerPiece)} ${barTypeName} ${cct} + ${driverSummary}${acendimentoSuffix}`;
+      const displayBars = result.stripMethod === "STRIPFLEX" ? formatStripflexQuantity(barsPerPiece) : fmtBR(barsPerPiece);
+      const line2 = `MONTADO COM ${displayBars} ${barTypeName} ${cct} + ${driverSummary}${acendimentoSuffix}`;
       blocks.push(`${itemLabel}\n${line1}\n${line2}`);
     } else {
       // ── D1+D2 Independente: bloco único com barras e drivers somados (D1 + D2) ──
       const d2Entry = result.driversD2.find((e) => e.sku === sku);
-      const barsPerPieceD2 = d2Entry ? d2Entry.barsPerPiece : info.barsPerPiece;
-      const totalBars = barsPerPiece + barsPerPieceD2;
+      const rawBarsPerPieceD2 = d2Entry ? d2Entry.barsPerPiece : info.barsPerPiece;
+      const barsPerPieceD2 = result.stripMethod === "STRIPFLEX"
+        ? normalizeStripflexQuantity(rawBarsPerPieceD2)
+        : rawBarsPerPieceD2;
+      const totalBars = result.stripMethod === "STRIPFLEX"
+        ? addStripflexQuantities(barsPerPiece, barsPerPieceD2)
+        : barsPerPiece + barsPerPieceD2;
 
       // Somar drivers D1 e D2 por modelo/código
       const combinedDriverMap = new Map<string, { model: string; code: string; total: number }>();
@@ -213,7 +225,8 @@ export function generateOrderSummary(result: CompositionResult): string {
 
       const powerLabel = `${result.powerD1}W/M + ${result.powerD2}W/M`;
       const line1 = `${qtyPrefix}${productName} D1 + D2 ${installLabel} COM ${info.length}MM ${powerLabel} (${sku})`;
-      const line2 = `MONTADO COM ${fmtBR(totalBars)} ${barTypeName} ${cct} + ${combinedDriverSummary}${acendimentoSuffix}`;
+      const displayTotalBars = result.stripMethod === "STRIPFLEX" ? formatStripflexQuantity(totalBars) : fmtBR(totalBars);
+      const line2 = `MONTADO COM ${displayTotalBars} ${barTypeName} ${cct} + ${combinedDriverSummary}${acendimentoSuffix}`;
       blocks.push(`${itemLabel}\n${line1}\n${line2}`);
     }
   });

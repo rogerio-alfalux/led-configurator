@@ -28,6 +28,7 @@ import { OrderPreviewModal } from "@/components/OrderPreviewModal";
 import type { OrderFormData } from "@/lib/orderExcelGenerator";
 import { toBrasiliaDate, toBrasiliaDateTime, toBrasiliaDateTimeShort } from "@/lib/dateUtils";
 import { formatProfileSkuLines } from "@/lib/profileSkuFormatter";
+import { addStripflexQuantities, isStripflexDescription, multiplyStripflexQuantity, normalizeStripflexQuantity } from "@/lib/ledStripUnits";
 import { toast } from "sonner";
 
 // ─── Funções auxiliares para Fonte de Luz e Equipamentos ────────────────────
@@ -77,10 +78,17 @@ function buildFonteLuzText(item: CartItemData, descMap?: Map<string, string>): s
     const barName = apiDesc ?? item.moduloLed ?? eqCode ?? "Módulo LED";
     const mapKey = eqCode ?? barName;
     // qty POR PEÇA: seg.qty × barsPerPiece (sem multiplicar por item.qty)
-    const barsPerUnit = seg.qty * seg.barsPerPiece;
+    const isStripflex = isStripflexDescription(barName);
+    const barsPerUnit = isStripflex
+      ? multiplyStripflexQuantity(seg.barsPerPiece, seg.qty)
+      : seg.qty * seg.barsPerPiece;
     const existing = totals.get(mapKey);
     if (existing) {
-      totals.set(mapKey, { qty: existing.qty + barsPerUnit, eqCode, name: barName });
+      totals.set(mapKey, {
+        qty: isStripflex ? addStripflexQuantities(existing.qty, barsPerUnit) : existing.qty + barsPerUnit,
+        eqCode,
+        name: barName,
+      });
     } else {
       totals.set(mapKey, { qty: barsPerUnit, eqCode, name: barName });
     }
@@ -527,10 +535,15 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                 const desc = apiDesc ?? parsed.moduloLed ?? code ?? "Módulo LED";
                 const key = code ?? desc;
                 // qty POR PEÇA: soma de (seg.qty * barsPerPiece) sem multiplicar por itemQty
-                const barsPerUnit = seg.qty * seg.barsPerPiece;
+                const isStripflex = isStripflexDescription(desc);
+                const barsPerUnit = isStripflex
+                  ? multiplyStripflexQuantity(seg.barsPerPiece, seg.qty)
+                  : seg.qty * seg.barsPerPiece;
                 const existing = moduloGroups.get(key);
                 if (existing) {
-                  existing.qty += barsPerUnit;
+                  existing.qty = isStripflex
+                    ? addStripflexQuantities(existing.qty, barsPerUnit)
+                    : existing.qty + barsPerUnit;
                   existing.segIdxs.push(i);
                 } else {
                   moduloGroups.set(key, { qty: barsPerUnit, code, desc, segIdxs: [i] });
@@ -707,8 +720,11 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
               // Ex: "2x STRIPFLEX 562.5 X 10MM..." → qty=2, desc="STRIPFLEX 562.5 X 10MM..."
               const moduloLedRaw = parsed.moduloLed ?? "";
               const moduloLedPrefixMatch = moduloLedRaw.match(/^(\d+(?:[.,]\d+)?)[xX]\s+(.+)$/);
-              const moduloLedQtyPerUnit = moduloLedPrefixMatch ? Number(moduloLedPrefixMatch[1].replace(",", ".")) : 1;
+              const parsedModuloLedQty = moduloLedPrefixMatch ? Number(moduloLedPrefixMatch[1].replace(",", ".")) : 1;
               const moduloLedDescClean = moduloLedPrefixMatch ? moduloLedPrefixMatch[2] : moduloLedRaw;
+              const moduloLedQtyPerUnit = isStripflexDescription(moduloLedDescClean)
+                ? normalizeStripflexQuantity(parsedModuloLedQty)
+                : parsedModuloLedQty;
               // Não duplicar EQ se já está embutido no moduloLed
               const _alreadyHasEq1 = parsed.moduloLedCode && moduloLedDescClean.includes(`(${parsed.moduloLedCode})`);
               const moduloVal = moduloLedDescClean
@@ -730,7 +746,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                             key={`${slot.partIndex}-${slot.code}`}
                             label={slot.label}
                             value={formatApiComponentSlot(slot)}
-                            qty={slot.qty}
+                            qty={isStripflexDescription(slot.description) ? normalizeStripflexQuantity(slot.qty) : slot.qty}
                             onValueChange={(desc, code) => updateApiModuleComponent(slot, desc, code)}
                             onQtyChange={qty => updateApiModuleComponent(slot, slot.description, slot.code, qty)}
                             options={getOptionsForApiComponent(slot)}
@@ -797,8 +813,11 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
             // CORREÇÃO: Extrair prefixo "Nx" do moduloLed e drivers para mostrar no campo Qtd separado
             const moduloLedSimpleRaw = parsed.moduloLed ?? "";
             const moduloSimplePrefixMatch = moduloLedSimpleRaw.match(/^(\d+(?:[.,]\d+)?)[xX]\s+(.+)$/);
-            const moduloSimpleQty = moduloSimplePrefixMatch ? Number(moduloSimplePrefixMatch[1].replace(",", ".")) : 1;
+            const parsedModuloSimpleQty = moduloSimplePrefixMatch ? Number(moduloSimplePrefixMatch[1].replace(",", ".")) : 1;
             const moduloSimpleDesc = moduloSimplePrefixMatch ? moduloSimplePrefixMatch[2] : moduloLedSimpleRaw;
+            const moduloSimpleQty = isStripflexDescription(moduloSimpleDesc)
+              ? normalizeStripflexQuantity(parsedModuloSimpleQty)
+              : parsedModuloSimpleQty;
             // Não duplicar EQ se já está embutido no moduloLed
             const _alreadyHasEq2 = parsed.moduloLedCode && moduloSimpleDesc.includes(`(${parsed.moduloLedCode})`);
             const moduloVal = moduloSimpleDesc
@@ -820,7 +839,7 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                         key={`${slot.partIndex}-${slot.code}`}
                         label={slot.label}
                         value={formatApiComponentSlot(slot)}
-                        qty={slot.qty}
+                      qty={isStripflexDescription(slot.description) ? normalizeStripflexQuantity(slot.qty) : slot.qty}
                         onValueChange={(desc, code) => updateApiModuleComponent(slot, desc, code)}
                         onQtyChange={qty => updateApiModuleComponent(slot, slot.description, slot.code, qty)}
                         options={getOptionsForApiComponent(slot)}

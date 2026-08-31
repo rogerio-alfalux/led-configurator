@@ -11,7 +11,13 @@ import { groupOrderItems } from "./orderGrouping";
 import { buildMaterialRequisition, groupByTipo } from "./materialRequisition";
 import { formatProfileSkuLines } from "./profileSkuFormatter";
 import type { MaterialTipo } from "./materialRequisition";
-import { formatProductionEquipmentPrefix } from "./ledStripUnits";
+import {
+  addStripflexQuantities,
+  formatProductionEquipmentPrefix,
+  formatStripflexQuantity,
+  isStripflexDescription,
+  multiplyStripflexQuantity,
+} from "./ledStripUnits";
 
 function fmtQty(n: number): string {
   // Arredondar para cima com 1 decimal para módulos LED (podem ser fracionários)
@@ -26,7 +32,7 @@ export function buildProfileSkuText(item: Pick<CartItemData, "sku" | "profileSeg
   return formatProfileSkuLines(item.profileSegments).map(esc).join("<br>");
 }
 
-function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, string>): string {
+export function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, string>): string {
   if (item.withoutEquipment) return "";
   if (!item.profileSegments || item.profileSegments.length === 0) {
     const modName = item.moduloLed ?? [item.power, item.cct].filter(Boolean).join(" | ") ?? "";
@@ -43,10 +49,17 @@ function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, stri
     const apiDesc = eqCode ? descMap?.get(eqCode) : undefined;
     const barName = apiDesc ?? item.moduloLed ?? eqCode ?? "Módulo LED";
     const mapKey = eqCode ?? barName;
-    const totalBars = seg.qty * seg.barsPerPiece;
+    const isStripflex = isStripflexDescription(barName);
+    const totalBars = isStripflex
+      ? multiplyStripflexQuantity(seg.barsPerPiece, seg.qty)
+      : seg.qty * seg.barsPerPiece;
     const existing = totals.get(mapKey);
     if (existing) {
-      totals.set(mapKey, { qty: existing.qty + totalBars, eqCode, name: barName });
+      totals.set(mapKey, {
+        qty: isStripflex ? addStripflexQuantities(existing.qty, totalBars) : existing.qty + totalBars,
+        eqCode,
+        name: barName,
+      });
     } else {
       totals.set(mapKey, { qty: totalBars, eqCode, name: barName });
     }
@@ -55,7 +68,8 @@ function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, stri
   return Array.from(totals.values())
     .map(({ qty, eqCode, name }) => {
       const eqSuffix = eqCode ? ` (${esc(eqCode)})` : "";
-      return `${fmtQty(qty)} x ${esc(name)}${eqSuffix}`;
+      const displayQty = isStripflexDescription(name) ? formatStripflexQuantity(qty) : fmtQty(qty);
+      return `${displayQty} x ${esc(name)}${eqSuffix}`;
     })
     .join("<br>");
 }

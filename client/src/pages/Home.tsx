@@ -71,6 +71,7 @@ import type { ArandelaProduct, ArandelaResult } from "@/lib/arandelaCatalog";
 import { adaptAlfaluxProducts } from "@/lib/alfaluxApiAdapter";
 import { useAlfaluxProducts } from "@/hooks/useAlfaluxProducts";
 import { isCctSelectionAvailable } from "@/lib/cctSelection";
+import { addStripflexQuantities, formatStripflexQuantity, multiplyStripflexQuantity } from "@/lib/ledStripUnits";
 import {
   LED_BAR_CATALOG,
   LED_BAR_DIFUSOR_OPTIONS,
@@ -1783,7 +1784,9 @@ function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onA
                       <td className="px-3 py-2 text-right text-foreground">{item.length}mm</td>
                       <td className="px-3 py-2 text-right text-foreground font-semibold">{item.quantity}</td>
                       <td className="px-3 py-2 text-right text-foreground">
-                        {(() => { const b = isDual ? item.barsTotal * 2 : item.barsTotal; return Number.isInteger(b) ? b : b.toFixed(1); })()}
+                        {result.stripMethod === "STRIPFLEX"
+                          ? formatStripflexQuantity(multiplyStripflexQuantity(item.barsPerModule, item.quantity * (isDual ? 2 : 1)))
+                          : (() => { const b = isDual ? item.barsTotal * 2 : item.barsTotal; return Number.isInteger(b) ? b : b.toFixed(1); })()}
                       </td>
                     </tr>
                   ))}
@@ -1797,8 +1800,14 @@ function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onA
                     </td>
                     <td className="px-3 py-2 text-right font-semibold text-foreground">
                       {(() => {
-                        const t = result.composition.reduce((s, i) => s + i.barsTotal, 0) * (isDual ? 2 : 1);
-                        return Number.isInteger(t) ? t : t.toFixed(1);
+                        if (result.stripMethod === "STRIPFLEX") {
+                          const quantities = result.composition.map(item =>
+                            multiplyStripflexQuantity(item.barsPerModule, item.quantity * (isDual ? 2 : 1)),
+                          );
+                          return formatStripflexQuantity(addStripflexQuantities(...quantities));
+                        }
+                        const total = result.composition.reduce((sum, item) => sum + item.barsTotal, 0) * (isDual ? 2 : 1);
+                        return Number.isInteger(total) ? total : total.toFixed(1);
                       })()}
                     </td>
                   </tr>
@@ -2625,7 +2634,13 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                                 : '—'))
                             : '—'}
                         </td>
-                        <td className="px-3 py-2 text-right text-muted-foreground hidden sm:table-cell">{compItem ? (Number.isInteger(compItem.barsTotal) ? compItem.barsTotal : compItem.barsTotal.toFixed(1)) : '—'}</td>
+                        <td className="px-3 py-2 text-right text-muted-foreground hidden sm:table-cell">
+                          {compItem
+                            ? (result.stripMethod === "STRIPFLEX"
+                              ? formatStripflexQuantity(multiplyStripflexQuantity(compItem.barsPerModule, compItem.quantity))
+                              : (Number.isInteger(compItem.barsTotal) ? compItem.barsTotal : compItem.barsTotal.toFixed(1)))
+                            : '—'}
+                        </td>
                         <td className="px-3 py-2 text-right text-foreground font-semibold">{b.quantity}</td>
                         <td className="px-3 py-2 text-right text-amber-600 dark:text-amber-400 font-mono">{formatBRL(b.subtotal)}</td>
                         <td className="px-3 py-2 text-right text-blue-600 dark:text-blue-400 font-mono">{b.driverSubtotal > 0 ? formatBRL(b.driverSubtotal) : <span className="text-muted-foreground">—</span>}</td>
