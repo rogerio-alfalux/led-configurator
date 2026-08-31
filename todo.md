@@ -3155,3 +3155,9 @@
 ## Ambiente de desenvolvimento: recorrência da conexão WebSocket
 - [x] Identificar por que o HMR tenta conectar ao destino incorreto ou perde o canal após reinicializações
 - [x] Restaurar e validar a conexão HTTP e WebSocket da prévia sem afetar produção
+
+## Solicitações LD: validação de prazos
+- [x] Impedir data desejada para recebimento do orçamento anterior à data da solicitação
+- [x] Exigir data estimada de entrega de produtos a partir de cinco dias úteis
+- [x] Aplicar as regras na interface e no servidor
+- [x] Cobrir fins de semana, datas mínimas e tentativas de envio inválidas

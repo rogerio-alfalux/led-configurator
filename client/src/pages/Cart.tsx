@@ -59,6 +59,7 @@ import { getQuoteTeamValidationError, isSellerRequiredForQuote } from "@/lib/quo
 import { LdGuestCartItemCard } from "@/components/LdGuestCards";
 import { buildLdRequestPayload } from "@/lib/ldRequestForm";
 import { buildSplitBodyPricePatch, cloneCartItemData, getEditableBodyUnitPrice } from "@/lib/splitItemPricing";
+import { getLdRequestDeadlineLimits, getLdRequestDeadlineValidationError } from "@shared/ldRequestDeadlines";
 
 /**
  * REGRA INEGOCIÁVEL: Para perfis (com profileSegments), o driverQty total é sempre
@@ -3590,6 +3591,7 @@ function GuestCart() {
   const [desiredQuoteDate, setDesiredQuoteDate] = useState("");
   const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState("");
   const [attachments, setAttachments] = useState<Array<{ fileName: string; mimeType: string; size: number; base64: string }>>([]);
+  const ldDeadlineLimits = getLdRequestDeadlineLimits();
   const utils = trpc.useUtils();
   const contactDefaults = trpc.ldRequests.contactDefaults.useQuery(undefined, { enabled: (user as any)?.role === "convidado" });
   useEffect(() => {
@@ -3634,6 +3636,11 @@ function GuestCart() {
   };
 
   const submit = () => {
+    const deadlineError = getLdRequestDeadlineValidationError({ desiredQuoteDate, estimatedDeliveryDate });
+    if (deadlineError) {
+      toast.error(deadlineError);
+      return;
+    }
     submitRequest.mutate(buildLdRequestPayload({ officeName, finalClientName, constructorName, contactName, contactPhone, workState, workCity, generalObservation, desiredQuoteDate, estimatedDeliveryDate, attachments }));
   };
 
@@ -3701,8 +3708,8 @@ function GuestCart() {
             <section className="rounded-lg border bg-muted/20 p-4 space-y-3">
               <div className="flex items-center gap-2"><ClipboardList className="w-4 h-4 text-primary" /><h3 className="font-semibold text-sm">Prazos e observações</h3></div>
               <div className="grid sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5"><Label htmlFor="ld-desired-quote-date">Prazo desejado para receber o orçamento</Label><Input id="ld-desired-quote-date" type="date" value={desiredQuoteDate} onChange={event => setDesiredQuoteDate(event.target.value)} /><p className="text-xs text-muted-foreground">Ajuda a equipe a priorizar a análise.</p></div>
-                <div className="space-y-1.5"><Label htmlFor="ld-estimated-delivery-date">Prazo estimado para entrega das luminárias <span className="text-muted-foreground">(opcional)</span></Label><Input id="ld-estimated-delivery-date" type="date" value={estimatedDeliveryDate} onChange={event => setEstimatedDeliveryDate(event.target.value)} /><p className="text-xs text-muted-foreground">Baliza o planejamento de produção e entrega.</p></div>
+                <div className="space-y-1.5"><Label htmlFor="ld-desired-quote-date">Prazo desejado para receber o orçamento</Label><Input id="ld-desired-quote-date" type="date" min={ldDeadlineLimits.requestDate} value={desiredQuoteDate} onChange={event => setDesiredQuoteDate(event.target.value)} /><p className="text-xs text-muted-foreground">A partir de hoje. Ajuda a equipe a priorizar a análise.</p></div>
+                <div className="space-y-1.5"><Label htmlFor="ld-estimated-delivery-date">Prazo estimado para entrega das luminárias <span className="text-muted-foreground">(opcional)</span></Label><Input id="ld-estimated-delivery-date" type="date" min={ldDeadlineLimits.minimumEstimatedDeliveryDate} value={estimatedDeliveryDate} onChange={event => setEstimatedDeliveryDate(event.target.value)} /><p className="text-xs text-muted-foreground">A partir de cinco dias úteis após a solicitação. Baliza o planejamento de produção e entrega.</p></div>
               </div>
               <div className="space-y-1.5"><Label htmlFor="ld-general-observation">Observação geral do projeto <span className="text-muted-foreground">(opcional)</span></Label><Textarea id="ld-general-observation" value={generalObservation} onChange={event => setGeneralObservation(event.target.value)} maxLength={4000} rows={4} placeholder="Descreva informações do projeto que a equipe deve considerar ao elaborar o orçamento." /><p className="text-xs text-muted-foreground">As observações por produto podem ser preenchidas diretamente em cada item do carrinho.</p></div>
             </section>

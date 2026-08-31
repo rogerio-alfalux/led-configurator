@@ -88,6 +88,7 @@ import { getSampleLinkValidationError } from "../shared/sampleLinkValidation";
 import { sanitizeLdAttachmentFileName, validateLdTechnicalAttachments, type LdTechnicalAttachment } from "./ldRequestAttachment";
 import { buildLdQuoteConversion } from "./ldQuoteConversion";
 import { buildLdDraftQuoteNumber, isLdDraftQuoteNumber } from "../shared/ldDraftQuoteNumber";
+import { getLdRequestDeadlineValidationError } from "../shared/ldRequestDeadlines";
 import { generateAndStoreCompleteBackup } from "./backupService";
 import { getQuoteStatusAuthorizationError } from "./quoteStatusPolicy";
 
@@ -318,6 +319,10 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "convidado") {
           throw new TRPCError({ code: "FORBIDDEN", message: "Este envio é exclusivo para LD Convidado." });
+        }
+        const deadlineError = getLdRequestDeadlineValidationError(input);
+        if (deadlineError) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: deadlineError });
         }
         const cart = await getCartItems(ctx.user.id);
         if (!cart.length) {
