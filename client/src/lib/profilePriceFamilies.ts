@@ -7,6 +7,7 @@ export function isApiPricedFixedProfileFamily(family: string | null | undefined)
   const normalized = (family ?? "").trim().toLocaleUpperCase("pt-BR");
   return normalized === "BAGEO"
     || normalized.startsWith("BAGEO ")
+    || normalized === "LUME"
     || normalized === "GLOW"
     || normalized === "TUBE LIGHT";
 }

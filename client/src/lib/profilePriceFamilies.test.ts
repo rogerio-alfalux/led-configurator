@@ -5,6 +5,7 @@ describe("isApiPricedFixedProfileFamily", () => {
   it("inclui BAGEO fixo no mapa comercial de corpo e driver", () => {
     expect(isApiPricedFixedProfileFamily("BAGEO")).toBe(true);
     expect(isApiPricedFixedProfileFamily("BAGEO E")).toBe(true);
+    expect(isApiPricedFixedProfileFamily("LUME")).toBe(true);
   });
 
   it("mantém perfis modulares fora do mapa de luminárias fixas", () => {

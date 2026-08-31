@@ -139,6 +139,26 @@ describe("adaptAlfaluxProducts - Downlights", () => {
     expect(result.downlights[0].documentos?.fotometria?.url).toBe("https://api.example/luna.ies");
     expect(result.downlights[0].documentos?.desenhoTecnico?.url).toBe("https://api.example/luna-dt.pdf");
   });
+
+  it("encaminha LUME ao catálogo fixo de BAGEO com os documentos da API", () => {
+    const result = adaptAlfaluxProducts([makeProduct({
+      categoria: "PERFIS",
+      familia: "LUME",
+      instalacao: "PENDENTE",
+      sku: "LDP-4000.060.49F",
+      name: "LUME P (MÓDULO RETO 600MM) 10W/M",
+      documentos: {
+        datasheet: null,
+        fotometria: null,
+        desenhoTecnico: null,
+        manualInstalacao: { nome: "Manual-Instalacao_Sistema_Lume.pdf", mimeType: "application/pdf", url: "https://api.example/lume-manual.pdf" },
+      },
+    })]);
+
+    expect(result.bageosFixos).toHaveLength(1);
+    expect(result.bageosFixos[0]).toMatchObject({ familia: "LUME", instalacao: "PENDENTE" });
+    expect(result.bageosFixos[0].documentos?.manualInstalacao?.nome).toBe("Manual-Instalacao_Sistema_Lume.pdf");
+  });
 });
 
 describe("adaptAlfaluxProducts - Painéis", () => {

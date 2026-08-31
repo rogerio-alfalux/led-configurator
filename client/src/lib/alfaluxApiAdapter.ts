@@ -825,6 +825,10 @@ function isMiniBAGEOFixo(p: ApiProduct): boolean {
 function isMiniBAGEOSinuosa(p: ApiProduct): boolean {
   return /^MINI BAGEO S/i.test(p.familia ?? "");
 }
+/** Perfis fixos que usam o fluxo técnico e comercial de BAGEO. */
+function isBageoFixedFlowProduct(p: ApiProduct): boolean {
+  return /^(BAGEO|LUME)$/i.test(p.familia?.trim() ?? "");
+}
 /** Verifica se um produto PERFIS é da família BAGEO */
 function isBageoProduct(p: ApiProduct): boolean {
   return /^BAGEO/i.test(p.familia ?? "");
@@ -983,6 +987,10 @@ export function adaptAlfaluxProducts(products: ApiProduct[]): AdaptedCatalogs {
       // MINI BAGEO SINUOSA (por metro linear) — usa fluxo de BAGEO sinuosa
       const bg = toBageoProduct(p);
       if (bg) bageos.push(bg);
+    } else if (cat === "PERFIS" && isBageoFixedFlowProduct(p)) {
+      // BAGEO e LUME são perfis fixos com corpo e driver separados pela API.
+      bageosFixos.push(toDownlightProduct(p));
+      if (p.fotoUrl && p.sku) bageosFixosFotos[p.sku] = normalizeFotoUrl(p.fotoUrl)!;
     } else if (cat === "PERFIS" && isPerfisFixesProduct(p)) {
       perfisFixes.push(toDownlightProduct(p));
       if (p.fotoUrl && p.sku) perfisFixesFotos[p.sku] = normalizeFotoUrl(p.fotoUrl)!;

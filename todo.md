@@ -3184,3 +3184,9 @@
 - [x] Consolidar um Manual de Instalação por família/composição, como Datasheet
 - [x] Exibir o manual e incluí-lo no download ZIP preservando o nome da API
 - [x] Cobrir manual disponível, duplicado e ausente por regressão
+
+## Configurador: família LUME
+- [x] Confirmar instalações, potências, CCTs, preços, drivers e componentes LUME na API
+- [x] Aplicar à LUME o comportamento técnico da família BAGEO fixa
+- [x] Preservar preços separados de corpo e driver e o Manual de Instalação
+- [x] Cobrir cálculo, carrinho, ficha e requisição de materiais por regressão

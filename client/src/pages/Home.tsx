@@ -3449,6 +3449,7 @@ export default function Home() {
   // ── Estados de BAGEO fixo (tamanhos fixos, fluxo igual a Downlights) ─────────
   const [bfInstalacao, setBfInstalacao] = useState<string | null>(null);
   const [bfFamilia, setBfFamilia] = useState<string | null>(null);
+  const [bfFamilyScope, setBfFamilyScope] = useState<"BAGEO" | "LUME" | null>(null);
   const [bfProductKey, setBfProductKey] = useState<string | null>(null);
   const [bfVoltage, setBfVoltage] = useState<"220V" | "Bivolt" | null>(null);
   const [bfCCT, setBfCCT] = useState<string>("3000K");
@@ -4313,39 +4314,52 @@ export default function Home() {
   const activeBageoFixoCatalog = useMemo(() => {
     return adaptedCatalogs?.bageosFixos ?? [];
   }, [adaptedCatalogs]);
-  // Instalações disponíveis para BAGEO fixo
+  const bfScopedCatalog = useMemo(() => {
+    if (!bfFamilyScope) return activeBageoFixoCatalog;
+    return activeBageoFixoCatalog.filter((product) => product.familia?.trim().toUpperCase() === bfFamilyScope);
+  }, [activeBageoFixoCatalog, bfFamilyScope]);
+  const activeBageoFixoProducts = useMemo(
+    () => activeBageoFixoCatalog.filter((product) => product.familia?.trim().toUpperCase() === "BAGEO"),
+    [activeBageoFixoCatalog],
+  );
+  const activeLumeProducts = useMemo(
+    () => activeBageoFixoCatalog.filter((product) => product.familia?.trim().toUpperCase() === "LUME"),
+    [activeBageoFixoCatalog],
+  );
+  const bfFlowLabel = bfFamilyScope === "LUME" ? "LUME" : "BAGEO";
+  // Instalações disponíveis para o perfil fixo selecionado
   const bfInstalacoes = useMemo(() => {
-    const set = new Set(activeBageoFixoCatalog.map(p => p.instalacao ?? ""));
+    const set = new Set(bfScopedCatalog.map(p => p.instalacao ?? ""));
     return Array.from(set).filter(Boolean);
-  }, [activeBageoFixoCatalog]);
-  // Famílias de BAGEO fixo filtradas pela instalação selecionada
+  }, [bfScopedCatalog]);
+  // Famílias do perfil fixo filtradas pela instalação selecionada
   const bfFamilias = useMemo(() => {
     if (!bfInstalacao) return [];
     const set = new Set(
-      activeBageoFixoCatalog
+      bfScopedCatalog
         .filter(p => p.instalacao === bfInstalacao)
         .map(p => p.familia)
     );
     return Array.from(set).filter(Boolean) as string[];
-  }, [bfInstalacao, activeBageoFixoCatalog]);
-  // Produtos BAGEO fixo filtrados pela instalação e família selecionadas
+  }, [bfInstalacao, bfScopedCatalog]);
+  // Produtos do perfil fixo filtrados pela instalação e família selecionadas
   const bfProductsByFamilia = useMemo(() => {
     if (!bfInstalacao || !bfFamilia) return [];
-    return activeBageoFixoCatalog
+    return bfScopedCatalog
       .map((p, i) => ({ p, i }))
       .filter(({ p }) => p.instalacao === bfInstalacao && p.familia === bfFamilia);
-  }, [bfInstalacao, bfFamilia, activeBageoFixoCatalog]);
-  // Handler de cálculo para BAGEO fixo (igual a Downlights)
+  }, [bfInstalacao, bfFamilia, bfScopedCatalog]);
+  // Handler de cálculo para perfil fixo (igual a Downlights)
   const handleCalculateBageoFixo = useCallback(() => {
     if (!bfProductKey) {
-      toast.error("Selecione o produto BAGEO.");
+      toast.error(`Selecione o produto ${bfFlowLabel}.`);
       return;
     }
     const [bfSku, ...bfNameParts] = bfProductKey.split("::");
     const bfName = bfNameParts.join("::");
     const bfSelProd = activeBageoFixoCatalog.find(p => p.sku === bfSku && p.name === bfName);
     if (!bfSelProd) {
-      toast.error("Produto BAGEO não encontrado.");
+      toast.error(`Produto ${bfFlowLabel} não encontrado.`);
       return;
     }
     const res = calculateDownlight({ productSku: bfSelProd.sku ?? "", productName: bfSelProd.name, cct: bfCCT ?? "3000K", controle: (bfControle ?? "On/Off") as ControleType, tensao: (bfVoltage ?? "Bivolt") as "220V" | "Bivolt" }, activeBageoFixoCatalog);
@@ -4354,7 +4368,7 @@ export default function Home() {
       return;
     }
     setBfResult(res);
-    }, [bfProductKey, activeBageoFixoCatalog, bfCCT, bfControle, bfVoltage]);
+  }, [bfProductKey, activeBageoFixoCatalog, bfCCT, bfControle, bfVoltage, bfFlowLabel]);
   // ── Catálogo ALDA (perfis fixos: ALDA, LEAVE, ALS-3103) ──────────────────────
   const activeAldaCatalog = useMemo(() => {
     return (adaptedCatalogs?.perfisFixes ?? []).filter(p => /^ALDA/i.test(p.familia ?? ""));
@@ -5250,12 +5264,12 @@ export default function Home() {
                 <div>
                   <FieldLabel>Perfil</FieldLabel>
                   <Select
-                    value={bgMode === "sinuosa" ? "__BAGEO_SINUOSA__" : bgMode === "fixo" ? "__BAGEO_FIXO__" : glowMode ? "__GLOW__" : tubeLightMode ? "__TUBE_LIGHT__" : aldaMode ? "__ALDA__" : lbFamilia ? `__LEDBAR__${lbFamilia}` : profileName}
+                    value={bgMode === "sinuosa" ? "__BAGEO_SINUOSA__" : bgMode === "fixo" ? bfFamilyScope === "LUME" ? "__LUME__" : "__BAGEO_FIXO__" : glowMode ? "__GLOW__" : tubeLightMode ? "__TUBE_LIGHT__" : aldaMode ? "__ALDA__" : lbFamilia ? `__LEDBAR__${lbFamilia}` : profileName}
                     onValueChange={(v) => {
                       if (v === "__BAGEO_SINUOSA__") {
                         setBgMode("sinuosa");
                         setBgInstalacao(null); setBgProduct(null); setBgResult(null);
-                        setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
+                        setBfInstalacao(null); setBfFamilia(null); setBfFamilyScope(null); setBfProductKey(null); setBfResult(null);
                         setAldaMode(false); setAldaInstalacao(null); setAldaFamilia(null); setAldaProductKey(null); setAldaVoltage(null); setAldaResult(null);
                         setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
                         setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
@@ -5263,7 +5277,15 @@ export default function Home() {
                       } else if (v === "__BAGEO_FIXO__") {
                         setBgMode("fixo");
                         setBgInstalacao(null); setBgProduct(null); setBgResult(null);
-                        setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
+                        setBfInstalacao(null); setBfFamilia(null); setBfFamilyScope("BAGEO"); setBfProductKey(null); setBfResult(null);
+                        setAldaMode(false); setAldaInstalacao(null); setAldaFamilia(null); setAldaProductKey(null); setAldaVoltage(null); setAldaResult(null);
+                        setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
+                        setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
+                        setProfileName(""); setInstallType(""); setResult(null); setError(null);
+                      } else if (v === "__LUME__") {
+                        setBgMode("fixo");
+                        setBgInstalacao(null); setBgProduct(null); setBgResult(null);
+                        setBfInstalacao(null); setBfFamilia(null); setBfFamilyScope("LUME"); setBfProductKey(null); setBfResult(null);
                         setAldaMode(false); setAldaInstalacao(null); setAldaFamilia(null); setAldaProductKey(null); setAldaVoltage(null); setAldaResult(null);
                         setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
                         setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
@@ -5274,7 +5296,7 @@ export default function Home() {
                         setTubeLightMode(false); setTubeLightProductKey(null); setTubeLightVoltage(null); setTubeLightResult(null);
                         setAldaMode(false); setAldaInstalacao(null); setAldaFamilia(null); setAldaProductKey(null); setAldaVoltage(null); setAldaResult(null);
                         setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
-                        setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
+                        setBfInstalacao(null); setBfFamilia(null); setBfFamilyScope(null); setBfProductKey(null); setBfResult(null);
                         setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
                         setProfileName(""); setInstallType(""); setResult(null); setError(null);
                       } else if (v === "__TUBE_LIGHT__") {
@@ -5282,7 +5304,7 @@ export default function Home() {
                         setTubeLightProductKey(null); setTubeLightVoltage(null); setTubeLightResult(null);
                         setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                         setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
-                        setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
+                        setBfInstalacao(null); setBfFamilia(null); setBfFamilyScope(null); setBfProductKey(null); setBfResult(null);
                         setAldaMode(false); setAldaInstalacao(null); setAldaFamilia(null); setAldaProductKey(null); setAldaVoltage(null); setAldaResult(null);
                         setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
                         setProfileName(""); setInstallType(""); setResult(null); setError(null);
@@ -5292,7 +5314,7 @@ export default function Home() {
                         setTubeLightMode(false); setTubeLightProductKey(null); setTubeLightVoltage(null); setTubeLightResult(null);
                         setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                         setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
-                        setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
+                        setBfInstalacao(null); setBfFamilia(null); setBfFamilyScope(null); setBfProductKey(null); setBfResult(null);
                         setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
                         setProfileName(""); setInstallType(""); setResult(null); setError(null);
                       } else if (v.startsWith("__LEDBAR__")) {
@@ -5303,7 +5325,7 @@ export default function Home() {
                         setLbDifusor(null);
                         setLbResult(null);
                         setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
-                        setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
+                        setBfInstalacao(null); setBfFamilia(null); setBfFamilyScope(null); setBfProductKey(null); setBfResult(null);
                         setAldaMode(false); setAldaInstalacao(null); setAldaFamilia(null); setAldaProductKey(null); setAldaVoltage(null); setAldaResult(null);
                         setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                         setProfileName("");
@@ -5315,7 +5337,7 @@ export default function Home() {
                         setLbFamilia(null);
                         setLbResult(null);
                         setBgMode(false); setBgInstalacao(null); setBgProduct(null); setBgResult(null);
-                        setBfInstalacao(null); setBfFamilia(null); setBfProductKey(null); setBfResult(null);
+                        setBfInstalacao(null); setBfFamilia(null); setBfFamilyScope(null); setBfProductKey(null); setBfResult(null);
                         setAldaMode(false); setAldaInstalacao(null); setAldaFamilia(null); setAldaProductKey(null); setAldaVoltage(null); setAldaResult(null);
                         setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
                         setTubeLightMode(false); setTubeLightProductKey(null); setTubeLightVoltage(null); setTubeLightResult(null);
@@ -5366,11 +5388,17 @@ export default function Home() {
                           ))}
                         </>
                       )}
-                      {(activeBageoCatalog.length > 0 || activeBageoFixoCatalog.length > 0) && (
+                      {(activeBageoCatalog.length > 0 || activeBageoFixoProducts.length > 0) && (
                         <>
                           <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">BAGEO</div>
-                          {activeBageoFixoCatalog.length > 0 && <SelectItem value="__BAGEO_FIXO__">BAGEO</SelectItem>}
+                          {activeBageoFixoProducts.length > 0 && <SelectItem value="__BAGEO_FIXO__">BAGEO</SelectItem>}
                           {activeBageoCatalog.length > 0 && <SelectItem value="__BAGEO_SINUOSA__">BAGEO Sinuosa</SelectItem>}
+                        </>
+                      )}
+                      {activeLumeProducts.length > 0 && (
+                        <>
+                          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">LUME</div>
+                          <SelectItem value="__LUME__">LUME</SelectItem>
                         </>
                       )}
                       {activeGlowCatalog.length > 0 && (
@@ -5562,7 +5590,7 @@ export default function Home() {
                       disabled={!bfProductKey}
                     >
                       <Zap className="w-4 h-4 mr-2" />
-                      Calcular BAGEO
+                      Calcular {bfFlowLabel}
                     </Button>
                     )}
                   </div>
@@ -10382,7 +10410,7 @@ export default function Home() {
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
                       <Zap className="w-4 h-4 text-amber-500" />
-                      Resultado — BAGEO
+                      Resultado — {bfFlowLabel}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
@@ -10447,6 +10475,7 @@ export default function Home() {
                     })()}
                   </CardContent>
                 </Card>
+                <ProductDocumentDownloads documents={bfResult.product.documentos} />
                 {/* Resumo para Orçamento */}
                 <Card className="shadow-sm border-blue-500/30">
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">
@@ -10589,7 +10618,7 @@ export default function Home() {
                     <Zap className="w-8 h-8 text-muted-foreground" />
                   </div>
                   <p className="text-base font-semibold text-foreground font-display">Nenhum cálculo realizado</p>
-                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione instalação, família, produto, tensão e CCT, depois clique em "Calcular BAGEO".</p>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">Selecione instalação, família, produto, tensão e CCT, depois clique em "Calcular {bfFlowLabel}".</p>
                 </CardContent>
               </Card>
             )}
