@@ -40,6 +40,7 @@ export interface AlfaluxProductDocuments {
   datasheet: AlfaluxProductDocument | null;
   fotometria: AlfaluxProductDocument | null;
   desenhoTecnico: AlfaluxProductDocument | null;
+  manualInstalacao?: AlfaluxProductDocument | null;
 }
 
 /** Componentes específicos da versão D1+D2 retornada pela API de produtos. */
@@ -107,6 +108,7 @@ export interface AlfaluxProduct {
   datasheetUrl?: string | null;
   fotometriaIesUrl?: string | null;
   desenhoTecnicoUrl?: string | null;
+  manualInstalacaoUrl?: string | null;
   temperaturasCor: string[];
   /** Driver On/Off 220V */
   driver220: DriverInfo | null;

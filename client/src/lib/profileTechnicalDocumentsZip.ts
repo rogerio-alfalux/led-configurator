@@ -32,6 +32,7 @@ export function getProfileTechnicalDocumentsZipEntries(documents: ProfileTechnic
   };
 
   add("Datasheet", documents.datasheet);
+  add("Manual de Instalacao", documents.manualInstalacao);
   add("Fotometria Base", documents.fotometria);
   for (const { sku, document } of documents.desenhosTecnicos) {
     add("Desenhos Tecnicos", document, sku);

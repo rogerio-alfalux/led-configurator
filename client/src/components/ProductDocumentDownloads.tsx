@@ -29,9 +29,15 @@ const DOCUMENT_CONFIG: Record<ProductDocumentType, {
     icon: Ruler,
     accent: "text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-950/30 dark:border-amber-800",
   },
+  manualInstalacao: {
+    label: "Manual de Instalação",
+    abbreviation: "MI",
+    icon: FileText,
+    accent: "text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-950/30 dark:border-emerald-800",
+  },
 };
 
-const DOCUMENT_ORDER: ProductDocumentType[] = ["datasheet", "fotometria", "desenhoTecnico"];
+const DOCUMENT_ORDER: ProductDocumentType[] = ["datasheet", "manualInstalacao", "fotometria", "desenhoTecnico"];
 
 export function ProductDocumentDownloads({ documents }: { documents?: ProductDocuments | null }) {
   if (!hasProductDocuments(documents)) return null;
@@ -45,7 +51,7 @@ export function ProductDocumentDownloads({ documents }: { documents?: ProductDoc
         </div>
         <Download className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </div>
-      <div className="grid gap-2 sm:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {DOCUMENT_ORDER.map((type) => {
           const document = documents?.[type] as ProductDocument | null | undefined;
           if (!document) return null;

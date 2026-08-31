@@ -7,9 +7,10 @@ afterEach(() => {
 });
 
 describe("getProfileTechnicalDocumentsZipEntries", () => {
-  it("mantém DS e IES únicos e separa desenhos por SKU sem mudar os nomes da API", () => {
+  it("mantém DS, manual e IES únicos e separa desenhos por SKU sem mudar os nomes da API", () => {
     const entries = getProfileTechnicalDocumentsZipEntries({
       datasheet: { nome: "BLAZE P LED.pdf", mimeType: "application/pdf", url: "https://docs.example/ds" },
+      manualInstalacao: { nome: "Manual-Instalacao_Sistema_Lume.pdf", mimeType: "application/pdf", url: "https://docs.example/manual" },
       fotometria: { nome: "BLAZE P LED.ies", mimeType: "application/octet-stream", url: "https://docs.example/ies" },
       desenhosTecnicos: [
         { sku: "LLP-6060.3IF.48F", document: { nome: "LLP-6060.3IF.48F.pdf", mimeType: "application/pdf", url: "https://docs.example/dt-if" } },
@@ -19,6 +20,7 @@ describe("getProfileTechnicalDocumentsZipEntries", () => {
 
     expect(entries.map(entry => entry.path)).toEqual([
       "Datasheet/BLAZE P LED.pdf",
+      "Manual de Instalacao/Manual-Instalacao_Sistema_Lume.pdf",
       "Fotometria Base/BLAZE P LED.ies",
       "Desenhos Tecnicos/LLP-6060.3IF.48F/LLP-6060.3IF.48F.pdf",
       "Desenhos Tecnicos/LLP-6060.5ML.48F/LLP-6060.5ML.48F.pdf",
@@ -30,6 +32,7 @@ describe("getProfileTechnicalDocumentsZipEntries", () => {
     const repeated = { nome: "desenho.pdf", mimeType: "application/pdf", url: "https://docs.example/same" };
     const entries = getProfileTechnicalDocumentsZipEntries({
       datasheet: null,
+      manualInstalacao: null,
       fotometria: null,
       desenhosTecnicos: [
         { sku: "SKU-1", document: repeated },
@@ -59,12 +62,13 @@ describe("getProfileTechnicalDocumentsZipEntries", () => {
 
     const count = await downloadProfileTechnicalDocumentsZip({
       datasheet: { nome: "Datasheet.pdf", mimeType: "application/pdf", url: "https://docs.example/ds" },
+      manualInstalacao: { nome: "Manual.pdf", mimeType: "application/pdf", url: "https://docs.example/manual" },
       fotometria: { nome: "Fotometria.ies", mimeType: "application/octet-stream", url: "https://docs.example/ies" },
       desenhosTecnicos: [{ sku: "SKU-1", document: { nome: "Desenho.pdf", mimeType: "application/pdf", url: "https://docs.example/dt" } }],
     }, fetchMock);
 
-    expect(count).toBe(3);
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(count).toBe(4);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(fetchMock.mock.calls[0]?.[0]).toContain("/api/product-document-download?");
     expect(fetchMock.mock.calls[0]?.[0]).toContain("filename=Datasheet.pdf");
     expect(click).toHaveBeenCalledTimes(1);

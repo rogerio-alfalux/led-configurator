@@ -1,4 +1,4 @@
-export type ProductDocumentType = "datasheet" | "fotometria" | "desenhoTecnico";
+export type ProductDocumentType = "datasheet" | "fotometria" | "desenhoTecnico" | "manualInstalacao";
 
 export interface ProductDocument {
   nome: string;
@@ -10,6 +10,7 @@ export interface ProductDocuments {
   datasheet: ProductDocument | null;
   fotometria: ProductDocument | null;
   desenhoTecnico: ProductDocument | null;
+  manualInstalacao: ProductDocument | null;
 }
 
 export interface ProductDocumentSource {
@@ -17,6 +18,7 @@ export interface ProductDocumentSource {
   datasheetUrl?: string | null;
   fotometriaIesUrl?: string | null;
   desenhoTecnicoUrl?: string | null;
+  manualInstalacaoUrl?: string | null;
 }
 
 function normalizeDocument(
@@ -40,9 +42,10 @@ export function normalizeProductDocuments(source: ProductDocumentSource): Produc
     datasheet: normalizeDocument(source.documentos?.datasheet, source.datasheetUrl, "Datasheet.pdf", "application/pdf"),
     fotometria: normalizeDocument(source.documentos?.fotometria, source.fotometriaIesUrl, "Fotometria.ies", "application/octet-stream"),
     desenhoTecnico: normalizeDocument(source.documentos?.desenhoTecnico, source.desenhoTecnicoUrl, "Desenho técnico.pdf", "application/pdf"),
+    manualInstalacao: normalizeDocument(source.documentos?.manualInstalacao, source.manualInstalacaoUrl, "Manual de instalação.pdf", "application/pdf"),
   };
 }
 
 export function hasProductDocuments(documents: ProductDocuments | null | undefined): boolean {
-  return Boolean(documents?.datasheet || documents?.fotometria || documents?.desenhoTecnico);
+  return Boolean(documents?.datasheet || documents?.fotometria || documents?.desenhoTecnico || documents?.manualInstalacao);
 }

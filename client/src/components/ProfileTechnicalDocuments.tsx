@@ -47,7 +47,7 @@ function DocumentLink({
   );
 }
 
-/** Apresenta DS/IES únicos e desenhos técnicos específicos de cada SKU calculado. */
+/** Apresenta DS, manual e IES únicos, além dos desenhos técnicos de cada SKU calculado. */
 export function ProfileTechnicalDocuments({ documents }: { documents: ProfileTechnicalDocuments }) {
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -71,7 +71,7 @@ export function ProfileTechnicalDocuments({ documents }: { documents: ProfileTec
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Documentos técnicos</p>
-          <p className="text-[11px] text-muted-foreground">Datasheet e IES da composição; desenho técnico para cada SKU calculado.</p>
+          <p className="text-[11px] text-muted-foreground">Datasheet, manual e IES da composição; desenho técnico para cada SKU calculado.</p>
         </div>
         <Button
           type="button"
@@ -89,15 +89,16 @@ export function ProfileTechnicalDocuments({ documents }: { documents: ProfileTec
       </div>
       {downloadError ? <p role="alert" className="mb-3 rounded-md border border-destructive/30 bg-destructive/5 px-2.5 py-2 text-[11px] text-destructive">{downloadError}</p> : null}
 
-      {(documents.datasheet || documents.fotometria) ? (
-        <div className="grid gap-2 sm:grid-cols-2">
+      {(documents.datasheet || documents.manualInstalacao || documents.fotometria) ? (
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {documents.datasheet ? <DocumentLink document={documents.datasheet} label="Datasheet da composição" badge="DS" Icon={FileText} accent="text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-300 dark:bg-blue-950/30 dark:border-blue-800" /> : null}
+          {documents.manualInstalacao ? <DocumentLink document={documents.manualInstalacao} label="Manual de Instalação" badge="MI" Icon={FileText} accent="text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-950/30 dark:border-emerald-800" /> : null}
           {documents.fotometria ? <DocumentLink document={documents.fotometria} label="Fotometria Base" badge="IES" Icon={ScanLine} accent="text-violet-700 bg-violet-50 border-violet-200 dark:text-violet-300 dark:bg-violet-950/30 dark:border-violet-800" /> : null}
         </div>
       ) : null}
 
       {documents.desenhosTecnicos.length > 0 ? (
-        <div className={documents.datasheet || documents.fotometria ? "mt-3" : ""}>
+        <div className={documents.datasheet || documents.manualInstalacao || documents.fotometria ? "mt-3" : ""}>
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Desenhos técnicos por SKU</p>
           <div className="grid gap-2 sm:grid-cols-2">
             {documents.desenhosTecnicos.map(({ sku, document }) => (

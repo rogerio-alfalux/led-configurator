@@ -12,6 +12,7 @@ export interface ProfileDocumentProduct extends ProductDocumentSource {
 export interface ProfileTechnicalDocuments {
   datasheet: ProductDocument | null;
   fotometria: ProductDocument | null;
+  manualInstalacao: ProductDocument | null;
   desenhosTecnicos: Array<{ sku: string; document: ProductDocument }>;
 }
 
@@ -34,6 +35,7 @@ export function getProfileTechnicalDocuments(
 
   let datasheet: ProductDocument | null = null;
   let fotometria: ProductDocument | null = null;
+  let manualInstalacao: ProductDocument | null = null;
   const desenhosTecnicos: ProfileTechnicalDocuments["desenhosTecnicos"] = [];
 
   for (const sku of skus) {
@@ -45,14 +47,15 @@ export function getProfileTechnicalDocuments(
 
     datasheet ??= documents.datasheet;
     fotometria ??= documents.fotometria;
+    manualInstalacao ??= documents.manualInstalacao;
     if (documents.desenhoTecnico) {
       desenhosTecnicos.push({ sku, document: documents.desenhoTecnico });
     }
   }
 
-  return { datasheet, fotometria, desenhosTecnicos };
+  return { datasheet, fotometria, manualInstalacao, desenhosTecnicos };
 }
 
 export function hasProfileTechnicalDocuments(documents: ProfileTechnicalDocuments): boolean {
-  return Boolean(documents.datasheet || documents.fotometria || documents.desenhosTecnicos.length > 0);
+  return Boolean(documents.datasheet || documents.fotometria || documents.manualInstalacao || documents.desenhosTecnicos.length > 0);
 }

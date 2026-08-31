@@ -3178,3 +3178,9 @@
 - [x] Permitir edição fluida e persistida da corrente para usuários que gerenciam pedidos
 - [x] Propagar a corrente alterada para prévia, Excel e requisição de materiais
 - [x] Cobrir a edição de corrente por regressão
+
+## Documentos técnicos: Manual de Instalação
+- [x] Confirmar o campo e os anexos de manual retornados para a família LUME pela API
+- [x] Consolidar um Manual de Instalação por família/composição, como Datasheet
+- [x] Exibir o manual e incluí-lo no download ZIP preservando o nome da API
+- [x] Cobrir manual disponível, duplicado e ausente por regressão
