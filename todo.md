@@ -3190,3 +3190,9 @@
 - [x] Aplicar à LUME o comportamento técnico da família BAGEO fixa
 - [x] Preservar preços separados de corpo e driver e o Manual de Instalação
 - [x] Cobrir cálculo, carrinho, ficha e requisição de materiais por regressão
+
+## Correção GLOW: composição comercial e documentos
+- [x] Corrigir a exibição e edição da composição de luminária e driver dos itens GLOW
+- [x] Sincronizar valor de luminária, driver e total GLOW no preview, PDF e Excel usando exclusivamente a API Alfalux
+- [x] Cobrir a regressão da composição comercial GLOW e validar os itens L8 e L9 afetados
+- [x] Validar exclusivamente os itens L8 e L9 do orçamento de referência 25.0263-26, sem alterar os demais orçamentos

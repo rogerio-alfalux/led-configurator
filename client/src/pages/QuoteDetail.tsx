@@ -40,7 +40,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { CartItemData, formatBRL, parseCartItemData, extractPowerLabelFromName, toPowerLabel, enrichDriverCurrentsFromApi, type QuoteFormData } from "@/lib/cartTypes";
+import { CartItemData, formatBRL, parseCartItemData, extractPowerLabelFromName, toPowerLabel, enrichDriverCurrentsFromApi, migrateLegacyGlowCommercialItem, type QuoteFormData } from "@/lib/cartTypes";
 import { getPersistedItemPhotoUrl } from "@/lib/itemPhoto";
 import { formatLinkedCommercialQuote } from "@/lib/sampleLinkPresentation";
 import { isLdRequestLinkedToQuote } from "@/lib/ldRequestUtils";
@@ -1512,14 +1512,35 @@ export default function QuoteDetail() {
     const _currentItems = _items.filter(i => i.quoteVersionId === _currentVersionId);
     // Mapa sku -> produto da API (para fallback de driver na Migração 3 e resolução de ledModuleCode na Migração 4)
     const productSkuMap = new Map<string, ApiProductDriverInfo>();
-    for (const p of (productsQuery.data ?? []) as Array<{ sku: string; name?: string; categoria?: string; driverBivolt?: { model: string; code: string | null } | null; driver220?: { model: string; code: string | null } | null; driverQtdBivolt?: number | null; driverQtd220?: number | null; ledModuleEq2700?: string | null; ledModuleEq3000?: string | null; ledModuleEq4000?: string | null; ledModuleEq5000?: string | null; ledModuleEq?: string | null; ledModuleQtd?: number | null; ledModuleQtd2700?: number | null; ledModuleQtd3000?: number | null; ledModuleQtd4000?: number | null; ledModuleQtd5000?: number | null }>) {
+    for (const p of (productsQuery.data ?? []) as Array<{ sku: string; name?: string; categoria?: string; driverBivolt?: { model: string; code: string | null } | null; driver220?: { model: string; code: string | null } | null; driverDimDali?: { model: string; code: string | null } | null; driverDim110v?: { model: string; code: string | null } | null; driverQtdBivolt?: number | null; driverQtd220?: number | null; driverQtdDimDali?: number | null; driverQtdDim110v?: number | null; custoCorpoOnoff220v?: number | null; custoCorpoOnoffBivolt?: number | null; custoCorpoDim110v?: number | null; custoCorpoDimDali?: number | null; custoDriver220?: number | null; custoDriverBivolt?: number | null; custoDriverDim110v?: number | null; custoDriverDimDali?: number | null; markupPadraoOnoff220v?: number | null; markupPadraoOnoffBivolt?: number | null; markupPadraoDim110v?: number | null; markupPadraoDimDali?: number | null; markupPadraoDriverOnoff220v?: number | null; markupPadraoDriverOnoffBivolt?: number | null; markupPadraoDriverDim110v?: number | null; markupPadraoDriverDimDali?: number | null; markupMinimoDriver?: number | null; ledModuleEq2700?: string | null; ledModuleEq3000?: string | null; ledModuleEq4000?: string | null; ledModuleEq5000?: string | null; ledModuleEq?: string | null; ledModuleQtd?: number | null; ledModuleQtd2700?: number | null; ledModuleQtd3000?: number | null; ledModuleQtd4000?: number | null; ledModuleQtd5000?: number | null }>) {
       if (!p.sku) continue;
       const entry: ApiProductDriverInfo = {
         sku: p.sku,
         driver220: p.driver220 ?? null,
         driverBivolt: p.driverBivolt ?? null,
+        driverDimDali: p.driverDimDali ?? null,
+        driverDim110v: p.driverDim110v ?? null,
         driverQtd220: p.driverQtd220 ?? null,
         driverQtdBivolt: p.driverQtdBivolt ?? null,
+        driverQtdDimDali: p.driverQtdDimDali ?? null,
+        driverQtdDim110v: p.driverQtdDim110v ?? null,
+        custoCorpoOnoff220v: p.custoCorpoOnoff220v ?? null,
+        custoCorpoOnoffBivolt: p.custoCorpoOnoffBivolt ?? null,
+        custoCorpoDim110v: p.custoCorpoDim110v ?? null,
+        custoCorpoDimDali: p.custoCorpoDimDali ?? null,
+        custoDriver220: p.custoDriver220 ?? null,
+        custoDriverBivolt: p.custoDriverBivolt ?? null,
+        custoDriverDim110v: p.custoDriverDim110v ?? null,
+        custoDriverDimDali: p.custoDriverDimDali ?? null,
+        markupPadraoOnoff220v: p.markupPadraoOnoff220v ?? null,
+        markupPadraoOnoffBivolt: p.markupPadraoOnoffBivolt ?? null,
+        markupPadraoDim110v: p.markupPadraoDim110v ?? null,
+        markupPadraoDimDali: p.markupPadraoDimDali ?? null,
+        markupPadraoDriverOnoff220v: p.markupPadraoDriverOnoff220v ?? null,
+        markupPadraoDriverOnoffBivolt: p.markupPadraoDriverOnoffBivolt ?? null,
+        markupPadraoDriverDim110v: p.markupPadraoDriverDim110v ?? null,
+        markupPadraoDriverDimDali: p.markupPadraoDriverDimDali ?? null,
+        markupMinimoDriver: p.markupMinimoDriver ?? null,
         ledModuleEq2700: p.ledModuleEq2700 ?? null,
         ledModuleEq3000: p.ledModuleEq3000 ?? null,
         ledModuleEq4000: p.ledModuleEq4000 ?? null,
@@ -1534,6 +1555,7 @@ export default function QuoteDetail() {
       };
       // Indexar por sku simples (primeiro registro vence) para compat
       if (!productSkuMap.has(p.sku)) productSkuMap.set(p.sku, entry);
+      if (p.name) productSkuMap.set(`${p.sku}|${p.name}`, entry);
       // Indexar por sku|powerLabel para perfis com múltiplas potências
       if ((p.categoria ?? "").toUpperCase() === "PERFIS" && p.name) {
         const powerLabel = extractPowerLabelFromName(p.name);
@@ -1549,6 +1571,7 @@ export default function QuoteDetail() {
       const parsedFromStorage = parseCartItemData(item.itemData as string);
       if (!parsedFromStorage) return item;
       let parsed = enrichDriverCurrentsFromApi(parsedFromStorage, componenteCorrenteMap);
+      parsed = migrateLegacyGlowCommercialItem(parsed, componentePriceMap, componenteDescMap, productSkuMap, componenteCorrenteMap);
       const currentEnriched = parsed !== parsedFromStorage;
       // ── Migração 4: Corrigir ledModuleCode nos profileSegments ──
       // Busca o produto correto da API pelo SKU do perfil + potência + stripMethod
@@ -2560,9 +2583,11 @@ export default function QuoteDetail() {
           {canEdit && <Sheet open={editItemsDialogOpen} onOpenChange={(open) => {
             setEditItemsDialogOpen(open);
             if (open) {
-              setEditableItems(currentItems.map(item => {
+              setEditableItems(currentItemsMigrated.map(item => {
+                const itemId = Number(item.id);
+                const itemNumber = Number(item.itemNumber);
                 const parsed = parseCartItemData(item.itemData);
-                if (!parsed) return { id: item.id, itemNumber: item.itemNumber, itemData: item.itemData, parsed: {} as CartItemData };
+                if (!parsed) return { id: itemId, itemNumber, itemData: item.itemData, parsed: {} as CartItemData };
                 // ── Migração de itens legados: reconstruir driverLines a partir de profileSegments ──
                 // Aplica quando: tem profileSegments com driverCode, mas não tem driverLines
                 if ((!parsed.driverLines || parsed.driverLines.length === 0) &&
@@ -2611,8 +2636,8 @@ export default function QuoteDetail() {
                     luminariaHasApiPrice: totalDriverCost > 0 || (parsed.unitPriceLuminaria != null),
                   };
                   return {
-                    id: item.id,
-                    itemNumber: item.itemNumber,
+                    id: itemId,
+                    itemNumber,
                     itemData: JSON.stringify(migratedParsed),
                     parsed: migratedParsed,
                   };
@@ -2647,11 +2672,11 @@ export default function QuoteDetail() {
                     unitPriceLuminaria: _editUPL2 ?? parsed.unitPriceLuminaria,
                     luminariaHasApiPrice: true,
                   };
-                  return { id: item.id, itemNumber: item.itemNumber, itemData: JSON.stringify(migratedParsed2), parsed: migratedParsed2 };
+                  return { id: itemId, itemNumber, itemData: JSON.stringify(migratedParsed2), parsed: migratedParsed2 };
                 }
                 return {
-                    id: item.id,
-                    itemNumber: item.itemNumber,
+                    id: itemId,
+                    itemNumber,
                     itemData: item.itemData,
                     parsed,
                   };

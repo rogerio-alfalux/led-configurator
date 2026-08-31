@@ -707,6 +707,25 @@ export interface ApiProductDriverInfo {
   driverDim110v?: { model: string; code: string | null } | null;
   driverQtd220: number | null;
   driverQtdBivolt: number | null;
+  driverQtdDimDali?: number | null;
+  driverQtdDim110v?: number | null;
+  custoCorpoOnoff220v?: number | null;
+  custoCorpoOnoffBivolt?: number | null;
+  custoCorpoDim110v?: number | null;
+  custoCorpoDimDali?: number | null;
+  custoDriver220?: number | null;
+  custoDriverBivolt?: number | null;
+  custoDriverDim110v?: number | null;
+  custoDriverDimDali?: number | null;
+  markupPadraoOnoff220v?: number | null;
+  markupPadraoOnoffBivolt?: number | null;
+  markupPadraoDim110v?: number | null;
+  markupPadraoDimDali?: number | null;
+  markupPadraoDriverOnoff220v?: number | null;
+  markupPadraoDriverOnoffBivolt?: number | null;
+  markupPadraoDriverDim110v?: number | null;
+  markupPadraoDriverDimDali?: number | null;
+  markupMinimoDriver?: number | null;
   /** Corrente de programação da versão exata retornada pela API. */
   correnteDriver?: string | null;
   /** Código EQ do módulo LED por CCT — para Migração 4 */
@@ -724,6 +743,172 @@ export interface ApiProductDriverInfo {
   ledModuleQtd5000?: number | null;
   /** Nome do produto na API (para extractPowerLabelFromName) */
   name?: string;
+}
+
+function normalizeCommercialLookupText(value: string | null | undefined): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+}
+
+function roundCommercialValue(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+/**
+ * Recupera a variante exata de um perfil GLOW pelo SKU e pelo nome persistido.
+ * O SKU pode ser compartilhado por potências diferentes; por isso o nome da API
+ * é obrigatório para evitar que uma variante 18W/37W/54W use dados de outra.
+ */
+function findExactGlowProduct(
+  item: CartItemData,
+  productSkuMap: Map<string, ApiProductDriverInfo>,
+): ApiProductDriverInfo | null {
+  const context = normalizeCommercialLookupText([
+    item.description,
+    item.orderSummary,
+    item.quoteSummary,
+    item.drivers,
+  ].filter(Boolean).join(" "));
+  if (!context.includes("GLOW") || !item.sku) return null;
+
+  const candidates = new Map<string, ApiProductDriverInfo>();
+  for (const product of Array.from(productSkuMap.values())) {
+    if (product.sku !== item.sku || !product.name) continue;
+    candidates.set(`${product.sku}|${product.name}`, product);
+  }
+  const exact = Array.from(candidates.values())
+    .sort((a, b) => (b.name?.length ?? 0) - (a.name?.length ?? 0))
+    .find(product => context.includes(normalizeCommercialLookupText(product.name)));
+  return exact ?? null;
+}
+
+/**
+ * Reconstrói perfis GLOW legados que foram gravados antes do preço separado de
+ * corpo e driver. A reconstrução é estritamente baseada na variante exata e nos
+ * componentes retornados pela API; nenhum preço ou driver comercial é deduzido.
+ */
+export function migrateLegacyGlowCommercialItem(
+  item: CartItemData,
+  priceMap: Map<string, number>,
+  descMap: Map<string, string>,
+  productSkuMap: Map<string, ApiProductDriverInfo>,
+  correnteMap?: Map<string, string | null>,
+): CartItemData {
+  if (item.driverLines && item.driverLines.length > 0) return item;
+
+  const product = findExactGlowProduct(item, productSkuMap);
+  if (!product?.name) return item;
+
+  const context = normalizeCommercialLookupText([
+    item.description,
+    item.orderSummary,
+    item.quoteSummary,
+    item.drivers,
+  ].filter(Boolean).join(" "));
+  const isDali = context.includes("DALI");
+  const isDim = !isDali && /\b(DIM|TRIAC|1-10V|0-10V)\b/.test(context);
+  const isBivolt = context.includes("BIVOLT");
+  const control = isDali ? "DIM DALI" : isDim ? "DIM 1-10V" : "ON/OFF";
+  const voltage = isBivolt ? "Bivolt" : "220V";
+  const driver = isDali
+    ? product.driverDimDali
+    : isDim
+      ? product.driverDim110v
+      : isBivolt
+        ? (product.driverBivolt ?? product.driver220)
+        : (product.driver220 ?? product.driverBivolt);
+  const driverQtyPerUnit = isDali
+    ? product.driverQtdDimDali
+    : isDim
+      ? product.driverQtdDim110v
+      : isBivolt
+        ? (product.driverQtdBivolt ?? product.driverQtd220)
+        : (product.driverQtd220 ?? product.driverQtdBivolt);
+  if (!driver?.code || !driverQtyPerUnit || driverQtyPerUnit <= 0) return item;
+
+  const bodyCost = isDali
+    ? product.custoCorpoDimDali
+    : isDim
+      ? product.custoCorpoDim110v
+      : isBivolt
+        ? product.custoCorpoOnoffBivolt
+        : product.custoCorpoOnoff220v;
+  const bodyMarkup = isDali
+    ? product.markupPadraoDimDali
+    : isDim
+      ? product.markupPadraoDim110v
+      : isBivolt
+        ? product.markupPadraoOnoffBivolt
+        : product.markupPadraoOnoff220v;
+  const driverCost = isDali
+    ? product.custoDriverDimDali
+    : isDim
+      ? product.custoDriverDim110v
+      : isBivolt
+        ? product.custoDriverBivolt
+        : product.custoDriver220;
+  const driverMarkup = isDali
+    ? product.markupPadraoDriverDimDali
+    : isDim
+      ? product.markupPadraoDriverDim110v
+      : isBivolt
+        ? product.markupPadraoDriverOnoffBivolt
+        : product.markupPadraoDriverOnoff220v;
+  const bodyUnitPrice = bodyCost != null && bodyMarkup != null
+    ? roundCommercialValue(bodyCost * bodyMarkup)
+    : (item.unitPrice ?? null);
+  const driverUnitPrice = priceMap.get(driver.code) ?? (
+    driverCost != null && driverMarkup != null
+      ? roundCommercialValue(driverCost * driverMarkup)
+      : null
+  );
+  const itemQty = item.qty ?? 1;
+  const totalDriverQty = driverQtyPerUnit * itemQty;
+  const driverTotalPrice = driverUnitPrice != null
+    ? roundCommercialValue(driverUnitPrice * totalDriverQty)
+    : null;
+  const priceWithoutDriver = bodyUnitPrice != null
+    ? roundCommercialValue(bodyUnitPrice * itemQty)
+    : null;
+  const totalPrice = priceWithoutDriver != null || driverTotalPrice != null
+    ? roundCommercialValue((priceWithoutDriver ?? 0) + (driverTotalPrice ?? 0))
+    : item.totalPrice;
+  const cct = item.cct ?? (context.match(/\b(2700|3000|3500|4000|5000)K\b/)?.[0] ?? "");
+  const driverModel = descMap.get(driver.code) ?? driver.model;
+  const description = `${product.name} ${cct} ${control} ${voltage}`.replace(/\s+/g, " ").trim();
+  const driverLines: DriverLine[] = [{
+    driverCode: driver.code,
+    driverModel,
+    driverQty: totalDriverQty,
+    driverUnitPrice,
+    driverTotalPrice,
+    ...(correnteMap?.get(driver.code) ? { corrente: correnteMap.get(driver.code)! } : {}),
+  }];
+
+  return {
+    ...item,
+    description,
+    quoteSummary: description.toUpperCase(),
+    orderSummary: `CÓDIGO: ${item.sku}\n${description.toUpperCase()} COM DRIVER ${driverModel.toUpperCase()} (${driver.code})`,
+    drivers: `DRIVER ${driverModel.toUpperCase()} (${driver.code})`,
+    unitPrice: bodyUnitPrice,
+    totalPrice,
+    priceFromApi: bodyCost != null && bodyMarkup != null,
+    driverLines,
+    priceWithoutDriver,
+    unitPriceLuminaria: bodyUnitPrice,
+    unitPriceDriver: driverUnitPrice,
+    luminariaHasApiPrice: bodyCost != null && bodyMarkup != null,
+    custoCorpoBase: bodyCost ?? item.custoCorpoBase,
+    custoDriverBase: driverCost ?? item.custoDriverBase,
+    markupPadraoApi: bodyMarkup ?? item.markupPadraoApi,
+    markupMinimoDriverApi: product.markupMinimoDriver ?? item.markupMinimoDriverApi,
+    driverQtyPerUnit,
+  };
 }
 
 /**

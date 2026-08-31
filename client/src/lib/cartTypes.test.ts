@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { enrichDriverCurrentsFromApi, migrateItemDrivers, parseCartItemData } from "./cartTypes";
+import { enrichDriverCurrentsFromApi, migrateItemDrivers, migrateLegacyGlowCommercialItem, parseCartItemData } from "./cartTypes";
 
 describe("parseCartItemData - correção de driverQty para perfis", () => {
   it("corrige driverQty quando está salvo apenas por luminária (BLAZE 45700mm, 12 lum, 17 drv/lum)", () => {
@@ -184,6 +184,100 @@ describe("migrateItemDrivers - perfis usam a variante API da potência seleciona
     expect(migrated.profileSegments?.[0].driverCode).toBe("EQ0026");
     expect(migrated.profileSegments?.[0].corrente).toBe("500mA");
     expect(migrated.driverLines?.[0]).toMatchObject({ driverCode: "EQ0026", driverQty: 2, corrente: "500mA" });
+  });
+});
+
+describe("migrateLegacyGlowCommercialItem", () => {
+  it("seleciona a variante GLOW exata pelo nome quando o SKU é compartilhado", () => {
+    const item = {
+      category: "Perfis",
+      sku: "LLS-9465.577.65F",
+      description: "GLOW S 37W 577MM 3000K 220V",
+      cct: "3000K",
+      qty: 144,
+      unitPrice: 202,
+      totalPrice: 29088,
+      photoUrl: null,
+      drivers: "DRIVER LED DRIVER XITANIUM 35W 80-350MA 50-220VDC 220V DALI (EQ00659)",
+    } as any;
+    const productMap = new Map([
+      ["LLS-9465.577.65F|GLOW S 18W 577MM", {
+        sku: "LLS-9465.577.65F", name: "GLOW S 18W 577MM",
+        driver220: { code: "EQ00347", model: "DRIVER 44W" }, driverBivolt: null,
+        driverQtd220: 1, driverQtdBivolt: null,
+      }],
+      ["LLS-9465.577.65F|GLOW S 37W 577MM", {
+        sku: "LLS-9465.577.65F", name: "GLOW S 37W 577MM",
+        driver220: { code: "EQ00348", model: "DRIVER 65W" }, driverBivolt: null,
+        driverDimDali: { code: "EQ00659", model: "DRIVER 35W DALI" },
+        driverQtd220: 1, driverQtdBivolt: null, driverQtdDimDali: 1,
+        custoCorpoDimDali: 145.5337, custoDriverDimDali: 87.46,
+        markupPadraoDimDali: 2, markupPadraoDriverDimDali: 3, markupMinimoDriver: 3,
+      }],
+    ]);
+
+    const migrated = migrateLegacyGlowCommercialItem(
+      item,
+      new Map([["EQ00659", 262.38]]),
+      new Map([["EQ00659", "LED DRIVER 35W 220V DALI"]]),
+      productMap,
+    );
+
+    expect(migrated.description).toBe("GLOW S 37W 577MM 3000K DIM DALI 220V");
+    expect(migrated.unitPriceLuminaria).toBe(291.07);
+    expect(migrated.priceWithoutDriver).toBe(41914.08);
+    expect(migrated.driverLines).toEqual([expect.objectContaining({
+      driverCode: "EQ00659", driverQty: 144, driverUnitPrice: 262.38, driverTotalPrice: 37782.72,
+    })]);
+    expect(migrated.totalPrice).toBe(79696.8);
+  });
+
+  it("reconstrói o GLOW DALI legado com corpo e driver da variante API exata", () => {
+    const item = {
+      category: "Perfis",
+      sku: "LLS-9465.115.65F",
+      description: "GLOW S 54W 1154MM 3000K 220V",
+      cct: "3000K",
+      qty: 41,
+      unitPrice: 345.21,
+      totalPrice: 14153.61,
+      photoUrl: null,
+      drivers: "DRIVER LED DRIVER 100W 150-500MA 100-300VDC 220V DALI (EQ00179)",
+    } as any;
+    const productMap = new Map([[
+      "LLS-9465.115.65F|GLOW S 54W 1154MM",
+      {
+        sku: "LLS-9465.115.65F",
+        name: "GLOW S 54W 1154MM",
+        driver220: { code: "EQ00348", model: "DRIVER 65W" },
+        driverBivolt: null,
+        driverDimDali: { code: "EQ00179", model: "DRIVER 100W DALI" },
+        driverQtd220: 1,
+        driverQtdBivolt: null,
+        driverQtdDimDali: 1,
+        custoCorpoDimDali: 172.6047,
+        custoDriverDimDali: 159.84,
+        markupPadraoDimDali: 2,
+        markupPadraoDriverDimDali: 3,
+        markupMinimoDriver: 3,
+      },
+    ]]);
+
+    const migrated = migrateLegacyGlowCommercialItem(
+      item,
+      new Map([["EQ00179", 479.52]]),
+      new Map([["EQ00179", "LED DRIVER 100W 220V DALI"]]),
+      productMap,
+      new Map([["EQ00179", "500mA"]]),
+    );
+
+    expect(migrated.description).toBe("GLOW S 54W 1154MM 3000K DIM DALI 220V");
+    expect(migrated.unitPriceLuminaria).toBe(345.21);
+    expect(migrated.priceWithoutDriver).toBe(14153.61);
+    expect(migrated.driverLines).toEqual([expect.objectContaining({
+      driverCode: "EQ00179", driverQty: 41, driverUnitPrice: 479.52, driverTotalPrice: 19660.32, corrente: "500mA",
+    })]);
+    expect(migrated.totalPrice).toBe(33813.93);
   });
 });
 
