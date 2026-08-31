@@ -3111,3 +3111,9 @@
 - [x] Localizar os agrupamentos atuais do seletor de perfis
 - [x] Agrupar dinamicamente famílias cujo nome termina em FL em Perfis com Fita
 - [x] Cobrir o agrupamento sem alterar as categorias LED BAR existentes
+
+## Configurador: documentos técnicos por composição de perfil
+- [x] Mapear anexos API e SKUs gerados pelas composições de perfis
+- [x] Consolidar um Datasheet e uma IES por composição e desenhos técnicos por SKU
+- [x] Exibir os documentos no resumo após cada cálculo de perfil
+- [x] Cobrir deduplicação, agrupamento e ausência de anexos por regressão

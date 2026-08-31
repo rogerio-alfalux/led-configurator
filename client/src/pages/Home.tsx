@@ -17,6 +17,8 @@ import { profileCartTechnicalFields } from "@/lib/profileCartTechnicalFields";
 import { ModularOptimizationControls } from "@/components/ModularOptimizationControls";
 import { ResultTechnicalCartControls } from "@/components/ResultTechnicalCartControls";
 import { ProductDocumentDownloads } from "@/components/ProductDocumentDownloads";
+import { ProfileTechnicalDocuments } from "@/components/ProfileTechnicalDocuments";
+import { getProfileTechnicalDocuments, type ProfileTechnicalDocuments as ProfileTechnicalDocumentsData } from "@/lib/profileCompositionDocuments";
 import { getLdNotificationBadge } from "@/lib/ldRequestNotifications";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -660,6 +662,7 @@ function ShapeResultCard({
   pendingAccessoriesCount,
   globalPavimento,
   requestedTotalMm,
+  technicalDocuments,
 }: {
   shapeResult: ShapeResult;
   skuPriceMap?: SkuPriceMap;
@@ -670,6 +673,7 @@ function ShapeResultCard({
   pendingAccessoriesCount?: number;
   globalPavimento?: string;
   requestedTotalMm?: number;
+  technicalDocuments?: ProfileTechnicalDocumentsData;
 }) {
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1274,6 +1278,7 @@ function ShapeResultCard({
             <p className="text-xs text-muted-foreground">Este preço será usado no orçamento (ON/OFF 220V).</p>
           </div>
         )}
+            {technicalDocuments ? <ProfileTechnicalDocuments documents={technicalDocuments} /> : null}
             </CardContent>
     </Card>
     {/* Detalhamento de Preços — por módulo */}
@@ -1529,7 +1534,7 @@ type SkuPriceMap = Record<string, {
   correnteDimDali: string|null; correnteDim110v: string|null;
 }>;
 
-function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty, setGlobalQty, onOpenAccessoryModal, pendingAccessoriesCount, globalPavimento, shiftModuleSelector, addBlockedReason, transformCartItem }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void; onOpenAccessoryModal?: () => void; pendingAccessoriesCount?: number; globalPavimento?: string; shiftModuleSelector?: ReactNode; addBlockedReason?: string; transformCartItem?: (item: CartItemData) => CartItemData }) {
+function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty, setGlobalQty, onOpenAccessoryModal, pendingAccessoriesCount, globalPavimento, shiftModuleSelector, addBlockedReason, transformCartItem, technicalDocuments }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void; onOpenAccessoryModal?: () => void; pendingAccessoriesCount?: number; globalPavimento?: string; shiftModuleSelector?: ReactNode; addBlockedReason?: string; transformCartItem?: (item: CartItemData) => CartItemData; technicalDocuments?: ProfileTechnicalDocumentsData }) {
   const { user: _rbUser } = useAuth();
   const isConvidadoRB = (_rbUser as any)?.role === "convidado";
   const efficiency = result.requestedLength > 0
@@ -1726,6 +1731,7 @@ function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onA
               </div>
             </div>
           )}
+          {technicalDocuments ? <ProfileTechnicalDocuments documents={technicalDocuments} /> : null}
         </CardContent>
       </Card>
 
@@ -9505,7 +9511,7 @@ export default function Home() {
               </Card>
             ) : (
               <>
-                <ResultBlock result={result} profilePriceMap={profilePriceMap} profileVariant={activeProfileCatalog[result.profileCode]} skuPriceMap={skuPriceMap} onAddToQuote={(appendToQuoteId || replaceInQuoteId) ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }} pendingAccessoriesCount={pendingAccessories.length} globalPavimento={globalPavimento} addBlockedReason={isShift && !shiftModulesConfirmed ? "Selecione ao menos um módulo SHIFT antes de enviar o produto ao carrinho ou orçamento." : undefined} transformCartItem={isShift ? ((item) => {
+                <ResultBlock result={result} profilePriceMap={profilePriceMap} profileVariant={activeProfileCatalog[result.profileCode]} skuPriceMap={skuPriceMap} onAddToQuote={(appendToQuoteId || replaceInQuoteId) ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }} pendingAccessoriesCount={pendingAccessories.length} globalPavimento={globalPavimento} technicalDocuments={getProfileTechnicalDocuments(alfaluxApiProducts, result.composition.map((item) => item.sku))} addBlockedReason={isShift && !shiftModulesConfirmed ? "Selecione ao menos um módulo SHIFT antes de enviar o produto ao carrinho ou orçamento." : undefined} transformCartItem={isShift ? ((item) => {
                   const shiftAccessories: LinkedAccessory[] = shiftModules.map(m => ({
                     codigo: m.sku,
                     descricao: `${m.name} ${m.cct}K`,
@@ -9577,6 +9583,7 @@ export default function Home() {
                   pendingAccessoriesCount={pendingAccessories.length}
                   globalPavimento={globalPavimento}
                   requestedTotalMm={shapeRequestedMm}
+                  technicalDocuments={getProfileTechnicalDocuments(alfaluxApiProducts, shapeResult.pieces.map((piece) => piece.sku))}
                 />
               )
             )}
@@ -9654,6 +9661,7 @@ export default function Home() {
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
                         <p className="text-sm font-semibold">{lbResult.ledModuleWithCCT} {lbResult.cct}{lbResult.ledModuleEqCode ? <span className="ml-2 text-xs font-mono text-muted-foreground">({lbResult.ledModuleEqCode})</span> : null}</p>
                       </div>
+                      <ProfileTechnicalDocuments documents={getProfileTechnicalDocuments(alfaluxApiProducts, [lbResult.product.sku])} />
 
                       {/* Fonte (total) */}
                       {(() => {
