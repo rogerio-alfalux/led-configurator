@@ -3144,3 +3144,10 @@
 - [x] Centralizar a conversão da parte decimal em trechos de 1/9 de barra
 - [x] Aplicar a regra à exibição, ficha e requisição de materiais
 - [x] Cobrir 1,9, 4,4, soma entre itens e multiplicação pela quantidade por regressão
+
+## Catálogo API, barras de perfis e desempenho do pedido de fábrica
+- [x] Diagnosticar por que o configurador está exibindo Catálogo local e restaurar a fonte Alfalux
+- [x] Garantir que quantidades de barras de todos os perfis sejam derivadas exclusivamente da API
+- [x] Identificar gravações, consultas e recálculos que bloqueiam a digitação no gerenciamento do pedido
+- [x] Tornar campos e sugestões do gerenciamento fluidos, mantendo persistência segura dos dados
+- [x] Cobrir catálogo, origem das barras e desempenho da edição por regressão

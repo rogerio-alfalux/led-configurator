@@ -15,6 +15,7 @@
 
 const ALFALUX_BASE = "https://alfaluxprod-c8zmg2fn.manus.space";
 const CACHE_TTL_MS = 0; // Sem cache — sempre buscar dados frescos da API
+const AVAILABILITY_CACHE_TTL_MS = 5 * 60 * 1000;
 
 /** Normaliza a descrição técnica sem alterar conteúdo comercial para lookup na API. */
 export function normalizeAlfaluxComponentDescription(value: string | null | undefined): string {
@@ -242,9 +243,9 @@ let cache: CacheEntry | null = null;
 // o próximo acesso consulta a API novamente; portanto não é cache de catálogo.
 let productsFetchInFlight: Promise<AlfaluxProduct[]> | null = null;
 
-export async function fetchAllAlfaluxProducts(): Promise<AlfaluxProduct[]> {
+export async function fetchAllAlfaluxProducts(forceRefresh = false): Promise<AlfaluxProduct[]> {
   const now = Date.now();
-  if (cache && now - cache.fetchedAt < CACHE_TTL_MS) {
+  if (!forceRefresh && cache && now - cache.fetchedAt < AVAILABILITY_CACHE_TTL_MS) {
     return cache.data;
   }
 
@@ -265,7 +266,7 @@ export async function fetchAllAlfaluxProducts(): Promise<AlfaluxProduct[]> {
   const all = body.products ?? [];
   // As três etapas de enriquecimento usam a mesma origem. Compartilhar a
   // requisição impede três esperas consecutivas pela API de componentes.
-  const componentesPromise = fetchComponentes();
+  const componentesPromise = fetchComponentes(forceRefresh);
 
   // Reportar SKUs duplicados (sem removê-los) para diagnóstico
   const skuCount = new Map<string, number>();
@@ -589,25 +590,35 @@ interface ComponentesCacheEntry {
 }
 
 let componentesCache: ComponentesCacheEntry | null = null;
+let componentesFetchInFlight: Promise<{ items: ComponenteProduct[]; tipos: string[] }> | null = null;
 
-export async function fetchComponentes(): Promise<{ items: ComponenteProduct[]; tipos: string[] }> {
+export async function fetchComponentes(forceRefresh = false): Promise<{ items: ComponenteProduct[]; tipos: string[] }> {
   const now = Date.now();
-  if (componentesCache && now - componentesCache.fetchedAt < CACHE_TTL_MS) {
+  if (!forceRefresh && componentesCache && now - componentesCache.fetchedAt < AVAILABILITY_CACHE_TTL_MS) {
     return { items: componentesCache.data, tipos: componentesCache.tipos };
   }
-  console.log("[AlfaluxAPI] Buscando componentes via /api/componentes/all...");
-  const url = `${ALFALUX_BASE}/api/componentes/all`;
-  const res = await fetch(url, {
-    headers: { Accept: "application/json" },
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) throw new Error(`Alfalux Componentes API error: ${res.status}`);
-  const body = await res.json() as ComponentesApiResponse;
-  const items = body.items ?? [];
-  const tipos = body.tipos ?? [];
-  console.log(`[AlfaluxAPI] ${items.length} componentes carregados (${tipos.length} tipos).`);
-  componentesCache = { data: items, tipos, fetchedAt: now };
-  return { items, tipos };
+  if (componentesFetchInFlight) return componentesFetchInFlight;
+  const freshFetch = (async () => {
+    console.log("[AlfaluxAPI] Buscando componentes via /api/componentes/all...");
+    const url = `${ALFALUX_BASE}/api/componentes/all`;
+    const res = await fetch(url, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) throw new Error(`Alfalux Componentes API error: ${res.status}`);
+    const body = await res.json() as ComponentesApiResponse;
+    const items = body.items ?? [];
+    const tipos = body.tipos ?? [];
+    console.log(`[AlfaluxAPI] ${items.length} componentes carregados (${tipos.length} tipos).`);
+    componentesCache = { data: items, tipos, fetchedAt: Date.now() };
+    return { items, tipos };
+  })();
+  componentesFetchInFlight = freshFetch;
+  try {
+    return await freshFetch;
+  } finally {
+    if (componentesFetchInFlight === freshFetch) componentesFetchInFlight = null;
+  }
 }
 
 export function invalidateComponentesCache(): void {

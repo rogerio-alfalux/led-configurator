@@ -79,6 +79,17 @@ export function ComponentSearchField({
     if (!editingQtyRef.current) setQtyDraft(String(qty).replace(".", ","));
   }, [qty]);
 
+  const commitQuantity = () => {
+    editingQtyRef.current = false;
+    const parsed = parseDecimalQuantity(qtyDraft);
+    if (parsed === null) {
+      setQtyDraft(String(qty).replace(".", ","));
+      return;
+    }
+    setQtyDraft(String(parsed).replace(".", ","));
+    onQtyChange(parsed);
+  };
+
   // Filtrar opções pelo termo de busca
   const filtered = useMemo(() => {
     const term = search.toLowerCase().trim();
@@ -122,19 +133,9 @@ export function ComponentSearchField({
             onChange={e => {
               const next = e.target.value.replace(/[^0-9,.-]/g, "");
               setQtyDraft(next);
-              const parsed = parseDecimalQuantity(next);
-              if (parsed !== null) onQtyChange(parsed);
             }}
-            onBlur={() => {
-              editingQtyRef.current = false;
-              const parsed = parseDecimalQuantity(qtyDraft);
-              if (parsed === null) {
-                setQtyDraft(String(qty).replace(".", ","));
-                return;
-              }
-              setQtyDraft(String(parsed).replace(".", ","));
-              onQtyChange(parsed);
-            }}
+            onBlur={commitQuantity}
+            onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }}
             disabled={readOnly}
             className="h-8 text-sm text-center mt-1"
           />

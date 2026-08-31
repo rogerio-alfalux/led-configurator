@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { memo, useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import {
   ArrowLeft, Factory, Plus, Trash2, FileSpreadsheet,
@@ -29,6 +29,7 @@ import type { OrderFormData } from "@/lib/orderExcelGenerator";
 import { toBrasiliaDate, toBrasiliaDateTime, toBrasiliaDateTimeShort } from "@/lib/dateUtils";
 import { formatProfileSkuLines } from "@/lib/profileSkuFormatter";
 import { addStripflexQuantities, isStripflexDescription, multiplyStripflexQuantity, normalizeStripflexQuantity } from "@/lib/ledStripUnits";
+import { createFactoryOrderAutosave } from "@/lib/factoryOrderAutosave";
 import { toast } from "sonner";
 
 // ─── Funções auxiliares para Fonte de Luz e Equipamentos ────────────────────
@@ -227,7 +228,10 @@ interface EditableItemProps {
   /** Se true, os componentes ainda estão carregando */
   componentesLoading?: boolean;
 }
-function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, priceMap, productSkuMap, correnteMap, reverseDescMap, componentesData = [], componentesLoading = false }: EditableItemProps) {
+const EMPTY_DRIVERS: EditableItemProps["drivers"] = [];
+const EMPTY_COMPONENT_OPTIONS: ComponentOption[] = [];
+
+function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, descMap, priceMap, productSkuMap, correnteMap, reverseDescMap, componentesData = EMPTY_COMPONENT_OPTIONS, componentesLoading = false }: EditableItemProps) {
   const [expanded, setExpanded] = useState(true);
   const [showAcessorioModal, setShowAcessorioModal] = useState(false);
   const [acessorioSearch, setAcessorioSearch] = useState("");
@@ -444,9 +448,6 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                 onChange={e => {
                   const next = e.target.value.replace(/[^0-9,.-]/g, "");
                   setQtyDraft(next);
-                  const normalized = next.replace(",", ".");
-                  const qty = Number(normalized);
-                  if (Number.isFinite(qty) && qty > 0) update({ qty });
                 }}
                 onBlur={() => {
                   const qty = Number(qtyDraft.replace(",", "."));
@@ -455,8 +456,10 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
                     update({ qty: 1 });
                   } else {
                     setQtyDraft(String(qty).replace(".", ","));
+                    update({ qty });
                   }
                 }}
+                onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }}
                 className="mt-1 h-8 text-sm"
               />
             </div>
@@ -1046,6 +1049,8 @@ function EditableItem({ item, drivers, acessorios, onUpdate, onRemove, descMap, 
   );
 }
 
+const EditableItem = memo(EditableItemComponent);
+
 // ─── Seletor de CCT ─────────────────────────────────────────────────────────
 const STANDARD_CCTS = ["2700K", "3000K", "4000K", "5000K"];
 
@@ -1207,7 +1212,7 @@ export default function FactoryOrderDetail() {
   // Acessórios
   const { data: acessoriosData = [] } = trpc.alfalux.acessoriosProducts.useQuery();
   /** Mapa código EQ -> descrição canônica da API (para normalizar driverModel) */
-  const { data: componentesData, isLoading: componentesLoading } = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 0, retry: 3, retryDelay: 2000, refetchOnMount: "always", refetchOnWindowFocus: true });
+  const { data: componentesData, isLoading: componentesLoading } = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 5 * 60 * 1000, retry: 2, retryDelay: 1000, refetchOnWindowFocus: false });
   const componenteDescMapFO = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of componentesData?.items ?? []) {
@@ -1245,7 +1250,7 @@ export default function FactoryOrderDetail() {
     return map;
   }, [componentesData]);
   /** Produtos da API para fallback de driver (SKU → driver info) e resolução de ledModuleCode (Migração 4) */
-  const { data: allProductsFO } = trpc.alfalux.products.useQuery(undefined, { staleTime: 0 });
+  const { data: allProductsFO } = trpc.alfalux.products.useQuery(undefined, { staleTime: 5 * 60 * 1000, refetchOnWindowFocus: false });
   const productSkuMapFO = useMemo(() => {
     const map = new Map<string, ApiProductDriverInfo>();
     for (const p of (allProductsFO ?? []) as Array<{ sku: string; name?: string; categoria?: string; driver220?: { model: string; code: string | null } | null; driverBivolt?: { model: string; code: string | null } | null; driverDimDali?: { model: string; code: string | null } | null; driverDim110v?: { model: string; code: string | null } | null; driverQtd220?: number | null; driverQtdBivolt?: number | null; correnteDriver?: string | null; ledModuleEq2700?: string | null; ledModuleEq3000?: string | null; ledModuleEq4000?: string | null; ledModuleEq5000?: string | null; ledModuleEq?: string | null; ledModuleQtd?: number | null; ledModuleQtd2700?: number | null; ledModuleQtd3000?: number | null; ledModuleQtd4000?: number | null; ledModuleQtd5000?: number | null }>) {
@@ -1311,11 +1316,19 @@ export default function FactoryOrderDetail() {
   });
 
   const updateItemMutation = trpc.factoryOrders.updateItem.useMutation({
-    onSuccess: () => {
-      utils.factoryOrders.getById.invalidate({ id: effectiveOrderId! });
+    onError: (err) => {
+      toast.error(`Erro ao salvar item: ${err.message}`);
+      if (effectiveOrderId) void utils.factoryOrders.getById.invalidate({ id: effectiveOrderId });
     },
-    onError: (err) => toast.error(`Erro ao salvar item: ${err.message}`),
   });
+
+  const saveItemRef = useRef(updateItemMutation.mutateAsync);
+  saveItemRef.current = updateItemMutation.mutateAsync;
+  const itemAutosave = useMemo(() => createFactoryOrderAutosave(
+    (itemId, itemData) => saveItemRef.current({ itemId, itemData }),
+    500,
+  ), [effectiveOrderId]);
+  useEffect(() => () => { void itemAutosave.flushAll().catch(() => undefined); }, [itemAutosave]);
 
   const removeItemMutation = trpc.factoryOrders.removeItem.useMutation({
     onSuccess: () => {
@@ -1367,14 +1380,22 @@ export default function FactoryOrderDetail() {
   }, [quoteData, quoteId, newOrderEmpresa, createOrderMutation]);
 
   const handleUpdateItem = useCallback((itemId: number, newData: CartItemData) => {
-    updateItemMutation.mutate({ itemId, itemData: JSON.stringify(newData) });
+    const itemData = JSON.stringify(newData);
+    if (effectiveOrderId) {
+      utils.factoryOrders.getById.setData({ id: effectiveOrderId }, previous => previous ? ({
+        ...previous,
+        items: previous.items.map(item => item.id === itemId ? { ...item, itemData } : item),
+      }) : previous);
+    }
+    itemAutosave.schedule(itemId, itemData);
     setHasUnpublishedChanges(true);
-  }, [updateItemMutation]);
+  }, [effectiveOrderId, itemAutosave, utils]);
 
   const handleRemoveItem = useCallback((itemId: number) => {
+    itemAutosave.cancel(itemId);
     removeItemMutation.mutate({ itemId });
     setHasUnpublishedChanges(true);
-  }, [removeItemMutation]);
+  }, [itemAutosave, removeItemMutation]);
 
   // Exclusão de pedido/subpedido completo
   const [showDeleteOrderDialog, setShowDeleteOrderDialog] = useState(false);
@@ -1571,6 +1592,12 @@ export default function FactoryOrderDetail() {
 
   const handleGenerateExcel = useCallback(async () => {
     if (!currentOrder || !quoteData) return;
+    try {
+      await itemAutosave.flushAll();
+    } catch {
+      toast.error("Não foi possível concluir o salvamento dos itens antes de gerar o Excel.");
+      return;
+    }
     // Validar número do pedido: exatamente 6 dígitos numéricos
     const orderNum = currentOrder.orderNumber ?? "";
     if (!/^\d{6}(-\d+)?$/.test(orderNum)) {
@@ -1613,7 +1640,7 @@ export default function FactoryOrderDetail() {
     }
     // Sem alterações pendentes ou primeira geração: gerar diretamente
     await doGenerateExcel(currentOrder);
-  }, [currentOrder, quoteData, hasUnpublishedChanges, excelHistory.length, checkPendingWarnings, doGenerateExcel, createRevisionMutation]);
+  }, [currentOrder, quoteData, itemAutosave, hasUnpublishedChanges, excelHistory.length, checkPendingWarnings, doGenerateExcel, createRevisionMutation]);
 
   // Flag para gerar Excel automaticamente após criar nova revisão
   const [pendingAutoGenerate, setPendingAutoGenerate] = useState(false);
@@ -1630,6 +1657,12 @@ export default function FactoryOrderDetail() {
   const handleConfirmExcelWithWarnings = useCallback(async () => {
     setShowExcelWarningDialog(false);
     if (!currentOrder) return;
+    try {
+      await itemAutosave.flushAll();
+    } catch {
+      toast.error("Não foi possível concluir o salvamento dos itens antes de gerar o Excel.");
+      return;
+    }
     // Verificar se precisa criar nova revisão
     if (hasUnpublishedChanges && excelHistory.length > 0) {
       setIsGenerating(true);
@@ -1653,7 +1686,7 @@ export default function FactoryOrderDetail() {
       return;
     }
     await doGenerateExcel(currentOrder);
-  }, [currentOrder, hasUnpublishedChanges, excelHistory.length, doGenerateExcel, createRevisionMutation]);
+  }, [currentOrder, itemAutosave, hasUnpublishedChanges, excelHistory.length, doGenerateExcel, createRevisionMutation]);
 
   const handleSaveNotes = useCallback(() => {
     if (!effectiveOrderId) return;
@@ -2105,7 +2138,7 @@ export default function FactoryOrderDetail() {
                         <EditableItem
                           key={item.id}
                           item={item}
-                          drivers={[]}
+                          drivers={EMPTY_DRIVERS}
                           acessorios={acessoriosData}
                           onUpdate={handleUpdateItem}
                           onRemove={handleRemoveItem}
@@ -2114,7 +2147,7 @@ export default function FactoryOrderDetail() {
                           productSkuMap={productSkuMapFO}
                           correnteMap={componenteCorrenteMapFO}
                           reverseDescMap={componenteReverseDescMapFO}
-                          componentesData={componentesData?.items ?? []}
+                          componentesData={componentesData?.items ?? EMPTY_COMPONENT_OPTIONS}
                           componentesLoading={componentesLoading}
                         />
                       ))

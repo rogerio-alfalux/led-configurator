@@ -39,7 +39,7 @@ import {
   setActiveCatalog,
 } from "@/lib/ledCatalog";
 import { adaptProfileProducts } from "@/lib/profileApiAdapter";
-import type { InstallType } from "@/lib/ledCatalog";
+import type { InstallType, ProfileVariant } from "@/lib/ledCatalog";
 import { calculateComposition, getStripflexName, getStriplineName } from "@/lib/ledEngine";
 import { profileSupportsLShape, calculateLShape, calculateSquare, calculateRectangle, calculateUShape, type ShapeDriverParams } from "@/lib/lEngine";
 import type { ProfileShape, ShapeResult, ShapePiece } from "@/lib/lCatalog";
@@ -2992,7 +2992,7 @@ export default function Home() {
 
   // Buscar produtos da API Alfalux diretamente no browser (client-side)
   // Isso evita restrições de rede do servidor sandbox e garante dados sempre frescos
-  const { products: alfaluxApiProducts, isLoading: alfaluxLoading, refetch: refetchAlfaluxProducts } = useAlfaluxProducts();
+  const { products: alfaluxApiProducts, isLoading: alfaluxLoading, error: alfaluxError, refetch: refetchAlfaluxProducts } = useAlfaluxProducts();
   // SHIFT modules (S01) query
   const { data: shiftModulesData } = trpc.alfalux.shiftModules.useQuery(undefined, { staleTime: 0 });
 
@@ -3050,11 +3050,13 @@ export default function Home() {
     return adaptedCatalogs?.downlightFotos?.[`${familia}|${produto}`] ?? getDownlightPhoto(familia, produto);
   }, [adaptedCatalogs]);
 
-  // ── Catálogo de perfis via API (com fallback para LED_CATALOG estático) ──────
-  const activeProfileCatalog = useMemo(() => {
-    if (!alfaluxApiProducts || alfaluxApiProducts.length === 0) return LED_CATALOG;
+  // ── Catálogo de perfis exclusivamente da API ────────────────────────────────
+  // Sem uma resposta válida, o perfil permanece indisponível: a interface não
+  // pode inferir quantidade de barras ou SKU a partir do catálogo local.
+  const activeProfileCatalog = useMemo<Record<string, ProfileVariant>>(() => {
+    if (!alfaluxApiProducts || alfaluxApiProducts.length === 0) return {};
     const apiCatalog = adaptProfileProducts(alfaluxApiProducts);
-    return apiCatalog ?? LED_CATALOG;
+    return apiCatalog ?? {};
   }, [alfaluxApiProducts]);
 
   const profileCatalogIsFromApi = useMemo(() => {
@@ -4776,6 +4778,11 @@ export default function Home() {
   const handleCalculate = useCallback(() => {
     setError(null);
 
+    if (!profileCatalogIsFromApi || !selectedVariant) {
+      setError("O catálogo de perfis da API Alfalux ainda não está disponível. Tente atualizar os dados antes de calcular.");
+      return;
+    }
+
     if (!profileCode) {
       setError("Selecione o perfil e o tipo de instalação para continuar.");
       return;
@@ -4821,6 +4828,7 @@ export default function Home() {
     const resolvedApiVariant = apiLinearVariant ?? selectedVariant;
 
     const input: ConfigInput = {
+      catalog: activeProfileCatalog,
       profileCode,
       application: effectiveApplication,
       powerD1: shiftPowerD1,
@@ -4872,7 +4880,7 @@ export default function Home() {
       const msg = e instanceof Error ? e.message : "Erro ao calcular composição.";
       setError(msg);
     }
-  }, [profileCode, effectiveApplication, powerD1, powerD2, cct, voltage, stripMethod, totalLength, allowLongModules, allowFractional, adjustToLarger, allowMixedIF, optimizeModuleCount, effectiveIndependent, isDual, hasDiffuser, diffuserD1, diffuserD2, controlType, selectedVariant, isShift]);
+  }, [profileCatalogIsFromApi, activeProfileCatalog, profileCode, effectiveApplication, powerD1, powerD2, cct, voltage, stripMethod, totalLength, allowLongModules, allowFractional, adjustToLarger, allowMixedIF, optimizeModuleCount, effectiveIndependent, isDual, hasDiffuser, diffuserD1, diffuserD2, controlType, selectedVariant, isShift]);
 
   return (
     <div className={`min-h-screen bg-background${isConvidado ? " convidado-mode" : ""}`}>
@@ -5212,10 +5220,10 @@ export default function Home() {
                 <React.Fragment>
                 {/* Status do catálogo de perfis */}
                 <div>
-                  {alfaluxLoading ? (
+                  {alfaluxLoading && !profileCatalogIsFromApi ? (
                     <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                       <span className="inline-block w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-                      Carregando catálogo...
+                      Carregando catálogo da API...
                     </span>
                   ) : profileCatalogIsFromApi ? (
                     <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500">
@@ -5223,9 +5231,17 @@ export default function Home() {
                       {Object.keys(activeProfileCatalog).length} variantes • Dados online
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <span className="inline-block w-2 h-2 rounded-full bg-muted-foreground" />
-                      {Object.keys(activeProfileCatalog).length} variantes • Catálogo local
+                    <span className="inline-flex items-center gap-2 text-xs text-destructive">
+                      <AlertTriangle className="w-3 h-3" />
+                      Catálogo da API indisponível
+                      <button
+                        type="button"
+                        onClick={() => refetchAlfaluxProducts()}
+                        className="underline underline-offset-2 hover:text-destructive/80"
+                        title={alfaluxError ?? "Tentar carregar novamente"}
+                      >
+                        Tentar novamente
+                      </button>
                     </span>
                   )}
                 </div>
@@ -13889,7 +13905,7 @@ export default function Home() {
         <div className="container flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
           <span>© 2026 Alfalux Iluminação · Configurador Alfalux</span>
           <span className="font-mono">
-            {Object.keys(activeProfileCatalog).length} variantes{profileCatalogIsFromApi ? " (API)" : " (local)"} · Regra de Ouro aplicada
+            {Object.keys(activeProfileCatalog).length} variantes{profileCatalogIsFromApi ? " (API)" : " (API indisponível)"} · Regra de Ouro aplicada
           </span>
         </div>
       </footer>

@@ -10,6 +10,7 @@ import {
   fetchAcessoriosProducts,
   fetchCustomizadosProducts,
   fetchComponentes,
+  invalidateComponentesCache,
 } from "./alfaluxApiService";
 import {
   addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty, updateCartItemData, updateCartItemsSortOrder, createQuote, addQuoteRevision, listQuotes, getQuoteById, approveQuote, getRevisionItems,
@@ -583,14 +584,17 @@ export const appRouter = router({
 
 
   alfalux: router({
-    products: publicProcedure.query(async () => {
-      const products = await fetchAllAlfaluxProducts();
+    products: publicProcedure
+      .input(z.object({ forceRefresh: z.boolean().optional() }).optional())
+      .query(async ({ input }) => {
+      const products = await fetchAllAlfaluxProducts(input?.forceRefresh === true);
       return products;
     }),
     refreshProducts: publicProcedure.mutation(async () => {
       try {
         invalidateAlfaluxCache();
-        const products = await fetchAllAlfaluxProducts();
+        invalidateComponentesCache();
+        const products = await fetchAllAlfaluxProducts(true);
         return { count: products.length, error: null };
       } catch (err) {
         console.error("[AlfaluxAPI] Falha ao atualizar produtos:", err);
