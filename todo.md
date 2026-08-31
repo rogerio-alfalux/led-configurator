@@ -3161,3 +3161,14 @@
 - [x] Exigir data estimada de entrega de produtos a partir de cinco dias úteis
 - [x] Aplicar as regras na interface e no servidor
 - [x] Cobrir fins de semana, datas mínimas e tentativas de envio inválidas
+
+## Orçamento 25.0263-26: controle DALI e preço do item L9
+- [x] Comparar o item L9 persistido com a configuração atual da API
+- [x] Preservar DALI e o preço da luminária na prévia, PDF e Excel
+- [x] Corrigir somente o item afetado, sem alterar os demais itens do orçamento
+- [x] Cobrir a propagação de DALI e preço em documentos por regressão
+
+## GLOW: preço e driver separados
+- [x] Preservar linhas de driver e preço do corpo nos novos itens GLOW
+- [x] Exibir o driver destacado no carrinho, prévia, PDF e Excel
+- [x] Cobrir GLOW ON/OFF e DALI com componentes comerciais separados

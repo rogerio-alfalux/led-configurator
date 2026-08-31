@@ -52,6 +52,7 @@ import { getStaticPricePerMeter, calcModulePrice, usesModulePricing, toModuleCon
 import { resolveDriverSplitCartPricing } from "@/lib/driverSplitPricing";
 import { getLumPriceMapKeys, resolveLumPriceMapEntry } from "@/lib/lumPriceMapKeys";
 import { isApiPricedFixedProfileFamily } from "@/lib/profilePriceFamilies";
+import { buildGlowCommercialItem } from "@/lib/glowCommercialItem";
 import { getProfilePhoto, getDownlightPhoto, getPainelPhoto } from "@/lib/profilePhotos";
 import {
   DOWNLIGHT_CATALOG,
@@ -10885,25 +10886,62 @@ export default function Home() {
                         disabled={isAddingToCart}
                         onClick={() => {
                           const preco = getPrecoForControle(glowResult.product, glowResult.controle, glowResult.tensao);
+                          const glowDrvLines = buildLumDriverLines(
+                            glowResult.product.sku ?? "",
+                            glowResult.controle,
+                            glowResult.tensao,
+                            globalQty,
+                            glowResult.driver.model,
+                            glowResult.driver.code,
+                            lumPriceMap,
+                            glowResult.product.name ?? undefined,
+                            glowResult.driver.corrente ?? null,
+                          );
+                          const glowCommercialItem = buildGlowCommercialItem({
+                            productName: glowResult.product.name,
+                            sku: glowResult.product.sku ?? "",
+                            cct: glowResult.cct,
+                            controle: glowResult.controle,
+                            tensao: glowResult.tensao,
+                            quantity: globalQty,
+                            apiUnitPrice: preco,
+                            priceWithoutDriver: glowDrvLines?.priceWithoutDriver ?? null,
+                            driverLines: glowDrvLines?.driverLines ?? [],
+                            hasApiPricing: glowDrvLines != null,
+                            driverModel: glowResult.driver.model,
+                            driverCode: glowResult.driver.code,
+                          });
                           const item: CartItemData = {
                             category: "Perfis",
                             sku: glowResult.product.sku ?? "",
-                            description: `${glowResult.product.name} ${glowResult.cct} ${glowResult.tensao}`,
+                            description: glowCommercialItem.description,
                             power: "",
                             cct: glowResult.cct,
                             qty: globalQty,
                             unitPrice: preco ?? null,
-                            totalPrice: preco != null ? preco * globalQty : null,
-                            priceFromApi: preco != null,
+                            totalPrice: glowCommercialItem.totalPrice,
+                            priceFromApi: glowCommercialItem.priceFromApi,
                             photoUrl: adaptedCatalogs?.glowFotos?.[glowResult.product.sku ?? ""] ?? "",
-                            orderSummary: `CÓDIGO: ${glowResult.product.sku}\n${glowResult.product.name.toUpperCase()} ${glowResult.cct} ${glowResult.tensao} COM DRIVER ${glowResult.driver.model.toUpperCase()} (${glowResult.driver.code})`,
-                            quoteSummary: `${glowResult.product.name} ${glowResult.cct} ${glowResult.tensao}`.toUpperCase(),
+                            orderSummary: glowCommercialItem.orderSummary,
+                            quoteSummary: glowCommercialItem.quoteSummary,
                             moduloLedCode: glowResult.ledModuleEq ?? null,
                             moduloLed: (() => { const _mod = glowResult.ledModuleWithCCT ?? ""; const _eq = glowResult.ledModuleEq ? ` (${glowResult.ledModuleEq})` : ""; const parts: string[] = []; if (_mod) parts.push(`${_mod.toUpperCase()}${_eq}`); if (glowResult.product.oticaPrimaria) { const oEq1 = glowResult.oticaPrimariaEq ? ` (${glowResult.oticaPrimariaEq})` : ""; parts.push(`${glowResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (glowResult.product.oticaSecundaria) { const oEq2 = glowResult.oticaSecundariaEq ? ` (${glowResult.oticaSecundariaEq})` : ""; parts.push(`${glowResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (glowResult.product.otica) { const oEq = glowResult.oticaEq ? ` (${glowResult.oticaEq})` : ""; parts.push(`${glowResult.product.otica.toUpperCase()}${oEq}`); } if (glowResult.product.holder) { const hEq = glowResult.holderEq ? ` (${glowResult.holderEq})` : ""; parts.push(`${glowResult.product.holder.toUpperCase()}${hEq}`); } if (glowResult.product.dissipador) { const dEq = glowResult.dissipadorEq ? ` (${glowResult.dissipadorEq})` : ""; parts.push(`${glowResult.product.dissipador.toUpperCase()}${dEq}`); } return parts.join(" + ") || (_mod ?? ""); })(),
                             drivers: `DRIVER ${glowResult.driver.model.toUpperCase()} (${glowResult.driver.code})`,
                             availableCCTs: glowResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
-                            ...getCustoForControle(glowResult.product, glowResult.controle, glowResult.tensao),
+                            ...(glowDrvLines ? {
+                              driverLines: glowDrvLines.driverLines,
+                              priceWithoutDriver: glowDrvLines.priceWithoutDriver,
+                              unitPriceLuminaria: glowDrvLines.unitPriceLuminaria,
+                              unitPriceDriver: glowDrvLines.unitPriceDriver,
+                              luminariaHasApiPrice: glowDrvLines.luminariaHasApiPrice,
+                              custoCorpoBase: glowDrvLines.custoCorpoBase,
+                              custoDriverBase: glowDrvLines.custoDriverBase,
+                              markupPadraoApi: glowDrvLines.markupPadraoApi,
+                              markupMinimoApi: glowDrvLines.markupMinimoApi,
+                              markupMinimoDriverApi: glowDrvLines.markupMinimoDriverApi,
+                              driverQtyPerUnit: glowDrvLines.drvQtyPerUnit,
+                            } : getCustoForControle(glowResult.product, glowResult.controle, glowResult.tensao)),
                           };
                           if (appendToQuoteId || replaceInQuoteId) {
                             handleAddItemOrToQuote(item);
