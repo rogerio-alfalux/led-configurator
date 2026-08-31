@@ -214,4 +214,30 @@ describe("enrichDriverCurrentsFromApi", () => {
     expect(enriched.ledBarDriverCorrente).toBe("250mA");
     expect(enriched.driverLines?.[0]?.driverModel).toBe("DRIVER 44W");
   });
+
+  it("preserva a programação digitada manualmente na ficha", () => {
+    const item = {
+      category: "Perfis",
+      sku: "LLP-6060",
+      description: "BLAZE H 26W",
+      qty: 1,
+      unitPrice: null,
+      totalPrice: null,
+      photoUrl: null,
+      ledBarDriverCode: "EQ00801",
+      ledBarDriverCorrente: "400mA",
+      ledBarDriverProgramacaoManual: true,
+      driverLines: [{ driverCode: "EQ00348", driverModel: "DRIVER 44W", driverQty: 1, driverUnitPrice: null, driverTotalPrice: null, corrente: "500mA", programacaoManual: true }],
+      profileSegments: [{ sku: "LLP-6060.2IF.26F", qty: 1, lengthMm: 1180, barsPerPiece: 2, driverQtyPerPiece: 1, driverCode: "EQ00348", driverModel: "DRIVER 44W", corrente: "500mA", programacaoManual: true }],
+    } as any;
+
+    const enriched = enrichDriverCurrentsFromApi(item, new Map([
+      ["EQ00348", "350mA"],
+      ["EQ00801", "250mA"],
+    ]));
+
+    expect(enriched.driverLines?.[0]?.corrente).toBe("500mA");
+    expect(enriched.profileSegments?.[0]?.corrente).toBe("500mA");
+    expect(enriched.ledBarDriverCorrente).toBe("400mA");
+  });
 });

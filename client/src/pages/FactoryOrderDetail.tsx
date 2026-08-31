@@ -30,6 +30,7 @@ import { toBrasiliaDate, toBrasiliaDateTime, toBrasiliaDateTimeShort } from "@/l
 import { formatProfileSkuLines } from "@/lib/profileSkuFormatter";
 import { addStripflexQuantities, isStripflexDescription, multiplyStripflexQuantity, normalizeStripflexQuantity } from "@/lib/ledStripUnits";
 import { createFactoryOrderAutosave } from "@/lib/factoryOrderAutosave";
+import { updateDriverLineProgramming, updateSegmentDriverProgramming } from "@/lib/factoryOrderDriverProgramming";
 import { toast } from "sonner";
 
 // ─── Funções auxiliares para Fonte de Luz e Equipamentos ────────────────────
@@ -624,40 +625,38 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                           ? `${group.model} (${group.code})`
                           : group.model;
                         return (
-                          <ComponentSearchField
-                            key={gi}
-                            label={driverGroups.size > 1 ? `Driver ${gi + 1}` : ""}
-                            value={currentVal}
-                            qty={group.qty}
-                            onValueChange={(desc, code) => {
-                              if (!parsed.profileSegments) return;
-                              const newSegs = parsed.profileSegments.map((s, i) =>
-                                group.segIdxs.includes(i) ? { ...s, driverModel: desc, driverCode: code } : s
-                              );
-                              update({ profileSegments: newSegs });
-                            }}
-                            onQtyChange={(_qty) => { /* qty calculada automaticamente */ }}
-                            options={driverOptions}
-                            isLoading={componentesLoading}
-                            placeholder="Buscar driver..."
-                          />
+                          <div key={gi} className="space-y-1">
+                            <ComponentSearchField
+                              label={driverGroups.size > 1 ? `Driver ${gi + 1}` : ""}
+                              value={currentVal}
+                              qty={group.qty}
+                              onValueChange={(desc, code) => {
+                                if (!parsed.profileSegments) return;
+                                const newSegs = parsed.profileSegments.map((s, i) =>
+                                  group.segIdxs.includes(i) ? { ...s, driverModel: desc, driverCode: code } : s
+                                );
+                                update({ profileSegments: newSegs });
+                              }}
+                              onQtyChange={(_qty) => { /* qty calculada automaticamente */ }}
+                              options={driverOptions}
+                              isLoading={componentesLoading}
+                              placeholder="Buscar driver..."
+                            />
+                            <div className="flex items-center gap-2 pl-22">
+                              <Label className="text-xs text-muted-foreground">Programação</Label>
+                              <Input
+                                value={group.corrente ?? ""}
+                                onChange={e => {
+                                  if (!parsed.profileSegments) return;
+                                  update({ profileSegments: updateSegmentDriverProgramming(parsed.profileSegments, group.segIdxs, e.target.value) });
+                                }}
+                                className="h-8 text-xs font-mono w-28"
+                                placeholder="Ex: 350mA"
+                              />
+                            </div>
+                          </div>
                         );
                       })}
-                      {correnteSegmento && (
-                        <div className="flex items-center gap-2">
-                          <Label className="text-xs text-muted-foreground w-20 shrink-0">Programação</Label>
-                          <Input
-                            value={correnteSegmento}
-                            onChange={e => {
-                              if (!parsed.profileSegments) return;
-                              const newSegs = parsed.profileSegments.map(s => ({ ...s, corrente: e.target.value }));
-                              update({ profileSegments: newSegs });
-                            }}
-                            className="h-8 text-xs font-mono flex-1"
-                            placeholder="Ex: 350MA"
-                          />
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -711,6 +710,15 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                         isLoading={componentesLoading}
                         placeholder="Buscar driver..."
                       />
+                      <div className="flex items-center gap-2 pl-22 mt-1">
+                        <Label className="text-xs text-muted-foreground">Programação</Label>
+                        <Input
+                          value={parsed.ledBarDriverCorrente ?? ""}
+                          onChange={e => update({ ledBarDriverCorrente: e.target.value, ledBarDriverProgramacaoManual: true })}
+                          className="h-8 text-xs font-mono w-28"
+                          placeholder="Ex: 350mA"
+                        />
+                      </div>
                     </div>
                   </div>}
                 </div>
@@ -789,20 +797,15 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                               isLoading={componentesLoading}
                               placeholder="Buscar driver..."
                             />
-                            {dl.corrente && (
-                              <div className="flex items-center gap-2 pl-22">
-                                <Label className="text-xs text-muted-foreground">Programação</Label>
-                                <Input
-                                  value={dl.corrente ?? ""}
-                                  onChange={e => {
-                                    const newLines = parsed.driverLines!.map((d, i) => i === li ? { ...d, corrente: e.target.value } : d);
-                                    update({ driverLines: newLines });
-                                  }}
-                                  className="h-8 text-xs font-mono w-28"
-                                  placeholder="Ex: 350MA"
-                                />
-                              </div>
-                            )}
+                            <div className="flex items-center gap-2 pl-22">
+                              <Label className="text-xs text-muted-foreground">Programação</Label>
+                              <Input
+                                value={dl.corrente ?? ""}
+                                onChange={e => update({ driverLines: updateDriverLineProgramming(parsed.driverLines!, li, e.target.value) })}
+                                className="h-8 text-xs font-mono w-28"
+                                placeholder="Ex: 350mA"
+                              />
+                            </div>
                           </div>
                         );
                       })}

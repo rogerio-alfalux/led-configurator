@@ -3172,3 +3172,9 @@
 - [x] Preservar linhas de driver e preço do corpo nos novos itens GLOW
 - [x] Exibir o driver destacado no carrinho, prévia, PDF e Excel
 - [x] Cobrir GLOW ON/OFF e DALI com componentes comerciais separados
+
+## Pedido de fábrica: editar programação de corrente
+- [x] Localizar o bloqueio de edição da programação de corrente no pedido 01.0503-26
+- [x] Permitir edição fluida e persistida da corrente para usuários que gerenciam pedidos
+- [x] Propagar a corrente alterada para prévia, Excel e requisição de materiais
+- [x] Cobrir a edição de corrente por regressão

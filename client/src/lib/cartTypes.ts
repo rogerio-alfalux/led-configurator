@@ -24,6 +24,8 @@ export interface ProfileSegment {
   driverCode: string;
   /** Corrente de programação do driver (ex: "350MA", "700MA"). null se não disponível. */
   corrente?: string | null;
+  /** Mantém a programação digitada na ficha sem substituí-la pela atualização da API. */
+  programacaoManual?: boolean;
   /** Código EQ do módulo LED/Stripflex/Stripline (ex: "EQ00123"). null se não disponível. */
   ledModuleCode?: string | null;
 }
@@ -135,6 +137,8 @@ export interface CartItemData {
   ledBarDriverCode?: string;
   /** Corrente de programação do driver LED BAR retornada pela API. */
   ledBarDriverCorrente?: string | null;
+  /** Mantém a programação do driver LED BAR digitada na ficha. */
+  ledBarDriverProgramacaoManual?: boolean;
 
   // ─── Campos específicos de Item Especial ──────────────────────────────────
   /**
@@ -375,6 +379,8 @@ export interface DriverLine {
   driverTotalPrice: number | null;
   /** Corrente de programação do driver (ex: "350MA", "700MA"). null se não disponível. */
   corrente?: string | null;
+  /** Mantém a programação digitada na ficha sem substituí-la pela atualização da API. */
+  programacaoManual?: boolean;
 }
 
 /**
@@ -757,20 +763,20 @@ export function enrichDriverCurrentsFromApi(
   let changed = false;
   const driverLines = item.driverLines?.map(line => {
     const corrente = line.driverCode ? correnteMap.get(line.driverCode) : undefined;
-    if (corrente == null || corrente === line.corrente) return line;
+    if (line.programacaoManual || corrente == null || corrente === line.corrente) return line;
     changed = true;
     return { ...line, corrente };
   });
   const profileSegments = item.profileSegments?.map(segment => {
     const corrente = segment.driverCode ? correnteMap.get(segment.driverCode) : undefined;
-    if (corrente == null || corrente === segment.corrente) return segment;
+    if (segment.programacaoManual || corrente == null || corrente === segment.corrente) return segment;
     changed = true;
     return { ...segment, corrente };
   });
   const ledBarDriverCorrente = item.ledBarDriverCode
     ? correnteMap.get(item.ledBarDriverCode)
     : undefined;
-  if (ledBarDriverCorrente != null && ledBarDriverCorrente !== item.ledBarDriverCorrente) {
+  if (!item.ledBarDriverProgramacaoManual && ledBarDriverCorrente != null && ledBarDriverCorrente !== item.ledBarDriverCorrente) {
     changed = true;
   }
 
