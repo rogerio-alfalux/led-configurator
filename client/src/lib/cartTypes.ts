@@ -531,6 +531,36 @@ export interface QuoteFormData {
   quoteCreatedAt?: string;
 }
 
+const RV00064_SKU = "RV00064";
+const RV00064_TECHNICAL_CONFIGURATION = "DIM 1-10V Bivolt";
+
+/**
+ * O RV00064 é publicado pela API como High Bay BIV 0-10V. Para a apresentação
+ * comercial e os documentos, sua única configuração válida é DIM 1-10V Bivolt;
+ * ele não possui versão ON/OFF nem 220V exclusiva. Preço, custo, quantidade e
+ * quaisquer demais dados comerciais persistidos permanecem inalterados.
+ */
+export function normalizeRv00064TechnicalConfiguration(item: CartItemData): CartItemData {
+  if (item.sku.trim().toUpperCase() !== RV00064_SKU) return item;
+
+  const hasTechnicalConfiguration = /DIM\s*1\s*[-–]\s*10V/i.test(item.description)
+    && /BIVOLT/i.test(item.description);
+  if (hasTechnicalConfiguration) return item;
+
+  const appendConfiguration = (value?: string) => value
+    ? `${value.replace(/\s+/g, " ").trim()} — ${RV00064_TECHNICAL_CONFIGURATION}`
+    : value;
+
+  return {
+    ...item,
+    description: appendConfiguration(item.description) ?? item.description,
+    quoteSummary: appendConfiguration(item.quoteSummary),
+    orderSummary: item.orderSummary
+      ? `${item.orderSummary.replace(/\s+$/, "")}\n${RV00064_TECHNICAL_CONFIGURATION.toUpperCase()}`
+      : item.orderSummary,
+  };
+}
+
 /**
  * REGRA INEGOCIÁVEL: Para itens de perfil (com profileSegments), o driverQty salvo
  * no banco pode estar errado (só por luminária, sem multiplicar por qty total).
@@ -592,7 +622,7 @@ export function parseCartItemData(json: string): CartItemData | null {
         data.driverLines = correctedLines;
       }
     }
-    return data;
+    return normalizeRv00064TechnicalConfiguration(data);
   } catch {
     return null;
   }

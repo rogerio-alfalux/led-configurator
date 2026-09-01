@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers, migrateLegacyGlowCommercialItem, parseCartItemData } from "./cartTypes";
+import { enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers, migrateLegacyGlowCommercialItem, normalizeRv00064TechnicalConfiguration, parseCartItemData } from "./cartTypes";
 
 describe("parseCartItemData - correção de driverQty para perfis", () => {
   it("corrige driverQty quando está salvo apenas por luminária (BLAZE 45700mm, 12 lum, 17 drv/lum)", () => {
@@ -406,5 +406,29 @@ describe("componentes estruturados de SHIFT", () => {
     expect(enriched.accessories?.[0]?.technicalDrivers).toEqual([
       expect.objectContaining({ code: "EQ00666", quantity: 1 }),
     ]);
+  });
+});
+
+describe("normalização técnica do RV00064", () => {
+  it("apresenta o item sempre como DIM 1-10V Bivolt sem alterar preço ou total", () => {
+    const item = {
+      category: "Revenda",
+      sku: "RV00064",
+      description: "POWER BEAM P HIGH BAY LED 100W 5000K IP65",
+      qty: 3,
+      unitPrice: 571.38,
+      totalPrice: 1714.14,
+      photoUrl: null,
+      quoteSummary: "POWER BEAM P HIGH BAY LED 100W 5000K (RV00064)",
+      orderSummary: "POWER BEAM P HIGH BAY LED 100W 5000K (RV00064)",
+    } as any;
+
+    const normalized = normalizeRv00064TechnicalConfiguration(item);
+
+    expect(normalized.description).toContain("DIM 1-10V Bivolt");
+    expect(normalized.quoteSummary).toContain("DIM 1-10V Bivolt");
+    expect(normalized.orderSummary).toContain("DIM 1-10V BIVOLT");
+    expect(normalized.unitPrice).toBe(571.38);
+    expect(normalized.totalPrice).toBe(1714.14);
   });
 });

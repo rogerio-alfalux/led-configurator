@@ -7,6 +7,7 @@ import { Moon, Sun, Zap, Settings, AlertTriangle, CheckCircle2, Info, MapPin, Re
 import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { normalizeRv00064TechnicalConfiguration } from "@/lib/cartTypes";
 import type { CartItemData, LinkedAccessory, ProfileSegment } from "@/lib/cartTypes";
 import { aggregateProductStructureComponents, productStructureCartFields, type ProductStructureComponent } from "@/lib/productStructure";
 import { redactGuestQuoteSummary } from "@/lib/guestQuoteSummary";
@@ -3629,7 +3630,7 @@ export default function Home() {
       .filter(Boolean).join(" ");
     const precoVenda = product.precoVenda ?? 0;
     const effectiveQty = globalQty > 0 ? globalQty : 1;
-    const item: CartItemData = {
+    const item = normalizeRv00064TechnicalConfiguration({
       category: "Revenda",
       sku: product.sku,
       description: product.name,
@@ -3646,7 +3647,7 @@ export default function Home() {
       corPeca: "",
       itemNote: autoNote || undefined,
       itemEmPlanta: globalItemEmPlanta,
-    };
+    });
     if (appendToQuoteId || replaceInQuoteId) {
       handleAddItemOrToQuote(item);
     } else {

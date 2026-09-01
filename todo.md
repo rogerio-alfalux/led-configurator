@@ -3240,3 +3240,8 @@
 - [x] Permitir que Vivian crie somente usuários com perfil LD Convidado
 - [x] Bloquear para Vivian a criação ou alteração de todos os demais perfis
 - [x] Cobrir a delegação restrita por regressão de permissão
+
+## Regra técnica do produto RV00064
+- [x] Localizar todos os fluxos que adaptam ou reidratam o produto RV00064
+- [x] Fixar RV00064 como DIM 1-10V e Bivolt, sem ON/OFF ou 220V
+- [x] Validar orçamento, preview, PDF, Excel, ficha e requisição com regressão
