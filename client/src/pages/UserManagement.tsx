@@ -14,6 +14,7 @@ import { UserPlus, Trash2, Key, Shield, ArrowLeft, SlidersHorizontal, Pencil } f
 import { Link } from "wouter";
 import { ALL_PERMISSIONS } from "@shared/permissions";
 import { filterUsersByRole, USER_ROLE_FILTERS } from "@/lib/userRoleFilter";
+import { isVivianLdGuestCreator } from "@shared/userCreationAccess";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Administrador",
@@ -45,6 +46,7 @@ export default function UserManagement() {
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] = useState<string>("convidado");
+  const canCreateOnlyLdGuests = isVivianLdGuestCreator((user as any)?.email);
 
   // Change password state
   const [pwUserId, setPwUserId] = useState<number | null>(null);
@@ -153,11 +155,11 @@ export default function UserManagement() {
           </div>
           <Dialog open={showCreate} onOpenChange={setShowCreate}>
             <DialogTrigger asChild>
-              <Button><UserPlus className="w-4 h-4 mr-2" /> Novo Usuário</Button>
+              <Button><UserPlus className="w-4 h-4 mr-2" /> {canCreateOnlyLdGuests ? "Novo LD Convidado" : "Novo Usuário"}</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Criar Novo Usuário</DialogTitle>
+                <DialogTitle>{canCreateOnlyLdGuests ? "Criar LD Convidado" : "Criar Novo Usuário"}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-2">
                 <div className="space-y-1.5">
@@ -174,22 +176,27 @@ export default function UserManagement() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Permissão</Label>
-                  <Select value={newRole} onValueChange={setNewRole}>
+                  <Select value={canCreateOnlyLdGuests ? "convidado" : newRole} onValueChange={setNewRole} disabled={canCreateOnlyLdGuests}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="convidado">LD Convidado (sem preços)</SelectItem>
-                      <SelectItem value="user">Usuário padrão</SelectItem>
-                      <SelectItem value="vendedor">Vendedor</SelectItem>
-                      <SelectItem value="assistente">Assistente</SelectItem>
-                      <SelectItem value="gerente">Gerente</SelectItem>
+                      {!canCreateOnlyLdGuests && <>
+                        <SelectItem value="user">Usuário padrão</SelectItem>
+                        <SelectItem value="vendedor">Vendedor</SelectItem>
+                        <SelectItem value="assistente">Assistente</SelectItem>
+                        <SelectItem value="gerente">Gerente</SelectItem>
+                      </>}
                     </SelectContent>
                   </Select>
+                  {canCreateOnlyLdGuests && (
+                    <p className="text-xs text-muted-foreground">Sua autorização permite cadastrar exclusivamente contas LD Convidado.</p>
+                  )}
                 </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
                 <Button
-                  onClick={() => createMutation.mutate({ name: newName, email: newEmail, password: newPassword, role: newRole as any })}
+                  onClick={() => createMutation.mutate({ name: newName, email: newEmail, password: newPassword, role: (canCreateOnlyLdGuests ? "convidado" : newRole) as any })}
                   disabled={!newName || !newEmail || !newPassword || createMutation.isPending}
                 >
                   {createMutation.isPending ? "Criando..." : "Criar Usuário"}

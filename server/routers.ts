@@ -91,6 +91,7 @@ import { buildLdDraftQuoteNumber, isLdDraftQuoteNumber } from "../shared/ldDraft
 import { getLdRequestDeadlineValidationError } from "../shared/ldRequestDeadlines";
 import { generateAndStoreCompleteBackup } from "./backupService";
 import { getQuoteStatusAuthorizationError } from "./quoteStatusPolicy";
+import { getUserCreationRoleAuthorizationError } from "../shared/userCreationAccess";
 
 // ─── Controle de acesso a orçamentos ─────────────────────────────────────────
 /** Emails dos gestores com acesso irrestrito a todos os orçamentos */
@@ -2443,7 +2444,11 @@ export const appRouter = router({
         password: z.string().min(4),
         role: z.enum(['user', 'admin', 'gerente', 'vendedor', 'assistente', 'convidado']).default('convidado'),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        const authorizationError = getUserCreationRoleAuthorizationError(ctx.user.email, input.role);
+        if (authorizationError) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: authorizationError });
+        }
         const db = await getDb();
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
         const { users } = await import('../drizzle/schema');

@@ -3234,3 +3234,9 @@
 - [x] Preservar preço, custo, markup e total históricos de todo orçamento já salvo
 - [x] Restringir preços vigentes da API a novas configurações GLOW ou atualização comercial explícita do usuário
 - [x] Cobrir por regressão a abertura de orçamentos GLOW históricos após alteração de preço na API
+
+## Administração de usuários: criação de LD Convidado
+- [x] Localizar o cadastro da administradora Vivian e o fluxo de criação de usuários
+- [x] Permitir que Vivian crie somente usuários com perfil LD Convidado
+- [x] Bloquear para Vivian a criação ou alteração de todos os demais perfis
+- [x] Cobrir a delegação restrita por regressão de permissão
