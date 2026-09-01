@@ -3245,3 +3245,10 @@
 - [x] Localizar todos os fluxos que adaptam ou reidratam o produto RV00064
 - [x] Fixar RV00064 como DIM 1-10V e Bivolt, sem ON/OFF ou 220V
 - [x] Validar orçamento, preview, PDF, Excel, ficha e requisição com regressão
+
+## Validação do dashboard financeiro
+- [x] Mapear as fórmulas de Receita Bruta, Lucro Bruto Estimado e Lucro Líquido Estimado
+- [x] Recalcular os indicadores somente com orçamentos aprovados e custos persistidos
+- [x] Comparar o cálculo independente com os valores exibidos e corrigir somente divergência comprovada
+- [x] Corrigir a omissão comprovada de custos adicionais no Lucro Líquido Estimado
+- [x] Validar o resultado de 2026 após considerar os custos adicionais persistidos

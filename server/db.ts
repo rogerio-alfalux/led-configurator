@@ -26,6 +26,7 @@ import { getCommercialTotalsToRestore, getNonCommercialQuoteStatus, transfersNon
 import { normalizeQuoteNumberForLookup } from '../shared/quoteNumberLookup';
 import { ADMIN_PENDING_LD_STATUSES } from './ldRequestBadgeStatus';
 import { getBrasiliaYear2, toBrasiliaSqlTimestamp, toUtcSqlTimestamp } from './timeUtils';
+import { readAdditionalCostsAggregate } from './dashboardAdditionalCosts';
 
 /** Mantido para textos e metadados que precisam da hora civil de Brasília. */
 export const nowBrasiliaStr = () => toBrasiliaSqlTimestamp();
@@ -2629,13 +2630,13 @@ export async function getTotalAdditionalCostsForPeriod(year: number, month?: num
     : month
       ? sql`YEAR(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) = ${month} AND q.status = 'approved'`
       : sql`YEAR(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) = ${year} AND q.status = 'approved'`;
-  const [result] = await db.execute(sql`
+  const result = await db.execute(sql`
     SELECT COALESCE(SUM(ac.valor), 0) AS total, COUNT(ac.id) AS count
     FROM quote_additional_costs ac
     INNER JOIN quotes q ON q.id = ac.quoteId
     WHERE ${periodCondition}
   `);
-  return { total: Number((result as any)?.total ?? 0), count: Number((result as any)?.count ?? 0) };
+  return readAdditionalCostsAggregate(result);
 }
 
 // ─── Pedidos de Amostras ─────────────────────────────────────────────────────
