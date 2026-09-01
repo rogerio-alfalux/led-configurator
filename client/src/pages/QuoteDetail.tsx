@@ -40,7 +40,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { CartItemData, formatBRL, parseCartItemData, extractPowerLabelFromName, toPowerLabel, enrichDriverCurrentsFromApi, migrateLegacyGlowCommercialItem, type QuoteFormData } from "@/lib/cartTypes";
+import { CartItemData, formatBRL, parseCartItemData, extractPowerLabelFromName, toPowerLabel, enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers, migrateLegacyGlowCommercialItem, type QuoteFormData } from "@/lib/cartTypes";
 import { getPersistedItemPhotoUrl } from "@/lib/itemPhoto";
 import { formatLinkedCommercialQuote } from "@/lib/sampleLinkPresentation";
 import { isLdRequestLinkedToQuote } from "@/lib/ldRequestUtils";
@@ -1559,6 +1559,10 @@ export default function QuoteDetail() {
         ledModuleEq3000: p.ledModuleEq3000 ?? null,
         ledModuleEq4000: p.ledModuleEq4000 ?? null,
         ledModuleEq5000: p.ledModuleEq5000 ?? null,
+        ledModule2700: (p as any).ledModule2700 ?? null,
+        ledModule3000: (p as any).ledModule3000 ?? null,
+        ledModule4000: (p as any).ledModule4000 ?? null,
+        ledModule5000: (p as any).ledModule5000 ?? null,
         ledModuleEq: p.ledModuleEq ?? null,
         ledModuleQtd: p.ledModuleQtd ?? null,
         ledModuleQtd2700: p.ledModuleQtd2700 ?? null,
@@ -1585,7 +1589,11 @@ export default function QuoteDetail() {
       const parsedFromStorage = parseCartItemData(item.itemData as string);
       if (!parsedFromStorage) return item;
       let parsed = enrichDriverCurrentsFromApi(parsedFromStorage, componenteCorrenteMap);
+      if (parsed.profileSegments?.some(segment => /^LLE-4846(?:[.\s]|$)/i.test(segment.sku))) {
+        parsed = migrateItemDrivers(parsed, componentePriceMap, componenteDescMap, productSkuMap, componenteCorrenteMap);
+      }
       parsed = migrateLegacyGlowCommercialItem(parsed, componentePriceMap, componenteDescMap, productSkuMap, componenteCorrenteMap);
+      parsed = enrichShiftAccessoryTechnicalComponents(parsed, productSkuMap);
       const currentEnriched = parsed !== parsedFromStorage;
       // ── Migração 4: Corrigir ledModuleCode nos profileSegments ──
       // Busca o produto correto da API pelo SKU do perfil + potência + stripMethod

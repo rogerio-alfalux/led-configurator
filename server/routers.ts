@@ -693,6 +693,9 @@ export const appRouter = router({
         availableCCTs: string[];
         driverCode: string | null;
         driverModel: string | null;
+        lightSourcesByCct: Record<string, { description: string; code: string | null; type: string; quantity: number }>;
+        technicalDrivers: Array<{ description: string; code: string | null; type: string; quantity: number }>;
+        apiOtherEquipments: Array<{ description: string; code: string | null; type: string; quantity: number }>;
         unitCost: number | null;
         markupPadrao: number | null;
         markupMinimo: number | null;
@@ -705,15 +708,58 @@ export const appRouter = router({
           const wMatch = p.name.match(/(\d+)W/);
           // Extract dimensions from name (e.g. "303 X 36 X 33MM")
           const dimMatch = p.name.match(/\((.*?)\)/);
+          const ccts = Array.from(new Set((p.temperaturasCor ?? [])
+            .map(cct => String(cct).replace(/\s*K$/i, "").trim())
+            .filter(Boolean)));
+          const lightSourcesByCct = Object.fromEntries(ccts.flatMap(cct => {
+            const suffix = cct.replace(/[^0-9]/g, "");
+            const description = (p as any)[`ledModule${suffix}`] ?? p.ledModule ?? null;
+            const code = (p as any)[`ledModuleEq${suffix}`]
+              ?? (p as any)[`ledModuleCode${suffix}`]
+              ?? p.ledModuleEq
+              ?? null;
+            const quantity = Number((p as any)[`ledModuleQtd${suffix}`] ?? p.ledModuleQtd ?? 1);
+            return typeof description === "string" && description.trim()
+              ? [[cct, { description: description.trim(), code, type: "MODULO_LED", quantity: Number.isFinite(quantity) && quantity >= 0 ? quantity : 1 }] as const]
+              : [];
+          }));
+          const selectedDriver = p.driver220 ?? p.driverBivolt ?? null;
+          const driverQuantity = Number(p.driverQtd220 ?? p.driverQtdBivolt ?? 1);
+          const technicalDrivers = selectedDriver?.model
+            ? [{
+              description: selectedDriver.model,
+              code: selectedDriver.code ?? null,
+              type: "DRIVER",
+              quantity: Number.isFinite(driverQuantity) && driverQuantity >= 0 ? driverQuantity : 1,
+            }]
+            : [];
+          const apiOtherEquipments = Array.isArray((p as any).outrosEquipamentos)
+            ? (p as any).outrosEquipamentos.flatMap((equipment: Record<string, unknown>) => {
+              const description = typeof equipment.descricao === "string"
+                ? equipment.descricao
+                : typeof equipment.modelo === "string" ? equipment.modelo : "";
+              if (!description.trim()) return [];
+              const quantity = Number(equipment.qtd ?? equipment.qty ?? equipment.quantidade ?? 1);
+              return [{
+                description: description.trim(),
+                code: typeof equipment.codigo === "string" ? equipment.codigo : null,
+                type: typeof equipment.tipo === "string" ? equipment.tipo : "EQUIPAMENTO",
+                quantity: Number.isFinite(quantity) && quantity >= 0 ? quantity : 1,
+              }];
+            })
+            : [];
           grouped.set(key, {
             sku: p.sku,
             name: p.name,
             fotoUrl: p.fotoUrl ?? null,
             wattage: wMatch ? parseInt(wMatch[1]) : null,
             dimensions: dimMatch ? dimMatch[1] : null,
-            availableCCTs: (p as any).temperaturasCor ?? [],
+            availableCCTs: ccts,
             driverCode: (p as any).driver220?.code ?? null,
             driverModel: (p as any).driver220?.model ?? null,
+            lightSourcesByCct,
+            technicalDrivers,
+            apiOtherEquipments,
             unitCost: (p as any).custoCorpoOnoff220v ?? p.custoLuminaria ?? null,
             markupPadrao: (p as any).markupPadraoOnoff220v ?? null,
             markupMinimo: (p as any).markupMinimoOnoff220v ?? null,

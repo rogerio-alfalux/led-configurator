@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Minus, Check, Package } from "lucide-react";
+import type { ProductStructureComponent } from "@/lib/productStructure";
 
 export interface ShiftModuleOption {
   sku: string;
@@ -20,6 +21,9 @@ export interface ShiftModuleOption {
   availableCCTs: string[];
   driverCode?: string;
   driverModel?: string;
+  lightSourcesByCct?: Record<string, ProductStructureComponent>;
+  technicalDrivers?: ProductStructureComponent[];
+  apiOtherEquipments?: ProductStructureComponent[];
   unitCost?: number | null;
   markupPadrao?: number | null;
   markupMinimo?: number | null;
@@ -36,6 +40,9 @@ export interface ShiftModuleSelection {
   dimensions?: string;
   driverCode?: string;
   driverModel?: string;
+  productLightSource?: ProductStructureComponent | null;
+  technicalDrivers?: ProductStructureComponent[];
+  apiOtherEquipments?: ProductStructureComponent[];
   unitCost?: number | null;
   markupPadrao?: number | null;
   markupMinimo?: number | null;
@@ -93,6 +100,9 @@ export function ShiftModuleSelector({
         dimensions: mod.dimensions,
         driverCode: mod.driverCode,
         driverModel: mod.driverModel,
+        productLightSource: mod.lightSourcesByCct?.[cct] ?? null,
+        technicalDrivers: mod.technicalDrivers,
+        apiOtherEquipments: mod.apiOtherEquipments,
         unitCost: mod.unitCost ?? null,
         markupPadrao: mod.markupPadrao ?? null,
         markupMinimo: mod.markupMinimo ?? null,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { enrichDriverCurrentsFromApi, migrateItemDrivers, migrateLegacyGlowCommercialItem, parseCartItemData } from "./cartTypes";
+import { enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers, migrateLegacyGlowCommercialItem, parseCartItemData } from "./cartTypes";
 
 describe("parseCartItemData - correção de driverQty para perfis", () => {
   it("corrige driverQty quando está salvo apenas por luminária (BLAZE 45700mm, 12 lum, 17 drv/lum)", () => {
@@ -333,5 +333,53 @@ describe("enrichDriverCurrentsFromApi", () => {
     expect(enriched.driverLines?.[0]?.corrente).toBe("500mA");
     expect(enriched.profileSegments?.[0]?.corrente).toBe("500mA");
     expect(enriched.ledBarDriverCorrente).toBe("400mA");
+  });
+});
+
+describe("componentes estruturados de SHIFT", () => {
+  it("reidrata o driver do perfil SHIFT sem potência e os componentes próprios de um acessório S01", () => {
+    const item = {
+      category: "Perfis",
+      sku: "LLE-4846",
+      description: "SHIFT Embutir ON/OFF 220V 1800mm",
+      qty: 1,
+      unitPrice: 350,
+      totalPrice: 350,
+      photoUrl: null,
+      profileSegments: [{ sku: "LLE-4846.150.18F", qty: 2, lengthMm: 1500, barsPerPiece: 1, driverQtyPerPiece: 0 }],
+      accessories: [{ codigo: "S01-06862", descricao: "SHIFT MÓDULO DIFUSO 7W 3000K", qty: 3, unitPrice: 0, totalPrice: 0 }],
+    } as any;
+    const productMap = new Map([
+      ["LLE-4846.150.18F", {
+        sku: "LLE-4846.150.18F",
+        driver220: null,
+        driverBivolt: { code: "EQ00112", model: "FONTE DE TENSÃO 60W 24V IP20 BIV DIP SLIM" },
+        driverQtd220: null,
+        driverQtdBivolt: 1,
+      }],
+      ["S01-06862", {
+        sku: "S01-06862",
+        driver220: { code: "EQ00257", model: "REGULADOR DE VOLTAGEM 20X20MM ALUMINIO PCB" },
+        driverBivolt: null,
+        driverQtd220: 1,
+        driverQtdBivolt: null,
+        ledModule3000: "MODULO STRIPFLEX 280X10MM C/ REG DE VOLTAGEM 3000K 7W",
+        ledModuleEq3000: "EQ00265",
+        ledModuleQtd3000: 1,
+      }],
+    ] as any);
+
+    const withProfileDriver = migrateItemDrivers(item, new Map(), new Map(), productMap);
+    expect(withProfileDriver.profileSegments?.[0]).toMatchObject({
+      driverCode: "EQ00112",
+      driverQtyPerPiece: 1,
+    });
+    expect(withProfileDriver.driverLines?.[0]).toMatchObject({ driverCode: "EQ00112", driverQty: 2 });
+
+    const enriched = enrichShiftAccessoryTechnicalComponents(withProfileDriver, productMap);
+    expect(enriched.accessories?.[0]).toMatchObject({
+      productLightSource: expect.objectContaining({ code: "EQ00265", quantity: 1 }),
+      technicalDrivers: [expect.objectContaining({ code: "EQ00257", quantity: 1 })],
+    });
   });
 });

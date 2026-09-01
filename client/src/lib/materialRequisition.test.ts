@@ -960,4 +960,41 @@ describe("buildMaterialRequisition — luminárias não-perfil", () => {
       sourceItems: [1, 2],
     }));
   });
+
+  it("contabiliza módulos LED e drivers próprios de acessórios SHIFT S01 pela quantidade do acessório e da luminária", () => {
+    const result = buildMaterialRequisition([{
+      category: "Perfis",
+      sku: "LLE-4846",
+      description: "SHIFT Embutir",
+      qty: 2,
+      accessories: [{
+        codigo: "S01-06862",
+        descricao: "SHIFT MÓDULO DIFUSO 7W 3000K",
+        qty: 3,
+        unitPrice: 0,
+        totalPrice: 0,
+        productLightSource: {
+          description: "MODULO STRIPFLEX 280X10MM C/ REG DE VOLTAGEM 3000K 7W",
+          code: "EQ00265",
+          type: "MODULO_LED",
+          quantity: 1,
+        },
+        technicalDrivers: [{
+          description: "REGULADOR DE VOLTAGEM 20X20MM ALUMINIO PCB",
+          code: "EQ00257",
+          type: "DRIVER",
+          quantity: 1,
+        }],
+      }],
+    } as any]);
+    expect(result).toContainEqual(expect.objectContaining({
+      codigo: "S01-06862", qty: 6, sourceItems: [1],
+    }));
+    expect(result).toContainEqual(expect.objectContaining({
+      codigo: "EQ00265", qty: 6, tipo: "MÓDULOS LED", sourceItems: [1],
+    }));
+    expect(result).toContainEqual(expect.objectContaining({
+      codigo: "EQ00257", qty: 6, tipo: "DRIVERS", sourceItems: [1],
+    }));
+  });
 });

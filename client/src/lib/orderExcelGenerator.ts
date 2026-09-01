@@ -658,8 +658,15 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
         accDCell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
         applyBorder(accDCell);
         fillAcc(ws.getCell(`E${accRowNum}`), acc.codigo ?? "");
-        fillAcc(ws.getCell(`F${accRowNum}`), "");
-        fillAcc(ws.getCell(`G${accRowNum}`), "");
+        const accessoryLightText = acc.productLightSource
+          ? `${acc.productLightSource.quantity}x ${acc.productLightSource.description}${acc.productLightSource.code ? ` (${acc.productLightSource.code})` : ""}`
+          : "";
+        const accessoryEquipmentText = [
+          ...(acc.technicalDrivers ?? []),
+          ...(acc.apiOtherEquipments ?? []),
+        ].map(component => `${component.quantity}x ${component.description}${component.code ? ` (${component.code})` : ""}`).join("\n");
+        fillAcc(ws.getCell(`F${accRowNum}`), accessoryLightText);
+        fillAcc(ws.getCell(`G${accRowNum}`), accessoryEquipmentText);
         fillAcc(ws.getCell(`H${accRowNum}`), acc.qty, true);
         fillAcc(ws.getCell(`I${accRowNum}`), "");
         fillAcc(ws.getCell(`J${accRowNum}`), "");

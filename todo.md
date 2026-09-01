@@ -3216,3 +3216,10 @@
 - [x] Eliminar a sobreposição dos cabeçalhos Comprimento e Potência na prévia comercial
 - [x] Reduzir levemente a coluna de foto e centralizar a imagem dentro da célula
 - [x] Preservar o layout A4 retrato oficial e validar a equivalência no PDF e Excel
+
+## Componentes API: driver do orçamento e acessórios SHIFT S01
+- [x] Mapear o driver vigente do item afetado no orçamento 33.x1x1-26 diretamente na API
+- [x] Restaurar o driver API no orçamento, ficha de produção e requisição de materiais
+- [x] Mapear os módulos LED e drivers próprios dos acessórios SHIFT S01 retornados pela API
+- [x] Propagar componentes SHIFT S01 ao orçamento, ficha de produção e requisição com códigos e quantidades oficiais
+- [x] Cobrir a composição de driver e dos acessórios SHIFT S01 por regressão

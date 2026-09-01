@@ -416,6 +416,12 @@ export interface LinkedAccessory {
    * multiplicados novamente pela quantidade do item na requisição.
    */
   quantityScope?: "per_unit" | "order_total";
+  /** Fonte de luz própria do acessório, recebida diretamente da estrutura da API. */
+  productLightSource?: ProductStructureComponent | null;
+  /** Drivers próprios do acessório, recebidos diretamente da estrutura da API. */
+  technicalDrivers?: ProductStructureComponent[];
+  /** Outros equipamentos próprios do acessório, recebidos diretamente da estrutura da API. */
+  apiOtherEquipments?: ProductStructureComponent[];
 }
 
 /**
@@ -741,6 +747,11 @@ export interface ApiProductDriverInfo {
   ledModuleEq3000?: string | null;
   ledModuleEq4000?: string | null;
   ledModuleEq5000?: string | null;
+  /** Descrição do módulo LED por CCT, usada para reidratar acessórios técnicos. */
+  ledModule2700?: string | null;
+  ledModule3000?: string | null;
+  ledModule4000?: string | null;
+  ledModule5000?: string | null;
   /** Código EQ genérico (fallback para RGBW/legados) */
   ledModuleEq?: string | null;
   /** Quantidade do módulo LED por luminária, fornecida pela API. */
@@ -764,6 +775,64 @@ function normalizeCommercialLookupText(value: string | null | undefined): string
 
 function roundCommercialValue(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+/**
+ * Reidrata os componentes técnicos próprios de acessórios SHIFT S01 já salvos.
+ * A composição é sempre lida do SKU e CCT efetivamente retornados pela API;
+ * a função não cria módulo LED ou driver quando o cadastro não os fornece.
+ */
+export function enrichShiftAccessoryTechnicalComponents(
+  item: CartItemData,
+  productSkuMap: Map<string, ApiProductDriverInfo>,
+): CartItemData {
+  const accessories = item.accessories ?? [];
+  if (accessories.length === 0) return item;
+
+  let changed = false;
+  const enrichedAccessories = accessories.map(accessory => {
+    if (!/^S01-/i.test(accessory.codigo ?? "")) return accessory;
+    const product = productSkuMap.get(accessory.codigo);
+    if (!product) return accessory;
+
+    const cct = (accessory.descricao.match(/\b(2700|3000|3500|4000|5000)\s*K\b/i)?.[1] ?? "").trim();
+    const cctSuffix = cct as "2700" | "3000" | "3500" | "4000" | "5000";
+    const sourceDescription = cctSuffix
+      ? product[`ledModule${cctSuffix}` as keyof ApiProductDriverInfo]
+      : null;
+    const sourceCode = cctSuffix
+      ? product[`ledModuleEq${cctSuffix}` as keyof ApiProductDriverInfo]
+      : null;
+    const sourceQuantity = cctSuffix
+      ? product[`ledModuleQtd${cctSuffix}` as keyof ApiProductDriverInfo]
+      : null;
+    const productLightSource = typeof sourceDescription === "string" && sourceDescription.trim()
+      ? {
+        description: sourceDescription.trim(),
+        code: typeof sourceCode === "string" ? sourceCode : null,
+        type: "MODULO_LED",
+        quantity: typeof sourceQuantity === "number" && sourceQuantity >= 0 ? sourceQuantity : 1,
+      }
+      : null;
+    const apiDriver = product.driver220 ?? product.driverBivolt ?? null;
+    const driverQuantity = product.driverQtd220 ?? product.driverQtdBivolt ?? 1;
+    const technicalDrivers = apiDriver?.model
+      ? [{
+        description: apiDriver.model,
+        code: apiDriver.code ?? null,
+        type: "DRIVER",
+        quantity: typeof driverQuantity === "number" && driverQuantity >= 0 ? driverQuantity : 1,
+      }]
+      : [];
+
+    const lightSourceUnchanged = JSON.stringify(accessory.productLightSource ?? null) === JSON.stringify(productLightSource);
+    const driversUnchanged = JSON.stringify(accessory.technicalDrivers ?? []) === JSON.stringify(technicalDrivers);
+    if (lightSourceUnchanged && driversUnchanged) return accessory;
+    changed = true;
+    return { ...accessory, productLightSource, technicalDrivers };
+  });
+
+  return changed ? { ...item, accessories: enrichedAccessories } : item;
 }
 
 /**
@@ -1004,9 +1073,10 @@ export function migrateItemDrivers(
 ): CartItemData {
   // ── Migração de perfis: cada potência/método possui cadastro próprio na API ──
   // Nunca reutilizar driver ou corrente salvos de outra versão (18W/26W/36W SF/SL).
-  if (item.profileSegments && item.profileSegments.length > 0 && item.power) {
-    const powerNum = parseInt(item.power, 10);
-    const powerLabel = toPowerLabel(isNaN(powerNum) ? undefined : powerNum, item.stripMethod);
+  const isShiftProfile = item.profileSegments?.some(segment => /^LLE-4846(?:[.\s]|$)/i.test(segment.sku)) ?? false;
+  if (item.profileSegments && item.profileSegments.length > 0 && (item.power || isShiftProfile)) {
+    const powerNum = parseInt(item.power ?? "", 10);
+    const powerLabel = item.power ? toPowerLabel(isNaN(powerNum) ? undefined : powerNum, item.stripMethod) : "";
     const itemSkuBase = (item.sku ?? "").match(/^([A-Z]{2,3}-\d{4})/i)?.[1]?.toUpperCase() ?? "";
     const contextText = [item.description, item.orderSummary, item.quoteSummary, item.drivers].filter(Boolean).join(" ");
     const useBivolt = /bivolt/i.test(contextText);
@@ -1014,10 +1084,13 @@ export function migrateItemDrivers(
     const profileSegments = item.profileSegments.map((segment) => {
       const segmentSkuBase = segment.sku.match(/^([A-Z]{2,3}-\d{4})/i)?.[1]?.toUpperCase() ?? "";
       const apiProduct =
-        productSkuMap.get(`${segment.sku}|${powerLabel}`) ??
-        (segmentSkuBase ? productSkuMap.get(`${segmentSkuBase}|${powerLabel}`) : undefined) ??
-        (itemSkuBase ? productSkuMap.get(`${itemSkuBase}|${powerLabel}`) : undefined) ??
-        productSkuMap.get(`${segment.sku}|${powerLabel}`.toUpperCase());
+        (powerLabel ? productSkuMap.get(`${segment.sku}|${powerLabel}`) : undefined) ??
+        (powerLabel && segmentSkuBase ? productSkuMap.get(`${segmentSkuBase}|${powerLabel}`) : undefined) ??
+        (powerLabel && itemSkuBase ? productSkuMap.get(`${itemSkuBase}|${powerLabel}`) : undefined) ??
+        productSkuMap.get(segment.sku) ??
+        (segmentSkuBase ? productSkuMap.get(segmentSkuBase) : undefined) ??
+        (itemSkuBase ? productSkuMap.get(itemSkuBase) : undefined) ??
+        (powerLabel ? productSkuMap.get(`${segment.sku}|${powerLabel}`.toUpperCase()) : undefined);
       if (!apiProduct) return segment;
       const apiDriver = useBivolt
         ? (apiProduct.driverBivolt ?? apiProduct.driver220)

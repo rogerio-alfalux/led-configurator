@@ -8,7 +8,7 @@ import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/_core/hooks/useAuth";
 import type { CartItemData, LinkedAccessory, ProfileSegment } from "@/lib/cartTypes";
-import { aggregateProductStructureComponents, productStructureCartFields } from "@/lib/productStructure";
+import { aggregateProductStructureComponents, productStructureCartFields, type ProductStructureComponent } from "@/lib/productStructure";
 import { redactGuestQuoteSummary } from "@/lib/guestQuoteSummary";
 import { LdGuestTechnicalSummary } from "@/components/LdGuestTechnicalSummary";
 import { LdCommercialOnly } from "@/components/LdCommercialOnly";
@@ -4711,6 +4711,9 @@ export default function Home() {
     dimensions?: string;
     driverCode?: string;
     driverModel?: string;
+    productLightSource?: ProductStructureComponent | null;
+    technicalDrivers?: ProductStructureComponent[];
+    apiOtherEquipments?: ProductStructureComponent[];
     unitCost?: number | null;
     markupPadrao?: number | null;
     markupMinimo?: number | null;
@@ -9607,6 +9610,9 @@ export default function Home() {
                     unitPrice: m.unitPrice ?? null,
                     fotoUrl: m.fotoUrl || null,
                     familia: "SHIFT MÓDULO",
+                    productLightSource: m.productLightSource ?? null,
+                    technicalDrivers: m.technicalDrivers ?? [],
+                    apiOtherEquipments: m.apiOtherEquipments ?? [],
                   }));
                   return { ...item, accessories: [...(item.accessories ?? []), ...shiftAccessories] };
                 }) : undefined} shiftModuleSelector={isShift ? (
@@ -14237,6 +14243,9 @@ export default function Home() {
           availableCCTs: m.availableCCTs,
           driverCode: m.driverCode ?? undefined,
           driverModel: m.driverModel ?? undefined,
+          lightSourcesByCct: m.lightSourcesByCct,
+          technicalDrivers: m.technicalDrivers,
+          apiOtherEquipments: m.apiOtherEquipments,
           unitCost: m.unitCost ?? null,
           markupPadrao: m.markupPadrao ?? null,
           markupMinimo: m.markupMinimo ?? null,

@@ -347,12 +347,20 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
     // Sub-linhas de acessórios
     if (item.accessories && item.accessories.length > 0) {
       (item.accessories as LinkedAccessory[]).forEach((acc) => {
+        const accessoryLightText = acc.productLightSource
+          ? `${acc.productLightSource.quantity}x ${esc(acc.productLightSource.description)}${acc.productLightSource.code ? ` (${esc(acc.productLightSource.code)})` : ""}`
+          : "";
+        const accessoryEquipmentText = [
+          ...(acc.technicalDrivers ?? []),
+          ...(acc.apiOtherEquipments ?? []),
+        ].map(component => `${component.quantity}x ${esc(component.description)}${component.code ? ` (${esc(component.code)})` : ""}`).join("<br>");
         dataRows += `
           <tr style="background:#e0f7fa">
             <td></td><td></td><td></td>
             <td style="text-align:left;font-size:9px;color:#006064;font-style:italic">↳ Acessório: ${esc(acc.descricao)}</td>
             <td style="text-align:center;font-size:9px;color:#006064;font-style:italic">${esc(acc.codigo ?? "")}</td>
-            <td></td><td></td>
+            <td style="text-align:left;font-size:9px;color:#006064;font-style:italic">${accessoryLightText}</td>
+            <td style="text-align:left;font-size:9px;color:#006064;font-style:italic">${accessoryEquipmentText}</td>
             <td style="text-align:center;font-weight:bold;color:#006064;font-style:italic">${esc(acc.qty)}</td>
             <td></td><td></td>
           </tr>`;

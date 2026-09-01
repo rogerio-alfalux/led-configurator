@@ -171,6 +171,18 @@ function detectTipo(descricao: string, codigo: string): MaterialTipo {
   return "OUTROS";
 }
 
+function detectStructuredComponentTipo(
+  componentType: string | null | undefined,
+  descricao: string,
+  codigo: string,
+): MaterialTipo {
+  const type = String(componentType ?? "").toUpperCase();
+  if (type.includes("DRIVER")) return "DRIVERS";
+  if (type.includes("LAMP")) return "LÂMPADAS";
+  if (type.includes("MODULO") && type.includes("LED")) return "MÓDULOS LED";
+  return detectTipo(descricao, codigo);
+}
+
 const OFFICIAL_MATERIAL_CODE = /\b(EQ\d+|CP\d+|PT\d+|MP\d+)\b/gi;
 
 /**
@@ -635,6 +647,23 @@ export function buildMaterialRequisition(
           ? acc.qty
           : acc.qty * itemQty;
         add(acc.codigo, acc.descricao, materialQty, "un", tipo, itemIdx);
+        const accessoryComponents = [
+          ...(acc.productLightSource ? [acc.productLightSource] : []),
+          ...(acc.technicalDrivers ?? []),
+          ...(acc.apiOtherEquipments ?? []),
+        ];
+        for (const component of accessoryComponents) {
+          if (!component.code) continue;
+          const componentQty = component.quantity * materialQty;
+          add(
+            component.code,
+            component.description,
+            componentQty,
+            "un",
+            detectStructuredComponentTipo(component.type, component.description, component.code),
+            itemIdx,
+          );
+        }
       }
     }
   }
