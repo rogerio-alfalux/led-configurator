@@ -3205,3 +3205,14 @@
 - [x] Propagar lâmpada retornada pela estrutura como fonte de luz até orçamento, ficha de produção e requisição de materiais
 - [x] Validar o SHIFT com PCI CONTATO 500MM REV01 (500X26MM) e impedir deduções ou fallbacks estáticos
 - [x] Cobrir configurações heterogêneas e quantidades de materiais com testes de regressão
+
+## Catálogo da API Alfalux: indisponibilidade exibida
+- [ ] Verificar a disponibilidade atual da API, do proxy do Sistema Luna e o erro mostrado ao usuário
+- [ ] Corrigir a causa de falha de carregamento do catálogo sem liberar cálculos com dados incompletos
+- [ ] Validar recuperação, tentativa manual e proteção diante de indisponibilidade transitória
+- [ ] Comparar o ambiente de desenvolvimento à publicação e restaurar apenas a conectividade local
+
+## Prévia comercial: colunas de comprimento, potência e foto
+- [x] Eliminar a sobreposição dos cabeçalhos Comprimento e Potência na prévia comercial
+- [x] Reduzir levemente a coluna de foto e centralizar a imagem dentro da célula
+- [x] Preservar o layout A4 retrato oficial e validar a equivalência no PDF e Excel

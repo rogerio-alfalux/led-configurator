@@ -581,6 +581,12 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
     textAlign: "center", verticalAlign: "middle", padding: "4px 6px",
     border: "2px solid #444", whiteSpace: "pre-line", lineHeight: 1.3,
   };
+  const compactHeaderStyle: React.CSSProperties = {
+    ...thStyle,
+    fontSize: 8.5,
+    padding: "4px 1px",
+    overflowWrap: "anywhere",
+  };
   const tdStyle: React.CSSProperties = {
     fontSize: 10, textAlign: "center", verticalAlign: "middle",
     padding: "4px 6px", border: "1px solid #aaa", whiteSpace: "pre-wrap",
@@ -811,7 +817,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
               <thead>
                 <tr>
                   {["ITEM EM\nPLANTA", "FOTO", "MODELO ALFALUX", "COMPRIMENTO\n(mm)", "POTÊNCIA\n(W)", "DIM", "TENSÃO\n(V)", "COR", "TEMPERATURA\nDE COR (K)", "QTD", "PREÇO\nUNITÁRIO", "PREÇO\nTOTAL"].map((h) => (
-                    <th key={h} style={thStyle}>{h}</th>
+                    <th key={h} style={h === "COMPRIMENTO\n(mm)" || h === "POTÊNCIA\n(W)" ? compactHeaderStyle : thStyle}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -863,9 +869,9 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                       ) : item.driverLines && item.driverLines.length > 0 ? (
                         <tr>
                           <td style={{ ...tdStyle, fontWeight: "bold", fontSize: 18 }}>{item.itemEmPlanta || ""}</td>
-                          <td style={{ ...tdStyle, width: 80, minHeight: 80 }}>
+                          <td style={{ ...tdStyle, minHeight: 68 }}>
                             {getProxiedPhotoSrc(freshPhotoMap?.get(item.sku ?? "") ?? item.photoUrl) ? (
-                              <img src={getProxiedPhotoSrc(freshPhotoMap?.get(item.sku ?? "") ?? item.photoUrl)!} alt={item.description} style={{ width: 64, height: 64, objectFit: "contain" }}
+                              <img src={getProxiedPhotoSrc(freshPhotoMap?.get(item.sku ?? "") ?? item.photoUrl)!} alt={item.description} style={{ display: "block", width: 56, height: 56, maxWidth: "100%", margin: "0 auto", objectFit: "contain" }}
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                             ) : (
                               <span style={{ color: "#aaa", fontSize: 10 }}>—</span>
@@ -936,9 +942,9 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                         <tr>
                           <td style={{ ...tdStyle, fontWeight: "bold", fontSize: 18 }}>{item.itemEmPlanta || ""}</td>
                           {/* Coluna FOTO — apenas a imagem do produto, sem rabicho */}
-                          <td style={{ ...tdStyle, width: 80, minHeight: 80 }}>
+                          <td style={{ ...tdStyle, minHeight: 68 }}>
                             {getProxiedPhotoSrc(freshPhotoMap?.get(item.sku ?? "") ?? item.photoUrl) ? (
-                              <img src={getProxiedPhotoSrc(freshPhotoMap?.get(item.sku ?? "") ?? item.photoUrl)!} alt={item.description} style={{ width: 64, height: 64, objectFit: "contain" }}
+                              <img src={getProxiedPhotoSrc(freshPhotoMap?.get(item.sku ?? "") ?? item.photoUrl)!} alt={item.description} style={{ display: "block", width: 56, height: 56, maxWidth: "100%", margin: "0 auto", objectFit: "contain" }}
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                             ) : (
                               <span style={{ color: "#aaa", fontSize: 10 }}>—</span>
@@ -987,7 +993,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           <td style={{ ...tdStyle, fontSize: 9 }}></td>
                           <td style={{ ...tdStyle, fontSize: 9 }}>
                             {getProxiedPhotoSrc(acc.fotoUrl) ? (
-                              <img src={getProxiedPhotoSrc(acc.fotoUrl)!} alt={acc.descricao} style={{ width: 36, height: 36, objectFit: "contain" }}
+                              <img src={getProxiedPhotoSrc(acc.fotoUrl)!} alt={acc.descricao} style={{ display: "block", width: 36, height: 36, maxWidth: "100%", margin: "0 auto", objectFit: "contain" }}
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                             ) : null}
                           </td>
