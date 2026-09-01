@@ -162,6 +162,8 @@ function createApiLinearVariant(product: AlfaluxProduct): ApiLinearProfileVarian
     driverBivolt: product.driverBivolt ?? null,
     driverDimDali: product.driverDimDali ?? null,
     driverDim110v: product.driverDim110v ?? null,
+    driverDimTriac110v: api.driverDimTriac110v ?? null,
+    driverDimTriac220v: api.driverDimTriac220v ?? null,
     correnteDriver: api.correnteDriver ?? null,
     ledModuleStripflex: null,
     ledModuleStripline: null,
@@ -238,6 +240,8 @@ export function adaptProfileProducts(
       driverBivolt: { model: string; code: string | null } | null;
       driverDimDali: { model: string; code: string | null } | null;
       driverDim110v: { model: string; code: string | null } | null;
+      driverDimTriac110v: { model: string; code: string | null } | null;
+      driverDimTriac220v: { model: string; code: string | null } | null;
       correnteDriver: string | null;
       ledModuleStripflex: string | null;
       ledModuleStripline: string | null;
@@ -320,6 +324,8 @@ export function adaptProfileProducts(
         driverBivolt: p.driverBivolt ?? null,
         driverDimDali: p.driverDimDali ?? null,
         driverDim110v: p.driverDim110v ?? null,
+        driverDimTriac110v: pa.driverDimTriac110v ?? null,
+        driverDimTriac220v: pa.driverDimTriac220v ?? null,
         correnteDriver: (p as any).correnteDriver ?? null,
         ledModuleStripflex: null,
         ledModuleStripline: null,
@@ -394,6 +400,12 @@ export function adaptProfileProducts(
       if (!variantMap[profileCode].driverDim110v && p.driverDim110v) {
         variantMap[profileCode].driverDim110v = p.driverDim110v;
       }
+      if (!variantMap[profileCode].driverDimTriac110v && pa.driverDimTriac110v) {
+        variantMap[profileCode].driverDimTriac110v = pa.driverDimTriac110v;
+      }
+      if (!variantMap[profileCode].driverDimTriac220v && pa.driverDimTriac220v) {
+        variantMap[profileCode].driverDimTriac220v = pa.driverDimTriac220v;
+      }
     }
     // Atualizar ledModule por tipo (Stripflex vs Stripline) — independente de ser novo ou existente
     const pa2 = p as any;
@@ -433,6 +445,8 @@ export function adaptProfileProducts(
     if (!linearVariant.driverBivolt && p.driverBivolt) linearVariant.driverBivolt = p.driverBivolt;
     if (!linearVariant.driverDimDali && p.driverDimDali) linearVariant.driverDimDali = p.driverDimDali;
     if (!linearVariant.driverDim110v && p.driverDim110v) linearVariant.driverDim110v = p.driverDim110v;
+    if (!linearVariant.driverDimTriac110v && pa2.driverDimTriac110v) linearVariant.driverDimTriac110v = pa2.driverDimTriac110v;
+    if (!linearVariant.driverDimTriac220v && pa2.driverDimTriac220v) linearVariant.driverDimTriac220v = pa2.driverDimTriac220v;
     if (!linearVariant.correnteDriver && pa2.correnteDriver) linearVariant.correnteDriver = pa2.correnteDriver;
     fillApiLinearLedModule(linearVariant, p);
     if (p.possuiOpcaoD1D2 && p.composicaoD1D2) {
@@ -457,10 +471,14 @@ export function adaptProfileProducts(
       driverBivolt: p.driverBivolt ?? null,
       driverDimDali: p.driverDimDali ?? null,
       driverDim110v: p.driverDim110v ?? null,
+      driverDimTriac110v: pa2.driverDimTriac110v ?? null,
+      driverDimTriac220v: pa2.driverDimTriac220v ?? null,
       driverQtd220: p.driverQtd220 ?? null,
       driverQtdBivolt: p.driverQtdBivolt ?? null,
       driverQtdDimDali: p.driverQtdDimDali ?? null,
       driverQtdDim110v: p.driverQtdDim110v ?? null,
+      driverQtdDimTriac110v: pa2.driverQtdDimTriac110v ?? null,
+      driverQtdDimTriac220v: pa2.driverQtdDimTriac220v ?? null,
       correnteDriver: (p as any).correnteDriver ?? null,
     };
     // SHIFT uses bars=1 for all modules, so we need unique keys.
@@ -479,7 +497,7 @@ export function adaptProfileProducts(
   // Monta o Record<string, ProfileVariant> final
   const catalog: Record<string, ProfileVariant> = {};
   for (const [code, entry] of Object.entries(variantMap)) {
-    const { rule, installType, photoUrl, fixedLedModule, fixedLedModuleCode, fixedLedModuleQty, modules, driver220, driverBivolt, driverDimDali, driverDim110v, ledModuleStripflex, ledModuleStripline, correnteDriver } = entry;
+    const { rule, installType, photoUrl, fixedLedModule, fixedLedModuleCode, fixedLedModuleQty, modules, driver220, driverBivolt, driverDimDali, driverDim110v, driverDimTriac110v, driverDimTriac220v, ledModuleStripflex, ledModuleStripline, correnteDriver } = entry;
     // Derivar stripMethod automaticamente a partir do módulo LED detectado.
     // REGRA INEGOCIÁVEL: se ledModuleStripline está preenchido → STRIPLINE;
     // se ledModuleStripflex está preenchido → STRIPFLEX.
@@ -507,6 +525,8 @@ export function adaptProfileProducts(
       driverBivolt: driverBivolt ?? null,
       driverDimDali: driverDimDali ?? null,
       driverDim110v: driverDim110v ?? null,
+      driverDimTriac110v: driverDimTriac110v ?? null,
+      driverDimTriac220v: driverDimTriac220v ?? null,
       correnteDriver: entry.correnteDriver ?? null,
       ledModuleStripflex: ledModuleStripflex ?? null,
       ledModuleStripline: ledModuleStripline ?? null,

@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { trpc } from "@/lib/trpc";
-import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, formatBRL, normalizeDriverModels, ApiProductDriverInfo, extractPowerLabelFromName, enrichDriverCurrentsFromApi } from "@/lib/cartTypes";
+import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, formatBRL, normalizeDriverModels, ApiProductDriverInfo, extractPowerLabelFromName, enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { ComponentSearchField } from "@/components/ComponentSearchField";
 import type { ComponentOption } from "@/components/ComponentSearchField";
@@ -243,7 +243,8 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
   const parsed = useMemo(() => {
     const raw = parseCartItemData(item.itemData);
     if (!raw || !priceMap || !productSkuMap) return raw;
-    return normalizeDriverModels(enrichDriverCurrentsFromApi(raw, correnteMap), descMap ?? new Map());
+    const withDrivers = migrateItemDrivers(enrichDriverCurrentsFromApi(raw, correnteMap), priceMap, descMap ?? new Map(), productSkuMap, correnteMap, reverseDescMap);
+    return normalizeDriverModels(enrichShiftAccessoryTechnicalComponents(withDrivers, productSkuMap), descMap ?? new Map());
   }, [item.itemData, priceMap, productSkuMap, descMap, correnteMap, reverseDescMap]);
 
   useEffect(() => {
@@ -1256,7 +1257,7 @@ export default function FactoryOrderDetail() {
   const { data: allProductsFO } = trpc.alfalux.products.useQuery(undefined, { staleTime: 5 * 60 * 1000, refetchOnWindowFocus: false });
   const productSkuMapFO = useMemo(() => {
     const map = new Map<string, ApiProductDriverInfo>();
-    for (const p of (allProductsFO ?? []) as Array<{ sku: string; name?: string; categoria?: string; driver220?: { model: string; code: string | null } | null; driverBivolt?: { model: string; code: string | null } | null; driverDimDali?: { model: string; code: string | null } | null; driverDim110v?: { model: string; code: string | null } | null; driverQtd220?: number | null; driverQtdBivolt?: number | null; correnteDriver?: string | null; ledModuleEq2700?: string | null; ledModuleEq3000?: string | null; ledModuleEq4000?: string | null; ledModuleEq5000?: string | null; ledModuleEq?: string | null; ledModuleQtd?: number | null; ledModuleQtd2700?: number | null; ledModuleQtd3000?: number | null; ledModuleQtd4000?: number | null; ledModuleQtd5000?: number | null }>) {
+    for (const p of (allProductsFO ?? []) as Array<{ sku: string; name?: string; categoria?: string; driver220?: { model: string; code: string | null } | null; driverBivolt?: { model: string; code: string | null } | null; driverDimDali?: { model: string; code: string | null } | null; driverDim110v?: { model: string; code: string | null } | null; driverDimTriac110v?: { model: string; code: string | null } | null; driverDimTriac220v?: { model: string; code: string | null } | null; driverQtd220?: number | null; driverQtdBivolt?: number | null; driverQtdDimDali?: number | null; driverQtdDim110v?: number | null; driverQtdDimTriac110v?: number | null; driverQtdDimTriac220v?: number | null; correnteDriver?: string | null; ledModule2700?: string | null; ledModule3000?: string | null; ledModule3500?: string | null; ledModule4000?: string | null; ledModule5000?: string | null; ledModuleEq2700?: string | null; ledModuleEq3000?: string | null; ledModuleEq3500?: string | null; ledModuleEq4000?: string | null; ledModuleEq5000?: string | null; ledModuleEq?: string | null; ledModuleQtd?: number | null; ledModuleQtd2700?: number | null; ledModuleQtd3000?: number | null; ledModuleQtd3500?: number | null; ledModuleQtd4000?: number | null; ledModuleQtd5000?: number | null; outrosEquipamentos?: ApiProductDriverInfo["apiOtherEquipments"] }>) {
       if (!p.sku) continue;
       const entry: ApiProductDriverInfo = {
         sku: p.sku,
@@ -1264,19 +1265,33 @@ export default function FactoryOrderDetail() {
         driverBivolt: p.driverBivolt ?? null,
         driverDimDali: p.driverDimDali ?? null,
         driverDim110v: p.driverDim110v ?? null,
+        driverDimTriac110v: p.driverDimTriac110v ?? null,
+        driverDimTriac220v: p.driverDimTriac220v ?? null,
         driverQtd220: p.driverQtd220 ?? null,
         driverQtdBivolt: p.driverQtdBivolt ?? null,
+        driverQtdDimDali: p.driverQtdDimDali ?? null,
+        driverQtdDim110v: p.driverQtdDim110v ?? null,
+        driverQtdDimTriac110v: p.driverQtdDimTriac110v ?? null,
+        driverQtdDimTriac220v: p.driverQtdDimTriac220v ?? null,
         correnteDriver: p.correnteDriver ?? null,
         ledModuleEq2700: p.ledModuleEq2700 ?? null,
         ledModuleEq3000: p.ledModuleEq3000 ?? null,
         ledModuleEq4000: p.ledModuleEq4000 ?? null,
         ledModuleEq5000: p.ledModuleEq5000 ?? null,
+        ledModuleEq3500: p.ledModuleEq3500 ?? null,
+        ledModule2700: p.ledModule2700 ?? null,
+        ledModule3000: p.ledModule3000 ?? null,
+        ledModule3500: p.ledModule3500 ?? null,
+        ledModule4000: p.ledModule4000 ?? null,
+        ledModule5000: p.ledModule5000 ?? null,
         ledModuleEq: p.ledModuleEq ?? null,
         ledModuleQtd: p.ledModuleQtd ?? null,
         ledModuleQtd2700: p.ledModuleQtd2700 ?? null,
         ledModuleQtd3000: p.ledModuleQtd3000 ?? null,
         ledModuleQtd4000: p.ledModuleQtd4000 ?? null,
         ledModuleQtd5000: p.ledModuleQtd5000 ?? null,
+        ledModuleQtd3500: p.ledModuleQtd3500 ?? null,
+        apiOtherEquipments: p.outrosEquipamentos ?? [],
         name: p.name,
       };
       // Indexar por sku simples (primeiro registro vence) para compat
@@ -1548,7 +1563,7 @@ export default function FactoryOrderDetail() {
       const itemsData = orderToUse.items
         .map(i => parseCartItemData(i.itemData))
         .filter((d): d is CartItemData => d !== null)
-        .map(d => normalizeDriverModels(enrichDriverCurrentsFromApi(d, componenteCorrenteMapFO), componenteDescMapFO));
+        .map(d => normalizeDriverModels(enrichShiftAccessoryTechnicalComponents(migrateItemDrivers(enrichDriverCurrentsFromApi(d, componenteCorrenteMapFO), componentePriceMapFO, componenteDescMapFO, productSkuMapFO, componenteCorrenteMapFO, componenteReverseDescMapFO), productSkuMapFO), componenteDescMapFO));
       const fileName = `PEDIDO-FABRICA-${orderNum}-${quote.clientName.replace(/\s+/g, "_")}.xlsx`;
       const buffer = await generateOrderExcel(itemsData, {
         clientName: quote.clientName,
@@ -1591,7 +1606,7 @@ export default function FactoryOrderDetail() {
     } finally {
       setIsGenerating(false);
     }
-  }, [quoteData, saveExcelMutation]);
+  }, [quoteData, saveExcelMutation, componenteCorrenteMapFO, componentePriceMapFO, componenteDescMapFO, componenteReverseDescMapFO, productSkuMapFO]);
 
   const handleGenerateExcel = useCallback(async () => {
     if (!currentOrder || !quoteData) return;
@@ -1767,7 +1782,7 @@ export default function FactoryOrderDetail() {
                     const items = currentOrder.items
                       .map(i => parseCartItemData(i.itemData))
                       .filter((d): d is CartItemData => d !== null)
-                      .map(d => normalizeDriverModels(enrichDriverCurrentsFromApi(d, componenteCorrenteMapFO), componenteDescMapFO));
+                      .map(d => normalizeDriverModels(enrichShiftAccessoryTechnicalComponents(migrateItemDrivers(enrichDriverCurrentsFromApi(d, componenteCorrenteMapFO), componentePriceMapFO, componenteDescMapFO, productSkuMapFO, componenteCorrenteMapFO, componenteReverseDescMapFO), productSkuMapFO), componenteDescMapFO));
                     setPreviewItems(items);
                     setPreviewForm({
                       clientName: quote.clientName,

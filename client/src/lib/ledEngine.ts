@@ -79,7 +79,7 @@ export interface CompositionItem {
   /** Indica que o driver foi fornecido diretamente pelo cadastro do SKU na API. */
   driverFromApi?: boolean;
   /** Drivers individuais do SKU por tipo de controle, conforme cadastro da API. */
-  apiDrivers?: Partial<Record<"onoff220" | "onoffBivolt" | "dimDali" | "dim110v", DriverSpec>>;
+  apiDrivers?: Partial<Record<"onoff220" | "onoffBivolt" | "dimDali" | "dim110v" | "dimTriac110v" | "dimTriac220v", DriverSpec>>;
 }
 
 export interface CompositionResult {
@@ -156,7 +156,7 @@ export interface ConfigInput {
   adjustToLarger?: boolean;
   /**
    * Tipo de controle/dimming selecionado pelo usuário.
-   * "onoff" = padrão (driver On/Off), "dimDali" = DIM DALI, "dim110v" = DIM 1-10V.
+   * "onoff" = padrão (driver On/Off), "dimDali" = DIM DALI, "dim110v" = DIM 1-10V e os modos TRIAC usam seus drivers dedicados.
    */
   controlType?: ControlType;
   /** Driver ON/OFF 220V disponível para este perfil (da API) */
@@ -167,6 +167,10 @@ export interface ConfigInput {
   driverDimDali?: { model: string; code: string | null } | null;
   /** Driver DIM 1-10V disponível para este perfil (da API) */
   driverDim110v?: { model: string; code: string | null } | null;
+  /** Driver DIM TRIAC 110V disponível para este perfil (da API). */
+  driverDimTriac110v?: { model: string; code: string | null } | null;
+  /** Driver DIM TRIAC 220V disponível para este perfil (da API). */
+  driverDimTriac220v?: { model: string; code: string | null } | null;
   /** Componentes específicos por SKU da versão D1+D2 cadastrada na API. */
   apiD1D2BySku?: Record<string, ApiD1D2SkuComposition>;
   /** Corrente de programação do driver (ex: "programar em 350mA"). Campo direto da API. */
@@ -366,7 +370,11 @@ function buildSkuDriverList(
         ? "dimDali"
         : driverContext?.controlType === "dim110v"
           ? "dim110v"
-          : voltage === "Bivolt" ? "onoffBivolt" : "onoff220";
+          : driverContext?.controlType === "dimTriac110v"
+            ? "dimTriac110v"
+            : driverContext?.controlType === "dimTriac220v"
+              ? "dimTriac220v"
+              : voltage === "Bivolt" ? "onoffBivolt" : "onoff220";
       driver = item.apiDrivers?.[controlKey] ?? (driverContext?.controlType && driverContext.controlType !== "onoff" ? missingApiDriver() : item.driverPerSku);
     } else if (dualSimultaneous) {
       const splitResult = splitDriverForDualSimultaneous(effectiveBars, power, voltage, stripMethod);
@@ -416,8 +424,12 @@ interface RawModule {
   driverQtdBivolt?: number | null;
   driverDimDali?: { model: string; code: string | null } | null;
   driverDim110v?: { model: string; code: string | null } | null;
+  driverDimTriac110v?: { model: string; code: string | null } | null;
+  driverDimTriac220v?: { model: string; code: string | null } | null;
   driverQtdDimDali?: number | null;
   driverQtdDim110v?: number | null;
+  driverQtdDimTriac110v?: number | null;
+  driverQtdDimTriac220v?: number | null;
   correnteDriver?: string | null;
   fromApiCatalog?: boolean;
 }
@@ -486,8 +498,12 @@ function getModules(profileCode: string, type: ModuleType, allowLongModules: boo
       driverQtdBivolt: data.driverQtdBivolt,
       driverDimDali: data.driverDimDali,
       driverDim110v: data.driverDim110v,
+      driverDimTriac110v: data.driverDimTriac110v,
+      driverDimTriac220v: data.driverDimTriac220v,
       driverQtdDimDali: data.driverQtdDimDali,
       driverQtdDim110v: data.driverQtdDim110v,
+      driverQtdDimTriac110v: data.driverQtdDimTriac110v,
+      driverQtdDimTriac220v: data.driverQtdDimTriac220v,
       correnteDriver: data.correnteDriver,
       fromApiCatalog: !!apiVariant,
     }));
@@ -498,14 +514,26 @@ function selectDriverFromModuleApi(module: RawModule, voltage: Voltage, controlT
     ? module.driverDimDali
     : controlType === "dim110v"
       ? module.driverDim110v
+      : controlType === "dimTriac110v"
+        ? module.driverDimTriac110v
+        : controlType === "dimTriac220v"
+          ? module.driverDimTriac220v
       : null;
   const dimQuantity = controlType === "dimDali"
     ? module.driverQtdDimDali
     : controlType === "dim110v"
       ? module.driverQtdDim110v
+      : controlType === "dimTriac110v"
+        ? module.driverQtdDimTriac110v
+        : controlType === "dimTriac220v"
+          ? module.driverQtdDimTriac220v
       : null;
-  const driver = dimDriver ?? (voltage === "Bivolt" ? module.driverBivolt : module.driver220);
-  const quantity = dimQuantity ?? (voltage === "Bivolt" ? module.driverQtdBivolt : module.driverQtd220);
+  const driver = dimDriver ?? (voltage === "Bivolt"
+    ? (module.driverBivolt ?? module.driver220)
+    : (module.driver220 ?? module.driverBivolt));
+  const quantity = dimQuantity ?? (voltage === "Bivolt"
+    ? (module.driverQtdBivolt ?? module.driverQtd220)
+    : (module.driverQtd220 ?? module.driverQtdBivolt));
   if (!driver?.model) return null;
   const model = driver.model.trim();
   return {
@@ -1380,6 +1408,10 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     ? "DRIVER_DIM_DALI"
     : input.controlType === "dim110v"
       ? "DRIVER_DIM_110"
+      : input.controlType === "dimTriac110v"
+        ? "DRIVER_DIM_TRIAC_110"
+        : input.controlType === "dimTriac220v"
+          ? "DRIVER_DIM_TRIAC_220"
       : voltage === "220Vac"
         ? "DRIVER_ONOFF_220"
         : "DRIVER_ONOFF_BIVOLT";
@@ -1411,8 +1443,12 @@ export function calculateComposition(input: ConfigInput): CompositionResult {
     ? (input.driverDimDali ?? null)
     : input.controlType === "dim110v"
       ? (input.driverDim110v ?? null)
+      : input.controlType === "dimTriac110v"
+        ? (input.driverDimTriac110v ?? null)
+        : input.controlType === "dimTriac220v"
+          ? (input.driverDimTriac220v ?? null)
       : voltage === "220Vac"
-        ? (input.driver220 ?? null)
+        ? (input.driver220 ?? input.driverBivolt ?? null)
         : (input.driverBivolt ?? null);
 
   function applyDimDriver(entries: SkuDriverEntry[]): SkuDriverEntry[] {

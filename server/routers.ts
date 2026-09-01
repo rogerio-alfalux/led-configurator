@@ -695,6 +695,7 @@ export const appRouter = router({
         driverModel: string | null;
         lightSourcesByCct: Record<string, { description: string; code: string | null; type: string; quantity: number }>;
         technicalDrivers: Array<{ description: string; code: string | null; type: string; quantity: number }>;
+        technicalDriversByControl: Partial<Record<"onoff" | "dim110v" | "dimDali" | "dimTriac110v" | "dimTriac220v", Array<{ description: string; code: string | null; type: string; quantity: number }>>>;
         apiOtherEquipments: Array<{ description: string; code: string | null; type: string; quantity: number }>;
         unitCost: number | null;
         markupPadrao: number | null;
@@ -723,16 +724,23 @@ export const appRouter = router({
               ? [[cct, { description: description.trim(), code, type: "MODULO_LED", quantity: Number.isFinite(quantity) && quantity >= 0 ? quantity : 1 }] as const]
               : [];
           }));
-          const selectedDriver = p.driver220 ?? p.driverBivolt ?? null;
-          const driverQuantity = Number(p.driverQtd220 ?? p.driverQtdBivolt ?? 1);
-          const technicalDrivers = selectedDriver?.model
+          const toDriver = (driver: { model?: string | null; code?: string | null } | null | undefined, quantity: unknown) => driver?.model
             ? [{
-              description: selectedDriver.model,
-              code: selectedDriver.code ?? null,
+              description: driver.model,
+              code: driver.code ?? null,
               type: "DRIVER",
-              quantity: Number.isFinite(driverQuantity) && driverQuantity >= 0 ? driverQuantity : 1,
+              quantity: Number.isFinite(Number(quantity)) && Number(quantity) >= 0 ? Number(quantity) : 1,
             }]
             : [];
+          const rawProduct = p as any;
+          const technicalDriversByControl = {
+            onoff: toDriver(p.driver220 ?? p.driverBivolt, p.driverQtd220 ?? p.driverQtdBivolt),
+            dim110v: toDriver(p.driverDim110v, p.driverQtdDim110v),
+            dimDali: toDriver(p.driverDimDali, p.driverQtdDimDali),
+            dimTriac110v: toDriver(rawProduct.driverDimTriac110v, rawProduct.driverQtdDimTriac110v),
+            dimTriac220v: toDriver(rawProduct.driverDimTriac220v, rawProduct.driverQtdDimTriac220v),
+          };
+          const technicalDrivers = technicalDriversByControl.onoff;
           const apiOtherEquipments = Array.isArray((p as any).outrosEquipamentos)
             ? (p as any).outrosEquipamentos.flatMap((equipment: Record<string, unknown>) => {
               const description = typeof equipment.descricao === "string"
@@ -759,6 +767,7 @@ export const appRouter = router({
             driverModel: (p as any).driver220?.model ?? null,
             lightSourcesByCct,
             technicalDrivers,
+            technicalDriversByControl,
             apiOtherEquipments,
             unitCost: (p as any).custoCorpoOnoff220v ?? p.custoLuminaria ?? null,
             markupPadrao: (p as any).markupPadraoOnoff220v ?? null,

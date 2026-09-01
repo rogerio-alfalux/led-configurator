@@ -4713,6 +4713,7 @@ export default function Home() {
     driverModel?: string;
     productLightSource?: ProductStructureComponent | null;
     technicalDrivers?: ProductStructureComponent[];
+    technicalDriversByControl?: Partial<Record<"onoff" | "dim110v" | "dimDali" | "dimTriac110v" | "dimTriac220v", ProductStructureComponent[]>>;
     apiOtherEquipments?: ProductStructureComponent[];
     unitCost?: number | null;
     markupPadrao?: number | null;
@@ -6767,11 +6768,11 @@ export default function Home() {
                       )}
                     </div>
                     {/* Tipo de Controle — exibir apenas se a API retornar drivers DIM */}
-                    {(selectedVariant?.driverDimDali || selectedVariant?.driverDim110v) && (
+                    {(selectedVariant?.driverDimDali || selectedVariant?.driverDim110v || selectedVariant?.driverDimTriac110v || selectedVariant?.driverDimTriac220v) && (
                       <div>
                         <FieldLabel>Tipo de Controle</FieldLabel>
                         <div className="flex flex-wrap gap-1.5">
-                          {(["onoff", ...(selectedVariant?.driverDimDali ? ["dimDali"] : []), ...(selectedVariant?.driverDim110v ? ["dim110v"] : [])] as import("@/lib/ledEngine").ControlType[]).map((ct) => (
+                          {(["onoff", ...(selectedVariant?.driverDimDali ? ["dimDali"] : []), ...(selectedVariant?.driverDim110v ? ["dim110v"] : []), ...(selectedVariant?.driverDimTriac110v ? ["dimTriac110v"] : []), ...(selectedVariant?.driverDimTriac220v ? ["dimTriac220v"] : [])] as import("@/lib/ledEngine").ControlType[]).map((ct) => (
                             <button
                               key={ct}
                               onClick={() => setControlType(ct)}
@@ -6782,7 +6783,7 @@ export default function Home() {
                                   : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50",
                               ].join(" ")}
                             >
-                              {ct === "onoff" ? "ON/OFF" : ct === "dimDali" ? "DIM DALI" : "DIM 1-10V"}
+                              {ct === "onoff" ? "ON/OFF" : ct === "dimDali" ? "DIM DALI" : ct === "dimTriac110v" ? "DIM TRIAC 110V" : ct === "dimTriac220v" ? "DIM TRIAC 220V" : "DIM 1-10V"}
                             </button>
                           ))}
                         </div>
@@ -6797,7 +6798,7 @@ export default function Home() {
                     <div>
                       <FieldLabel>Tipo de Controle</FieldLabel>
                       <div className="flex flex-wrap gap-1.5">
-                        {(["onoff", ...(selectedVariant?.driverDimDali ? ["dimDali"] : []), ...(selectedVariant?.driverDim110v ? ["dim110v"] : [])] as import("@/lib/ledEngine").ControlType[]).map((ct) => (
+                        {(["onoff", ...(selectedVariant?.driverDimDali ? ["dimDali"] : []), ...(selectedVariant?.driverDim110v ? ["dim110v"] : []), ...(selectedVariant?.driverDimTriac110v ? ["dimTriac110v"] : []), ...(selectedVariant?.driverDimTriac220v ? ["dimTriac220v"] : [])] as import("@/lib/ledEngine").ControlType[]).map((ct) => (
                           <button
                             key={ct}
                             onClick={() => setControlType(ct)}
@@ -6808,7 +6809,7 @@ export default function Home() {
                                 : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted/50",
                             ].join(" ")}
                           >
-                            {ct === "onoff" ? "ON/OFF" : ct === "dimDali" ? "DIM DALI" : "DIM 1-10V"}
+                            {ct === "onoff" ? "ON/OFF" : ct === "dimDali" ? "DIM DALI" : ct === "dimTriac110v" ? "DIM TRIAC 110V" : ct === "dimTriac220v" ? "DIM TRIAC 220V" : "DIM 1-10V"}
                           </button>
                         ))}
                       </div>
@@ -9603,6 +9604,15 @@ export default function Home() {
             ) : (
               <>
                 <ResultBlock result={result} profilePriceMap={profilePriceMap} profileVariant={activeProfileCatalog[result.profileCode]} skuPriceMap={skuPriceMap} onAddToQuote={(appendToQuoteId || replaceInQuoteId) ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }} pendingAccessoriesCount={pendingAccessories.length} globalPavimento={globalPavimento} technicalDocuments={getProfileTechnicalDocuments(alfaluxApiProducts, result.composition.map((item) => item.sku))} addBlockedReason={isShift && !shiftModulesConfirmed ? "Selecione ao menos um módulo SHIFT antes de enviar o produto ao carrinho ou orçamento." : undefined} transformCartItem={isShift ? ((item) => {
+                  const selectedDriverKey = result.controlType === "dimDali"
+                    ? "dimDali"
+                    : result.controlType === "dim110v"
+                      ? "dim110v"
+                      : result.controlType === "dimTriac110v"
+                        ? "dimTriac110v"
+                        : result.controlType === "dimTriac220v"
+                          ? "dimTriac220v"
+                          : "onoff";
                   const shiftAccessories: LinkedAccessory[] = shiftModules.map(m => ({
                     codigo: m.sku,
                     descricao: `${m.name} ${m.cct}K`,
@@ -9611,7 +9621,7 @@ export default function Home() {
                     fotoUrl: m.fotoUrl || null,
                     familia: "SHIFT MÓDULO",
                     productLightSource: m.productLightSource ?? null,
-                    technicalDrivers: m.technicalDrivers ?? [],
+                    technicalDrivers: m.technicalDriversByControl?.[selectedDriverKey] ?? m.technicalDrivers ?? [],
                     apiOtherEquipments: m.apiOtherEquipments ?? [],
                   }));
                   return { ...item, accessories: [...(item.accessories ?? []), ...shiftAccessories] };

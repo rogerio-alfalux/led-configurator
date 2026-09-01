@@ -23,6 +23,7 @@ export interface ShiftModuleOption {
   driverModel?: string;
   lightSourcesByCct?: Record<string, ProductStructureComponent>;
   technicalDrivers?: ProductStructureComponent[];
+  technicalDriversByControl?: Partial<Record<"onoff" | "dim110v" | "dimDali" | "dimTriac110v" | "dimTriac220v", ProductStructureComponent[]>>;
   apiOtherEquipments?: ProductStructureComponent[];
   unitCost?: number | null;
   markupPadrao?: number | null;
@@ -42,6 +43,7 @@ export interface ShiftModuleSelection {
   driverModel?: string;
   productLightSource?: ProductStructureComponent | null;
   technicalDrivers?: ProductStructureComponent[];
+  technicalDriversByControl?: Partial<Record<"onoff" | "dim110v" | "dimDali" | "dimTriac110v" | "dimTriac220v", ProductStructureComponent[]>>;
   apiOtherEquipments?: ProductStructureComponent[];
   unitCost?: number | null;
   markupPadrao?: number | null;
@@ -102,6 +104,7 @@ export function ShiftModuleSelector({
         driverModel: mod.driverModel,
         productLightSource: mod.lightSourcesByCct?.[cct] ?? null,
         technicalDrivers: mod.technicalDrivers,
+        technicalDriversByControl: mod.technicalDriversByControl,
         apiOtherEquipments: mod.apiOtherEquipments,
         unitCost: mod.unitCost ?? null,
         markupPadrao: mod.markupPadrao ?? null,

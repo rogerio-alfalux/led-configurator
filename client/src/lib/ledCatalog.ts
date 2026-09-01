@@ -16,11 +16,15 @@ export interface ModuleData {
   driverBivolt?: { model: string; code: string | null } | null;
   driverDimDali?: { model: string; code: string | null } | null;
   driverDim110v?: { model: string; code: string | null } | null;
+  driverDimTriac110v?: { model: string; code: string | null } | null;
+  driverDimTriac220v?: { model: string; code: string | null } | null;
   /** Quantidade de drivers por peça/SKU cadastrada na API. */
   driverQtd220?: number | null;
   driverQtdBivolt?: number | null;
   driverQtdDimDali?: number | null;
   driverQtdDim110v?: number | null;
+  driverQtdDimTriac110v?: number | null;
+  driverQtdDimTriac220v?: number | null;
   /** Corrente de programação do driver individual, quando fornecida pela API. */
   correnteDriver?: string | null;
 }
@@ -49,6 +53,8 @@ export interface ApiLinearProfileVariant {
   driverBivolt?: { model: string; code: string | null } | null;
   driverDimDali?: { model: string; code: string | null } | null;
   driverDim110v?: { model: string; code: string | null } | null;
+  driverDimTriac110v?: { model: string; code: string | null } | null;
+  driverDimTriac220v?: { model: string; code: string | null } | null;
   /** Corrente de programação cadastrada na API para esta versão. */
   correnteDriver?: string | null;
   ledModuleStripflex?: string | null;
@@ -118,6 +124,10 @@ export interface ProfileVariant {
   driverDimDali?: { model: string; code: string | null } | null;
   /** Driver DIM 1-10V disponível para este perfil (vindo da API) */
   driverDim110v?: { model: string; code: string | null } | null;
+  /** Driver DIM TRIAC 110V disponível para este perfil (vindo da API). */
+  driverDimTriac110v?: { model: string; code: string | null } | null;
+  /** Driver DIM TRIAC 220V disponível para este perfil (vindo da API). */
+  driverDimTriac220v?: { model: string; code: string | null } | null;
   /** Corrente de programação do driver (ex: "programar em 350mA"). Campo direto da API. */
   correnteDriver?: string | null;
   /** Método de barra: STRIPFLEX ou STRIPLINE */

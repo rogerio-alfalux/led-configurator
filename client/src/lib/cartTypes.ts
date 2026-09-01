@@ -719,10 +719,14 @@ export interface ApiProductDriverInfo {
   driverBivolt: { model: string; code: string | null } | null;
   driverDimDali?: { model: string; code: string | null } | null;
   driverDim110v?: { model: string; code: string | null } | null;
+  driverDimTriac110v?: { model: string; code: string | null } | null;
+  driverDimTriac220v?: { model: string; code: string | null } | null;
   driverQtd220: number | null;
   driverQtdBivolt: number | null;
   driverQtdDimDali?: number | null;
   driverQtdDim110v?: number | null;
+  driverQtdDimTriac110v?: number | null;
+  driverQtdDimTriac220v?: number | null;
   custoCorpoOnoff220v?: number | null;
   custoCorpoOnoffBivolt?: number | null;
   custoCorpoDim110v?: number | null;
@@ -747,11 +751,13 @@ export interface ApiProductDriverInfo {
   ledModuleEq3000?: string | null;
   ledModuleEq4000?: string | null;
   ledModuleEq5000?: string | null;
+  ledModuleEq3500?: string | null;
   /** Descrição do módulo LED por CCT, usada para reidratar acessórios técnicos. */
   ledModule2700?: string | null;
   ledModule3000?: string | null;
   ledModule4000?: string | null;
   ledModule5000?: string | null;
+  ledModule3500?: string | null;
   /** Código EQ genérico (fallback para RGBW/legados) */
   ledModuleEq?: string | null;
   /** Quantidade do módulo LED por luminária, fornecida pela API. */
@@ -760,6 +766,9 @@ export interface ApiProductDriverInfo {
   ledModuleQtd3000?: number | null;
   ledModuleQtd4000?: number | null;
   ledModuleQtd5000?: number | null;
+  ledModuleQtd3500?: number | null;
+  /** Equipamentos adicionais publicados diretamente na estrutura da API. */
+  apiOtherEquipments?: ProductStructureComponent[];
   /** Nome do produto na API (para extractPowerLabelFromName) */
   name?: string;
 }
@@ -814,8 +823,32 @@ export function enrichShiftAccessoryTechnicalComponents(
         quantity: typeof sourceQuantity === "number" && sourceQuantity >= 0 ? sourceQuantity : 1,
       }
       : null;
-    const apiDriver = product.driver220 ?? product.driverBivolt ?? null;
-    const driverQuantity = product.driverQtd220 ?? product.driverQtdBivolt ?? 1;
+    const configurationText = [item.description, item.orderSummary, item.quoteSummary]
+      .filter(Boolean)
+      .join(" ")
+      .toUpperCase();
+    const controlType = configurationText.includes("DALI")
+      ? "dimDali"
+      : configurationText.includes("TRIAC 110")
+        ? "dimTriac110v"
+        : configurationText.includes("TRIAC")
+          ? "dimTriac220v"
+          : /\bDIM\b|0\s*[-–]?\s*10V|1\s*[-–]?\s*10V/.test(configurationText)
+            ? "dim110v"
+            : "onoff";
+    const driverSelection = controlType === "dimDali"
+      ? { driver: product.driverDimDali ?? null, quantity: product.driverQtdDimDali ?? 1 }
+      : controlType === "dim110v"
+        ? { driver: product.driverDim110v ?? null, quantity: product.driverQtdDim110v ?? 1 }
+        : controlType === "dimTriac110v"
+          ? { driver: product.driverDimTriac110v ?? null, quantity: product.driverQtdDimTriac110v ?? 1 }
+          : controlType === "dimTriac220v"
+            ? { driver: product.driverDimTriac220v ?? null, quantity: product.driverQtdDimTriac220v ?? 1 }
+            : /BIVOLT/.test(configurationText) || !product.driver220?.model
+              ? { driver: product.driverBivolt ?? null, quantity: product.driverQtdBivolt ?? 1 }
+              : { driver: product.driver220 ?? null, quantity: product.driverQtd220 ?? 1 };
+    const apiDriver = driverSelection.driver;
+    const driverQuantity = driverSelection.quantity;
     const technicalDrivers = apiDriver?.model
       ? [{
         description: apiDriver.model,
@@ -827,9 +860,11 @@ export function enrichShiftAccessoryTechnicalComponents(
 
     const lightSourceUnchanged = JSON.stringify(accessory.productLightSource ?? null) === JSON.stringify(productLightSource);
     const driversUnchanged = JSON.stringify(accessory.technicalDrivers ?? []) === JSON.stringify(technicalDrivers);
-    if (lightSourceUnchanged && driversUnchanged) return accessory;
+    const otherEquipments = product.apiOtherEquipments ?? [];
+    const otherEquipmentsUnchanged = JSON.stringify(accessory.apiOtherEquipments ?? []) === JSON.stringify(otherEquipments);
+    if (lightSourceUnchanged && driversUnchanged && otherEquipmentsUnchanged) return accessory;
     changed = true;
-    return { ...accessory, productLightSource, technicalDrivers };
+    return { ...accessory, productLightSource, technicalDrivers, apiOtherEquipments: otherEquipments };
   });
 
   return changed ? { ...item, accessories: enrichedAccessories } : item;
@@ -1080,6 +1115,16 @@ export function migrateItemDrivers(
     const itemSkuBase = (item.sku ?? "").match(/^([A-Z]{2,3}-\d{4})/i)?.[1]?.toUpperCase() ?? "";
     const contextText = [item.description, item.orderSummary, item.quoteSummary, item.drivers].filter(Boolean).join(" ");
     const useBivolt = /bivolt/i.test(contextText);
+    const normalizedContext = contextText.toUpperCase();
+    const controlType = normalizedContext.includes("DALI")
+      ? "dimDali"
+      : normalizedContext.includes("TRIAC 110")
+        ? "dimTriac110v"
+        : normalizedContext.includes("TRIAC")
+          ? "dimTriac220v"
+          : /\bDIM\b|0\s*[-–]?\s*10V|1\s*[-–]?\s*10V/.test(normalizedContext)
+            ? "dim110v"
+            : "onoff";
     let resolvedFromApi = false;
     const profileSegments = item.profileSegments.map((segment) => {
       const segmentSkuBase = segment.sku.match(/^([A-Z]{2,3}-\d{4})/i)?.[1]?.toUpperCase() ?? "";
@@ -1092,14 +1137,21 @@ export function migrateItemDrivers(
         (itemSkuBase ? productSkuMap.get(itemSkuBase) : undefined) ??
         (powerLabel ? productSkuMap.get(`${segment.sku}|${powerLabel}`.toUpperCase()) : undefined);
       if (!apiProduct) return segment;
-      const apiDriver = useBivolt
-        ? (apiProduct.driverBivolt ?? apiProduct.driver220)
-        : (apiProduct.driver220 ?? apiProduct.driverBivolt);
+      const driverSelection = controlType === "dimDali"
+        ? { driver: apiProduct.driverDimDali ?? null, quantity: apiProduct.driverQtdDimDali ?? 1 }
+        : controlType === "dim110v"
+          ? { driver: apiProduct.driverDim110v ?? null, quantity: apiProduct.driverQtdDim110v ?? 1 }
+          : controlType === "dimTriac110v"
+            ? { driver: apiProduct.driverDimTriac110v ?? null, quantity: apiProduct.driverQtdDimTriac110v ?? 1 }
+            : controlType === "dimTriac220v"
+              ? { driver: apiProduct.driverDimTriac220v ?? null, quantity: apiProduct.driverQtdDimTriac220v ?? 1 }
+              : useBivolt
+                ? { driver: apiProduct.driverBivolt ?? apiProduct.driver220, quantity: apiProduct.driverQtdBivolt ?? apiProduct.driverQtd220 ?? 1 }
+                : { driver: apiProduct.driver220 ?? apiProduct.driverBivolt, quantity: apiProduct.driverQtd220 ?? apiProduct.driverQtdBivolt ?? 1 };
+      const apiDriver = driverSelection.driver;
       if (!apiDriver?.code) return segment;
       resolvedFromApi = true;
-      const driverQtyPerPiece = useBivolt
-        ? (apiProduct.driverQtdBivolt ?? apiProduct.driverQtd220 ?? 1)
-        : (apiProduct.driverQtd220 ?? apiProduct.driverQtdBivolt ?? 1);
+      const driverQtyPerPiece = driverSelection.quantity;
       return {
         ...segment,
         driverCode: apiDriver.code,

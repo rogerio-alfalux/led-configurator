@@ -3223,3 +3223,8 @@
 - [x] Mapear os módulos LED e drivers próprios dos acessórios SHIFT S01 retornados pela API
 - [x] Propagar componentes SHIFT S01 ao orçamento, ficha de produção e requisição com códigos e quantidades oficiais
 - [x] Cobrir a composição de driver e dos acessórios SHIFT S01 por regressão
+
+## Regressão visual: ficha técnica do SHIFT
+- [x] Substituir DRIVER NÃO CADASTRADO NA API pelo driver oficial do SHIFT na ficha
+- [x] Exibir módulo LED e driver próprios de cada acessório SHIFT S01 nas respectivas colunas da ficha
+- [x] Confirmar os mesmos códigos e quantidades na requisição de materiais

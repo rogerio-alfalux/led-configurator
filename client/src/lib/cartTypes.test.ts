@@ -382,4 +382,31 @@ describe("componentes estruturados de SHIFT", () => {
       technicalDrivers: [expect.objectContaining({ code: "EQ00257", quantity: 1 })],
     });
   });
+
+  it("seleciona o driver DALI oficial do acessório S01 a partir da configuração persistida", () => {
+    const item = {
+      category: "Perfis",
+      sku: "LLE-4846",
+      description: "SHIFT Embutir DIM DALI 220V 1800mm",
+      qty: 1,
+      unitPrice: 350,
+      totalPrice: 350,
+      photoUrl: null,
+      accessories: [{ codigo: "S01-06862", descricao: "SHIFT MÓDULO DIFUSO 7W 3000K", qty: 2, unitPrice: 0 }],
+    } as any;
+    const productMap = new Map([["S01-06862", {
+      sku: "S01-06862",
+      driver220: null,
+      driverBivolt: null,
+      driverDimDali: { code: "EQ00666", model: "FONTE 72W DALI" },
+      driverQtdDimDali: 1,
+      driverQtd220: null,
+      driverQtdBivolt: null,
+    }]] as any);
+
+    const enriched = enrichShiftAccessoryTechnicalComponents(item, productMap);
+    expect(enriched.accessories?.[0]?.technicalDrivers).toEqual([
+      expect.objectContaining({ code: "EQ00666", quantity: 1 }),
+    ]);
+  });
 });
