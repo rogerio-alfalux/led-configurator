@@ -15,6 +15,7 @@
 
 import type { ApiProduct as AlfaluxProduct } from "./alfaluxApiAdapter";
 import type { ProfileVariant, InstallType, ModuleData, ProfileModules, ApiLinearProfileVariant, ApiProfileShapeCorner } from "./ledCatalog";
+import { adaptProductStructure } from "./productStructure";
 
 // ── Regras de negócio por código de perfil ──────────────────────────────────
 // Estas regras são estáticas e refletem as restrições de aplicação de cada perfil.
@@ -451,6 +452,7 @@ export function adaptProfileProducts(
     const moduleData: ModuleData = {
       length: parsed.length,
       sku: p.sku,
+      productStructure: adaptProductStructure(p),
       driver220: p.driver220 ?? null,
       driverBivolt: p.driverBivolt ?? null,
       driverDimDali: p.driverDimDali ?? null,

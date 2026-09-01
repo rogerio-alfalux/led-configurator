@@ -268,6 +268,20 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
           {d.category !== 'Não Orçamos' && <p className="text-xs text-muted-foreground font-mono">{d.sku}</p>}
           <p className="text-sm font-semibold leading-tight">{d.description}</p>
           <p className="text-xs text-muted-foreground">{d.category}</p>
+          {d.productLightSource && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">Fonte de luz:</span>{" "}
+              {d.productLightSource.quantity}x {d.productLightSource.description}
+              {d.productLightSource.code ? ` (${d.productLightSource.code})` : ""}
+            </p>
+          )}
+          {(d.apiOtherEquipments ?? []).map((component, componentIndex) => (
+            <p key={`${component.code ?? component.description}-${componentIndex}`} className="text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">Equipamento:</span>{" "}
+              {component.quantity}x {component.description}
+              {component.code ? ` (${component.code})` : ""}
+            </p>
+          ))}
         </div>
       </div>
 

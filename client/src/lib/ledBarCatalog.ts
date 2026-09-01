@@ -12,6 +12,8 @@
  * Driver ON/OFF (driver220 / driverBivolt) seguem o padrão normal.
  */
 
+import type { ProductStructure } from "./productStructure";
+
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 export type LedBarDifusor = "DA" | "DB" | "DC" | "NF";
@@ -31,6 +33,8 @@ export interface LedBarProduct {
   sku: string;
   /** Nome completo do produto (ex: "LED BAR U DB 10W/M") */
   name: string;
+  /** Estrutura heterogênea preservada diretamente da API. */
+  productStructure?: ProductStructure;
   /** Potência em W/m */
   potencia: LedBarPotencia;
   /** Tipo de difusor */

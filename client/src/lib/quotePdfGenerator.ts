@@ -16,6 +16,7 @@ import { getPersistedItemPhotoUrl } from "./itemPhoto";
 import { toBrasiliaDate } from "./dateUtils";
 import { getStateInfo } from "./difalTable";
 import { appendQuoteGeneralObservation } from "./quoteDocumentObservation";
+import { formatProductStructureSummaryLines } from "./productStructure";
 
 // ── Cores (mesmas do template Excel) ────────────────────────────────────────
 const BLUE_RGB      = [91, 155, 213]  as [number, number, number]; // #5B9BD5
@@ -333,7 +334,9 @@ async function _generatePdfBlob(
     const itemTotal = _pdfApplyItemDiscount(_pdfApplyGlobalMarkupGlobal(itemRaw + _pdfFreteFatorItem + _pdfDiluicaoFatorItem), item);
 
     // Modelo: SKU + descrição
-    const modeloText = item.sku ? `${item.sku}\n${item.description || ""}` : (item.description || "");
+    const structureLines = formatProductStructureSummaryLines(item);
+    const modeloBase = item.sku ? `${item.sku}\n${item.description || ""}` : (item.description || "");
+    const modeloText = [modeloBase, ...structureLines].filter(Boolean).join("\n");
 
     // Comprimento
     let comprimento = "";

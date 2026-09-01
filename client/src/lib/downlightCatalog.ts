@@ -5,6 +5,7 @@
  */
 
 import type { ProductDocuments } from "./productDocuments";
+import type { ProductStructure } from "./productStructure";
 
 export interface DownlightDriver {
   model: string;
@@ -149,6 +150,8 @@ export interface DownlightProduct {
   isRgbw?: boolean;
   /** Produto com lâmpada (sem módulo LED e sem driver). Não exibe seleção de CCT nem módulo LED. */
   isLamp?: boolean;
+  /** Estrutura heterogênea preservada diretamente da API. */
+  productStructure?: ProductStructure;
   /** Foto URL do produto */
   fotoUrl?: string | null;
   /** DS, IES e DT retornados diretamente pela API. */
@@ -3822,15 +3825,16 @@ export function calculateDownlight(input: DownlightInput, catalog?: DownlightPro
   }
   // Produto com lâmpada (sem driver, sem módulo LED): retornar resultado sem driver
   if (!driver && product.isLamp) {
+    const lamp = product.productStructure?.lightSource ?? null;
     return {
       product,
       tensao: input.tensao,
       cct: input.cct,
       controle: input.controle,
       driver: { model: "", code: "" },
-      ledModuleWithCCT: "",
-      ledModuleQtd: null,
-      ledModuleEq: null,
+      ledModuleWithCCT: lamp?.description ?? "",
+      ledModuleQtd: lamp?.quantity ?? null,
+      ledModuleEq: lamp?.code ?? null,
       oticaEq: null,
       oticaPrimariaEq: null,
       oticaSecundariaEq: null,
@@ -3840,15 +3844,20 @@ export function calculateDownlight(input: DownlightInput, catalog?: DownlightPro
   }
   // Produto sem driver (peça avulsa): retornar resultado sem driver, usando módulo LED e CCT normalmente
   if (!driver && product.semDriver) {
+    const structuredSource = product.productStructure?.lightSource ?? null;
+    const hasNoLedModule = product.productStructure?.lightingMode === "NO_LED_MODULE";
     const cctKey = (input.cct ?? "").replace("K", "") as "2700" | "3000" | "4000" | "5000";
     const cctModuleField = `ledModule${cctKey}` as keyof typeof product;
     const cctModuleQtdField = `ledModuleQtd${cctKey}` as keyof typeof product;
     const cctEqField = `ledModuleEq${cctKey}` as keyof typeof product;
     const cctSpecificModule = product[cctModuleField] as string | null | undefined;
     const cctSpecificQtd = product[cctModuleQtdField] as number | null | undefined;
-    const ledModuleWithCCT = cctSpecificModule
-      ? cctSpecificModule.replace(/\[CCT\]/gi, input.cct).trim()
-      : product.ledModule ? product.ledModule + " " + input.cct : "";
+    const ledModuleWithCCT = structuredSource?.description
+      ?? (hasNoLedModule
+        ? ""
+        : cctSpecificModule
+          ? cctSpecificModule.replace(/\[CCT\]/gi, input.cct).trim()
+          : product.ledModule ? `${product.ledModule} ${input.cct}`.trim() : "");
     return {
       product,
       tensao: (product.tensaoEmbutida ?? input.tensao) as DownlightVoltage,
@@ -3856,8 +3865,8 @@ export function calculateDownlight(input: DownlightInput, catalog?: DownlightPro
       controle: input.controle,
       driver: { model: "", code: "" },
       ledModuleWithCCT,
-      ledModuleQtd: cctSpecificQtd ?? product.ledModuleQtd ?? null,
-      ledModuleEq: (product[cctEqField] as string | null | undefined) ?? product.ledModuleEq ?? null,
+      ledModuleQtd: structuredSource?.quantity ?? cctSpecificQtd ?? product.ledModuleQtd ?? null,
+      ledModuleEq: structuredSource?.code ?? (product[cctEqField] as string | null | undefined) ?? product.ledModuleEq ?? null,
       oticaEq: product.oticaEq ?? null,
       oticaPrimariaEq: product.oticaPrimariaEq ?? null,
       oticaSecundariaEq: product.oticaSecundariaEq ?? null,
@@ -3871,22 +3880,34 @@ export function calculateDownlight(input: DownlightInput, catalog?: DownlightPro
   let ledModuleWithCCT: string;
   let resolvedLedModuleQtd: number | null;
   let ledModuleEq: string | null;
-  if (product.isRgbw) {
+  if (product.productStructure?.lightingMode === "NO_LED_MODULE") {
+    ledModuleWithCCT = "";
+    resolvedLedModuleQtd = null;
+    ledModuleEq = null;
+  } else if (product.productStructure?.lightingMode === "TUNABLE_WHITE") {
+    const tunableWhiteModule = product.productStructure.lightSource;
+    ledModuleWithCCT = tunableWhiteModule?.description ?? "";
+    resolvedLedModuleQtd = tunableWhiteModule?.quantity ?? null;
+    ledModuleEq = tunableWhiteModule?.code ?? null;
+  } else if (product.isRgbw) {
     // Para produtos RGBW, o módulo pode estar em ledModule genérico ou em um dos campos por CCT
-    const rgbwModule = product.ledModule
+    const structuredRgbwModule = product.productStructure?.lightSource;
+    const rgbwModule = structuredRgbwModule?.description
+      || product.ledModule
       || product.ledModule2700
       || product.ledModule3000
       || product.ledModule4000
       || product.ledModule5000
       || "";
     ledModuleWithCCT = rgbwModule;
-    resolvedLedModuleQtd = product.ledModuleQtd
+    resolvedLedModuleQtd = structuredRgbwModule?.quantity
+      ?? product.ledModuleQtd
       ?? product.ledModuleQtd2700
       ?? product.ledModuleQtd3000
       ?? product.ledModuleQtd4000
       ?? product.ledModuleQtd5000
       ?? null;
-    ledModuleEq = null;
+    ledModuleEq = structuredRgbwModule?.code ?? product.ledModuleEq ?? null;
   } else {
     // Usar módulo LED específico por CCT quando disponível (novos campos da API)
     const cctKey = input.cct.replace("K", "") as "2700" | "3000" | "4000" | "5000";

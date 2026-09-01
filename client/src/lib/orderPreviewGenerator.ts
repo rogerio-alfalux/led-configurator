@@ -34,6 +34,13 @@ export function buildProfileSkuText(item: Pick<CartItemData, "sku" | "profileSeg
 
 export function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, string>): string {
   if (item.withoutEquipment) return "";
+  if (item.productLightingMode === "NO_LED_MODULE") return "";
+  if (item.productLightSource) {
+    const source = item.productLightSource;
+    const canonicalDescription = source.code ? descMap?.get(source.code) ?? source.description : source.description;
+    const codeSuffix = source.code ? ` (${esc(source.code)})` : "";
+    return `${fmtQty(source.quantity)} x ${esc(canonicalDescription)}${codeSuffix}`;
+  }
   if (!item.profileSegments || item.profileSegments.length === 0) {
     const modName = item.moduloLed ?? [item.power, item.cct].filter(Boolean).join(" | ") ?? "";
     // Não duplicar EQ se já está embutido no moduloLed
@@ -76,10 +83,11 @@ export function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<strin
 
 export function buildLuminariaEquipamentosText(item: CartItemData): string {
   if (item.withoutEquipment) return "";
+  const linhas: string[] = [];
   if (!item.driverLines || item.driverLines.length === 0) {
-    return item.drivers ?? "";
-  }
-  return item.driverLines.map(dl => {
+    if (item.drivers) linhas.push(esc(item.drivers));
+  } else {
+    linhas.push(...item.driverLines.map(dl => {
     const codeSuffix = dl.driverCode ? ` (${esc(dl.driverCode)})` : "";
     const itemQty = item.qty ?? 1;
     const qtyPerUnit = item.driverLines!.length === 1 && item.driverQtyPerUnit != null
@@ -90,8 +98,14 @@ export function buildLuminariaEquipamentosText(item: CartItemData): string {
     if (dl.corrente) {
       return `${linha}<br><span style="color:#555;font-style:italic">PROGRAMAÇÃO: ${esc(dl.corrente)}</span>`;
     }
-    return linha;
-  }).join("<br>");
+      return linha;
+    }));
+  }
+  for (const component of item.apiOtherEquipments ?? []) {
+    const codeSuffix = component.code ? ` (${esc(component.code)})` : "";
+    linhas.push(`${fmtQty(component.quantity)}x ${esc(component.description)}${codeSuffix}`);
+  }
+  return linhas.join("<br>");
 }
 
 export function buildProfileEquipamentosText(item: CartItemData): string {
@@ -149,6 +163,11 @@ export function buildProfileEquipamentosText(item: CartItemData): string {
   // Adicionar linha de programação sempre que ela tiver sido retornada pela API.
   if (correnteSegmento) {
     linhas.push(`<span style="color:#555;font-style:italic">PROGRAMAÇÃO: ${esc(correnteSegmento)}</span>`);
+  }
+
+  for (const component of item.apiOtherEquipments ?? []) {
+    const codeSuffix = component.code ? ` (${esc(component.code)})` : "";
+    linhas.push(`${fmtQty(component.quantity)} x ${esc(component.description)}${codeSuffix}`);
   }
 
   return linhas.join("<br>");
@@ -526,13 +545,14 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
     if (matEntries.length === 0) return '';
     const byTipo = groupByTipo(matEntries);
     const TIPO_ORDER_LOCAL: MaterialTipo[] = [
-      'PERFIS', 'FITAS LED', 'MÓDULOS LED', 'DRIVERS', 'FONTES DE TENSÃO',
+      'PERFIS', 'FITAS LED', 'MÓDULOS LED', 'LÂMPADAS', 'DRIVERS', 'FONTES DE TENSÃO',
       'LENTES', 'REFLETORES', 'DISSIPADORES', 'SUPORTES', 'ACESSÓRIOS', 'OUTROS',
     ];
     const TIPO_COLORS: Record<MaterialTipo, string> = {
       'PERFIS': '#d9e1f2',
       'FITAS LED': '#e2efda',
       'MÓDULOS LED': '#d6ead0',
+      'LÂMPADAS': '#eaf2f8',
       'DRIVERS': '#dce6f1',
       'FONTES DE TENSÃO': '#fff2cc',
       'LENTES': '#fce4d6',

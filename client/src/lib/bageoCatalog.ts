@@ -18,6 +18,8 @@
  * O preço é separado em: precoPerfil (corpo × metros) + precoDriverTotal (driver × driverQtd).
  */
 
+import type { ProductStructure } from "./productStructure";
+
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 export type BageoInstalacao = "PENDENTE" | "SOBREPOR" | "EMBUTIR";
@@ -36,6 +38,8 @@ export interface BageoProduct {
   sku: string;
   /** Nome completo do produto */
   name: string;
+  /** Estrutura heterogênea preservada diretamente da API. */
+  productStructure?: ProductStructure;
   /** Tipo de instalação */
   instalacao: BageoInstalacao;
   /** Aplicação: D1 ou D1+D2 */

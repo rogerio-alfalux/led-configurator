@@ -1,3 +1,5 @@
+import type { ProductLightingMode, ProductStructureComponent } from "./productStructure";
+
 /**
  * Dados serializados de um item do carrinho de orçamento.
  * Armazenado como JSON na coluna itemData da tabela cart_items.
@@ -88,6 +90,12 @@ export interface CartItemData {
   moduloLed?: string;
   /** Código EQ do módulo LED (fita) — usado para requisição de materiais */
   moduloLedCode?: string | null;
+  /** Modo estrutural de iluminação retornado pela API. */
+  productLightingMode?: ProductLightingMode;
+  /** Fonte de luz estruturada da API, inclusive lâmpada, RGBW ou Tunable White. */
+  productLightSource?: ProductStructureComponent | null;
+  /** Equipamentos adicionais da estrutura do produto, separados de drivers e fonte de luz. */
+  apiOtherEquipments?: ProductStructureComponent[];
   /** Drivers (equipamentos) para ficha de produção — usado por produtos não-perfil */
   drivers?: string;
   /**

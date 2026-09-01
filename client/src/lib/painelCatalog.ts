@@ -5,6 +5,7 @@
  */
 
 import type { ControleType } from "./downlightCatalog";
+import type { ProductStructure } from "./productStructure";
 
 export interface PainelDriver {
   model: string;
@@ -22,6 +23,8 @@ export interface PainelProduct {
   sku: string | null;
   /** Nome comercial do produto */
   name: string;
+  /** Estrutura heterogênea preservada diretamente da API. */
+  productStructure?: ProductStructure;
   /** Modulo LED (sem [CCT]) -- null se NAO APLICAVEL */
   ledModule: string | null;
   /** Quantidade numérica de módulos LED */
@@ -1009,15 +1012,24 @@ export function calculatePainel(input: PainelInput, catalog?: PainelProduct[]): 
     driver = product.driver220 ?? { model: "", code: "" };
   }
 
-  // Usar módulo LED específico por CCT quando disponível (novos campos da API)
+  // Usar primeiro a fonte estrutural da API; somente módulos convencionais
+  // continuam sendo resolvidos pelos campos específicos de CCT.
   const cctKey = input.cct.replace("K", "") as "2700" | "3000" | "4000" | "5000";
   const cctSpecificModule = (product as any)[`ledModule${cctKey}`] as string | null | undefined;
-  const ledModuleWithCCT = cctSpecificModule
-    ? cctSpecificModule.replace(/\[CCT\]/gi, input.cct).trim()
-    : product.ledModule
-    ? `${product.ledModule} ${input.cct}`
-    : null;
-  const ledModuleEq = ((product as any)[`ledModuleEq${cctKey}`] as string | null | undefined) ?? null;
+  const structureMode = product.productStructure?.lightingMode;
+  const structuredSource = product.productStructure?.lightSource ?? null;
+  const ledModuleWithCCT = structureMode === "NO_LED_MODULE"
+    ? null
+    : structureMode === "TUNABLE_WHITE" || structureMode === "RGBW" || structureMode === "LAMP"
+      ? structuredSource?.description ?? null
+      : cctSpecificModule
+        ? cctSpecificModule.replace(/\[CCT\]/gi, input.cct).trim()
+        : product.ledModule
+          ? `${product.ledModule} ${input.cct}`
+          : null;
+  const ledModuleEq = structureMode === "TUNABLE_WHITE" || structureMode === "RGBW" || structureMode === "LAMP"
+    ? structuredSource?.code ?? null
+    : ((product as any)[`ledModuleEq${cctKey}`] as string | null | undefined) ?? null;
 
   return {
     product,

@@ -168,6 +168,13 @@ export function buildProfileSkuText(item: Pick<CartItemData, "sku" | "profileSeg
  */
 export function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<string, string>): string {
   if (item.withoutEquipment) return "";
+  if (item.productLightingMode === "NO_LED_MODULE") return "";
+  if (item.productLightSource) {
+    const source = item.productLightSource;
+    const canonicalDescription = source.code ? descMap?.get(source.code) ?? source.description : source.description;
+    const codeSuffix = source.code ? ` (${source.code})` : "";
+    return `${fmtQty(source.quantity)} x ${canonicalDescription}${codeSuffix}`;
+  }
   if (!item.profileSegments || item.profileSegments.length === 0) {
     // Fallback para produtos não-perfil — incluir EQ quando disponível
     const modName = item.moduloLed ?? [item.power, item.cct].filter(Boolean).join(" | ") ?? "";
@@ -217,22 +224,29 @@ export function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<strin
  */
 export function buildLuminariaEquipamentosText(item: CartItemData): string {
   if (item.withoutEquipment) return "";
+  const linhas: string[] = [];
   if (!item.driverLines || item.driverLines.length === 0) {
-    return item.drivers ?? "";
+    if (item.drivers) linhas.push(item.drivers);
+  } else {
+    linhas.push(...item.driverLines.map(dl => {
+      const codeSuffix = dl.driverCode ? ` (${dl.driverCode})` : "";
+      const itemQty = item.qty ?? 1;
+      const qtyPerUnit = item.driverLines!.length === 1 && item.driverQtyPerUnit != null
+        ? item.driverQtyPerUnit
+        : (itemQty > 0 ? dl.driverQty / itemQty : dl.driverQty);
+      const displayQty = Number.isInteger(qtyPerUnit) ? String(qtyPerUnit) : qtyPerUnit.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+      const linha = `${displayQty}x ${dl.driverModel}${codeSuffix}`;
+      if (dl.corrente) {
+        return `${linha}\nPROGRAMAÇÃO: ${dl.corrente}`;
+      }
+      return linha;
+    }));
   }
-  return item.driverLines.map(dl => {
-    const codeSuffix = dl.driverCode ? ` (${dl.driverCode})` : "";
-    const itemQty = item.qty ?? 1;
-    const qtyPerUnit = item.driverLines!.length === 1 && item.driverQtyPerUnit != null
-      ? item.driverQtyPerUnit
-      : (itemQty > 0 ? dl.driverQty / itemQty : dl.driverQty);
-    const displayQty = Number.isInteger(qtyPerUnit) ? String(qtyPerUnit) : qtyPerUnit.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
-    const linha = `${displayQty}x ${dl.driverModel}${codeSuffix}`;
-    if (dl.corrente) {
-      return `${linha}\nPROGRAMAÇÃO: ${dl.corrente}`;
-    }
-    return linha;
-  }).join("\n");
+  for (const component of item.apiOtherEquipments ?? []) {
+    const codeSuffix = component.code ? ` (${component.code})` : "";
+    linhas.push(`${fmtQty(component.quantity)}x ${component.description}${codeSuffix}`);
+  }
+  return linhas.join("\n");
 }
 
 /**
@@ -294,7 +308,7 @@ export function buildProfileEquipamentosText(item: CartItemData): string {
     }
   }
 
-  return Array.from(totals.entries())
+  const linhas = Array.from(totals.entries())
     .map(([_key, entry]) => {
       // Para combos (sem code separado), usar a key como texto
       const base = !entry.code
@@ -305,8 +319,12 @@ export function buildProfileEquipamentosText(item: CartItemData): string {
         return `${base}\nPROGRAMAÇÃO: ${entry.corrente}`;
       }
       return base;
-    })
-    .join("\n");
+    });
+  for (const component of item.apiOtherEquipments ?? []) {
+    const codeSuffix = component.code ? ` (${component.code})` : "";
+    linhas.push(`${fmtQty(component.quantity)} x ${component.description}${codeSuffix}`);
+  }
+  return linhas.join("\n");
 }
 
 /**
@@ -677,6 +695,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
         "PERFIS": "FFD9E1F2",
         "FITAS LED": "FFE2EFDA",
         "MÓDULOS LED": "FFD6EAD0",
+        "LÂMPADAS": "FFEAF2F8",
         "DRIVERS": "FFDCE6F1",
         "FONTES DE TENSÃO": "FFFFF2CC",
         "LENTES": "FFFCE4D6",
@@ -687,7 +706,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
         "OUTROS": "FFFFFFFF",
       };
       const TIPO_ORDER_LOCAL: MaterialTipo[] = [
-        "PERFIS", "FITAS LED", "MÓDULOS LED", "DRIVERS", "FONTES DE TENSÃO",
+        "PERFIS", "FITAS LED", "MÓDULOS LED", "LÂMPADAS", "DRIVERS", "FONTES DE TENSÃO",
         "LENTES", "REFLETORES", "DISSIPADORES", "SUPORTES", "ACESSÓRIOS", "OUTROS",
       ];
       const byTipo = groupByTipo(matEntries);

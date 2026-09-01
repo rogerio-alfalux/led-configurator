@@ -107,6 +107,35 @@ describe("adaptProfileProducts", () => {
     expect(variant.modules.IN["1.4"]).toMatchObject({ length: 839, sku: "LLE-2580.14I.18F" });
   });
 
+  it("preserva no módulo SHIFT a ausência de LED e a PCI recebida em outrosEquipamentos", () => {
+    const result = adaptProfileProducts([makePerfilProduct({
+      familia: "SHIFT",
+      sku: "LLE-4846.500.38I",
+      name: "SHIFT E 500MM IN",
+      ledModule: null,
+      temperaturasCor: [],
+      moduloSemLed: true,
+      outrosEquipamentos: [{
+        componenteId: 4980001,
+        descricao: "PCI CONTATO 500MM REV01 (500X26MM)",
+        codigo: "MP00064",
+        tipo: "MODULO_LED",
+        quantidade: 1,
+      }],
+    })]);
+
+    const shiftModule = result!["LLE-4846"].modules.IN["1"];
+    expect(shiftModule.productStructure).toMatchObject({
+      lightingMode: "NO_LED_MODULE",
+      lightSource: null,
+      otherEquipments: [{
+        description: "PCI CONTATO 500MM REV01 (500X26MM)",
+        code: "MP00064",
+        quantity: 1,
+      }],
+    });
+  });
+
   it("agrupa múltiplos módulos do mesmo perfil", () => {
     const products = [
       makePerfilProduct({ sku: "LLE-2580.1IF.18F", name: "EASY PRIME E IF 1B 582MM" }),

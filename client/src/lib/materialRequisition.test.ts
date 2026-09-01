@@ -844,6 +844,63 @@ describe("buildMaterialRequisition — luminárias não-perfil", () => {
     expect(modulo!.sourceItems).toEqual([1]);
   });
 
+  it("contabiliza a PCI do SHIFT como outro equipamento usando o código MP da API", () => {
+    const result = buildMaterialRequisition([{
+      category: "Perfis",
+      sku: "LLE-4846",
+      description: "SHIFT Embutir ON/OFF 220Vac 1800mm",
+      qty: 2,
+      profileSegments: [{
+        sku: "LLE-4846.1IN",
+        qty: 1,
+        lengthMm: 1800,
+        barsPerPiece: 0,
+        driverQtyPerPiece: 0,
+        driverModel: "",
+        driverCode: "",
+      }],
+      productLightingMode: "NO_LED_MODULE",
+      apiOtherEquipments: [{
+        description: "PCI CONTATO 500MM REV01 (500X26MM)",
+        code: "MP00064",
+        type: "MODULO_LED",
+        quantity: 3,
+      }],
+    } as CartItemData]);
+
+    expect(result).toContainEqual(expect.objectContaining({
+      codigo: "MP00064",
+      qty: 6,
+      unidade: "un",
+      tipo: "OUTROS",
+      sourceItems: [1],
+    }));
+  });
+
+  it("contabiliza a lâmpada estruturada pela quantidade do produto", () => {
+    const result = buildMaterialRequisition([{
+      category: "Decorativas",
+      sku: "LAMP-01",
+      description: "LUMINÁRIA DECORATIVA",
+      qty: 4,
+      productLightingMode: "LAMP",
+      productLightSource: {
+        description: "LÂMPADA LED G9 5W 2700K",
+        code: "CP00991",
+        type: "LAMPADA",
+        quantity: 2,
+      },
+    } as CartItemData]);
+
+    expect(result).toContainEqual(expect.objectContaining({
+      codigo: "CP00991",
+      qty: 8,
+      unidade: "un",
+      tipo: "LÂMPADAS",
+      sourceItems: [1],
+    }));
+  });
+
   it("inclui equipamentos técnicos adicionados na ficha para categorias não especiais", () => {
     const result = buildMaterialRequisition([{
       category: "Downlights",

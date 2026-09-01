@@ -25,6 +25,7 @@ import { getPersistedItemPhotoUrl } from "./itemPhoto";
 import { toBrasiliaDate } from "./dateUtils";
 import { getStateInfo } from "./difalTable";
 import { appendQuoteGeneralObservation } from "./quoteDocumentObservation";
+import { formatProductStructureSummaryLines } from "./productStructure";
 
 // ── Cores do template ────────────────────────────────────────────────────────
 const BLUE      = "FF5B9BD5"; // Azul do template (cabeçalho tabela, número, data)
@@ -806,7 +807,9 @@ async function _generateExcelBuffer(
 
     // E = MODELO ALFALUX (SKU + descrição)
     const cSku = ws.getCell(`E${rowNum}`);
-    const modelText = item.sku ? `${item.sku}\n${item.description}` : item.description;
+    const structureLines = formatProductStructureSummaryLines(item);
+    const modelBase = item.sku ? `${item.sku}\n${item.description}` : item.description;
+    const modelText = [modelBase, ...structureLines].filter(Boolean).join("\n");
     cSku.value = modelText;
     cSku.font = { name: "Calibri", size: 11, bold: false };
     cSku.alignment = { horizontal: "center", vertical: "middle", wrapText: true };

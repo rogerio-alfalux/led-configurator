@@ -3196,3 +3196,12 @@
 - [x] Sincronizar valor de luminária, driver e total GLOW no preview, PDF e Excel usando exclusivamente a API Alfalux
 - [x] Cobrir a regressão da composição comercial GLOW e validar os itens L8 e L9 afetados
 - [x] Validar exclusivamente os itens L8 e L9 do orçamento de referência 25.0263-26, sem alterar os demais orçamentos
+
+## Estruturas heterogêneas de produtos da API Alfalux
+- [x] Mapear na API os campos de outros equipamentos, lâmpada, ausência de módulo LED e CCT Tunable White
+- [x] Adaptar contratos e catálogos para aceitar produtos sem módulo LED e sem opções de CCT associadas
+- [x] Tratar Tunable White como opção de CCT com o mesmo comportamento de RGBW
+- [x] Propagar outros equipamentos da API, com código e quantidade, até orçamento, ficha de produção e requisição de materiais
+- [x] Propagar lâmpada retornada pela estrutura como fonte de luz até orçamento, ficha de produção e requisição de materiais
+- [x] Validar o SHIFT com PCI CONTATO 500MM REV01 (500X26MM) e impedir deduções ou fallbacks estáticos
+- [x] Cobrir configurações heterogêneas e quantidades de materiais com testes de regressão

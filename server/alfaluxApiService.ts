@@ -225,6 +225,29 @@ export interface AlfaluxProduct {
   composicaoD1D2?: D1D2Composition | null;
   /** Produto com lâmpada (ex: NONA) — sem driver na composição */
   moduloLampada?: boolean | null;
+  /** Modo estrutural da fonte de luz informado pela API. */
+  modoIluminacao?: string | null;
+  /** Indica explicitamente que o produto não possui módulo LED. */
+  moduloSemLed?: boolean | null;
+  semModuloLed?: boolean | null;
+  moduloRgbw?: boolean | null;
+  moduloLedRgbw?: string | null;
+  moduloLedRgbwCode?: string | null;
+  qtdModuloLedRgbw?: number | null;
+  moduloTunableWhite?: boolean | null;
+  moduloLedTunableWhite?: string | null;
+  moduloLedTunableWhiteCode?: string | null;
+  qtdModuloLedTunableWhite?: number | null;
+  lampadaAcessorioId?: number | string | null;
+  lampada?: unknown;
+  outrosEquipamentos?: Array<{
+    componentId?: number | string | null;
+    modelo?: string | null;
+    descricao?: string | null;
+    codigo?: string | null;
+    tipo?: string | null;
+    qtd?: number | null;
+  }> | null;
   /** Corrente de programação do driver (ex: "programar em 350mA"). Campo direto da API. */
   correnteDriver?: string | null;
 }

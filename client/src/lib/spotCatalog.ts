@@ -5,6 +5,7 @@
  */
 import type { ControleType } from "./downlightCatalog";
 import { requiresExternalDriver } from "./driverRequirement";
+import type { ProductStructure } from "./productStructure";
 
 export interface SpotDriver {
   model: string;
@@ -22,6 +23,8 @@ export interface SpotProduct {
   sku: string | null;
   /** Nome comercial do produto */
   name: string;
+  /** Estrutura heterogênea preservada diretamente da API. */
+  productStructure?: ProductStructure;
   /** Módulo LED (sem [CCT]) — campo legado */
   ledModule: string | null;
   /** Quantidade numérica de módulos LED. null quando não retornado pela API. */
@@ -234,7 +237,13 @@ export function calculateSpot(catalog: SpotProduct[], input: SpotInput): SpotRes
   // Produto RGBW: usar ledModule diretamente sem adicionar CCT
   let ledModuleWithCCT: string | null;
   let ledModuleEq: string | null;
-  if (product.isRgbw) {
+  if (product.productStructure?.lightingMode === "NO_LED_MODULE") {
+    ledModuleWithCCT = null;
+    ledModuleEq = null;
+  } else if (product.productStructure?.lightingMode === "TUNABLE_WHITE" || product.productStructure?.lightingMode === "LAMP") {
+    ledModuleWithCCT = product.productStructure.lightSource?.description ?? null;
+    ledModuleEq = product.productStructure.lightSource?.code ?? null;
+  } else if (product.isRgbw) {
     // Para produtos RGBW, o módulo pode estar em ledModule genérico ou em um dos campos por CCT
     ledModuleWithCCT = product.ledModule
       || ((product as any).ledModule2700 as string | null | undefined)
@@ -242,7 +251,7 @@ export function calculateSpot(catalog: SpotProduct[], input: SpotInput): SpotRes
       || ((product as any).ledModule4000 as string | null | undefined)
       || ((product as any).ledModule5000 as string | null | undefined)
       || null;
-    ledModuleEq = null;
+    ledModuleEq = product.productStructure?.lightSource?.code ?? null;
   } else {
     // Usar módulo LED específico por CCT quando disponível
     const cctKey = input.cct.replace("K", "") as "2700" | "3000" | "4000" | "5000";

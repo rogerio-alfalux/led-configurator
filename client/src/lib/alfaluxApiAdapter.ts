@@ -29,6 +29,8 @@ import type { BageoProduct, BageoAplicacao, BageoInstalacao } from "./bageoCatal
 import { parseAplicacaoFromName, parseInstalacaoFromApi } from "./bageoCatalog";
 import type { ProductDocumentSource } from "./productDocuments";
 import { normalizeProductDocuments } from "./productDocuments";
+import type { ApiProductStructureSource } from "./productStructure";
+import { adaptProductStructure, withProductLightingCcts } from "./productStructure";
 
 /** Formato de um driver retornado pelo /api/products/all */
 export interface DriverInfo {
@@ -42,7 +44,7 @@ export interface DriverInfo {
  * Formato retornado pela API Alfalux via tRPC (espelha AlfaluxProduct no servidor).
  * Todos os campos de driver são objetos { model, code } | null.
  */
-export interface ApiProduct extends ProductDocumentSource {
+export interface ApiProduct extends ProductDocumentSource, ApiProductStructureSource {
   categoria: string;
   instalacao: string;
   familia: string;
@@ -190,7 +192,8 @@ function normalizeCCTs(temperaturasCor: string[]): string[] {
   return temperaturasCor.map((k) => {
     const upper = k.toUpperCase();
     // Valores especiais: não adicionar "K"
-    if (upper === "RGBW" || upper === "RGB" || upper === "TW" || upper === "A DEFINIR") return upper;
+    if (upper === "TW" || upper === "TUNABLE_WHITE") return "TUNABLE WHITE";
+    if (upper === "RGBW" || upper === "RGB" || upper === "TUNABLE WHITE" || upper === "A DEFINIR") return upper;
     return k.endsWith("K") ? k : `${k}K`;
   });
 }
@@ -267,16 +270,18 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
   const dDimDali = p.driverDimDali;
   const dDimTriac110v = (p as any).driverDimTriac110v ?? null;
   const dDimTriac220v = (p as any).driverDimTriac220v ?? null;
-  const ccts = normalizeCCTs(p.temperaturasCor);
+  const productStructure = adaptProductStructure(p);
+  const baseCcts = normalizeCCTs(p.temperaturasCor);
   // Produto sem driver: todos os campos de driver são null na API
   const semDriver = !d220 && !dBivolt && !dDim110v && !dDimDali && !dDimTriac110v && !dDimTriac220v;
   const tensaoEmbutida = semDriver ? extractTensaoEmbutida(p.ledModule) : null;
   // Detectar produto RGBW: algum ledModule* contém "RGBW" no texto
   const allLedModules = [p.ledModule, p.ledModule2700, p.ledModule3000, p.ledModule3500, p.ledModule4000, p.ledModule5000].filter(Boolean);
-  const isRgbw = allLedModules.some(m => /RGBW/i.test(m ?? ''));
-  // Detectar produto com lâmpada: campo moduloLampada da API ou (nenhum módulo LED e sem driver)
-  const hasAnyLedModule = allLedModules.length > 0;
-  const isLamp = !!(p.moduloLampada) || (!hasAnyLedModule && semDriver);
+  const isRgbw = productStructure.lightingMode === "RGBW" || allLedModules.some(m => /RGBW/i.test(m ?? ''));
+  const isLamp = productStructure.lightingMode === "LAMP";
+  const ccts = isRgbw
+    ? ["RGBW"]
+    : withProductLightingCcts(baseCcts, productStructure);
 
   return {
     instalacao: p.instalacao,
@@ -359,6 +364,7 @@ function toDownlightProduct(p: ApiProduct): DownlightProduct {
     tensaoEmbutida,
     isRgbw,
     isLamp,
+    productStructure,
     fotoUrl: p.fotoUrl ?? null,
     documentos: normalizeProductDocuments(p),
   };
@@ -370,10 +376,14 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
   const dBivolt = p.driverBivolt;
   const dDim110v = p.driverDim110v;
   const dDimDali = p.driverDimDali;
-  const ccts = normalizeCCTs(p.temperaturasCor);
+  const productStructure = adaptProductStructure(p);
+  const baseCcts = normalizeCCTs(p.temperaturasCor);
   const allLedModulesSpot = [p.ledModule, p.ledModule2700, p.ledModule3000, p.ledModule3500, p.ledModule4000, p.ledModule5000].filter(Boolean);
-  const isRgbwSpot = allLedModulesSpot.some(m => /RGBW/i.test(m ?? ''));
-  const isLampSpot = !!(p.moduloLampada) || (allLedModulesSpot.length === 0 && !d220 && !dBivolt);
+  const isRgbwSpot = productStructure.lightingMode === "RGBW" || allLedModulesSpot.some(m => /RGBW/i.test(m ?? ''));
+  const isLampSpot = productStructure.lightingMode === "LAMP";
+  const ccts = isRgbwSpot
+    ? ["RGBW"]
+    : withProductLightingCcts(baseCcts, productStructure);
 
   return {
     instalacao: p.instalacao,
@@ -438,6 +448,7 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
     markupPadraoDimDali: p.markupPadraoDimDali ?? null,
     isRgbw: isRgbwSpot,
     isLamp: isLampSpot,
+    productStructure,
   };
 }
 /** Converte um produto da API para PainelProduct */
@@ -473,13 +484,15 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
     ? { model: driverModel(dDimTriac220v), code: driverCode(dDimTriac220v) }
     : null;
 
-  const cctsPainel = normalizeCCTs(p.temperaturasCor);
+  const productStructure = adaptProductStructure(p);
+  const cctsPainel = withProductLightingCcts(normalizeCCTs(p.temperaturasCor), productStructure);
 
   return {
     instalacao: p.instalacao,
     familia: p.familia,
     sku: p.sku || null,
     name: p.name,
+    productStructure,
     ledModule: convertLedModuleMetrosToMm(p.ledModule ? p.ledModule.replace(/\[CCT\]/gi, "").trim() : null),
     ledModuleQtd: p.ledModuleQtd ?? null,
     ledModule2700: convertLedModuleMetrosToMm(p.ledModule2700 ?? null),
@@ -649,10 +662,14 @@ export interface AdaptedCatalogs {
 function toArandelaProduct(p: ApiProduct): ArandelaProduct {
   const d220 = p.driver220;
   const dBivolt = p.driverBivolt;
-  const ccts = normalizeCCTs(p.temperaturasCor);
+  const productStructure = adaptProductStructure(p);
+  const baseCcts = normalizeCCTs(p.temperaturasCor);
   const allLedModulesAr = [p.ledModule, p.ledModule2700, p.ledModule3000, p.ledModule3500, p.ledModule4000, p.ledModule5000].filter(Boolean);
-  const isRgbwAr = allLedModulesAr.some(m => /RGBW/i.test(m ?? ''));
-  const isLampAr = !!(p.moduloLampada) || (allLedModulesAr.length === 0 && !d220 && !dBivolt);
+  const isRgbwAr = productStructure.lightingMode === "RGBW" || allLedModulesAr.some(m => /RGBW/i.test(m ?? ''));
+  const isLampAr = productStructure.lightingMode === "LAMP";
+  const ccts = isRgbwAr
+    ? ["RGBW"]
+    : withProductLightingCcts(baseCcts, productStructure);
   return {
     instalacao: p.instalacao,
     familia: p.familia,
@@ -709,6 +726,7 @@ function toArandelaProduct(p: ApiProduct): ArandelaProduct {
     markupPadraoDimDali: p.markupPadraoDimDali ?? null,
     isRgbw: isRgbwAr,
     isLamp: isLampAr,
+    productStructure,
   };
 }
 
@@ -728,12 +746,14 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
   const dDimTriac220v = (p as any).driverDimTriac220v ?? null;
   const dDim010v = p.driverDim110v ?? dDimTriac220v ?? dDimTriac110v;
   const dDimDali = p.driverDimDali;
-  const ccts = normalizeCCTs(p.temperaturasCor);
+  const productStructure = adaptProductStructure(p);
+  const ccts = withProductLightingCcts(normalizeCCTs(p.temperaturasCor), productStructure);
 
   return {
     familia: p.familia,
     sku: p.sku,
     name: p.name,
+    productStructure,
     potencia,
     difusor,
     // Remover [CCT] do ledModule (campo legado)
@@ -838,7 +858,8 @@ function toBageoProduct(p: ApiProduct): BageoProduct | null {
   const aplicacao = parseAplicacaoFromName(p.name);
   if (!aplicacao) return null;
   const instalacao: BageoInstalacao = parseInstalacaoFromApi(p.instalacao ?? "");
-  const ccts = normalizeCCTs(p.temperaturasCor);
+  const productStructure = adaptProductStructure(p);
+  const ccts = withProductLightingCcts(normalizeCCTs(p.temperaturasCor), productStructure);
   const d220 = p.driver220;
   const dBivolt = p.driverBivolt;
   const dDim110v = p.driverDim110v;
@@ -846,6 +867,7 @@ function toBageoProduct(p: ApiProduct): BageoProduct | null {
   return {
     familia: p.familia,
     sku: p.sku,
+    productStructure,
     name: p.name,
     instalacao,
     aplicacao,

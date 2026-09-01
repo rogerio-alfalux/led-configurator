@@ -8,6 +8,7 @@ import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/_core/hooks/useAuth";
 import type { CartItemData, LinkedAccessory, ProfileSegment } from "@/lib/cartTypes";
+import { aggregateProductStructureComponents, productStructureCartFields } from "@/lib/productStructure";
 import { redactGuestQuoteSummary } from "@/lib/guestQuoteSummary";
 import { LdGuestTechnicalSummary } from "@/components/LdGuestTechnicalSummary";
 import { LdCommercialOnly } from "@/components/LdCommercialOnly";
@@ -2408,6 +2409,31 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                 const _flexUnitPrice = perfilDrvLines && modulePriceResult
                   ? Math.round(modulePriceResult.precoLuminariaTotal * 100) / 100
                   : (precoEfetivo ?? null);
+                const compositionStructures = result.composition
+                  .map((ci) => ({
+                    compositionItem: ci,
+                    structure: profileVariant?.modules[ci.moduleType]?.[String(ci.barras)]?.productStructure,
+                  }))
+                  .filter((entry) => entry.structure != null);
+                const profileOtherEquipments = aggregateProductStructureComponents(
+                  compositionStructures.flatMap(({ compositionItem, structure }) =>
+                    (structure?.otherEquipments ?? []).map((component) => ({
+                      component,
+                      multiplier: compositionItem.quantity,
+                    })),
+                  ),
+                );
+                const profileLightSources = aggregateProductStructureComponents(
+                  compositionStructures.flatMap(({ compositionItem, structure }) =>
+                    structure?.lightSource
+                      ? [{ component: structure.lightSource, multiplier: compositionItem.quantity }]
+                      : [],
+                  ),
+                );
+                const profileLightingMode = compositionStructures
+                  .map(({ structure }) => structure?.lightingMode)
+                  .find((mode) => mode && mode !== "LED_MODULE")
+                  ?? compositionStructures[0]?.structure?.lightingMode;
                 const item: CartItemData = {
                   category: "Perfis",
                   sku: result.profileCode,
@@ -2416,13 +2442,16 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
                     : `${result.profileName} ${INSTALL_LABELS[result.installType]} ${result.application !== 'D1' ? result.application + ' ' : ''}${result.powerD1}W ${result.cct} ${result.controlType === 'dimDali' ? 'DIM DALI' : result.controlType === 'dim110v' ? 'DIM 1-10V' : 'ON/OFF'} ${result.voltage} ${result.realizedLength}mm`,
                   power: result.profileName === "SHIFT" ? undefined : `${result.powerD1}W`,
                   cct: result.profileName === "SHIFT" ? undefined : result.cct,
+                  ...(profileLightingMode ? { productLightingMode: profileLightingMode } : {}),
+                  ...(profileLightSources.length === 1 ? { productLightSource: profileLightSources[0] } : {}),
+                  ...(profileOtherEquipments.length > 0 ? { apiOtherEquipments: profileOtherEquipments } : {}),
                   ...profileCartTechnicalFields(globalQty, itemEmPlanta),
                   unitPrice: _flexUnitPrice,
                   totalPrice: _flexTotalPrice,
                   priceFromApi: modulePriceResult != null && precoTotal != null,
                   photoUrl: photo ?? "",
                   moduloLed: result.profileName === "SHIFT" ? undefined : `Stripflex 562,5 x 10mm 36L ${result.cct}`,
-                  ...(result.profileName === "SHIFT" && profileVariant?.fixedLedModule && profileVariant.fixedLedModuleCode && profileVariant.fixedLedModuleQty != null ? {
+                  ...(result.profileName === "SHIFT" && profileOtherEquipments.length === 0 && profileVariant?.fixedLedModule && profileVariant.fixedLedModuleCode && profileVariant.fixedLedModuleQty != null ? {
                     profileMaterialComponents: [{
                       codigo: profileVariant.fixedLedModuleCode,
                       descricao: profileVariant.fixedLedModule,
@@ -7350,7 +7379,7 @@ export default function Home() {
                               const availableVoltages = newProd ? getAvailableDownlightVoltages(newProd, "ON/OFF") : [];
                               setDlVoltage(availableVoltages.length === 1 ? availableVoltages[0] : null);
                               if (newProd?.isRgbw) { setDlCCT("RGBW"); }
-                              else if (newProd?.isLamp) { /* sem CCT */ }
+                              else if (newProd?.isLamp || newProd?.productStructure?.lightingMode === "NO_LED_MODULE") { /* sem CCT */ }
                               else {
                                 const availCCTs = newProd?.ccts?.length ? newProd.ccts : ["2700K", "3000K", "4000K", "5000K"];
                                 if (!isCctSelectionAvailable(dlCCT, availCCTs)) setDlCCT(availCCTs[0] ?? "3000K");
@@ -7471,7 +7500,7 @@ export default function Home() {
                     {dlProductKey !== null && (() => {
                       const dlSelProd = activeDlCatalog.find(p => { const [s, ...np] = (dlProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
                       // Produto com lâmpada: sem seleção de CCT
-                      if (dlSelProd?.isLamp) return null;
+                      if (dlSelProd?.isLamp || dlSelProd?.productStructure?.lightingMode === "NO_LED_MODULE") return null;
                       // Produto RGBW: mostrar apenas opção RGBW
                       const dlAvailCCTs = dlSelProd?.isRgbw ? ["RGBW"] : (dlSelProd?.ccts?.length ? dlSelProd.ccts : ["2700K", "3000K", "4000K", "5000K"]);
                       return (
@@ -7574,7 +7603,7 @@ export default function Home() {
                             else if (newHas220 && !newHasBivolt) setAeVoltage("220V");
                             else setAeVoltage(null);
                             if (newProd?.isRgbw) { setAeCCT("RGBW"); }
-                            else if (newProd?.isLamp) { /* sem CCT */ }
+                            else if (newProd?.isLamp || newProd?.productStructure?.lightingMode === "NO_LED_MODULE") { /* sem CCT */ }
                             else {
                               const availCCTs = newProd?.ccts?.length ? newProd.ccts : ["2700K", "3000K", "4000K", "5000K"];
                               if (!isCctSelectionAvailable(aeCCT, availCCTs)) setAeCCT(availCCTs[0] ?? "3000K");
@@ -7679,7 +7708,7 @@ export default function Home() {
                       const [_s, ..._np] = (aeProductKey ?? '::').split('::');
                       const aeSelProd = activeAreaExternaCatalog.find(p => p.sku === _s && p.name === _np.join('::'));
                       // Produto com lâmpada: sem seleção de CCT
-                      if (aeSelProd?.isLamp) return null;
+                      if (aeSelProd?.isLamp || aeSelProd?.productStructure?.lightingMode === "NO_LED_MODULE") return null;
                       const aeAvailCCTs = aeSelProd?.isRgbw ? ["RGBW"] : (aeSelProd?.ccts?.length ? aeSelProd.ccts : ["2700K", "3000K", "4000K", "5000K"]);
                       return (
                         <div className="space-y-1.5">
@@ -8160,7 +8189,7 @@ export default function Home() {
                           else if (newHas220Sp && !newHasBivoltSp) setSpotVoltage("220V");
                           else setSpotVoltage(null);
                           if (newProd?.isRgbw) { setSpotCCT("RGBW"); }
-                          else if (newProd?.isLamp) { /* sem CCT */ }
+                          else if (newProd?.isLamp || newProd?.productStructure?.lightingMode === "NO_LED_MODULE") { /* sem CCT */ }
                           else {
                             const availCCTs = newProd?.ccts?.length ? newProd.ccts : ["2700K", "3000K", "4000K", "5000K"];
                             if (!isCctSelectionAvailable(spotCCT, availCCTs)) setSpotCCT(availCCTs[0] ?? "3000K");
@@ -8261,7 +8290,7 @@ export default function Home() {
                   {spotProductKey !== null && (() => {
                     const spotSelProd = activeSpotCatalog.find(p => { const [s, ...np] = (spotProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
                     // Produto com lâmpada: sem seleção de CCT
-                    if (spotSelProd?.isLamp) return null;
+                    if (spotSelProd?.isLamp || spotSelProd?.productStructure?.lightingMode === "NO_LED_MODULE") return null;
                     // Produto RGBW: mostrar apenas opção RGBW
                     const spotAvailCCTs = spotSelProd?.isRgbw ? ["RGBW"] : (spotSelProd?.ccts?.length ? spotSelProd.ccts : ["2700K", "3000K", "4000K", "5000K"]);
                     return (
@@ -8376,7 +8405,7 @@ export default function Home() {
                             else if (newHas220Ar && !newHasBivoltAr) setArandelaVoltage("220V");
                             else setArandelaVoltage(null);
                             if (newProd.isRgbw) { setArandelaCCT("RGBW"); }
-                            else if (!newProd.isLamp) {
+                            else if (!newProd.isLamp && newProd.productStructure?.lightingMode !== "NO_LED_MODULE") {
                               const availCCTs = newProd.ccts?.length ? newProd.ccts : ["2700K", "3000K", "4000K", "5000K"];
                               const defaultCCT = availCCTs.includes("3000K") ? "3000K" : availCCTs[0];
                               setArandelaCCT(defaultCCT ?? "3000K");
@@ -8465,7 +8494,7 @@ export default function Home() {
                   {arandelaProductKey !== null && (() => {
                     const arandelaSelProd = activeArandelaCatalog.find(p => { const [s, ...np] = (arandelaProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
                     // Produto com lâmpada: sem seleção de CCT
-                    if (arandelaSelProd?.isLamp) return null;
+                    if (arandelaSelProd?.isLamp || arandelaSelProd?.productStructure?.lightingMode === "NO_LED_MODULE") return null;
                     // Produto RGBW: mostrar apenas opção RGBW
                     const arandelaAvailCCTs = arandelaSelProd?.isRgbw ? ["RGBW"] : (arandelaSelProd?.ccts?.length ? arandelaSelProd.ccts : ["2700K", "3000K", "4000K", "5000K"]);
                     return (
@@ -9957,6 +9986,7 @@ export default function Home() {
                                     description: `${r.product.name} ${r.cct} ${r.controle} ${r.voltage} ${r.comprimentoTotalMm}MM`,
                                    power: `${r.product.potencia}W/m`,
                                    cct: r.cct,
+                                   ...productStructureCartFields(r.product.productStructure),
                                    qty: globalQty,
                                    unitPrice: lbDrvLines && lbUnitPriceLuminaria != null ? lbUnitPriceLuminaria : (lbPreco ?? null),
                                    totalPrice: lbTotalPriceFinal,
@@ -10333,6 +10363,7 @@ export default function Home() {
                                  description: `${r.product.name} ${r.product.aplicacao !== 'D1' ? r.product.aplicacao + ' ' : ''}${r.cct} ${r.controle} ${r.comprimento}MM (${r.nCortes} CORTE${r.nCortes !== 1 ? 'S' : ''} DE ${r.comprimentoPorCorte}MM)`,
                                  power: "",
                                  cct: r.cct,
+                                 ...productStructureCartFields(r.product.productStructure),
                                  qty: globalQty,
                                  unitPrice: bgDrvLines ? (bgPrecoSemDriver ?? bgPrecoEfetivo ?? null) : (bgPrecoEfetivo ?? null),
                                  totalPrice: bgDrvLines ? (bgPrecoSemDriver ?? bgPrecoEfetivo ?? null) : (bgPrecoEfetivo ?? null),
@@ -10530,6 +10561,7 @@ export default function Home() {
                             description: `${bfResult.product.name} ${bfResult.cct} ${bfResult.controle} ${bfResult.tensao}`,
                             power: "",
                             cct: bfResult.cct,
+                            ...productStructureCartFields(bfResult.product.productStructure),
                             qty: 1,
                             unitPrice: preco ?? null,
                             totalPrice: preco ?? null,
@@ -10679,6 +10711,7 @@ export default function Home() {
                             description: `${aldaResult.product.name} ${aldaResult.cct} ${aldaResult.controle} ${aldaResult.tensao}`,
                             power: "",
                             cct: aldaResult.cct,
+                            ...productStructureCartFields(aldaResult.product.productStructure),
                             qty: 1,
                             unitPrice: preco ?? null,
                             totalPrice: preco ?? null,
@@ -10946,6 +10979,7 @@ export default function Home() {
                             description: glowCommercialItem.description,
                             power: "",
                             cct: glowResult.cct,
+                            ...productStructureCartFields(glowResult.product.productStructure),
                             qty: globalQty,
                             unitPrice: preco ?? null,
                             totalPrice: glowCommercialItem.totalPrice,
@@ -11167,6 +11201,7 @@ export default function Home() {
                             description: `${tubeLightResult.product.name} ${tubeLightResult.cct} ${tubeLightResult.tensao}`,
                             power: "",
                             cct: tubeLightResult.cct,
+                            ...productStructureCartFields(tubeLightResult.product.productStructure),
                             qty: globalQty,
                             unitPrice: preco ?? null,
                             totalPrice: preco != null ? preco * globalQty : null,
@@ -11390,6 +11425,7 @@ export default function Home() {
                               description: `${dProd.name} ${decCCT}`,
                               power: "",
                               cct: decCCT,
+                              ...productStructureCartFields(dProd.productStructure),
                               qty: globalQty,
                               unitPrice: dPreco ?? null,
                               totalPrice: dPreco != null ? dPreco * globalQty : null,
@@ -11598,6 +11634,7 @@ export default function Home() {
                               description: `${bProd.name} ${balCCT}`,
                               power: "",
                               cct: balCCT,
+                              ...productStructureCartFields(bProd.productStructure),
                               qty: globalQty,
                               unitPrice: bPreco ?? null,
                               totalPrice: bPreco != null ? bPreco * globalQty : null,
@@ -11744,7 +11781,7 @@ export default function Home() {
                           </div>
                         </>
                       ) : null}
-                      {!dlResult.product.isLamp && (
+                      {!dlResult.product.isLamp && dlResult.product.productStructure?.lightingMode !== "NO_LED_MODULE" && (
                       <div className="p-3 rounded-lg bg-muted/50 col-span-2">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
                         <p className="text-sm font-semibold">{dlResult.ledModuleWithCCT}{dlResult.ledModuleEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({dlResult.ledModuleEq})</span> : null}</p>
@@ -11875,6 +11912,7 @@ export default function Home() {
                             description: `${dlResult.product.name} ${dlResult.cct} ${dlResult.controle} ${dlResult.tensao}`,
                             power: "",
                             cct: dlResult.cct,
+                            ...productStructureCartFields(dlResult.product.productStructure),
                             qty: 1,
                             unitPrice: dlCommercialPrice.unitPrice,
                             totalPrice: dlCommercialPrice.totalPrice,
@@ -12180,6 +12218,7 @@ export default function Home() {
                             description: `${aeResult.product.name} ${aeResult.cct} ${aeResult.controle} ${aeResult.tensao}`,
                             power: "",
                             cct: aeResult.cct,
+                            ...productStructureCartFields(aeResult.product.productStructure),
                             qty: 1,
                             unitPrice: preco ?? null,
                             totalPrice: preco ?? null,
@@ -12742,6 +12781,7 @@ export default function Home() {
                             description: `${panelResult.product.name} ${panelResult.cct} ${panelResult.controle} ${panelResult.tensao}`,
                             power: "",
                             cct: panelResult.cct,
+                            ...productStructureCartFields(panelResult.product.productStructure),
                             qty: 1,
                             unitPrice: preco ?? null,
                             totalPrice: panelTotalPrice,
@@ -12955,7 +12995,7 @@ export default function Home() {
                       );
                     })()}
                     {/* Módulo LED */}
-                    {arandelaResult.ledModuleWithCCT && !arandelaResult.product.isLamp && (
+                    {arandelaResult.ledModuleWithCCT && !arandelaResult.product.isLamp && arandelaResult.product.productStructure?.lightingMode !== "NO_LED_MODULE" && (
                       <div className="p-3 rounded-lg bg-muted/50">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
                         <p className="text-sm font-semibold">{arandelaResult.ledModuleWithCCT}{arandelaResult.ledModuleEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({arandelaResult.ledModuleEq})</span> : null}</p>
@@ -13078,6 +13118,7 @@ export default function Home() {
                             description: `${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.controle} ${arandelaResult.tensao}`,
                             power: "",
                             cct: arandelaResult.cct,
+                            ...productStructureCartFields(arandelaResult.product.productStructure),
                             qty: 1,
                             unitPrice: preco ?? null,
                             totalPrice: preco ?? null,
@@ -13270,7 +13311,7 @@ export default function Home() {
                       );
                     })()}
                     {/* Módulo LED */}
-                    {spotResult.ledModuleWithCCT && !spotResult.product.isLamp && (
+                    {spotResult.ledModuleWithCCT && !spotResult.product.isLamp && spotResult.product.productStructure?.lightingMode !== "NO_LED_MODULE" && (
                       <div className="p-3 rounded-lg bg-muted/50">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
                         <p className="text-sm font-semibold">{spotResult.ledModuleWithCCT}{spotResult.ledModuleEq ? <span className="ml-2 text-xs font-mono text-muted-foreground">({spotResult.ledModuleEq})</span> : null}</p>
@@ -13383,6 +13424,7 @@ export default function Home() {
                             description: `${spotResult.product.name} ${spotResult.cct} ${spotResult.controle} ${spotResult.tensao}`,
                             power: "",
                             cct: spotResult.cct,
+                            ...productStructureCartFields(spotResult.product.productStructure),
                             qty: 1,
                             unitPrice: preco ?? null,
                             totalPrice: preco ?? null,

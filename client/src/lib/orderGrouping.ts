@@ -104,6 +104,26 @@ function buildGroupKey(item: CartItemData): string {
   const hasProfileComposition = (item.profileSegments?.length ?? 0) > 0;
   const powerInLegacyDescription = item.description?.match(/\b(\d+(?:[.,]\d+)?)\s*W\b/i)?.[1];
   const technicalPower = item.power ?? (powerInLegacyDescription ? `${powerInLegacyDescription}W` : "");
+  const productLightSource = item.productLightSource
+    ? JSON.stringify({
+        code: item.productLightSource.code,
+        description: item.productLightSource.description,
+        quantity: item.productLightSource.quantity,
+        type: item.productLightSource.type,
+      })
+    : "";
+  const apiOtherEquipments = item.apiOtherEquipments
+    ? JSON.stringify(
+        [...item.apiOtherEquipments]
+          .sort((a, b) => `${a.code ?? ""}|${a.description}`.localeCompare(`${b.code ?? ""}|${b.description}`))
+          .map(component => ({
+            code: component.code,
+            description: component.description,
+            quantity: component.quantity,
+            type: component.type,
+          })),
+      )
+    : "";
 
   return [
     item.category ?? "",
@@ -128,6 +148,9 @@ function buildGroupKey(item: CartItemData): string {
     item.productionEquipments
       ? JSON.stringify([...item.productionEquipments].sort((a, b) => a.codigo.localeCompare(b.codigo)).map(e => ({ codigo: e.codigo, qty: e.qty })))
       : "",
+    item.productLightingMode ?? "",
+    productLightSource,
+    apiOtherEquipments,
     segments,
     driverLines,
   ].join("|__|");

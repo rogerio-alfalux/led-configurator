@@ -41,6 +41,7 @@ export type MaterialTipo =
   | "PERFIS"
   | "FITAS LED"
   | "MÓDULOS LED"
+  | "LÂMPADAS"
   | "DRIVERS"
   | "FONTES DE TENSÃO"
   | "LENTES"
@@ -55,6 +56,7 @@ const TIPO_ORDER: MaterialTipo[] = [
   "PERFIS",
   "FITAS LED",
   "MÓDULOS LED",
+  "LÂMPADAS",
   "DRIVERS",
   "FONTES DE TENSÃO",
   "LENTES",
@@ -102,6 +104,12 @@ function detectTipo(descricao: string, codigo: string): MaterialTipo {
     d.includes("COB")
   ) {
     return "MÓDULOS LED";
+  }
+
+  // Lâmpadas são fontes de luz próprias e não devem ser classificadas como
+  // acessórios apenas porque o código oficial eventualmente começa por CP.
+  if (d.includes("LÂMPADA") || d.includes("LAMPADA") || d.includes("BULB")) {
+    return "LÂMPADAS";
   }
 
   // Fontes de tensão: fonte 24V, fonte de tensão
@@ -163,7 +171,7 @@ function detectTipo(descricao: string, codigo: string): MaterialTipo {
   return "OUTROS";
 }
 
-const OFFICIAL_MATERIAL_CODE = /\b(EQ\d+|CP\d+|PT\d+)\b/gi;
+const OFFICIAL_MATERIAL_CODE = /\b(EQ\d+|CP\d+|PT\d+|MP\d+)\b/gi;
 
 /**
  * Equipamentos manuais são adicionais. Quando um item histórico carrega no
@@ -192,6 +200,8 @@ function getAutomaticMaterialCodes(item: CartItemData): Set<string> {
     addFromText(segment.driverModel);
   }
   for (const component of item.profileMaterialComponents ?? []) addFromText(component.codigo);
+  addFromText(item.productLightSource?.code);
+  for (const component of item.apiOtherEquipments ?? []) addFromText(component.code);
   return codes;
 }
 
@@ -224,7 +234,7 @@ export function buildMaterialRequisition(
   const reverseDescMap = new Map<string, string>();
   if (descMap) {
     descMap.forEach((desc, code) => {
-      if ((code.startsWith("EQ") || code.startsWith("CP") || code.startsWith("PT")) && desc) {
+      if ((code.startsWith("EQ") || code.startsWith("CP") || code.startsWith("PT") || code.startsWith("MP")) && desc) {
         const normalized = desc.toUpperCase().trim().replace(/\s+/g, " ");
         reverseDescMap.set(normalized, code);
       }
@@ -239,7 +249,7 @@ export function buildMaterialRequisition(
   function normForSearch(s: string): string {
     return s
       .replace(/\s*\((PT|P|REF)\d+\)\s*/gi, " ") // Remove (PTxxxxx)
-      .replace(/\s*\((EQ|CP)\d+\)\s*/gi, " ") // Remove (EQxxxxx)
+      .replace(/\s*\((EQ|CP|MP)\d+\)\s*/gi, " ") // Remove (EQ/CP/MPxxxxx)
       .replace(/Ø(\d)/g, "$1") // Ø80MM → 80MM
       .replace(/\bD(\d+\s*MM)/gi, "$1") // D80MM → 80MM
       .replace(/[^A-Z0-9\s\/\-\.]/g, "") // Remove caracteres especiais restantes
@@ -298,7 +308,7 @@ export function buildMaterialRequisition(
     // 6. Sem correspondência de descrição, aceitar somente códigos oficiais
     // de material. Identificadores P são referência interna do fabricante,
     // não código de requisição.
-    const eqMatch = rawDesc.match(/\((EQ\d+|CP\d+|PT\d+)\)/i);
+    const eqMatch = rawDesc.match(/\((EQ\d+|CP\d+|PT\d+|MP\d+)\)/i);
     if (eqMatch) return eqMatch[1].toUpperCase();
     return null;
   }
@@ -419,6 +429,39 @@ export function buildMaterialRequisition(
       }
     }
 
+    // Fonte de luz estrutural (lâmpada, RGBW ou Tunable White), quando
+    // publicada separadamente pela API. A quantidade é sempre por produto.
+    const structuredLightSource = item.productLightSource;
+    if (!item.withoutEquipment && structuredLightSource?.code && structuredLightSource.description) {
+      const canonicalDesc = descMap?.get(structuredLightSource.code) ?? structuredLightSource.description;
+      add(
+        structuredLightSource.code,
+        canonicalDesc,
+        structuredLightSource.quantity * itemQty,
+        "un",
+        detectTipo(canonicalDesc, structuredLightSource.code),
+        itemIdx,
+      );
+    }
+
+    // Equipamentos adicionais são componentes independentes. Não são
+    // inferidos por texto e aceitam qualquer código publicado pela API,
+    // inclusive MP, como o PCI CONTATO do SHIFT.
+    if (!item.withoutEquipment && item.apiOtherEquipments?.length) {
+      for (const component of item.apiOtherEquipments) {
+        if (!component.code || !component.description) continue;
+        const canonicalDesc = descMap?.get(component.code) ?? component.description;
+        add(
+          component.code,
+          canonicalDesc,
+          component.quantity * itemQty,
+          "un",
+          detectTipo(canonicalDesc, component.code),
+          itemIdx,
+        );
+      }
+    }
+
     // ── LUMINÁRIAS COM driverLines (downlights, painéis, spots) ──────────
     // Apenas para itens SEM profileSegments (perfis já contabilizam drivers via seg.driverCode)
     const hasProfileSegs = item.profileSegments && item.profileSegments.length > 0;
@@ -479,8 +522,8 @@ export function buildMaterialRequisition(
           : 1;
         const partWithoutQty = qtyPrefixMatch ? rawPart.slice(qtyPrefixMatch[0].length) : rawPart;
 
-        // Extrair código API entre parênteses (EQ, CP ou P).
-        const codeMatch = partWithoutQty.match(/\((EQ\d+|CP\d+|P\d+)\)\s*$/i);
+        // Extrair código API entre parênteses (EQ, CP, PT, MP ou referência P legada).
+        const codeMatch = partWithoutQty.match(/\((EQ\d+|CP\d+|PT\d+|MP\d+|P\d+)\)\s*$/i);
         let componentCode: string | null = codeMatch ? codeMatch[1].toUpperCase() : null;
         const descWithoutCode = codeMatch
           ? partWithoutQty.slice(0, partWithoutQty.lastIndexOf("(")).trim()
@@ -489,7 +532,7 @@ export function buildMaterialRequisition(
         // O campo oficial moduloLedCode (EQ/CP) tem precedência. Quando o
         // histórico traz apenas o identificador P, a descrição é resolvida no
         // catálogo API para obter primeiro o código oficial de requisição.
-        const savedOfficialCode = partIdx === 0 && item.moduloLedCode && /^(EQ|CP|PT)\d+$/i.test(item.moduloLedCode)
+        const savedOfficialCode = partIdx === 0 && item.moduloLedCode && /^(EQ|CP|PT|MP)\d+$/i.test(item.moduloLedCode)
           ? item.moduloLedCode.toUpperCase()
           : null;
         const resolvedOfficialCode = resolveEqFromDesc(descWithoutCode);
@@ -497,7 +540,11 @@ export function buildMaterialRequisition(
 
         // Identificadores P não são códigos de requisição. Sem código EQ/CP/PT
         // retornado pela API, não gerar uma linha comercialmente incorreta.
-        if (componentCode?.startsWith("P")) componentCode = null;
+        if (componentCode && /^P\d+/i.test(componentCode)) componentCode = null;
+
+        // A fonte estruturada já foi contabilizada acima com sua quantidade
+        // oficial. Manter os demais componentes concatenados neste campo.
+        if (componentCode && structuredLightSource?.code?.toUpperCase() === componentCode.toUpperCase()) continue;
 
         // Se ainda não tem código, pular (não podemos adicionar sem código)
         if (!componentCode) continue;

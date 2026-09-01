@@ -2,11 +2,15 @@
 // Regra de Ouro: Apenas módulos com SKU válido existem no catálogo
 // Estrutura: cada entrada é uma variante (perfil + tipo de instalação)
 
+import type { ProductStructure } from "./productStructure";
+
 export type InstallType = 'PENDENTE' | 'SOBREPOR' | 'EMBUTIR' | 'ARANDELA';
 
 export interface ModuleData {
   length: number;
   sku: string;
+  /** Estrutura heterogênea do SKU, preservada diretamente da API. */
+  productStructure?: ProductStructure;
   /** Drivers individuais deste SKU, conforme cadastro da API. */
   driver220?: { model: string; code: string | null } | null;
   driverBivolt?: { model: string; code: string | null } | null;

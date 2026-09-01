@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildLedBarEquipamentosText, buildLuminariaEquipamentosText, buildProfileFonteLuzText, buildProfileSkuText } from "./orderPreviewGenerator";
+import { buildLedBarEquipamentosText, buildLuminariaEquipamentosText, buildProfileEquipamentosText, buildProfileFonteLuzText, buildProfileSkuText } from "./orderPreviewGenerator";
 
 describe("buildProfileSkuText — prévia de ficha técnica", () => {
   it("mostra a quantidade por SKU também para orçamentos históricos", () => {
@@ -55,5 +55,28 @@ describe("STRIPFLEX em nonos — prévia da ficha", () => {
     } as any);
 
     expect(text).toContain("8,8 x STRIPFLEX");
+  });
+});
+
+describe("estrutura heterogênea da API — prévia da ficha", () => {
+  it("exibe lâmpada na Fonte de Luz e não inventa módulo LED", () => {
+    expect(buildProfileFonteLuzText({
+      category: "Decorativas",
+      description: "LUMINÁRIA COM LÂMPADA",
+      qty: 1,
+      productLightingMode: "LAMP",
+      productLightSource: { description: "LÂMPADA G9", code: "CP00991", type: "LAMPADA", quantity: 2 },
+    } as any)).toBe("2 x LÂMPADA G9 (CP00991)");
+  });
+
+  it("exibe a PCI do SHIFT em Equipamentos", () => {
+    const text = buildProfileEquipamentosText({
+      category: "Perfis",
+      description: "SHIFT",
+      qty: 1,
+      profileSegments: [{ sku: "LLE-4846.1IN", qty: 1, lengthMm: 500, barsPerPiece: 0, driverQtyPerPiece: 0, driverModel: "", driverCode: "" }],
+      apiOtherEquipments: [{ description: "PCI CONTATO 500MM REV01 (500X26MM)", code: "MP00064", type: "MODULO_LED", quantity: 3 }],
+    } as any);
+    expect(text).toContain("3 x PCI CONTATO 500MM REV01 (500X26MM) (MP00064)");
   });
 });
