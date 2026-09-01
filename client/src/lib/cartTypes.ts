@@ -899,9 +899,10 @@ function findExactGlowProduct(
 }
 
 /**
- * Reconstrói perfis GLOW legados que foram gravados antes do preço separado de
- * corpo e driver. A reconstrução é estritamente baseada na variante exata e nos
- * componentes retornados pela API; nenhum preço ou driver comercial é deduzido.
+ * Reidrata somente a informação técnica de driver dos perfis GLOW legados que
+ * foram gravados antes do detalhamento separado de corpo e driver. O orçamento
+ * já salvo é a fonte comercial definitiva: preço, custo, markup, totais e texto
+ * comercial históricos jamais podem ser recalculados pelo catálogo vigente.
  */
 export function migrateLegacyGlowCommercialItem(
   item: CartItemData,
@@ -942,83 +943,25 @@ export function migrateLegacyGlowCommercialItem(
         : (product.driverQtd220 ?? product.driverQtdBivolt);
   if (!driver?.code || !driverQtyPerUnit || driverQtyPerUnit <= 0) return item;
 
-  const bodyCost = isDali
-    ? product.custoCorpoDimDali
-    : isDim
-      ? product.custoCorpoDim110v
-      : isBivolt
-        ? product.custoCorpoOnoffBivolt
-        : product.custoCorpoOnoff220v;
-  const bodyMarkup = isDali
-    ? product.markupPadraoDimDali
-    : isDim
-      ? product.markupPadraoDim110v
-      : isBivolt
-        ? product.markupPadraoOnoffBivolt
-        : product.markupPadraoOnoff220v;
-  const driverCost = isDali
-    ? product.custoDriverDimDali
-    : isDim
-      ? product.custoDriverDim110v
-      : isBivolt
-        ? product.custoDriverBivolt
-        : product.custoDriver220;
-  const driverMarkup = isDali
-    ? product.markupPadraoDriverDimDali
-    : isDim
-      ? product.markupPadraoDriverDim110v
-      : isBivolt
-        ? product.markupPadraoDriverOnoffBivolt
-        : product.markupPadraoDriverOnoff220v;
-  const bodyUnitPrice = bodyCost != null && bodyMarkup != null
-    ? roundCommercialValue(bodyCost * bodyMarkup)
-    : (item.unitPrice ?? null);
-  const driverUnitPrice = priceMap.get(driver.code) ?? (
-    driverCost != null && driverMarkup != null
-      ? roundCommercialValue(driverCost * driverMarkup)
-      : null
-  );
   const itemQty = item.qty ?? 1;
   const totalDriverQty = driverQtyPerUnit * itemQty;
-  const driverTotalPrice = driverUnitPrice != null
-    ? roundCommercialValue(driverUnitPrice * totalDriverQty)
-    : null;
-  const priceWithoutDriver = bodyUnitPrice != null
-    ? roundCommercialValue(bodyUnitPrice * itemQty)
-    : null;
-  const totalPrice = priceWithoutDriver != null || driverTotalPrice != null
-    ? roundCommercialValue((priceWithoutDriver ?? 0) + (driverTotalPrice ?? 0))
-    : item.totalPrice;
-  const cct = item.cct ?? (context.match(/\b(2700|3000|3500|4000|5000)K\b/)?.[0] ?? "");
   const driverModel = descMap.get(driver.code) ?? driver.model;
-  const description = `${product.name} ${cct} ${control} ${voltage}`.replace(/\s+/g, " ").trim();
   const driverLines: DriverLine[] = [{
     driverCode: driver.code,
     driverModel,
     driverQty: totalDriverQty,
-    driverUnitPrice,
-    driverTotalPrice,
+    // Não usar o preço vigente da API em um item histórico sem preço de driver
+    // persistido. Isso preserva o valor comercial já enviado ao cliente.
+    driverUnitPrice: item.unitPriceDriver ?? null,
+    driverTotalPrice: item.unitPriceDriver != null
+      ? roundCommercialValue(item.unitPriceDriver * totalDriverQty)
+      : null,
     ...(correnteMap?.get(driver.code) ? { corrente: correnteMap.get(driver.code)! } : {}),
   }];
 
   return {
     ...item,
-    description,
-    quoteSummary: description.toUpperCase(),
-    orderSummary: `CÓDIGO: ${item.sku}\n${description.toUpperCase()} COM DRIVER ${driverModel.toUpperCase()} (${driver.code})`,
-    drivers: `DRIVER ${driverModel.toUpperCase()} (${driver.code})`,
-    unitPrice: bodyUnitPrice,
-    totalPrice,
-    priceFromApi: bodyCost != null && bodyMarkup != null,
     driverLines,
-    priceWithoutDriver,
-    unitPriceLuminaria: bodyUnitPrice,
-    unitPriceDriver: driverUnitPrice,
-    luminariaHasApiPrice: bodyCost != null && bodyMarkup != null,
-    custoCorpoBase: bodyCost ?? item.custoCorpoBase,
-    custoDriverBase: driverCost ?? item.custoDriverBase,
-    markupPadraoApi: bodyMarkup ?? item.markupPadraoApi,
-    markupMinimoDriverApi: product.markupMinimoDriver ?? item.markupMinimoDriverApi,
     driverQtyPerUnit,
   };
 }

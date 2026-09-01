@@ -3228,3 +3228,9 @@
 - [x] Substituir DRIVER NÃO CADASTRADO NA API pelo driver oficial do SHIFT na ficha
 - [x] Exibir módulo LED e driver próprios de cada acessório SHIFT S01 nas respectivas colunas da ficha
 - [x] Confirmar os mesmos códigos e quantidades na requisição de materiais
+
+## Preços históricos: linha GLOW
+- [x] Rastrear a reidratação que substitui preços persistidos de itens GLOW por valores vigentes da API
+- [x] Preservar preço, custo, markup e total históricos de todo orçamento já salvo
+- [x] Restringir preços vigentes da API a novas configurações GLOW ou atualização comercial explícita do usuário
+- [x] Cobrir por regressão a abertura de orçamentos GLOW históricos após alteração de preço na API

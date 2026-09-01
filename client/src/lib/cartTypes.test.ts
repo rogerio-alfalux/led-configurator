@@ -223,13 +223,12 @@ describe("migrateLegacyGlowCommercialItem", () => {
       productMap,
     );
 
-    expect(migrated.description).toBe("GLOW S 37W 577MM 3000K DIM DALI 220V");
-    expect(migrated.unitPriceLuminaria).toBe(291.07);
-    expect(migrated.priceWithoutDriver).toBe(41914.08);
+    expect(migrated.description).toBe("GLOW S 37W 577MM 3000K 220V");
+    expect(migrated.unitPrice).toBe(202);
+    expect(migrated.totalPrice).toBe(29088);
     expect(migrated.driverLines).toEqual([expect.objectContaining({
-      driverCode: "EQ00659", driverQty: 144, driverUnitPrice: 262.38, driverTotalPrice: 37782.72,
+      driverCode: "EQ00659", driverQty: 144, driverUnitPrice: null, driverTotalPrice: null,
     })]);
-    expect(migrated.totalPrice).toBe(79696.8);
   });
 
   it("reconstrói o GLOW DALI legado com corpo e driver da variante API exata", () => {
@@ -271,13 +270,12 @@ describe("migrateLegacyGlowCommercialItem", () => {
       new Map([["EQ00179", "500mA"]]),
     );
 
-    expect(migrated.description).toBe("GLOW S 54W 1154MM 3000K DIM DALI 220V");
-    expect(migrated.unitPriceLuminaria).toBe(345.21);
-    expect(migrated.priceWithoutDriver).toBe(14153.61);
+    expect(migrated.description).toBe("GLOW S 54W 1154MM 3000K 220V");
+    expect(migrated.unitPrice).toBe(345.21);
+    expect(migrated.totalPrice).toBe(14153.61);
     expect(migrated.driverLines).toEqual([expect.objectContaining({
-      driverCode: "EQ00179", driverQty: 41, driverUnitPrice: 479.52, driverTotalPrice: 19660.32, corrente: "500mA",
+      driverCode: "EQ00179", driverQty: 41, driverUnitPrice: null, driverTotalPrice: null, corrente: "500mA",
     })]);
-    expect(migrated.totalPrice).toBe(33813.93);
   });
 });
 
