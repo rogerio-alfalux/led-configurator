@@ -3265,3 +3265,10 @@
 - [x] Garantir que a cópia tenha edição independente de assistente, vendedor e dados comerciais
 - [x] Preservar integralmente o orçamento original, seus itens e seu histórico
 - [x] Cobrir a duplicação entre equipes e a imutabilidade do original por regressão
+
+## Desconto cumulativo por item
+- [x] Mapear a composição atual de preço unitário, desconto global, totais e dashboards
+- [x] Adicionar campo persistido de desconto por item no editor de orçamento
+- [x] Aplicar desconto por item cumulativamente ao desconto global em todos os totais
+- [x] Exibir valores finais com desconto no dashboard, preview, PDF e Excel
+- [x] Cobrir descontos por item, globais e cumulativos com regressões financeiras

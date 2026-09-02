@@ -142,12 +142,20 @@ async function _generatePdfBlob(
     return d > 0 ? base * (1 - d) : base;
   };
   const _pdfDiluicaoParaDiluir = formData.diluicaoValor && formData.diluicaoValor > 0 ? formData.diluicaoValor : 0;
-  const totalBase = items
+  const _pdfHasItemDiscount = items.some(it => Number(it.itemDiscountPercent) > 0);
+  const _pdfTotalBaseBeforeItemDiscount = items
     .filter(it => it.category !== 'Não Orçamos')
     .reduce((sum, it) => {
       const lum = _pdfCalcItemLumTotal(it);
       const drv = _pdfCalcItemDrvTotal(it);
       return sum + _pdfApplyItemMgn(lum + drv + _pdfCalcItemAccessoriesTotal(it), it);
+    }, 0) + _pdfDiluicaoParaDiluir;
+  const totalBase = items
+    .filter(it => it.category !== 'Não Orçamos')
+    .reduce((sum, it) => {
+      const lum = _pdfCalcItemLumTotal(it);
+      const drv = _pdfCalcItemDrvTotal(it);
+      return sum + _pdfApplyItemDiscount(_pdfApplyItemMgn(lum + drv + _pdfCalcItemAccessoriesTotal(it), it), it);
     }, 0) + _pdfDiluicaoParaDiluir;
   const rtPct     = Math.min(Math.max(formData.rtPercent    ?? 0, 0), 0.99);
   const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
@@ -155,6 +163,10 @@ async function _generatePdfBlob(
   const totalComRT  = rtPct     > 0 ? totalBase  / (1 - rtPct)    : totalBase;
   const totalComMargem = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
   const totalFinal  = discountPct > 0 ? totalComMargem * (1 - discountPct) : totalComMargem;
+  const _pdfFullBase = _pdfTotalBaseBeforeItemDiscount;
+  const _pdfFullComRT = rtPct > 0 ? _pdfFullBase / (1 - rtPct) : _pdfFullBase;
+  const _pdfFullComMargem = marginPct > 0 ? _pdfFullComRT / (1 - marginPct) : _pdfFullComRT;
+  const _pdfCombinedDiscountAmount = Math.max(0, _pdfFullComMargem - totalFinal);
   const freteParaBase = formData.freteIncluded ? 0
     : (formData.freteValue && formData.freteValue > 0 && !formData.freteIsento ? formData.freteValue : 0);
   const baseParaImposto = totalFinal + freteParaBase;
@@ -557,8 +569,11 @@ async function _generatePdfBlob(
   };
 
   // Desconto aplicado: sempre explícito quando houver valor, imediatamente antes do prazo.
-  if (discountPct > 0) {
-    addRow(`Desconto aplicado (${(discountPct * 100).toFixed(1)}%):`, `− ${fmtBRL(totalComMargem - totalFinal)}`, { valueColor: [0, 102, 0], labelColor: [0, 102, 0], bold: true });
+  if (discountPct > 0 || _pdfHasItemDiscount) {
+    const discountLabel = _pdfHasItemDiscount
+      ? "Descontos aplicados (global + por item):"
+      : `Desconto aplicado (${(discountPct * 100).toFixed(1)}%):`;
+    addRow(discountLabel, `− ${fmtBRL(_pdfCombinedDiscountAmount)}`, { valueColor: [0, 102, 0], labelColor: [0, 102, 0], bold: true });
   }
 
   // Prazo de fabricação

@@ -18,6 +18,13 @@ export function applyQuoteDiscount(subtotal: number, discountPercent?: unknown):
   return Math.round(amount * (1 - rate) * 100) / 100;
 }
 
+/** Aplica o desconto individual informado no item em pontos percentuais (ex.: 5 = 5%). */
+export function applyItemDiscount(subtotal: number, itemDiscountPercent?: unknown): number {
+  const rawPercent = Number(itemDiscountPercent);
+  const rate = Number.isFinite(rawPercent) ? Math.min(Math.max(rawPercent / 100, 0), 0.99) : 0;
+  return applyQuoteDiscount(subtotal, rate);
+}
+
 /**
  * Regra comercial única: desconto sobre produtos, depois frete dedicado e, por último,
  * DIFAL/FCP calculados sobre essa base já descontada.

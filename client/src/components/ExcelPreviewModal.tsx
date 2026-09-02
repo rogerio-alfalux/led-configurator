@@ -423,10 +423,14 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
     const p = it.itemMarginPercent != null ? Math.min(Math.max(it.itemMarginPercent / 100, 0), 0.99) : 0;
     return p > 0 ? base / (1 - p) : base;
   };
+  const _applyItemDiscPreview = (base: number, it: CartItemData) => {
+    const p = it.itemDiscountPercent != null ? Math.min(Math.max(it.itemDiscountPercent / 100, 0), 0.99) : 0;
+    return p > 0 ? base * (1 - p) : base;
+  };
   const getAccessoriesTotal = (it: CartItemData): number =>
     (it.accessories ?? []).reduce((sum, accessory) =>
       sum + (Number(accessory.unitPrice ?? 0) * Number(accessory.qty ?? 0) * Number(it.qty ?? 1)), 0);
-  const totalBase = useMemo(() => sortedItems.reduce((s, it) => {
+  const totalBaseBeforeItemDiscount = useMemo(() => sortedItems.reduce((s, it) => {
     const drvT = (it.driverLines && it.driverLines.length > 0)
       ? it.driverLines.reduce((sd, d) => {
           const stored = d.driverTotalPrice;
@@ -449,6 +453,18 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
           : Math.max(0, (it.totalPrice ?? 0) - drvT))
       : (it.totalPrice ?? 0);
     return s + _applyItemMgnPreview(lumT + drvT + getAccessoriesTotal(it), it);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, 0), [sortedItems]);
+  const totalBase = useMemo(() => sortedItems.reduce((s, it) => {
+    const drvT = (it.driverLines && it.driverLines.length > 0)
+      ? it.driverLines.reduce((sd, d) => sd + (d.driverTotalPrice ?? 0), 0)
+      : 0;
+    const lumT = (it.driverLines && it.driverLines.length > 0)
+      ? (it.priceWithoutDriver != null && it.priceWithoutDriver > 0
+          ? it.priceWithoutDriver
+          : Math.max(0, (it.totalPrice ?? 0) - drvT))
+      : (it.totalPrice ?? 0);
+    return s + _applyItemDiscPreview(_applyItemMgnPreview(lumT + drvT + getAccessoriesTotal(it), it), it);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, 0), [sortedItems]);
 
@@ -495,8 +511,9 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
    * Distribui proporcionalmente ao valor total de cada linha.
    */
   const getFreteItem = (item: CartItemData): number => {
-    if (freteParaDiluir <= 0 || totalBase <= 0) return 0;
-    const peso = getItemTotalReal(item) / totalBase;
+    if (freteParaDiluir <= 0 || totalBaseBeforeItemDiscount <= 0) return 0;
+    const pesoBase = _applyItemMgnPreview(getItemTotalReal(item), item);
+    const peso = pesoBase / totalBaseBeforeItemDiscount;
     return freteParaDiluir * peso;
   };
 
@@ -522,6 +539,11 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   const totalComRT = rtPct > 0 ? (totalBase + freteParaDiluir + diluicaoParaDiluir) / (1 - rtPct) : (totalBase + freteParaDiluir + diluicaoParaDiluir);
   const totalComMargem = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
   const totalFinal = discountPct > 0 ? totalComMargem * (1 - discountPct) : totalComMargem;
+  const _fullBasePreview = totalBaseBeforeItemDiscount + freteParaDiluir + diluicaoParaDiluir;
+  const _fullComRTPreview = rtPct > 0 ? _fullBasePreview / (1 - rtPct) : _fullBasePreview;
+  const _fullComMargemPreview = marginPct > 0 ? _fullComRTPreview / (1 - marginPct) : _fullComRTPreview;
+  const combinedDiscountAmountPreview = Math.max(0, _fullComMargemPreview - totalFinal);
+  const hasItemDiscount = sortedItems.some(item => Number(item.itemDiscountPercent) > 0);
   // DIFAL/FCP: alíquota combinada, frete na base (fórmula por dentro)
   const _freteParaImpostoPreview = formData.freteIncluded ? 0 : (formData.freteValue && formData.freteValue > 0 && !formData.freteIsento ? formData.freteValue : 0);
   const baseParaImpostoPreview = totalFinal + _freteParaImpostoPreview;
@@ -555,7 +577,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
             : (storedQty <= 1 ? iqty : storedQty);
           return s + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
         }, 0) ?? 0;
-        return sum + _applyItemMgnPreview(drvBruto, it);
+        return sum + _applyItemDiscPreview(_applyItemMgnPreview(drvBruto, it), it);
       }, 0)
     : 0;
   const totalSemDriverRaw = hasDriverBreakdown ? (totalBase - totalDriverRaw) : 0;
@@ -1096,10 +1118,10 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
             <div style={{ marginTop: 16, fontFamily: "Calibri, Arial, sans-serif", fontSize: 12 }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <tbody>
-                  {discountPct > 0 && (
+                  {(discountPct > 0 || hasItemDiscount) && (
                     <tr>
-                      <td style={{ fontWeight: "bold", width: 320, paddingRight: 8, paddingTop: 4, paddingBottom: 4, color: "#006600" }}>Desconto aplicado ({(discountPct * 100).toFixed(1)}%):</td>
-                      <td style={{ fontWeight: "bold", color: "#006600" }}>− {formatBRL(totalComMargem - totalFinal)}</td>
+                      <td style={{ fontWeight: "bold", width: 320, paddingRight: 8, paddingTop: 4, paddingBottom: 4, color: "#006600" }}>{hasItemDiscount ? "Descontos aplicados (global + por item):" : `Desconto aplicado (${(discountPct * 100).toFixed(1)}%):`}</td>
+                      <td style={{ fontWeight: "bold", color: "#006600" }}>− {formatBRL(combinedDiscountAmountPreview)}</td>
                     </tr>
                   )}
                   <tr>

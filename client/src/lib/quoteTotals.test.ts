@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyQuoteDiscount, calculateQuoteTotalWithDiscountAndTax, getDisplayedCustomerTotal, getStoredCustomerTotal } from './quoteTotals';
+import { applyItemDiscount, applyQuoteDiscount, calculateQuoteTotalWithDiscountAndTax, getDisplayedCustomerTotal, getStoredCustomerTotal } from './quoteTotals';
 
 describe('getStoredCustomerTotal', () => {
   it('uses the persisted customer-paid total without re-adding taxes or dilution', () => {
@@ -14,6 +14,12 @@ describe('getStoredCustomerTotal', () => {
     expect(applyQuoteDiscount(1000, 0.1)).toBe(900);
     expect(applyQuoteDiscount(1000, 10)).toBe(10);
     expect(applyQuoteDiscount(1000, -0.2)).toBe(1000);
+  });
+
+  it('aplica desconto individual em pontos percentuais de forma cumulativa ao desconto global', () => {
+    const afterItemDiscount = applyItemDiscount(1000, 10);
+    expect(afterItemDiscount).toBe(900);
+    expect(applyQuoteDiscount(afterItemDiscount, 0.1)).toBe(810);
   });
 
   it('calcula DIFAL/FCP somente depois de reduzir a base pelo desconto', () => {

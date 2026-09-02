@@ -47,7 +47,7 @@ import { isLdRequestLinkedToQuote } from "@/lib/ldRequestUtils";
 import { handleLdPdfSent } from "@/lib/ldAdminBadgeRefresh";
 import { linkSampleOrderByQuoteNumber } from "@/lib/sampleLinkFlow";
 import { buildSampleCommercialProjection } from "@/lib/sampleCommercialAdjustment";
-import { applyQuoteDiscount, calculateQuoteTotalWithDiscountAndTax, getDisplayedCustomerTotal } from "@/lib/quoteTotals";
+import { applyItemDiscount, applyQuoteDiscount, calculateQuoteTotalWithDiscountAndTax, getDisplayedCustomerTotal } from "@/lib/quoteTotals";
 import type { ApiProductDriverInfo } from "@/lib/cartTypes";
 
 /** Aplica margem individual do item (itemMarginPercent em %) sobre um valor base */
@@ -165,9 +165,10 @@ interface SortableEditItemProps {
   canEditDriverPrice?: boolean;
   isCostPrivileged?: boolean;
   canEditMkp?: boolean;
+  canEditDiscount?: boolean;
 }
 
-function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, resolvePhoto, onUpdate, onDelete, onDuplicate, onReplace, onUploadSpecialPhoto, canOverrideApiPrice = false, canEditDriverPrice = false, isCostPrivileged = false, canEditMkp = false }: SortableEditItemProps) {
+function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, resolvePhoto, onUpdate, onDelete, onDuplicate, onReplace, onUploadSpecialPhoto, canOverrideApiPrice = false, canEditDriverPrice = false, isCostPrivileged = false, canEditMkp = false, canEditDiscount = false }: SortableEditItemProps) {
   const [specialUploading, setSpecialUploading] = useState(false);
   const [seqInputVal, setSeqInputVal] = useState<string>("");
   const d = item.parsed;
@@ -455,10 +456,10 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
               return unitLum != null ? unitLum * d.qty : (d.totalPrice ?? 0);
             })();
             const drvTotal = d.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
-            const grandTotal = applyItemMarginQD(lumTotal + drvTotal + calculateLinkedAccessoriesTotal(d), d.itemMarginPercent);
+            const grandTotal = applyItemDiscount(applyItemMarginQD(lumTotal + drvTotal + calculateLinkedAccessoriesTotal(d), d.itemMarginPercent), d.itemDiscountPercent);
             return grandTotal > 0 ? (
               <>
-                <p className="text-xs text-muted-foreground">Total (lum. + drv.){d.itemMarginPercent != null && d.itemMarginPercent > 0 ? ` +${d.itemMarginPercent}% ind.` : ""}</p>
+                <p className="text-xs text-muted-foreground">Total (lum. + drv.){d.itemMarginPercent != null && d.itemMarginPercent > 0 ? ` +${d.itemMarginPercent}% ind.` : ""}{d.itemDiscountPercent != null && d.itemDiscountPercent > 0 ? ` −${d.itemDiscountPercent}% desc.` : ""}</p>
                 <p className="font-bold text-primary">{formatBRL(grandTotal)}</p>
               </>
             ) : (
@@ -466,9 +467,9 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
             );
           })() : (
             <>
-              <p className="text-xs text-muted-foreground">Total{d.itemMarginPercent != null && d.itemMarginPercent > 0 ? ` +${d.itemMarginPercent}% ind.` : ""}</p>
+              <p className="text-xs text-muted-foreground">Total{d.itemMarginPercent != null && d.itemMarginPercent > 0 ? ` +${d.itemMarginPercent}% ind.` : ""}{d.itemDiscountPercent != null && d.itemDiscountPercent > 0 ? ` −${d.itemDiscountPercent}% desc.` : ""}</p>
               <p className="font-bold text-primary">
-                {d.totalPrice != null && d.totalPrice > 0 ? formatBRL(applyItemMarginQD(d.totalPrice + calculateLinkedAccessoriesTotal(d), d.itemMarginPercent)) : "A consultar"}
+                {d.totalPrice != null && d.totalPrice > 0 ? formatBRL(applyItemDiscount(applyItemMarginQD(d.totalPrice + calculateLinkedAccessoriesTotal(d), d.itemMarginPercent), d.itemDiscountPercent)) : "A consultar"}
               </p>
             </>
           )}
@@ -818,6 +819,24 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
             />
             <span className="text-xs text-muted-foreground">% (vazio = usa margem global)</span>
           </div>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Desconto por item (%)</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number" min={0} max={99} step={0.5}
+              className={`w-24 h-8 text-sm${!canEditDiscount ? " bg-muted text-muted-foreground cursor-not-allowed" : ""}`}
+              value={d.itemDiscountPercent != null ? String(d.itemDiscountPercent) : ""}
+              onChange={canEditDiscount ? (e => {
+                const v = e.target.value;
+                onUpdate(item.id, { itemDiscountPercent: v ? parseFloat(v) : undefined });
+              }) : undefined}
+              readOnly={!canEditDiscount}
+              placeholder="0"
+            />
+            <span className="text-xs text-muted-foreground">% (cumulativo ao desconto global)</span>
+          </div>
+          {!canEditDiscount && <p className="text-xs text-muted-foreground">Permissão de desconto necessária para editar.</p>}
         </div>
       </div>
 
@@ -1940,9 +1959,9 @@ export default function QuoteDetail() {
         const effectiveQty = storedQty <= 1 ? iqty : storedQty;
         return sd + Math.round((dl.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
       }, 0);
-      return s + applyItemMarginQD(lumT + drvT, d.itemMarginPercent);
+      return s + applyItemDiscount(applyItemMarginQD(lumT + drvT + calculateLinkedAccessoriesTotal(d), d.itemMarginPercent), d.itemDiscountPercent);
     }
-    return s + applyItemMarginQD(d.totalPrice ?? 0, d.itemMarginPercent);
+    return s + applyItemDiscount(applyItemMarginQD((d.totalPrice ?? 0) + calculateLinkedAccessoriesTotal(d), d.itemMarginPercent), d.itemDiscountPercent);
   }, 0);
   const editRtPct = Math.min(Math.max(parseFloat(editForm.rtPercent || "0") / 100, 0), 0.99);
   const editMarginPct = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, 0), 0.99);
@@ -1982,9 +2001,9 @@ export default function QuoteDetail() {
         const effectiveQty = storedQty <= 1 ? iqty : storedQty;
         return sd + Math.round((dl.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
       }, 0);
-      return s + applyItemMarginQD(lumT + drvT, d.itemMarginPercent);
+      return s + applyItemDiscount(applyItemMarginQD(lumT + drvT + calculateLinkedAccessoriesTotal(d), d.itemMarginPercent), d.itemDiscountPercent);
     }
-    return s + applyItemMarginQD(d.totalPrice ?? 0, d.itemMarginPercent);
+    return s + applyItemDiscount(applyItemMarginQD((d.totalPrice ?? 0) + calculateLinkedAccessoriesTotal(d), d.itemMarginPercent), d.itemDiscountPercent);
   }, 0);
   const _hdrDiscountPct = (quote as any).discountPercent ? Math.min(Math.max(parseFloat(String((quote as any).discountPercent)), 0), 0.99) : 0;
   // Aplicar RT + margem sobre (base + frete diluído + diluição)
@@ -2829,6 +2848,7 @@ export default function QuoteDetail() {
                                     canEditDriverPrice={hasQuotePermission(PERMISSIONS.EDITAR_PRECOS_DRIVER)}
                                     isCostPrivileged={hasQuotePermission(PERMISSIONS.VER_CUSTOS)}
                                     canEditMkp={hasQuotePermission(PERMISSIONS.EDITAR_MARKUP)}
+                                    canEditDiscount={hasQuotePermission(PERMISSIONS.EDITAR_DESCONTOS)}
                                   />
                                   );
                                 })}
@@ -2915,6 +2935,7 @@ export default function QuoteDetail() {
                           canEditDriverPrice={hasQuotePermission(PERMISSIONS.EDITAR_PRECOS_DRIVER)}
                           isCostPrivileged={hasQuotePermission(PERMISSIONS.VER_CUSTOS)}
                           canEditMkp={hasQuotePermission(PERMISSIONS.EDITAR_MARKUP)}
+                          canEditDiscount={hasQuotePermission(PERMISSIONS.EDITAR_DESCONTOS)}
                         />
                       ))}
                     </div>
@@ -2961,7 +2982,7 @@ export default function QuoteDetail() {
                       } else {
                         itemBase = p.totalPrice ?? 0;
                       }
-                      return s + applyItemMarginQD(itemBase + calculateLinkedAccessoriesTotal(p), p.itemMarginPercent);
+                      return s + applyItemDiscount(applyItemMarginQD(itemBase + calculateLinkedAccessoriesTotal(p), p.itemMarginPercent), p.itemDiscountPercent);
                     }, 0))}
                   </span>
                 </div>
@@ -2989,9 +3010,9 @@ export default function QuoteDetail() {
                             return unitLum != null ? unitLum * (p.qty ?? 1) : (p.totalPrice ?? 0);
                           })();
                           const drvT = p.driverLines.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0);
-                          return s + applyItemMarginQD(lumT + drvT + calculateLinkedAccessoriesTotal(p), p.itemMarginPercent);
+                          return s + applyItemDiscount(applyItemMarginQD(lumT + drvT + calculateLinkedAccessoriesTotal(p), p.itemMarginPercent), p.itemDiscountPercent);
                         }
-                        return s + applyItemMarginQD((p.totalPrice ?? 0) + calculateLinkedAccessoriesTotal(p), p.itemMarginPercent);
+                        return s + applyItemDiscount(applyItemMarginQD((p.totalPrice ?? 0) + calculateLinkedAccessoriesTotal(p), p.itemMarginPercent), p.itemDiscountPercent);
                       }, 0);
                       const rtPct = quote.rtPercent ? parseFloat(String(quote.rtPercent)) : 0;
                       const marginPct = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;
@@ -4428,9 +4449,9 @@ export default function QuoteDetail() {
                 const comRT = rtPct > 0 ? base / (1 - rtPct) : base;
                 return mPct > 0 ? comRT / (1 - mPct) : comRT;
               };
-              const applyMkupWithItem = (base: number, itemMarginPercent?: number | null) => {
+              const applyMkupWithItem = (base: number, itemMarginPercent?: number | null, itemDiscountPercent?: number | null) => {
                 const afterGlobal = applyMkup(base);
-                return applyItemMarginQD(afterGlobal, itemMarginPercent);
+                return applyItemDiscount(applyItemMarginQD(afterGlobal, itemMarginPercent), itemDiscountPercent);
               };
               const hasMarkup = rtPct > 0 || mPct > 0;
 
@@ -4481,11 +4502,11 @@ export default function QuoteDetail() {
                   const lumRaw = correctedPriceWithoutDriver ?? (d.totalPrice ?? 0);
                   const drvRaw = d.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
                   const itemTotalRaw = lumRaw + drvRaw;
-                  totalGeral += applyMkupWithItem(itemTotalRaw, d.itemMarginPercent);
-                  totalLuminaria += applyMkupWithItem(lumRaw, d.itemMarginPercent);
-                  totalDriver += applyMkupWithItem(drvRaw, d.itemMarginPercent);
+                  totalGeral += applyMkupWithItem(itemTotalRaw, d.itemMarginPercent, d.itemDiscountPercent);
+                  totalLuminaria += applyMkupWithItem(lumRaw, d.itemMarginPercent, d.itemDiscountPercent);
+                  totalDriver += applyMkupWithItem(drvRaw, d.itemMarginPercent, d.itemDiscountPercent);
                 } else {
-                  const tot = d.totalPrice != null && d.totalPrice > 0 ? applyMkupWithItem(d.totalPrice, d.itemMarginPercent) : 0;
+                  const tot = d.totalPrice != null && d.totalPrice > 0 ? applyMkupWithItem(d.totalPrice, d.itemMarginPercent, d.itemDiscountPercent) : 0;
                   totalGeral += tot;
                   totalLuminaria += tot;
                 }
@@ -4541,12 +4562,12 @@ export default function QuoteDetail() {
                             const unitDisplay = fixedSampleCharge != null
                               ? fixedSampleCharge / Math.max(d.qty, 1)
                               : d.unitPrice != null && d.unitPrice > 0
-                              ? applyMkupWithItem(d.unitPrice, d.itemMarginPercent)
+                              ? applyMkupWithItem(d.unitPrice, d.itemMarginPercent, d.itemDiscountPercent)
                               : null;
                             const totalDisplay = fixedSampleCharge != null
                               ? fixedSampleCharge
                               : d.totalPrice != null && d.totalPrice > 0
-                              ? applyMkupWithItem(d.totalPrice, d.itemMarginPercent)
+                              ? applyMkupWithItem(d.totalPrice, d.itemMarginPercent, d.itemDiscountPercent)
                               : null;
                             const hasBreakdown = !!(d.driverLines && d.driverLines.length > 0);
                             // Fallback: quando unitPrice é null mas totalPrice > 0, derivar unitPrice = totalPrice / qty
@@ -4580,10 +4601,10 @@ export default function QuoteDetail() {
                               }
                             }
                             const lumTotalDisplay = _correctedPWD != null
-                              ? applyMkupWithItem(_correctedPWD, d.itemMarginPercent)
+                              ? applyMkupWithItem(_correctedPWD, d.itemMarginPercent, d.itemDiscountPercent)
                               : null;
                             const lumUnitDisplay = hasBreakdown && _resolvedUnitLum != null
-                              ? applyMkupWithItem(_resolvedUnitLum, d.itemMarginPercent)
+                              ? applyMkupWithItem(_resolvedUnitLum, d.itemMarginPercent, d.itemDiscountPercent)
                               : null;
                             // Total item correto: luminaria + todos os drivers
                             const _driversTotalRaw = hasBreakdown
@@ -4596,7 +4617,7 @@ export default function QuoteDetail() {
                             const _correctTotalWithMkup = fixedSampleCharge != null
                               ? fixedSampleCharge
                               : _correctTotalItem > 0
-                              ? applyMkupWithItem(_correctTotalItem, d.itemMarginPercent)
+                              ? applyMkupWithItem(_correctTotalItem, d.itemMarginPercent, d.itemDiscountPercent)
                               : 0;
                             // Diluição proporcional ao peso deste item
                             const _itemDiluicao = getItemDiluicaoFrac(_correctTotalWithMkup);
@@ -4605,7 +4626,7 @@ export default function QuoteDetail() {
                             const _itemFreteRaw = getItemFreteFrac(_correctTotalItem > 0 ? _correctTotalItem : (d.totalPrice ?? 0));
                             // Recalcular total do item com frete incluído na base (antes do markup)
                             const _correctTotalWithFrete = _correctTotalItem > 0
-                              ? applyMkupWithItem(_correctTotalItem + _itemFreteRaw, d.itemMarginPercent)
+                              ? applyMkupWithItem(_correctTotalItem + _itemFreteRaw, d.itemMarginPercent, d.itemDiscountPercent)
                               : 0;
                             const _itemFreteComMkup = _correctTotalWithFrete - _correctTotalWithMkup;
                             const correctTotalDisplay = _correctTotalWithMkup > 0
@@ -4614,7 +4635,7 @@ export default function QuoteDetail() {
                             // Distribuição da diluição + frete entre luminária e driver proporcionalmente
                             const _lumWithMkup = lumTotalDisplay ?? 0;
                             const _drvWithMkup = hasBreakdown
-                              ? d.driverLines!.reduce((s, dl) => s + (dl.driverTotalPrice != null ? applyMkupWithItem(dl.driverTotalPrice, d.itemMarginPercent) : 0), 0)
+                              ? d.driverLines!.reduce((s, dl) => s + (dl.driverTotalPrice != null ? applyMkupWithItem(dl.driverTotalPrice, d.itemMarginPercent, d.itemDiscountPercent) : 0), 0)
                               : 0;
                             const _itemTotalForRatio = _lumWithMkup + _drvWithMkup;
                             // Combinar diluição + frete para distribuir proporcionalmente
@@ -4788,10 +4809,10 @@ export default function QuoteDetail() {
                           const _lumFrete2 = _itemRaw2 > 0 ? _itemFrete2 * (_lumT2 / _itemRaw2) : 0;
                           const _drvFrete2 = _itemRaw2 > 0 ? _itemFrete2 * (_drvT2 / _itemRaw2) : 0;
                           if (_d2.driverLines && _d2.driverLines.length > 0) {
-                            _totalLumComFrete += applyMkupWithItem(_lumT2 + _lumFrete2, _d2.itemMarginPercent);
-                            _totalDrvComFrete += applyMkupWithItem(_drvT2 + _drvFrete2, _d2.itemMarginPercent);
+                            _totalLumComFrete += applyMkupWithItem(_lumT2 + _lumFrete2, _d2.itemMarginPercent, _d2.itemDiscountPercent);
+                            _totalDrvComFrete += applyMkupWithItem(_drvT2 + _drvFrete2, _d2.itemMarginPercent, _d2.itemDiscountPercent);
                           } else {
-                            _totalLumComFrete += applyMkupWithItem(_lumT2 + _itemFrete2, _d2.itemMarginPercent);
+                            _totalLumComFrete += applyMkupWithItem(_lumT2 + _itemFrete2, _d2.itemMarginPercent, _d2.itemDiscountPercent);
                           }
                         }
                         const _totalComFreteGlobal = _totalLumComFrete + _totalDrvComFrete;
@@ -4821,7 +4842,7 @@ export default function QuoteDetail() {
                                   : (_d.totalPrice ?? 0);
                                 const _itemRaw = _lumT + _drvT;
                                 const _itemFrete = _freteBase > 0 ? _freteParaDiluir * (_itemRaw / _freteBase) : 0;
-                                return s + applyMkupWithItem(_itemRaw + _itemFrete, _d.itemMarginPercent);
+                                return s + applyMkupWithItem(_itemRaw + _itemFrete, _d.itemMarginPercent, _d.itemDiscountPercent);
                               }, 0) + _diluicaoTotal
                             : totalGeral + _diluicaoTotal;
                           const fullTotal = _storedFullTotal > 0 ? _storedFullTotal : calculatedFullTotal;
@@ -5031,9 +5052,9 @@ export default function QuoteDetail() {
                 const comRT = rtPct > 0 ? base / (1 - rtPct) : base;
                 return mPct > 0 ? comRT / (1 - mPct) : comRT;
               };
-              const applyMkupWithItem = (base: number, itemMarginPercent?: number | null) => {
+              const applyMkupWithItem = (base: number, itemMarginPercent?: number | null, itemDiscountPercent?: number | null) => {
                 const afterGlobal = applyMkup(base);
-                return applyItemMarginQD(afterGlobal, itemMarginPercent);
+                return applyItemDiscount(applyItemMarginQD(afterGlobal, itemMarginPercent), itemDiscountPercent);
               };
               const hasMarkup = rtPct > 0 || mPct > 0;
               let totalGeral = 0;

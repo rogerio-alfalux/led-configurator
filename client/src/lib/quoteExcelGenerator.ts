@@ -1238,10 +1238,20 @@ async function _generateExcelBuffer(
     const p = it.itemMarginPercent != null ? Math.min(Math.max(it.itemMarginPercent / 100, 0), 0.99) : 0;
     return p > 0 ? base / (1 - p) : base;
   };
-  const totalBase = items.reduce((sum, it) => {
+  const _applyItemDisc = (base: number, it: CartItemData) => {
+    const p = it.itemDiscountPercent != null ? Math.min(Math.max(it.itemDiscountPercent / 100, 0), 0.99) : 0;
+    return p > 0 ? base * (1 - p) : base;
+  };
+  const _hasItemDiscount = items.some(it => Number(it.itemDiscountPercent) > 0);
+  const _totalBaseBeforeItemDiscount = items.reduce((sum, it) => {
     const lum = calcItemLumTotal(it);
     const drv = calcItemDrvTotal(it);
     return sum + _applyItemMgn(lum + drv + calcItemAccessoriesTotal(it), it);
+  }, 0) + _freteParaDiluir + _diluicaoParaDiluir;
+  const totalBase = items.reduce((sum, it) => {
+    const lum = calcItemLumTotal(it);
+    const drv = calcItemDrvTotal(it);
+    return sum + _applyItemDisc(_applyItemMgn(lum + drv + calcItemAccessoriesTotal(it), it), it);
   }, 0) + _freteParaDiluir + _diluicaoParaDiluir;
   // Totais com/sem driver (apenas para orçamentos novos com driverLines)
   // Usa mesma lógica do Cart.tsx: effectiveQty = storedQty <= 1 ? itemQty : storedQty
@@ -1257,7 +1267,7 @@ async function _generateExcelBuffer(
             : (storedQty <= 1 ? iqty : storedQty);
           return s + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
         }, 0) ?? 0;
-        return sum + _applyItemMgn(drvBruto, it);
+        return sum + _applyItemDisc(_applyItemMgn(drvBruto, it), it);
       }, 0)
     : 0;
   const totalSemDriverRaw = hasDriverBreakdown ? (totalBase - _freteParaDiluir - _diluicaoParaDiluir - totalDriverRaw) : 0;
@@ -1272,6 +1282,9 @@ async function _generateExcelBuffer(
   const totalComRT   = rtPct    > 0 ? totalBase  / (1 - rtPct)    : totalBase;
   const totalComMargem = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
   const totalFinal   = discountPct > 0 ? totalComMargem * (1 - discountPct) : totalComMargem;
+  const _fullComRT = rtPct > 0 ? _totalBaseBeforeItemDiscount / (1 - rtPct) : _totalBaseBeforeItemDiscount;
+  const _fullComMargem = marginPct > 0 ? _fullComRT / (1 - marginPct) : _fullComRT;
+  const _combinedDiscountAmount = Math.max(0, _fullComMargem - totalFinal);
   // Calcular DIFAL/FCP com alíquota combinada e frete na base
   const _freteParaImpostoBase = formData.freteIncluded ? 0 : (formData.freteValue && formData.freteValue > 0 && !formData.freteIsento ? formData.freteValue : 0); // frete não diluido entra na base
   const baseParaImposto = totalFinal + _freteParaImpostoBase;
@@ -1293,18 +1306,20 @@ async function _generateExcelBuffer(
 
   // ── Desconto aplicado: sempre antes do prazo ─────────────────────────────
   ws.getRow(nextRow).height = 28;
-  ws.getRow(nextRow).hidden = discountPct <= 0;
+  ws.getRow(nextRow).hidden = discountPct <= 0 && !_hasItemDiscount;
   ws.mergeCells(`C${nextRow}:D${nextRow}`);
   {
     const c = ws.getCell(`C${nextRow}`);
-    c.value = `Desconto aplicado (${(discountPct * 100).toFixed(1)}%):`;
+    c.value = _hasItemDiscount
+      ? "Descontos aplicados (global + por item):"
+      : `Desconto aplicado (${(discountPct * 100).toFixed(1)}%):`;
     c.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FF006600" } };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
   ws.mergeCells(`E${nextRow}:N${nextRow}`);
   {
     const c = ws.getCell(`E${nextRow}`);
-    c.value = discountPct > 0 ? -(totalComMargem - totalFinal) : 0;
+    c.value = -(discountPct > 0 || _hasItemDiscount ? _combinedDiscountAmount : 0);
     c.numFmt = '"R$"#,##0.00';
     c.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FF006600" } };
     c.alignment = { horizontal: "left", vertical: "middle" };
