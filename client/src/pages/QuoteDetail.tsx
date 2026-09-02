@@ -4850,11 +4850,11 @@ export default function QuoteDetail() {
           </CardContent>
         </Card>
 
-        {/* Dashboard de Lucro por Orçamento — apenas privilegiados */}
+        {/* Dashboard de Lucro por Orçamento — também usado pelo Departamento de Custos */}
         {(() => {
-          const ue = ((user as any)?.email ?? "").toLowerCase();
           const isCostPriv = hasQuotePermission(PERMISSIONS.VER_CUSTOS);
-          if (!isCostPriv) return null;
+          const isCostDepartment = (user as any)?.role === "custos";
+          if (!isCostPriv && !isCostDepartment) return null;
 
           return (
             <QuoteProfitDashboard
@@ -5331,6 +5331,7 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
   });
   const [editingCustoItem, setEditingCustoItem] = useState<number | null>(null);
   const [custoManualInput, setCustoManualInput] = useState("");
+  const isCostDepartment = (user as any)?.role === "custos";
 
   const additionalCosts = costsQuery.data ?? [];
   const totalAdditionalCosts = additionalCosts.reduce((s, c) => s + parseFloat(String(c.valor)), 0);
@@ -5492,7 +5493,7 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
                 ) : (
                   <span className="text-red-600 font-medium">Sem custo</span>
                 )}
-                {editingCustoItem === item.itemNumber ? (
+                {isCostDepartment && item.source !== 'especial_sem_preco' ? null : editingCustoItem === item.itemNumber ? (
                   <div className="flex items-center gap-1">
                     <Input
                       value={custoManualInput}
@@ -5546,7 +5547,7 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
         )}
 
         {/* Botão para gerenciar custos adicionais */}
-        <div className="flex justify-end">
+        {!isCostDepartment && <div className="flex justify-end">
           <Button
             variant="outline"
             size="sm"
@@ -5556,10 +5557,10 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
             <PlusCircle className="w-3 h-3" />
             {additionalCosts.length > 0 ? `Gerenciar Custos Adicionais (${additionalCosts.length})` : 'Incluir Custo Adicional'}
           </Button>
-        </div>
+        </div>}
 
         {/* Dialog para gerenciar custos adicionais */}
-        <Dialog open={addCostOpen} onOpenChange={setAddCostOpen}>
+        {!isCostDepartment && <Dialog open={addCostOpen} onOpenChange={setAddCostOpen}>
           <DialogContent className="max-w-sm">
             <DialogHeader>
               <DialogTitle>Custos Adicionais</DialogTitle>
@@ -5626,7 +5627,7 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
               </div>
             </div>
           </DialogContent>
-        </Dialog>
+        </Dialog>}
       </CardContent>
     </Card>
   );

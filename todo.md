@@ -3252,3 +3252,10 @@
 - [x] Comparar o cálculo independente com os valores exibidos e corrigir somente divergência comprovada
 - [x] Corrigir a omissão comprovada de custos adicionais no Lucro Líquido Estimado
 - [x] Validar o resultado de 2026 após considerar os custos adicionais persistidos
+
+## Perfil Departamento de Custos
+- [x] Mapear os papéis, permissões e rotas atualmente protegidas
+- [x] Criar o perfil Departamento de Custos com leitura do sistema e sem acesso ao dashboard geral
+- [x] Permitir edição somente do custo ausente em itens especiais
+- [x] Bloquear criação, exclusão, aprovação, edição comercial e demais alterações
+- [x] Cobrir a política de acesso do Departamento de Custos por regressão

@@ -21,6 +21,7 @@ const ROLE_LABELS: Record<string, string> = {
   gerente: "Gerente",
   vendedor: "Vendedor",
   assistente: "Assistente",
+  custos: "Departamento de Custos",
   user: "Usuário",
   convidado: "LD Convidado",
 };
@@ -30,6 +31,7 @@ const ROLE_COLORS: Record<string, string> = {
   gerente: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
   vendedor: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
   assistente: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+  custos: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300",
   user: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300",
   convidado: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
 };
@@ -185,6 +187,7 @@ export default function UserManagement() {
                         <SelectItem value="vendedor">Vendedor</SelectItem>
                         <SelectItem value="assistente">Assistente</SelectItem>
                         <SelectItem value="gerente">Gerente</SelectItem>
+                        <SelectItem value="custos">Departamento de Custos</SelectItem>
                       </>}
                     </SelectContent>
                   </Select>
@@ -258,6 +261,7 @@ export default function UserManagement() {
                           <SelectItem value="vendedor">Vendedor</SelectItem>
                           <SelectItem value="assistente">Assistente</SelectItem>
                           <SelectItem value="gerente">Gerente</SelectItem>
+                          <SelectItem value="custos">Departamento de Custos</SelectItem>
                           <SelectItem value="admin">Admin</SelectItem>
                         </SelectContent>
                       </Select>

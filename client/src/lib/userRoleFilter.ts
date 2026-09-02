@@ -4,6 +4,7 @@ export const USER_ROLE_FILTERS = [
   { value: "gerente", label: "Gerente" },
   { value: "vendedor", label: "Vendedor" },
   { value: "assistente", label: "Assistente" },
+  { value: "custos", label: "Departamento de Custos" },
   { value: "user", label: "Usuário" },
   { value: "convidado", label: "LD Convidado" },
 ] as const;

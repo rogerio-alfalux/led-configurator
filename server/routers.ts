@@ -92,6 +92,7 @@ import { getLdRequestDeadlineValidationError } from "../shared/ldRequestDeadline
 import { generateAndStoreCompleteBackup } from "./backupService";
 import { getQuoteStatusAuthorizationError } from "./quoteStatusPolicy";
 import { getUserCreationRoleAuthorizationError } from "../shared/userCreationAccess";
+import { isCostDepartmentRole, isSpecialItemWithoutRegisteredCost } from "../shared/costDepartmentAccess";
 
 // ─── Controle de acesso a orçamentos ─────────────────────────────────────────
 /** Emails dos gestores com acesso irrestrito a todos os orçamentos */
@@ -110,9 +111,20 @@ const SPECIAL_COMMISSION_SELLERS: Record<string, number> = {
 };
 
 /** LD Convidado configura itens e recebe somente o PDF validado, sem rotas comerciais. */
-const commercialQuoteProcedure = protectedProcedure.use(({ ctx, next }) => {
+const commercialQuoteProcedure = protectedProcedure.use(({ ctx, next, type }) => {
+  if (isCostDepartmentRole(ctx.user.role) && type === "mutation") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Departamento de Custos possui acesso somente leitura a orçamentos." });
+  }
   if (!canAccessCommercialQuotes(ctx.user.role)) {
     throw new TRPCError({ code: "FORBIDDEN", message: "LD Convidado não possui acesso a orçamentos comerciais." });
+  }
+  return next({ ctx });
+});
+
+/** Bloqueia qualquer escrita operacional do Departamento de Custos. */
+const nonCostDepartmentProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if (isCostDepartmentRole(ctx.user.role)) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Departamento de Custos possui acesso somente leitura." });
   }
   return next({ ctx });
 });
@@ -789,7 +801,7 @@ export const appRouter = router({
   }),
 
   cart: router({
-    add: protectedProcedure
+    add: nonCostDepartmentProcedure
       .input(z.object({ itemData: z.string() }))
       .mutation(async ({ ctx, input }) => {
         const id = await addCartItem({ userId: ctx.user.id, itemData: input.itemData });
@@ -805,32 +817,32 @@ export const appRouter = router({
       }));
     }),
 
-    remove: protectedProcedure
+    remove: nonCostDepartmentProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         await removeCartItem(input.id, ctx.user.id);
         return { success: true };
       }),
 
-    clear: protectedProcedure.mutation(async ({ ctx }) => {
+    clear: nonCostDepartmentProcedure.mutation(async ({ ctx }) => {
       await clearCart(ctx.user.id);
       return { success: true };
     }),
 
-    updateQty: protectedProcedure
+    updateQty: nonCostDepartmentProcedure
       .input(z.object({ id: z.number(), qty: z.number().min(1) }))
       .mutation(async ({ ctx, input }) => {
         await updateCartItemQty(input.id, ctx.user.id, input.qty);
         return { success: true };
       }),
 
-    reorder: protectedProcedure
+    reorder: nonCostDepartmentProcedure
       .input(z.object({ orderedIds: z.array(z.number()) }))
       .mutation(async ({ ctx, input }) => {
         await updateCartItemsSortOrder(ctx.user.id, input.orderedIds);
         return { success: true };
       }),
-    updateItemData: protectedProcedure
+    updateItemData: nonCostDepartmentProcedure
       .input(z.object({
         id: z.number(),
         patch: z.record(z.string(), z.unknown()),
@@ -844,7 +856,7 @@ export const appRouter = router({
   // ─── Upload de arquivos ─────────────────────────────────────────────────────────────────────────────────────
   upload: router({
     /** Faz upload de uma foto de item especial e retorna a URL /manus-storage/... */
-    specialItemPhoto: protectedProcedure
+    specialItemPhoto: nonCostDepartmentProcedure
       .input(z.object({
         /** Conteúdo da imagem em base64 */
         base64: z.string(),
@@ -2095,9 +2107,12 @@ export const appRouter = router({
         }
         return { custoProdutos: totalCusto, temCusto, items: itemDetails, transferredCost, inboundTransfers };
       }),
-    setCustoManual: commercialQuoteProcedure
+    setCustoManual: protectedProcedure
       .input(z.object({ quoteId: z.number(), itemNumber: z.number(), custoManual: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        if (!canAccessCommercialQuotes(ctx.user.role)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'LD Convidado não possui acesso a custos de orçamento.' });
+        }
         const db = await getDb();
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB unavailable' });
         // Buscar somente o item da revisão ativa — revisões históricas não podem
@@ -2116,6 +2131,9 @@ export const appRouter = router({
         if (!item) throw new TRPCError({ code: 'NOT_FOUND', message: 'Item não encontrado' });
         // Atualizar itemData com custoManual
         const data = typeof item.itemData === 'string' ? JSON.parse(item.itemData) : (item.itemData ?? {});
+        if (isCostDepartmentRole(ctx.user.role) && !isSpecialItemWithoutRegisteredCost(data)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'O Departamento de Custos só pode informar custo em item especial sem custo registrado.' });
+        }
         data.custoManual = input.custoManual;
         await db.update(quoteItems)
           .set({ itemData: JSON.stringify(data) })
@@ -2184,7 +2202,7 @@ export const appRouter = router({
   // ─── Pedidos de Fábrica ──────────────────────────────────────────────────────
   factoryOrders: router({
     /** Cria um novo pedido de fábrica a partir do orçamento aprovado */
-    create: protectedProcedure
+    create: nonCostDepartmentProcedure
       .input(z.object({
         quoteId: z.number(),
         empresa: z.enum(['ALFALUX', 'LUMINEW']).default('ALFALUX'),
@@ -2235,7 +2253,7 @@ export const appRouter = router({
       }),
 
     /** Atualiza campos do pedido (empresa, status, deliveryDays, notes, orderNumber) */
-    update: protectedProcedure
+    update: nonCostDepartmentProcedure
       .input(z.object({
         id: z.number(),
         orderNumber: z.string().optional(),
@@ -2252,7 +2270,7 @@ export const appRouter = router({
       }),
 
     /** Adiciona um item ao pedido */
-    addItem: protectedProcedure
+    addItem: nonCostDepartmentProcedure
       .input(z.object({
         factoryOrderId: z.number(),
         itemNumber: z.number(),
@@ -2264,7 +2282,7 @@ export const appRouter = router({
       }),
 
     /** Atualiza o itemData de um item */
-    updateItem: protectedProcedure
+    updateItem: nonCostDepartmentProcedure
       .input(z.object({
         itemId: z.number(),
         itemData: z.string(),
@@ -2275,7 +2293,7 @@ export const appRouter = router({
       }),
 
     /** Remove um item do pedido */
-    removeItem: protectedProcedure
+    removeItem: nonCostDepartmentProcedure
       .input(z.object({ itemId: z.number() }))
       .mutation(async ({ input }) => {
         await deleteFactoryOrderItem(input.itemId);
@@ -2283,7 +2301,7 @@ export const appRouter = router({
       }),
 
     /** Remove um pedido de fábrica completo (com itens e subpedidos) */
-    deleteOrder: protectedProcedure
+    deleteOrder: nonCostDepartmentProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         await deleteFactoryOrder(input.id);
@@ -2291,7 +2309,7 @@ export const appRouter = router({
       }),
 
     /** Cria nova revisão clonando o pedido atual */
-    createRevision: protectedProcedure
+    createRevision: nonCostDepartmentProcedure
       .input(z.object({ sourceOrderId: z.number() }))
       .mutation(async ({ input }) => {
         const newOrderId = await createFactoryOrderRevision(input.sourceOrderId);
@@ -2299,7 +2317,7 @@ export const appRouter = router({
       }),
 
     /** Salva um Excel gerado no S3 e registra no histórico */
-    saveExcel: protectedProcedure
+    saveExcel: nonCostDepartmentProcedure
       .input(z.object({
         factoryOrderId: z.number(),
         orderNumber: z.string().regex(/^\d{6}(-\d+)?$/, 'Número do pedido deve ter 6 dígitos (opcionalmente seguido de -N para subpedido)'),
@@ -2417,7 +2435,7 @@ export const appRouter = router({
     updateUserRole: adminProcedure
       .input(z.object({
         userId: z.number(),
-        role: z.enum(['user', 'admin', 'gerente', 'vendedor', 'assistente', 'convidado']),
+        role: z.enum(['user', 'admin', 'gerente', 'vendedor', 'assistente', 'convidado', 'custos']),
       }))
       .mutation(async ({ input }) => {
         const db = await getDb();
@@ -2442,7 +2460,7 @@ export const appRouter = router({
         name: z.string().min(1),
         email: z.string().email(),
         password: z.string().min(4),
-        role: z.enum(['user', 'admin', 'gerente', 'vendedor', 'assistente', 'convidado']).default('convidado'),
+        role: z.enum(['user', 'admin', 'gerente', 'vendedor', 'assistente', 'convidado', 'custos']).default('convidado'),
       }))
       .mutation(async ({ ctx, input }) => {
         const authorizationError = getUserCreationRoleAuthorizationError(ctx.user.email, input.role);

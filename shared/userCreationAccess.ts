@@ -1,4 +1,4 @@
-export type CreatableUserRole = "user" | "admin" | "gerente" | "vendedor" | "assistente" | "convidado";
+export type CreatableUserRole = "user" | "admin" | "gerente" | "vendedor" | "assistente" | "convidado" | "custos";
 
 const VIVIAN_LD_GUEST_CREATOR_EMAIL = "vivian@grupoalfalux.com.br";
 
