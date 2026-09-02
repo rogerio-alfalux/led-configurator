@@ -8,6 +8,7 @@ import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { normalizeRv00064TechnicalConfiguration } from "@/lib/cartTypes";
+import { applyQtyChange } from "@/lib/cctUtils";
 import type { CartItemData, LinkedAccessory, ProfileSegment } from "@/lib/cartTypes";
 import { aggregateProductStructureComponents, productStructureCartFields, type ProductStructureComponent } from "@/lib/productStructure";
 import { redactGuestQuoteSummary } from "@/lib/guestQuoteSummary";
@@ -14173,26 +14174,12 @@ export default function Home() {
           if (pendingCartItem) {
             // Injeta acessórios pendentes, globalQty, globalItemEmPlanta, pavimento e ambiente no item antes de enviar
             const effectiveQty = globalQty > 0 ? globalQty : 1;
-            // Recalcular driverLines com a nova quantidade (driverQty e driverTotalPrice para effectiveQty)
-            const scaledDriverLines = pendingCartItem.driverLines && pendingCartItem.driverLines.length > 0
-              ? pendingCartItem.driverLines.map((dl) => {
-                  const newDrvQty = Math.round((dl.driverQty ?? 1) * effectiveQty);
-                  const newDrvTotal = dl.driverUnitPrice != null ? Math.round(dl.driverUnitPrice * newDrvQty * 100) / 100 : null;
-                  return { ...dl, driverQty: newDrvQty, driverTotalPrice: newDrvTotal };
-                })
-              : pendingCartItem.driverLines;
-            // Recalcular priceWithoutDriver (unitPriceLuminaria × effectiveQty)
-            const scaledPriceWithoutDriver = pendingCartItem.unitPriceLuminaria != null
-              ? Math.round(pendingCartItem.unitPriceLuminaria * effectiveQty * 100) / 100
-              : pendingCartItem.priceWithoutDriver ?? null;
-            // Recalcular totalPrice: se tem driverLines, soma luminária + drivers; senão usa unitPrice × qty
-            let scaledTotalPrice: number | null;
-            if (scaledDriverLines && scaledDriverLines.length > 0 && scaledPriceWithoutDriver != null) {
-              const drvSum = scaledDriverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
-              scaledTotalPrice = Math.round((scaledPriceWithoutDriver + drvSum) * 100) / 100;
-            } else {
-              scaledTotalPrice = pendingCartItem.unitPrice != null ? pendingCartItem.unitPrice * effectiveQty : (pendingCartItem.totalPrice ?? 0);
-            }
+            // O item pendente já pode ter sido criado com globalQty. Recalcular pela
+            // quantidade por luminária evita multiplicar o total de drivers uma segunda vez.
+            const quantityPatch = applyQtyChange(pendingCartItem, effectiveQty);
+            const scaledDriverLines = quantityPatch.driverLines ?? pendingCartItem.driverLines;
+            const scaledPriceWithoutDriver = quantityPatch.priceWithoutDriver ?? pendingCartItem.priceWithoutDriver ?? null;
+            const scaledTotalPrice = quantityPatch.totalPrice ?? pendingCartItem.totalPrice ?? null;
             const baseItem: CartItemData = {
               ...pendingCartItem,
               corPeca: cor,

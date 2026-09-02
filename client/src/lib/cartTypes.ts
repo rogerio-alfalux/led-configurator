@@ -622,6 +622,31 @@ export function parseCartItemData(json: string): CartItemData | null {
         data.driverLines = correctedLines;
       }
     }
+
+    // Luminárias sem profileSegments podem entrar no modal de cor já com a
+    // quantidade total. Em versões anteriores, essa quantidade era aplicada
+    // novamente ao confirmar a cor, produzindo qty² drivers. Corrigir somente
+    // o padrão matematicamente inequívoco e preservar todos os demais valores.
+    if (data.driverLines && data.driverLines.length > 0 &&
+        (!data.profileSegments || data.profileSegments.length === 0) &&
+        data.driverQtyPerUnit != null && data.driverQtyPerUnit > 0) {
+      const itemQty = data.qty ?? 1;
+      const expectedDriverQty = data.driverQtyPerUnit * itemQty;
+      data.driverLines = data.driverLines.map((driverLine) => {
+        if (driverLine.driverQty !== expectedDriverQty * itemQty) return driverLine;
+        const driverUnitPrice = driverLine.driverUnitPrice ??
+          (driverLine.driverTotalPrice != null && driverLine.driverQty > 0
+            ? driverLine.driverTotalPrice / driverLine.driverQty
+            : null);
+        return {
+          ...driverLine,
+          driverQty: expectedDriverQty,
+          driverTotalPrice: driverUnitPrice != null
+            ? Math.round(driverUnitPrice * expectedDriverQty * 100) / 100
+            : driverLine.driverTotalPrice,
+        };
+      });
+    }
     return normalizeRv00064TechnicalConfiguration(data);
   } catch {
     return null;

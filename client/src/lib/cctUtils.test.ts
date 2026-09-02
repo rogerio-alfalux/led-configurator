@@ -47,6 +47,31 @@ describe("applyQtyChange", () => {
     expect(patch.driverLines![0].driverQty).toBe(102); // 17 × 6
   });
 
+  it("não multiplica novamente um driver já totalizado ao confirmar a cor da luminária", () => {
+    const turpinPendingItem: CartItemData = {
+      ...blazeItem,
+      qty: 379,
+      unitPrice: 255,
+      totalPrice: 96645,
+      unitPriceLuminaria: 255,
+      priceWithoutDriver: 96645,
+      driverQtyPerUnit: 1,
+      driverLines: [{
+        driverModel: "LED DRIVER XITANIUM 19W",
+        driverCode: "EQ00346",
+        driverQty: 379,
+        driverUnitPrice: 54,
+        driverTotalPrice: 20466,
+      }],
+    };
+
+    const patch = applyQtyChange(turpinPendingItem, 379);
+
+    expect(patch.driverLines![0].driverQty).toBe(379);
+    expect(patch.driverLines![0].driverTotalPrice).toBe(20466);
+    expect(patch.totalPrice).toBe(117111);
+  });
+
   it("usa fallback (driverQty/oldQty) quando driverQtyPerUnit não está disponível", () => {
     // Item legado sem driverQtyPerUnit
     const legacyItem: CartItemData = {

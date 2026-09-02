@@ -3272,3 +3272,9 @@
 - [x] Aplicar desconto por item cumulativamente ao desconto global em todos os totais
 - [x] Exibir valores finais com desconto no dashboard, preview, PDF e Excel
 - [x] Cobrir descontos por item, globais e cumulativos com regressões financeiras
+
+## Correção de totalização do driver TURPIN
+- [x] Rastrear o fator que multiplica indevidamente o driver do item 14 de 04.0427-26
+- [x] Corrigir a totalização de corpo e driver para todas as luminárias sem afetar quantidades válidas
+- [x] Corrigir exclusivamente o item TURPIN do orçamento 04.0427-26
+- [x] Cobrir a regressão de total de driver por luminária

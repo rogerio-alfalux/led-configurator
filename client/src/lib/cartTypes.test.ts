@@ -88,6 +88,32 @@ describe("parseCartItemData - correção de driverQty para perfis", () => {
     expect(result!.driverLines![0].driverTotalPrice).toBe(250);
   });
 
+  it("corrige somente o padrão inequívoco de driver multiplicado duas vezes em luminária", () => {
+    const item = {
+      sku: "LDP-4359.400.50P",
+      description: "TURPIN P LED 4,5W 36° Ø38 X 400MM 3000K",
+      category: "Decorativas",
+      qty: 379,
+      unitPrice: 255,
+      totalPrice: 96645,
+      priceWithoutDriver: 96645,
+      driverQtyPerUnit: 1,
+      driverLines: [{
+        driverCode: "EQ00346",
+        driverModel: "LED DRIVER XITANIUM 19W",
+        driverQty: 143641,
+        driverUnitPrice: 54,
+        driverTotalPrice: 7756614,
+      }],
+    };
+
+    const result = parseCartItemData(JSON.stringify(item));
+
+    expect(result!.driverLines![0].driverQty).toBe(379);
+    expect(result!.driverLines![0].driverTotalPrice).toBe(20466);
+    expect(result!.totalPrice).toBe(96645);
+  });
+
   it("retorna null para JSON inválido", () => {
     expect(parseCartItemData("invalid json")).toBeNull();
   });
