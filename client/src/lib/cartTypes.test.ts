@@ -458,3 +458,43 @@ describe("normalização técnica do RV00064", () => {
     expect(normalized.totalPrice).toBe(1714.14);
   });
 });
+
+describe("edição manual de drivers em pedido de fábrica", () => {
+  it("preserva o equipamento e a programação escolhidos no item simples durante a reidratação da API", () => {
+    const item = {
+      category: "Luminárias",
+      sku: "TURPIN-17W",
+      description: "TURPIN 17W",
+      qty: 4,
+      driverLines: [{
+        driverCode: "EQ-MANUAL",
+        driverModel: "DRIVER ESCOLHIDO NO PEDIDO",
+        driverQty: 4,
+        driverUnitPrice: null,
+        driverTotalPrice: null,
+        corrente: "350mA",
+        driverManual: true,
+        programacaoManual: true,
+      }],
+    } as any;
+    const productSkuMap = new Map([[
+      "TURPIN-17W",
+      {
+        driver220: { code: "EQ-API", model: "DRIVER ORIGINAL DA API" },
+        driverQtd220: 1,
+        ledModuleEq: null,
+        ledModuleQtd: null,
+      },
+    ]]);
+
+    const migrated = migrateItemDrivers(item, new Map(), new Map(), productSkuMap, new Map([["EQ-API", "500mA"]]));
+
+    expect(migrated.driverLines).toEqual([expect.objectContaining({
+      driverCode: "EQ-MANUAL",
+      driverModel: "DRIVER ESCOLHIDO NO PEDIDO",
+      corrente: "350mA",
+      driverManual: true,
+      programacaoManual: true,
+    })]);
+  });
+});

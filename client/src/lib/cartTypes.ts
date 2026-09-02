@@ -28,6 +28,8 @@ export interface ProfileSegment {
   corrente?: string | null;
   /** Mantém a programação digitada na ficha sem substituí-la pela atualização da API. */
   programacaoManual?: boolean;
+  /** Mantém a seleção de driver feita na ficha sem substituí-la pelo cadastro da API. */
+  driverManual?: boolean;
   /** Código EQ do módulo LED/Stripflex/Stripline (ex: "EQ00123"). null se não disponível. */
   ledModuleCode?: string | null;
 }
@@ -389,6 +391,8 @@ export interface DriverLine {
   corrente?: string | null;
   /** Mantém a programação digitada na ficha sem substituí-la pela atualização da API. */
   programacaoManual?: boolean;
+  /** Mantém a seleção de driver feita na ficha sem substituí-la pelo cadastro da API. */
+  driverManual?: boolean;
 }
 
 /**
@@ -1134,7 +1138,7 @@ export function migrateItemDrivers(
         (segmentSkuBase ? productSkuMap.get(segmentSkuBase) : undefined) ??
         (itemSkuBase ? productSkuMap.get(itemSkuBase) : undefined) ??
         (powerLabel ? productSkuMap.get(`${segment.sku}|${powerLabel}`.toUpperCase()) : undefined);
-      if (!apiProduct) return segment;
+      if (!apiProduct || segment.driverManual) return segment;
       const driverSelection = controlType === "dimDali"
         ? { driver: apiProduct.driverDimDali ?? null, quantity: apiProduct.driverQtdDimDali ?? 1 }
         : controlType === "dim110v"
@@ -1160,7 +1164,9 @@ export function migrateItemDrivers(
     });
     // Limpar linhas anteriores força a Migração 1 abaixo a consolidar apenas
     // drivers e correntes que acabaram de ser lidos da variante API exata.
-    if (resolvedFromApi) item = { ...item, profileSegments, driverLines: undefined };
+    if (resolvedFromApi || profileSegments.some(segment => segment.driverManual)) {
+      item = { ...item, profileSegments, driverLines: undefined };
+    }
   }
 
   // ── Migração 4: Corrigir ledModuleCode nos profileSegments ──
@@ -1241,7 +1247,8 @@ export function migrateItemDrivers(
       // Recalcular drivers totais a partir da quantidade por luminária retornada
       // pela API. Isso corrige itens antigos em que driverQty abrangia apenas um
       // pavimento ou uma fração do item.
-      if (item.driverLines && item.driverLines.length > 0) {
+      const hasManuallyEditedDriver = item.driverLines?.some(line => line.driverManual || line.programacaoManual) ?? false;
+      if (item.driverLines && item.driverLines.length > 0 && !hasManuallyEditedDriver) {
         const itemQty = item.qty ?? 1;
         const contextText = [item.description, item.orderSummary, item.quoteSummary, item.drivers].filter(Boolean).join(" ");
         const isBivolt = /bivolt/i.test(contextText);

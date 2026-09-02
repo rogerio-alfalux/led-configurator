@@ -3278,3 +3278,9 @@
 - [x] Corrigir a totalização de corpo e driver para todas as luminárias sem afetar quantidades válidas
 - [x] Corrigir exclusivamente o item TURPIN do orçamento 04.0427-26
 - [x] Cobrir a regressão de total de driver por luminária
+
+## Edição técnica de pedido de fábrica
+- [x] Rastrear a persistência de equipamento e programação de driver no item 2 de 01.0511-26
+- [x] Garantir a inclusão efetiva de qualquer equipamento selecionado na edição do pedido
+- [x] Permitir alterar e persistir a programação de corrente de qualquer driver
+- [x] Cobrir a persistência dos equipamentos e da corrente por regressão

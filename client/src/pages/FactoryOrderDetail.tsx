@@ -379,7 +379,7 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
   const handleSegmentDriverChange = (segIdx: number, descricao: string, codigo: string) => {
     if (!parsed.profileSegments) return;
     const newSegs = parsed.profileSegments.map((s, i) =>
-      i === segIdx ? { ...s, driverModel: descricao, driverCode: codigo } : s
+      i === segIdx ? { ...s, driverModel: descricao, driverCode: codigo, driverManual: true } : s
     );
     update({ profileSegments: newSegs });
   };
@@ -388,7 +388,7 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
   const handleDriverLineChange = (lineIdx: number, descricao: string, codigo: string) => {
     if (!parsed.driverLines) return;
     const newLines = parsed.driverLines.map((dl, i) =>
-      i === lineIdx ? { ...dl, driverModel: descricao, driverCode: codigo } : dl
+      i === lineIdx ? { ...dl, driverModel: descricao, driverCode: codigo, driverManual: true } : dl
     );
     update({ driverLines: newLines });
   };
@@ -867,7 +867,19 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                       onValueChange={(desc, code) => {
                         const prefix = driverSimpleQty > 1 ? `${driverSimpleQty}x ` : "";
                         const newDrivers = desc ? `${prefix}${desc}${code ? ` (${code})` : ""}` : "";
-                        update({ drivers: newDrivers });
+                        const totalQty = driverSimpleQty * itemQty;
+                        update({
+                          drivers: newDrivers,
+                          driverLines: desc ? [{
+                            driverCode: code,
+                            driverModel: desc,
+                            driverQty: totalQty,
+                            driverUnitPrice: null,
+                            driverTotalPrice: null,
+                            driverManual: true,
+                          }] : [],
+                          driverQtyPerUnit: driverSimpleQty,
+                        });
                       }}
                       onQtyChange={qty => {
                         const prefix = qty > 1 ? `${qty}x ` : "";
