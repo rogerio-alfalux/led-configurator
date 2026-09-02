@@ -3284,3 +3284,9 @@
 - [x] Garantir a inclusão efetiva de qualquer equipamento selecionado na edição do pedido
 - [x] Permitir alterar e persistir a programação de corrente de qualquer driver
 - [x] Cobrir a persistência dos equipamentos e da corrente por regressão
+
+## Painel financeiro do orçamento para Departamento de Custos
+- [x] Mapear o gate que oculta o dashboard financeiro de orçamento para o perfil de custos
+- [x] Liberar sua visualização para custos ausentes em luminárias especiais
+- [x] Preservar o bloqueio do dashboard geral e de toda edição não autorizada
+- [x] Cobrir a visibilidade e as restrições por regressão
