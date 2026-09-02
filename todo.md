@@ -3259,3 +3259,9 @@
 - [x] Permitir edição somente do custo ausente em itens especiais
 - [x] Bloquear criação, exclusão, aprovação, edição comercial e demais alterações
 - [x] Cobrir a política de acesso do Departamento de Custos por regressão
+
+## Duplicação ampla de orçamentos por equipe comercial
+- [x] Permitir que qualquer assistente ou vendedor duplique qualquer orçamento
+- [x] Garantir que a cópia tenha edição independente de assistente, vendedor e dados comerciais
+- [x] Preservar integralmente o orçamento original, seus itens e seu histórico
+- [x] Cobrir a duplicação entre equipes e a imutabilidade do original por regressão

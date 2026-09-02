@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { commercialQuoteAccess, shouldBindCommercialQuoteTeam } from "@shared/quoteOwnership";
+import { canDuplicateAnyCommercialQuote, canEditOwnDuplicatedQuote, commercialQuoteAccess, shouldBindCommercialQuoteTeam } from "@shared/quoteOwnership";
 
 describe("commercialQuoteAccess", () => {
   const quote = { seller1Email: "vendedor@grupoalfalux.com.br", assistantEmail: "camille@grupoalfalux.com.br" };
@@ -23,5 +23,14 @@ describe("commercialQuoteAccess", () => {
     expect(shouldBindCommercialQuoteTeam("vendedor", true)).toBe(false);
     expect(shouldBindCommercialQuoteTeam("assistente", false)).toBe(true);
     expect(shouldBindCommercialQuoteTeam("vendedor", false)).toBe(true);
+  });
+
+  it("libera a duplicação ampla para a equipe comercial, preservando a edição independente somente da cópia", () => {
+    expect(canDuplicateAnyCommercialQuote("vendedor")).toBe(true);
+    expect(canDuplicateAnyCommercialQuote("assistente")).toBe(true);
+    expect(canDuplicateAnyCommercialQuote("user")).toBe(false);
+    expect(canEditOwnDuplicatedQuote(7, { createdByUserId: 7, duplicatedFromQuoteId: 42 })).toBe(true);
+    expect(canEditOwnDuplicatedQuote(7, { createdByUserId: 7 })).toBe(false);
+    expect(canEditOwnDuplicatedQuote(7, { createdByUserId: 8, duplicatedFromQuoteId: 42 })).toBe(false);
   });
 });

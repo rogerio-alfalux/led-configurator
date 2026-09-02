@@ -219,7 +219,9 @@ export const quotes = mysqlTable("quotes", {
 	isProspecting: boolean().default(false).notNull(),
 	/** Marca manual definida por administrador; segue a mesma regra comercial de duplicidade. */
 	isManuallyDuplicate: boolean().default(false).notNull(),
-},
+	/** Origem da cópia criada pela ação Duplicar; protege o original e libera edição independente ao autor da cópia. */
+	duplicatedFromQuoteId: int(),
+	},
 (table) => [
 	index("quotes_quoteNumber_unique").on(table.quoteNumber),
 ]);

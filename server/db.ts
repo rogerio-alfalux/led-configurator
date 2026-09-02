@@ -2342,6 +2342,7 @@ export async function duplicateQuote(
     freteState: q.freteState,
     freteCity: q.freteCity,
     freteIncluded: q.freteIncluded,
+    duplicatedFromQuoteId: sourceQuoteId,
   });
   const newQuoteId = (qResult as unknown as { insertId: number }[])[0]?.insertId ?? 0;
 

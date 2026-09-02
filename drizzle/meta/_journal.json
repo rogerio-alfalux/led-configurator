@@ -316,6 +316,13 @@
       "when": 1788358481437,
       "tag": "0044_orange_sentinel",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "5",
+      "when": 1788363890488,
+      "tag": "0045_left_mister_sinister",
+      "breakpoints": true
     }
   ]
 }

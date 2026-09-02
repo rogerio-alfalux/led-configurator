@@ -81,7 +81,7 @@ import { getDb } from "./db";
 import { sellers, assistants, quoteItems, quotes } from "../drizzle/schema";
 import { eq, inArray, and } from "drizzle-orm";
 import { DISCOUNT_EDITORS_EMAILS } from "../shared/const";
-import { commercialQuoteAccess, shouldBindCommercialQuoteTeam } from "../shared/quoteOwnership";
+import { canDuplicateAnyCommercialQuote, canEditOwnDuplicatedQuote, commercialQuoteAccess, shouldBindCommercialQuoteTeam } from "../shared/quoteOwnership";
 import { resolveOriginalCommercialTotals } from "../shared/nonCommercialQuoteFinancial";
 import { canAccessCommercialQuotes } from "../shared/guestCommercialAccess";
 import { getSampleLinkValidationError } from "../shared/sampleLinkValidation";
@@ -130,6 +130,8 @@ const nonCostDepartmentProcedure = protectedProcedure.use(({ ctx, next }) => {
 });
 
 type QuoteTeamFields = {
+  createdByUserId?: number | null;
+  duplicatedFromQuoteId?: number | null;
   seller1Id?: number | null;
   seller1Name?: string | null;
   seller2Id?: number | null;
@@ -158,6 +160,10 @@ async function getIdentityBoundTeam(
     PERMISSIONS.GERENCIAR_ORCAMENTOS,
   );
   if (!shouldBindCommercialQuoteTeam(user.role, canManageQuotes)) {
+    return {};
+  }
+
+  if (canEditOwnDuplicatedQuote(user.id, existing ?? {})) {
     return {};
   }
 
@@ -228,7 +234,7 @@ async function getIdentityBoundTeam(
  */
 async function canEditQuote(
   userEmail: string | null | undefined,
-  quote: { seller1Id?: number | null; seller2Id?: number | null; assistantId?: number | null; createdByUserId?: number | null },
+  quote: { seller1Id?: number | null; seller2Id?: number | null; assistantId?: number | null; createdByUserId?: number | null; duplicatedFromQuoteId?: number | null },
   userRole?: string | null,
   userId?: number | null
 ): Promise<boolean> {
@@ -237,6 +243,7 @@ async function canEditQuote(
   if (userRole === "admin") return true;
   // Usuários com permissão granular de gerenciamento têm acesso total
   if (userId && await hasUserPermission(userId, userRole, PERMISSIONS.GERENCIAR_ORCAMENTOS)) return true;
+  if (canEditOwnDuplicatedQuote(userId, quote)) return true;
   if (!userEmail) return false;
   const email = userEmail.toLowerCase().trim();
   const db = await getDb();
@@ -1372,9 +1379,9 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const source = await getQuoteById(input.id);
         if (!source) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado." });
-        const canDuplicate = await canEditQuote(ctx.user.email, source.quote, ctx.user.role, ctx.user.id);
-        if (!canDuplicate) throw new TRPCError({ code: "FORBIDDEN", message: "Você não pode duplicar um orçamento de outro vendedor ou assistente." });
-        const identityTeam = await getIdentityBoundTeam(ctx.user);
+        const canDuplicate = canDuplicateAnyCommercialQuote(ctx.user.role)
+          || await canEditQuote(ctx.user.email, source.quote, ctx.user.role, ctx.user.id);
+        if (!canDuplicate) throw new TRPCError({ code: "FORBIDDEN", message: "Você não possui permissão para duplicar este orçamento." });
         // Validar unicidade do número personalizado antes de duplicar
         if (input.newQuoteNumber) {
           const dup = await checkDuplicateQuoteNumber(input.newQuoteNumber);
@@ -1393,9 +1400,9 @@ export const appRouter = router({
           input.newClientContact,
           input.newClientPhone,
           input.newClientEmail,
-          identityTeam.seller1Id ?? input.newSellerId,
-          identityTeam.assistantId ?? input.newAssistantId,
-          identityTeam.assistantName ?? input.newAssistantName,
+          input.newSellerId,
+          input.newAssistantId,
+          input.newAssistantName,
         );
         await insertAuditLog({
           userId: ctx.user.id,
@@ -1404,7 +1411,7 @@ export const appRouter = router({
           action: "quote_duplicated",
           entityType: "quote",
           entityId: input.id,
-          details: JSON.stringify({ newQuoteNumber: result.quoteNumber, identityBound: Object.keys(identityTeam).length > 0 }),
+          details: JSON.stringify({ newQuoteNumber: result.quoteNumber, duplicatedFromQuoteId: input.id }),
         });
         return result;
       }),

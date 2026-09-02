@@ -1032,8 +1032,6 @@ export default function QuoteDetail() {
     () => editAssistants.find((assistant) => assistant.email?.toLowerCase() === quoteUserEmail),
     [editAssistants, quoteUserEmail],
   );
-  const visibleEditSellers = isSellerEditing ? (ownEditSeller ? [ownEditSeller] : []) : editSellers;
-  const visibleEditAssistants = isAssistantEditing ? (ownEditAssistant ? [ownEditAssistant] : []) : editAssistants;
 
   // IDs do orçamento pendentes de sincronização (populados quando o Dialog abre)
   // Necessário porque sellersQuery/assistantsQuery podem terminar DEPOIS do Dialog abrir
@@ -1295,6 +1293,10 @@ export default function QuoteDetail() {
   }, [id, reorderItemsMutation]);
 
   const { data, isLoading, error } = trpc.quotes.getById.useQuery({ id: Number(id) });
+  const isOwnDuplicatedQuote = (data?.quote as any)?.duplicatedFromQuoteId != null
+    && (data?.quote as any)?.createdByUserId === (user as any)?.id;
+  const visibleEditSellers = isSellerEditing && !isOwnDuplicatedQuote ? (ownEditSeller ? [ownEditSeller] : []) : editSellers;
+  const visibleEditAssistants = isAssistantEditing && !isOwnDuplicatedQuote ? (ownEditAssistant ? [ownEditAssistant] : []) : editAssistants;
   const ldRequestsQuery = trpc.ldRequests.adminList.useQuery(undefined, {
     enabled: user?.role === "admin",
     staleTime: 0,
@@ -3158,14 +3160,14 @@ export default function QuoteDetail() {
                 {/* Vendedor (opcional — para mudar o vendedor na duplicação) */}
                 <div className="space-y-1.5">
                   <Label>Vendedor 1 <span className="text-muted-foreground font-normal">(opcional — mantém o original se não alterar)</span></Label>
-                  <Select value={duplicateSellerId || "_original"} disabled={isSellerEditing || isAssistantEditing} onValueChange={v => {
+                  <Select value={duplicateSellerId || "_original"} onValueChange={v => {
                     setDuplicateSellerId(v === "_original" ? "" : v);
                     setDuplicateQuoteNumber(""); // limpa número manual ao trocar vendedor
                   }}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="_original">Manter vendedor original ({quote.seller1Name ?? "—"})</SelectItem>
-                      {visibleEditSellers.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                      {editSellers.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -3173,14 +3175,14 @@ export default function QuoteDetail() {
                 {/* Assistente (opcional) */}
                 <div className="space-y-1.5">
                   <Label>Assistente <span className="text-muted-foreground font-normal">(opcional — limpa se não selecionar)</span></Label>
-                  <Select value={duplicateAssistantId || "_none"} disabled={isSellerEditing || isAssistantEditing} onValueChange={v => {
+                  <Select value={duplicateAssistantId || "_none"} onValueChange={v => {
                     setDuplicateAssistantId(v === "_none" ? "" : v);
                   }}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="_none">Sem assistente</SelectItem>
                       <SelectItem value="VENDEDOR">VENDEDOR</SelectItem>
-                      {visibleEditAssistants.map(a => <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>)}
+                      {editAssistants.map(a => <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>

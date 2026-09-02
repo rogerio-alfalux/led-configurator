@@ -32,3 +32,16 @@ export function shouldBindCommercialQuoteTeam(
 ): boolean {
   return (role === "vendedor" || role === "assistente") && !canManageQuotes;
 }
+
+/** Vendedores e assistentes podem criar uma cópia sem receber acesso de edição ao original. */
+export function canDuplicateAnyCommercialQuote(role: string | null | undefined): boolean {
+  return role === "vendedor" || role === "assistente";
+}
+
+/** A cópia pertence comercialmente ao usuário que a duplicou, mesmo com outra equipe atribuída. */
+export function canEditOwnDuplicatedQuote(
+  userId: number | null | undefined,
+  quote: { createdByUserId?: number | null; duplicatedFromQuoteId?: number | null },
+): boolean {
+  return Boolean(userId && quote.createdByUserId === userId && quote.duplicatedFromQuoteId != null);
+}
