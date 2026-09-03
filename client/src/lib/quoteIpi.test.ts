@@ -75,6 +75,11 @@ describe("destaque opcional de IPI", () => {
     expect(worksheet.getCell("M18").value).toBe("PREÇO\nUNITÁRIO");
     expect(worksheet.getCell("N18").value).toBe("PREÇO\nTOTAL");
     expect(worksheet.getCell("O18").value).toBeNull();
+    expect(worksheet.getColumn("D").width).toBe(18);
+    expect(worksheet.getColumn("F").width).toBe(14);
+    expect(worksheet.getColumn("K").width).toBe(14);
+    expect(worksheet.getCell("F18").font?.size).toBe(11);
+    expect(worksheet.getCell("K18").font?.size).toBe(11);
     expect(worksheet.getCell("M19").value).toBeCloseTo(100, 8);
     expect(worksheet.getCell("N19").value).toBeCloseTo(200, 8);
   });
@@ -84,6 +89,14 @@ describe("destaque opcional de IPI", () => {
     expect(worksheet.getCell("M18").value).toBe("PREÇO\nUNITÁRIO");
     expect(worksheet.getCell("N18").value).toBe("C/ IPI\n(9,75%)");
     expect(worksheet.getCell("O18").value).toBe("PREÇO\nTOTAL");
+    expect(getQuotePreviewColumnWidths(true)[1]).toBe(9);
+    expect(worksheet.getColumn("D").width).toBe(20);
+    expect(worksheet.getColumn("F").width).toBe(13);
+    expect(worksheet.getColumn("K").width).toBe(13);
+    expect(worksheet.getCell("F18").font?.size).toBe(9);
+    expect(worksheet.getCell("K18").font?.size).toBe(9);
+    expect(worksheet.getCell("F18").alignment?.shrinkToFit).toBe(true);
+    expect(worksheet.getCell("K18").alignment?.shrinkToFit).toBe(true);
 
     expect(worksheet.getCell("M19").value).toBeCloseTo(90.25, 8);
     expect(worksheet.getCell("N19").value).toBeCloseTo(100, 8);

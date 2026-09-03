@@ -260,6 +260,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
             [data-quote-pdf-page] { box-sizing: border-box !important; width: 793px !important; min-width: 0 !important; max-width: none !important; margin: 0 !important; padding: 10px 15px !important; box-shadow: none !important; font-size: 9px !important; }
             [data-quote-pdf-page] table { width: 100% !important; font-size: 8px !important; }
             [data-quote-pdf-page] th, [data-quote-pdf-page] td { padding: 2px 3px !important; font-size: 8px !important; }
+            [data-quote-pdf-page] .quote-items-table[data-ipi-columns="true"] th.quote-ipi-compact-header { font-size: 7px !important; line-height: 1.1 !important; padding: 2px 1px !important; }
             [data-quote-pdf-page] img { max-width: 60px !important; max-height: 60px !important; }
             [data-quote-pdf-page] img[alt="ALFALUX"] { max-width: 180px !important; max-height: 55px !important; width: auto !important; height: auto !important; }
           `;
@@ -628,6 +629,14 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
     padding: "4px 1px",
     overflowWrap: "anywhere",
   };
+  const ipiCompactHeaderStyle: React.CSSProperties = {
+    ...compactHeaderStyle,
+    fontSize: 7.5,
+    lineHeight: 1.1,
+    padding: "3px 1px",
+  };
+  const productPhotoSize = showIpi ? 60 : 56;
+  const accessoryPhotoSize = showIpi ? 38 : 36;
   const tdStyle: React.CSSProperties = {
     fontSize: 10, textAlign: "center", verticalAlign: "middle",
     padding: "4px 6px", border: "1px solid #aaa", whiteSpace: "pre-wrap",
@@ -863,16 +872,23 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                 overflow-wrap: normal !important;
                 font-size: 10px !important;
               }
+              .quote-items-table[data-ipi-columns="true"] th.quote-ipi-compact-header {
+                font-size: 7.5px !important;
+                line-height: 1.1 !important;
+                padding: 3px 1px !important;
+              }
             `}</style>
-            <table className="quote-items-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, tableLayout: "fixed" }}>
+            <table className="quote-items-table" data-ipi-columns={showIpi ? "true" : undefined} style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, tableLayout: "fixed" }}>
               <colgroup>
                 {previewColumnWidths.map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
               </colgroup>
               <thead>
                 <tr>
-                  {["ITEM EM\nPLANTA", "FOTO", "MODELO ALFALUX", "COMPRIMENTO\n(mm)", "POTÊNCIA\n(W)", "DIM", "TENSÃO\n(V)", "COR", "TEMPERATURA\nDE COR (K)", "QTD", "PREÇO\nUNITÁRIO", ...(showIpi ? ["C/ IPI\n(9,75%)"] : []), "PREÇO\nTOTAL"].map((h) => (
-                    <th key={h} style={h === "COMPRIMENTO\n(mm)" || h === "POTÊNCIA\n(W)" ? compactHeaderStyle : thStyle}>{h}</th>
-                  ))}
+                  {["ITEM EM\nPLANTA", "FOTO", "MODELO ALFALUX", "COMPRIMENTO\n(mm)", "POTÊNCIA\n(W)", "DIM", "TENSÃO\n(V)", "COR", "TEMPERATURA\nDE COR (K)", "QTD", "PREÇO\nUNITÁRIO", ...(showIpi ? ["C/ IPI\n(9,75%)"] : []), "PREÇO\nTOTAL"].map((h) => {
+                    const useIpiCompactHeader = showIpi && (h === "COMPRIMENTO\n(mm)" || h === "TEMPERATURA\nDE COR (K)");
+                    const useBaseCompactHeader = h === "COMPRIMENTO\n(mm)" || h === "POTÊNCIA\n(W)";
+                    return <th key={h} className={useIpiCompactHeader ? "quote-ipi-compact-header" : undefined} style={useIpiCompactHeader ? ipiCompactHeaderStyle : useBaseCompactHeader ? compactHeaderStyle : thStyle}>{h}</th>;
+                  })}
                 </tr>
               </thead>
               <tbody>
@@ -925,9 +941,9 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                       ) : item.driverLines && item.driverLines.length > 0 ? (
                         <tr>
                           <td style={{ ...tdStyle, fontWeight: "bold", fontSize: 18 }}>{item.itemEmPlanta || ""}</td>
-                          <td style={{ ...tdStyle, minHeight: 68 }}>
+                          <td style={{ ...tdStyle, minHeight: 68, textAlign: "center" }}>
                             {getProxiedPhotoSrc(freshPhotoMap?.get(item.sku ?? "") ?? item.photoUrl) ? (
-                              <img src={getProxiedPhotoSrc(freshPhotoMap?.get(item.sku ?? "") ?? item.photoUrl)!} alt={item.description} style={{ display: "block", width: 56, height: 56, maxWidth: "100%", margin: "0 auto", objectFit: "contain" }}
+                              <img src={getProxiedPhotoSrc(freshPhotoMap?.get(item.sku ?? "") ?? item.photoUrl)!} alt={item.description} style={{ display: "block", width: productPhotoSize, height: productPhotoSize, maxWidth: "100%", margin: "0 auto", objectFit: "contain" }}
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                             ) : (
                               <span style={{ color: "#aaa", fontSize: 10 }}>—</span>
@@ -1007,9 +1023,9 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                         <tr>
                           <td style={{ ...tdStyle, fontWeight: "bold", fontSize: 18 }}>{item.itemEmPlanta || ""}</td>
                           {/* Coluna FOTO — apenas a imagem do produto, sem rabicho */}
-                          <td style={{ ...tdStyle, minHeight: 68 }}>
+                          <td style={{ ...tdStyle, minHeight: 68, textAlign: "center" }}>
                             {getProxiedPhotoSrc(freshPhotoMap?.get(item.sku ?? "") ?? item.photoUrl) ? (
-                              <img src={getProxiedPhotoSrc(freshPhotoMap?.get(item.sku ?? "") ?? item.photoUrl)!} alt={item.description} style={{ display: "block", width: 56, height: 56, maxWidth: "100%", margin: "0 auto", objectFit: "contain" }}
+                              <img src={getProxiedPhotoSrc(freshPhotoMap?.get(item.sku ?? "") ?? item.photoUrl)!} alt={item.description} style={{ display: "block", width: productPhotoSize, height: productPhotoSize, maxWidth: "100%", margin: "0 auto", objectFit: "contain" }}
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                             ) : (
                               <span style={{ color: "#aaa", fontSize: 10 }}>—</span>
@@ -1057,9 +1073,9 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                       {nonRabichoAcc.map((acc, accIdx) => (
                         <tr key={`acc-${idx}-${accIdx}`} style={{ background: "#E0F7FA" }}>
                           <td style={{ ...tdStyle, fontSize: 9 }}></td>
-                          <td style={{ ...tdStyle, fontSize: 9 }}>
+                          <td style={{ ...tdStyle, fontSize: 9, textAlign: "center" }}>
                             {getProxiedPhotoSrc(acc.fotoUrl) ? (
-                              <img src={getProxiedPhotoSrc(acc.fotoUrl)!} alt={acc.descricao} style={{ display: "block", width: 36, height: 36, maxWidth: "100%", margin: "0 auto", objectFit: "contain" }}
+                              <img src={getProxiedPhotoSrc(acc.fotoUrl)!} alt={acc.descricao} style={{ display: "block", width: accessoryPhotoSize, height: accessoryPhotoSize, maxWidth: "100%", margin: "0 auto", objectFit: "contain" }}
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                             ) : null}
                           </td>

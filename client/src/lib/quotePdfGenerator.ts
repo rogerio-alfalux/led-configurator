@@ -474,13 +474,13 @@ async function _generatePdfBlob(
     }
   }
 
-  // Colwidths: soma = 180mm. O modo padrão permanece inalterado.
+  // No modo IPI, a tabela usa toda a área útil de 190 mm; o modo padrão permanece inalterado.
   const colWidths = showIpi
-    ? [8, 13, 33, 10, 7, 9, 8, 10, 10, 7, 18, 18, 29]
+    ? [8, 16, 34, 11, 7, 9, 8, 10, 11, 7, 18, 18, 33]
     : [11, 17, 44, 13, 10, 12, 11, 14, 14, 9, 25];
   const tableHeaders = [
     "PLANTA", "FOTO", "MODELO ALFALUX",
-    "COMP.", "POT.", "DIM", "TENSÃO", "COR", "TEMP. COR",
+    showIpi ? "COMP.\n(mm)" : "COMP.", "POT.", "DIM", "TENSÃO", "COR", showIpi ? "TEMP.\nCOR" : "TEMP. COR",
     "QTD",
     ...(showIpi ? ["PREÇO UNITÁRIO", "C/ IPI (9,75%)"] : []),
     "PREÇO TOTAL",
@@ -503,7 +503,7 @@ async function _generatePdfBlob(
       fillColor: BLUE_RGB,
       textColor: WHITE_RGB,
       fontStyle: "bold",
-      fontSize: 7.5,
+      fontSize: showIpi ? 7 : 7.5,
       halign: "center",
       valign: "middle",
       lineWidth: 0.3,
@@ -544,9 +544,9 @@ async function _generatePdfBlob(
       if (meta.photoUrl && photoCache.has(meta.photoUrl)) {
         const imgData = photoCache.get(meta.photoUrl)!;
         const pad = 1;
-        const cx = data.cell.x + pad;
-        const cy = data.cell.y + pad;
         const size = Math.min(data.cell.width - pad * 2, data.cell.height - pad * 2);
+        const cx = data.cell.x + (data.cell.width - size) / 2;
+        const cy = data.cell.y + (data.cell.height - size) / 2;
         try { doc.addImage(imgData, "PNG", cx, cy, size, size); } catch { /* ignorar */ }
       }
     },

@@ -257,6 +257,7 @@ async function _generateExcelBuffer(
   const visibleTableCols = showIpi
     ? ["C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O"]
     : ["C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N"];
+  const photoColumnWidth = showIpi ? 20 : 18;
   // Ordenar itens por pavimento (floorId normalizado), mantendo a ordem original dentro de cada grupo
   // Isso garante que itens do mesmo pavimento ficam consecutivos no Excel
   const normalizeFloorKey = (s: string | undefined) => (s ?? "").trim().toLowerCase();
@@ -311,14 +312,14 @@ async function _generateExcelBuffer(
     { key: "A", width: 2.1  },
     { key: "B", width: 2.3  },
     { key: "C", width: 12   },  // ITEM EM PLANTA
-    { key: "D", width: 18   },  // FOTO — quadrado
-    { key: "E", width: 35   },  // MODELO ALFALUX
-    { key: "F", width: 14   },  // COMPRIMENTO (mm)
+    { key: "D", width: photoColumnWidth }, // FOTO — ampliada somente com IPI
+    { key: "E", width: showIpi ? 34 : 35 }, // MODELO ALFALUX
+    { key: "F", width: showIpi ? 13 : 14 }, // COMPRIMENTO (mm)
     { key: "G", width: 12   },  // POTÊNCIA (W)
     { key: "H", width: 14   },  // DIM
     { key: "I", width: 10   },  // TENSÃO (V)
     { key: "J", width: 14   },  // COR
-    { key: "K", width: 14   },  // TEMPERATURA DE COR (K)
+    { key: "K", width: showIpi ? 13 : 14 }, // TEMPERATURA DE COR (K)
     { key: "L", width: 7    },  // QTD
     { key: "M", width: 13   },  // PREÇO UNITÁRIO
     ...(showIpi
@@ -528,9 +529,10 @@ async function _generateExcelBuffer(
   for (const h of tableHeaders) {
     const cell = ws.getCell(`${h.col}18`);
     cell.value = h.label;
-    cell.font = { name: "Calibri", size: 11, bold: true, color: { argb: WHITE_TXT } };
+    const isIpiCompactHeader = showIpi && (h.col === "F" || h.col === "K");
+    cell.font = { name: "Calibri", size: isIpiCompactHeader ? 9 : 11, bold: true, color: { argb: WHITE_TXT } };
     cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BLUE } };
-    cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true, shrinkToFit: isIpiCompactHeader };
     mediumBorder(cell);
   }
   // ── Linhas de dados (a partir da linha 19) ───────────────────────────────────────
@@ -792,9 +794,10 @@ async function _generateExcelBuffer(
           });
           URL.revokeObjectURL(blobUrl);
 
-          // Célula D: largura 18 chars × 7px = 126px, altura 90pt × 1.33 = ~120px
+          // Célula D: largura condicional, altura 90pt × 1.33 = ~120px.
+          // No modo IPI a foto recebe uma coluna levemente maior.
           // Usamos pixels reais para posicionamento
-          const cellWpx = 18 * 7;   // ~126px
+          const cellWpx = photoColumnWidth * 7;
           const cellHpx = 90 * 1.33; // ~120px
           const PAD = 8;
           const maxW = cellWpx - PAD * 2;  // ~110px

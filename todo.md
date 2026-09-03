@@ -3304,3 +3304,9 @@
 - [x] Inserir a coluna Preço Unitário com redução efetiva de 9,75% (90,25% do original) e a coluna C/ IPI (9,75%) com o preço original
 - [x] Aplicar o cálculo e as colunas de IPI a produtos, drivers, acessórios e demais subitens comerciais
 - [x] Cobrir a escolha de IPI, as fórmulas e os documentos por regressão
+
+## Ajuste visual: documentos com IPI
+- [x] Ampliar levemente a coluna de foto somente no modo com IPI e manter a imagem centralizada na célula
+- [x] Compactar os cabeçalhos Comprimento (mm) e Temperatura de Cor somente no modo com IPI, evitando quebras bruscas
+- [x] Preservar as dimensões, tipografias e imagens do modo padrão sem IPI
+- [x] Validar visualmente Preview, PDF e Excel em A4 retrato e cobrir as larguras condicionais por regressão
