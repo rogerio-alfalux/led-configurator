@@ -3290,3 +3290,17 @@
 - [x] Liberar sua visualização para custos ausentes em luminárias especiais
 - [x] Preservar o bloqueio do dashboard geral e de toda edição não autorizada
 - [x] Cobrir a visibilidade e as restrições por regressão
+
+## Frete interestadual e total comercial
+- [x] Bloquear a opção Grátis (SP) quando o estado de entrega não for São Paulo
+- [x] Aplicar A calcular ao selecionar estado de entrega fora de São Paulo
+- [x] Exibir Frete sob consulta quando Frete Cotado não estiver informado
+- [x] Remover a menção com FRETE do total sem valor de frete cotado
+- [x] Corrigir exclusivamente o orçamento 33.0109-26 e cobrir as regras por regressão
+
+## Exportação opcional com destaque de IPI
+- [x] Perguntar antes de baixar PDF ou Excel se o usuário deseja mostrar IPI, mantendo a opção desativada por padrão
+- [x] Preservar integralmente o layout atual quando a opção de IPI estiver desativada
+- [x] Inserir a coluna Preço Unitário com redução efetiva de 9,75% (90,25% do original) e a coluna C/ IPI (9,75%) com o preço original
+- [x] Aplicar o cálculo e as colunas de IPI a produtos, drivers, acessórios e demais subitens comerciais
+- [x] Cobrir a escolha de IPI, as fórmulas e os documentos por regressão

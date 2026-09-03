@@ -15,8 +15,10 @@ import type { CartItemData, QuoteFormData } from "@/lib/cartTypes";
 import { formatBRL } from "@/lib/cartTypes";
 import { getStateInfo } from "@/lib/difalTable";
 import { toBrasiliaDate } from "@/lib/dateUtils";
-import { QUOTE_PREVIEW_COLUMN_COUNT, QUOTE_PREVIEW_COLUMN_WIDTHS, QUOTE_PREVIEW_SUBITEM_BLANK_COLUMN_COUNT } from "@/lib/quotePreviewLayout";
+import { getQuotePreviewColumnCount, getQuotePreviewColumnWidths, QUOTE_PREVIEW_SUBITEM_BLANK_COLUMN_COUNT } from "@/lib/quotePreviewLayout";
 import { appendQuoteGeneralObservation } from "@/lib/quoteDocumentObservation";
+import { getUnitPriceWithoutIpi } from "@/lib/quoteIpi";
+import { QuoteExportOptionsDialog } from "@/components/QuoteExportOptionsDialog";
 
 // ── Helpers (mesmos do gerador Excel) ────────────────────────────────────────
 
@@ -61,13 +63,17 @@ function extractDim(description: string): string {
 }
 function buildFreteText(formData: QuoteFormData, totalBase: number): string {
   const { freteType, freteIsento, freteLocalidade, freteCity, freteState } = formData;
+  const isOutsideSaoPaulo = Boolean(freteState) && freteState !== "SP";
   // Montar sufixo de localidade quando cidade/estado estiver preenchido
   const localSuffix = freteCity && freteState
     ? ` — ${freteCity}/${freteState}`
     : freteState && freteState !== "SP"
       ? ` — ${freteState}`
       : "";
-  if (freteIsento) return "Frete isento (conforme negociação)";
+  if (freteIsento && !isOutsideSaoPaulo) return "Frete isento (conforme negociação)";
+  if (isOutsideSaoPaulo && (freteType === "free" || freteIsento)) {
+    return `Frete sob consulta${localSuffix}`;
+  }
   if (freteType === "free") {
     const valorCotado = formData.freteValue && formData.freteValue > 0
       ? ` (R$ ${formData.freteValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} cotado)`
@@ -84,6 +90,9 @@ function buildFreteText(formData: QuoteFormData, totalBase: number): string {
     const valorCotado = formData.freteValue && formData.freteValue > 0
       ? ` (R$ ${formData.freteValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} cotado)`
       : "";
+    if (!formData.freteValue || formData.freteValue <= 0) {
+      return `Frete sob consulta${localSuffix}`;
+    }
     // SP capital sem sufixo de localidade: comportamento original
     if (freteLocalidade === "sp" && !localSuffix) {
       return totalBase >= 1500
@@ -160,6 +169,11 @@ interface Props {
 }
 
 export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMap, autoPrint, onCapturePdf, onCapturePdfError }: Props) {
+  const [manualPdfShowIpi, setManualPdfShowIpi] = useState(false);
+  const [manualPdfOptionsOpen, setManualPdfOptionsOpen] = useState(false);
+  const showIpi = formData.showIpi === true || manualPdfShowIpi;
+  const previewColumnWidths = getQuotePreviewColumnWidths(showIpi);
+  const previewColumnCount = getQuotePreviewColumnCount(showIpi);
   const contentRef = useRef<HTMLDivElement>(null);
   const previewPageRef = useRef<HTMLDivElement>(null);
   const capturedRef = useRef(false);
@@ -320,7 +334,11 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   }, [open, Boolean(onCapturePdf), captureVisiblePreviewPdf]);
 
   useEffect(() => {
-    if (!open) capturedRef.current = false;
+    if (!open) {
+      capturedRef.current = false;
+      setManualPdfShowIpi(false);
+      setManualPdfOptionsOpen(false);
+    }
   }, [open]);
 
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -546,6 +564,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   const hasItemDiscount = sortedItems.some(item => Number(item.itemDiscountPercent) > 0);
   // DIFAL/FCP: alíquota combinada, frete na base (fórmula por dentro)
   const _freteParaImpostoPreview = formData.freteIncluded ? 0 : (formData.freteValue && formData.freteValue > 0 && !formData.freteIsento ? formData.freteValue : 0);
+  const hasFreteCotadoNoTotalPreview = _freteParaImpostoPreview > 0 || freteParaDiluir > 0;
   const baseParaImpostoPreview = totalFinal + _freteParaImpostoPreview;
   const stateInfoPreview = formData.destState ? getStateInfo(formData.destState) : undefined;
   const combinedRatePreview = stateInfoPreview ? stateInfoPreview.combined : 0;
@@ -668,7 +687,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
             Esta visualização é apenas para conferência. Nenhuma revisão foi criada.
           </span>
           <button
-            onClick={handleDownloadPDF}
+            onClick={() => setManualPdfOptionsOpen(true)}
             disabled={isDownloadingPdf}
             style={{
               background: "#1e40af",
@@ -687,6 +706,19 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
           >
             <FileDown size={16} /> {isDownloadingPdf ? "Gerando PDF..." : "Baixar PDF"}
           </button>
+          <QuoteExportOptionsDialog
+            open={manualPdfOptionsOpen}
+            format="PDF"
+            onOpenChange={setManualPdfOptionsOpen}
+            isGenerating={isDownloadingPdf}
+            onConfirm={(includeIpi) => {
+              setManualPdfShowIpi(includeIpi);
+              setManualPdfOptionsOpen(false);
+              window.requestAnimationFrame(() => {
+                window.requestAnimationFrame(() => { void handleDownloadPDF(); });
+              });
+            }}
+          />
           {pdfError && (
             <span style={{ fontSize: 11, color: "#f87171", maxWidth: 200, lineHeight: 1.2 }}>
               <AlertCircle size={12} style={{ display: "inline", marginRight: 3 }} />
@@ -825,7 +857,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
 
             {/* ── Tabela de produtos ── */}
             <style>{`
-              .quote-items-table td:nth-child(11), .quote-items-table td:nth-child(12) {
+              .quote-items-table td:nth-child(11), .quote-items-table td:nth-child(12), .quote-items-table td:nth-child(13) {
                 white-space: nowrap !important;
                 word-break: normal !important;
                 overflow-wrap: normal !important;
@@ -834,11 +866,11 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
             `}</style>
             <table className="quote-items-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, tableLayout: "fixed" }}>
               <colgroup>
-                {QUOTE_PREVIEW_COLUMN_WIDTHS.map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
+                {previewColumnWidths.map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
               </colgroup>
               <thead>
                 <tr>
-                  {["ITEM EM\nPLANTA", "FOTO", "MODELO ALFALUX", "COMPRIMENTO\n(mm)", "POTÊNCIA\n(W)", "DIM", "TENSÃO\n(V)", "COR", "TEMPERATURA\nDE COR (K)", "QTD", "PREÇO\nUNITÁRIO", "PREÇO\nTOTAL"].map((h) => (
+                  {["ITEM EM\nPLANTA", "FOTO", "MODELO ALFALUX", "COMPRIMENTO\n(mm)", "POTÊNCIA\n(W)", "DIM", "TENSÃO\n(V)", "COR", "TEMPERATURA\nDE COR (K)", "QTD", "PREÇO\nUNITÁRIO", ...(showIpi ? ["C/ IPI\n(9,75%)"] : []), "PREÇO\nTOTAL"].map((h) => (
                     <th key={h} style={h === "COMPRIMENTO\n(mm)" || h === "POTÊNCIA\n(W)" ? compactHeaderStyle : thStyle}>{h}</th>
                   ))}
                 </tr>
@@ -858,7 +890,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                         (sortedItems[idx - 1]?.floorId ?? "").trim().toLowerCase() !== (item.floorId ?? "").trim().toLowerCase()
                       ) && (
                         <tr>
-                          <td colSpan={QUOTE_PREVIEW_COLUMN_COUNT} style={{ background: "#1A3A5C", color: WHITE, fontWeight: "bold", fontSize: 12, padding: "4px 8px", border: "2px solid #444" }}>
+                          <td colSpan={previewColumnCount} style={{ background: "#1A3A5C", color: WHITE, fontWeight: "bold", fontSize: 12, padding: "4px 8px", border: "2px solid #444" }}>
                             {item.floorName || item.floorId}
                           </td>
                         </tr>
@@ -877,6 +909,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           <td style={tdStyle}>-</td>
                           <td style={tdStyle}>1</td>
                           <td style={tdStyle}>-</td>
+                          {showIpi && <td style={tdStyle}>-</td>}
                           <td style={tdStyle}>-</td>
                         </tr>
                       ) : isService ? (
@@ -885,7 +918,8 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           <td style={tdStyle}></td>{/* FOTO vazia */}
                           <td colSpan={7} style={{ ...tdStyle, textAlign: "left", fontStyle: "italic" }}>{item.description || item.sku || "Serviço"}</td>
                           <td style={tdStyle}>{item.qty}</td>
-                          <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}</td>
+                          <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent, item.itemDiscountPercent)) : applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}</td>
+                          {showIpi && <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}</td>}
                           <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkupItem(totalPriceComFrete(item) ?? item.totalPrice, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}</td>
                         </tr>
                       ) : item.driverLines && item.driverLines.length > 0 ? (
@@ -945,11 +979,20 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                             return (<>
                               <td style={tdStyle}>
                                 {_effectiveUnitLum && _effectiveUnitLum > 0
-                                  ? formatBRL(applyMarkupItem(_effectiveUnitLum + _lumDilUnit + _lumFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent))
+                                  ? formatBRL(showIpi
+                                    ? getUnitPriceWithoutIpi(applyMarkupItem(_effectiveUnitLum + _lumDilUnit + _lumFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent))
+                                    : applyMarkupItem(_effectiveUnitLum + _lumDilUnit + _lumFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent))
                                   : item.luminariaHasApiPrice === false
                                     ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
                                     : "-"}
                               </td>
+                              {showIpi && <td style={tdStyle}>
+                                {_effectiveUnitLum && _effectiveUnitLum > 0
+                                  ? formatBRL(applyMarkupItem(_effectiveUnitLum + _lumDilUnit + _lumFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent))
+                                  : item.luminariaHasApiPrice === false
+                                    ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
+                                    : "-"}
+                              </td>}
                               <td style={tdStyle}>
                                 {_correctedTotal > 0
                                   ? formatBRL(applyMarkupItem(_correctedTotal + _lumDilTotal + _lumFreteFrac, item.itemMarginPercent, item.itemDiscountPercent))
@@ -1002,7 +1045,8 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                             const _unitWithDil = _unitWithFrete + (_qty > 0 ? _diluicaoFatorSimple / _qty : 0);
                             const _totalWithDil = _totalWithFrete + _diluicaoFatorSimple;
                             return (<>
-                              <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkupItem(_unitWithDil, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}</td>
+                              <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(applyMarkupItem(_unitWithDil, item.itemMarginPercent, item.itemDiscountPercent)) : applyMarkupItem(_unitWithDil, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}</td>
+                              {showIpi && <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkupItem(_unitWithDil, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}</td>}
                               <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkupItem(_totalWithDil, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}</td>
                             </>);
                           })()}
@@ -1027,7 +1071,8 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                             <td key={i} style={{ ...tdStyle, fontSize: 9 }}></td>
                           ))}
                           <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold" }}>{acc.qty * (item.qty ?? 1)}</td>
-                          <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice) : "-"}</td>
+                          <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(acc.unitPrice) : acc.unitPrice) : "-"}</td>
+                          {showIpi && <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice) : "-"}</td>}
                           <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice * acc.qty * (item.qty ?? 1)) : "-"}</td>
                         </tr>
                       ))}
@@ -1036,7 +1081,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                         <tr key={`obs-${idx}`} style={{ background: "#F0FFF4" }}>
                           <td style={{ ...tdStyle, fontSize: 9 }}></td>
                           <td style={{ ...tdStyle, fontSize: 9 }}></td>
-                          <td colSpan={10} style={{ ...tdStyle, fontSize: 9, color: "#166534", fontStyle: "italic", textAlign: "left", paddingLeft: 8 }}>
+                          <td colSpan={previewColumnCount - 2} style={{ ...tdStyle, fontSize: 9, color: "#166534", fontStyle: "italic", textAlign: "left", paddingLeft: 8 }}>
                             Obs.: {item.itemObs}
                           </td>
                         </tr>
@@ -1079,8 +1124,11 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           ))}
                           <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold", color: "#E65100" }}>{_effectiveDrvQty}</td>
                           <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
-                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}
+                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent)) : applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}
                           </td>
+                          {showIpi && <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
+                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}
+                          </td>}
                           <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
                             {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupItem(_drvTotalPrice + _drvDilTotal + _drvFreteFrac, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}
                           </td>
@@ -1104,6 +1152,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                             ))}
                             <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold", color: "#E65100" }}>{ldrv.totalQty}</td>
                             <td style={{ ...tdStyle, fontSize: 9, color: "#E65100", fontStyle: "italic" }}>incl.</td>
+                            {showIpi && <td style={{ ...tdStyle, fontSize: 9, color: "#E65100", fontStyle: "italic" }}>incl.</td>}
                             <td style={{ ...tdStyle, fontSize: 9, color: "#E65100", fontStyle: "italic" }}>incl.</td>
                           </tr>
                         ));
@@ -1148,7 +1197,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                   )}
                   {formData.difalEnabled && difalAplicavel && (
                     <tr>
-                      <td style={{ fontWeight: "bold" }}>TOTAL GERAL (com FRETE + DIFAL/FCP):</td>
+                      <td style={{ fontWeight: "bold" }}>TOTAL GERAL (com {hasFreteCotadoNoTotalPreview ? "FRETE + " : ""}DIFAL/FCP):</td>
                       <td>
                         <span style={{ background: "#FCE4D6", fontWeight: "bold", fontSize: 14, padding: "4px 12px", border: "2px solid #444", display: "inline-block" }}>
                           {formatBRL(totalComDifal)}

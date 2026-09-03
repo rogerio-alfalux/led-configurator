@@ -43,6 +43,7 @@ import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
+import { QuoteExportOptionsDialog } from "@/components/QuoteExportOptionsDialog";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
@@ -717,6 +718,8 @@ function StandardCart() {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [pdfPrintOpen, setPdfPrintOpen] = useState(false);
+  const [pdfShowIpi, setPdfShowIpi] = useState(false);
+  const [exportOptionsOpen, setExportOptionsOpen] = useState(false);
 
   // Item em Planta — mapa local (UI imediata) + autosave via updateItemField
   const [itemEmPlantaMap, setItemEmPlantaMap] = useState<Record<number, string>>({});
@@ -1141,7 +1144,7 @@ function StandardCart() {
     freteLabel = "Frete isento";
   }
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (showIpi = false) => {
     if (!form.cliente.trim()) {
       toast.error("Informe o nome do cliente.");
       return;
@@ -1196,6 +1199,7 @@ function StandardCart() {
         diluicaoValor: saveForm.diluicaoValor ? parseFloat(saveForm.diluicaoValor) : undefined,
         discountPercent: discountPct > 0 ? discountPct : undefined,
         showDiscount: saveForm.showDiscount && discountPct > 0,
+        showIpi,
         // Usar o número do orçamento do saveForm (não o gerado aleatoriamente no form)
         numero: saveForm.quoteNumber.trim() || form.numero,
         // Orçamentos gerados diretamente do Cart são sempre novos (a partir de hoje)
@@ -1217,11 +1221,12 @@ function StandardCart() {
     }
   };
 
-  const handleGeneratePdf = () => {
+  const handleGeneratePdf = (showIpi = false) => {
     if (!form.cliente.trim()) {
       toast.error("Informe o nome do cliente.");
       return;
     }
+    setPdfShowIpi(showIpi);
     setPdfPrintOpen(true);
   };
   const handleSaveQuote = () => {
@@ -2407,6 +2412,12 @@ function StandardCart() {
                               onStateChange={(v) => {
                                 updateSaveForm("freteStateCode", v);
                                 updateSaveForm("freteCity", "");
+                                if (v !== "SP") {
+                                  updateSaveForm("freteType", "paid");
+                                  updateSaveForm("freteValue", "");
+                                  updateSaveForm("freteIncluded", false);
+                                  updateSaveForm("freteIsento", false);
+                                }
                               }}
                               onCityChange={(city) => {
                                 updateSaveForm("freteCity", city);
@@ -2419,6 +2430,12 @@ function StandardCart() {
                               onUseDifalState={() => {
                                 updateSaveForm("freteStateCode", saveForm.destState);
                                 updateSaveForm("freteCity", "");
+                                if (saveForm.destState && saveForm.destState !== "SP") {
+                                  updateSaveForm("freteType", "paid");
+                                  updateSaveForm("freteValue", "");
+                                  updateSaveForm("freteIncluded", false);
+                                  updateSaveForm("freteIsento", false);
+                                }
                               }}
                             />
 
@@ -2426,13 +2443,20 @@ function StandardCart() {
                               <Label>Tipo de frete</Label>
                               <Select
                                 value={saveForm.freteType}
-                                onValueChange={(v) => updateSaveForm("freteType", v as SaveFormData["freteType"])}
+                                onValueChange={(v) => updateSaveForm(
+                                  "freteType",
+                                  v === "free" && (saveForm.freteStateCode || "SP") !== "SP"
+                                    ? "paid"
+                                    : v as SaveFormData["freteType"],
+                                )}
                               >
                                 <SelectTrigger>
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="free">Grátis (SP, acima de R$1.500)</SelectItem>
+                                  {(saveForm.freteStateCode || "SP") === "SP" && (
+                                    <SelectItem value="free">Grátis (SP, acima de R$1.500)</SelectItem>
+                                  )}
                                   <SelectItem value="paid">A calcular</SelectItem>
                                   <SelectItem value="night">Noturno (R$2.000)</SelectItem>
                                   <SelectItem value="consult">Sob consulta</SelectItem>
@@ -2440,7 +2464,7 @@ function StandardCart() {
                               </Select>
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            {(saveForm.freteStateCode || "SP") === "SP" && <div className="flex items-center gap-2">
                               <Checkbox
                                 id="freteIsento"
                                 checked={saveForm.freteIsento}
@@ -2449,7 +2473,7 @@ function StandardCart() {
                               <label htmlFor="freteIsento" className="text-sm cursor-pointer">
                                 Isentar frete (frete grátis independente do valor)
                               </label>
-                            </div>
+                            </div>}
 
                             {/* Frete Cotado */}
                             <div className="border rounded-lg p-3 space-y-2">
@@ -2522,7 +2546,7 @@ function StandardCart() {
                     <Button
                       variant="outline"
                       className="gap-2 border-red-500/40 text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
-                      onClick={handleGeneratePdf}
+                      onClick={() => setExportOptionsOpen(true)}
                       disabled={isGenerating || !form.cliente.trim()}
                       title="Baixar orçamento em PDF (conta como revisão)"
                     >
@@ -3529,6 +3553,16 @@ function StandardCart() {
         }}
         freshPhotoMap={freshPhotoMap}
       />
+      <QuoteExportOptionsDialog
+        open={exportOptionsOpen}
+        format="PDF"
+        onOpenChange={setExportOptionsOpen}
+        isGenerating={isGenerating}
+        onConfirm={(showIpi) => {
+          setExportOptionsOpen(false);
+          handleGeneratePdf(showIpi);
+        }}
+      />
       {/* PDF automático — abre o mesmo modal mas dispara download imediatamente */}
       <ExcelPreviewModal
         open={pdfPrintOpen}
@@ -3550,6 +3584,7 @@ function StandardCart() {
           marginPercent: marginPct !== 0 ? marginPct : undefined,
           discountPercent: discountPct > 0 ? discountPct : undefined,
           showDiscount: saveForm.showDiscount && discountPct > 0,
+          showIpi: pdfShowIpi,
           freteType: saveForm.freteType,
           freteIsento: saveForm.freteIsento,
           freteLocalidade: saveForm.freteStateCode === "SP" ? "sp" : "other",

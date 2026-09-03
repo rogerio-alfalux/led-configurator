@@ -124,6 +124,7 @@ import { CORES_PECA } from "@/components/ColorPickerModal";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
 import { generateQuotePdfBlob } from "@/lib/quotePdfGenerator";
 import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
+import { QuoteExportOptionsDialog } from "@/components/QuoteExportOptionsDialog";
 import { isLdDraftQuoteNumber } from "@shared/ldDraftQuoteNumber";
 import { OrderPreviewModal } from "@/components/OrderPreviewModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
@@ -992,6 +993,11 @@ export default function QuoteDetail() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [pdfPrintOpen, setPdfPrintOpen] = useState(false);
   const [ldPdfCaptureOpen, setLdPdfCaptureOpen] = useState(false);
+  const [pdfShowIpi, setPdfShowIpi] = useState(false);
+  const [exportOptions, setExportOptions] = useState<{
+    format: "PDF" | "Excel";
+    run: (showIpi: boolean) => void | Promise<void>;
+  } | null>(null);
 
   // Edit (add revision) dialog — full form with all tabs
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -2023,7 +2029,7 @@ export default function QuoteDetail() {
   // Total final recalculado (igual ao PDF/Preview/Excel)
   const totalRecalculado = _hdrTotalComDifal;
 
-  const handleGenerateQuote = async () => {
+  const handleGenerateQuote = async (showIpi = false) => {
     setIsGenerating(true);
     try {
       // A edição permanece em rascunho até a primeira exportação. Ao baixar,
@@ -2071,6 +2077,7 @@ export default function QuoteDetail() {
           freteIncluded: (quote as any).freteIncluded ?? false,
           diluicaoValor: commercialDiluicaoValor || undefined,
           revisionCount: exportRevisionCount,
+          showIpi,
           deliveryDays: quote.deliveryDays ?? 20,
           commissionPercent: quote.commissionPercent ? parseFloat(String(quote.commissionPercent)) : undefined,
           paymentTerm: quote.paymentTerm ?? undefined,
@@ -2099,7 +2106,7 @@ export default function QuoteDetail() {
     }
   };
 
-  const handleGeneratePdf = async () => {
+  const handleGeneratePdf = async (showIpi = false) => {
     if (hasDraftRevision) {
       try {
         await bumpRevisionMutation.mutateAsync({ id: Number(id) });
@@ -2110,6 +2117,7 @@ export default function QuoteDetail() {
         return;
       }
     }
+    setPdfShowIpi(showIpi);
     setPdfPrintOpen(true);
   };
 
@@ -2234,7 +2242,7 @@ export default function QuoteDetail() {
   };
 
   /** Gera Excel para uma revisão histórica específica */
-  const handleGenerateRevisionExcel = async (v: typeof versions[0], revItems: { itemData: string }[]) => {
+  const handleGenerateRevisionExcel = async (v: typeof versions[0], revItems: { itemData: string }[], showIpi = false) => {
     try {
       const snap = (() => { try { return JSON.parse(v.headerSnapshot ?? '{}'); } catch { return {}; } })();
       const s1 = quote.seller1Id ? editSellers.find(s => s.id === quote.seller1Id) : undefined;
@@ -2282,6 +2290,7 @@ export default function QuoteDetail() {
           freteIncluded: (quote as any).freteIncluded ?? false,
           diluicaoValor: (quote as any).diluicaoValor ? parseFloat(String((quote as any).diluicaoValor)) : undefined,
           revisionCount: revCount,
+          showIpi,
           deliveryDays: quote.deliveryDays ?? 20,
           commissionPercent: quote.commissionPercent ? parseFloat(String(quote.commissionPercent)) : undefined,
           paymentTerm: quote.paymentTerm ?? undefined,
@@ -2552,7 +2561,7 @@ export default function QuoteDetail() {
           <Button
             variant="outline"
             className="gap-2"
-            onClick={handleGenerateQuote}
+            onClick={() => setExportOptions({ format: "Excel", run: handleGenerateQuote })}
             disabled={isGenerating}
           >
             <FileSpreadsheet className="w-4 h-4" />
@@ -2562,7 +2571,7 @@ export default function QuoteDetail() {
           <Button
             variant="outline"
             className="gap-2 border-red-500/40 text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
-            onClick={handleGeneratePdf}
+            onClick={() => setExportOptions({ format: "PDF", run: handleGeneratePdf })}
             disabled={isGenerating}
             title="Baixar orçamento em PDF (conta como revisão)"
           >
@@ -3699,6 +3708,7 @@ export default function QuoteDetail() {
                       freteState: v,
                       freteLocalidade: v === "SP" ? "sp" : "other",
                       freteCity: "",
+                      ...(v !== "SP" ? { freteType: "paid" as const, freteValue: "", freteIncluded: false, freteIsento: false } : {}),
                       // Auto-preencher estado destino DIFAL com o estado de entrega
                       destState: v,
                       // Resetar DIFAL ao mudar estado
@@ -3722,22 +3732,24 @@ export default function QuoteDetail() {
                       freteState: f.destState,
                       freteLocalidade: f.destState === "SP" ? "sp" : "other",
                       freteCity: "",
+                      ...(f.destState && f.destState !== "SP" ? { freteType: "paid" as const, freteValue: "", freteIncluded: false, freteIsento: false } : {}),
                     }))}
                   />
                   <div>
                     <Label>Tipo de frete</Label>
                     <Select value={editForm.freteType} onValueChange={(v) => {
                       const newType = v as "free" | "paid" | "night" | "consult" | "pickup";
+                      const isOutsideSaoPaulo = (editForm.freteStateCode || "SP") !== "SP";
                       setEditForm(f => ({
                         ...f,
-                        freteType: newType,
+                        freteType: newType === "free" && isOutsideSaoPaulo ? "paid" : newType,
                         // Quando cliente retira, zerar o valor do frete
                         ...(newType === "pickup" ? { freteValue: "0", freteIncluded: false } : {}),
                       }));
                     }}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="free">Grátis (SP, acima de R$1.500)</SelectItem>
+                        {(editForm.freteStateCode || "SP") === "SP" && <SelectItem value="free">Grátis (SP, acima de R$1.500)</SelectItem>}
                         <SelectItem value="paid">A calcular</SelectItem>
                         <SelectItem value="night">Noturno (R$2.000)</SelectItem>
                         <SelectItem value="consult">Sob consulta</SelectItem>
@@ -3745,10 +3757,10 @@ export default function QuoteDetail() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex items-center gap-2">
+                  {(editForm.freteStateCode || "SP") === "SP" && <div className="flex items-center gap-2">
                     <Checkbox id="editFreteIsento" checked={editForm.freteIsento} onCheckedChange={(v) => setEditForm(f => ({ ...f, freteIsento: Boolean(v) }))} />
                     <label htmlFor="editFreteIsento" className="text-sm cursor-pointer">Isentar frete</label>
-                  </div>
+                  </div>}
 
                   {/* Frete Cotado */}
                   <div className="border rounded-lg p-3 space-y-2">
@@ -4980,12 +4992,18 @@ export default function QuoteDetail() {
                                 try {
                                   // Se os itens já estão no cache local (vItems), usar diretamente
                                   if (vItems.length > 0) {
-                                    await handleGenerateRevisionExcel(v, vItems);
+                                    setExportOptions({
+                                      format: "Excel",
+                                      run: (showIpi) => handleGenerateRevisionExcel(v, vItems, showIpi),
+                                    });
                                   } else {
                                     // Caso contrário, buscar via API
                                     toast.info("Carregando itens da revisão...");
                                     const result = await utils.quotes.getRevisionItems.fetch({ quoteId: Number(id), versionId: v.id });
-                                    await handleGenerateRevisionExcel(v, result.items);
+                                    setExportOptions({
+                                      format: "Excel",
+                                      run: (showIpi) => handleGenerateRevisionExcel(v, result.items, showIpi),
+                                    });
                                   }
                                 } catch (err) {
                                   toast.error("Erro ao carregar itens da revisão.");
@@ -5116,7 +5134,10 @@ export default function QuoteDetail() {
                   <div className="flex gap-2 pt-2">
                     <Button
                       className="flex-1 gap-2"
-                      onClick={() => handleGenerateRevisionExcel(rv, rvItems)}
+                      onClick={() => setExportOptions({
+                        format: "Excel",
+                        run: (showIpi) => handleGenerateRevisionExcel(rv, rvItems, showIpi),
+                      })}
                     >
                       <FileSpreadsheet className="w-4 h-4" />
                       Baixar Excel {rv.version === quote.currentVersion ? `RV${quote.revisionCount ?? 0}` : `Snapshot ${versionToRV(rv.id)}`}
@@ -5146,6 +5167,18 @@ export default function QuoteDetail() {
           </Card>
         )}
       </div>
+
+      <QuoteExportOptionsDialog
+        open={exportOptions !== null}
+        format={exportOptions?.format ?? "PDF"}
+        onOpenChange={(open) => { if (!open) setExportOptions(null); }}
+        isGenerating={isGenerating}
+        onConfirm={async (showIpi) => {
+          const request = exportOptions;
+          setExportOptions(null);
+          await request?.run(showIpi);
+        }}
+      />
 
       {/* Pré-visualização Excel — sem criar revisão */}
       <ExcelPreviewModal
@@ -5229,6 +5262,7 @@ export default function QuoteDetail() {
           marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
           discountPercent: (quote as any).discountPercent ? parseFloat(String((quote as any).discountPercent)) : undefined,
           showDiscount: !!(quote as any).showDiscount,
+          showIpi: pdfPrintOpen ? pdfShowIpi : false,
           freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",

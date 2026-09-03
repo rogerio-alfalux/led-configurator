@@ -527,6 +527,8 @@ export interface QuoteFormData {
   discountPercent?: number;
   /** Se true, exibe a linha de desconto nos documentos (Excel, PDF, Preview) para o cliente ver */
   showDiscount?: boolean;
+  /** Se true, exibe Preço Unitário sem 9,75% e a coluna C/ IPI com o preço original. */
+  showIpi?: boolean;
   /**
    * Data de criação do orçamento (ISO string, ex: "2026-07-17T00:00:00.000Z").
    * Usado para distinguir orçamentos antigos (antes de 17/07/2026) dos novos,

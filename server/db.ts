@@ -597,10 +597,36 @@ export interface SaveQuoteInput {
   showDiscount?: boolean;
 }
 
+type FretePolicyInput = Pick<
+  SaveQuoteInput,
+  "freteType" | "freteIsento" | "freteLocalidade" | "freteValue" | "freteState" | "destState" | "freteIncluded"
+>;
+
+/**
+ * Frete gratuito ou isento é uma condição comercial exclusiva de SP. O estado
+ * informado na aba Frete prevalece; o estado de destino é usado como fallback.
+ */
+export function normalizeFreteForDestination<T extends FretePolicyInput>(input: T): T {
+  const effectiveState = (input.freteState ?? input.destState ?? "").trim().toUpperCase();
+  const isOutsideSaoPaulo = Boolean(effectiveState) && effectiveState !== "SP";
+  const hasInvalidGratis = input.freteType === "free" || input.freteIsento === true;
+
+  if (!isOutsideSaoPaulo) return input;
+
+  return {
+    ...input,
+    freteType: hasInvalidGratis ? "paid" : input.freteType,
+    freteIsento: false,
+    freteLocalidade: "other",
+    ...(hasInvalidGratis ? { freteValue: 0, freteIncluded: false } : {}),
+  } as T;
+}
+
 /** Cria um novo orçamento com versão 1 */
 export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: number; quoteNumber: string; versionId: number }> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  const normalizedFrete = normalizeFreteForDestination(input);
 
   // Número do orçamento: usar o número informado pelo usuário (soberano) ou gerar automaticamente se não fornecido.
   let quoteNumber: string;
@@ -650,9 +676,9 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
     rtDest3: input.rtDest3 ?? null,
     rtDest3Active: input.rtDest3Active ?? false,
     marginPercent: input.marginPercent != null ? String(input.marginPercent) : null,
-    freteType: input.freteType ?? null,
-    freteIsento: input.freteIsento ?? false,
-    freteLocalidade: input.freteLocalidade ?? null,
+    freteType: normalizedFrete.freteType ?? null,
+    freteIsento: normalizedFrete.freteIsento ?? false,
+    freteLocalidade: normalizedFrete.freteLocalidade ?? null,
     createdByUserId: input.createdByUserId,
     status: "open",
     currentVersion: 1,
@@ -671,10 +697,10 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
     difalValue: input.difalValue != null ? String(input.difalValue) : '0',
     fcpValue: input.fcpValue != null ? String(input.fcpValue) : '0',
     projectNumber: input.projectNumber ?? null,
-    freteValue: input.freteValue != null ? String(input.freteValue) : '0',
-        freteState: input.freteState ?? null,
+    freteValue: normalizedFrete.freteValue != null ? String(normalizedFrete.freteValue) : '0',
+        freteState: normalizedFrete.freteState ?? null,
     freteCity: input.freteCity ?? null,
-    freteIncluded: input.freteIncluded ?? false,
+    freteIncluded: normalizedFrete.freteIncluded ?? false,
     commissionPercent2: input.commissionPercent2 != null ? String(input.commissionPercent2) : '0',
     arquiteto: input.arquiteto ?? null,
     lightDesigner: input.lightDesigner ?? null,
@@ -749,6 +775,16 @@ export async function addQuoteRevision(
     notes: input.notes,
   });
 
+  const normalizedFrete = normalizeFreteForDestination({
+    freteType: input.freteType ?? (quote.freteType as SaveQuoteInput["freteType"] | null) ?? undefined,
+    freteIsento: input.freteIsento ?? quote.freteIsento ?? false,
+    freteLocalidade: input.freteLocalidade ?? (quote.freteLocalidade as SaveQuoteInput["freteLocalidade"] | null) ?? undefined,
+    freteValue: input.freteValue ?? Number(quote.freteValue ?? 0),
+    freteState: input.freteState ?? quote.freteState ?? undefined,
+    destState: input.destState ?? quote.destState ?? undefined,
+    freteIncluded: input.freteIncluded ?? quote.freteIncluded ?? false,
+  });
+
   // Atualiza o cabeçalho do orçamento com TODOS os campos
   // IMPORTANTE: usar os valores existentes do banco como fallback para qualquer campo undefined
   // Isso garante que nenhum dado seja perdido independente do caminho de escrita usado
@@ -779,9 +815,9 @@ export async function addQuoteRevision(
     rtDest3: input.rtDest3 !== undefined ? (input.rtDest3 ?? null) : quote.rtDest3,
     rtDest3Active: input.rtDest3Active !== undefined ? input.rtDest3Active : (quote.rtDest3Active ?? false),
     marginPercent: input.marginPercent != null ? String(input.marginPercent) : (quote.marginPercent ?? '0'),
-    freteType: input.freteType !== undefined ? (input.freteType ?? null) : quote.freteType,
-    freteIsento: input.freteIsento !== undefined ? input.freteIsento : (quote.freteIsento ?? false),
-    freteLocalidade: input.freteLocalidade !== undefined ? (input.freteLocalidade ?? null) : quote.freteLocalidade,
+    freteType: normalizedFrete.freteType ?? null,
+    freteIsento: normalizedFrete.freteIsento ?? false,
+    freteLocalidade: normalizedFrete.freteLocalidade ?? null,
     // revisionCount só incrementa ao baixar Excel (bumpVersion=true)
     // Editar o orçamento (bumpVersion=false) não altera o revisionCount
     ...(bumpVersion ? { revisionCount: sql`revisionCount + 1` } : {}),
@@ -796,10 +832,10 @@ export async function addQuoteRevision(
     difalValue: input.difalValue != null ? String(input.difalValue) : (quote.difalValue ?? '0'),
     fcpValue: input.fcpValue != null ? String(input.fcpValue) : (quote.fcpValue ?? '0'),
     projectNumber: input.projectNumber !== undefined ? (input.projectNumber ?? null) : quote.projectNumber,
-    freteValue: input.freteValue != null ? String(input.freteValue) : (quote.freteValue ?? '0'),
-    freteState: input.freteState !== undefined ? (input.freteState ?? null) : quote.freteState,
+    freteValue: normalizedFrete.freteValue != null ? String(normalizedFrete.freteValue) : (quote.freteValue ?? '0'),
+    freteState: normalizedFrete.freteState ?? null,
     freteCity: input.freteCity !== undefined ? (input.freteCity ?? null) : quote.freteCity,
-    freteIncluded: input.freteIncluded !== undefined ? input.freteIncluded : (quote.freteIncluded ?? false),
+    freteIncluded: normalizedFrete.freteIncluded ?? false,
     commissionPercent2: input.commissionPercent2 != null ? String(input.commissionPercent2) : (quote.commissionPercent2 ?? '0'),
     arquiteto: input.arquiteto !== undefined ? (input.arquiteto ?? null) : quote.arquiteto,
     lightDesigner: input.lightDesigner !== undefined ? (input.lightDesigner ?? null) : quote.lightDesigner,

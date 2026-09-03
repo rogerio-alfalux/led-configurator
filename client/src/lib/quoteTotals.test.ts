@@ -36,6 +36,19 @@ describe('getStoredCustomerTotal', () => {
     expect(totals.taxAmount).toBeCloseTo(111.11, 2);
   });
 
+  it('não inclui frete não cotado na base nem no total com DIFAL/FCP', () => {
+    const totals = calculateQuoteTotalWithDiscountAndTax({
+      productsBeforeDiscount: 1000,
+      freteValue: 0,
+      difalEnabled: true,
+      combinedTaxRate: 10,
+    });
+
+    expect(totals.baseForTax).toBe(1000);
+    expect(totals.totalFinal).toBeCloseTo(1111.11, 2);
+    expect(totals.taxAmount).toBeCloseTo(111.11, 2);
+  });
+
   it('recompõe no cartão o total de um orçamento legado com desconto não persistido', () => {
     const gross = calculateQuoteTotalWithDiscountAndTax({
       productsBeforeDiscount: 1000,

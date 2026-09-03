@@ -17,6 +17,7 @@ import { toBrasiliaDate } from "./dateUtils";
 import { getStateInfo } from "./difalTable";
 import { appendQuoteGeneralObservation } from "./quoteDocumentObservation";
 import { formatProductStructureSummaryLines } from "./productStructure";
+import { getUnitPriceWithoutIpi } from "./quoteIpi";
 
 // ── Cores (mesmas do template Excel) ────────────────────────────────────────
 const BLUE_RGB      = [91, 155, 213]  as [number, number, number]; // #5B9BD5
@@ -33,12 +34,16 @@ function fmtBRL(val: number): string {
 
 function buildFreteText(formData: QuoteFormData, totalBase: number): string {
   const { freteType, freteIsento, freteCity, freteState } = formData;
+  const isOutsideSaoPaulo = Boolean(freteState) && freteState !== "SP";
   const localSuffix = freteCity && freteState
     ? ` — ${freteCity}/${freteState}`
     : freteState && freteState !== "SP"
       ? ` — ${freteState}`
       : "";
-  if (freteIsento) return "Frete isento (conforme negociação)";
+  if (freteIsento && !isOutsideSaoPaulo) return "Frete isento (conforme negociação)";
+  if (isOutsideSaoPaulo && (freteType === "free" || freteIsento)) {
+    return `Frete sob consulta${localSuffix}`;
+  }
   if (freteType === "free") {
     const valorCotado = formData.freteValue && formData.freteValue > 0
       ? ` (${fmtBRL(formData.freteValue)} cotado)` : "";
@@ -51,6 +56,9 @@ function buildFreteText(formData: QuoteFormData, totalBase: number): string {
   if (freteType === "paid") {
     const valorCotado = formData.freteValue && formData.freteValue > 0
       ? ` (${fmtBRL(formData.freteValue)} cotado)` : "";
+    if (!formData.freteValue || formData.freteValue <= 0) {
+      return `Frete sob consulta${localSuffix}`;
+    }
     if ((!freteCity && !freteState) || freteState === "SP") {
       return totalBase >= 1500
         ? `CIF - Para faturamento acima de R$ 1.500,00 São Paulo/SP (Capital). Demais localidades sob consulta${valorCotado}`
@@ -72,6 +80,7 @@ async function _generatePdfBlob(
   items: CartItemData[],
   formData: QuoteFormData
 ): Promise<Blob> {
+  const showIpi = formData.showIpi === true;
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();   // 210mm
   const pageH = doc.internal.pageSize.getHeight();  // 297mm
@@ -180,6 +189,7 @@ async function _generatePdfBlob(
   // difalAmt e fcpAmt removidos — agora exibimos combinedAmt em linha única
   const freteValorNum = formData.freteValue && formData.freteValue > 0 && !formData.freteIsento
     ? formData.freteValue : 0;
+  const pdfHasFreteCotadoNoTotal = freteValorNum > 0;
 
   // ── Pré-calcular frete diluído (fora do loop) ─────────────────────────────
   const _pdfFreteParaDiluirGlobal = (formData.freteIncluded && formData.freteValue && formData.freteValue > 0)
@@ -322,7 +332,7 @@ async function _generatePdfBlob(
       lastFloor = floorKey;
       const floorLabel = item.floorName || item.floorId || "";
       if (floorLabel) {
-        tableBody.push([{ content: floorLabel, colSpan: 11, styles: {
+        tableBody.push([{ content: floorLabel, colSpan: showIpi ? 13 : 11, styles: {
           fillColor: DARK_BLUE_RGB, textColor: WHITE_RGB,
           fontStyle: "bold", fontSize: 10, halign: "center",
         }}]);
@@ -383,6 +393,8 @@ async function _generatePdfBlob(
     if (/bivolt/i.test(desc)) tensao = "BIVOLT";
     else { const m = desc.match(/(\d{2,3}[Vv])/); if (m) tensao = m[1].toUpperCase(); }
 
+    const itemQty = item.qty ?? 1;
+    const originalItemUnit = itemQty > 0 ? itemTotal / itemQty : 0;
     tableBody.push([
       item.itemEmPlanta || "",
       "",  // foto — inserida via didDrawCell
@@ -393,7 +405,11 @@ async function _generatePdfBlob(
       tensao,
       item.corPeca || "",
       item.cct || "",
-      String(item.qty ?? 1),
+      String(itemQty),
+      ...(showIpi ? [
+        itemTotal > 0 ? fmtBRL(getUnitPriceWithoutIpi(originalItemUnit)) : "—",
+        itemTotal > 0 ? fmtBRL(originalItemUnit) : "—",
+      ] : []),
       itemTotal > 0 ? fmtBRL(itemTotal) : "—",
     ]);
     rowMeta.push({ photoUrl: getPersistedItemPhotoUrl(item) || null });
@@ -412,11 +428,16 @@ async function _generatePdfBlob(
         const _drvPeso = itemRaw > 0 ? _drvTotalRaw / itemRaw : 0;
         const _drvFreteFrac = _pdfFreteFatorItem * _drvPeso;
         const drvTotal2 = _pdfApplyItemDiscount(_pdfApplyGlobalMarkupGlobal(_pdfApplyItemMgn(_drvTotalRaw + _drvFreteFrac, item)), item);
+        const originalDriverUnit = drvQty > 0 ? drvTotal2 / drvQty : 0;
         tableBody.push([
           "", "",
           `  ↳ Driver: ${drv.driverModel || drv.driverCode || ""}`,
           "", "", "", "", "", "",
           String(drvQty),
+          ...(showIpi ? [
+            drvTotal2 > 0 ? fmtBRL(getUnitPriceWithoutIpi(originalDriverUnit)) : "—",
+            drvTotal2 > 0 ? fmtBRL(originalDriverUnit) : "—",
+          ] : []),
           drvTotal2 > 0 ? fmtBRL(drvTotal2) : "—",
         ]);
         rowMeta.push({ photoUrl: null, isDriverRow: true });
@@ -431,11 +452,16 @@ async function _generatePdfBlob(
       const accWeight = itemRaw > 0 ? accRaw / itemRaw : 0;
       const accFrete = _pdfFreteFatorItem * accWeight;
       const accTotal = _pdfApplyItemDiscount(_pdfApplyGlobalMarkupGlobal(_pdfApplyItemMgn(accRaw + accFrete, item)), item);
+      const originalAccessoryUnit = accQty > 0 ? accTotal / accQty : 0;
       tableBody.push([
         "", "",
         `  ↳ ${acc.familia === "SHIFT MÓDULO" ? "Módulo SHIFT" : "Subitem"}: ${acc.codigo} — ${acc.descricao}`,
         "", "", "", "", "", "",
         String(accQty),
+        ...(showIpi ? [
+          accTotal > 0 ? fmtBRL(getUnitPriceWithoutIpi(originalAccessoryUnit)) : "—",
+          accTotal > 0 ? fmtBRL(originalAccessoryUnit) : "—",
+        ] : []),
         accTotal > 0 ? fmtBRL(accTotal) : "—",
       ]);
       rowMeta.push({ photoUrl: null, isAccessoryRow: true });
@@ -443,40 +469,36 @@ async function _generatePdfBlob(
 
     // Observação do item
     if (item.itemNote) {
-      tableBody.push([
-        "", "",
-        `  Obs: ${item.itemNote}`,
-        "", "", "", "", "", "", "", "",
-      ]);
+      tableBody.push(Array.from({ length: showIpi ? 13 : 11 }, (_, index) => index === 2 ? `  Obs: ${item.itemNote}` : ""));
       rowMeta.push({ photoUrl: null, isObsRow: true });
     }
   }
 
-  // Colwidths: soma = 190mm
-  // [planta, foto, modelo, comp, pot, dim, tensao, cor, cct, qtd, total]
-  const colWidths = [11, 17, 44, 13, 10, 12, 11, 14, 14, 9, 25];
+  // Colwidths: soma = 180mm. O modo padrão permanece inalterado.
+  const colWidths = showIpi
+    ? [8, 13, 33, 10, 7, 9, 8, 10, 10, 7, 18, 18, 29]
+    : [11, 17, 44, 13, 10, 12, 11, 14, 14, 9, 25];
+  const tableHeaders = [
+    "PLANTA", "FOTO", "MODELO ALFALUX",
+    "COMP.", "POT.", "DIM", "TENSÃO", "COR", "TEMP. COR",
+    "QTD",
+    ...(showIpi ? ["PREÇO UNITÁRIO", "C/ IPI (9,75%)"] : []),
+    "PREÇO TOTAL",
+  ];
+  const dynamicColumnStyles: Record<number, { cellWidth: number; halign: "left" | "center" | "right" }> = {};
+  colWidths.forEach((cellWidth, index) => {
+    const isPriceColumn = index >= colWidths.length - (showIpi ? 3 : 1);
+    dynamicColumnStyles[index] = {
+      cellWidth,
+      halign: index === 2 ? "left" : isPriceColumn ? "right" : "center",
+    };
+  });
 
   autoTable(doc, {
     startY: y,
-    head: [[
-      "PLANTA", "FOTO", "MODELO ALFALUX",
-      "COMP.", "POT.", "DIM", "TENSÃO", "COR", "TEMP. COR",
-      "QTD", "PREÇO TOTAL",
-    ]],
+    head: [tableHeaders],
     body: tableBody,
-    columnStyles: {
-      0: { cellWidth: colWidths[0], halign: "center" },
-      1: { cellWidth: colWidths[1], halign: "center" },
-      2: { cellWidth: colWidths[2], halign: "left" },
-      3: { cellWidth: colWidths[3], halign: "center" },
-      4: { cellWidth: colWidths[4], halign: "center" },
-      5: { cellWidth: colWidths[5], halign: "center" },
-      6: { cellWidth: colWidths[6], halign: "center" },
-      7: { cellWidth: colWidths[7], halign: "center" },
-      8: { cellWidth: colWidths[8], halign: "center" },
-      9: { cellWidth: colWidths[9], halign: "center" },
-      10: { cellWidth: colWidths[10], halign: "right" },
-    },
+    columnStyles: dynamicColumnStyles,
     headStyles: {
       fillColor: BLUE_RGB,
       textColor: WHITE_RGB,
@@ -585,7 +607,7 @@ async function _generatePdfBlob(
   // DIFAL + FCP (linha única)
   if (combinedAmt > 0 && formData.difalEnabled && difalAplicavel) {
     addRow(`DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%) + FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%) — ${formData.destState ?? ""}:`, fmtBRL(combinedAmt), { bgColor: TOTAL_BG_RGB });
-    addRow("TOTAL GERAL (com FRETE + DIFAL/FCP):", fmtBRL(totalComDifal), { bgColor: TOTAL_BG_RGB, bold: true, fontSize: 12 });
+    addRow(`TOTAL GERAL (com ${pdfHasFreteCotadoNoTotal ? "FRETE + " : ""}DIFAL/FCP):`, fmtBRL(totalComDifal), { bgColor: TOTAL_BG_RGB, bold: true, fontSize: 12 });
   }
 
   // Condição de pagamento

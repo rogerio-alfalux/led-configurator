@@ -26,6 +26,7 @@ import { toBrasiliaDate } from "./dateUtils";
 import { getStateInfo } from "./difalTable";
 import { appendQuoteGeneralObservation } from "./quoteDocumentObservation";
 import { formatProductStructureSummaryLines } from "./productStructure";
+import { getUnitPriceWithoutIpi } from "./quoteIpi";
 
 // ── Cores do template ────────────────────────────────────────────────────────
 const BLUE      = "FF5B9BD5"; // Azul do template (cabeçalho tabela, número, data)
@@ -76,13 +77,17 @@ function extractDim(description: string): string {
 
 function buildFreteText(formData: QuoteFormData, totalBase: number): string {
   const { freteType, freteIsento, freteLocalidade, freteCity, freteState } = formData;
+  const isOutsideSaoPaulo = Boolean(freteState) && freteState !== "SP";
   // Montar sufixo de localidade quando cidade/estado estiver preenchido
   const localSuffix = freteCity && freteState
     ? ` — ${freteCity}/${freteState}`
     : freteState && freteState !== "SP"
       ? ` — ${freteState}`
       : "";
-  if (freteIsento) return "Frete isento (conforme negociação)";
+  if (freteIsento && !isOutsideSaoPaulo) return "Frete isento (conforme negociação)";
+  if (isOutsideSaoPaulo && (freteType === "free" || freteIsento)) {
+    return `Frete sob consulta${localSuffix}`;
+  }
   if (freteType === "free") {
     const valorCotado = formData.freteValue && formData.freteValue > 0
       ? ` (R$ ${formData.freteValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} cotado)`
@@ -99,6 +104,9 @@ function buildFreteText(formData: QuoteFormData, totalBase: number): string {
     const valorCotado = formData.freteValue && formData.freteValue > 0
       ? ` (R$ ${formData.freteValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} cotado)`
       : "";
+    if (!formData.freteValue || formData.freteValue <= 0) {
+      return `Frete sob consulta${localSuffix}`;
+    }
     // SP capital sem sufixo de localidade: comportamento original
     if (freteLocalidade === "sp" && !localSuffix) {
       return totalBase >= 1500
@@ -239,6 +247,16 @@ async function _generateExcelBuffer(
   items: CartItemData[],
   formData: QuoteFormData
 ): Promise<ArrayBuffer> {
+  const showIpi = formData.showIpi === true;
+  const visibleEndCol = showIpi ? "O" : "N";
+  const totalPriceCol = showIpi ? "O" : "N";
+  const internalNotesCol = showIpi ? "P" : "O";
+  const itemNotesCol = showIpi ? "Q" : "P";
+  const floorReferenceCol = showIpi ? "R" : "Q";
+  const marginReferenceCol = showIpi ? "S" : "R";
+  const visibleTableCols = showIpi
+    ? ["C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O"]
+    : ["C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N"];
   // Ordenar itens por pavimento (floorId normalizado), mantendo a ordem original dentro de cada grupo
   // Isso garante que itens do mesmo pavimento ficam consecutivos no Excel
   const normalizeFloorKey = (s: string | undefined) => (s ?? "").trim().toLowerCase();
@@ -303,11 +321,16 @@ async function _generateExcelBuffer(
     { key: "K", width: 14   },  // TEMPERATURA DE COR (K)
     { key: "L", width: 7    },  // QTD
     { key: "M", width: 13   },  // PREÇO UNITÁRIO
-    { key: "N", width: 14   },  // PREÇO TOTAL
-    { key: "O", width: 30   },  // OBS. INTERNA (item especial, não impresso)
-    { key: "P", width: 35   },  // OBSERVAÇÃO DO ITEM (livre, não impresso)
-    { key: "Q", width: 14   },  // RT (não impresso)
-    { key: "R", width: 14   },  // MARGEM (não impresso)
+    ...(showIpi
+      ? [
+          { key: "N", width: 14 }, // C/ IPI (9,75%)
+          { key: "O", width: 14 }, // PREÇO TOTAL
+        ]
+      : [{ key: "N", width: 14 }]), // PREÇO TOTAL
+    { key: internalNotesCol, width: 30 },
+    { key: itemNotesCol, width: 35 },
+    { key: floorReferenceCol, width: 14 },
+    { key: marginReferenceCol, width: 14 },
   ];
 
   // ── Linhas 1-2: espaço para o logo ──────────────────────────────────────
@@ -462,7 +485,7 @@ async function _generateExcelBuffer(
 
   // ── Linha 15: Proposta Comercial ─────────────────────────────────────────
   ws.getRow(15).height = 28.8;
-  ws.mergeCells("C15:N15");
+  ws.mergeCells(`C15:${visibleEndCol}15`);
   {
     const c = ws.getCell("C15");
     c.value = "PROPOSTA COMERCIAL PARA FORNECIMENTO DOS PRODUTOS ABAIXO ESPECIFICADOS, COM VALIDADE DE 3 (TRÊS) DIAS.";
@@ -475,7 +498,7 @@ async function _generateExcelBuffer(
 
   // ── Linha 17: Título da obra (azul escuro, texto branco) ─────────────────
   ws.getRow(17).height = 39.6;
-  ws.mergeCells("C17:N17");
+  ws.mergeCells(`C17:${visibleEndCol}17`);
   {
     const c = ws.getCell("C17");
     c.value = `OBRA ${(formData.obra || formData.cliente || "ORÇAMENTO").toUpperCase()}`;
@@ -498,7 +521,8 @@ async function _generateExcelBuffer(
     { col: "K", label: "TEMPERATURA\nDE COR (K)" },
     { col: "L", label: "QTD" },
     { col: "M", label: "PREÇO\nUNITÁRIO" },
-    { col: "N", label: "PREÇO\nTOTAL" },
+    ...(showIpi ? [{ col: "N", label: "C/ IPI\n(9,75%)" }] : []),
+    { col: totalPriceCol, label: "PREÇO\nTOTAL" },
   ];
 
   for (const h of tableHeaders) {
@@ -625,7 +649,7 @@ async function _generateExcelBuffer(
       const fhRow = currentRow + i + floorHeaderCount;
       const fhRowObj = ws.getRow(fhRow);
       fhRowObj.height = 22;
-      ws.mergeCells(`C${fhRow}:N${fhRow}`);
+      ws.mergeCells(`C${fhRow}:${visibleEndCol}${fhRow}`);
       const fhCell = ws.getCell(`C${fhRow}`);
       // Exibir apenas floorName (nunca repetir floorId - floorName quando são iguais)
       const floorLabel = item.floorName || item.floorId;
@@ -643,7 +667,7 @@ async function _generateExcelBuffer(
     // ── Categoria Não Orçamos: linha normal de produto sem preço ──────────────────────
     if (item.category === 'Não Orçamos') {
       row.height = 55;
-      for (const col of ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N']) {
+      for (const col of visibleTableCols) {
         const cell = ws.getCell(`${col}${rowNum}`);
         mediumBorder(cell);
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
@@ -666,7 +690,8 @@ async function _generateExcelBuffer(
       }
       ws.getCell(`L${rowNum}`).value = 1; // qtd
       ws.getCell(`M${rowNum}`).value = '-'; // preço unitário
-      ws.getCell(`N${rowNum}`).value = '-'; // preço total
+      if (showIpi) ws.getCell(`N${rowNum}`).value = '-';
+      ws.getCell(`${totalPriceCol}${rowNum}`).value = '-'; // preço total
       continue; // pular o restante do loop para este item
     }
 
@@ -675,7 +700,7 @@ async function _generateExcelBuffer(
       row.height = 30;
       const SERV_BG = 'FFF5F5F5';
       const SERV_COLOR = 'FF333333';
-      for (const col of ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N']) {
+      for (const col of visibleTableCols) {
         const cell = ws.getCell(`${col}${rowNum}`);
         mediumBorder(cell);
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: SERV_BG } };
@@ -700,11 +725,17 @@ async function _generateExcelBuffer(
       const _tS = _totalPriceComDiluicao(item);
       if (_uS !== null && _uS > 0) {
         const mCell = ws.getCell(`M${rowNum}`);
-        mCell.value = applyMarkupS(_uS);
+        const originalUnitPrice = applyMarkupS(_uS);
+        mCell.value = showIpi ? getUnitPriceWithoutIpi(originalUnitPrice) : originalUnitPrice;
         mCell.numFmt = '"R$"#,##0.00';
+        if (showIpi) {
+          const ipiCell = ws.getCell(`N${rowNum}`);
+          ipiCell.value = originalUnitPrice;
+          ipiCell.numFmt = '"R$"#,##0.00';
+        }
       }
       if (_tS !== null && _tS > 0) {
-        const nCell = ws.getCell(`N${rowNum}`);
+        const nCell = ws.getCell(`${totalPriceCol}${rowNum}`);
         nCell.value = applyMarkupS(_tS);
         nCell.numFmt = '"R$"#,##0.00';
       }
@@ -714,7 +745,7 @@ async function _generateExcelBuffer(
     row.height = IMAGE_ROW_HEIGHT;
 
     // Aplicar bordas medium e alinhamento em todas as colunas da tabela
-    for (const col of ["C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N"]) {
+    for (const col of visibleTableCols) {
       const cell = ws.getCell(`${col}${rowNum}`);
       mediumBorder(cell);
       cell.font = { name: "Calibri", size: 11, bold: false };
@@ -872,6 +903,7 @@ async function _generateExcelBuffer(
     };
     const hasDriverBreakdownItem = item.driverLines && item.driverLines.length > 0;
     const cUnit = ws.getCell(`M${rowNum}`);
+    const cUnitWithIpi = showIpi ? ws.getCell(`N${rowNum}`) : null;
     // Fallback: quando unitPrice é null mas totalPrice > 0, derivar unitPrice = totalPrice / qty
     const _derivedUnitPrice = (item.unitPrice == null && item.totalPrice != null && item.totalPrice > 0 && item.qty > 0)
       ? item.totalPrice / item.qty
@@ -919,20 +951,30 @@ async function _generateExcelBuffer(
       ? (_baseUnitLuminaria != null ? _baseUnitLuminaria + _lumDiluicaoUnit : _unitPriceComDiluicao(item))
       : _unitPriceComDiluicao(item);
     if (_unitForLuminaria !== null && _unitForLuminaria !== undefined && _unitForLuminaria > 0) {
-      cUnit.value = applyMarkup(_unitForLuminaria);
+      const originalUnitPrice = applyMarkup(_unitForLuminaria);
+      cUnit.value = showIpi ? getUnitPriceWithoutIpi(originalUnitPrice) : originalUnitPrice;
       cUnit.numFmt = '"R$"#,##0.00';
+      if (cUnitWithIpi) {
+        cUnitWithIpi.value = originalUnitPrice;
+        cUnitWithIpi.numFmt = '"R$"#,##0.00';
+      }
     } else if (hasDriverBreakdownItem && !item.luminariaHasApiPrice) {
       cUnit.value = "A definir";
       cUnit.font = { name: "Calibri", size: 9, italic: true, color: { argb: "FFE65100" } };
+      if (cUnitWithIpi) {
+        cUnitWithIpi.value = "A definir";
+        cUnitWithIpi.font = { name: "Calibri", size: 9, italic: true, color: { argb: "FFE65100" } };
+      }
     } else {
       cUnit.value = "-";
+      if (cUnitWithIpi) cUnitWithIpi.value = "-";
     }
 
     // N = PREÇO TOTAL (já com RT e Margem aplicados — valor final ao cliente; frete diluído se freteIncluded)
     // Para itens com driver desmembrado: usar priceWithoutDriver × qty + totais de drivers.
     // Itens antigos podem ter salvo apenas o valor unitário em priceWithoutDriver;
     // detectamos isso comparando com unitPriceLuminaria e corrigimos multiplicando por qty.
-    const cTotal = ws.getCell(`N${rowNum}`);
+    const cTotal = ws.getCell(`${totalPriceCol}${rowNum}`);
     let _correctedPriceWithoutDriver: number | null = null;
     if (hasDriverBreakdownItem) {
       if (item.priceWithoutDriver != null) {
@@ -974,21 +1016,21 @@ async function _generateExcelBuffer(
     }
 
     // O = OBSERVAÇÃO INTERNA do item especial (não impressa)
-    const cObs = ws.getCell(`O${rowNum}`);
+    const cObs = ws.getCell(`${internalNotesCol}${rowNum}`);
     const obsInterna = item.specialInternalNotes || "";
     cObs.value = obsInterna;
     cObs.font = { name: "Calibri", size: 10, italic: true, color: { argb: "FF7F7F7F" } };
     cObs.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
 
     // P = OBSERVAÇÃO LIVRE DO ITEM (não impressa — editada pelo vendedor ou preenchida automaticamente para Revenda)
-    const cItemNote = ws.getCell(`P${rowNum}`);
+    const cItemNote = ws.getCell(`${itemNotesCol}${rowNum}`);
     const itemNote = item.itemNote || "";
     cItemNote.value = itemNote;
     cItemNote.font = { name: "Calibri", size: 10, italic: true, color: { argb: "FF4472C4" } };
     cItemNote.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
 
     // Q = PAVIMENTO (não impresso — referência interna para organização por pavimento)
-    const cAmbiente = ws.getCell(`Q${rowNum}`);
+    const cAmbiente = ws.getCell(`${floorReferenceCol}${rowNum}`);
     cAmbiente.value = item.floorName || item.floorId || "";
     cAmbiente.font = { name: "Calibri", size: 10, color: { argb: "FF6B7280" } };
     cAmbiente.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
@@ -1082,13 +1124,22 @@ async function _generateExcelBuffer(
         fillAcc(ws.getCell(`L${accRowNum}`), accQty, true);
         if (acc.unitPrice && acc.unitPrice > 0) {
           const mCell = ws.getCell(`M${accRowNum}`);
-          mCell.value = acc.unitPrice;
+          mCell.value = showIpi ? getUnitPriceWithoutIpi(acc.unitPrice) : acc.unitPrice;
           mCell.numFmt = '"R$"#,##0.00';
           mCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: ACC_COLOR } };
           mCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
           mCell.alignment = { horizontal: "center", vertical: "middle" };
           mCell.border = accBorder;
-          const nCell = ws.getCell(`N${accRowNum}`);
+          if (showIpi) {
+            const ipiCell = ws.getCell(`N${accRowNum}`);
+            ipiCell.value = acc.unitPrice;
+            ipiCell.numFmt = '"R$"#,##0.00';
+            ipiCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: ACC_COLOR } };
+            ipiCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
+            ipiCell.alignment = { horizontal: "center", vertical: "middle" };
+            ipiCell.border = accBorder;
+          }
+          const nCell = ws.getCell(`${totalPriceCol}${accRowNum}`);
           nCell.value = acc.unitPrice * accQty;
           nCell.numFmt = '"R$"#,##0.00';
           nCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: ACC_COLOR } };
@@ -1097,7 +1148,8 @@ async function _generateExcelBuffer(
           nCell.border = accBorder;
         } else {
           fillAcc(ws.getCell(`M${accRowNum}`), "-");
-          fillAcc(ws.getCell(`N${accRowNum}`), "-");
+          if (showIpi) fillAcc(ws.getCell(`N${accRowNum}`), "-");
+          fillAcc(ws.getCell(`${totalPriceCol}${accRowNum}`), "-");
         }
       }
       // Avançar currentRow para compensar as sub-linhas inseridas
@@ -1145,13 +1197,22 @@ async function _generateExcelBuffer(
           const _drvDiluicaoUnit = _effectiveDrvQty > 0 ? (_diluicaoFatorItem + _freteFatorItem) * _drvPeso / _effectiveDrvQty : 0;
           const drvUnitAdjusted = applyMarkup(drv.driverUnitPrice + _drvDiluicaoUnit);
           const mCell = ws.getCell(`M${drvRowNum}`);
-          mCell.value = drvUnitAdjusted;
+          mCell.value = showIpi ? getUnitPriceWithoutIpi(drvUnitAdjusted) : drvUnitAdjusted;
           mCell.numFmt = '"R$"#,##0.00';
           mCell.font = { name: 'Calibri', size: 9, italic: true, color: { argb: DRV_COLOR } };
           mCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: DRV_BG } };
           mCell.alignment = { horizontal: 'center', vertical: 'middle' };
           mCell.border = drvBorder;
-          const nCell = ws.getCell(`N${drvRowNum}`);
+          if (showIpi) {
+            const ipiCell = ws.getCell(`N${drvRowNum}`);
+            ipiCell.value = drvUnitAdjusted;
+            ipiCell.numFmt = '"R$"#,##0.00';
+            ipiCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: DRV_COLOR } };
+            ipiCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: DRV_BG } };
+            ipiCell.alignment = { horizontal: "center", vertical: "middle" };
+            ipiCell.border = drvBorder;
+          }
+          const nCell = ws.getCell(`${totalPriceCol}${drvRowNum}`);
           nCell.value = applyMarkup((drv.driverUnitPrice + _drvDiluicaoUnit) * _effectiveDrvQty);
           nCell.numFmt = '"R$"#,##0.00';
           nCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: DRV_COLOR } };
@@ -1160,7 +1221,8 @@ async function _generateExcelBuffer(
           nCell.border = drvBorder;
         } else {
           fillDrv(ws.getCell(`M${drvRowNum}`), "-");
-          fillDrv(ws.getCell(`N${drvRowNum}`), "-");
+          if (showIpi) fillDrv(ws.getCell(`N${drvRowNum}`), "-");
+          fillDrv(ws.getCell(`${totalPriceCol}${drvRowNum}`), "-");
         }
       }
       currentRow += item.driverLines.length;
@@ -1193,7 +1255,8 @@ async function _generateExcelBuffer(
         }
         fillLd(ws.getCell(`L${ldRowNum}`), ldrv.totalQty);
         fillLd(ws.getCell(`M${ldRowNum}`), "incl.");
-        fillLd(ws.getCell(`N${ldRowNum}`), "incl.");
+        if (showIpi) fillLd(ws.getCell(`N${ldRowNum}`), "incl.");
+        fillLd(ws.getCell(`${totalPriceCol}${ldRowNum}`), "incl.");
       }
       currentRow += legacyDrvsExcel.length;
     }
@@ -1217,8 +1280,8 @@ async function _generateExcelBuffer(
       };
       fillObsCell(ws.getCell(`C${obsRowNum}`), "");
       fillObsCell(ws.getCell(`D${obsRowNum}`), "");
-      // Mesclar colunas E até N para a observação
-      ws.mergeCells(`E${obsRowNum}:N${obsRowNum}`);
+      // Mesclar até o fim visível da tabela para a observação
+      ws.mergeCells(`E${obsRowNum}:${visibleEndCol}${obsRowNum}`);
       const obsCell = ws.getCell(`E${obsRowNum}`);
       obsCell.value = `⚠ Obs.: ${item.itemObs}`;
       obsCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: OBS_COLOR } };
@@ -1316,7 +1379,7 @@ async function _generateExcelBuffer(
     c.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FF006600" } };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
-  ws.mergeCells(`E${nextRow}:N${nextRow}`);
+  ws.mergeCells(`E${nextRow}:${visibleEndCol}${nextRow}`);
   {
     const c = ws.getCell(`E${nextRow}`);
     c.value = -(discountPct > 0 || _hasItemDiscount ? _combinedDiscountAmount : 0);
@@ -1335,7 +1398,7 @@ async function _generateExcelBuffer(
       c.font = { name: "Calibri", size: 12, bold: true };
       c.alignment = { horizontal: "left", vertical: "middle" };
     }
-    ws.mergeCells(`E${nextRow}:N${nextRow}`);
+    ws.mergeCells(`E${nextRow}:${visibleEndCol}${nextRow}`);
     {
       const c = ws.getCell(`E${nextRow}`);
       const prazo = formData.deliveryDays ?? 20;
@@ -1361,7 +1424,7 @@ async function _generateExcelBuffer(
     c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
   }
-  ws.mergeCells(`E${nextRow}:N${nextRow}`);
+  ws.mergeCells(`E${nextRow}:${visibleEndCol}${nextRow}`);
   {
     const c = ws.getCell(`E${nextRow}`);
     c.value = totalFinal;
@@ -1391,7 +1454,7 @@ async function _generateExcelBuffer(
       c.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FFE65100" } };
       c.alignment = { horizontal: "left", vertical: "middle" };
     }
-    ws.mergeCells(`E${nextRow}:N${nextRow}`);
+    ws.mergeCells(`E${nextRow}:${visibleEndCol}${nextRow}`);
     {
       const c = ws.getCell(`E${nextRow}`);
       c.value = totalSemDriverFinal;
@@ -1410,7 +1473,7 @@ async function _generateExcelBuffer(
       c.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FFE65100" } };
       c.alignment = { horizontal: "left", vertical: "middle" };
     }
-    ws.mergeCells(`E${nextRow}:N${nextRow}`);
+    ws.mergeCells(`E${nextRow}:${visibleEndCol}${nextRow}`);
     {
       const c = ws.getCell(`E${nextRow}`);
       c.value = totalDriverFinal;
@@ -1432,7 +1495,7 @@ async function _generateExcelBuffer(
       c.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FFCC0000" } };
       c.alignment = { horizontal: "left", vertical: "middle" };
     }
-    ws.mergeCells(`E${nextRow}:N${nextRow}`);
+    ws.mergeCells(`E${nextRow}:${visibleEndCol}${nextRow}`);
     {
       const c = ws.getCell(`E${nextRow}`);
       c.value = combinedAmt;
@@ -1450,11 +1513,13 @@ async function _generateExcelBuffer(
       const c = ws.getCell(`C${nextRow}`);
       // Quando há frete pago não-diluído, ele já entra na base do DIFAL (baseParaImposto = totalFinal + freteValue)
       const _temFretePagoNaBase = _freteParaImpostoBase > 0;
-      c.value = "TOTAL GERAL\n(com FRETE + DIFAL/FCP):";
+      c.value = _temFretePagoNaBase
+        ? "TOTAL GERAL\n(com FRETE + DIFAL/FCP):"
+        : "TOTAL GERAL\n(com DIFAL/FCP):";
       c.font = { name: "Calibri", size: 12, bold: true };
       c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
     }
-    ws.mergeCells(`E${nextRow}:N${nextRow}`);
+    ws.mergeCells(`E${nextRow}:${visibleEndCol}${nextRow}`);
     {
       const c = ws.getCell(`E${nextRow}`);
       c.value = totalComDifal;
@@ -1481,7 +1546,7 @@ async function _generateExcelBuffer(
     c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle" };
   }
-  ws.mergeCells(`E${nextRow}:N${nextRow}`);
+  ws.mergeCells(`E${nextRow}:${visibleEndCol}${nextRow}`);
   {
     const c = ws.getCell(`E${nextRow}`);
     c.value = formData.paymentTerm ?? "30% Sinal e 70% a 28DDF (mediante a aprovação de cadastro)";
@@ -1500,7 +1565,7 @@ async function _generateExcelBuffer(
       c.font = { name: "Calibri", size: 12, bold: true };
       c.alignment = { horizontal: "left", vertical: "middle" };
     }
-    ws.mergeCells(`E${nextRow}:N${nextRow}`);
+    ws.mergeCells(`E${nextRow}:${visibleEndCol}${nextRow}`);
     {
       const c = ws.getCell(`E${nextRow}`);
       c.value = buildFreteText(formData, totalFinal);
@@ -1526,7 +1591,7 @@ async function _generateExcelBuffer(
         c.font = { name: "Calibri", size: 12, bold: true };
         c.alignment = { horizontal: "left", vertical: "middle" };
       }
-      ws.mergeCells(`E${nextRow}:N${nextRow}`);
+      ws.mergeCells(`E${nextRow}:${visibleEndCol}${nextRow}`);
       {
         const c = ws.getCell(`E${nextRow}`);
         c.value = _freteValorNum;
@@ -1549,7 +1614,7 @@ async function _generateExcelBuffer(
           c.font = { name: "Calibri", size: 12, bold: true };
           c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
         }
-        ws.mergeCells(`E${nextRow}:N${nextRow}`);
+        ws.mergeCells(`E${nextRow}:${visibleEndCol}${nextRow}`);
         {
           const c = ws.getCell(`E${nextRow}`);
           c.value = totalFinal + _freteValorNum;
@@ -1567,7 +1632,7 @@ async function _generateExcelBuffer(
 
   // -- Observacao (linha unica: label + texto) --
   ws.getRow(nextRow).height = 19.8;
-  ws.mergeCells(`C${nextRow}:N${nextRow}`);
+  ws.mergeCells(`C${nextRow}:${visibleEndCol}${nextRow}`);
   {
     const c = ws.getCell(`C${nextRow}`);
     // Montar texto de observação com DIFAL/FCP se aplicado
@@ -1593,7 +1658,7 @@ async function _generateExcelBuffer(
 
   // ── Fico à disposição / Vendedor + Logo ─────────────────────────────────
   ws.getRow(nextRow).height = 19.8;
-  ws.mergeCells(`C${nextRow}:N${nextRow}`);
+  ws.mergeCells(`C${nextRow}:${visibleEndCol}${nextRow}`);
   {
     const c = ws.getCell(`C${nextRow}`);
     c.value = "Fico à disposição para quaisquer esclarecimentos,";
@@ -1648,7 +1713,7 @@ async function _generateExcelBuffer(
 
   // ── CONDIÇÕES GERAIS DE FORNECIMENTO ─────────────────────────────────────
   ws.getRow(nextRow).height = 28.8;
-  ws.mergeCells(`C${nextRow}:N${nextRow}`);
+  ws.mergeCells(`C${nextRow}:${visibleEndCol}${nextRow}`);
   {
     const c = ws.getCell(`C${nextRow}`);
     c.value = "CONDIÇÕES GERAIS DE FORNECIMENTO";
@@ -1679,7 +1744,7 @@ async function _generateExcelBuffer(
       c.font = { name: "Calibri", size: 10, bold: true };
       c.alignment = { horizontal: "right", vertical: "top" };
     }
-    ws.mergeCells(`D${nextRow}:N${nextRow}`);
+    ws.mergeCells(`D${nextRow}:${visibleEndCol}${nextRow}`);
     {
       const c = ws.getCell(`D${nextRow}`);
       c.value = cond.text;
@@ -1691,7 +1756,7 @@ async function _generateExcelBuffer(
 
   // ── Estou ciente ─────────────────────────────────────────────────────────
   ws.getRow(nextRow).height = 31.2;
-  ws.mergeCells(`C${nextRow}:N${nextRow}`);
+  ws.mergeCells(`C${nextRow}:${visibleEndCol}${nextRow}`);
   {
     const c = ws.getCell(`C${nextRow}`);
     c.value = "Estou ciente das informações contidas neste documento.";
@@ -1721,7 +1786,7 @@ async function _generateExcelBuffer(
 
   // ── Rodapé endereço (fundo azul) ─────────────────────────────────────────
   ws.getRow(nextRow).height = 19.8;
-  ws.mergeCells(`C${nextRow}:N${nextRow}`);
+  ws.mergeCells(`C${nextRow}:${visibleEndCol}${nextRow}`);
   {
     const c = ws.getCell(`C${nextRow}`);
     c.value = "R. Agostino Togneri, nº 617 - Jurubatuba - São Paulo/SP  - CEP: 04690-090";
@@ -1793,7 +1858,7 @@ async function _generateExcelBuffer(
   // Isso garante que a área de impressão sempre cobre exatamente o orçamento inteiro,
   // independentemente do número de itens, e que o Excel calcula a escala corretamente.
   const lastContentRow = ws.rowCount;
-  wb.definedNames.add(`Alfalux!\$C\$1:\$N\$${lastContentRow}`, "_xlnm.Print_Area");
+  wb.definedNames.add(`Alfalux!\$C\$1:\$${visibleEndCol}\$${lastContentRow}`, "_xlnm.Print_Area");
 
   // ── Retornar buffer ──────────────────────────────────────────────
   return await wb.xlsx.writeBuffer() as ArrayBuffer;
