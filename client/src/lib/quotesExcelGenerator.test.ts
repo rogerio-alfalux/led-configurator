@@ -28,8 +28,9 @@ describe("generateFilteredQuotesExcel", () => {
       {
         quoteNumber: "33.0001-26",
         revisionCount: 2,
-        status: "open",
+        status: "invoiced",
         createdAt: "2026-07-15 10:00:00",
+        invoicedAt: "2026-07-15 15:00:00",
         clientName: "CLIENTE DIRETO",
         projectName: "HALL",
         totalAmount: 200,
@@ -45,12 +46,13 @@ describe("generateFilteredQuotesExcel", () => {
     expect(sheet?.getCell("A1").value).toBe("EXPORTAÇÃO DE ORÇAMENTOS");
     expect(sheet?.getCell("A4").value).toBe("04.0366-26");
     expect(sheet?.getCell("B4").value).toBe("RV0");
-    expect(sheet?.getCell("M4").value).toBe("A calcular");
-    expect(sheet?.getCell("O3").value).toBe("Valor total final (R$)");
-    expect(sheet?.getCell("P4").value).toBe("Solicitação LD");
-    expect(sheet?.getCell("Q4").value).toBe("LD-0002-26 — PDF enviado");
-    expect(sheet?.getCell("N6").value).toBe(1200);
-    expect(sheet?.getCell("O6").value).toBe(1450);
+    expect(sheet?.getCell("N4").value).toBe("A calcular");
+    expect(sheet?.getCell("P3").value).toBe("Valor total final (R$)");
+    expect(sheet?.getCell("Q4").value).toBe("Solicitação LD");
+    expect(sheet?.getCell("R4").value).toBe("LD-0002-26 — PDF enviado");
+    expect(String(sheet?.getCell("F5").value)).toContain("15/07/2026");
+    expect(sheet?.getCell("O6").value).toBe(1200);
+    expect(sheet?.getCell("P6").value).toBe(1450);
     expect(summary?.getCell("A1").value).toBe("RESUMO DOS ORÇAMENTOS EXPORTADOS");
   });
 });

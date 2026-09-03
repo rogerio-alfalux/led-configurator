@@ -25,7 +25,7 @@ import { getDuplicateQuoteGroupSizes, getDuplicateQuoteKey } from '../shared/quo
 import { getCommercialTotalsToRestore, getNonCommercialQuoteStatus, transfersNonCommercialFinance, type NonCommercialQuoteKind, type NonCommercialLinkType } from '../shared/nonCommercialQuoteFinancial';
 import { normalizeQuoteNumberForLookup } from '../shared/quoteNumberLookup';
 import { ADMIN_PENDING_LD_STATUSES } from './ldRequestBadgeStatus';
-import { getBrasiliaYear2, toBrasiliaSqlTimestamp, toUtcSqlTimestamp } from './timeUtils';
+import { brasiliaDateToUtcSqlTimestamp, getBrasiliaYear2, toBrasiliaSqlTimestamp, toUtcSqlTimestamp } from './timeUtils';
 import { readAdditionalCostsAggregate } from './dashboardAdditionalCosts';
 
 /** Mantido para textos e metadados que precisam da hora civil de Brasília. */
@@ -948,9 +948,13 @@ export async function listQuotes(opts: {
   if (opts.assistantId != null) conditions.push(eq(quotes.assistantId, opts.assistantId));
   if (opts.seller1Name) conditions.push(like(quotes.seller1Name, `%${opts.seller1Name}%`));
   if (opts.assistantName) conditions.push(like(quotes.assistantName, `%${opts.assistantName}%`));
-  // Para status 'approved': filtrar por approvedAt (data de aprovação) para consistência com o dashboard
-  // Para outros status: filtrar por createdAt (data de criação)
-  const dateField = opts.status === 'approved' ? quotes.approvedAt : quotes.createdAt;
+  // Cada status comercial usa seu marco efetivo. Faturados devem sempre
+  // considerar a data fiscal informada, e não a data de criação do orçamento.
+  const dateField = opts.status === 'invoiced'
+    ? quotes.invoicedAt
+    : opts.status === 'approved'
+      ? quotes.approvedAt
+      : quotes.createdAt;
   if (opts.dateFrom) conditions.push(sql`DATE(DATE_SUB(${dateField}, INTERVAL 3 HOUR)) >= ${opts.dateFrom}`);
   if (opts.dateTo) conditions.push(sql`DATE(DATE_SUB(${dateField}, INTERVAL 3 HOUR)) <= ${opts.dateTo}`);
   if (opts.search) {
@@ -973,7 +977,11 @@ export async function listQuotes(opts: {
   const limit = opts.limit ?? 20;
   const offset = opts.offset ?? 0;
 
-  const orderCol = opts.status === 'approved' ? quotes.approvedAt : quotes.createdAt;
+  const orderCol = opts.status === 'invoiced'
+    ? quotes.invoicedAt
+    : opts.status === 'approved'
+      ? quotes.approvedAt
+      : quotes.createdAt;
   const rows = await db
     .select()
     .from(quotes)
@@ -1078,7 +1086,12 @@ export async function approveQuote(id: number) {
 export async function updateQuoteStatus(
   id: number,
   status: "open" | "approved" | "lost" | "cancelled" | "invoiced" | "sample",
-  opts?: { orderNumber?: string; billingCompany?: "alfalux" | "primelux" | "decada" | "primelase" | "luminew" }
+  opts?: {
+    orderNumber?: string;
+    billingCompany?: "alfalux" | "primelux" | "decada" | "primelase" | "luminew";
+    /** Data civil escolhida pelo usuário no fuso de Brasília (YYYY-MM-DD). */
+    invoicedDate?: string;
+  }
 ) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -1088,7 +1101,9 @@ export async function updateQuoteStatus(
     if (opts?.orderNumber) updateData.orderNumber = opts.orderNumber;
     if (opts?.billingCompany) updateData.billingCompany = opts.billingCompany;
   }
-  if (status === "invoiced") updateData.invoicedAt = nowUtcStr();
+  if (status === "invoiced") updateData.invoicedAt = opts?.invoicedDate
+    ? brasiliaDateToUtcSqlTimestamp(opts.invoicedDate)
+    : nowUtcStr();
   await db.update(quotes).set(updateData).where(eq(quotes.id, id));
 }
 

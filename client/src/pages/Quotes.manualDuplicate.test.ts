@@ -31,14 +31,14 @@ describe("duplicidade manual de orçamentos", () => {
   it("usa o mesmo conjunto filtrado para o card Total e para a exportação", async () => {
     const source = await readFile(new URL("./Quotes.tsx", import.meta.url), "utf8");
     expect(source).toContain("const total = rows.length;");
-    expect(source).toContain("const exportRows = (filteredAllData?.rows ?? []).filter(matchesClientFilters);");
+    expect(source).toContain("const exportRows = (filteredAllData?.rows ?? []).filter(matchesClientFilters).sort(byReferenceDateDescending);");
   });
 
-  it("aplica o intervalo mensal e exibe o horário da revisão no fuso de Brasília", async () => {
+  it("aplica o intervalo mensal pela data comercial e usa a data de faturamento para registros faturados", async () => {
     const source = await readFile(new URL("./Quotes.tsx", import.meta.url), "utf8");
     expect(source).toContain("const isWithinSelectedDateRange");
-    expect(source).toContain("const createdDate = toBrasiliaFileDate(createdAt);");
-    expect(source).toContain("if (dateTo && createdDate > dateTo) return false;");
-    expect(source).toContain("toBrasiliaDateTimeShort(q.updatedAt ?? q.createdAt)");
+    expect(source).toContain("const referenceDate = toBrasiliaFileDate(getQuoteReferenceDate(quote));");
+    expect(source).toContain('if (quote.status === "invoiced") return quote.invoicedAt ?? quote.updatedAt ?? quote.createdAt;');
+    expect(source).toContain('q.status === "invoiced" ? "Faturado em"');
   });
 });

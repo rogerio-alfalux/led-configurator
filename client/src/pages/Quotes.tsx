@@ -163,11 +163,17 @@ export default function Quotes() {
   };
 
   const isWithinSelectedDateRange = (quote: any) => {
-    const createdAt = String(quote.createdAt ?? "");
-    const createdDate = toBrasiliaFileDate(createdAt);
-    if (dateFrom && createdDate < dateFrom) return false;
-    if (dateTo && createdDate > dateTo) return false;
+    const referenceDate = toBrasiliaFileDate(getQuoteReferenceDate(quote));
+    if (dateFrom && referenceDate < dateFrom) return false;
+    if (dateTo && referenceDate > dateTo) return false;
     return true;
+  };
+
+  /** Marco comercial exibido e filtrado em Meus Orçamentos. */
+  const getQuoteReferenceDate = (quote: any): string | Date => {
+    if (quote.status === "invoiced") return quote.invoicedAt ?? quote.updatedAt ?? quote.createdAt;
+    if (quote.status === "approved") return quote.approvedAt ?? quote.updatedAt ?? quote.createdAt;
+    return quote.createdAt;
   };
 
   // Estatísticas refletem os filtros ativos
@@ -285,8 +291,9 @@ export default function Quotes() {
   };
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
-  const visibleRows = rows.filter(matchesClientFilters);
-  const exportRows = (filteredAllData?.rows ?? []).filter(matchesClientFilters);
+  const byReferenceDateDescending = (a: any, b: any) => new Date(getQuoteReferenceDate(b)).getTime() - new Date(getQuoteReferenceDate(a)).getTime();
+  const visibleRows = rows.filter(matchesClientFilters).sort(byReferenceDateDescending);
+  const exportRows = (filteredAllData?.rows ?? []).filter(matchesClientFilters).sort(byReferenceDateDescending);
   const displayRows = clientFilterActive
     ? visibleRows.slice(page * limit, (page + 1) * limit)
     : visibleRows;
@@ -325,6 +332,7 @@ export default function Quotes() {
           status: quote.status,
           createdAt: quote.createdAt,
           updatedAt: quote.updatedAt,
+          invoicedAt: quote.invoicedAt,
           clientName: quote.clientName,
           clientContact: quote.clientContact,
           projectName: quote.projectName,
@@ -694,7 +702,7 @@ export default function Quotes() {
                             <p className="text-xs text-muted-foreground italic">A consultar</p>
                           )}
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            <span className="font-mono font-semibold text-foreground/70">RV{q.revisionCount ?? 0}</span> · v{q.currentVersion} · {toBrasiliaDateTimeShort(q.updatedAt ?? q.createdAt)}
+                            <span className="font-mono font-semibold text-foreground/70">RV{q.revisionCount ?? 0}</span> · v{q.currentVersion} · {q.status === "invoiced" ? "Faturado em" : q.status === "approved" ? "Aprovado em" : "Criado em"} {toBrasiliaDateTimeShort(getQuoteReferenceDate(q))}
                           </p>
                         </div>
 

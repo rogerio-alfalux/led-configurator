@@ -34,7 +34,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { toBrasiliaDate, toBrasiliaDateTime, toBrasiliaDateTimeShort } from "@/lib/dateUtils";
+import { toBrasiliaDate, toBrasiliaDateTime, toBrasiliaDateTimeShort, toBrasiliaFileDate } from "@/lib/dateUtils";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -978,6 +978,7 @@ export default function QuoteDetail() {
   const [showAllVersions, setShowAllVersions] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<string>("");
+  const [invoicedDateInput, setInvoicedDateInput] = useState("");
   const [sampleDialogOpen, setSampleDialogOpen] = useState(false);
   const [sampleNotes, setSampleNotes] = useState("");
   const [conversionKind, setConversionKind] = useState<"sample" | "maintenance">("sample");
@@ -3323,7 +3324,7 @@ export default function QuoteDetail() {
           {/* Alterar Status */}
           {canChangeStatus && <Dialog open={statusDialogOpen} onOpenChange={(open) => {
             setStatusDialogOpen(open);
-            if (!open) { setNewStatus(""); setOrderNumberInput(""); setBillingCompanyInput(""); }
+            if (!open) { setNewStatus(""); setInvoicedDateInput(""); setOrderNumberInput(""); setBillingCompanyInput(""); }
           }}>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2">
@@ -3338,7 +3339,12 @@ export default function QuoteDetail() {
               <div className="space-y-4 py-2">
                 <div>
                   <Label>Novo Status</Label>
-                  <Select value={newStatus} onValueChange={(v) => { setNewStatus(v); setOrderNumberInput(""); setBillingCompanyInput(""); }}>
+                  <Select value={newStatus} onValueChange={(v) => {
+                    setNewStatus(v);
+                    setInvoicedDateInput(v === "invoiced" ? toBrasiliaFileDate(new Date()) : "");
+                    setOrderNumberInput("");
+                    setBillingCompanyInput("");
+                  }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o status" />
                     </SelectTrigger>
@@ -3369,9 +3375,26 @@ export default function QuoteDetail() {
                 )}
 
                 {newStatus === "invoiced" && (
-                  <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg text-sm text-purple-700 dark:text-purple-400">
-                    <Receipt className="w-4 h-4 inline mr-1" />
-                    Faturado indica que a nota fiscal foi emitida. Esta é a métrica de faturamento real do negócio.
+                  <div className="space-y-3 p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-900/60">
+                    <p className="text-sm text-purple-700 dark:text-purple-400">
+                      <Receipt className="w-4 h-4 inline mr-1" />
+                      Faturado indica que a nota fiscal foi emitida. Esta é a métrica de faturamento real do negócio.
+                    </p>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="invoiced-date" className="text-purple-900 dark:text-purple-200">Data de faturamento</Label>
+                      <Input
+                        id="invoiced-date"
+                        type="date"
+                        value={invoicedDateInput}
+                        max={toBrasiliaFileDate(new Date())}
+                        onChange={(event) => setInvoicedDateInput(event.target.value)}
+                        className="bg-background"
+                        required
+                      />
+                      <p className="text-xs text-purple-700/80 dark:text-purple-300/80">
+                        Preenchida inicialmente com a data atual de Brasília. Altere-a se a nota fiscal foi emitida anteriormente.
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -3380,9 +3403,14 @@ export default function QuoteDetail() {
                 <Button
                   onClick={() => {
                     if (!newStatus) return;
+                    if (newStatus === "invoiced" && !invoicedDateInput) {
+                      toast.error("Informe a data de faturamento.");
+                      return;
+                    }
                     updateStatusMutation.mutate({
                       id: Number(id),
                       status: newStatus as "open" | "approved" | "lost" | "cancelled" | "invoiced",
+                      invoicedDate: newStatus === "invoiced" ? invoicedDateInput : undefined,
                     });
                   }}
                   disabled={!newStatus || updateStatusMutation.isPending}

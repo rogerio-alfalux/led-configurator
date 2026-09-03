@@ -3315,3 +3315,9 @@
 - [x] Investigar por que o item FOCO G COB 70 RE 38W 36° 4000K exibe foto divergente da API
 - [x] Corrigir exclusivamente o registro afetado e a resolução de fotos para priorizar a imagem vigente da API
 - [x] Cobrir a seleção de imagem por SKU em regressão e validar o orçamento sem alterar valores ou estrutura
+
+## Data de faturamento de orçamento
+- [x] Exibir data de faturamento preenchida com a data vigente em Brasília ao alterar o status para Faturado
+- [x] Permitir que o usuário autorizado informe uma data de faturamento anterior ou atual e persistir a escolha
+- [x] Usar a data de faturamento informada na listagem, ordenação, filtros e indicadores de Meus Orçamentos
+- [x] Cobrir o fluxo de faturamento por regressão sem alterar datas de orçamentos já faturados

@@ -1422,6 +1422,7 @@ export const appRouter = router({
         quoteNumber: z.string().optional(),
         orderNumber: z.string().regex(/^\d{6}$/, "Número do pedido deve ter exatamente 6 dígitos").optional(),
         billingCompany: z.enum(["alfalux", "primelux", "decada", "primelase", "luminew"]).optional(),
+        invoicedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data de faturamento inválida").optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const qForStatus = await getQuoteById(input.id);
@@ -1440,9 +1441,13 @@ export const appRouter = router({
             message: statusError,
           });
         }
+        if (input.invoicedDate && input.status !== "invoiced") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "A data de faturamento só pode ser informada ao faturar o orçamento." });
+        }
         await updateQuoteStatus(input.id, input.status, {
           orderNumber: input.orderNumber,
           billingCompany: input.billingCompany,
+          invoicedDate: input.invoicedDate,
         });
         await insertAuditLog({
           userId: ctx.user.id,
@@ -1456,6 +1461,7 @@ export const appRouter = router({
             quoteNumber: input.quoteNumber,
             orderNumber: input.orderNumber,
             billingCompany: input.billingCompany,
+            invoicedDate: input.invoicedDate,
           }),
         });
         return { success: true };

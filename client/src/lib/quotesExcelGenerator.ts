@@ -8,6 +8,7 @@ export interface QuoteExcelExportRow {
   status: string;
   createdAt: string | Date;
   updatedAt?: string | Date | null;
+  invoicedAt?: string | Date | null;
   clientName: string | null;
   clientContact?: string | null;
   projectName?: string | null;
@@ -93,7 +94,7 @@ export async function generateFilteredQuotesExcel(rows: QuoteExcelExportRow[], f
     views: [{ state: "frozen", ySplit: 3 }],
     pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1 },
   });
-  const endColumn = "Q";
+  const endColumn = "R";
   sheet.mergeCells(`A1:${endColumn}1`);
   sheet.getCell("A1").value = "EXPORTAÇÃO DE ORÇAMENTOS";
   sheet.getCell("A1").font = { bold: true, size: 14, color: { argb: "FFFFFFFF" } };
@@ -108,7 +109,7 @@ export async function generateFilteredQuotesExcel(rows: QuoteExcelExportRow[], f
   sheet.getRow(2).height = 28;
 
   const headers = [
-    "Nº Orçamento", "Revisão", "Status", "Criação", "Atualização", "Cliente", "Contato", "Obra", "Referência",
+    "Nº Orçamento", "Revisão", "Status", "Criação", "Atualização", "Faturamento", "Cliente", "Contato", "Obra", "Referência",
     "Vendedor(es)", "Assistente", "Destino", "Tipo de frete", "Valor de produtos (R$)", "Valor total final (R$)", "Origem", "Solicitação LD / resposta",
   ];
   const headerRow = sheet.getRow(3);
@@ -136,6 +137,7 @@ export async function generateFilteredQuotesExcel(rows: QuoteExcelExportRow[], f
       STATUS[row.status] ?? row.status,
       toBrasiliaDateTime(row.createdAt),
       row.updatedAt ? toBrasiliaDateTime(row.updatedAt) : "—",
+      row.status === "invoiced" && row.invoicedAt ? toBrasiliaDateTime(row.invoicedAt) : "—",
       row.clientName || "—",
       row.clientContact || "—",
       row.projectName || "—",
@@ -155,8 +157,8 @@ export async function generateFilteredQuotesExcel(rows: QuoteExcelExportRow[], f
       cell.border = BORDER;
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: index % 2 === 0 ? "FFFAFAFA" : "FFFFFFFF" } };
       cell.alignment = { vertical: "middle", wrapText: true };
-      if ([0, 1, 2, 3, 4].includes(column)) cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-      if ([13, 14].includes(column)) {
+      if ([0, 1, 2, 3, 4, 5].includes(column)) cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+      if ([14, 15].includes(column)) {
         cell.numFmt = '"R$" #,##0.00';
         cell.alignment = { horizontal: "right", vertical: "middle" };
       }
@@ -167,22 +169,22 @@ export async function generateFilteredQuotesExcel(rows: QuoteExcelExportRow[], f
   totalRow.height = 22;
   const totalBase = rows.reduce((sum, row) => sum + number(row.totalAmount), 0);
   const totalFinal = rows.reduce((sum, row) => sum + getStoredCustomerTotal(row), 0);
-  ["TOTAL", "", "", "", "", "", "", "", "", "", "", "", "", totalBase, totalFinal, "", ""].forEach((value, column) => {
+  ["TOTAL", "", "", "", "", "", "", "", "", "", "", "", "", "", totalBase, totalFinal, "", ""].forEach((value, column) => {
     const cell = totalRow.getCell(column + 1);
     cell.value = value;
     cell.font = { bold: true, size: 10 };
     cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: TOTAL } };
     cell.border = BORDER;
-    if ([13, 14].includes(column)) {
+    if ([14, 15].includes(column)) {
       cell.numFmt = '"R$" #,##0.00';
       cell.alignment = { horizontal: "right", vertical: "middle" };
     }
   });
 
-  [18, 10, 15, 18, 18, 24, 20, 26, 18, 25, 20, 20, 20, 16, 16, 18, 31].forEach((width, index) => {
+  [18, 10, 15, 18, 18, 18, 24, 20, 26, 18, 25, 20, 20, 20, 16, 16, 18, 31].forEach((width, index) => {
     sheet.getColumn(index + 1).width = width;
   });
-  sheet.autoFilter = { from: "A3", to: `Q${Math.max(3, rows.length + 3)}` };
+  sheet.autoFilter = { from: "A3", to: `R${Math.max(3, rows.length + 3)}` };
 
   const summary = workbook.addWorksheet("Resumo", { views: [{ state: "frozen", ySplit: 2 }] });
   summary.mergeCells("A1:C1");

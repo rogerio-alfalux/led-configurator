@@ -38,8 +38,13 @@ router.get("/quotes", async (req, res) => {
     if (status)   conditions.push(eq(quotes.status, status as any));
     if (seller)   conditions.push(like(quotes.seller1Name, `%${seller}%`));
     if (client)   conditions.push(like(quotes.clientName,  `%${client}%`));
-    if (dateFrom) conditions.push(gte(quotes.createdAt, dateFrom));
-    if (dateTo)   conditions.push(lte(quotes.createdAt, dateTo + " 23:59:59"));
+    const referenceDate = status === "invoiced"
+      ? quotes.invoicedAt
+      : status === "approved"
+        ? quotes.approvedAt
+        : quotes.createdAt;
+    if (dateFrom) conditions.push(gte(referenceDate, dateFrom));
+    if (dateTo)   conditions.push(lte(referenceDate, dateTo + " 23:59:59"));
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -67,10 +72,11 @@ router.get("/quotes", async (req, res) => {
         createdAt:       quotes.createdAt,
         updatedAt:       quotes.updatedAt,
         approvedAt:      quotes.approvedAt,
+        invoicedAt:      quotes.invoicedAt,
       })
       .from(quotes)
       .where(where)
-      .orderBy(desc(quotes.updatedAt))
+      .orderBy(desc(status === "invoiced" ? quotes.invoicedAt : quotes.updatedAt))
       .limit(perPage)
       .offset(offset);
 
