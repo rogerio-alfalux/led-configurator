@@ -1211,7 +1211,8 @@ export const appRouter = router({
         offset: z.number().optional(),
       }))
       .query(async ({ ctx, input }) => {
-        const canInvoiceAnyQuote = await hasExplicitUserPermission(ctx.user.id, PERMISSIONS.FATURAR_ORCAMENTOS);
+        const canInvoiceAnyQuote = ctx.user.role === "admin"
+          || await hasExplicitUserPermission(ctx.user.id, PERMISSIONS.FATURAR_ORCAMENTOS);
         // Assistentes com allowedSellerId só podem ver orçamentos do vendedor vinculado.
         // A responsável nominal de faturamento precisa localizar qualquer orçamento aprovado.
         if (!canInvoiceAnyQuote && ctx.user.role === 'assistente' && ctx.user.email) {
@@ -1289,7 +1290,8 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => {
         const result = await getQuoteById(input.id);
         if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
-        const canInvoiceAnyQuote = await hasExplicitUserPermission(ctx.user.id, PERMISSIONS.FATURAR_ORCAMENTOS);
+        const canInvoiceAnyQuote = ctx.user.role === "admin"
+          || await hasExplicitUserPermission(ctx.user.id, PERMISSIONS.FATURAR_ORCAMENTOS);
         // Assistentes com allowedSellerId só podem ver orçamentos do vendedor vinculado
         if (!canInvoiceAnyQuote && ctx.user.role === 'assistente' && ctx.user.email) {
           const db = await getDb();
@@ -1427,7 +1429,8 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const qForStatus = await getQuoteById(input.id);
         if (!qForStatus) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
-        const canInvoiceAnyQuote = await hasExplicitUserPermission(ctx.user.id, PERMISSIONS.FATURAR_ORCAMENTOS);
+        const canInvoiceAnyQuote = ctx.user.role === "admin"
+          || await hasExplicitUserPermission(ctx.user.id, PERMISSIONS.FATURAR_ORCAMENTOS);
         const canEditStatus = await canEditQuote(ctx.user.email, qForStatus.quote, ctx.user.role, ctx.user.id);
         const statusError = getQuoteStatusAuthorizationError({
           targetStatus: input.status,

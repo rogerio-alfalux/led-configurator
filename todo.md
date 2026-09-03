@@ -3321,3 +3321,8 @@
 - [x] Permitir que o usuário autorizado informe uma data de faturamento anterior ou atual e persistir a escolha
 - [x] Usar a data de faturamento informada na listagem, ordenação, filtros e indicadores de Meus Orçamentos
 - [x] Cobrir o fluxo de faturamento por regressão sem alterar datas de orçamentos já faturados
+
+## Disponibilidade do status Faturado
+- [x] Investigar a ausência da opção Faturado no diálogo de status de orçamento aprovado
+- [x] Restaurar a exibição do status para usuários com autorização de faturamento, mantendo a regra de aprovação
+- [x] Cobrir a condição de interface e de servidor por regressão

@@ -47,7 +47,8 @@ export async function hasUserPermission(
 
 /**
  * Verifica uma permissão atribuída nominalmente, sem o acesso implícito do papel
- * administrativo. Usada para funções deliberadamente exclusivas, como faturar.
+ * administrativo. Pode complementar permissões de cargos específicos; funções
+ * de administrador continuam disponíveis ao próprio administrador.
  */
 export async function hasExplicitUserPermission(
   userId: number,
