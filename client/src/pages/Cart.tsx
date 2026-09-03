@@ -37,7 +37,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { useCart } from "@/hooks/useCart";
 import { formatBRL, QuoteFormData, CartItemData, parseCartItemData } from "@/lib/cartTypes";
-import { getPersistedItemPhotoUrl } from "@/lib/itemPhoto";
+import { buildUnambiguousCatalogPhotoMap, getPersistedItemPhotoUrl } from "@/lib/itemPhoto";
 import type { LinkedAccessory, SpecialEquipment } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
@@ -691,26 +691,21 @@ function StandardCart() {
   const allProductsQuery = trpc.alfalux.products.useQuery(undefined, { staleTime: 0 });
   // Produtos de revenda para resolver fotos frescas (RV00050, RV00051, etc.)
   const revendaProductsQuery = trpc.alfalux.revendaProducts.useQuery(undefined, { staleTime: 0 });
-  /** Mapa sku -> fotoUrl fresca para substituir URLs expiradas no preview.
-   * Cobre: produtos principais (Downlights, Painéis, Spots, etc.),
-   * produtos de revenda (RV*) e acessórios (EQ*, CP*). */
+  /**
+   * Fotos vigentes seguras para a prévia. SKUs com imagens distintas em mais de
+   * uma variante não entram no mapa; nesses casos o documento usa a foto já
+   * persistida no item, evitando a substituição pela última resposta da API.
+   */
   const freshPhotoMap = useMemo(() => {
-    const map = new Map<string, string>(); // sku -> fotoUrl fresca
-    // Produtos principais
-    for (const p of allProductsQuery.data ?? []) {
-      if (p.sku && p.fotoUrl) map.set(p.sku, p.fotoUrl);
-    }
-    // Produtos de revenda (sku = codigo)
-    for (const p of revendaProductsQuery.data ?? []) {
-      if (p.sku && p.fotoUrl) map.set(p.sku, p.fotoUrl);
-    }
-    // Acessórios (indexados por codigo e sku)
+    const candidates: Array<{ sku?: string | null; name?: string | null; fotoUrl?: string | null }> = [];
+    for (const p of allProductsQuery.data ?? []) candidates.push({ sku: p.sku, name: p.name, fotoUrl: p.fotoUrl });
+    for (const p of revendaProductsQuery.data ?? []) candidates.push({ sku: p.sku, name: p.name, fotoUrl: p.fotoUrl });
     for (const p of acessoriosQuery.data ?? []) {
-      const key = p.codigo ?? p.sku;
-      if (key && p.fotoUrl) map.set(key, p.fotoUrl);
-      if (p.sku && p.sku !== key && p.fotoUrl) map.set(p.sku, p.fotoUrl);
+      const name = p.produto;
+      candidates.push({ sku: p.codigo ?? p.sku, name, fotoUrl: p.fotoUrl });
+      if (p.sku && p.sku !== p.codigo) candidates.push({ sku: p.sku, name, fotoUrl: p.fotoUrl });
     }
-    return map;
+    return buildUnambiguousCatalogPhotoMap(candidates);
   }, [allProductsQuery.data, revendaProductsQuery.data, acessoriosQuery.data]);
 
   const [isGenerating, setIsGenerating] = useState(false);

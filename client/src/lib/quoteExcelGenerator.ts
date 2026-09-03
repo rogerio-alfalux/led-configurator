@@ -21,7 +21,7 @@
 
 import ExcelJS from "exceljs";
 import type { CartItemData, LinkedAccessory, QuoteFormData } from "./cartTypes";
-import { getPersistedItemPhotoUrl } from "./itemPhoto";
+import { resolveCatalogItemPhoto, type CatalogPhotoCandidate } from "./itemPhoto";
 import { toBrasiliaDate } from "./dateUtils";
 import { getStateInfo } from "./difalTable";
 import { appendQuoteGeneralObservation } from "./quoteDocumentObservation";
@@ -163,22 +163,22 @@ function getLegacyDriverInfoExcel(item: CartItemData): Array<{ driverCode: strin
 // A URL da foto no itemData pode expirar (CloudFront signed URL).
 // Esta função busca uma URL fresca via API usando o SKU do produto.
 // Busca em alfalux.products (produtos principais) e revendaProducts (Painéis RV*).
-let _freshPhotoCache: Map<string, string> | null = null;
-async function getFreshPhotoUrl(sku: string, fallbackUrl?: string | null): Promise<string | null> {
+let _freshPhotoCache: CatalogPhotoCandidate[] | null = null;
+async function getFreshPhotoUrl(item: CartItemData): Promise<string | null> {
   try {
     if (!_freshPhotoCache) {
-      _freshPhotoCache = new Map();
+      _freshPhotoCache = [];
       // Buscar produtos principais (luminarias, bageos, etc.)
       const res1 = await fetch("/api/trpc/alfalux.products", {
         headers: { "Content-Type": "application/json" },
       });
       if (res1.ok) {
         const json1 = await res1.json();
-        const products1: Array<{ sku?: string; codigo?: string; fotoUrl?: string }> =
+        const products1: Array<{ sku?: string; codigo?: string; name?: string; fotoUrl?: string }> =
           json1?.result?.data?.json ?? json1?.result?.data ?? [];
         for (const p of products1) {
-          const key = p.sku ?? p.codigo;
-          if (key && p.fotoUrl) _freshPhotoCache.set(key, p.fotoUrl);
+          const sku = p.sku ?? p.codigo;
+          if (sku && p.fotoUrl) _freshPhotoCache.push({ sku, name: p.name, fotoUrl: p.fotoUrl });
         }
       }
       // Buscar produtos de revenda (Painéis RV*)
@@ -187,10 +187,10 @@ async function getFreshPhotoUrl(sku: string, fallbackUrl?: string | null): Promi
       });
       if (res2.ok) {
         const json2 = await res2.json();
-        const products2: Array<{ sku?: string; fotoUrl?: string }> =
+        const products2: Array<{ sku?: string; descricao?: string; fotoUrl?: string }> =
           json2?.result?.data?.json ?? json2?.result?.data ?? [];
         for (const p of products2) {
-          if (p.sku && p.fotoUrl) _freshPhotoCache.set(p.sku, p.fotoUrl);
+          if (p.sku && p.fotoUrl) _freshPhotoCache.push({ sku: p.sku, name: p.descricao, fotoUrl: p.fotoUrl });
         }
       }
       // Buscar acessórios (EQ*, CP*) — itens que podem ser adicionados como categoria separada
@@ -199,19 +199,18 @@ async function getFreshPhotoUrl(sku: string, fallbackUrl?: string | null): Promi
       });
       if (res3.ok) {
         const json3 = await res3.json();
-        const products3: Array<{ codigo?: string; sku?: string; fotoUrl?: string }> =
+        const products3: Array<{ codigo?: string; sku?: string; produto?: string; descricao?: string; fotoUrl?: string }> =
           json3?.result?.data?.json ?? json3?.result?.data ?? [];
         for (const p of products3) {
           // Indexar por codigo (ex: EQ00435) e por sku (ex: 2J/1.5M WH)
-          if (p.codigo && p.fotoUrl) _freshPhotoCache.set(p.codigo, p.fotoUrl);
-          if (p.sku && p.fotoUrl) _freshPhotoCache.set(p.sku, p.fotoUrl);
+          if (p.codigo && p.fotoUrl) _freshPhotoCache.push({ sku: p.codigo, name: p.produto ?? p.descricao, fotoUrl: p.fotoUrl });
+          if (p.sku && p.fotoUrl) _freshPhotoCache.push({ sku: p.sku, name: p.produto ?? p.descricao, fotoUrl: p.fotoUrl });
         }
       }
     }
-    // Se encontrou pelo SKU, usa a URL fresca; caso contrário usa o fallback
-    return _freshPhotoCache.get(sku) ?? fallbackUrl ?? null;
+    return resolveCatalogItemPhoto(item, _freshPhotoCache) ?? null;
   } catch {
-    return fallbackUrl ?? null;
+    return resolveCatalogItemPhoto(item, []) ?? null;
   }
 }
 
@@ -766,7 +765,7 @@ async function _generateExcelBuffer(
 
     // D = FOTO (imagem do produto — centralizada na célula quadrada)
     // Buscar URL fresca via API para evitar expiração de CloudFront signed URLs
-    const freshPhotoUrl = await getFreshPhotoUrl(item.sku || "", getPersistedItemPhotoUrl(item));
+    const freshPhotoUrl = await getFreshPhotoUrl(item);
     if (freshPhotoUrl) {
      try {
        let fetchUrl: string;

@@ -41,7 +41,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { CartItemData, formatBRL, parseCartItemData, extractPowerLabelFromName, toPowerLabel, enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers, migrateLegacyGlowCommercialItem, type QuoteFormData } from "@/lib/cartTypes";
-import { getPersistedItemPhotoUrl } from "@/lib/itemPhoto";
+import { buildUnambiguousCatalogPhotoMap, resolveCatalogItemPhoto } from "@/lib/itemPhoto";
 import { formatLinkedCommercialQuote } from "@/lib/sampleLinkPresentation";
 import { isLdRequestLinkedToQuote } from "@/lib/ldRequestUtils";
 import { handleLdPdfSent } from "@/lib/ldAdminBadgeRefresh";
@@ -156,7 +156,7 @@ interface SortableEditItemProps {
   totalItems: number;
   /** Callback para reordenar o item para a nova posição global (1-based) */
   onReorderToSeq: (itemId: number, newSeq: number) => void;
-  resolvePhoto: (sku: string | undefined, savedUrl: string | null) => string | null;
+  resolvePhoto: (sku: string | undefined, description: string | undefined, specialPhotoUrl: string | null | undefined, savedUrl: string | null | undefined) => string | null;
   onUpdate: (id: number, fields: Partial<CartItemData>) => void;
   onDelete: (id: number) => void;
   onDuplicate: (id: number) => void;
@@ -173,6 +173,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
   const [specialUploading, setSpecialUploading] = useState(false);
   const [seqInputVal, setSeqInputVal] = useState<string>("");
   const d = item.parsed;
+  const resolvedPhoto = resolvePhoto(d.sku, d.description, d.specialPhotoUrl, d.photoUrl);
   const shiftModules = (d.accessories ?? []).map((accessory, index) => ({ accessory, index }))
     .filter(({ accessory }) => accessory.familia === "SHIFT MÓDULO");
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
@@ -259,8 +260,8 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
             />
           )}
         </div>
-        {resolvePhoto(d.sku, getPersistedItemPhotoUrl(d) ?? null) ? (
-          <img src={resolvePhoto(d.sku, getPersistedItemPhotoUrl(d) ?? null)!} alt={d.description} className="w-12 h-12 object-contain rounded border bg-white flex-shrink-0" />
+        {resolvedPhoto ? (
+          <img src={resolvedPhoto} alt={d.description} className="w-12 h-12 object-contain rounded border bg-white flex-shrink-0" />
         ) : (
           <div className="w-12 h-12 rounded border bg-muted flex items-center justify-center flex-shrink-0">
             <Package className="w-5 h-5 text-muted-foreground" />
@@ -1144,27 +1145,27 @@ export default function QuoteDetail() {
     }
     return map;
   }, [componentesQuery.data]);
-  /** Mapa sku -> fotoUrl fresca para substituir URLs expiradas no preview/Excel.
-   * Cobre: produtos principais (Downlights, Painéis, Spots, etc.),
-   * produtos de revenda (RV*) e acessórios (EQ*, CP*). */
-  const productPhotoMap = useMemo(() => {
-    const map = new Map<string, string>();
-    // Produtos principais
-    for (const p of productsQuery.data ?? []) {
-      if (p.sku && p.fotoUrl) map.set(p.sku, p.fotoUrl);
-    }
-    // Produtos de revenda (sku = codigo)
-    for (const p of revendaProductsQuery.data ?? []) {
-      if (p.sku && p.fotoUrl) map.set(p.sku, p.fotoUrl);
-    }
-    // Acessórios (indexados por codigo e sku)
+  /**
+   * Fotos vigentes da API. O catálogo pode reutilizar um SKU em mais de uma
+   * variante; por isso, o item é resolvido também pela descrição técnica.
+   */
+  const catalogPhotoCandidates = useMemo(() => {
+    const candidates: Array<{ sku?: string | null; name?: string | null; fotoUrl?: string | null }> = [];
+    for (const p of productsQuery.data ?? []) candidates.push({ sku: p.sku, name: p.name, fotoUrl: p.fotoUrl });
+    for (const p of revendaProductsQuery.data ?? []) candidates.push({ sku: p.sku, name: p.name, fotoUrl: p.fotoUrl });
     for (const p of acessoriosQuery.data ?? []) {
-      const key = p.codigo ?? p.sku;
-      if (key && p.fotoUrl) map.set(key, p.fotoUrl);
-      if (p.sku && p.sku !== key && p.fotoUrl) map.set(p.sku, p.fotoUrl);
+      const name = p.produto;
+      candidates.push({ sku: p.codigo ?? p.sku, name, fotoUrl: p.fotoUrl });
+      if (p.sku && p.sku !== p.codigo) candidates.push({ sku: p.sku, name, fotoUrl: p.fotoUrl });
     }
-    return map;
+    return candidates;
   }, [productsQuery.data, revendaProductsQuery.data, acessoriosQuery.data]);
+
+  /** Fotos frescas seguras para documentos: somente SKUs que não são ambíguos. */
+  const productPhotoMap = useMemo(
+    () => buildUnambiguousCatalogPhotoMap(catalogPhotoCandidates),
+    [catalogPhotoCandidates],
+  );
 
   const acessorioPhotoMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -1183,9 +1184,9 @@ export default function QuoteDetail() {
    return url;
  };
 
-  /** Retorna a URL de foto mais fresca: catálogo > salva no banco > null */
-  const resolvePhoto = (sku: string | undefined, savedUrl: string | null): string | null => {
-    const raw = sku && productPhotoMap.has(sku) ? productPhotoMap.get(sku)! : savedUrl;
+  /** Retorna a foto da variante exata; a imagem manual é sempre preservada. */
+  const resolvePhoto = (sku: string | undefined, description: string | undefined, specialPhotoUrl: string | null | undefined, savedUrl: string | null | undefined): string | null => {
+    const raw = resolveCatalogItemPhoto({ sku, description: description ?? "", specialPhotoUrl, photoUrl: savedUrl }, catalogPhotoCandidates);
     return proxyPhoto(raw);
   };
 
@@ -1894,7 +1895,11 @@ export default function QuoteDetail() {
 
   const commercialQuoteItems = useMemo(() => commercialItemsMigrated
     .map((item) => parseCartItemData(item.itemData))
-    .filter((item): item is CartItemData => item !== null), [commercialItemsMigrated]);
+    .filter((item): item is CartItemData => item !== null)
+    .map((item) => {
+      const resolvedPhoto = resolveCatalogItemPhoto(item, catalogPhotoCandidates);
+      return resolvedPhoto && resolvedPhoto !== item.photoUrl ? { ...item, photoUrl: resolvedPhoto } : item;
+    }), [commercialItemsMigrated, catalogPhotoCandidates]);
   const commercialDiluicaoValor = ((data?.quote as any)?.diluicaoValor ? parseFloat(String((data?.quote as any).diluicaoValor)) : 0)
     + sampleCommercialProjection.dilutionBaseAmount;
   const commercialDiluicaoDisplayValor = ((data?.quote as any)?.diluicaoValor ? parseFloat(String((data?.quote as any).diluicaoValor)) : 0)
@@ -4669,8 +4674,8 @@ export default function QuoteDetail() {
                                 <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
                                   {itemIdx}
                                 </span>
-                                {resolvePhoto(d.sku, getPersistedItemPhotoUrl(d) ?? null) ? (
-                                  <img src={resolvePhoto(d.sku, getPersistedItemPhotoUrl(d) ?? null)!} alt={d.description} className="w-12 h-12 object-contain rounded border bg-white flex-shrink-0" />
+                                {resolvePhoto(d.sku, d.description, d.specialPhotoUrl, d.photoUrl) ? (
+                                  <img src={resolvePhoto(d.sku, d.description, d.specialPhotoUrl, d.photoUrl)!} alt={d.description} className="w-12 h-12 object-contain rounded border bg-white flex-shrink-0" />
                                 ) : (
                                   <div className="w-12 h-12 rounded border bg-muted flex items-center justify-center flex-shrink-0">
                                     <Package className="w-5 h-5 text-muted-foreground" />

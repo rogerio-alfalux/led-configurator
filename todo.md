@@ -3310,3 +3310,8 @@
 - [x] Compactar os cabeçalhos Comprimento (mm) e Temperatura de Cor somente no modo com IPI, evitando quebras bruscas
 - [x] Preservar as dimensões, tipografias e imagens do modo padrão sem IPI
 - [x] Validar visualmente Preview, PDF e Excel em A4 retrato e cobrir as larguras condicionais por regressão
+
+## Correção de foto: orçamento 27.0015-26
+- [x] Investigar por que o item FOCO G COB 70 RE 38W 36° 4000K exibe foto divergente da API
+- [x] Corrigir exclusivamente o registro afetado e a resolução de fotos para priorizar a imagem vigente da API
+- [x] Cobrir a seleção de imagem por SKU em regressão e validar o orçamento sem alterar valores ou estrutura
