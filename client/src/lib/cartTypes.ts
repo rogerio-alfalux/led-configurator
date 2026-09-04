@@ -881,6 +881,36 @@ export function selectApiTechnicalVariantForItem(
   return candidates.length === 1 ? candidates[0] : null;
 }
 
+function selectApiDriverForTechnicalItem(
+  item: Pick<CartItemData, "description" | "orderSummary" | "quoteSummary" | "drivers">,
+  product: ApiProductDriverInfo,
+): { driver: NonNullable<ApiProductDriverInfo["driver220"]>; quantity: number | null } | null {
+  const context = normalizeCommercialLookupText([
+    item.description,
+    item.orderSummary,
+    item.quoteSummary,
+    item.drivers,
+  ].filter(Boolean).join(" "));
+  if (context.includes("DALI")) {
+    return product.driverDimDali ? { driver: product.driverDimDali, quantity: product.driverQtdDimDali ?? null } : null;
+  }
+  if (context.includes("TRIAC 110")) {
+    return product.driverDimTriac110v ? { driver: product.driverDimTriac110v, quantity: product.driverQtdDimTriac110v ?? null } : null;
+  }
+  if (context.includes("TRIAC")) {
+    return product.driverDimTriac220v ? { driver: product.driverDimTriac220v, quantity: product.driverQtdDimTriac220v ?? null } : null;
+  }
+  if (/\bDIM\b|0\s*[-–]?\s*10V|1\s*[-–]?\s*10V/.test(context)) {
+    return product.driverDim110v ? { driver: product.driverDim110v, quantity: product.driverQtdDim110v ?? null } : null;
+  }
+  if (context.includes("BIVOLT")) {
+    const driver = product.driverBivolt ?? product.driver220;
+    return driver ? { driver, quantity: product.driverQtdBivolt ?? product.driverQtd220 } : null;
+  }
+  const driver = product.driver220 ?? product.driverBivolt;
+  return driver ? { driver, quantity: product.driverQtd220 ?? product.driverQtdBivolt } : null;
+}
+
 function roundCommercialValue(value: number): number {
   return Math.round(value * 100) / 100;
 }
@@ -1290,14 +1320,9 @@ export function migrateItemDrivers(
       const hasManuallyEditedDriver = item.driverLines?.some(line => line.driverManual || line.programacaoManual) ?? false;
       if (item.driverLines && item.driverLines.length > 0 && !hasManuallyEditedDriver) {
         const itemQty = item.qty ?? 1;
-        const contextText = [item.description, item.orderSummary, item.quoteSummary, item.drivers].filter(Boolean).join(" ");
-        const isBivolt = /bivolt/i.test(contextText);
-        const apiDriver = isBivolt
-          ? (apiProduct.driverBivolt ?? apiProduct.driver220)
-          : (apiProduct.driver220 ?? apiProduct.driverBivolt);
-        const apiDriverQty = isBivolt
-          ? (apiProduct.driverQtdBivolt ?? apiProduct.driverQtd220)
-          : (apiProduct.driverQtd220 ?? apiProduct.driverQtdBivolt);
+        const apiSelection = selectApiDriverForTechnicalItem(item, apiProduct);
+        const apiDriver = apiSelection?.driver ?? null;
+        const apiDriverQty = apiSelection?.quantity ?? null;
 
         if (apiDriver?.code && apiDriverQty != null && apiDriverQty > 0) {
           const driverUnitPrice = priceMap.get(apiDriver.code) ?? item.driverLines[0]?.driverUnitPrice ?? null;
@@ -1445,26 +1470,15 @@ export function migrateItemDrivers(
 
     // Fallback: sem EQ extraível → buscar da API pelo SKU
     // Preferir driver220; se null, usar driverBivolt (conforme instrução do usuário)
-    const resolvedEqCode = eqCode ?? (() => {
-      const apiProd = item.sku ? productSkuMap.get(item.sku) : null;
-      if (!apiProd) return null;
-      const drvInfo = apiProd.driver220 ?? apiProd.driverBivolt;
-      return drvInfo?.code ?? null;
-    })();
-    const resolvedDrvQtyPerUnit = eqCode ? drvQtyPerUnit : (() => {
-      const apiProd = item.sku ? productSkuMap.get(item.sku) : null;
-      if (!apiProd) return 1;
-      return apiProd.driverQtd220 ?? apiProd.driverQtdBivolt ?? 1;
-    })();
-    const resolvedDriverModel = eqCode ? driverModel : (() => {
-      const apiProd = item.sku ? productSkuMap.get(item.sku) : null;
-      if (!apiProd) return driverModel;
-      const drvInfo = apiProd.driver220 ?? apiProd.driverBivolt;
-      if (!drvInfo) return driverModel;
-      const code = drvInfo.code;
-      if (code && descMap.has(code)) return descMap.get(code)!;
-      return drvInfo.model ?? driverModel;
-    })();
+    const apiProduct = selectApiTechnicalVariantForItem(item, productSkuMap);
+    const apiSelection = apiProduct ? selectApiDriverForTechnicalItem(item, apiProduct) : null;
+    // Um texto legado é apenas fallback: quando a API possui estrutura técnica,
+    // código, modelo e quantidade publicados por ela são sempre soberanos.
+    const resolvedEqCode = apiSelection?.driver.code ?? eqCode;
+    const resolvedDrvQtyPerUnit = apiSelection?.quantity ?? drvQtyPerUnit;
+    const resolvedDriverModel = apiSelection?.driver.code
+      ? (descMap.get(apiSelection.driver.code) ?? apiSelection.driver.model ?? driverModel)
+      : driverModel;
 
     if (resolvedEqCode) {
       const itemQty = item.qty ?? 1;
@@ -1491,6 +1505,7 @@ export function migrateItemDrivers(
       return {
         ...item,
         driverLines,
+        driverQtyPerUnit: resolvedDrvQtyPerUnit,
         priceWithoutDriver: priceWithoutDriver ?? item.priceWithoutDriver,
         unitPriceLuminaria: unitPriceLuminaria ?? item.unitPriceLuminaria,
         luminariaHasApiPrice: unitPrice != null,

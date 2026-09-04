@@ -3361,3 +3361,8 @@
 - [x] Comparar o item 7 com a estrutura oficial da API, incluindo modelo e quantidade de drivers
 - [x] Corrigir exclusivamente o item afetado e a reidratação de componentes múltiplos
 - [x] Validar orçamento, ficha e requisição e cobrir a quantidade de quatro drivers por peça em regressão
+
+## Revalidação de quatro fontes: orçamento 20.0523-26
+- [x] Rastrear a camada que reduz quatro fontes EQ00802 a uma no item 7
+- [x] Corrigir a reidratação e a geração para preservar a quantidade oficial da API
+- [x] Regenerar e confirmar a ficha do pedido com quatro fontes por peça antes do checkpoint
