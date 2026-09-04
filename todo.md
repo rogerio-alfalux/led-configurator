@@ -3392,3 +3392,8 @@
 - [x] Confrontar todos os itens do orçamento com variantes da API por SKU e descrição, incluindo KUBU e EASY LED POINT 1×6 13W
 - [x] Atualizar exclusivamente quantidades, componentes, custos e markups técnicos retornados pela API, sem reprecificar a venda salva
 - [x] Validar orçamento, ficha e requisição e cobrir por regressão a atualização de itens que anteriormente não tinham custo
+
+## Foto do BLAZE: orçamento 25.0266-26
+- [x] Comparar a foto persistida do item 21 com a variante BLAZE exata retornada pela API
+- [x] Corrigir a resolução de imagens de catálogo sem sobrescrever fotos manuais
+- [x] Garantir a propagação da foto correta ao orçamento, preview, Excel e PDF por regressão

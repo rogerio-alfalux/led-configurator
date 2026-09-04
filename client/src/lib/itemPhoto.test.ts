@@ -36,4 +36,21 @@ describe("getPersistedItemPhotoUrl", () => {
     } as any, [{ sku: "LDE-7240.090.13F", name: "FOCO G COB 70 RE 38W 36º", fotoUrl: "https://api.test/foco-cob-70.jpg" }]))
       .toBe("/manus-storage/foto-manual.png");
   });
+
+  it("usa o SKU técnico do segmento para renovar foto de perfil com SKU comercial compartilhado", () => {
+    const candidates = [
+      { sku: "LLS-3945", name: "BLAZE S FL 10W/M", fotoUrl: "https://api.test/blaze-fl.jpg?assinatura=atual" },
+      { sku: "LLS-3945.32F.38F", name: "BLAZE S 3.2B 1825MM 18W", fotoUrl: "https://api.test/blaze-s.jpg?assinatura=atual" },
+      { sku: "LLS-3945.5ML.38F", name: "BLAZE S ML 5B 2820MM 18W", fotoUrl: "https://api.test/blaze-s.jpg?assinatura=atual" },
+    ];
+    expect(resolveCatalogItemPhoto({
+      sku: "LLS-3945",
+      description: "BLAZE Sobrepor 18W 3000K ON/OFF 220Vac 8475mm",
+      photoUrl: "https://api.test/blaze-antiga.jpg?assinatura=expirada",
+      profileSegments: [
+        { sku: "LLS-3945.32F.38F" },
+        { sku: "LLS-3945.5ML.38F" },
+      ],
+    }, candidates)).toBe("https://api.test/blaze-s.jpg?assinatura=atual");
+  });
 });

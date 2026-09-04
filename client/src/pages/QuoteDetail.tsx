@@ -158,7 +158,7 @@ interface SortableEditItemProps {
   totalItems: number;
   /** Callback para reordenar o item para a nova posição global (1-based) */
   onReorderToSeq: (itemId: number, newSeq: number) => void;
-  resolvePhoto: (sku: string | undefined, description: string | undefined, specialPhotoUrl: string | null | undefined, savedUrl: string | null | undefined) => string | null;
+  resolvePhoto: (item: Pick<CartItemData, "sku" | "description" | "specialPhotoUrl" | "photoUrl" | "profileSegments">) => string | null;
   onUpdate: (id: number, fields: Partial<CartItemData>) => void;
   onDelete: (id: number) => void;
   onDuplicate: (id: number) => void;
@@ -175,7 +175,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
   const [specialUploading, setSpecialUploading] = useState(false);
   const [seqInputVal, setSeqInputVal] = useState<string>("");
   const d = item.parsed;
-  const resolvedPhoto = resolvePhoto(d.sku, d.description, d.specialPhotoUrl, d.photoUrl);
+  const resolvedPhoto = resolvePhoto(d);
   const shiftModules = (d.accessories ?? []).map((accessory, index) => ({ accessory, index }))
     .filter(({ accessory }) => accessory.familia === "SHIFT MÓDULO");
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
@@ -1189,8 +1189,8 @@ export default function QuoteDetail() {
  };
 
   /** Retorna a foto da variante exata; a imagem manual é sempre preservada. */
-  const resolvePhoto = (sku: string | undefined, description: string | undefined, specialPhotoUrl: string | null | undefined, savedUrl: string | null | undefined): string | null => {
-    const raw = resolveCatalogItemPhoto({ sku, description: description ?? "", specialPhotoUrl, photoUrl: savedUrl }, catalogPhotoCandidates);
+  const resolvePhoto = (item: Pick<CartItemData, "sku" | "description" | "specialPhotoUrl" | "photoUrl" | "profileSegments">): string | null => {
+    const raw = resolveCatalogItemPhoto(item, catalogPhotoCandidates);
     return proxyPhoto(raw);
   };
 
@@ -4783,8 +4783,8 @@ export default function QuoteDetail() {
                                 <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
                                   {itemIdx}
                                 </span>
-                                {resolvePhoto(d.sku, d.description, d.specialPhotoUrl, d.photoUrl) ? (
-                                  <img src={resolvePhoto(d.sku, d.description, d.specialPhotoUrl, d.photoUrl)!} alt={d.description} className="w-12 h-12 object-contain rounded border bg-white flex-shrink-0" />
+                                {resolvePhoto(d) ? (
+                                  <img src={resolvePhoto(d)!} alt={d.description} className="w-12 h-12 object-contain rounded border bg-white flex-shrink-0" />
                                 ) : (
                                   <div className="w-12 h-12 rounded border bg-muted flex items-center justify-center flex-shrink-0">
                                     <Package className="w-5 h-5 text-muted-foreground" />

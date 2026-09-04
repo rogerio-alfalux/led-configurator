@@ -11,6 +11,7 @@ type PhotoResolvableItem = {
   description?: string | null;
   photoUrl?: string | null;
   specialPhotoUrl?: string | null;
+  profileSegments?: Array<{ sku?: string | null }> | null;
 };
 
 function normalizePhotoIdentity(value: string | null | undefined): string {
@@ -75,6 +76,25 @@ export function resolveCatalogItemPhoto(
   const savedPhoto = item.photoUrl?.trim() || undefined;
   const sku = item.sku?.trim();
   if (!sku) return savedPhoto;
+
+  // Perfis modulares usam um SKU comercial de família, frequentemente
+  // compartilhado entre várias variantes. Os segmentos guardam a identidade
+  // técnica exata; quando todos levam à mesma foto da API, ela é segura e
+  // substitui a URL assinada antiga persistida no orçamento.
+  const segmentSkus = Array.from(new Set(
+    (item.profileSegments ?? [])
+      .map(segment => segment.sku?.trim())
+      .filter((segmentSku): segmentSku is string => Boolean(segmentSku)),
+  ));
+  for (const segmentSku of segmentSkus) {
+    const segmentPhotos = new Map<string, string>();
+    for (const candidate of candidates) {
+      if (candidate.sku?.trim() !== segmentSku) continue;
+      const photo = candidate.fotoUrl?.trim();
+      if (photo) segmentPhotos.set(canonicalPhotoUrl(photo), photo);
+    }
+    if (segmentPhotos.size === 1) return segmentPhotos.values().next().value;
+  }
 
   const sameSku = candidates.filter(candidate => candidate.sku?.trim() === sku && candidate.fotoUrl?.trim());
   const normalizedDescription = normalizePhotoIdentity(item.description);
