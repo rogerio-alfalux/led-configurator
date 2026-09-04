@@ -481,7 +481,7 @@ export function buildMaterialRequisition(
     if (!item.withoutEquipment && !hasProfileSegs && !isLedBarItem && item.driverLines && item.driverLines.length > 0) {
       for (const dl of item.driverLines) {
         if (!dl.driverCode) continue;
-        const qtyPerUnit = item.driverLines.length === 1 && item.driverQtyPerUnit != null
+        const qtyPerUnit = item.driverLines.length === 1 && item.driverQtyPerUnit != null && item.driverQtyPerUnit > 0
           ? item.driverQtyPerUnit
           : (itemQty > 0 ? dl.driverQty / itemQty : dl.driverQty);
         const totalDrivers = qtyPerUnit * itemQty;

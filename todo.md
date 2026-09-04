@@ -3341,3 +3341,8 @@
 - [x] Permitir que usuários autorizados editem a data de faturamento de orçamentos já faturados
 - [x] Preservar a exigência de status Aprovado somente para a primeira transição para Faturado
 - [x] Validar permissões, data em Brasília e referências de Meus Orçamentos por regressão
+
+## Estrutura técnica: orçamento 25.0299-26
+- [x] Investigar a divergência de módulos LED e drivers entre o orçamento, a ficha de produção e a requisição de materiais
+- [x] Corrigir a propagação da estrutura técnica oficial da API e suas quantidades para ficha e requisição
+- [x] Corrigir exclusivamente o orçamento 25.0299-26 e cobrir o transporte técnico por regressão

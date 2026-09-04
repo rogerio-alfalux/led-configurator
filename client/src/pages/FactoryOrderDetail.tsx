@@ -124,7 +124,9 @@ function buildEquipamentosText(item: CartItemData): string {
     if (item.driverLines && item.driverLines.length > 0) {
       const itemQtyDl = item.qty ?? 1;
       // CORREÇÃO: mostrar qty POR PEÇA (driverQtyPerUnit ou dl.driverQty / itemQty)
-      const drvPerUnit = item.driverQtyPerUnit ?? null;
+      const drvPerUnit = item.driverQtyPerUnit != null && item.driverQtyPerUnit > 0
+        ? item.driverQtyPerUnit
+        : null;
       return item.driverLines.map(dl => {
         const codeSuffix = dl.driverCode ? ` (${dl.driverCode})` : "";
         const qtyPerUnit = drvPerUnit ?? Math.max(1, Math.round(dl.driverQty / itemQtyDl));
@@ -745,7 +747,9 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
 
               // CORREÇÃO: Driver qty POR PEÇA (não total)
               // driverQtyPerUnit = drivers por luminária; dl.driverQty = total (per unit × itemQty)
-              const driverQtyPerUnit = parsed.driverQtyPerUnit ?? (parsed.driverLines.length === 1 ? Math.round(parsed.driverLines[0].driverQty / itemQty) : null);
+              const driverQtyPerUnit = parsed.driverQtyPerUnit != null && parsed.driverQtyPerUnit > 0
+                ? parsed.driverQtyPerUnit
+                : (parsed.driverLines.length === 1 ? Math.round(parsed.driverLines[0].driverQty / itemQty) : null);
 
               return (
                 <div className="space-y-4">

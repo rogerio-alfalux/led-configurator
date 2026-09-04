@@ -231,7 +231,7 @@ export function buildLuminariaEquipamentosText(item: CartItemData): string {
     linhas.push(...item.driverLines.map(dl => {
       const codeSuffix = dl.driverCode ? ` (${dl.driverCode})` : "";
       const itemQty = item.qty ?? 1;
-      const qtyPerUnit = item.driverLines!.length === 1 && item.driverQtyPerUnit != null
+      const qtyPerUnit = item.driverLines!.length === 1 && item.driverQtyPerUnit != null && item.driverQtyPerUnit > 0
         ? item.driverQtyPerUnit
         : (itemQty > 0 ? dl.driverQty / itemQty : dl.driverQty);
       const displayQty = Number.isInteger(qtyPerUnit) ? String(qtyPerUnit) : qtyPerUnit.toLocaleString("pt-BR", { maximumFractionDigits: 2 });

@@ -33,6 +33,17 @@ describe("programação de corrente — prévia da ficha", () => {
     expect(luminaria).toContain("PROGRAMAÇÃO: 350mA");
     expect(ledBar).toContain("PROGRAMAÇÃO: 250mA");
   });
+
+  it("deriva a quantidade de driver do total quando o campo legado por unidade é zero", () => {
+    const luminaria = buildLuminariaEquipamentosText({
+      qty: 5,
+      driverQtyPerUnit: 0,
+      driverLines: [{ driverCode: "EQ00347", driverModel: "DRIVER 44W", driverQty: 5, driverUnitPrice: null, driverTotalPrice: null }],
+    } as any);
+
+    expect(luminaria).toContain("1x DRIVER 44W (EQ00347)");
+    expect(luminaria).not.toContain("0x DRIVER");
+  });
 });
 
 describe("STRIPFLEX em nonos — prévia da ficha", () => {

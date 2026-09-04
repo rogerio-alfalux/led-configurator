@@ -648,6 +648,28 @@ describe("buildMaterialRequisition — luminárias não-perfil", () => {
     expect(result.find(entry => entry.codigo === "EQDRIVER")?.qty).toBe(145);
   });
 
+  it("deriva o driver do total quando o campo legado por unidade veio zerado", () => {
+    const result = buildMaterialRequisition([{
+      category: "Downlights",
+      sku: "ALE-2750.124.21F",
+      description: "ALE 36W 4000K",
+      qty: 5,
+      unitPrice: 100,
+      totalPrice: 500,
+      photoUrl: null,
+      moduloLed: "4x STRIPFLEX API (EQ00124)",
+      moduloLedCode: "EQ00124",
+      driverQtyPerUnit: 0,
+      driverLines: [{ driverModel: "DRIVER API 44W", driverCode: "EQ00347", driverQty: 5, driverUnitPrice: 54, driverTotalPrice: 270 }],
+    } as any], new Map([
+      ["EQ00124", "STRIPFLEX API"],
+      ["EQ00347", "DRIVER API 44W"],
+    ]));
+
+    expect(result.find(entry => entry.codigo === "EQ00124")?.qty).toBe(20);
+    expect(result.find(entry => entry.codigo === "EQ00347")?.qty).toBe(5);
+  });
+
   it("spot com ledModuleQtd=4 (ex: FOCO) deve incluir módulo LED com quantidade correta", () => {
     const items: CartItemData[] = [{
       category: "Spots",
