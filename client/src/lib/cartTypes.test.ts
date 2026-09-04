@@ -564,3 +564,39 @@ describe("variantes técnicas com SKU compartilhado", () => {
     })]);
   });
 });
+
+describe("drivers múltiplos retornados pela API", () => {
+  it("mantém quatro fontes por peça em BAGEO mesmo quando o dado salvo possuía somente uma", () => {
+    const sku = "LDP-4910.280.70P";
+    const migrated = migrateItemDrivers({
+      category: "Perfis",
+      sku,
+      description: "BAGEO P D1 Ø2800MM 175W 3000K ON/OFF Bivolt",
+      cct: "3000K",
+      qty: 1,
+      moduloLed: "17600MM FITA LED 2835 120LEDS/M 24V 10W/M IP20 IRC80 3000K 1500LM (EQ00082)",
+      moduloLedCode: "EQ00082",
+      driverLines: [{ driverCode: "EQ00802", driverModel: "FONTE DE TENSÃO ALFALUX 60W 24V IP20 BIVOLT", driverQty: 1, driverUnitPrice: 117.72, driverTotalPrice: 117.72 }],
+    } as any, new Map([["EQ00802", 117.72]]), new Map([
+      ["EQ00082", "FITA LED 2835 120LEDS/M 24V 10W/M IP20 IRC80 3000K 1500LM"],
+      ["EQ00802", "FONTE DE TENSÃO ALFALUX 60W 24V IP20 BIVOLT"],
+    ]), new Map<string, any>([[sku, {
+      sku,
+      name: "BAGEO P D1 Ø2800MM 175W",
+      driver220: null,
+      driverBivolt: { code: "EQ00802", model: "FONTE DE TENSÃO ALFALUX 60W 24V IP20 BIVOLT" },
+      driverQtd220: null,
+      driverQtdBivolt: 4,
+      ledModuleEq3000: "EQ00082",
+      ledModule3000: "FITA LED 2835 120LEDS/M 24V 10W/M IP20 IRC80 3000K 1500LM",
+      ledModuleQtd3000: 17.6,
+    }]]));
+
+    expect(migrated.driverQtyPerUnit).toBe(4);
+    expect(migrated.driverLines).toEqual([expect.objectContaining({
+      driverCode: "EQ00802",
+      driverQty: 4,
+      driverTotalPrice: 470.88,
+    })]);
+  });
+});

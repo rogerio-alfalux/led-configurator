@@ -3356,3 +3356,8 @@
 - [x] Corrigir a seleção de estrutura técnica para exigir SKU e descrição compatível, não somente SKU
 - [x] Garantir no ALE-2750 36W o driver EQ00347 e no ALE-2750 18W o driver EQ00346, com módulos corretos
 - [x] Regenerar o arquivo do pedido 102384, validar o conteúdo efetivo e cobrir a resolução de SKU compartilhado por regressão
+
+## Drivers múltiplos: orçamento 20.0523-26
+- [x] Comparar o item 7 com a estrutura oficial da API, incluindo modelo e quantidade de drivers
+- [x] Corrigir exclusivamente o item afetado e a reidratação de componentes múltiplos
+- [x] Validar orçamento, ficha e requisição e cobrir a quantidade de quatro drivers por peça em regressão
