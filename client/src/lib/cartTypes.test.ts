@@ -191,6 +191,32 @@ describe("parseCartItemData - múltiplos modelos de driver (caso 33.9995-26)", (
     expect(result.moduloLedCode).toBe("EQMOD4000");
     expect(result.moduloLed).toContain("2x MÓDULO LED API 4000K (EQMOD4000)");
   });
+
+  it("preserva 4,4 módulos LED por peça ao reidratar o ALE-2430 pela API", () => {
+    const item = {
+      category: "Painéis",
+      sku: "LLE-2430.300.19F",
+      description: "ALE-2430 36W 3000K ON/OFF 220V",
+      cct: "3000K",
+      qty: 48,
+      moduloLed: "4.4X STRIPFLEX ANTIGO (EQ00125)",
+      moduloLedCode: "EQ00125",
+    } as any;
+    const productMap = new Map([["LLE-2430.300.19F", {
+      sku: "LLE-2430.300.19F",
+      name: "ALE-2430 36W 300X300MM",
+      ledModuleEq3000: "EQ00125",
+      ledModuleQtd3000: 4.4,
+    }]]);
+    const descMap = new Map([
+      ["EQ00125", "STRIPFLEX 562.5 X 10MM - 36 LEDS 830 - 3000K (LC) 25V"],
+    ]);
+
+    const result = migrateItemDrivers(item, new Map(), descMap, productMap);
+
+    expect(result.moduloLedCode).toBe("EQ00125");
+    expect(result.moduloLed).toBe("4.4x STRIPFLEX 562.5 X 10MM - 36 LEDS 830 - 3000K (LC) 25V (EQ00125)");
+  });
 });
 
 describe("migrateItemDrivers - perfis usam a variante API da potência selecionada", () => {

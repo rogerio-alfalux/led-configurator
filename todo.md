@@ -3372,3 +3372,13 @@
 - [x] Adicionar opção desativada por padrão para diluir DIFAL/FCP nos itens do orçamento
 - [x] Distribuir DIFAL/FCP proporcionalmente nos itens sem duplicar imposto no total, preview, PDF ou Excel
 - [x] Validar os modos destacado e diluído por regressão e criar checkpoint
+
+## Investigação de orçamento: IVANILDA / OC.1320
+- [x] Pesquisar IVANILDA e OC.1320 em orçamentos, revisões, solicitações e auditorias, sem alterar dados
+- [x] Confirmar o número, status e histórico de qualquer correspondência encontrada
+
+## Módulos LED: orçamento 20.0494-26 RV1
+- [x] Comparar o item afetado, a ficha vigente e a variante exata da API por SKU e descrição
+- [x] Preservar o modelo e a quantidade decimal de 4,4 módulos LED por peça na ficha e na requisição
+- [x] Corrigir e regenerar exclusivamente o pedido afetado sem alterar preços ou demais dados comerciais
+- [x] Cobrir quantidades decimais de módulos LED por regressão e validar novos pedidos

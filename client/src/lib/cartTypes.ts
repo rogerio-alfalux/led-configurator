@@ -729,8 +729,8 @@ export function normalizeDriverModels(
   if (item.moduloLedCode && !(item.moduloLed ?? "").includes(" + ")) {
     const canonical = descMap.get(item.moduloLedCode);
     if (canonical) {
-      // Preservar prefixo de quantidade (ex: "2x ") se existir
-      const prefixMatch = (item.moduloLed ?? "").match(/^(\d+[xX]\s+)/);
+      // Preservar prefixo de quantidade inteiro ou decimal (ex: "2x ", "4.4x ", "4,4x ") se existir
+      const prefixMatch = (item.moduloLed ?? "").match(/^(\d+(?:[.,]\d+)?[xX]\s+)/);
       const prefix = prefixMatch ? prefixMatch[1] : "";
       const expectedModuloLed = `${prefix}${canonical} (${item.moduloLedCode})`;
       if (item.moduloLed !== expectedModuloLed) {
@@ -1304,11 +1304,11 @@ export function migrateItemDrivers(
 
       if (apiModuleCode) {
         const existingParts = (item.moduloLed ?? "").split(" + ").map(part => part.trim()).filter(Boolean);
-        const savedQtyMatch = existingParts[0]?.match(/^(\d+)x\s+/i);
+        const savedQtyMatch = existingParts[0]?.match(/^(\d+(?:[.,]\d+)?)x\s+/i);
         const moduleQty = apiModuleQty != null && apiModuleQty > 0
           ? apiModuleQty
-          : (savedQtyMatch ? Number(savedQtyMatch[1]) : 1);
-        const canonical = descMap.get(apiModuleCode) ?? existingParts[0]?.replace(/^\d+x\s+/i, "").replace(/\s*\([^)]+\)\s*$/, "") ?? apiModuleCode;
+          : (savedQtyMatch ? Number(savedQtyMatch[1].replace(",", ".")) : 1);
+        const canonical = descMap.get(apiModuleCode) ?? existingParts[0]?.replace(/^\d+(?:[.,]\d+)?x\s+/i, "").replace(/\s*\([^)]+\)\s*$/, "") ?? apiModuleCode;
         const moduleText = `${moduleQty > 1 ? `${moduleQty}x ` : ""}${canonical} (${apiModuleCode})`;
         const moduloLed = existingParts.length > 1
           ? [moduleText, ...existingParts.slice(1)].join(" + ")
@@ -1545,7 +1545,10 @@ export function migrateItemDrivers(
   ) {
     // Extrair apenas o nome do módulo sem o código EQ entre parênteses
     // ex: "LÚCIO ROUND Ø120MM 54L 3000K (EQ00123)" → "LÚCIO ROUND Ø120MM 54L 3000K"
-    const moduloBase = item.moduloLed.replace(/\s*\([^)]*\)\s*/g, " ").trim();
+    const moduloBase = item.moduloLed
+      .replace(/^\d+(?:[.,]\d+)?x\s+/i, "")
+      .replace(/\s*\([^)]*\)\s*/g, " ")
+      .trim();
     const resolvedEq =
       reverseDescMap?.get(moduloBase.toUpperCase()) ??
       reverseDescMap?.get(item.moduloLed.toUpperCase().trim()) ??
