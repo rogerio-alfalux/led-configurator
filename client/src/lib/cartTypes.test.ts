@@ -217,6 +217,46 @@ describe("parseCartItemData - múltiplos modelos de driver (caso 33.9995-26)", (
     expect(result.moduloLedCode).toBe("EQ00125");
     expect(result.moduloLed).toBe("4.4x STRIPFLEX 562.5 X 10MM - 36 LEDS 830 - 3000K (LC) 25V (EQ00125)");
   });
+
+  it("reidrata custo e markup da variante exata sem reprecificar a venda salva", () => {
+    const item = {
+      category: "Spots",
+      sku: "LDE-1021.1DK.60B",
+      description: "EASY LED POINT 1X6 13W 48º ORIENTÁVEL 3000K DIM DALI 220V",
+      cct: "3000K",
+      qty: 49,
+      unitPrice: 427.51,
+      totalPrice: 20947.99,
+      driverLines: [{ driverCode: "EQ00640", driverModel: "DRIVER LEGADO", driverQty: 49, driverUnitPrice: 217.35, driverTotalPrice: 10650.15 }],
+    } as any;
+    const productMap = new Map([["LDE-1021.1DK.60B|EASY LED POINT 1X6 13W 48º ORIENTÁVEL", {
+      sku: "LDE-1021.1DK.60B",
+      name: "EASY LED POINT 1X6 13W 48º ORIENTÁVEL",
+      driver220: null,
+      driverBivolt: null,
+      driverDimDali: { code: "EQ00640", model: "DRIVER API 30W DALI" },
+      driverQtd220: null,
+      driverQtdBivolt: null,
+      driverQtdDimDali: 1,
+      custoCorpoDimDali: 104.15,
+      custoDriverDimDali: 72.45,
+      markupPadraoDimDali: 3,
+      markupMinimoDimDali: 2,
+      markupMinimoDriver: 2,
+    }]]);
+
+    const result = migrateItemDrivers(item, new Map([["EQ00640", 217.35]]), new Map([["EQ00640", "DRIVER API 30W DALI"]]), productMap);
+
+    expect(result).toMatchObject({
+      unitPrice: 427.51,
+      totalPrice: 20947.99,
+      custoCorpoBase: 104.15,
+      custoDriverBase: 72.45,
+      markupPadraoApi: 3,
+      markupMinimoApi: 2,
+      markupMinimoDriverApi: 2,
+    });
+  });
 });
 
 describe("migrateItemDrivers - perfis usam a variante API da potência selecionada", () => {

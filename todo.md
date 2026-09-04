@@ -3387,3 +3387,8 @@
 - [x] Comparar o driver EQ00348 persistido com a variante exata e o preço vigente da API
 - [x] Corrigir exclusivamente o preço zerado do driver sem modificar o valor salvo da luminária
 - [x] Proteger a reidratação de preço de driver por variante e validar orçamento e documentos por regressão
+
+## Atualização técnica e de custos: orçamento 25.0266-26
+- [x] Confrontar todos os itens do orçamento com variantes da API por SKU e descrição, incluindo KUBU e EASY LED POINT 1×6 13W
+- [x] Atualizar exclusivamente quantidades, componentes, custos e markups técnicos retornados pela API, sem reprecificar a venda salva
+- [x] Validar orçamento, ficha e requisição e cobrir por regressão a atualização de itens que anteriormente não tinham custo

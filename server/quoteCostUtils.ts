@@ -28,10 +28,16 @@ export function selectApiProductForQuoteItem<
   const normalizedDescription = (description ?? "").trim().toUpperCase();
   const skuMatches = products.filter((product) => product.sku.trim().toUpperCase().replace(/[^A-Z0-9]/g, "") === normalizedSku);
 
-  return skuMatches.find((product) => {
+  const exactVariant = skuMatches.find((product) => {
     const name = product.name?.trim().toUpperCase();
     return Boolean(name && normalizedDescription.includes(name));
-  }) ?? skuMatches[0];
+  });
+  if (exactVariant) return exactVariant;
+
+  // Um SKU pode representar variantes técnicas diferentes. Sem descrição
+  // compatível, somente um resultado unívoco pode ser usado como fallback;
+  // escolher o primeiro produto alteraria custo e estrutura indevidamente.
+  return skuMatches.length === 1 ? skuMatches[0] : undefined;
 }
 
 export function calculateDashboardProductCost(input: {

@@ -1575,18 +1575,32 @@ export default function QuoteDetail() {
         custoCorpoOnoffBivolt: p.custoCorpoOnoffBivolt ?? null,
         custoCorpoDim110v: p.custoCorpoDim110v ?? null,
         custoCorpoDimDali: p.custoCorpoDimDali ?? null,
+        custoCorpoDimTriac110v: (p as any).custoCorpoDimTriac110v ?? null,
+        custoCorpoDimTriac220v: (p as any).custoCorpoDimTriac220v ?? null,
         custoDriver220: p.custoDriver220 ?? null,
         custoDriverBivolt: p.custoDriverBivolt ?? null,
         custoDriverDim110v: p.custoDriverDim110v ?? null,
         custoDriverDimDali: p.custoDriverDimDali ?? null,
+        custoDriverDimTriac110v: (p as any).custoDriverDimTriac110v ?? null,
+        custoDriverDimTriac220v: (p as any).custoDriverDimTriac220v ?? null,
         markupPadraoOnoff220v: p.markupPadraoOnoff220v ?? null,
         markupPadraoOnoffBivolt: p.markupPadraoOnoffBivolt ?? null,
         markupPadraoDim110v: p.markupPadraoDim110v ?? null,
         markupPadraoDimDali: p.markupPadraoDimDali ?? null,
+        markupPadraoDimTriac110v: (p as any).markupPadraoDimTriac110v ?? null,
+        markupPadraoDimTriac220v: (p as any).markupPadraoDimTriac220v ?? null,
         markupPadraoDriverOnoff220v: p.markupPadraoDriverOnoff220v ?? null,
         markupPadraoDriverOnoffBivolt: p.markupPadraoDriverOnoffBivolt ?? null,
         markupPadraoDriverDim110v: p.markupPadraoDriverDim110v ?? null,
         markupPadraoDriverDimDali: p.markupPadraoDriverDimDali ?? null,
+        markupPadraoDriverDimTriac110v: (p as any).markupPadraoDriverDimTriac110v ?? null,
+        markupPadraoDriverDimTriac220v: (p as any).markupPadraoDriverDimTriac220v ?? null,
+        markupMinimoOnoff220v: (p as any).markupMinimoOnoff220v ?? null,
+        markupMinimoOnoffBivolt: (p as any).markupMinimoOnoffBivolt ?? null,
+        markupMinimoDim110v: (p as any).markupMinimoDim110v ?? null,
+        markupMinimoDimDali: (p as any).markupMinimoDimDali ?? null,
+        markupMinimoDimTriac110v: (p as any).markupMinimoDimTriac110v ?? null,
+        markupMinimoDimTriac220v: (p as any).markupMinimoDimTriac220v ?? null,
         markupMinimoDriver: p.markupMinimoDriver ?? null,
         ledModuleEq2700: p.ledModuleEq2700 ?? null,
         ledModuleEq3000: p.ledModuleEq3000 ?? null,
@@ -1632,9 +1646,10 @@ export default function QuoteDetail() {
       const parsedFromStorage = parseCartItemData(item.itemData as string);
       if (!parsedFromStorage) return item;
       let parsed = enrichDriverCurrentsFromApi(parsedFromStorage, componenteCorrenteMap);
-      if (parsed.profileSegments?.some(segment => /^LLE-4846(?:[.\s]|$)/i.test(segment.sku))) {
-        parsed = migrateItemDrivers(parsed, componentePriceMap, componenteDescMap, productSkuMap, componenteCorrenteMap);
-      }
+      // A reidratação da API deve alcançar todos os itens técnicos, não só o
+      // perfil SHIFT: ela restaura custos, módulos e drivers da variante exata
+      // por SKU + descrição, preservando os preços de venda já gravados.
+      parsed = migrateItemDrivers(parsed, componentePriceMap, componenteDescMap, productSkuMap, componenteCorrenteMap);
       parsed = migrateLegacyGlowCommercialItem(parsed, componentePriceMap, componenteDescMap, productSkuMap, componenteCorrenteMap);
       parsed = enrichShiftAccessoryTechnicalComponents(parsed, productSkuMap);
       const currentEnriched = parsed !== parsedFromStorage;

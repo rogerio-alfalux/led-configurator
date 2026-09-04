@@ -46,6 +46,19 @@ describe("selectActiveQuoteItems", () => {
     expect(product?.custo).toBe(346.53);
   });
 
+  it("não escolhe custo arbitrário quando um SKU compartilhado não tem descrição compatível", () => {
+    const product = selectApiProductForQuoteItem(
+      [
+        { sku: "LDE-7035", name: "BAGEO SINUOSA E 20W/M", custo: 346.53 },
+        { sku: "LDE-7035", name: "BAGEO SINUOSA E 40W/M", custo: 381.01 },
+      ],
+      "LDE-7035",
+      "BAGEO SINUOSA E — VARIANTE INCOMPLETA",
+    );
+
+    expect(product).toBeUndefined();
+  });
+
   it("encontra o LUNA mesmo quando o SKU salvo usa espaços e a API usa hífens", () => {
     const product = selectApiProductForQuoteItem(
       [{ sku: "LDE-6450.140.18B", name: "LUNA G LED 17W RE", custo: 66.6 }],

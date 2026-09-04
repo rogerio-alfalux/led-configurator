@@ -794,18 +794,32 @@ export interface ApiProductDriverInfo {
   custoCorpoOnoffBivolt?: number | null;
   custoCorpoDim110v?: number | null;
   custoCorpoDimDali?: number | null;
+  custoCorpoDimTriac110v?: number | null;
+  custoCorpoDimTriac220v?: number | null;
   custoDriver220?: number | null;
   custoDriverBivolt?: number | null;
   custoDriverDim110v?: number | null;
   custoDriverDimDali?: number | null;
+  custoDriverDimTriac110v?: number | null;
+  custoDriverDimTriac220v?: number | null;
   markupPadraoOnoff220v?: number | null;
   markupPadraoOnoffBivolt?: number | null;
   markupPadraoDim110v?: number | null;
   markupPadraoDimDali?: number | null;
+  markupPadraoDimTriac110v?: number | null;
+  markupPadraoDimTriac220v?: number | null;
   markupPadraoDriverOnoff220v?: number | null;
   markupPadraoDriverOnoffBivolt?: number | null;
   markupPadraoDriverDim110v?: number | null;
   markupPadraoDriverDimDali?: number | null;
+  markupPadraoDriverDimTriac110v?: number | null;
+  markupPadraoDriverDimTriac220v?: number | null;
+  markupMinimoOnoff220v?: number | null;
+  markupMinimoOnoffBivolt?: number | null;
+  markupMinimoDim110v?: number | null;
+  markupMinimoDimDali?: number | null;
+  markupMinimoDimTriac110v?: number | null;
+  markupMinimoDimTriac220v?: number | null;
   markupMinimoDriver?: number | null;
   /** Corrente de programação da versão exata retornada pela API. */
   correnteDriver?: string | null;
@@ -911,6 +925,60 @@ function selectApiDriverForTechnicalItem(
   }
   const driver = product.driver220 ?? product.driverBivolt;
   return driver ? { driver, quantity: product.driverQtd220 ?? product.driverQtdBivolt } : null;
+}
+
+/**
+ * Reidrata os custos e markups da variante exata da API para o dashboard e
+ * para futuras edições autorizadas, preservando preço de venda e custo manual.
+ */
+function enrichItemCostsFromApi(item: CartItemData, product: ApiProductDriverInfo): CartItemData {
+  const context = normalizeCommercialLookupText([
+    item.description,
+    item.orderSummary,
+    item.quoteSummary,
+    item.drivers,
+  ].filter(Boolean).join(" "));
+  const isDali = context.includes("DALI");
+  const isTriac110 = context.includes("TRIAC 110");
+  const isTriac = !isTriac110 && context.includes("TRIAC");
+  const isDim = !isDali && !isTriac && /\bDIM\b|0\s*[-–]?\s*10V|1\s*[-–]?\s*10V/.test(context);
+  const isBivolt = context.includes("BIVOLT");
+
+  const bodyCost = isDali ? product.custoCorpoDimDali
+    : isTriac110 ? product.custoCorpoDimTriac110v
+      : isTriac ? product.custoCorpoDimTriac220v
+        : isDim ? product.custoCorpoDim110v
+          : isBivolt ? product.custoCorpoOnoffBivolt
+            : product.custoCorpoOnoff220v;
+  const driverCost = isDali ? product.custoDriverDimDali
+    : isTriac110 ? product.custoDriverDimTriac110v
+      : isTriac ? product.custoDriverDimTriac220v
+        : isDim ? product.custoDriverDim110v
+          : isBivolt ? product.custoDriverBivolt
+            : product.custoDriver220;
+  const markup = isDali ? product.markupPadraoDimDali
+    : isTriac110 ? product.markupPadraoDimTriac110v
+      : isTriac ? product.markupPadraoDimTriac220v
+        : isDim ? product.markupPadraoDim110v
+          : isBivolt ? product.markupPadraoOnoffBivolt
+            : product.markupPadraoOnoff220v;
+  const minimumMarkup = isDali ? product.markupMinimoDimDali
+    : isTriac110 ? product.markupMinimoDimTriac110v
+      : isTriac ? product.markupMinimoDimTriac220v
+        : isDim ? product.markupMinimoDim110v
+          : isBivolt ? product.markupMinimoOnoffBivolt
+            : product.markupMinimoOnoff220v;
+
+  return {
+    ...item,
+    ...(bodyCost != null && Number(bodyCost) > 0 ? { custoCorpoBase: Number(bodyCost) } : {}),
+    ...(driverCost != null && Number(driverCost) > 0 ? { custoDriverBase: Number(driverCost) } : {}),
+    ...(markup != null && Number(markup) > 0 ? { markupPadraoApi: Number(markup) } : {}),
+    ...(minimumMarkup != null && Number(minimumMarkup) > 0 ? { markupMinimoApi: Number(minimumMarkup) } : {}),
+    ...(product.markupMinimoDriver != null && Number(product.markupMinimoDriver) > 0
+      ? { markupMinimoDriverApi: Number(product.markupMinimoDriver) }
+      : {}),
+  };
 }
 
 function roundCommercialValue(value: number): number {
@@ -1241,6 +1309,13 @@ export function migrateItemDrivers(
     if (resolvedFromApi || profileSegments.some(segment => segment.driverManual)) {
       item = { ...item, profileSegments, driverLines: undefined };
     }
+  }
+
+  // Itens sem segmentos recebem custo e markup da variante exata por SKU e
+  // descrição, inclusive quando já possuem driverLines gravadas em revisões antigas.
+  if ((!item.profileSegments || item.profileSegments.length === 0) && item.sku) {
+    const apiProduct = selectApiTechnicalVariantForItem(item, productSkuMap);
+    if (apiProduct) item = enrichItemCostsFromApi(item, apiProduct);
   }
 
   // ── Migração 4: Corrigir ledModuleCode nos profileSegments ──
