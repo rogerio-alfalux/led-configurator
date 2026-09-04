@@ -3331,3 +3331,8 @@
 - [x] Investigar por que o Departamento de Custos não consegue corrigir um custo manual já informado
 - [x] Permitir a edição segura do custo manual por Alan Aranha e administradores
 - [x] Manter bloqueadas as demais edições para o Departamento de Custos e cobrir a regra por regressão
+
+## Drivers do item EL-B: orçamento 25.0273-26
+- [x] Investigar a estrutura persistida e a estrutura vigente da API para o item EL-B
+- [x] Corrigir exclusivamente o item afetado e a reidratação de drivers para respeitar a quantidade por luminária da API
+- [x] Cobrir a quantidade de drivers em regressão e validar orçamento, documentos e ficha sem alterar preços

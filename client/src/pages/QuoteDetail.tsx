@@ -136,6 +136,7 @@ import { PERMISSIONS } from "@shared/permissions";
 import { applyCCTChange, applyUnitPriceChange, applyQtyChange } from "@/lib/cctUtils";
 import { calculateLinkedAccessoriesTotal, parseShiftModuleManualPrice } from "@/lib/shiftModulePrices";
 import { cloneCartItemData, getEditableBodyUnitPrice } from "@/lib/splitItemPricing";
+import { deriveDriverQuantityPerUnit, selectDriverVariantByDescription } from "@/lib/driverRehydration";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   open: { label: "Em Aberto", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: <Clock className="w-3 h-3" /> },
@@ -1555,6 +1556,7 @@ export default function QuoteDetail() {
     const _currentItems = _items.filter(i => i.quoteVersionId === _currentVersionId);
     // Mapa sku -> produto da API (para fallback de driver na Migração 3 e resolução de ledModuleCode na Migração 4)
     const productSkuMap = new Map<string, ApiProductDriverInfo>();
+    const productVariantsBySku = new Map<string, ApiProductDriverInfo[]>();
     for (const p of (productsQuery.data ?? []) as Array<{ sku: string; name?: string; categoria?: string; driverBivolt?: { model: string; code: string | null } | null; driver220?: { model: string; code: string | null } | null; driverDimDali?: { model: string; code: string | null } | null; driverDim110v?: { model: string; code: string | null } | null; driverQtdBivolt?: number | null; driverQtd220?: number | null; driverQtdDimDali?: number | null; driverQtdDim110v?: number | null; custoCorpoOnoff220v?: number | null; custoCorpoOnoffBivolt?: number | null; custoCorpoDim110v?: number | null; custoCorpoDimDali?: number | null; custoDriver220?: number | null; custoDriverBivolt?: number | null; custoDriverDim110v?: number | null; custoDriverDimDali?: number | null; markupPadraoOnoff220v?: number | null; markupPadraoOnoffBivolt?: number | null; markupPadraoDim110v?: number | null; markupPadraoDimDali?: number | null; markupPadraoDriverOnoff220v?: number | null; markupPadraoDriverOnoffBivolt?: number | null; markupPadraoDriverDim110v?: number | null; markupPadraoDriverDimDali?: number | null; markupMinimoDriver?: number | null; ledModuleEq2700?: string | null; ledModuleEq3000?: string | null; ledModuleEq4000?: string | null; ledModuleEq5000?: string | null; ledModuleEq?: string | null; ledModuleQtd?: number | null; ledModuleQtd2700?: number | null; ledModuleQtd3000?: number | null; ledModuleQtd4000?: number | null; ledModuleQtd5000?: number | null }>) {
       if (!p.sku) continue;
       const entry: ApiProductDriverInfo = {
@@ -1600,6 +1602,10 @@ export default function QuoteDetail() {
         ledModuleQtd5000: p.ledModuleQtd5000 ?? null,
         name: p.name,
       };
+      const normalizedSku = p.sku.trim().toUpperCase();
+      const variants = productVariantsBySku.get(normalizedSku) ?? [];
+      variants.push(entry);
+      productVariantsBySku.set(normalizedSku, variants);
       // Indexar por sku simples (primeiro registro vence) para compat
       if (!productSkuMap.has(p.sku)) productSkuMap.set(p.sku, entry);
       if (p.name) productSkuMap.set(`${p.sku}|${p.name}`, entry);
@@ -1614,6 +1620,12 @@ export default function QuoteDetail() {
         }
       }
     }
+    const selectApiVariantForStoredItem = (storedItem: CartItemData): ApiProductDriverInfo | null => {
+      const normalizedSku = storedItem.sku?.trim().toUpperCase();
+      if (!normalizedSku) return null;
+      const variants = productVariantsBySku.get(normalizedSku) ?? [];
+      return selectDriverVariantByDescription(variants, storedItem.description) ?? productSkuMap.get(storedItem.sku) ?? null;
+    };
     return _currentItems.map(item => {
       const parsedFromStorage = parseCartItemData(item.itemData as string);
       if (!parsedFromStorage) return item;
@@ -1653,6 +1665,10 @@ export default function QuoteDetail() {
       // Normalizar driverModel E enriquecer corrente via componenteCorrenteMap quando ausente
       if (parsed.driverLines && parsed.driverLines.length > 0) {
         let enrichedParsed: CartItemData = parsed;
+        const driverQtyPerUnit = deriveDriverQuantityPerUnit(parsed.driverLines, parsed.qty);
+        if (driverQtyPerUnit != null && Number(parsed.driverQtyPerUnit ?? 0) !== driverQtyPerUnit) {
+          enrichedParsed = { ...enrichedParsed, driverQtyPerUnit };
+        }
         // Migração 6: preencher corrente ausente nas driverLines
         const needsCorrenteEnrich = parsed.driverLines.some(
           dl => dl.driverCode && (dl.corrente == null || dl.corrente === "") && componenteCorrenteMap.has(dl.driverCode) && componenteCorrenteMap.get(dl.driverCode) != null
@@ -1817,18 +1833,18 @@ export default function QuoteDetail() {
         if (eqCode && componenteDescMap.has(eqCode)) driverModel = componenteDescMap.get(eqCode)!;
         // Fallback: se não há eqCode extraível (ex: "1x DRIVER"), buscar da API pelo SKU
         const resolvedEqCode = eqCode ?? (() => {
-          const apiProd = parsed.sku ? productSkuMap.get(parsed.sku) : null;
+          const apiProd = selectApiVariantForStoredItem(parsed);
           if (!apiProd) return null;
           const drvInfo = apiProd.driverBivolt ?? apiProd.driver220;
           return drvInfo?.code ?? null;
         })();
         const resolvedDrvQtyPerUnit = eqCode ? drvQtyPerUnit : (() => {
-          const apiProd = parsed.sku ? productSkuMap.get(parsed.sku) : null;
+          const apiProd = selectApiVariantForStoredItem(parsed);
           if (!apiProd) return 1;
           return apiProd.driverQtdBivolt ?? apiProd.driverQtd220 ?? 1;
         })();
         const resolvedDriverModel = eqCode ? driverModel : (() => {
-          const apiProd = parsed.sku ? productSkuMap.get(parsed.sku) : null;
+          const apiProd = selectApiVariantForStoredItem(parsed);
           if (!apiProd) return driverModel;
           const drvInfo = apiProd.driverBivolt ?? apiProd.driver220;
           if (!drvInfo) return driverModel;
