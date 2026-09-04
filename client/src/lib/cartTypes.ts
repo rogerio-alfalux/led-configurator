@@ -843,6 +843,44 @@ function normalizeCommercialLookupText(value: string | null | undefined): string
     .toUpperCase();
 }
 
+/**
+ * Resolve estruturas técnicas de produtos que compartilham SKU. Quando a API
+ * possui mais de uma variante para o mesmo SKU, só aceita a variante cujo nome
+ * esteja presente na descrição persistida; nunca recorre arbitrariamente ao
+ * primeiro SKU nessa situação.
+ */
+export function selectApiTechnicalVariantForItem(
+  item: Pick<CartItemData, "sku" | "description" | "orderSummary" | "quoteSummary">,
+  productSkuMap: Map<string, ApiProductDriverInfo>,
+): ApiProductDriverInfo | null {
+  if (!item.sku) return null;
+  const normalizedSku = item.sku.trim().toUpperCase();
+  const uniqueCandidates = new Map<string, ApiProductDriverInfo>();
+  for (const product of Array.from(productSkuMap.values())) {
+    const productSku = product.sku?.trim().toUpperCase() ?? "";
+    if (productSku !== normalizedSku) continue;
+    const key = `${productSku}|${product.name ?? ""}`;
+    uniqueCandidates.set(key, product);
+  }
+  const candidates = Array.from(uniqueCandidates.values());
+  if (candidates.length === 0) return productSkuMap.get(item.sku) ?? null;
+
+  const context = normalizeCommercialLookupText([
+    item.description,
+    item.orderSummary,
+    item.quoteSummary,
+  ].filter(Boolean).join(" "));
+  const exactVariant = candidates
+    .filter((product) => Boolean(product.name))
+    .sort((a, b) => (b.name?.length ?? 0) - (a.name?.length ?? 0))
+    .find((product) => context.includes(normalizeCommercialLookupText(product.name)));
+  if (exactVariant) return exactVariant;
+
+  // Um único candidato pode ser usado como fallback. Com SKU compartilhado,
+  // não deduzimos variante sem uma descrição compatível da API.
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
 function roundCommercialValue(value: number): number {
   return Math.round(value * 100) / 100;
 }
@@ -1221,7 +1259,7 @@ export function migrateItemDrivers(
   // A API é a fonte de verdade: atualizamos o primeiro componente (módulo LED)
   // mantendo óptica, holder e dissipador que já estejam vinculados ao item.
   if ((!item.profileSegments || item.profileSegments.length === 0) && item.category !== "LED BAR" && item.sku) {
-    const apiProduct = productSkuMap.get(item.sku);
+    const apiProduct = selectApiTechnicalVariantForItem(item, productSkuMap);
     if (apiProduct) {
       const cctKey = (item.cct ?? "").replace("K", "") as "2700" | "3000" | "4000" | "5000";
       const hasCctKey = ["2700", "3000", "4000", "5000"].includes(cctKey);

@@ -1310,8 +1310,10 @@ export default function FactoryOrderDetail() {
         apiOtherEquipments: p.outrosEquipamentos ?? [],
         name: p.name,
       };
-      // Indexar por sku simples (primeiro registro vence) para compat
+      // Compatibilidade para SKUs únicos; itens compartilhados são resolvidos
+      // pela chave composta SKU|descrição na reidratação técnica.
       if (!map.has(p.sku)) map.set(p.sku, entry);
+      if (p.name) map.set(`${p.sku}|${p.name}`, entry);
       // Indexar por sku|powerLabel para perfis com múltiplas potências
       if ((p.categoria ?? "").toUpperCase() === "PERFIS" && p.name) {
         const powerLabel = extractPowerLabelFromName(p.name);

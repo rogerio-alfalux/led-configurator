@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers, migrateLegacyGlowCommercialItem, normalizeRv00064TechnicalConfiguration, parseCartItemData } from "./cartTypes";
+import { enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers, migrateLegacyGlowCommercialItem, normalizeRv00064TechnicalConfiguration, parseCartItemData, selectApiTechnicalVariantForItem } from "./cartTypes";
 
 describe("parseCartItemData - correção de driverQty para perfis", () => {
   it("corrige driverQty quando está salvo apenas por luminária (BLAZE 45700mm, 12 lum, 17 drv/lum)", () => {
@@ -495,6 +495,72 @@ describe("edição manual de drivers em pedido de fábrica", () => {
       corrente: "350mA",
       driverManual: true,
       programacaoManual: true,
+    })]);
+  });
+});
+
+describe("variantes técnicas com SKU compartilhado", () => {
+  const sku = "LLE-2750.124.21F";
+  const variant18w = {
+    sku,
+    name: "ALE-2750 18W RTG 1243MM (C/ MOLA)",
+    driver220: { code: "EQ00346", model: "DRIVER 19W" },
+    driverBivolt: null,
+    driverQtd220: 1,
+    driverQtdBivolt: null,
+    ledModuleEq4000: "EQ00124",
+    ledModule4000: "STRIPFLEX 562.5 X 10MM 4000K",
+    ledModuleQtd4000: 2,
+    correnteDriver: "350mA",
+  };
+  const variant36w = {
+    sku,
+    name: "ALE-2750 36W RTG 1243MM (C/ MOLA)",
+    driver220: { code: "EQ00347", model: "DRIVER 44W" },
+    driverBivolt: null,
+    driverQtd220: 1,
+    driverQtdBivolt: null,
+    ledModuleEq4000: "EQ00124",
+    ledModule4000: "STRIPFLEX 562.5 X 10MM 4000K",
+    ledModuleQtd4000: 4,
+    correnteDriver: "350mA",
+  };
+  const productMap = new Map<string, any>([
+    [sku, variant18w],
+    [`${sku}|${variant18w.name}`, variant18w],
+    [`${sku}|${variant36w.name}`, variant36w],
+  ]);
+
+  it("usa a descrição para escolher a variante correta, e não o primeiro SKU encontrado", () => {
+    const product = selectApiTechnicalVariantForItem({
+      sku,
+      description: "ALE-2750 36W RTG 1243MM (C/ MOLA) 4000K ON/OFF 220V",
+    }, productMap);
+
+    expect(product?.driver220?.code).toBe("EQ00347");
+    expect(product?.ledModuleQtd4000).toBe(4);
+  });
+
+  it("reidrata módulo e driver do ALE-2750 36W pela variante exata", () => {
+    const migrated = migrateItemDrivers({
+      category: "Downlights",
+      sku,
+      description: "ALE-2750 36W RTG 1243MM (C/ MOLA) 4000K ON/OFF 220V",
+      cct: "4000K",
+      qty: 5,
+      moduloLed: "2x STRIPFLEX ANTIGO (EQ00124)",
+      moduloLedCode: "EQ00124",
+      driverLines: [{ driverCode: "EQ00346", driverModel: "DRIVER 19W", driverQty: 5, driverUnitPrice: 54, driverTotalPrice: 270 }],
+    } as any, new Map([["EQ00347", 54]]), new Map([
+      ["EQ00124", "STRIPFLEX 562.5 X 10MM 4000K"],
+      ["EQ00347", "DRIVER 44W"],
+    ]), productMap, new Map([["EQ00347", "350mA"]]));
+
+    expect(migrated.moduloLed).toContain("4x STRIPFLEX 562.5 X 10MM 4000K (EQ00124)");
+    expect(migrated.driverLines).toEqual([expect.objectContaining({
+      driverCode: "EQ00347",
+      driverQty: 5,
+      corrente: "350mA",
     })]);
   });
 });

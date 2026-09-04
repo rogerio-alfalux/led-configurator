@@ -3351,3 +3351,8 @@
 - [x] Inspecionar a ficha/Excel efetivamente gerado e identificar a fonte técnica ainda divergente
 - [x] Corrigir a geração para módulos LED e drivers obedecerem exatamente à estrutura oficial da API
 - [x] Regenerar e validar o pedido 102384 contra a API, com regressões antes do checkpoint
+
+## Variantes técnicas compartilhadas: orçamento 25.0299-26
+- [x] Corrigir a seleção de estrutura técnica para exigir SKU e descrição compatível, não somente SKU
+- [x] Garantir no ALE-2750 36W o driver EQ00347 e no ALE-2750 18W o driver EQ00346, com módulos corretos
+- [x] Regenerar o arquivo do pedido 102384, validar o conteúdo efetivo e cobrir a resolução de SKU compartilhado por regressão
