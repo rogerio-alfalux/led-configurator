@@ -3326,3 +3326,8 @@
 - [x] Investigar a ausência da opção Faturado no diálogo de status de orçamento aprovado
 - [x] Restaurar a exibição do status para usuários com autorização de faturamento, mantendo a regra de aprovação
 - [x] Cobrir a condição de interface e de servidor por regressão
+
+## Edição de custo manual
+- [x] Investigar por que o Departamento de Custos não consegue corrigir um custo manual já informado
+- [x] Permitir a edição segura do custo manual por Alan Aranha e administradores
+- [x] Manter bloqueadas as demais edições para o Departamento de Custos e cobrir a regra por regressão

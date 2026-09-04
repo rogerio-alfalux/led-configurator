@@ -5583,7 +5583,7 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
                 ) : (
                   <span className="text-red-600 font-medium">Sem custo</span>
                 )}
-                {isCostDepartment && item.source !== 'especial_sem_preco' ? null : editingCustoItem === item.itemNumber ? (
+                {isCostDepartment && !['especial_estimado', 'especial_sem_preco', 'especial_manual', 'manual', 'estimado_margem'].includes(item.source) ? null : editingCustoItem === item.itemNumber ? (
                   <div className="flex items-center gap-1">
                     <Input
                       value={custoManualInput}

@@ -92,7 +92,7 @@ import { getLdRequestDeadlineValidationError } from "../shared/ldRequestDeadline
 import { generateAndStoreCompleteBackup } from "./backupService";
 import { getQuoteStatusAuthorizationError } from "./quoteStatusPolicy";
 import { getUserCreationRoleAuthorizationError } from "../shared/userCreationAccess";
-import { isCostDepartmentRole, isSpecialItemWithoutRegisteredCost } from "../shared/costDepartmentAccess";
+import { isCostDepartmentRole, isSpecialItemEligibleForManualCost } from "../shared/costDepartmentAccess";
 
 // ─── Controle de acesso a orçamentos ─────────────────────────────────────────
 /** Emails dos gestores com acesso irrestrito a todos os orçamentos */
@@ -2147,7 +2147,7 @@ export const appRouter = router({
         if (!item) throw new TRPCError({ code: 'NOT_FOUND', message: 'Item não encontrado' });
         // Atualizar itemData com custoManual
         const data = typeof item.itemData === 'string' ? JSON.parse(item.itemData) : (item.itemData ?? {});
-        if (isCostDepartmentRole(ctx.user.role) && !isSpecialItemWithoutRegisteredCost(data)) {
+        if (isCostDepartmentRole(ctx.user.role) && !isSpecialItemEligibleForManualCost(data)) {
           throw new TRPCError({ code: 'FORBIDDEN', message: 'O Departamento de Custos só pode informar custo em item especial sem custo registrado.' });
         }
         data.custoManual = input.custoManual;

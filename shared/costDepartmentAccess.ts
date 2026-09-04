@@ -5,10 +5,11 @@ export function isCostDepartmentRole(role?: string | null): boolean {
 }
 
 /**
- * O Departamento de Custos só pode informar custo manual quando o item é
- * especial e ainda não possui custo efetivo registrado.
+ * O Departamento de Custos só pode informar ou corrigir custo manual quando o
+ * item é especial e não possui custo oficial registrado. `custoManual` não é
+ * custo oficial: ele é justamente o valor que esse departamento pode revisar.
  */
-export function isSpecialItemWithoutRegisteredCost(item: unknown): boolean {
+export function isSpecialItemEligibleForManualCost(item: unknown): boolean {
   if (!item || typeof item !== "object") return false;
   const data = item as Record<string, unknown>;
   const category = String(data.category ?? "").trim().toLowerCase();
@@ -16,11 +17,16 @@ export function isSpecialItemWithoutRegisteredCost(item: unknown): boolean {
   if (!isSpecial) return false;
 
   const costFields = [
-    data.custoManual,
     data.specialCustoUnitario,
     data.custoCorpoBase,
     data.custoLuminaria,
     data.unitCost,
   ];
   return !costFields.some((value) => Number(value) > 0);
+}
+
+/** Indica item especial sem custo manual ainda informado, para os fluxos iniciais. */
+export function isSpecialItemWithoutRegisteredCost(item: unknown): boolean {
+  if (!isSpecialItemEligibleForManualCost(item)) return false;
+  return !(Number((item as Record<string, unknown>).custoManual) > 0);
 }
