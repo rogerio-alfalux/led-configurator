@@ -18,6 +18,7 @@ import { getStateInfo } from "./difalTable";
 import { appendQuoteGeneralObservation } from "./quoteDocumentObservation";
 import { formatProductStructureSummaryLines } from "./productStructure";
 import { getUnitPriceWithoutIpi } from "./quoteIpi";
+import { allocateDilutedAmount } from "./quoteTaxDilution";
 
 // ── Cores (mesmas do template Excel) ────────────────────────────────────────
 const BLUE_RGB      = [91, 155, 213]  as [number, number, number]; // #5B9BD5
@@ -186,6 +187,8 @@ async function _generatePdfBlob(
     ? baseParaImposto / (1 - combinedRate / 100)
     : baseParaImposto;
   const combinedAmt = totalComDifal - baseParaImposto;
+  const difalFcpDilutedPdf = Boolean(formData.difalEnabled && difalAplicavel && formData.difalFcpIncluded && combinedAmt > 0);
+  const difalFcpToDilutePdf = difalFcpDilutedPdf ? combinedAmt : 0;
   // difalAmt e fcpAmt removidos — agora exibimos combinedAmt em linha única
   const freteValorNum = formData.freteValue && formData.freteValue > 0 && !formData.freteIsento
     ? formData.freteValue : 0;
@@ -354,6 +357,8 @@ async function _generatePdfBlob(
     const lumTotal = item.totalPrice ?? 0;
     const drvTotal = item.driverLines?.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0) ?? 0;
     const itemTotal = _pdfApplyItemDiscount(_pdfApplyGlobalMarkupGlobal(itemRaw + _pdfFreteFatorItem + _pdfDiluicaoFatorItem), item);
+    const itemDifalFcp = allocateDilutedAmount(difalFcpToDilutePdf, itemTotal, totalFinal);
+    const itemTotalWithTax = itemTotal + itemDifalFcp;
 
     // Modelo: SKU + descrição
     const structureLines = formatProductStructureSummaryLines(item);
@@ -394,7 +399,7 @@ async function _generatePdfBlob(
     else { const m = desc.match(/(\d{2,3}[Vv])/); if (m) tensao = m[1].toUpperCase(); }
 
     const itemQty = item.qty ?? 1;
-    const originalItemUnit = itemQty > 0 ? itemTotal / itemQty : 0;
+    const originalItemUnit = itemQty > 0 ? itemTotalWithTax / itemQty : 0;
     tableBody.push([
       item.itemEmPlanta || "",
       "",  // foto — inserida via didDrawCell
@@ -410,7 +415,7 @@ async function _generatePdfBlob(
         itemTotal > 0 ? fmtBRL(getUnitPriceWithoutIpi(originalItemUnit)) : "—",
         itemTotal > 0 ? fmtBRL(originalItemUnit) : "—",
       ] : []),
-      itemTotal > 0 ? fmtBRL(itemTotal) : "—",
+      itemTotalWithTax > 0 ? fmtBRL(itemTotalWithTax) : "—",
     ]);
     rowMeta.push({ photoUrl: getPersistedItemPhotoUrl(item) || null });
 
@@ -427,7 +432,8 @@ async function _generatePdfBlob(
         // Peso do driver no item para distribuição do frete
         const _drvPeso = itemRaw > 0 ? _drvTotalRaw / itemRaw : 0;
         const _drvFreteFrac = _pdfFreteFatorItem * _drvPeso;
-        const drvTotal2 = _pdfApplyItemDiscount(_pdfApplyGlobalMarkupGlobal(_pdfApplyItemMgn(_drvTotalRaw + _drvFreteFrac, item)), item);
+        const drvDifalFcp = itemDifalFcp * _drvPeso;
+        const drvTotal2 = _pdfApplyItemDiscount(_pdfApplyGlobalMarkupGlobal(_pdfApplyItemMgn(_drvTotalRaw + _drvFreteFrac, item)), item) + drvDifalFcp;
         const originalDriverUnit = drvQty > 0 ? drvTotal2 / drvQty : 0;
         tableBody.push([
           "", "",
@@ -451,7 +457,8 @@ async function _generatePdfBlob(
       const accRaw = (acc.unitPrice ?? 0) * accQty;
       const accWeight = itemRaw > 0 ? accRaw / itemRaw : 0;
       const accFrete = _pdfFreteFatorItem * accWeight;
-      const accTotal = _pdfApplyItemDiscount(_pdfApplyGlobalMarkupGlobal(_pdfApplyItemMgn(accRaw + accFrete, item)), item);
+      const accDifalFcp = itemDifalFcp * accWeight;
+      const accTotal = _pdfApplyItemDiscount(_pdfApplyGlobalMarkupGlobal(_pdfApplyItemMgn(accRaw + accFrete, item)), item) + accDifalFcp;
       const originalAccessoryUnit = accQty > 0 ? accTotal / accQty : 0;
       tableBody.push([
         "", "",
@@ -602,10 +609,14 @@ async function _generatePdfBlob(
   addRow("Prazo de fabricação e entrega:", `${formData.deliveryDays ?? 20} dias úteis`, { valueColor: RED_RGB, bold: true });
 
   // Total dos produtos
-  addRow("Valor total dos produtos:", fmtBRL(totalFinal), { bgColor: TOTAL_BG_RGB, bold: true, fontSize: 11 });
+  addRow(
+    difalFcpDilutedPdf ? "Valor total dos produtos (impostos já incluídos):" : "Valor total dos produtos:",
+    fmtBRL(totalFinal + difalFcpToDilutePdf),
+    { bgColor: TOTAL_BG_RGB, bold: true, fontSize: 11 },
+  );
 
   // DIFAL + FCP (linha única)
-  if (combinedAmt > 0 && formData.difalEnabled && difalAplicavel) {
+  if (combinedAmt > 0 && formData.difalEnabled && difalAplicavel && !difalFcpDilutedPdf) {
     addRow(`DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%) + FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%) — ${formData.destState ?? ""}:`, fmtBRL(combinedAmt), { bgColor: TOTAL_BG_RGB });
     addRow(`TOTAL GERAL (com ${pdfHasFreteCotadoNoTotal ? "FRETE + " : ""}DIFAL/FCP):`, fmtBRL(totalComDifal), { bgColor: TOTAL_BG_RGB, bold: true, fontSize: 12 });
   }
@@ -627,8 +638,10 @@ async function _generatePdfBlob(
   const _difalAtivoComFretePdf = formData.difalEnabled && difalAplicavel && freteParaBase > 0;
   if (freteValorNum > 0) {
     addRow("Valor do frete:", fmtBRL(freteValorNum), { valueColor: RED_RGB, bold: true });
-    if (!_difalAtivoComFretePdf) {
-      const totalGeral = (formData.difalEnabled && difalAplicavel ? totalComDifal : totalFinal) + freteValorNum;
+    if (!_difalAtivoComFretePdf || difalFcpDilutedPdf) {
+      const totalGeral = difalFcpDilutedPdf
+        ? totalComDifal
+        : (formData.difalEnabled && difalAplicavel ? totalComDifal : totalFinal) + freteValorNum;
       addRow("TOTAL GERAL (produtos + frete):", fmtBRL(totalGeral), { bgColor: [217, 234, 211], bold: true, fontSize: 12 });
     }
   }
@@ -640,9 +653,10 @@ async function _generatePdfBlob(
   doc.setTextColor(0, 0, 0);
 
   let obsText = "Pode ser acrescido o valor de DIFAL, de acordo com o Estado e classificação fiscal da empresa.";
-  if (formData.difalEnabled && combinedAmt > 0) {
+  if (formData.difalEnabled && combinedAmt > 0 && !difalFcpDilutedPdf) {
     obsText = `DIFAL/FCP aplicado para ${formData.destState ?? ""}: DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%) + FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%): ${fmtBRL(combinedAmt)}. Valores já incluídos na proposta.`;
   }
+  if (difalFcpDilutedPdf) obsText = "";
   obsText = appendQuoteGeneralObservation(obsText, formData.notes);
   // Renderizar "Observação:" em negrito + texto normal na mesma linha usando largura total
   doc.setFont("helvetica", "bold");

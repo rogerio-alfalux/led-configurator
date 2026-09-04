@@ -1,0 +1,1 @@
+ALTER TABLE `quotes` ADD `difalFcpIncluded` boolean DEFAULT false NOT NULL;

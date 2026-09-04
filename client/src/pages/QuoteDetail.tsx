@@ -129,6 +129,7 @@ import { isLdDraftQuoteNumber } from "@shared/ldDraftQuoteNumber";
 import { OrderPreviewModal } from "@/components/OrderPreviewModal";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
 import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
+import { allocateDilutedAmount, calculateCombinedTaxAmount } from "@/lib/quoteTaxDilution";
 import { StateCitySelector, isSaoPauloCapital } from "@/components/StateCitySelector";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -1029,6 +1030,7 @@ export default function QuoteDetail() {
     fcpEnabled: false,
     fcpPercent: "",
     fcpValue: "",
+    difalFcpIncluded: false,
     projectNumber: "",
     projectNoProject: false,
     freteValue: "",
@@ -2105,6 +2107,7 @@ export default function QuoteDetail() {
           paymentTerm: quote.paymentTerm ?? undefined,
           destState: quote.destState ?? undefined,
           difalEnabled: quote.difalEnabled ?? false,
+          difalFcpIncluded: !!(quote as any).difalFcpIncluded,
           difalPercent: quote.difalPercent ? parseFloat(String(quote.difalPercent)) : undefined,
           difalValue: quote.difalValue ? parseFloat(String(quote.difalValue)) : undefined,
           fcpEnabled: quote.fcpEnabled ?? false,
@@ -2318,6 +2321,7 @@ export default function QuoteDetail() {
           paymentTerm: quote.paymentTerm ?? undefined,
           destState: quote.destState ?? undefined,
           difalEnabled: quote.difalEnabled ?? false,
+          difalFcpIncluded: !!(snap.difalFcpIncluded ?? (quote as any).difalFcpIncluded),
           difalPercent: quote.difalPercent ? parseFloat(String(quote.difalPercent)) : undefined,
           difalValue: quote.difalValue ? parseFloat(String(quote.difalValue)) : undefined,
           fcpEnabled: quote.fcpEnabled ?? false,
@@ -3109,6 +3113,7 @@ export default function QuoteDetail() {
                         paymentTerm: quote.paymentTerm ?? undefined,
                         destState: quote.destState ?? undefined,
                         difalEnabled: quote.difalEnabled ?? false,
+                        difalFcpIncluded: !!(quote as any).difalFcpIncluded,
                         difalPercent: quote.difalPercent != null ? parseFloat(String(quote.difalPercent)) : 0,
                         fcpPercent: quote.fcpPercent != null ? parseFloat(String(quote.fcpPercent)) : 0,
                         fcpEnabled: quote.fcpEnabled ?? false,
@@ -3497,6 +3502,7 @@ export default function QuoteDetail() {
                 fcpEnabled: quote.fcpEnabled ?? false,
                 fcpPercent: quote.fcpPercent != null ? String(parseFloat(String(quote.fcpPercent))) : "",
                 fcpValue: quote.fcpValue != null ? String(parseFloat(String(quote.fcpValue))) : "",
+                difalFcpIncluded: !!(quote as any).difalFcpIncluded,
                 projectNumber: quote.projectNumber ?? "",
                 projectNoProject: (quote.projectNumber ?? "") === "Sem Projeto",
                 freteValue: (quote as any).freteValue != null ? String((quote as any).freteValue) : "",
@@ -3771,6 +3777,7 @@ export default function QuoteDetail() {
                       // Resetar DIFAL ao mudar estado
                       difalEnabled: false,
                       fcpEnabled: false,
+                      difalFcpIncluded: false,
                     }))}
                     onCityChange={(city) => {
                       const isSpCapital = isSaoPauloCapital(city, editForm.freteStateCode || "SP");
@@ -3884,6 +3891,7 @@ export default function QuoteDetail() {
                                   ...f,
                                   difalEnabled: enabled,
                                   fcpEnabled: enabled,
+                                  difalFcpIncluded: enabled ? f.difalFcpIncluded : false,
                                   difalValue: String(difalVal.toFixed(2)),
                                   fcpValue: String(fcpVal.toFixed(2)),
                                   difalPercent: String(info.difal),
@@ -3905,36 +3913,51 @@ export default function QuoteDetail() {
                             </label>
                           </div>
                           {editForm.difalEnabled && (
-                            <div className="bg-muted/60 rounded p-2 text-sm space-y-1">
-                              <div className="flex justify-between text-muted-foreground">
-                                <span>Produtos</span>
-                                <span>{formatBRL(editTotalFinal)}</span>
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-2">
+                                <Checkbox
+                                  id="editDifalFcpIncluded"
+                                  checked={editForm.difalFcpIncluded}
+                                  onCheckedChange={(v) => setEditForm(f => ({ ...f, difalFcpIncluded: Boolean(v) }))}
+                                />
+                                <label htmlFor="editDifalFcpIncluded" className="text-sm cursor-pointer">
+                                  Diluir DIFAL/FCP nos itens do orçamento
+                                </label>
                               </div>
-                              {editFreteBase > 0 && (
+                              <p className="text-xs text-muted-foreground">
+                                Desativado por padrão. Ao habilitar, o imposto é distribuído proporcionalmente nos preços dos itens e não aparece como cobrança separada.
+                              </p>
+                              <div className="bg-muted/60 rounded p-2 text-sm space-y-1">
                                 <div className="flex justify-between text-muted-foreground">
-                                  <span>+ Frete</span>
-                                  <span>{formatBRL(editFreteBase)}</span>
+                                  <span>Produtos</span>
+                                  <span>{formatBRL(editTotalFinal)}</span>
                                 </div>
-                              )}
-                              <div className="flex justify-between text-muted-foreground border-t pt-1">
-                                <span>Base de cálculo</span>
-                                <span>{formatBRL(base)}</span>
-                              </div>
-                              {info.difal > 0 && (
-                                <div className="flex justify-between text-muted-foreground">
-                                  <span>DIFAL ({info.difal.toFixed(1)}%)</span>
-                                  <span>{formatBRL(difalVal)}</span>
+                                {editFreteBase > 0 && (
+                                  <div className="flex justify-between text-muted-foreground">
+                                    <span>+ Frete</span>
+                                    <span>{formatBRL(editFreteBase)}</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between text-muted-foreground border-t pt-1">
+                                  <span>Base de cálculo</span>
+                                  <span>{formatBRL(base)}</span>
                                 </div>
-                              )}
-                              {info.fcp > 0 && (
-                                <div className="flex justify-between text-muted-foreground">
-                                  <span>FCP ({info.fcp.toFixed(1)}%)</span>
-                                  <span>{formatBRL(fcpVal)}</span>
+                                {info.difal > 0 && (
+                                  <div className="flex justify-between text-muted-foreground">
+                                    <span>DIFAL ({info.difal.toFixed(1)}%)</span>
+                                    <span>{formatBRL(difalVal)}</span>
+                                  </div>
+                                )}
+                                {info.fcp > 0 && (
+                                  <div className="flex justify-between text-muted-foreground">
+                                    <span>FCP ({info.fcp.toFixed(1)}%)</span>
+                                    <span>{formatBRL(fcpVal)}</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between font-semibold border-t pt-1">
+                                  <span>Total com DIFAL/FCP</span>
+                                  <span>{formatBRL(totalComImposto)}</span>
                                 </div>
-                              )}
-                              <div className="flex justify-between font-semibold border-t pt-1">
-                                <span>Total com DIFAL/FCP</span>
-                                <span>{formatBRL(totalComImposto)}</span>
                               </div>
                             </div>
                           )}
@@ -4168,6 +4191,7 @@ export default function QuoteDetail() {
                       paymentTerm: editForm.paymentTerm || undefined,
                       destState: editForm.destState || undefined,
                       difalEnabled: editForm.difalEnabled,
+                      difalFcpIncluded: editForm.difalEnabled && editForm.difalFcpIncluded,
                       fcpEnabled: editForm.fcpEnabled,
                       projectNumber: editForm.projectNumber || undefined,
                       freteValue: editForm.freteValue ? parseFloat(editForm.freteValue) : undefined,
@@ -4608,6 +4632,23 @@ export default function QuoteDetail() {
                 if (_freteParaDiluir <= 0 || _freteBase <= 0) return 0;
                 return _freteParaDiluir * (itemTotalRaw / _freteBase);
               };
+              const _difalFcpDiluted = Boolean((quote as any).difalEnabled && (quote as any).difalFcpIncluded);
+              const _storedDifalFcp = Math.max(0, Number((quote as any).difalValue) || 0)
+                + Math.max(0, Number((quote as any).fcpValue) || 0);
+              const _separateFreight = !_freteIncluded && !_freteIsento ? _freteValue : 0;
+              const _stateInfoForDilution = getStateInfo(String((quote as any).destState ?? ""));
+              const _estimatedTaxBase = Math.max(0, totalGeral + _diluicaoTotal + _separateFreight);
+              const _difalFcpAmount = _difalFcpDiluted
+                ? (_storedDifalFcp > 0
+                  ? _storedDifalFcp
+                  : calculateCombinedTaxAmount(_estimatedTaxBase, _stateInfoForDilution?.combined ?? 0))
+                : 0;
+              const _productsBeforeDilutedTax = Math.max(
+                0,
+                _storedDiscountedTotal - _separateFreight - _difalFcpAmount,
+              ) || Math.max(0, totalGeral + _diluicaoTotal);
+              const getItemDifalFcpFrac = (itemPreTaxTotal: number): number =>
+                allocateDilutedAmount(_difalFcpAmount, itemPreTaxTotal, _productsBeforeDilutedTax);
               let globalIdx = 0;
               return (
                 <>
@@ -4698,8 +4739,9 @@ export default function QuoteDetail() {
                               ? applyMkupWithItem(_correctTotalItem + _itemFreteRaw, d.itemMarginPercent, d.itemDiscountPercent)
                               : 0;
                             const _itemFreteComMkup = _correctTotalWithFrete - _correctTotalWithMkup;
+                            const _itemDifalFcp = getItemDifalFcpFrac(_correctTotalWithFrete + _itemDiluicao);
                             const correctTotalDisplay = _correctTotalWithMkup > 0
-                              ? _correctTotalWithFrete + _itemDiluicao
+                              ? _correctTotalWithFrete + _itemDiluicao + _itemDifalFcp
                               : null;
                             // Distribuição da diluição + frete entre luminária e driver proporcionalmente
                             const _lumWithMkup = lumTotalDisplay ?? 0;
@@ -4708,7 +4750,7 @@ export default function QuoteDetail() {
                               : 0;
                             const _itemTotalForRatio = _lumWithMkup + _drvWithMkup;
                             // Combinar diluição + frete para distribuir proporcionalmente
-                            const _totalAdicional = _itemDiluicao + _itemFreteComMkup;
+                            const _totalAdicional = _itemDiluicao + _itemFreteComMkup + _itemDifalFcp;
                             const _lumDiluicaoFrac = _itemTotalForRatio > 0 ? _totalAdicional * (_lumWithMkup / _itemTotalForRatio) : _totalAdicional;
                             const lumTotalDisplayWithDil = lumTotalDisplay != null ? lumTotalDisplay + _lumDiluicaoFrac : null;
                             const lumUnitDisplayWithDil = lumUnitDisplay != null && d.qty > 0 ? lumTotalDisplayWithDil != null ? lumTotalDisplayWithDil / d.qty : null : null;
@@ -4716,10 +4758,10 @@ export default function QuoteDetail() {
                               ? applyQuoteDiscount(lumUnitDisplay, _discountRate) + (_lumDiluicaoFrac / d.qty)
                               : null;
                             const simpleUnitDisplayWithDil = unitDisplay != null
-                              ? unitDisplay + ((_itemDiluicao + _itemFreteComMkup) / (d.qty || 1))
+                              ? unitDisplay + ((_itemDiluicao + _itemFreteComMkup + _itemDifalFcp) / (d.qty || 1))
                               : null;
                             const simpleUnitDiscountedWithDil = unitDisplay != null
-                              ? applyQuoteDiscount(unitDisplay, _discountRate) + ((_itemDiluicao + _itemFreteComMkup) / (d.qty || 1))
+                              ? applyQuoteDiscount(unitDisplay, _discountRate) + ((_itemDiluicao + _itemFreteComMkup + _itemDifalFcp) / (d.qty || 1))
                               : null;
                             return (
                               <div key={String(item.id)} className="flex items-start gap-3 px-4 py-3">
@@ -4847,7 +4889,7 @@ export default function QuoteDetail() {
                                         </>
                                       ) : <p className="text-xs text-muted-foreground">{formatBRL(simpleUnitDisplayWithDil)}/un</p>)}
                                       {totalDisplay != null
-                                        ? <p className="font-bold text-primary text-sm">{formatBRL(totalDisplay + _itemDiluicao + _itemFreteComMkup)}</p>
+                                        ? <p className="font-bold text-primary text-sm">{formatBRL(totalDisplay + _itemDiluicao + _itemFreteComMkup + _itemDifalFcp)}</p>
                                         : <p className="text-xs italic text-muted-foreground">A consultar</p>}
                                     </>
                                   )}
@@ -4918,7 +4960,7 @@ export default function QuoteDetail() {
                           return _showDiscountedTotal ? (
                             <div className="grid grid-cols-2 gap-5">
                               <div>
-                                <p className="text-xs text-muted-foreground">Valor cheio{_freteParaDiluir > 0 ? " (c/ frete diluído)" : ""}</p>
+                                <p className="text-xs text-muted-foreground">Valor cheio{_freteParaDiluir > 0 || _difalFcpDiluted ? ` (c/ ${[_freteParaDiluir > 0 ? "frete" : "", _difalFcpDiluted ? "DIFAL/FCP" : ""].filter(Boolean).join(" + ")} diluído)` : ""}</p>
                                 <p className="text-lg font-bold text-primary">{formatBRL(fullTotal)}</p>
                               </div>
                               <div className="text-right">
@@ -4928,7 +4970,7 @@ export default function QuoteDetail() {
                             </div>
                           ) : (
                             <div className="flex justify-between items-center">
-                              <span className="text-sm font-medium">Total{_freteParaDiluir > 0 ? " (c/ frete diluído)" : ""}</span>
+                              <span className="text-sm font-medium">Total{_freteParaDiluir > 0 || _difalFcpDiluted ? ` (c/ ${[_freteParaDiluir > 0 ? "frete" : "", _difalFcpDiluted ? "DIFAL/FCP" : ""].filter(Boolean).join(" + ")} diluído)` : ""}</span>
                               <span className="text-xl font-bold text-primary">{formatBRL(fullTotal)}</span>
                             </div>
                           );
@@ -5278,6 +5320,7 @@ export default function QuoteDetail() {
           paymentTerm: quote.paymentTerm ?? undefined,
           destState: quote.destState ?? undefined,
           difalEnabled: quote.difalEnabled ?? false,
+          difalFcpIncluded: !!(quote as any).difalFcpIncluded,
           difalPercent: quote.difalPercent ? parseFloat(String(quote.difalPercent)) : undefined,
           difalValue: quote.difalValue ? parseFloat(String(quote.difalValue)) : undefined,
           fcpEnabled: quote.fcpEnabled ?? false,
@@ -5332,6 +5375,7 @@ export default function QuoteDetail() {
           paymentTerm: quote.paymentTerm ?? undefined,
           destState: quote.destState ?? undefined,
           difalEnabled: quote.difalEnabled ?? false,
+          difalFcpIncluded: !!(quote as any).difalFcpIncluded,
           difalPercent: quote.difalPercent ? parseFloat(String(quote.difalPercent)) : undefined,
           difalValue: quote.difalValue ? parseFloat(String(quote.difalValue)) : undefined,
           fcpEnabled: quote.fcpEnabled ?? false,

@@ -27,6 +27,7 @@ import { getStateInfo } from "./difalTable";
 import { appendQuoteGeneralObservation } from "./quoteDocumentObservation";
 import { formatProductStructureSummaryLines } from "./productStructure";
 import { getUnitPriceWithoutIpi } from "./quoteIpi";
+import { allocateDilutedAmount, calculateCombinedTaxAmount } from "./quoteTaxDilution";
 
 // ── Cores do template ────────────────────────────────────────────────────────
 const BLUE      = "FF5B9BD5"; // Azul do template (cabeçalho tabela, número, data)
@@ -616,6 +617,35 @@ async function _generateExcelBuffer(
   const _diluicaoParaDiluir = (formData.diluicaoValor && formData.diluicaoValor > 0)
     ? formData.diluicaoValor
     : 0;
+  const _rtPctForTaxDilution = Math.min(Math.max(formData.rtPercent ?? 0, 0), 0.99);
+  const _marginPctForTaxDilution = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
+  const _discountPctForTaxDilution = Math.min(Math.max(formData.discountPercent ?? 0, 0), 0.99);
+  const _applyItemAdjustmentsForTax = (base: number, item: CartItemData) => {
+    const itemMargin = item.itemMarginPercent != null ? Math.min(Math.max(item.itemMarginPercent / 100, 0), 0.99) : 0;
+    const itemDiscount = item.itemDiscountPercent != null ? Math.min(Math.max(item.itemDiscountPercent / 100, 0), 0.99) : 0;
+    const withItemMargin = itemMargin > 0 ? base / (1 - itemMargin) : base;
+    return itemDiscount > 0 ? withItemMargin * (1 - itemDiscount) : withItemMargin;
+  };
+  const _itemsBaseForTaxDilution = items.reduce((sum, item) =>
+    sum + _applyItemAdjustmentsForTax(calcItemLumTotal(item) + calcItemDrvTotal(item) + calcItemAccessoriesTotal(item), item), 0)
+    + _freteParaDiluir + _diluicaoParaDiluir;
+  const _itemsWithRtForTaxDilution = _rtPctForTaxDilution > 0
+    ? _itemsBaseForTaxDilution / (1 - _rtPctForTaxDilution)
+    : _itemsBaseForTaxDilution;
+  const _itemsWithMarginForTaxDilution = _marginPctForTaxDilution > 0
+    ? _itemsWithRtForTaxDilution / (1 - _marginPctForTaxDilution)
+    : _itemsWithRtForTaxDilution;
+  const _productsFinalForTaxDilution = _discountPctForTaxDilution > 0
+    ? _itemsWithMarginForTaxDilution * (1 - _discountPctForTaxDilution)
+    : _itemsWithMarginForTaxDilution;
+  const _freteSeparateForTaxDilution = formData.freteIncluded
+    ? 0
+    : (formData.freteValue && formData.freteValue > 0 && !formData.freteIsento ? formData.freteValue : 0);
+  const _stateInfoForTaxDilution = formData.destState ? getStateInfo(formData.destState) : undefined;
+  const _combinedRateForTaxDilution = _stateInfoForTaxDilution?.combined ?? 0;
+  const _difalFcpToDilute = formData.difalEnabled && formData.difalFcpIncluded && _combinedRateForTaxDilution > 0
+    ? calculateCombinedTaxAmount(_productsFinalForTaxDilution + _freteSeparateForTaxDilution, _combinedRateForTaxDilution)
+    : 0;
   /**
    * Retorna o preço unitário ajustado com a parcela de diluição interna.
    * Aplicada ANTES do markup, distribuída proporcionalmente ao totalPrice.
@@ -944,16 +974,21 @@ async function _generateExcelBuffer(
     const _freteFatorItem = (_freteParaDiluir > 0 && _totalBaseParaFrete > 0)
       ? _freteParaDiluir * (_itemTotalRealForDil / _totalBaseParaFrete)
       : 0;
+    const _itemRawForTax = _itemTotalRealForDil + calcItemAccessoriesTotal(item);
+    const _itemPreTaxFinal = applyMarkup(_itemRawForTax + _diluicaoFatorItem + _freteFatorItem);
+    const _itemDifalFcpFator = allocateDilutedAmount(_difalFcpToDilute, _itemPreTaxFinal, _productsFinalForTaxDilution);
     // Aplica diluição + frete ao preço unitário da luminária (proporcional ao peso da luminária no item)
     const _lumTotalReal = calcItemLumTotal(item);
-    const _lumPeso = _itemTotalRealForDil > 0 ? _lumTotalReal / _itemTotalRealForDil : 1;
+    const _lumPeso = _itemRawForTax > 0 ? _lumTotalReal / _itemRawForTax : 1;
     const _lumDiluicaoUnit = item.qty > 0 ? (_diluicaoFatorItem + _freteFatorItem) * _lumPeso / item.qty : 0;
+    const _lumDifalFcpTotal = _itemDifalFcpFator * _lumPeso;
+    const _lumDifalFcpUnit = item.qty > 0 ? _lumDifalFcpTotal / item.qty : 0;
     const _baseUnitLuminaria = item.unitPriceLuminaria ?? _derivedUnitLuminaria ?? _effectiveUnitPrice;
     const _unitForLuminaria = hasDriverBreakdownItem
       ? (_baseUnitLuminaria != null ? _baseUnitLuminaria + _lumDiluicaoUnit : _unitPriceComDiluicao(item))
       : _unitPriceComDiluicao(item);
     if (_unitForLuminaria !== null && _unitForLuminaria !== undefined && _unitForLuminaria > 0) {
-      const originalUnitPrice = applyMarkup(_unitForLuminaria);
+      const originalUnitPrice = applyMarkup(_unitForLuminaria) + _lumDifalFcpUnit;
       cUnit.value = showIpi ? getUnitPriceWithoutIpi(originalUnitPrice) : originalUnitPrice;
       cUnit.numFmt = '"R$"#,##0.00';
       if (cUnitWithIpi) {
@@ -1007,7 +1042,7 @@ async function _generateExcelBuffer(
     // Linha principal mostra APENAS o preço da luminária (sem drivers).
     // Os drivers aparecem separados nas sub-linhas abaixo, evitando duplicação.
     if (_totalForLuminaria !== null && _totalForLuminaria > 0) {
-      cTotal.value = applyMarkup(_totalForLuminaria);
+      cTotal.value = applyMarkup(_totalForLuminaria) + _lumDifalFcpTotal;
       cTotal.numFmt = '"R$"#,##0.00';
       cTotal.font = { name: "Calibri", size: 11, bold: false };
     } else if (hasDriverBreakdownItem && !item.luminariaHasApiPrice) {
@@ -1125,8 +1160,12 @@ async function _generateExcelBuffer(
         const accQty = acc.qty * (item.qty ?? 1);
         fillAcc(ws.getCell(`L${accRowNum}`), accQty, true);
         if (acc.unitPrice && acc.unitPrice > 0) {
+          const accBaseTotal = Number(acc.unitPrice) * accQty;
+          const accWeight = _itemRawForTax > 0 ? accBaseTotal / _itemRawForTax : 0;
+          const accDifalFcpTotal = _itemDifalFcpFator * accWeight;
+          const accUnitAdjusted = Number(acc.unitPrice) + (accQty > 0 ? accDifalFcpTotal / accQty : 0);
           const mCell = ws.getCell(`M${accRowNum}`);
-          mCell.value = showIpi ? getUnitPriceWithoutIpi(acc.unitPrice) : acc.unitPrice;
+          mCell.value = showIpi ? getUnitPriceWithoutIpi(accUnitAdjusted) : accUnitAdjusted;
           mCell.numFmt = '"R$"#,##0.00';
           mCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: ACC_COLOR } };
           mCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
@@ -1134,7 +1173,7 @@ async function _generateExcelBuffer(
           mCell.border = accBorder;
           if (showIpi) {
             const ipiCell = ws.getCell(`N${accRowNum}`);
-            ipiCell.value = acc.unitPrice;
+            ipiCell.value = accUnitAdjusted;
             ipiCell.numFmt = '"R$"#,##0.00';
             ipiCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: ACC_COLOR } };
             ipiCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
@@ -1142,7 +1181,7 @@ async function _generateExcelBuffer(
             ipiCell.border = accBorder;
           }
           const nCell = ws.getCell(`${totalPriceCol}${accRowNum}`);
-          nCell.value = acc.unitPrice * accQty;
+          nCell.value = accBaseTotal + accDifalFcpTotal;
           nCell.numFmt = '"R$"#,##0.00';
           nCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: ACC_COLOR } };
           nCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
@@ -1195,9 +1234,11 @@ async function _generateExcelBuffer(
         fillDrv(ws.getCell(`L${drvRowNum}`), _effectiveDrvQty, true);
         if (drv.driverUnitPrice != null && drv.driverUnitPrice > 0) {
           // Aplicar diluição proporcional ao peso do driver neste item
-          const _drvPeso = _itemTotalRealForDil > 0 ? (drv.driverUnitPrice * _effectiveDrvQty) / _itemTotalRealForDil : 0;
+          const _drvPeso = _itemRawForTax > 0 ? (drv.driverUnitPrice * _effectiveDrvQty) / _itemRawForTax : 0;
           const _drvDiluicaoUnit = _effectiveDrvQty > 0 ? (_diluicaoFatorItem + _freteFatorItem) * _drvPeso / _effectiveDrvQty : 0;
-          const drvUnitAdjusted = applyMarkup(drv.driverUnitPrice + _drvDiluicaoUnit);
+          const _drvDifalFcpTotal = _itemDifalFcpFator * _drvPeso;
+          const _drvDifalFcpUnit = _effectiveDrvQty > 0 ? _drvDifalFcpTotal / _effectiveDrvQty : 0;
+          const drvUnitAdjusted = applyMarkup(drv.driverUnitPrice + _drvDiluicaoUnit) + _drvDifalFcpUnit;
           const mCell = ws.getCell(`M${drvRowNum}`);
           mCell.value = showIpi ? getUnitPriceWithoutIpi(drvUnitAdjusted) : drvUnitAdjusted;
           mCell.numFmt = '"R$"#,##0.00';
@@ -1215,7 +1256,7 @@ async function _generateExcelBuffer(
             ipiCell.border = drvBorder;
           }
           const nCell = ws.getCell(`${totalPriceCol}${drvRowNum}`);
-          nCell.value = applyMarkup((drv.driverUnitPrice + _drvDiluicaoUnit) * _effectiveDrvQty);
+          nCell.value = applyMarkup((drv.driverUnitPrice + _drvDiluicaoUnit) * _effectiveDrvQty) + _drvDifalFcpTotal;
           nCell.numFmt = '"R$"#,##0.00';
           nCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: DRV_COLOR } };
           nCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: DRV_BG } };
@@ -1361,6 +1402,7 @@ async function _generateExcelBuffer(
     ? baseParaImposto / (1 - combinedRate / 100)
     : baseParaImposto;
   const combinedAmt = totalComDifal - baseParaImposto;
+  const difalFcpDilutedExcel = Boolean(formData.difalEnabled && difalAplicavelExcel && formData.difalFcpIncluded && combinedAmt > 0);
   // difalAmt e fcpAmt removidos — agora exibimos combinedAmt em linha única
   let nextRow = currentRow + items.length + floorHeaderCount;
 
@@ -1416,20 +1458,24 @@ async function _generateExcelBuffer(
   {
     const c = ws.getCell(`C${nextRow}`);
     const _temDifal = !!(formData.difalEnabled && difalAplicavelExcel);
-    c.value = formData.freteIncluded && _freteParaDiluir > 0
-      ? (_temDifal
-        ? "Subtotal dos produtos\n(frete incl., sem DIFAL/FCP):"
-        : "Valor total dos produtos\n(frete já incluído):")
-      : (_temDifal
-        ? "Subtotal dos produtos\n(sem frete, sem DIFAL/FCP):"
-        : "Valor total dos produtos\n(sem o frete):");
+    c.value = difalFcpDilutedExcel
+      ? (formData.freteIncluded && _freteParaDiluir > 0
+        ? "Valor total dos produtos\n(frete e impostos já incluídos):"
+        : "Valor total dos produtos\n(impostos já incluídos; sem o frete):")
+      : (formData.freteIncluded && _freteParaDiluir > 0
+        ? (_temDifal
+          ? "Subtotal dos produtos\n(frete incl., sem DIFAL/FCP):"
+          : "Valor total dos produtos\n(frete já incluído):")
+        : (_temDifal
+          ? "Subtotal dos produtos\n(sem frete, sem DIFAL/FCP):"
+          : "Valor total dos produtos\n(sem o frete):"));
     c.font = { name: "Calibri", size: 12, bold: true };
     c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
   }
   ws.mergeCells(`E${nextRow}:${visibleEndCol}${nextRow}`);
   {
     const c = ws.getCell(`E${nextRow}`);
-    c.value = totalFinal;
+    c.value = totalFinal + _difalFcpToDilute;
     c.numFmt = '"R$"#,##0.00';
     c.font = { name: "Calibri", size: 14, bold: true };
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: TOTAL_BG } };
@@ -1445,8 +1491,10 @@ async function _generateExcelBuffer(
       const comMargem = marginPct > 0 ? comRT / (1 - marginPct) : comRT;
       return discountPct > 0 ? comMargem * (1 - discountPct) : comMargem;
     };
-    const totalSemDriverFinal = applyMarkupLocal(totalSemDriverRaw + _lumDilFracExcel);
-    const totalDriverFinal = applyMarkupLocal(totalDriverRaw + _drvDilFracExcel);
+    const totalDriverBeforeTax = applyMarkupLocal(totalDriverRaw + _drvDilFracExcel);
+    const _driverTaxShare = totalFinal > 0 ? _difalFcpToDilute * (totalDriverBeforeTax / totalFinal) : 0;
+    const totalSemDriverFinal = applyMarkupLocal(totalSemDriverRaw + _lumDilFracExcel) + (_difalFcpToDilute - _driverTaxShare);
+    const totalDriverFinal = totalDriverBeforeTax + _driverTaxShare;
     // Linha: Total sem driver
     ws.getRow(nextRow).height = 28;
     ws.mergeCells(`C${nextRow}:D${nextRow}`);
@@ -1488,7 +1536,7 @@ async function _generateExcelBuffer(
   }
 
   // ── Linhas de DIFAL e FCP (quando aplicáveis) ──────────────────────────
-  if (combinedAmt > 0 && formData.difalEnabled && difalAplicavelExcel) {
+  if (combinedAmt > 0 && formData.difalEnabled && difalAplicavelExcel && !difalFcpDilutedExcel) {
     ws.getRow(nextRow).height = 24;
     ws.mergeCells(`C${nextRow}:D${nextRow}`);
     {
@@ -1508,7 +1556,7 @@ async function _generateExcelBuffer(
     nextRow++;
   }
   // ── Total com DIFAL/FCP (quando aplicável) ────────────────────────────────
-  if (formData.difalEnabled && difalAplicavelExcel) {
+  if (formData.difalEnabled && difalAplicavelExcel && !difalFcpDilutedExcel) {
     ws.getRow(nextRow).height = 42.6;
     ws.mergeCells(`C${nextRow}:D${nextRow}`);
     {
@@ -1607,7 +1655,7 @@ async function _generateExcelBuffer(
       // (baseParaImposto = totalFinal + freteValue). Não exibir esta linha separada
       // para evitar confusão — o total já está na linha "TOTAL GERAL (com DIFAL/FCP + frete)".
       const _difalAtivoComFrete = formData.difalEnabled && difalAplicavelExcel && _freteParaImpostoBase > 0;
-      if (!_difalAtivoComFrete) {
+      if (!_difalAtivoComFrete || difalFcpDilutedExcel) {
         ws.getRow(nextRow).height = 42.6;
         ws.mergeCells(`C${nextRow}:D${nextRow}`);
         {
@@ -1619,7 +1667,7 @@ async function _generateExcelBuffer(
         ws.mergeCells(`E${nextRow}:${visibleEndCol}${nextRow}`);
         {
           const c = ws.getCell(`E${nextRow}`);
-          c.value = totalFinal + _freteValorNum;
+          c.value = difalFcpDilutedExcel ? totalComDifal : totalFinal + _freteValorNum;
           c.numFmt = '"R$"#,##0.00';
           c.font = { name: "Calibri", size: 14, bold: true };
           c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9EAD3" } }; // verde claro
@@ -1639,10 +1687,11 @@ async function _generateExcelBuffer(
     const c = ws.getCell(`C${nextRow}`);
     // Montar texto de observação com DIFAL/FCP se aplicado
     let obsText = "Pode ser acrescido o valor de DIFAL, de acordo com o Estado e classificação fiscal da empresa.";
-    if (formData.difalEnabled && combinedAmt > 0) {
+    if (formData.difalEnabled && combinedAmt > 0 && !difalFcpDilutedExcel) {
       const _cAmt = combinedAmt.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       obsText = `DIFAL/FCP aplicado para ${formData.destState ?? ""}: DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%) + FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%): R$ ${_cAmt}. Valores já incluídos na proposta.`;
     }
+    if (difalFcpDilutedExcel) obsText = "";
     obsText = appendQuoteGeneralObservation(obsText, formData.notes);
     // Usar rich text para ter "Observação:" em negrito + texto normal
     c.value = { richText: [

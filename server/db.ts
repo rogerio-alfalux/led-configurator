@@ -571,6 +571,8 @@ export interface SaveQuoteInput {
   difalValue?: number;
   /** Valor FCP calculado */
   fcpValue?: number;
+  /** Se true, DIFAL/FCP é diluído proporcionalmente nos itens */
+  difalFcpIncluded?: boolean;
   /** Número interno do projeto (ex: "2025-0042") */
   projectNumber?: string;
   /** Valor do frete cotado em R$ */
@@ -696,6 +698,7 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
     fcpEnabled: input.fcpEnabled ?? false,
     difalValue: input.difalValue != null ? String(input.difalValue) : '0',
     fcpValue: input.fcpValue != null ? String(input.fcpValue) : '0',
+    difalFcpIncluded: input.difalFcpIncluded ?? false,
     projectNumber: input.projectNumber ?? null,
     freteValue: normalizedFrete.freteValue != null ? String(normalizedFrete.freteValue) : '0',
         freteState: normalizedFrete.freteState ?? null,
@@ -831,6 +834,7 @@ export async function addQuoteRevision(
     fcpEnabled: input.fcpEnabled !== undefined ? input.fcpEnabled : (quote.fcpEnabled ?? false),
     difalValue: input.difalValue != null ? String(input.difalValue) : (quote.difalValue ?? '0'),
     fcpValue: input.fcpValue != null ? String(input.fcpValue) : (quote.fcpValue ?? '0'),
+    difalFcpIncluded: input.difalFcpIncluded !== undefined ? input.difalFcpIncluded : (quote.difalFcpIncluded ?? false),
     projectNumber: input.projectNumber !== undefined ? (input.projectNumber ?? null) : quote.projectNumber,
     freteValue: normalizedFrete.freteValue != null ? String(normalizedFrete.freteValue) : (quote.freteValue ?? '0'),
     freteState: normalizedFrete.freteState ?? null,
@@ -2388,6 +2392,7 @@ export async function duplicateQuote(
     fcpEnabled: q.fcpEnabled,
     difalValue: q.difalValue,
     fcpValue: q.fcpValue,
+    difalFcpIncluded: q.difalFcpIncluded,
     projectNumber: q.projectNumber,
     freteValue: q.freteValue,
     freteState: q.freteState,

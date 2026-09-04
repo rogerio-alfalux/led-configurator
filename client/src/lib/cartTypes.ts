@@ -501,6 +501,8 @@ export interface QuoteFormData {
   fcpPercent?: number;
   /** Valor de FCP calculado em R$ */
   fcpValue?: number;
+  /** Se true, DIFAL/FCP é distribuído proporcionalmente nos itens e não aparece destacado */
+  difalFcpIncluded?: boolean;
   /** Número do projeto (campo separado do número do orçamento, preenchido manualmente) */
   projectNumber?: string;
   /** Comissão do 2º vendedor (0–1, ex: 0.05 = 5%). Apenas demonstrativo. */

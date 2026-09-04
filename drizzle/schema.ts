@@ -189,6 +189,8 @@ export const quotes = mysqlTable("quotes", {
 	difalValue: decimal({ precision: 12, scale: 2 }).default('0'),
 	/** Valor total de FCP calculado */
 	fcpValue: decimal({ precision: 12, scale: 2 }).default('0'),
+	/** Se true, DIFAL/FCP é distribuído proporcionalmente nos itens e não aparece destacado nos documentos */
+	difalFcpIncluded: boolean().default(false).notNull(),
 	/** Número interno do projeto (ex: "2025-0042") — pesquisável, independente do número do orçamento */
 	projectNumber: varchar({ length: 64 }),
 	/** Valor do frete cotado em R$ (0 = não cotado) */

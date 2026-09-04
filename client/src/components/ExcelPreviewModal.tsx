@@ -18,6 +18,7 @@ import { toBrasiliaDate } from "@/lib/dateUtils";
 import { getQuotePreviewColumnCount, getQuotePreviewColumnWidths, QUOTE_PREVIEW_SUBITEM_BLANK_COLUMN_COUNT } from "@/lib/quotePreviewLayout";
 import { appendQuoteGeneralObservation } from "@/lib/quoteDocumentObservation";
 import { getUnitPriceWithoutIpi } from "@/lib/quoteIpi";
+import { allocateDilutedAmount } from "@/lib/quoteTaxDilution";
 import { QuoteExportOptionsDialog } from "@/components/QuoteExportOptionsDialog";
 
 // ── Helpers (mesmos do gerador Excel) ────────────────────────────────────────
@@ -575,6 +576,19 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
     ? baseParaImpostoPreview / (1 - combinedRatePreview / 100)
     : baseParaImpostoPreview;
   const combinedAmtPreview = totalComDifal - baseParaImpostoPreview;
+  const difalFcpDiluted = Boolean(formData.difalEnabled && difalAplicavel && formData.difalFcpIncluded && combinedAmtPreview > 0);
+  const difalFcpToDilute = difalFcpDiluted ? combinedAmtPreview : 0;
+  const getItemPreTaxFinal = (item: CartItemData): number => {
+    const itemRaw = getItemTotalReal(item);
+    if (itemRaw <= 0) return 0;
+    const itemFrete = getFreteItem(item);
+    const itemInternalDilution = diluicaoParaDiluir > 0 && totalBase > 0
+      ? diluicaoParaDiluir * (itemRaw / totalBase)
+      : 0;
+    return applyMarkupItem(itemRaw + itemFrete + itemInternalDilution, item.itemMarginPercent, item.itemDiscountPercent);
+  };
+  const getItemDifalFcp = (item: CartItemData): number =>
+    allocateDilutedAmount(difalFcpToDilute, getItemPreTaxFinal(item), totalFinal);
   // difalAmt e fcpAmt removidos — agora exibimos combinedAmtPreview em linha única
 
   // Totais com/sem driver (apenas para orçamentos novos com driverLines)
@@ -605,8 +619,10 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   const _totalBaseForRatio = totalDriverRaw + totalSemDriverRaw;
   const _drvDilFrac = _totalBaseForRatio > 0 ? diluicaoParaDiluir * (totalDriverRaw / _totalBaseForRatio) : 0;
   const _lumDilFrac = diluicaoParaDiluir - _drvDilFrac;
-  const totalDriverFinal = applyMarkupFn(totalDriverRaw + _drvDilFrac);
-  const totalSemDriverFinal = applyMarkupFn(totalSemDriverRaw + _lumDilFrac);
+  const totalDriverBeforeTax = applyMarkupFn(totalDriverRaw + _drvDilFrac);
+  const _drvTaxFrac = totalFinal > 0 ? difalFcpToDilute * (totalDriverBeforeTax / totalFinal) : 0;
+  const totalDriverFinal = totalDriverBeforeTax + _drvTaxFrac;
+  const totalSemDriverFinal = applyMarkupFn(totalSemDriverRaw + _lumDilFrac) + (difalFcpToDilute - _drvTaxFrac);
 
   const vendedorText = [formData.seller1Name, formData.seller2Name].filter(Boolean).join(" / ") || "";
   const contactText = [formData.contato, formData.tel].filter(Boolean).join(" — ");
@@ -934,9 +950,9 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           <td style={tdStyle}></td>{/* FOTO vazia */}
                           <td colSpan={7} style={{ ...tdStyle, textAlign: "left", fontStyle: "italic" }}>{item.description || item.sku || "Serviço"}</td>
                           <td style={tdStyle}>{item.qty}</td>
-                          <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent, item.itemDiscountPercent)) : applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}</td>
-                          {showIpi && <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}</td>}
-                          <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkupItem(totalPriceComFrete(item) ?? item.totalPrice, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}</td>
+                          <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent, item.itemDiscountPercent) + getItemDifalFcp(item) / Math.max(item.qty ?? 1, 1)) : applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent, item.itemDiscountPercent) + getItemDifalFcp(item) / Math.max(item.qty ?? 1, 1)) : "-"}</td>
+                          {showIpi && <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent, item.itemDiscountPercent) + getItemDifalFcp(item) / Math.max(item.qty ?? 1, 1)) : "-"}</td>}
+                          <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkupItem(totalPriceComFrete(item) ?? item.totalPrice, item.itemMarginPercent, item.itemDiscountPercent) + getItemDifalFcp(item)) : "-"}</td>
                         </tr>
                       ) : item.driverLines && item.driverLines.length > 0 ? (
                         <tr>
@@ -992,26 +1008,28 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                               ? freteParaDiluir * (_itemTotalReal / totalBase) * _lumPeso
                               : 0;
                             const _lumFreteFracUnit = _qty > 0 ? _lumFreteFrac / _qty : 0;
+                            const _lumDifalFcpTotal = getItemDifalFcp(item) * _lumPeso;
+                            const _lumDifalFcpUnit = _qty > 0 ? _lumDifalFcpTotal / _qty : 0;
                             return (<>
                               <td style={tdStyle}>
                                 {_effectiveUnitLum && _effectiveUnitLum > 0
                                   ? formatBRL(showIpi
-                                    ? getUnitPriceWithoutIpi(applyMarkupItem(_effectiveUnitLum + _lumDilUnit + _lumFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent))
-                                    : applyMarkupItem(_effectiveUnitLum + _lumDilUnit + _lumFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent))
+                                    ? getUnitPriceWithoutIpi(applyMarkupItem(_effectiveUnitLum + _lumDilUnit + _lumFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent) + _lumDifalFcpUnit)
+                                    : applyMarkupItem(_effectiveUnitLum + _lumDilUnit + _lumFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent) + _lumDifalFcpUnit)
                                   : item.luminariaHasApiPrice === false
                                     ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
                                     : "-"}
                               </td>
                               {showIpi && <td style={tdStyle}>
                                 {_effectiveUnitLum && _effectiveUnitLum > 0
-                                  ? formatBRL(applyMarkupItem(_effectiveUnitLum + _lumDilUnit + _lumFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent))
+                                  ? formatBRL(applyMarkupItem(_effectiveUnitLum + _lumDilUnit + _lumFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent) + _lumDifalFcpUnit)
                                   : item.luminariaHasApiPrice === false
                                     ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
                                     : "-"}
                               </td>}
                               <td style={tdStyle}>
                                 {_correctedTotal > 0
-                                  ? formatBRL(applyMarkupItem(_correctedTotal + _lumDilTotal + _lumFreteFrac, item.itemMarginPercent, item.itemDiscountPercent))
+                                  ? formatBRL(applyMarkupItem(_correctedTotal + _lumDilTotal + _lumFreteFrac, item.itemMarginPercent, item.itemDiscountPercent) + _lumDifalFcpTotal)
                                   : item.luminariaHasApiPrice === false
                                     ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
                                     : "-"}
@@ -1060,17 +1078,26 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                             const _totalWithFrete = totalPriceComFrete(item) ?? item.totalPrice ?? 0;
                             const _unitWithDil = _unitWithFrete + (_qty > 0 ? _diluicaoFatorSimple / _qty : 0);
                             const _totalWithDil = _totalWithFrete + _diluicaoFatorSimple;
+                            const _itemDifalFcpTotal = getItemDifalFcp(item);
+                            const _itemDifalFcpUnit = _qty > 0 ? _itemDifalFcpTotal / _qty : 0;
                             return (<>
-                              <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(applyMarkupItem(_unitWithDil, item.itemMarginPercent, item.itemDiscountPercent)) : applyMarkupItem(_unitWithDil, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}</td>
-                              {showIpi && <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkupItem(_unitWithDil, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}</td>}
-                              <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkupItem(_totalWithDil, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}</td>
+                              <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(applyMarkupItem(_unitWithDil, item.itemMarginPercent, item.itemDiscountPercent) + _itemDifalFcpUnit) : applyMarkupItem(_unitWithDil, item.itemMarginPercent, item.itemDiscountPercent) + _itemDifalFcpUnit) : "-"}</td>
+                              {showIpi && <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkupItem(_unitWithDil, item.itemMarginPercent, item.itemDiscountPercent) + _itemDifalFcpUnit) : "-"}</td>}
+                              <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkupItem(_totalWithDil, item.itemMarginPercent, item.itemDiscountPercent) + _itemDifalFcpTotal) : "-"}</td>
                             </>);
                           })()}
                         </tr>
                       )}
 
                       {/* Sub-linhas de acessórios não-rabicho */}
-                      {nonRabichoAcc.map((acc, accIdx) => (
+                      {nonRabichoAcc.map((acc, accIdx) => {
+                        const accQty = acc.qty * (item.qty ?? 1);
+                        const itemRawTotal = getItemTotalReal(item);
+                        const accTaxTotal = itemRawTotal > 0
+                          ? getItemDifalFcp(item) * ((Number(acc.unitPrice ?? 0) * accQty) / itemRawTotal)
+                          : 0;
+                        const accUnitWithTax = Number(acc.unitPrice ?? 0) + (accQty > 0 ? accTaxTotal / accQty : 0);
+                        return (
                         <tr key={`acc-${idx}-${accIdx}`} style={{ background: "#E0F7FA" }}>
                           <td style={{ ...tdStyle, fontSize: 9 }}></td>
                           <td style={{ ...tdStyle, fontSize: 9, textAlign: "center" }}>
@@ -1086,12 +1113,13 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           {Array.from({ length: QUOTE_PREVIEW_SUBITEM_BLANK_COLUMN_COUNT }, (_, i) => (
                             <td key={i} style={{ ...tdStyle, fontSize: 9 }}></td>
                           ))}
-                          <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold" }}>{acc.qty * (item.qty ?? 1)}</td>
-                          <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(acc.unitPrice) : acc.unitPrice) : "-"}</td>
-                          {showIpi && <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice) : "-"}</td>}
-                          <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice * acc.qty * (item.qty ?? 1)) : "-"}</td>
+                          <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold" }}>{accQty}</td>
+                          <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(accUnitWithTax) : accUnitWithTax) : "-"}</td>
+                          {showIpi && <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(accUnitWithTax) : "-"}</td>}
+                          <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice * accQty + accTaxTotal) : "-"}</td>
                         </tr>
-                      ))}
+                        );
+                      })}
                       {/* Sub-linha de observação do item (quando itemObsShowInExcel=true) */}
                       {item.itemObs && item.itemObsShowInExcel && (
                         <tr key={`obs-${idx}`} style={{ background: "#F0FFF4" }}>
@@ -1127,6 +1155,8 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           ? freteParaDiluir * (_itemTotalRealDrv / totalBase) * _drvPeso
                           : 0;
                         const _drvFreteFracUnit = _effectiveDrvQty > 0 ? _drvFreteFrac / _effectiveDrvQty : 0;
+                        const _drvDifalFcpTotal = getItemDifalFcp(item) * _drvPeso;
+                        const _drvDifalFcpUnit = _effectiveDrvQty > 0 ? _drvDifalFcpTotal / _effectiveDrvQty : 0;
                         return (
                         <tr key={`drv-${idx}-${drvIdx}`} style={{ background: "#FFF3E0" }}>
                           <td style={{ ...tdStyle, fontSize: 9 }}></td>
@@ -1140,13 +1170,13 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           ))}
                           <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold", color: "#E65100" }}>{_effectiveDrvQty}</td>
                           <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
-                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent)) : applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}
+                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent) + _drvDifalFcpUnit) : applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent) + _drvDifalFcpUnit) : "-"}
                           </td>
                           {showIpi && <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
-                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}
+                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent) + _drvDifalFcpUnit) : "-"}
                           </td>}
                           <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
-                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupItem(_drvTotalPrice + _drvDilTotal + _drvFreteFrac, item.itemMarginPercent, item.itemDiscountPercent)) : "-"}
+                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupItem(_drvTotalPrice + _drvDilTotal + _drvFreteFrac, item.itemMarginPercent, item.itemDiscountPercent) + _drvDifalFcpTotal) : "-"}
                           </td>
                         </tr>
                         );
@@ -1195,23 +1225,27 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                   </tr>
                   <tr>
                     <td style={{ fontWeight: "bold", paddingTop: 8 }}>
-                      {freteParaDiluir > 0
-                        ? (formData.difalEnabled && difalAplicavel ? "Subtotal dos produtos (frete incl., sem DIFAL/FCP):" : "Valor total dos produtos (frete já incluído):")
-                        : (formData.difalEnabled && difalAplicavel ? "Subtotal dos produtos (sem frete, sem DIFAL/FCP):" : "Valor total dos produtos (sem o frete):")}
+                      {difalFcpDiluted
+                        ? (freteParaDiluir > 0
+                          ? "Valor total dos produtos (frete e impostos já incluídos):"
+                          : "Valor total dos produtos (impostos já incluídos; sem o frete):")
+                        : (freteParaDiluir > 0
+                          ? (formData.difalEnabled && difalAplicavel ? "Subtotal dos produtos (frete incl., sem DIFAL/FCP):" : "Valor total dos produtos (frete já incluído):")
+                          : (formData.difalEnabled && difalAplicavel ? "Subtotal dos produtos (sem frete, sem DIFAL/FCP):" : "Valor total dos produtos (sem o frete):"))}
                     </td>
                     <td>
                       <span style={{ background: TOTAL_BG, fontWeight: "bold", fontSize: 14, padding: "4px 12px", border: "2px solid #444", display: "inline-block" }}>
-                        {formatBRL(totalFinal)}
+                        {formatBRL(totalFinal + difalFcpToDilute)}
                       </span>
                     </td>
                   </tr>
-                  {combinedAmtPreview > 0 && formData.difalEnabled && difalAplicavel && (
+                  {combinedAmtPreview > 0 && formData.difalEnabled && difalAplicavel && !difalFcpDiluted && (
                     <tr>
                       <td style={{ color: "#CC0000", fontWeight: "bold" }}>DIFAL ({(formData.difalPercent ?? 0).toFixed(1)}%) + FCP ({(formData.fcpPercent ?? 0).toFixed(1)}%) — {formData.destState ?? ""}:</td>
                       <td style={{ color: "#CC0000", fontWeight: "bold" }}>{formatBRL(combinedAmtPreview)}</td>
                     </tr>
                   )}
-                  {formData.difalEnabled && difalAplicavel && (
+                  {formData.difalEnabled && difalAplicavel && !difalFcpDiluted && (
                     <tr>
                       <td style={{ fontWeight: "bold" }}>TOTAL GERAL (com {hasFreteCotadoNoTotalPreview ? "FRETE + " : ""}DIFAL/FCP):</td>
                       <td>
@@ -1270,7 +1304,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                                 {formatBRL(formData.freteValue)}
                               </td>
                             </tr>
-                            {!_difalAtivoComFrete && (
+                            {(!_difalAtivoComFrete || difalFcpDiluted) && (
                               <tr>
                                 <td style={{ fontWeight: "bold" }}>TOTAL GERAL (produtos + frete):</td>
                                 <td>
@@ -1291,10 +1325,12 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
 
               {/* Observação */}
               {(() => {
-                const _hasDifal = formData.difalEnabled && combinedAmtPreview > 0;
-                const _obsText = _hasDifal
-                  ? `DIFAL/FCP aplicado para ${formData.destState ?? ""}: DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%) + FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%): ${formatBRL(combinedAmtPreview)}. Valores já incluídos na proposta.`
-                  : "Pode ser acrescido o valor de DIFAL, de acordo com o Estado e classificação fiscal da empresa.";
+                    const _hasDifal = formData.difalEnabled && combinedAmtPreview > 0 && !difalFcpDiluted;
+                    const _obsText = difalFcpDiluted
+                      ? ""
+                      : _hasDifal
+                      ? `DIFAL/FCP aplicado para ${formData.destState ?? ""}: DIFAL (${(formData.difalPercent ?? 0).toFixed(1)}%) + FCP (${(formData.fcpPercent ?? 0).toFixed(1)}%): ${formatBRL(combinedAmtPreview)}. Valores já incluídos na proposta.`
+                      : "Pode ser acrescido o valor de DIFAL, de acordo com o Estado e classificação fiscal da empresa.";
                 const _fullObsText = appendQuoteGeneralObservation(_obsText, formData.notes);
                 return (
                   <div style={{ marginTop: 10, fontSize: 12 }}>

@@ -132,6 +132,7 @@ interface SaveFormData {
   fcpEnabled: boolean;
   fcpPercent: string;
   fcpValue: string;
+  difalFcpIncluded: boolean;
   // v32.24
   projectNumber: string;
   projectNoProject: boolean; // checkbox "Sem Projeto"
@@ -903,6 +904,7 @@ function StandardCart() {
     fcpEnabled: false,
     fcpPercent: "",
     fcpValue: "",
+    difalFcpIncluded: false,
     projectNumber: "",
     projectNoProject: false,
     commissionPercent2: "0",
@@ -1182,6 +1184,7 @@ function StandardCart() {
         commissionPercent: (parseFloat(saveForm.commissionPercent) || 5) / 100,
         destState: saveForm.destState || undefined,
         difalEnabled: saveForm.difalEnabled,
+        difalFcpIncluded: saveForm.difalEnabled && saveForm.difalFcpIncluded,
         difalPercent: saveForm.difalEnabled && saveForm.difalPercent ? parseFloat(saveForm.difalPercent) : undefined,
         difalValue: saveForm.difalEnabled && saveForm.difalValue ? parseFloat(saveForm.difalValue) : undefined,
         fcpEnabled: saveForm.fcpEnabled,
@@ -1283,6 +1286,7 @@ function StandardCart() {
       commissionPercent: (parseFloat(saveForm.commissionPercent) || 5) / 100,
       destState: saveForm.destState || undefined,
       difalEnabled: saveForm.difalEnabled,
+      difalFcpIncluded: saveForm.difalEnabled && saveForm.difalFcpIncluded,
       difalPercent: saveForm.difalEnabled && saveForm.difalPercent ? parseFloat(saveForm.difalPercent) : undefined,
       difalValue: saveForm.difalEnabled && saveForm.difalValue ? parseFloat(saveForm.difalValue) : undefined,
       fcpEnabled: saveForm.fcpEnabled,
@@ -2313,6 +2317,7 @@ function StandardCart() {
                                           const enabled = Boolean(v);
                                           updateSaveForm("difalEnabled", enabled);
                                           updateSaveForm("fcpEnabled", enabled);
+                                          if (!enabled) updateSaveForm("difalFcpIncluded", false);
                                           updateSaveForm("difalValue", String(difalVal.toFixed(2)));
                                           updateSaveForm("fcpValue", String(fcpVal.toFixed(2)));
                                           updateSaveForm("difalPercent", String(info.difal));
@@ -2333,28 +2338,43 @@ function StandardCart() {
                                       </label>
                                     </div>
                                     {saveForm.difalEnabled && (
-                                      <div className="bg-muted/60 rounded p-2 text-sm space-y-1">
-                                        {freteValor > 0 && (
-                                          <div className="flex justify-between text-muted-foreground">
-                                            <span>Base (produtos + frete)</span>
-                                            <span>{formatBRL(base)}</span>
+                                      <div className="space-y-2">
+                                        <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-2">
+                                          <Checkbox
+                                            id="saveFormDifalFcpIncluded"
+                                            checked={saveForm.difalFcpIncluded}
+                                            onCheckedChange={(v) => updateSaveForm("difalFcpIncluded", Boolean(v))}
+                                          />
+                                          <label htmlFor="saveFormDifalFcpIncluded" className="text-sm cursor-pointer">
+                                            Diluir DIFAL/FCP nos itens do orçamento
+                                          </label>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                          Desativado por padrão. Ao habilitar, o imposto é distribuído proporcionalmente nos preços dos itens e não aparece como cobrança separada.
+                                        </p>
+                                        <div className="bg-muted/60 rounded p-2 text-sm space-y-1">
+                                          {freteValor > 0 && (
+                                            <div className="flex justify-between text-muted-foreground">
+                                              <span>Base (produtos + frete)</span>
+                                              <span>{formatBRL(base)}</span>
+                                            </div>
+                                          )}
+                                          {info.difal > 0 && (
+                                            <div className="flex justify-between text-muted-foreground">
+                                              <span>DIFAL ({info.difal.toFixed(1)}%)</span>
+                                              <span>{formatBRL(difalVal)}</span>
+                                            </div>
+                                          )}
+                                          {info.fcp > 0 && (
+                                            <div className="flex justify-between text-muted-foreground">
+                                              <span>FCP ({info.fcp.toFixed(1)}%)</span>
+                                              <span>{formatBRL(fcpVal)}</span>
+                                            </div>
+                                          )}
+                                          <div className="flex justify-between font-semibold border-t pt-1">
+                                            <span>Total com DIFAL/FCP</span>
+                                            <span>{formatBRL(totalComImposto)}</span>
                                           </div>
-                                        )}
-                                        {info.difal > 0 && (
-                                          <div className="flex justify-between text-muted-foreground">
-                                            <span>DIFAL ({info.difal.toFixed(1)}%)</span>
-                                            <span>{formatBRL(difalVal)}</span>
-                                          </div>
-                                        )}
-                                        {info.fcp > 0 && (
-                                          <div className="flex justify-between text-muted-foreground">
-                                            <span>FCP ({info.fcp.toFixed(1)}%)</span>
-                                            <span>{formatBRL(fcpVal)}</span>
-                                          </div>
-                                        )}
-                                        <div className="flex justify-between font-semibold border-t pt-1">
-                                          <span>Total com DIFAL/FCP</span>
-                                          <span>{formatBRL(totalComImposto)}</span>
                                         </div>
                                       </div>
                                     )}
@@ -3539,6 +3559,7 @@ function StandardCart() {
           paymentTerm: saveForm.paymentTerm || undefined,
           revisionCount: 0,
           difalEnabled: saveForm.difalEnabled,
+          difalFcpIncluded: saveForm.difalEnabled && saveForm.difalFcpIncluded,
           difalPercent: saveForm.difalEnabled && saveForm.difalPercent ? parseFloat(saveForm.difalPercent) : undefined,
           difalValue: saveForm.difalEnabled && saveForm.difalValue ? parseFloat(saveForm.difalValue) : undefined,
           fcpEnabled: saveForm.fcpEnabled,
@@ -3591,6 +3612,7 @@ function StandardCart() {
           paymentTerm: saveForm.paymentTerm || undefined,
           revisionCount: 0,
           difalEnabled: saveForm.difalEnabled,
+          difalFcpIncluded: saveForm.difalEnabled && saveForm.difalFcpIncluded,
           difalPercent: saveForm.difalEnabled && saveForm.difalPercent ? parseFloat(saveForm.difalPercent) : undefined,
           difalValue: saveForm.difalEnabled && saveForm.difalValue ? parseFloat(saveForm.difalValue) : undefined,
           fcpEnabled: saveForm.fcpEnabled,

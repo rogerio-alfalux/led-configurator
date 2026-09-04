@@ -3366,3 +3366,9 @@
 - [x] Rastrear a camada que reduz quatro fontes EQ00802 a uma no item 7
 - [x] Corrigir a reidratação e a geração para preservar a quantidade oficial da API
 - [x] Regenerar e confirmar a ficha do pedido com quatro fontes por peça antes do checkpoint
+
+## Diluição opcional de DIFAL/FCP nos itens
+- [x] Mapear a regra atual de DIFAL/FCP, frete diluído, persistência e documentos comerciais
+- [x] Adicionar opção desativada por padrão para diluir DIFAL/FCP nos itens do orçamento
+- [x] Distribuir DIFAL/FCP proporcionalmente nos itens sem duplicar imposto no total, preview, PDF ou Excel
+- [x] Validar os modos destacado e diluído por regressão e criar checkpoint
