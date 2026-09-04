@@ -1033,7 +1033,9 @@ function findExactGlowProduct(
  * Reidrata somente a informação técnica de driver dos perfis GLOW legados que
  * foram gravados antes do detalhamento separado de corpo e driver. O orçamento
  * já salvo é a fonte comercial definitiva: preço, custo, markup, totais e texto
- * comercial históricos jamais podem ser recalculados pelo catálogo vigente.
+ * comercial históricos jamais podem ser recalculados pelo catálogo vigente. Quando
+ * o valor do driver nunca foi persistido, a decomposição visual usa o preço vigente
+ * do componente retornado pela API, sem alterar o total comercial do orçamento.
  */
 export function migrateLegacyGlowCommercialItem(
   item: CartItemData,
@@ -1081,11 +1083,11 @@ export function migrateLegacyGlowCommercialItem(
     driverCode: driver.code,
     driverModel,
     driverQty: totalDriverQty,
-    // Não usar o preço vigente da API em um item histórico sem preço de driver
-    // persistido. Isso preserva o valor comercial já enviado ao cliente.
-    driverUnitPrice: item.unitPriceDriver ?? null,
-    driverTotalPrice: item.unitPriceDriver != null
-      ? roundCommercialValue(item.unitPriceDriver * totalDriverQty)
+    // A linha legada não possuía decomposição de driver. Mantemos qualquer valor
+    // persistido e, somente se ausente, exibimos o preço do componente oficial.
+    driverUnitPrice: item.unitPriceDriver ?? priceMap.get(driver.code) ?? null,
+    driverTotalPrice: (item.unitPriceDriver ?? priceMap.get(driver.code)) != null
+      ? roundCommercialValue((item.unitPriceDriver ?? priceMap.get(driver.code)!) * totalDriverQty)
       : null,
     ...(correnteMap?.get(driver.code) ? { corrente: correnteMap.get(driver.code)! } : {}),
   }];

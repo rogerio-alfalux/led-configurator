@@ -3382,3 +3382,8 @@
 - [x] Preservar o modelo e a quantidade decimal de 4,4 módulos LED por peça na ficha e na requisição
 - [x] Corrigir e regenerar exclusivamente o pedido afetado sem alterar preços ou demais dados comerciais
 - [x] Cobrir quantidades decimais de módulos LED por regressão e validar novos pedidos
+
+## Preço de driver: orçamento 25.0266-26
+- [x] Comparar o driver EQ00348 persistido com a variante exata e o preço vigente da API
+- [x] Corrigir exclusivamente o preço zerado do driver sem modificar o valor salvo da luminária
+- [x] Proteger a reidratação de preço de driver por variante e validar orçamento e documentos por regressão

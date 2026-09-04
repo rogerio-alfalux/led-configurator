@@ -279,7 +279,7 @@ describe("migrateLegacyGlowCommercialItem", () => {
     expect(migrated.unitPrice).toBe(202);
     expect(migrated.totalPrice).toBe(29088);
     expect(migrated.driverLines).toEqual([expect.objectContaining({
-      driverCode: "EQ00659", driverQty: 144, driverUnitPrice: null, driverTotalPrice: null,
+      driverCode: "EQ00659", driverQty: 144, driverUnitPrice: 262.38, driverTotalPrice: 37782.72,
     })]);
   });
 
@@ -326,7 +326,40 @@ describe("migrateLegacyGlowCommercialItem", () => {
     expect(migrated.unitPrice).toBe(345.21);
     expect(migrated.totalPrice).toBe(14153.61);
     expect(migrated.driverLines).toEqual([expect.objectContaining({
-      driverCode: "EQ00179", driverQty: 41, driverUnitPrice: null, driverTotalPrice: null, corrente: "500mA",
+      driverCode: "EQ00179", driverQty: 41, driverUnitPrice: 479.52, driverTotalPrice: 19660.32, corrente: "500mA",
+    })]);
+  });
+
+  it("preenche o preço oficial do EQ00348 quando o item GLOW legado não o persistiu", () => {
+    const item = {
+      category: "Perfis",
+      sku: "LLS-9465.115.65F",
+      description: "GLOW S 37W 1154MM 3000K 220V",
+      qty: 6,
+      unitPrice: 345.21,
+      totalPrice: 2071.26,
+      photoUrl: null,
+    } as any;
+    const productMap = new Map([["LLS-9465.115.65F|GLOW S 37W 1154MM", {
+      sku: "LLS-9465.115.65F",
+      name: "GLOW S 37W 1154MM",
+      driver220: { code: "EQ00348", model: "DRIVER 65W" },
+      driverBivolt: null,
+      driverQtd220: 1,
+      driverQtdBivolt: null,
+    }]]);
+
+    const migrated = migrateLegacyGlowCommercialItem(
+      item,
+      new Map([["EQ00348", 54]]),
+      new Map([["EQ00348", "LED DRIVER XITANIUM 65W 200-350MA 120-185VDC DS 230V"]]),
+      productMap,
+    );
+
+    expect(migrated.unitPrice).toBe(345.21);
+    expect(migrated.totalPrice).toBe(2071.26);
+    expect(migrated.driverLines).toEqual([expect.objectContaining({
+      driverCode: "EQ00348", driverQty: 6, driverUnitPrice: 54, driverTotalPrice: 324,
     })]);
   });
 });
