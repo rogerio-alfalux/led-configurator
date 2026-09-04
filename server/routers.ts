@@ -1800,7 +1800,11 @@ export const appRouter = router({
     // Calcula custo real dos produtos buscando na API (para itens sem custoCorpoBase salvo)
     calculateCost: commercialQuoteProcedure
       .input(z.object({ quoteId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        const isPrivileged = await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.VER_CUSTOS);
+        if (!isPrivileged) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito" });
+        }
         const result = await getQuoteById(input.quoteId);
         if (!result) return { custoProdutos: 0, temCusto: false, items: [] };
         const sourceTransfer = await getNonCommercialFinancialTransferBySourceQuoteId(input.quoteId);

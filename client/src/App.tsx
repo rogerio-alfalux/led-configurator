@@ -9,6 +9,7 @@ import Home from "./pages/Home";
 import Cart from "./pages/Cart";
 import Quotes from "./pages/Quotes";
 import QuoteDetail from "./pages/QuoteDetail";
+import QuoteAnalysis from "./pages/QuoteAnalysis";
 import FactoryOrderDetail from "./pages/FactoryOrderDetail";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
@@ -24,6 +25,7 @@ function Router() {
       <Route path={"/"} component={Home} />
       <Route path={"/carrinho"} component={Cart} />
       <Route path={"/orcamentos"} component={Quotes} />
+      <Route path={"/orcamentos/:id/analise"} component={QuoteAnalysis} />
       <Route path={"/orcamentos/:id"} component={QuoteDetail} />
       <Route path={"/orcamentos/:quoteId/pedido-fabrica"} component={FactoryOrderDetail} />
       <Route path={"/dashboard"} component={Dashboard} />

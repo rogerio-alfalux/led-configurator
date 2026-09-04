@@ -3397,3 +3397,13 @@
 - [x] Comparar a foto persistida do item 21 com a variante BLAZE exata retornada pela API
 - [x] Corrigir a resolução de imagens de catálogo sem sobrescrever fotos manuais
 - [x] Garantir a propagação da foto correta ao orçamento, preview, Excel e PDF por regressão
+
+## Análise aprofundada de orçamentos
+- [x] Criar o acesso Análise do Orçamento a partir do dashboard de cada orçamento
+- [x] Exibir composição comercial, margem, custo, descontos, impostos, frete e indicadores por item
+- [x] Identificar itens de maior e menor margem e maior e menor participação no valor do orçamento
+- [x] Exibir em Meus Orçamentos o percentual de participação de cada orçamento no total atualmente filtrado
+- [x] Cobrir os cálculos de análise e participação por regressão e salvar checkpoint reversível
+
+## Salvaguarda de acesso à análise financeira
+- [x] Restringir no servidor a consulta de custos usada pela análise a usuários com permissão de visualizar custos

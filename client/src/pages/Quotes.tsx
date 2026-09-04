@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   Search, Plus, ClipboardList, CheckCircle, XCircle, Clock,
   TrendingDown, ArrowLeft, BarChart2, ShoppingCart, Eye,
-  Users, UserCheck, Filter, X, Receipt, Download, User, Copy, Settings2,
+  Users, UserCheck, Filter, X, Receipt, Download, User, Copy, Settings2, Percent,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { getLoginUrl } from "@/const";
 import { formatBRL } from "@/lib/cartTypes";
 import { getDisplayedCustomerTotal } from "@/lib/quoteTotals";
+import { getQuoteParticipationPercent } from "@/lib/quoteAnalysis";
 import { toBrasiliaDate, toBrasiliaDateTimeShort, toBrasiliaFileDate, toBrasiliaMonthYear } from "@/lib/dateUtils";
 import { generateFilteredQuotesExcel } from "@/lib/quotesExcelGenerator";
 import { PERMISSIONS } from "@shared/permissions";
@@ -212,6 +213,11 @@ export default function Quotes() {
   }, [filteredAllData, canSeeCommission, manualDuplicateOverrides, dateFrom, dateTo]);
 
   const hasFilters = status !== "all" || sellerFilter !== "all" || assistantFilter !== "all" || duplicateFilter !== "all" || prospectingFilter !== "all" || ldOriginFilter !== "all" || ldResponseFilter !== "all" || search.trim() !== "" || dateFrom !== "" || dateTo !== "" || datePreset !== "all";
+  const getQuoteParticipation = (quote: any): number | null => {
+    if (stats.totalValue <= 0 || quote.isProspecting || isNonCommercialQuoteStatus(quote.status)) return null;
+    const quoteValue = getCommercialQuoteValue(quote.status, getDisplayedCustomerTotal(quote));
+    return getQuoteParticipationPercent(quoteValue, stats.totalValue);
+  };
 
   const clearFilters = () => {
     setSearch("");
@@ -651,6 +657,7 @@ export default function Quotes() {
             <div className="space-y-2">
               {displayRows.map(q => {
                 const st = STATUS_LABELS[q.status] ?? STATUS_LABELS.open;
+                const participation = getQuoteParticipation(q);
                 return (
                   <Card key={q.id} className="hover:border-primary/40 transition-colors">
                     <CardContent className="p-4">
@@ -700,6 +707,12 @@ export default function Quotes() {
                             <p className="font-bold text-primary">{formatBRL(getDisplayedCustomerTotal(q))}</p>
                           ) : (
                             <p className="text-xs text-muted-foreground italic">A consultar</p>
+                          )}
+                          {participation !== null && (
+                            <p className="mt-0.5 inline-flex items-center justify-end gap-1 text-xs font-medium text-primary/80" title="Participação deste orçamento no valor comercial total dos filtros atuais">
+                              <Percent className="h-3 w-3" />
+                              {participation.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} do total filtrado
+                            </p>
                           )}
                           <p className="text-xs text-muted-foreground mt-0.5">
                             <span className="font-mono font-semibold text-foreground/70">RV{q.revisionCount ?? 0}</span> · v{q.currentVersion} · {q.status === "invoiced" ? "Faturado em" : q.status === "approved" ? "Aprovado em" : "Criado em"} {toBrasiliaDateTimeShort(getQuoteReferenceDate(q))}

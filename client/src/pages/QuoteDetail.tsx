@@ -7,7 +7,7 @@ import {
   Users, Percent, Truck, Pencil, ShoppingBag, PlusCircle, GripVertical, Wrench, Copy, Eye, Navigation2,
   Upload, X as XIcon, Layers, Receipt, Printer, Search,
   User, Phone, Mail, FolderOpen, Bookmark, MapPin, Briefcase, Calendar, RefreshCw, ClipboardList, Zap, FileDown,
-  TrendingUp, DollarSign, Calculator, ArrowLeftRight, FlaskConical, Link2,
+  TrendingUp, DollarSign, Calculator, ArrowLeftRight, FlaskConical, Link2, BarChart3,
 } from "lucide-react";
 import {
   DndContext,
@@ -5557,10 +5557,22 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
   return (
     <Card className="border-emerald-200 dark:border-emerald-800">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-          <TrendingUp className="w-4 h-4" />
-          Dashboard de Lucro (interno)
-        </CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle className="text-sm flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+            <TrendingUp className="w-4 h-4" />
+            Dashboard de Lucro (interno)
+          </CardTitle>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 border-emerald-200 text-xs text-emerald-800 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+            onClick={() => window.open(`/orcamentos/${quoteId}/analise`, "_blank", "noopener,noreferrer")}
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            Análise do Orçamento
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {costQuery.data?.transferredOut && (
