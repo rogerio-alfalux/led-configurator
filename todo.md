@@ -3346,3 +3346,8 @@
 - [x] Investigar a divergência de módulos LED e drivers entre o orçamento, a ficha de produção e a requisição de materiais
 - [x] Corrigir a propagação da estrutura técnica oficial da API e suas quantidades para ficha e requisição
 - [x] Corrigir exclusivamente o orçamento 25.0299-26 e cobrir o transporte técnico por regressão
+
+## Revalidação de ficha: orçamento 25.0299-26
+- [x] Inspecionar a ficha/Excel efetivamente gerado e identificar a fonte técnica ainda divergente
+- [x] Corrigir a geração para módulos LED e drivers obedecerem exatamente à estrutura oficial da API
+- [x] Regenerar e validar o pedido 102384 contra a API, com regressões antes do checkpoint
