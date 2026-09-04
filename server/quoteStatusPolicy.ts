@@ -21,7 +21,10 @@ export function getQuoteStatusAuthorizationError({
     if (!canInvoiceAnyQuote) {
       return "Você não tem permissão exclusiva para faturar orçamentos.";
     }
-    if (currentStatus !== "approved") {
+    // A primeira transição para faturado continua exigindo aprovação. Uma vez
+    // faturado, o mesmo fluxo pode persistir uma correção de data sem mudar
+    // o status comercial do orçamento.
+    if (currentStatus !== "approved" && currentStatus !== "invoiced") {
       return "O status 'Faturado' só pode ser definido a partir de um pedido fechado (Aprovado).";
     }
     return null;

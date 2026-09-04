@@ -3336,3 +3336,8 @@
 - [x] Investigar a estrutura persistida e a estrutura vigente da API para o item EL-B
 - [x] Corrigir exclusivamente o item afetado e a reidratação de drivers para respeitar a quantidade por luminária da API
 - [x] Cobrir a quantidade de drivers em regressão e validar orçamento, documentos e ficha sem alterar preços
+
+## Edição de data em orçamentos faturados
+- [x] Permitir que usuários autorizados editem a data de faturamento de orçamentos já faturados
+- [x] Preservar a exigência de status Aprovado somente para a primeira transição para Faturado
+- [x] Validar permissões, data em Brasília e referências de Meus Orçamentos por regressão

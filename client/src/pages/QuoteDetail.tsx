@@ -3340,6 +3340,12 @@ export default function QuoteDetail() {
           {/* Alterar Status */}
           {canChangeStatus && <Dialog open={statusDialogOpen} onOpenChange={(open) => {
             setStatusDialogOpen(open);
+            if (open && quote.status === "invoiced" && canInvoice) {
+              setNewStatus("invoiced");
+              setInvoicedDateInput((quote as any).invoicedAt
+                ? toBrasiliaFileDate((quote as any).invoicedAt)
+                : toBrasiliaFileDate(new Date()));
+            }
             if (!open) { setNewStatus(""); setInvoicedDateInput(""); setOrderNumberInput(""); setBillingCompanyInput(""); }
           }}>
             <DialogTrigger asChild>
@@ -3373,10 +3379,10 @@ export default function QuoteDetail() {
                       </>}
                       {canInvoice && <SelectItem
                         value="invoiced"
-                        disabled={quote.status !== "approved"}
+                        disabled={quote.status !== "approved" && quote.status !== "invoiced"}
                       >
-                        Faturado (NF emitida)
-                        {quote.status !== "approved" && " — exige status Aprovado"}
+                        {quote.status === "invoiced" ? "Faturado (editar data)" : "Faturado (NF emitida)"}
+                        {quote.status !== "approved" && quote.status !== "invoiced" && " — exige status Aprovado"}
                       </SelectItem>}
                     </SelectContent>
                   </Select>
@@ -3408,7 +3414,9 @@ export default function QuoteDetail() {
                         required
                       />
                       <p className="text-xs text-purple-700/80 dark:text-purple-300/80">
-                        Preenchida inicialmente com a data atual de Brasília. Altere-a se a nota fiscal foi emitida anteriormente.
+                        {quote.status === "invoiced"
+                          ? "Data atual de faturamento. Altere-a para corrigir a data efetiva de emissão da nota fiscal."
+                          : "Preenchida inicialmente com a data atual de Brasília. Altere-a se a nota fiscal foi emitida anteriormente."}
                       </p>
                     </div>
                   </div>

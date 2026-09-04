@@ -19,4 +19,10 @@ describe("getQuoteStatusAuthorizationError", () => {
       targetStatus: "invoiced", currentStatus: "open", canEditStatus: true, canInvoiceAnyQuote: true,
     })).toBe("O status 'Faturado' só pode ser definido a partir de um pedido fechado (Aprovado).");
   });
+
+  it("permite ao usuário autorizado corrigir a data mantendo o orçamento faturado", () => {
+    expect(getQuoteStatusAuthorizationError({
+      targetStatus: "invoiced", currentStatus: "invoiced", canEditStatus: false, canInvoiceAnyQuote: true,
+    })).toBeNull();
+  });
 });
