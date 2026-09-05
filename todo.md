@@ -3446,3 +3446,8 @@
 - [x] Excluir de margens e resultados rentáveis itens sem custo oficial confirmado e preço de venda válido
 - [x] Redefinir maior e menor contribuição como participação financeira no valor total do período filtrado
 - [x] Ajustar textos dos rankings, cobrir as regras por regressão e salvar checkpoint reversível
+
+## Coerência de recorrência por nível analítico
+- [x] Auditar e alinhar o agrupamento de recorrência entre Produto, Família de produto e Categoria de produto
+- [x] Impedir que classificações genéricas ou inferidas produzam rankings contraditórios entre os níveis
+- [x] Cobrir a coerência dos rankings por regressão, validar e salvar checkpoint reversível

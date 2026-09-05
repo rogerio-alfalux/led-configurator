@@ -45,6 +45,8 @@ export type ProductMetric = {
   lostQuoteCount: number;
   knownCostAmount: number;
   missingCostAmount: number;
+  productVariantCount: number;
+  familyCount: number;
   contributionAmount: number | null;
   contributionMarginPercent: number | null;
   financialSharePercent: number | null;
@@ -54,9 +56,11 @@ export type ProductMetric = {
 export type FamilyMetric = Omit<ProductMetric, "key" | "sku" | "description" | "category"> & { family: string };
 export type CategoryMetric = Omit<ProductMetric, "key" | "sku" | "description" | "family"> & { category: string };
 
-type MutableMetric = Omit<ProductMetric, "contributionAmount" | "contributionMarginPercent" | "financialSharePercent" | "grossMarginPercent"> & {
+type MutableMetric = Omit<ProductMetric, "productVariantCount" | "familyCount" | "contributionAmount" | "contributionMarginPercent" | "financialSharePercent" | "grossMarginPercent"> & {
   knownContributionAmount: number;
   grossProfitAmount: number;
+  productKeys: Set<string>;
+  familyKeys: Set<string>;
 };
 
 const TAX_RATE = 0.12;
@@ -205,6 +209,7 @@ function createMetric(key: string, sku: string, description: string, family: str
     closedAmount: 0, closedUnits: 0, closedQuoteCount: 0,
     lostAmount: 0, lostUnits: 0, lostQuoteCount: 0,
     knownCostAmount: 0, missingCostAmount: 0,
+    productKeys: new Set<string>(), familyKeys: new Set<string>(),
     knownContributionAmount: 0, grossProfitAmount: 0,
   };
 }
@@ -228,6 +233,8 @@ function metricResult(metric: MutableMetric): ProductMetric {
     lostQuoteCount: metric.lostQuoteCount,
     knownCostAmount: rounded(metric.knownCostAmount),
     missingCostAmount: rounded(metric.missingCostAmount),
+    productVariantCount: metric.productKeys.size,
+    familyCount: metric.familyKeys.size,
     contributionAmount: hasMissingCost ? null : rounded(metric.knownContributionAmount),
     contributionMarginPercent: hasMissingCost || metric.closedAmount <= 0 ? null : rounded(metric.knownContributionAmount / metric.closedAmount * 100),
     financialSharePercent: null,
@@ -312,6 +319,11 @@ export function buildDashboardProductAnalytics(quotes: ProductAnalyticsQuote[], 
       const family = getMetric(families, familyKey, "", item.family, item.family, item.category);
       const category = getMetric(categories, categoryKey, "", item.category, item.family, item.category);
       const targets = [product, family, category];
+
+      for (const target of targets) {
+        target.productKeys.add(productKey);
+        target.familyKeys.add(familyKey);
+      }
 
       if (quote.createdInPeriod) {
         for (const target of targets) {

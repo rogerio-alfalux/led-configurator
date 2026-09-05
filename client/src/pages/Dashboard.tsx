@@ -119,6 +119,8 @@ type ProductInsightRow = {
   contributionMarginPercent: number | null;
   financialSharePercent: number | null;
   grossMarginPercent: number | null;
+  productVariantCount: number;
+  familyCount: number;
 };
 
 const PRODUCT_INSIGHT_OPTIONS = {
@@ -163,12 +165,18 @@ function getProductInsightValue(metric: ProductInsightMetric, row: ProductInsigh
   return `${Number(row.financialSharePercent ?? 0).toFixed(1)}%`;
 }
 
-function getProductInsightSub(metric: ProductInsightMetric, row: ProductInsightRow): string {
-  if (metric === "quotedByValue" || metric === "quotedByRecurrence") return `${Number(row.quotedUnits ?? 0).toLocaleString("pt-BR")} unidades em ${Number(row.quotedQuoteCount ?? 0).toLocaleString("pt-BR")} orçamentos`;
+function getProductInsightSub(metric: ProductInsightMetric, row: ProductInsightRow, scope: ProductInsightScope): string {
+  const aggregationContext = scope === "categorias"
+    ? `${Number(row.productVariantCount ?? 0).toLocaleString("pt-BR")} variações em ${Number(row.familyCount ?? 0).toLocaleString("pt-BR")} famílias`
+    : scope === "familias"
+      ? `${Number(row.productVariantCount ?? 0).toLocaleString("pt-BR")} variações agrupadas`
+      : null;
+  const withAggregation = (value: string) => aggregationContext ? `${value} · ${aggregationContext}` : value;
+  if (metric === "quotedByValue" || metric === "quotedByRecurrence") return withAggregation(`${Number(row.quotedUnits ?? 0).toLocaleString("pt-BR")} unidades em ${Number(row.quotedQuoteCount ?? 0).toLocaleString("pt-BR")} orçamentos`);
   if (metric === "quotedByQuantity") return `${formatBRL(Number(row.quotedAmount ?? 0))} orçados em ${Number(row.quotedQuoteCount ?? 0).toLocaleString("pt-BR")} orçamentos`;
-  if (metric === "closedByValue" || metric === "closedByRecurrence") return `${Number(row.closedUnits ?? 0).toLocaleString("pt-BR")} unidades em ${Number(row.closedQuoteCount ?? 0).toLocaleString("pt-BR")} vendas`;
+  if (metric === "closedByValue" || metric === "closedByRecurrence") return withAggregation(`${Number(row.closedUnits ?? 0).toLocaleString("pt-BR")} unidades em ${Number(row.closedQuoteCount ?? 0).toLocaleString("pt-BR")} vendas`);
   if (metric === "closedByQuantity" || metric === "lowestQuantity") return `${formatBRL(Number(row.closedAmount ?? 0))} em ${Number(row.closedQuoteCount ?? 0).toLocaleString("pt-BR")} vendas`;
-  if (metric === "lostByValue" || metric === "lostByRecurrence") return `${Number(row.lostUnits ?? 0).toLocaleString("pt-BR")} unidades em ${Number(row.lostQuoteCount ?? 0).toLocaleString("pt-BR")} perdas`;
+  if (metric === "lostByValue" || metric === "lostByRecurrence") return withAggregation(`${Number(row.lostUnits ?? 0).toLocaleString("pt-BR")} unidades em ${Number(row.lostQuoteCount ?? 0).toLocaleString("pt-BR")} perdas`);
   if (metric === "lostByQuantity") return `${formatBRL(Number(row.lostAmount ?? 0))} perdidos em ${Number(row.lostQuoteCount ?? 0).toLocaleString("pt-BR")} perdas`;
   if (metric === "highestGrossMargin" || metric === "lowestGrossMargin") return `Custo confirmado de ${formatBRL(Number(row.knownCostAmount ?? 0))}`;
   return `${formatBRL(Number(row.closedAmount ?? 0))} no valor financeiro fechado do período`;
@@ -194,7 +202,7 @@ function ProductInsightPanel({ scope, metric, rows }: {
         {rows.length === 0 ? <p className="py-12 text-center text-sm text-muted-foreground">Nenhum dado no período para este indicador.</p> : rows.slice(0, 10).map((row, index) => (
           <div key={`${row.sku}-${row.description}-${row.family}-${row.category}-${index}`} className={`grid grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 sm:px-6 ${index > 0 ? "border-t" : ""} ${index === 0 ? "bg-primary/[0.035]" : "hover:bg-muted/40"}`}>
             <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${index === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{index + 1}º</span>
-            <div className="min-w-0"><p className="truncate text-sm font-semibold sm:text-base">{scope === "produtos" ? row.description : scope === "familias" ? row.family : row.category}</p><p className="mt-1 truncate text-xs text-muted-foreground">{scope === "produtos" && row.sku ? `${row.sku} · ` : ""}{getProductInsightSub(metric, row)}</p></div>
+            <div className="min-w-0"><p className="truncate text-sm font-semibold sm:text-base">{scope === "produtos" ? row.description : scope === "familias" ? row.family : row.category}</p><p className="mt-1 truncate text-xs text-muted-foreground">{scope === "produtos" && row.sku ? `${row.sku} · ` : ""}{getProductInsightSub(metric, row, scope)}</p></div>
             <span className={`shrink-0 text-sm font-bold tabular-nums sm:text-base ${option.tone}`}>{getProductInsightValue(metric, row)}</span>
           </div>
         ))}
@@ -202,6 +210,9 @@ function ProductInsightPanel({ scope, metric, rows }: {
           <div className="border-t bg-muted/30 px-4 py-3 text-xs leading-relaxed text-muted-foreground sm:px-6">
             <strong className="text-foreground">Como interpretar a margem bruta:</strong> receita das vendas fechadas menos custo confirmado dos produtos. Um percentual negativo significa que o custo confirmado supera o valor vendido, isto é, prejuízo bruto antes de impostos, comissão, frete e demais encargos. Itens com custo estimado ou pendente ficam fora deste ranking.
           </div>
+        )}
+        {(metric === "quotedByRecurrence" || metric === "closedByRecurrence" || metric === "lostByRecurrence") && scope !== "produtos" && (
+          <div className="border-t bg-muted/30 px-4 py-3 text-xs leading-relaxed text-muted-foreground sm:px-6"><strong className="text-foreground">Como ler este ranking:</strong> cada orçamento é contado apenas uma vez para cada {scope === "familias" ? "família" : "categoria"}. Uma categoria pode liderar mesmo que o produto individual mais recorrente pertença a outra, pois ela agrega várias variações e famílias distintas.</div>
         )}
       </CardContent>
     </Card>

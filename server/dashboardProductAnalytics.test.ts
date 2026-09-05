@@ -76,6 +76,18 @@ describe("buildDashboardProductAnalytics", () => {
     expect(analytics.categoryRankings.closedByValue[0]).toMatchObject({ category: "PERFIS" });
   });
 
+  it("mantém recorrência coerente entre produto e categoria sem recontar o mesmo orçamento", () => {
+    const analytics = buildDashboardProductAnalytics([
+      { id: 11, status: "lost", createdInPeriod: false, closedInPeriod: false, lostInPeriod: true, items: [{ itemNumber: 1, itemData: JSON.stringify({ sku: "LUNA", description: "LUNA G LED", category: "Downlights", qty: 1, totalPrice: 100 }) }] },
+      { id: 12, status: "lost", createdInPeriod: false, closedInPeriod: false, lostInPeriod: true, items: [{ itemNumber: 1, itemData: JSON.stringify({ sku: "PERFIL-A", description: "PERFIL A", category: "Perfis", qty: 1, totalPrice: 100 }) }, { itemNumber: 2, itemData: JSON.stringify({ sku: "PERFIL-B", description: "PERFIL B", category: "Perfis", qty: 1, totalPrice: 100 }) }] },
+      { id: 13, status: "lost", createdInPeriod: false, closedInPeriod: false, lostInPeriod: true, items: [{ itemNumber: 1, itemData: JSON.stringify({ sku: "PERFIL-A", description: "PERFIL A", category: "Perfis", qty: 1, totalPrice: 100 }) }] },
+    ], { products: [], components: [], accessories: [], revendas: [] });
+
+    expect(analytics.rankings.lostByRecurrence[0]).toMatchObject({ sku: "PERFIL-A", lostQuoteCount: 2 });
+    expect(analytics.categoryRankings.lostByRecurrence[0]).toMatchObject({ category: "Perfis", lostQuoteCount: 2, productVariantCount: 2 });
+    expect(analytics.categoryRankings.lostByRecurrence.find((row) => row.category === "Downlights")).toMatchObject({ lostQuoteCount: 1, productVariantCount: 1 });
+  });
+
   it("exclui margem de perfil linear com comprimento legado inválido", () => {
     const analytics = buildDashboardProductAnalytics([{
       id: 6, status: "approved", createdInPeriod: true, closedInPeriod: true, lostInPeriod: false,
