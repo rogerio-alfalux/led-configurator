@@ -3407,3 +3407,13 @@
 
 ## Salvaguarda de acesso à análise financeira
 - [x] Restringir no servidor a consulta de custos usada pela análise a usuários com permissão de visualizar custos
+
+## Ordenação e margem de contribuição na análise de orçamento
+- [x] Ordenar exclusivamente a visualização analítica por valor, quantidade ou margem, sem alterar orçamento e documentos
+- [x] Exibir margem de contribuição do orçamento e sua cobertura frente ao custo fixo mensal de referência de R$ 1.500.000,00
+- [x] Cobrir as ordenações e os indicadores de contribuição por regressão e validar a tela
+
+## Organização da análise de orçamento
+- [x] Abrir a análise na mesma guia e manter retorno direto ao orçamento de origem
+- [x] Organizar a análise em abas para reduzir rolagem vertical sem omitir indicadores
+- [x] Apresentar os itens analíticos no padrão visual do orçamento, com foto, descrição, quantidades e dados financeiros

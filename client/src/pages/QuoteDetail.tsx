@@ -5563,14 +5563,15 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
             Dashboard de Lucro (interno)
           </CardTitle>
           <Button
-            type="button"
+            asChild
             variant="outline"
             size="sm"
             className="h-8 gap-1.5 border-emerald-200 text-xs text-emerald-800 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
-            onClick={() => window.open(`/orcamentos/${quoteId}/analise`, "_blank", "noopener,noreferrer")}
           >
-            <BarChart3 className="h-3.5 w-3.5" />
-            Análise do Orçamento
+            <Link href={`/orcamentos/${quoteId}/analise`}>
+              <BarChart3 className="h-3.5 w-3.5" />
+              Análise do Orçamento
+            </Link>
           </Button>
         </div>
       </CardHeader>

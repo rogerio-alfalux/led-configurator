@@ -17,7 +17,9 @@ export type QuoteAnalysisItem = {
   itemNumber: number;
   sku: string;
   description: string;
+  photoUrl: string | null;
   quantity: number;
+  unitRevenue: number;
   revenue: number;
   cost: number | null;
   grossProfit: number | null;
@@ -25,6 +27,19 @@ export type QuoteAnalysisItem = {
   quoteSharePercent: number;
   costSource?: string;
 };
+
+export const MONTHLY_FIXED_COST_REFERENCE = 1_500_000;
+
+export const quoteAnalysisSortOptions = [
+  { value: "valueDesc", label: "Maior valor" },
+  { value: "valueAsc", label: "Menor valor" },
+  { value: "quantityDesc", label: "Maior quantidade" },
+  { value: "quantityAsc", label: "Menor quantidade" },
+  { value: "marginDesc", label: "Maior margem" },
+  { value: "marginAsc", label: "Menor margem" },
+] as const;
+
+export type QuoteAnalysisSort = (typeof quoteAnalysisSortOptions)[number]["value"];
 
 export type QuoteAnalysisSummary = {
   quoteTotal: number;
@@ -37,6 +52,11 @@ export type QuoteAnalysisSummary = {
   grossMarginPercent: number | null;
   netProfit: number | null;
   netMarginPercent: number | null;
+  contributionMargin: number | null;
+  contributionMarginPercent: number | null;
+  monthlyFixedCostReference: number;
+  fixedCostCoveragePercent: number | null;
+  fixedCostAmountRemaining: number | null;
   itemCount: number;
   unitCount: number;
   knownCostItemCount: number;
@@ -108,6 +128,36 @@ function compareAscending(a: QuoteAnalysisItem, b: QuoteAnalysisItem, field: "re
   return amount(a[field]) - amount(b[field]) || a.itemNumber - b.itemNumber;
 }
 
+function compareNullableNumber(a: number | null, b: number | null, direction: "asc" | "desc") {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return direction === "asc" ? a - b : b - a;
+}
+
+/**
+ * Reordena somente uma cópia dos dados de leitura da análise. A lista persistida,
+ * a revisão, o preview e os documentos do orçamento não são alterados.
+ */
+export function sortQuoteAnalysisItems(items: QuoteAnalysisItem[], sort: QuoteAnalysisSort): QuoteAnalysisItem[] {
+  return [...items].sort((a, b) => {
+    switch (sort) {
+      case "valueAsc":
+        return a.revenue - b.revenue || a.itemNumber - b.itemNumber;
+      case "valueDesc":
+        return b.revenue - a.revenue || a.itemNumber - b.itemNumber;
+      case "quantityAsc":
+        return a.quantity - b.quantity || a.itemNumber - b.itemNumber;
+      case "quantityDesc":
+        return b.quantity - a.quantity || a.itemNumber - b.itemNumber;
+      case "marginAsc":
+        return compareNullableNumber(a.grossMarginPercent, b.grossMarginPercent, "asc") || a.itemNumber - b.itemNumber;
+      case "marginDesc":
+        return compareNullableNumber(a.grossMarginPercent, b.grossMarginPercent, "desc") || a.itemNumber - b.itemNumber;
+    }
+  });
+}
+
 /**
  * Compõe uma leitura analítica da revisão ativa sem alterar valores persistidos.
  * A receita de cada item usa os descontos individual e global; frete e DIFAL/FCP
@@ -139,11 +189,14 @@ export function buildQuoteAnalysis(input: QuoteAnalysisInput): QuoteAnalysisSumm
       const costDetail = costByItem.get(rawItem.itemNumber);
       const cost = costDetail?.source === "especial_sem_preco" ? null : costDetail?.subtotal ?? null;
       const grossProfit = cost === null ? null : roundMoney(revenue - cost);
+      const quantity = amount(item.qty) || 1;
       entries.push({
         itemNumber: rawItem.itemNumber,
         sku: item.sku || "Sem SKU",
         description: item.description || item.specialDescription || "Item sem descrição",
-        quantity: amount(item.qty) || 1,
+        photoUrl: item.specialPhotoUrl ?? item.photoUrl ?? null,
+        quantity,
+        unitRevenue: roundMoney(revenue / quantity),
         revenue,
         cost,
         grossProfit,
@@ -183,6 +236,16 @@ export function buildQuoteAnalysis(input: QuoteAnalysisInput): QuoteAnalysisSumm
     ? roundMoney(quoteTotal - totalCost - standardTaxes - commissions - rt - difalFcp - freight)
     : null;
   const netMarginPercent = netProfit === null || quoteTotal <= 0 ? null : (netProfit / quoteTotal) * 100;
+  // Nesta análise, a margem de contribuição considera todos os custos variáveis
+  // já subtraídos no resultado líquido e mostra o valor disponível para custos fixos.
+  const contributionMargin = netProfit;
+  const contributionMarginPercent = netMarginPercent;
+  const fixedCostCoveragePercent = contributionMargin === null
+    ? null
+    : (contributionMargin / MONTHLY_FIXED_COST_REFERENCE) * 100;
+  const fixedCostAmountRemaining = contributionMargin === null
+    ? null
+    : roundMoney(MONTHLY_FIXED_COST_REFERENCE - contributionMargin);
   const margins = knownCostItems.filter((item) => item.grossMarginPercent !== null && item.revenue > 0);
   const byRevenueAscending = [...analysisItems].filter((item) => item.revenue > 0).sort((a, b) => compareAscending(a, b, "revenue"));
   const topThreeSharePercent = analysisItems.slice(0, 3).reduce((total, item) => total + item.quoteSharePercent, 0);
@@ -198,6 +261,11 @@ export function buildQuoteAnalysis(input: QuoteAnalysisInput): QuoteAnalysisSumm
     grossMarginPercent,
     netProfit,
     netMarginPercent,
+    contributionMargin,
+    contributionMarginPercent,
+    monthlyFixedCostReference: MONTHLY_FIXED_COST_REFERENCE,
+    fixedCostCoveragePercent,
+    fixedCostAmountRemaining,
     itemCount: analysisItems.length,
     unitCount: analysisItems.reduce((total, item) => total + item.quantity, 0),
     knownCostItemCount: knownCostItems.length,
