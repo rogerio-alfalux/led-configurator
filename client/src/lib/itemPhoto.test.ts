@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildUnambiguousCatalogPhotoMap, getPersistedItemPhotoUrl, resolveCatalogItemPhoto } from "./itemPhoto";
+import { buildUnambiguousCatalogPhotoMap, getPersistedItemPhotoUrl, getRenderableItemPhotoUrl, resolveCatalogItemPhoto } from "./itemPhoto";
 
 describe("getPersistedItemPhotoUrl", () => {
   it("prioriza a foto manual persistida do Item Especial", () => {
@@ -52,5 +52,15 @@ describe("getPersistedItemPhotoUrl", () => {
         { sku: "LLS-3945.5ML.38F" },
       ],
     }, candidates)).toBe("https://api.test/blaze-s.jpg?assinatura=atual");
+  });
+});
+
+describe("getRenderableItemPhotoUrl", () => {
+  it("passa imagens externas do catálogo pelo proxy e preserva caminhos internos", () => {
+    expect(getRenderableItemPhotoUrl("https://d36hbw14aib5lz.cloudfront.net/produto.jpg?Expires=123"))
+      .toBe("/api/image-proxy?url=https%3A%2F%2Fd36hbw14aib5lz.cloudfront.net%2Fproduto.jpg%3FExpires%3D123");
+    expect(getRenderableItemPhotoUrl("/manus-storage/foto-manual.jpg")).toBe("/manus-storage/foto-manual.jpg");
+    expect(getRenderableItemPhotoUrl("/api/image-proxy?url=https%3A%2F%2Fexample.com%2Ffoto.jpg"))
+      .toBe("/api/image-proxy?url=https%3A%2F%2Fexample.com%2Ffoto.jpg");
   });
 });

@@ -3426,3 +3426,7 @@
 
 ## Acesso administrativo às análises recentes
 - [x] Restringir a análise por orçamento, margem de contribuição e inteligência de produtos exclusivamente a administradores na interface e no acesso direto
+
+## Correção de fotos na análise de orçamento
+- [x] Corrigir URLs inválidas e assegurar que cada cartão carregue a foto oficial vigente ou uma ausência de foto sem imagem quebrada
+- [x] Cobrir a recuperação e a falha de imagem por regressão, validar a tela e salvar checkpoint reversível

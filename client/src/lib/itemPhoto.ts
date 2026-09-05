@@ -28,6 +28,19 @@ function canonicalPhotoUrl(url: string): string {
 }
 
 /**
+ * URLs externas do catálogo não devem ser usadas diretamente pelo navegador:
+ * podem ser assinadas, bloquear CORS ou expor um redirecionamento de CDN. O
+ * proxy mantém a leitura do arquivo no servidor e preserva URLs locais.
+ */
+export function getRenderableItemPhotoUrl(url: string | null | undefined): string | undefined {
+  const photo = url?.trim();
+  if (!photo) return undefined;
+  if (photo.startsWith("/manus-storage/") || photo.startsWith("/api/assets/") || photo.startsWith("/api/image-proxy")) return photo;
+  if (/^https?:\/\//i.test(photo)) return `/api/image-proxy?url=${encodeURIComponent(photo)}`;
+  return photo;
+}
+
+/**
  * A foto manual do Item Especial é a fonte prioritária e permanece no JSON do
  * carrinho/orçamento. O fallback mantém compatibilidade com itens já salvos.
  */

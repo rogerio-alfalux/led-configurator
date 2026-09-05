@@ -7,6 +7,7 @@ import { formatBRL } from "@/lib/cartTypes";
 import { buildQuoteAnalysis, quoteAnalysisSortOptions, sortQuoteAnalysisItems, type QuoteAnalysisSort } from "@/lib/quoteAnalysis";
 import { canAccessQuoteAnalysis } from "@/lib/quoteAnalysisAccess";
 import { toBrasiliaDateTimeShort } from "@/lib/dateUtils";
+import { getRenderableItemPhotoUrl } from "@/lib/itemPhoto";
 import { trpc } from "@/lib/trpc";
 import {
   AlertTriangle,
@@ -22,7 +23,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "wouter";
 
 type AnalysisItem = ReturnType<typeof buildQuoteAnalysis>["items"][number];
@@ -101,18 +102,34 @@ function ItemHighlight({
   );
 }
 
+function AnalysisItemPhoto({ item }: { item: AnalysisItem }) {
+  const photoUrl = useMemo(() => getRenderableItemPhotoUrl(item.photoUrl), [item.photoUrl]);
+  const [hasImageError, setHasImageError] = useState(false);
+
+  useEffect(() => setHasImageError(false), [photoUrl]);
+
+  return (
+    <div className="flex h-28 w-32 items-center justify-center overflow-hidden rounded-lg border bg-muted/40 p-2">
+      {photoUrl && !hasImageError ? (
+        <img
+          src={photoUrl}
+          alt={`Foto do item ${item.itemNumber}`}
+          className="h-full w-full object-contain"
+          onError={() => setHasImageError(true)}
+        />
+      ) : (
+        <div className="flex flex-col items-center gap-2 text-muted-foreground"><Package className="h-7 w-7" /><span className="text-[10px] uppercase tracking-wide">Sem foto</span></div>
+      )}
+    </div>
+  );
+}
+
 function AnalysisItemCard({ item }: { item: AnalysisItem }) {
   return (
     <Card className="overflow-hidden transition-shadow hover:shadow-md">
       <CardContent className="p-0">
         <div className="grid gap-4 p-4 sm:grid-cols-[128px_minmax(0,1fr)]">
-          <div className="flex h-28 w-32 items-center justify-center overflow-hidden rounded-lg border bg-muted/40 p-2">
-            {item.photoUrl ? (
-              <img src={item.photoUrl} alt={`Foto do item ${item.itemNumber}`} className="h-full w-full object-contain" />
-            ) : (
-              <div className="flex flex-col items-center gap-2 text-muted-foreground"><Package className="h-7 w-7" /><span className="text-[10px] uppercase tracking-wide">Sem foto</span></div>
-            )}
-          </div>
+          <AnalysisItemPhoto item={item} />
           <div className="min-w-0">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
@@ -155,6 +172,26 @@ export default function QuoteAnalysis() {
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
+  const componentsQuery = trpc.alfalux.componentes.useQuery(undefined, {
+    enabled: canAccess,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+  const accessoriesQuery = trpc.alfalux.acessoriosProducts.useQuery(undefined, {
+    enabled: canAccess,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+  const revendaQuery = trpc.alfalux.revendaProducts.useQuery(undefined, {
+    enabled: canAccess,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+  const customProductsQuery = trpc.alfalux.customizadosProducts.useQuery(undefined, {
+    enabled: canAccess,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
   const costQuery = trpc.quotes.calculateCost.useQuery(
     { quoteId },
     { enabled: canAccess && Number.isFinite(quoteId) },
@@ -163,6 +200,14 @@ export default function QuoteAnalysis() {
     { quoteId },
     { enabled: canAccess && Number.isFinite(quoteId) },
   );
+
+  const photoCandidates = useMemo(() => [
+    ...(productsQuery.data ?? []),
+    ...(componentsQuery.data?.items ?? []).map((item) => ({ sku: item.codigo, name: item.descricao, fotoUrl: item.fotoUrl })),
+    ...(accessoriesQuery.data ?? []).map((item) => ({ sku: item.codigo ?? item.sku, name: item.produto, fotoUrl: item.fotoUrl })),
+    ...(revendaQuery.data ?? []),
+    ...(customProductsQuery.data ?? []).map((item) => ({ sku: item.sku, name: item.name ?? item.descricao, fotoUrl: item.fotoUrl })),
+  ], [productsQuery.data, componentsQuery.data, accessoriesQuery.data, revendaQuery.data, customProductsQuery.data]);
 
   const analysis = useMemo(() => {
     const data = quoteQuery.data as any;
@@ -174,9 +219,9 @@ export default function QuoteAnalysis() {
       items: activeItems,
       costItems: costQuery.data?.items ?? [],
       additionalCosts: additionalCostsQuery.data ?? [],
-      photoCandidates: productsQuery.data ?? [],
+      photoCandidates,
     });
-  }, [quoteQuery.data, costQuery.data, additionalCostsQuery.data, productsQuery.data]);
+  }, [quoteQuery.data, costQuery.data, additionalCostsQuery.data, photoCandidates]);
 
   const sortedItems = useMemo(
     () => analysis ? sortQuoteAnalysisItems(analysis.items, itemSort) : [],

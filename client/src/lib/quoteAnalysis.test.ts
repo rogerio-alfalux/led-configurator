@@ -65,6 +65,30 @@ describe("buildQuoteAnalysis", () => {
     expect(analysis.items.find((item) => item.itemNumber === 2)?.photoUrl).toBe("https://manual.example/foto.jpg");
   });
 
+  it("substitui a foto histórica de componente pela foto vigente do catálogo", () => {
+    const analysis = buildQuoteAnalysis({
+      quote: { totalFinal: 462, totalAmount: 462 },
+      items: [{
+        itemNumber: 2,
+        itemData: {
+          sku: "EQ00346",
+          description: "LED DRIVER XITANIUM 19W 200-350MA 30-54VDC DS 230V",
+          qty: 3,
+          unitPrice: 154,
+          totalPrice: 462,
+          photoUrl: "https://d36hbw14aib5lz.cloudfront.net/foto-expirada.jpg?Expires=1",
+        },
+      }],
+      photoCandidates: [{
+        sku: "EQ00346",
+        name: "LED DRIVER XITANIUM 19W 200-350MA 30-54VDC DS 230V",
+        fotoUrl: "https://d36hbw14aib5lz.cloudfront.net/foto-vigente.jpg?Expires=9999999999",
+      }],
+    });
+
+    expect(analysis.items[0]?.photoUrl).toBe("https://d36hbw14aib5lz.cloudfront.net/foto-vigente.jpg?Expires=9999999999");
+  });
+
   it("reordena somente a visualização por valor, quantidade e margem sem modificar a ordem-base", () => {
     const analysis = buildQuoteAnalysis({
       quote: { totalFinal: 1_800, totalAmount: 1_800 },
