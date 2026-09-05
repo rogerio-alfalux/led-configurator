@@ -20,7 +20,7 @@ import {
   updateFactoryOrder, addFactoryOrderItem, updateFactoryOrderItem,
   deleteFactoryOrderItem, createFactoryOrderRevision, deleteFactoryOrder,
   createFactoryOrderExcel, listFactoryOrderExcels, getSubOrders,
-  getManagerDashboard, getSellerDashboard, getSalesGoalsByYear, upsertSalesGoal, getMonthlyBillingsByYear, upsertMonthlyBilling,
+  getManagerDashboard, getDashboardProductAnalytics, getSellerDashboard, getSalesGoalsByYear, upsertSalesGoal, getMonthlyBillingsByYear, upsertMonthlyBilling,
   getMonthlyReport,
   getQuoteAutomaticDuplicateState,
   getQuoteMetricVisibilityPreference,
@@ -2391,6 +2391,15 @@ export const appRouter = router({
         if (!canViewDashboard) throw new TRPCError({ code: 'FORBIDDEN', message: 'Você não tem permissão para acessar o dashboard gerencial.' });
         return getManagerDashboard(input.year, input.month, input.dateFrom, input.dateTo);
       }),
+    /** Inteligência comercial e financeira de produtos, exclusiva para administradores. */
+    productAnalytics: adminProcedure
+      .input(z.object({
+        year: z.number(),
+        month: z.number().optional(),
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
+      }))
+      .query(({ input }) => getDashboardProductAnalytics(input.year, input.month, input.dateFrom, input.dateTo)),
     /** Dados do próprio vendedor */
     sellerData: protectedProcedure
       .input(z.object({

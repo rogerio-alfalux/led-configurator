@@ -3,12 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { usePermissions } from "@/hooks/usePermissions";
 import { formatBRL } from "@/lib/cartTypes";
 import { buildQuoteAnalysis, quoteAnalysisSortOptions, sortQuoteAnalysisItems, type QuoteAnalysisSort } from "@/lib/quoteAnalysis";
+import { canAccessQuoteAnalysis } from "@/lib/quoteAnalysisAccess";
 import { toBrasiliaDateTimeShort } from "@/lib/dateUtils";
 import { trpc } from "@/lib/trpc";
-import { PERMISSIONS } from "@shared/permissions";
 import {
   AlertTriangle,
   ArrowDownUp,
@@ -145,13 +144,17 @@ export default function QuoteAnalysis() {
   const { id } = useParams<{ id: string }>();
   const quoteId = Number(id);
   const [itemSort, setItemSort] = useState<QuoteAnalysisSort>("valueDesc");
-  const { user } = useAuth();
-  const { hasPermission } = usePermissions();
-  const canAccess = user?.role === "custos" || hasPermission(PERMISSIONS.VER_CUSTOS);
+  const { user, loading: authLoading } = useAuth();
+  const canAccess = canAccessQuoteAnalysis(user);
   const quoteQuery = trpc.quotes.getById.useQuery(
     { id: quoteId },
-    { enabled: Number.isFinite(quoteId) },
+    { enabled: canAccess && Number.isFinite(quoteId) },
   );
+  const productsQuery = trpc.alfalux.products.useQuery(undefined, {
+    enabled: canAccess,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
   const costQuery = trpc.quotes.calculateCost.useQuery(
     { quoteId },
     { enabled: canAccess && Number.isFinite(quoteId) },
@@ -171,13 +174,18 @@ export default function QuoteAnalysis() {
       items: activeItems,
       costItems: costQuery.data?.items ?? [],
       additionalCosts: additionalCostsQuery.data ?? [],
+      photoCandidates: productsQuery.data ?? [],
     });
-  }, [quoteQuery.data, costQuery.data, additionalCostsQuery.data]);
+  }, [quoteQuery.data, costQuery.data, additionalCostsQuery.data, productsQuery.data]);
 
   const sortedItems = useMemo(
     () => analysis ? sortQuoteAnalysisItems(analysis.items, itemSort) : [],
     [analysis, itemSort],
   );
+
+  if (authLoading) {
+    return <main className="container max-w-7xl py-8 text-sm text-muted-foreground">Verificando acesso à análise financeira…</main>;
+  }
 
   if (!canAccess) {
     return (
@@ -186,8 +194,8 @@ export default function QuoteAnalysis() {
           <CardContent className="flex flex-col items-start gap-4 p-6">
             <AlertTriangle className="h-6 w-6 text-amber-600" />
             <div>
-              <h1 className="font-semibold">Análise financeira restrita</h1>
-              <p className="mt-1 text-sm text-muted-foreground">Seu perfil não possui permissão para visualizar custos e margens deste orçamento.</p>
+              <h1 className="font-semibold">Análise financeira exclusiva para administradores</h1>
+              <p className="mt-1 text-sm text-muted-foreground">Seu perfil não possui acesso a esta visualização analítica.</p>
             </div>
             <Link href={`/orcamentos/${id}`}><Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" />Voltar ao orçamento</Button></Link>
           </CardContent>

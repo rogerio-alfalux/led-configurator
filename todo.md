@@ -3417,3 +3417,12 @@
 - [x] Abrir a análise na mesma guia e manter retorno direto ao orçamento de origem
 - [x] Organizar a análise em abas para reduzir rolagem vertical sem omitir indicadores
 - [x] Apresentar os itens analíticos no padrão visual do orçamento, com foto, descrição, quantidades e dados financeiros
+
+## Fotos e inteligência de produtos no Dashboard geral
+- [x] Resolver e exibir fotos vigentes da API em todos os cartões da análise de orçamento
+- [x] Criar uma aba de produtos no Dashboard geral respeitando os filtros ativos de período
+- [x] Agregar por produto e categoria os mais orçados, fechados, perdidos, margens, contribuições e quantidades do período
+- [x] Cobrir as novas métricas por regressão e validar a experiência responsiva
+
+## Acesso administrativo às análises recentes
+- [x] Restringir a análise por orçamento, margem de contribuição e inteligência de produtos exclusivamente a administradores na interface e no acesso direto

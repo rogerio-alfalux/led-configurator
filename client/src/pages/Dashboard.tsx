@@ -3,12 +3,13 @@ import { Link } from "wouter";
 import {
   ArrowLeft, ClipboardList, CheckCircle, DollarSign, BarChart2, Target,
   Award, Percent, Edit2, Save, X, ShieldAlert, ChevronDown, ChevronUp, Coins,
-  Users, FileDown, TrendingUp, Package, PieChart, AlertCircle, Activity, FlaskConical, Link2, Receipt, Wrench,
+  Users, FileDown, TrendingUp, TrendingDown, Package, PieChart, AlertCircle, Activity, FlaskConical, Link2, Receipt, Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QUOTES_ROUTE } from "@/lib/quotesNavigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -99,6 +100,45 @@ function RankRow({ rank, name, value, sub, highlight = false }: {
   );
 }
 
+type ProductInsightRow = {
+  sku: string;
+  description: string;
+  category: string;
+  quotedAmount: number;
+  quotedUnits: number;
+  closedAmount: number;
+  closedUnits: number;
+  lostAmount: number;
+  lostUnits: number;
+  contributionAmount: number | null;
+  contributionMarginPercent: number | null;
+  grossMarginPercent: number | null;
+};
+
+function ProductInsightList({ title, icon, rows, getValue, getSub, color = "text-primary" }: {
+  title: string;
+  icon: React.ReactNode;
+  rows: ProductInsightRow[];
+  getValue: (row: ProductInsightRow) => string;
+  getSub: (row: ProductInsightRow) => string;
+  color?: string;
+}) {
+  return (
+    <Card className="h-full">
+      <CardHeader className="pb-2"><CardTitle className={`flex items-center gap-2 text-sm ${color}`}>{icon}{title}</CardTitle></CardHeader>
+      <CardContent className="space-y-1">
+        {rows.length === 0 ? <p className="py-4 text-center text-xs text-muted-foreground">Nenhum dado no período</p> : rows.slice(0, 5).map((row, index) => (
+          <div key={`${row.sku}-${row.description}-${index}`} className="flex min-w-0 items-center gap-2 rounded-md px-2 py-2 hover:bg-muted/50">
+            <span className="w-4 shrink-0 text-xs text-muted-foreground">{index + 1}º</span>
+            <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{row.description}</p><p className="truncate text-[11px] text-muted-foreground">{row.sku ? `${row.sku} · ` : ""}{getSub(row)}</p></div>
+            <span className="shrink-0 text-xs font-bold tabular-nums">{getValue(row)}</span>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Editor de meta ───────────────────────────────────────────────────────────
 function GoalEditor({ year, month, currentValue, onSave }: {
   year: number; month: number | null; currentValue: number; onSave: (v: string) => void;
@@ -161,6 +201,7 @@ export default function Dashboard() {
 
   const isManager = hasPermission(PERMISSIONS.VER_DASHBOARD);
   const isAssist = isAssistant(user);
+  const isAdmin = user?.role === "admin";
 
   // Quando filtro de data está ativo, ignorar ano/mês
   const hasDateRange = !!(dateFrom && dateTo);
@@ -172,6 +213,10 @@ export default function Dashboard() {
   const { data: managerData, isLoading: managerLoading } = trpc.dashboard.managerData.useQuery(
     queryInput,
     { enabled: !!user && isManager }
+  );
+  const { data: productAnalytics, isLoading: productAnalyticsLoading } = trpc.dashboard.productAnalytics.useQuery(
+    queryInput,
+    { enabled: !!user && isAdmin && !managerLoading },
   );
 
   // Dados do próprio vendedor
@@ -923,6 +968,61 @@ export default function Dashboard() {
                     </CardContent>
                   </Card>
                 </div>
+
+                {isAdmin && (
+                  <Card className="border-primary/20">
+                    <CardHeader className="pb-3">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <CardTitle className="flex items-center gap-2 text-base"><Package className="h-4 w-4 text-primary" />Inteligência de Produtos</CardTitle>
+                          <p className="mt-1 text-xs text-muted-foreground">Análise comercial e financeira conforme o período filtrado acima.</p>
+                        </div>
+                        <Badge variant="outline" className="border-primary/30 text-xs text-primary">Exclusivo para administradores</Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {productAnalyticsLoading ? (
+                        <p className="py-8 text-center text-sm text-muted-foreground">Apurando produtos e categorias do período…</p>
+                      ) : (
+                        <Tabs defaultValue="produtos">
+                          <TabsList className="mb-4 grid w-full grid-cols-2 sm:w-[280px]">
+                            <TabsTrigger value="produtos">Produtos</TabsTrigger>
+                            <TabsTrigger value="categorias">Categorias</TabsTrigger>
+                          </TabsList>
+                          <TabsContent value="produtos" className="space-y-4">
+                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                              <ProductInsightList title="Mais orçados" icon={<ClipboardList className="h-4 w-4" />} rows={(productAnalytics?.rankings?.mostQuoted ?? []) as ProductInsightRow[]} getValue={(row) => formatBRL(Number(row.quotedAmount ?? 0))} getSub={(row) => `${Number(row.quotedUnits ?? 0).toLocaleString("pt-BR")} un. orçadas`} />
+                              <ProductInsightList title="Mais fechados" icon={<CheckCircle className="h-4 w-4" />} rows={(productAnalytics?.rankings?.mostClosed ?? []) as ProductInsightRow[]} getValue={(row) => formatBRL(Number(row.closedAmount ?? 0))} getSub={(row) => `${Number(row.closedUnits ?? 0).toLocaleString("pt-BR")} un. vendidas`} color="text-emerald-700 dark:text-emerald-400" />
+                              <ProductInsightList title="Mais perdidos" icon={<AlertCircle className="h-4 w-4" />} rows={(productAnalytics?.rankings?.mostLost ?? []) as ProductInsightRow[]} getValue={(row) => formatBRL(Number(row.lostAmount ?? 0))} getSub={(row) => `${Number(row.lostUnits ?? 0).toLocaleString("pt-BR")} un. perdidas`} color="text-red-700 dark:text-red-400" />
+                            </div>
+                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-4">
+                              <ProductInsightList title="Maior margem bruta" icon={<TrendingUp className="h-4 w-4" />} rows={(productAnalytics?.rankings?.highestGrossMargin ?? []) as ProductInsightRow[]} getValue={(row) => `${Number(row.grossMarginPercent ?? 0).toFixed(1)}%`} getSub={(row) => `${formatBRL(Number(row.closedAmount ?? 0))} fechado`} color="text-emerald-700 dark:text-emerald-400" />
+                              <ProductInsightList title="Menor margem bruta" icon={<TrendingDown className="h-4 w-4" />} rows={(productAnalytics?.rankings?.lowestGrossMargin ?? []) as ProductInsightRow[]} getValue={(row) => `${Number(row.grossMarginPercent ?? 0).toFixed(1)}%`} getSub={(row) => `${formatBRL(Number(row.closedAmount ?? 0))} fechado`} color="text-amber-700 dark:text-amber-400" />
+                              <ProductInsightList title="Maior contribuição" icon={<Coins className="h-4 w-4" />} rows={(productAnalytics?.rankings?.highestContribution ?? []) as ProductInsightRow[]} getValue={(row) => `${Number(row.contributionMarginPercent ?? 0).toFixed(1)}%`} getSub={(row) => `${formatBRL(Number(row.contributionAmount ?? 0))} de contribuição`} color="text-teal-700 dark:text-teal-400" />
+                              <ProductInsightList title="Menor contribuição" icon={<Coins className="h-4 w-4" />} rows={(productAnalytics?.rankings?.lowestContribution ?? []) as ProductInsightRow[]} getValue={(row) => `${Number(row.contributionMarginPercent ?? 0).toFixed(1)}%`} getSub={(row) => `${formatBRL(Number(row.contributionAmount ?? 0))} de contribuição`} color="text-orange-700 dark:text-orange-400" />
+                            </div>
+                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                              <ProductInsightList title="Maior quantidade vendida" icon={<Package className="h-4 w-4" />} rows={(productAnalytics?.rankings?.highestQuantity ?? []) as ProductInsightRow[]} getValue={(row) => `${Number(row.closedUnits ?? 0).toLocaleString("pt-BR")} un.`} getSub={(row) => formatBRL(Number(row.closedAmount ?? 0))} />
+                              <ProductInsightList title="Menor quantidade vendida" icon={<Package className="h-4 w-4" />} rows={(productAnalytics?.rankings?.lowestQuantity ?? []) as ProductInsightRow[]} getValue={(row) => `${Number(row.closedUnits ?? 0).toLocaleString("pt-BR")} un.`} getSub={(row) => formatBRL(Number(row.closedAmount ?? 0))} color="text-muted-foreground" />
+                            </div>
+                          </TabsContent>
+                          <TabsContent value="categorias" className="space-y-4">
+                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                              <ProductInsightList title="Categorias mais orçadas" icon={<ClipboardList className="h-4 w-4" />} rows={(productAnalytics?.categoryRankings?.mostQuoted ?? []) as ProductInsightRow[]} getValue={(row) => formatBRL(Number(row.quotedAmount ?? 0))} getSub={(row) => `${Number(row.quotedUnits ?? 0).toLocaleString("pt-BR")} un. orçadas`} />
+                              <ProductInsightList title="Categorias mais fechadas" icon={<CheckCircle className="h-4 w-4" />} rows={(productAnalytics?.categoryRankings?.mostClosed ?? []) as ProductInsightRow[]} getValue={(row) => formatBRL(Number(row.closedAmount ?? 0))} getSub={(row) => `${Number(row.closedUnits ?? 0).toLocaleString("pt-BR")} un. vendidas`} color="text-emerald-700 dark:text-emerald-400" />
+                              <ProductInsightList title="Categorias mais perdidas" icon={<AlertCircle className="h-4 w-4" />} rows={(productAnalytics?.categoryRankings?.mostLost ?? []) as ProductInsightRow[]} getValue={(row) => formatBRL(Number(row.lostAmount ?? 0))} getSub={(row) => `${Number(row.lostUnits ?? 0).toLocaleString("pt-BR")} un. perdidas`} color="text-red-700 dark:text-red-400" />
+                            </div>
+                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                              <ProductInsightList title="Maior contribuição por categoria" icon={<Coins className="h-4 w-4" />} rows={(productAnalytics?.categoryRankings?.highestContribution ?? []) as ProductInsightRow[]} getValue={(row) => `${Number(row.contributionMarginPercent ?? 0).toFixed(1)}%`} getSub={(row) => `${formatBRL(Number(row.contributionAmount ?? 0))} de contribuição`} color="text-teal-700 dark:text-teal-400" />
+                              <ProductInsightList title="Menor contribuição por categoria" icon={<Coins className="h-4 w-4" />} rows={(productAnalytics?.categoryRankings?.lowestContribution ?? []) as ProductInsightRow[]} getValue={(row) => `${Number(row.contributionMarginPercent ?? 0).toFixed(1)}%`} getSub={(row) => `${formatBRL(Number(row.contributionAmount ?? 0))} de contribuição`} color="text-orange-700 dark:text-orange-400" />
+                            </div>
+                          </TabsContent>
+                        </Tabs>
+                      )}
+                      <p className="mt-4 border-t pt-3 text-[11px] leading-relaxed text-muted-foreground">Base do período: orçados pela data de criação, fechados pela data de aprovação e perdidos pela última atualização. A contribuição distribui proporcionalmente impostos, comissões, RT, DIFAL/FCP, frete e custos adicionais entre os itens fechados. Itens sem custo confirmado não recebem margem ou contribuição até a apuração do custo.</p>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Alerta de orçamentos em aberto */}
                 {totalAbertos > 0 && (

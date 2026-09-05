@@ -1,4 +1,5 @@
 import type { CartItemData } from "./cartTypes";
+import { resolveCatalogItemPhoto, type CatalogPhotoCandidate } from "./itemPhoto";
 import { applyItemDiscount, applyQuoteDiscount, calculateQuoteTotalWithDiscountAndTax, getDisplayedCustomerTotal } from "./quoteTotals";
 import { getStateInfo } from "./difalTable";
 
@@ -97,6 +98,7 @@ export type QuoteAnalysisInput = {
   items: QuoteAnalysisRawItem[];
   costItems?: QuoteAnalysisCostItem[];
   additionalCosts?: Array<{ valor?: unknown }>;
+  photoCandidates?: CatalogPhotoCandidate[];
 };
 
 function amount(value: unknown): number {
@@ -194,7 +196,7 @@ export function buildQuoteAnalysis(input: QuoteAnalysisInput): QuoteAnalysisSumm
         itemNumber: rawItem.itemNumber,
         sku: item.sku || "Sem SKU",
         description: item.description || item.specialDescription || "Item sem descrição",
-        photoUrl: item.specialPhotoUrl ?? item.photoUrl ?? null,
+        photoUrl: resolveCatalogItemPhoto(item, input.photoCandidates ?? []) ?? null,
         quantity,
         unitRevenue: roundMoney(revenue / quantity),
         revenue,

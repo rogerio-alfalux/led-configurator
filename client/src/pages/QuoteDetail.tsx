@@ -48,6 +48,7 @@ import { handleLdPdfSent } from "@/lib/ldAdminBadgeRefresh";
 import { linkSampleOrderByQuoteNumber } from "@/lib/sampleLinkFlow";
 import { buildSampleCommercialProjection } from "@/lib/sampleCommercialAdjustment";
 import { applyItemDiscount, applyQuoteDiscount, calculateQuoteTotalWithDiscountAndTax, getDisplayedCustomerTotal } from "@/lib/quoteTotals";
+import { canAccessQuoteAnalysis } from "@/lib/quoteAnalysisAccess";
 import type { ApiProductDriverInfo } from "@/lib/cartTypes";
 
 /** Aplica margem individual do item (itemMarginPercent em %) sobre um valor base */
@@ -5473,6 +5474,7 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
   const [newCostDesc, setNewCostDesc] = useState("");
   const [newCostValor, setNewCostValor] = useState("");
   const utils = trpc.useUtils();
+  const isAdmin = canAccessQuoteAnalysis(user as { role?: string | null } | null);
 
   // Buscar custo real dos produtos na API
   const costQuery = trpc.quotes.calculateCost.useQuery({ quoteId });
@@ -5562,17 +5564,19 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
             <TrendingUp className="w-4 h-4" />
             Dashboard de Lucro (interno)
           </CardTitle>
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="h-8 gap-1.5 border-emerald-200 text-xs text-emerald-800 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
-          >
-            <Link href={`/orcamentos/${quoteId}/analise`}>
-              <BarChart3 className="h-3.5 w-3.5" />
-              Análise do Orçamento
-            </Link>
-          </Button>
+          {isAdmin && (
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 border-emerald-200 text-xs text-emerald-800 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+            >
+              <Link href={`/orcamentos/${quoteId}/analise`}>
+                <BarChart3 className="h-3.5 w-3.5" />
+                Análise do Orçamento
+              </Link>
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

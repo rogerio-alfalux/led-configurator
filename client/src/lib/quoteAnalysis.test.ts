@@ -51,6 +51,20 @@ describe("buildQuoteAnalysis", () => {
     expect(analysis.fixedCostAmountRemaining).toBe(1_499_494);
   });
 
+  it("prioriza fotos manuais e recupera a foto vigente do catálogo quando o item salvo não contém imagem", () => {
+    const analysis = buildQuoteAnalysis({
+      quote: { totalFinal: 300, totalAmount: 300 },
+      items: [
+        { itemNumber: 1, itemData: { sku: "LDP-4910.120.70P", description: "BAGEO P D1 Ø1200MM 86W 3000K", qty: 1, unitPrice: 100, totalPrice: 100, photoUrl: null } },
+        { itemNumber: 2, itemData: { sku: "ESP", description: "Item Especial", qty: 1, unitPrice: 200, totalPrice: 200, photoUrl: "https://manual.example/foto.jpg", specialPhotoUrl: "https://manual.example/foto.jpg" } },
+      ],
+      photoCandidates: [{ sku: "LDP-4910.120.70P", name: "BAGEO P D1 Ø1200MM 86W 3000K", fotoUrl: "https://api.example/bageo.jpg" }],
+    });
+
+    expect(analysis.items.find((item) => item.itemNumber === 1)?.photoUrl).toBe("https://api.example/bageo.jpg");
+    expect(analysis.items.find((item) => item.itemNumber === 2)?.photoUrl).toBe("https://manual.example/foto.jpg");
+  });
+
   it("reordena somente a visualização por valor, quantidade e margem sem modificar a ordem-base", () => {
     const analysis = buildQuoteAnalysis({
       quote: { totalFinal: 1_800, totalAmount: 1_800 },

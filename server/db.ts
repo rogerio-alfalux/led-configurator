@@ -21,6 +21,7 @@ import {
 import { ENV } from './_core/env';
 import { fetchAllAlfaluxProducts, fetchComponentes, fetchAcessoriosProducts, fetchRevendaProducts } from './alfaluxApiService';
 import { getManualUnitCost } from './quoteCostUtils';
+import { buildDashboardProductAnalytics } from './dashboardProductAnalytics';
 import { getDuplicateQuoteGroupSizes, getDuplicateQuoteKey } from '../shared/quoteGrouping';
 import { getCommercialTotalsToRestore, getNonCommercialQuoteStatus, transfersNonCommercialFinance, type NonCommercialQuoteKind, type NonCommercialLinkType } from '../shared/nonCommercialQuoteFinancial';
 import { normalizeQuoteNumberForLookup } from '../shared/quoteNumberLookup';
@@ -2187,6 +2188,119 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     manualBillings,
     manualBillingAmount,
   };
+}
+
+/**
+ * Inteligência de produtos do Dashboard. Cada ranking usa a revisão atualmente
+ * exibida do orçamento e o marco temporal compatível: criação para orçado,
+ * aprovação para fechado e última atualização para perdido.
+ */
+export async function getDashboardProductAnalytics(year: number, month?: number, dateFrom?: string, dateTo?: string) {
+  const db = await getDb();
+  if (!db) return buildDashboardProductAnalytics([], { products: [], components: [], accessories: [], revendas: [] });
+
+  const dateRange = dateFrom && dateTo;
+  const createdInPeriod = dateRange
+    ? sql`DATE(DATE_SUB(${quotes.createdAt}, INTERVAL 3 HOUR)) >= ${dateFrom} AND DATE(DATE_SUB(${quotes.createdAt}, INTERVAL 3 HOUR)) <= ${dateTo}`
+    : month
+      ? sql`YEAR(DATE_SUB(${quotes.createdAt}, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(${quotes.createdAt}, INTERVAL 3 HOUR)) = ${month}`
+      : sql`YEAR(DATE_SUB(${quotes.createdAt}, INTERVAL 3 HOUR)) = ${year}`;
+  const closedInPeriod = dateRange
+    ? sql`DATE(DATE_SUB(${quotes.approvedAt}, INTERVAL 3 HOUR)) >= ${dateFrom} AND DATE(DATE_SUB(${quotes.approvedAt}, INTERVAL 3 HOUR)) <= ${dateTo}`
+    : month
+      ? sql`YEAR(DATE_SUB(${quotes.approvedAt}, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(${quotes.approvedAt}, INTERVAL 3 HOUR)) = ${month}`
+      : sql`YEAR(DATE_SUB(${quotes.approvedAt}, INTERVAL 3 HOUR)) = ${year}`;
+  const lostInPeriod = dateRange
+    ? sql`DATE(DATE_SUB(${quotes.updatedAt}, INTERVAL 3 HOUR)) >= ${dateFrom} AND DATE(DATE_SUB(${quotes.updatedAt}, INTERVAL 3 HOUR)) <= ${dateTo}`
+    : month
+      ? sql`YEAR(DATE_SUB(${quotes.updatedAt}, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(${quotes.updatedAt}, INTERVAL 3 HOUR)) = ${month}`
+      : sql`YEAR(DATE_SUB(${quotes.updatedAt}, INTERVAL 3 HOUR)) = ${year}`;
+
+  const quoteActivityCondition = and(
+    sql`${quotes.status} != 'sample'`,
+    or(
+      createdInPeriod,
+      and(sql`${quotes.status} IN ('approved', 'invoiced')`, closedInPeriod),
+      and(eq(quotes.status, 'lost'), lostInPeriod),
+    ),
+  );
+
+  const activityQuotes = await db.select({
+    id: quotes.id,
+    status: quotes.status,
+    createdInPeriod: sql<number>`CASE WHEN ${createdInPeriod} THEN 1 ELSE 0 END`,
+    closedInPeriod: sql<number>`CASE WHEN ${quotes.status} IN ('approved', 'invoiced') AND ${closedInPeriod} THEN 1 ELSE 0 END`,
+    lostInPeriod: sql<number>`CASE WHEN ${quotes.status} = 'lost' AND ${lostInPeriod} THEN 1 ELSE 0 END`,
+    discountPercent: quotes.discountPercent,
+    marginPercent: quotes.marginPercent,
+    commissionPercent: quotes.commissionPercent,
+    commissionPercent2: quotes.commissionPercent2,
+    rtPercent: quotes.rtPercent,
+    totalFinal: quotes.totalFinal,
+    freteValue: quotes.freteValue,
+    freteIncluded: quotes.freteIncluded,
+    difalValue: quotes.difalValue,
+    fcpValue: quotes.fcpValue,
+  }).from(quotes).where(quoteActivityCondition);
+
+  if (activityQuotes.length === 0) return buildDashboardProductAnalytics([], { products: [], components: [], accessories: [], revendas: [] });
+
+  const quoteIds = activityQuotes.map((quote) => quote.id);
+  const allVersions = await db.select({
+    id: quoteVersions.id,
+    quoteId: quoteVersions.quoteId,
+    version: quoteVersions.version,
+    status: quoteVersions.status,
+    createdAt: quoteVersions.createdAt,
+  }).from(quoteVersions).where(inArray(quoteVersions.quoteId, quoteIds)).orderBy(desc(quoteVersions.version), desc(quoteVersions.createdAt));
+  const activeVersionByQuote = new Map<number, number>();
+  for (const quoteId of quoteIds) {
+    const versions = allVersions.filter((version) => version.quoteId === quoteId);
+    const active = versions.find((version) => version.status === 'draft') ?? versions[0];
+    if (active) activeVersionByQuote.set(quoteId, active.id);
+  }
+  const activeVersionIds = Array.from(activeVersionByQuote.values());
+  const activeItems = activeVersionIds.length === 0 ? [] : await db.select({
+    quoteVersionId: quoteItems.quoteVersionId,
+    itemNumber: quoteItems.itemNumber,
+    itemData: quoteItems.itemData,
+  }).from(quoteItems).where(inArray(quoteItems.quoteVersionId, activeVersionIds));
+  const quoteIdByVersion = new Map(Array.from(activeVersionByQuote.entries()).map(([quoteId, versionId]) => [versionId, quoteId]));
+  const itemsByQuote = new Map<number, Array<{ itemNumber: number; itemData: string }>>();
+  for (const item of activeItems) {
+    const quoteId = quoteIdByVersion.get(item.quoteVersionId);
+    if (!quoteId) continue;
+    const rows = itemsByQuote.get(quoteId) ?? [];
+    rows.push({ itemNumber: item.itemNumber, itemData: item.itemData });
+    itemsByQuote.set(quoteId, rows);
+  }
+
+  const additionalCostRows = await db.select({
+    quoteId: quoteAdditionalCosts.quoteId,
+    total: sql<string>`SUM(${quoteAdditionalCosts.valor})`,
+  }).from(quoteAdditionalCosts).where(inArray(quoteAdditionalCosts.quoteId, quoteIds)).groupBy(quoteAdditionalCosts.quoteId);
+  const additionalCostByQuote = new Map(additionalCostRows.map((row) => [row.quoteId, Number(row.total ?? 0)]));
+
+  const [products, componentResult, accessories, revendas] = await Promise.all([
+    fetchAllAlfaluxProducts(),
+    fetchComponentes(),
+    fetchAcessoriosProducts(),
+    fetchRevendaProducts(),
+  ]);
+
+  return buildDashboardProductAnalytics(activityQuotes.map((quote) => ({
+    ...quote,
+    createdInPeriod: Boolean(quote.createdInPeriod),
+    closedInPeriod: Boolean(quote.closedInPeriod),
+    lostInPeriod: Boolean(quote.lostInPeriod),
+    additionalCost: additionalCostByQuote.get(quote.id) ?? 0,
+    items: itemsByQuote.get(quote.id) ?? [],
+  })), {
+    products,
+    components: componentResult.items,
+    accessories,
+    revendas,
+  });
 }
 
 /**
