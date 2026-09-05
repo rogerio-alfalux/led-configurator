@@ -3430,3 +3430,8 @@
 ## Correção de fotos na análise de orçamento
 - [x] Corrigir URLs inválidas e assegurar que cada cartão carregue a foto oficial vigente ou uma ausência de foto sem imagem quebrada
 - [x] Cobrir a recuperação e a falha de imagem por regressão, validar a tela e salvar checkpoint reversível
+
+## Navegação progressiva da inteligência de produtos
+- [x] Organizar a escolha em níveis de Produtos/Categorias, indicador e visualização ampliada do ranking
+- [x] Distribuir informações de produto e categoria em uma leitura ampla, clara e responsiva
+- [x] Validar filtros, tipagem e comportamento responsivo antes de salvar checkpoint reversível

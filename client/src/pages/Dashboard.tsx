@@ -115,23 +115,61 @@ type ProductInsightRow = {
   grossMarginPercent: number | null;
 };
 
-function ProductInsightList({ title, icon, rows, getValue, getSub, color = "text-primary" }: {
-  title: string;
-  icon: React.ReactNode;
+const PRODUCT_INSIGHT_OPTIONS = {
+  mostQuoted: { label: "Mais orçados", icon: ClipboardList, tone: "text-primary" },
+  mostClosed: { label: "Mais fechados", icon: CheckCircle, tone: "text-emerald-700 dark:text-emerald-400" },
+  mostLost: { label: "Mais perdidos", icon: AlertCircle, tone: "text-red-700 dark:text-red-400" },
+  highestGrossMargin: { label: "Maior margem bruta", icon: TrendingUp, tone: "text-emerald-700 dark:text-emerald-400" },
+  lowestGrossMargin: { label: "Menor margem bruta", icon: TrendingDown, tone: "text-amber-700 dark:text-amber-400" },
+  highestContribution: { label: "Maior contribuição", icon: Coins, tone: "text-teal-700 dark:text-teal-400" },
+  lowestContribution: { label: "Menor contribuição", icon: Coins, tone: "text-orange-700 dark:text-orange-400" },
+  highestQuantity: { label: "Maior quantidade vendida", icon: Package, tone: "text-primary" },
+  lowestQuantity: { label: "Menor quantidade vendida", icon: Package, tone: "text-muted-foreground" },
+} as const;
+
+type ProductInsightScope = "produtos" | "categorias";
+type ProductInsightMetric = keyof typeof PRODUCT_INSIGHT_OPTIONS;
+
+function getProductInsightValue(metric: ProductInsightMetric, row: ProductInsightRow): string {
+  if (metric === "mostQuoted") return formatBRL(Number(row.quotedAmount ?? 0));
+  if (metric === "mostClosed") return formatBRL(Number(row.closedAmount ?? 0));
+  if (metric === "mostLost") return formatBRL(Number(row.lostAmount ?? 0));
+  if (metric === "highestQuantity" || metric === "lowestQuantity") return `${Number(row.closedUnits ?? 0).toLocaleString("pt-BR")} un.`;
+  if (metric === "highestGrossMargin" || metric === "lowestGrossMargin") return `${Number(row.grossMarginPercent ?? 0).toFixed(1)}%`;
+  return `${Number(row.contributionMarginPercent ?? 0).toFixed(1)}%`;
+}
+
+function getProductInsightSub(metric: ProductInsightMetric, row: ProductInsightRow): string {
+  if (metric === "mostQuoted") return `${Number(row.quotedUnits ?? 0).toLocaleString("pt-BR")} unidades orçadas`;
+  if (metric === "mostClosed") return `${Number(row.closedUnits ?? 0).toLocaleString("pt-BR")} unidades vendidas`;
+  if (metric === "mostLost") return `${Number(row.lostUnits ?? 0).toLocaleString("pt-BR")} unidades perdidas`;
+  if (metric === "highestQuantity" || metric === "lowestQuantity") return `${formatBRL(Number(row.closedAmount ?? 0))} em vendas fechadas`;
+  if (metric === "highestGrossMargin" || metric === "lowestGrossMargin") return `${formatBRL(Number(row.closedAmount ?? 0))} em vendas fechadas`;
+  return `${formatBRL(Number(row.contributionAmount ?? 0))} de margem de contribuição`;
+}
+
+function ProductInsightPanel({ scope, metric, rows }: {
+  scope: ProductInsightScope;
+  metric: ProductInsightMetric;
   rows: ProductInsightRow[];
-  getValue: (row: ProductInsightRow) => string;
-  getSub: (row: ProductInsightRow) => string;
-  color?: string;
 }) {
+  const option = PRODUCT_INSIGHT_OPTIONS[metric];
+  const Icon = option.icon;
+  const entityLabel = scope === "produtos" ? "Produtos" : "Categorias";
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-2"><CardTitle className={`flex items-center gap-2 text-sm ${color}`}>{icon}{title}</CardTitle></CardHeader>
-      <CardContent className="space-y-1">
-        {rows.length === 0 ? <p className="py-4 text-center text-xs text-muted-foreground">Nenhum dado no período</p> : rows.slice(0, 5).map((row, index) => (
-          <div key={`${row.sku}-${row.description}-${index}`} className="flex min-w-0 items-center gap-2 rounded-md px-2 py-2 hover:bg-muted/50">
-            <span className="w-4 shrink-0 text-xs text-muted-foreground">{index + 1}º</span>
-            <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{row.description}</p><p className="truncate text-[11px] text-muted-foreground">{row.sku ? `${row.sku} · ` : ""}{getSub(row)}</p></div>
-            <span className="shrink-0 text-xs font-bold tabular-nums">{getValue(row)}</span>
+    <Card className="overflow-hidden border-primary/20 shadow-sm">
+      <CardHeader className="border-b bg-muted/20 pb-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div><CardTitle className={`flex items-center gap-2 text-lg ${option.tone}`}><Icon className="h-5 w-5" />{option.label}</CardTitle><p className="mt-1 text-sm text-muted-foreground">Ranking de {entityLabel.toLowerCase()} no período selecionado.</p></div>
+          <Badge variant="outline" className="text-xs">Top {Math.min(rows.length, 10)} de {rows.length}</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        {rows.length === 0 ? <p className="py-12 text-center text-sm text-muted-foreground">Nenhum dado no período para este indicador.</p> : rows.slice(0, 10).map((row, index) => (
+          <div key={`${row.sku}-${row.description}-${index}`} className={`grid grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 sm:px-6 ${index > 0 ? "border-t" : ""} ${index === 0 ? "bg-primary/[0.035]" : "hover:bg-muted/40"}`}>
+            <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${index === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{index + 1}º</span>
+            <div className="min-w-0"><p className="truncate text-sm font-semibold sm:text-base">{scope === "categorias" ? row.category : row.description}</p><p className="mt-1 truncate text-xs text-muted-foreground">{scope === "produtos" && row.sku ? `${row.sku} · ` : ""}{getProductInsightSub(metric, row)}</p></div>
+            <span className={`shrink-0 text-sm font-bold tabular-nums sm:text-base ${option.tone}`}>{getProductInsightValue(metric, row)}</span>
           </div>
         ))}
       </CardContent>
@@ -196,6 +234,8 @@ export default function Dashboard() {
   const [showAllRt, setShowAllRt] = useState(false);
   const [exportingReport, setExportingReport] = useState(false);
   const [reportMonth, setReportMonth] = useState(currentMonth);
+  const [productInsightScope, setProductInsightScope] = useState<ProductInsightScope>("produtos");
+  const [productInsightMetric, setProductInsightMetric] = useState<ProductInsightMetric>("mostQuoted");
 
   const utils = trpc.useUtils();
 
@@ -205,9 +245,10 @@ export default function Dashboard() {
 
   // Quando filtro de data está ativo, ignorar ano/mês
   const hasDateRange = !!(dateFrom && dateTo);
-  const queryInput = hasDateRange
-    ? { year, dateFrom, dateTo }
-    : { year, month };
+  const queryInput = useMemo(
+    () => hasDateRange ? { year, dateFrom, dateTo } : { year, month },
+    [hasDateRange, year, month, dateFrom, dateTo],
+  );
 
   // Dados para gerentes/admins
   const { data: managerData, isLoading: managerLoading } = trpc.dashboard.managerData.useQuery(
@@ -218,6 +259,12 @@ export default function Dashboard() {
     queryInput,
     { enabled: !!user && isAdmin && !managerLoading },
   );
+  const selectedProductInsightRows = useMemo(() => {
+    const rankings = productInsightScope === "produtos"
+      ? productAnalytics?.rankings
+      : productAnalytics?.categoryRankings;
+    return (rankings?.[productInsightMetric] ?? []) as ProductInsightRow[];
+  }, [productAnalytics, productInsightScope, productInsightMetric]);
 
   // Dados do próprio vendedor
   const { data: sellerData, isLoading: sellerLoading } = trpc.dashboard.sellerData.useQuery(
@@ -984,39 +1031,28 @@ export default function Dashboard() {
                       {productAnalyticsLoading ? (
                         <p className="py-8 text-center text-sm text-muted-foreground">Apurando produtos e categorias do período…</p>
                       ) : (
-                        <Tabs defaultValue="produtos">
-                          <TabsList className="mb-4 grid w-full grid-cols-2 sm:w-[280px]">
+                        <Tabs value={productInsightScope} onValueChange={(value) => setProductInsightScope(value as ProductInsightScope)}>
+                          <TabsList className="mb-5 grid w-full grid-cols-2 sm:w-[300px]">
                             <TabsTrigger value="produtos">Produtos</TabsTrigger>
                             <TabsTrigger value="categorias">Categorias</TabsTrigger>
                           </TabsList>
-                          <TabsContent value="produtos" className="space-y-4">
-                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-                              <ProductInsightList title="Mais orçados" icon={<ClipboardList className="h-4 w-4" />} rows={(productAnalytics?.rankings?.mostQuoted ?? []) as ProductInsightRow[]} getValue={(row) => formatBRL(Number(row.quotedAmount ?? 0))} getSub={(row) => `${Number(row.quotedUnits ?? 0).toLocaleString("pt-BR")} un. orçadas`} />
-                              <ProductInsightList title="Mais fechados" icon={<CheckCircle className="h-4 w-4" />} rows={(productAnalytics?.rankings?.mostClosed ?? []) as ProductInsightRow[]} getValue={(row) => formatBRL(Number(row.closedAmount ?? 0))} getSub={(row) => `${Number(row.closedUnits ?? 0).toLocaleString("pt-BR")} un. vendidas`} color="text-emerald-700 dark:text-emerald-400" />
-                              <ProductInsightList title="Mais perdidos" icon={<AlertCircle className="h-4 w-4" />} rows={(productAnalytics?.rankings?.mostLost ?? []) as ProductInsightRow[]} getValue={(row) => formatBRL(Number(row.lostAmount ?? 0))} getSub={(row) => `${Number(row.lostUnits ?? 0).toLocaleString("pt-BR")} un. perdidas`} color="text-red-700 dark:text-red-400" />
-                            </div>
-                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-4">
-                              <ProductInsightList title="Maior margem bruta" icon={<TrendingUp className="h-4 w-4" />} rows={(productAnalytics?.rankings?.highestGrossMargin ?? []) as ProductInsightRow[]} getValue={(row) => `${Number(row.grossMarginPercent ?? 0).toFixed(1)}%`} getSub={(row) => `${formatBRL(Number(row.closedAmount ?? 0))} fechado`} color="text-emerald-700 dark:text-emerald-400" />
-                              <ProductInsightList title="Menor margem bruta" icon={<TrendingDown className="h-4 w-4" />} rows={(productAnalytics?.rankings?.lowestGrossMargin ?? []) as ProductInsightRow[]} getValue={(row) => `${Number(row.grossMarginPercent ?? 0).toFixed(1)}%`} getSub={(row) => `${formatBRL(Number(row.closedAmount ?? 0))} fechado`} color="text-amber-700 dark:text-amber-400" />
-                              <ProductInsightList title="Maior contribuição" icon={<Coins className="h-4 w-4" />} rows={(productAnalytics?.rankings?.highestContribution ?? []) as ProductInsightRow[]} getValue={(row) => `${Number(row.contributionMarginPercent ?? 0).toFixed(1)}%`} getSub={(row) => `${formatBRL(Number(row.contributionAmount ?? 0))} de contribuição`} color="text-teal-700 dark:text-teal-400" />
-                              <ProductInsightList title="Menor contribuição" icon={<Coins className="h-4 w-4" />} rows={(productAnalytics?.rankings?.lowestContribution ?? []) as ProductInsightRow[]} getValue={(row) => `${Number(row.contributionMarginPercent ?? 0).toFixed(1)}%`} getSub={(row) => `${formatBRL(Number(row.contributionAmount ?? 0))} de contribuição`} color="text-orange-700 dark:text-orange-400" />
-                            </div>
-                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                              <ProductInsightList title="Maior quantidade vendida" icon={<Package className="h-4 w-4" />} rows={(productAnalytics?.rankings?.highestQuantity ?? []) as ProductInsightRow[]} getValue={(row) => `${Number(row.closedUnits ?? 0).toLocaleString("pt-BR")} un.`} getSub={(row) => formatBRL(Number(row.closedAmount ?? 0))} />
-                              <ProductInsightList title="Menor quantidade vendida" icon={<Package className="h-4 w-4" />} rows={(productAnalytics?.rankings?.lowestQuantity ?? []) as ProductInsightRow[]} getValue={(row) => `${Number(row.closedUnits ?? 0).toLocaleString("pt-BR")} un.`} getSub={(row) => formatBRL(Number(row.closedAmount ?? 0))} color="text-muted-foreground" />
-                            </div>
-                          </TabsContent>
-                          <TabsContent value="categorias" className="space-y-4">
-                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-                              <ProductInsightList title="Categorias mais orçadas" icon={<ClipboardList className="h-4 w-4" />} rows={(productAnalytics?.categoryRankings?.mostQuoted ?? []) as ProductInsightRow[]} getValue={(row) => formatBRL(Number(row.quotedAmount ?? 0))} getSub={(row) => `${Number(row.quotedUnits ?? 0).toLocaleString("pt-BR")} un. orçadas`} />
-                              <ProductInsightList title="Categorias mais fechadas" icon={<CheckCircle className="h-4 w-4" />} rows={(productAnalytics?.categoryRankings?.mostClosed ?? []) as ProductInsightRow[]} getValue={(row) => formatBRL(Number(row.closedAmount ?? 0))} getSub={(row) => `${Number(row.closedUnits ?? 0).toLocaleString("pt-BR")} un. vendidas`} color="text-emerald-700 dark:text-emerald-400" />
-                              <ProductInsightList title="Categorias mais perdidas" icon={<AlertCircle className="h-4 w-4" />} rows={(productAnalytics?.categoryRankings?.mostLost ?? []) as ProductInsightRow[]} getValue={(row) => formatBRL(Number(row.lostAmount ?? 0))} getSub={(row) => `${Number(row.lostUnits ?? 0).toLocaleString("pt-BR")} un. perdidas`} color="text-red-700 dark:text-red-400" />
-                            </div>
-                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                              <ProductInsightList title="Maior contribuição por categoria" icon={<Coins className="h-4 w-4" />} rows={(productAnalytics?.categoryRankings?.highestContribution ?? []) as ProductInsightRow[]} getValue={(row) => `${Number(row.contributionMarginPercent ?? 0).toFixed(1)}%`} getSub={(row) => `${formatBRL(Number(row.contributionAmount ?? 0))} de contribuição`} color="text-teal-700 dark:text-teal-400" />
-                              <ProductInsightList title="Menor contribuição por categoria" icon={<Coins className="h-4 w-4" />} rows={(productAnalytics?.categoryRankings?.lowestContribution ?? []) as ProductInsightRow[]} getValue={(row) => `${Number(row.contributionMarginPercent ?? 0).toFixed(1)}%`} getSub={(row) => `${formatBRL(Number(row.contributionAmount ?? 0))} de contribuição`} color="text-orange-700 dark:text-orange-400" />
-                            </div>
-                          </TabsContent>
+                          {(["produtos", "categorias"] as ProductInsightScope[]).map((scope) => (
+                            <TabsContent key={scope} value={scope} className="mt-0 space-y-5">
+                              <div className="rounded-xl border bg-muted/20 p-4 sm:p-5">
+                                <p className="text-sm font-semibold">Escolha o indicador</p>
+                                <p className="mt-1 text-xs text-muted-foreground">Abra uma análise por vez para comparar os itens com mais espaço e clareza.</p>
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                  {(Object.keys(PRODUCT_INSIGHT_OPTIONS) as ProductInsightMetric[]).map((metric) => {
+                                    const option = PRODUCT_INSIGHT_OPTIONS[metric];
+                                    const Icon = option.icon;
+                                    const selected = productInsightMetric === metric;
+                                    return <Button key={metric} type="button" size="sm" variant={selected ? "default" : "outline"} className="gap-2" onClick={() => setProductInsightMetric(metric)}><Icon className="h-3.5 w-3.5" />{option.label}</Button>;
+                                  })}
+                                </div>
+                              </div>
+                              <ProductInsightPanel scope={scope} metric={productInsightMetric} rows={selectedProductInsightRows} />
+                            </TabsContent>
+                          ))}
                         </Tabs>
                       )}
                       <p className="mt-4 border-t pt-3 text-[11px] leading-relaxed text-muted-foreground">Base do período: orçados pela data de criação, fechados pela data de aprovação e perdidos pela última atualização. A contribuição distribui proporcionalmente impostos, comissões, RT, DIFAL/FCP, frete e custos adicionais entre os itens fechados. Itens sem custo confirmado não recebem margem ou contribuição até a apuração do custo.</p>

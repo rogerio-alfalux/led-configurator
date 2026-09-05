@@ -26,6 +26,7 @@ describe("buildDashboardProductAnalytics", () => {
     expect(analytics.rankings.mostQuoted[0]?.sku).toBe("A");
     expect(analytics.rankings.highestGrossMargin[0]?.sku).toBe("B");
     expect(analytics.categoryRankings.mostClosed[0]?.category).toBe("Perfis");
+    expect(analytics.categoryRankings.highestQuantity[0]?.category).toBe("Perfis");
   });
 
   it("mantém a contribuição indisponível quando o custo do produto fechado não é conhecido", () => {

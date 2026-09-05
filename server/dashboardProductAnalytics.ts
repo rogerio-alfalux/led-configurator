@@ -357,6 +357,8 @@ export function buildDashboardProductAnalytics(quotes: ProductAnalyticsQuote[], 
       lowestGrossMargin: categoryRows.filter((item) => item.grossMarginPercent !== null).sort(byGrossMargin("asc")),
       highestContribution: categoryRows.filter((item) => item.contributionMarginPercent !== null).sort(byContribution("desc")),
       lowestContribution: categoryRows.filter((item) => item.contributionMarginPercent !== null).sort(byContribution("asc")),
+      highestQuantity: categoryRows.filter((item) => item.closedUnits > 0).sort(byAmount("closedUnits")),
+      lowestQuantity: categoryRows.filter((item) => item.closedUnits > 0).sort(byAmount("closedUnits", "asc")),
     },
   };
 }
