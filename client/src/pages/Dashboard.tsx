@@ -143,6 +143,49 @@ const PRODUCT_INSIGHT_OPTIONS = {
 type ProductInsightScope = "produtos" | "familias" | "categorias";
 type ProductInsightMetric = keyof typeof PRODUCT_INSIGHT_OPTIONS;
 
+type EntityInsightRow = {
+  key: string;
+  label: string;
+  quotedAmount: number;
+  quotedQuoteCount: number;
+  quotedAverageTicket: number | null;
+  closedAmount: number;
+  closedQuoteCount: number;
+  closedAverageTicket: number | null;
+  lostAmount: number;
+  lostQuoteCount: number;
+  lostAverageTicket: number | null;
+  duplicateQuoteCount: number;
+};
+
+const ENTITY_INSIGHT_OPTIONS = {
+  quotedByValue: { label: "Maior valor orçado", icon: ClipboardList, tone: "text-primary" },
+  quotedByRecurrence: { label: "Mais recorrente em orçamentos", icon: Layers3, tone: "text-primary" },
+  highRecurrenceLowTicket: { label: "Alta recorrência e baixo ticket", icon: PieChart, tone: "text-violet-700 dark:text-violet-400" },
+  closedByValue: { label: "Maior valor fechado", icon: CheckCircle, tone: "text-emerald-700 dark:text-emerald-400" },
+  closedByRecurrence: { label: "Mais recorrente em vendas", icon: Users, tone: "text-emerald-700 dark:text-emerald-400" },
+  lostByValue: { label: "Maior valor perdido", icon: AlertCircle, tone: "text-red-700 dark:text-red-400" },
+  lostByRecurrence: { label: "Mais recorrente em perdas", icon: Layers3, tone: "text-red-700 dark:text-red-400" },
+  mostDuplicated: { label: "Mais duplicada", icon: Link2, tone: "text-amber-700 dark:text-amber-400" },
+} as const;
+
+type EntityInsightScope = "clientes" | "obras";
+type EntityInsightMetric = keyof typeof ENTITY_INSIGHT_OPTIONS;
+type DashboardInsightScope = ProductInsightScope | EntityInsightScope;
+
+const ENTITY_INSIGHT_GROUPS: Record<EntityInsightScope, Array<{ label: string; metrics: EntityInsightMetric[] }>> = {
+  clientes: [
+    { label: "Orçados", metrics: ["quotedByValue", "quotedByRecurrence", "highRecurrenceLowTicket"] },
+    { label: "Fechados", metrics: ["closedByValue", "closedByRecurrence"] },
+    { label: "Perdidos", metrics: ["lostByValue", "lostByRecurrence"] },
+  ],
+  obras: [
+    { label: "Orçados e fechados", metrics: ["quotedByValue", "closedByValue"] },
+    { label: "Perdidos", metrics: ["lostByValue", "lostByRecurrence"] },
+    { label: "Duplicações", metrics: ["mostDuplicated"] },
+  ],
+};
+
 const PRODUCT_INSIGHT_GROUPS: Array<{ label: string; metrics: ProductInsightMetric[] }> = [
   { label: "Orçados", metrics: ["quotedByValue", "quotedByQuantity", "quotedByRecurrence"] },
   { label: "Fechados", metrics: ["closedByValue", "closedByQuantity", "closedByRecurrence"] },
@@ -219,6 +262,54 @@ function ProductInsightPanel({ scope, metric, rows }: {
   );
 }
 
+function getEntityInsightValue(metric: EntityInsightMetric, row: EntityInsightRow): string {
+  if (metric === "quotedByValue") return formatBRL(Number(row.quotedAmount ?? 0));
+  if (metric === "closedByValue") return formatBRL(Number(row.closedAmount ?? 0));
+  if (metric === "lostByValue") return formatBRL(Number(row.lostAmount ?? 0));
+  if (metric === "quotedByRecurrence") return `${Number(row.quotedQuoteCount ?? 0).toLocaleString("pt-BR")} orç.`;
+  if (metric === "closedByRecurrence") return `${Number(row.closedQuoteCount ?? 0).toLocaleString("pt-BR")} vendas`;
+  if (metric === "lostByRecurrence") return `${Number(row.lostQuoteCount ?? 0).toLocaleString("pt-BR")} perdas`;
+  if (metric === "mostDuplicated") return `${Number(row.duplicateQuoteCount ?? 0).toLocaleString("pt-BR")} dup.`;
+  return formatBRL(Number(row.quotedAverageTicket ?? 0));
+}
+
+function getEntityInsightSub(metric: EntityInsightMetric, row: EntityInsightRow): string {
+  if (metric === "quotedByValue" || metric === "quotedByRecurrence") return `Ticket médio: ${formatBRL(Number(row.quotedAverageTicket ?? 0))} · ${Number(row.quotedQuoteCount ?? 0).toLocaleString("pt-BR")} orçamentos`;
+  if (metric === "highRecurrenceLowTicket") return `${Number(row.quotedQuoteCount ?? 0).toLocaleString("pt-BR")} orçamentos com ticket médio de ${formatBRL(Number(row.quotedAverageTicket ?? 0))}`;
+  if (metric === "closedByValue" || metric === "closedByRecurrence") return `Ticket médio: ${formatBRL(Number(row.closedAverageTicket ?? 0))} · ${Number(row.closedQuoteCount ?? 0).toLocaleString("pt-BR")} vendas`;
+  if (metric === "lostByValue" || metric === "lostByRecurrence") return `Ticket médio: ${formatBRL(Number(row.lostAverageTicket ?? 0))} · ${Number(row.lostQuoteCount ?? 0).toLocaleString("pt-BR")} perdas`;
+  return `${Number(row.duplicateQuoteCount ?? 0).toLocaleString("pt-BR")} orçamento${row.duplicateQuoteCount === 1 ? "" : "s"} duplicado${row.duplicateQuoteCount === 1 ? "" : "s"} criado${row.duplicateQuoteCount === 1 ? "" : "s"} no período`;
+}
+
+function EntityInsightPanel({ scope, metric, rows }: {
+  scope: EntityInsightScope;
+  metric: EntityInsightMetric;
+  rows: EntityInsightRow[];
+}) {
+  const option = ENTITY_INSIGHT_OPTIONS[metric];
+  const Icon = option.icon;
+  const entityLabel = scope === "clientes" ? "clientes" : "obras";
+  return (
+    <Card className="overflow-hidden border-primary/20 shadow-sm">
+      <CardHeader className="border-b bg-muted/20 pb-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div><CardTitle className={`flex items-center gap-2 text-lg ${option.tone}`}><Icon className="h-5 w-5" />{option.label}</CardTitle><p className="mt-1 text-sm text-muted-foreground">Ranking de {entityLabel} no período selecionado.</p></div>
+          <Badge variant="outline" className="text-xs">Top {Math.min(rows.length, 10)} de {rows.length}</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        {rows.length === 0 ? <p className="py-12 text-center text-sm text-muted-foreground">Nenhum dado no período para este indicador.</p> : rows.slice(0, 10).map((row, index) => (
+          <div key={`${row.key}-${index}`} className={`grid grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 sm:px-6 ${index > 0 ? "border-t" : ""} ${index === 0 ? "bg-primary/[0.035]" : "hover:bg-muted/40"}`}>
+            <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${index === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{index + 1}º</span>
+            <div className="min-w-0"><p className="truncate text-sm font-semibold sm:text-base">{row.label}</p><p className="mt-1 truncate text-xs text-muted-foreground">{getEntityInsightSub(metric, row)}</p></div>
+            <span className={`shrink-0 text-sm font-bold tabular-nums sm:text-base ${option.tone}`}>{getEntityInsightValue(metric, row)}</span>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Editor de meta ───────────────────────────────────────────────────────────
 function GoalEditor({ year, month, currentValue, onSave }: {
   year: number; month: number | null; currentValue: number; onSave: (v: string) => void;
@@ -278,6 +369,9 @@ export default function Dashboard() {
   const [reportMonth, setReportMonth] = useState(currentMonth);
   const [productInsightScope, setProductInsightScope] = useState<ProductInsightScope>("produtos");
   const [productInsightMetric, setProductInsightMetric] = useState<ProductInsightMetric>("quotedByValue");
+  const [entityInsightScope, setEntityInsightScope] = useState<EntityInsightScope>("clientes");
+  const [entityInsightMetric, setEntityInsightMetric] = useState<EntityInsightMetric>("quotedByValue");
+  const [dashboardInsightScope, setDashboardInsightScope] = useState<DashboardInsightScope>("produtos");
 
   const utils = trpc.useUtils();
 
@@ -309,6 +403,12 @@ export default function Dashboard() {
         : productAnalytics?.categoryRankings;
     return (rankings?.[productInsightMetric] ?? []) as ProductInsightRow[];
   }, [productAnalytics, productInsightScope, productInsightMetric]);
+  const selectedEntityInsightRows = useMemo(() => {
+    const rankings = entityInsightScope === "clientes"
+      ? productAnalytics?.entityAnalytics?.clients.rankings
+      : productAnalytics?.entityAnalytics?.works.rankings;
+    return (rankings?.[entityInsightMetric] ?? []) as EntityInsightRow[];
+  }, [productAnalytics, entityInsightScope, entityInsightMetric]);
 
   // Dados do próprio vendedor
   const { data: sellerData, isLoading: sellerLoading } = trpc.dashboard.sellerData.useQuery(
@@ -1075,11 +1175,21 @@ export default function Dashboard() {
                       {productAnalyticsLoading ? (
                         <p className="py-8 text-center text-sm text-muted-foreground">Apurando produtos e categorias do período…</p>
                       ) : (
-                        <Tabs value={productInsightScope} onValueChange={(value) => setProductInsightScope(value as ProductInsightScope)}>
-                          <TabsList className="mb-5 grid w-full grid-cols-3 sm:w-[440px]">
+                        <Tabs value={dashboardInsightScope} onValueChange={(value) => {
+                          const nextScope = value as DashboardInsightScope;
+                          setDashboardInsightScope(nextScope);
+                          if (nextScope === "clientes" || nextScope === "obras") {
+                            setEntityInsightScope(nextScope);
+                            return;
+                          }
+                          setProductInsightScope(nextScope);
+                        }}>
+                          <TabsList className="mb-5 grid h-auto w-full grid-cols-2 gap-1 sm:w-[680px] sm:grid-cols-5">
                             <TabsTrigger value="produtos">Produtos</TabsTrigger>
                             <TabsTrigger value="familias">Famílias</TabsTrigger>
                             <TabsTrigger value="categorias">Categorias</TabsTrigger>
+                            <TabsTrigger value="clientes">Clientes</TabsTrigger>
+                            <TabsTrigger value="obras">Obras</TabsTrigger>
                           </TabsList>
                           {(["produtos", "familias", "categorias"] as ProductInsightScope[]).map((scope) => (
                             <TabsContent key={scope} value={scope} className="mt-0 space-y-5">
@@ -1103,9 +1213,31 @@ export default function Dashboard() {
                               <ProductInsightPanel scope={scope} metric={productInsightMetric} rows={selectedProductInsightRows} />
                             </TabsContent>
                           ))}
+                          {(["clientes", "obras"] as EntityInsightScope[]).map((scope) => (
+                            <TabsContent key={scope} value={scope} className="mt-0 space-y-5">
+                              <div className="rounded-xl border bg-muted/20 p-4 sm:p-5">
+                                <p className="text-sm font-semibold">Escolha o indicador</p>
+                                <p className="mt-1 text-xs text-muted-foreground">Explore os resultados por {scope === "clientes" ? "cliente" : "obra"}, sempre dentro do período filtrado acima.</p>
+                                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                                  {ENTITY_INSIGHT_GROUPS[scope].map((group) => <div key={group.label}>
+                                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{group.label}</p>
+                                    <div className="flex flex-wrap gap-2">
+                                      {group.metrics.map((metric) => {
+                                        const option = ENTITY_INSIGHT_OPTIONS[metric];
+                                        const Icon = option.icon;
+                                        const selected = entityInsightScope === scope && entityInsightMetric === metric;
+                                        return <Button key={metric} type="button" size="sm" variant={selected ? "default" : "outline"} className="gap-2" onClick={() => { setEntityInsightScope(scope); setEntityInsightMetric(metric); }}><Icon className="h-3.5 w-3.5" />{option.label}</Button>;
+                                      })}
+                                    </div>
+                                  </div>)}
+                                </div>
+                              </div>
+                              <EntityInsightPanel scope={scope} metric={entityInsightMetric} rows={entityInsightScope === scope ? selectedEntityInsightRows : []} />
+                            </TabsContent>
+                          ))}
                         </Tabs>
                       )}
-                      <p className="mt-4 border-t pt-3 text-[11px] leading-relaxed text-muted-foreground">Base do período: orçados pela data de criação, fechados pela data de aprovação e perdidos pela última atualização. A participação financeira mostra quanto cada produto, família ou categoria representa no valor total fechado do período. Margens só aparecem quando há preço de venda e custo manual confirmado ou custo atual completo retornado pela API; custos pendentes, estimados ou medidas lineares inválidas não entram nos rankings de rentabilidade.</p>
+                      <p className="mt-4 border-t pt-3 text-[11px] leading-relaxed text-muted-foreground">Base do período: orçados pela data de criação, fechados pela data de aprovação e perdidos pela última atualização. Clientes e obras usam o valor total final do orçamento; o ticket médio divide esse valor pela quantidade de orçamentos do indicador. Duplicações são contabilizadas pela data de criação da cópia, pois não existe uma data própria para o evento. A participação financeira mostra quanto cada produto, família ou categoria representa no valor total fechado do período. Margens só aparecem quando há preço de venda e custo manual confirmado ou custo atual completo retornado pela API; custos pendentes, estimados ou medidas lineares inválidas não entram nos rankings de rentabilidade.</p>
                     </CardContent>
                   </Card>
                 )}

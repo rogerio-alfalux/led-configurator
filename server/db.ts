@@ -22,6 +22,7 @@ import { ENV } from './_core/env';
 import { fetchAllAlfaluxProducts, fetchComponentes, fetchAcessoriosProducts, fetchRevendaProducts } from './alfaluxApiService';
 import { getManualUnitCost } from './quoteCostUtils';
 import { buildDashboardProductAnalytics } from './dashboardProductAnalytics';
+import { buildDashboardEntityAnalytics } from './dashboardEntityAnalytics';
 import { getDuplicateQuoteGroupSizes, getDuplicateQuoteKey } from '../shared/quoteGrouping';
 import { getCommercialTotalsToRestore, getNonCommercialQuoteStatus, transfersNonCommercialFinance, type NonCommercialQuoteKind, type NonCommercialLinkType } from '../shared/nonCommercialQuoteFinancial';
 import { normalizeQuoteNumberForLookup } from '../shared/quoteNumberLookup';
@@ -2197,7 +2198,12 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
  */
 export async function getDashboardProductAnalytics(year: number, month?: number, dateFrom?: string, dateTo?: string) {
   const db = await getDb();
-  if (!db) return buildDashboardProductAnalytics([], { products: [], components: [], accessories: [], revendas: [] });
+  if (!db) {
+    return {
+      ...buildDashboardProductAnalytics([], { products: [], components: [], accessories: [], revendas: [] }),
+      entityAnalytics: buildDashboardEntityAnalytics([]),
+    };
+  }
 
   const dateRange = dateFrom && dateTo;
   const createdInPeriod = dateRange
@@ -2241,9 +2247,18 @@ export async function getDashboardProductAnalytics(year: number, month?: number,
     freteIncluded: quotes.freteIncluded,
     difalValue: quotes.difalValue,
     fcpValue: quotes.fcpValue,
+    clientName: quotes.clientName,
+    projectName: quotes.projectName,
+    isManuallyDuplicate: quotes.isManuallyDuplicate,
+    duplicatedFromQuoteId: quotes.duplicatedFromQuoteId,
   }).from(quotes).where(quoteActivityCondition);
 
-  if (activityQuotes.length === 0) return buildDashboardProductAnalytics([], { products: [], components: [], accessories: [], revendas: [] });
+  if (activityQuotes.length === 0) {
+    return {
+      ...buildDashboardProductAnalytics([], { products: [], components: [], accessories: [], revendas: [] }),
+      entityAnalytics: buildDashboardEntityAnalytics([]),
+    };
+  }
 
   const quoteIds = activityQuotes.map((quote) => quote.id);
   const allVersions = await db.select({
@@ -2288,19 +2303,24 @@ export async function getDashboardProductAnalytics(year: number, month?: number,
     fetchRevendaProducts(),
   ]);
 
-  return buildDashboardProductAnalytics(activityQuotes.map((quote) => ({
+  const normalizedQuotes = activityQuotes.map((quote) => ({
     ...quote,
     createdInPeriod: Boolean(quote.createdInPeriod),
     closedInPeriod: Boolean(quote.closedInPeriod),
     lostInPeriod: Boolean(quote.lostInPeriod),
     additionalCost: additionalCostByQuote.get(quote.id) ?? 0,
     items: itemsByQuote.get(quote.id) ?? [],
-  })), {
+  }));
+  const productAnalytics = buildDashboardProductAnalytics(normalizedQuotes, {
     products,
     components: componentResult.items,
     accessories,
     revendas,
   });
+  return {
+    ...productAnalytics,
+    entityAnalytics: buildDashboardEntityAnalytics(normalizedQuotes),
+  };
 }
 
 /**

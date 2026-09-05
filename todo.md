@@ -3451,3 +3451,9 @@
 - [x] Auditar e alinhar o agrupamento de recorrência entre Produto, Família de produto e Categoria de produto
 - [x] Impedir que classificações genéricas ou inferidas produzam rankings contraditórios entre os níveis
 - [x] Cobrir a coerência dos rankings por regressão, validar e salvar checkpoint reversível
+
+## Inteligência de clientes e obras no Dashboard
+- [x] Criar rankings de clientes por recorrência, valor orçado, valor fechado, perdas, volume e rentabilidade
+- [x] Criar rankings de obras por valor orçado, valor fechado, perdas e duplicações no período filtrado
+- [x] Integrar as abas administrativas de Clientes e Obras ao Dashboard respeitando os filtros ativos
+- [x] Cobrir as agregações por regressão, validar a interface e salvar checkpoint reversível
