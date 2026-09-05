@@ -3435,3 +3435,9 @@
 - [x] Organizar a escolha em níveis de Produtos/Categorias, indicador e visualização ampliada do ranking
 - [x] Distribuir informações de produto e categoria em uma leitura ampla, clara e responsiva
 - [x] Validar filtros, tipagem e comportamento responsivo antes de salvar checkpoint reversível
+
+## Métricas combinadas por produto, família e categoria
+- [x] Separar rankings de maior valor, maior quantidade e maior recorrência para orçados e perdidos
+- [x] Disponibilizar os mesmos filtros para Produto, Família de produto e Categoria de produto
+- [x] Auditar margem bruta negativa e esclarecer a base de custo usada em cada ranking
+- [x] Cobrir as novas agregações por regressão, validar a interface e salvar checkpoint reversível

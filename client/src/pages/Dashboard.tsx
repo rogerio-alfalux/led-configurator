@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   ArrowLeft, ClipboardList, CheckCircle, DollarSign, BarChart2, Target,
   Award, Percent, Edit2, Save, X, ShieldAlert, ChevronDown, ChevronUp, Coins,
-  Users, FileDown, TrendingUp, TrendingDown, Package, PieChart, AlertCircle, Activity, FlaskConical, Link2, Receipt, Wrench,
+  Users, FileDown, TrendingUp, TrendingDown, Package, PieChart, AlertCircle, Activity, FlaskConical, Link2, Receipt, Wrench, Layers3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QUOTES_ROUTE } from "@/lib/quotesNavigation";
@@ -103,48 +103,72 @@ function RankRow({ rank, name, value, sub, highlight = false }: {
 type ProductInsightRow = {
   sku: string;
   description: string;
+  family: string;
   category: string;
   quotedAmount: number;
   quotedUnits: number;
+  quotedQuoteCount: number;
   closedAmount: number;
   closedUnits: number;
+  closedQuoteCount: number;
   lostAmount: number;
   lostUnits: number;
+  lostQuoteCount: number;
+  knownCostAmount: number;
   contributionAmount: number | null;
   contributionMarginPercent: number | null;
   grossMarginPercent: number | null;
 };
 
 const PRODUCT_INSIGHT_OPTIONS = {
-  mostQuoted: { label: "Mais orçados", icon: ClipboardList, tone: "text-primary" },
-  mostClosed: { label: "Mais fechados", icon: CheckCircle, tone: "text-emerald-700 dark:text-emerald-400" },
-  mostLost: { label: "Mais perdidos", icon: AlertCircle, tone: "text-red-700 dark:text-red-400" },
+  quotedByValue: { label: "Maior valor orçado", icon: ClipboardList, tone: "text-primary" },
+  quotedByQuantity: { label: "Maior quantidade orçada", icon: Package, tone: "text-primary" },
+  quotedByRecurrence: { label: "Mais recorrente em orçamentos", icon: Layers3, tone: "text-primary" },
+  closedByValue: { label: "Maior valor fechado", icon: CheckCircle, tone: "text-emerald-700 dark:text-emerald-400" },
+  closedByQuantity: { label: "Maior quantidade vendida", icon: Package, tone: "text-emerald-700 dark:text-emerald-400" },
+  closedByRecurrence: { label: "Mais recorrente em vendas", icon: Layers3, tone: "text-emerald-700 dark:text-emerald-400" },
+  lostByValue: { label: "Maior valor perdido", icon: AlertCircle, tone: "text-red-700 dark:text-red-400" },
+  lostByQuantity: { label: "Maior quantidade perdida", icon: Package, tone: "text-red-700 dark:text-red-400" },
+  lostByRecurrence: { label: "Mais recorrente em perdas", icon: Layers3, tone: "text-red-700 dark:text-red-400" },
   highestGrossMargin: { label: "Maior margem bruta", icon: TrendingUp, tone: "text-emerald-700 dark:text-emerald-400" },
   lowestGrossMargin: { label: "Menor margem bruta", icon: TrendingDown, tone: "text-amber-700 dark:text-amber-400" },
   highestContribution: { label: "Maior contribuição", icon: Coins, tone: "text-teal-700 dark:text-teal-400" },
   lowestContribution: { label: "Menor contribuição", icon: Coins, tone: "text-orange-700 dark:text-orange-400" },
-  highestQuantity: { label: "Maior quantidade vendida", icon: Package, tone: "text-primary" },
   lowestQuantity: { label: "Menor quantidade vendida", icon: Package, tone: "text-muted-foreground" },
 } as const;
 
-type ProductInsightScope = "produtos" | "categorias";
+type ProductInsightScope = "produtos" | "familias" | "categorias";
 type ProductInsightMetric = keyof typeof PRODUCT_INSIGHT_OPTIONS;
 
+const PRODUCT_INSIGHT_GROUPS: Array<{ label: string; metrics: ProductInsightMetric[] }> = [
+  { label: "Orçados", metrics: ["quotedByValue", "quotedByQuantity", "quotedByRecurrence"] },
+  { label: "Fechados", metrics: ["closedByValue", "closedByQuantity", "closedByRecurrence"] },
+  { label: "Perdidos", metrics: ["lostByValue", "lostByQuantity", "lostByRecurrence"] },
+  { label: "Rentabilidade", metrics: ["highestGrossMargin", "lowestGrossMargin", "highestContribution", "lowestContribution", "lowestQuantity"] },
+];
+
 function getProductInsightValue(metric: ProductInsightMetric, row: ProductInsightRow): string {
-  if (metric === "mostQuoted") return formatBRL(Number(row.quotedAmount ?? 0));
-  if (metric === "mostClosed") return formatBRL(Number(row.closedAmount ?? 0));
-  if (metric === "mostLost") return formatBRL(Number(row.lostAmount ?? 0));
-  if (metric === "highestQuantity" || metric === "lowestQuantity") return `${Number(row.closedUnits ?? 0).toLocaleString("pt-BR")} un.`;
+  if (metric === "quotedByValue") return formatBRL(Number(row.quotedAmount ?? 0));
+  if (metric === "closedByValue") return formatBRL(Number(row.closedAmount ?? 0));
+  if (metric === "lostByValue") return formatBRL(Number(row.lostAmount ?? 0));
+  if (metric === "quotedByQuantity") return `${Number(row.quotedUnits ?? 0).toLocaleString("pt-BR")} un.`;
+  if (metric === "lostByQuantity") return `${Number(row.lostUnits ?? 0).toLocaleString("pt-BR")} un.`;
+  if (metric === "closedByQuantity" || metric === "lowestQuantity") return `${Number(row.closedUnits ?? 0).toLocaleString("pt-BR")} un.`;
+  if (metric === "quotedByRecurrence") return `${Number(row.quotedQuoteCount ?? 0).toLocaleString("pt-BR")} orç.`;
+  if (metric === "closedByRecurrence") return `${Number(row.closedQuoteCount ?? 0).toLocaleString("pt-BR")} vendas`;
+  if (metric === "lostByRecurrence") return `${Number(row.lostQuoteCount ?? 0).toLocaleString("pt-BR")} perdas`;
   if (metric === "highestGrossMargin" || metric === "lowestGrossMargin") return `${Number(row.grossMarginPercent ?? 0).toFixed(1)}%`;
   return `${Number(row.contributionMarginPercent ?? 0).toFixed(1)}%`;
 }
 
 function getProductInsightSub(metric: ProductInsightMetric, row: ProductInsightRow): string {
-  if (metric === "mostQuoted") return `${Number(row.quotedUnits ?? 0).toLocaleString("pt-BR")} unidades orçadas`;
-  if (metric === "mostClosed") return `${Number(row.closedUnits ?? 0).toLocaleString("pt-BR")} unidades vendidas`;
-  if (metric === "mostLost") return `${Number(row.lostUnits ?? 0).toLocaleString("pt-BR")} unidades perdidas`;
-  if (metric === "highestQuantity" || metric === "lowestQuantity") return `${formatBRL(Number(row.closedAmount ?? 0))} em vendas fechadas`;
-  if (metric === "highestGrossMargin" || metric === "lowestGrossMargin") return `${formatBRL(Number(row.closedAmount ?? 0))} em vendas fechadas`;
+  if (metric === "quotedByValue" || metric === "quotedByRecurrence") return `${Number(row.quotedUnits ?? 0).toLocaleString("pt-BR")} unidades em ${Number(row.quotedQuoteCount ?? 0).toLocaleString("pt-BR")} orçamentos`;
+  if (metric === "quotedByQuantity") return `${formatBRL(Number(row.quotedAmount ?? 0))} orçados em ${Number(row.quotedQuoteCount ?? 0).toLocaleString("pt-BR")} orçamentos`;
+  if (metric === "closedByValue" || metric === "closedByRecurrence") return `${Number(row.closedUnits ?? 0).toLocaleString("pt-BR")} unidades em ${Number(row.closedQuoteCount ?? 0).toLocaleString("pt-BR")} vendas`;
+  if (metric === "closedByQuantity" || metric === "lowestQuantity") return `${formatBRL(Number(row.closedAmount ?? 0))} em ${Number(row.closedQuoteCount ?? 0).toLocaleString("pt-BR")} vendas`;
+  if (metric === "lostByValue" || metric === "lostByRecurrence") return `${Number(row.lostUnits ?? 0).toLocaleString("pt-BR")} unidades em ${Number(row.lostQuoteCount ?? 0).toLocaleString("pt-BR")} perdas`;
+  if (metric === "lostByQuantity") return `${formatBRL(Number(row.lostAmount ?? 0))} perdidos em ${Number(row.lostQuoteCount ?? 0).toLocaleString("pt-BR")} perdas`;
+  if (metric === "highestGrossMargin" || metric === "lowestGrossMargin") return `Custo confirmado de ${formatBRL(Number(row.knownCostAmount ?? 0))}`;
   return `${formatBRL(Number(row.contributionAmount ?? 0))} de margem de contribuição`;
 }
 
@@ -155,7 +179,7 @@ function ProductInsightPanel({ scope, metric, rows }: {
 }) {
   const option = PRODUCT_INSIGHT_OPTIONS[metric];
   const Icon = option.icon;
-  const entityLabel = scope === "produtos" ? "Produtos" : "Categorias";
+  const entityLabel = scope === "produtos" ? "Produtos" : scope === "familias" ? "Famílias de produto" : "Categorias de produto";
   return (
     <Card className="overflow-hidden border-primary/20 shadow-sm">
       <CardHeader className="border-b bg-muted/20 pb-4">
@@ -166,12 +190,17 @@ function ProductInsightPanel({ scope, metric, rows }: {
       </CardHeader>
       <CardContent className="p-0">
         {rows.length === 0 ? <p className="py-12 text-center text-sm text-muted-foreground">Nenhum dado no período para este indicador.</p> : rows.slice(0, 10).map((row, index) => (
-          <div key={`${row.sku}-${row.description}-${index}`} className={`grid grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 sm:px-6 ${index > 0 ? "border-t" : ""} ${index === 0 ? "bg-primary/[0.035]" : "hover:bg-muted/40"}`}>
+          <div key={`${row.sku}-${row.description}-${row.family}-${row.category}-${index}`} className={`grid grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 sm:px-6 ${index > 0 ? "border-t" : ""} ${index === 0 ? "bg-primary/[0.035]" : "hover:bg-muted/40"}`}>
             <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${index === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{index + 1}º</span>
-            <div className="min-w-0"><p className="truncate text-sm font-semibold sm:text-base">{scope === "categorias" ? row.category : row.description}</p><p className="mt-1 truncate text-xs text-muted-foreground">{scope === "produtos" && row.sku ? `${row.sku} · ` : ""}{getProductInsightSub(metric, row)}</p></div>
+            <div className="min-w-0"><p className="truncate text-sm font-semibold sm:text-base">{scope === "produtos" ? row.description : scope === "familias" ? row.family : row.category}</p><p className="mt-1 truncate text-xs text-muted-foreground">{scope === "produtos" && row.sku ? `${row.sku} · ` : ""}{getProductInsightSub(metric, row)}</p></div>
             <span className={`shrink-0 text-sm font-bold tabular-nums sm:text-base ${option.tone}`}>{getProductInsightValue(metric, row)}</span>
           </div>
         ))}
+        {(metric === "highestGrossMargin" || metric === "lowestGrossMargin") && (
+          <div className="border-t bg-muted/30 px-4 py-3 text-xs leading-relaxed text-muted-foreground sm:px-6">
+            <strong className="text-foreground">Como interpretar a margem bruta:</strong> receita das vendas fechadas menos custo confirmado dos produtos. Um percentual negativo significa que o custo confirmado supera o valor vendido, isto é, prejuízo bruto antes de impostos, comissão, frete e demais encargos. Itens com custo estimado ou pendente ficam fora deste ranking.
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -235,7 +264,7 @@ export default function Dashboard() {
   const [exportingReport, setExportingReport] = useState(false);
   const [reportMonth, setReportMonth] = useState(currentMonth);
   const [productInsightScope, setProductInsightScope] = useState<ProductInsightScope>("produtos");
-  const [productInsightMetric, setProductInsightMetric] = useState<ProductInsightMetric>("mostQuoted");
+  const [productInsightMetric, setProductInsightMetric] = useState<ProductInsightMetric>("quotedByValue");
 
   const utils = trpc.useUtils();
 
@@ -262,7 +291,9 @@ export default function Dashboard() {
   const selectedProductInsightRows = useMemo(() => {
     const rankings = productInsightScope === "produtos"
       ? productAnalytics?.rankings
-      : productAnalytics?.categoryRankings;
+      : productInsightScope === "familias"
+        ? productAnalytics?.familyRankings
+        : productAnalytics?.categoryRankings;
     return (rankings?.[productInsightMetric] ?? []) as ProductInsightRow[];
   }, [productAnalytics, productInsightScope, productInsightMetric]);
 
@@ -1032,22 +1063,28 @@ export default function Dashboard() {
                         <p className="py-8 text-center text-sm text-muted-foreground">Apurando produtos e categorias do período…</p>
                       ) : (
                         <Tabs value={productInsightScope} onValueChange={(value) => setProductInsightScope(value as ProductInsightScope)}>
-                          <TabsList className="mb-5 grid w-full grid-cols-2 sm:w-[300px]">
+                          <TabsList className="mb-5 grid w-full grid-cols-3 sm:w-[440px]">
                             <TabsTrigger value="produtos">Produtos</TabsTrigger>
+                            <TabsTrigger value="familias">Famílias</TabsTrigger>
                             <TabsTrigger value="categorias">Categorias</TabsTrigger>
                           </TabsList>
-                          {(["produtos", "categorias"] as ProductInsightScope[]).map((scope) => (
+                          {(["produtos", "familias", "categorias"] as ProductInsightScope[]).map((scope) => (
                             <TabsContent key={scope} value={scope} className="mt-0 space-y-5">
                               <div className="rounded-xl border bg-muted/20 p-4 sm:p-5">
                                 <p className="text-sm font-semibold">Escolha o indicador</p>
-                                <p className="mt-1 text-xs text-muted-foreground">Abra uma análise por vez para comparar os itens com mais espaço e clareza.</p>
-                                <div className="mt-4 flex flex-wrap gap-2">
-                                  {(Object.keys(PRODUCT_INSIGHT_OPTIONS) as ProductInsightMetric[]).map((metric) => {
-                                    const option = PRODUCT_INSIGHT_OPTIONS[metric];
-                                    const Icon = option.icon;
-                                    const selected = productInsightMetric === metric;
-                                    return <Button key={metric} type="button" size="sm" variant={selected ? "default" : "outline"} className="gap-2" onClick={() => setProductInsightMetric(metric)}><Icon className="h-3.5 w-3.5" />{option.label}</Button>;
-                                  })}
+                                <p className="mt-1 text-xs text-muted-foreground">Selecione um contexto e abra uma análise por vez, com a mesma métrica para {scope === "produtos" ? "produtos" : scope === "familias" ? "famílias" : "categorias"}.</p>
+                                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                                  {PRODUCT_INSIGHT_GROUPS.map((group) => <div key={group.label}>
+                                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{group.label}</p>
+                                    <div className="flex flex-wrap gap-2">
+                                      {group.metrics.map((metric) => {
+                                        const option = PRODUCT_INSIGHT_OPTIONS[metric];
+                                        const Icon = option.icon;
+                                        const selected = productInsightMetric === metric;
+                                        return <Button key={metric} type="button" size="sm" variant={selected ? "default" : "outline"} className="gap-2" onClick={() => setProductInsightMetric(metric)}><Icon className="h-3.5 w-3.5" />{option.label}</Button>;
+                                      })}
+                                    </div>
+                                  </div>)}
                                 </div>
                               </div>
                               <ProductInsightPanel scope={scope} metric={productInsightMetric} rows={selectedProductInsightRows} />

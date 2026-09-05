@@ -32,6 +32,7 @@ export type ProductMetric = {
   key: string;
   sku: string;
   description: string;
+  family: string;
   category: string;
   quotedAmount: number;
   quotedUnits: number;
@@ -49,7 +50,8 @@ export type ProductMetric = {
   grossMarginPercent: number | null;
 };
 
-export type CategoryMetric = Omit<ProductMetric, "key" | "sku" | "description"> & { category: string };
+export type FamilyMetric = Omit<ProductMetric, "key" | "sku" | "description" | "category"> & { family: string };
+export type CategoryMetric = Omit<ProductMetric, "key" | "sku" | "description" | "family"> & { category: string };
 
 type MutableMetric = Omit<ProductMetric, "contributionAmount" | "contributionMarginPercent" | "grossMarginPercent"> & {
   knownContributionAmount: number;
@@ -191,9 +193,9 @@ function getItemCost(data: any, quoteMarginPercent: unknown, catalogs: ProductAn
   return { amount: rounded(result.subtotal + linkedAccessoriesCost), estimated: false };
 }
 
-function createMetric(key: string, sku: string, description: string, category: string): MutableMetric {
+function createMetric(key: string, sku: string, description: string, family: string, category: string): MutableMetric {
   return {
-    key, sku, description, category,
+    key, sku, description, family, category,
     quotedAmount: 0, quotedUnits: 0, quotedQuoteCount: 0,
     closedAmount: 0, closedUnits: 0, closedQuoteCount: 0,
     lostAmount: 0, lostUnits: 0, lostQuoteCount: 0,
@@ -208,6 +210,7 @@ function metricResult(metric: MutableMetric): ProductMetric {
     key: metric.key,
     sku: metric.sku,
     description: metric.description,
+    family: metric.family,
     category: metric.category,
     quotedAmount: rounded(metric.quotedAmount),
     quotedUnits: rounded(metric.quotedUnits),
@@ -226,6 +229,27 @@ function metricResult(metric: MutableMetric): ProductMetric {
   };
 }
 
+function getItemClassification(data: any, catalogs: ProductAnalyticsCatalog): { family: string; category: string } {
+  const savedCategory = String(data?.category ?? "").trim();
+  const savedFamily = String(data?.family ?? data?.familia ?? data?.productFamily ?? "").trim();
+  if (data?.isSpecialItem || savedCategory.toLowerCase() === "item especial" || savedCategory.toLowerCase() === "especial") {
+    return { family: savedFamily || "Itens especiais", category: "Itens especiais" };
+  }
+
+  const sku = String(data?.sku ?? "").trim();
+  const description = String(data?.description ?? data?.specialDescription ?? "").trim();
+  const product = selectApiProductForQuoteItem(catalogs.products, sku, description);
+  const component = catalogs.components.find((item) => String(item?.codigo ?? "").trim().toUpperCase() === sku.toUpperCase());
+  const accessory = catalogs.accessories.find((item) => String(item?.codigo ?? item?.sku ?? "").trim().toUpperCase() === sku.toUpperCase());
+  const revenda = catalogs.revendas.find((item) => String(item?.codigo ?? item?.sku ?? "").trim().toUpperCase() === sku.toUpperCase());
+  const source = product ?? component ?? accessory ?? revenda;
+  const sourceCategory = source?.categoria ?? source?.category ?? savedCategory;
+  const sourceFamily = source?.familia ?? source?.family ?? savedFamily ?? component?.tipo ?? savedCategory;
+  const category = String(sourceCategory || "Sem categoria").trim() || "Sem categoria";
+  const family = String(sourceFamily || "Sem família").trim() || "Sem família";
+  return { family, category };
+}
+
 function increaseQuoteCount(metric: MutableMetric, type: "quoted" | "closed" | "lost", quoteId: number, seen: Map<string, Set<number>>) {
   const key = `${type}:${metric.key}`;
   const quoteIds = seen.get(key) ?? new Set<number>();
@@ -240,12 +264,13 @@ function increaseQuoteCount(metric: MutableMetric, type: "quoted" | "closed" | "
 
 export function buildDashboardProductAnalytics(quotes: ProductAnalyticsQuote[], catalogs: ProductAnalyticsCatalog) {
   const products = new Map<string, MutableMetric>();
+  const families = new Map<string, MutableMetric>();
   const categories = new Map<string, MutableMetric>();
   const seenQuoteCounts = new Map<string, Set<number>>();
-  const getMetric = (map: Map<string, MutableMetric>, key: string, sku: string, description: string, category: string) => {
+  const getMetric = (map: Map<string, MutableMetric>, key: string, sku: string, description: string, family: string, category: string) => {
     const existing = map.get(key);
     if (existing) return existing;
-    const metric = createMetric(key, sku, description, category);
+    const metric = createMetric(key, sku, description, family, category);
     map.set(key, metric);
     return metric;
   };
@@ -256,10 +281,10 @@ export function buildDashboardProductAnalytics(quotes: ProductAnalyticsQuote[], 
         const data = typeof raw.itemData === "string" ? JSON.parse(raw.itemData) : raw.itemData as any;
         const sku = String(data?.sku ?? "Sem SKU").trim() || "Sem SKU";
         const description = String(data?.description ?? data?.specialDescription ?? "Item sem descrição").trim() || "Item sem descrição";
-        const category = String(data?.category ?? "Sem categoria").trim() || "Sem categoria";
+        const { family, category } = getItemClassification(data, catalogs);
         const quantity = Math.max(0, amount(data?.qty) || 1);
         const revenue = getItemRevenue(data, quote.discountPercent);
-        return [{ data, sku, description, category, quantity, revenue }];
+        return [{ data, sku, description, family, category, quantity, revenue }];
       } catch {
         return [];
       }
@@ -275,10 +300,12 @@ export function buildDashboardProductAnalytics(quotes: ProductAnalyticsQuote[], 
 
     for (const item of parsedItems) {
       const productKey = `${normalize(item.sku)}|${normalize(item.description)}`;
+      const familyKey = normalize(item.family) || "SEM FAMILIA";
       const categoryKey = normalize(item.category) || "SEM CATEGORIA";
-      const product = getMetric(products, productKey, item.sku, item.description, item.category);
-      const category = getMetric(categories, categoryKey, "", item.category, item.category);
-      const targets = [product, category];
+      const product = getMetric(products, productKey, item.sku, item.description, item.family, item.category);
+      const family = getMetric(families, familyKey, "", item.family, item.family, item.category);
+      const category = getMetric(categories, categoryKey, "", item.category, item.family, item.category);
+      const targets = [product, family, category];
 
       if (quote.createdInPeriod) {
         for (const target of targets) {
@@ -301,7 +328,7 @@ export function buildDashboardProductAnalytics(quotes: ProductAnalyticsQuote[], 
           target.closedAmount += item.revenue;
           target.closedUnits += item.quantity;
           increaseQuoteCount(target, "closed", quote.id, seenQuoteCounts);
-          if (cost.amount === null) {
+          if (cost.amount === null || cost.estimated) {
             target.missingCostAmount += item.revenue;
           } else {
             target.knownCostAmount += cost.amount;
@@ -314,6 +341,7 @@ export function buildDashboardProductAnalytics(quotes: ProductAnalyticsQuote[], 
   }
 
   const productRows = Array.from(products.values()).map(metricResult);
+  const familyRows = Array.from(families.values()).map(metricResult);
   const categoryRows = Array.from(categories.values()).map(metricResult);
   const byAmount = (field: keyof ProductMetric, direction: "asc" | "desc" = "desc") => (a: ProductMetric, b: ProductMetric) => {
     const delta = Number(a[field] ?? 0) - Number(b[field] ?? 0);
@@ -333,32 +361,33 @@ export function buildDashboardProductAnalytics(quotes: ProductAnalyticsQuote[], 
     if (bValue === null) return -1;
     return direction === "desc" ? bValue - aValue : aValue - bValue;
   };
-  const closedProducts = productRows.filter((item) => item.closedAmount > 0);
+  const createRankings = (rows: ProductMetric[]) => {
+    const closedRows = rows.filter((item) => item.closedAmount > 0);
+    return {
+      quotedByValue: rows.filter((item) => item.quotedAmount > 0).sort(byAmount("quotedAmount")).slice(0, 10),
+      quotedByQuantity: rows.filter((item) => item.quotedUnits > 0).sort(byAmount("quotedUnits")).slice(0, 10),
+      quotedByRecurrence: rows.filter((item) => item.quotedQuoteCount > 0).sort(byAmount("quotedQuoteCount")).slice(0, 10),
+      closedByValue: closedRows.slice().sort(byAmount("closedAmount")).slice(0, 10),
+      closedByQuantity: closedRows.filter((item) => item.closedUnits > 0).sort(byAmount("closedUnits")).slice(0, 10),
+      closedByRecurrence: closedRows.filter((item) => item.closedQuoteCount > 0).sort(byAmount("closedQuoteCount")).slice(0, 10),
+      lostByValue: rows.filter((item) => item.lostAmount > 0).sort(byAmount("lostAmount")).slice(0, 10),
+      lostByQuantity: rows.filter((item) => item.lostUnits > 0).sort(byAmount("lostUnits")).slice(0, 10),
+      lostByRecurrence: rows.filter((item) => item.lostQuoteCount > 0).sort(byAmount("lostQuoteCount")).slice(0, 10),
+      highestGrossMargin: closedRows.filter((item) => item.grossMarginPercent !== null).sort(byGrossMargin("desc")).slice(0, 10),
+      lowestGrossMargin: closedRows.filter((item) => item.grossMarginPercent !== null).sort(byGrossMargin("asc")).slice(0, 10),
+      highestContribution: closedRows.filter((item) => item.contributionMarginPercent !== null).sort(byContribution("desc")).slice(0, 10),
+      lowestContribution: closedRows.filter((item) => item.contributionMarginPercent !== null).sort(byContribution("asc")).slice(0, 10),
+      highestQuantity: closedRows.filter((item) => item.closedUnits > 0).sort(byAmount("closedUnits")).slice(0, 10),
+      lowestQuantity: closedRows.filter((item) => item.closedUnits > 0).sort(byAmount("closedUnits", "asc")).slice(0, 10),
+    };
+  };
 
   return {
     products: productRows.sort(byAmount("closedAmount")),
+    families: familyRows.sort(byAmount("closedAmount")),
     categories: categoryRows.sort(byAmount("closedAmount")),
-    rankings: {
-      mostQuoted: productRows.filter((item) => item.quotedAmount > 0).sort(byAmount("quotedAmount")).slice(0, 10),
-      mostClosed: closedProducts.slice().sort(byAmount("closedAmount")).slice(0, 10),
-      mostLost: productRows.filter((item) => item.lostAmount > 0).sort(byAmount("lostAmount")).slice(0, 10),
-      highestGrossMargin: closedProducts.filter((item) => item.grossMarginPercent !== null).sort(byGrossMargin("desc")).slice(0, 10),
-      lowestGrossMargin: closedProducts.filter((item) => item.grossMarginPercent !== null).sort(byGrossMargin("asc")).slice(0, 10),
-      highestContribution: closedProducts.filter((item) => item.contributionMarginPercent !== null).sort(byContribution("desc")).slice(0, 10),
-      lowestContribution: closedProducts.filter((item) => item.contributionMarginPercent !== null).sort(byContribution("asc")).slice(0, 10),
-      highestQuantity: closedProducts.slice().sort(byAmount("closedUnits")).slice(0, 10),
-      lowestQuantity: closedProducts.filter((item) => item.closedUnits > 0).sort(byAmount("closedUnits", "asc")).slice(0, 10),
-    },
-    categoryRankings: {
-      mostQuoted: categoryRows.filter((item) => item.quotedAmount > 0).sort(byAmount("quotedAmount")),
-      mostClosed: categoryRows.filter((item) => item.closedAmount > 0).sort(byAmount("closedAmount")),
-      mostLost: categoryRows.filter((item) => item.lostAmount > 0).sort(byAmount("lostAmount")),
-      highestGrossMargin: categoryRows.filter((item) => item.grossMarginPercent !== null).sort(byGrossMargin("desc")),
-      lowestGrossMargin: categoryRows.filter((item) => item.grossMarginPercent !== null).sort(byGrossMargin("asc")),
-      highestContribution: categoryRows.filter((item) => item.contributionMarginPercent !== null).sort(byContribution("desc")),
-      lowestContribution: categoryRows.filter((item) => item.contributionMarginPercent !== null).sort(byContribution("asc")),
-      highestQuantity: categoryRows.filter((item) => item.closedUnits > 0).sort(byAmount("closedUnits")),
-      lowestQuantity: categoryRows.filter((item) => item.closedUnits > 0).sort(byAmount("closedUnits", "asc")),
-    },
+    rankings: createRankings(productRows),
+    familyRankings: createRankings(familyRows),
+    categoryRankings: createRankings(categoryRows),
   };
 }
