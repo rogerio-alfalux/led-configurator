@@ -26,6 +26,8 @@ describe("buildDashboardProductAnalytics", () => {
     const productB = analytics.products.find((item) => item.sku === "B");
     expect(productA).toMatchObject({ quotedAmount: 300, quotedUnits: 3, closedAmount: 200, closedUnits: 2, lostAmount: 100, lostUnits: 1, contributionAmount: 76 });
     expect(productB).toMatchObject({ quotedAmount: 100, closedAmount: 100, contributionAmount: 48 });
+    expect(productA?.financialSharePercent).toBeCloseTo(66.67, 2);
+    expect(productB?.financialSharePercent).toBeCloseTo(33.33, 2);
     expect(analytics.rankings.quotedByValue[0]?.sku).toBe("A");
     expect(analytics.rankings.quotedByQuantity[0]?.sku).toBe("A");
     expect(analytics.rankings.quotedByRecurrence[0]).toMatchObject({ sku: "A", quotedQuoteCount: 2 });
@@ -35,6 +37,7 @@ describe("buildDashboardProductAnalytics", () => {
     expect(analytics.familyRankings.quotedByValue[0]?.family).toBe("Linha A");
     expect(analytics.categoryRankings.closedByValue[0]?.category).toBe("PERFIS");
     expect(analytics.categoryRankings.highestQuantity[0]?.category).toBe("PERFIS");
+    expect(analytics.rankings.highestContribution[0]).toMatchObject({ sku: "A", financialSharePercent: 66.67 });
   });
 
   it("mantém a contribuição indisponível quando o custo do produto fechado não é conhecido", () => {
@@ -45,6 +48,8 @@ describe("buildDashboardProductAnalytics", () => {
     }], { products: [], components: [], accessories: [], revendas: [] });
 
     expect(analytics.products[0]).toMatchObject({ missingCostAmount: 100, contributionAmount: null, contributionMarginPercent: null });
+    expect(analytics.rankings.highestGrossMargin).toHaveLength(0);
+    expect(analytics.rankings.highestContribution[0]).toMatchObject({ sku: "SEM-CUSTO", financialSharePercent: 100 });
   });
 
   it("trata margem negativa como perda somente quando o custo é confirmado", () => {
@@ -69,5 +74,19 @@ describe("buildDashboardProductAnalytics", () => {
 
     expect(analytics.familyRankings.closedByValue[0]).toMatchObject({ family: "BAGEO" });
     expect(analytics.categoryRankings.closedByValue[0]).toMatchObject({ category: "PERFIS" });
+  });
+
+  it("exclui margem de perfil linear com comprimento legado inválido", () => {
+    const analytics = buildDashboardProductAnalytics([{
+      id: 6, status: "approved", createdInPeriod: true, closedInPeriod: true, lostInPeriod: false,
+      totalFinal: 1_000,
+      items: [{ itemNumber: 1, itemData: JSON.stringify({ sku: "LED BAR 45 DA", description: "LED BAR U DA 10W/M 3000K ON/OFF Bivolt 2MM", category: "LED BAR", qty: 1, unitPrice: 1_000, totalPrice: 1_000, ledBarComprimentoTotalMm: 2 }) }],
+    }], {
+      products: [{ sku: "LED BAR 45 DA", name: "LED BAR 45 DA 10W/M", familia: "LED BAR 45", categoria: "PERFIS", custoCorpoOnoffBivolt: 64.79 }],
+      components: [], accessories: [], revendas: [],
+    });
+
+    expect(analytics.products[0]).toMatchObject({ missingCostAmount: 1_000, grossMarginPercent: null });
+    expect(analytics.rankings.highestGrossMargin).toHaveLength(0);
   });
 });

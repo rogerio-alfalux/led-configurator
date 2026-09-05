@@ -47,13 +47,14 @@ export type ProductMetric = {
   missingCostAmount: number;
   contributionAmount: number | null;
   contributionMarginPercent: number | null;
+  financialSharePercent: number | null;
   grossMarginPercent: number | null;
 };
 
 export type FamilyMetric = Omit<ProductMetric, "key" | "sku" | "description" | "category"> & { family: string };
 export type CategoryMetric = Omit<ProductMetric, "key" | "sku" | "description" | "family"> & { category: string };
 
-type MutableMetric = Omit<ProductMetric, "contributionAmount" | "contributionMarginPercent" | "grossMarginPercent"> & {
+type MutableMetric = Omit<ProductMetric, "contributionAmount" | "contributionMarginPercent" | "financialSharePercent" | "grossMarginPercent"> & {
   knownContributionAmount: number;
   grossProfitAmount: number;
 };
@@ -103,6 +104,14 @@ function getDriverCost(product: any, driverCode: string): { body: number; driver
 function getItemCost(data: any, quoteMarginPercent: unknown, catalogs: ProductAnalyticsCatalog): { amount: number | null; estimated: boolean } {
   const qty = Math.max(0, amount(data.qty) || 1);
   const sku = String(data.sku ?? "").toUpperCase();
+  const category = String(data.category ?? "").toUpperCase();
+  const linearLengthMm = amount(data.ledBarComprimentoTotalMm);
+  // Comprimentos de 1–99 mm em famílias lineares são registros legados com
+  // unidade incorreta, não uma medida comercial utilizável. Sem uma base de
+  // comprimento válida, o custo por metro não pode compor margem confiável.
+  if ((category === "LED BAR" || category === "BAGEO") && linearLengthMm > 0 && linearLengthMm < 100) {
+    return { amount: null, estimated: false };
+  }
   const manual = getManualUnitCost(data.custoManual);
   if (manual > 0) return { amount: rounded(manual * qty), estimated: false };
 
@@ -119,18 +128,21 @@ function getItemCost(data: any, quoteMarginPercent: unknown, catalogs: ProductAn
   const revendaBySku = new Map(catalogs.revendas.filter((item) => item?.codigo).map((item) => [String(item.codigo).toUpperCase(), item]));
 
   let linkedAccessoriesCost = 0;
+  let linkedAccessoriesCostConfirmed = true;
   if (Array.isArray(data.accessories)) {
     linkedAccessoriesCost = data.accessories.reduce((sum: number, accessory: any) => {
       const code = String(accessory?.codigo ?? "").toUpperCase();
       const source = accessoryByCode.get(code) ?? accessoryBySku.get(code) ?? componentByCode.get(code);
       const unitCost = amount(source?.custo ?? source?.custoDriver);
+      if (unitCost <= 0) linkedAccessoriesCostConfirmed = false;
       return sum + unitCost * Math.max(0, amount(accessory?.qty) || 1) * qty;
     }, 0);
   }
+  if (!linkedAccessoriesCostConfirmed) return { amount: null, estimated: false };
 
   if (Array.isArray(data.profileSegments) && data.profileSegments.length > 0) {
     let bodyPerUnit = 0;
-    let bodyFound = false;
+    let allBodiesConfirmed = true;
     let driverQty = 0;
     const firstDriverCode = String(data.profileSegments[0]?.driverCode ?? "").toUpperCase();
     let driverUnitCost = 0;
@@ -140,9 +152,9 @@ function getItemCost(data: any, quoteMarginPercent: unknown, catalogs: ProductAn
       if (segmentProduct) {
         const costs = getDriverCost(segmentProduct, firstDriverCode);
         bodyPerUnit += costs.body * segmentQty;
-        if (costs.body > 0) bodyFound = true;
+        if (costs.body <= 0) allBodiesConfirmed = false;
         if (driverUnitCost === 0) driverUnitCost = costs.driver;
-      }
+      } else allBodiesConfirmed = false;
       driverQty += Math.max(0, amount(segment?.driverQtyPerPiece)) * segmentQty;
     }
     if (Array.isArray(data.driverLines) && data.driverLines.length > 0) {
@@ -153,18 +165,10 @@ function getItemCost(data: any, quoteMarginPercent: unknown, catalogs: ProductAn
     } else {
       driverQty *= qty;
     }
-    return bodyFound
+    const needsDriverCost = driverQty > 0;
+    return allBodiesConfirmed && bodyPerUnit > 0 && (!needsDriverCost || driverUnitCost > 0)
       ? { amount: rounded(bodyPerUnit * qty + driverUnitCost * driverQty + linkedAccessoriesCost), estimated: false }
       : { amount: null, estimated: false };
-  }
-
-  const savedBodyCost = amount(data.custoCorpoBase);
-  if (savedBodyCost > 0) {
-    const savedDriverCost = amount(data.custoDriverBase);
-    const driverQty = Array.isArray(data.driverLines)
-      ? data.driverLines.reduce((sum: number, line: any) => sum + Math.max(0, amount(line?.driverQty)), 0)
-      : Math.max(0, amount(data.driverQtyPerUnit)) * qty;
-    return { amount: rounded(savedBodyCost * qty + savedDriverCost * driverQty + linkedAccessoriesCost), estimated: false };
   }
 
   const revenda = revendaBySku.get(sku);
@@ -175,13 +179,14 @@ function getItemCost(data: any, quoteMarginPercent: unknown, catalogs: ProductAn
   if (amount(accessory?.custo) > 0) return { amount: rounded(amount(accessory.custo) * qty + linkedAccessoriesCost), estimated: false };
 
   const product = selectApiProductForQuoteItem(catalogs.products, sku, data.description);
-  if (!product) return linkedAccessoriesCost > 0 ? { amount: rounded(linkedAccessoriesCost), estimated: false } : { amount: null, estimated: false };
+  if (!product) return { amount: null, estimated: false };
   const driverCode = Array.isArray(data.driverLines) ? String(data.driverLines[0]?.driverCode ?? "").toUpperCase() : "";
   const costs = getDriverCost(product, driverCode);
   if (costs.body <= 0) return { amount: null, estimated: false };
   const driverQty = Array.isArray(data.driverLines)
     ? data.driverLines.reduce((sum: number, line: any) => sum + Math.max(0, amount(line?.driverQty)), 0)
     : Math.max(0, amount(data.driverQtyPerUnit) || amount(product.driverQtd220 ?? product.driverQtdBivolt ?? 1)) * qty;
+  if (driverQty > 0 && costs.driver <= 0) return { amount: null, estimated: false };
   const result = calculateDashboardProductCost({
     category: data.category,
     bodyCost: costs.body,
@@ -225,6 +230,7 @@ function metricResult(metric: MutableMetric): ProductMetric {
     missingCostAmount: rounded(metric.missingCostAmount),
     contributionAmount: hasMissingCost ? null : rounded(metric.knownContributionAmount),
     contributionMarginPercent: hasMissingCost || metric.closedAmount <= 0 ? null : rounded(metric.knownContributionAmount / metric.closedAmount * 100),
+    financialSharePercent: null,
     grossMarginPercent: hasMissingCost || metric.closedAmount <= 0 ? null : rounded(metric.grossProfitAmount / metric.closedAmount * 100),
   };
 }
@@ -375,19 +381,38 @@ export function buildDashboardProductAnalytics(quotes: ProductAnalyticsQuote[], 
       lostByRecurrence: rows.filter((item) => item.lostQuoteCount > 0).sort(byAmount("lostQuoteCount")).slice(0, 10),
       highestGrossMargin: closedRows.filter((item) => item.grossMarginPercent !== null).sort(byGrossMargin("desc")).slice(0, 10),
       lowestGrossMargin: closedRows.filter((item) => item.grossMarginPercent !== null).sort(byGrossMargin("asc")).slice(0, 10),
-      highestContribution: closedRows.filter((item) => item.contributionMarginPercent !== null).sort(byContribution("desc")).slice(0, 10),
-      lowestContribution: closedRows.filter((item) => item.contributionMarginPercent !== null).sort(byContribution("asc")).slice(0, 10),
+      highestContribution: closedRows.filter((item) => item.financialSharePercent !== null).sort(byFinancialShare("desc")).slice(0, 10),
+      lowestContribution: closedRows.filter((item) => item.financialSharePercent !== null).sort(byFinancialShare("asc")).slice(0, 10),
       highestQuantity: closedRows.filter((item) => item.closedUnits > 0).sort(byAmount("closedUnits")).slice(0, 10),
       lowestQuantity: closedRows.filter((item) => item.closedUnits > 0).sort(byAmount("closedUnits", "asc")).slice(0, 10),
     };
   };
 
+  const withFinancialShare = (rows: ProductMetric[]) => {
+    const totalClosedAmount = rows.reduce((sum, item) => sum + item.closedAmount, 0);
+    return rows.map((item) => ({
+      ...item,
+      financialSharePercent: item.closedAmount > 0 && totalClosedAmount > 0 ? rounded(item.closedAmount / totalClosedAmount * 100) : null,
+    }));
+  };
+  const byFinancialShare = (direction: "asc" | "desc") => (a: ProductMetric, b: ProductMetric) => {
+    const aValue = a.financialSharePercent;
+    const bValue = b.financialSharePercent;
+    if (aValue === null) return 1;
+    if (bValue === null) return -1;
+    return direction === "desc" ? bValue - aValue : aValue - bValue;
+  };
+
+  const productRowsWithShare = withFinancialShare(productRows);
+  const familyRowsWithShare = withFinancialShare(familyRows);
+  const categoryRowsWithShare = withFinancialShare(categoryRows);
+
   return {
-    products: productRows.sort(byAmount("closedAmount")),
-    families: familyRows.sort(byAmount("closedAmount")),
-    categories: categoryRows.sort(byAmount("closedAmount")),
-    rankings: createRankings(productRows),
-    familyRankings: createRankings(familyRows),
-    categoryRankings: createRankings(categoryRows),
+    products: productRowsWithShare.sort(byAmount("closedAmount")),
+    families: familyRowsWithShare.sort(byAmount("closedAmount")),
+    categories: categoryRowsWithShare.sort(byAmount("closedAmount")),
+    rankings: createRankings(productRowsWithShare),
+    familyRankings: createRankings(familyRowsWithShare),
+    categoryRankings: createRankings(categoryRowsWithShare),
   };
 }

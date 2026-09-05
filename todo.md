@@ -3441,3 +3441,8 @@
 - [x] Disponibilizar os mesmos filtros para Produto, Família de produto e Categoria de produto
 - [x] Auditar margem bruta negativa e esclarecer a base de custo usada em cada ranking
 - [x] Cobrir as novas agregações por regressão, validar a interface e salvar checkpoint reversível
+
+## Elegibilidade de custo e participação financeira no Dashboard
+- [x] Excluir de margens e resultados rentáveis itens sem custo oficial confirmado e preço de venda válido
+- [x] Redefinir maior e menor contribuição como participação financeira no valor total do período filtrado
+- [x] Ajustar textos dos rankings, cobrir as regras por regressão e salvar checkpoint reversível

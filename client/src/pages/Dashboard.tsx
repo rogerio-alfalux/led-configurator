@@ -117,6 +117,7 @@ type ProductInsightRow = {
   knownCostAmount: number;
   contributionAmount: number | null;
   contributionMarginPercent: number | null;
+  financialSharePercent: number | null;
   grossMarginPercent: number | null;
 };
 
@@ -132,8 +133,8 @@ const PRODUCT_INSIGHT_OPTIONS = {
   lostByRecurrence: { label: "Mais recorrente em perdas", icon: Layers3, tone: "text-red-700 dark:text-red-400" },
   highestGrossMargin: { label: "Maior margem bruta", icon: TrendingUp, tone: "text-emerald-700 dark:text-emerald-400" },
   lowestGrossMargin: { label: "Menor margem bruta", icon: TrendingDown, tone: "text-amber-700 dark:text-amber-400" },
-  highestContribution: { label: "Maior contribuição", icon: Coins, tone: "text-teal-700 dark:text-teal-400" },
-  lowestContribution: { label: "Menor contribuição", icon: Coins, tone: "text-orange-700 dark:text-orange-400" },
+  highestContribution: { label: "Maior participação financeira", icon: Coins, tone: "text-teal-700 dark:text-teal-400" },
+  lowestContribution: { label: "Menor participação financeira", icon: Coins, tone: "text-orange-700 dark:text-orange-400" },
   lowestQuantity: { label: "Menor quantidade vendida", icon: Package, tone: "text-muted-foreground" },
 } as const;
 
@@ -144,7 +145,8 @@ const PRODUCT_INSIGHT_GROUPS: Array<{ label: string; metrics: ProductInsightMetr
   { label: "Orçados", metrics: ["quotedByValue", "quotedByQuantity", "quotedByRecurrence"] },
   { label: "Fechados", metrics: ["closedByValue", "closedByQuantity", "closedByRecurrence"] },
   { label: "Perdidos", metrics: ["lostByValue", "lostByQuantity", "lostByRecurrence"] },
-  { label: "Rentabilidade", metrics: ["highestGrossMargin", "lowestGrossMargin", "highestContribution", "lowestContribution", "lowestQuantity"] },
+  { label: "Rentabilidade", metrics: ["highestGrossMargin", "lowestGrossMargin", "lowestQuantity"] },
+  { label: "Participação financeira no período", metrics: ["highestContribution", "lowestContribution"] },
 ];
 
 function getProductInsightValue(metric: ProductInsightMetric, row: ProductInsightRow): string {
@@ -158,7 +160,7 @@ function getProductInsightValue(metric: ProductInsightMetric, row: ProductInsigh
   if (metric === "closedByRecurrence") return `${Number(row.closedQuoteCount ?? 0).toLocaleString("pt-BR")} vendas`;
   if (metric === "lostByRecurrence") return `${Number(row.lostQuoteCount ?? 0).toLocaleString("pt-BR")} perdas`;
   if (metric === "highestGrossMargin" || metric === "lowestGrossMargin") return `${Number(row.grossMarginPercent ?? 0).toFixed(1)}%`;
-  return `${Number(row.contributionMarginPercent ?? 0).toFixed(1)}%`;
+  return `${Number(row.financialSharePercent ?? 0).toFixed(1)}%`;
 }
 
 function getProductInsightSub(metric: ProductInsightMetric, row: ProductInsightRow): string {
@@ -169,7 +171,7 @@ function getProductInsightSub(metric: ProductInsightMetric, row: ProductInsightR
   if (metric === "lostByValue" || metric === "lostByRecurrence") return `${Number(row.lostUnits ?? 0).toLocaleString("pt-BR")} unidades em ${Number(row.lostQuoteCount ?? 0).toLocaleString("pt-BR")} perdas`;
   if (metric === "lostByQuantity") return `${formatBRL(Number(row.lostAmount ?? 0))} perdidos em ${Number(row.lostQuoteCount ?? 0).toLocaleString("pt-BR")} perdas`;
   if (metric === "highestGrossMargin" || metric === "lowestGrossMargin") return `Custo confirmado de ${formatBRL(Number(row.knownCostAmount ?? 0))}`;
-  return `${formatBRL(Number(row.contributionAmount ?? 0))} de margem de contribuição`;
+  return `${formatBRL(Number(row.closedAmount ?? 0))} no valor financeiro fechado do período`;
 }
 
 function ProductInsightPanel({ scope, metric, rows }: {
@@ -1092,7 +1094,7 @@ export default function Dashboard() {
                           ))}
                         </Tabs>
                       )}
-                      <p className="mt-4 border-t pt-3 text-[11px] leading-relaxed text-muted-foreground">Base do período: orçados pela data de criação, fechados pela data de aprovação e perdidos pela última atualização. A contribuição distribui proporcionalmente impostos, comissões, RT, DIFAL/FCP, frete e custos adicionais entre os itens fechados. Itens sem custo confirmado não recebem margem ou contribuição até a apuração do custo.</p>
+                      <p className="mt-4 border-t pt-3 text-[11px] leading-relaxed text-muted-foreground">Base do período: orçados pela data de criação, fechados pela data de aprovação e perdidos pela última atualização. A participação financeira mostra quanto cada produto, família ou categoria representa no valor total fechado do período. Margens só aparecem quando há preço de venda e custo manual confirmado ou custo atual completo retornado pela API; custos pendentes, estimados ou medidas lineares inválidas não entram nos rankings de rentabilidade.</p>
                     </CardContent>
                   </Card>
                 )}
