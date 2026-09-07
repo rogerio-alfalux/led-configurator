@@ -42,6 +42,7 @@ const DEFAULT_VISIBLE_METRICS: Record<string, boolean> = {
   valueWithoutDuplicates: true,
   ldProspecting: false,
   duplicateValue: true,
+  generalExpenses: false,
 };
 
 export default function Quotes() {
@@ -176,6 +177,31 @@ export default function Quotes() {
     if (quote.status === "approved") return quote.approvedAt ?? quote.updatedAt ?? quote.createdAt;
     return quote.createdAt;
   };
+
+  const generalExpenseQuoteIds = useMemo(() => {
+    if (user?.role !== "admin") return [];
+    return (filteredAllData?.rows ?? [])
+      .filter((quote: any) => {
+        if (!isWithinSelectedDateRange(quote)) return false;
+        const duplicate = isManuallyDuplicate(quote) || quote.isDuplicate;
+        if (duplicateFilter === "duplicates" && !duplicate) return false;
+        if (duplicateFilter === "unique" && duplicate) return false;
+        if (prospectingFilter === "prospecting" && !quote.isProspecting) return false;
+        if (prospectingFilter === "commercial" && quote.isProspecting) return false;
+        const ldRequest = ldRequestByQuoteId.get(Number(quote.id));
+        if (ldOriginFilter === "ld_only" && !ldRequest) return false;
+        if (ldResponseFilter === "awaiting_pdf" && ldRequest?.status !== "in_review") return false;
+        if (ldResponseFilter === "sent_pdf" && ldRequest?.status !== "quote_ready") return false;
+        return true;
+      })
+      .map((quote: any) => Number(quote.id))
+      .filter((id: number) => Number.isInteger(id) && id > 0);
+  }, [user?.role, filteredAllData, dateFrom, dateTo, manualDuplicateOverrides, duplicateFilter, prospectingFilter, ldOriginFilter, ldResponseFilter, ldRequestByQuoteId]);
+  const generalExpensesQueryInput = useMemo(() => ({ quoteIds: generalExpenseQuoteIds }), [generalExpenseQuoteIds]);
+  const generalExpensesQuery = trpc.quotes.generalExpenses.useQuery(
+    generalExpensesQueryInput,
+    { enabled: user?.role === "admin" && generalExpenseQuoteIds.length > 0, staleTime: 30_000 },
+  );
 
   // Estatísticas refletem os filtros ativos
   const stats = useMemo(() => {
@@ -409,7 +435,7 @@ export default function Quotes() {
 
         {/* Cards de estatísticas */}
         {(() => {
-          const metricCards = [
+          const metricCards: Array<{ id: string; label: string; value: string | number; color: string; icon: React.ReactNode; isValue: boolean; sub?: string }> = [
             { id: "total", label: "Total", value: stats.total, color: "text-foreground", icon: <ClipboardList className="w-4 h-4" />, isValue: false },
             { id: "open", label: "Em Aberto", value: stats.open, color: "text-blue-600", icon: <Clock className="w-4 h-4 text-blue-500" />, isValue: false },
             { id: "approved", label: "Aprovados", value: stats.approved, color: "text-green-600", icon: <CheckCircle className="w-4 h-4 text-green-500" />, isValue: false },
@@ -419,6 +445,17 @@ export default function Quotes() {
             { id: "valueWithoutDuplicates", label: "Valor sem duplicados", value: formatBRL(stats.realValue), color: "text-emerald-600", icon: <CheckCircle className="w-4 h-4 text-emerald-500" />, isValue: true },
             { id: "ldProspecting", label: "Prospecções LD", value: formatBRL(stats.prospectingValue), color: "text-indigo-600", icon: <Users className="w-4 h-4 text-indigo-500" />, isValue: true },
             { id: "duplicateValue", label: "Valor dos Duplicados", value: formatBRL(stats.duplicateValue), color: "text-orange-600", icon: <Copy className="w-4 h-4 text-orange-500" />, isValue: true },
+            ...(user.role === "admin" ? [{
+              id: "generalExpenses",
+              label: "Gastos Gerais",
+              value: generalExpensesQuery.isLoading ? "Apurando…" : formatBRL(generalExpensesQuery.data?.total ?? 0),
+              color: "text-rose-600",
+              icon: <TrendingDown className="w-4 h-4 text-rose-500" />,
+              isValue: true,
+              sub: generalExpensesQuery.data
+                ? `${generalExpensesQuery.data.counts.unrecoveredSamples} amostra(s) não recuperada(s) · ${generalExpensesQuery.data.counts.additionalCosts} custo(s) adicional(is) · ${generalExpensesQuery.data.counts.waivedFreights} frete(s) isentado(s)`
+                : "Amostras não cobradas, custos adicionais e fretes isentados",
+            }] : []),
           ];
           return <>
             <details className="group rounded-md border border-dashed border-border bg-muted/20 px-3 py-2">
@@ -446,6 +483,7 @@ export default function Quotes() {
                     </label>
                   </div>
                   <p className={`font-bold tabular-nums ${s.color} ${s.isValue ? "text-base sm:text-lg lg:text-xl leading-tight whitespace-nowrap" : "text-2xl"}`}>{s.value}</p>
+                  {s.sub && <p className="mt-1 line-clamp-2 text-[10px] leading-3 text-muted-foreground">{s.sub}</p>}
                 </Card>
               ))}
             </div>

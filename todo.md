@@ -3457,3 +3457,8 @@
 - [x] Criar rankings de obras por valor orçado, valor fechado, perdas e duplicações no período filtrado
 - [x] Integrar as abas administrativas de Clientes e Obras ao Dashboard respeitando os filtros ativos
 - [x] Cobrir as agregações por regressão, validar a interface e salvar checkpoint reversível
+
+## Gastos Gerais em Meus Orçamentos
+- [x] Consolidar custos de amostras não cobradas, custos adicionais, fretes isentados e demais despesas registradas no período filtrado
+- [x] Adicionar a caixa Gastos Gerais à personalização de indicadores, desabilitada por padrão como Prospecções LD
+- [x] Cobrir o cálculo por regressão, validar a visualização responsiva e salvar checkpoint reversível

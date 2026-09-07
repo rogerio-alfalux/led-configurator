@@ -23,6 +23,7 @@ import { fetchAllAlfaluxProducts, fetchComponentes, fetchAcessoriosProducts, fet
 import { getManualUnitCost } from './quoteCostUtils';
 import { buildDashboardProductAnalytics } from './dashboardProductAnalytics';
 import { buildDashboardEntityAnalytics } from './dashboardEntityAnalytics';
+import { buildQuoteGeneralExpenses } from './quoteGeneralExpenses';
 import { getDuplicateQuoteGroupSizes, getDuplicateQuoteKey } from '../shared/quoteGrouping';
 import { getCommercialTotalsToRestore, getNonCommercialQuoteStatus, transfersNonCommercialFinance, type NonCommercialQuoteKind, type NonCommercialLinkType } from '../shared/nonCommercialQuoteFinancial';
 import { normalizeQuoteNumberForLookup } from '../shared/quoteNumberLookup';
@@ -1025,6 +1026,40 @@ export async function listQuotes(opts: {
   });
 
   return { rows: enrichedRows, total: Number(countResult[0]?.count ?? 0) };
+}
+
+/** Despesas comprovadas de um conjunto de orçamentos, para leitura administrativa. */
+export async function getQuoteGeneralExpenses(quoteIds: number[]) {
+  const db = await getDb();
+  const uniqueQuoteIds = Array.from(new Set(quoteIds.filter((id) => Number.isInteger(id) && id > 0)));
+  if (!db || uniqueQuoteIds.length === 0) {
+    return buildQuoteGeneralExpenses({ samples: [], additionalCosts: [], freights: [] });
+  }
+
+  const [additionalCosts, freightQuotes, sampleRows] = await Promise.all([
+    db.select({ value: quoteAdditionalCosts.valor })
+      .from(quoteAdditionalCosts)
+      .where(inArray(quoteAdditionalCosts.quoteId, uniqueQuoteIds)),
+    db.select({ value: quotes.freteValue, isWaived: quotes.freteIsento })
+      .from(quotes)
+      .where(inArray(quotes.id, uniqueQuoteIds)),
+    db.select({ id: sampleOrders.id, costAmount: sampleOrders.costAmount, kind: sampleOrders.kind, status: sampleOrders.status })
+      .from(sampleOrders)
+      .where(inArray(sampleOrders.quoteId, uniqueQuoteIds)),
+  ]);
+  const sampleIds = sampleRows.map((sample) => sample.id);
+  const transferredSampleIds = sampleIds.length === 0
+    ? new Set<number>()
+    : new Set((await db.select({ sampleOrderId: sampleLinks.sampleOrderId })
+      .from(sampleLinks)
+      .where(and(inArray(sampleLinks.sampleOrderId, sampleIds), sql`${sampleLinks.financialTransferredAt} IS NOT NULL`)))
+      .map((link) => link.sampleOrderId));
+
+  return buildQuoteGeneralExpenses({
+    samples: sampleRows.map((sample) => ({ ...sample, financiallyTransferred: transferredSampleIds.has(sample.id) })),
+    additionalCosts,
+    freights: freightQuotes,
+  });
 }
 
 /** Informa se o orçamento já pertence a uma duplicidade detectada automaticamente. */

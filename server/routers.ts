@@ -13,7 +13,7 @@ import {
   invalidateComponentesCache,
 } from "./alfaluxApiService";
 import {
-  addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty, updateCartItemData, updateCartItemsSortOrder, createQuote, addQuoteRevision, listQuotes, getQuoteById, approveQuote, getRevisionItems,
+  addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty, updateCartItemData, updateCartItemsSortOrder, createQuote, addQuoteRevision, listQuotes, getQuoteGeneralExpenses, getQuoteById, approveQuote, getRevisionItems,
   updateQuoteStatus, markQuoteAsNonCommercial, getQuoteStats, deleteQuote, suggestQuoteNumber, findQuoteByNumber,
   insertAuditLog, getAuditLogs, listSellers, listAssistants,
   createFactoryOrder, getFactoryOrdersByQuoteId, getFactoryOrderById,
@@ -1240,6 +1240,11 @@ export const appRouter = router({
         }
         return listQuotes(input);
       }),
+
+    /** Gastos comprovados do conjunto atualmente filtrado, restritos a administradores. */
+    generalExpenses: adminProcedure
+      .input(z.object({ quoteIds: z.array(z.number().int().positive()).max(10000) }))
+      .query(({ input }) => getQuoteGeneralExpenses(input.quoteIds)),
 
     /** Marca ou remove a classificação de prospecção de lighting designer. */
     setProspecting: commercialQuoteProcedure
