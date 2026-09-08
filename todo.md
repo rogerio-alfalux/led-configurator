@@ -3494,3 +3494,7 @@
 - [x] Garantir que o vínculo de custo adicional não transfira valor comercial para o destino
 - [x] Adicionar o botão Cancelar Manutenção com reversão segura do vínculo e dos custos adicionais
 - [x] Cobrir a regra financeira e o cancelamento por regressão antes do checkpoint reversível
+
+## Relatório de itens sem custo
+- [x] Identificar os itens da revisão vigente de todos os orçamentos que não possuem custo cadastrado
+- [x] Gerar planilha Excel simples com número do orçamento, obra e item sem custo para download
