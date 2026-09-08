@@ -3472,3 +3472,8 @@
 - [x] Calcular Preço unitário sem IPI como o valor C/ IPI dividido por 1,0975
 - [x] Renomear a coluna opcional de IPI para Preço unitário sem IPI em Preview, PDF e Excel
 - [x] Cobrir a fórmula e validar os documentos com IPI destacado antes do checkpoint reversível
+
+## Manutenções em Gastos Gerais e vínculos comerciais
+- [x] Incluir manutenções não recuperadas no cálculo e no resumo de Gastos Gerais do período filtrado
+- [x] Alinhar o vínculo de manutenção aos modos histórico, cobrar e diluir disponíveis para amostras
+- [x] Cobrir transferência, preservação e recuperação de custo de manutenção por regressão e salvar checkpoint reversível

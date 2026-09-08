@@ -18,8 +18,10 @@ function roundCurrency(value: number): number {
 }
 
 /**
- * Soma apenas desembolsos rastreáveis: amostras comerciais ainda não recuperadas,
- * custos adicionais cadastrados e fretes com custo cotado que foram isentados.
+ * Soma apenas desembolsos rastreáveis: amostras e manutenções ainda não
+ * recuperadas, custos adicionais cadastrados e fretes com custo cotado que foram
+ * isentados. Pedidos cobrados ou diluídos em outro orçamento já possuem
+ * financialTransferred e não entram novamente nesta apuração.
  * Não estima despesas e não inclui custos ordinários dos produtos vendidos.
  */
 export function buildQuoteGeneralExpenses(input: {
@@ -27,12 +29,15 @@ export function buildQuoteGeneralExpenses(input: {
   additionalCosts: GeneralExpenseAdditionalCost[];
   freights: GeneralExpenseFreight[];
 }) {
-  const unrecoveredSamples = input.samples.filter((sample) =>
-    sample.kind === "sample"
+  const unrecoveredOrders = input.samples.filter((sample) =>
+    (sample.kind === "sample" || sample.kind === "maintenance")
     && sample.status !== "cancelled"
     && !sample.financiallyTransferred,
   );
+  const unrecoveredSamples = unrecoveredOrders.filter((order) => order.kind === "sample");
+  const unrecoveredMaintenances = unrecoveredOrders.filter((order) => order.kind === "maintenance");
   const sampleCosts = unrecoveredSamples.reduce((total, sample) => total + toPositiveAmount(sample.costAmount), 0);
+  const maintenanceCosts = unrecoveredMaintenances.reduce((total, maintenance) => total + toPositiveAmount(maintenance.costAmount), 0);
   const additionalCosts = input.additionalCosts.reduce((total, cost) => total + toPositiveAmount(cost.value), 0);
   const waivedFreights = input.freights
     .filter((freight) => freight.isWaived)
@@ -40,11 +45,13 @@ export function buildQuoteGeneralExpenses(input: {
 
   return {
     sampleCosts: roundCurrency(sampleCosts),
+    maintenanceCosts: roundCurrency(maintenanceCosts),
     additionalCosts: roundCurrency(additionalCosts),
     waivedFreights: roundCurrency(waivedFreights),
-    total: roundCurrency(sampleCosts + additionalCosts + waivedFreights),
+    total: roundCurrency(sampleCosts + maintenanceCosts + additionalCosts + waivedFreights),
     counts: {
       unrecoveredSamples: unrecoveredSamples.length,
+      unrecoveredMaintenances: unrecoveredMaintenances.length,
       additionalCosts: input.additionalCosts.filter((cost) => toPositiveAmount(cost.value) > 0).length,
       waivedFreights: input.freights.filter((freight) => freight.isWaived && toPositiveAmount(freight.value) > 0).length,
     },

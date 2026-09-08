@@ -4401,13 +4401,13 @@ export default function QuoteDetail() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="associar">Apenas associar (mesma obra)</SelectItem>
-                        <SelectItem value="cobrar">Cobrar valor da amostra</SelectItem>
-                        <SelectItem value="diluir">Diluir valor no pedido</SelectItem>
+                        <SelectItem value="associar">Somente vincular para histórico</SelectItem>
+                        <SelectItem value="cobrar">Cobrar valor {linkSourceKind === "maintenance" ? "da manutenção" : "da amostra"}</SelectItem>
+                        <SelectItem value="diluir">Diluir valor {linkSourceKind === "maintenance" ? "da manutenção" : "da amostra"} no pedido</SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {sampleLinkType === "associar" && "Vincula sem cobrar — apenas para rastreabilidade."}
+                      {sampleLinkType === "associar" && `Vincula ${linkSourceKind === "maintenance" ? "a manutenção" : "a amostra"} apenas para histórico; não transfere cobrança e o custo permanece no pedido de origem.`}
                       {sampleLinkType === "cobrar" && `O valor ${linkSourceKind === "maintenance" ? "da manutenção" : "da amostra"} será cobrado integralmente no pedido vinculado.`}
                       {sampleLinkType === "diluir" && `O valor ${linkSourceKind === "maintenance" ? "da manutenção" : "da amostra"} será diluído proporcionalmente no pedido.`}
                     </p>

@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 import { buildQuoteGeneralExpenses } from "./quoteGeneralExpenses";
 
 describe("buildQuoteGeneralExpenses", () => {
-  it("soma somente amostras comerciais ainda não recuperadas, custos adicionais e fretes isentados", () => {
+  it("soma amostras e manutenções ainda não recuperadas, custos adicionais e fretes isentados", () => {
     const summary = buildQuoteGeneralExpenses({
       samples: [
         { kind: "sample", status: "active", costAmount: "850.50" },
         { kind: "sample", status: "linked", costAmount: "300", financiallyTransferred: true },
         { kind: "maintenance", status: "active", costAmount: "100" },
+        { kind: "maintenance", status: "linked", costAmount: "250", financiallyTransferred: true },
         { kind: "sample", status: "cancelled", costAmount: "50" },
       ],
       additionalCosts: [{ value: "120" }, { value: 80 }, { value: 0 }],
@@ -16,10 +17,11 @@ describe("buildQuoteGeneralExpenses", () => {
 
     expect(summary).toEqual({
       sampleCosts: 850.5,
+      maintenanceCosts: 100,
       additionalCosts: 200,
       waivedFreights: 75,
-      total: 1125.5,
-      counts: { unrecoveredSamples: 1, additionalCosts: 2, waivedFreights: 1 },
+      total: 1225.5,
+      counts: { unrecoveredSamples: 1, unrecoveredMaintenances: 1, additionalCosts: 2, waivedFreights: 1 },
     });
   });
 
@@ -31,6 +33,6 @@ describe("buildQuoteGeneralExpenses", () => {
     });
 
     expect(summary.total).toBe(0);
-    expect(summary.counts).toEqual({ unrecoveredSamples: 1, additionalCosts: 0, waivedFreights: 0 });
+    expect(summary.counts).toEqual({ unrecoveredSamples: 1, unrecoveredMaintenances: 0, additionalCosts: 0, waivedFreights: 0 });
   });
 });

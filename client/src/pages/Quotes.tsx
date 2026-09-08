@@ -453,8 +453,8 @@ export default function Quotes() {
               icon: <TrendingDown className="w-4 h-4 text-rose-500" />,
               isValue: true,
               sub: generalExpensesQuery.data
-                ? `${generalExpensesQuery.data.counts.unrecoveredSamples} amostra(s) não recuperada(s) · ${generalExpensesQuery.data.counts.additionalCosts} custo(s) adicional(is) · ${generalExpensesQuery.data.counts.waivedFreights} frete(s) isentado(s)`
-                : "Amostras não cobradas, custos adicionais e fretes isentados",
+                ? `${generalExpensesQuery.data.counts.unrecoveredSamples} amostra(s) não recuperada(s) · ${generalExpensesQuery.data.counts.unrecoveredMaintenances} manutenção(ões) não recuperada(s) · ${generalExpensesQuery.data.counts.additionalCosts} custo(s) adicional(is) · ${generalExpensesQuery.data.counts.waivedFreights} frete(s) isentado(s)`
+                : "Amostras e manutenções não recuperadas, custos adicionais e fretes isentados",
             }] : []),
           ];
           return <>
