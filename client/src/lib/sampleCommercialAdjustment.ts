@@ -2,7 +2,7 @@ import type { CartItemData } from "./cartTypes";
 
 export type LinkedSampleCommercialAdjustment = {
   linkId: number;
-  linkType: "cobrar" | "diluir" | "associar";
+  linkType: "cobrar" | "diluir" | "associar" | "custo_adicional";
   sourceQuoteNumber: string;
   amount: number | string | null;
   productDescriptions: string[];
@@ -37,7 +37,7 @@ export function buildSampleCommercialProjection(input: ProjectionInput) {
 
   for (const link of input.links) {
     const finalAmount = asAmount(link.amount);
-    if (finalAmount <= 0 || link.linkType === "associar") continue;
+    if (finalAmount <= 0 || link.linkType === "associar" || link.linkType === "custo_adicional") continue;
     const baseAmount = sampleChargeBaseAmount(finalAmount, input);
     if (link.linkType === "diluir") {
       dilutionBaseAmount += baseAmount;

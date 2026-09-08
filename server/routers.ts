@@ -38,6 +38,7 @@ import {
   getQuoteAdditionalCosts,
   createQuoteAdditionalCost,
   deleteQuoteAdditionalCost,
+  createSampleLinkWithAdditionalCost,
   getTotalAdditionalCosts,
   createSampleOrder,
   listSampleOrders,
@@ -2132,11 +2133,14 @@ export const appRouter = router({
           }
         }
 
-        const transferredCost = inboundTransfers.reduce((sum, transfer) => sum + Number(transfer.cost ?? 0), 0);
+        // O modo custo_adicional já é lido de quoteAdditionalCosts no Dashboard de Lucro.
+        // Excluí-lo daqui evita que o mesmo custo seja deduzido duas vezes.
+        const inboundCostTransfers = inboundTransfers.filter((transfer) => transfer.linkType !== "custo_adicional");
+        const transferredCost = inboundCostTransfers.reduce((sum, transfer) => sum + Number(transfer.cost ?? 0), 0);
         if (transferredCost > 0) {
           totalCusto += transferredCost;
           temCusto = true;
-          for (const transfer of inboundTransfers) {
+          for (const transfer of inboundCostTransfers) {
             itemDetails.push({
               itemNumber: -Number(transfer.linkId),
               sku: "AMOSTRA/MANUTENÇÃO",
@@ -3195,7 +3199,7 @@ export const appRouter = router({
       .input(z.object({
         sampleOrderId: z.number(),
         linkedQuoteId: z.number(),
-        linkType: z.enum(["cobrar", "diluir", "associar"]),
+        linkType: z.enum(["cobrar", "diluir", "associar", "custo_adicional"]),
         notes: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
@@ -3218,15 +3222,29 @@ export const appRouter = router({
           existingLinkedQuoteIds: existingLinks.map((link) => link.linkedQuoteId),
         });
         if (validationError) throw new TRPCError({ code: "CONFLICT", message: validationError });
-        const result = await createSampleLink({
-          sampleOrderId: input.sampleOrderId,
-          linkedQuoteId: input.linkedQuoteId,
-          linkType: input.linkType,
-          notes: input.notes,
-          createdByUserId: ctx.user.id,
-          transferredRevenue: Number(sourceOrder.originalTotalFinal ?? sourceOrder.originalTotalAmount ?? 0),
-          transferredCost: Number(sourceOrder.costAmount ?? 0),
-        });
+        const sourceCost = Number(sourceOrder.costAmount ?? 0);
+        if (input.linkType === "custo_adicional" && (!Number.isFinite(sourceCost) || sourceCost <= 0)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Este pedido não possui custo confirmado para incluir no orçamento vinculado." });
+        }
+        const kindLabel = sourceOrder.kind === "maintenance" ? "manutenção" : "amostra";
+        const result = input.linkType === "custo_adicional"
+          ? await createSampleLinkWithAdditionalCost({
+            sampleOrderId: input.sampleOrderId,
+            linkedQuoteId: input.linkedQuoteId,
+            notes: input.notes,
+            createdByUserId: ctx.user.id,
+            transferredCost: sourceCost,
+            descricao: `Custo de ${kindLabel} vinculada (pedido #${sourceOrder.id})`,
+          })
+          : await createSampleLink({
+            sampleOrderId: input.sampleOrderId,
+            linkedQuoteId: input.linkedQuoteId,
+            linkType: input.linkType,
+            notes: input.notes,
+            createdByUserId: ctx.user.id,
+            transferredRevenue: Number(sourceOrder.originalTotalFinal ?? sourceOrder.originalTotalAmount ?? 0),
+            transferredCost: sourceCost,
+          });
         if (input.linkType === "cobrar" || input.linkType === "diluir") {
           await applyNonCommercialRevenueTransfer(
             input.linkedQuoteId,
@@ -3257,6 +3275,9 @@ export const appRouter = router({
         const existingLink = await getSampleLinkById(input.id);
         if (existingLink?.financialTransferredAt) {
           await reverseNonCommercialRevenueTransfer(existingLink.linkedQuoteId, Number(existingLink.transferredRevenue ?? 0));
+        }
+        if (existingLink?.additionalCostId) {
+          await deleteQuoteAdditionalCost(existingLink.additionalCostId);
         }
         await deleteSampleLink(input.id);
         // Verificar se ainda tem links; se não, voltar status para active
@@ -3297,6 +3318,9 @@ export const appRouter = router({
         for (const link of links) {
           if (link.financialTransferredAt) {
             await reverseNonCommercialRevenueTransfer(link.linkedQuoteId, Number(link.transferredRevenue ?? 0));
+          }
+          if (link.additionalCostId) {
+            await deleteQuoteAdditionalCost(link.additionalCostId);
           }
         }
         await deleteSampleOrder(input.id, input.quoteId);

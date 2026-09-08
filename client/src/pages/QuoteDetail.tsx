@@ -990,7 +990,7 @@ export default function QuoteDetail() {
   const [linkSourceOrderId, setLinkSourceOrderId] = useState<number | null>(null);
   const [linkSourceKind, setLinkSourceKind] = useState<"sample" | "maintenance">("sample");
   const [sampleLinkQuoteNumber, setSampleLinkQuoteNumber] = useState("");
-  const [sampleLinkType, setSampleLinkType] = useState<"cobrar" | "diluir" | "associar">("associar");
+  const [sampleLinkType, setSampleLinkType] = useState<"cobrar" | "diluir" | "associar" | "custo_adicional">("associar");
   const [sampleLinkNotes, setSampleLinkNotes] = useState("");
   const sampleLinkLookupInput = useMemo(() => ({ quoteNumber: sampleLinkQuoteNumber.trim() }), [sampleLinkQuoteNumber]);
   const [orderNumberInput, setOrderNumberInput] = useState("");
@@ -1910,7 +1910,7 @@ export default function QuoteDetail() {
   const sampleCommercialProjection = useMemo(() => buildSampleCommercialProjection({
     links: (sampleCommercialAdjustmentsQuery.data ?? []).map((link) => ({
       linkId: link.linkId,
-      linkType: link.linkType as "cobrar" | "diluir" | "associar",
+      linkType: link.linkType as "cobrar" | "diluir" | "associar" | "custo_adicional",
       sourceQuoteNumber: link.sourceQuoteNumber,
       amount: link.amount,
       productDescriptions: link.productDescriptions,
@@ -4413,12 +4413,14 @@ export default function QuoteDetail() {
                         <SelectItem value="associar">Somente vincular para histórico</SelectItem>
                         <SelectItem value="cobrar">Cobrar valor {linkSourceKind === "maintenance" ? "da manutenção" : "da amostra"}</SelectItem>
                         <SelectItem value="diluir">Diluir valor {linkSourceKind === "maintenance" ? "da manutenção" : "da amostra"} no pedido</SelectItem>
+                        <SelectItem value="custo_adicional">Incluir custo adicional (abater do lucro)</SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground mt-1">
                       {sampleLinkType === "associar" && `Vincula ${linkSourceKind === "maintenance" ? "a manutenção" : "a amostra"} apenas para histórico; não transfere cobrança e o custo permanece no pedido de origem.`}
                       {sampleLinkType === "cobrar" && `O valor ${linkSourceKind === "maintenance" ? "da manutenção" : "da amostra"} será cobrado integralmente no pedido vinculado.`}
                       {sampleLinkType === "diluir" && `O valor ${linkSourceKind === "maintenance" ? "da manutenção" : "da amostra"} será diluído proporcionalmente no pedido.`}
+                      {sampleLinkType === "custo_adicional" && `O custo ${linkSourceKind === "maintenance" ? "da manutenção" : "da amostra"} será lançado como custo adicional no orçamento vinculado, abatendo seu lucro sem alterar o valor comercial.`}
                     </p>
                   </div>
                   <div>
@@ -4468,7 +4470,11 @@ export default function QuoteDetail() {
                   {sampleFinancialTransfer ? "Quitado e transferido" : sampleQuery.data.status === "active" ? "Ativo" : sampleQuery.data.status === "linked" ? "Vinculado" : sampleQuery.data.status}
                 </Badge>
               </div>
-              {sampleFinancialTransfer && <p className="rounded bg-sky-100 px-2 py-1 text-xs text-sky-800 dark:bg-sky-900/30 dark:text-sky-300">Custo e receita transferidos ao orçamento vinculado por {sampleFinancialTransfer.linkType === "diluir" ? "diluição" : "cobrança"}.</p>}
+              {sampleFinancialTransfer && <p className="rounded bg-sky-100 px-2 py-1 text-xs text-sky-800 dark:bg-sky-900/30 dark:text-sky-300">
+                {sampleFinancialTransfer.linkType === "custo_adicional"
+                  ? "Custo adicional lançado no orçamento vinculado; o valor comercial da amostra permaneceu inalterado."
+                  : `Custo e receita transferidos ao orçamento vinculado por ${sampleFinancialTransfer.linkType === "diluir" ? "diluição" : "cobrança"}.`}
+              </p>}
               {(sampleQuery.data as any).links?.length > 0 && (
                 <div className="border-t pt-2 mt-2 space-y-1">
                   <p className="text-xs font-medium text-muted-foreground">Vinculações:</p>
@@ -4528,7 +4534,11 @@ export default function QuoteDetail() {
                   {maintenanceFinancialTransfer ? "Quitada e transferida" : maintenanceQuery.data.status === "active" ? "Ativo" : maintenanceQuery.data.status === "linked" ? "Vinculado" : maintenanceQuery.data.status}
                 </Badge>
               </div>
-              {maintenanceFinancialTransfer && <p className="rounded bg-sky-100 px-2 py-1 text-xs text-sky-800 dark:bg-sky-900/30 dark:text-sky-300">Custo e receita transferidos ao orçamento vinculado por {maintenanceFinancialTransfer.linkType === "diluir" ? "diluição" : "cobrança"}.</p>}
+              {maintenanceFinancialTransfer && <p className="rounded bg-sky-100 px-2 py-1 text-xs text-sky-800 dark:bg-sky-900/30 dark:text-sky-300">
+                {maintenanceFinancialTransfer.linkType === "custo_adicional"
+                  ? "Custo adicional lançado no orçamento vinculado; o valor comercial da manutenção permaneceu inalterado."
+                  : `Custo e receita transferidos ao orçamento vinculado por ${maintenanceFinancialTransfer.linkType === "diluir" ? "diluição" : "cobrança"}.`}
+              </p>}
               {((maintenanceQuery.data as any).links?.length ?? 0) > 0 && (
                 <div className="border-t pt-2 mt-2 space-y-1">
                   <p className="text-xs font-medium text-muted-foreground">Vinculações:</p>

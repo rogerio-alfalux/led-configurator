@@ -7,8 +7,11 @@ const dbMocks = vi.hoisted(() => ({
   getQuoteById: vi.fn(),
   listSampleLinks: vi.fn(),
   createSampleLink: vi.fn(),
+  getSampleLinkById: vi.fn(),
   applyNonCommercialRevenueTransfer: vi.fn(),
   reverseNonCommercialRevenueTransfer: vi.fn(),
+  deleteQuoteAdditionalCost: vi.fn(),
+  createSampleLinkWithAdditionalCost: vi.fn(),
   deleteSampleOrder: vi.fn(),
   getNonCommercialFinancialTransferBySourceQuoteId: vi.fn(),
   getNonCommercialFinancialTransfersByTargetQuoteId: vi.fn(),
@@ -61,6 +64,8 @@ describe("samples.findQuoteByNumber and samples.link", () => {
     dbMocks.updateSampleOrder.mockResolvedValue(undefined);
     dbMocks.applyNonCommercialRevenueTransfer.mockResolvedValue(undefined);
     dbMocks.reverseNonCommercialRevenueTransfer.mockResolvedValue(undefined);
+    dbMocks.deleteQuoteAdditionalCost.mockResolvedValue(undefined);
+    dbMocks.createSampleLinkWithAdditionalCost.mockResolvedValue({ id: 90, additionalCostId: 501 });
     dbMocks.deleteSampleOrder.mockResolvedValue(undefined);
     dbMocks.getNonCommercialFinancialTransferBySourceQuoteId.mockResolvedValue(null);
     dbMocks.getNonCommercialFinancialTransfersByTargetQuoteId.mockResolvedValue([]);
@@ -119,6 +124,26 @@ describe("samples.findQuoteByNumber and samples.link", () => {
     expect(dbMocks.applyNonCommercialRevenueTransfer).not.toHaveBeenCalled();
   });
 
+  it.each(["sample", "maintenance"] as const)("records the %s cost as an additional cost without changing destination revenue", async (kind) => {
+    const caller = appRouter.createCaller(createContext());
+    dbMocks.getSampleOrderById.mockResolvedValue({ id: 71, quoteId: 5, kind, costAmount: "10.00", originalTotalFinal: "120" });
+    dbMocks.getQuoteById.mockResolvedValue({ quote: { id: 8, status: "open" }, items: [], versions: [] });
+    dbMocks.listSampleLinks.mockResolvedValue([]);
+    dbMocks.createSampleLinkWithAdditionalCost.mockResolvedValue({ id: 90, additionalCostId: 501 });
+
+    await caller.samples.link({ sampleOrderId: 71, linkedQuoteId: 8, linkType: "custo_adicional" });
+
+    expect(dbMocks.applyNonCommercialRevenueTransfer).not.toHaveBeenCalled();
+    expect(dbMocks.createSampleLinkWithAdditionalCost).toHaveBeenCalledWith({
+      sampleOrderId: 71,
+      linkedQuoteId: 8,
+      notes: undefined,
+      createdByUserId: 44,
+      transferredCost: 10,
+      descricao: `Custo de ${kind === "maintenance" ? "manutenção" : "amostra"} vinculada (pedido #71)`,
+    });
+  });
+
   it("reverts every financial transfer before cancelling the original order", async () => {
     const caller = appRouter.createCaller(createContext());
     dbMocks.getSampleOrderById.mockResolvedValue({ id: 71, quoteId: 5, kind: "sample" });
@@ -154,6 +179,20 @@ describe("samples.findQuoteByNumber and samples.link", () => {
     });
   });
 
+  it("does not add the same cost twice when the vínculo already created an additional cost", async () => {
+    const caller = appRouter.createCaller(createContext());
+    dbMocks.getNonCommercialFinancialTransferBySourceQuoteId.mockResolvedValue(null);
+    dbMocks.getNonCommercialFinancialTransfersByTargetQuoteId.mockResolvedValue([
+      { linkId: 90, linkType: "custo_adicional", sourceQuoteNumber: "33.9995-26", cost: "10.00" },
+    ]);
+    dbMocks.getQuoteById.mockResolvedValue({ quote: { id: 8, marginPercent: "0" }, items: [], versions: [] });
+
+    await expect(caller.quotes.calculateCost({ quoteId: 8 })).resolves.toMatchObject({
+      custoProdutos: 0,
+      transferredCost: 0,
+    });
+  });
+
   it("keeps the original cost and adds no destination cost for a simple association", async () => {
     const caller = appRouter.createCaller(createContext());
     dbMocks.getQuoteById.mockResolvedValue({
@@ -166,6 +205,22 @@ describe("samples.findQuoteByNumber and samples.link", () => {
 
     dbMocks.getQuoteById.mockResolvedValue({ quote: { id: 8, marginPercent: "0" }, items: [], versions: [] });
     await expect(caller.quotes.calculateCost({ quoteId: 8 })).resolves.toMatchObject({ custoProdutos: 0, transferredCost: 0 });
+  });
+
+  it("removes the linked additional cost when the vínculo is undone", async () => {
+    const caller = appRouter.createCaller(createContext());
+    dbMocks.getSampleLinkById.mockResolvedValue({
+      id: 90,
+      linkedQuoteId: 8,
+      transferredRevenue: "0",
+      financialTransferredAt: "2026-09-08 12:00:00",
+      additionalCostId: 501,
+    });
+    dbMocks.listSampleLinks.mockResolvedValue([]);
+
+    await expect(caller.samples.unlink({ id: 90, sampleOrderId: 71 })).resolves.toEqual({ success: true });
+
+    expect(dbMocks.deleteQuoteAdditionalCost).toHaveBeenCalledWith(501);
   });
 
   it("rejects self-links and duplicate links before writing anything", async () => {

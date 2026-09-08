@@ -555,9 +555,11 @@ export const sampleLinks = mysqlTable("sample_links", {
 	notes: text(),
 	/** Receita comercial transferida para o orçamento de destino ao cobrar ou diluir. */
 	transferredRevenue: decimal({ precision: 14, scale: 2 }),
-	/** Custo do pedido sem cobrança transferido para o orçamento de destino. */
-	transferredCost: decimal({ precision: 14, scale: 2 }),
-	/** Momento em que a transferência financeira foi efetivada. Nulo em vínculo simples. */
+  /** Custo do pedido sem cobrança transferido para o orçamento de destino. */
+  transferredCost: decimal({ precision: 14, scale: 2 }),
+  /** Custo adicional criado no orçamento de destino pelo modo custo_adicional, para reversão precisa. */
+  additionalCostId: int(),
+  /** Momento em que a transferência financeira foi efetivada. Nulo em vínculo simples. */
 	financialTransferredAt: timestamp({ mode: 'string' }),
 	/** Usuário que criou a vinculação */
 	createdByUserId: int(),

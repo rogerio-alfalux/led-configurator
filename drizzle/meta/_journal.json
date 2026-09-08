@@ -330,6 +330,13 @@
       "when": 1788536868186,
       "tag": "0046_majestic_fixer",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "5",
+      "when": 1788882441705,
+      "tag": "0047_skinny_wilson_fisk",
+      "breakpoints": true
     }
   ]
 }

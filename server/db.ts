@@ -25,7 +25,7 @@ import { buildDashboardProductAnalytics } from './dashboardProductAnalytics';
 import { buildDashboardEntityAnalytics } from './dashboardEntityAnalytics';
 import { buildQuoteGeneralExpenses } from './quoteGeneralExpenses';
 import { getDuplicateQuoteGroupSizes, getDuplicateQuoteKey } from '../shared/quoteGrouping';
-import { getCommercialTotalsToRestore, getNonCommercialQuoteStatus, transfersNonCommercialFinance, type NonCommercialQuoteKind, type NonCommercialLinkType } from '../shared/nonCommercialQuoteFinancial';
+import { getCommercialTotalsToRestore, getNonCommercialQuoteStatus, transfersNonCommercialFinance, transfersNonCommercialRevenue, type NonCommercialQuoteKind, type NonCommercialLinkType } from '../shared/nonCommercialQuoteFinancial';
 import { normalizeQuoteNumberForLookup } from '../shared/quoteNumberLookup';
 import { ADMIN_PENDING_LD_STATUSES } from './ldRequestBadgeStatus';
 import { brasiliaDateToUtcSqlTimestamp, getBrasiliaYear2, toBrasiliaSqlTimestamp, toUtcSqlTimestamp } from './timeUtils';
@@ -3023,13 +3023,48 @@ export async function createSampleLink(data: {
     linkedQuoteId: data.linkedQuoteId,
     linkType: data.linkType,
     notes: data.notes ?? null,
-    transferredRevenue: transfersNonCommercialFinance(data.linkType) ? String(data.transferredRevenue ?? 0) : null,
+    transferredRevenue: transfersNonCommercialRevenue(data.linkType) ? String(data.transferredRevenue ?? 0) : null,
     transferredCost: transfersNonCommercialFinance(data.linkType) ? String(data.transferredCost ?? 0) : null,
     financialTransferredAt: transfersNonCommercialFinance(data.linkType) ? nowUtcStr() : null,
     createdByUserId: data.createdByUserId,
   });
   const id = (result as unknown as { insertId: number }[])[0]?.insertId ?? 0;
   return { id };
+}
+
+/** Cria de forma atômica o vínculo que transfere somente custo ao orçamento comercial de destino. */
+export async function createSampleLinkWithAdditionalCost(data: {
+  sampleOrderId: number;
+  linkedQuoteId: number;
+  notes?: string;
+  createdByUserId: number;
+  transferredCost: number;
+  descricao: string;
+}): Promise<{ id: number; additionalCostId: number }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.transaction(async (tx) => {
+    const linkResult = await tx.insert(sampleLinks).values({
+      sampleOrderId: data.sampleOrderId,
+      linkedQuoteId: data.linkedQuoteId,
+      linkType: "custo_adicional",
+      notes: data.notes ?? null,
+      transferredRevenue: null,
+      transferredCost: String(data.transferredCost),
+      financialTransferredAt: nowUtcStr(),
+      createdByUserId: data.createdByUserId,
+    });
+    const linkId = Number((linkResult as unknown as { insertId: number }[])[0]?.insertId ?? 0);
+    const additionalCostResult = await tx.insert(quoteAdditionalCosts).values({
+      quoteId: data.linkedQuoteId,
+      descricao: data.descricao,
+      valor: data.transferredCost.toFixed(2) as any,
+      createdByUserId: data.createdByUserId,
+    });
+    const additionalCostId = Number((additionalCostResult as unknown as { insertId: number }[])[0]?.insertId ?? 0);
+    await tx.update(sampleLinks).set({ additionalCostId }).where(eq(sampleLinks.id, linkId));
+    return { id: linkId, additionalCostId };
+  });
 }
 
 /** Aplica a receita de amostra ou manutenção cobrada/diluída ao orçamento que a absorveu. */
@@ -3065,6 +3100,7 @@ export async function listSampleLinks(sampleOrderId: number) {
     notes: sampleLinks.notes,
     transferredRevenue: sampleLinks.transferredRevenue,
     transferredCost: sampleLinks.transferredCost,
+    additionalCostId: sampleLinks.additionalCostId,
     financialTransferredAt: sampleLinks.financialTransferredAt,
     createdByUserId: sampleLinks.createdByUserId,
     createdAt: sampleLinks.createdAt,
@@ -3104,6 +3140,7 @@ export async function getSampleCommercialAdjustments(linkedQuoteId: number) {
       originalTotalFinal: sampleOrders.originalTotalFinal,
       transferredRevenue: sampleLinks.transferredRevenue,
       transferredCost: sampleLinks.transferredCost,
+      additionalCostId: sampleLinks.additionalCostId,
       financialTransferredAt: sampleLinks.financialTransferredAt,
     })
     .from(sampleLinks)

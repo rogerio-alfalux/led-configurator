@@ -14,6 +14,7 @@ describe("sample commercial adjustment", () => {
         { linkId: 1, linkType: "cobrar", sourceQuoteNumber: "33.9995-26", amount: "3954.89", productDescriptions: ["BLAZE H 9605mm"] },
         { linkId: 2, linkType: "diluir", sourceQuoteNumber: "33.9994-26", amount: "100.00", productDescriptions: ["Produto anterior"] },
         { linkId: 3, linkType: "associar", sourceQuoteNumber: "33.9993-26", amount: "200.00", productDescriptions: [] },
+        { linkId: 4, linkType: "custo_adicional", sourceQuoteNumber: "33.9992-26", amount: "300.00", productDescriptions: ["Produto anterior"] },
       ],
     });
     expect(projection.chargeItems).toHaveLength(1);

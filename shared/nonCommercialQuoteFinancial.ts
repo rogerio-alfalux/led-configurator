@@ -4,10 +4,15 @@ export type CommercialTotals = {
 };
 
 export type NonCommercialQuoteKind = 'sample' | 'maintenance';
-export type NonCommercialLinkType = 'cobrar' | 'diluir' | 'associar';
+export type NonCommercialLinkType = 'cobrar' | 'diluir' | 'associar' | 'custo_adicional';
 
-/** Cobrar e diluir transferem financeiramente o pedido original; associar preserva seu custo. */
+/** Cobrar, diluir e custo adicional movimentam financeiramente o pedido original; associar preserva seu custo na origem. */
 export function transfersNonCommercialFinance(linkType: NonCommercialLinkType): boolean {
+  return linkType === 'cobrar' || linkType === 'diluir' || linkType === 'custo_adicional';
+}
+
+/** Apenas cobrar e diluir alteram a receita comercial do orçamento de destino. */
+export function transfersNonCommercialRevenue(linkType: NonCommercialLinkType): boolean {
   return linkType === 'cobrar' || linkType === 'diluir';
 }
 

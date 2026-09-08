@@ -3482,3 +3482,9 @@
 - [x] Retirar KEITE FAGUNDES das opções ativas de assistente
 - [x] Exigir o formato xx.xxxx-xx com ponto e hífen em toda criação e edição de número de orçamento
 - [x] Cobrir as regras por regressão e salvar checkpoint reversível
+
+## Custo adicional em vínculos de amostras e manutenções
+- [x] Criar o modo Incluir custo adicional para transferir o custo da origem como despesa no orçamento vinculado
+- [x] Manter valor comercial inalterado e abater exclusivamente o lucro do orçamento de destino
+- [x] Garantir reversão segura do custo adicional ao desfazer ou alterar o vínculo
+- [x] Cobrir os modos de amostra e manutenção por regressão e salvar checkpoint reversível

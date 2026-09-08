@@ -3,7 +3,7 @@ export type ResolvedLinkQuote = { id: number } | null;
 export type SampleLinkPayload = {
   sampleOrderId: number;
   linkedQuoteId: number;
-  linkType: "cobrar" | "diluir" | "associar";
+  linkType: "cobrar" | "diluir" | "associar" | "custo_adicional";
   notes?: string;
 };
 
