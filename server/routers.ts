@@ -93,6 +93,7 @@ import { generateAndStoreCompleteBackup } from "./backupService";
 import { getQuoteStatusAuthorizationError } from "./quoteStatusPolicy";
 import { getUserCreationRoleAuthorizationError } from "../shared/userCreationAccess";
 import { isCostDepartmentRole, isSpecialItemEligibleForManualCost } from "../shared/costDepartmentAccess";
+import { isCommercialQuoteNumber } from "../shared/quoteNumberFormat";
 
 // ─── Controle de acesso a orçamentos ─────────────────────────────────────────
 /** Emails dos gestores com acesso irrestrito a todos os orçamentos */
@@ -941,6 +942,9 @@ export const appRouter = router({
         showDiscount: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
+        if (input.quoteNumber?.trim() && !isCommercialQuoteNumber(input.quoteNumber)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "O número do orçamento deve seguir o formato xx.xxxx-xx." });
+        }
         const identityTeam = await getIdentityBoundTeam(ctx.user);
         const boundInput = { ...input, ...identityTeam };
         const saveInput = {
@@ -1097,6 +1101,14 @@ export const appRouter = router({
         // Verificar permissão de edição
         const existingForRevision = await getQuoteById(quoteId);
         if (!existingForRevision) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
+        const requestedQuoteNumber = input.quoteNumber?.trim();
+        if (
+          requestedQuoteNumber
+          && requestedQuoteNumber !== existingForRevision.quote.quoteNumber
+          && !isCommercialQuoteNumber(requestedQuoteNumber)
+        ) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "O número do orçamento deve seguir o formato xx.xxxx-xx." });
+        }
         const linkedLdRequestForRevision = await getGuestQuoteRequestByAdminQuoteId(quoteId);
         const needsLdCommercialNumber = Boolean(linkedLdRequestForRevision) && (
           isLdDraftQuoteNumber(existingForRevision.quote.quoteNumber)
@@ -1392,6 +1404,9 @@ export const appRouter = router({
           || await canEditQuote(ctx.user.email, source.quote, ctx.user.role, ctx.user.id);
         if (!canDuplicate) throw new TRPCError({ code: "FORBIDDEN", message: "Você não possui permissão para duplicar este orçamento." });
         // Validar unicidade do número personalizado antes de duplicar
+        if (input.newQuoteNumber?.trim() && !isCommercialQuoteNumber(input.newQuoteNumber)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "O número do novo orçamento deve seguir o formato xx.xxxx-xx." });
+        }
         if (input.newQuoteNumber) {
           const dup = await checkDuplicateQuoteNumber(input.newQuoteNumber);
           if (dup) {

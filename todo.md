@@ -3477,3 +3477,8 @@
 - [x] Incluir manutenções não recuperadas no cálculo e no resumo de Gastos Gerais do período filtrado
 - [x] Alinhar o vínculo de manutenção aos modos histórico, cobrar e diluir disponíveis para amostras
 - [x] Cobrir transferência, preservação e recuperação de custo de manutenção por regressão e salvar checkpoint reversível
+
+## Assistentes e formato de número de orçamento
+- [x] Retirar KEITE FAGUNDES das opções ativas de assistente
+- [x] Exigir o formato xx.xxxx-xx com ponto e hífen em toda criação e edição de número de orçamento
+- [x] Cobrir as regras por regressão e salvar checkpoint reversível

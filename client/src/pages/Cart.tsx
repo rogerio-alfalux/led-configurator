@@ -53,6 +53,7 @@ import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 import { StateCitySelector, isSaoPauloCapital } from "@/components/StateCitySelector";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@shared/permissions";
+import { formatCommercialQuoteNumberInput, isCommercialQuoteNumber } from "@shared/quoteNumberFormat";
 import { toBrasiliaDate } from "@/lib/dateUtils";
 import { parseShiftModuleManualPrice } from "@/lib/shiftModulePrices";
 import { applyCCTChange } from "@/lib/cctUtils";
@@ -1240,6 +1241,10 @@ function StandardCart() {
       toast.error("Informe o Número do Projeto ou marque \"Sem Projeto\".");
       return;
     }
+    if (saveForm.quoteNumber.trim() && !isCommercialQuoteNumber(saveForm.quoteNumber)) {
+      toast.error("O número do orçamento deve seguir o formato xx.xxxx-xx.");
+      return;
+    }
     const teamValidationError = getQuoteTeamValidationError({
       role: userRole,
       sellerId: saveForm.seller1Id,
@@ -1725,16 +1730,20 @@ function StandardCart() {
                                   value={saveForm.quoteNumber}
                                   placeholder={suggestQuery.isLoading ? "Calculando..." : "Selecione o Vendedor 1"}
                                   className="font-mono"
+                                  inputMode="numeric"
+                                  maxLength={10}
                                   onChange={e => {
                                     setUserEditedQuoteNumber(true);
-                                    updateSaveForm("quoteNumber", e.target.value);
+                                    updateSaveForm("quoteNumber", formatCommercialQuoteNumberInput(e.target.value));
                                   }}
                                 />
                                 <p className="text-xs text-muted-foreground mt-1">
                                   {suggestQuery.isLoading
                                     ? "Calculando número..."
+                                    : saveForm.quoteNumber && isCommercialQuoteNumber(saveForm.quoteNumber)
+                                    ? "✓ Número no formato xx.xxxx-xx"
                                     : saveForm.quoteNumber
-                                    ? `✓ Gerado automaticamente no formato XX.NNNN-AA`
+                                    ? "Complete o formato xx.xxxx-xx"
                                     : "Selecione o Vendedor 1 para gerar o número automaticamente"}
                                 </p>
                               </div>

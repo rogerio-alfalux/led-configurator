@@ -44,6 +44,7 @@ import { CartItemData, formatBRL, parseCartItemData, extractPowerLabelFromName, 
 import { buildUnambiguousCatalogPhotoMap, resolveCatalogItemPhoto } from "@/lib/itemPhoto";
 import { formatLinkedCommercialQuote } from "@/lib/sampleLinkPresentation";
 import { isLdRequestLinkedToQuote } from "@/lib/ldRequestUtils";
+import { formatCommercialQuoteNumberInput, isCommercialQuoteNumber } from "@shared/quoteNumberFormat";
 import { handleLdPdfSent } from "@/lib/ldAdminBadgeRefresh";
 import { linkSampleOrderByQuoteNumber } from "@/lib/sampleLinkFlow";
 import { buildSampleCommercialProjection } from "@/lib/sampleCommercialAdjustment";
@@ -3267,11 +3268,13 @@ export default function QuoteDetail() {
                     <Input
                       value={duplicateQuoteNumber}
                       onChange={e => {
-                        setDuplicateQuoteNumber(e.target.value);
+                        setDuplicateQuoteNumber(formatCommercialQuoteNumberInput(e.target.value));
                         setDuplicateNumberError("");
                       }}
                       placeholder={suggestNumberQuery.data?.suggested ?? "Gerando sugestão..."}
                       className={checkNumberQuery.data?.exists ? "border-destructive focus-visible:ring-destructive" : ""}
+                      inputMode="numeric"
+                      maxLength={10}
                     />
                     {duplicateQuoteNumber.trim() && checkNumberQuery.isFetching && (
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">verificando...</span>
@@ -3288,6 +3291,9 @@ export default function QuoteDetail() {
                       <CheckCircle className="w-3.5 h-3.5" />
                       Número disponível.
                     </p>
+                  )}
+                  {duplicateQuoteNumber.trim() && !isCommercialQuoteNumber(duplicateQuoteNumber) && (
+                    <p className="text-xs text-destructive">Complete o número no formato xx.xxxx-xx.</p>
                   )}
                   <p className="text-xs text-muted-foreground">
                     Deixe em branco para usar o próximo número sugerido ({suggestNumberQuery.data?.suggested ?? "..."}).
@@ -3348,7 +3354,7 @@ export default function QuoteDetail() {
                     newAssistantId: duplicateAssistantId === "VENDEDOR" ? -1 : (duplicateAssistantId ? parseInt(duplicateAssistantId) : undefined),
                     newAssistantName: duplicateAssistantId === "VENDEDOR" ? "VENDEDOR" : (duplicateAssistantId ? (editAssistants.find(a => String(a.id) === duplicateAssistantId)?.name ?? undefined) : undefined),
                   })}
-                  disabled={duplicateMutation.isPending || (duplicateQuoteNumber.trim().length > 0 && !!checkNumberQuery.data?.exists)}
+                  disabled={duplicateMutation.isPending || (duplicateQuoteNumber.trim().length > 0 && (!isCommercialQuoteNumber(duplicateQuoteNumber) || !!checkNumberQuery.data?.exists))}
                   className="gap-2"
                 >
                   <Copy className="w-4 h-4" />
@@ -3635,11 +3641,13 @@ export default function QuoteDetail() {
                     <Label>Número do Orçamento</Label>
                     <Input
                       value={editForm.quoteNumber}
-                      onChange={e => { setEditNumberWasManuallyChanged(true); setEditForm(f => ({ ...f, quoteNumber: e.target.value })); }}
+                      onChange={e => { setEditNumberWasManuallyChanged(true); setEditForm(f => ({ ...f, quoteNumber: formatCommercialQuoteNumberInput(e.target.value) })); }}
                       className="font-mono"
+                      inputMode="numeric"
+                      maxLength={10}
                       placeholder={ldDraftNeedsCommercialNumber && !editForm.seller1Id ? "Selecione o vendedor para sugerir" : "Ex: 31.0127-26"}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">{ldDraftNeedsCommercialNumber ? "Selecione o Vendedor 1 para sugerir o número. Você pode alterá-lo: o número informado por você é soberano." : "Você pode editar o número manualmente."}</p>
+                    <p className={`text-xs mt-1 ${editForm.quoteNumber.trim() && !isCommercialQuoteNumber(editForm.quoteNumber) && !isLdProvisionalQuoteNumber ? "text-destructive" : "text-muted-foreground"}`}>{editForm.quoteNumber.trim() && !isCommercialQuoteNumber(editForm.quoteNumber) && !isLdProvisionalQuoteNumber ? "Complete o formato xx.xxxx-xx." : ldDraftNeedsCommercialNumber ? "Selecione o Vendedor 1 para sugerir o número. Você pode alterá-lo: o número informado por você é soberano." : "Você pode editar o número manualmente no formato xx.xxxx-xx."}</p>
                   </div>
                   <div>
                     <Label>Notas desta revisão</Label>
@@ -4142,6 +4150,7 @@ export default function QuoteDetail() {
                   onClick={() => {
                     if (!editForm.clientName.trim()) { toast.error("Nome do cliente é obrigatório."); return; }
                     if (!editForm.projectNumber.trim()) { toast.error("Informe o Número do Projeto ou marque \"Sem Projeto\"."); return; }
+                    if (editForm.quoteNumber.trim() && !isCommercialQuoteNumber(editForm.quoteNumber) && editForm.quoteNumber.trim() !== quote.quoteNumber) { toast.error("O número do orçamento deve seguir o formato xx.xxxx-xx."); return; }
                     const editRtPctVal = Math.min(Math.max(parseFloat(editForm.rtPercent || "0") / 100, 0), 0.99);
                     const editMarginPctVal = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, 0), 0.99);
                     const totalComRTVal = editRtPctVal > 0 ? editTotalBase / (1 - editRtPctVal) : editTotalBase;
