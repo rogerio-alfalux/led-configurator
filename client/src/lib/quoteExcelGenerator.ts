@@ -321,7 +321,7 @@ async function _generateExcelBuffer(
     { key: "J", width: 14   },  // COR
     { key: "K", width: showIpi ? 13 : 14 }, // TEMPERATURA DE COR (K)
     { key: "L", width: 7    },  // QTD
-    { key: "M", width: 13   },  // PREÇO UNITÁRIO
+    { key: "M", width: 13   },  // PREÇO UNITÁRIO SEM IPI quando aplicável
     ...(showIpi
       ? [
           { key: "N", width: 14 }, // C/ IPI (9,75%)
@@ -521,7 +521,7 @@ async function _generateExcelBuffer(
     { col: "J", label: "COR" },
     { col: "K", label: "TEMPERATURA\nDE COR (K)" },
     { col: "L", label: "QTD" },
-    { col: "M", label: "PREÇO\nUNITÁRIO" },
+    { col: "M", label: showIpi ? "PREÇO UNITÁRIO\nSEM IPI" : "PREÇO\nUNITÁRIO" },
     ...(showIpi ? [{ col: "N", label: "C/ IPI\n(9,75%)" }] : []),
     { col: totalPriceCol, label: "PREÇO\nTOTAL" },
   ];

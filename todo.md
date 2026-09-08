@@ -3467,3 +3467,8 @@
 - [x] Investigar a divergência entre o cabeçalho e a Receita Total do orçamento 04.0432-26
 - [x] Corrigir a composição de receita do Dashboard sem alterar preços, revisões ou documentos
 - [x] Cobrir a regressão do total comercial e salvar checkpoint reversível
+
+## Coluna de IPI destacada
+- [x] Calcular Preço unitário sem IPI como o valor C/ IPI dividido por 1,0975
+- [x] Renomear a coluna opcional de IPI para Preço unitário sem IPI em Preview, PDF e Excel
+- [x] Cobrir a fórmula e validar os documentos com IPI destacado antes do checkpoint reversível

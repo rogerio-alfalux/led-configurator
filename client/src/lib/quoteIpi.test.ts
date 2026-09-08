@@ -60,10 +60,10 @@ function findRowByModelText(worksheet: ExcelJS.Worksheet, needle: string): numbe
 }
 
 describe("destaque opcional de IPI", () => {
-  it("reduz efetivamente 9,75% do preço original", () => {
+  it("calcula o preço sem IPI dividindo o preço com IPI por 1,0975", () => {
     expect(QUOTE_IPI_RATE).toBe(0.0975);
-    expect(getUnitPriceWithoutIpi(100)).toBeCloseTo(90.25, 8);
-    expect(getUnitPriceWithoutIpi(272.77)).toBeCloseTo(246.174925, 8);
+    expect(getUnitPriceWithoutIpi(100)).toBeCloseTo(91.1161731207, 8);
+    expect(getUnitPriceWithoutIpi(272.77)).toBeCloseTo(248.5375854214, 8);
     expect(getQuotePreviewColumnCount(false)).toBe(12);
     expect(getQuotePreviewColumnCount(true)).toBe(13);
     expect(getQuotePreviewColumnWidths(false)).toHaveLength(12);
@@ -86,7 +86,7 @@ describe("destaque opcional de IPI", () => {
 
   it("mostra preço sem IPI, preço original e total inalterado em produtos, acessórios e drivers", async () => {
     const worksheet = await loadQuoteWorksheet(true);
-    expect(worksheet.getCell("M18").value).toBe("PREÇO\nUNITÁRIO");
+    expect(worksheet.getCell("M18").value).toBe("PREÇO UNITÁRIO\nSEM IPI");
     expect(worksheet.getCell("N18").value).toBe("C/ IPI\n(9,75%)");
     expect(worksheet.getCell("O18").value).toBe("PREÇO\nTOTAL");
     expect(getQuotePreviewColumnWidths(true)[1]).toBe(9);
@@ -98,19 +98,19 @@ describe("destaque opcional de IPI", () => {
     expect(worksheet.getCell("F18").alignment?.shrinkToFit).toBe(true);
     expect(worksheet.getCell("K18").alignment?.shrinkToFit).toBe(true);
 
-    expect(worksheet.getCell("M19").value).toBeCloseTo(90.25, 8);
+    expect(worksheet.getCell("M19").value).toBeCloseTo(91.1161731207, 8);
     expect(worksheet.getCell("N19").value).toBeCloseTo(100, 8);
     expect(worksheet.getCell("O19").value).toBeCloseTo(200, 8);
 
     const accessoryRow = findRowByModelText(worksheet, "Acessório teste IPI");
     expect(accessoryRow).toBeGreaterThan(0);
-    expect(worksheet.getCell(`M${accessoryRow}`).value).toBeCloseTo(18.05, 8);
+    expect(worksheet.getCell(`M${accessoryRow}`).value).toBeCloseTo(18.2232346241, 8);
     expect(worksheet.getCell(`N${accessoryRow}`).value).toBeCloseTo(20, 8);
     expect(worksheet.getCell(`O${accessoryRow}`).value).toBeCloseTo(40, 8);
 
     const driverRow = findRowByModelText(worksheet, "Driver teste IPI");
     expect(driverRow).toBeGreaterThan(0);
-    expect(worksheet.getCell(`M${driverRow}`).value).toBeCloseTo(45.125, 8);
+    expect(worksheet.getCell(`M${driverRow}`).value).toBeCloseTo(45.5580865604, 8);
     expect(worksheet.getCell(`N${driverRow}`).value).toBeCloseTo(50, 8);
     expect(worksheet.getCell(`O${driverRow}`).value).toBeCloseTo(100, 8);
   });
@@ -120,7 +120,9 @@ describe("destaque opcional de IPI", () => {
     const standardPdf = await generateQuotePdfBlob([itemWithSubitems], { ...form, showIpi: false });
     const ipiPdf = await generateQuotePdfBlob([itemWithSubitems], { ...form, showIpi: true });
     expect(await standardPdf.text()).not.toContain("C/ IPI");
-    expect(await ipiPdf.text()).toContain("C/ IPI");
+    const ipiPdfText = await ipiPdf.text();
+    expect(ipiPdfText).toContain("SEM IPI");
+    expect(ipiPdfText).toContain("C/ IPI");
     vi.unstubAllGlobals();
   });
 });

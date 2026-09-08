@@ -50,7 +50,7 @@ export function QuoteExportOptionsDialog({
           <span className="space-y-1">
             <span className="block text-sm font-medium">Mostrar coluna de IPI (9,75%)</span>
             <span className="block text-xs leading-relaxed text-muted-foreground">
-              O Preço Unitário será exibido sem 9,75% e a coluna C/ IPI manterá o preço original. O Preço Total não será alterado.
+              O Preço unitário sem IPI será calculado por C/ IPI (9,75%) ÷ 1,0975. A coluna C/ IPI manterá o preço original e o Preço Total não será alterado.
             </span>
           </span>
         </label>

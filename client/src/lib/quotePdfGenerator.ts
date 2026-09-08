@@ -489,7 +489,7 @@ async function _generatePdfBlob(
     "PLANTA", "FOTO", "MODELO ALFALUX",
     showIpi ? "COMP.\n(mm)" : "COMP.", "POT.", "DIM", "TENSÃO", "COR", showIpi ? "TEMP.\nCOR" : "TEMP. COR",
     "QTD",
-    ...(showIpi ? ["PREÇO UNITÁRIO", "C/ IPI (9,75%)"] : []),
+    ...(showIpi ? ["PREÇO UNITÁRIO\nSEM IPI", "C/ IPI (9,75%)"] : []),
     "PREÇO TOTAL",
   ];
   const dynamicColumnStyles: Record<number, { cellWidth: number; halign: "left" | "center" | "right" }> = {};

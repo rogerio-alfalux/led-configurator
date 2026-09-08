@@ -900,7 +900,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
               </colgroup>
               <thead>
                 <tr>
-                  {["ITEM EM\nPLANTA", "FOTO", "MODELO ALFALUX", "COMPRIMENTO\n(mm)", "POTÊNCIA\n(W)", "DIM", "TENSÃO\n(V)", "COR", "TEMPERATURA\nDE COR (K)", "QTD", "PREÇO\nUNITÁRIO", ...(showIpi ? ["C/ IPI\n(9,75%)"] : []), "PREÇO\nTOTAL"].map((h) => {
+                  {["ITEM EM\nPLANTA", "FOTO", "MODELO ALFALUX", "COMPRIMENTO\n(mm)", "POTÊNCIA\n(W)", "DIM", "TENSÃO\n(V)", "COR", "TEMPERATURA\nDE COR (K)", "QTD", ...(showIpi ? ["PREÇO UNITÁRIO\nSEM IPI", "C/ IPI\n(9,75%)"] : ["PREÇO\nUNITÁRIO"]), "PREÇO\nTOTAL"].map((h) => {
                     const useIpiCompactHeader = showIpi && (h === "COMPRIMENTO\n(mm)" || h === "TEMPERATURA\nDE COR (K)");
                     const useBaseCompactHeader = h === "COMPRIMENTO\n(mm)" || h === "POTÊNCIA\n(W)";
                     return <th key={h} className={useIpiCompactHeader ? "quote-ipi-compact-header" : undefined} style={useIpiCompactHeader ? ipiCompactHeaderStyle : useBaseCompactHeader ? compactHeaderStyle : thStyle}>{h}</th>;

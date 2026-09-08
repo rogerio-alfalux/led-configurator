@@ -10,7 +10,7 @@ export const QUOTE_PREVIEW_COLUMN_COUNT = 12;
 export const QUOTE_PREVIEW_COLUMN_WIDTHS = [5, 9, 20, 9, 7, 6, 6, 8, 8, 4, 9, 9] as const;
 
 /**
- * Proporções A4 quando a coluna C/ IPI é exibida entre Unitário e Total.
+ * Proporções A4 quando Preço unitário sem IPI e C/ IPI são exibidos antes do Total.
  * A foto ganha 1 ponto percentual para acomodar e centralizar melhor a imagem;
  * o espaço é compensado em Modelo e Temperatura de Cor, cujos cabeçalhos ficam
  * tipograficamente compactos somente neste modo.
