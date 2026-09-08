@@ -3498,3 +3498,8 @@
 ## Relatório de itens sem custo
 - [x] Identificar os itens da revisão vigente de todos os orçamentos que não possuem custo cadastrado
 - [x] Gerar planilha Excel simples com número do orçamento, obra e item sem custo para download
+
+## Correção da origem do custo adicional vinculado
+- [x] Auditar os vínculos de amostras e manutenções para identificar qualquer custo adicional baseado em preço de venda
+- [x] Corrigir a transferência para usar somente o custo confirmado da origem e reparar lançamentos incorretos
+- [x] Cobrir a regra por regressão, validar o Dashboard de Lucro e salvar checkpoint reversível

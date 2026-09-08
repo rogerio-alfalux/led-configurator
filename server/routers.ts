@@ -3,6 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { calculateDashboardProductCost, getActiveQuoteVersionId, getManualUnitCost, selectActiveQuoteItems, selectApiProductForQuoteItem } from "./quoteCostUtils";
+import { getConfirmedNonCommercialOrderCost } from "./nonCommercialOrderCost";
 import {
   fetchAllAlfaluxProducts,
   invalidateAlfaluxCache,
@@ -3069,37 +3070,12 @@ export const appRouter = router({
         // Buscar dados do orçamento
         const quoteData = await getQuoteById(input.quoteId);
         if (!quoteData) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado." });
-        const { quote, items } = quoteData;
+        const { quote, items, versions } = quoteData;
         const relatedNonCommercialOrder = await getSampleOrderByQuoteId(input.quoteId);
         const originalCommercialTotals = resolveOriginalCommercialTotals(quote, relatedNonCommercialOrder);
-        // Calcular custo real (sem markup) somando custoCorpoBase * qty de cada item
-        // custoCorpoBase é o custo da API antes de aplicar qualquer markup
-        let totalCusto = 0;
-        console.log(`[Sample] items count: ${items.length}`);
-        for (const item of items) {
-          try {
-            const parsed = JSON.parse(item.itemData);
-            const custo = parsed.custoCorpoBase ?? 0;
-            const qty = parsed.qty ?? 1;
-            console.log(`[Sample] item ${item.itemNumber}: custoCorpoBase=${custo}, qty=${qty}, subtotal=${custo*qty}`);
-            totalCusto += custo * qty;
-            // Adicionar custo dos drivers (custoDriverBase é por unidade de driver)
-            if (parsed.custoDriverBase && parsed.driverLines && Array.isArray(parsed.driverLines)) {
-              for (const dl of parsed.driverLines) {
-                totalCusto += parsed.custoDriverBase * (dl.driverQty ?? 0);
-              }
-            }
-          } catch { /* skip unparseable items */ }
-        }
-        // Fallback: se nenhum item tem custoCorpoBase, reverter margem do totalAmount
-        const totalSale = parseFloat(String(quote.totalAmount)) || 0;
-        const marginPct = parseFloat(String(quote.marginPercent)) || 0;
-        const discountPct = parseFloat(String((quote as any).discountPercent)) || 0;
-        const fallbackCost = discountPct < 1
-          ? Math.round(totalSale * (1 - marginPct) / (1 - discountPct) * 100) / 100
-          : Math.round(totalSale * (1 - marginPct) * 100) / 100;
-        const costAmount = totalCusto > 0 ? Math.round(totalCusto * 100) / 100 : fallbackCost;
-        console.log(`[Sample] totalCusto=${totalCusto}, fallbackCost=${fallbackCost}, costAmount=${costAmount}`);
+        const confirmedCost = getConfirmedNonCommercialOrderCost(selectActiveQuoteItems(versions, items));
+        const costAmount = confirmedCost.isComplete ? confirmedCost.amount : 0;
+        console.log(`[Sample] custo confirmado=${costAmount}, itens sem custo=${confirmedCost.missingItemNumbers.join(",") || "nenhum"}`);
         const result = await createSampleOrder({
           quoteId: input.quoteId,
           clientName: quote.clientName,
@@ -3222,9 +3198,16 @@ export const appRouter = router({
           existingLinkedQuoteIds: existingLinks.map((link) => link.linkedQuoteId),
         });
         if (validationError) throw new TRPCError({ code: "CONFLICT", message: validationError });
-        const sourceCost = Number(sourceOrder.costAmount ?? 0);
+        const sourceQuote = await getQuoteById(sourceOrder.quoteId);
+        const confirmedCost = sourceQuote
+          ? getConfirmedNonCommercialOrderCost(selectActiveQuoteItems(sourceQuote.versions, sourceQuote.items))
+          : { amount: 0, isComplete: false, missingItemNumbers: [] };
+        const sourceCost = confirmedCost.isComplete ? confirmedCost.amount : 0;
         if (input.linkType === "custo_adicional" && (!Number.isFinite(sourceCost) || sourceCost <= 0)) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Este pedido não possui custo confirmado para incluir no orçamento vinculado." });
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Este pedido não possui custo confirmado para incluir no orçamento vinculado. Informe os custos pendentes antes de continuar." });
+        }
+        if (confirmedCost.isComplete && Math.abs(Number(sourceOrder.costAmount ?? 0) - sourceCost) > 0.005) {
+          await updateSampleOrder(input.sampleOrderId, { costAmount: sourceCost });
         }
         const kindLabel = sourceOrder.kind === "maintenance" ? "manutenção" : "amostra";
         const result = input.linkType === "custo_adicional"

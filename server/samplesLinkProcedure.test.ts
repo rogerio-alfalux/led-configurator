@@ -99,7 +99,13 @@ describe("samples.findQuoteByNumber and samples.link", () => {
     dbMocks.getSampleOrderById.mockResolvedValue({
       id: 71, quoteId: 5, kind: "sample", costAmount: "1270.65", originalTotalFinal: "3954.89",
     });
-    dbMocks.getQuoteById.mockResolvedValue({ quote: { id: 8, status: "open" }, items: [], versions: [] });
+    dbMocks.getQuoteById
+      .mockResolvedValueOnce({ quote: { id: 8, status: "open" }, items: [], versions: [] })
+      .mockResolvedValueOnce({
+        quote: { id: 5, status: "sample" },
+        versions: [{ id: "v1" }],
+        items: [{ quoteVersionId: "v1", itemNumber: 1, itemData: JSON.stringify({ qty: 1, custoManual: 1270.65 }) }],
+      });
     dbMocks.listSampleLinks.mockResolvedValue([]);
     dbMocks.createSampleLink.mockResolvedValue({ id: 90 });
 
@@ -127,7 +133,9 @@ describe("samples.findQuoteByNumber and samples.link", () => {
   it.each(["sample", "maintenance"] as const)("records the %s cost as an additional cost without changing destination revenue", async (kind) => {
     const caller = appRouter.createCaller(createContext());
     dbMocks.getSampleOrderById.mockResolvedValue({ id: 71, quoteId: 5, kind, costAmount: "10.00", originalTotalFinal: "120" });
-    dbMocks.getQuoteById.mockResolvedValue({ quote: { id: 8, status: "open" }, items: [], versions: [] });
+    dbMocks.getQuoteById
+      .mockResolvedValueOnce({ quote: { id: 8, status: "open" }, items: [], versions: [] })
+      .mockResolvedValueOnce({ quote: { id: 5, status: "sample" }, items: [{ quoteVersionId: "v1", itemNumber: 1, itemData: JSON.stringify({ qty: 1, custoManual: 10 }) }], versions: [{ id: "v1" }] });
     dbMocks.listSampleLinks.mockResolvedValue([]);
     dbMocks.createSampleLinkWithAdditionalCost.mockResolvedValue({ id: 90, additionalCostId: 501 });
 

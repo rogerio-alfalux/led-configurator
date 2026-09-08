@@ -2969,13 +2969,14 @@ export async function getSampleOrderByQuoteId(quoteId: number, kind?: 'sample' |
   return rows[0] ?? null;
 }
 
-/** Atualiza status/notas de um pedido de amostra */
-export async function updateSampleOrder(id: number, data: { status?: string; notes?: string }) {
+/** Atualiza os dados operacionais e o custo confirmado de um pedido sem cobrança. */
+export async function updateSampleOrder(id: number, data: { status?: string; notes?: string; costAmount?: number }) {
   const db = await getDb();
   if (!db) return;
   const updates: any = {};
   if (data.status !== undefined) updates.status = data.status;
   if (data.notes !== undefined) updates.notes = data.notes;
+  if (data.costAmount !== undefined) updates.costAmount = String(data.costAmount);
   if (Object.keys(updates).length > 0) {
     await db.update(sampleOrders).set(updates).where(eq(sampleOrders.id, id));
   }
