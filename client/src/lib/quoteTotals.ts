@@ -92,9 +92,12 @@ export function getDisplayedCustomerTotal(input: {
  * a composição efetivamente exibida no orçamento.
  */
 export function getReconciledCustomerTotal(
-  input: Parameters<typeof getDisplayedCustomerTotal>[0],
+  input: Parameters<typeof getDisplayedCustomerTotal>[0] & { status?: unknown },
   recalculatedCurrentTotal?: unknown,
 ): number {
+  // Amostras e manutenções são pedidos sem cobrança. Mesmo que uma revisão antiga
+  // ainda tenha itens com valores, a venda exibida e a receita devem permanecer zeradas.
+  if (input.status === "sample") return 0;
   const recalculated = Number(recalculatedCurrentTotal);
   if (Number.isFinite(recalculated) && recalculated > 0) {
     return Math.round(recalculated * 100) / 100;

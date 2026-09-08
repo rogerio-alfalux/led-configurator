@@ -1537,12 +1537,16 @@ export default function QuoteDetail() {
   });
 
   const cancelSampleMutation = trpc.samples.cancel.useMutation({
-    onSuccess: () => {
+    onSuccess: (_result, variables) => {
+      const isMaintenance = variables.id === maintenanceQuery.data?.id;
       utils.quotes.getById.invalidate({ id: Number(id) });
       sampleQuery.refetch();
-      toast.success("Pedido de Amostra cancelado. Orçamento revertido para Em Aberto.");
+      maintenanceQuery.refetch();
+      toast.success(isMaintenance
+        ? "Pedido de Manutenção cancelado. Orçamento revertido para Em Aberto."
+        : "Pedido de Amostra cancelado. Orçamento revertido para Em Aberto.");
     },
-    onError: (err) => toast.error(`Erro ao cancelar amostra: ${err.message}`),
+    onError: (err) => toast.error(`Erro ao cancelar o pedido: ${err.message}`),
   });
 
   /**
@@ -4472,7 +4476,7 @@ export default function QuoteDetail() {
               </div>
               {sampleFinancialTransfer && <p className="rounded bg-sky-100 px-2 py-1 text-xs text-sky-800 dark:bg-sky-900/30 dark:text-sky-300">
                 {sampleFinancialTransfer.linkType === "custo_adicional"
-                  ? "Custo adicional lançado no orçamento vinculado; o valor comercial da amostra permaneceu inalterado."
+                  ? "Custo adicional lançado no orçamento vinculado; a venda da amostra permanece zerada."
                   : `Custo e receita transferidos ao orçamento vinculado por ${sampleFinancialTransfer.linkType === "diluir" ? "diluição" : "cobrança"}.`}
               </p>}
               {(sampleQuery.data as any).links?.length > 0 && (
@@ -4536,7 +4540,7 @@ export default function QuoteDetail() {
               </div>
               {maintenanceFinancialTransfer && <p className="rounded bg-sky-100 px-2 py-1 text-xs text-sky-800 dark:bg-sky-900/30 dark:text-sky-300">
                 {maintenanceFinancialTransfer.linkType === "custo_adicional"
-                  ? "Custo adicional lançado no orçamento vinculado; o valor comercial da manutenção permaneceu inalterado."
+                  ? "Custo adicional lançado no orçamento vinculado; a venda da manutenção permanece zerada."
                   : `Custo e receita transferidos ao orçamento vinculado por ${maintenanceFinancialTransfer.linkType === "diluir" ? "diluição" : "cobrança"}.`}
               </p>}
               {((maintenanceQuery.data as any).links?.length ?? 0) > 0 && (
@@ -4558,6 +4562,20 @@ export default function QuoteDetail() {
                 <Button variant="outline" size="sm" className="gap-1" onClick={() => { setLinkSourceOrderId(maintenanceQuery.data!.id); setLinkSourceKind("maintenance"); setSampleLinkDialogOpen(true); }}>
                   <Link2 className="w-3 h-3" />
                   Vincular a Orçamento
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
+                  disabled={cancelSampleMutation.isPending}
+                  onClick={() => {
+                    if (window.confirm("Tem certeza que deseja cancelar este Pedido de Manutenção? O orçamento voltará ao status Em Aberto e o registro de custo será removido.")) {
+                      cancelSampleMutation.mutate({ id: maintenanceQuery.data!.id, quoteId: Number(id) });
+                    }
+                  }}
+                >
+                  <XIcon className="w-3 h-3" />
+                  {cancelSampleMutation.isPending ? "Cancelando..." : "Cancelar Manutenção"}
                 </Button>
               </div>
             </CardContent>
@@ -4582,6 +4600,7 @@ export default function QuoteDetail() {
                 return applyItemDiscount(applyItemMarginQD(afterGlobal, itemMarginPercent), itemDiscountPercent);
               };
               const hasMarkup = rtPct > 0 || mPct > 0;
+              const isNonCommercialOrder = quote.status === "sample";
 
               // Agrupar itens por pavimento preservando a ordem de inserção
               const floorOrder: string[] = [];
@@ -4638,6 +4657,14 @@ export default function QuoteDetail() {
                   totalGeral += tot;
                   totalLuminaria += tot;
                 }
+              }
+
+              // Amostras e manutenções preservam seus itens para histórico e produção,
+              // mas não podem apresentar venda ou receita em subtotais comerciais.
+              if (isNonCommercialOrder) {
+                totalLuminaria = 0;
+                totalDriver = 0;
+                totalGeral = 0;
               }
 
               // Diluição proporcional por item
@@ -4936,7 +4963,7 @@ export default function QuoteDetail() {
                       </div>
                     );
                   })}
-                  {totalGeral > 0 && (
+                  {(totalGeral > 0 || isNonCommercialOrder) && (
                     <div className="border-t bg-primary/5">
                       {hasDriverBreakdown && (() => {
                         // Calcular subtotais com frete diluído na base
@@ -4966,11 +4993,11 @@ export default function QuoteDetail() {
                           <div className="px-4 pt-3 pb-1 space-y-1">
                             <div className="flex justify-between items-center text-sm">
                               <span className="text-muted-foreground">Subtotal Luminárias</span>
-                              <span className="font-medium">{formatBRL(_totalLumComFrete + (_diluicaoTotal > 0 && _totalComFreteGlobal > 0 ? _diluicaoTotal * (_totalLumComFrete / _totalComFreteGlobal) : 0))}</span>
+                              <span className="font-medium">{formatBRL(isNonCommercialOrder ? 0 : _totalLumComFrete + (_diluicaoTotal > 0 && _totalComFreteGlobal > 0 ? _diluicaoTotal * (_totalLumComFrete / _totalComFreteGlobal) : 0))}</span>
                             </div>
                             <div className="flex justify-between items-center text-sm">
                               <span className="text-muted-foreground">Subtotal Drivers</span>
-                              <span className="font-medium">{formatBRL(_totalDrvComFrete + (_diluicaoTotal > 0 && _totalComFreteGlobal > 0 ? _diluicaoTotal * (_totalDrvComFrete / _totalComFreteGlobal) : 0))}</span>
+                              <span className="font-medium">{formatBRL(isNonCommercialOrder ? 0 : _totalDrvComFrete + (_diluicaoTotal > 0 && _totalComFreteGlobal > 0 ? _diluicaoTotal * (_totalDrvComFrete / _totalComFreteGlobal) : 0))}</span>
                             </div>
                           </div>
                         );
@@ -4991,9 +5018,11 @@ export default function QuoteDetail() {
                                 return s + applyMkupWithItem(_itemRaw + _itemFrete, _d.itemMarginPercent, _d.itemDiscountPercent);
                               }, 0) + _diluicaoTotal
                             : totalGeral + _diluicaoTotal;
-                          const fullTotal = _showDiscountedTotal
-                            ? (_storedFullTotal > 0 ? _storedFullTotal : calculatedFullTotal)
-                            : totalRecalculado;
+                          const fullTotal = isNonCommercialOrder
+                            ? 0
+                            : _showDiscountedTotal
+                              ? (_storedFullTotal > 0 ? _storedFullTotal : calculatedFullTotal)
+                              : totalRecalculado;
                           return _showDiscountedTotal ? (
                             <div className="grid grid-cols-2 gap-5">
                               <div>

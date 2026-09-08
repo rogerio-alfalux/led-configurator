@@ -18,6 +18,13 @@ describe("persistência comercial de desconto", () => {
     expect(source).toContain("dashboardTotals.taxAmount");
   });
 
+  it("mantém pedidos sem cobrança com venda zerada e permite cancelar manutenção", async () => {
+    const source = await readFile(new URL("./QuoteDetail.tsx", import.meta.url), "utf8");
+    expect(source).toContain('const isNonCommercialOrder = quote.status === "sample"');
+    expect(source).toContain('isNonCommercialOrder ? 0');
+    expect(source).toContain("Cancelar Manutenção");
+  });
+
   it("exibe preço unitário cheio e com desconto para luminária, driver e item simples", async () => {
     const source = await readFile(new URL("./QuoteDetail.tsx", import.meta.url), "utf8");
     expect(source).toContain("Cheio:");

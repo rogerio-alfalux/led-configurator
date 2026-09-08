@@ -3488,3 +3488,9 @@
 - [x] Manter valor comercial inalterado e abater exclusivamente o lucro do orçamento de destino
 - [x] Garantir reversão segura do custo adicional ao desfazer ou alterar o vínculo
 - [x] Cobrir os modos de amostra e manutenção por regressão e salvar checkpoint reversível
+
+## Correção do custo adicional e cancelamento de manutenção
+- [x] Usar exclusivamente o custo confirmado da origem no orçamento de destino e manter a venda da origem zerada
+- [x] Garantir que o vínculo de custo adicional não transfira valor comercial para o destino
+- [x] Adicionar o botão Cancelar Manutenção com reversão segura do vínculo e dos custos adicionais
+- [x] Cobrir a regra financeira e o cancelamento por regressão antes do checkpoint reversível

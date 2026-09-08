@@ -155,6 +155,23 @@ describe("samples.findQuoteByNumber and samples.link", () => {
     expect(dbMocks.deleteSampleOrder).toHaveBeenCalledWith(71, 5);
   });
 
+  it("removes the additional cost before cancelling a maintenance order", async () => {
+    const caller = appRouter.createCaller(createContext());
+    dbMocks.getSampleOrderById.mockResolvedValue({ id: 71, quoteId: 5, kind: "maintenance" });
+    dbMocks.listSampleLinks.mockResolvedValue([{
+      id: 90,
+      linkedQuoteId: 8,
+      transferredRevenue: "0",
+      financialTransferredAt: "2026-09-08 12:00:00",
+      additionalCostId: 501,
+    }]);
+
+    await expect(caller.samples.cancel({ id: 71, quoteId: 5 })).resolves.toEqual({ success: true });
+
+    expect(dbMocks.deleteQuoteAdditionalCost).toHaveBeenCalledWith(501);
+    expect(dbMocks.deleteSampleOrder).toHaveBeenCalledWith(71, 5);
+  });
+
   it("zeros the transferred order cost and adds the cost to the destination quote", async () => {
     const caller = appRouter.createCaller(createContext());
     dbMocks.getQuoteById.mockResolvedValue({ quote: { id: 5, marginPercent: "0" }, items: [], versions: [] });

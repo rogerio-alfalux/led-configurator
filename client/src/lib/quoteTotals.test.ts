@@ -70,4 +70,8 @@ describe('getStoredCustomerTotal', () => {
   it('prioriza o total recalculado da revisão vigente quando o agregado histórico ficou defasado', () => {
     expect(getReconciledCustomerTotal({ totalAmount: 14931.4, totalFinal: 14931.4 }, 15592.9)).toBe(15592.9);
   });
+
+  it('mantém venda zerada em amostras e manutenções mesmo quando a revisão conserva valores históricos', () => {
+    expect(getReconciledCustomerTotal({ status: 'sample', totalAmount: 200, totalFinal: 200 }, 200)).toBe(0);
+  });
 });
