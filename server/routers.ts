@@ -291,6 +291,23 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   return next({ ctx });
 });
 
+const LD_REDACTED_CATALOG_FIELDS = new Set([
+  "precoVenda", "price", "unitPrice", "precoUnitario", "custo", "unitCost", "custoDriver",
+  "markup", "markupPadrao", "markupMinimo", "margem", "margin", "driverUnitPrice",
+  "driverTotalPrice", "bodyUnitPrice", "bodyTotalPrice", "totalPrice", "precoOnOff220",
+]);
+
+/** O LD recebe apenas a estrutura técnica do catálogo, nunca números comerciais. */
+export function redactLdCatalogCommercialFields<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(redactLdCatalogCommercialFields) as T;
+  if (!value || typeof value !== "object" || value instanceof Date) return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([key]) => !LD_REDACTED_CATALOG_FIELDS.has(key))
+      .map(([key, child]) => [key, redactLdCatalogCommercialFields(child)]),
+  ) as T;
+}
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -452,55 +469,18 @@ export const appRouter = router({
 
     myPdf: protectedProcedure
       .input(z.object({ requestId: z.number().int().positive() }))
-      .mutation(async ({ ctx, input }) => {
+      .mutation(async ({ ctx }) => {
         if (ctx.user.role !== "convidado") throw new TRPCError({ code: "FORBIDDEN" });
-        const request = await getGuestQuoteRequestById(input.requestId);
-        if (!request || request.guestUserId !== ctx.user.id || request.guestDeletedAt || request.status !== "quote_ready" || !request.validatedPdfUrl) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "PDF ainda não está disponível." });
-        }
-        await markGuestQuoteResponseViewed(ctx.user.id, request.id);
-        return { url: request.validatedPdfUrl };
+        throw new TRPCError({ code: "FORBIDDEN", message: "LD Convidado não possui acesso a documentos comerciais com valores." });
       }),
 
     /** Dados do orçamento vinculado, restritos ao LD dono da solicitação, para
      * regenerar o PDF no layout vigente também em solicitações retroativas. */
     currentPdfData: protectedProcedure
       .input(z.object({ requestId: z.number().int().positive() }))
-      .mutation(async ({ ctx, input }) => {
+      .mutation(async ({ ctx }) => {
         if (ctx.user.role !== "convidado") throw new TRPCError({ code: "FORBIDDEN" });
-        const request = await getGuestQuoteRequestById(input.requestId);
-        if (!request || request.guestUserId !== ctx.user.id || request.guestDeletedAt || request.status !== "quote_ready" || !request.adminQuoteId) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "PDF ainda não está disponível." });
-        }
-        const quoteData = await getQuoteById(request.adminQuoteId);
-        if (!quoteData) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento vinculado não encontrado." });
-        // O LD deve sempre visualizar a versão mais recente que o administrador salvou.
-        // Ordenamos também aqui para manter a regra estável mesmo quando a origem dos dados
-        // não preservar a ordenação esperada.
-        const currentVersion = [...quoteData.versions]
-          .sort((left, right) => Number(right.version) - Number(left.version)
-            || String(right.createdAt ?? "").localeCompare(String(left.createdAt ?? "")))[0];
-        const versionItems = currentVersion
-          ? quoteData.items.filter(item => item.quoteVersionId === currentVersion.id)
-          : quoteData.items;
-        // Registros antigos podem apontar currentVersion para uma revisão sem
-        // itens persistidos. Nesse caso, o PDF atualizado deve usar os itens
-        // existentes do orçamento, nunca forçar o LD a receber o arquivo legado.
-        const currentItems = versionItems.length > 0 ? versionItems : quoteData.items;
-        const sellerIds = [quoteData.quote.seller1Id, quoteData.quote.seller2Id].filter((id): id is number => Boolean(id));
-        const sellerRows = sellerIds.length
-          ? await (await getDb())?.select({ id: sellers.id, phone: sellers.phone, email: sellers.email }).from(sellers).where(inArray(sellers.id, sellerIds))
-          : [];
-        const sellerContactById = new Map((sellerRows ?? []).map(seller => [seller.id, seller]));
-        await markGuestQuoteResponseViewed(ctx.user.id, request.id);
-        return {
-          requestId: request.id,
-          quote: quoteData.quote,
-          selectedVersion: currentVersion?.version ?? quoteData.quote.currentVersion,
-          items: currentItems,
-          seller1Contact: quoteData.quote.seller1Id ? sellerContactById.get(quoteData.quote.seller1Id) ?? null : null,
-          seller2Contact: quoteData.quote.seller2Id ? sellerContactById.get(quoteData.quote.seller2Id) ?? null : null,
-        };
+        throw new TRPCError({ code: "FORBIDDEN", message: "LD Convidado não possui acesso a dados comerciais do orçamento." });
       }),
 
     adminList: adminProcedure
@@ -614,9 +594,9 @@ export const appRouter = router({
   alfalux: router({
     products: publicProcedure
       .input(z.object({ forceRefresh: z.boolean().optional() }).optional())
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
       const products = await fetchAllAlfaluxProducts(input?.forceRefresh === true);
-      return products;
+      return ctx.user?.role === "convidado" ? redactLdCatalogCommercialFields(products) : products;
     }),
     refreshProducts: publicProcedure.mutation(async () => {
       try {
@@ -631,9 +611,9 @@ export const appRouter = router({
     }),
 
     // Produtos de revenda: identificados por SKU começando com 'RV' ou categoria 'REVENDA'
-    revendaProducts: publicProcedure.query(async () => {
+    revendaProducts: publicProcedure.query(async ({ ctx }) => {
       const products = await fetchRevendaProducts();
-      return products.map(p => ({
+      const response = products.map(p => ({
         sku: p.codigo,
         name: p.descricao,
         referencia: p.referencia,
@@ -641,12 +621,13 @@ export const appRouter = router({
         fotoUrl: p.fotoUrl,
         precoVenda: p.precoVenda,
       }));
+      return ctx.user?.role === "convidado" ? redactLdCatalogCommercialFields(response) : response;
     }),
 
     // Produtos Customizados: produtos não-catálogo para clientes específicos
-    customizadosProducts: publicProcedure.query(async () => {
+    customizadosProducts: publicProcedure.query(async ({ ctx }) => {
       const products = await fetchCustomizadosProducts();
-      return products.map(p => ({
+      const response = products.map(p => ({
         sku: p.sku,
         name: p.name,
         descricao: p.descricao,
@@ -656,12 +637,13 @@ export const appRouter = router({
         clienteEspecifico: p.clienteEspecifico,
         observacoes: p.observacoes,
       }));
+      return ctx.user?.role === "convidado" ? redactLdCatalogCommercialFields(response) : response;
     }),
 
     // Acessórios: trilhos, conectores e acessórios CNTRAC
-    acessoriosProducts: publicProcedure.query(async () => {
+    acessoriosProducts: publicProcedure.query(async ({ ctx }) => {
       const items = await fetchAcessoriosProducts();
-      return items.map(p => ({
+      const response = items.map(p => ({
         id: p.id,
         codigo: p.codigo,
         sku: p.sku,
@@ -673,16 +655,17 @@ export const appRouter = router({
         source: p.source ?? null,
         observacoes: p.observacoes ?? null,
       }));
+      return ctx.user?.role === "convidado" ? redactLdCatalogCommercialFields(response) : response;
     }),
 
     /**
      * Componentes para Item Especial: drivers, módulos LED, ópticas, holders, dissipadores.
      * Fonte: /api/componentes/all da API Alfalux (publicado em Jun/2026).
      */
-    componentes: publicProcedure.query(async () => {
+    componentes: publicProcedure.query(async ({ ctx }) => {
       const { items, tipos } = await fetchComponentes();
       console.log(`[Componentes] Retornando ${items.length} itens, tipos: ${tipos.join(", ")}`);
-      return {
+      const response = {
         tipos,
         items: items.map(p => ({
           codigo: p.codigo ?? "",
@@ -700,10 +683,11 @@ export const appRouter = router({
           disponivel: p.disponivel,
         })),
       };
+      return ctx.user?.role === "convidado" ? redactLdCatalogCommercialFields(response) : response;
     }),
 
     // Módulos SHIFT (S01) — retorna agrupados por nome único com CCTs disponíveis
-    shiftModules: publicProcedure.query(async () => {
+    shiftModules: publicProcedure.query(async ({ ctx }) => {
       const products = await fetchAllAlfaluxProducts();
       const s01 = products.filter(p => p.sku.startsWith("S01"));
       // Group by name (some have same SKU but different optics like 10° vs 48°)
@@ -806,7 +790,8 @@ export const appRouter = router({
           });
         }
       }
-      return Array.from(grouped.values());
+      const response = Array.from(grouped.values());
+      return ctx.user?.role === "convidado" ? redactLdCatalogCommercialFields(response) : response;
     }),
   }),
 
@@ -834,7 +819,8 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    clear: nonCostDepartmentProcedure.mutation(async ({ ctx }) => {
+    // Limpar o próprio carrinho não altera orçamento, preço ou custo; o Departamento de Custos pode executar esta ação pessoal.
+    clear: protectedProcedure.mutation(async ({ ctx }) => {
       await clearCart(ctx.user.id);
       return { success: true };
     }),

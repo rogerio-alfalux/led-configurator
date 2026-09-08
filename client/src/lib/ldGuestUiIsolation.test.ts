@@ -26,18 +26,18 @@ describe("LD Convidado UI isolation", () => {
     expect(html).not.toMatch(/9876|4938|9500|R\$/);
   });
 
-  it("renders a validated PDF state in the guest history without monetary content", () => {
+  it("renders a response-only state in the guest history without monetary content", () => {
     const html = renderToStaticMarkup(createElement(LdGuestRequestHistoryCard, {
       finalClientName: "Cliente Final",
       officeName: "Escritório",
       submittedAtLabel: "12/08/2026 12:00",
-      statusLabel: "PDF disponível",
+      statusLabel: "Resposta disponível",
       statusClassName: "bg-emerald-100",
       pdfAvailable: true,
       onPreview: () => undefined,
     }));
-    expect(html).toContain("PDF disponível");
-    expect(html).toContain("Pré-visualizar orçamento");
+    expect(html).toContain("Resposta disponível");
+    expect(html).toContain("Ver resposta");
     expect(html).not.toMatch(/R\$|valor|preço|custo/i);
   });
 });

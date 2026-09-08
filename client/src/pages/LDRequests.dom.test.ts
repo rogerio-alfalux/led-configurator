@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from "vitest";
 const invalidateBadge = vi.fn().mockResolvedValue(undefined);
 const invalidateMine = vi.fn().mockResolvedValue(undefined);
 const deleteRequest = vi.fn().mockResolvedValue({ success: true, requestId: 1 });
-const currentPdfData = vi.fn().mockRejectedValue(new Error("Teste de indisponibilidade da geração atual"));
+const markResponseViewed = vi.fn().mockResolvedValue({ success: true });
 
 vi.mock("@/_core/hooks/useAuth", () => ({ useAuth: () => ({ user: { role: "convidado" } }) }));
 vi.mock("@/lib/trpc", () => ({
@@ -16,24 +16,22 @@ vi.mock("@/lib/trpc", () => ({
     useUtils: () => ({ ldRequests: { notifications: { invalidate: invalidateBadge }, mine: { invalidate: invalidateMine } } }),
     ldRequests: {
       mine: { useQuery: () => ({ data: [{ id: 1, status: "quote_ready", finalClientName: "Cliente", officeName: "Escritório", constructorName: null, submittedAt: new Date(), pdfAvailable: true }], isLoading: false }) },
-      currentPdfData: { useMutation: () => ({ mutateAsync: currentPdfData, isPending: false }) },
+      markResponseViewed: { useMutation: () => ({ mutateAsync: markResponseViewed, isPending: false }) },
       deleteMine: { useMutation: () => ({ mutateAsync: deleteRequest, isPending: false }) },
     },
-    alfalux: { products: { useQuery: () => ({ data: [] }) }, revendaProducts: { useQuery: () => ({ data: [] }) }, acessoriosProducts: { useQuery: () => ({ data: [] }) } },
   },
 }));
 
 import { LDGuestRequests } from "./LDRequests";
 
 describe("LDGuestRequests", () => {
-  it("abre a pré-visualização oficial de uma única resposta pronta, sem abrir o arquivo legado", async () => {
-    vi.stubGlobal("open", vi.fn());
+  it("registra somente a visualização de uma resposta pronta, sem abrir documento comercial", async () => {
     render(React.createElement(LDGuestRequests));
-    expect(currentPdfData).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: /pré-visualizar orçamento/i }));
-    await waitFor(() => expect(currentPdfData).toHaveBeenCalledWith({ requestId: 1 }));
-    expect(currentPdfData).toHaveBeenCalledTimes(1);
-    expect(invalidateBadge).not.toHaveBeenCalled();
+    expect(markResponseViewed).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /ver resposta/i }));
+    await waitFor(() => expect(markResponseViewed).toHaveBeenCalledWith({ requestId: 1 }));
+    expect(markResponseViewed).toHaveBeenCalledTimes(1);
+    expect(invalidateBadge).toHaveBeenCalled();
   });
 
   it("pede confirmação antes de excluir a solicitação do próprio LD", async () => {
@@ -45,11 +43,11 @@ describe("LDGuestRequests", () => {
     await waitFor(() => expect(deleteRequest).toHaveBeenCalledWith({ requestId: 1 }));
   });
 
-  it("prioriza a pré-visualização atual do orçamento vinculado para solicitações retroativas", () => {
+  it("não carrega dados nem componentes de preview comercial para solicitações retroativas", () => {
     const source = readFileSync(resolve(process.cwd(), "client/src/pages/LDRequests.tsx"), "utf8");
-    expect(source).toContain("ldRequests.currentPdfData.useMutation");
-    expect(source).toContain("buildCurrentLdPdfJob(payload)");
-    expect(source).toContain("freshPhotoMap={productPhotoMap}");
+    expect(source).toContain("ldRequests.markResponseViewed.useMutation");
+    expect(source).not.toContain("currentPdfData");
+    expect(source).not.toContain("ExcelPreviewModal");
     expect(source).toContain("onPreview={() => openOfficialPreview(request.id)}");
     expect(source).not.toContain("downloadPdfBlob(blob, currentPdfJob.fileName)");
     expect(source).not.toContain("openLdValidatedPdf");

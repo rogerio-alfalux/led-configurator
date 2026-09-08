@@ -3789,6 +3789,8 @@ function GuestCart() {
 }
 
 export default function Cart() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  // Evita qualquer renderização transitória do carrinho comercial antes da sessão informar o perfil.
+  if (loading) return <div className="min-h-screen bg-background grid place-items-center text-sm text-muted-foreground">Carregando carrinho...</div>;
   return (user as any)?.role === "convidado" ? <GuestCart /> : <StandardCart />;
 }

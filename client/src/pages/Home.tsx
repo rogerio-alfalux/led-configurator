@@ -684,8 +684,8 @@ function ShapeResultCard({
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { addItem, isAdding: isAddingToCart } = useCart();
-  const { user: _srcUser } = useAuth();
-  const isConvidadoRB = (_srcUser as any)?.role === "convidado";
+  const { user: _srcUser, loading: isAuthLoading } = useAuth();
+  const isConvidadoRB = isAuthLoading || !_srcUser || (_srcUser as any)?.role === "convidado";
   const [colorModalOpen, setColorModalOpen] = useState(false);
   const [pendingItem, setPendingItem] = useState<CartItemData | null>(null);
   const [manualPreco, setManualPreco] = useState<string>("");
@@ -1541,8 +1541,8 @@ type SkuPriceMap = Record<string, {
 }>;
 
 function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty, setGlobalQty, onOpenAccessoryModal, pendingAccessoriesCount, globalPavimento, shiftModuleSelector, addBlockedReason, transformCartItem, technicalDocuments }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void; onOpenAccessoryModal?: () => void; pendingAccessoriesCount?: number; globalPavimento?: string; shiftModuleSelector?: ReactNode; addBlockedReason?: string; transformCartItem?: (item: CartItemData) => CartItemData; technicalDocuments?: ProfileTechnicalDocumentsData }) {
-  const { user: _rbUser } = useAuth();
-  const isConvidadoRB = (_rbUser as any)?.role === "convidado";
+  const { user: _rbUser, loading: isAuthLoading } = useAuth();
+  const isConvidadoRB = isAuthLoading || !_rbUser || (_rbUser as any)?.role === "convidado";
   const efficiency = result.requestedLength > 0
     ? Math.round((result.realizedLength / result.requestedLength) * 100)
     : 0;
@@ -1952,8 +1952,8 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { addItem, isAdding: isAddingToCart } = useCart();
-  const { user } = useAuth();
-  const isConvidadoQSC = (user as any)?.role === "convidado";
+  const { user, loading: isAuthLoading } = useAuth();
+  const isConvidadoQSC = isAuthLoading || !user || (user as any)?.role === "convidado";
   const [colorModalOpen, setColorModalOpen] = useState(false);
   const [pendingItem, setPendingItem] = useState<CartItemData | null>(null);
   const [manualPreco, setManualPreco] = useState<string>("");
@@ -2837,9 +2837,10 @@ function ProductionTemplateCard({ result }: { result: CompositionResult }) {
 
 export default function Home() {
   const { theme, toggleTheme } = useTheme();
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated, loading: isAuthLoading } = useAuth();
   const isVivian = user?.email === "vivian@grupoalfalux.com.br";
-  const isConvidado = (user as any)?.role === "convidado";
+  // Falhar fechado: valores nunca podem aparecer antes de o perfil ser conhecido.
+  const isConvidado = isAuthLoading || !user || (user as any)?.role === "convidado";
   const ldNotifications = trpc.ldRequests.notifications.useQuery(undefined, { enabled: Boolean(user), staleTime: 0, refetchInterval: 30_000 });
   const pendingLdRequestCount = ldNotifications.data?.adminPendingCount ?? 0;
   const readyLdResponseCount = ldNotifications.data?.guestReadyCount ?? 0;
@@ -14007,7 +14008,7 @@ export default function Home() {
                         {spDim && <span><span className="font-medium text-foreground">DIM:</span> {spDim}</span>}
                         {spVoltage && <span><span className="font-medium text-foreground">Tensão:</span> {spVoltage}</span>}
 
-                        {spUnitPrice && <span><span className="font-medium text-foreground">Valor unit.:</span> {formatBRL(parseFloat(spUnitPrice.replace(",",".")) || 0)}</span>}
+                        {!isConvidado && spUnitPrice && <span><span className="font-medium text-foreground">Valor unit.:</span> {formatBRL(parseFloat(spUnitPrice.replace(",",".")) || 0)}</span>}
                       </div>
                       {spInternalNotes && (
                         <div className="rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 px-3 py-2">

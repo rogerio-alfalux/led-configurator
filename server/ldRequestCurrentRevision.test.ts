@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { readFile } from "node:fs/promises";
 
-describe("dados atuais de orçamento para LD", () => {
-  it("prioriza a versão mais recente ao montar o payload do LD", async () => {
+describe("bloqueio de orçamento comercial para LD", () => {
+  it("não mantém a montagem de revisão ou itens no endpoint acessível ao LD", async () => {
     const source = await readFile(new URL("./routers.ts", import.meta.url), "utf8");
-    expect(source).toContain("const currentVersion = [...quoteData.versions]");
-    expect(source).toContain("selectedVersion: currentVersion?.version");
+    const endpoint = source.slice(source.indexOf("currentPdfData:"), source.indexOf("adminList:"));
+    expect(endpoint).toContain("LD Convidado não possui acesso a dados comerciais do orçamento");
+    expect(endpoint).not.toContain("getQuoteById(request.adminQuoteId)");
   });
 });

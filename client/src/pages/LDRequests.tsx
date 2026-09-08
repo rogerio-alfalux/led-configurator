@@ -8,18 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { parseCartItemData, type CartItemData, type QuoteFormData } from "@/lib/cartTypes";
 import { toBrasiliaDate, toBrasiliaDateTime } from "@/lib/dateUtils";
 import { isValidatedLdPdfAvailable } from "@/lib/ldRequestUtils";
 import { LdGuestRequestHistoryCard } from "@/components/LdGuestCards";
-import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const STATUS: Record<string, { label: string; className: string }> = {
   pending: { label: "Nova solicitação", className: "bg-amber-100 text-amber-800" },
   in_review: { label: "Em análise", className: "bg-blue-100 text-blue-800" },
-  quote_ready: { label: "PDF disponível", className: "bg-emerald-100 text-emerald-800" },
+  quote_ready: { label: "Resposta disponível", className: "bg-emerald-100 text-emerald-800" },
   cancelled: { label: "Cancelada", className: "bg-gray-100 text-gray-700" },
 };
 
@@ -72,7 +70,7 @@ function LdGuestFilters({ filters, onChange, resultCount }: { filters: LdRequest
         </div>
         <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_150px_150px]">
           <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input className="pl-9" value={filters.search} onChange={event => onChange({ ...filters, search: event.target.value })} placeholder="Número, escritório, obra, cliente ou cidade" aria-label="Buscar solicitações" /></div>
-          <Select value={filters.status} onValueChange={status => onChange({ ...filters, status })}><SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="all">Todos os status</SelectItem><SelectItem value="pending">Novas</SelectItem><SelectItem value="in_review">Em análise</SelectItem><SelectItem value="quote_ready">PDF disponível</SelectItem><SelectItem value="cancelled">Canceladas</SelectItem></SelectContent></Select>
+          <Select value={filters.status} onValueChange={status => onChange({ ...filters, status })}><SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="all">Todos os status</SelectItem><SelectItem value="pending">Novas</SelectItem><SelectItem value="in_review">Em análise</SelectItem><SelectItem value="quote_ready">Resposta disponível</SelectItem><SelectItem value="cancelled">Canceladas</SelectItem></SelectContent></Select>
           <Input type="date" value={filters.dateFrom} onChange={event => onChange({ ...filters, dateFrom: event.target.value })} aria-label="Data inicial" />
           <Input type="date" value={filters.dateTo} onChange={event => onChange({ ...filters, dateTo: event.target.value })} aria-label="Data final" />
         </div>
@@ -81,75 +79,18 @@ function LdGuestFilters({ filters, onChange, resultCount }: { filters: LdRequest
   );
 }
 
-function requestItems(itemsData: string) {
-  try {
-    return (JSON.parse(itemsData) as Array<{ itemData: string }>).map(entry => parseCartItemData(entry.itemData)).filter(Boolean);
-  } catch { return []; }
-}
-
 function formatRequestedDate(value?: string | null) {
   if (!value) return "Não informado";
   const [year, month, day] = value.slice(0, 10).split("-");
   return year && month && day ? `${day}/${month}/${year}` : value;
 }
 
-type LdCurrentPdfJob = { requestId: number; items: CartItemData[]; formData: QuoteFormData; fileName: string };
-
-function toNumber(value: unknown) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : undefined;
-}
-
-function buildCurrentLdPdfJob(payload: any): LdCurrentPdfJob {
-  const quote = payload.quote;
-  const quoteNumber = quote.quoteNumber || "Orçamento";
-  const items = (payload.items ?? []).map((item: { itemData: string }) => parseCartItemData(item.itemData)).filter((item: CartItemData | null): item is CartItemData => item !== null);
-  return {
-    requestId: payload.requestId,
-    items,
-    fileName: `${quoteNumber}.pdf`,
-    formData: {
-      cliente: quote.clientName,
-      contato: quote.clientContact ?? "",
-      tel: quote.clientPhone ?? "",
-      email: quote.clientEmail ?? "",
-      obra: quote.projectName ?? "",
-      referencia: quote.projectRef ?? "",
-      numero: quoteNumber,
-      data: toBrasiliaDate(quote.updatedAt ?? quote.createdAt),
-      arquiteto: quote.arquiteto ?? undefined,
-      lightDesigner: quote.lightDesigner ?? undefined,
-      seller1Name: quote.seller1Name ?? undefined,
-      seller1Phone: payload.seller1Contact?.phone ?? undefined,
-      seller1Email: payload.seller1Contact?.email ?? undefined,
-      seller2Name: quote.seller2Name ?? undefined,
-      seller2Phone: payload.seller2Contact?.phone ?? undefined,
-      seller2Email: payload.seller2Contact?.email ?? undefined,
-      assistantName: quote.assistantName ?? undefined,
-      rtPercent: toNumber(quote.rtPercent),
-      marginPercent: toNumber(quote.marginPercent),
-      discountPercent: toNumber(quote.discountPercent),
-      showDiscount: Boolean(quote.showDiscount),
-      freteType: quote.freteType ?? "free",
-      freteIsento: Boolean(quote.freteIsento),
-      freteLocalidade: quote.freteLocalidade ?? "sp",
-      freteCity: quote.freteCity ?? undefined,
-      freteState: quote.freteState ?? undefined,
-      freteValue: toNumber(quote.freteValue),
-      freteIncluded: Boolean(quote.freteIncluded),
-      revisionCount: Math.max(0, Number(payload.selectedVersion ?? quote.currentVersion ?? 1) - 1),
-      deliveryDays: quote.deliveryDays ?? 20,
-      paymentTerm: quote.paymentTerm ?? undefined,
-      destState: quote.destState ?? undefined,
-      difalEnabled: Boolean(quote.difalEnabled),
-      difalPercent: toNumber(quote.difalPercent),
-      difalValue: toNumber(quote.difalValue),
-      fcpEnabled: Boolean(quote.fcpEnabled),
-      fcpPercent: toNumber(quote.fcpPercent),
-      fcpValue: toNumber(quote.fcpValue),
-      diluicaoValor: toNumber(quote.diluicaoValor),
-    },
-  };
+function requestItems(itemsData: string) {
+  try {
+    return (JSON.parse(itemsData) as Array<{ itemData: string }>).map(entry => {
+      try { return JSON.parse(entry.itemData); } catch { return null; }
+    }).filter(Boolean);
+  } catch { return []; }
 }
 
 export function LDRequestsAdmin() {
@@ -226,37 +167,20 @@ export function LDGuestRequests() {
   const [filters, setFilters] = useState<LdRequestFilter>({ search: "", status: "all", dateFrom: "", dateTo: "" });
   const [downloadingRequestId, setDownloadingRequestId] = useState<number | null>(null);
   const [requestIdToDelete, setRequestIdToDelete] = useState<number | null>(null);
-  const [currentPdfJob, setCurrentPdfJob] = useState<LdCurrentPdfJob | null>(null);
   const mine = trpc.ldRequests.mine.useQuery(undefined, { staleTime: 0, enabled: (user as any)?.role === "convidado" });
-  const productsQuery = trpc.alfalux.products.useQuery(undefined, { staleTime: 0, enabled: (user as any)?.role === "convidado" });
-  const revendaProductsQuery = trpc.alfalux.revendaProducts.useQuery(undefined, { staleTime: 0, enabled: (user as any)?.role === "convidado" });
-  const acessoriosQuery = trpc.alfalux.acessoriosProducts.useQuery(undefined, { staleTime: 0, enabled: (user as any)?.role === "convidado" });
-  const currentPdfData = trpc.ldRequests.currentPdfData.useMutation();
+  const markResponseViewed = trpc.ldRequests.markResponseViewed.useMutation();
   const deleteRequest = trpc.ldRequests.deleteMine.useMutation();
   const visibleRequests = useMemo(() => filterLdRequests(mine.data ?? [], filters), [mine.data, filters]);
-  const productPhotoMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const product of productsQuery.data ?? []) if (product.sku && product.fotoUrl) map.set(product.sku, product.fotoUrl);
-    for (const product of revendaProductsQuery.data ?? []) if (product.sku && product.fotoUrl) map.set(product.sku, product.fotoUrl);
-    for (const product of acessoriosQuery.data ?? []) {
-      const key = product.codigo ?? product.sku;
-      if (key && product.fotoUrl) map.set(key, product.fotoUrl);
-      if (product.sku && product.fotoUrl) map.set(product.sku, product.fotoUrl);
-    }
-    return map;
-  }, [productsQuery.data, revendaProductsQuery.data, acessoriosQuery.data]);
   const openOfficialPreview = async (requestId: number) => {
     if (downloadingRequestId !== null) return;
     setDownloadingRequestId(requestId);
     try {
-      const payload = await currentPdfData.mutateAsync({ requestId });
-      const job = buildCurrentLdPdfJob(payload);
-      if (job.items.length === 0) throw new Error("O orçamento não possui itens para gerar o PDF.");
-      setCurrentPdfJob(job);
+      await markResponseViewed.mutateAsync({ requestId });
+      await utils.ldRequests.notifications.invalidate();
+      toast.info("A visualização de valores do orçamento é exclusiva da equipe Alfalux. As configurações técnicas permanecem registradas na solicitação.");
+      setDownloadingRequestId(null);
     } catch {
-      // Não abrir o arquivo armazenado como fallback: ele pode ser um PDF
-      // legado. Cada clique deve gerar exclusivamente o PDF atual desta linha.
-      toast.error("Não foi possível gerar o PDF atualizado desta solicitação.");
+      toast.error("Não foi possível registrar a visualização desta solicitação.");
       setDownloadingRequestId(null);
     }
   };
@@ -275,7 +199,7 @@ export function LDGuestRequests() {
   return <div className="min-h-screen bg-background">
     <header className="border-b bg-card"><div className="max-w-4xl mx-auto px-4 h-14 flex items-center gap-3"><Link href="/" className="inline-flex items-center gap-2 text-sm font-medium hover:text-primary"><ArrowLeft className="w-4 h-4" /> Configurador</Link><span className="text-muted-foreground">/</span><span className="font-semibold">Minhas solicitações</span></div></header>
     <main className="max-w-4xl mx-auto px-4 py-7 space-y-5">
-      <div><h1 className="text-2xl font-bold">Minhas solicitações de orçamento</h1><p className="text-sm text-muted-foreground mt-1">A equipe Alfalux analisará suas configurações e disponibilizará o PDF do orçamento validado aqui.</p></div>
+      <div><h1 className="text-2xl font-bold">Minhas solicitações de orçamento</h1><p className="text-sm text-muted-foreground mt-1">A equipe Alfalux analisará suas configurações e sinalizará a resposta da solicitação aqui. Valores comerciais são tratados exclusivamente pela equipe Alfalux.</p></div>
       {mine.isLoading ? <p className="py-12 text-center text-muted-foreground">Carregando...</p> : (mine.data ?? []).length === 0 ? <Card className="py-12 text-center"><Package className="w-9 h-9 mx-auto text-muted-foreground mb-3" /><p className="font-medium">Nenhuma solicitação enviada</p></Card> : <>
         <LdGuestFilters filters={filters} onChange={setFilters} resultCount={visibleRequests.length} />
         {visibleRequests.length === 0 ? <Card className="py-10 text-center"><Filter className="w-8 h-8 mx-auto text-muted-foreground mb-2" /><p className="font-medium">Nenhuma solicitação encontrada</p><p className="text-sm text-muted-foreground mt-1">Ajuste ou limpe os filtros para ver outras solicitações.</p></Card> : <div className="space-y-3">{visibleRequests.map(request => { const status = STATUS[request.status] ?? STATUS.pending; return <LdGuestRequestHistoryCard key={request.id} finalClientName={request.finalClientName} officeName={request.officeName} constructorName={request.constructorName} submittedAtLabel={toBrasiliaDateTime(request.submittedAt)} statusLabel={status.label} statusClassName={status.className} pdfAvailable={isValidatedLdPdfAvailable(request.status, request.pdfAvailable ? "available" : null)} onPreview={() => openOfficialPreview(request.id)} onDelete={() => setRequestIdToDelete(request.id)} isDownloading={downloadingRequestId === request.id} isDeleting={deleteRequest.isPending && requestIdToDelete === request.id} />; })}</div>}
@@ -293,12 +217,5 @@ export function LDGuestRequests() {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-    {currentPdfJob && <ExcelPreviewModal
-      open
-      onClose={() => { setCurrentPdfJob(null); setDownloadingRequestId(null); }}
-      items={currentPdfJob.items}
-      freshPhotoMap={productPhotoMap}
-      formData={currentPdfJob.formData}
-    />}
   </div>;
 }

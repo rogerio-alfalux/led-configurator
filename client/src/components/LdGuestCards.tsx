@@ -94,7 +94,7 @@ export function LdGuestRequestHistoryCard({
     </div>
     <div className="flex items-center gap-2 flex-wrap justify-end">
       <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusClassName}`}>{statusLabel}</span>
-      {pdfAvailable && <Button size="sm" disabled={isDownloading || isDeleting} onClick={onPreview}><Eye className="w-4 h-4 mr-1" /> Pré-visualizar orçamento</Button>}
+      {pdfAvailable && <Button size="sm" disabled={isDownloading || isDeleting} onClick={onPreview}><Eye className="w-4 h-4 mr-1" /> Ver resposta</Button>}
       <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" disabled={isDownloading || isDeleting} onClick={onDelete}><Trash2 className="w-4 h-4 mr-1" /> {isDeleting ? "Excluindo..." : "Excluir"}</Button>
     </div>
   </CardContent></Card>;

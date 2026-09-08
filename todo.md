@@ -3503,3 +3503,12 @@
 - [x] Auditar os vínculos de amostras e manutenções para identificar qualquer custo adicional baseado em preço de venda
 - [x] Corrigir a transferência para usar somente o custo confirmado da origem e reparar lançamentos incorretos
 - [x] Cobrir a regra por regressão, validar o Dashboard de Lucro e salvar checkpoint reversível
+
+## Bloqueio urgente de valores para LD convidado
+- [x] Ocultar preços, custos, margens e totais de LD convidado em resultados de todas as categorias
+- [x] Ocultar valores no carrinho, solicitações, pré-visualizações e documentos acessíveis ao LD
+- [x] Impedir exposição por respostas de dados e cobrir a restrição por regressão
+
+## Limpeza de carrinho de Rogerio Silva
+- [x] Identificar e corrigir o bloqueio que impede Rogerio Silva de limpar o carrinho
+- [x] Cobrir a limpeza de carrinho por regressão sem afetar carrinhos de outros usuários
