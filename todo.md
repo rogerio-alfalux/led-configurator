@@ -3462,3 +3462,8 @@
 - [x] Consolidar custos de amostras não cobradas, custos adicionais, fretes isentados e demais despesas registradas no período filtrado
 - [x] Adicionar a caixa Gastos Gerais à personalização de indicadores, desabilitada por padrão como Prospecções LD
 - [x] Cobrir o cálculo por regressão, validar a visualização responsiva e salvar checkpoint reversível
+
+## Coerência do total comercial no Dashboard de Lucro
+- [x] Investigar a divergência entre o cabeçalho e a Receita Total do orçamento 04.0432-26
+- [x] Corrigir a composição de receita do Dashboard sem alterar preços, revisões ou documentos
+- [x] Cobrir a regressão do total comercial e salvar checkpoint reversível

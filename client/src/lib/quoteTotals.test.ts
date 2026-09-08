@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyItemDiscount, applyQuoteDiscount, calculateQuoteTotalWithDiscountAndTax, getDisplayedCustomerTotal, getStoredCustomerTotal } from './quoteTotals';
+import { applyItemDiscount, applyQuoteDiscount, calculateQuoteTotalWithDiscountAndTax, getDisplayedCustomerTotal, getReconciledCustomerTotal, getStoredCustomerTotal } from './quoteTotals';
 
 describe('getStoredCustomerTotal', () => {
   it('uses the persisted customer-paid total without re-adding taxes or dilution', () => {
@@ -65,5 +65,9 @@ describe('getStoredCustomerTotal', () => {
       destState: 'RJ',
     });
     expect(displayed).toBeLessThan(gross);
+  });
+
+  it('prioriza o total recalculado da revisão vigente quando o agregado histórico ficou defasado', () => {
+    expect(getReconciledCustomerTotal({ totalAmount: 14931.4, totalFinal: 14931.4 }, 15592.9)).toBe(15592.9);
   });
 });

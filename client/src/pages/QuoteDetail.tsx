@@ -47,7 +47,7 @@ import { isLdRequestLinkedToQuote } from "@/lib/ldRequestUtils";
 import { handleLdPdfSent } from "@/lib/ldAdminBadgeRefresh";
 import { linkSampleOrderByQuoteNumber } from "@/lib/sampleLinkFlow";
 import { buildSampleCommercialProjection } from "@/lib/sampleCommercialAdjustment";
-import { applyItemDiscount, applyQuoteDiscount, calculateQuoteTotalWithDiscountAndTax, getDisplayedCustomerTotal } from "@/lib/quoteTotals";
+import { applyItemDiscount, applyQuoteDiscount, calculateQuoteTotalWithDiscountAndTax, getDisplayedCustomerTotal, getReconciledCustomerTotal } from "@/lib/quoteTotals";
 import { canAccessQuoteAnalysis } from "@/lib/quoteAnalysisAccess";
 import type { ApiProductDriverInfo } from "@/lib/cartTypes";
 
@@ -4972,7 +4972,9 @@ export default function QuoteDetail() {
                                 return s + applyMkupWithItem(_itemRaw + _itemFrete, _d.itemMarginPercent, _d.itemDiscountPercent);
                               }, 0) + _diluicaoTotal
                             : totalGeral + _diluicaoTotal;
-                          const fullTotal = _storedFullTotal > 0 ? _storedFullTotal : calculatedFullTotal;
+                          const fullTotal = _showDiscountedTotal
+                            ? (_storedFullTotal > 0 ? _storedFullTotal : calculatedFullTotal)
+                            : totalRecalculado;
                           return _showDiscountedTotal ? (
                             <div className="grid grid-cols-2 gap-5">
                               <div>
@@ -5011,6 +5013,7 @@ export default function QuoteDetail() {
               quoteId={quote.id}
               quote={quote}
               user={user}
+              recalculatedRevenue={totalRecalculado}
             />
           );
         })()}
@@ -5467,9 +5470,10 @@ interface QuoteProfitDashboardProps {
   quoteId: number;
   quote: any;
   user: unknown;
+  recalculatedRevenue?: number;
 }
 
-function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProps) {
+function QuoteProfitDashboard({ quoteId, quote, user, recalculatedRevenue }: QuoteProfitDashboardProps) {
   const [addCostOpen, setAddCostOpen] = useState(false);
   const [newCostDesc, setNewCostDesc] = useState("");
   const [newCostValor, setNewCostValor] = useState("");
@@ -5533,7 +5537,7 @@ function QuoteProfitDashboard({ quoteId, quote, user }: QuoteProfitDashboardProp
     combinedTaxRate: dashboardStateInfo?.combined,
   });
   // Reconstrói registros legados para que a Receita Total não mantenha valor anterior ao desconto.
-  const totalReceita = getDisplayedCustomerTotal(quote);
+  const totalReceita = getReconciledCustomerTotal(quote, recalculatedRevenue);
   const ta = discountPercent > 0 ? dashboardTotals.productsAfterDiscount : Number(quote.totalAmount ?? 0);
   const impostos = totalReceita * IMPOSTOS_PADRAO;
   const comm1 = Number(quote.commissionPercent ?? 0);

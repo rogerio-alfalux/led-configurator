@@ -13,7 +13,7 @@ describe("persistência comercial de desconto", () => {
 
   it("recompõe no Dashboard a receita e o DIFAL/FCP de registros legados com desconto", async () => {
     const source = await readFile(new URL("./QuoteDetail.tsx", import.meta.url), "utf8");
-    expect(source).toContain("const totalReceita = getDisplayedCustomerTotal(quote)");
+    expect(source).toContain("const totalReceita = getReconciledCustomerTotal(quote, recalculatedRevenue)");
     expect(source).toContain("const difal = discountPercent > 0");
     expect(source).toContain("dashboardTotals.taxAmount");
   });

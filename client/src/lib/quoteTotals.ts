@@ -85,4 +85,20 @@ export function getDisplayedCustomerTotal(input: {
   }).totalFinal;
   return discounted;
 }
+
+/**
+ * Prioriza o total comercial recalculado a partir da revisão vigente quando ele
+ * estiver disponível. Isso evita que agregados históricos defasados sobrescrevam
+ * a composição efetivamente exibida no orçamento.
+ */
+export function getReconciledCustomerTotal(
+  input: Parameters<typeof getDisplayedCustomerTotal>[0],
+  recalculatedCurrentTotal?: unknown,
+): number {
+  const recalculated = Number(recalculatedCurrentTotal);
+  if (Number.isFinite(recalculated) && recalculated > 0) {
+    return Math.round(recalculated * 100) / 100;
+  }
+  return getDisplayedCustomerTotal(input);
+}
 import { getStateInfo } from "./difalTable";
