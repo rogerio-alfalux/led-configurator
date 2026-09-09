@@ -9607,7 +9607,7 @@ export default function Home() {
               </Card>
             ) : (
               <>
-                <ResultBlock result={result} profilePriceMap={profilePriceMap} profileVariant={activeProfileCatalog[result.profileCode]} skuPriceMap={skuPriceMap} onAddToQuote={(appendToQuoteId || replaceInQuoteId) ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }} pendingAccessoriesCount={pendingAccessories.length} globalPavimento={globalPavimento} technicalDocuments={getProfileTechnicalDocuments(alfaluxApiProducts, result.composition.map((item) => item.sku))} addBlockedReason={isShift && !shiftModulesConfirmed ? "Selecione ao menos um módulo SHIFT antes de enviar o produto ao carrinho ou orçamento." : undefined} transformCartItem={isShift ? ((item) => {
+                <ResultBlock result={result} profilePriceMap={profilePriceMap} profileVariant={activeProfileCatalog[result.profileCode]} skuPriceMap={skuPriceMap} onAddToQuote={(appendToQuoteId || replaceInQuoteId) ? handleAddItemOrToQuote : undefined} itemEmPlanta={globalItemEmPlanta} setItemEmPlanta={setGlobalItemEmPlanta} globalQty={globalQty} setGlobalQty={setGlobalQty} onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }} pendingAccessoriesCount={pendingAccessories.length} globalPavimento={globalPavimento} technicalDocuments={getProfileTechnicalDocuments(alfaluxApiProducts, result.composition.map((item) => item.sku), { profileCode: result.profileCode, familia: result.profileName, instalacao: result.installType, potencia: result.powerD1 })} addBlockedReason={isShift && !shiftModulesConfirmed ? "Selecione ao menos um módulo SHIFT antes de enviar o produto ao carrinho ou orçamento." : undefined} transformCartItem={isShift ? ((item) => {
                   const selectedDriverKey = result.controlType === "dimDali"
                     ? "dimDali"
                     : result.controlType === "dim110v"
@@ -9691,7 +9691,7 @@ export default function Home() {
                   pendingAccessoriesCount={pendingAccessories.length}
                   globalPavimento={globalPavimento}
                   requestedTotalMm={shapeRequestedMm}
-                  technicalDocuments={getProfileTechnicalDocuments(alfaluxApiProducts, shapeResult.pieces.map((piece) => piece.sku))}
+                  technicalDocuments={getProfileTechnicalDocuments(alfaluxApiProducts, shapeResult.pieces.map((piece) => piece.sku), { profileCode: shapeResult.profileCode, familia: shapeResult.profileName, potencia: shapeResult.power })}
                 />
               )
             )}
@@ -9769,7 +9769,7 @@ export default function Home() {
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Módulo LED</p>
                         <p className="text-sm font-semibold">{lbResult.ledModuleWithCCT} {lbResult.cct}{lbResult.ledModuleEqCode ? <span className="ml-2 text-xs font-mono text-muted-foreground">({lbResult.ledModuleEqCode})</span> : null}</p>
                       </div>
-                      <ProfileTechnicalDocuments documents={getProfileTechnicalDocuments(alfaluxApiProducts, [lbResult.product.sku])} />
+                      <ProfileTechnicalDocuments documents={getProfileTechnicalDocuments(alfaluxApiProducts, [lbResult.product.sku], { profileCode: lbResult.product.sku, familia: lbResult.product.familia, instalacao: lbResult.product.instalacao, potencia: lbResult.product.potencia })} />
 
                       {/* Fonte (total) */}
                       {(() => {

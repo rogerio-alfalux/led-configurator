@@ -3582,3 +3582,9 @@
 - [x] Persistir as quantidades manuais por componente oficial sem serem sobrescritas na reidratação
 - [x] Refletir os valores persistidos no preview, Excel e requisição de materiais
 - [x] Cobrir o fluxo completo por regressão, validar o item 13 da referência e salvar checkpoint reversível
+
+## Documentos técnicos da API no configurador
+- [x] Auditar o retorno de Datasheet, IES, manual e desenhos técnicos para a composição de referência
+- [x] Corrigir o mapeamento de documentos para produtos, SKUs e composições sem armazenar arquivos localmente
+- [x] Cobrir a sincronização por regressão e validar a apresentação móvel
+- [x] Salvar checkpoint reversível da alteração

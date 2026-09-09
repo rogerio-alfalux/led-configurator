@@ -40,4 +40,45 @@ describe("getProfileTechnicalDocuments", () => {
 
     expect(documents).toEqual({ datasheet: null, manualInstalacao: null, fotometria: null, desenhosTecnicos: [] });
   });
+
+  it("encontra DS e IES na variante compatível quando o SKU calculado só possui desenho técnico", () => {
+    const documents = getProfileTechnicalDocuments([
+      {
+        sku: "LLP-3336.2IN.48F", familia: "MINI BLAZE", instalacao: "PENDENTE", name: "MINI BLAZE P 2B 1135MM 36W",
+        documentos: { desenhoTecnico: document("LLP-3336.2IN.48F.pdf", "https://api.example/dt.pdf") },
+      },
+      {
+        sku: "LLP-3336.35I.48F", familia: "MINI BLAZE", instalacao: "PENDENTE", name: "MINI BLAZE P 3.5B 2010MM 18W",
+        documentos: {
+          datasheet: document("Ficha MINI BLAZE 18W.pdf", "https://api.example/ds.pdf"),
+          fotometria: document("MINI BLAZE 18W 3000K.ies", "https://api.example/ies.ies"),
+        },
+      },
+      {
+        sku: "LLP-3336.35I.48F", familia: "MINI BLAZE", instalacao: "PENDENTE", name: "MINI BLAZE P 3.5B 2010MM 36W",
+        documentos: { datasheet: document("Ficha MINI BLAZE 36W.pdf", "https://api.example/ds-36.pdf") },
+      },
+    ], ["LLP-3336.2IN.48F"], { familia: "MINI BLAZE", instalacao: "PENDENTE", potencia: 18 });
+
+    expect(documents.datasheet?.nome).toBe("Ficha MINI BLAZE 18W.pdf");
+    expect(documents.fotometria?.nome).toBe("MINI BLAZE 18W 3000K.ies");
+    expect(documents.desenhosTecnicos).toEqual([
+      expect.objectContaining({ sku: "LLP-3336.2IN.48F" }),
+    ]);
+  });
+
+  it("prioriza o código-base do perfil quando seu nome comercial diverge do campo família da API", () => {
+    const documents = getProfileTechnicalDocuments([
+      {
+        sku: "LLP-3336.2IN.48F", familia: "MINI BLAZE", instalacao: "PENDENTE", name: "MINI BLAZE P 2B 1135MM 18W",
+        documentos: { desenhoTecnico: document("LLP-3336.2IN.48F.pdf", "https://api.example/dt.pdf") },
+      },
+      {
+        sku: "LLP-3336.35I.48F", familia: "MINI BLAZE", instalacao: "PENDENTE", name: "MINI BLAZE P 3.5B 2010MM 18W",
+        documentos: { datasheet: document("Ficha MINI BLAZE 18W.pdf", "https://api.example/ds.pdf") },
+      },
+    ], ["LLP-3336.2IN.48F"], { profileCode: "LLP-3336", familia: "MINI BLAZE P", instalacao: "PENDENTE", potencia: 18 });
+
+    expect(documents.datasheet?.nome).toBe("Ficha MINI BLAZE 18W.pdf");
+  });
 });
