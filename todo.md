@@ -3555,3 +3555,8 @@
 - [x] Ocultar o rótulo técnico genérico e mostrar o detalhamento dos drivers calculados no card comercial
 - [x] Cobrir o comportamento por regressão e validar a apresentação visual
 - [x] Salvar checkpoint reversível da alteração
+
+## Correção visual pendente — card comercial de perfis lineares
+- [x] Rastrear o componente efetivamente renderizado que ainda exibe LED BAR e não detalha drivers
+- [x] Corrigir a origem real do estado ou componente sem alterar dados comerciais
+- [x] Validar no mesmo fluxo visual relatado pelo usuário e salvar checkpoint reversível

@@ -37,6 +37,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { useCart } from "@/hooks/useCart";
 import { formatBRL, QuoteFormData, CartItemData, parseCartItemData } from "@/lib/cartTypes";
+import { getCartDriverDisplayDetails } from "@/lib/cartDriverDisplay";
 import { buildUnambiguousCatalogPhotoMap, getPersistedItemPhotoUrl } from "@/lib/itemPhoto";
 import type { LinkedAccessory, SpecialEquipment } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
@@ -189,6 +190,7 @@ function SortableCartItem({
   acessorioPhotoMap, onReorderToSeq, applyItemMargin,
 }: SortableCartItemProps) {
   const [seqInputVal, setSeqInputVal] = React.useState<string>("");
+  const driverDetails = getCartDriverDisplayDetails(entry.data);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: entry.id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -267,8 +269,22 @@ function SortableCartItem({
                     {entry.data.power && <span className="flex items-center gap-0.5"><Zap className="w-3 h-3" />{entry.data.power}</span>}
                     {entry.data.cct && <span>{entry.data.cct}</span>}
                     {entry.data.corPeca && <span className="flex items-center gap-0.5"><Palette className="w-3 h-3" />{entry.data.corPeca}</span>}
-                    <span className="text-muted-foreground/60">{entry.data.category}</span>
+                    {entry.data.category !== "LED BAR" && <span className="text-muted-foreground/60">{entry.data.category}</span>}
                   </div>
+                  {driverDetails.length > 0 && (
+                    <div className="mt-1.5 border-l-2 border-violet-500/40 pl-2 space-y-0.5">
+                      {driverDetails.map((driver, index) => (
+                        <div key={`${driver.code ?? driver.model}-${index}`} className="flex items-start gap-1.5 text-xs text-violet-700 dark:text-violet-300">
+                          <Zap className="mt-0.5 w-3 h-3 shrink-0" />
+                          <span className="break-words">
+                            <span className="font-medium">{driver.quantity}x</span>{" "}
+                            {driver.model}
+                            {driver.code ? <span className="font-mono text-[10px] text-muted-foreground"> ({driver.code})</span> : null}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {/* Controle de quantidade */}
                   <div className="flex items-center gap-2 mt-2">
                     <Button variant="outline" size="icon" className="h-6 w-6"
