@@ -271,6 +271,59 @@ describe("parseCartItemData - múltiplos modelos de driver (caso 33.9995-26)", (
     expect(result.profileSegments?.[0].ledModuleManual).toBe(true);
   });
 
+  it("usa a composição D1+D2 oficial da API em vez do driver legado da versão D1", () => {
+    const item = {
+      category: "Perfis",
+      sku: "LLA-3395",
+      description: "HIT Arandela D1+D2 18W 3000K ON/OFF 220Vac 1135mm",
+      power: "18W",
+      qty: 16,
+      profileSegments: [{
+        sku: "LLA-3395.2IN.58F",
+        qty: 1,
+        lengthMm: 1135,
+        barsPerPiece: 2,
+        driverQtyPerPiece: 1,
+        driverModel: "LED DRIVER XITANIUM 19W 200-350MA 30-54VDC DS 230V",
+        driverCode: "EQ00346",
+      }],
+      driverLines: [{
+        driverCode: "EQ00346",
+        driverModel: "LED DRIVER XITANIUM 19W 200-350MA 30-54VDC DS 230V",
+        driverQty: 16,
+        driverUnitPrice: 54,
+        driverTotalPrice: 864,
+      }],
+    } as any;
+    const apiD1D2Model = "LED DRIVER XITANIUM 44W 200-350MA 70-125VDC DIP SWITCH 230V";
+    const productMap = new Map([["LLA-3395.2IN.58F|18W", {
+      sku: "LLA-3395.2IN.58F",
+      driver220: { code: "EQ00346", model: "LED DRIVER XITANIUM 19W 200-350MA 30-54VDC DS 230V" },
+      driverQtd220: 1,
+      composicaoD1D2: {
+        qtdModuloLed: 4,
+        drivers: [{ tipo: "DRIVER_ONOFF_220", modelo: apiD1D2Model, qtd: 1, custo: "18.00" }],
+      },
+    } as any]]);
+    const descMap = new Map([["EQ00347", apiD1D2Model]]);
+    const reverseDescMap = new Map([[apiD1D2Model, "EQ00347"]]);
+
+    const result = migrateItemDrivers(item, new Map([["EQ00347", 18]]), descMap, productMap, new Map([["EQ00347", "350mA"]]), reverseDescMap);
+
+    expect(result.profileSegments?.[0]).toMatchObject({
+      barsPerPiece: 4,
+      driverCode: "EQ00347",
+      driverQtyPerPiece: 1,
+      corrente: "350mA",
+    });
+    expect(result.driverLines).toEqual([expect.objectContaining({
+      driverCode: "EQ00347",
+      driverQty: 16,
+      driverUnitPrice: 18,
+      driverTotalPrice: 288,
+    })]);
+  });
+
   it("reidrata custo e markup da variante exata sem reprecificar a venda salva", () => {
     const item = {
       category: "Spots",

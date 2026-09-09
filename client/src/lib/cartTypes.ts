@@ -827,6 +827,16 @@ export interface ApiProductDriverInfo {
   markupMinimoDriver?: number | null;
   /** Corrente de programação da versão exata retornada pela API. */
   correnteDriver?: string | null;
+  /** Estrutura específica D1+D2 fornecida pela API para este SKU. */
+  composicaoD1D2?: {
+    qtdModuloLed?: number | null;
+    drivers?: Array<{
+      tipo: string;
+      modelo: string;
+      qtd: number;
+      custo?: string | number | null;
+    }> | null;
+  } | null;
   /** Código EQ do módulo LED por CCT — para Migração 4 */
   ledModuleEq2700?: string | null;
   ledModuleEq3000?: string | null;
@@ -1273,6 +1283,19 @@ export function migrateItemDrivers(
           : /\bDIM\b|0\s*[-–]?\s*10V|1\s*[-–]?\s*10V/.test(normalizedContext)
             ? "dim110v"
             : "onoff";
+    const usesCombinedD1D2 = /\bD1\s*\+\s*D2\b/i.test(contextText)
+      && !/ACENDIMENTO\s*:\s*INDEPENDENTE/i.test(normalizedContext);
+    const d1d2DriverType = controlType === "dimDali"
+      ? "DRIVER_DIM_DALI"
+      : controlType === "dim110v"
+        ? "DRIVER_DIM_110"
+        : controlType === "dimTriac110v"
+          ? "DRIVER_DIM_TRIAC_110"
+          : controlType === "dimTriac220v"
+            ? "DRIVER_DIM_TRIAC_220"
+            : useBivolt
+              ? "DRIVER_ONOFF_BIVOLT"
+              : "DRIVER_ONOFF_220";
     let resolvedFromApi = false;
     const profileSegments = item.profileSegments.map((segment) => {
       const segmentSkuBase = segment.sku.match(/^([A-Z]{2,3}-\d{4})/i)?.[1]?.toUpperCase() ?? "";
@@ -1285,6 +1308,30 @@ export function migrateItemDrivers(
         (itemSkuBase ? productSkuMap.get(itemSkuBase) : undefined) ??
         (powerLabel ? productSkuMap.get(`${segment.sku}|${powerLabel}`.toUpperCase()) : undefined);
       if (!apiProduct || segment.driverManual) return segment;
+      if (usesCombinedD1D2) {
+        const d1d2 = apiProduct.composicaoD1D2;
+        const apiD1D2Driver = d1d2?.drivers?.find(driver => driver.tipo === d1d2DriverType) ?? null;
+        // Para D1+D2 simultâneo, a estrutura do próprio produto é a única
+        // fonte válida. Nunca reaproveitar o driver da versão D1 simples.
+        if (!apiD1D2Driver) return segment;
+        const normalizedModel = apiD1D2Driver.modelo.toUpperCase().trim().replace(/\s+/g, " ");
+        const driverCode = apiD1D2Driver.modelo.match(/\b(EQ\d+)\b/i)?.[1]?.toUpperCase()
+          ?? reverseDescMap?.get(normalizedModel)
+          ?? Array.from(descMap.entries()).find(([, description]) =>
+            description.toUpperCase().trim().replace(/\s+/g, " ") === normalizedModel
+          )?.[0]
+          ?? null;
+        if (!driverCode) return segment;
+        resolvedFromApi = true;
+        return {
+          ...segment,
+          barsPerPiece: d1d2?.qtdModuloLed ?? segment.barsPerPiece,
+          driverCode,
+          driverModel: descMap.get(driverCode) ?? apiD1D2Driver.modelo,
+          driverQtyPerPiece: apiD1D2Driver.qtd ?? 1,
+          corrente: correnteMap?.get(driverCode) ?? segment.corrente ?? null,
+        };
+      }
       const driverSelection = controlType === "dimDali"
         ? { driver: apiProduct.driverDimDali ?? null, quantity: apiProduct.driverQtdDimDali ?? 1 }
         : controlType === "dim110v"

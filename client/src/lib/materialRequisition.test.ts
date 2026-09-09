@@ -1034,4 +1034,38 @@ describe("buildMaterialRequisition — luminárias não-perfil", () => {
 
     expect(result.map(entry => entry.codigo)).not.toContain("EQ00415");
   });
+
+  it("contabiliza o driver oficial D1+D2 do segmento, sem reutilizar o driver D1 legado", () => {
+    const result = buildMaterialRequisition([{
+      category: "Perfis",
+      sku: "LLA-3395",
+      description: "HIT Arandela D1+D2 18W 3000K ON/OFF 220Vac 1135mm",
+      qty: 16,
+      profileSegments: [{
+        sku: "LLA-3395.2IN.58F",
+        qty: 1,
+        lengthMm: 1135,
+        barsPerPiece: 4,
+        driverQtyPerPiece: 1,
+        driverCode: "EQ00347",
+        driverModel: "LED DRIVER XITANIUM 44W 200-350MA 70-125VDC DIP SWITCH 230V",
+        corrente: "350mA",
+        ledModuleCode: "EQ00125",
+      }],
+      driverLines: [{
+        driverCode: "EQ00346",
+        driverModel: "LED DRIVER XITANIUM 19W 200-350MA 30-54VDC DS 230V",
+        driverQty: 16,
+      }],
+    } as any], new Map([
+      ["EQ00347", "LED DRIVER XITANIUM 44W 200-350MA 70-125VDC DIP SWITCH 230V"],
+      ["EQ00346", "LED DRIVER XITANIUM 19W 200-350MA 30-54VDC DS 230V"],
+      ["EQ00125", "STRIPFLEX 562.5X10MM 36LEDS 3000K"],
+    ]));
+
+    expect(result).toContainEqual(expect.objectContaining({
+      codigo: "EQ00347", qty: 16, unidade: "un", tipo: "DRIVERS", sourceItems: [1],
+    }));
+    expect(result.map(entry => entry.codigo)).not.toContain("EQ00346");
+  });
 });

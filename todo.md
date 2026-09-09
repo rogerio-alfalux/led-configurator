@@ -3518,3 +3518,9 @@
 - [x] Corrigir a persistência da troca de driver e permitir quantidades decimais de módulos LED
 - [x] Auditar e reconstruir a requisição de materiais do 04.0407-26 RV4 a partir da estrutura oficial da API
 - [x] Cobrir os fluxos por regressão e validar ficha, requisição e documentos antes do checkpoint reversível
+
+## Drivers de perfis D1+D2
+- [x] Auditar a variante estrutural oficial da API para o HIT A D1+D2 do item 8 do 04.0407-26 RV4
+- [x] Corrigir a resolução de drivers para aplicar exclusivamente a estrutura oficial D1+D2, incluindo quantidades dobradas quando aplicáveis
+- [x] Reparar somente os componentes técnicos do item afetado e validar a requisição correspondente
+- [x] Cobrir a regra D1+D2 por regressão, validar sem alterar dados comerciais e salvar checkpoint reversível
