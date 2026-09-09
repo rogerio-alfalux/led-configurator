@@ -3570,3 +3570,9 @@
 - [x] Auditar a persistência da quantidade editada no item 13 do 04.0407-26 RV4
 - [x] Propagar a quantidade manual para preview, Excel e requisição de materiais
 - [x] Corrigir somente o dado técnico de referência, cobrir regressão e salvar checkpoint reversível
+
+## Dashboard do Departamento de Custos
+- [x] Auditar a permissão e a sessão de Alan Aranha no Dashboard do orçamento 31.0160-26
+- [x] Restaurar o acesso aos Dashboards de todos os orçamentos para o Departamento de Custos
+- [x] Permitir o registro de custos confirmados de itens sem custo API, sem liberar edição comercial
+- [x] Cobrir o fluxo por regressão e salvar checkpoint reversível
