@@ -2,7 +2,7 @@ import ExcelJS from "exceljs";
 import { CartItemData } from "./cartTypes";
 import type { LinkedAccessory } from "./cartTypes";
 import { formatProfileSkuLines } from "./profileSkuFormatter";
-import { getManualApiComponentQuantity } from "./apiComponentSlots";
+import { getManualApiComponentQuantity, getManualApiEquipmentQuantity } from "./apiComponentSlots";
 import { toBrasiliaDate, toBrasiliaDateTime, toBrasiliaFileDate } from "./dateUtils";
 import { groupOrderItems, withDisplayMaterialSourceNumbers } from "./orderGrouping";
 import { buildMaterialRequisition, groupByTipo } from "./materialRequisition";
@@ -280,7 +280,7 @@ export function buildProfileEquipamentosText(item: CartItemData): string {
   }
 
   // Agrupar por modelo+código e somar quantidades POR UNIDADE
-  const totals = new Map<string, { model: string; code: string; qty: number; corrente?: string | null }>();
+  const totals = new Map<string, { model: string; code: string; rawCode: string; qty: number; corrente?: string | null }>();
 
   for (const seg of item.profileSegments) {
     // Driver combo: já formatado como "1 x MODEL1 (CODE1) + 1 x MODEL2 (CODE2)"
@@ -292,7 +292,7 @@ export function buildProfileEquipamentosText(item: CartItemData): string {
       if (existing) {
         totals.set(comboKey, { ...existing, qty: existing.qty + totalQty });
       } else {
-        totals.set(comboKey, { model: seg.driverModel, code: "", qty: totalQty });
+        totals.set(comboKey, { model: seg.driverModel, code: "", rawCode: "", qty: totalQty });
       }
       continue;
     }
@@ -308,16 +308,17 @@ export function buildProfileEquipamentosText(item: CartItemData): string {
     if (existing) {
       totals.set(key, { ...existing, qty: existing.qty + totalQty });
     } else {
-      totals.set(key, { model: seg.driverModel, code: codeSuffix, qty: totalQty, corrente });
+      totals.set(key, { model: seg.driverModel, code: codeSuffix, rawCode: seg.driverCode, qty: totalQty, corrente });
     }
   }
 
   const linhas = Array.from(totals.entries())
     .map(([_key, entry]) => {
+      const qty = getManualApiEquipmentQuantity(item, entry.rawCode) ?? entry.qty;
       // Para combos (sem code separado), usar a key como texto
       const base = !entry.code
-        ? `${fmtQty(entry.qty)} x ${_key}`
-        : `${fmtQty(entry.qty)} x ${entry.model}${entry.code}`;
+        ? `${fmtQty(qty)} x ${_key}`
+        : `${fmtQty(qty)} x ${entry.model}${entry.code}`;
       // Adicionar PROGRAMAÇÃO sempre que a API informar a corrente.
       if (entry.corrente) {
         return `${base}\nPROGRAMAÇÃO: ${entry.corrente}`;

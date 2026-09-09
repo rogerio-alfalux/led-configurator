@@ -127,13 +127,13 @@ export function formatApiComponentSlot(slot: Pick<ApiComponentSlot, "description
  * verdade em itens que não foram editados.
  */
 export function getManualApiComponentQuantity(
-  item: Pick<CartItemData, "moduloLed" | "moduloLedCode" | "moduloLedManual" | "manualModuleQuantities">,
+  item: Pick<CartItemData, "moduloLed" | "moduloLedCode" | "moduloLedManual" | "manualModuleQuantities" | "manualEquipmentQuantities">,
   officialCode: string | null | undefined,
 ): number | null {
   const expectedCode = officialCode?.trim().toUpperCase();
   if (!item.moduloLedManual || !expectedCode) return null;
 
-  const savedQuantity = item.manualModuleQuantities?.[expectedCode];
+  const savedQuantity = item.manualModuleQuantities?.[expectedCode] ?? item.manualEquipmentQuantities?.[expectedCode];
   if (savedQuantity != null && Number.isFinite(savedQuantity) && savedQuantity > 0) {
     return savedQuantity;
   }
@@ -148,6 +148,19 @@ export function getManualApiComponentQuantity(
     if (code === expectedCode && Number.isFinite(quantity) && quantity > 0) return quantity;
   }
   return null;
+}
+
+/** Retorna a quantidade manual de um equipamento oficial, quando declarada na ficha. */
+export function getManualApiEquipmentQuantity(
+  item: Pick<CartItemData, "manualEquipmentQuantities">,
+  officialCode: string | null | undefined,
+): number | null {
+  const expectedCode = officialCode?.trim().toUpperCase();
+  if (!expectedCode) return null;
+  const savedQuantity = item.manualEquipmentQuantities?.[expectedCode];
+  return savedQuantity != null && Number.isFinite(savedQuantity) && savedQuantity > 0
+    ? savedQuantity
+    : null;
 }
 
 /** Atualiza somente uma parte da composição concatenada, preservando as demais. */

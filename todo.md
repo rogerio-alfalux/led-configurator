@@ -3576,3 +3576,9 @@
 - [x] Restaurar o acesso aos Dashboards de todos os orçamentos para o Departamento de Custos
 - [x] Permitir o registro de custos confirmados de itens sem custo API, sem liberar edição comercial
 - [x] Cobrir o fluxo por regressão e salvar checkpoint reversível
+
+## Autosave de quantidades técnicas na ficha de produção
+- [x] Auditar o estado efetivamente enviado ao autosave ao editar quantidade de módulo, driver ou equipamento
+- [x] Persistir as quantidades manuais por componente oficial sem serem sobrescritas na reidratação
+- [x] Refletir os valores persistidos no preview, Excel e requisição de materiais
+- [x] Cobrir o fluxo completo por regressão, validar o item 13 da referência e salvar checkpoint reversível

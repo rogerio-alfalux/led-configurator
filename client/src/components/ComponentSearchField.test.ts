@@ -13,7 +13,7 @@ describe("parseDecimalQuantity", () => {
     expect(parseDecimalQuantity("")).toBeNull();
   });
 
-  it("mantém a quantidade local durante a digitação e confirma no blur", async () => {
+  it("mantém a digitação local, encaminha valores válidos ao autosave e confirma no blur", async () => {
     const source = await readFile(new URL("./ComponentSearchField.tsx", import.meta.url), "utf8");
     const inputBlock = source.slice(
       source.indexOf("{/* Campo de quantidade */"),
@@ -22,7 +22,7 @@ describe("parseDecimalQuantity", () => {
     expect(source).toContain("const commitQuantity = () =>");
     expect(source).toContain("onQtyChange(parsed)");
     expect(inputBlock).toContain("setQtyDraft(next)");
+    expect(inputBlock).toContain("if (parsed !== null) onQtyChange(parsed);");
     expect(inputBlock).toContain("onBlur={commitQuantity}");
-    expect(inputBlock).not.toContain("onQtyChange(parsed)");
   });
 });

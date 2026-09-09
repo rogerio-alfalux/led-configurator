@@ -29,6 +29,30 @@ describe("materialRequisition", () => {
     expect(result.find(material => material.codigo === "EQ00125")?.qty).toBe(110);
   });
 
+  it("prioriza a quantidade manual do driver de perfil pelo código oficial", () => {
+    const result = buildMaterialRequisition([{
+      category: "Perfil",
+      sku: "LLA-3395",
+      description: "HIT Arandela",
+      qty: 2,
+      unitPrice: null,
+      totalPrice: null,
+      photoUrl: null,
+      manualEquipmentQuantities: { EQ00347: 3 },
+      profileSegments: [{
+        sku: "LLA-3395.34F",
+        lengthMm: 1000,
+        qty: 4,
+        barsPerPiece: 1,
+        driverModel: "LED DRIVER XITANIUM 44W",
+        driverCode: "EQ00347",
+        driverQtyPerPiece: 1,
+      }],
+    } as any], descMap);
+
+    expect(result.find(material => material.codigo === "EQ00347")?.qty).toBe(6);
+  });
+
   it("deve resolver PT001050 para EQ00121 via busca normalizada (D80MM vs Ø80MM)", () => {
     const items: CartItemData[] = [
       {

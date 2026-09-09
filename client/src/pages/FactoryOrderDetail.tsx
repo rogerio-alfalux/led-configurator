@@ -20,7 +20,7 @@ import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, for
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { ComponentSearchField } from "@/components/ComponentSearchField";
 import type { ComponentOption } from "@/components/ComponentSearchField";
-import { formatApiComponentSlot, getApiModuleComponentSlots, getManualApiComponentQuantity, replaceApiModuleComponentSlot } from "@/lib/apiComponentSlots";
+import { formatApiComponentSlot, getApiModuleComponentSlots, getManualApiComponentQuantity, getManualApiEquipmentQuantity, replaceApiModuleComponentSlot } from "@/lib/apiComponentSlots";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { canEditProductionEquipments } from "@/lib/factoryEquipmentPolicy";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
@@ -342,7 +342,10 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
   const updateApiModuleComponent = (slot: typeof apiModuleComponentSlots[number], description: string, code: string, qty = slot.qty) => {
     const moduloLed = replaceApiModuleComponentSlot(parsed.moduloLed, slot, description, code, qty);
     const moduloLedCode = slot.kind === "MODULO_LED" ? (code || null) : parsed.moduloLedCode;
-    update({ moduloLed, moduloLedCode, moduloLedManual: true });
+    const manualEquipmentQuantities = { ...(parsed.manualEquipmentQuantities ?? {}) };
+    if (slot.code && slot.code !== code) delete manualEquipmentQuantities[slot.code.toUpperCase()];
+    if (code) manualEquipmentQuantities[code.toUpperCase()] = qty;
+    update({ moduloLed, moduloLedCode, moduloLedManual: true, manualEquipmentQuantities });
   };
 
   // Helper para extrair código EQ de uma string como "DESCRIÇÃO (EQ00125)"
@@ -647,12 +650,13 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                         const currentVal = group.code
                           ? `${group.model} (${group.code})`
                           : group.model;
+                        const manualQty = getManualApiEquipmentQuantity(parsed, group.code);
                         return (
                           <div key={gi} className="space-y-1">
                             <ComponentSearchField
                               label={driverGroups.size > 1 ? `Driver ${gi + 1}` : ""}
                               value={currentVal}
-                              qty={group.qty}
+                              qty={manualQty ?? group.qty}
                               onValueChange={(desc, code) => {
                                 if (!parsed.profileSegments) return;
                                 const newSegs = parsed.profileSegments.map((s, i) =>
@@ -660,7 +664,15 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                                 );
                                 update({ profileSegments: newSegs });
                               }}
-                              onQtyChange={(_qty) => { /* qty calculada automaticamente */ }}
+                              onQtyChange={qty => {
+                                if (!group.code) return;
+                                update({
+                                  manualEquipmentQuantities: {
+                                    ...(parsed.manualEquipmentQuantities ?? {}),
+                                    [group.code.toUpperCase()]: qty,
+                                  },
+                                });
+                              }}
                               options={driverOptions}
                               isLoading={componentesLoading}
                               placeholder="Buscar driver..."
@@ -1211,6 +1223,14 @@ export default function FactoryOrderDetail() {
     { enabled: effectiveOrderId !== null }
   );
 
+  // Uma ação de prévia ou Excel pode ocorrer no mesmo clique que desfoca um
+  // campo. Esta referência é atualizada otimisticamente antes do rerender da
+  // consulta para impedir que o documento use a quantidade anterior.
+  const currentOrderRef = useRef<typeof currentOrder>(currentOrder);
+  useEffect(() => {
+    currentOrderRef.current = currentOrder;
+  }, [currentOrder]);
+
   // Subpedidos do pedido atual (se for pedido pai)
   const parentOrderId = currentOrder?.parentOrderId ?? null;
   const rootOrderId = parentOrderId ?? effectiveOrderId;
@@ -1448,6 +1468,13 @@ export default function FactoryOrderDetail() {
 
   const handleUpdateItem = useCallback((itemId: number, newData: CartItemData) => {
     const itemData = JSON.stringify(newData);
+    const optimisticOrder = currentOrderRef.current;
+    if (optimisticOrder) {
+      currentOrderRef.current = {
+        ...optimisticOrder,
+        items: optimisticOrder.items.map(item => item.id === itemId ? { ...item, itemData } : item),
+      };
+    }
     if (effectiveOrderId) {
       utils.factoryOrders.getById.setData({ id: effectiveOrderId }, previous => previous ? ({
         ...previous,
@@ -1665,15 +1692,16 @@ export default function FactoryOrderDetail() {
       toast.error("Não foi possível concluir o salvamento dos itens antes de gerar o Excel.");
       return;
     }
+    const orderToUse = currentOrderRef.current ?? currentOrder;
     // Validar número do pedido: exatamente 6 dígitos numéricos
-    const orderNum = currentOrder.orderNumber ?? "";
+    const orderNum = orderToUse.orderNumber ?? "";
     if (!/^\d{6}(-\d+)?$/.test(orderNum)) {
       toast.error("Informe o número do pedido (6 dígitos, ex: 222222 ou 222222-1) antes de gerar o Excel.");
       setEditingOrderNumber(true);
       return;
     }
     // Verificar pendências nos itens
-    const warnings = checkPendingWarnings(currentOrder.items);
+    const warnings = checkPendingWarnings(orderToUse.items);
     if (warnings.length > 0) {
       setPendingExcelWarnings(warnings);
       setShowExcelWarningDialog(true);
@@ -1686,7 +1714,7 @@ export default function FactoryOrderDetail() {
       try {
         const newId = await new Promise<number>((resolve, reject) => {
           createRevisionMutation.mutate(
-            { sourceOrderId: currentOrder.id },
+            { sourceOrderId: orderToUse.id },
             {
               onSuccess: (r) => resolve(r.id),
               onError: (e) => reject(e),
@@ -1706,7 +1734,7 @@ export default function FactoryOrderDetail() {
       return;
     }
     // Sem alterações pendentes ou primeira geração: gerar diretamente
-    await doGenerateExcel(currentOrder);
+    await doGenerateExcel(orderToUse);
   }, [currentOrder, quoteData, itemAutosave, hasUnpublishedChanges, excelHistory.length, checkPendingWarnings, doGenerateExcel, createRevisionMutation]);
 
   // Flag para gerar Excel automaticamente após criar nova revisão
@@ -1730,13 +1758,14 @@ export default function FactoryOrderDetail() {
       toast.error("Não foi possível concluir o salvamento dos itens antes de gerar o Excel.");
       return;
     }
+    const orderToUse = currentOrderRef.current ?? currentOrder;
     // Verificar se precisa criar nova revisão
     if (hasUnpublishedChanges && excelHistory.length > 0) {
       setIsGenerating(true);
       try {
         const newId = await new Promise<number>((resolve, reject) => {
           createRevisionMutation.mutate(
-            { sourceOrderId: currentOrder.id },
+            { sourceOrderId: orderToUse.id },
             {
               onSuccess: (r) => resolve(r.id),
               onError: (e) => reject(e),
@@ -1752,7 +1781,7 @@ export default function FactoryOrderDetail() {
       }
       return;
     }
-    await doGenerateExcel(currentOrder);
+    await doGenerateExcel(orderToUse);
   }, [currentOrder, itemAutosave, hasUnpublishedChanges, excelHistory.length, doGenerateExcel, createRevisionMutation]);
 
   const handleSaveNotes = useCallback(() => {
@@ -1821,14 +1850,21 @@ export default function FactoryOrderDetail() {
                   variant="outline"
                   className="gap-2"
                   onClick={async () => {
-                    if (!quoteData) return;
+                    if (!quoteData || !currentOrder) return;
+                    try {
+                      await itemAutosave.flushAll();
+                    } catch {
+                      toast.error("Não foi possível concluir o salvamento dos itens antes de abrir a pré-visualização.");
+                      return;
+                    }
+                    const orderToPreview = currentOrderRef.current ?? currentOrder;
                     const { quote } = quoteData;
-                    const deliveryDays = currentOrder.deliveryDays ?? 20;
+                    const deliveryDays = orderToPreview.deliveryDays ?? 20;
                     const approvedAtIso = quote.approvedAt
                       ? new Date(quote.approvedAt).toISOString()
                       : new Date().toISOString();
                     const { displayDays, deliveryDateStr } = await calcDeliveryDate(approvedAtIso, deliveryDays);
-                    const items = currentOrder.items
+                    const items = orderToPreview.items
                       .map(i => parseCartItemData(i.itemData))
                       .filter((d): d is CartItemData => d !== null)
                       .map(d => normalizeDriverModels(enrichShiftAccessoryTechnicalComponents(migrateItemDrivers(enrichDriverCurrentsFromApi(d, componenteCorrenteMapFO), componentePriceMapFO, componenteDescMapFO, productSkuMapFO, componenteCorrenteMapFO, componenteReverseDescMapFO), productSkuMapFO), componenteDescMapFO));
@@ -1836,16 +1872,16 @@ export default function FactoryOrderDetail() {
                     setPreviewForm({
                       clientName: quote.clientName,
                       projectName: quote.projectName ?? "",
-                      quoteNumber: `${quote.quoteNumber} Rev.${currentOrder.revision}`,
-                      orderNumber: currentOrder.orderNumber ?? "",
+                      quoteNumber: `${quote.quoteNumber} Rev.${orderToPreview.revision}`,
+                      orderNumber: orderToPreview.orderNumber ?? "",
                       vendorName: quote.vendorName ?? "",
                       date: toBrasiliaDate(new Date()),
-                      empresa: currentOrder.empresa as "ALFALUX" | "LUMINEW",
+                      empresa: orderToPreview.empresa as "ALFALUX" | "LUMINEW",
                       deliveryDays,
                       approvedAt: approvedAtIso,
                       precomputedDisplayDays: displayDays,
                       precomputedDeliveryDate: deliveryDateStr,
-                      notes: currentOrder.notes ?? "",
+                      notes: orderToPreview.notes ?? "",
                       prazoStr: `${displayDays} dias úteis → ${deliveryDateStr}`,
                     });
                     setPreviewOpen(true);

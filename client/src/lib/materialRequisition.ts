@@ -15,7 +15,7 @@
  */
 
 import type { CartItemData, ProfileSegment } from "./cartTypes";
-import { getManualApiComponentQuantity } from "./apiComponentSlots";
+import { getManualApiComponentQuantity, getManualApiEquipmentQuantity } from "./apiComponentSlots";
 import {
   convertProductionEquipmentToMaterial,
   isLedStripDescription,
@@ -366,6 +366,7 @@ export function buildMaterialRequisition(
     // ── PERFIS: profileSegments ──────────────────────────────────────────
     if (item.profileSegments && item.profileSegments.length > 0) {
       const manualProfileModules = new Map<string, { quantity: number; description: string; tipo: MaterialTipo }>();
+      const manualProfileDrivers = new Map<string, { quantity: number; description: string }>();
       for (const seg of item.profileSegments) {
         // 1. Perfil em metros — AGRUPADO POR CÓDIGO-BASE
         if (seg.sku && seg.lengthMm > 0) {
@@ -422,9 +423,17 @@ export function buildMaterialRequisition(
 
         // 3. Driver
         if (seg.driverCode && seg.driverCode !== "ERRO" && !seg.driverModel.includes(" + ")) {
-          const totalDrivers = seg.qty * seg.driverQtyPerPiece * itemQty;
           const correnteSuffix = seg.corrente ? ` - PROG: ${seg.corrente}` : "";
-          add(seg.driverCode, `${seg.driverModel}${correnteSuffix}`, totalDrivers, "un", "DRIVERS", itemIdx);
+          const manualQuantity = getManualApiEquipmentQuantity(item, seg.driverCode);
+          if (manualQuantity != null) {
+            manualProfileDrivers.set(seg.driverCode.toUpperCase(), {
+              quantity: manualQuantity,
+              description: `${seg.driverModel}${correnteSuffix}`,
+            });
+          } else {
+            const totalDrivers = seg.qty * seg.driverQtyPerPiece * itemQty;
+            add(seg.driverCode, `${seg.driverModel}${correnteSuffix}`, totalDrivers, "un", "DRIVERS", itemIdx);
+          }
         }
 
         // 4. Driver combo: "1 x MODEL1 (CODE1) + 1 x MODEL2 (CODE2)"
@@ -447,6 +456,9 @@ export function buildMaterialRequisition(
           ? stripflexQuantityToPhysicalBars(manual.quantity) * itemQty
           : manual.quantity * itemQty;
         add(code, manual.description, totalQuantity, "un", manual.tipo, itemIdx);
+      }
+      for (const [code, manual] of Array.from(manualProfileDrivers.entries())) {
+        add(code, manual.description, manual.quantity * itemQty, "un", "DRIVERS", itemIdx);
       }
     }
 

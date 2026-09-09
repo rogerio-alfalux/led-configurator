@@ -105,6 +105,8 @@ export interface CartItemData {
   moduloLedManual?: boolean;
   /** Quantidades por unidade editadas manualmente na ficha, indexadas pelo código EQ/CP oficial do componente. */
   manualModuleQuantities?: Record<string, number>;
+  /** Quantidades por unidade de equipamentos alteradas na ficha, indexadas pelo código oficial EQ/CP. */
+  manualEquipmentQuantities?: Record<string, number>;
   /** Modo estrutural de iluminação retornado pela API. */
   productLightingMode?: ProductLightingMode;
   /** Fonte de luz estruturada da API, inclusive lâmpada, RGBW ou Tunable White. */

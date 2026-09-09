@@ -9,7 +9,7 @@ import type { OrderFormData } from "./orderExcelGenerator";
 import { toBrasiliaDateTime } from "./dateUtils";
 import { groupOrderItems, withDisplayMaterialSourceNumbers } from "./orderGrouping";
 import { buildMaterialRequisition, groupByTipo } from "./materialRequisition";
-import { getManualApiComponentQuantity } from "./apiComponentSlots";
+import { getManualApiComponentQuantity, getManualApiEquipmentQuantity } from "./apiComponentSlots";
 import { formatProfileSkuLines } from "./profileSkuFormatter";
 import type { MaterialTipo } from "./materialRequisition";
 import {
@@ -123,7 +123,7 @@ export function buildProfileEquipamentosText(item: CartItemData): string {
   }
 
   // Agrupar por modelo+código e somar quantidades POR UNIDADE
-  const totals = new Map<string, { model: string; code: string; qty: number }>();
+  const totals = new Map<string, { model: string; code: string; rawCode: string; qty: number }>();
 
   for (const seg of item.profileSegments) {
     // Driver combo
@@ -134,7 +134,7 @@ export function buildProfileEquipamentosText(item: CartItemData): string {
       if (existing) {
         totals.set(comboKey, { ...existing, qty: existing.qty + totalQty });
       } else {
-        totals.set(comboKey, { model: seg.driverModel, code: "", qty: totalQty });
+        totals.set(comboKey, { model: seg.driverModel, code: "", rawCode: "", qty: totalQty });
       }
       continue;
     }
@@ -149,7 +149,7 @@ export function buildProfileEquipamentosText(item: CartItemData): string {
     if (existing) {
       totals.set(key, { ...existing, qty: existing.qty + totalQty });
     } else {
-      totals.set(key, { model: seg.driverModel, code: codeSuffix, qty: totalQty });
+      totals.set(key, { model: seg.driverModel, code: codeSuffix, rawCode: seg.driverCode, qty: totalQty });
     }
   }
 
@@ -160,8 +160,9 @@ export function buildProfileEquipamentosText(item: CartItemData): string {
 
   const linhas = Array.from(totals.entries())
     .map(([key, entry]) => {
-      if (!entry.code) return `${fmtQty(entry.qty)} x ${esc(key)}`;
-      return `${fmtQty(entry.qty)} x ${esc(entry.model)}${esc(entry.code)}`;
+      const qty = getManualApiEquipmentQuantity(item, entry.rawCode) ?? entry.qty;
+      if (!entry.code) return `${fmtQty(qty)} x ${esc(key)}`;
+      return `${fmtQty(qty)} x ${esc(entry.model)}${esc(entry.code)}`;
     });
 
   // Adicionar linha de programação sempre que ela tiver sido retornada pela API.

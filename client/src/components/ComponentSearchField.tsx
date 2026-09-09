@@ -133,6 +133,11 @@ export function ComponentSearchField({
             onChange={e => {
               const next = e.target.value.replace(/[^0-9,.-]/g, "");
               setQtyDraft(next);
+              // A ficha possui autosave otimista: propagar cada quantidade válida
+              // durante a digitação impede que um clique imediato em prévia/Excel
+              // gere o documento a partir do último valor confirmado por blur.
+              const parsed = parseDecimalQuantity(next);
+              if (parsed !== null) onQtyChange(parsed);
             }}
             onBlur={commitQuantity}
             onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }}

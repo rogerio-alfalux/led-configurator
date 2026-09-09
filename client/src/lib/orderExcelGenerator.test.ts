@@ -113,6 +113,22 @@ describe("estrutura heterogênea da API — Excel da ficha", () => {
     } as any, new Map([["EQ00125", "STRIPFLEX 562.5 X 10MM"]]))).toBe("109,7 x STRIPFLEX 562.5 X 10MM (EQ00125)");
   });
 
+  it("prioriza a quantidade manual do driver de perfil pelo código oficial", () => {
+    const text = buildProfileEquipamentosText({
+      manualEquipmentQuantities: { EQ00347: 21 },
+      profileSegments: [{
+        sku: "LLA-3395.34F",
+        qty: 12,
+        lengthMm: 1000,
+        barsPerPiece: 1,
+        driverQtyPerPiece: 1,
+        driverModel: "LED DRIVER XITANIUM 44W",
+        driverCode: "EQ00347",
+      }],
+    } as any);
+    expect(text).toContain("21 x LED DRIVER XITANIUM 44W (EQ00347)");
+  });
+
   it("preserva a PCI do SHIFT em Equipamentos", () => {
     const text = buildProfileEquipamentosText({
       category: "Perfis",

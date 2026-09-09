@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatApiComponentSlot,
+  getManualApiEquipmentQuantity,
   getManualApiComponentQuantity,
   getApiModuleComponentSlots,
   replaceApiModuleComponentSlot,
@@ -90,5 +91,11 @@ describe("apiComponentSlots", () => {
       moduloLed: "STRIPFLEX 562.5 X 10MM (EQ00125)",
       manualModuleQuantities: { EQ00125: 109.7 },
     }, "EQ00125")).toBe(109.7);
+  });
+
+  it("recupera a quantidade manual de equipamento pelo código oficial", () => {
+    expect(getManualApiEquipmentQuantity({
+      manualEquipmentQuantities: { EQ00348: 21 },
+    }, "eq00348")).toBe(21);
   });
 });
