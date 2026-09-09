@@ -178,6 +178,7 @@ interface SortableCartItemProps {
   onEditClick: (id: number, data: CartItemData) => void;
   onDuplicate: (data: CartItemData) => void;
   acessorioPhotoMap: Map<string, string>;
+  driverPriceByCode: ReadonlyMap<string, number>;
   /** Callback para reordenar: move o item da posição atual para a nova posição (1-based global) */
   onReorderToSeq: (itemId: number, newSeq: number) => void;
   /** Função para aplicar margem individual do item sobre um valor base */
@@ -187,10 +188,10 @@ interface SortableCartItemProps {
 function SortableCartItem({
   entry, idx, globalSeq, totalItems, itemEmPlantaMap, setItemEmPlantaMap, updateItemField,
   handleUpdateQty, handleQtyInput, removeItem, updateQtyMutation, isRemoving, onEditClick, onDuplicate,
-  acessorioPhotoMap, onReorderToSeq, applyItemMargin,
+  acessorioPhotoMap, driverPriceByCode, onReorderToSeq, applyItemMargin,
 }: SortableCartItemProps) {
   const [seqInputVal, setSeqInputVal] = React.useState<string>("");
-  const driverDetails = getCartDriverDisplayDetails(entry.data);
+  const driverDetails = getCartDriverDisplayDetails(entry.data, driverPriceByCode);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: entry.id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -281,6 +282,11 @@ function SortableCartItem({
                             {driver.model}
                             {driver.code ? <span className="font-mono text-[10px] text-muted-foreground"> ({driver.code})</span> : null}
                           </span>
+                          {driver.unitPrice != null && driver.totalPrice != null && (
+                            <span className="ml-auto shrink-0 whitespace-nowrap text-[11px] text-muted-foreground">
+                              {formatBRL(driver.unitPrice)}/un <span className="text-violet-700 dark:text-violet-300">× {driver.quantity} = {formatBRL(driver.totalPrice)}</span>
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -703,6 +709,20 @@ function StandardCart() {
     }
     return map;
   }, [acessoriosQuery.data]);
+
+  // Preço oficial de venda dos componentes: usado somente para exibir fontes
+  // de registros legados que não haviam gravado driverUnitPrice no carrinho.
+  const componentesQuery = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 0 });
+  const driverPriceByCode = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const component of componentesQuery.data?.items ?? []) {
+      const code = component.codigo?.trim().toUpperCase();
+      if (code && component.precoVenda != null && component.precoVenda > 0) {
+        map.set(code, component.precoVenda);
+      }
+    }
+    return map;
+  }, [componentesQuery.data]);
 
   // Todos os produtos Alfalux para resolver fotos frescas de Painéis, Spots, etc.
   // URLs CloudFront expiram em ~1h; buscamos sempre frescos com staleTime curto
@@ -1532,6 +1552,7 @@ function StandardCart() {
                           updateQtyMutation={updateQtyMutation}
                           isRemoving={isRemoving}
                           acessorioPhotoMap={acessorioPhotoMap}
+                          driverPriceByCode={driverPriceByCode}
                           onDuplicate={(data) => { const cloned = cloneCartItemData(data); addItem({ ...cloned, itemEmPlanta: cloned.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
                           onEditClick={(id, data) => {
                             setEditItemId(id);
@@ -1608,6 +1629,7 @@ function StandardCart() {
                                   updateQtyMutation={updateQtyMutation}
                                   isRemoving={isRemoving}
                                   acessorioPhotoMap={acessorioPhotoMap}
+                                  driverPriceByCode={driverPriceByCode}
                                   onDuplicate={(data) => { const cloned = cloneCartItemData(data); addItem({ ...cloned, itemEmPlanta: cloned.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
                                   onEditClick={(id, data) => {
                                     setEditItemId(id);

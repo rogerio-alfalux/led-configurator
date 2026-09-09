@@ -3560,3 +3560,8 @@
 - [x] Rastrear o componente efetivamente renderizado que ainda exibe LED BAR e não detalha drivers
 - [x] Corrigir a origem real do estado ou componente sem alterar dados comerciais
 - [x] Validar no mesmo fluxo visual relatado pelo usuário e salvar checkpoint reversível
+
+## Subitens comerciais de fontes lineares no carrinho
+- [x] Mapear o preço unitário e o subtotal já disponíveis para as fontes dos itens lineares
+- [x] Exibir cada fonte com quantidade, preço unitário e subtotal no card do carrinho
+- [x] Cobrir a apresentação comercial por regressão e salvar checkpoint reversível

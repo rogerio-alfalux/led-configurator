@@ -4,6 +4,8 @@ export interface CartDriverDisplayDetail {
   quantity: number;
   model: string;
   code: string | null;
+  unitPrice: number | null;
+  totalPrice: number | null;
 }
 
 function parseLegacyDriver(item: CartItemData): { model: string; code: string | null; quantityPerUnit: number } | null {
@@ -25,31 +27,59 @@ function parseLegacyDriver(item: CartItemData): { model: string; code: string | 
  * verdade: cada corte exige uma fonte. Isso também cobre itens legados que
  * ainda não possuem driverLines estruturadas.
  */
-export function getCartDriverDisplayDetails(item: CartItemData): CartDriverDisplayDetail[] {
+export function getCartDriverDisplayDetails(
+  item: CartItemData,
+  officialPriceByCode: ReadonlyMap<string, number> = new Map(),
+): CartDriverDisplayDetail[] {
   const itemQty = Math.max(1, Number(item.qty ?? 1));
   const isLedBar = item.category === "LED BAR";
   if (isLedBar && item.ledBarDriverCode && item.ledBarNCortes) {
     const legacy = parseLegacyDriver(item);
+    const code = item.ledBarDriverCode.trim().toUpperCase();
+    const quantity = Math.max(1, Number(item.ledBarNCortes)) * itemQty;
+    const matchingLine = item.driverLines?.find(
+      (driver) => driver.driverCode?.trim().toUpperCase() === code,
+    );
+    const unitPrice = matchingLine?.driverUnitPrice
+      ?? item.unitPriceDriver
+      ?? officialPriceByCode.get(code)
+      ?? null;
     return [{
-      quantity: Math.max(1, Number(item.ledBarNCortes)) * itemQty,
+      quantity,
       model: item.ledBarDriverModel?.trim() || legacy?.model || "Driver",
-      code: item.ledBarDriverCode.trim().toUpperCase(),
+      code,
+      unitPrice,
+      totalPrice: unitPrice != null ? Math.round(unitPrice * quantity * 100) / 100 : null,
     }];
   }
 
   if (item.driverLines && item.driverLines.length > 0) {
-    return item.driverLines.map((driver) => ({
-      quantity: Math.max(0, Number(driver.driverQty ?? 0)),
-      model: driver.driverModel || "Driver",
-      code: driver.driverCode?.trim().toUpperCase() || null,
-    }));
+    return item.driverLines.map((driver) => {
+      const quantity = Math.max(0, Number(driver.driverQty ?? 0));
+      const code = driver.driverCode?.trim().toUpperCase() || null;
+      const unitPrice = driver.driverUnitPrice ?? (code ? officialPriceByCode.get(code) ?? null : null);
+      return {
+        quantity,
+        model: driver.driverModel || "Driver",
+        code,
+        unitPrice,
+        totalPrice: unitPrice != null ? Math.round(unitPrice * quantity * 100) / 100 : null,
+      };
+    });
   }
 
   const legacy = parseLegacyDriver(item);
   if (!legacy) return [];
+  const quantity = legacy.quantityPerUnit * itemQty;
+  const unitPrice = item.unitPriceDriver
+    ?? (legacy.code ? officialPriceByCode.get(legacy.code) ?? null : null);
   return [{
-    quantity: legacy.quantityPerUnit * itemQty,
+    quantity,
     model: legacy.model,
     code: legacy.code,
+    unitPrice,
+    totalPrice: unitPrice != null
+      ? Math.round(unitPrice * quantity * 100) / 100
+      : null,
   }];
 }
