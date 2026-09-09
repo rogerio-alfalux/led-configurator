@@ -1374,6 +1374,45 @@ export function migrateItemDrivers(
     }
   }
 
+  // ── LED BAR e perfis FL: uma fonte por corte de até 3.000 mm ──────────────
+  // O catálogo grava a quantidade de cortes em ledBarNCortes. Em perfis FL,
+  // nenhum trecho pode ultrapassar 3.000 mm: a reidratação valida esse mínimo
+  // físico também para versões antigas. Assim, uma peça de 4.000 mm exige dois
+  // cortes e duas fontes por luminária. Versões antigas podiam conservar uma
+  // driverLine com quantidade zero ou de uma única peça, embora o resumo já
+  // registrasse os cortes. A reconstrução só muda campos técnicos de contagem,
+  // não altera preço. Uma edição manual do equipamento/programação é soberana.
+  const isLedBarItem = item.category === "LED BAR";
+  const isFlLedBarItem = isLedBarItem && /\bFL\b/i.test([item.description, item.orderSummary, item.quoteSummary].filter(Boolean).join(" "));
+  const totalLengthMm = Number(item.ledBarComprimentoTotalMm ?? 0);
+  const minimumCutsForFl = isFlLedBarItem && totalLengthMm > 0 ? Math.ceil(totalLengthMm / 3000) : 0;
+  const cutsPerUnit = Math.max(Number(item.ledBarNCortes ?? 0), minimumCutsForFl);
+  const ledBarDriverCode = item.ledBarDriverCode?.trim().toUpperCase();
+  const hasManualLedBarDriver = item.driverLines?.some(line => line.driverManual || line.programacaoManual) ?? false;
+  if (isFlLedBarItem && cutsPerUnit > Number(item.ledBarNCortes ?? 0)) {
+    item = {
+      ...item,
+      ledBarNCortes: cutsPerUnit,
+      ledBarComprimentoPorTrechoMm: totalLengthMm > 0 ? Math.ceil(totalLengthMm / cutsPerUnit) : item.ledBarComprimentoPorTrechoMm,
+    };
+  }
+  if (isLedBarItem && cutsPerUnit > 0 && ledBarDriverCode && item.driverLines?.length && !hasManualLedBarDriver) {
+    const itemQty = Math.max(1, Number(item.qty ?? 1));
+    const totalDriverQty = cutsPerUnit * itemQty;
+    const matchingLineIndex = item.driverLines.findIndex(line => line.driverCode?.trim().toUpperCase() === ledBarDriverCode);
+    const lineIndex = matchingLineIndex >= 0 ? matchingLineIndex : 0;
+    const driverLines = item.driverLines.map((line, index) => index === lineIndex
+      ? {
+          ...line,
+          driverCode: ledBarDriverCode,
+          driverModel: descMap.get(ledBarDriverCode) ?? item.ledBarDriverModel ?? line.driverModel,
+          driverQty: totalDriverQty,
+        }
+      : line,
+    );
+    item = { ...item, driverLines, driverQtyPerUnit: cutsPerUnit };
+  }
+
   // Itens sem segmentos recebem custo e markup da variante exata por SKU e
   // descrição, inclusive quando já possuem driverLines gravadas em revisões antigas.
   if ((!item.profileSegments || item.profileSegments.length === 0) && item.sku) {

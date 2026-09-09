@@ -831,3 +831,81 @@ describe("drivers múltiplos retornados pela API", () => {
     expect(migrated.driverQtyPerUnit).toBe(4);
   });
 });
+
+describe("migrateItemDrivers — LED BAR e perfis FL", () => {
+  it("reconstrói uma fonte por corte para todas as luminárias sem alterar valores comerciais", () => {
+    const item = {
+      category: "LED BAR",
+      sku: "LLE-2052",
+      description: "SKYLINE E FL 10W/M 3000K ON/OFF Bivolt 4000MM",
+      qty: 7,
+      unitPrice: 815.76,
+      totalPrice: 5710.32,
+      photoUrl: null,
+      ledBarNCortes: 2,
+      ledBarComprimentoPorTrechoMm: 2000,
+      ledBarDriverCode: "EQ00801",
+      ledBarDriverModel: "FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT",
+      driverLines: [{
+        driverCode: "EQ00801",
+        driverModel: "FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT",
+        driverQty: 0,
+        driverUnitPrice: null,
+        driverTotalPrice: null,
+      }],
+    } as any;
+
+    const migrated = migrateItemDrivers(
+      item,
+      new Map(),
+      new Map([["EQ00801", "FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT"]]),
+      new Map(),
+    );
+
+    expect(migrated.driverQtyPerUnit).toBe(2);
+    expect(migrated.driverLines?.[0]).toMatchObject({ driverCode: "EQ00801", driverQty: 14 });
+    expect(migrated.unitPrice).toBe(815.76);
+    expect(migrated.totalPrice).toBe(5710.32);
+    expect(migrated.driverLines?.[0]?.driverTotalPrice).toBeNull();
+  });
+
+  it("preserva uma troca manual de fonte mesmo quando o perfil possui mais de um corte", () => {
+    const item = {
+      category: "LED BAR",
+      sku: "LLE-2052",
+      description: "SKYLINE E FL 10W/M 3000K ON/OFF Bivolt 4000MM",
+      qty: 7,
+      unitPrice: 815.76,
+      totalPrice: 5710.32,
+      photoUrl: null,
+      ledBarNCortes: 2,
+      ledBarDriverCode: "EQ00801",
+      driverLines: [{ driverCode: "EQ00999", driverModel: "FONTE MANUAL", driverQty: 7, driverUnitPrice: null, driverTotalPrice: null, driverManual: true }],
+    } as any;
+
+    const migrated = migrateItemDrivers(item, new Map(), new Map(), new Map());
+
+    expect(migrated.driverLines?.[0]).toMatchObject({ driverCode: "EQ00999", driverQty: 7, driverManual: true });
+  });
+
+  it("impõe dois cortes e duas fontes por luminária FL de 4.000 mm mesmo quando o registro legado declarava um corte", () => {
+    const migrated = migrateItemDrivers({
+      category: "LED BAR",
+      sku: "LLE-2052",
+      description: "SKYLINE E FL 10W/M 3000K ON/OFF Bivolt 4000MM",
+      qty: 7,
+      unitPrice: 815.76,
+      totalPrice: 5710.32,
+      photoUrl: null,
+      ledBarNCortes: 1,
+      ledBarComprimentoTotalMm: 4000,
+      ledBarDriverCode: "EQ00801",
+      ledBarDriverModel: "FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT",
+      driverLines: [{ driverCode: "EQ00801", driverModel: "FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT", driverQty: 7, driverUnitPrice: null, driverTotalPrice: null }],
+    } as any, new Map(), new Map(), new Map());
+
+    expect(migrated.ledBarNCortes).toBe(2);
+    expect(migrated.ledBarComprimentoPorTrechoMm).toBe(2000);
+    expect(migrated.driverLines?.[0]).toMatchObject({ driverCode: "EQ00801", driverQty: 14 });
+  });
+});

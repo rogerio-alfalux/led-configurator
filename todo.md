@@ -3537,3 +3537,9 @@
 - [x] Atualizar exclusivamente o custo técnico confirmado, preservando preço e demais dados comerciais
 - [x] Validar o recálculo do Dashboard de Lucro e salvar checkpoint reversível
 - [ ] Corrigir a integração de revenda para obter custos cadastrados por rota autenticada, sem depender do payload público incompleto
+
+## Drivers de perfis FL — orçamento 35.0012-26
+- [x] Auditar o item 1 e a variante técnica oficial do perfil FL na API
+- [x] Dimensionar uma fonte por corte de até 3.000 mm para perfis FL, preservando a estrutura e os preços oficiais
+- [x] Corrigir somente a linha técnica de driver do item afetado, sem alterar dados comerciais
+- [x] Cobrir a regra por regressão, validar a requisição e salvar checkpoint reversível
