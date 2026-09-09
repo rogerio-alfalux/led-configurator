@@ -88,6 +88,7 @@ import {
   calculateLedBar,
   calcLedBarPrice,
   calcLedBarPriceDetail,
+  formatLinearCutDescription,
 } from "@/lib/ledBarCatalog";
 import type { LedBarProduct, LedBarPotencia, LedBarDifusor, LedBarControle, LedBarVoltage, LedBarResult } from "@/lib/ledBarCatalog";
 import {
@@ -10002,7 +10003,11 @@ export default function Home() {
                                   const item: CartItemData = {
                                     category: "LED BAR",
                                     sku: r.product.sku ?? "",
-                                    description: `${r.product.name} ${r.cct} ${r.controle} ${r.voltage} ${r.comprimentoTotalMm}MM`,
+                                   description: formatLinearCutDescription(
+                                     `${r.product.name} ${r.cct} ${r.controle} ${r.voltage} ${r.comprimentoTotalMm}MM`,
+                                     r.nCortes,
+                                     r.comprimentoPorTrechoMm,
+                                   ),
                                    power: `${r.product.potencia}W/m`,
                                    cct: r.cct,
                                    ...productStructureCartFields(r.product.productStructure),

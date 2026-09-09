@@ -17,6 +17,7 @@ import {
   daliIsBivolt,
   LED_BAR_CATALOG,
   LED_BAR_MAX_LENGTH_MM,
+  formatLinearCutDescription,
 } from "./ledBarCatalog";
 import type { LedBarProduct } from "./ledBarCatalog";
 
@@ -286,6 +287,24 @@ describe("calculateLedBar", () => {
 
   it("não usa tabela comercial estática para futuras famílias FL sem preço API", () => {
     expect(calcLedBarPrice(10, 1000, 1, "NOVA FAMÍLIA FL")).toBeNull();
+  });
+});
+
+describe("formatLinearCutDescription", () => {
+  it("exibe número de cortes e comprimento por trecho na descrição comercial", () => {
+    expect(formatLinearCutDescription(
+      "SKYLINE E FL 10W/M 3000K ON/OFF Bivolt 4000MM",
+      2,
+      2000,
+    )).toBe("SKYLINE E FL 10W/M 3000K ON/OFF Bivolt 4000MM (2 x 2000mm)");
+  });
+
+  it("substitui um sufixo de corte antigo em vez de duplicá-lo", () => {
+    expect(formatLinearCutDescription(
+      "MILANO 10W/M 5000MM (1 x 5000mm)",
+      2,
+      2500,
+    )).toBe("MILANO 10W/M 5000MM (2 x 2500mm)");
   });
 });
 

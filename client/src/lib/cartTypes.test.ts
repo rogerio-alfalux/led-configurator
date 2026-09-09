@@ -907,5 +907,6 @@ describe("migrateItemDrivers — LED BAR e perfis FL", () => {
     expect(migrated.ledBarNCortes).toBe(2);
     expect(migrated.ledBarComprimentoPorTrechoMm).toBe(2000);
     expect(migrated.driverLines?.[0]).toMatchObject({ driverCode: "EQ00801", driverQty: 14 });
+    expect(migrated.description).toBe("SKYLINE E FL 10W/M 3000K ON/OFF Bivolt 4000MM (2 x 2000mm)");
   });
 });

@@ -439,6 +439,31 @@ export function isLedBarFamilyWithoutDifusor(familia: string | null | undefined)
     || isLedBarFitaFamily(familia);
 }
 
+/**
+ * Acrescenta à descrição comercial dos itens lineares a decomposição que o
+ * usuário escolheu no cálculo. O sufixo é substituído quando o item antigo já
+ * trazia uma divisão diferente, evitando descrições repetidas após recarga.
+ * Ex.: "SKYLINE E FL ... 4000MM" → "... 4000MM (2 x 2000mm)".
+ */
+export function formatLinearCutDescription(
+  description: string,
+  nCortes: number | null | undefined,
+  comprimentoPorTrechoMm: number | null | undefined,
+): string {
+  const cuts = Number(nCortes ?? 0);
+  const length = Number(comprimentoPorTrechoMm ?? 0);
+  if (!description?.trim() || !Number.isFinite(cuts) || !Number.isFinite(length) || cuts < 1 || length <= 0) {
+    return description;
+  }
+
+  const cleanDescription = description
+    .trim()
+    .replace(/\s*\(\s*\d+\s*[xX×]\s*\d+(?:[.,]\d+)?\s*mm\s*\)\s*$/i, "");
+  const displayCuts = Number.isInteger(cuts) ? String(cuts) : String(cuts).replace(".", ",");
+  const displayLength = Number.isInteger(length) ? String(length) : String(length).replace(".", ",");
+  return `${cleanDescription} (${displayCuts} x ${displayLength}mm)`;
+}
+
 /** Retorna somente as instalações efetivamente disponíveis para uma família da API. */
 export function getLedBarAvailableInstallations(
   catalog: LedBarProduct[],

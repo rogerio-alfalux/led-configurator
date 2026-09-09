@@ -1,4 +1,5 @@
 import type { ProductLightingMode, ProductStructureComponent } from "./productStructure";
+import { formatLinearCutDescription } from "./ledBarCatalog";
 
 /**
  * Dados serializados de um item do carrinho de orçamento.
@@ -1395,6 +1396,14 @@ export function migrateItemDrivers(
       ledBarNCortes: cutsPerUnit,
       ledBarComprimentoPorTrechoMm: totalLengthMm > 0 ? Math.ceil(totalLengthMm / cutsPerUnit) : item.ledBarComprimentoPorTrechoMm,
     };
+  }
+  if (isLedBarItem && cutsPerUnit > 0) {
+    const comprimentoPorTrechoMm = Number(item.ledBarComprimentoPorTrechoMm ?? 0)
+      || (totalLengthMm > 0 ? Math.ceil(totalLengthMm / cutsPerUnit) : 0);
+    const description = formatLinearCutDescription(item.description, cutsPerUnit, comprimentoPorTrechoMm);
+    if (description !== item.description) {
+      item = { ...item, description };
+    }
   }
   if (isLedBarItem && cutsPerUnit > 0 && ledBarDriverCode && item.driverLines?.length && !hasManualLedBarDriver) {
     const itemQty = Math.max(1, Number(item.qty ?? 1));

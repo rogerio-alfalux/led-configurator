@@ -3543,3 +3543,9 @@
 - [x] Dimensionar uma fonte por corte de até 3.000 mm para perfis FL, preservando a estrutura e os preços oficiais
 - [x] Corrigir somente a linha técnica de driver do item afetado, sem alterar dados comerciais
 - [x] Cobrir a regra por regressão, validar a requisição e salvar checkpoint reversível
+
+## Descrição comercial de cortes — produtos lineares
+- [x] Mapear todos os fluxos de LED BAR e famílias lineares equivalentes que gravam ou reidratam descrições
+- [x] Exibir cortes e comprimento por trecho na descrição comercial sem alterar preços ou estrutura técnica
+- [x] Cobrir a regra por regressão e validar preview, PDF e Excel
+- [x] Salvar checkpoint reversível da alteração
