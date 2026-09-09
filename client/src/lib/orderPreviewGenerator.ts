@@ -7,7 +7,7 @@
 import type { CartItemData, LinkedAccessory } from "./cartTypes";
 import type { OrderFormData } from "./orderExcelGenerator";
 import { toBrasiliaDateTime } from "./dateUtils";
-import { groupOrderItems } from "./orderGrouping";
+import { groupOrderItems, withDisplayMaterialSourceNumbers } from "./orderGrouping";
 import { buildMaterialRequisition, groupByTipo } from "./materialRequisition";
 import { formatProfileSkuLines } from "./profileSkuFormatter";
 import type { MaterialTipo } from "./materialRequisition";
@@ -548,7 +548,7 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
   </div>
 
   ${(() => {
-    const allItemsForReq = items.filter((i: CartItemData) => i.category !== 'Não Orçamos');
+    const allItemsForReq = withDisplayMaterialSourceNumbers(items);
     const matEntries = buildMaterialRequisition(allItemsForReq, descMap);
     if (matEntries.length === 0) return '';
     const byTipo = groupByTipo(matEntries);

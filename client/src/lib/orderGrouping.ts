@@ -273,3 +273,27 @@ export function groupOrderItems(items: CartItemData[]): CartItemData[] {
     return clean as CartItemData;
   });
 }
+
+/**
+ * Retorna os itens originais com o número que cada um ocupa na ficha
+ * consolidada. A requisição precisa manter os itens individuais para somar
+ * componentes e acessórios com precisão, mas sua coluna "ITENS" deve usar a
+ * mesma numeração exibida após o agrupamento visual.
+ */
+export function withDisplayMaterialSourceNumbers(items: CartItemData[]): CartItemData[] {
+  const displayNumberByGroup = new Map<string, number>();
+  let nextDisplayNumber = 1;
+
+  return items
+    .filter(item => item.category !== "Não Orçamos")
+    .map(item => {
+      const key = buildGroupKey(item);
+      let displayNumber = displayNumberByGroup.get(key);
+      if (displayNumber == null) {
+        displayNumber = nextDisplayNumber;
+        nextDisplayNumber += 1;
+        displayNumberByGroup.set(key, displayNumber);
+      }
+      return { ...item, materialSourceItemNumber: displayNumber };
+    });
+}

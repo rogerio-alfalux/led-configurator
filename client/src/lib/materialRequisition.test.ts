@@ -1068,4 +1068,31 @@ describe("buildMaterialRequisition — luminárias não-perfil", () => {
     }));
     expect(result.map(entry => entry.codigo)).not.toContain("EQ00346");
   });
+
+  it("usa o número exibido da ficha quando itens equivalentes foram consolidados", () => {
+    const result = buildMaterialRequisition([
+      {
+        category: "Spots",
+        sku: "LDS-7786.1GM.57P",
+        description: "GUGA M LED 6.5W 36° TRL 3000K",
+        qty: 4,
+        materialSourceItemNumber: 13,
+        moduloLed: "MODULO LED Ø50MM 6 LEDS 900LM 830-3000K ADV CNC (EQ00321)",
+        moduloLedCode: "EQ00321",
+      },
+      {
+        category: "Acessórios",
+        sku: "EQ00438",
+        description: "TRILHO ELETRIFICADO 1C 2000MM EXP PRETO",
+        qty: 1,
+        materialSourceItemNumber: 14,
+      },
+    ] as any, new Map([
+      ["EQ00321", "MODULO LED Ø50MM 6 LEDS 900LM 830-3000K ADV CNC"],
+    ]));
+
+    expect(result).toContainEqual(expect.objectContaining({
+      codigo: "EQ00321", qty: 4, tipo: "MÓDULOS LED", sourceItems: [13],
+    }));
+  });
 });

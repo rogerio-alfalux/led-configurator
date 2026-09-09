@@ -3524,3 +3524,10 @@
 - [x] Corrigir a resolução de drivers para aplicar exclusivamente a estrutura oficial D1+D2, incluindo quantidades dobradas quando aplicáveis
 - [x] Reparar somente os componentes técnicos do item afetado e validar a requisição correspondente
 - [x] Cobrir a regra D1+D2 por regressão, validar sem alterar dados comerciais e salvar checkpoint reversível
+
+## Requisição 04.0407-26 RV4 — itens 10, 11 e 14
+- [x] Auditar os componentes persistidos e a composição oficial da API para os itens 10, 11 e 14
+- [x] Corrigir somente códigos e componentes técnicos incompatíveis na ficha de produção, sem alterar dados comerciais
+- [x] Impedir que componentes de acessórios de trilho sejam tratados como módulos LED de luminárias na requisição
+- [x] Cobrir as regressões, validar a requisição exata e salvar checkpoint reversível
+- [x] Alinhar a coluna ITENS da requisição à numeração consolidada da ficha, preservando o cálculo individual de cada componente

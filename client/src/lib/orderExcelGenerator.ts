@@ -3,7 +3,7 @@ import { CartItemData } from "./cartTypes";
 import type { LinkedAccessory } from "./cartTypes";
 import { formatProfileSkuLines } from "./profileSkuFormatter";
 import { toBrasiliaDate, toBrasiliaDateTime, toBrasiliaFileDate } from "./dateUtils";
-import { groupOrderItems } from "./orderGrouping";
+import { groupOrderItems, withDisplayMaterialSourceNumbers } from "./orderGrouping";
 import { buildMaterialRequisition, groupByTipo } from "./materialRequisition";
 import type { MaterialTipo } from "./materialRequisition";
 import {
@@ -695,7 +695,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
 
   // ─── Requisição de Materiais (mesma aba, após observações gerais) ──────────────────────────────────────────────────────────────────────────────────────────
   {
-    const allItemsForReq = items.filter(i => i.category !== 'Não Orçamos');
+    const allItemsForReq = withDisplayMaterialSourceNumbers(items);
     const matEntries = buildMaterialRequisition(allItemsForReq, descMap);
     if (matEntries.length > 0) {
       const TIPO_COLORS: Record<MaterialTipo, string> = {

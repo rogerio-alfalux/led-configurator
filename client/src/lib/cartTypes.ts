@@ -72,6 +72,12 @@ export interface CartItemData {
   cct?: string;
   /** Quantidade de unidades */
   qty: number;
+  /**
+   * Número transitório do item na ficha consolidada. É definido apenas na
+   * geração de preview/Excel para que a requisição aponte para a mesma
+   * numeração visível ao usuário, sem persistir ou alterar o item comercial.
+   */
+  materialSourceItemNumber?: number;
   /** Preço unitário em reais (null se não cadastrado) */
   unitPrice: number | null;
   /** Preço total = unitPrice × qty (null se unitPrice for null) */

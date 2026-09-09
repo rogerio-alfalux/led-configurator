@@ -357,8 +357,10 @@ export function buildMaterialRequisition(
     if (!item.category || item.category === "Não Orçamos") continue;
 
     const itemQty = item.qty ?? 1;
-    // Número do item no pedido (1-based, baseado na posição no array + 1)
-    const itemIdx = items.indexOf(item) + 1;
+    // A geração de ficha pode consolidar itens tecnicamente idênticos. Quando
+    // houver uma numeração visual previamente calculada, ela deve prevalecer
+    // sobre o índice interno para que "ITENS" aponte ao item realmente exibido.
+    const itemIdx = item.materialSourceItemNumber ?? (items.indexOf(item) + 1);
 
     // ── PERFIS: profileSegments ──────────────────────────────────────────
     if (item.profileSegments && item.profileSegments.length > 0) {

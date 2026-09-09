@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupOrderItems } from './orderGrouping';
+import { groupOrderItems, withDisplayMaterialSourceNumbers } from './orderGrouping';
 import type { CartItemData } from './cartTypes';
 
 function specialItem(dimensions: string): CartItemData {
@@ -97,5 +97,23 @@ describe('groupOrderItems', () => {
     const grouped = groupOrderItems([legacyProfile, sameLegacyProfile]);
     expect(grouped).toHaveLength(1);
     expect(grouped[0].qty).toBe(2);
+  });
+
+  it('uses the consolidated display number for materials while preserving individual source items', () => {
+    const glow: CartItemData = {
+      category: 'Perfis', sku: 'LLS-9465', description: 'GLOW S 37W 1154MM 5000K', power: '37W', cct: '5000K', qty: 1,
+      unitPrice: 100, totalPrice: 100, photoUrl: null, moduloLed: '2x STRIPLINE (EQ00415)', moduloLedCode: 'EQ00415',
+    };
+    const guga: CartItemData = {
+      category: 'Spots', sku: 'LDS-7786', description: 'GUGA M LED 6.5W', qty: 1,
+      unitPrice: 100, totalPrice: 100, photoUrl: null, moduloLed: 'MÓDULO LED (EQ00321)', moduloLedCode: 'EQ00321',
+    };
+    const trilho: CartItemData = {
+      category: 'Acessórios', sku: 'EQ00438', description: 'TRILHO ELETRIFICADO 1C', qty: 1,
+      unitPrice: 100, totalPrice: 100, photoUrl: null,
+    };
+
+    const numbered = withDisplayMaterialSourceNumbers([glow, glow, guga, trilho]);
+    expect(numbered.map(item => item.materialSourceItemNumber)).toEqual([1, 1, 2, 3]);
   });
 });
