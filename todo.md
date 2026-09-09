@@ -3549,3 +3549,9 @@
 - [x] Exibir cortes e comprimento por trecho na descrição comercial sem alterar preços ou estrutura técnica
 - [x] Cobrir a regra por regressão e validar preview, PDF e Excel
 - [x] Salvar checkpoint reversível da alteração
+
+## Apresentação comercial de perfis lineares no orçamento
+- [x] Mapear a origem do rótulo genérico LED BAR e da ausência de detalhamento de drivers no card
+- [x] Ocultar o rótulo técnico genérico e mostrar o detalhamento dos drivers calculados no card comercial
+- [x] Cobrir o comportamento por regressão e validar a apresentação visual
+- [x] Salvar checkpoint reversível da alteração

@@ -4844,14 +4844,14 @@ export default function QuoteDetail() {
                                  <div className="flex gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
                                    {d.power && <span className="flex items-center gap-0.5"><Zap className="w-3 h-3" />{d.power}</span>}
                                    {d.cct && <span>{d.cct}</span>}
-                                   <span>{d.category}</span>
+                                   {d.category !== "LED BAR" && <span>{d.category}</span>}
                                    {d.itemEmPlanta && (
                                      <span className="inline-flex items-center gap-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded px-1.5 py-0.5 font-medium">
                                        <MapPin className="w-3 h-3" />{d.itemEmPlanta}
                                      </span>
                                    )}
                                  </div>
-                                 {d.profileSegments && d.profileSegments.length > 0 && (
+                                  {d.profileSegments && d.profileSegments.length > 0 && (
                                     <p className="text-xs text-muted-foreground mt-0.5">
                                       {(() => {
                                         const qtyBySku = new Map<string, number>();
@@ -4864,6 +4864,20 @@ export default function QuoteDetail() {
                                         return Array.from(qtyBySku.entries()).map(([sku, qty]) => `${qty}× ${sku}`).join("  +  ");
                                       })()}
                                     </p>
+                                  )}
+                                  {d.driverLines && d.driverLines.length > 0 && (
+                                    <div className="mt-1.5 border-l-2 border-violet-500/40 pl-2 space-y-0.5">
+                                      {d.driverLines.map((driver, index) => (
+                                        <div key={`${driver.driverCode}-${index}`} className="flex items-start gap-1.5 text-xs text-violet-700 dark:text-violet-300">
+                                          <Zap className="mt-0.5 w-3 h-3 shrink-0" />
+                                          <span className="break-words">
+                                            <span className="font-medium">{driver.driverQty}x</span>{" "}
+                                            {driver.driverModel || "Driver"}
+                                            {driver.driverCode ? <span className="font-mono text-[10px] text-muted-foreground"> ({driver.driverCode})</span> : null}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
                                   )}
                                   {d.itemObs && (
                                     <div className="mt-1.5 flex items-start gap-1 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded px-2 py-1">

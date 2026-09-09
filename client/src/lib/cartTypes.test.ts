@@ -888,6 +888,32 @@ describe("migrateItemDrivers — LED BAR e perfis FL", () => {
     expect(migrated.driverLines?.[0]).toMatchObject({ driverCode: "EQ00999", driverQty: 7, driverManual: true });
   });
 
+  it("cria o detalhamento de fonte de um item linear legado que possuía somente os campos LED BAR", () => {
+    const migrated = migrateItemDrivers({
+      category: "LED BAR",
+      sku: "LLE-2052",
+      description: "SKYLINE E FL 10W/M 3000K ON/OFF Bivolt 5000MM",
+      qty: 10,
+      unitPrice: 1000.95,
+      totalPrice: 10009.5,
+      photoUrl: null,
+      ledBarNCortes: 2,
+      ledBarComprimentoPorTrechoMm: 2500,
+      ledBarComprimentoTotalMm: 5000,
+      ledBarDriverCode: "EQ00801",
+      ledBarDriverModel: "FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT",
+      unitPriceDriver: 89.97,
+    } as any, new Map(), new Map(), new Map());
+
+    expect(migrated.driverQtyPerUnit).toBe(2);
+    expect(migrated.driverLines).toEqual([expect.objectContaining({
+      driverCode: "EQ00801",
+      driverQty: 20,
+      driverUnitPrice: 89.97,
+      driverTotalPrice: 1799.4,
+    })]);
+  });
+
   it("impõe dois cortes e duas fontes por luminária FL de 4.000 mm mesmo quando o registro legado declarava um corte", () => {
     const migrated = migrateItemDrivers({
       category: "LED BAR",

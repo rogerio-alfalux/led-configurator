@@ -33,4 +33,14 @@ describe("persistência comercial de desconto", () => {
     expect(source).toContain("drvUnitDiscountedWithDil");
     expect(source).toContain("simpleUnitDiscountedWithDil");
   });
+
+  it("oculta a taxonomia interna LED BAR e conserva o bloco de detalhamento de drivers no card", async () => {
+    const source = await readFile(new URL("./QuoteDetail.tsx", import.meta.url), "utf8");
+    expect(source).toContain('{d.category !== "LED BAR" && <span>{d.category}</span>}');
+    expect(source).toContain("d.driverLines!.map((dl, di) => {");
+    expect(source).toContain('>Driver{d.driverLines!.length > 1 ? ` ${di + 1}` : \'\'}</p>');
+    expect(source).toContain('d.driverLines.map((driver, index) => (');
+    expect(source).toContain('{driver.driverQty}x');
+    expect(source).toContain('{driver.driverModel || "Driver"}');
+  });
 });

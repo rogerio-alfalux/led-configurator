@@ -1405,20 +1405,28 @@ export function migrateItemDrivers(
       item = { ...item, description };
     }
   }
-  if (isLedBarItem && cutsPerUnit > 0 && ledBarDriverCode && item.driverLines?.length && !hasManualLedBarDriver) {
+  if (isLedBarItem && cutsPerUnit > 0 && ledBarDriverCode && !hasManualLedBarDriver) {
     const itemQty = Math.max(1, Number(item.qty ?? 1));
     const totalDriverQty = cutsPerUnit * itemQty;
-    const matchingLineIndex = item.driverLines.findIndex(line => line.driverCode?.trim().toUpperCase() === ledBarDriverCode);
+    const driverModel = descMap.get(ledBarDriverCode) ?? item.ledBarDriverModel ?? ledBarDriverCode;
+    const existingLines = item.driverLines ?? [];
+    const matchingLineIndex = existingLines.findIndex(line => line.driverCode?.trim().toUpperCase() === ledBarDriverCode);
     const lineIndex = matchingLineIndex >= 0 ? matchingLineIndex : 0;
-    const driverLines = item.driverLines.map((line, index) => index === lineIndex
-      ? {
-          ...line,
+    const driverLines = existingLines.length > 0
+      ? existingLines.map((line, index) => index === lineIndex
+        ? { ...line, driverCode: ledBarDriverCode, driverModel, driverQty: totalDriverQty }
+        : line,
+      )
+      : [{
           driverCode: ledBarDriverCode,
-          driverModel: descMap.get(ledBarDriverCode) ?? item.ledBarDriverModel ?? line.driverModel,
+          driverModel,
           driverQty: totalDriverQty,
-        }
-      : line,
-    );
+          driverUnitPrice: item.unitPriceDriver ?? priceMap.get(ledBarDriverCode) ?? null,
+          driverTotalPrice: (item.unitPriceDriver ?? priceMap.get(ledBarDriverCode)) != null
+            ? roundCommercialValue((item.unitPriceDriver ?? priceMap.get(ledBarDriverCode)!) * totalDriverQty)
+            : null,
+          ...(item.ledBarDriverCorrente ? { corrente: item.ledBarDriverCorrente } : {}),
+        }];
     item = { ...item, driverLines, driverQtyPerUnit: cutsPerUnit };
   }
 
