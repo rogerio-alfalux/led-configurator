@@ -4,6 +4,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { calculateDashboardProductCost, getActiveQuoteVersionId, getManualUnitCost, selectActiveQuoteItems, selectApiProductForQuoteItem } from "./quoteCostUtils";
 import { getConfirmedNonCommercialOrderCost } from "./nonCommercialOrderCost";
+import { hydrateFactoryOrderItemData } from "../shared/factoryOrderItemHydration";
 import {
   fetchAllAlfaluxProducts,
   invalidateAlfaluxCache,
@@ -2259,7 +2260,10 @@ export const appRouter = router({
           parentOrderId: input.parentOrderId,
           subOrderIndex: input.subOrderIndex,
           createdByUserId: ctx.user.id,
-          items: input.items,
+          items: input.items.map(item => ({
+            ...item,
+            itemData: hydrateFactoryOrderItemData(item.itemData),
+          })),
         });
         return { id: orderId };
       }),

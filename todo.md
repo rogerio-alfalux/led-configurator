@@ -3512,3 +3512,9 @@
 ## Limpeza de carrinho de Rogerio Silva
 - [x] Identificar e corrigir o bloqueio que impede Rogerio Silva de limpar o carrinho
 - [x] Cobrir a limpeza de carrinho por regressão sem afetar carrinhos de outros usuários
+
+## Ficha de produção e requisição de materiais
+- [x] Propagar automaticamente a observação por item do orçamento para o campo de observação da ficha de produção
+- [x] Corrigir a persistência da troca de driver e permitir quantidades decimais de módulos LED
+- [x] Auditar e reconstruir a requisição de materiais do 04.0407-26 RV4 a partir da estrutura oficial da API
+- [x] Cobrir os fluxos por regressão e validar ficha, requisição e documentos antes do checkpoint reversível

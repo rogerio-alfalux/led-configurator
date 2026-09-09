@@ -31,6 +31,7 @@ import { formatProfileSkuLines } from "@/lib/profileSkuFormatter";
 import { addStripflexQuantities, isStripflexDescription, multiplyStripflexQuantity, normalizeStripflexQuantity } from "@/lib/ledStripUnits";
 import { createFactoryOrderAutosave } from "@/lib/factoryOrderAutosave";
 import { updateDriverLineProgramming, updateSegmentDriverProgramming } from "@/lib/factoryOrderDriverProgramming";
+import { buildManualDriverLines } from "@/lib/factoryOrderTechnicalEdits";
 import { toast } from "sonner";
 
 // ─── Funções auxiliares para Fonte de Luz e Equipamentos ────────────────────
@@ -341,7 +342,7 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
   const updateApiModuleComponent = (slot: typeof apiModuleComponentSlots[number], description: string, code: string, qty = slot.qty) => {
     const moduloLed = replaceApiModuleComponentSlot(parsed.moduloLed, slot, description, code, qty);
     const moduloLedCode = slot.kind === "MODULO_LED" ? (code || null) : parsed.moduloLedCode;
-    update({ moduloLed, moduloLedCode });
+    update({ moduloLed, moduloLedCode, moduloLedManual: true });
   };
 
   // Helper para extrair código EQ de uma string como "DESCRIÇÃO (EQ00125)"
@@ -351,13 +352,18 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
   // Handler para atualizar moduloLed e moduloLedCode
   const handleModuloLedChange = (descricao: string, codigo: string) => {
     const newVal = descricao ? (codigo ? `${descricao} (${codigo})` : descricao) : "";
-    update({ moduloLed: newVal, moduloLedCode: codigo || null });
+    update({ moduloLed: newVal, moduloLedCode: codigo || null, moduloLedManual: true });
   };
 
   // Handler para atualizar drivers
   const handleDriverChange = (descricao: string, codigo: string) => {
     const newVal = descricao ? (codigo ? `${descricao} (${codigo})` : descricao) : "";
-    update({ drivers: newVal });
+    const qtyPerUnit = 1;
+    update({
+      drivers: newVal,
+      driverLines: buildManualDriverLines(descricao, codigo, qtyPerUnit, parsed.qty ?? 1, parsed.driverLines?.[0]),
+      driverQtyPerUnit: qtyPerUnit,
+    });
   };
 
   // Handler para atualizar ledBarDriverModel e ledBarDriverCode
@@ -370,7 +376,7 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
   const handleSegmentModuloChange = (segIdx: number, descricao: string, codigo: string) => {
     if (!parsed.profileSegments) return;
     const newSegs = parsed.profileSegments.map((s, i) =>
-      i === segIdx ? { ...s, ledModuleCode: codigo || null } : s
+      i === segIdx ? { ...s, ledModuleCode: codigo || null, ledModuleManual: true } : s
     );
     // Atualizar também moduloLed global se for o primeiro segmento
     const newModulo = descricao ? (codigo ? `${descricao} (${codigo})` : descricao) : "";
@@ -604,7 +610,7 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                               // Atualizar todos os segmentos deste grupo
                               if (!parsed.profileSegments) return;
                               const newSegs = parsed.profileSegments.map((s, i) =>
-                                group.segIdxs.includes(i) ? { ...s, ledModuleCode: code || null } : s
+                                group.segIdxs.includes(i) ? { ...s, ledModuleCode: code || null, ledModuleManual: true } : s
                               );
                               const newModulo = desc ? (code ? `${desc} (${code})` : desc) : "";
                               update({ profileSegments: newSegs, moduloLed: newModulo, moduloLedCode: code || null });
@@ -888,7 +894,17 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                       onQtyChange={qty => {
                         const prefix = qty > 1 ? `${qty}x ` : "";
                         const newDrivers = driverSimpleDesc ? `${prefix}${driverSimpleDesc}` : "";
-                        update({ drivers: newDrivers });
+                        update({
+                          drivers: newDrivers,
+                          driverLines: buildManualDriverLines(
+                            driverSimpleDesc,
+                            extractCode(driverSimpleRaw),
+                            qty,
+                            itemQty,
+                            parsed.driverLines?.[0],
+                          ),
+                          driverQtyPerUnit: qty,
+                        });
                       }}
                       options={driverOptions}
                       isLoading={componentesLoading}

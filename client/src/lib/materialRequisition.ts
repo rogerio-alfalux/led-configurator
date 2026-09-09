@@ -547,7 +547,15 @@ export function buildMaterialRequisition(
         const savedOfficialCode = partIdx === 0 && item.moduloLedCode && /^(EQ|CP|PT|MP)\d+$/i.test(item.moduloLedCode)
           ? item.moduloLedCode.toUpperCase()
           : null;
-        const resolvedOfficialCode = resolveEqFromDesc(descWithoutCode);
+        // Só relacionar FITA LED sem código por correspondência exata. Uma
+        // aproximação textual pode trocá-la por STRIPLINE/STRIPFLEX e produzir
+        // uma requisição tecnicamente incorreta. Os demais componentes mantêm
+        // a normalização oficial já usada para resolver variantes legadas.
+        const normalizedDescription = descWithoutCode.toUpperCase().trim().replace(/\s+/g, " ");
+        const exactDescriptionCode = reverseDescMap.get(normalizedDescription) ?? null;
+        const resolvedOfficialCode = /FITA\s+LED/i.test(descWithoutCode)
+          ? exactDescriptionCode
+          : resolveEqFromDesc(descWithoutCode);
         componentCode = savedOfficialCode ?? resolvedOfficialCode ?? componentCode;
 
         // Identificadores P não são códigos de requisição. Sem código EQ/CP/PT

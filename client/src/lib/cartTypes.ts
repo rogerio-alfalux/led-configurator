@@ -32,6 +32,8 @@ export interface ProfileSegment {
   driverManual?: boolean;
   /** Código EQ do módulo LED/Stripflex/Stripline (ex: "EQ00123"). null se não disponível. */
   ledModuleCode?: string | null;
+  /** Mantém o módulo LED escolhido na ficha sem substituí-lo pelo cadastro da API. */
+  ledModuleManual?: boolean;
 }
 
 /**
@@ -92,6 +94,8 @@ export interface CartItemData {
   moduloLed?: string;
   /** Código EQ do módulo LED (fita) — usado para requisição de materiais */
   moduloLedCode?: string | null;
+  /** Preserva módulo LED ou componente técnico alterado manualmente na ficha contra reidratação da API. */
+  moduloLedManual?: boolean;
   /** Modo estrutural de iluminação retornado pela API. */
   productLightingMode?: ProductLightingMode;
   /** Fonte de luz estruturada da API, inclusive lâmpada, RGBW ou Tunable White. */
@@ -1331,6 +1335,9 @@ export function migrateItemDrivers(
     // Extrair código-base do perfil do item (ex: LLP-6060 de LLP-6060.C90.00)
     const itemSkuBase = (item.sku ?? "").match(/^([A-Z]{2,3}-\d{4})/i)?.[1]?.toUpperCase() ?? "";
     const newSegments = item.profileSegments.map(seg => {
+      // A ficha permite corrigir tecnicamente cada segmento. Uma escolha manual
+      // deve sobreviver à reidratação normal do catálogo, como já ocorre com drivers.
+      if (seg.ledModuleManual) return seg;
       // Extrair código-base do segmento (ex: LLP-6060 de LLP-6060.C90.00)
       const segSkuBase = seg.sku.match(/^([A-Z]{2,3}-\d{4})/i)?.[1]?.toUpperCase() ?? "";
       // Buscar produto: 1) sku|powerLabel, 2) sku simples, 3) base|powerLabel, 4) base simples
@@ -1379,7 +1386,7 @@ export function migrateItemDrivers(
         ? (apiProduct[`ledModuleQtd${cctKey}` as keyof ApiProductDriverInfo] as number | null | undefined) ?? apiProduct.ledModuleQtd ?? null
         : apiProduct.ledModuleQtd ?? null;
 
-      if (apiModuleCode) {
+      if (apiModuleCode && !item.moduloLedManual) {
         const existingParts = (item.moduloLed ?? "").split(" + ").map(part => part.trim()).filter(Boolean);
         const savedQtyMatch = existingParts[0]?.match(/^(\d+(?:[.,]\d+)?)x\s+/i);
         const moduleQty = apiModuleQty != null && apiModuleQty > 0

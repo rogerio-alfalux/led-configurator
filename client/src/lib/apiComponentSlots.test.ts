@@ -52,4 +52,17 @@ describe("apiComponentSlots", () => {
     })]);
     expect(formatApiComponentSlot(slots[0])).toBe(description);
   });
+
+  it("preserva quantidade decimal e o código escolhido ao editar um módulo", () => {
+    const original = "4x STRIPFLEX 562.5 X 10MM (EQ00125)";
+    const [slot] = getApiModuleComponentSlots({ moduloLed: original, moduloLedCode: "EQ00125" }, []);
+
+    expect(replaceApiModuleComponentSlot(
+      original,
+      slot,
+      "STRIPFLEX 562.5 X 10MM",
+      "EQ00125",
+      2.2,
+    )).toBe("2.2x STRIPFLEX 562.5 X 10MM (EQ00125)");
+  });
 });

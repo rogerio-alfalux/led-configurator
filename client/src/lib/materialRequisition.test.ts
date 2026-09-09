@@ -1019,4 +1019,19 @@ describe("buildMaterialRequisition — luminárias não-perfil", () => {
       codigo: "EQ00257", qty: 6, tipo: "DRIVERS", sourceItems: [1],
     }));
   });
+
+  it("não usa aproximação textual para trocar uma fita LED sem código por Stripline", () => {
+    const result = buildMaterialRequisition([{
+      category: "LED BAR",
+      sku: "LED BAR TESTE",
+      description: "LED BAR TESTE 3000K",
+      qty: 2,
+      moduloLed: "FITA LED 2835 128LEDS 24V 10W/M 3000K",
+      moduloLedCode: null,
+    } as any], new Map([
+      ["EQ00415", "STRIPLINE 562.5X15MM 108LEDS 5000K"],
+    ]));
+
+    expect(result.map(entry => entry.codigo)).not.toContain("EQ00415");
+  });
 });

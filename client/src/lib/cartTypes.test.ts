@@ -218,6 +218,59 @@ describe("parseCartItemData - múltiplos modelos de driver (caso 33.9995-26)", (
     expect(result.moduloLed).toBe("4.4x STRIPFLEX 562.5 X 10MM - 36 LEDS 830 - 3000K (LC) 25V (EQ00125)");
   });
 
+  it("preserva o módulo LED escolhido manualmente na ficha contra reidratação da API", () => {
+    const item = {
+      category: "Painéis",
+      sku: "LLE-2430.300.19F",
+      description: "ALE-2430 36W 3000K ON/OFF 220V",
+      cct: "3000K",
+      qty: 2,
+      moduloLed: "2.2x MÓDULO MANUAL (EQ00991)",
+      moduloLedCode: "EQ00991",
+      moduloLedManual: true,
+    } as any;
+    const productMap = new Map([["LLE-2430.300.19F", {
+      sku: "LLE-2430.300.19F",
+      ledModuleEq3000: "EQ00125",
+      ledModuleQtd3000: 4.4,
+    }]]);
+
+    const result = migrateItemDrivers(item, new Map(), new Map(), productMap);
+
+    expect(result.moduloLedCode).toBe("EQ00991");
+    expect(result.moduloLed).toBe("2.2x MÓDULO MANUAL (EQ00991)");
+  });
+
+  it("preserva o módulo LED manual de um segmento de perfil contra reidratação da API", () => {
+    const item = {
+      category: "Perfis",
+      sku: "LLP-6060",
+      description: "BLAZE H 18W 3000K",
+      cct: "3000K",
+      power: "18W",
+      profileSegments: [{
+        sku: "LLP-6060.2IF.18F",
+        qty: 1,
+        lengthMm: 1125,
+        barsPerPiece: 2.2,
+        driverQtyPerPiece: 1,
+        driverModel: "DRIVER API",
+        driverCode: "EQ00347",
+        ledModuleCode: "EQ00991",
+        ledModuleManual: true,
+      }],
+    } as any;
+    const productMap = new Map([["LLP-6060.2IF.18F|18W", {
+      sku: "LLP-6060.2IF.18F",
+      ledModuleEq3000: "EQ00125",
+    }]]);
+
+    const result = migrateItemDrivers(item, new Map(), new Map(), productMap);
+
+    expect(result.profileSegments?.[0].ledModuleCode).toBe("EQ00991");
+    expect(result.profileSegments?.[0].ledModuleManual).toBe(true);
+  });
+
   it("reidrata custo e markup da variante exata sem reprecificar a venda salva", () => {
     const item = {
       category: "Spots",
