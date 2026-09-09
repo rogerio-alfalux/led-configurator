@@ -443,6 +443,25 @@ export interface RevendaProduct {
   custo?: number | null;
 }
 
+/**
+ * Preserva o contrato canônico de revenda mesmo quando o catálogo variar o
+ * nome do campo de custo. A rota pública pode omitir custo por permissão; neste
+ * caso, não cria valor sintético e o item permanece sem custo até confirmação.
+ */
+export function normalizeRevendaProduct(product: RevendaProduct & Record<string, unknown>): RevendaProduct {
+  const costCandidates = [
+    product.custo,
+    product.custoUnitario,
+    product.custoCompra,
+    product.cost,
+    product.costPrice,
+  ];
+  const cost = costCandidates
+    .map(value => Number(value ?? 0))
+    .find(value => Number.isFinite(value) && value > 0);
+  return cost != null ? { ...product, custo: cost } : product;
+}
+
 interface RevendaCacheEntry {
   data: RevendaProduct[];
   fetchedAt: number;
@@ -465,7 +484,8 @@ export async function fetchRevendaProducts(): Promise<RevendaProduct[]> {
   if (!res.ok) throw new Error(`Alfalux Revenda API error: ${res.status}`);
 
   const body = await res.json() as { count?: number; products?: RevendaProduct[] };
-  const all = body.products ?? (Array.isArray(body) ? body as RevendaProduct[] : []);
+  const all = (body.products ?? (Array.isArray(body) ? body as RevendaProduct[] : []))
+    .map(product => normalizeRevendaProduct(product as RevendaProduct & Record<string, unknown>));
 
   console.log(`[AlfaluxAPI] ${all.length} produtos de revenda carregados.`);
   revendaCache = { data: all, fetchedAt: now };

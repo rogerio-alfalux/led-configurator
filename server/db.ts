@@ -20,7 +20,7 @@ import {
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { fetchAllAlfaluxProducts, fetchComponentes, fetchAcessoriosProducts, fetchRevendaProducts } from './alfaluxApiService';
-import { getManualUnitCost } from './quoteCostUtils';
+import { getConfirmedApiUnitCost, getManualUnitCost } from './quoteCostUtils';
 import { buildDashboardProductAnalytics } from './dashboardProductAnalytics';
 import { buildDashboardEntityAnalytics } from './dashboardEntityAnalytics';
 import { buildQuoteGeneralExpenses } from './quoteGeneralExpenses';
@@ -1822,6 +1822,12 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
           temCusto = true;
           continue;
         }
+        const custoApiConfirmado = getConfirmedApiUnitCost(data.custoApiConfirmado);
+        if (custoApiConfirmado > 0) {
+          custoProdutos += custoApiConfirmado * qty;
+          temCusto = true;
+          continue;
+        }
 
         // Acessórios vinculados são custo real do item. Consultar exclusivamente
         // a API de acessórios/componentes pelo código, sem usar preço salvo.
@@ -2037,7 +2043,8 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
         try {
           const d = typeof row.itemData === 'string' ? JSON.parse(row.itemData) : row.itemData;
           const sku = (d.sku ?? '').toUpperCase();
-          // Tem custo se: custoCorpoBase salvo, ou encontrado na API, ou é especial com custoManual
+          // Tem custo se: custo técnico confirmado/salvo ou encontrado na API.
+          if (getManualUnitCost(d.custoManual) > 0 || getConfirmedApiUnitCost(d.custoApiConfirmado) > 0) return true;
           if (Number(d.custoCorpoBase ?? 0) > 0) return true;
           if (d.isSpecialItem || d.category === 'Item Especial' || d.category === 'especial') {
             return Number(d.custoManual ?? 0) > 0;

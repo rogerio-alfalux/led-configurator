@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateDashboardProductCost, getActiveQuoteVersionId, getManualUnitCost, selectActiveQuoteItems, selectApiProductForQuoteItem } from "./quoteCostUtils";
+import { calculateDashboardProductCost, getActiveQuoteVersionId, getConfirmedApiUnitCost, getManualUnitCost, selectActiveQuoteItems, selectApiProductForQuoteItem } from "./quoteCostUtils";
 
 describe("selectActiveQuoteItems", () => {
   it("nunca soma itens de revisões históricas ao custo da revisão ativa", () => {
@@ -95,5 +95,14 @@ describe("getManualUnitCost", () => {
   it("não converte valores ausentes ou inválidos em custo manual", () => {
     expect(getManualUnitCost(null)).toBe(0);
     expect(getManualUnitCost("não informado")).toBe(0);
+  });
+});
+
+describe("getConfirmedApiUnitCost", () => {
+  it("aceita somente um custo oficial positivo e finito", () => {
+    expect(getConfirmedApiUnitCost(31.04)).toBe(31.04);
+    expect(getConfirmedApiUnitCost("31.04")).toBe(31.04);
+    expect(getConfirmedApiUnitCost(null)).toBe(0);
+    expect(getConfirmedApiUnitCost("indisponível")).toBe(0);
   });
 });

@@ -2,7 +2,7 @@ import { COOKIE_NAME, COST_PRIVILEGED_EMAILS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
-import { calculateDashboardProductCost, getActiveQuoteVersionId, getManualUnitCost, selectActiveQuoteItems, selectApiProductForQuoteItem } from "./quoteCostUtils";
+import { calculateDashboardProductCost, getActiveQuoteVersionId, getConfirmedApiUnitCost, getManualUnitCost, selectActiveQuoteItems, selectApiProductForQuoteItem } from "./quoteCostUtils";
 import { getConfirmedNonCommercialOrderCost } from "./nonCommercialOrderCost";
 import { hydrateFactoryOrderItemData } from "../shared/factoryOrderItemHydration";
 import {
@@ -1873,6 +1873,14 @@ export const appRouter = router({
               totalCusto += subtotal;
               temCusto = true;
               itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: custoManual, custoDriver: 0, qty, driverQty: 0, subtotal, source: 'manual' });
+              continue;
+            }
+            const custoApiConfirmado = getConfirmedApiUnitCost(data.custoApiConfirmado);
+            if (custoApiConfirmado > 0) {
+              const subtotal = custoApiConfirmado * qty;
+              totalCusto += subtotal;
+              temCusto = true;
+              itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: custoApiConfirmado, custoDriver: 0, qty, driverQty: 0, subtotal, source: 'api_confirmado' });
               continue;
             }
 

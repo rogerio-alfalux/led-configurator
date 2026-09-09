@@ -358,6 +358,12 @@ export interface CartItemData {
    */
   custoDriverBase?: number | null;
   /**
+   * Custo unitário confirmado no cadastro oficial da API, preservado somente
+   * quando a rota pública temporariamente não devolve o campo de custo.
+   * Não altera preço de venda, markup ou composição comercial do item.
+   */
+  custoApiConfirmado?: number | null;
+  /**
    * Markup padrão da luminaria para o controle/tensão selecionados, vindo da API.
    */
   markupPadraoApi?: number | null;

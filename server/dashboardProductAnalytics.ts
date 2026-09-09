@@ -1,5 +1,5 @@
 import { applyItemDiscount, applyQuoteDiscount } from "../client/src/lib/quoteTotals";
-import { calculateDashboardProductCost, getManualUnitCost, selectApiProductForQuoteItem } from "./quoteCostUtils";
+import { calculateDashboardProductCost, getConfirmedApiUnitCost, getManualUnitCost, selectApiProductForQuoteItem } from "./quoteCostUtils";
 
 export type ProductAnalyticsCatalog = {
   products: Array<any>;
@@ -118,6 +118,8 @@ function getItemCost(data: any, quoteMarginPercent: unknown, catalogs: ProductAn
   }
   const manual = getManualUnitCost(data.custoManual);
   if (manual > 0) return { amount: rounded(manual * qty), estimated: false };
+  const confirmedApiCost = getConfirmedApiUnitCost(data.custoApiConfirmado);
+  if (confirmedApiCost > 0) return { amount: rounded(confirmedApiCost * qty), estimated: false };
 
   const estimatedSpecialCost = () => {
     const margin = Math.max(0, amount(quoteMarginPercent));

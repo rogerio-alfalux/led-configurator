@@ -3531,3 +3531,9 @@
 - [x] Impedir que componentes de acessórios de trilho sejam tratados como módulos LED de luminárias na requisição
 - [x] Cobrir as regressões, validar a requisição exata e salvar checkpoint reversível
 - [x] Alinhar a coluna ITENS da requisição à numeração consolidada da ficha, preservando o cálculo individual de cada componente
+
+## Custo API — orçamento 27.0018-26
+- [x] Auditar o item 1, o custo persistido e o custo oficial retornado pela API
+- [x] Atualizar exclusivamente o custo técnico confirmado, preservando preço e demais dados comerciais
+- [x] Validar o recálculo do Dashboard de Lucro e salvar checkpoint reversível
+- [ ] Corrigir a integração de revenda para obter custos cadastrados por rota autenticada, sem depender do payload público incompleto

@@ -62,8 +62,21 @@ export function calculateDashboardProductCost(input: {
   };
 }
 
-/** Um custo manual é uma substituição comercial explícita, não uma estimativa. */
-export function getManualUnitCost(value: unknown): number {
+function getPositiveFiniteUnitCost(value: unknown): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+/** Um custo manual é uma substituição comercial explícita, não uma estimativa. */
+export function getManualUnitCost(value: unknown): number {
+  return getPositiveFiniteUnitCost(value);
+}
+
+/**
+ * Custo confirmado no cadastro oficial para um item já emitido. É separado do
+ * ajuste manual para manter a procedência quando a rota pública da API omite
+ * transitoriamente o campo custo.
+ */
+export function getConfirmedApiUnitCost(value: unknown): number {
+  return getPositiveFiniteUnitCost(value);
 }
