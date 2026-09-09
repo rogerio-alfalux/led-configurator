@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatApiComponentSlot,
+  getManualApiComponentQuantity,
   getApiModuleComponentSlots,
   replaceApiModuleComponentSlot,
 } from "./apiComponentSlots";
@@ -64,5 +65,30 @@ describe("apiComponentSlots", () => {
       "EQ00125",
       2.2,
     )).toBe("2.2x STRIPFLEX 562.5 X 10MM (EQ00125)");
+  });
+
+  it("recupera a quantidade manual decimal do componente pelo código oficial", () => {
+    expect(getManualApiComponentQuantity({
+      moduloLedManual: true,
+      moduloLedCode: "EQ00125",
+      moduloLed: "109.7x STRIPFLEX 562.5 X 10MM (EQ00125) + LENTE 24º (CP00121)",
+    }, "EQ00125")).toBe(109.7);
+  });
+
+  it("não substitui a estrutura oficial quando a ficha não possui edição manual", () => {
+    expect(getManualApiComponentQuantity({
+      moduloLedManual: false,
+      moduloLedCode: "EQ00125",
+      moduloLed: "109.7x STRIPFLEX 562.5 X 10MM (EQ00125)",
+    }, "EQ00125")).toBeNull();
+  });
+
+  it("prioriza a quantidade manual persistida por código para itens de perfil", () => {
+    expect(getManualApiComponentQuantity({
+      moduloLedManual: true,
+      moduloLedCode: "EQ00125",
+      moduloLed: "STRIPFLEX 562.5 X 10MM (EQ00125)",
+      manualModuleQuantities: { EQ00125: 109.7 },
+    }, "EQ00125")).toBe(109.7);
   });
 });

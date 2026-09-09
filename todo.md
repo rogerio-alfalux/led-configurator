@@ -3565,3 +3565,8 @@
 - [x] Mapear o preço unitário e o subtotal já disponíveis para as fontes dos itens lineares
 - [x] Exibir cada fonte com quantidade, preço unitário e subtotal no card do carrinho
 - [x] Cobrir a apresentação comercial por regressão e salvar checkpoint reversível
+
+## Quantidade manual de módulo LED na ficha de produção
+- [x] Auditar a persistência da quantidade editada no item 13 do 04.0407-26 RV4
+- [x] Propagar a quantidade manual para preview, Excel e requisição de materiais
+- [x] Corrigir somente o dado técnico de referência, cobrir regressão e salvar checkpoint reversível

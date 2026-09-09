@@ -94,6 +94,25 @@ describe("estrutura heterogênea da API — Excel da ficha", () => {
     } as any)).toBe("2 x LÂMPADA G9 (CP00991)");
   });
 
+  it("prioriza a quantidade manual do módulo sobre a quantidade estrutural da API", () => {
+    expect(buildProfileFonteLuzText({
+      category: "Arandelas",
+      moduloLedManual: true,
+      moduloLedCode: "EQ00125",
+      moduloLed: "109.7x STRIPFLEX 562.5 X 10MM (EQ00125)",
+      productLightSource: { description: "STRIPFLEX 562.5 X 10MM", code: "EQ00125", type: "MODULO_LED", quantity: 4.4 },
+    } as any)).toBe("109.7 x STRIPFLEX 562.5 X 10MM (EQ00125)");
+  });
+
+  it("prioriza a quantidade manual do módulo em uma composição de perfil", () => {
+    expect(buildProfileFonteLuzText({
+      moduloLedManual: true,
+      manualModuleQuantities: { EQ00125: 109.7 },
+      moduloLed: "STRIPFLEX 562.5 X 10MM",
+      profileSegments: [{ qty: 12, barsPerPiece: 4.4, ledModuleCode: "EQ00125" }],
+    } as any, new Map([["EQ00125", "STRIPFLEX 562.5 X 10MM"]]))).toBe("109,7 x STRIPFLEX 562.5 X 10MM (EQ00125)");
+  });
+
   it("preserva a PCI do SHIFT em Equipamentos", () => {
     const text = buildProfileEquipamentosText({
       category: "Perfis",

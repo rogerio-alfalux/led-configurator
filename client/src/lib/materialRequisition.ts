@@ -15,6 +15,7 @@
  */
 
 import type { CartItemData, ProfileSegment } from "./cartTypes";
+import { getManualApiComponentQuantity } from "./apiComponentSlots";
 import {
   convertProductionEquipmentToMaterial,
   isLedStripDescription,
@@ -364,6 +365,7 @@ export function buildMaterialRequisition(
 
     // ── PERFIS: profileSegments ──────────────────────────────────────────
     if (item.profileSegments && item.profileSegments.length > 0) {
+      const manualProfileModules = new Map<string, { quantity: number; description: string; tipo: MaterialTipo }>();
       for (const seg of item.profileSegments) {
         // 1. Perfil em metros — AGRUPADO POR CÓDIGO-BASE
         if (seg.sku && seg.lengthMm > 0) {
@@ -386,8 +388,18 @@ export function buildMaterialRequisition(
           const barName = descMap?.get(ledCode) ?? item.moduloLed ?? "";
           if (!barName) continue;
           const ledTipo = detectTipo(barName, ledCode);
+          const manualQuantity = getManualApiComponentQuantity(item, ledCode);
 
-          if (ledTipo === "FITAS LED") {
+          if (manualQuantity != null && ledTipo !== "FITAS LED") {
+            // A edição da ficha troca apenas a quantidade deste componente
+            // oficial. A fonte é adicionada após os segmentos para não somar o
+            // valor automático em cada SKU da composição.
+            manualProfileModules.set(ledCode.toUpperCase(), {
+              quantity: manualQuantity,
+              description: barName,
+              tipo: ledTipo,
+            });
+          } else if (ledTipo === "FITAS LED") {
             // Fitas LED: contabilizar em METROS (comprimento do perfil = comprimento da fita)
             // Cada peça tem barsPerPiece fitas, cada uma com comprimento seg.lengthMm
             const totalBarras = seg.qty * seg.barsPerPiece * itemQty;
@@ -430,6 +442,12 @@ export function buildMaterialRequisition(
           }
         }
       }
+      for (const [code, manual] of Array.from(manualProfileModules.entries())) {
+        const totalQuantity = isStripflexDescription(manual.description)
+          ? stripflexQuantityToPhysicalBars(manual.quantity) * itemQty
+          : manual.quantity * itemQty;
+        add(code, manual.description, totalQuantity, "un", manual.tipo, itemIdx);
+      }
     }
 
     // Componentes internos do perfil, persistidos separadamente para não
@@ -448,10 +466,11 @@ export function buildMaterialRequisition(
     const structuredLightSource = item.productLightSource;
     if (!item.withoutEquipment && structuredLightSource?.code && structuredLightSource.description) {
       const canonicalDesc = descMap?.get(structuredLightSource.code) ?? structuredLightSource.description;
+      const manualQuantity = getManualApiComponentQuantity(item, structuredLightSource.code);
       add(
         structuredLightSource.code,
         canonicalDesc,
-        structuredLightSource.quantity * itemQty,
+        (manualQuantity ?? structuredLightSource.quantity) * itemQty,
         "un",
         detectTipo(canonicalDesc, structuredLightSource.code),
         itemIdx,

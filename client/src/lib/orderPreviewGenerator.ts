@@ -9,6 +9,7 @@ import type { OrderFormData } from "./orderExcelGenerator";
 import { toBrasiliaDateTime } from "./dateUtils";
 import { groupOrderItems, withDisplayMaterialSourceNumbers } from "./orderGrouping";
 import { buildMaterialRequisition, groupByTipo } from "./materialRequisition";
+import { getManualApiComponentQuantity } from "./apiComponentSlots";
 import { formatProfileSkuLines } from "./profileSkuFormatter";
 import type { MaterialTipo } from "./materialRequisition";
 import {
@@ -39,7 +40,8 @@ export function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<strin
     const source = item.productLightSource;
     const canonicalDescription = source.code ? descMap?.get(source.code) ?? source.description : source.description;
     const codeSuffix = source.code ? ` (${esc(source.code)})` : "";
-    return `${fmtQty(source.quantity)} x ${esc(canonicalDescription)}${codeSuffix}`;
+    const manualQuantity = getManualApiComponentQuantity(item, source.code);
+    return `${fmtQty(manualQuantity ?? source.quantity)} x ${esc(canonicalDescription)}${codeSuffix}`;
   }
   if (!item.profileSegments || item.profileSegments.length === 0) {
     const modName = item.moduloLed ?? [item.power, item.cct].filter(Boolean).join(" | ") ?? "";
@@ -75,7 +77,9 @@ export function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<strin
   return Array.from(totals.values())
     .map(({ qty, eqCode, name }) => {
       const eqSuffix = eqCode ? ` (${esc(eqCode)})` : "";
-      const displayQty = isStripflexDescription(name) ? formatStripflexQuantity(qty) : fmtQty(qty);
+      const manualQuantity = getManualApiComponentQuantity(item, eqCode);
+      const effectiveQty = manualQuantity ?? qty;
+      const displayQty = isStripflexDescription(name) ? formatStripflexQuantity(effectiveQty) : fmtQty(effectiveQty);
       return `${displayQty} x ${esc(name)}${eqSuffix}`;
     })
     .join("<br>");

@@ -11,6 +11,24 @@ describe("materialRequisition", () => {
     ["EQ00347", "LED DRIVER XITANIUM 44W 200-350MA 70-125VDC DIP SWITCH 230V"],
   ]);
 
+  it("prioriza a quantidade manual quando a fonte estrutural da API existe", () => {
+    const result = buildMaterialRequisition([{
+      category: "Arandelas",
+      sku: "LLA-3395",
+      description: "HIT Arandela",
+      qty: 1,
+      unitPrice: null,
+      totalPrice: null,
+      photoUrl: null,
+      moduloLedManual: true,
+      moduloLedCode: "EQ00125",
+      moduloLed: "109.7x STRIPFLEX 562.5 X 10MM (EQ00125)",
+      productLightSource: { description: "STRIPFLEX 562.5 X 10MM", code: "EQ00125", type: "MODULO_LED", quantity: 4.4 },
+    } as any], descMap);
+
+    expect(result.find(material => material.codigo === "EQ00125")?.qty).toBe(110);
+  });
+
   it("deve resolver PT001050 para EQ00121 via busca normalizada (D80MM vs Ø80MM)", () => {
     const items: CartItemData[] = [
       {
@@ -1094,5 +1112,37 @@ describe("buildMaterialRequisition — luminárias não-perfil", () => {
     expect(result).toContainEqual(expect.objectContaining({
       codigo: "EQ00321", qty: 4, tipo: "MÓDULOS LED", sourceItems: [13],
     }));
+  });
+
+  it("usa a quantidade manual de módulo em perfis sem alterar drivers ou perfis", () => {
+    const result = buildMaterialRequisition([{
+      category: "Perfis",
+      sku: "LLA-3395",
+      description: "HIT Arandela D1+D2",
+      qty: 1,
+      moduloLedManual: true,
+      moduloLedCode: "EQ00125",
+      moduloLed: "STRIPFLEX 562.5 X 10MM (EQ00125)",
+      manualModuleQuantities: { EQ00125: 109.7 },
+      profileSegments: [{
+        sku: "LLA-3395.5ML.58F",
+        qty: 12,
+        lengthMm: 2820,
+        barsPerPiece: 10,
+        driverQtyPerPiece: 1,
+        driverCode: "EQ00347",
+        driverModel: "LED DRIVER XITANIUM 44W",
+        ledModuleCode: "EQ00125",
+      }],
+    } as any], new Map([
+      ["EQ00125", "STRIPFLEX 562.5 X 10MM 36LEDS 3000K"],
+      ["EQ00347", "LED DRIVER XITANIUM 44W"],
+    ]));
+
+    expect(result).toContainEqual(expect.objectContaining({
+      codigo: "EQ00125", qty: 110, tipo: "MÓDULOS LED", sourceItems: [1],
+    }));
+    expect(result).toContainEqual(expect.objectContaining({ codigo: "EQ00347", qty: 12, tipo: "DRIVERS" }));
+    expect(result).toContainEqual(expect.objectContaining({ codigo: "LLA-3395", qty: 33.9, unidade: "m" }));
   });
 });

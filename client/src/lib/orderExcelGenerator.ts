@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import { CartItemData } from "./cartTypes";
 import type { LinkedAccessory } from "./cartTypes";
 import { formatProfileSkuLines } from "./profileSkuFormatter";
+import { getManualApiComponentQuantity } from "./apiComponentSlots";
 import { toBrasiliaDate, toBrasiliaDateTime, toBrasiliaFileDate } from "./dateUtils";
 import { groupOrderItems, withDisplayMaterialSourceNumbers } from "./orderGrouping";
 import { buildMaterialRequisition, groupByTipo } from "./materialRequisition";
@@ -173,7 +174,8 @@ export function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<strin
     const source = item.productLightSource;
     const canonicalDescription = source.code ? descMap?.get(source.code) ?? source.description : source.description;
     const codeSuffix = source.code ? ` (${source.code})` : "";
-    return `${fmtQty(source.quantity)} x ${canonicalDescription}${codeSuffix}`;
+    const manualQuantity = getManualApiComponentQuantity(item, source.code);
+    return `${fmtQty(manualQuantity ?? source.quantity)} x ${canonicalDescription}${codeSuffix}`;
   }
   if (!item.profileSegments || item.profileSegments.length === 0) {
     // Fallback para produtos não-perfil — incluir EQ quando disponível
@@ -211,7 +213,9 @@ export function buildProfileFonteLuzText(item: CartItemData, descMap?: Map<strin
   return Array.from(totals.values())
     .map(({ qty, eqCode, name }) => {
       const eqSuffix = eqCode ? ` (${eqCode})` : "";
-      const displayQty = isStripflexDescription(name) ? formatStripflexQuantity(qty) : fmtQty(qty);
+      const manualQuantity = getManualApiComponentQuantity(item, eqCode);
+      const effectiveQty = manualQuantity ?? qty;
+      const displayQty = isStripflexDescription(name) ? formatStripflexQuantity(effectiveQty) : fmtQty(effectiveQty);
       return `${displayQty} x ${name}${eqSuffix}`;
     })
     .join("\n");

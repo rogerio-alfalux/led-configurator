@@ -103,6 +103,8 @@ export interface CartItemData {
   moduloLedCode?: string | null;
   /** Preserva módulo LED ou componente técnico alterado manualmente na ficha contra reidratação da API. */
   moduloLedManual?: boolean;
+  /** Quantidades por unidade editadas manualmente na ficha, indexadas pelo código EQ/CP oficial do componente. */
+  manualModuleQuantities?: Record<string, number>;
   /** Modo estrutural de iluminação retornado pela API. */
   productLightingMode?: ProductLightingMode;
   /** Fonte de luz estruturada da API, inclusive lâmpada, RGBW ou Tunable White. */

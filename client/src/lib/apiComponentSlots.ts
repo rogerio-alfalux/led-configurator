@@ -120,6 +120,36 @@ export function formatApiComponentSlot(slot: Pick<ApiComponentSlot, "description
   return slot.code ? `${slot.description} (${slot.code})` : slot.description;
 }
 
+/**
+ * Retorna a quantidade manual persistida para um componente oficial da
+ * composição. O resultado só é aplicável quando a ficha marcou explicitamente
+ * o módulo como manual; assim, a estrutura da API continua sendo a fonte de
+ * verdade em itens que não foram editados.
+ */
+export function getManualApiComponentQuantity(
+  item: Pick<CartItemData, "moduloLed" | "moduloLedCode" | "moduloLedManual" | "manualModuleQuantities">,
+  officialCode: string | null | undefined,
+): number | null {
+  const expectedCode = officialCode?.trim().toUpperCase();
+  if (!item.moduloLedManual || !expectedCode) return null;
+
+  const savedQuantity = item.manualModuleQuantities?.[expectedCode];
+  if (savedQuantity != null && Number.isFinite(savedQuantity) && savedQuantity > 0) {
+    return savedQuantity;
+  }
+
+  const parts = (item.moduloLed ?? "").split(/\s+\+\s+/).map(part => part.trim()).filter(Boolean);
+  for (let index = 0; index < parts.length; index++) {
+    const rawPart = parts[index];
+    const quantityMatch = rawPart.match(QUANTITY_PREFIX);
+    const quantity = quantityMatch ? Number(quantityMatch[1].replace(",", ".")) : 1;
+    const partWithoutQuantity = quantityMatch ? quantityMatch[2] : rawPart;
+    const code = getOfficialCode(partWithoutQuantity, index === 0 ? item.moduloLedCode : null);
+    if (code === expectedCode && Number.isFinite(quantity) && quantity > 0) return quantity;
+  }
+  return null;
+}
+
 /** Atualiza somente uma parte da composição concatenada, preservando as demais. */
 export function replaceApiModuleComponentSlot(
   moduloLed: string | undefined,

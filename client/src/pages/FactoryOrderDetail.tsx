@@ -20,7 +20,7 @@ import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, for
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { ComponentSearchField } from "@/components/ComponentSearchField";
 import type { ComponentOption } from "@/components/ComponentSearchField";
-import { formatApiComponentSlot, getApiModuleComponentSlots, replaceApiModuleComponentSlot } from "@/lib/apiComponentSlots";
+import { formatApiComponentSlot, getApiModuleComponentSlots, getManualApiComponentQuantity, replaceApiModuleComponentSlot } from "@/lib/apiComponentSlots";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { canEditProductionEquipments } from "@/lib/factoryEquipmentPolicy";
 import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator";
@@ -600,12 +600,15 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                         const currentVal = group.code
                           ? `${group.desc} (${group.code})`
                           : group.desc;
+                        const manualQty = group.code
+                          ? getManualApiComponentQuantity(parsed, group.code)
+                          : null;
                         return (
                           <ComponentSearchField
                             key={gi}
                             label={moduloGroups.size > 1 ? `Grupo ${gi + 1}` : ""}
                             value={currentVal}
-                            qty={group.qty}
+                            qty={manualQty ?? group.qty}
                             onValueChange={(desc, code) => {
                               // Atualizar todos os segmentos deste grupo
                               if (!parsed.profileSegments) return;
@@ -613,9 +616,20 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                                 group.segIdxs.includes(i) ? { ...s, ledModuleCode: code || null, ledModuleManual: true } : s
                               );
                               const newModulo = desc ? (code ? `${desc} (${code})` : desc) : "";
-                              update({ profileSegments: newSegs, moduloLed: newModulo, moduloLedCode: code || null });
+                              const manualQuantities = { ...(parsed.manualModuleQuantities ?? {}) };
+                              if (group.code && code && group.code !== code && manualQuantities[group.code] != null) {
+                                manualQuantities[code] = manualQuantities[group.code];
+                                delete manualQuantities[group.code];
+                              }
+                              update({ profileSegments: newSegs, moduloLed: newModulo, moduloLedCode: code || null, moduloLedManual: true, manualModuleQuantities: manualQuantities });
                             }}
-                            onQtyChange={(_qty) => { /* qty calculada automaticamente */ }}
+                            onQtyChange={qty => {
+                              if (!group.code) return;
+                              update({
+                                moduloLedManual: true,
+                                manualModuleQuantities: { ...(parsed.manualModuleQuantities ?? {}), [group.code]: qty },
+                              });
+                            }}
                             options={moduloLedOptions}
                             isLoading={componentesLoading}
                             placeholder="Buscar módulo LED..."
