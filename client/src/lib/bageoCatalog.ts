@@ -19,6 +19,7 @@
  */
 
 import type { ProductStructure } from "./productStructure";
+import type { ProductDocuments } from "./productDocuments";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +41,8 @@ export interface BageoProduct {
   name: string;
   /** Estrutura heterogênea preservada diretamente da API. */
   productStructure?: ProductStructure;
+  /** Documentos técnicos oficiais retornados pela API. */
+  documentos?: ProductDocuments;
   /** Tipo de instalação */
   instalacao: BageoInstalacao;
   /** Aplicação: D1 ou D1+D2 */

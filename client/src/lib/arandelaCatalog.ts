@@ -6,6 +6,7 @@
  */
 import type { ControleType } from "./downlightCatalog";
 import { requiresExternalDriver } from "./driverRequirement";
+import type { ProductDocuments } from "./productDocuments";
 import type { ProductStructure } from "./productStructure";
 
 export interface ArandelaDriver {
@@ -26,6 +27,8 @@ export interface ArandelaProduct {
   name: string;
   /** Estrutura heterogênea preservada diretamente da API. */
   productStructure?: ProductStructure;
+  /** Documentos técnicos oficiais retornados pela API. */
+  documentos?: ProductDocuments;
   /** Módulo LED (sem [CCT]) — campo legado */
   ledModule: string | null;
   /** Quantidade numérica de módulos LED. null quando não retornado pela API. */

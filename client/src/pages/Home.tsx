@@ -10922,6 +10922,7 @@ export default function Home() {
                         </div>
                       );
                     })()}
+                    <ProductDocumentDownloads documents={glowResult.product.documentos} />
                   </CardContent>
                 </Card>
                 {/* Resumo para Orçamento */}
@@ -11169,6 +11170,7 @@ export default function Home() {
                         </div>
                       );
                     })()}
+                    <ProductDocumentDownloads documents={tubeLightResult.product.documentos} />
                   </CardContent>
                 </Card>
                 {/* Resumo para Orçamento TUBE LIGHT */}
@@ -11393,6 +11395,7 @@ export default function Home() {
                           )}
                         </div>
                       </div>
+                      <ProductDocumentDownloads documents={dProd.documentos} />
                     </CardContent>
                   </Card>
                   {/* Resumo para Orçamento */}
@@ -11601,6 +11604,7 @@ export default function Home() {
                           <span className="text-xs text-blue-600 font-medium flex items-center gap-1"><Zap className="w-3 h-3 shrink-0" />Produto sem driver — sempre ON/OFF, liga direto na tensão de rede</span>
                         </div>
                       )}
+                      <ProductDocumentDownloads documents={bProd.documentos} />
                     </CardContent>
                   </Card>
                   {/* Resumo para Orçamento */}
@@ -12170,6 +12174,7 @@ export default function Home() {
                       <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver ({driverQtyFor(aeResult.product, aeResult.controle, aeResult.tensao)}x)</p>
                       <p className="text-sm font-semibold">{aeResult.driver.model}{aeResult.driver.code && <span className="font-mono text-primary"> ({aeResult.driver.code})</span>}</p>
                     </div>
+                    <ProductDocumentDownloads documents={aeResult.product.documentos} />
                   </CardContent>
                 </Card>
 
@@ -12543,6 +12548,7 @@ export default function Home() {
                           <p className="text-xs text-muted-foreground">Com fita 5W/m: <span className="font-semibold text-foreground">{spaceResult.potencia5w}W</span> ({spaceResult.fluxoUtil5w.toLocaleString('pt-BR')} lm) &nbsp;|&nbsp; Com fita 10W/m: <span className="font-semibold text-foreground">{spaceResult.potencia10w}W</span> ({spaceResult.fluxoUtil10w.toLocaleString('pt-BR')} lm)</p>
                         </div>
                       </div>
+                      <ProductDocumentDownloads documents={_srProd?.documentos} />
                     </CardContent>
                   </Card>
 
@@ -12742,6 +12748,7 @@ export default function Home() {
                         <p className="text-sm font-semibold">{panelResult.driver.model} <span className="font-mono text-primary">({panelResult.driver.code})</span></p>
                       </div>
                     </div>
+                    <ProductDocumentDownloads documents={panelResult.product.documentos} />
                   </CardContent>
                 </Card>
 
@@ -13072,6 +13079,7 @@ export default function Home() {
                       <p className="text-sm font-bold">{arandelaResult.driver.model} <span className="font-mono text-primary">({arandelaResult.driver.code})</span></p>
                     </div>
                     )}
+                    <ProductDocumentDownloads documents={arandelaResult.product.documentos} />
                   </CardContent>
                 </Card>
                 {/* Aviso de acessórios obrigatórios para produtos RGBW */}
@@ -13381,6 +13389,7 @@ export default function Home() {
                       <p className="text-sm font-bold">{spotResult.driver.model} <span className="font-mono text-primary">({spotResult.driver.code})</span></p>
                     </div>
                     )}
+                    <ProductDocumentDownloads documents={spotResult.product.documentos} />
                   </CardContent>
                 </Card>
                 {/* Aviso de acessórios obrigatórios para produtos RGBW */}

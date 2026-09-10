@@ -449,6 +449,7 @@ function toSpotProduct(p: ApiProduct): SpotProduct {
     isRgbw: isRgbwSpot,
     isLamp: isLampSpot,
     productStructure,
+    documentos: normalizeProductDocuments(p),
   };
 }
 /** Converte um produto da API para PainelProduct */
@@ -563,6 +564,7 @@ function toPainelProduct(p: ApiProduct): PainelProduct {
     markupMinimoDimTriac110v: p.markupMinimoDimTriac110v ?? null,
     markupMinimoDimTriac220v: p.markupMinimoDimTriac220v ?? null,
     fotoUrl: normalizeFotoUrl(p.fotoUrl ?? null),
+    documentos: normalizeProductDocuments(p),
   };
 }
 
@@ -727,6 +729,7 @@ function toArandelaProduct(p: ApiProduct): ArandelaProduct {
     isRgbw: isRgbwAr,
     isLamp: isLampAr,
     productStructure,
+    documentos: normalizeProductDocuments(p),
   };
 }
 
@@ -780,6 +783,7 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
     driverDimTriac220v: dDimTriac220v ? { model: driverModel(dDimTriac220v), code: driverCode(dDimTriac220v) } : null,
     instalacao: p.instalacao ?? null,
     fotoUrl: normalizeFotoUrl(p.fotoUrl),
+    documentos: normalizeProductDocuments(p),
     precoOnOff220: p.precoOnOff220 ?? null,
     precoOnOffBivolt: p.precoOnOffBivolt ?? null,
     precoDim110v: p.precoDim110v ?? null,
@@ -918,6 +922,7 @@ function toBageoProduct(p: ApiProduct): BageoProduct | null {
     driverQtdDim110v: p.driverQtdDim110v ?? null,
     driverQtdDimDali: p.driverQtdDimDali ?? null,
     fotoUrl: normalizeFotoUrl(p.fotoUrl),
+    documentos: normalizeProductDocuments(p),
     // Módulo LED por CCT (da API) — soberano sobre o campo genérico ledModuleQtd
     // Para BAGEO 40W/M: ledModuleQtd2700/3000/4000/5000 = 4 (4 voltas de fita 10W/M)
     ledModule2700: p.ledModule2700 ?? null,

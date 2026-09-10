@@ -5,6 +5,7 @@
  */
 
 import type { ControleType } from "./downlightCatalog";
+import type { ProductDocuments } from "./productDocuments";
 import type { ProductStructure } from "./productStructure";
 
 export interface PainelDriver {
@@ -25,6 +26,8 @@ export interface PainelProduct {
   name: string;
   /** Estrutura heterogênea preservada diretamente da API. */
   productStructure?: ProductStructure;
+  /** Documentos técnicos oficiais retornados pela API. */
+  documentos?: ProductDocuments;
   /** Modulo LED (sem [CCT]) -- null se NAO APLICAVEL */
   ledModule: string | null;
   /** Quantidade numérica de módulos LED */

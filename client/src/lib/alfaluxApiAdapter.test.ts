@@ -207,6 +207,15 @@ describe("adaptAlfaluxProducts - Painéis", () => {
     const result = adaptAlfaluxProducts(products);
     expect(result.paineis[0].driverDimDali).toBeNull();
   });
+
+  it("preserva documentos oficiais em Painéis", () => {
+    const result = adaptAlfaluxProducts([makeProduct({
+      categoria: "PAINÉIS",
+      documentos: { datasheet: { nome: "Painel.pdf", mimeType: "application/pdf", url: "https://api.example/painel.pdf" } },
+    })]);
+
+    expect(result.paineis[0].documentos?.datasheet?.url).toBe("https://api.example/painel.pdf");
+  });
 });
 
 describe("adaptAlfaluxProducts - Spots", () => {
@@ -226,6 +235,17 @@ describe("adaptAlfaluxProducts - Spots", () => {
       code: "EQ00945",
     });
     expect(result.spots[0].driverQtdDimDali).toBe(1);
+  });
+
+  it("preserva documentos oficiais em Spots e Arandelas", () => {
+    const documentos = { fotometria: { nome: "Produto.ies", mimeType: "application/octet-stream", url: "https://api.example/produto.ies" } };
+    const result = adaptAlfaluxProducts([
+      makeProduct({ categoria: "SPOTS", documentos }),
+      makeProduct({ categoria: "ARANDELAS", documentos }),
+    ]);
+
+    expect(result.spots[0].documentos?.fotometria?.url).toBe("https://api.example/produto.ies");
+    expect(result.arandelas[0].documentos?.fotometria?.url).toBe("https://api.example/produto.ies");
   });
 });
 

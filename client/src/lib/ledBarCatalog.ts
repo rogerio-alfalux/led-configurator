@@ -13,6 +13,7 @@
  */
 
 import type { ProductStructure } from "./productStructure";
+import type { ProductDocuments } from "./productDocuments";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -35,6 +36,8 @@ export interface LedBarProduct {
   name: string;
   /** Estrutura heterogênea preservada diretamente da API. */
   productStructure?: ProductStructure;
+  /** Documentos técnicos oficiais retornados pela API. */
+  documentos?: ProductDocuments;
   /** Potência em W/m */
   potencia: LedBarPotencia;
   /** Tipo de difusor */

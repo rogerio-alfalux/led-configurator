@@ -17,8 +17,20 @@ export interface ProductDocumentSource {
   documentos?: Partial<Record<ProductDocumentType, ProductDocument | null>> | null;
   datasheetUrl?: string | null;
   fotometriaIesUrl?: string | null;
+  fotometriaUrl?: string | null;
+  iesUrl?: string | null;
   desenhoTecnicoUrl?: string | null;
   manualInstalacaoUrl?: string | null;
+  manualUrl?: string | null;
+}
+
+const ALFALUX_DOCUMENT_BASE_URL = "https://alfaluxprod-c8zmg2fn.manus.space";
+
+/** Converte caminhos da API em URLs absolutas aceitas pelo proxy seguro de download. */
+export function normalizeProductDocumentUrl(value: string): string {
+  const url = value.trim();
+  if (!url || /^https?:\/\//i.test(url)) return url;
+  return `${ALFALUX_DOCUMENT_BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
 }
 
 function normalizeDocument(
@@ -32,7 +44,7 @@ function normalizeDocument(
   return {
     nome: document?.nome?.trim() || fallbackName,
     mimeType: document?.mimeType?.trim() || fallbackMimeType,
-    url,
+    url: normalizeProductDocumentUrl(url),
   };
 }
 
@@ -40,9 +52,9 @@ function normalizeDocument(
 export function normalizeProductDocuments(source: ProductDocumentSource): ProductDocuments {
   return {
     datasheet: normalizeDocument(source.documentos?.datasheet, source.datasheetUrl, "Datasheet.pdf", "application/pdf"),
-    fotometria: normalizeDocument(source.documentos?.fotometria, source.fotometriaIesUrl, "Fotometria.ies", "application/octet-stream"),
+    fotometria: normalizeDocument(source.documentos?.fotometria, source.fotometriaIesUrl ?? source.fotometriaUrl ?? source.iesUrl, "Fotometria.ies", "application/octet-stream"),
     desenhoTecnico: normalizeDocument(source.documentos?.desenhoTecnico, source.desenhoTecnicoUrl, "Desenho técnico.pdf", "application/pdf"),
-    manualInstalacao: normalizeDocument(source.documentos?.manualInstalacao, source.manualInstalacaoUrl, "Manual de instalação.pdf", "application/pdf"),
+    manualInstalacao: normalizeDocument(source.documentos?.manualInstalacao, source.manualInstalacaoUrl ?? source.manualUrl, "Manual de instalação.pdf", "application/pdf"),
   };
 }
 

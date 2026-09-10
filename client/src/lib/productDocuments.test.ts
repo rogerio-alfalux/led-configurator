@@ -29,4 +29,16 @@ describe("normalizeProductDocuments", () => {
     expect(documents.fotometria).toBeNull();
     expect(documents.desenhoTecnico?.url).toBe("https://api.example/dt.pdf");
   });
+
+  it("normaliza caminhos relativos e aliases publicados pela API para disponibilidade imediata", () => {
+    const documents = normalizeProductDocuments({
+      datasheetUrl: "/uploads/ficha.pdf",
+      iesUrl: "/uploads/fotometria.ies",
+      manualUrl: "/uploads/manual.pdf",
+    });
+
+    expect(documents.datasheet?.url).toBe("https://alfaluxprod-c8zmg2fn.manus.space/uploads/ficha.pdf");
+    expect(documents.fotometria?.url).toBe("https://alfaluxprod-c8zmg2fn.manus.space/uploads/fotometria.ies");
+    expect(documents.manualInstalacao?.url).toBe("https://alfaluxprod-c8zmg2fn.manus.space/uploads/manual.pdf");
+  });
 });

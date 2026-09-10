@@ -3613,3 +3613,9 @@
 - [x] Auditar a variante LUNA G LED 17W RE ABS DOB e a validação de tensão
 - [x] Selecionar e manter 220V para produto sem driver sem exigir controle ou tensão indisponível
 - [x] Cobrir cálculo e envio ao carrinho por regressão e salvar checkpoint reversível
+
+## Sincronização em tempo real de documentos da API
+- [x] Auditar a cobertura de Datasheet, IES, manual e desenho técnico no catálogo e nas composições
+- [x] Unificar a resolução de documentos oficiais para todas as categorias, variantes e composições
+- [x] Exibir documentos publicados pela API imediatamente, sem depender de catálogo estático ou atualização manual
+- [x] Cobrir o fluxo por regressão e salvar checkpoint reversível
