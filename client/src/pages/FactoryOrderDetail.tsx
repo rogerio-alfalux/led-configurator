@@ -660,9 +660,24 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                               onValueChange={(desc, code) => {
                                 if (!parsed.profileSegments) return;
                                 const newSegs = parsed.profileSegments.map((s, i) =>
-                                  group.segIdxs.includes(i) ? { ...s, driverModel: desc, driverCode: code } : s
+                                  group.segIdxs.includes(i) ? {
+                                    ...s,
+                                    driverModel: desc,
+                                    driverCode: code,
+                                    // A reidratação da API atualiza somente drivers que
+                                    // permanecem automáticos. Sem esta marca a seleção
+                                    // feita na ficha voltava ao driver original ao salvar.
+                                    driverManual: Boolean(code),
+                                  } : s
                                 );
-                                update({ profileSegments: newSegs });
+                                const manualEquipmentQuantities = { ...(parsed.manualEquipmentQuantities ?? {}) };
+                                const oldCode = group.code.trim().toUpperCase();
+                                const newCode = code.trim().toUpperCase();
+                                if (oldCode && newCode && oldCode !== newCode && manualEquipmentQuantities[oldCode] != null) {
+                                  manualEquipmentQuantities[newCode] = manualEquipmentQuantities[oldCode];
+                                  delete manualEquipmentQuantities[oldCode];
+                                }
+                                update({ profileSegments: newSegs, manualEquipmentQuantities });
                               }}
                               onQtyChange={qty => {
                                 if (!group.code) return;

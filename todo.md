@@ -3593,3 +3593,8 @@
 - [x] Auditar a rota de PDF, a autorização e o botão Ver resposta nas solicitações de LD
 - [x] Permitir que todo LD convidado abra apenas o PDF da resposta de sua própria solicitação
 - [x] Cobrir autorização e abertura do PDF por regressão e salvar checkpoint reversível
+
+## Persistência de driver manual na ficha de produção
+- [x] Auditar o autosave e a reidratação do driver selecionado no item 3 do 20.0523-26
+- [x] Persistir a seleção manual estruturada de driver em qualquer pedido de fábrica
+- [x] Validar a permanência após recarregar e salvar checkpoint reversível
