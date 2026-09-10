@@ -3,6 +3,7 @@ import {
   DOWNLIGHT_CATALOG,
   calculateDownlight,
   getAvailableDownlightVoltages,
+  isOnOffDirect220Downlight,
 } from "./downlightCatalog";
 
 // ─── Catálogo ──────────────────────────────────────────────────────────────
@@ -115,6 +116,18 @@ describe("getAvailableDownlightVoltages", () => {
     };
     expect(getAvailableDownlightVoltages(product, "DIM TRIAC 110V")).toEqual(["110V"]);
   });
+
+  it("habilita 220V para ON/OFF direto quando a API não retorna driver ON/OFF", () => {
+    const product = {
+      ...baseProduct,
+      driver220: null,
+      driverBivolt: null,
+      driverDimDali: { model: "DRIVER DALI OPCIONAL", code: "EQ00221" },
+      semDriver: false,
+    };
+    expect(isOnOffDirect220Downlight(product, "ON/OFF")).toBe(true);
+    expect(getAvailableDownlightVoltages(product, "ON/OFF")).toEqual(["220V"]);
+  });
 });
 
 // ─── calculateDownlight ────────────────────────────────────────────────────
@@ -223,5 +236,27 @@ describe("calculateDownlight", () => {
       controle: "ON/OFF",
     });
     expect(result).toBeNull();
+  });
+
+  it("calcula ON/OFF direto em 220V sem inserir driver quando o produto tem apenas DIM opcional", () => {
+    const product = {
+      ...lunaProduct,
+      sku: "LDE-1400.195.15E",
+      name: "LUNA G LED 17W RE ABS DOB",
+      driver220: null,
+      driverBivolt: null,
+      driverDimDali: { model: "DRIVER DALI OPCIONAL", code: "EQ00221" },
+      semDriver: false,
+    };
+    const result = calculateDownlight({
+      productSku: product.sku,
+      productName: product.name,
+      tensao: "220V",
+      cct: "4000K",
+      controle: "ON/OFF",
+    }, [product]);
+    expect(result).not.toBeNull();
+    expect(result!.tensao).toBe("220V");
+    expect(result!.driver).toEqual({ model: "", code: "" });
   });
 });

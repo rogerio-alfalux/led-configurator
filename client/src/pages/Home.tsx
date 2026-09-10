@@ -61,6 +61,7 @@ import {
   DOWNLIGHT_CATALOG,
   calculateDownlight,
   getAvailableDownlightVoltages,
+  isOnOffDirect220Downlight,
 } from "@/lib/downlightCatalog";
 import type { DownlightResult, ControleType, DownlightVoltage } from "@/lib/downlightCatalog";
 import {
@@ -8736,7 +8737,7 @@ export default function Home() {
                 )}
                 {dlProductKey !== null && !dlVoltage && (() => {
                   const dlSelProd2 = activeDlCatalog.find(p => { const [s, ...np] = (dlProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
-                  if (dlSelProd2?.isLamp || dlSelProd2?.semDriver) return null;
+                  if (dlSelProd2?.isLamp || dlSelProd2?.semDriver || (dlSelProd2 && isOnOffDirect220Downlight(dlSelProd2, dlControle))) return null;
                   return (
                     <p className="text-xs text-amber-500 flex items-center gap-1.5">
                       <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
@@ -8746,14 +8747,14 @@ export default function Home() {
                 <Button
                   disabled={dlProductKey === null || (() => {
                     const dlSelProd3 = activeDlCatalog.find(p => { const [s, ...np] = (dlProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
-                    return !dlSelProd3?.isLamp && !dlSelProd3?.semDriver && !dlVoltage;
+                    return !dlSelProd3?.isLamp && !dlSelProd3?.semDriver && !(dlSelProd3 && isOnOffDirect220Downlight(dlSelProd3, dlControle)) && !dlVoltage;
                   })()}
                   onClick={() => {
                     if (dlProductKey === null) return;
                     const [dlSku, ...dlNameParts] = (dlProductKey ?? '::').split('::');
                     const dlName = dlNameParts.join('::');
                     const dlSelProd4 = activeDlCatalog.find(p => p.sku === dlSku && p.name === dlName);
-                    const tensaoToUse = (dlSelProd4?.isLamp || dlSelProd4?.semDriver ? "220V" : dlVoltage) as "220V" | "Bivolt";
+                    const tensaoToUse = (dlSelProd4?.isLamp || dlSelProd4?.semDriver || (dlSelProd4 && isOnOffDirect220Downlight(dlSelProd4, dlControle)) ? "220V" : dlVoltage) as "220V" | "Bivolt";
                     if (!tensaoToUse) return;
                     setDlResult(calculateDownlight({ productSku: dlSku, productName: dlName, tensao: tensaoToUse, cct: dlCCT, controle: dlControle }, activeDlCatalog));
                   }}
@@ -11922,7 +11923,10 @@ export default function Home() {
                           const preco = getPrecoForControle(dlResult.product, dlResult.controle, dlResult.tensao);
                           // Usar resolveDownlightPhoto (API primeiro) em vez de getDownlightPhoto (estático)
                           const dlPhoto = resolveDownlightPhoto(dlFamilia, dlResult.product.name);
-                          const dlDrvLines = buildLumDriverLines(dlResult.product.sku ?? "", dlResult.controle, dlResult.tensao, 1, dlResult.driver.model, dlResult.driver.code, lumPriceMap, dlResult.product.name ?? undefined, dlResult.driver.corrente ?? null);
+                          const hasDownlightDriver = Boolean(dlResult.driver.model && dlResult.driver.code);
+                          const dlDrvLines = hasDownlightDriver
+                            ? buildLumDriverLines(dlResult.product.sku ?? "", dlResult.controle, dlResult.tensao, 1, dlResult.driver.model, dlResult.driver.code, lumPriceMap, dlResult.product.name ?? undefined, dlResult.driver.corrente ?? null)
+                            : null;
                           const dlCommercialPrice = resolveDriverSplitCartPricing({
                             fallbackUnitPrice: preco,
                             unitPriceLuminaria: dlDrvLines?.unitPriceLuminaria,
@@ -11942,11 +11946,11 @@ export default function Home() {
                             totalPrice: dlCommercialPrice.totalPrice,
                             priceFromApi: dlCommercialPrice.priceFromApi,
                             photoUrl: dlPhoto ?? "",
-                             orderSummary: (() => { const modEqSuffix = dlResult.ledModuleEq ? ` (${dlResult.ledModuleEq})` : ""; const modName = dlResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") || dlResult.ledModuleWithCCT.toUpperCase().startsWith("ÉDULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`; const parts: string[] = [`${modName}${modEqSuffix}`]; if (dlResult.product.oticaPrimaria) { const oEq1 = dlResult.oticaPrimariaEq ? ` (${dlResult.oticaPrimariaEq})` : ""; parts.push(`${dlResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (dlResult.product.oticaSecundaria) { const oEq2 = dlResult.oticaSecundariaEq ? ` (${dlResult.oticaSecundariaEq})` : ""; parts.push(`${dlResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (dlResult.product.otica) { const oEq = dlResult.oticaEq ? ` (${dlResult.oticaEq})` : ""; parts.push(`${dlResult.product.otica.toUpperCase()}${oEq}`); } if (dlResult.product.holder) { const hEq = dlResult.holderEq ? ` (${dlResult.holderEq})` : ""; parts.push(`${dlResult.product.holder.toUpperCase()}${hEq}`); } if (dlResult.product.dissipador) { const dEq = dlResult.dissipadorEq ? ` (${dlResult.dissipadorEq})` : ""; parts.push(`${dlResult.product.dissipador.toUpperCase()}${dEq}`); } const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); parts.push(`${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`); return (`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.controle.toUpperCase()} ${dlResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim(); })(),
+                             orderSummary: (() => { const modEqSuffix = dlResult.ledModuleEq ? ` (${dlResult.ledModuleEq})` : ""; const modName = dlResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") || dlResult.ledModuleWithCCT.toUpperCase().startsWith("ÉDULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`; const parts: string[] = [`${modName}${modEqSuffix}`]; if (dlResult.product.oticaPrimaria) { const oEq1 = dlResult.oticaPrimariaEq ? ` (${dlResult.oticaPrimariaEq})` : ""; parts.push(`${dlResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (dlResult.product.oticaSecundaria) { const oEq2 = dlResult.oticaSecundariaEq ? ` (${dlResult.oticaSecundariaEq})` : ""; parts.push(`${dlResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (dlResult.product.otica) { const oEq = dlResult.oticaEq ? ` (${dlResult.oticaEq})` : ""; parts.push(`${dlResult.product.otica.toUpperCase()}${oEq}`); } if (dlResult.product.holder) { const hEq = dlResult.holderEq ? ` (${dlResult.holderEq})` : ""; parts.push(`${dlResult.product.holder.toUpperCase()}${hEq}`); } if (dlResult.product.dissipador) { const dEq = dlResult.dissipadorEq ? ` (${dlResult.dissipadorEq})` : ""; parts.push(`${dlResult.product.dissipador.toUpperCase()}${dEq}`); } if (hasDownlightDriver) { const eqSuffix = ` (${dlResult.driver.code})`; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); parts.push(`${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`); } return (`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.controle.toUpperCase()} ${dlResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim(); })(),
                             quoteSummary: `${dlResult.product.name} ${dlResult.cct} ${dlResult.controle} ${dlResult.tensao}`.toUpperCase(),
                             moduloLedCode: dlResult.ledModuleEq ?? null,
                             moduloLed: (() => { const modEq = dlResult.ledModuleEq ? ` (${dlResult.ledModuleEq})` : ""; const modName = dlResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`; const parts: string[] = [`${modName}${modEq}`]; if (dlResult.product.oticaPrimaria) { const oEq1 = dlResult.oticaPrimariaEq ? ` (${dlResult.oticaPrimariaEq})` : ""; parts.push(`${dlResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (dlResult.product.oticaSecundaria) { const oEq2 = dlResult.oticaSecundariaEq ? ` (${dlResult.oticaSecundariaEq})` : ""; parts.push(`${dlResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (dlResult.product.otica) { const oEq = dlResult.oticaEq ? ` (${dlResult.oticaEq})` : ""; parts.push(`${dlResult.product.otica.toUpperCase()}${oEq}`); } if (dlResult.product.holder) { const hEq = dlResult.holderEq ? ` (${dlResult.holderEq})` : ""; parts.push(`${dlResult.product.holder.toUpperCase()}${hEq}`); } if (dlResult.product.dissipador) { const dEq = dlResult.dissipadorEq ? ` (${dlResult.dissipadorEq})` : ""; parts.push(`${dlResult.product.dissipador.toUpperCase()}${dEq}`); } return parts.join(" + "); })(),
-                            drivers: (() => { const eqSuffix = dlResult.driver.code ? ` (${dlResult.driver.code})` : ""; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); return `${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
+                            ...(hasDownlightDriver ? { drivers: (() => { const eqSuffix = ` (${dlResult.driver.code})`; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); return `${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`; })() } : {}),
                             availableCCTs: dlResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
                             ...(dlDrvLines ? { driverLines: dlDrvLines.driverLines, priceWithoutDriver: dlDrvLines.priceWithoutDriver, unitPriceLuminaria: dlDrvLines.unitPriceLuminaria, unitPriceDriver: dlDrvLines.unitPriceDriver, luminariaHasApiPrice: dlDrvLines.luminariaHasApiPrice, custoCorpoBase: dlDrvLines.custoCorpoBase, custoDriverBase: dlDrvLines.custoDriverBase, markupPadraoApi: dlDrvLines.markupPadraoApi, markupMinimoApi: dlDrvLines.markupMinimoApi, markupMinimoDriverApi: dlDrvLines.markupMinimoDriverApi, driverQtyPerUnit: dlDrvLines.drvQtyPerUnit } : getCustoForControle(dlResult.product, dlResult.controle, dlResult.tensao)),

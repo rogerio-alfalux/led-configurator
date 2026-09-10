@@ -3608,3 +3608,8 @@
 - [x] Auditar a elegibilidade atual de custos vazios e estimados no Dashboard
 - [x] Permitir que o Departamento de Custos confirme custos de qualquer item sem custo ou estimado
 - [x] Preservar bloqueios de preços e condições comerciais, cobrir regressões e salvar checkpoint reversível
+
+## Produto sem driver e exclusivo 220V
+- [x] Auditar a variante LUNA G LED 17W RE ABS DOB e a validação de tensão
+- [x] Selecionar e manter 220V para produto sem driver sem exigir controle ou tensão indisponível
+- [x] Cobrir cálculo e envio ao carrinho por regressão e salvar checkpoint reversível

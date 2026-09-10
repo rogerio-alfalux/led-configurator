@@ -170,10 +170,23 @@ export function getAvailableDownlightVoltages(product: DownlightProduct, control
     if (!product.driverDimDali) return [];
     return /bivolt/i.test(product.driverDimDali.model) ? ["220V", "Bivolt"] : ["220V"];
   }
+  if (isOnOffDirect220Downlight(product, controle)) return ["220V"];
   const opts: DownlightVoltage[] = [];
   if (product.driver220) opts.push("220V");
   if (product.driverBivolt) opts.push("Bivolt");
   return opts;
+}
+
+/**
+ * Produtos DOB podem possuir driver DIM opcional, mas não têm fonte ON/OFF
+ * separada: nessa configuração eles ligam diretamente em 220V. A ausência dos
+ * dois drivers ON/OFF é a indicação estrutural recebida da API.
+ */
+export function isOnOffDirect220Downlight(product: DownlightProduct, controle: ControleType): boolean {
+  return controle === "ON/OFF"
+    && !product.isLamp
+    && !product.driver220
+    && !product.driverBivolt;
 }
 
 export interface DownlightInput {
@@ -3843,7 +3856,7 @@ export function calculateDownlight(input: DownlightInput, catalog?: DownlightPro
     };
   }
   // Produto sem driver (peça avulsa): retornar resultado sem driver, usando módulo LED e CCT normalmente
-  if (!driver && product.semDriver) {
+  if (!driver && (product.semDriver || isOnOffDirect220Downlight(product, input.controle))) {
     const structuredSource = product.productStructure?.lightSource ?? null;
     const hasNoLedModule = product.productStructure?.lightingMode === "NO_LED_MODULE";
     const cctKey = (input.cct ?? "").replace("K", "") as "2700" | "3000" | "4000" | "5000";
