@@ -1324,7 +1324,10 @@ export function migrateItemDrivers(
         (segmentSkuBase ? productSkuMap.get(segmentSkuBase) : undefined) ??
         (itemSkuBase ? productSkuMap.get(itemSkuBase) : undefined) ??
         (powerLabel ? productSkuMap.get(`${segment.sku}|${powerLabel}`.toUpperCase()) : undefined);
-      if (!apiProduct || segment.driverManual) return segment;
+      // A corrente editada na ficha é uma decisão de produção. Não permitir que
+      // uma nova reidratação da estrutura da API a substitua durante o autosave
+      // ou ao reabrir o pedido, mesmo quando o modelo do driver é automático.
+      if (!apiProduct || segment.driverManual || segment.programacaoManual) return segment;
       if (usesCombinedD1D2) {
         const d1d2 = apiProduct.composicaoD1D2;
         const apiD1D2Driver = d1d2?.drivers?.find(driver => driver.tipo === d1d2DriverType) ?? null;

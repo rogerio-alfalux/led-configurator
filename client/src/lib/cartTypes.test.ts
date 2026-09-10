@@ -741,6 +741,47 @@ describe("edição manual de drivers em pedido de fábrica", () => {
       driverQty: 3,
     })]);
   });
+
+  it("preserva a programação manual de um driver de perfil contra a reidratação da API", () => {
+    const item = {
+      category: "Perfis",
+      sku: "LLP-6060",
+      description: "BLAZE H Pendente 26W 3000K ON/OFF 220Vac 3960mm",
+      power: "26W",
+      qty: 1,
+      profileSegments: [{
+        sku: "LLP-6060.5IF.48F",
+        qty: 1,
+        lengthMm: 2812,
+        driverQtyPerPiece: 1,
+        driverCode: "EQ00220",
+        driverModel: "LED DRIVER 75W 350-550MA 90-216VDC 220V SLIM",
+        corrente: "350mA",
+        programacaoManual: true,
+      }],
+    } as any;
+    const productSkuMap = new Map([[
+      "LLP-6060.5IF.48F|26W",
+      {
+        sku: "LLP-6060.5IF.48F",
+        driver220: { code: "EQ00581", model: "DRIVER ORIGINAL DA API" },
+        driverQtd220: 1,
+        correnteDriver: "programar em 500mA",
+      },
+    ]]);
+
+    const migrated = migrateItemDrivers(item, new Map([["EQ00220", 105]]), new Map([["EQ00220", "LED DRIVER 75W 350-550MA 90-216VDC 220V SLIM"]]), productSkuMap);
+
+    expect(migrated.profileSegments?.[0]).toMatchObject({
+      driverCode: "EQ00220",
+      corrente: "350mA",
+      programacaoManual: true,
+    });
+    expect(migrated.driverLines).toEqual([expect.objectContaining({
+      driverCode: "EQ00220",
+      corrente: "350mA",
+    })]);
+  });
 });
 
 describe("variantes técnicas com SKU compartilhado", () => {

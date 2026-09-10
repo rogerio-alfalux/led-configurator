@@ -3598,3 +3598,8 @@
 - [x] Auditar o autosave e a reidratação do driver selecionado no item 3 do 20.0523-26
 - [x] Persistir a seleção manual estruturada de driver em qualquer pedido de fábrica
 - [x] Validar a permanência após recarregar e salvar checkpoint reversível
+
+## Programação manual de drivers na ficha de produção
+- [x] Auditar a edição e a reidratação da programação de corrente no pedido de referência
+- [x] Persistir a programação manual de qualquer driver sem ser sobrescrita pela API
+- [x] Refletir a programação salva no preview, Excel e requisição, com regressões e checkpoint reversível
