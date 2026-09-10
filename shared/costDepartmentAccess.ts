@@ -5,28 +5,31 @@ export function isCostDepartmentRole(role?: string | null): boolean {
 }
 
 /**
- * O Departamento de Custos só pode informar ou corrigir custo manual quando o
- * item é especial e não possui custo oficial registrado. `custoManual` não é
- * custo oficial: ele é justamente o valor que esse departamento pode revisar.
+ * O Departamento de Custos pode informar ou corrigir um custo quando o item
+ * ainda não possui custo confirmado. Isso inclui Especial, revenda,
+ * equipamentos, módulos e componentes que vieram sem custo ou dependem de
+ * estimativa. `custoManual` é deliberadamente ignorado para permitir revisão.
  */
-export function isSpecialItemEligibleForManualCost(item: unknown): boolean {
+export function isCostDepartmentEligibleForManualCost(item: unknown): boolean {
   if (!item || typeof item !== "object") return false;
   const data = item as Record<string, unknown>;
-  const category = String(data.category ?? "").trim().toLowerCase();
-  const isSpecial = data.isSpecialItem === true || category === "item especial" || category === "especial";
-  if (!isSpecial) return false;
-
-  const costFields = [
-    data.specialCustoUnitario,
+  const confirmedCostFields = [
+    data.custoApiConfirmado,
     data.custoCorpoBase,
     data.custoLuminaria,
+    data.specialCustoUnitario,
     data.unitCost,
   ];
-  return !costFields.some((value) => Number(value) > 0);
+  return !confirmedCostFields.some((value) => Number(value) > 0);
 }
 
-/** Indica item especial sem custo manual ainda informado, para os fluxos iniciais. */
+/** @deprecated Use isCostDepartmentEligibleForManualCost. */
+export function isSpecialItemEligibleForManualCost(item: unknown): boolean {
+  return isCostDepartmentEligibleForManualCost(item);
+}
+
+/** Indica item sem custo confirmado e sem confirmação manual ainda informada. */
 export function isSpecialItemWithoutRegisteredCost(item: unknown): boolean {
-  if (!isSpecialItemEligibleForManualCost(item)) return false;
+  if (!isCostDepartmentEligibleForManualCost(item)) return false;
   return !(Number((item as Record<string, unknown>).custoManual) > 0);
 }

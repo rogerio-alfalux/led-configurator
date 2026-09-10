@@ -5736,11 +5736,11 @@ function QuoteProfitDashboard({ quoteId, quote, user, recalculatedRevenue }: Quo
           <p className="text-xs text-muted-foreground">{margemLiquida.toFixed(1)}% da receita</p>
         </div>
 
-        {/* Itens especiais/estimados com opção de preencher custo manual */}
-        {costQuery.data?.items && costQuery.data.items.filter(i => i.source === 'especial_estimado' || i.source === 'especial_sem_preco' || i.source === 'especial_manual' || i.source === 'manual' || i.source === 'estimado_margem').length > 0 && (
+        {/* Itens sem custo confirmado ou estimado com opção de confirmação manual */}
+        {costQuery.data?.items && costQuery.data.items.filter(i => ['especial_estimado', 'especial_sem_preco', 'especial_manual', 'manual', 'estimado_margem', 'perfil_sem_custo', 'nao_encontrado', 'sem_custo_api'].includes(i.source)).length > 0 && (
           <div className="bg-amber-50/50 dark:bg-amber-950/20 rounded-md px-3 py-2 space-y-2">
-            <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide">Itens com custo estimado/manual</p>
-            {costQuery.data.items.filter(i => i.source === 'especial_estimado' || i.source === 'especial_sem_preco' || i.source === 'especial_manual' || i.source === 'manual' || i.source === 'estimado_margem').map(item => (
+            <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide">Itens com custo pendente, estimado ou manual</p>
+            {costQuery.data.items.filter(i => ['especial_estimado', 'especial_sem_preco', 'especial_manual', 'manual', 'estimado_margem', 'perfil_sem_custo', 'nao_encontrado', 'sem_custo_api'].includes(i.source)).map(item => (
               <div key={item.itemNumber} className="flex items-center justify-between text-xs gap-2">
                 <span className="text-muted-foreground truncate flex-1">#{item.itemNumber} {item.sku}</span>
                 {item.source === 'especial_manual' || item.source === 'manual' ? (
@@ -5750,7 +5750,7 @@ function QuoteProfitDashboard({ quoteId, quote, user, recalculatedRevenue }: Quo
                 ) : (
                   <span className="text-red-600 font-medium">Sem custo</span>
                 )}
-                {isCostDepartment && !['especial_estimado', 'especial_sem_preco', 'especial_manual', 'manual', 'estimado_margem'].includes(item.source) ? null : editingCustoItem === item.itemNumber ? (
+                {editingCustoItem === item.itemNumber ? (
                   <div className="flex items-center gap-1">
                     <Input
                       value={custoManualInput}

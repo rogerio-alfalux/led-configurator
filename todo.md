@@ -3603,3 +3603,8 @@
 - [x] Auditar a edição e a reidratação da programação de corrente no pedido de referência
 - [x] Persistir a programação manual de qualquer driver sem ser sobrescrita pela API
 - [x] Refletir a programação salva no preview, Excel e requisição, com regressões e checkpoint reversível
+
+## Edição de custos pelo Departamento de Custos
+- [x] Auditar a elegibilidade atual de custos vazios e estimados no Dashboard
+- [x] Permitir que o Departamento de Custos confirme custos de qualquer item sem custo ou estimado
+- [x] Preservar bloqueios de preços e condições comerciais, cobrir regressões e salvar checkpoint reversível
