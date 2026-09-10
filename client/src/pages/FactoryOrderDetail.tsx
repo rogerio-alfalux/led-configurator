@@ -32,6 +32,7 @@ import { addStripflexQuantities, isStripflexDescription, multiplyStripflexQuanti
 import { createFactoryOrderAutosave } from "@/lib/factoryOrderAutosave";
 import { updateDriverLineProgramming, updateSegmentDriverProgramming } from "@/lib/factoryOrderDriverProgramming";
 import { buildManualDriverLines } from "@/lib/factoryOrderTechnicalEdits";
+import { isFactoryOrderReadOnlyForQuoteStatus } from "@shared/factoryOrderReadOnly";
 import { toast } from "sonner";
 
 // ─── Funções auxiliares para Fonte de Luz e Equipamentos ────────────────────
@@ -231,11 +232,13 @@ interface EditableItemProps {
   componentesData?: ComponentOption[];
   /** Se true, os componentes ainda estão carregando */
   componentesLoading?: boolean;
+  /** Orçamentos faturados preservam a ficha para consulta, sem alteração. */
+  readOnly?: boolean;
 }
 const EMPTY_DRIVERS: EditableItemProps["drivers"] = [];
 const EMPTY_COMPONENT_OPTIONS: ComponentOption[] = [];
 
-function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, descMap, priceMap, productSkuMap, correnteMap, reverseDescMap, componentesData = EMPTY_COMPONENT_OPTIONS, componentesLoading = false }: EditableItemProps) {
+function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, descMap, priceMap, productSkuMap, correnteMap, reverseDescMap, componentesData = EMPTY_COMPONENT_OPTIONS, componentesLoading = false, readOnly = false }: EditableItemProps) {
   const [expanded, setExpanded] = useState(true);
   const [showAcessorioModal, setShowAcessorioModal] = useState(false);
   const [acessorioSearch, setAcessorioSearch] = useState("");
@@ -257,6 +260,7 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
   if (!parsed) return null;
 
   const update = (fields: Partial<CartItemData>) => {
+    if (readOnly) return;
     onUpdate(item.id, { ...parsed, ...fields });
   };
 
@@ -436,19 +440,22 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
           >
             {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-            onClick={() => onRemove(item.id)}
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          {!readOnly && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+              onClick={() => onRemove(item.id)}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </CardHeader>
 
       {expanded && (
         <CardContent className="px-4 pb-4 pt-0 space-y-4">
+          <fieldset disabled={readOnly} className="contents">
           {/* Campos básicos */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {/* Quantidade */}
@@ -1043,6 +1050,7 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
               </div>
             )}
           </div>
+          </fieldset>
         </CardContent>
       )}
 
@@ -1830,6 +1838,7 @@ export default function FactoryOrderDetail() {
   }
 
   const { quote } = quoteData;
+  const isFactoryOrderReadOnly = isFactoryOrderReadOnlyForQuoteStatus(quote.status);
 
   return (
     <div className="min-h-screen bg-background">
@@ -1848,6 +1857,11 @@ export default function FactoryOrderDetail() {
             <div className="min-w-0">
               <h1 className="text-sm font-semibold truncate flex items-center gap-2">
                 Pedido de Fábrica — Orç. {quote.quoteNumber}
+                {isFactoryOrderReadOnly && (
+                  <Badge variant="outline" className="text-xs border-amber-400 text-amber-700 dark:text-amber-300">
+                    Faturado · consulta
+                  </Badge>
+                )}
                 {currentOrder?.orderNumber && /^\d{6}(-\d+)?$/.test(currentOrder.orderNumber) && (
                   <span className="text-xs font-mono bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 px-1.5 py-0.5 rounded border border-orange-200 dark:border-orange-800 shrink-0">
                     Ped. {currentOrder.orderNumber}
@@ -1867,7 +1881,7 @@ export default function FactoryOrderDetail() {
                   onClick={async () => {
                     if (!quoteData || !currentOrder) return;
                     try {
-                      await itemAutosave.flushAll();
+                      if (!isFactoryOrderReadOnly) await itemAutosave.flushAll();
                     } catch {
                       toast.error("Não foi possível concluir o salvamento dos itens antes de abrir a pré-visualização.");
                       return;
@@ -1906,15 +1920,17 @@ export default function FactoryOrderDetail() {
                   <Eye className="w-4 h-4" />
                   Pré-visualizar
                 </Button>
-                <Button
-                  size="sm"
-                  className="gap-2 bg-green-600 hover:bg-green-700 text-white"
-                  onClick={handleGenerateExcel}
-                  disabled={isGenerating}
-                >
-                  <FileSpreadsheet className="w-4 h-4" />
-                  {isGenerating ? "Gerando..." : hasUnpublishedChanges ? "Gerar Excel (com alterações)" : "Gerar Excel"}
-                </Button>
+                {!isFactoryOrderReadOnly && (
+                  <Button
+                    size="sm"
+                    className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+                    onClick={handleGenerateExcel}
+                    disabled={isGenerating}
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                    {isGenerating ? "Gerando..." : hasUnpublishedChanges ? "Gerar Excel (com alterações)" : "Gerar Excel"}
+                  </Button>
+                )}
               </>
             )}
           </div>
@@ -1930,13 +1946,15 @@ export default function FactoryOrderDetail() {
             <p className="text-sm text-muted-foreground mb-6">
               Crie o primeiro pedido de fábrica a partir dos itens do orçamento aprovado.
             </p>
-            <Button
-              className="gap-2 bg-orange-600 hover:bg-orange-700 text-white"
-              onClick={() => setShowNewOrderDialog(true)}
-            >
-              <Plus className="w-4 h-4" />
-              Criar Pedido de Fábrica
-            </Button>
+            {!isFactoryOrderReadOnly && (
+              <Button
+                className="gap-2 bg-orange-600 hover:bg-orange-700 text-white"
+                onClick={() => setShowNewOrderDialog(true)}
+              >
+                <Plus className="w-4 h-4" />
+                Criar Pedido de Fábrica
+              </Button>
+            )}
           </Card>
         )}
 
@@ -1982,7 +2000,7 @@ export default function FactoryOrderDetail() {
                       </p>
                     </button>
                     {/* Botão excluir pedido/subpedido */}
-                    <button
+                    {!isFactoryOrderReadOnly && <button
                       onClick={(e) => {
                         e.stopPropagation();
                         const label = isSub
@@ -1995,7 +2013,7 @@ export default function FactoryOrderDetail() {
                       title="Excluir pedido"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    </button>}
                   </div>
                 );
               })}
@@ -2051,6 +2069,7 @@ export default function FactoryOrderDetail() {
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 text-xs gap-1"
+                                disabled={isFactoryOrderReadOnly}
                                 onClick={() => { setOrderNumberEdit(currentOrder.orderNumber ?? ""); setEditingOrderNumber(true); }}
                               >
                                 <Edit2 className="w-3 h-3" />
@@ -2065,6 +2084,7 @@ export default function FactoryOrderDetail() {
                           <Label className="text-xs">Empresa</Label>
                           <Select
                             value={currentOrder.empresa}
+                            disabled={isFactoryOrderReadOnly}
                             onValueChange={v => updateOrderMutation.mutate({ id: currentOrder.id, empresa: v as "ALFALUX" | "LUMINEW" })}
                           >
                             <SelectTrigger className="mt-1 h-8 text-sm">
@@ -2082,6 +2102,7 @@ export default function FactoryOrderDetail() {
                           <Label className="text-xs">Status</Label>
                           <Select
                             value={currentOrder.status}
+                            disabled={isFactoryOrderReadOnly}
                             onValueChange={v => updateOrderMutation.mutate({ id: currentOrder.id, status: v as "draft" | "sent" | "in_production" | "completed" })}
                           >
                             <SelectTrigger className="mt-1 h-8 text-sm">
@@ -2103,6 +2124,7 @@ export default function FactoryOrderDetail() {
                             type="number"
                             min={1}
                             value={currentOrder.deliveryDays ?? 19}
+                            disabled={isFactoryOrderReadOnly}
                             onChange={e => updateOrderMutation.mutate({ id: currentOrder.id, deliveryDays: Math.max(1, parseInt(e.target.value) || 19) })}
                             className="mt-1 h-8 text-sm"
                           />
@@ -2156,6 +2178,7 @@ export default function FactoryOrderDetail() {
                             variant="ghost"
                             size="sm"
                             className="h-6 text-xs"
+                            disabled={isFactoryOrderReadOnly}
                             onClick={() => {
                               setNotesEdit(currentOrder.notes ?? "");
                               setShowNotesEdit(true);
@@ -2178,6 +2201,7 @@ export default function FactoryOrderDetail() {
                             variant="outline"
                             size="sm"
                             className="gap-2 border-orange-400 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/30"
+                            disabled={isFactoryOrderReadOnly}
                             onClick={() => {
                               setSplitSubOrders([{ items: [], deliveryDays: currentOrder.deliveryDays ?? 20 }]);
                               setShowSplitDialog(true);
@@ -2213,6 +2237,7 @@ export default function FactoryOrderDetail() {
                         variant="outline"
                         size="sm"
                         className="h-7 text-xs gap-1"
+                        disabled={isFactoryOrderReadOnly}
                         onClick={handleAddBlankItem}
                       >
                         <Plus className="w-3 h-3" />
@@ -2239,7 +2264,7 @@ export default function FactoryOrderDetail() {
                           size="sm"
                           className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white shrink-0"
                           onClick={handleSyncMissingItems}
-                          disabled={isSyncingItems}
+                          disabled={isSyncingItems || isFactoryOrderReadOnly}
                         >
                           <Plus className="w-3.5 h-3.5" />
                           {isSyncingItems ? 'Adicionando...' : 'Adicionar ao Pedido'}
@@ -2267,6 +2292,7 @@ export default function FactoryOrderDetail() {
                           reverseDescMap={componenteReverseDescMapFO}
                           componentesData={componentesData?.items ?? EMPTY_COMPONENT_OPTIONS}
                           componentesLoading={componentesLoading}
+                          readOnly={isFactoryOrderReadOnly}
                         />
                       ))
                     )}

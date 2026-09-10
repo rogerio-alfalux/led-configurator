@@ -3619,3 +3619,9 @@
 - [x] Unificar a resolução de documentos oficiais para todas as categorias, variantes e composições
 - [x] Exibir documentos publicados pela API imediatamente, sem depender de catálogo estático ou atualização manual
 - [x] Cobrir o fluxo por regressão e salvar checkpoint reversível
+
+## Pedido de fábrica de orçamentos faturados
+- [x] Auditar a regra que oculta o botão e a rota após o faturamento
+- [x] Manter o gerenciamento acessível para orçamentos faturados, incluindo históricos
+- [x] Bloquear edição, autosave e ações persistentes quando o orçamento estiver faturado
+- [x] Cobrir o modo somente leitura por regressão e salvar checkpoint reversível

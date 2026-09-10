@@ -18,7 +18,7 @@ import {
   addCartItem, getCartItems, removeCartItem, clearCart, updateCartItemQty, updateCartItemData, updateCartItemsSortOrder, createQuote, addQuoteRevision, listQuotes, getQuoteGeneralExpenses, getQuoteById, approveQuote, getRevisionItems,
   updateQuoteStatus, markQuoteAsNonCommercial, getQuoteStats, deleteQuote, suggestQuoteNumber, findQuoteByNumber,
   insertAuditLog, getAuditLogs, listSellers, listAssistants,
-  createFactoryOrder, getFactoryOrdersByQuoteId, getFactoryOrderById,
+  createFactoryOrder, getFactoryOrdersByQuoteId, getFactoryOrderById, getFactoryOrderByItemId,
   updateFactoryOrder, addFactoryOrderItem, updateFactoryOrderItem,
   deleteFactoryOrderItem, createFactoryOrderRevision, deleteFactoryOrder,
   createFactoryOrderExcel, listFactoryOrderExcels, getSubOrders,
@@ -97,6 +97,36 @@ import { getQuoteStatusAuthorizationError } from "./quoteStatusPolicy";
 import { getUserCreationRoleAuthorizationError } from "../shared/userCreationAccess";
 import { isCostDepartmentEligibleForManualCost, isCostDepartmentRole } from "../shared/costDepartmentAccess";
 import { isCommercialQuoteNumber } from "../shared/quoteNumberFormat";
+import { isFactoryOrderReadOnlyForQuoteStatus } from "../shared/factoryOrderReadOnly";
+
+async function assertFactoryOrderQuoteMutable(quoteId: number) {
+  const quoteData = await getQuoteById(quoteId);
+  if (!quoteData) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado." });
+  }
+  if (isFactoryOrderReadOnlyForQuoteStatus(quoteData.quote.status)) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Pedido de fábrica de orçamento faturado é somente leitura." });
+  }
+  return quoteData;
+}
+
+async function assertFactoryOrderMutable(factoryOrderId: number) {
+  const order = await getFactoryOrderById(factoryOrderId);
+  if (!order) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Pedido de fábrica não encontrado." });
+  }
+  await assertFactoryOrderQuoteMutable(order.quoteId);
+  return order;
+}
+
+async function assertFactoryOrderItemMutable(factoryOrderItemId: number) {
+  const order = await getFactoryOrderByItemId(factoryOrderItemId);
+  if (!order) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Item do pedido de fábrica não encontrado." });
+  }
+  await assertFactoryOrderQuoteMutable(order.quoteId);
+  return order;
+}
 
 // ─── Controle de acesso a orçamentos ─────────────────────────────────────────
 /** Emails dos gestores com acesso irrestrito a todos os orçamentos */
@@ -2273,6 +2303,7 @@ export const appRouter = router({
         })),
       }))
       .mutation(async ({ input, ctx }) => {
+        await assertFactoryOrderQuoteMutable(input.quoteId);
         const orderId = await createFactoryOrder({
           quoteId: input.quoteId,
           empresa: input.empresa,
@@ -2325,6 +2356,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
+        await assertFactoryOrderMutable(id);
         await updateFactoryOrder(id, data);
         return { success: true };
       }),
@@ -2337,6 +2369,7 @@ export const appRouter = router({
         itemData: z.string(),
       }))
       .mutation(async ({ input }) => {
+        await assertFactoryOrderMutable(input.factoryOrderId);
         const itemId = await addFactoryOrderItem(input.factoryOrderId, input.itemNumber, input.itemData);
         return { id: itemId };
       }),
@@ -2348,6 +2381,7 @@ export const appRouter = router({
         itemData: z.string(),
       }))
       .mutation(async ({ input }) => {
+        await assertFactoryOrderItemMutable(input.itemId);
         await updateFactoryOrderItem(input.itemId, input.itemData);
         return { success: true };
       }),
@@ -2356,6 +2390,7 @@ export const appRouter = router({
     removeItem: nonCostDepartmentProcedure
       .input(z.object({ itemId: z.number() }))
       .mutation(async ({ input }) => {
+        await assertFactoryOrderItemMutable(input.itemId);
         await deleteFactoryOrderItem(input.itemId);
         return { success: true };
       }),
@@ -2364,6 +2399,7 @@ export const appRouter = router({
     deleteOrder: nonCostDepartmentProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
+        await assertFactoryOrderMutable(input.id);
         await deleteFactoryOrder(input.id);
         return { success: true };
       }),
@@ -2372,6 +2408,7 @@ export const appRouter = router({
     createRevision: nonCostDepartmentProcedure
       .input(z.object({ sourceOrderId: z.number() }))
       .mutation(async ({ input }) => {
+        await assertFactoryOrderMutable(input.sourceOrderId);
         const newOrderId = await createFactoryOrderRevision(input.sourceOrderId);
         return { id: newOrderId };
       }),
@@ -2386,6 +2423,7 @@ export const appRouter = router({
         fileName: z.string(),
       }))
       .mutation(async ({ input, ctx }) => {
+        await assertFactoryOrderMutable(input.factoryOrderId);
         const buffer = Buffer.from(input.excelBase64, 'base64');
         const key = `factory-orders/${input.factoryOrderId}/rev${input.revision}/${Date.now()}-${input.fileName}`;
         const { url } = await storagePut(key, buffer, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

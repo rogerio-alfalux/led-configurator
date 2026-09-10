@@ -2654,14 +2654,14 @@ export default function QuoteDetail() {
             Pré-visualizar Excel
           </Button>
 
-          {quote.status === "approved" && (
+          {(quote.status === "approved" || quote.status === "invoiced") && (
             <>
               <Button
                 className="gap-2 bg-orange-600 hover:bg-orange-700 text-white"
                 onClick={() => navigate(`/orcamentos/${id}/pedido-fabrica`)}
               >
                 <Factory className="w-4 h-4" />
-                Gerenciar Pedido de Fábrica
+                {quote.status === "invoiced" ? "Consultar Pedido de Fábrica" : "Gerenciar Pedido de Fábrica"}
               </Button>
 
             </>

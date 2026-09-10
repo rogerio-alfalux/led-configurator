@@ -1481,6 +1481,15 @@ export async function getFactoryOrderById(id: number) {
   return { ...order, items };
 }
 
+/** Retorna o pedido pai de um item para validar o status comercial antes de gravar. */
+export async function getFactoryOrderByItemId(itemId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [item] = await db.select().from(factoryOrderItems).where(eq(factoryOrderItems.id, itemId));
+  if (!item) return null;
+  return getFactoryOrderById(item.factoryOrderId);
+}
+
 /** Atualiza campos do pedido de fábrica (empresa, status, deliveryDays, notes) */
 export async function updateFactoryOrder(id: number, data: Partial<{
   orderNumber: string;
