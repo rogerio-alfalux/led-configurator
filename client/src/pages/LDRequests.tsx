@@ -169,18 +169,26 @@ export function LDGuestRequests() {
   const [requestIdToDelete, setRequestIdToDelete] = useState<number | null>(null);
   const mine = trpc.ldRequests.mine.useQuery(undefined, { staleTime: 0, enabled: (user as any)?.role === "convidado" });
   const markResponseViewed = trpc.ldRequests.markResponseViewed.useMutation();
+  const getResponsePdf = trpc.ldRequests.myPdf.useMutation();
   const deleteRequest = trpc.ldRequests.deleteMine.useMutation();
   const visibleRequests = useMemo(() => filterLdRequests(mine.data ?? [], filters), [mine.data, filters]);
   const openOfficialPreview = async (requestId: number) => {
     if (downloadingRequestId !== null) return;
+    const pdfWindow = window.open("about:blank", "_blank");
     setDownloadingRequestId(requestId);
     try {
+      const response = await getResponsePdf.mutateAsync({ requestId });
       await markResponseViewed.mutateAsync({ requestId });
       await utils.ldRequests.notifications.invalidate();
-      toast.info("A visualização de valores do orçamento é exclusiva da equipe Alfalux. As configurações técnicas permanecem registradas na solicitação.");
+      if (pdfWindow) {
+        pdfWindow.location.href = response.url;
+      } else {
+        window.location.assign(response.url);
+      }
       setDownloadingRequestId(null);
-    } catch {
-      toast.error("Não foi possível registrar a visualização desta solicitação.");
+    } catch (error: any) {
+      pdfWindow?.close();
+      toast.error(error?.message ?? "Não foi possível abrir o PDF desta resposta.");
       setDownloadingRequestId(null);
     }
   };

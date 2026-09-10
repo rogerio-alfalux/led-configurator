@@ -26,4 +26,28 @@ describe("dados comerciais do orçamento para LD", () => {
     expect(dbMocks.getQuoteById).not.toHaveBeenCalled();
     expect(dbMocks.markGuestQuoteResponseViewed).not.toHaveBeenCalled();
   });
+
+  it("libera exclusivamente o PDF validado da resposta pertencente ao LD", async () => {
+    dbMocks.getGuestQuoteRequestById.mockResolvedValue({
+      id: 12,
+      guestUserId: 77,
+      status: "quote_ready",
+      validatedPdfUrl: "/api/assets/ld-quotes/77/12/orcamento.pdf",
+    });
+
+    await expect(appRouter.createCaller(context()).ldRequests.myPdf({ requestId: 12 }))
+      .resolves.toEqual({ url: "/api/assets/ld-quotes/77/12/orcamento.pdf" });
+  });
+
+  it("não libera PDF de resposta pertencente a outro LD", async () => {
+    dbMocks.getGuestQuoteRequestById.mockResolvedValue({
+      id: 12,
+      guestUserId: 99,
+      status: "quote_ready",
+      validatedPdfUrl: "/api/assets/ld-quotes/99/12/orcamento.pdf",
+    });
+
+    await expect(appRouter.createCaller(context()).ldRequests.myPdf({ requestId: 12 }))
+      .rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
 });

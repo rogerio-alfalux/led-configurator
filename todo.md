@@ -3588,3 +3588,8 @@
 - [x] Corrigir o mapeamento de documentos para produtos, SKUs e composições sem armazenar arquivos localmente
 - [x] Cobrir a sincronização por regressão e validar a apresentação móvel
 - [x] Salvar checkpoint reversível da alteração
+
+## PDF de resposta para LD convidado
+- [x] Auditar a rota de PDF, a autorização e o botão Ver resposta nas solicitações de LD
+- [x] Permitir que todo LD convidado abra apenas o PDF da resposta de sua própria solicitação
+- [x] Cobrir autorização e abertura do PDF por regressão e salvar checkpoint reversível

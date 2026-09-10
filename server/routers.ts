@@ -470,9 +470,18 @@ export const appRouter = router({
 
     myPdf: protectedProcedure
       .input(z.object({ requestId: z.number().int().positive() }))
-      .mutation(async ({ ctx }) => {
+      .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "convidado") throw new TRPCError({ code: "FORBIDDEN" });
-        throw new TRPCError({ code: "FORBIDDEN", message: "LD Convidado não possui acesso a documentos comerciais com valores." });
+        const request = await getGuestQuoteRequestById(input.requestId);
+        if (
+          !request
+          || request.guestUserId !== ctx.user.id
+          || request.status !== "quote_ready"
+          || !request.validatedPdfUrl
+        ) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "PDF de resposta não disponível para esta solicitação." });
+        }
+        return { url: request.validatedPdfUrl };
       }),
 
     /** Dados do orçamento vinculado, restritos ao LD dono da solicitação, para
