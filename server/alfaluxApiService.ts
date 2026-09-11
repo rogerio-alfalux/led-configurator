@@ -1,3 +1,6 @@
+import { gunzipSync, gzipSync } from "node:zlib";
+import { storageGetSignedUrl, storagePutStable } from "./storage";
+
 /**
  * alfaluxApiService.ts
  * Proxy server-side para a API de produtos da Alfalux.
@@ -14,6 +17,9 @@
  */
 
 const ALFALUX_BASE = "https://alfaluxprod-c8zmg2fn.manus.space";
+const PRODUCT_CATALOG_SNAPSHOT_KEY = "system/alfalux/products-latest.v1.json.gz";
+const PRODUCT_CATALOG_MIN_ITEMS = 100;
+const PRODUCT_CATALOG_API_TIMEOUT_MS = 45_000;
 // Catálogos auxiliares são reutilizados por páginas de consulta de orçamento e
 // Dashboard. Um intervalo curto reduz chamadas pesadas repetidas sem tornar a
 // origem oficial desatualizada por mais de um minuto.
@@ -270,6 +276,75 @@ let cache: CacheEntry | null = null;
 // Compartilha somente a requisição que já está em andamento. Quando ela termina,
 // o próximo acesso consulta a API novamente; portanto não é cache de catálogo.
 let productsFetchInFlight: Promise<AlfaluxProduct[]> | null = null;
+let persistedProductsLoadInFlight: Promise<CacheEntry | null> | null = null;
+
+interface PersistedProductCatalogSnapshot {
+  version: 1;
+  fetchedAt: number;
+  products: AlfaluxProduct[];
+}
+
+export function isValidOfficialProductCatalog(products: unknown): products is AlfaluxProduct[] {
+  return Array.isArray(products)
+    && products.length >= PRODUCT_CATALOG_MIN_ITEMS
+    && products.every(product => {
+      if (!product || typeof product !== "object") return false;
+      const entry = product as Partial<AlfaluxProduct>;
+      return typeof entry.sku === "string" && entry.sku.trim().length > 0
+        && typeof entry.name === "string" && entry.name.trim().length > 0;
+    });
+}
+
+export async function persistAlfaluxProductCatalogSnapshot(
+  products: AlfaluxProduct[],
+  fetchedAt = Date.now(),
+): Promise<void> {
+  if (!isValidOfficialProductCatalog(products)) {
+    throw new Error("Catálogo oficial inválido; snapshot persistente não atualizado");
+  }
+  const snapshot: PersistedProductCatalogSnapshot = {
+    version: 1,
+    fetchedAt,
+    products,
+  };
+  const compressed = gzipSync(Buffer.from(JSON.stringify(snapshot), "utf8"), { level: 6 });
+  await storagePutStable(PRODUCT_CATALOG_SNAPSHOT_KEY, compressed, "application/gzip");
+  console.log(`[AlfaluxAPI] Snapshot persistente atualizado com ${products.length} produtos oficiais.`);
+}
+
+export async function loadPersistedAlfaluxProductCatalogSnapshot(): Promise<CacheEntry | null> {
+  if (persistedProductsLoadInFlight) return persistedProductsLoadInFlight;
+
+  const loadPromise = (async (): Promise<CacheEntry | null> => {
+    try {
+      const signedUrl = await storageGetSignedUrl(PRODUCT_CATALOG_SNAPSHOT_KEY);
+      const response = await fetch(signedUrl, { signal: AbortSignal.timeout(15_000) });
+      if (!response.ok) return null;
+      const compressed = Buffer.from(await response.arrayBuffer());
+      const snapshot = JSON.parse(gunzipSync(compressed).toString("utf8")) as Partial<PersistedProductCatalogSnapshot>;
+      if (snapshot.version !== 1 || !isValidOfficialProductCatalog(snapshot.products)) {
+        console.warn("[AlfaluxAPI] Snapshot persistente ignorado por falha de integridade.");
+        return null;
+      }
+      const fetchedAt = Number(snapshot.fetchedAt);
+      console.log(`[AlfaluxAPI] Recuperados ${snapshot.products.length} produtos do último snapshot oficial persistente.`);
+      return {
+        data: snapshot.products,
+        fetchedAt: Number.isFinite(fetchedAt) && fetchedAt > 0 ? fetchedAt : Date.now(),
+      };
+    } catch (error) {
+      console.warn("[AlfaluxAPI] Snapshot persistente ainda não disponível:", error instanceof Error ? error.message : error);
+      return null;
+    }
+  })();
+
+  persistedProductsLoadInFlight = loadPromise;
+  try {
+    return await loadPromise;
+  } finally {
+    if (persistedProductsLoadInFlight === loadPromise) persistedProductsLoadInFlight = null;
+  }
+}
 
 export async function fetchAllAlfaluxProducts(forceRefresh = false): Promise<AlfaluxProduct[]> {
   const now = Date.now();
@@ -277,21 +352,49 @@ export async function fetchAllAlfaluxProducts(forceRefresh = false): Promise<Alf
     return cache.data;
   }
 
-  if (productsFetchInFlight) return productsFetchInFlight;
+  if (!forceRefresh && !cache) {
+    const persisted = await loadPersistedAlfaluxProductCatalogSnapshot();
+    if (persisted) {
+      cache = persisted;
+      return persisted.data;
+    }
+  }
+
+  const recoverOfficialProducts = async (error: unknown): Promise<AlfaluxProduct[]> => {
+    const persisted = cache?.data.length ? cache : await loadPersistedAlfaluxProductCatalogSnapshot();
+    if (persisted?.data.length) {
+      console.warn(`[AlfaluxAPI] Falha transitória no catálogo principal; mantendo ${persisted.data.length} produtos da última resposta oficial.`);
+      cache = { data: persisted.data, fetchedAt: now };
+      return persisted.data;
+    }
+    throw error;
+  };
+
+  if (productsFetchInFlight) {
+    try {
+      return await productsFetchInFlight;
+    } catch (error) {
+      return recoverOfficialProducts(error);
+    }
+  }
 
   const freshFetch = (async (): Promise<AlfaluxProduct[]> => {
   console.log("[AlfaluxAPI] Buscando produtos via /api/products/all...");
   const url = `${ALFALUX_BASE}/api/products/all`;
   const res = await fetch(url, {
     headers: { Accept: "application/json" },
-    // O catálogo central é volumoso e, em conexões mais lentas, 30s o
-    // encerravam antes de chegarem os módulos SHIFT e os Customizados.
-    signal: AbortSignal.timeout(120_000),
+    // Precisa responder antes do limite de 60s do cliente. Em caso de lentidão,
+    // resposta truncada ou falha de compactação, o último snapshot oficial
+    // íntegro continua disponível imediatamente.
+    signal: AbortSignal.timeout(PRODUCT_CATALOG_API_TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`Alfalux API error: ${res.status}`);
 
   const body = await res.json() as ApiResponse;
-  const all = body.products ?? [];
+  if (!isValidOfficialProductCatalog(body.products)) {
+    throw new Error("Alfalux API retornou catálogo incompleto ou inválido");
+  }
+  const all = body.products;
   // As três etapas de enriquecimento usam a mesma origem. Compartilhar a
   // requisição impede três esperas consecutivas pela API de componentes.
   const componentesPromise = fetchComponentes(forceRefresh);
@@ -418,6 +521,13 @@ export async function fetchAllAlfaluxProducts(forceRefresh = false): Promise<Alf
 
   console.log(`[AlfaluxAPI] ${all.length} produtos carregados.`);
   cache = { data: all, fetchedAt: now };
+  try {
+    await persistAlfaluxProductCatalogSnapshot(all, now);
+  } catch (error) {
+    // O catálogo atual permanece válido em memória mesmo se o armazenamento
+    // persistente estiver temporariamente indisponível.
+    console.warn("[AlfaluxAPI] Não foi possível atualizar o snapshot persistente:", error instanceof Error ? error.message : error);
+  }
   return all;
   })();
 
@@ -425,12 +535,7 @@ export async function fetchAllAlfaluxProducts(forceRefresh = false): Promise<Alf
   try {
     return await freshFetch;
   } catch (error) {
-    if (!forceRefresh && cache?.data.length) {
-      console.warn(`[AlfaluxAPI] Falha transitória no catálogo principal; mantendo ${cache.data.length} produtos da última resposta oficial.`);
-      cache = { data: cache.data, fetchedAt: now };
-      return cache.data;
-    }
-    throw error;
+    return recoverOfficialProducts(error);
   } finally {
     if (productsFetchInFlight === freshFetch) productsFetchInFlight = null;
   }
@@ -487,7 +592,14 @@ export async function fetchRevendaProducts(): Promise<RevendaProduct[]> {
   if (revendaCache && now - revendaCache.fetchedAt < AUXILIARY_CATALOG_CACHE_TTL_MS) {
     return revendaCache.data;
   }
-  if (revendaFetchInFlight) return revendaFetchInFlight;
+  if (revendaFetchInFlight) {
+    try {
+      return await revendaFetchInFlight;
+    } catch (error) {
+      if (revendaCache?.data.length) return revendaCache.data;
+      throw error;
+    }
+  }
 
   const freshFetch = (async () => {
     console.log("[AlfaluxAPI] Buscando produtos de revenda via /api/revenda/all...");
@@ -555,7 +667,14 @@ export async function fetchAcessoriosProducts(): Promise<AcessorioProduct[]> {
     return acessoriosCache.data;
   }
 
-  if (acessoriosFetchInFlight) return acessoriosFetchInFlight;
+  if (acessoriosFetchInFlight) {
+    try {
+      return await acessoriosFetchInFlight;
+    } catch (error) {
+      if (acessoriosCache?.data.length) return acessoriosCache.data;
+      throw error;
+    }
+  }
 
   const freshFetch = (async () => {
     console.log("[AlfaluxAPI] Buscando acessórios via /api/acessorios/all...");
@@ -691,7 +810,16 @@ export async function fetchComponentes(forceRefresh = false): Promise<{ items: C
   if (!forceRefresh && componentesCache && now - componentesCache.fetchedAt < AVAILABILITY_CACHE_TTL_MS) {
     return { items: componentesCache.data, tipos: componentesCache.tipos };
   }
-  if (componentesFetchInFlight) return componentesFetchInFlight;
+  if (componentesFetchInFlight) {
+    try {
+      return await componentesFetchInFlight;
+    } catch (error) {
+      if (!forceRefresh && componentesCache?.data.length) {
+        return { items: componentesCache.data, tipos: componentesCache.tipos };
+      }
+      throw error;
+    }
+  }
   const freshFetch = (async () => {
     console.log("[AlfaluxAPI] Buscando componentes via /api/componentes/all...");
     const url = `${ALFALUX_BASE}/api/componentes/all`;

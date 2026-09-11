@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import { readFile } from "node:fs/promises";
 
 describe("disponibilidade do catálogo Alfalux", () => {
-  it("aguarda o catálogo central completo e reutiliza a consulta de componentes", async () => {
+  it("valida o catálogo completo, responde antes do cliente e preserva o último snapshot oficial", async () => {
     const source = await readFile(new URL("./alfaluxApiService.ts", import.meta.url), "utf8");
-    expect(source).toContain("AbortSignal.timeout(120_000)");
+    expect(source).toContain("PRODUCT_CATALOG_API_TIMEOUT_MS = 45_000");
+    expect(source).toContain("isValidOfficialProductCatalog(body.products)");
+    expect(source).toContain("loadPersistedAlfaluxProductCatalogSnapshot()");
+    expect(source).toContain("persistAlfaluxProductCatalogSnapshot(all, now)");
     expect(source).toContain("const componentesPromise = fetchComponentes(");
     expect(source).toContain("await componentesPromise");
     expect(source).toContain("AVAILABILITY_CACHE_TTL_MS");

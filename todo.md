@@ -3667,3 +3667,10 @@
 - [x] Tratar falhas parciais para que uma consulta não bloqueie todo o Dashboard
 - [x] Otimizar consultas sem adiar ou omitir dados exigidos na abertura
 - [x] Validar dados, filtros, permissões e regressões antes de salvar checkpoint reversível
+
+## Produção: catálogo oficial Alfalux indisponível
+- [x] Reproduzir a falha no domínio publicado e coletar os erros de produção
+- [x] Comparar conectividade, cache e contrato da API entre produção e desenvolvimento
+- [x] Corrigir a causa raiz sem liberar catálogo incompleto ou dados comerciais inconsistentes
+- [x] Validar catálogo, cálculos e recuperação transitória em ambiente equivalente à produção
+- [x] Salvar checkpoint reversível e orientar a publicação da correção

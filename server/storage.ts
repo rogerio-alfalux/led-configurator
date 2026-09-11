@@ -28,13 +28,12 @@ function appendHashSuffix(relKey: string): string {
   return `${relKey.slice(0, lastDot)}_${hash}${relKey.slice(lastDot)}`;
 }
 
-export async function storagePut(
-  relKey: string,
+async function storagePutWithKey(
+  key: string,
   data: Buffer | Uint8Array | string,
   contentType = "application/octet-stream",
 ): Promise<{ key: string; url: string }> {
   const { forgeUrl, forgeKey } = getForgeConfig();
-  const key = appendHashSuffix(normalizeKey(relKey));
 
   // 1. Get presigned PUT URL from Forge
   const presignUrl = new URL("v1/storage/presign/put", forgeUrl + "/");
@@ -69,6 +68,27 @@ export async function storagePut(
   }
 
   return { key, url: `/api/assets/${key}` };
+}
+
+export async function storagePut(
+  relKey: string,
+  data: Buffer | Uint8Array | string,
+  contentType = "application/octet-stream",
+): Promise<{ key: string; url: string }> {
+  return storagePutWithKey(appendHashSuffix(normalizeKey(relKey)), data, contentType);
+}
+
+/**
+ * Sobrescreve uma chave estável. Use somente para snapshots internos versionados
+ * que precisam sobreviver a reinicializações; uploads de usuários continuam
+ * usando storagePut e suas chaves únicas.
+ */
+export async function storagePutStable(
+  relKey: string,
+  data: Buffer | Uint8Array | string,
+  contentType = "application/octet-stream",
+): Promise<{ key: string; url: string }> {
+  return storagePutWithKey(normalizeKey(relKey), data, contentType);
 }
 
 export async function storageGet(relKey: string): Promise<{ key: string; url: string }> {
