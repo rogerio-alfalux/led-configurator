@@ -29,8 +29,8 @@ describe("filtros administrativos de origem LD", () => {
     expect(source).toContain("needsLdRequestData");
   });
 
-  it("recompõe o valor final descontado como referência de valor exibido e exportado", () => {
-    expect(source).toContain("totalFinal: getDisplayedCustomerTotal(quote)");
-    expect(source).toContain("formatBRL(getDisplayedCustomerTotal(q))");
+  it("usa o valor comercial reconciliado da revisão vigente para exibição e exportação", () => {
+    expect(source).toContain("totalFinal: getQuoteCustomerTotal(quote)");
+    expect(source).toContain("formatBRL(getQuoteCustomerTotal(q))");
   });
 });

@@ -3647,3 +3647,8 @@
 - [x] Medir a lentidão residual reportada pelo usuário e comparar com a abertura real das páginas
 - [x] Corrigir somente o gargalo confirmado, preservando valores, documentos e regras comerciais
 - [x] Validar os fluxos críticos e salvar checkpoint reversível da correção
+
+## Valor comercial final único em listagens e dashboards
+- [x] Apurar a divergência do orçamento 20.0541-26 entre Meus Orçamentos e o detalhe salvo
+- [x] Usar exclusivamente o valor comercial final reconciliado da revisão efetiva em listagem, caixas de totais e dashboards
+- [x] Cobrir margens, RT, impostos, descontos, frete e documentos por regressão antes do checkpoint

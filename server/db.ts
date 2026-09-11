@@ -25,11 +25,13 @@ import { buildDashboardProductAnalytics } from './dashboardProductAnalytics';
 import { buildDashboardEntityAnalytics } from './dashboardEntityAnalytics';
 import { buildQuoteGeneralExpenses } from './quoteGeneralExpenses';
 import { getDuplicateQuoteGroupSizes, getDuplicateQuoteKey } from '../shared/quoteGrouping';
+import { calculateCommercialQuoteTotal } from '../shared/quoteCommercialTotal';
 import { getCommercialTotalsToRestore, getNonCommercialQuoteStatus, transfersNonCommercialFinance, transfersNonCommercialRevenue, type NonCommercialQuoteKind, type NonCommercialLinkType } from '../shared/nonCommercialQuoteFinancial';
 import { normalizeQuoteNumberForLookup } from '../shared/quoteNumberLookup';
 import { ADMIN_PENDING_LD_STATUSES } from './ldRequestBadgeStatus';
 import { brasiliaDateToUtcSqlTimestamp, getBrasiliaYear2, toBrasiliaSqlTimestamp, toUtcSqlTimestamp } from './timeUtils';
 import { readAdditionalCostsAggregate } from './dashboardAdditionalCosts';
+import { getStateInfo } from '../client/src/lib/difalTable';
 
 /** Mantido para textos e metadados que precisam da hora civil de Brasília. */
 export const nowBrasiliaStr = () => toBrasiliaSqlTimestamp();
@@ -1005,12 +1007,61 @@ export async function listQuotes(opts: {
   // Duplicidade comercial: mesma obra normalizada e mesmo valor final. Usamos
   // o conjunto integral do filtro (não apenas a página atual) para que o badge
   // e os indicadores não dependam da paginação.
+  const rowIds = rows.map((row) => row.id);
+  const currentItems = rowIds.length > 0
+    ? await db.select({
+      quoteId: quoteItems.quoteId,
+      version: quoteVersions.version,
+      itemData: quoteItems.itemData,
+    })
+      .from(quoteItems)
+      .innerJoin(quoteVersions, eq(quoteVersions.id, quoteItems.quoteVersionId))
+      .where(inArray(quoteItems.quoteId, rowIds))
+    : [];
+  const rowById = new Map(rows.map((row) => [row.id, row]));
+  const itemDataByQuoteId = new Map<number, string[]>();
+  const effectiveVersionByQuoteId = new Map<number, number>();
+  for (const item of currentItems) {
+    const effectiveVersion = effectiveVersionByQuoteId.get(item.quoteId);
+    if (effectiveVersion == null || item.version > effectiveVersion) {
+      effectiveVersionByQuoteId.set(item.quoteId, item.version);
+    }
+  }
+  for (const item of currentItems) {
+    const quote = rowById.get(item.quoteId);
+    const effectiveVersion = effectiveVersionByQuoteId.get(item.quoteId) ?? quote?.currentVersion;
+    if (!quote || item.version !== effectiveVersion) continue;
+    const entry = itemDataByQuoteId.get(item.quoteId) ?? [];
+    entry.push(item.itemData);
+    itemDataByQuoteId.set(item.quoteId, entry);
+  }
+
+  const reconciledRows = rows.map((row) => {
+    const stateInfo = row.destState ? getStateInfo(row.destState) : undefined;
+    const recalculated = calculateCommercialQuoteTotal({
+      status: row.status,
+      rtPercent: row.rtPercent,
+      marginPercent: row.marginPercent,
+      discountPercent: row.discountPercent,
+      freteValue: row.freteValue,
+      freteIncluded: row.freteIncluded,
+      freteIsento: row.freteIsento,
+      diluicaoValor: row.diluicaoValor,
+      difalEnabled: row.difalEnabled,
+      combinedTaxRate: stateInfo?.combined,
+    }, itemDataByQuoteId.get(row.id) ?? []);
+    return {
+      ...row,
+      commercialTotalFinal: recalculated.totalFinal,
+    };
+  });
+
   const duplicateCandidates = await db
     .select({ id: quotes.id, projectName: quotes.projectName, totalFinal: quotes.totalFinal })
     .from(quotes)
     .where(where);
   const duplicateGroupCounts = getDuplicateQuoteGroupSizes(duplicateCandidates);
-  const enrichedRows = rows.map((row) => {
+  const enrichedRows = reconciledRows.map((row) => {
     const duplicateKey = getDuplicateQuoteKey(row.projectName, row.totalFinal);
     const duplicateGroupSize = duplicateKey ? (duplicateGroupCounts.get(duplicateKey) ?? 0) : 0;
     const isAutomaticallyDuplicate = duplicateGroupSize > 1;
@@ -1738,6 +1789,9 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
       .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)))`)),
     db.select({
       id: quotes.id,
+      currentVersion: quotes.currentVersion,
+      status: quotes.status,
+      seller1Name: quotes.seller1Name,
       totalAmount: quotes.totalAmount,
       totalFinal: quotes.totalFinal,
       commissionPercent: quotes.commissionPercent,
@@ -1746,9 +1800,13 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
       fcpValue: quotes.fcpValue,
       freteValue: quotes.freteValue,
       freteIncluded: quotes.freteIncluded,
+      freteIsento: quotes.freteIsento,
       rtPercent: quotes.rtPercent,
       discountPercent: quotes.discountPercent,
       marginPercent: quotes.marginPercent,
+      diluicaoValor: quotes.diluicaoValor,
+      difalEnabled: quotes.difalEnabled,
+      destState: quotes.destState,
     }).from(quotes).where(periodCondition),
     getTotalAdditionalCostsForPeriod(year, month, dateFrom, dateTo),
   ]);
@@ -1774,11 +1832,14 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
 
   // Busca todos os itens dos orçamentos aprovados no período
   const approvedQuoteIds = approvedQuotes.map(q => q.id);
-  const allItemsPromise: Promise<Array<{ quoteId: number; itemData: string }>> = approvedQuoteIds.length > 0
+  const allItemsPromise: Promise<Array<{ quoteId: number; version: number; itemData: string }>> = approvedQuoteIds.length > 0
     ? db.select({
       quoteId: quoteItems.quoteId,
+      version: quoteVersions.version,
       itemData: quoteItems.itemData,
-    }).from(quoteItems).where(sql`quoteId IN (${sql.join(approvedQuoteIds.map(id => sql`${id}`), sql`, `)})`)
+    }).from(quoteItems)
+      .innerJoin(quoteVersions, eq(quoteVersions.id, quoteItems.quoteVersionId))
+      .where(sql`quoteId IN (${sql.join(approvedQuoteIds.map(id => sql`${id}`), sql`, `)})`)
     : Promise.resolve([]);
 
   // O catálogo oficial e os itens salvos são independentes. As duas leituras
@@ -1793,12 +1854,40 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     ]),
   ]);
 
-  // Agrupa itens por orçamento
+  // Agrupa exclusivamente os itens da revisão efetiva mais recente, incluindo
+  // o rascunho salvo que o usuário vê ao reabrir o orçamento.
+  const quoteById = new Map(approvedQuotes.map(quote => [quote.id, quote]));
+  const effectiveVersionByQuoteId = new Map<number, number>();
+  for (const item of allItems) {
+    const effectiveVersion = effectiveVersionByQuoteId.get(item.quoteId);
+    if (effectiveVersion == null || item.version > effectiveVersion) {
+      effectiveVersionByQuoteId.set(item.quoteId, item.version);
+    }
+  }
   const itemsByQuote = new Map<number, typeof allItems>();
   for (const item of allItems) {
+    const effectiveVersion = effectiveVersionByQuoteId.get(item.quoteId) ?? quoteById.get(item.quoteId)?.currentVersion;
+    if (effectiveVersion !== item.version) continue;
     if (!itemsByQuote.has(item.quoteId)) itemsByQuote.set(item.quoteId, []);
     itemsByQuote.get(item.quoteId)!.push(item);
   }
+
+  const reconciledFinalByQuoteId = new Map(approvedQuotes.map((quote) => {
+    const stateInfo = quote.destState ? getStateInfo(quote.destState) : undefined;
+    const total = calculateCommercialQuoteTotal({
+      status: quote.status,
+      rtPercent: quote.rtPercent,
+      marginPercent: quote.marginPercent,
+      discountPercent: quote.discountPercent,
+      freteValue: quote.freteValue,
+      freteIncluded: quote.freteIncluded,
+      freteIsento: quote.freteIsento,
+      diluicaoValor: quote.diluicaoValor,
+      difalEnabled: quote.difalEnabled,
+      combinedTaxRate: stateInfo?.combined,
+    }, (itemsByQuote.get(quote.id) ?? []).map(item => item.itemData));
+    return [quote.id, total.totalFinal] as const;
+  }));
 
   // ── Catálogo oficial já obtido em paralelo aos itens do período ────────────
   const productBySku = new Map(apiProducts.map(p => [p.sku.toUpperCase(), p]));
@@ -1819,7 +1908,7 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
   let qtdSemCusto = 0;
 
   for (const quote of approvedQuotes) {
-    const tf = Number(quote.totalFinal ?? 0);
+    const tf = reconciledFinalByQuoteId.get(quote.id) ?? Number(quote.totalFinal ?? 0);
     const ta = Number(quote.totalAmount ?? 0);
     totalVendas += tf;
     const marginPercent = Number(quote.marginPercent ?? 0.10);
@@ -2135,6 +2224,23 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     margemMedia: margemBruta / 100,
   };
 
+  const reconciledSellerTotals = new Map<string, { count: number; totalAmount: number; totalCommission: number }>();
+  for (const quote of approvedQuotes) {
+    if (!quote.seller1Name) continue;
+    const totalAmount = reconciledFinalByQuoteId.get(quote.id) ?? Number(quote.totalFinal ?? 0);
+    const current = reconciledSellerTotals.get(quote.seller1Name) ?? { count: 0, totalAmount: 0, totalCommission: 0 };
+    current.count += 1;
+    current.totalAmount += totalAmount;
+    current.totalCommission += totalAmount * Number(quote.commissionPercent ?? 0);
+    reconciledSellerTotals.set(quote.seller1Name, current);
+  }
+  const reconciledSalesRanking = Array.from(reconciledSellerTotals.entries())
+    .map(([sellerName, totals]) => ({ sellerName, count: totals.count, totalAmount: totals.totalAmount }))
+    .sort((a, b) => b.totalAmount - a.totalAmount);
+  const reconciledCommissionBySeller = Array.from(reconciledSellerTotals.entries())
+    .map(([sellerName, totals]) => ({ ...totals, sellerName }))
+    .sort((a, b) => b.totalCommission - a.totalCommission);
+
   // ── Taxa de conversão (total criado no período vs aprovados) ─────────────────
   const createdCondition = (dateFrom && dateTo)
     ? sql`DATE(DATE_SUB(createdAt, INTERVAL 3 HOUR)) >= ${dateFrom} AND DATE(DATE_SUB(createdAt, INTERVAL 3 HOUR)) <= ${dateTo} AND status != 'sample'`
@@ -2229,10 +2335,10 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     : manualBillings.reduce((sum, entry) => sum + Number(entry.amount ?? 0), 0);
 
   return {
-    periodTotals,
-    commissionBySeller,
+    periodTotals: { ...periodTotals, approvedAmount: totalVendas },
+    commissionBySeller: reconciledCommissionBySeller,
     rtRanking,
-    salesRanking,
+    salesRanking: reconciledSalesRanking,
     monthlyProgress,
     goals,
     profitMetrics,
@@ -2383,6 +2489,49 @@ export async function getDashboardProductAnalytics(year: number, month?: number,
   };
 }
 
+/** Resolve a receita comercial da maior revisão salva de cada orçamento. */
+async function getEffectiveCommercialTotalsForQuotes(db: any, quoteRows: any[]): Promise<Map<number, number>> {
+  const quoteIds = quoteRows.map((quote) => Number(quote.id)).filter((id) => Number.isInteger(id) && id > 0);
+  if (quoteIds.length === 0) return new Map();
+
+  const itemRows = await db.select({
+    quoteId: quoteItems.quoteId,
+    version: quoteVersions.version,
+    itemData: quoteItems.itemData,
+  }).from(quoteItems)
+    .innerJoin(quoteVersions, eq(quoteVersions.id, quoteItems.quoteVersionId))
+    .where(inArray(quoteItems.quoteId, quoteIds));
+  const effectiveVersionByQuoteId = new Map<number, number>();
+  for (const item of itemRows) {
+    const current = effectiveVersionByQuoteId.get(item.quoteId);
+    if (current == null || item.version > current) effectiveVersionByQuoteId.set(item.quoteId, item.version);
+  }
+  const itemsByQuoteId = new Map<number, string[]>();
+  for (const item of itemRows) {
+    if (effectiveVersionByQuoteId.get(item.quoteId) !== item.version) continue;
+    const items = itemsByQuoteId.get(item.quoteId) ?? [];
+    items.push(item.itemData);
+    itemsByQuoteId.set(item.quoteId, items);
+  }
+
+  return new Map(quoteRows.map((quote) => {
+    const stateInfo = quote.destState ? getStateInfo(quote.destState) : undefined;
+    const totals = calculateCommercialQuoteTotal({
+      status: quote.status,
+      rtPercent: quote.rtPercent,
+      marginPercent: quote.marginPercent,
+      discountPercent: quote.discountPercent,
+      freteValue: quote.freteValue,
+      freteIncluded: quote.freteIncluded,
+      freteIsento: quote.freteIsento,
+      diluicaoValor: quote.diluicaoValor,
+      difalEnabled: quote.difalEnabled,
+      combinedTaxRate: stateInfo?.combined,
+    }, itemsByQuoteId.get(quote.id) ?? []);
+    return [quote.id, totals.totalFinal];
+  }));
+}
+
 /**
  * Retorna dados do dashboard para um vendedor específico (apenas seus orçamentos).
  * Filtra por email do vendedor na tabela sellers.
@@ -2415,28 +2564,60 @@ export async function getSellerDashboard(sellerEmail: string, year: number, mont
           sellerFilter
         );
 
-  const [totals] = await db.select({
-    approvedCount: sql<number>`count(*)`,
-    approvedAmount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
-    totalCommission: sql<number>`sum(cast(totalFinal as decimal(14,2)) * cast(commissionPercent as decimal(5,4)))`,
+  const sellerQuotes = await db.select({
+    id: quotes.id,
+    status: quotes.status,
+    destState: quotes.destState,
+    rtPercent: quotes.rtPercent,
+    marginPercent: quotes.marginPercent,
+    discountPercent: quotes.discountPercent,
+    freteValue: quotes.freteValue,
+    freteIncluded: quotes.freteIncluded,
+    freteIsento: quotes.freteIsento,
+    diluicaoValor: quotes.diluicaoValor,
+    difalEnabled: quotes.difalEnabled,
+    commissionPercent: quotes.commissionPercent,
+    approvedAt: quotes.approvedAt,
   }).from(quotes).where(periodCondition);
+  const sellerTotalsByQuoteId = await getEffectiveCommercialTotalsForQuotes(db, sellerQuotes);
+  const totals = sellerQuotes.reduce((acc, quote) => {
+    const totalAmount = sellerTotalsByQuoteId.get(quote.id) ?? 0;
+    acc.approvedAmount += totalAmount;
+    acc.totalCommission += totalAmount * Number(quote.commissionPercent ?? 0);
+    return acc;
+  }, { approvedCount: sellerQuotes.length, approvedAmount: 0, totalCommission: 0 });
 
   // Progresso mensal do vendedor
-  const monthlyProgress = await db.select({
-    month: sql<number>`MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR))`,
-    count: sql<number>`count(*)`,
-    amount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
-    commission: sql<number>`sum(cast(totalFinal as decimal(14,2)) * cast(commissionPercent as decimal(5,4)))`,
-  })
-    .from(quotes)
-    .where(
-      and(
-        sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND status = 'approved' AND status != 'sample'`,
-        sql`(seller1Id = ${seller.id} OR seller2Id = ${seller.id})`
-      )
-    )
-    .groupBy(sql`MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR))`)
-    .orderBy(sql`MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR))`);
+  const annualSellerQuotes = await db.select({
+    id: quotes.id,
+    status: quotes.status,
+    destState: quotes.destState,
+    rtPercent: quotes.rtPercent,
+    marginPercent: quotes.marginPercent,
+    discountPercent: quotes.discountPercent,
+    freteValue: quotes.freteValue,
+    freteIncluded: quotes.freteIncluded,
+    freteIsento: quotes.freteIsento,
+    diluicaoValor: quotes.diluicaoValor,
+    difalEnabled: quotes.difalEnabled,
+    commissionPercent: quotes.commissionPercent,
+    approvedAt: quotes.approvedAt,
+  }).from(quotes).where(and(
+    sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND status = 'approved' AND status != 'sample'`,
+    sql`(seller1Id = ${seller.id} OR seller2Id = ${seller.id})`
+  ));
+  const annualSellerTotalsByQuoteId = await getEffectiveCommercialTotalsForQuotes(db, annualSellerQuotes);
+  const monthlyProgress = Array.from(annualSellerQuotes.reduce((groups, quote) => {
+    const monthKey = Number(String(quote.approvedAt).slice(5, 7));
+    const current = groups.get(monthKey) ?? { month: monthKey, count: 0, amount: 0, commission: 0 };
+    const amount = annualSellerTotalsByQuoteId.get(quote.id) ?? 0;
+    current.count += 1;
+    current.amount += amount;
+    current.commission += amount * Number(quote.commissionPercent ?? 0);
+    groups.set(monthKey, current);
+    return groups;
+  }, new Map<number, { month: number; count: number; amount: number; commission: number }>()).values())
+    .sort((a, b) => a.month - b.month);
 
   // Metas (visíveis para todos)
   const goals = await getSalesGoalsByYear(year);
@@ -2460,6 +2641,7 @@ export async function getMonthlyReport(year: number, month: number) {
 
   const rows = await db.select({
     id: quotes.id,
+    status: quotes.status,
     quoteNumber: quotes.quoteNumber,
     clientName: quotes.clientName,
     projectName: quotes.projectName,
@@ -2475,20 +2657,32 @@ export async function getMonthlyReport(year: number, month: number) {
     rtDest2Active: quotes.rtDest2Active,
     rtDest3: quotes.rtDest3,
     rtDest3Active: quotes.rtDest3Active,
+    destState: quotes.destState,
+    marginPercent: quotes.marginPercent,
+    discountPercent: quotes.discountPercent,
+    freteValue: quotes.freteValue,
+    freteIncluded: quotes.freteIncluded,
+    freteIsento: quotes.freteIsento,
+    diluicaoValor: quotes.diluicaoValor,
+    difalEnabled: quotes.difalEnabled,
     approvedAt: sql<string>`approvedAt`,
   })
     .from(quotes)
     .where(sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${month} AND status = 'approved'`)
     .orderBy(sql`approvedAt`);
 
-  return rows.map(r => ({
+  const totalsByQuoteId = await getEffectiveCommercialTotalsForQuotes(db, rows);
+  return rows.map(r => {
+    const totalFinal = totalsByQuoteId.get(r.id) ?? Number(r.totalFinal ?? 0);
+    return ({
     ...r,
-    totalFinal: Number(r.totalFinal ?? 0),
+    totalFinal,
     commissionPercent: Number(r.commissionPercent ?? 0),
     rtPercent: Number(r.rtPercent ?? 0),
-    commission: Number(r.totalFinal ?? 0) * Number(r.commissionPercent ?? 0),
-    rtValue: Number(r.totalFinal ?? 0) * Number(r.rtPercent ?? 0),
-  }));
+    commission: totalFinal * Number(r.commissionPercent ?? 0),
+    rtValue: totalFinal * Number(r.rtPercent ?? 0),
+  });
+  });
 }
 
 /** Duplica um orçamento existente, criando um novo com número próprio e versão 1 */

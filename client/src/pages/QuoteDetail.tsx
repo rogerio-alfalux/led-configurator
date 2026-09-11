@@ -51,6 +51,7 @@ import { buildSampleCommercialProjection } from "@/lib/sampleCommercialAdjustmen
 import { applyItemDiscount, applyQuoteDiscount, calculateQuoteTotalWithDiscountAndTax, getDisplayedCustomerTotal, getReconciledCustomerTotal } from "@/lib/quoteTotals";
 import { canAccessQuoteAnalysis } from "@/lib/quoteAnalysisAccess";
 import type { ApiProductDriverInfo } from "@/lib/cartTypes";
+import { calculateCommercialQuoteTotal } from "@shared/quoteCommercialTotal";
 
 /** Aplica margem individual do item (itemMarginPercent em %) sobre um valor base */
 function applyItemMarginQD(base: number, itemMarginPercent?: number | null): number {
@@ -2012,50 +2013,21 @@ export default function QuoteDetail() {
   const _hdrFreteValue = (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : 0;
   const _hdrFreteParaDiluir = (_hdrFreteIncluded && _hdrFreteValue > 0) ? _hdrFreteValue : 0;
   const _hdrDiluicao = commercialDiluicaoValor;
-  // Base dos itens (sem RT/margem global, mas com margem individual)
-  const _hdrTotalBase = commercialItemsMigrated.reduce((s, i) => {
-    const d = parseCartItemData(i.itemData);
-    if (!d || d.category === 'Não Orçamos') return s;
-    if (d.driverLines && d.driverLines.length > 0) {
-      const lumT = (() => {
-        if (d.priceWithoutDriver != null) {
-          const isUnitOnly = d.unitPriceLuminaria != null &&
-            Math.abs(d.priceWithoutDriver - d.unitPriceLuminaria) < 0.02 && (d.qty ?? 1) > 1;
-          return isUnitOnly ? d.unitPriceLuminaria! * (d.qty ?? 1) : d.priceWithoutDriver;
-        }
-        const _drvT = d.driverLines!.reduce((sd, dl) => sd + (dl.driverTotalPrice ?? 0), 0);
-        if (d.unitPriceLuminaria == null && d.totalPrice != null && d.totalPrice > 0) return Math.max(0, d.totalPrice - _drvT);
-        const unitLum = d.unitPriceLuminaria ?? null;
-        return unitLum != null ? unitLum * (d.qty ?? 1) : (d.totalPrice ?? 0);
-      })();
-      const drvT = d.driverLines.reduce((sd, dl) => {
-        if (dl.driverTotalPrice != null && dl.driverTotalPrice > 0) return sd + dl.driverTotalPrice;
-        const iqty = d.qty ?? 1;
-        const storedQty = dl.driverQty ?? 1;
-        const effectiveQty = storedQty <= 1 ? iqty : storedQty;
-        return sd + Math.round((dl.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
-      }, 0);
-      return s + applyItemDiscount(applyItemMarginQD(lumT + drvT + calculateLinkedAccessoriesTotal(d), d.itemMarginPercent), d.itemDiscountPercent);
-    }
-    return s + applyItemDiscount(applyItemMarginQD((d.totalPrice ?? 0) + calculateLinkedAccessoriesTotal(d), d.itemMarginPercent), d.itemDiscountPercent);
-  }, 0);
-  const _hdrDiscountPct = (quote as any).discountPercent ? Math.min(Math.max(parseFloat(String((quote as any).discountPercent)), 0), 0.99) : 0;
-  // Aplicar RT + margem sobre (base + frete diluído + diluição)
-  const _hdrTotalComRT = _hdrRtPct > 0 ? (_hdrTotalBase + _hdrFreteParaDiluir + _hdrDiluicao) / (1 - _hdrRtPct) : (_hdrTotalBase + _hdrFreteParaDiluir + _hdrDiluicao);
-  const _hdrTotalComMargem = _hdrMarginPct > 0 ? _hdrTotalComRT / (1 - _hdrMarginPct) : _hdrTotalComRT;
-  const _hdrTotalFinal = _hdrDiscountPct > 0 ? _hdrTotalComMargem * (1 - _hdrDiscountPct) : _hdrTotalComMargem;
-  // Frete separado (não diluído) entra na base do DIFAL
-  const _hdrFreteParaImposto = _hdrFreteIncluded ? 0 : (_hdrFreteValue > 0 ? _hdrFreteValue : 0);
-  const _hdrBaseParaDifal = _hdrTotalFinal + _hdrFreteParaImposto;
-  // DIFAL/FCP
   const _hdrStateInfo = quote.destState ? getStateInfo(quote.destState) : undefined;
-  const _hdrCombinedRate = _hdrStateInfo ? _hdrStateInfo.combined : 0;
-  const _hdrDifalAplicavel = !!_hdrStateInfo && _hdrCombinedRate > 0;
-  const _hdrTotalComDifal = (quote.difalEnabled && _hdrDifalAplicavel)
-    ? _hdrBaseParaDifal / (1 - _hdrCombinedRate / 100)
-    : _hdrBaseParaDifal;
-  // Total final recalculado (igual ao PDF/Preview/Excel)
-  const totalRecalculado = _hdrTotalComDifal;
+  const headerCommercialTotals = calculateCommercialQuoteTotal({
+    status: quote.status,
+    rtPercent: _hdrRtPct,
+    marginPercent: _hdrMarginPct,
+    discountPercent: quote.discountPercent,
+    freteValue: _hdrFreteValue,
+    freteIncluded: _hdrFreteIncluded,
+    freteIsento: (quote as any).freteIsento,
+    diluicaoValor: _hdrDiluicao,
+    difalEnabled: quote.difalEnabled,
+    combinedTaxRate: _hdrStateInfo?.combined,
+  }, commercialItemsMigrated.map(item => item.itemData));
+  // Total final reconciliado da revisão vigente: mesma fonte utilizada por lista e dashboards.
+  const totalRecalculado = headerCommercialTotals.totalFinal;
 
   const handleGenerateQuote = async (showIpi = false) => {
     setIsGenerating(true);

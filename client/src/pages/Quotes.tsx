@@ -171,6 +171,13 @@ export default function Quotes() {
     return quote.createdAt;
   };
 
+  const getQuoteCustomerTotal = (quote: any) => {
+    const reconciled = Number(quote?.commercialTotalFinal);
+    return Number.isFinite(reconciled) && reconciled >= 0
+      ? reconciled
+      : getDisplayedCustomerTotal(quote);
+  };
+
   const generalExpenseQuoteIds = useMemo(() => {
     if (user?.role !== "admin") return [];
     return (filteredAllData?.rows ?? [])
@@ -211,8 +218,8 @@ export default function Quotes() {
     const approved = commercialRows.filter(q => q.status === "approved").length;
     const lost = commercialRows.filter(q => q.status === "lost").length;
     const invoiced = commercialRows.filter(q => q.status === "invoiced").length;
-    // Reconhece dados legados e usa a mesma regra comercial do detalhe: desconto → frete → DIFAL/FCP.
-    const getQuoteValue = (q: typeof rows[0]) => getCommercialQuoteValue(q.status, getDisplayedCustomerTotal(q));
+    // Referência única da revisão atual: margem, RT, desconto, frete e DIFAL/FCP.
+    const getQuoteValue = (q: typeof rows[0]) => getCommercialQuoteValue(q.status, getQuoteCustomerTotal(q));
     const totalValue = commercialRows.reduce((sum, q) => sum + getQuoteValue(q), 0);
     const seenDuplicateGroups = new Set<string>();
     const withoutDuplicates = commercialRows.filter((q: any) => {
@@ -237,7 +244,7 @@ export default function Quotes() {
   const hasFilters = status !== "all" || sellerFilter !== "all" || assistantFilter !== "all" || duplicateFilter !== "all" || prospectingFilter !== "all" || ldOriginFilter !== "all" || ldResponseFilter !== "all" || search.trim() !== "" || dateFrom !== "" || dateTo !== "" || datePreset !== "all";
   const getQuoteParticipation = (quote: any): number | null => {
     if (stats.totalValue <= 0 || quote.isProspecting || isNonCommercialQuoteStatus(quote.status)) return null;
-    const quoteValue = getCommercialQuoteValue(quote.status, getDisplayedCustomerTotal(quote));
+    const quoteValue = getCommercialQuoteValue(quote.status, getQuoteCustomerTotal(quote));
     return getQuoteParticipationPercent(quoteValue, stats.totalValue);
   };
 
@@ -372,8 +379,8 @@ export default function Quotes() {
           freteCity: quote.freteCity,
           freteType: quote.freteType,
           totalAmount: quote.totalAmount,
-          // Referência única para a exportação: total final comercial, inclusive para registros legados.
-          totalFinal: getDisplayedCustomerTotal(quote),
+          // Referência única para a exportação: total comercial da revisão vigente.
+          totalFinal: getQuoteCustomerTotal(quote),
           isProspecting: quote.isProspecting,
           isDuplicate: isManuallyDuplicate(quote) || quote.isDuplicate,
           isManuallyDuplicate: isManuallyDuplicate(quote),
@@ -737,8 +744,8 @@ export default function Quotes() {
 
                         {/* Valor e data */}
                         <div className="text-right flex-shrink-0">
-                          {getDisplayedCustomerTotal(q) > 0 ? (
-                            <p className="font-bold text-primary">{formatBRL(getDisplayedCustomerTotal(q))}</p>
+                          {getQuoteCustomerTotal(q) > 0 ? (
+                            <p className="font-bold text-primary">{formatBRL(getQuoteCustomerTotal(q))}</p>
                           ) : (
                             <p className="text-xs text-muted-foreground italic">A consultar</p>
                           )}
