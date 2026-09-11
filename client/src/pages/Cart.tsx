@@ -515,7 +515,7 @@ interface FloorGroupBarProps {
   children: React.ReactNode;
 }
 
-function FloorGroupBar({
+export function FloorGroupBar({
   floorId, displayName, editingName, groupEntries, isCollapsed, isDraggingThis,
   onToggleCollapse, onRenameChange, onRenameBlur, children,
 }: FloorGroupBarProps) {

@@ -1755,7 +1755,7 @@
 - [x] Carrinho: total de drivers não era multiplicado pela quantidade — corrigido: Cart.tsx, QuoteDetail.tsx e quoteExcelGenerator.ts agora incluem driverLines no total
 - [x] Perfis: driver não separado no orçamento Excel (linha de driver sem destaque)
 - [x] Pré-visualização Excel: colunas deslocadas na linha de driver (QTD na coluna errada, linha de obra azul ganha coluna extra)
-- [ ] Carrinho: não permite renomear pavimento diretamente no carrinho
+- [x] Carrinho: não permite renomear pavimento diretamente no carrinho
 - [ ] Markup mínimo e máximo: onde editar no sistema?
 
 ## Histórico completo de revisões (29/06/2026)
