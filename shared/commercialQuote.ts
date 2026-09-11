@@ -3,6 +3,11 @@ export function isNonCommercialQuoteStatus(status?: string | null): boolean {
   return status === "sample";
 }
 
+/** Um faturamento só existe após a aprovação e deve compor todos os indicadores de venda fechada. */
+export function isApprovedOrInvoicedStatus(status?: string | null): boolean {
+  return status === "approved" || status === "invoiced";
+}
+
 /**
  * Valor que pode compor indicadores comerciais. A venda histórica é preservada
  * no registro original, mas amostras/manutenções têm receita exibida como zero.

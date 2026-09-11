@@ -952,7 +952,11 @@ export async function listQuotes(opts: {
   if (!db) return { rows: [], total: 0 };
 
   const conditions = [];
-  if (opts.status) conditions.push(eq(quotes.status, opts.status));
+  if (opts.status === "approved") {
+    conditions.push(inArray(quotes.status, ["approved", "invoiced"]));
+  } else if (opts.status) {
+    conditions.push(eq(quotes.status, opts.status));
+  }
   if (opts.seller1Id != null) conditions.push(eq(quotes.seller1Id, opts.seller1Id));
   if (opts.assistantId != null) conditions.push(eq(quotes.assistantId, opts.assistantId));
   if (opts.seller1Name) conditions.push(like(quotes.seller1Name, `%${opts.seller1Name}%`));
@@ -962,7 +966,7 @@ export async function listQuotes(opts: {
   const dateField = opts.status === 'invoiced'
     ? quotes.invoicedAt
     : opts.status === 'approved'
-      ? quotes.approvedAt
+      ? sql`COALESCE(${quotes.approvedAt}, ${quotes.invoicedAt}, ${quotes.createdAt})`
       : quotes.createdAt;
   if (opts.dateFrom) conditions.push(sql`DATE(DATE_SUB(${dateField}, INTERVAL 3 HOUR)) >= ${opts.dateFrom}`);
   if (opts.dateTo) conditions.push(sql`DATE(DATE_SUB(${dateField}, INTERVAL 3 HOUR)) <= ${opts.dateTo}`);
@@ -989,7 +993,7 @@ export async function listQuotes(opts: {
   const orderCol = opts.status === 'invoiced'
     ? quotes.invoicedAt
     : opts.status === 'approved'
-      ? quotes.approvedAt
+      ? sql`COALESCE(${quotes.approvedAt}, ${quotes.invoicedAt}, ${quotes.createdAt})`
       : quotes.createdAt;
   const rows = await db
     .select()
@@ -1227,7 +1231,7 @@ export async function getQuoteStats() {
       summary.totalAmount += total;
     }
     if (quote.status === "open") summary.open += 1;
-    if (quote.status === "approved") {
+    if (quote.status === "approved" || quote.status === "invoiced") {
       summary.approved += 1;
       summary.approvedAmount += total;
     }
@@ -1782,10 +1786,10 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
   if (!db) return null;
 
   const periodCondition = (dateFrom && dateTo)
-    ? sql`DATE(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) >= ${dateFrom} AND DATE(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) <= ${dateTo} AND status = 'approved' AND status != 'sample'`
+    ? sql`DATE(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) >= ${dateFrom} AND DATE(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) <= ${dateTo} AND status IN ('approved', 'invoiced') AND status != 'sample'`
     : month
-      ? sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${month} AND status = 'approved' AND status != 'sample'`
-      : sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND status = 'approved' AND status != 'sample'`;
+      ? sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${month} AND status IN ('approved', 'invoiced') AND status != 'sample'`
+      : sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND status IN ('approved', 'invoiced') AND status != 'sample'`;
 
   // As consultas abaixo não dependem umas das outras. Executá-las juntas reduz
   // o tempo de abertura do Dashboard, preservando exatamente os mesmos filtros
@@ -2314,11 +2318,11 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
 
   const [conversionMetrics] = await db.select({
     totalCreated: sql<number>`count(*)`,
-    totalApproved: sql<number>`sum(case when status = 'approved' then 1 else 0 end)`,
+    totalApproved: sql<number>`sum(case when status IN ('approved', 'invoiced') then 1 else 0 end)`,
     totalLost: sql<number>`sum(case when status = 'lost' then 1 else 0 end)`,
     totalOpen: sql<number>`sum(case when status = 'open' then 1 else 0 end)`,
     totalCancelled: sql<number>`sum(case when status = 'cancelled' then 1 else 0 end)`,
-    ticketMedioAprovado: sql<number>`avg(case when status = 'approved' then cast(totalFinal as decimal(14,2)) else null end)`,
+    ticketMedioAprovado: sql<number>`avg(case when status IN ('approved', 'invoiced') then cast(totalFinal as decimal(14,2)) else null end)`,
   }).from(quotes).where(createdCondition);
 
   // ── Famílias mais orçadas (por itens aprovados no período) ────────────────────
@@ -2331,7 +2335,7 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
       SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(qi.itemData, '$.totalPrice')) AS DECIMAL(14,2))) AS valorTotal
     FROM quote_items qi
     INNER JOIN quotes q ON q.id = qi.quoteId
-    WHERE q.status = 'approved' AND q.status != 'sample'
+    WHERE q.status IN ('approved', 'invoiced') AND q.status != 'sample'
       AND ${
         (dateFrom && dateTo)
           ? sql`DATE(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) >= ${dateFrom} AND DATE(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) <= ${dateTo}`
@@ -2353,7 +2357,7 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     amount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
   })
     .from(quotes)
-    .where(sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND status = 'approved' AND status != 'sample'`)
+    .where(sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND status IN ('approved', 'invoiced') AND status != 'sample'`)
     .groupBy(sql`MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR))`)
     .orderBy(sql`MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR))`);
 
@@ -2639,16 +2643,16 @@ export async function getSellerDashboard(sellerEmail: string, year: number, mont
   const sellerFilter = sql`(seller1Id = ${seller.id} OR seller2Id = ${seller.id})`;
   const periodCondition = (dateFrom && dateTo)
     ? and(
-        sql`DATE(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) >= ${dateFrom} AND DATE(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) <= ${dateTo} AND status = 'approved' AND status != 'sample'`,
+        sql`DATE(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) >= ${dateFrom} AND DATE(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) <= ${dateTo} AND status IN ('approved', 'invoiced') AND status != 'sample'`,
         sellerFilter
       )
     : month
       ? and(
-          sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${month} AND status = 'approved' AND status != 'sample'`,
+          sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${month} AND status IN ('approved', 'invoiced') AND status != 'sample'`,
           sellerFilter
         )
       : and(
-          sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND status = 'approved' AND status != 'sample'`,
+          sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND status IN ('approved', 'invoiced') AND status != 'sample'`,
           sellerFilter
         );
 
@@ -2691,7 +2695,7 @@ export async function getSellerDashboard(sellerEmail: string, year: number, mont
     commissionPercent: quotes.commissionPercent,
     approvedAt: quotes.approvedAt,
   }).from(quotes).where(and(
-    sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND status = 'approved' AND status != 'sample'`,
+    sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND status IN ('approved', 'invoiced') AND status != 'sample'`,
     sql`(seller1Id = ${seller.id} OR seller2Id = ${seller.id})`
   ));
   const annualSellerTotalsByQuoteId = await getEffectiveCommercialTotalsForQuotes(db, annualSellerQuotes);
@@ -2756,7 +2760,7 @@ export async function getMonthlyReport(year: number, month: number) {
     approvedAt: sql<string>`approvedAt`,
   })
     .from(quotes)
-    .where(sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${month} AND status = 'approved'`)
+    .where(sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${month} AND status IN ('approved', 'invoiced')`)
     .orderBy(sql`approvedAt`);
 
   const totalsByQuoteId = await getEffectiveCommercialTotalsForQuotes(db, rows);
@@ -3159,10 +3163,10 @@ export async function getTotalAdditionalCostsForPeriod(year: number, month?: num
   const db = await getDb();
   if (!db) return { total: 0, count: 0 };
   const periodCondition = (dateFrom && dateTo)
-    ? sql`DATE(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) >= ${dateFrom} AND DATE(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) <= ${dateTo} AND q.status = 'approved'`
+    ? sql`DATE(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) >= ${dateFrom} AND DATE(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) <= ${dateTo} AND q.status IN ('approved', 'invoiced')`
     : month
-      ? sql`YEAR(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) = ${month} AND q.status = 'approved'`
-      : sql`YEAR(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) = ${year} AND q.status = 'approved'`;
+      ? sql`YEAR(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) = ${month} AND q.status IN ('approved', 'invoiced')`
+      : sql`YEAR(DATE_SUB(q.approvedAt, INTERVAL 3 HOUR)) = ${year} AND q.status IN ('approved', 'invoiced')`;
   const result = await db.execute(sql`
     SELECT COALESCE(SUM(ac.valor), 0) AS total, COUNT(ac.id) AS count
     FROM quote_additional_costs ac

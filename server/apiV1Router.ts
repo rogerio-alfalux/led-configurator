@@ -10,7 +10,7 @@ import { Router } from "express";
 import { apiKeyAuth } from "./apiAuth";
 import { getDb } from "./db";
 import { quotes, quoteVersions, quoteItems, sellers } from "../drizzle/schema";
-import { desc, eq, and, like, gte, lte } from "drizzle-orm";
+import { desc, eq, and, inArray, like, gte, lte } from "drizzle-orm";
 
 const router = Router();
 
@@ -35,7 +35,11 @@ router.get("/quotes", async (req, res) => {
     const dateTo    = req.query.date_to   as string | undefined;
 
     const conditions: any[] = [];
-    if (status)   conditions.push(eq(quotes.status, status as any));
+    if (status === "approved") {
+      conditions.push(inArray(quotes.status, ["approved", "invoiced"]));
+    } else if (status) {
+      conditions.push(eq(quotes.status, status as any));
+    }
     if (seller)   conditions.push(like(quotes.seller1Name, `%${seller}%`));
     if (client)   conditions.push(like(quotes.clientName,  `%${client}%`));
     const referenceDate = status === "invoiced"

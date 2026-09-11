@@ -54,5 +54,15 @@ describe("generateFilteredQuotesExcel", () => {
     expect(sheet?.getCell("O6").value).toBe(1200);
     expect(sheet?.getCell("P6").value).toBe(1450);
     expect(summary?.getCell("A1").value).toBe("RESUMO DOS ORÇAMENTOS EXPORTADOS");
+    expect(summary?.getCell("A3").value).toBe("Orçados");
+    expect(summary?.getCell("B3").value).toBe(2);
+    expect(summary?.getCell("C3").value).toBe(1450);
+    expect(summary?.getCell("A4").value).toBe("Aprovados (incl. faturados)");
+    expect(summary?.getCell("B4").value).toBe(2);
+    expect(summary?.getCell("C4").value).toBe(1450);
+    expect(summary?.getCell("A5").value).toBe("Faturados");
+    expect(summary?.getCell("B5").value).toBe(1);
+    expect(summary?.getCell("C5").value).toBe(250);
+    expect(summary?.getCell("A7").value).toBe("Situação atual do registro");
   });
 });

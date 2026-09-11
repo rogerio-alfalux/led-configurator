@@ -3674,3 +3674,10 @@
 - [x] Corrigir a causa raiz sem liberar catálogo incompleto ou dados comerciais inconsistentes
 - [x] Validar catálogo, cálculos e recuperação transitória em ambiente equivalente à produção
 - [x] Salvar checkpoint reversível e orientar a publicação da correção
+
+## Hierarquia de status e valores comerciais em Meus Orçamentos
+- [x] Tratar Faturados como subconjunto de Aprovados nos filtros, contagens e valores
+- [x] Manter o valor Orçado como total de todos os orçamentos no período, inclusive aprovados e faturados
+- [x] Reconciliar indicadores de valor Orçado, Aprovado e Faturado com a mesma receita comercial efetiva
+- [x] Cobrir a hierarquia e os acumuladores por regressão e salvar checkpoint reversível
+- [x] Alinhar os resumos de exportação à hierarquia de Aprovados, incluindo Faturados

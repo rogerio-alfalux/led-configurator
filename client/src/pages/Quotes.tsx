@@ -20,7 +20,7 @@ import { getQuoteParticipationPercent } from "@/lib/quoteAnalysis";
 import { toBrasiliaDate, toBrasiliaDateTimeShort, toBrasiliaFileDate, toBrasiliaMonthYear } from "@/lib/dateUtils";
 import { generateFilteredQuotesExcel } from "@/lib/quotesExcelGenerator";
 import { PERMISSIONS } from "@shared/permissions";
-import { getCommercialQuoteValue, isNonCommercialQuoteStatus } from "@shared/commercialQuote";
+import { getCommercialQuoteValue, isApprovedOrInvoicedStatus, isNonCommercialQuoteStatus } from "@shared/commercialQuote";
 import { toast } from "sonner";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -215,7 +215,7 @@ export default function Quotes() {
     // mas seu valor de venda é zerado nos indicadores gerais.
     const commercialRows = rows.filter(q => !(q as any).isProspecting && !isNonCommercialQuoteStatus(q.status));
     const open = commercialRows.filter(q => q.status === "open").length;
-    const approved = commercialRows.filter(q => q.status === "approved").length;
+    const approved = commercialRows.filter(q => isApprovedOrInvoicedStatus(q.status)).length;
     const lost = commercialRows.filter(q => q.status === "lost").length;
     const invoiced = commercialRows.filter(q => q.status === "invoiced").length;
     // Referência única da revisão atual: margem, RT, desconto, frete e DIFAL/FCP.
@@ -232,7 +232,7 @@ export default function Quotes() {
     const realValue = withoutDuplicates.reduce((sum, q) => sum + getQuoteValue(q), 0);
     const duplicateCount = commercialRows.filter((q: any) => q.isDuplicate).length;
     const prospectingValue = rows.filter((q: any) => q.isProspecting).reduce((sum, q) => sum + getQuoteValue(q), 0);
-    const approvedValue = commercialRows.filter(q => q.status === "approved").reduce((sum, q) => sum + getQuoteValue(q), 0);
+    const approvedValue = commercialRows.filter(q => isApprovedOrInvoicedStatus(q.status)).reduce((sum, q) => sum + getQuoteValue(q), 0);
     const invoicedValue = commercialRows.filter(q => q.status === "invoiced").reduce((sum, q) => sum + getQuoteValue(q), 0);
     return {
       total, open, approved, lost, invoiced, totalValue, realValue,
@@ -441,10 +441,10 @@ export default function Quotes() {
           const metricCards: Array<{ id: string; label: string; value: string | number; color: string; icon: React.ReactNode; isValue: boolean; sub?: string }> = [
             { id: "total", label: "Total", value: stats.total, color: "text-foreground", icon: <ClipboardList className="w-4 h-4" />, isValue: false },
             { id: "open", label: "Em Aberto", value: stats.open, color: "text-blue-600", icon: <Clock className="w-4 h-4 text-blue-500" />, isValue: false },
-            { id: "approved", label: "Aprovados", value: stats.approved, color: "text-green-600", icon: <CheckCircle className="w-4 h-4 text-green-500" />, isValue: false },
+            { id: "approved", label: "Aprovados (incl. faturados)", value: stats.approved, color: "text-green-600", icon: <CheckCircle className="w-4 h-4 text-green-500" />, isValue: false },
             { id: "lost", label: "Perdidos", value: stats.lost, color: "text-red-600", icon: <TrendingDown className="w-4 h-4 text-red-500" />, isValue: false },
             { id: "invoiced", label: "Faturados", value: stats.invoiced, color: "text-purple-600", icon: <Receipt className="w-4 h-4 text-purple-500" />, isValue: false },
-            { id: "listedValue", label: "Valor listado", value: formatBRL(stats.totalValue), color: "text-primary", icon: <BarChart2 className="w-4 h-4 text-primary" />, isValue: true },
+            { id: "listedValue", label: "Valor Orçado", value: formatBRL(stats.totalValue), color: "text-primary", icon: <BarChart2 className="w-4 h-4 text-primary" />, isValue: true },
             { id: "valueWithoutDuplicates", label: "Valor sem duplicados", value: formatBRL(stats.realValue), color: "text-emerald-600", icon: <CheckCircle className="w-4 h-4 text-emerald-500" />, isValue: true },
             { id: "ldProspecting", label: "Prospecções LD", value: formatBRL(stats.prospectingValue), color: "text-indigo-600", icon: <Users className="w-4 h-4 text-indigo-500" />, isValue: true },
             { id: "duplicateValue", label: "Valor dos Duplicados", value: formatBRL(stats.duplicateValue), color: "text-orange-600", icon: <Copy className="w-4 h-4 text-orange-500" />, isValue: true },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getCommercialQuoteValue, isNonCommercialQuoteStatus, sumCommercialQuoteValues } from "@shared/commercialQuote";
+import { getCommercialQuoteValue, isApprovedOrInvoicedStatus, isNonCommercialQuoteStatus, sumCommercialQuoteValues } from "@shared/commercialQuote";
 
 describe("commercialQuote", () => {
   it("zera a receita exibida de amostra ou manutenção", () => {
@@ -18,5 +18,17 @@ describe("commercialQuote", () => {
       { status: "sample", storedValue: 2500 },
       { status: "invoiced", storedValue: 7000 },
     ])).toBe(17000);
+  });
+
+  it("trata faturado como subconjunto de aprovado sem retirar seu valor do orçado", () => {
+    expect(isApprovedOrInvoicedStatus("approved")).toBe(true);
+    expect(isApprovedOrInvoicedStatus("invoiced")).toBe(true);
+    expect(isApprovedOrInvoicedStatus("open")).toBe(false);
+
+    expect(sumCommercialQuoteValues([
+      { status: "open", storedValue: 100 },
+      { status: "approved", storedValue: 200 },
+      { status: "invoiced", storedValue: 300 },
+    ])).toBe(600);
   });
 });

@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import { toBrasiliaDateTime, toBrasiliaFileDate } from "./dateUtils";
 import { getStoredCustomerTotal } from "./quoteTotals";
+import { isApprovedOrInvoicedStatus, isNonCommercialQuoteStatus } from "@shared/commercialQuote";
 
 export interface QuoteExcelExportRow {
   quoteNumber: string;
@@ -203,13 +204,39 @@ export async function generateFilteredQuotesExcel(rows: QuoteExcelExportRow[], f
     cell.border = BORDER;
     cell.alignment = { horizontal: "center" };
   });
+  const commercialRows = rows.filter((row) => !isNonCommercialQuoteStatus(row.status));
+  const statusHierarchy = [
+    { label: "Orçados", rows: commercialRows },
+    { label: "Aprovados (incl. faturados)", rows: commercialRows.filter((row) => isApprovedOrInvoicedStatus(row.status)) },
+    { label: "Faturados", rows: commercialRows.filter((row) => row.status === "invoiced") },
+  ];
+  statusHierarchy.forEach((group, index) => {
+    const row = summary.getRow(index + 3);
+    const value = group.rows.reduce((sum, quote) => sum + getStoredCustomerTotal(quote), 0);
+    [group.label, group.rows.length, value].forEach((cellValue, column) => {
+      const cell = row.getCell(column + 1);
+      cell.value = cellValue;
+      cell.border = BORDER;
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: index === 1 ? "FFE2F0D9" : index % 2 === 0 ? LIGHT_BLUE : "FFFFFFFF" } };
+      if (column === 2) cell.numFmt = '"R$" #,##0.00';
+    });
+  });
+  const statusHeader = summary.getRow(statusHierarchy.length + 4);
+  ["Situação atual do registro", "Quantidade", "Valor final (R$)"].forEach((value, column) => {
+    const cell = statusHeader.getCell(column + 1);
+    cell.value = value;
+    cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BLUE } };
+    cell.border = BORDER;
+    cell.alignment = { horizontal: "center" };
+  });
   const groups = new Map<string, { count: number; value: number }>();
-  rows.forEach(row => {
-    const group = groups.get(row.status) ?? { count: 0, value: 0 };
-    groups.set(row.status, { count: group.count + 1, value: group.value + getStoredCustomerTotal(row) });
+  rows.forEach((quote) => {
+    const group = groups.get(quote.status) ?? { count: 0, value: 0 };
+    groups.set(quote.status, { count: group.count + 1, value: group.value + getStoredCustomerTotal(quote) });
   });
   Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b)).forEach(([status, group], index) => {
-    const row = summary.getRow(index + 3);
+    const row = summary.getRow(statusHierarchy.length + 5 + index);
     [STATUS[status] ?? status, group.count, group.value].forEach((value, column) => {
       const cell = row.getCell(column + 1);
       cell.value = value;

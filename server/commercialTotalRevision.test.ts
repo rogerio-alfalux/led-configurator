@@ -17,5 +17,7 @@ describe("valor comercial da revisão efetiva", () => {
     expect(source).toContain("summary.approvedAmount += total");
     expect(source).toContain("invoicedCommercialTotals");
     expect(source).toContain("invoicedByCompany");
+    expect(source).toContain("status IN ('approved', 'invoiced')");
+    expect(source).toContain("totalApproved: sql<number>`sum(case when status IN ('approved', 'invoiced') then 1 else 0 end)`");
   });
 });
