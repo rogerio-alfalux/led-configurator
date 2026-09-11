@@ -78,15 +78,24 @@ export function applyUnitPriceChange(
   newQty?: number
 ): Partial<CartItemData> {
   const qty = newQty ?? item.qty ?? 1;
+  const bodyTotal = newUnitPrice != null ? newUnitPrice * qty : null;
   const patch: Partial<CartItemData> = {
     unitPrice: newUnitPrice,
-    totalPrice: newUnitPrice != null ? newUnitPrice * qty : null,
+    totalPrice: bodyTotal,
   };
 
   // Para itens com driverLines: sincronizar unitPriceLuminaria e priceWithoutDriver
   if (item.driverLines && item.driverLines.length > 0) {
     patch.unitPriceLuminaria = newUnitPrice;
-    patch.priceWithoutDriver = newUnitPrice != null ? newUnitPrice * qty : null;
+    patch.priceWithoutDriver = bodyTotal;
+    const driversTotal = item.driverLines.reduce((sum, line) => {
+      const lineTotal = line.driverTotalPrice
+        ?? ((line.driverUnitPrice ?? 0) * (line.driverQty ?? 0));
+      return sum + lineTotal;
+    }, 0);
+    patch.totalPrice = bodyTotal != null
+      ? Math.round((bodyTotal + driversTotal) * 100) / 100
+      : driversTotal > 0 ? Math.round(driversTotal * 100) / 100 : null;
     // Marcar que o preço não é mais da API (foi sobrescrito manualmente)
     patch.luminariaHasApiPrice = false;
   }

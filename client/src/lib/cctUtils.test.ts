@@ -122,10 +122,10 @@ describe("applyCCTChange", () => {
 });
 
 describe("applyUnitPriceChange", () => {
-  it("atualiza unitPrice e totalPrice", () => {
+  it("atualiza o preço da luminária e recompõe o total com o driver", () => {
     const patch = applyUnitPriceChange(blazeItem, 35000, 12);
     expect(patch.unitPrice).toBe(35000);
-    expect(patch.totalPrice).toBe(35000 * 12);
+    expect(patch.totalPrice).toBe((35000 * 12) + 918);
   });
 
   it("sincroniza unitPriceLuminaria e priceWithoutDriver para itens com driverLines", () => {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CartItemData } from "./cartTypes";
 import {
   buildSplitBodyPricePatch,
+  buildSplitDriverPricePatch,
   cloneCartItemData,
   getEditableBodyUnitPrice,
 } from "./splitItemPricing";
@@ -41,7 +42,18 @@ describe("preço desmembrado ao duplicar e editar itens", () => {
     expect(secondPatch.unitPrice).toBe(800);
     expect(secondPatch.unitPriceLuminaria).toBe(800);
     expect(secondPatch.priceWithoutDriver).toBe(11_200);
+    expect(secondPatch.totalPrice).toBe(12_848.08);
     expect(afterFirstSave.driverLines).toEqual(itemWithDriver.driverLines);
+  });
+
+  it("atualiza somente o driver e recompõe o total sem alterar a luminária", () => {
+    const patch = buildSplitDriverPricePatch(itemWithDriver, 0, 200);
+
+    expect(patch.unitPrice).toBeUndefined();
+    expect(patch.priceWithoutDriver).toBe(11_200);
+    expect(patch.driverLines![0].driverUnitPrice).toBe(200);
+    expect(patch.driverLines![0].driverTotalPrice).toBe(2_800);
+    expect(patch.totalPrice).toBe(14_000);
   });
 
   it("isola os dados aninhados da duplicata", () => {

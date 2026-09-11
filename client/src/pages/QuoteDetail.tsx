@@ -138,7 +138,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@shared/permissions";
 import { applyCCTChange, applyUnitPriceChange, applyQtyChange } from "@/lib/cctUtils";
 import { calculateLinkedAccessoriesTotal, parseShiftModuleManualPrice } from "@/lib/shiftModulePrices";
-import { cloneCartItemData, getEditableBodyUnitPrice } from "@/lib/splitItemPricing";
+import { buildSplitDriverPricePatch, cloneCartItemData, getEditableBodyUnitPrice } from "@/lib/splitItemPricing";
 import { deriveDriverQuantityPerUnit, selectDriverVariantByDescription } from "@/lib/driverRehydration";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -429,10 +429,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
             value={getEditableBodyUnitPrice(d) ?? ""}
             onChange={(d.priceFromApi && !canOverrideApiPrice) ? undefined : (e => {
               const newUnitPrice = e.target.value ? parseFloat(e.target.value) : null;
-              onUpdate(item.id, {
-                unitPrice: newUnitPrice,
-                totalPrice: newUnitPrice != null ? newUnitPrice * d.qty : null,
-              });
+              onUpdate(item.id, { unitPrice: newUnitPrice });
             })}
             readOnly={!!d.priceFromApi && !canOverrideApiPrice}
             placeholder={d.priceFromApi ? (canOverrideApiPrice ? "Sobrescrever preço da API" : "Preço da API") : "Definir preço"}
@@ -505,36 +502,14 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
                         type="number"
                         min={0}
                         step={0.01}
-                        defaultValue={dl.driverUnitPrice ?? ''}
+                        value={dl.driverUnitPrice ?? ''}
                         placeholder={dl.driverUnitPrice != null ? String(dl.driverUnitPrice) : "0"}
                         className="h-6 w-20 rounded border border-amber-400/60 bg-background px-1.5 pr-5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-amber-400"
-                        onBlur={(e) => {
-                          const newUnitPrice = e.target.value ? parseFloat(e.target.value) : dl.driverUnitPrice;
-                          if (newUnitPrice == null || newUnitPrice === dl.driverUnitPrice) return;
-                          // Recalcular driverLines com novo preço unitário
-                          const updatedDriverLines = d.driverLines!.map((x, xi) =>
-                            xi === dIdx
-                              ? { ...x, driverUnitPrice: newUnitPrice, driverTotalPrice: Math.round(newUnitPrice * (x.driverQty ?? 1) * 100) / 100 }
-                              : x
-                          );
-                          // Recalcular unitPriceDriver (média ponderada por luminaria)
-                          const drvQtyPerLum = d.profileSegments && d.profileSegments.length > 0
-                            ? d.profileSegments.reduce((s, seg) => s + (seg.driverQtyPerPiece ?? 1) * seg.qty, 0)
-                            : null;
-                          const drvUnitForLum = updatedDriverLines.reduce((s, x) => {
-                            const qtyPerLum = drvQtyPerLum != null ? drvQtyPerLum : Math.round((x.driverQty ?? 1) / (d.qty ?? 1));
-                            return s + (x.driverUnitPrice ?? 0) * qtyPerLum;
-                          }, 0);
-                          const lumUnitPrice = d.unitPriceLuminaria ?? 0;
-                          const drvQtyForUnit = drvQtyPerLum != null ? drvQtyPerLum : (d.driverLines![0]?.driverQty ?? 1);
-                          const newUnitPriceComposite = lumUnitPrice > 0
-                            ? Math.round((lumUnitPrice + drvUnitForLum) * 100) / 100
-                            : null;
-                          onUpdate(item.id, {
-                            driverLines: updatedDriverLines,
-                            unitPriceDriver: newUnitPrice,
-                            ...(newUnitPriceComposite != null ? { unitPrice: newUnitPriceComposite } : {}),
-                          });
+                        onChange={(e) => {
+                          const rawValue = e.target.value;
+                          const newUnitPrice = rawValue === "" ? null : Number(rawValue);
+                          if (newUnitPrice !== null && !Number.isFinite(newUnitPrice)) return;
+                          onUpdate(item.id, buildSplitDriverPricePatch(d, dIdx, newUnitPrice));
                         }}
                       />
                       <Pencil className="absolute right-1 top-1/2 -translate-y-1/2 w-3 h-3 text-amber-500 pointer-events-none" />

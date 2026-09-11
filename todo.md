@@ -3625,3 +3625,14 @@
 - [x] Manter o gerenciamento acessível para orçamentos faturados, incluindo históricos
 - [x] Bloquear edição, autosave e ações persistentes quando o orçamento estiver faturado
 - [x] Cobrir o modo somente leitura por regressão e salvar checkpoint reversível
+
+## Login de Camille Batista
+- [ ] Auditar o cadastro, método de autenticação e registros recentes de acesso da Camille
+- [ ] Corrigir o bloqueio de login preservando as permissões existentes
+- [ ] Validar o acesso e salvar checkpoint reversível
+
+## Preços independentes de luminária e driver no orçamento
+- [x] Auditar a edição, persistência e composição de preços de luminária e driver
+- [x] Salvar cada preço de forma independente sem recalcular ou sobrescrever o outro
+- [x] Refletir valores persistidos no preview, PDF e Excel
+- [x] Cobrir o fluxo por regressão e salvar checkpoint reversível
