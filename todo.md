@@ -1847,7 +1847,7 @@
 - [x] Cart.tsx: quando unitPrice=null e priceFromApi=false → campo editável com destaque e mensagem clara para todos os usuários
 - [x] ShapeResultCard (Home.tsx): quando precoTotal=null → campo de entrada de preço manual visível para todos
 - [x] Resultados de downlight/painel/spot/arandela/LED BAR (Home.tsx): quando preço=null → unitPrice preservado como null (editável no carrinho para todos os usuários)
-- [ ] QuoteDetail.tsx: quando totalPrice=null → campo manual editável para todos (não apenas admin/gerente)
+- [x] QuoteDetail.tsx: quando totalPrice=null → campo manual editável para todos (não apenas admin/gerente)
 
 ## Backup Automático Diário (30/06/2026)
 
