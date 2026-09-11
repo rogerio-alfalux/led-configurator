@@ -1753,7 +1753,7 @@
 - [x] Downlights com preço definido: mostram R$0 no modal de edição e "A consultar" no total
 - [x] Preço editado manualmente não aparecia na pré-visualização Excel nem no download Excel (itens com driverLines)
 - [x] Carrinho: total de drivers não era multiplicado pela quantidade — corrigido: Cart.tsx, QuoteDetail.tsx e quoteExcelGenerator.ts agora incluem driverLines no total
-- [ ] Perfis: driver não separado no orçamento Excel (linha de driver sem destaque)
+- [x] Perfis: driver não separado no orçamento Excel (linha de driver sem destaque)
 - [x] Pré-visualização Excel: colunas deslocadas na linha de driver (QTD na coluna errada, linha de obra azul ganha coluna extra)
 - [ ] Carrinho: não permite renomear pavimento diretamente no carrinho
 - [ ] Markup mínimo e máximo: onde editar no sistema?

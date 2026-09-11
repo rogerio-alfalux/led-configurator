@@ -1222,15 +1222,20 @@ async function _generateExcelBuffer(
         for (const col of ["F", "G", "H", "I", "J", "K"]) {
           fillDrv(ws.getCell(`${col}${drvRowNum}`), "");
         }
-        // Calcular qty efetiva do driver:
-        // 1. Com driverQtyPerUnit salvo: driverQtyPerUnit × itemQty (correto para todos os produtos)
-        // 2. Itens antigos sem driverQtyPerUnit: usar driverQty armazenado diretamente
+        // driverQty é o total canônico já persistido nesta linha (inclui os
+        // cortes/segmentos do perfil e a quantidade de luminárias). Não usar
+        // driverQtyPerUnit para sobrescrevê-lo: esse campo é do item e pode
+        // representar outro modelo de driver no mesmo perfil.
+        // Para registros legados sem driverQty, preservamos o fallback por
+        // unidade de luminária.
         const _itemQty = item.qty ?? 1;
-        const _storedDrvQty = drv.driverQty ?? 1;
+        const _storedDrvQty = Number(drv.driverQty ?? 0);
         const _drvQtyPerUnit = item.driverQtyPerUnit;
-        const _effectiveDrvQty = _drvQtyPerUnit != null
+        const _effectiveDrvQty = _storedDrvQty > 0
+          ? _storedDrvQty
+          : _drvQtyPerUnit != null
           ? _drvQtyPerUnit * _itemQty
-          : (_storedDrvQty <= 1 ? _itemQty : _storedDrvQty);
+          : _itemQty;
         fillDrv(ws.getCell(`L${drvRowNum}`), _effectiveDrvQty, true);
         if (drv.driverUnitPrice != null && drv.driverUnitPrice > 0) {
           // Aplicar diluição proporcional ao peso do driver neste item
