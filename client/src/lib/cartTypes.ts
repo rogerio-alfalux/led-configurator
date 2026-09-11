@@ -414,6 +414,8 @@ export interface DriverLine {
   programacaoManual?: boolean;
   /** Mantém a seleção de driver feita na ficha sem substituí-la pelo cadastro da API. */
   driverManual?: boolean;
+  /** Mantém o preço comercial definido no orçamento sem substituí-lo pela API. */
+  driverPriceManual?: boolean;
 }
 
 /**
@@ -1281,6 +1283,9 @@ export function migrateItemDrivers(
   correnteMap?: Map<string, string | null>,
   reverseDescMap?: Map<string, string>,
 ): CartItemData {
+  // Preço comercial definido no orçamento é soberano. Diferentemente de custo,
+  // modelo ou programação, ele não pode ser reidratado do catálogo da API.
+  const hasManuallyEditedDriverPrice = item.driverLines?.some(line => line.driverPriceManual) ?? false;
   // ── Migração de perfis: cada potência/método possui cadastro próprio na API ──
   // Nunca reutilizar driver ou corrente salvos de outra versão (18W/26W/36W SF/SL).
   const isShiftProfile = item.profileSegments?.some(segment => /^LLE-4846(?:[.\s]|$)/i.test(segment.sku)) ?? false;
@@ -1327,7 +1332,7 @@ export function migrateItemDrivers(
       // A corrente editada na ficha é uma decisão de produção. Não permitir que
       // uma nova reidratação da estrutura da API a substitua durante o autosave
       // ou ao reabrir o pedido, mesmo quando o modelo do driver é automático.
-      if (!apiProduct || segment.driverManual || segment.programacaoManual) return segment;
+      if (!apiProduct || segment.driverManual || segment.programacaoManual || hasManuallyEditedDriverPrice) return segment;
       if (usesCombinedD1D2) {
         const d1d2 = apiProduct.composicaoD1D2;
         const apiD1D2Driver = d1d2?.drivers?.find(driver => driver.tipo === d1d2DriverType) ?? null;
@@ -1396,7 +1401,7 @@ export function migrateItemDrivers(
   const minimumCutsForFl = isFlLedBarItem && totalLengthMm > 0 ? Math.ceil(totalLengthMm / 3000) : 0;
   const cutsPerUnit = Math.max(Number(item.ledBarNCortes ?? 0), minimumCutsForFl);
   const ledBarDriverCode = item.ledBarDriverCode?.trim().toUpperCase();
-  const hasManualLedBarDriver = item.driverLines?.some(line => line.driverManual || line.programacaoManual) ?? false;
+  const hasManualLedBarDriver = item.driverLines?.some(line => line.driverManual || line.programacaoManual || line.driverPriceManual) ?? false;
   if (isFlLedBarItem && cutsPerUnit > Number(item.ledBarNCortes ?? 0)) {
     item = {
       ...item,
@@ -1525,7 +1530,7 @@ export function migrateItemDrivers(
       // Recalcular drivers totais a partir da quantidade por luminária retornada
       // pela API. Isso corrige itens antigos em que driverQty abrangia apenas um
       // pavimento ou uma fração do item.
-      const hasManuallyEditedDriver = item.driverLines?.some(line => line.driverManual || line.programacaoManual) ?? false;
+      const hasManuallyEditedDriver = item.driverLines?.some(line => line.driverManual || line.programacaoManual || line.driverPriceManual) ?? false;
       if (item.driverLines && item.driverLines.length > 0 && !hasManuallyEditedDriver) {
         const itemQty = item.qty ?? 1;
         const apiSelection = selectApiDriverForTechnicalItem(item, apiProduct);

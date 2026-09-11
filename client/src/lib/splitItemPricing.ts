@@ -58,6 +58,8 @@ export function buildSplitDriverPricePatch(
       driverTotalPrice: normalizedPrice == null
         ? null
         : roundMoney(normalizedPrice * (line.driverQty ?? 0)),
+      // Uma edição comercial deliberada deve sobreviver a toda reidratação da API.
+      driverPriceManual: true,
     };
   });
   const qty = Math.max(1, item.qty ?? 1);

@@ -53,6 +53,7 @@ describe("preço desmembrado ao duplicar e editar itens", () => {
     expect(patch.priceWithoutDriver).toBe(11_200);
     expect(patch.driverLines![0].driverUnitPrice).toBe(200);
     expect(patch.driverLines![0].driverTotalPrice).toBe(2_800);
+    expect(patch.driverLines![0].driverPriceManual).toBe(true);
     expect(patch.totalPrice).toBe(14_000);
   });
 

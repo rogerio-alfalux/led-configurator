@@ -1,7 +1,9 @@
 import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
 import type { CartItemData, QuoteFormData } from "./cartTypes";
+import { migrateItemDrivers } from "./cartTypes";
 import { generateQuoteExcelBuffer } from "./quoteExcelGenerator";
+import { buildSplitDriverPricePatch } from "./splitItemPricing";
 
 const form: QuoteFormData = {
   cliente: "CLIENTE TESTE",
@@ -68,5 +70,52 @@ describe("sub-linha comercial de driver de perfil", () => {
     expect(worksheet.getCell(`M${secondDriverRow}`).value).toBe(15);
     expect(worksheet.getCell(`N${secondDriverRow}`).value).toBe(60);
     expect(worksheet.getCell(`E${secondDriverRow}`).fill.fgColor?.argb).toBe("FFFFF3E0");
+  });
+
+  it("mantém no Excel o preço manual do driver após a reidratação do catálogo", async () => {
+    const item: CartItemData = {
+      category: "Painéis",
+      sku: "ALE-2750.618.18F",
+      description: "ALE-2750 18W RTG 618MM (C/ MOLA) 3000K ON/OFF 220V",
+      cct: "3000K",
+      qty: 298,
+      unitPrice: 354.35,
+      unitPriceLuminaria: 354.35,
+      priceWithoutDriver: 105596.3,
+      totalPrice: 121688.3,
+      photoUrl: null,
+      driverLines: [{
+        driverCode: "EQ00346",
+        driverModel: "LED DRIVER XITANIUM 19W",
+        driverQty: 298,
+        driverUnitPrice: 19.45,
+        driverTotalPrice: 5796.1,
+      }],
+    };
+    const edited = { ...item, ...buildSplitDriverPricePatch(item, 0, 54) };
+    const rehydrated = migrateItemDrivers(
+      edited,
+      new Map([["EQ00346", 19.45]]),
+      new Map([["EQ00346", "LED DRIVER XITANIUM 19W"]]),
+      new Map([["ALE-2750.618.18F", {
+        sku: "ALE-2750.618.18F",
+        driver220: { code: "EQ00346", model: "LED DRIVER XITANIUM 19W" },
+        driverQtd220: 1,
+      }]]),
+    );
+
+    const buffer = await generateQuoteExcelBuffer([rehydrated], form);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const worksheet = workbook.getWorksheet("Alfalux")!;
+    const driverRow = Array.from({ length: worksheet.rowCount }, (_, index) => index + 1)
+      .find((row) => String(worksheet.getCell(`E${row}`).value ?? "").includes("↳ Driver: LED DRIVER XITANIUM 19W"));
+
+    expect(rehydrated.unitPriceLuminaria).toBe(354.35);
+    expect(rehydrated.priceWithoutDriver).toBe(105596.3);
+    expect(rehydrated.driverLines![0]).toMatchObject({ driverUnitPrice: 54, driverTotalPrice: 16092, driverPriceManual: true });
+    expect(driverRow).toBeDefined();
+    expect(worksheet.getCell(`M${driverRow}`).value).toBe(54);
+    expect(worksheet.getCell(`N${driverRow}`).value).toBe(16092);
   });
 });

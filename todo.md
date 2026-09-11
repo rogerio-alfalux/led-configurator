@@ -3636,3 +3636,6 @@
 - [x] Salvar cada preço de forma independente sem recalcular ou sobrescrever o outro
 - [x] Refletir valores persistidos no preview, PDF e Excel
 - [x] Cobrir o fluxo por regressão e salvar checkpoint reversível
+- [x] Corrigir a edição do preço de driver para persistir somente a própria linha, sem alterar a luminária
+- [x] Propagar o preço de driver editado ao orçamento, preview, PDF e Excel
+- [x] Cobrir a correção por regressão e salvar checkpoint reversível

@@ -192,6 +192,45 @@ describe("parseCartItemData - múltiplos modelos de driver (caso 33.9995-26)", (
     expect(result.moduloLed).toContain("2x MÓDULO LED API 4000K (EQMOD4000)");
   });
 
+  it("preserva o preço comercial manual do driver e o preço da luminária durante a reidratação", () => {
+    const item = {
+      category: "Painéis",
+      sku: "ALE-2750.618.18F",
+      description: "ALE-2750 18W RTG 618MM (C/ MOLA) 3000K ON/OFF 220V",
+      cct: "3000K",
+      qty: 298,
+      unitPrice: 354.35,
+      unitPriceLuminaria: 354.35,
+      priceWithoutDriver: 105596.3,
+      totalPrice: 121688.3,
+      driverLines: [{
+        driverCode: "EQ00346",
+        driverModel: "LED DRIVER XITANIUM 19W 200-350MA 30-54V",
+        driverQty: 298,
+        driverUnitPrice: 54,
+        driverTotalPrice: 16092,
+        driverPriceManual: true,
+      }],
+    } as any;
+    const productMap = new Map([["ALE-2750.618.18F", {
+      sku: "ALE-2750.618.18F",
+      driver220: { code: "EQ00346", model: "LED DRIVER XITANIUM 19W" },
+      driverQtd220: 1,
+    }]]);
+    const descMap = new Map([["EQ00346", "LED DRIVER XITANIUM 19W 200-350MA 30-54V"]]);
+
+    const result = migrateItemDrivers(item, new Map([["EQ00346", 19.45]]), descMap, productMap);
+
+    expect(result.driverLines![0]).toMatchObject({
+      driverUnitPrice: 54,
+      driverTotalPrice: 16092,
+      driverPriceManual: true,
+    });
+    expect(result.unitPriceLuminaria).toBe(354.35);
+    expect(result.priceWithoutDriver).toBe(105596.3);
+    expect(result.totalPrice).toBe(121688.3);
+  });
+
   it("preserva 4,4 módulos LED por peça ao reidratar o ALE-2430 pela API", () => {
     const item = {
       category: "Painéis",
