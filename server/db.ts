@@ -1204,30 +1204,52 @@ export async function getQuoteStats() {
   const db = await getDb();
   if (!db) return null;
 
-  const [totals] = await db
-    .select({
-      total: sql<number>`sum(case when status != 'sample' then 1 else 0 end)`,
-      open: sql<number>`sum(case when status = 'open' then 1 else 0 end)`,
-      approved: sql<number>`sum(case when status = 'approved' then 1 else 0 end)`,
-      lost: sql<number>`sum(case when status = 'lost' then 1 else 0 end)`,
-      cancelled: sql<number>`sum(case when status = 'cancelled' then 1 else 0 end)`,
-      invoiced: sql<number>`sum(case when status = 'invoiced' then 1 else 0 end)`,
-      invoicedValue: sql<number>`sum(case when status = 'invoiced' then (case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end) else 0 end)`,
-        totalAmount: sql<number>`sum(case when status != 'sample' then (case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end) else 0 end)`,
-      approvedAmount: sql<number>`sum(case when status = 'approved' then (case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end) else 0 end)`,
-    })
-    .from(quotes);
-  // Top vendedores
-  const topVendors = await db
-    .select({
-      name: quotes.vendorName,
-      count: sql<number>`sum(case when status != 'sample' then 1 else 0 end)`,
-      amount: sql<number>`sum(case when status != 'sample' then (case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end) else 0 end)`,
-    })
-    .from(quotes)
-    .groupBy(quotes.vendorName)
-    .orderBy(desc(sql`count(*)`))
-    .limit(10);
+  const quoteRows = await db.select({
+    id: quotes.id,
+    status: quotes.status,
+    vendorName: quotes.vendorName,
+    destState: quotes.destState,
+    rtPercent: quotes.rtPercent,
+    marginPercent: quotes.marginPercent,
+    discountPercent: quotes.discountPercent,
+    freteValue: quotes.freteValue,
+    freteIncluded: quotes.freteIncluded,
+    freteIsento: quotes.freteIsento,
+    diluicaoValor: quotes.diluicaoValor,
+    difalEnabled: quotes.difalEnabled,
+    createdAt: quotes.createdAt,
+  }).from(quotes);
+  const commercialTotalsByQuoteId = await getEffectiveCommercialTotalsForQuotes(db, quoteRows);
+  const totals = quoteRows.reduce((summary, quote) => {
+    const total = commercialTotalsByQuoteId.get(quote.id) ?? 0;
+    if (quote.status !== "sample") {
+      summary.total += 1;
+      summary.totalAmount += total;
+    }
+    if (quote.status === "open") summary.open += 1;
+    if (quote.status === "approved") {
+      summary.approved += 1;
+      summary.approvedAmount += total;
+    }
+    if (quote.status === "lost") summary.lost += 1;
+    if (quote.status === "cancelled") summary.cancelled += 1;
+    if (quote.status === "invoiced") {
+      summary.invoiced += 1;
+      summary.invoicedValue += total;
+    }
+    return summary;
+  }, { total: 0, open: 0, approved: 0, lost: 0, cancelled: 0, invoiced: 0, invoicedValue: 0, totalAmount: 0, approvedAmount: 0 });
+  const topVendors = Array.from(quoteRows.reduce((vendors, quote) => {
+    if (quote.status === "sample") return vendors;
+    const name = quote.vendorName ?? "Sem vendedor";
+    const current = vendors.get(name) ?? { name, count: 0, amount: 0 };
+    current.count += 1;
+    current.amount += commercialTotalsByQuoteId.get(quote.id) ?? 0;
+    vendors.set(name, current);
+    return vendors;
+  }, new Map<string, { name: string; count: number; amount: number }>()).values())
+    .sort((a, b) => b.count - a.count || b.amount - a.amount)
+    .slice(0, 10);
   // Top assistentes
   const topAssistants = await db
     .select({
@@ -1238,17 +1260,18 @@ export async function getQuoteStats() {
     .groupBy(quotes.assistantName)
     .orderBy(desc(sql`count(*)`))
     .limit(10);
-  // Orçamentos por mês (últimos 12 meses)
-  const byMonth = await db
-    .select({
-      month: sql<string>`DATE_FORMAT(DATE_SUB(createdAt, INTERVAL 3 HOUR), '%Y-%m')`,
-      count: sql<number>`sum(case when status != 'sample' then 1 else 0 end)`,
-      amount: sql<number>`sum(case when status != 'sample' then (case when cast(totalFinal as decimal(14,2)) > 0 then cast(totalFinal as decimal(14,2)) else cast(totalAmount as decimal(12,2)) end) else 0 end)`,
-    })
-    .from(quotes)
-    .where(sql`createdAt >= DATE_SUB(NOW(), INTERVAL 12 MONTH)`)
-    .groupBy(sql`DATE_FORMAT(DATE_SUB(createdAt, INTERVAL 3 HOUR), '%Y-%m')`)
-    .orderBy(sql`DATE_FORMAT(DATE_SUB(createdAt, INTERVAL 3 HOUR), '%Y-%m')`);
+  const twelveMonthsAgo = Date.now() - 365 * 24 * 60 * 60 * 1000;
+  const byMonth = Array.from(quoteRows.reduce((months, quote) => {
+    const createdAt = new Date(String(quote.createdAt));
+    if (quote.status === "sample" || createdAt.getTime() < twelveMonthsAgo) return months;
+    const month = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit" }).format(createdAt);
+    const current = months.get(month) ?? { month, count: 0, amount: 0 };
+    current.count += 1;
+    current.amount += commercialTotalsByQuoteId.get(quote.id) ?? 0;
+    months.set(month, current);
+    return months;
+  }, new Map<string, { month: string; count: number; amount: number }>()).values())
+    .sort((a, b) => a.month.localeCompare(b.month));
 
   return { totals, topVendors, topAssistants, byMonth };
 }

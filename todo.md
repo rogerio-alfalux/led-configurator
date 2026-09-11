@@ -3652,3 +3652,4 @@
 - [x] Apurar a divergência do orçamento 20.0541-26 entre Meus Orçamentos e o detalhe salvo
 - [x] Usar exclusivamente o valor comercial final reconciliado da revisão efetiva em listagem, caixas de totais e dashboards
 - [x] Cobrir margens, RT, impostos, descontos, frete e documentos por regressão antes do checkpoint
+- [x] Alinhar estatísticas globais e integrações legadas ainda dependentes de total persistido
