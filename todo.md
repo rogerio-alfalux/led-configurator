@@ -3644,3 +3644,6 @@
 - [x] Medir consultas, cálculos e renderizações que retardam as páginas autenticadas
 - [x] Aplicar otimizações seguras sem alterar regras comerciais ou dados salvos
 - [x] Validar tempo de resposta, dados críticos e regressões antes de salvar checkpoint reversível
+- [x] Medir a lentidão residual reportada pelo usuário e comparar com a abertura real das páginas
+- [x] Corrigir somente o gargalo confirmado, preservando valores, documentos e regras comerciais
+- [x] Validar os fluxos críticos e salvar checkpoint reversível da correção

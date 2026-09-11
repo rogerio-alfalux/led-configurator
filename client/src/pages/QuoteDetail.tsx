@@ -1022,6 +1022,14 @@ export default function QuoteDetail() {
     showDiscount: false,
   });
 
+  // A abertura do orçamento usa primeiro a revisão já persistida. O catálogo
+  // oficial segue sendo carregado logo depois para fotos e migrações técnicas,
+  // sem bloquear a leitura inicial de valores e dados comerciais salvos.
+  const { data, isLoading, error } = trpc.quotes.getById.useQuery(
+    { id: Number(id) },
+    { staleTime: 30_000 },
+  );
+
   // Sellers & Assistants for edit dialog
   const sellersQuery = trpc.sellers.list.useQuery(undefined, { enabled: editDialogOpen, staleTime: 5 * 60_000 });
   const assistantsQuery = trpc.assistants.list.useQuery(undefined, { enabled: editDialogOpen, staleTime: 5 * 60_000 });
@@ -1081,13 +1089,13 @@ export default function QuoteDetail() {
   }, [editDialogOpen, editSellers, editAssistants, pendingQuoteIds]);
 
   // Catálogo de produtos para resolver fotos atualizadas (URLs CloudFront expiram)
-  const productsQuery = trpc.alfalux.products.useQuery(undefined, { staleTime: 60_000 });
+  const productsQuery = trpc.alfalux.products.useQuery(undefined, { enabled: Boolean(data), staleTime: 60_000 });
   // Produtos de revenda para resolver fotos frescas (RV00050, RV00051, etc.)
-  const revendaProductsQuery = trpc.alfalux.revendaProducts.useQuery(undefined, { staleTime: 60_000 });
+  const revendaProductsQuery = trpc.alfalux.revendaProducts.useQuery(undefined, { enabled: Boolean(data), staleTime: 60_000 });
   // Catálogo de acessórios para resolver fotos frescas (URLs CloudFront expiram)
-  const acessoriosQuery = trpc.alfalux.acessoriosProducts.useQuery(undefined, { staleTime: 60_000 });
+  const acessoriosQuery = trpc.alfalux.acessoriosProducts.useQuery(undefined, { enabled: Boolean(data), staleTime: 60_000 });
   // Componentes (drivers, módulos LED, etc.) para migrar itens legados sem driverLines
-  const componentesQuery = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 60_000 });
+  const componentesQuery = trpc.alfalux.componentes.useQuery(undefined, { enabled: Boolean(data), staleTime: 60_000 });
   /** Mapa código EQ -> precoVenda para busca rápida de preço de driver */
   const componentePriceMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -1299,7 +1307,6 @@ export default function QuoteDetail() {
     });
   }, [id, reorderItemsMutation]);
 
-  const { data, isLoading, error } = trpc.quotes.getById.useQuery({ id: Number(id) }, { staleTime: 30_000 });
   const isOwnDuplicatedQuote = (data?.quote as any)?.duplicatedFromQuoteId != null
     && (data?.quote as any)?.createdByUserId === (user as any)?.id;
   const visibleEditSellers = isSellerEditing && !isOwnDuplicatedQuote ? (ownEditSeller ? [ownEditSeller] : []) : editSellers;

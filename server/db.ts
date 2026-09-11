@@ -1673,54 +1673,86 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
       ? sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${month} AND status = 'approved' AND status != 'sample'`
       : sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND status = 'approved' AND status != 'sample'`;
 
-  const [periodTotals] = await db.select({
-    approvedCount: sql<number>`count(*)`,
-    approvedAmount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
-  }).from(quotes).where(periodCondition);
-
-  // ── Comissões por vendedor (seller1) ──────────────────────────────────────
-  const commissionBySeller = await db.select({
-    sellerName: quotes.seller1Name,
-    count: sql<number>`count(*)`,
-    totalAmount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
-    totalCommission: sql<number>`sum(cast(totalFinal as decimal(14,2)) * cast(commissionPercent as decimal(5,4)))`,
-  })
-    .from(quotes)
-    .where(and(periodCondition, sql`seller1Name IS NOT NULL`))
-    .groupBy(quotes.seller1Name)
-    .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)) * cast(commissionPercent as decimal(5,4)))`));
-
-  // ── RT: quem mais recebe RT ───────────────────────────────────────────────
-  // rtDest1/2/3 são strings com o nome do destinatário
-  const rtByDest1 = await db.select({
-    dest: quotes.rtDest1,
-    count: sql<number>`count(*)`,
-    totalRt: sql<number>`sum(cast(totalFinal as decimal(14,2)) * cast(rtPercent as decimal(5,4)))`,
-  })
-    .from(quotes)
-    .where(and(periodCondition, sql`rtDest1 IS NOT NULL AND rtDest1 != '' AND rtDest1Active = 1 AND cast(rtPercent as decimal(5,4)) > 0`))
-    .groupBy(quotes.rtDest1)
-    .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)) * cast(rtPercent as decimal(5,4)))`));
-
-  const rtByDest2 = await db.select({
-    dest: quotes.rtDest2,
-    count: sql<number>`count(*)`,
-    totalRt: sql<number>`sum(cast(totalFinal as decimal(14,2)) * cast(rtPercent as decimal(5,4)))`,
-  })
-    .from(quotes)
-    .where(and(periodCondition, sql`rtDest2 IS NOT NULL AND rtDest2 != '' AND rtDest2Active = 1 AND cast(rtPercent as decimal(5,4)) > 0`))
-    .groupBy(quotes.rtDest2)
-    .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)) * cast(rtPercent as decimal(5,4)))`));
-
-  const rtByDest3 = await db.select({
-    dest: quotes.rtDest3,
-    count: sql<number>`count(*)`,
-    totalRt: sql<number>`sum(cast(totalFinal as decimal(14,2)) * cast(rtPercent as decimal(5,4)))`,
-  })
-    .from(quotes)
-    .where(and(periodCondition, sql`rtDest3 IS NOT NULL AND rtDest3 != '' AND rtDest3Active = 1 AND cast(rtPercent as decimal(5,4)) > 0`))
-    .groupBy(quotes.rtDest3)
-    .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)) * cast(rtPercent as decimal(5,4)))`));
+  // As consultas abaixo não dependem umas das outras. Executá-las juntas reduz
+  // o tempo de abertura do Dashboard, preservando exatamente os mesmos filtros
+  // e agregações financeiras retornadas por cada consulta.
+  const [
+    periodTotalsRows,
+    commissionBySeller,
+    rtByDest1,
+    rtByDest2,
+    rtByDest3,
+    salesRanking,
+    approvedQuotes,
+    additionalCostsResult,
+  ] = await Promise.all([
+    db.select({
+      approvedCount: sql<number>`count(*)`,
+      approvedAmount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
+    }).from(quotes).where(periodCondition),
+    db.select({
+      sellerName: quotes.seller1Name,
+      count: sql<number>`count(*)`,
+      totalAmount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
+      totalCommission: sql<number>`sum(cast(totalFinal as decimal(14,2)) * cast(commissionPercent as decimal(5,4)))`,
+    })
+      .from(quotes)
+      .where(and(periodCondition, sql`seller1Name IS NOT NULL`))
+      .groupBy(quotes.seller1Name)
+      .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)) * cast(commissionPercent as decimal(5,4)))`)),
+    db.select({
+      dest: quotes.rtDest1,
+      count: sql<number>`count(*)`,
+      totalRt: sql<number>`sum(cast(totalFinal as decimal(14,2)) * cast(rtPercent as decimal(5,4)))`,
+    })
+      .from(quotes)
+      .where(and(periodCondition, sql`rtDest1 IS NOT NULL AND rtDest1 != '' AND rtDest1Active = 1 AND cast(rtPercent as decimal(5,4)) > 0`))
+      .groupBy(quotes.rtDest1)
+      .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)) * cast(rtPercent as decimal(5,4)))`)),
+    db.select({
+      dest: quotes.rtDest2,
+      count: sql<number>`count(*)`,
+      totalRt: sql<number>`sum(cast(totalFinal as decimal(14,2)) * cast(rtPercent as decimal(5,4)))`,
+    })
+      .from(quotes)
+      .where(and(periodCondition, sql`rtDest2 IS NOT NULL AND rtDest2 != '' AND rtDest2Active = 1 AND cast(rtPercent as decimal(5,4)) > 0`))
+      .groupBy(quotes.rtDest2)
+      .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)) * cast(rtPercent as decimal(5,4)))`)),
+    db.select({
+      dest: quotes.rtDest3,
+      count: sql<number>`count(*)`,
+      totalRt: sql<number>`sum(cast(totalFinal as decimal(14,2)) * cast(rtPercent as decimal(5,4)))`,
+    })
+      .from(quotes)
+      .where(and(periodCondition, sql`rtDest3 IS NOT NULL AND rtDest3 != '' AND rtDest3Active = 1 AND cast(rtPercent as decimal(5,4)) > 0`))
+      .groupBy(quotes.rtDest3)
+      .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)) * cast(rtPercent as decimal(5,4)))`)),
+    db.select({
+      sellerName: quotes.seller1Name,
+      count: sql<number>`count(*)`,
+      totalAmount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
+    })
+      .from(quotes)
+      .where(and(periodCondition, sql`seller1Name IS NOT NULL`))
+      .groupBy(quotes.seller1Name)
+      .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)))`)),
+    db.select({
+      id: quotes.id,
+      totalAmount: quotes.totalAmount,
+      totalFinal: quotes.totalFinal,
+      commissionPercent: quotes.commissionPercent,
+      commissionPercent2: quotes.commissionPercent2,
+      difalValue: quotes.difalValue,
+      fcpValue: quotes.fcpValue,
+      freteValue: quotes.freteValue,
+      freteIncluded: quotes.freteIncluded,
+      rtPercent: quotes.rtPercent,
+      discountPercent: quotes.discountPercent,
+      marginPercent: quotes.marginPercent,
+    }).from(quotes).where(periodCondition),
+    getTotalAdditionalCostsForPeriod(year, month, dateFrom, dateTo),
+  ]);
+  const periodTotals = periodTotalsRows[0];
 
   // Consolidar RT por destinatário
   const rtMap = new Map<string, { count: number; totalRt: number }>();
@@ -1736,46 +1768,30 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     .map(([dest, v]) => ({ dest, count: v.count, totalRt: v.totalRt }))
     .sort((a, b) => b.totalRt - a.totalRt);
 
-  // ── Ranking de vendas (por valor aprovado) ────────────────────────────────
-  const salesRanking = await db.select({
-    sellerName: quotes.seller1Name,
-    count: sql<number>`count(*)`,
-    totalAmount: sql<number>`sum(cast(totalFinal as decimal(14,2)))`,
-  })
-    .from(quotes)
-    .where(and(periodCondition, sql`seller1Name IS NOT NULL`))
-    .groupBy(quotes.seller1Name)
-    .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)))`));
-
   // ── Lucro Bruto e Líquido Estimado (aprovados no período) ──────────────
   // Busca orçamentos aprovados com seus itens para calcular custo real via API
   const IMPOSTOS_PADRAO = 0.12; // 12% de impostos (média padrão)
 
-  // Busca orçamentos aprovados no período com campos financeiros
-  const approvedQuotes = await db.select({
-    id: quotes.id,
-    totalAmount: quotes.totalAmount,
-    totalFinal: quotes.totalFinal,
-    commissionPercent: quotes.commissionPercent,
-    commissionPercent2: quotes.commissionPercent2,
-    difalValue: quotes.difalValue,
-    fcpValue: quotes.fcpValue,
-    freteValue: quotes.freteValue,
-    freteIncluded: quotes.freteIncluded,
-    rtPercent: quotes.rtPercent,
-    discountPercent: quotes.discountPercent,
-    marginPercent: quotes.marginPercent,
-  }).from(quotes).where(periodCondition);
-
   // Busca todos os itens dos orçamentos aprovados no período
   const approvedQuoteIds = approvedQuotes.map(q => q.id);
-  let allItems: Array<{ quoteId: number; itemData: string }> = [];
-  if (approvedQuoteIds.length > 0) {
-    allItems = await db.select({
+  const allItemsPromise: Promise<Array<{ quoteId: number; itemData: string }>> = approvedQuoteIds.length > 0
+    ? db.select({
       quoteId: quoteItems.quoteId,
       itemData: quoteItems.itemData,
-    }).from(quoteItems).where(sql`quoteId IN (${sql.join(approvedQuoteIds.map(id => sql`${id}`), sql`, `)})`);
-  }
+    }).from(quoteItems).where(sql`quoteId IN (${sql.join(approvedQuoteIds.map(id => sql`${id}`), sql`, `)})`)
+    : Promise.resolve([]);
+
+  // O catálogo oficial e os itens salvos são independentes. As duas leituras
+  // ocorrem juntas e nenhum valor comercial é recalculado nesta etapa.
+  const [allItems, [apiProducts, apiCompResult, apiAcessorios, apiRevendas]] = await Promise.all([
+    allItemsPromise,
+    Promise.all([
+      fetchAllAlfaluxProducts(),
+      fetchComponentes(),
+      fetchAcessoriosProducts(),
+      fetchRevendaProducts(),
+    ]),
+  ]);
 
   // Agrupa itens por orçamento
   const itemsByQuote = new Map<number, typeof allItems>();
@@ -1784,13 +1800,7 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     itemsByQuote.get(item.quoteId)!.push(item);
   }
 
-  // ── Buscar dados da API para cálculo de custo real (cache de 5min) ─────────────
-  const [apiProducts, apiCompResult, apiAcessorios, apiRevendas] = await Promise.all([
-    fetchAllAlfaluxProducts(),
-    fetchComponentes(),
-    fetchAcessoriosProducts(),
-    fetchRevendaProducts(),
-  ]);
+  // ── Catálogo oficial já obtido em paralelo aos itens do período ────────────
   const productBySku = new Map(apiProducts.map(p => [p.sku.toUpperCase(), p]));
   const componenteByCodigo = new Map(apiCompResult.items.filter(c => c.codigo).map(c => [c.codigo!.toUpperCase(), c]));
   const acessorioByCodigo = new Map(apiAcessorios.filter(a => a.codigo).map(a => [a.codigo!.toUpperCase(), a]));
@@ -2090,7 +2100,6 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
   const margemLiquida = totalVendas > 0 ? (lucroLiquido / totalVendas) * 100 : 0;
 
   // ── Custos adicionais (assistências, retrabalhos, etc.) ────────────────────
-  const additionalCostsResult = await getTotalAdditionalCostsForPeriod(year, month, dateFrom, dateTo);
   const totalAdditionalCosts = additionalCostsResult.total;
   const additionalCostsCount = additionalCostsResult.count;
 
