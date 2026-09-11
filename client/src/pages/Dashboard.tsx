@@ -372,7 +372,6 @@ export default function Dashboard() {
   const [entityInsightScope, setEntityInsightScope] = useState<EntityInsightScope>("clientes");
   const [entityInsightMetric, setEntityInsightMetric] = useState<EntityInsightMetric>("quotedByValue");
   const [dashboardInsightScope, setDashboardInsightScope] = useState<DashboardInsightScope>("produtos");
-  const [insightsRequested, setInsightsRequested] = useState(false);
 
   const utils = trpc.useUtils();
 
@@ -388,13 +387,33 @@ export default function Dashboard() {
   );
 
   // Dados para gerentes/admins
-  const { data: managerData, isLoading: managerLoading } = trpc.dashboard.managerData.useQuery(
+  const {
+    data: managerData,
+    isLoading: managerLoading,
+    error: managerError,
+    refetch: refetchManagerData,
+  } = trpc.dashboard.managerData.useQuery(
     queryInput,
-    { enabled: !!user && isManager, staleTime: 30_000 }
+    {
+      enabled: !!user && isManager,
+      staleTime: 30_000,
+      retry: 2,
+      refetchInterval: (query) => ((query.state.data as any)?.catalogUnavailable?.length ? 30_000 : false),
+    }
   );
-  const { data: productAnalytics, isLoading: productAnalyticsLoading } = trpc.dashboard.productAnalytics.useQuery(
+  const {
+    data: productAnalytics,
+    isLoading: productAnalyticsLoading,
+    error: productAnalyticsError,
+    refetch: refetchProductAnalytics,
+  } = trpc.dashboard.productAnalytics.useQuery(
     queryInput,
-    { enabled: !!user && isAdmin && !managerLoading && insightsRequested, staleTime: 60_000 },
+    {
+      enabled: !!user && isAdmin,
+      staleTime: 60_000,
+      retry: 2,
+      refetchInterval: (query) => ((query.state.data as any)?.catalogUnavailable?.length ? 30_000 : false),
+    },
   );
   const selectedProductInsightRows = useMemo(() => {
     const rankings = productInsightScope === "produtos"
@@ -656,7 +675,38 @@ export default function Dashboard() {
           <div className="text-center py-12 text-muted-foreground">Carregando dados...</div>
         )}
 
-        {!isLoading && (
+        {!isLoading && managerError && (
+          <Card className="border-destructive/40">
+            <CardContent className="py-10 text-center">
+              <AlertCircle className="mx-auto mb-3 h-8 w-8 text-destructive" />
+              <p className="font-semibold">Não foi possível carregar os indicadores gerais.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Nenhum valor parcial foi apresentado. Tente novamente para buscar todos os dados.</p>
+              <Button className="mt-4" variant="outline" onClick={() => void refetchManagerData()}>
+                Tentar novamente
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {!isLoading && !managerError && (((managerData as any)?.catalogUnavailable?.length ?? 0) > 0) && (
+          <Card className="border-amber-300 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-950/20">
+            <CardContent className="flex gap-3 py-4">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-400" />
+              <div>
+                <p className="text-sm font-semibold">Parte do catálogo oficial está temporariamente indisponível.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Os demais dados foram carregados. Indicadores que dependem de {(managerData as any).catalogUnavailable.join(", ")} serão atualizados na próxima tentativa.</p>
+                <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => {
+                  void refetchManagerData();
+                  if (isAdmin) void refetchProductAnalytics();
+                }}>
+                  Atualizar dados
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {!isLoading && !managerError && (
           <>
             {/* ── Metas de Faturamento (visível para todos exceto assistentes) ── */}
             <Card>
@@ -1198,13 +1248,17 @@ export default function Dashboard() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      {!insightsRequested ? (
-                        <div className="rounded-xl border border-dashed bg-muted/20 p-5 text-center">
-                          <p className="text-sm text-muted-foreground">A análise detalhada é carregada somente quando necessária, para deixar o Dashboard principal mais ágil.</p>
-                          <Button type="button" className="mt-3" onClick={() => setInsightsRequested(true)}>Carregar análise detalhada</Button>
-                        </div>
-                      ) : productAnalyticsLoading ? (
+                      {productAnalyticsLoading ? (
                         <p className="py-8 text-center text-sm text-muted-foreground">Apurando produtos e categorias do período…</p>
+                      ) : productAnalyticsError ? (
+                        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 text-center">
+                          <AlertCircle className="mx-auto mb-2 h-6 w-6 text-destructive" />
+                          <p className="text-sm font-medium">Não foi possível carregar a análise detalhada.</p>
+                          <p className="mt-1 text-xs text-muted-foreground">Os demais indicadores continuam disponíveis enquanto esta consulta é recuperada.</p>
+                          <Button type="button" variant="outline" className="mt-3" onClick={() => void refetchProductAnalytics()}>
+                            Tentar novamente
+                          </Button>
+                        </div>
                       ) : (
                         <Tabs value={dashboardInsightScope} onValueChange={(value) => {
                           const nextScope = value as DashboardInsightScope;

@@ -3660,3 +3660,10 @@
 - [x] Usar exclusivamente o valor comercial final reconciliado da revisão efetiva em listagem, caixas de totais e dashboards
 - [x] Cobrir margens, RT, impostos, descontos, frete e documentos por regressão antes do checkpoint
 - [x] Alinhar estatísticas globais e integrações legadas ainda dependentes de total persistido
+
+## Carregamento automático e completo do Dashboard geral
+- [x] Reproduzir e identificar por que o Dashboard geral não carrega todos os dados ao abrir
+- [x] Restaurar o carregamento automático de indicadores, análises e detalhamentos sem ação manual
+- [x] Tratar falhas parciais para que uma consulta não bloqueie todo o Dashboard
+- [x] Otimizar consultas sem adiar ou omitir dados exigidos na abertura
+- [x] Validar dados, filtros, permissões e regressões antes de salvar checkpoint reversível

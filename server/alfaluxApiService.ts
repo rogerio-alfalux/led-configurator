@@ -424,6 +424,13 @@ export async function fetchAllAlfaluxProducts(forceRefresh = false): Promise<Alf
   productsFetchInFlight = freshFetch;
   try {
     return await freshFetch;
+  } catch (error) {
+    if (!forceRefresh && cache?.data.length) {
+      console.warn(`[AlfaluxAPI] Falha transitória no catálogo principal; mantendo ${cache.data.length} produtos da última resposta oficial.`);
+      cache = { data: cache.data, fetchedAt: now };
+      return cache.data;
+    }
+    throw error;
   } finally {
     if (productsFetchInFlight === freshFetch) productsFetchInFlight = null;
   }
@@ -473,28 +480,46 @@ interface RevendaCacheEntry {
 }
 
 let revendaCache: RevendaCacheEntry | null = null;
+let revendaFetchInFlight: Promise<RevendaProduct[]> | null = null;
 
 export async function fetchRevendaProducts(): Promise<RevendaProduct[]> {
   const now = Date.now();
   if (revendaCache && now - revendaCache.fetchedAt < AUXILIARY_CATALOG_CACHE_TTL_MS) {
     return revendaCache.data;
   }
+  if (revendaFetchInFlight) return revendaFetchInFlight;
 
-  console.log("[AlfaluxAPI] Buscando produtos de revenda via /api/revenda/all...");
-  const url = `${ALFALUX_BASE}/api/revenda/all`;
-  const res = await fetch(url, {
-    headers: { Accept: "application/json" },
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) throw new Error(`Alfalux Revenda API error: ${res.status}`);
+  const freshFetch = (async () => {
+    console.log("[AlfaluxAPI] Buscando produtos de revenda via /api/revenda/all...");
+    const url = `${ALFALUX_BASE}/api/revenda/all`;
+    const res = await fetch(url, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) throw new Error(`Alfalux Revenda API error: ${res.status}`);
 
-  const body = await res.json() as { count?: number; products?: RevendaProduct[] };
-  const all = (body.products ?? (Array.isArray(body) ? body as RevendaProduct[] : []))
-    .map(product => normalizeRevendaProduct(product as RevendaProduct & Record<string, unknown>));
+    const body = await res.json() as { count?: number; products?: RevendaProduct[] };
+    const all = (body.products ?? (Array.isArray(body) ? body as RevendaProduct[] : []))
+      .map(product => normalizeRevendaProduct(product as RevendaProduct & Record<string, unknown>));
 
-  console.log(`[AlfaluxAPI] ${all.length} produtos de revenda carregados.`);
-  revendaCache = { data: all, fetchedAt: now };
-  return all;
+    console.log(`[AlfaluxAPI] ${all.length} produtos de revenda carregados.`);
+    revendaCache = { data: all, fetchedAt: Date.now() };
+    return all;
+  })();
+
+  revendaFetchInFlight = freshFetch;
+  try {
+    return await freshFetch;
+  } catch (error) {
+    if (revendaCache?.data.length) {
+      console.warn(`[AlfaluxAPI] Falha transitória em revenda; mantendo ${revendaCache.data.length} itens da última resposta oficial.`);
+      revendaCache = { data: revendaCache.data, fetchedAt: now };
+      return revendaCache.data;
+    }
+    throw error;
+  } finally {
+    if (revendaFetchInFlight === freshFetch) revendaFetchInFlight = null;
+  }
 }
 
 // ── Acessórios ────────────────────────────────────────────────────────────────────────────────────
@@ -522,6 +547,7 @@ interface AcessoriosCacheEntry {
 }
 
 let acessoriosCache: AcessoriosCacheEntry | null = null;
+let acessoriosFetchInFlight: Promise<AcessorioProduct[]> | null = null;
 
 export async function fetchAcessoriosProducts(): Promise<AcessorioProduct[]> {
   const now = Date.now();
@@ -529,20 +555,38 @@ export async function fetchAcessoriosProducts(): Promise<AcessorioProduct[]> {
     return acessoriosCache.data;
   }
 
-  console.log("[AlfaluxAPI] Buscando acessórios via /api/acessorios/all...");
-  const url = `${ALFALUX_BASE}/api/acessorios/all`;
-  const res = await fetch(url, {
-    headers: { Accept: "application/json" },
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) throw new Error(`Alfalux Acessórios API error: ${res.status}`);
+  if (acessoriosFetchInFlight) return acessoriosFetchInFlight;
 
-  const body = await res.json() as { count?: number; items?: AcessorioProduct[] };
-  const all = body.items ?? (Array.isArray(body) ? body as AcessorioProduct[] : []);
+  const freshFetch = (async () => {
+    console.log("[AlfaluxAPI] Buscando acessórios via /api/acessorios/all...");
+    const url = `${ALFALUX_BASE}/api/acessorios/all`;
+    const res = await fetch(url, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) throw new Error(`Alfalux Acessórios API error: ${res.status}`);
 
-  console.log(`[AlfaluxAPI] ${all.length} acessórios carregados.`);
-  acessoriosCache = { data: all, fetchedAt: now };
-  return all;
+    const body = await res.json() as { count?: number; items?: AcessorioProduct[] };
+    const all = body.items ?? (Array.isArray(body) ? body as AcessorioProduct[] : []);
+
+    console.log(`[AlfaluxAPI] ${all.length} acessórios carregados.`);
+    acessoriosCache = { data: all, fetchedAt: Date.now() };
+    return all;
+  })();
+
+  acessoriosFetchInFlight = freshFetch;
+  try {
+    return await freshFetch;
+  } catch (error) {
+    if (acessoriosCache?.data.length) {
+      console.warn(`[AlfaluxAPI] Falha transitória em acessórios; mantendo ${acessoriosCache.data.length} itens da última resposta oficial.`);
+      acessoriosCache = { data: acessoriosCache.data, fetchedAt: now };
+      return acessoriosCache.data;
+    }
+    throw error;
+  } finally {
+    if (acessoriosFetchInFlight === freshFetch) acessoriosFetchInFlight = null;
+  }
 }
 
 // ── Customizados ─────────────────────────────────────────────────────────────
@@ -666,6 +710,13 @@ export async function fetchComponentes(forceRefresh = false): Promise<{ items: C
   componentesFetchInFlight = freshFetch;
   try {
     return await freshFetch;
+  } catch (error) {
+    if (!forceRefresh && componentesCache?.data.length) {
+      console.warn(`[AlfaluxAPI] Falha transitória em componentes; mantendo ${componentesCache.data.length} itens da última resposta oficial.`);
+      componentesCache = { data: componentesCache.data, tipos: componentesCache.tipos, fetchedAt: now };
+      return { items: componentesCache.data, tipos: componentesCache.tipos };
+    }
+    throw error;
   } finally {
     if (componentesFetchInFlight === freshFetch) componentesFetchInFlight = null;
   }

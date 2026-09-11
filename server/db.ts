@@ -1733,6 +1733,46 @@ export async function upsertMonthlyBilling(data: { year: number; month: number; 
 }
 
 // ─── Dashboard Gerencial ──────────────────────────────────────────────────────
+const DASHBOARD_CATALOG_WAIT_MS = 15_000;
+
+function settleDashboardCatalog<T>(promise: Promise<T>): Promise<{ value: T | null; unavailable: boolean }> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value: T | null, unavailable: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      resolve({ value, unavailable });
+    };
+    const timeoutId = setTimeout(() => finish(null, true), DASHBOARD_CATALOG_WAIT_MS);
+    promise.then(
+      (value) => finish(value, false),
+      () => finish(null, true),
+    );
+  });
+}
+
+async function getDashboardCatalogSnapshot() {
+  const labels = ["produtos", "componentes", "acessórios", "revenda"] as const;
+  const results = await Promise.all([
+    settleDashboardCatalog(fetchAllAlfaluxProducts()),
+    settleDashboardCatalog(fetchComponentes()),
+    settleDashboardCatalog(fetchAcessoriosProducts()),
+    settleDashboardCatalog(fetchRevendaProducts()),
+  ] as const);
+  const unavailable = results.flatMap((result, index) => result.unavailable ? [labels[index]] : []);
+  if (unavailable.length > 0) {
+    console.warn(`[Dashboard] Catálogos temporariamente indisponíveis: ${unavailable.join(", ")}. Os demais dados serão carregados normalmente.`);
+  }
+  return {
+    products: results[0].value ?? [],
+    componentResult: results[1].value ?? { items: [], tipos: [] },
+    accessories: results[2].value ?? [],
+    revendas: results[3].value ?? [],
+    unavailable,
+  };
+}
+
 /**
  * Retorna dados completos do dashboard para admins/gerentes.
  * Inclui: comissões por vendedor, ranking RT, metas e progresso.
@@ -1862,20 +1902,21 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
       itemData: quoteItems.itemData,
     }).from(quoteItems)
       .innerJoin(quoteVersions, eq(quoteVersions.id, quoteItems.quoteVersionId))
-      .where(sql`quoteId IN (${sql.join(approvedQuoteIds.map(id => sql`${id}`), sql`, `)})`)
+      .where(inArray(quoteItems.quoteId, approvedQuoteIds))
     : Promise.resolve([]);
 
   // O catálogo oficial e os itens salvos são independentes. As duas leituras
   // ocorrem juntas e nenhum valor comercial é recalculado nesta etapa.
-  const [allItems, [apiProducts, apiCompResult, apiAcessorios, apiRevendas]] = await Promise.all([
+  const [allItems, catalogSnapshot] = await Promise.all([
     allItemsPromise,
-    Promise.all([
-      fetchAllAlfaluxProducts(),
-      fetchComponentes(),
-      fetchAcessoriosProducts(),
-      fetchRevendaProducts(),
-    ]),
+    getDashboardCatalogSnapshot(),
   ]);
+  const {
+    products: apiProducts,
+    componentResult: apiCompResult,
+    accessories: apiAcessorios,
+    revendas: apiRevendas,
+  } = catalogSnapshot;
 
   // Agrupa exclusivamente os itens da revisão efetiva mais recente, incluindo
   // o rascunho salvo que o usuário vê ao reabrir o orçamento.
@@ -2403,6 +2444,7 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     }>,
     manualBillings,
     manualBillingAmount,
+    catalogUnavailable: catalogSnapshot.unavailable,
   };
 }
 
@@ -2511,12 +2553,8 @@ export async function getDashboardProductAnalytics(year: number, month?: number,
   }).from(quoteAdditionalCosts).where(inArray(quoteAdditionalCosts.quoteId, quoteIds)).groupBy(quoteAdditionalCosts.quoteId);
   const additionalCostByQuote = new Map(additionalCostRows.map((row) => [row.quoteId, Number(row.total ?? 0)]));
 
-  const [products, componentResult, accessories, revendas] = await Promise.all([
-    fetchAllAlfaluxProducts(),
-    fetchComponentes(),
-    fetchAcessoriosProducts(),
-    fetchRevendaProducts(),
-  ]);
+  const catalogSnapshot = await getDashboardCatalogSnapshot();
+  const { products, componentResult, accessories, revendas } = catalogSnapshot;
 
   const normalizedQuotes = activityQuotes.map((quote) => ({
     ...quote,
@@ -2535,6 +2573,7 @@ export async function getDashboardProductAnalytics(year: number, month?: number,
   return {
     ...productAnalytics,
     entityAnalytics: buildDashboardEntityAnalytics(normalizedQuotes),
+    catalogUnavailable: catalogSnapshot.unavailable,
   };
 }
 

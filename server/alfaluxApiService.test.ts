@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchRevendaProducts, invalidateAlfaluxCache, normalizeAlfaluxComponentDescription, normalizeRevendaProduct } from "./alfaluxApiService";
+import { fetchAcessoriosProducts, fetchRevendaProducts, invalidateAlfaluxCache, normalizeAlfaluxComponentDescription, normalizeRevendaProduct } from "./alfaluxApiService";
 
 beforeEach(() => {
   invalidateAlfaluxCache();
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -60,5 +61,37 @@ describe("cache curto de catálogos auxiliares", () => {
     await fetchRevendaProducts();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("compartilha a mesma requisição de acessórios entre consultas simultâneas do Dashboard", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        items: [{ id: 1, codigo: "EQ00001", sku: null, produto: "DRIVER", familia: null, dimensao: null, precoVenda: 10, custo: 5, fotoUrl: null, source: "driver", observacoes: null }],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const [first, second] = await Promise.all([fetchAcessoriosProducts(), fetchAcessoriosProducts()]);
+
+    expect(first).toEqual(second);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("mantém a última resposta oficial de revenda quando a atualização transitória falha", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-11T12:00:00.000Z"));
+    const officialProducts = [{ codigo: "RV00032", descricao: "LUMINÁRIA DE REVENDA", referencia: null, fornecedor: null, fotoUrl: null, precoVenda: 60.52 }];
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ products: officialProducts }) })
+      .mockResolvedValueOnce({ ok: false, status: 503 });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = await fetchRevendaProducts();
+    vi.advanceTimersByTime(60_001);
+    const recovered = await fetchRevendaProducts();
+
+    expect(recovered).toEqual(first);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
