@@ -84,6 +84,23 @@ describe("STRIPFLEX em nonos — Excel da ficha", () => {
 });
 
 describe("estrutura heterogênea da API — Excel da ficha", () => {
+  it("mantém os códigos oficiais de módulo, driver e componente adicional", () => {
+    const fonteDeLuz = buildProfileFonteLuzText({
+      category: "Decorativas",
+      productLightingMode: "LAMP",
+      productLightSource: { description: "LÂMPADA G9", code: "CP00991", type: "LAMPADA", quantity: 2 },
+    } as any);
+    const equipamentos = buildLuminariaEquipamentosText({
+      qty: 1,
+      driverLines: [{ driverCode: "EQ00347", driverModel: "LED DRIVER XITANIUM 44W", driverQty: 1, driverUnitPrice: null, driverTotalPrice: null }],
+      apiOtherEquipments: [{ description: "CONECTOR DE TESTE", code: "CP00123", type: "CONECTOR", quantity: 3 }],
+    } as any);
+
+    expect(fonteDeLuz).toBe("2 x LÂMPADA G9 (CP00991)");
+    expect(equipamentos).toContain("1x LED DRIVER XITANIUM 44W (EQ00347)");
+    expect(equipamentos).toContain("3x CONECTOR DE TESTE (CP00123)");
+  });
+
   it("preserva a lâmpada em Fonte de Luz", () => {
     expect(buildProfileFonteLuzText({
       category: "Decorativas",

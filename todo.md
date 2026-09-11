@@ -2296,9 +2296,9 @@
 - [x] TypeScript check e testes passando
 
 ## Ficha de Produção — Código EQ/CP entre parênteses
-- [ ] Módulo LED: mostrar descrição + (EQ00XXX) na Ficha de Produção
-- [ ] Drivers/fontes: mostrar descrição + (EQ/CP) na Ficha de Produção
-- [ ] Todos os equipamentos e fontes de luz: usar EQ ou CP conforme o tipo
+- [x] Módulo LED: mostrar descrição + (EQ00XXX) na Ficha de Produção
+- [x] Drivers/fontes: mostrar descrição + (EQ/CP) na Ficha de Produção
+- [x] Todos os equipamentos e fontes de luz: usar EQ ou CP conforme o tipo
 
 ## Sistema de Custo/Markup e Dashboard de Lucro
 - [x] Campo de custo no Item Especial (visível só para Vivian, Dennis, Rogério) no carrinho
