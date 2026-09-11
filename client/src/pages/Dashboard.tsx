@@ -372,6 +372,7 @@ export default function Dashboard() {
   const [entityInsightScope, setEntityInsightScope] = useState<EntityInsightScope>("clientes");
   const [entityInsightMetric, setEntityInsightMetric] = useState<EntityInsightMetric>("quotedByValue");
   const [dashboardInsightScope, setDashboardInsightScope] = useState<DashboardInsightScope>("produtos");
+  const [insightsRequested, setInsightsRequested] = useState(false);
 
   const utils = trpc.useUtils();
 
@@ -389,11 +390,11 @@ export default function Dashboard() {
   // Dados para gerentes/admins
   const { data: managerData, isLoading: managerLoading } = trpc.dashboard.managerData.useQuery(
     queryInput,
-    { enabled: !!user && isManager }
+    { enabled: !!user && isManager, staleTime: 30_000 }
   );
   const { data: productAnalytics, isLoading: productAnalyticsLoading } = trpc.dashboard.productAnalytics.useQuery(
     queryInput,
-    { enabled: !!user && isAdmin && !managerLoading },
+    { enabled: !!user && isAdmin && !managerLoading && insightsRequested, staleTime: 60_000 },
   );
   const selectedProductInsightRows = useMemo(() => {
     const rankings = productInsightScope === "produtos"
@@ -1172,7 +1173,12 @@ export default function Dashboard() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      {productAnalyticsLoading ? (
+                      {!insightsRequested ? (
+                        <div className="rounded-xl border border-dashed bg-muted/20 p-5 text-center">
+                          <p className="text-sm text-muted-foreground">A análise detalhada é carregada somente quando necessária, para deixar o Dashboard principal mais ágil.</p>
+                          <Button type="button" className="mt-3" onClick={() => setInsightsRequested(true)}>Carregar análise detalhada</Button>
+                        </div>
+                      ) : productAnalyticsLoading ? (
                         <p className="py-8 text-center text-sm text-muted-foreground">Apurando produtos e categorias do período…</p>
                       ) : (
                         <Tabs value={dashboardInsightScope} onValueChange={(value) => {

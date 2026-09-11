@@ -14,7 +14,10 @@
  */
 
 const ALFALUX_BASE = "https://alfaluxprod-c8zmg2fn.manus.space";
-const CACHE_TTL_MS = 0; // Sem cache — sempre buscar dados frescos da API
+// Catálogos auxiliares são reutilizados por páginas de consulta de orçamento e
+// Dashboard. Um intervalo curto reduz chamadas pesadas repetidas sem tornar a
+// origem oficial desatualizada por mais de um minuto.
+export const AUXILIARY_CATALOG_CACHE_TTL_MS = 60 * 1000;
 const AVAILABILITY_CACHE_TTL_MS = 5 * 60 * 1000;
 
 /** Normaliza a descrição técnica sem alterar conteúdo comercial para lookup na API. */
@@ -428,6 +431,8 @@ export async function fetchAllAlfaluxProducts(forceRefresh = false): Promise<Alf
 
 export function invalidateAlfaluxCache(): void {
   cache = null;
+  revendaCache = null;
+  acessoriosCache = null;
 }
 
 // ── Revenda ───────────────────────────────────────────────────────────────────────────────────
@@ -471,7 +476,7 @@ let revendaCache: RevendaCacheEntry | null = null;
 
 export async function fetchRevendaProducts(): Promise<RevendaProduct[]> {
   const now = Date.now();
-  if (revendaCache && now - revendaCache.fetchedAt < CACHE_TTL_MS) {
+  if (revendaCache && now - revendaCache.fetchedAt < AUXILIARY_CATALOG_CACHE_TTL_MS) {
     return revendaCache.data;
   }
 
@@ -520,7 +525,7 @@ let acessoriosCache: AcessoriosCacheEntry | null = null;
 
 export async function fetchAcessoriosProducts(): Promise<AcessorioProduct[]> {
   const now = Date.now();
-  if (acessoriosCache && now - acessoriosCache.fetchedAt < CACHE_TTL_MS) {
+  if (acessoriosCache && now - acessoriosCache.fetchedAt < AUXILIARY_CATALOG_CACHE_TTL_MS) {
     return acessoriosCache.data;
   }
 
@@ -567,7 +572,7 @@ export function recoverCustomizadosAfterApiFailure(cache: CustomizadosCacheEntry
 
 export async function fetchCustomizadosProducts(): Promise<CustomizadoProduct[]> {
   const now = Date.now();
-  if (customizadosCache && now - customizadosCache.fetchedAt < CACHE_TTL_MS) {
+  if (customizadosCache && now - customizadosCache.fetchedAt < 0) {
     return customizadosCache.data;
   }
 

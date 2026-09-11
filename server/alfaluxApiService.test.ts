@@ -1,5 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { normalizeAlfaluxComponentDescription, normalizeRevendaProduct } from "./alfaluxApiService";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fetchRevendaProducts, invalidateAlfaluxCache, normalizeAlfaluxComponentDescription, normalizeRevendaProduct } from "./alfaluxApiService";
+
+beforeEach(() => {
+  invalidateAlfaluxCache();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe("normalizeAlfaluxComponentDescription", () => {
   it("preserva o conteúdo técnico e remove somente variações de espaços no lookup", () => {
@@ -34,5 +43,22 @@ describe("normalizeRevendaProduct", () => {
     });
 
     expect(product.custo).toBeUndefined();
+  });
+});
+
+describe("cache curto de catálogos auxiliares", () => {
+  it("reutiliza a resposta oficial de revenda durante a janela curta de consulta", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        products: [{ codigo: "RV00032", descricao: "LUMINÁRIA DE REVENDA", referencia: null, fornecedor: null, fotoUrl: null, precoVenda: 60.52 }],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchRevendaProducts();
+    await fetchRevendaProducts();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -16,6 +16,10 @@ export function useAuth(options?: UseAuthOptions) {
   const meQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
     refetchOnWindowFocus: false,
+    // Evita múltiplas leituras idênticas de sessão quando a mesma página usa
+    // useAuth diretamente e por hooks de permissão. Logout e mudanças de
+    // autenticação continuam invalidando esta consulta imediatamente.
+    staleTime: 30_000,
   });
 
   const logoutMutation = trpc.auth.logout.useMutation({

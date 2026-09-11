@@ -83,7 +83,11 @@ export default function Quotes() {
   }, [quoteMetricPreferencesQuery.data?.visibility]);
   const limit = 20;
 
-  const ldRequestsQuery = trpc.ldRequests.adminList.useQuery(undefined, { enabled: user?.role === "admin", staleTime: 0 });
+  const needsLdRequestData = ldOriginFilter !== "all" || ldResponseFilter !== "all";
+  const ldRequestsQuery = trpc.ldRequests.adminList.useQuery(undefined, {
+    enabled: user?.role === "admin" && needsLdRequestData,
+    staleTime: 60_000,
+  });
   const clientFilterActive = duplicateFilter !== "all" || prospectingFilter !== "all" || ldOriginFilter !== "all" || ldResponseFilter !== "all" || Boolean(dateFrom) || Boolean(dateTo);
   const { data, isLoading } = trpc.quotes.list.useQuery({
     search: search || undefined,
@@ -92,10 +96,12 @@ export default function Quotes() {
     assistantId: assistantFilter !== "all" ? Number(assistantFilter) : undefined,
     limit: clientFilterActive ? 10000 : limit,
     offset: clientFilterActive ? 0 : page * limit,
-  });
+  }, { staleTime: 30_000 });
 
-  // Buscar todos os orçamentos sem filtro — apenas para popular dropdowns de vendedor/assistente
-  const { data: allData } = trpc.quotes.list.useQuery({ limit: 1000, offset: 0 });
+  // Catálogos leves e ativos preservam a lista de filtros sem carregar até
+  // mil orçamentos completos exclusivamente para descobrir nomes de equipe.
+  const sellersQuery = trpc.sellers.list.useQuery(undefined, { staleTime: 5 * 60_000 });
+  const assistantsQuery = trpc.assistants.list.useQuery(undefined, { staleTime: 5 * 60_000 });
   // Buscar todos os orçamentos COM os filtros ativos (sem paginação) para estatísticas corretas
   const { data: filteredAllData } = trpc.quotes.list.useQuery({
     search: search || undefined,
@@ -104,7 +110,7 @@ export default function Quotes() {
     assistantId: assistantFilter !== "all" ? Number(assistantFilter) : undefined,
     limit: 10000,
     offset: 0,
-  });
+  }, { staleTime: 30_000 });
   const setManualDuplicateMutation = trpc.quotes.setManualDuplicate.useMutation({
     onSuccess: async (_result, variables) => {
       // Atualiza a agregação imediatamente, inclusive enquanto as consultas são renovadas.
@@ -125,21 +131,8 @@ export default function Quotes() {
   });
 
   // Listas únicas de vendedores e assistentes
-  const uniqueSellers = useMemo(() => {
-    const byId = new Map<number, string>();
-    (allData?.rows ?? []).forEach(q => {
-      if (q.seller1Id && q.seller1Name) byId.set(q.seller1Id, q.seller1Name);
-    });
-    return Array.from(byId, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [allData]);
-
-  const uniqueAssistants = useMemo(() => {
-    const byId = new Map<number, string>();
-    (allData?.rows ?? []).forEach(q => {
-      if (q.assistantId && q.assistantName) byId.set(q.assistantId, q.assistantName);
-    });
-    return Array.from(byId, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [allData]);
+  const uniqueSellers = sellersQuery.data ?? [];
+  const uniqueAssistants = assistantsQuery.data ?? [];
 
   const ldRequestByQuoteId = useMemo(() => {
     const mapped = new Map<number, { status: string; requestNumber?: string | null }>();
@@ -200,7 +193,10 @@ export default function Quotes() {
   const generalExpensesQueryInput = useMemo(() => ({ quoteIds: generalExpenseQuoteIds }), [generalExpenseQuoteIds]);
   const generalExpensesQuery = trpc.quotes.generalExpenses.useQuery(
     generalExpensesQueryInput,
-    { enabled: user?.role === "admin" && generalExpenseQuoteIds.length > 0, staleTime: 30_000 },
+    {
+      enabled: user?.role === "admin" && visibleMetrics.generalExpenses && generalExpenseQuoteIds.length > 0,
+      staleTime: 30_000,
+    },
   );
 
   // Estatísticas refletem os filtros ativos

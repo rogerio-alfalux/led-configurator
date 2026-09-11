@@ -21,6 +21,14 @@ describe("filtros administrativos de origem LD", () => {
     expect(source).toContain("Exportar Excel");
   });
 
+  it("evita carregar orçamentos completos apenas para preencher filtros ou gastos ocultos", () => {
+    expect(source).toContain("trpc.sellers.list.useQuery");
+    expect(source).toContain("trpc.assistants.list.useQuery");
+    expect(source).not.toContain("const { data: allData } = trpc.quotes.list.useQuery");
+    expect(source).toContain("visibleMetrics.generalExpenses");
+    expect(source).toContain("needsLdRequestData");
+  });
+
   it("recompõe o valor final descontado como referência de valor exibido e exportado", () => {
     expect(source).toContain("totalFinal: getDisplayedCustomerTotal(quote)");
     expect(source).toContain("formatBRL(getDisplayedCustomerTotal(q))");

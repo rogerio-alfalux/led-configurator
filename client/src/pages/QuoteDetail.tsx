@@ -1023,8 +1023,8 @@ export default function QuoteDetail() {
   });
 
   // Sellers & Assistants for edit dialog
-  const sellersQuery = trpc.sellers.list.useQuery();
-  const assistantsQuery = trpc.assistants.list.useQuery();
+  const sellersQuery = trpc.sellers.list.useQuery(undefined, { enabled: editDialogOpen, staleTime: 5 * 60_000 });
+  const assistantsQuery = trpc.assistants.list.useQuery(undefined, { enabled: editDialogOpen, staleTime: 5 * 60_000 });
   const editSellers = sellersQuery.data ?? [];
   const editAssistants = assistantsQuery.data ?? [];
   const quoteUserEmail = ((user as any)?.email ?? "").toLowerCase();
@@ -1081,13 +1081,13 @@ export default function QuoteDetail() {
   }, [editDialogOpen, editSellers, editAssistants, pendingQuoteIds]);
 
   // Catálogo de produtos para resolver fotos atualizadas (URLs CloudFront expiram)
-  const productsQuery = trpc.alfalux.products.useQuery(undefined, { staleTime: 0 });
+  const productsQuery = trpc.alfalux.products.useQuery(undefined, { staleTime: 60_000 });
   // Produtos de revenda para resolver fotos frescas (RV00050, RV00051, etc.)
-  const revendaProductsQuery = trpc.alfalux.revendaProducts.useQuery(undefined, { staleTime: 0 });
+  const revendaProductsQuery = trpc.alfalux.revendaProducts.useQuery(undefined, { staleTime: 60_000 });
   // Catálogo de acessórios para resolver fotos frescas (URLs CloudFront expiram)
-  const acessoriosQuery = trpc.alfalux.acessoriosProducts.useQuery(undefined, { staleTime: 0 });
+  const acessoriosQuery = trpc.alfalux.acessoriosProducts.useQuery(undefined, { staleTime: 60_000 });
   // Componentes (drivers, módulos LED, etc.) para migrar itens legados sem driverLines
-  const componentesQuery = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 0 });
+  const componentesQuery = trpc.alfalux.componentes.useQuery(undefined, { staleTime: 60_000 });
   /** Mapa código EQ -> precoVenda para busca rápida de preço de driver */
   const componentePriceMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -1299,14 +1299,14 @@ export default function QuoteDetail() {
     });
   }, [id, reorderItemsMutation]);
 
-  const { data, isLoading, error } = trpc.quotes.getById.useQuery({ id: Number(id) });
+  const { data, isLoading, error } = trpc.quotes.getById.useQuery({ id: Number(id) }, { staleTime: 30_000 });
   const isOwnDuplicatedQuote = (data?.quote as any)?.duplicatedFromQuoteId != null
     && (data?.quote as any)?.createdByUserId === (user as any)?.id;
   const visibleEditSellers = isSellerEditing && !isOwnDuplicatedQuote ? (ownEditSeller ? [ownEditSeller] : []) : editSellers;
   const visibleEditAssistants = isAssistantEditing && !isOwnDuplicatedQuote ? (ownEditAssistant ? [ownEditAssistant] : []) : editAssistants;
   const ldRequestsQuery = trpc.ldRequests.adminList.useQuery(undefined, {
     enabled: user?.role === "admin",
-    staleTime: 0,
+    staleTime: 60_000,
   });
   const attachLdPdfMutation = trpc.ldRequests.adminAttachPdf.useMutation({
     onSuccess: async () => {

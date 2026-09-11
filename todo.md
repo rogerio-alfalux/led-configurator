@@ -3639,3 +3639,8 @@
 - [x] Corrigir a edição do preço de driver para persistir somente a própria linha, sem alterar a luminária
 - [x] Propagar o preço de driver editado ao orçamento, preview, PDF e Excel
 - [x] Cobrir a correção por regressão e salvar checkpoint reversível
+
+## Desempenho: Meus Orçamentos, Dashboard e detalhe de orçamento
+- [x] Medir consultas, cálculos e renderizações que retardam as páginas autenticadas
+- [x] Aplicar otimizações seguras sem alterar regras comerciais ou dados salvos
+- [x] Validar tempo de resposta, dados críticos e regressões antes de salvar checkpoint reversível
