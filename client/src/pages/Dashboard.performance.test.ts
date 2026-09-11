@@ -10,4 +10,10 @@ describe("carregamento progressivo do Dashboard", () => {
     expect(source).toContain('enabled: !!user && isAdmin && !managerLoading && insightsRequested');
     expect(source).toContain('Carregar análise detalhada');
   });
+
+  it("apresenta faturamento por empresa somente a partir dos dados filtrados do Dashboard gerencial", () => {
+    expect(source).toContain("invoicedByCompany");
+    expect(source).toContain("Faturamento por Empresa");
+    expect(source).toContain("Notas faturadas");
+  });
 });

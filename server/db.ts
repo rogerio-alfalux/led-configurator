@@ -2350,6 +2350,31 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     .groupBy(quotes.seller1Name)
     .orderBy(desc(sql`sum(cast(totalFinal as decimal(14,2)))`));
 
+  const invoicedQuotes = await db.select({
+    id: quotes.id,
+    status: quotes.status,
+    billingCompany: quotes.billingCompany,
+    destState: quotes.destState,
+    rtPercent: quotes.rtPercent,
+    marginPercent: quotes.marginPercent,
+    discountPercent: quotes.discountPercent,
+    freteValue: quotes.freteValue,
+    freteIncluded: quotes.freteIncluded,
+    freteIsento: quotes.freteIsento,
+    diluicaoValor: quotes.diluicaoValor,
+    difalEnabled: quotes.difalEnabled,
+  }).from(quotes).where(invoicedCondition);
+  const invoicedCommercialTotals = await getEffectiveCommercialTotalsForQuotes(db, invoicedQuotes);
+  const invoicedByCompany = Array.from(invoicedQuotes.reduce((companies, quote) => {
+    const billingCompany = quote.billingCompany ? String(quote.billingCompany).toUpperCase() : "NÃO INFORMADA";
+    const current = companies.get(billingCompany) ?? { billingCompany, count: 0, totalAmount: 0 };
+    current.count += 1;
+    current.totalAmount += invoicedCommercialTotals.get(quote.id) ?? 0;
+    companies.set(billingCompany, current);
+    return companies;
+  }, new Map<string, { billingCompany: string; count: number; totalAmount: number }>()).values())
+    .sort((a, b) => b.totalAmount - a.totalAmount);
+
   // ── Metas ─────────────────────────────────────────────────────────────────
   const goals = await getSalesGoalsByYear(year);
   const manualBillings = await getMonthlyBillingsByYear(year);
@@ -2369,6 +2394,7 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
     invoicedTotals,
     monthlyInvoiced,
     invoicedBySeller,
+    invoicedByCompany,
     familyRanking: (familyRanking as any[])[0] as Array<{
       categoria: string;
       qtdItens: number;

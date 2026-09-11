@@ -15,5 +15,7 @@ describe("valor comercial da revisão efetiva", () => {
     expect(source).toContain("totalsByQuoteId");
     expect(source).toContain("commercialTotalsByQuoteId");
     expect(source).toContain("summary.approvedAmount += total");
+    expect(source).toContain("invoicedCommercialTotals");
+    expect(source).toContain("invoicedByCompany");
   });
 });

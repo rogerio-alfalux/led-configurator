@@ -1789,7 +1789,9 @@
 - [x] QuoteDetail.tsx: trava — status "Faturado" só habilitado se status atual for "approved"
 - [x] QuoteDetail.tsx: exibir orderNumber e billingCompany no cabeçalho do orçamento
 - [x] Ficha de produção (orderSummary.ts): campo Pedido usa orderNumber em vez do número do orçamento
-- [ ] Dashboard: exibir breakdown de faturamento por empresa (billingCompany)
+- [x] Dashboard: exibir breakdown de faturamento por empresa (billingCompany)
+- [x] Dashboard: expor e renderizar totais de faturamento por empresa preservando os filtros ativos
+- [x] Dashboard: cobrir o detalhamento por empresa e salvar checkpoint reversível
 
 ## Pré-visualização do Pedido de Fábrica (29/06/2026)
 
