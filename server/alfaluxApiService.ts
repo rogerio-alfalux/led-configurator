@@ -545,6 +545,7 @@ export function invalidateAlfaluxCache(): void {
   cache = null;
   revendaCache = null;
   acessoriosCache = null;
+  customizadosCache = null;
 }
 
 // ── Revenda ───────────────────────────────────────────────────────────────────────────────────
@@ -727,6 +728,14 @@ interface CustomizadosCacheEntry {
 }
 
 let customizadosCache: CustomizadosCacheEntry | null = null;
+let customizadosFetchInFlight: Promise<CustomizadoProduct[]> | null = null;
+
+export function isCustomizadosCacheFresh(
+  cache: CustomizadosCacheEntry | null,
+  now = Date.now(),
+): boolean {
+  return Boolean(cache?.data.length && now - cache.fetchedAt < AUXILIARY_CATALOG_CACHE_TTL_MS);
+}
 
 /** Mantém somente dados que já vieram com sucesso da API, nunca catálogo local. */
 export function recoverCustomizadosAfterApiFailure(cache: CustomizadosCacheEntry | null): CustomizadoProduct[] {
@@ -735,12 +744,20 @@ export function recoverCustomizadosAfterApiFailure(cache: CustomizadosCacheEntry
 
 export async function fetchCustomizadosProducts(): Promise<CustomizadoProduct[]> {
   const now = Date.now();
-  if (customizadosCache && now - customizadosCache.fetchedAt < 0) {
+  if (customizadosCache && isCustomizadosCacheFresh(customizadosCache, now)) {
     return customizadosCache.data;
   }
 
-  console.log("[AlfaluxAPI] Buscando produtos customizados do endpoint principal /api/products/all...");
-  try {
+  if (customizadosFetchInFlight) {
+    try {
+      return await customizadosFetchInFlight;
+    } catch (error) {
+      return recoverCustomizadosAfterApiFailure(customizadosCache);
+    }
+  }
+
+  const freshFetch = (async (): Promise<CustomizadoProduct[]> => {
+    console.log("[AlfaluxAPI] Buscando produtos customizados do endpoint principal /api/products/all...");
     // Customizados são filtrados do endpoint principal com categoria === 'CUSTOMIZADOS'
     const allProducts = await fetchAllAlfaluxProducts();
     const customizados: CustomizadoProduct[] = allProducts
@@ -758,6 +775,11 @@ export async function fetchCustomizadosProducts(): Promise<CustomizadoProduct[]>
     console.log(`[AlfaluxAPI] ${customizados.length} produtos customizados encontrados.`);
     customizadosCache = { data: customizados, fetchedAt: now };
     return customizados;
+  })();
+
+  customizadosFetchInFlight = freshFetch;
+  try {
+    return await freshFetch;
   } catch (err) {
     console.warn(`[AlfaluxAPI] Erro ao buscar produtos customizados:`, err instanceof Error ? err.message : err);
     const lastKnownProducts = recoverCustomizadosAfterApiFailure(customizadosCache);
@@ -769,6 +791,8 @@ export async function fetchCustomizadosProducts(): Promise<CustomizadoProduct[]>
       return lastKnownProducts;
     }
     return [];
+  } finally {
+    if (customizadosFetchInFlight === freshFetch) customizadosFetchInFlight = null;
   }
 }
 

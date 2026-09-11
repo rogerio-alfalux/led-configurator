@@ -3,8 +3,10 @@ import { gzipSync } from "node:zlib";
 import {
   fetchAcessoriosProducts,
   fetchAllAlfaluxProducts,
+  fetchCustomizadosProducts,
   fetchRevendaProducts,
   invalidateAlfaluxCache,
+  isCustomizadosCacheFresh,
   isValidOfficialProductCatalog,
   normalizeAlfaluxComponentDescription,
   normalizeRevendaProduct,
@@ -141,6 +143,44 @@ describe("recuperação persistente do catálogo principal", () => {
 });
 
 describe("cache curto de catálogos auxiliares", () => {
+  it("considera Customizados recente somente dentro da janela do catálogo auxiliar", () => {
+    const entry = {
+      data: [{ sku: "CUS-001", name: "CUSTOMIZADO OFICIAL", descricao: null, familia: null, fotoUrl: null, precoVenda: null, clienteEspecifico: null, observacoes: null }],
+      fetchedAt: 1_000,
+    };
+
+    expect(isCustomizadosCacheFresh(entry, 1_000 + 59_999)).toBe(true);
+    expect(isCustomizadosCacheFresh(entry, 1_000 + 60_001)).toBe(false);
+  });
+
+  it("compartilha a mesma consulta oficial de Customizados entre chamadas simultâneas", async () => {
+    const officialProducts = Array.from({ length: 120 }, (_, index) => ({
+      sku: `CUS-${String(index + 1).padStart(3, "0")}`,
+      name: `CUSTOMIZADO OFICIAL ${index + 1}`,
+      categoria: "CUSTOMIZADOS",
+    }));
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/api/products/all")) {
+        return { ok: true, json: async () => ({ products: officialProducts }) };
+      }
+      if (url.includes("/api/componentes/all")) {
+        return { ok: true, json: async () => ({ items: [], tipos: [] }) };
+      }
+      throw new Error(`URL inesperada: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const [first, second] = await Promise.all([
+      fetchCustomizadosProducts(),
+      fetchCustomizadosProducts(),
+    ]);
+
+    expect(first).toHaveLength(120);
+    expect(second).toEqual(first);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/api/products/all"))).toHaveLength(1);
+  });
+
   it("reutiliza a resposta oficial de revenda durante a janela curta de consulta", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

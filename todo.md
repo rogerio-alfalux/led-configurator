@@ -3213,7 +3213,8 @@
 - [x] Corrigir a causa de falha de carregamento do catálogo sem liberar cálculos com dados incompletos
 - [x] Validar recuperação, tentativa manual e proteção diante de indisponibilidade transitória
 - [x] Comparar o ambiente de desenvolvimento à publicação e restaurar apenas a conectividade local
-- [ ] Evitar tentativas repetidas de Customizados durante falha transitória e preservar o último catálogo íntegro disponível
+- [x] Evitar tentativas repetidas de Customizados durante falha transitória e preservar o último catálogo íntegro disponível
+- [x] Concluir a resiliência de Customizados, validar e entregar checkpoint sem iniciar novas pendências
 
 ## Prévia comercial: colunas de comprimento, potência e foto
 - [x] Eliminar a sobreposição dos cabeçalhos Comprimento e Potência na prévia comercial
