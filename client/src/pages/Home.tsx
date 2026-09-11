@@ -3561,6 +3561,8 @@ export default function Home() {
   const [czSearch, setCzSearch] = useState<string>("");
   const [czQty, setCzQty] = useState<string>("1");
   const [czUnitPrice, setCzUnitPrice] = useState<string>("");
+  const [czColor, setCzColor] = useState<string>("");
+  const [czClient, setCzClient] = useState<string>("");
   const [czNotes, setCzNotes] = useState<string>("");
 
   const customizadosQuery = trpc.alfalux.customizadosProducts.useQuery();
@@ -3697,8 +3699,8 @@ export default function Home() {
         orderSummary: `${product.name} (${product.sku})`,
         quoteSummary: `${product.name} (${product.sku})`,
         specialInternalNotes: undefined,
-        corPeca: "",
-        itemNote: czNotes || undefined,
+        corPeca: czColor.trim(),
+        itemNote: [czClient.trim() ? `Cliente específico: ${czClient.trim()}` : null, czNotes.trim() || null].filter(Boolean).join(" · ") || undefined,
         itemEmPlanta: globalItemEmPlanta,
       };
       if (appendToQuoteId || replaceInQuoteId) {
@@ -3719,6 +3721,8 @@ export default function Home() {
       setCzSelectedKey("");
       setCzQty("1");
       setCzUnitPrice("");
+      setCzColor("");
+      setCzClient("");
       setCzNotes("");
       return;
     }
@@ -3744,8 +3748,8 @@ export default function Home() {
       orderSummary: czSearch.trim(),
       quoteSummary: czSearch.trim(),
       specialInternalNotes: undefined,
-      corPeca: "",
-      itemNote: czNotes || undefined,
+      corPeca: czColor.trim(),
+      itemNote: [czClient.trim() ? `Cliente específico: ${czClient.trim()}` : null, czNotes.trim() || null].filter(Boolean).join(" · ") || undefined,
       itemEmPlanta: globalItemEmPlanta,
     };
     if (appendToQuoteId || replaceInQuoteId) {
@@ -3766,6 +3770,8 @@ export default function Home() {
     setCzSearch("");
     setCzQty("1");
     setCzUnitPrice("");
+    setCzColor("");
+    setCzClient("");
     setCzNotes("");
     }, [czSelectedKey, czSelectedProduct, czSearch, czQty, czUnitPrice, czNotes, customizadosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, pendingAccessories, globalItemEmPlanta, globalPavimento, globalAmbiente]);
   // ── Estados de Não Orçamos ──────────────────────────────────────────────
@@ -9278,6 +9284,22 @@ export default function Home() {
                             placeholder="0,00"
                             value={czUnitPrice}
                             onChange={e => setCzUnitPrice(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-sm font-medium">Cor da peça</label>
+                          <Input
+                            placeholder="Ex.: Branco fosco"
+                            value={czColor}
+                            onChange={e => setCzColor(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-sm font-medium">Cliente específico</label>
+                          <Input
+                            placeholder="Cliente vinculado ao item"
+                            value={czClient}
+                            onChange={e => setCzClient(e.target.value)}
                           />
                         </div>
                         <div className="col-span-2 space-y-1">

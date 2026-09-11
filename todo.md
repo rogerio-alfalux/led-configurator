@@ -1806,9 +1806,10 @@
 - [x] Home.tsx: faixa horizontal "Customizados" abaixo das categorias existentes
 - [x] Home.tsx: ao clicar na faixa, exibir painel de configuração de produto customizado
 - [x] Home.tsx: buscar produtos com category="Customizados" da API e listar para seleção
-- [ ] Home.tsx: formulário de configuração (produto, qty, cor, observações, cliente específico)
-- [ ] cartTypes.ts: suporte a category="Customizados" no CartItemData
-- [ ] Excel/ficha de produção: tratar itens Customizados corretamente
+- [x] Home.tsx: formulário de configuração (produto, qty, cor, observações, cliente específico)
+- [x] cartTypes.ts: suporte a category="Customizados" no CartItemData
+- [x] Excel/ficha de produção: tratar itens Customizados corretamente
+- [x] Customizados: validar persistência e propagação ponta a ponta em orçamento e documentos
 
 ## Correção de Duplicação de Orçamento (29/06/2026)
 
