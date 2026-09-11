@@ -60,4 +60,14 @@ describe("pipeline visual do PDF oficial e LD", () => {
     expect(previewSource).toContain('["CLIENTE", formData.cliente || ""]');
     expect(previewSource).toContain('["E-MAIL", formData.email || ""]');
   });
+
+  it("encaminha os contatos do vendedor ativo selecionado do carrinho à prévia", () => {
+    expect(cartSource).toContain("const sellersQuery = trpc.sellers.list.useQuery()");
+    expect(cartSource).toContain("const visibleSellers = isSellerLogin ? (ownSeller ? [ownSeller] : []) : sellers");
+    expect(cartSource).toContain("{visibleSellers.map(s => (");
+    expect(cartSource).toContain("seller1Phone: sellers.find(s => String(s.id) === saveForm.seller1Id)?.phone || undefined");
+    expect(cartSource).toContain("seller1Email: sellers.find(s => String(s.id) === saveForm.seller1Id)?.email || undefined");
+    expect(previewSource).toContain("{formData.seller1Phone && <div>CONTATO: {formData.seller1Phone}</div>}");
+    expect(previewSource).toContain("{formData.seller1Email && <div>E-MAIL: {formData.seller1Email}</div>}");
+  });
 });

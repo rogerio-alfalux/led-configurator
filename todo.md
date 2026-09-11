@@ -151,9 +151,9 @@
 - [x] Cobrir a presença de vendedores ativos recém-cadastrados nos dados documentais de orçamento
 - [x] Propagar e-mail de vendedor selecionado ao preview, PDF e Excel do orçamento
 - [x] Cobrir os dados documentais de telefone e e-mail de ANALICE COSTA em orçamento gerado
-- [ ] Validar ANALICE COSTA no dropdown a partir da lista de vendedores ativos
-- [ ] Cobrir o fluxo de vendedor selecionado da lista ativa até preview, PDF e Excel
-- [ ] Cobrir especificamente o preview com ANALICE COSTA selecionada no formulário de orçamento
+- [x] Validar ANALICE COSTA no dropdown a partir da lista de vendedores ativos
+- [x] Cobrir o fluxo de vendedor selecionado da lista ativa até preview, PDF e Excel
+- [x] Cobrir especificamente o preview com ANALICE COSTA selecionada no formulário de orçamento
 - [x] URGENTE: Corrigir botão Baixar PDF — restaurar download direto via jsPDF (generateQuotePdf)
 - [x] Atualizar código da vendedora ANALICE COSTA para 35 no banco
 - [x] Persistir foto manual de Item Especial e exibi-la no carrinho, orçamento, PDF, Excel e consultas futuras
