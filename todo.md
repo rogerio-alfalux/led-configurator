@@ -3209,10 +3209,10 @@
 - [x] Cobrir configurações heterogêneas e quantidades de materiais com testes de regressão
 
 ## Catálogo da API Alfalux: indisponibilidade exibida
-- [ ] Verificar a disponibilidade atual da API, do proxy do Sistema Luna e o erro mostrado ao usuário
-- [ ] Corrigir a causa de falha de carregamento do catálogo sem liberar cálculos com dados incompletos
-- [ ] Validar recuperação, tentativa manual e proteção diante de indisponibilidade transitória
-- [ ] Comparar o ambiente de desenvolvimento à publicação e restaurar apenas a conectividade local
+- [x] Verificar a disponibilidade atual da API, do proxy do Sistema Luna e o erro mostrado ao usuário
+- [x] Corrigir a causa de falha de carregamento do catálogo sem liberar cálculos com dados incompletos
+- [x] Validar recuperação, tentativa manual e proteção diante de indisponibilidade transitória
+- [x] Comparar o ambiente de desenvolvimento à publicação e restaurar apenas a conectividade local
 - [ ] Evitar tentativas repetidas de Customizados durante falha transitória e preservar o último catálogo íntegro disponível
 
 ## Prévia comercial: colunas de comprimento, potência e foto
