@@ -28,6 +28,7 @@ import { appendQuoteGeneralObservation } from "./quoteDocumentObservation";
 import { formatProductStructureSummaryLines } from "./productStructure";
 import { getUnitPriceWithoutIpi } from "./quoteIpi";
 import { allocateDilutedAmount, calculateCombinedTaxAmount } from "./quoteTaxDilution";
+import { getCommercialBodyTotal, getEditableBodyUnitPrice } from "./splitItemPricing";
 
 // ── Cores do template ────────────────────────────────────────────────────────
 const BLUE      = "FF5B9BD5"; // Azul do template (cabeçalho tabela, número, data)
@@ -549,7 +550,7 @@ async function _generateExcelBuffer(
   // ── Diluição proporcional do frete ──────────────────────────────────────
   // Quando freteIncluded=true e freteValue>0, distribui o frete proporcionalmente
   // ao totalPrice de cada item (peso = totalPrice_i / soma_totalPrice_todos).
-  // Para itens com driverLines, totalPrice contém apenas luminaria; incluir drivers na base do frete
+  // Para itens com driverLines, corpo e drivers são resolvidos por suas fontes independentes.
   // Helper: calcula total de drivers de um item com fallback para driverUnitPrice*effectiveQty
   const calcItemDrvTotal = (it: CartItemData): number => {
     if (!it.driverLines || it.driverLines.length === 0) return 0;
@@ -565,18 +566,9 @@ async function _generateExcelBuffer(
       return sd + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
     }, 0);
   };
-  /**
-   * Retorna o preço base da luminária de um item (sem drivers).
-   * NOVA SEMÂNTICA: totalPrice = apenas luminária (drivers estão em driverLines separados).
-   * Para itens com driverLines, usa priceWithoutDriver ou totalPrice diretamente.
-   * Para itens sem driverLines, retorna totalPrice normalmente.
-   */
+  /** Retorna o preço base da luminária sem derivar por subtração de drivers. */
   const calcItemLumTotal = (it: CartItemData): number => {
-    if (!it.driverLines || it.driverLines.length === 0) return it.totalPrice ?? 0;
-    // priceWithoutDriver é o preço da luminária sem driver (campo canônico)
-    if (it.priceWithoutDriver != null && it.priceWithoutDriver > 0) return it.priceWithoutDriver;
-    // totalPrice agora é apenas luminária (nova semântica)
-    return it.totalPrice ?? 0;
+    return getCommercialBodyTotal(it);
   };
   const calcItemAccessoriesTotal = (it: CartItemData): number =>
     (it.accessories ?? []).reduce((sum, accessory) =>
@@ -954,17 +946,6 @@ async function _generateExcelBuffer(
       const diluicaoItem = _diluicaoParaDiluir > 0 ? _diluicaoParaDiluir * peso : 0;
       return _effectiveUnitPrice + (freteItem + diluicaoItem) / Math.max(it.qty, 1);
     };
-    // Para itens com driver desmembrado: usar unitPriceLuminaria;
-    // Fallback para itens legados: derivar unitPriceLuminaria = (totalPrice - driversTotalPrice) / qty
-    const _drvTotalForFallback = hasDriverBreakdownItem
-      ? (item.driverLines ?? []).reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0)
-      : 0;
-    const _derivedUnitLuminaria = (hasDriverBreakdownItem &&
-      item.unitPriceLuminaria == null &&
-      item.totalPrice != null && item.totalPrice > 0 &&
-      item.qty > 0)
-      ? (item.totalPrice - _drvTotalForFallback) / item.qty
-      : null;
     // Fator de diluição proporcional para este item (luminaria + drivers como base)
     const _itemTotalRealForDil = calcItemLumTotal(item) + calcItemDrvTotal(item);
     const _diluicaoFatorItem = (_diluicaoParaDiluir > 0 && _totalBaseParaFrete > 0)
@@ -983,7 +964,9 @@ async function _generateExcelBuffer(
     const _lumDiluicaoUnit = item.qty > 0 ? (_diluicaoFatorItem + _freteFatorItem) * _lumPeso / item.qty : 0;
     const _lumDifalFcpTotal = _itemDifalFcpFator * _lumPeso;
     const _lumDifalFcpUnit = item.qty > 0 ? _lumDifalFcpTotal / item.qty : 0;
-    const _baseUnitLuminaria = item.unitPriceLuminaria ?? _derivedUnitLuminaria ?? _effectiveUnitPrice;
+    const _baseUnitLuminaria = hasDriverBreakdownItem
+      ? getEditableBodyUnitPrice(item)
+      : _effectiveUnitPrice;
     const _unitForLuminaria = hasDriverBreakdownItem
       ? (_baseUnitLuminaria != null ? _baseUnitLuminaria + _lumDiluicaoUnit : _unitPriceComDiluicao(item))
       : _unitPriceComDiluicao(item);
@@ -1008,31 +991,11 @@ async function _generateExcelBuffer(
     }
 
     // N = PREÇO TOTAL (já com RT e Margem aplicados — valor final ao cliente; frete diluído se freteIncluded)
-    // Para itens com driver desmembrado: usar priceWithoutDriver × qty + totais de drivers.
-    // Itens antigos podem ter salvo apenas o valor unitário em priceWithoutDriver;
-    // detectamos isso comparando com unitPriceLuminaria e corrigimos multiplicando por qty.
+    // A linha principal representa exclusivamente o corpo da luminária.
     const cTotal = ws.getCell(`${totalPriceCol}${rowNum}`);
-    let _correctedPriceWithoutDriver: number | null = null;
-    if (hasDriverBreakdownItem) {
-      if (item.priceWithoutDriver != null) {
-        const isUnitValueOnly =
-          item.unitPriceLuminaria != null &&
-          Math.abs(item.priceWithoutDriver - item.unitPriceLuminaria) < 0.02 &&
-          item.qty > 1;
-        _correctedPriceWithoutDriver = isUnitValueOnly
-          ? item.unitPriceLuminaria! * item.qty
-          : item.priceWithoutDriver;
-      } else if (item.unitPriceLuminaria != null) {
-        // Fallback: priceWithoutDriver não salvo, mas unitPriceLuminaria disponível
-        _correctedPriceWithoutDriver = item.unitPriceLuminaria * item.qty;
-      }
-    }
-    // Fallback adicional para itens legados: se ainda não temos _correctedPriceWithoutDriver,
-    // derivar de totalPrice - driversTotalPrice (mesma lógica do fallback de unitPriceLuminaria)
-    if (_correctedPriceWithoutDriver == null && hasDriverBreakdownItem &&
-        item.totalPrice != null && item.totalPrice > 0) {
-      _correctedPriceWithoutDriver = Math.max(0, item.totalPrice - _drvTotalForFallback);
-    }
+    const _correctedPriceWithoutDriver = hasDriverBreakdownItem
+      ? getCommercialBodyTotal(item)
+      : null;
     // Fallback final: usa totalPrice (editado manualmente) como total da luminaria
     // Aplicar diluição + frete proporcionalmente ao peso da luminária no item
     const _lumDiluicaoTotal = (_diluicaoFatorItem + _freteFatorItem) * _lumPeso;

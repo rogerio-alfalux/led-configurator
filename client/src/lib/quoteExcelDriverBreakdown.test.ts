@@ -1,7 +1,7 @@
 import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
 import type { CartItemData, QuoteFormData } from "./cartTypes";
-import { migrateItemDrivers } from "./cartTypes";
+import { migrateItemDrivers, normalizeSplitCommercialPricing } from "./cartTypes";
 import { generateQuoteExcelBuffer } from "./quoteExcelGenerator";
 import { buildSplitDriverPricePatch } from "./splitItemPricing";
 
@@ -17,6 +17,47 @@ const form: QuoteFormData = {
 };
 
 describe("sub-linha comercial de driver de perfil", () => {
+  it("exporta separadamente o corpo corrigido e o driver sem propagar o preço negativo legado", async () => {
+    const item = normalizeSplitCommercialPricing({
+      category: "Perfis",
+      sku: "LLE-2580",
+      description: "EASY PRIME Embutir 18W 3000K DIM DALI 220Vac 589mm",
+      qty: 298,
+      unitPrice: 193.42,
+      unitPriceLuminaria: -1.579999999999883,
+      priceWithoutDriver: -470.8399999999651,
+      totalPrice: 57_639.16,
+      photoUrl: null,
+      custoCorpoBase: 69.08,
+      markupPadraoApi: 2.8,
+      driverLines: [{
+        driverCode: "EQ00509",
+        driverModel: "LED DRIVER 20W 200-500MA 15-42VDC DIP DALI 220V",
+        driverQty: 298,
+        driverUnitPrice: 195,
+        driverTotalPrice: 58_110,
+      }],
+    } as CartItemData);
+
+    const buffer = await generateQuoteExcelBuffer([item], form);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const worksheet = workbook.getWorksheet("Alfalux")!;
+    const bodyRow = Array.from({ length: worksheet.rowCount }, (_, index) => index + 1)
+      .find((row) => String(worksheet.getCell(`E${row}`).value ?? "").includes("EASY PRIME Embutir"));
+    const driverRow = Array.from({ length: worksheet.rowCount }, (_, index) => index + 1)
+      .find((row) => String(worksheet.getCell(`E${row}`).value ?? "").includes("↳ Driver: LED DRIVER 20W"));
+
+    expect(item.unitPriceLuminaria).toBe(193.42);
+    expect(item.priceWithoutDriver).toBe(57_639.16);
+    expect(item.totalPrice).toBe(115_749.16);
+    expect(bodyRow).toBeDefined();
+    expect(worksheet.getCell(`M${bodyRow}`).value).toBe(193.42);
+    expect(driverRow).toBeDefined();
+    expect(worksheet.getCell(`M${driverRow}`).value).toBe(195);
+    expect(worksheet.getCell(`N${driverRow}`).value).toBe(58_110);
+  });
+
   it("preserva a quantidade total persistida de cada modelo de driver", async () => {
     const item: CartItemData = {
       category: "Perfis",

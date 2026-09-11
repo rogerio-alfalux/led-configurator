@@ -8,9 +8,29 @@ const roundMoney = (value: number): number => Math.round(value * 100) / 100;
  */
 export function getEditableBodyUnitPrice(item: CartItemData): number | null {
   if (item.driverLines && item.driverLines.length > 0) {
-    return item.unitPriceLuminaria ?? item.unitPrice ?? null;
+    const qty = Math.max(1, item.qty ?? 1);
+    const candidates = [
+      item.unitPriceLuminaria,
+      item.priceWithoutDriver != null ? item.priceWithoutDriver / qty : null,
+      item.unitPrice,
+    ];
+    const validPrice = candidates.find(value => value != null && Number.isFinite(value) && value >= 0);
+    if (validPrice != null) return roundMoney(validPrice);
+    const markup = item.mkpCustom ?? item.markupPadraoApi;
+    if (item.custoCorpoBase != null && item.custoCorpoBase > 0 && markup != null && markup > 0) {
+      return roundMoney(item.custoCorpoBase * markup);
+    }
+    return null;
   }
-  return item.unitPrice ?? null;
+  return item.unitPrice == null ? null : roundMoney(Math.max(0, item.unitPrice));
+}
+
+export function getCommercialBodyTotal(item: CartItemData): number {
+  if (!item.driverLines || item.driverLines.length === 0) {
+    return roundMoney(Math.max(0, item.totalPrice ?? 0));
+  }
+  const unitPrice = getEditableBodyUnitPrice(item);
+  return unitPrice == null ? 0 : roundMoney(unitPrice * Math.max(0, item.qty ?? 0));
 }
 
 /**

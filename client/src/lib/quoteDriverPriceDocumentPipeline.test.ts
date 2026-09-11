@@ -17,4 +17,20 @@ describe("propagação comercial do preço de driver", () => {
     expect(pdf).toContain("(drv.driverUnitPrice ?? 0) * drvQty");
     expect(pdf).toContain("↳ Driver: ${drv.driverModel || drv.driverCode || \"\"}");
   });
+
+  it("usa a mesma fonte de preço do corpo e não o deriva por total menos drivers", async () => {
+    const [preview, pdf, excel] = await Promise.all([
+      source("../components/ExcelPreviewModal.tsx"),
+      source("./quotePdfGenerator.ts"),
+      source("./quoteExcelGenerator.ts"),
+    ]);
+
+    for (const documentSource of [preview, pdf, excel]) {
+      expect(documentSource).toContain("getCommercialBodyTotal");
+    }
+    expect(preview).toContain("getEditableBodyUnitPrice(item)");
+    expect(excel).toContain("getEditableBodyUnitPrice(item)");
+    expect(excel).not.toContain("_derivedUnitLuminaria");
+    expect(preview).not.toContain("_derivedUnitLum");
+  });
 });

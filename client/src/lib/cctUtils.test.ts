@@ -122,6 +122,33 @@ describe("applyCCTChange", () => {
 });
 
 describe("applyUnitPriceChange", () => {
+  it("impede preço negativo e limita o preço da luminária a duas casas decimais", () => {
+    const item = {
+      category: "Perfis",
+      sku: "LLE-2580",
+      description: "EASY PRIME",
+      qty: 298,
+      driverLines: [{
+        driverCode: "EQ00509",
+        driverModel: "LED DRIVER DALI",
+        driverQty: 298,
+        driverUnitPrice: 195,
+        driverTotalPrice: 58_110,
+      }],
+    } as CartItemData;
+
+    const rounded = applyUnitPriceChange(item, 193.41999999999996);
+    expect(rounded.unitPrice).toBe(193.42);
+    expect(rounded.unitPriceLuminaria).toBe(193.42);
+    expect(rounded.priceWithoutDriver).toBe(57_639.16);
+    expect(rounded.totalPrice).toBe(115_749.16);
+
+    const nonNegative = applyUnitPriceChange(item, -1.58);
+    expect(nonNegative.unitPrice).toBe(0);
+    expect(nonNegative.unitPriceLuminaria).toBe(0);
+    expect(nonNegative.totalPrice).toBe(58_110);
+  });
+
   it("atualiza o preço da luminária e recompõe o total com o driver", () => {
     const patch = applyUnitPriceChange(blazeItem, 35000, 12);
     expect(patch.unitPrice).toBe(35000);

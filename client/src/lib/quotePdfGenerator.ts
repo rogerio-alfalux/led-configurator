@@ -19,6 +19,7 @@ import { appendQuoteGeneralObservation } from "./quoteDocumentObservation";
 import { formatProductStructureSummaryLines } from "./productStructure";
 import { getUnitPriceWithoutIpi } from "./quoteIpi";
 import { allocateDilutedAmount } from "./quoteTaxDilution";
+import { getCommercialBodyTotal, getEditableBodyUnitPrice } from "./splitItemPricing";
 
 // ── Cores (mesmas do template Excel) ────────────────────────────────────────
 const BLUE_RGB      = [91, 155, 213]  as [number, number, number]; // #5B9BD5
@@ -120,12 +121,9 @@ async function _generatePdfBlob(
   );
 
   // ── Calcular totais (mesma lógica do quoteExcelGenerator) ──────────────────
-  // Para itens com driverLines: totalPrice = apenas luminária (sem drivers).
-  // Usar calcItemLumTotal + calcItemDrvTotal para evitar duplicação e aplicar itemMarginPercent.
+  // Corpo e drivers usam fontes comerciais independentes; nunca derivar corpo por subtração.
   const _pdfCalcItemLumTotal = (it: CartItemData): number => {
-    if (!it.driverLines || it.driverLines.length === 0) return it.totalPrice ?? 0;
-    if (it.priceWithoutDriver != null && it.priceWithoutDriver > 0) return it.priceWithoutDriver;
-    return it.totalPrice ?? 0;
+    return getCommercialBodyTotal(it);
   };
   const _pdfCalcItemDrvTotal = (it: CartItemData): number => {
     if (!it.driverLines || it.driverLines.length === 0) return 0;
@@ -354,8 +352,6 @@ async function _generatePdfBlob(
     const _pdfDiluicaoFatorItem = (_pdfDiluicaoParaDiluir > 0 && _pdfTotalBaseForFreteGlobal > 0)
       ? _pdfDiluicaoParaDiluir * (itemRaw / _pdfTotalBaseForFreteGlobal)
       : 0;
-    const lumTotal = item.totalPrice ?? 0;
-    const drvTotal = item.driverLines?.reduce((s, d) => s + (d.driverTotalPrice ?? 0), 0) ?? 0;
     const itemTotal = _pdfApplyItemDiscount(_pdfApplyGlobalMarkupGlobal(itemRaw + _pdfFreteFatorItem + _pdfDiluicaoFatorItem), item);
     const itemDifalFcp = allocateDilutedAmount(difalFcpToDilutePdf, itemTotal, totalFinal);
     const itemTotalWithTax = itemTotal + itemDifalFcp;
@@ -399,7 +395,17 @@ async function _generatePdfBlob(
     else { const m = desc.match(/(\d{2,3}[Vv])/); if (m) tensao = m[1].toUpperCase(); }
 
     const itemQty = item.qty ?? 1;
-    const originalItemUnit = itemQty > 0 ? itemTotalWithTax / itemQty : 0;
+    const bodyUnitRaw = item.driverLines?.length
+      ? (getEditableBodyUnitPrice(item) ?? 0)
+      : (itemQty > 0 ? lumRaw / itemQty : 0);
+    const bodyWeight = itemRaw > 0 ? lumRaw / itemRaw : 1;
+    const bodyAllocatedAdditions = (_pdfFreteFatorItem + _pdfDiluicaoFatorItem) * bodyWeight;
+    const bodyDifalFcp = itemDifalFcp * bodyWeight;
+    const bodyTotal = _pdfApplyItemDiscount(
+      _pdfApplyGlobalMarkupGlobal(_pdfApplyItemMgn(lumRaw + bodyAllocatedAdditions, item)),
+      item,
+    ) + bodyDifalFcp;
+    const originalItemUnit = itemQty > 0 ? bodyTotal / itemQty : bodyUnitRaw;
     tableBody.push([
       item.itemEmPlanta || "",
       "",  // foto — inserida via didDrawCell
@@ -415,7 +421,7 @@ async function _generatePdfBlob(
         itemTotal > 0 ? fmtBRL(getUnitPriceWithoutIpi(originalItemUnit)) : "—",
         itemTotal > 0 ? fmtBRL(originalItemUnit) : "—",
       ] : []),
-      itemTotalWithTax > 0 ? fmtBRL(itemTotalWithTax) : "—",
+      bodyTotal > 0 ? fmtBRL(bodyTotal) : "—",
     ]);
     rowMeta.push({ photoUrl: getPersistedItemPhotoUrl(item) || null });
 
@@ -428,7 +434,9 @@ async function _generatePdfBlob(
         const drvQty = _drvQtyPerUnit != null
           ? _drvQtyPerUnit * _iqty
           : (_storedDrvQty <= 1 ? _iqty : _storedDrvQty);
-        const _drvTotalRaw = (drv.driverUnitPrice ?? 0) * drvQty;
+        const _drvTotalRaw = drv.driverTotalPrice != null && drv.driverTotalPrice >= 0
+          ? drv.driverTotalPrice
+          : Math.round((drv.driverUnitPrice ?? 0) * drvQty * 100) / 100;
         // Peso do driver no item para distribuição do frete
         const _drvPeso = itemRaw > 0 ? _drvTotalRaw / itemRaw : 0;
         const _drvFreteFrac = _pdfFreteFatorItem * _drvPeso;

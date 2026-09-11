@@ -1,7 +1,62 @@
 import { describe, it, expect } from "vitest";
-import { enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers, migrateLegacyGlowCommercialItem, normalizeRv00064TechnicalConfiguration, parseCartItemData, selectApiTechnicalVariantForItem } from "./cartTypes";
+import { enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers, migrateLegacyGlowCommercialItem, normalizeRv00064TechnicalConfiguration, normalizeSplitCommercialPricing, parseCartItemData, selectApiTechnicalVariantForItem } from "./cartTypes";
 
 describe("parseCartItemData - correção de driverQty para perfis", () => {
+  it("recupera o preço do corpo sem subtrair novamente o driver e limita valores a duas casas", () => {
+    const result = normalizeSplitCommercialPricing({
+      category: "Perfis",
+      sku: "LLE-2580",
+      description: "EASY PRIME Embutir 18W 3000K DIM DALI 220Vac 589mm",
+      qty: 298,
+      unitPrice: 193.42,
+      unitPriceLuminaria: -1.579999999999883,
+      priceWithoutDriver: -470.8399999999651,
+      totalPrice: 57_639.16,
+      custoCorpoBase: 69.08,
+      markupPadraoApi: 2.8,
+      driverLines: [{
+        driverCode: "EQ00509",
+        driverModel: "LED DRIVER 20W 200-500MA 15-42VDC DIP DALI 220V",
+        driverQty: 298,
+        driverUnitPrice: 195,
+        driverTotalPrice: 58_110,
+      }],
+    } as any);
+
+    expect(result.unitPrice).toBe(193.42);
+    expect(result.unitPriceLuminaria).toBe(193.42);
+    expect(result.priceWithoutDriver).toBe(57_639.16);
+    expect(result.driverLines![0].driverUnitPrice).toBe(195);
+    expect(result.driverLines![0].driverTotalPrice).toBe(58_110);
+    expect(result.totalPrice).toBe(115_749.16);
+  });
+
+  it("usa custo do corpo multiplicado pelo markup quando todos os preços legados do corpo são negativos", () => {
+    const result = normalizeSplitCommercialPricing({
+      category: "Perfis",
+      sku: "LLE-2580",
+      description: "EASY PRIME",
+      qty: 298,
+      unitPrice: -1.579999999999883,
+      unitPriceLuminaria: -1.579999999999883,
+      priceWithoutDriver: -470.8399999999651,
+      totalPrice: 57_639.16,
+      custoCorpoBase: 69.08,
+      markupPadraoApi: 2.8,
+      driverLines: [{
+        driverCode: "EQ00509",
+        driverModel: "LED DRIVER DALI",
+        driverQty: 298,
+        driverUnitPrice: 195,
+        driverTotalPrice: 58_110,
+      }],
+    } as any);
+
+    expect(result.unitPriceLuminaria).toBe(193.42);
+    expect(result.priceWithoutDriver).toBe(57_639.16);
+    expect(result.totalPrice).toBe(115_749.16);
+  });
+
   it("corrige driverQty quando está salvo apenas por luminária (BLAZE 45700mm, 12 lum, 17 drv/lum)", () => {
     const item = {
       sku: "LLS-3945",

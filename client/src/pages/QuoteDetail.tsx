@@ -607,8 +607,8 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
                 value={currentMkp}
                 onChange={(e) => {
                   const v = parseFloat(e.target.value);
-                  const newPrice = Math.round(custoCorpo * v * 100) / 100;
-                  onUpdate(item.id, { mkpCustom: v, unitPrice: newPrice, totalPrice: Math.round(newPrice * d.qty * 100) / 100 });
+                  const newPrice = Math.round(Math.max(0, custoCorpo * v) * 100) / 100;
+                  onUpdate(item.id, { mkpCustom: v, unitPrice: newPrice });
                 }}
                 className="flex-1 accent-amber-600"
               />
@@ -622,8 +622,8 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
                   const v = parseFloat(e.target.value);
                   if (!isNaN(v)) {
                     const clamped = Math.min(Math.max(v, mkpMin), mkpMax);
-                    const newPrice = Math.round(custoCorpo * clamped * 100) / 100;
-                    onUpdate(item.id, { mkpCustom: clamped, unitPrice: newPrice, totalPrice: Math.round(newPrice * d.qty * 100) / 100 });
+                    const newPrice = Math.round(Math.max(0, custoCorpo * clamped) * 100) / 100;
+                    onUpdate(item.id, { mkpCustom: clamped, unitPrice: newPrice });
                   }
                 }}
                 className="w-20 text-center h-8"

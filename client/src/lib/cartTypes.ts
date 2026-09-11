@@ -1018,6 +1018,90 @@ function roundCommercialValue(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+function finiteNumber(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+/**
+ * Normaliza exclusivamente os valores comerciais de itens com driver separado.
+ *
+ * Registros legados podem guardar `totalPrice` como apenas o corpo e, ao mesmo
+ * tempo, já possuir `driverLines`. Subtrair novamente os drivers desse total
+ * produz corpo negativo. A fonte soberana passa a ser, nesta ordem: preço da
+ * luminária salvo, total do corpo salvo, unitPrice salvo e, somente quando há
+ * corrupção negativa, custo do corpo × markup já persistido no próprio item.
+ */
+export function normalizeSplitCommercialPricing(item: CartItemData): CartItemData {
+  if (!item.driverLines || item.driverLines.length === 0) return item;
+
+  const qty = Math.max(1, finiteNumber(item.qty) ?? 1);
+  const normalizedDriverLines = item.driverLines.map(line => {
+    const rawUnitPrice = finiteNumber(line.driverUnitPrice);
+    const driverUnitPrice = rawUnitPrice == null ? null : roundCommercialValue(Math.max(0, rawUnitPrice));
+    const driverQty = Math.max(0, finiteNumber(line.driverQty) ?? 0);
+    const rawTotalPrice = finiteNumber(line.driverTotalPrice);
+    const driverTotalPrice = driverUnitPrice != null
+      ? roundCommercialValue(driverUnitPrice * driverQty)
+      : rawTotalPrice == null
+        ? null
+        : roundCommercialValue(Math.max(0, rawTotalPrice));
+    return { ...line, driverUnitPrice, driverTotalPrice };
+  });
+
+  const bodyCandidates = [
+    finiteNumber(item.unitPriceLuminaria),
+    (() => {
+      const bodyTotal = finiteNumber(item.priceWithoutDriver);
+      return bodyTotal != null ? bodyTotal / qty : null;
+    })(),
+    finiteNumber(item.unitPrice),
+  ];
+  const storedBodyUnitPrice = bodyCandidates.find(value => value != null && value >= 0) ?? null;
+  const hasNegativeBodyValue = bodyCandidates.some(value => value != null && value < 0);
+  const bodyCost = finiteNumber(item.custoCorpoBase);
+  const markup = finiteNumber(item.mkpCustom) ?? finiteNumber(item.markupPadraoApi);
+  const markupBodyUnitPrice = hasNegativeBodyValue && bodyCost != null && bodyCost > 0 && markup != null && markup > 0
+    ? roundCommercialValue(bodyCost * markup)
+    : null;
+  const bodyUnitPrice = storedBodyUnitPrice != null
+    ? roundCommercialValue(storedBodyUnitPrice)
+    : markupBodyUnitPrice;
+
+  if (!hasNegativeBodyValue) {
+    const unitPrice = finiteNumber(item.unitPrice);
+    const unitPriceLuminaria = finiteNumber(item.unitPriceLuminaria);
+    const priceWithoutDriver = finiteNumber(item.priceWithoutDriver);
+    const totalPrice = finiteNumber(item.totalPrice);
+    return {
+      ...item,
+      driverLines: normalizedDriverLines,
+      ...(unitPrice != null ? { unitPrice: roundCommercialValue(Math.max(0, unitPrice)) } : {}),
+      ...(unitPriceLuminaria != null ? { unitPriceLuminaria: roundCommercialValue(Math.max(0, unitPriceLuminaria)) } : {}),
+      ...(priceWithoutDriver != null ? { priceWithoutDriver: roundCommercialValue(Math.max(0, priceWithoutDriver)) } : {}),
+      ...(totalPrice != null ? { totalPrice: roundCommercialValue(Math.max(0, totalPrice)) } : {}),
+    };
+  }
+
+  const bodyTotal = bodyUnitPrice == null ? null : roundCommercialValue(bodyUnitPrice * qty);
+  const driversTotal = roundCommercialValue(normalizedDriverLines.reduce(
+    (sum, line) => sum + (line.driverTotalPrice ?? 0),
+    0,
+  ));
+
+  return {
+    ...item,
+    driverLines: normalizedDriverLines,
+    ...(bodyUnitPrice != null ? {
+      unitPrice: bodyUnitPrice,
+      unitPriceLuminaria: bodyUnitPrice,
+      priceWithoutDriver: bodyTotal,
+      totalPrice: roundCommercialValue((bodyTotal ?? 0) + driversTotal),
+    } : {}),
+  };
+}
+
 /**
  * Reidrata os componentes técnicos próprios de acessórios SHIFT S01 já salvos.
  * A composição é sempre lida do SKU e CCT efetivamente retornados pela API;
@@ -1283,6 +1367,7 @@ export function migrateItemDrivers(
   correnteMap?: Map<string, string | null>,
   reverseDescMap?: Map<string, string>,
 ): CartItemData {
+  item = normalizeSplitCommercialPricing(item);
   // Preço comercial definido no orçamento é soberano. Diferentemente de custo,
   // modelo ou programação, ele não pode ser reidratado do catálogo da API.
   const hasManuallyEditedDriverPrice = item.driverLines?.some(line => line.driverPriceManual) ?? false;
@@ -1588,7 +1673,7 @@ export function migrateItemDrivers(
         enriched = { ...enriched, profileSegments: newSegs };
       }
     }
-    return normalizeDriverModels(enriched, descMap);
+    return normalizeDriverModels(normalizeSplitCommercialPricing(enriched), descMap);
   }
 
   // Migração 1: profileSegments com driverCode
@@ -1621,13 +1706,13 @@ export function migrateItemDrivers(
       ? totalPrice - totalDriverCost
       : (item.priceWithoutDriver ?? (totalPrice > 0 ? totalPrice - driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0) : null));
     const unitPriceLuminaria = priceWithoutDriver != null && itemQty > 0 ? priceWithoutDriver / itemQty : (item.unitPriceLuminaria ?? null);
-    return normalizeDriverModels({
+    return normalizeDriverModels(normalizeSplitCommercialPricing({
       ...item,
       driverLines,
       priceWithoutDriver: priceWithoutDriver ?? item.priceWithoutDriver,
       unitPriceLuminaria: unitPriceLuminaria ?? item.unitPriceLuminaria,
       luminariaHasApiPrice: totalDriverCost > 0 || (item.unitPriceLuminaria != null),
-    }, descMap);
+    }), descMap);
   }
 
   // Migração 2: accessories com drivers (EQ*) sem preço unitário
@@ -1656,13 +1741,13 @@ export function migrateItemDrivers(
     const totalPrice = item.totalPrice ?? 0;
     const priceWithoutDriver = totalPrice > 0 ? totalPrice - totalDriverCost : null;
     const unitPriceLuminaria = priceWithoutDriver != null && itemQty > 0 ? priceWithoutDriver / itemQty : (item.unitPriceLuminaria ?? null);
-    return normalizeDriverModels({
+    return normalizeDriverModels(normalizeSplitCommercialPricing({
       ...item,
       driverLines,
       priceWithoutDriver: priceWithoutDriver ?? item.priceWithoutDriver,
       unitPriceLuminaria: unitPriceLuminaria ?? item.unitPriceLuminaria,
       luminariaHasApiPrice: true,
-    }, descMap);
+    }), descMap);
   }
 
   // Migração 3: campo `drivers` (string legada)
@@ -1715,14 +1800,14 @@ export function migrateItemDrivers(
       const unitPriceLuminaria = priceWithoutDriver != null && itemQty > 0
         ? priceWithoutDriver / itemQty
         : (item.unitPriceLuminaria ?? null);
-      return {
+      return normalizeSplitCommercialPricing({
         ...item,
         driverLines,
         driverQtyPerUnit: resolvedDrvQtyPerUnit,
         priceWithoutDriver: priceWithoutDriver ?? item.priceWithoutDriver,
         unitPriceLuminaria: unitPriceLuminaria ?? item.unitPriceLuminaria,
         luminariaHasApiPrice: unitPrice != null,
-      };
+      });
     }
   }
 

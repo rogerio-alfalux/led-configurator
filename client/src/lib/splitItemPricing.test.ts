@@ -4,6 +4,7 @@ import {
   buildSplitBodyPricePatch,
   buildSplitDriverPricePatch,
   cloneCartItemData,
+  getCommercialBodyTotal,
   getEditableBodyUnitPrice,
 } from "./splitItemPricing";
 
@@ -55,6 +56,55 @@ describe("preço desmembrado ao duplicar e editar itens", () => {
     expect(patch.driverLines![0].driverTotalPrice).toBe(2_800);
     expect(patch.driverLines![0].driverPriceManual).toBe(true);
     expect(patch.totalPrice).toBe(14_000);
+  });
+
+  it("não exibe preço negativo legado quando o corpo possui preço comercial válido", () => {
+    const corruptedLegacyItem = {
+      ...itemWithDriver,
+      qty: 298,
+      unitPrice: 193.42,
+      unitPriceLuminaria: -1.579999999999883,
+      priceWithoutDriver: -470.8399999999651,
+      custoCorpoBase: 69.08,
+      markupPadraoApi: 2.8,
+    };
+
+    expect(getEditableBodyUnitPrice(corruptedLegacyItem)).toBe(193.42);
+    expect(getCommercialBodyTotal(corruptedLegacyItem)).toBe(57_639.16);
+  });
+
+  it("ao editar o driver preserva 193,42 na luminária mesmo se o campo separado legado estiver negativo", () => {
+    const corruptedLegacyItem: CartItemData = {
+      ...itemWithDriver,
+      qty: 298,
+      unitPrice: 193.42,
+      unitPriceLuminaria: -1.579999999999883,
+      priceWithoutDriver: -470.8399999999651,
+      driverLines: [{
+        driverCode: "EQ00509",
+        driverModel: "LED DRIVER DALI",
+        driverQty: 298,
+        driverUnitPrice: 54,
+        driverTotalPrice: 16_092,
+      }],
+    };
+
+    const patch = buildSplitDriverPricePatch(corruptedLegacyItem, 0, 195);
+
+    expect(patch.unitPrice).toBeUndefined();
+    expect(patch.priceWithoutDriver).toBe(57_639.16);
+    expect(patch.driverLines![0].driverUnitPrice).toBe(195);
+    expect(patch.driverLines![0].driverTotalPrice).toBe(58_110);
+    expect(patch.totalPrice).toBe(115_749.16);
+  });
+
+  it("arredonda o preço editado do driver sem alterar o preço do corpo", () => {
+    const patch = buildSplitDriverPricePatch(itemWithDriver, 0, 195.009999999);
+
+    expect(patch.driverLines![0].driverUnitPrice).toBe(195.01);
+    expect(patch.driverLines![0].driverTotalPrice).toBe(2_730.14);
+    expect(patch.priceWithoutDriver).toBe(11_200);
+    expect(patch.unitPrice).toBeUndefined();
   });
 
   it("isola os dados aninhados da duplicata", () => {

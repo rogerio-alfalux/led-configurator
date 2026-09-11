@@ -19,6 +19,7 @@ import { getQuotePreviewColumnCount, getQuotePreviewColumnWidths, QUOTE_PREVIEW_
 import { appendQuoteGeneralObservation } from "@/lib/quoteDocumentObservation";
 import { getUnitPriceWithoutIpi } from "@/lib/quoteIpi";
 import { allocateDilutedAmount } from "@/lib/quoteTaxDilution";
+import { getCommercialBodyTotal, getEditableBodyUnitPrice } from "@/lib/splitItemPricing";
 import { QuoteExportOptionsDialog } from "@/components/QuoteExportOptionsDialog";
 
 // ── Helpers (mesmos do gerador Excel) ────────────────────────────────────────
@@ -465,13 +466,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
           return sd + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
         }, 0)
       : 0;
-    // Para itens com driverLines: usar priceWithoutDriver (luminária sem driver)
-    // Para itens sem driverLines: usar totalPrice normalmente
-    const lumT = (it.driverLines && it.driverLines.length > 0)
-      ? (it.priceWithoutDriver != null && it.priceWithoutDriver > 0
-          ? it.priceWithoutDriver
-          : Math.max(0, (it.totalPrice ?? 0) - drvT))
-      : (it.totalPrice ?? 0);
+    const lumT = getCommercialBodyTotal(it);
     return s + _applyItemMgnPreview(lumT + drvT + getAccessoriesTotal(it), it);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, 0), [sortedItems]);
@@ -479,11 +474,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
     const drvT = (it.driverLines && it.driverLines.length > 0)
       ? it.driverLines.reduce((sd, d) => sd + (d.driverTotalPrice ?? 0), 0)
       : 0;
-    const lumT = (it.driverLines && it.driverLines.length > 0)
-      ? (it.priceWithoutDriver != null && it.priceWithoutDriver > 0
-          ? it.priceWithoutDriver
-          : Math.max(0, (it.totalPrice ?? 0) - drvT))
-      : (it.totalPrice ?? 0);
+    const lumT = getCommercialBodyTotal(it);
     return s + _applyItemDiscPreview(_applyItemMgnPreview(lumT + drvT + getAccessoriesTotal(it), it), it);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, 0), [sortedItems]);
@@ -518,11 +509,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
           return sd + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
         }, 0)
       : 0;
-    const lumT = (it.driverLines && it.driverLines.length > 0)
-      ? (it.priceWithoutDriver != null && it.priceWithoutDriver > 0
-          ? it.priceWithoutDriver
-          : Math.max(0, (it.totalPrice ?? 0) - drvT))
-      : (it.totalPrice ?? 0);
+    const lumT = getCommercialBodyTotal(it);
     return lumT + drvT + getAccessoriesTotal(it);
   };
 
@@ -983,18 +970,9 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           <td style={{ ...tdStyle, fontWeight: "bold" }}>{item.qty}</td>
                           {/* Preço da luminária (sem driver) + diluição proporcional */}
                           {(() => {
-                            // Fallback para itens legados: derivar unitPriceLuminaria = (totalPrice - driversTotalPrice) / qty
-                            const _drvTotalPreview = (item.driverLines ?? []).reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
-                            const _derivedUnitLum = (item.unitPriceLuminaria == null && item.totalPrice != null && item.totalPrice > 0 && item.qty > 0)
-                              ? (item.totalPrice - _drvTotalPreview) / item.qty
-                              : null;
-                            const _effectiveUnitLum = item.unitPriceLuminaria ?? _derivedUnitLum;
-                            // Corrigir itens antigos onde priceWithoutDriver foi salvo como valor unitário
-                            const _pwd = item.priceWithoutDriver ?? 0;
-                            const _upl = _effectiveUnitLum ?? 0;
+                            const _effectiveUnitLum = getEditableBodyUnitPrice(item);
                             const _qty = item.qty ?? 1;
-                            const _isUnit = _upl > 0 && Math.abs(_pwd - _upl) < 0.02 && _qty > 1;
-                            const _correctedTotal = _isUnit ? _upl * _qty : (_pwd > 0 ? _pwd : Math.max(0, (item.totalPrice ?? 0) - _drvTotalPreview));
+                            const _correctedTotal = getCommercialBodyTotal(item);
                             // Diluição proporcional: peso = total real do item / totalBase
                             const _itemTotalReal = getItemTotalReal(item);
                             const _lumPeso = _itemTotalReal > 0 ? _correctedTotal / _itemTotalReal : 1;
@@ -1143,7 +1121,9 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           : (_storedDrvQty <= 1 ? _iqty : _storedDrvQty);
                         // Diluição proporcional ao peso do driver neste item
                         const _itemTotalRealDrv = getItemTotalReal(item);
-                        const _drvTotalPrice = (drv.driverUnitPrice ?? 0) * _effectiveDrvQty;
+                        const _drvTotalPrice = drv.driverTotalPrice != null && drv.driverTotalPrice >= 0
+                          ? drv.driverTotalPrice
+                          : Math.round((drv.driverUnitPrice ?? 0) * _effectiveDrvQty * 100) / 100;
                         const _drvPeso = _itemTotalRealDrv > 0 ? _drvTotalPrice / _itemTotalRealDrv : 0;
                         const _diluicaoFatorDrv = (diluicaoParaDiluir > 0 && totalBase > 0)
                           ? diluicaoParaDiluir * (_itemTotalRealDrv / totalBase)
