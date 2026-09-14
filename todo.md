@@ -3706,3 +3706,9 @@
 - [x] Auditar a variante FRIZZ e confirmar o custo oficial atualizado retornado pela API
 - [x] Corrigir o mapeamento que impede a formação do preço quando a API retorna apenas custo e markup
 - [x] Validar cálculo, carrinho e regressões sem reprecificar orçamentos históricos
+
+## Revenda: custo oficial no catálogo e margens
+- [x] Confirmar o novo campo de custo transmitido pela API nos produtos da categoria Revenda
+- [x] Propagar o custo oficial de Revenda até os cálculos de margem e lucro com prioridade sobre estimativas
+- [x] Preservar preços de venda e orçamentos históricos, sem reprecificação automática
+- [x] Cobrir catálogo, cálculos financeiros e permissões por regressão antes do checkpoint reversível

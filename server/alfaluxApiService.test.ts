@@ -39,6 +39,20 @@ describe("normalizeAlfaluxComponentDescription", () => {
 });
 
 describe("normalizeRevendaProduct", () => {
+  it("lê diretamente o novo campo custo publicado no catálogo oficial de Revenda", () => {
+    const product = normalizeRevendaProduct({
+      codigo: "RV00001",
+      descricao: "SPOT LED MR16 GU10 6W",
+      referencia: null,
+      fornecedor: "FORNECEDOR",
+      fotoUrl: null,
+      precoVenda: 258.4,
+      custo: 103.36,
+    });
+
+    expect(product).toMatchObject({ codigo: "RV00001", custo: 103.36, precoVenda: 258.4 });
+  });
+
   it("normaliza campos alternativos de custo publicados pela API de revenda", () => {
     const product = normalizeRevendaProduct({
       codigo: "RV00032",
@@ -218,6 +232,22 @@ describe("cache curto de catálogos auxiliares", () => {
     await fetchRevendaProducts();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserva no catálogo interno o custo recebido diretamente da rota pública de Revenda", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        products: [{ codigo: "RV00001", descricao: "SPOT LED MR16 GU10 6W", referencia: null, fornecedor: null, fotoUrl: null, precoVenda: 258.4, custo: 103.36 }],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const products = await fetchRevendaProducts();
+
+    expect(products).toEqual([
+      expect.objectContaining({ codigo: "RV00001", precoVenda: 258.4, custo: 103.36 }),
+    ]);
   });
 
   it("mescla o custo da rota autenticada no catálogo público de Revenda", async () => {

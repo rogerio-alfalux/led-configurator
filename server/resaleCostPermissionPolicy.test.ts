@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const routerSource = readFileSync(new URL("./routers.ts", import.meta.url), "utf8");
+const dbSource = readFileSync(new URL("./db.ts", import.meta.url), "utf8");
 const homeSource = readFileSync(new URL("../client/src/pages/Home.tsx", import.meta.url), "utf8");
 const detailSource = readFileSync(new URL("../client/src/pages/QuoteDetail.tsx", import.meta.url), "utf8");
 
@@ -12,6 +13,12 @@ describe("política de custos oficiais de Revenda e acesso limitado", () => {
     expect(officialCostIndex).toBeGreaterThan(0);
     expect(manualCostIndex).toBeGreaterThan(officialCostIndex);
     expect(routerSource).toContain("source: 'api_revenda'");
+
+    const dashboardStart = dbSource.indexOf("for (const quote of approvedQuotes)");
+    const dashboardOfficialCostIndex = dbSource.indexOf("const custoRevenda =", dashboardStart);
+    const dashboardManualCostIndex = dbSource.indexOf("const custoManual = getManualUnitCost", dashboardStart);
+    expect(dashboardOfficialCostIndex).toBeGreaterThan(dashboardStart);
+    expect(dashboardManualCostIndex).toBeGreaterThan(dashboardOfficialCostIndex);
   });
 
   it("mantém o custo protegido no servidor sem substituir o preço de venda", () => {

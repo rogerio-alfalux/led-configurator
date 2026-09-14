@@ -1992,6 +1992,17 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
         const qty = Number(data.qty ?? 1);
         const sku = (data.sku ?? '').toUpperCase();
 
+        // Revenda passa a publicar o custo oficial diretamente no catálogo.
+        // Esse valor vigente é a fonte prioritária para margens e lucro, antes
+        // de custos manuais antigos, valores persistidos ou estimativas.
+        const revenda = revendaBySku.get(sku);
+        const custoRevenda = Number(revenda?.custo ?? 0);
+        if (custoRevenda > 0) {
+          custoProdutos += custoRevenda * qty;
+          temCusto = true;
+          continue;
+        }
+
         const custoManual = getManualUnitCost(data.custoManual);
         if (custoManual > 0) {
           custoProdutos += custoManual * qty;
@@ -2096,13 +2107,6 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
         }
 
         // 4. Buscar na API de produtos pelo SKU
-        const revenda = revendaBySku.get(sku);
-        const custoRevenda = Number(revenda?.custo ?? 0);
-        if (custoRevenda > 0) {
-          custoProdutos += custoRevenda * qty;
-          temCusto = true;
-          continue;
-        }
         const product = productBySku.get(sku);
         if (!product) {
           // 4a. Buscar como componente pelo código EQ/CP

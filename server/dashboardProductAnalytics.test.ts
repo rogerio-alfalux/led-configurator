@@ -65,6 +65,19 @@ describe("buildDashboardProductAnalytics", () => {
     expect(analytics.products[0]).toMatchObject({ sku: "RV00032", knownCostAmount: 2_328 });
   });
 
+  it("prioriza o custo oficial vigente de revenda sobre custo manual antigo", () => {
+    const analytics = buildDashboardProductAnalytics([{
+      id: 32, status: "approved", createdInPeriod: true, closedInPeriod: true, lostInPeriod: false,
+      totalFinal: 4_539,
+      items: [{ itemNumber: 1, itemData: JSON.stringify({
+        sku: "RV00032", description: "LUMINÁRIA DE REVENDA", category: "Revenda", qty: 75,
+        unitPrice: 60.52, totalPrice: 4_539, custoManual: 99.99,
+      }) }],
+    }], { products: [], components: [], accessories: [], revendas: [{ codigo: "RV00032", precoVenda: 60.52, custo: 31.04 }] });
+
+    expect(analytics.products[0]).toMatchObject({ sku: "RV00032", knownCostAmount: 2_328 });
+  });
+
   it("trata margem negativa como perda somente quando o custo é confirmado", () => {
     const analytics = buildDashboardProductAnalytics([{
       id: 4, status: "approved", createdInPeriod: true, closedInPeriod: true, lostInPeriod: false,

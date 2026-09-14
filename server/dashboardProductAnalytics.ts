@@ -116,10 +116,15 @@ function getItemCost(data: any, quoteMarginPercent: unknown, catalogs: ProductAn
   if ((category === "LED BAR" || category === "BAGEO") && linearLengthMm > 0 && linearLengthMm < 100) {
     return { amount: null, estimated: false };
   }
-  const manual = getManualUnitCost(data.custoManual);
-  if (manual > 0) return { amount: rounded(manual * qty), estimated: false };
-  const confirmedApiCost = getConfirmedApiUnitCost(data.custoApiConfirmado);
-  if (confirmedApiCost > 0) return { amount: rounded(confirmedApiCost * qty), estimated: false };
+  const revendaBySku = new Map(catalogs.revendas.filter((item) => item?.codigo ?? item?.sku).map((item) => [String(item.codigo ?? item.sku).trim().toUpperCase(), item]));
+  const officialRevenda = revendaBySku.get(sku);
+  const officialRevendaUnitCost = amount(officialRevenda?.custo);
+  if (officialRevendaUnitCost <= 0) {
+    const manual = getManualUnitCost(data.custoManual);
+    if (manual > 0) return { amount: rounded(manual * qty), estimated: false };
+    const confirmedApiCost = getConfirmedApiUnitCost(data.custoApiConfirmado);
+    if (confirmedApiCost > 0) return { amount: rounded(confirmedApiCost * qty), estimated: false };
+  }
 
   const estimatedSpecialCost = () => {
     const margin = Math.max(0, amount(quoteMarginPercent));
@@ -131,7 +136,6 @@ function getItemCost(data: any, quoteMarginPercent: unknown, catalogs: ProductAn
   const componentByCode = new Map(catalogs.components.filter((item) => item?.codigo).map((item) => [String(item.codigo).toUpperCase(), item]));
   const accessoryByCode = new Map(catalogs.accessories.filter((item) => item?.codigo).map((item) => [String(item.codigo).toUpperCase(), item]));
   const accessoryBySku = new Map(catalogs.accessories.filter((item) => item?.sku).map((item) => [String(item.sku).toUpperCase(), item]));
-  const revendaBySku = new Map(catalogs.revendas.filter((item) => item?.codigo).map((item) => [String(item.codigo).toUpperCase(), item]));
 
   let linkedAccessoriesCost = 0;
   let linkedAccessoriesCostConfirmed = true;
@@ -177,8 +181,7 @@ function getItemCost(data: any, quoteMarginPercent: unknown, catalogs: ProductAn
       : { amount: null, estimated: false };
   }
 
-  const revenda = revendaBySku.get(sku);
-  if (amount(revenda?.custo) > 0) return { amount: rounded(amount(revenda.custo) * qty + linkedAccessoriesCost), estimated: false };
+  if (officialRevendaUnitCost > 0) return { amount: rounded(officialRevendaUnitCost * qty + linkedAccessoriesCost), estimated: false };
   const component = componentByCode.get(sku);
   if (amount(component?.custoDriver) > 0) return { amount: rounded(amount(component.custoDriver) * qty + linkedAccessoriesCost), estimated: false };
   const accessory = accessoryByCode.get(sku) ?? accessoryBySku.get(sku);
