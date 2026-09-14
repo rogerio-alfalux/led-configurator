@@ -189,7 +189,27 @@ export async function collectCompleteDatabaseSnapshot(): Promise<BackupTableSnap
   }
 }
 
-let activeBackupPromise: Promise<BackupExecutionResult> | null = null;
+/**
+ * Serializa gerações sem fundir solicitações distintas. Uma solicitação manual
+ * feita enquanto o agendamento está em andamento deve aguardar sua vez e criar
+ * seus próprios arquivos e registros no histórico, nunca reutilizar o resultado
+ * de outro acionamento.
+ */
+export function createSerializedTaskQueue() {
+  let tail: Promise<void> = Promise.resolve();
+
+  return function enqueue<T>(task: () => Promise<T>): Promise<T> {
+    const execution = tail.then(task);
+    // Uma falha não pode bloquear as próximas tentativas de backup.
+    tail = execution.then(
+      () => undefined,
+      () => undefined,
+    );
+    return execution;
+  };
+}
+
+const enqueueBackup = createSerializedTaskQueue();
 
 async function executeCompleteBackup(options?: {
   cronTaskUid?: string | null;
@@ -289,9 +309,5 @@ export function generateAndStoreCompleteBackup(options?: {
   trigger?: "automatic" | "manual";
   now?: Date;
 }): Promise<BackupExecutionResult> {
-  if (activeBackupPromise) return activeBackupPromise;
-  activeBackupPromise = executeCompleteBackup(options).finally(() => {
-    activeBackupPromise = null;
-  });
-  return activeBackupPromise;
+  return enqueueBackup(() => executeCompleteBackup(options));
 }

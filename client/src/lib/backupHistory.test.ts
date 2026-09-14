@@ -16,4 +16,14 @@ describe("histórico após backup manual", () => {
     const rows = [{ id: 2, createdAt: "2026-08-27T17:20:10.000Z" }];
     expect(mergeConfirmedBackupRows(rows, rows)).toHaveLength(1);
   });
+
+  it("mantém a confirmação local quando uma recarga atrasada ainda retorna a lista anterior", () => {
+    const staleServerRows = [{ id: 1, createdAt: "2026-08-27T13:12:36.000Z" }];
+    const locallyConfirmedRows = [
+      { id: 3, createdAt: "2026-08-27T17:20:10.000Z" },
+      { id: 2, createdAt: "2026-08-27T17:20:10.000Z" },
+    ];
+
+    expect(mergeConfirmedBackupRows(staleServerRows, locallyConfirmedRows).map(row => row.id)).toEqual([3, 2, 1]);
+  });
 });

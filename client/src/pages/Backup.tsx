@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -35,8 +35,12 @@ export default function Backup() {
     refetchOnWindowFocus: false,
     refetchInterval: 60_000, // atualiza a cada 1 min
   });
+  // Mantém visíveis os registros cuja gravação foi confirmada pelo próprio
+  // servidor enquanto uma recarga da lista ainda estiver em trânsito.
+  const [confirmedBackupRows, setConfirmedBackupRows] = useState<NonNullable<typeof backupListQuery.data>>([]);
   const runBackupNowMutation = trpc.backup.runNow.useMutation({
     onSuccess: async result => {
+      setConfirmedBackupRows(current => mergeConfirmedBackupRows(current, result.historyRows));
       utils.backup.list.setData(undefined, current =>
         mergeConfirmedBackupRows(current, result.historyRows),
       );
@@ -150,7 +154,10 @@ export default function Backup() {
     }
   };
 
-  const backups = backupListQuery.data ?? [];
+  const backups = useMemo(
+    () => mergeConfirmedBackupRows(backupListQuery.data, confirmedBackupRows),
+    [backupListQuery.data, confirmedBackupRows],
+  );
   const lastSuccess = backups.find(b => b.status === "success");
 
   return (

@@ -7,7 +7,10 @@ describe("botão Atualizar do backup", () => {
     const source = readFileSync(resolve(process.cwd(), "client/src/pages/Backup.tsx"), "utf-8");
     expect(source).toContain("trpc.backup.runNow.useMutation");
     expect(source).toContain("onClick={() => runBackupNowMutation.mutate()}");
+    expect(source).toContain("const [confirmedBackupRows, setConfirmedBackupRows]");
+    expect(source).toContain("setConfirmedBackupRows(current => mergeConfirmedBackupRows(current, result.historyRows))");
     expect(source).toContain("mergeConfirmedBackupRows(current, result.historyRows)");
+    expect(source).toContain("mergeConfirmedBackupRows(backupListQuery.data, confirmedBackupRows)");
     expect(source).toContain("await backupListQuery.refetch()");
     expect(source).toContain("Gerando o backup completo e salvando no histórico");
   });

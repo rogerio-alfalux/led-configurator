@@ -3,6 +3,7 @@ import {
   buildBackupCounts,
   buildCompleteSqlBackup,
   buildCompleteTsvBackup,
+  createSerializedTaskQueue,
   escapeBackupSqlValue,
   getBrasiliaBackupStamp,
   type BackupTableSnapshot,
@@ -63,5 +64,30 @@ describe("backupService", () => {
   it("gera nomes no horário de Brasília e escapa binários", () => {
     expect(getBrasiliaBackupStamp(new Date("2026-08-27T15:30:45.000Z"))).toBe("2026-08-27-12-30-45");
     expect(escapeBackupSqlValue(Buffer.from([0xde, 0xad]))).toBe("0xdead");
+  });
+
+  it("preserva um registro próprio para cada solicitação concorrente de backup", async () => {
+    const enqueue = createSerializedTaskQueue();
+    const started: string[] = [];
+    let releaseFirst: (() => void) | undefined;
+    const firstGate = new Promise<void>(resolve => { releaseFirst = resolve; });
+
+    const first = enqueue(async () => {
+      started.push("automatic");
+      await firstGate;
+      return "automatic";
+    });
+    const second = enqueue(async () => {
+      started.push("manual");
+      return "manual";
+    });
+
+    await Promise.resolve();
+    expect(started).toEqual(["automatic"]);
+    releaseFirst?.();
+
+    await expect(first).resolves.toBe("automatic");
+    await expect(second).resolves.toBe("manual");
+    expect(started).toEqual(["automatic", "manual"]);
   });
 });
