@@ -235,6 +235,8 @@ describe("cache curto de catálogos auxiliares", () => {
   });
 
   it("preserva no catálogo interno o custo recebido diretamente da rota pública de Revenda", async () => {
+    ENV.alfaluxApiEmail = "conta-tecnica@grupoalfalux.com.br";
+    ENV.alfaluxApiPassword = "segredo-de-teste";
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -248,9 +250,10 @@ describe("cache curto de catálogos auxiliares", () => {
     expect(products).toEqual([
       expect.objectContaining({ codigo: "RV00001", precoVenda: 258.4, custo: 103.36 }),
     ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("mescla o custo da rota autenticada no catálogo público de Revenda", async () => {
+  it("mantém a rota autenticada como fallback quando o catálogo público ainda omite todos os custos", async () => {
     ENV.alfaluxApiEmail = "conta-tecnica@grupoalfalux.com.br";
     ENV.alfaluxApiPassword = "segredo-de-teste";
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {

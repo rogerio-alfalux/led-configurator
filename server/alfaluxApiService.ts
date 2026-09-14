@@ -702,7 +702,13 @@ export async function fetchRevendaProducts(): Promise<RevendaProduct[]> {
       .map(product => normalizeRevendaProduct(product as RevendaProduct & Record<string, unknown>));
 
     let all = publicProducts;
-    if (ENV.alfaluxApiEmail && ENV.alfaluxApiPassword) {
+    const publicCatalogHasOfficialCosts = publicProducts.some(product => Number(product.custo ?? 0) > 0);
+    // O catálogo público agora publica o custo oficial de Revenda. Quando ao
+    // menos um custo válido está presente, a resposta pública é a fonte
+    // canônica e pode ser entregue imediatamente aos Dashboards. A consulta
+    // autenticada permanece somente como compatibilidade com o contrato antigo,
+    // no qual a rota pública omitia todos os custos.
+    if (!publicCatalogHasOfficialCosts && ENV.alfaluxApiEmail && ENV.alfaluxApiPassword) {
       try {
         const protectedProducts = await fetchAuthenticatedRevendaProducts();
         all = mergeRevendaProductsWithOfficialCosts(publicProducts, protectedProducts);

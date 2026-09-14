@@ -2224,6 +2224,7 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
           const d = typeof row.itemData === 'string' ? JSON.parse(row.itemData) : row.itemData;
           const sku = (d.sku ?? '').toUpperCase();
           // Tem custo se: custo técnico confirmado/salvo ou encontrado na API.
+          if (Number(revendaBySku.get(sku)?.custo ?? 0) > 0) return true;
           if (getManualUnitCost(d.custoManual) > 0 || getConfirmedApiUnitCost(d.custoApiConfirmado) > 0) return true;
           if (Number(d.custoCorpoBase ?? 0) > 0) return true;
           if (d.isSpecialItem || d.category === 'Item Especial' || d.category === 'especial') {

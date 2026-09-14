@@ -3712,3 +3712,11 @@
 - [x] Propagar o custo oficial de Revenda até os cálculos de margem e lucro com prioridade sobre estimativas
 - [x] Preservar preços de venda e orçamentos históricos, sem reprecificação automática
 - [x] Cobrir catálogo, cálculos financeiros e permissões por regressão antes do checkpoint reversível
+
+## Varredura histórica: custos oficiais de Revenda nos Dashboards
+- [x] Inventariar todos os itens de Revenda nas revisões efetivas desde o primeiro orçamento e cruzar por código com o catálogo oficial atual
+- [x] Aplicar o custo oficial vigente de Revenda somente durante os cálculos de lucro do Dashboard do orçamento e do Dashboard geral
+- [x] Garantir que nenhum orçamento, item, preço de venda, revisão, status ou documento seja atualizado ou regravado
+- [x] Medir a redução de orçamentos dependentes de custo estimado antes e depois da correção
+- [x] Cobrir a varredura histórica, a prioridade do custo oficial e a imutabilidade comercial por regressão
+- [x] Validar a suíte completa e salvar checkpoint reversível

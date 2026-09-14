@@ -19,6 +19,12 @@ describe("política de custos oficiais de Revenda e acesso limitado", () => {
     const dashboardManualCostIndex = dbSource.indexOf("const custoManual = getManualUnitCost", dashboardStart);
     expect(dashboardOfficialCostIndex).toBeGreaterThan(dashboardStart);
     expect(dashboardManualCostIndex).toBeGreaterThan(dashboardOfficialCostIndex);
+
+    const knownRevenueStart = dbSource.indexOf("const vendasComCusto = approvedQuotes");
+    const knownRevenueResaleIndex = dbSource.indexOf("revendaBySku.get(sku)?.custo", knownRevenueStart);
+    const knownRevenueManualIndex = dbSource.indexOf("getManualUnitCost(d.custoManual)", knownRevenueStart);
+    expect(knownRevenueResaleIndex).toBeGreaterThan(knownRevenueStart);
+    expect(knownRevenueManualIndex).toBeGreaterThan(knownRevenueResaleIndex);
   });
 
   it("mantém o custo protegido no servidor sem substituir o preço de venda", () => {
