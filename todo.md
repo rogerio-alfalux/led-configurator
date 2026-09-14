@@ -1818,6 +1818,12 @@
 - [x] Autorizar Beatriz Calderon a preencher custos ausentes de Produtos Especiais e Revenda
 - [x] Preservar custos oficiais confirmados contra sobrescrita manual e validar permissões por regressão
 
+## Backup manual: geração e histórico confiáveis
+- [ ] Reproduzir a falha do botão de backup e auditar geração, armazenamento e registro no histórico
+- [ ] Confirmar sucesso do backup manual somente após arquivos e registros persistidos serem verificáveis
+- [ ] Atualizar o histórico imediatamente após uma geração manual confirmada e apresentar erro recuperável em caso de falha
+- [ ] Cobrir geração manual, persistência, atualização de interface e falhas por regressão
+
 ## Correção de Duplicação de Orçamento (29/06/2026)
 
 - [x] Ao duplicar orçamento, gerar novo número sequencial no formato correto (sem prefixo ORC...)
