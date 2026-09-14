@@ -3701,3 +3701,8 @@
 - [x] Confirmar no catálogo oficial a variante LED BAR U de 7,5 W/m e seu CCT 1700K
 - [x] Exibir 7,5 W/m como potência e restringir essa variante ao CCT 1700K
 - [x] Validar cálculo, carrinho, orçamento e documentos por regressão antes do checkpoint reversível
+
+## FRIZZ: custo oficial da API e precificação
+- [x] Auditar a variante FRIZZ e confirmar o custo oficial atualizado retornado pela API
+- [x] Corrigir o mapeamento que impede a formação do preço quando a API retorna apenas custo e markup
+- [x] Validar cálculo, carrinho e regressões sem reprecificar orçamentos históricos

@@ -238,7 +238,7 @@ function driverQtyFor(
  * Retorna o preço unitário do produto para o controle/tensão selecionados.
  * Retorna null se o preço não estiver cadastrado.
  */
-function getPrecoForControle(
+export function getPrecoForControle(
   product: {
     precoOnOff220?: number | null; precoOnOffBivolt?: number | null;
     precoDim110v?: number | null; precoDimDali?: number | null;
@@ -11552,7 +11552,11 @@ export default function Home() {
               const bProd = activeBalizadoresCatalog.find(p => p.sku === _bSku && p.name === _bNP.join('::'));
               if (!bProd) return null;
               const bPhoto = bProd.sku ? adaptedCatalogs?.balizadoresFotos?.[bProd.sku] ?? null : null;
-              const bPreco = bProd.precoOnOff220 ?? null;
+              // Balizadores sem driver, como a FRIZZ, podem ter apenas custo e
+              // markup oficiais na API. Reutilizar o resolvedor comercial evita
+              // deixar o preço vazio quando ainda não existe precoOnOff direto.
+              const bTensao = bProd.driverBivolt?.model ? 'Bivolt' : (bProd.tensaoEmbutida ?? '220V');
+              const bPreco = getPrecoForControle(bProd, 'ON/OFF', bTensao);
               // Driver por produto: bivolt se disponível, senão 220V, senão null (sem driver)
               const bDriverInfo = bProd.semDriver ? null
                 : (bProd.driverBivolt?.model ? bProd.driverBivolt
@@ -11677,7 +11681,6 @@ export default function Home() {
                           className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                           disabled={isAddingToCart}
                           onClick={() => {
-                            const bTensao = bProd.driverBivolt?.model ? 'Bivolt' : '220V';
                             const bDrvLines = bDriverInfo ? buildLumDriverLines(bProd.sku ?? "", 'ON/OFF', bTensao, globalQty, bDriverInfo.model, bDriverInfo.code ?? "", lumPriceMap, bProd.name ?? undefined, bDriverInfo.corrente ?? null) : null;
                             const item: CartItemData = {
                               category: "Balizadores",
