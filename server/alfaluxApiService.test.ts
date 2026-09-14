@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { gzipSync } from "node:zlib";
+import { ENV } from "./_core/env";
 import {
   fetchAcessoriosProducts,
   fetchAllAlfaluxProducts,
@@ -8,15 +9,23 @@ import {
   invalidateAlfaluxCache,
   isCustomizadosCacheFresh,
   isValidOfficialProductCatalog,
+  mergeRevendaProductsWithOfficialCosts,
   normalizeAlfaluxComponentDescription,
   normalizeRevendaProduct,
 } from "./alfaluxApiService";
 
+const realAlfaluxApiEmail = ENV.alfaluxApiEmail;
+const realAlfaluxApiPassword = ENV.alfaluxApiPassword;
+
 beforeEach(() => {
+  ENV.alfaluxApiEmail = "";
+  ENV.alfaluxApiPassword = "";
   invalidateAlfaluxCache();
 });
 
 afterEach(() => {
+  ENV.alfaluxApiEmail = realAlfaluxApiEmail;
+  ENV.alfaluxApiPassword = realAlfaluxApiPassword;
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -55,6 +64,21 @@ describe("normalizeRevendaProduct", () => {
     });
 
     expect(product.custo).toBeUndefined();
+  });
+
+  it("mescla somente o custo oficial protegido do mesmo código de Revenda", () => {
+    const publicProducts = [
+      normalizeRevendaProduct({ codigo: "RV00064", descricao: "POWER BEAM", referencia: null, fornecedor: null, fotoUrl: null, precoVenda: 476.15 }),
+      normalizeRevendaProduct({ codigo: "RV00065", descricao: "SEM CUSTO", referencia: null, fornecedor: null, fotoUrl: null, precoVenda: 100 }),
+    ];
+    const protectedProducts = [
+      normalizeRevendaProduct({ codigo: "rv00064", descricao: "POWER BEAM", referencia: null, fornecedor: null, fotoUrl: null, precoVenda: 476.15, custo: 190.46 }),
+    ];
+
+    const merged = mergeRevendaProductsWithOfficialCosts(publicProducts, protectedProducts);
+
+    expect(merged[0]).toMatchObject({ codigo: "RV00064", custo: 190.46, precoVenda: 476.15 });
+    expect(merged[1]?.custo).toBeUndefined();
   });
 });
 
@@ -194,6 +218,57 @@ describe("cache curto de catálogos auxiliares", () => {
     await fetchRevendaProducts();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("mescla o custo da rota autenticada no catálogo público de Revenda", async () => {
+    ENV.alfaluxApiEmail = "conta-tecnica@grupoalfalux.com.br";
+    ENV.alfaluxApiPassword = "segredo-de-teste";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith("/api/revenda/all")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            products: [{ codigo: "RV00064", descricao: "POWER BEAM", referencia: null, fornecedor: null, fotoUrl: null, precoVenda: 476.15 }],
+          }),
+        } as Response;
+      }
+      if (url.endsWith("/api/trpc/auth.login")) {
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers({ "set-cookie": "alfalux_session=sessao-teste; Path=/; HttpOnly" }),
+          json: async () => ({ result: { data: { json: { success: true } } } }),
+        } as Response;
+      }
+      if (url.includes("/api/trpc/revenda.list")) {
+        expect((init?.headers as Record<string, string>)?.Cookie).toBe("alfalux_session=sessao-teste");
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          json: async () => ({
+            result: {
+              data: {
+                json: {
+                  items: [{ codigo: "RV00064", descricao: "POWER BEAM", referencia: null, fornecedor: null, fotoUrl: null, precoVenda: 476.15, custo: 190.46 }],
+                  total: 1,
+                },
+              },
+            },
+          }),
+        } as Response;
+      }
+      throw new Error(`URL inesperada: ${url}`);
+    });
+
+    const products = await fetchRevendaProducts();
+
+    expect(products).toEqual([
+      expect.objectContaining({ codigo: "RV00064", precoVenda: 476.15, custo: 190.46 }),
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("compartilha a mesma requisição de acessórios entre consultas simultâneas do Dashboard", async () => {

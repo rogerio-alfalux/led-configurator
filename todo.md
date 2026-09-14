@@ -1811,6 +1811,13 @@
 - [x] Excel/ficha de produção: tratar itens Customizados corretamente
 - [x] Customizados: validar persistência e propagação ponta a ponta em orçamento e documentos
 
+## Custos oficiais de Revenda e permissão de Beatriz Calderon
+- [x] Auditar o custo de Revenda no orçamento 04.0452-26 e comparar com a resposta oficial da API
+- [x] Priorizar sempre o custo oficial da API para produtos de Revenda quando o valor existir
+- [x] Deixar custo pendente somente quando a API realmente não retornar custo válido
+- [x] Autorizar Beatriz Calderon a preencher custos ausentes de Produtos Especiais e Revenda
+- [x] Preservar custos oficiais confirmados contra sobrescrita manual e validar permissões por regressão
+
 ## Correção de Duplicação de Orçamento (29/06/2026)
 
 - [x] Ao duplicar orçamento, gerar novo número sequencial no formato correto (sem prefixo ORC...)
@@ -3541,7 +3548,7 @@
 - [x] Auditar o item 1, o custo persistido e o custo oficial retornado pela API
 - [x] Atualizar exclusivamente o custo técnico confirmado, preservando preço e demais dados comerciais
 - [x] Validar o recálculo do Dashboard de Lucro e salvar checkpoint reversível
-- [ ] Corrigir a integração de revenda para obter custos cadastrados por rota autenticada, sem depender do payload público incompleto
+- [x] Corrigir a integração de revenda para obter custos cadastrados por rota autenticada, sem depender do payload público incompleto
 
 ## Drivers de perfis FL — orçamento 35.0012-26
 - [x] Auditar o item 1 e a variante técnica oficial do perfil FL na API

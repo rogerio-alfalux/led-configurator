@@ -5021,7 +5021,8 @@ export default function QuoteDetail() {
 
         {/* Dashboard de Lucro por Orçamento — também usado pelo Departamento de Custos */}
         {(() => {
-          const isCostPriv = hasQuotePermission(PERMISSIONS.VER_CUSTOS);
+          const isCostPriv = hasQuotePermission(PERMISSIONS.VER_CUSTOS)
+            || hasQuotePermission(PERMISSIONS.EDITAR_CUSTOS_ESPECIAIS_REVENDA);
           const isCostDepartment = (user as any)?.role === "custos";
           if (!isCostPriv && !isCostDepartment) return null;
 
@@ -5528,6 +5529,8 @@ function QuoteProfitDashboard({ quoteId, quote, user, recalculatedRevenue }: Quo
   const [editingCustoItem, setEditingCustoItem] = useState<number | null>(null);
   const [custoManualInput, setCustoManualInput] = useState("");
   const isCostDepartment = (user as any)?.role === "custos";
+  const isLimitedCostEditor = Array.isArray((user as any)?.permissions)
+    && (user as any).permissions.includes(PERMISSIONS.EDITAR_CUSTOS_ESPECIAIS_REVENDA);
 
   const additionalCosts = costsQuery.data ?? [];
   const totalAdditionalCosts = additionalCosts.reduce((s, c) => s + parseFloat(String(c.valor)), 0);
@@ -5704,7 +5707,7 @@ function QuoteProfitDashboard({ quoteId, quote, user, recalculatedRevenue }: Quo
                 ) : (
                   <span className="text-red-600 font-medium">Sem custo</span>
                 )}
-                {editingCustoItem === item.itemNumber ? (
+                {(isCostDepartment || !isLimitedCostEditor || costQuery.data?.limitedManualCostItemNumbers?.includes(item.itemNumber)) && (editingCustoItem === item.itemNumber ? (
                   <div className="flex items-center gap-1">
                     <Input
                       value={custoManualInput}
@@ -5751,14 +5754,14 @@ function QuoteProfitDashboard({ quoteId, quote, user, recalculatedRevenue }: Quo
                   >
                     Definir custo
                   </Button>
-                )}
+                ))}
               </div>
             ))}
           </div>
         )}
 
         {/* Botão para gerenciar custos adicionais */}
-        {!isCostDepartment && <div className="flex justify-end">
+        {!isCostDepartment && !isLimitedCostEditor && <div className="flex justify-end">
           <Button
             variant="outline"
             size="sm"
@@ -5771,7 +5774,7 @@ function QuoteProfitDashboard({ quoteId, quote, user, recalculatedRevenue }: Quo
         </div>}
 
         {/* Dialog para gerenciar custos adicionais */}
-        {!isCostDepartment && <Dialog open={addCostOpen} onOpenChange={setAddCostOpen}>
+        {!isCostDepartment && !isLimitedCostEditor && <Dialog open={addCostOpen} onOpenChange={setAddCostOpen}>
           <DialogContent className="max-w-sm">
             <DialogHeader>
               <DialogTitle>Custos Adicionais</DialogTitle>

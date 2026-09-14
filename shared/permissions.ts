@@ -9,6 +9,8 @@ export const PERMISSIONS = {
   EDITAR_PRECOS_DRIVER: "editar_precos_driver",
   /** Pode ver custos, markup e dashboard de lucro por orçamento */
   VER_CUSTOS: "ver_custos",
+  /** Pode editar custos ausentes somente em Produtos Especiais e Revenda */
+  EDITAR_CUSTOS_ESPECIAIS_REVENDA: "editar_custos_especiais_revenda",
   /** Pode definir/alterar descontos globais e por item */
   EDITAR_DESCONTOS: "editar_descontos",
   /** Pode ver e editar comissão sem limite (gerente) */
@@ -35,6 +37,7 @@ export const ALL_PERMISSIONS: { key: Permission; label: string; description: str
   { key: PERMISSIONS.EDITAR_PRECOS, label: "Editar Preços", description: "Sobrescrever preços de produtos da API" },
   { key: PERMISSIONS.EDITAR_PRECOS_DRIVER, label: "Editar Preços Driver", description: "Editar preço unitário de drivers" },
   { key: PERMISSIONS.VER_CUSTOS, label: "Ver Custos/Lucro", description: "Ver custos, markup e dashboard de lucro" },
+  { key: PERMISSIONS.EDITAR_CUSTOS_ESPECIAIS_REVENDA, label: "Editar Custos de Especiais e Revenda", description: "Preencher custos ausentes somente em Produtos Especiais e Revenda" },
   { key: PERMISSIONS.EDITAR_DESCONTOS, label: "Editar Descontos", description: "Definir/alterar descontos globais e por item" },
   { key: PERMISSIONS.EDITAR_COMISSAO, label: "Editar Comissão", description: "Ver e editar comissão sem limite" },
   { key: PERMISSIONS.VER_DASHBOARD, label: "Ver Dashboard", description: "Acessar o dashboard gerencial" },

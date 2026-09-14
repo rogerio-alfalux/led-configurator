@@ -23,6 +23,19 @@ export function isCostDepartmentEligibleForManualCost(item: unknown): boolean {
   return !confirmedCostFields.some((value) => Number(value) > 0);
 }
 
+/** Restringe editores comerciais nomeados às duas categorias autorizadas. */
+export function isSpecialOrResaleEligibleForManualCost(item: unknown): boolean {
+  if (!isCostDepartmentEligibleForManualCost(item)) return false;
+  const data = item as Record<string, unknown>;
+  const category = String(data.category ?? "").trim().toLocaleLowerCase("pt-BR");
+  const sku = String(data.sku ?? "").trim().toUpperCase();
+  return data.isSpecialItem === true
+    || category === "item especial"
+    || category === "especial"
+    || category === "revenda"
+    || sku.startsWith("RV");
+}
+
 /** @deprecated Use isCostDepartmentEligibleForManualCost. */
 export function isSpecialItemEligibleForManualCost(item: unknown): boolean {
   return isCostDepartmentEligibleForManualCost(item);

@@ -95,7 +95,7 @@ import { getLdRequestDeadlineValidationError } from "../shared/ldRequestDeadline
 import { generateAndStoreCompleteBackup } from "./backupService";
 import { getQuoteStatusAuthorizationError } from "./quoteStatusPolicy";
 import { getUserCreationRoleAuthorizationError } from "../shared/userCreationAccess";
-import { isCostDepartmentEligibleForManualCost, isCostDepartmentRole } from "../shared/costDepartmentAccess";
+import { isCostDepartmentEligibleForManualCost, isCostDepartmentRole, isSpecialOrResaleEligibleForManualCost } from "../shared/costDepartmentAccess";
 import { isCommercialQuoteNumber } from "../shared/quoteNumberFormat";
 import { isFactoryOrderReadOnlyForQuoteStatus } from "../shared/factoryOrderReadOnly";
 
@@ -1849,7 +1849,8 @@ export const appRouter = router({
     calculateCost: commercialQuoteProcedure
       .input(z.object({ quoteId: z.number() }))
       .query(async ({ ctx, input }) => {
-        const isPrivileged = await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.VER_CUSTOS);
+        const isPrivileged = await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.VER_CUSTOS)
+          || await hasExplicitUserPermission(ctx.user.id, PERMISSIONS.EDITAR_CUSTOS_ESPECIAIS_REVENDA);
         if (!isPrivileged) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito" });
         }
@@ -1897,6 +1898,7 @@ export const appRouter = router({
         let totalCusto = 0;
         let temCusto = false;
         const itemDetails: Array<{ itemNumber: number; sku: string; custoCorpo: number; custoDriver: number; qty: number; driverQty: number; subtotal: number; source: string }> = [];
+        const limitedManualCostItemNumbers = new Set<number>();
 
         for (const row of activeItems) {
           try {
@@ -1904,10 +1906,23 @@ export const appRouter = router({
             const sku = (data.sku ?? '').toUpperCase();
             const qty = Number(data.qty ?? 1);
 
+            // Em Revenda, o custo oficial vigente da API prevalece sobre custo
+            // manual antigo e sobre qualquer estimativa de preço de venda.
+            const officialResaleProduct = revendaBySku.get(sku);
+            const officialResaleCost = Number(officialResaleProduct?.custo ?? 0);
+            if (officialResaleCost > 0) {
+              const subtotal = officialResaleCost * qty;
+              totalCusto += subtotal;
+              temCusto = true;
+              itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: officialResaleCost, custoDriver: 0, qty, driverQty: 0, subtotal, source: 'api_revenda' });
+              continue;
+            }
+
             // Uma edição manual é deliberada e deve prevalecer sobre qualquer
             // valor calculado, mantendo o dashboard da revisão ativa sincronizado.
             const custoManual = getManualUnitCost(data.custoManual);
             if (custoManual > 0) {
+              if (isSpecialOrResaleEligibleForManualCost(data)) limitedManualCostItemNumbers.add(row.itemNumber);
               const subtotal = custoManual * qty;
               totalCusto += subtotal;
               temCusto = true;
@@ -1925,6 +1940,7 @@ export const appRouter = router({
 
             // Item Especial: usar custoManual se preenchido, senão estimar pela margem
             if (data.isSpecialItem || data.category === 'Item Especial' || data.category === 'especial') {
+              if (isSpecialOrResaleEligibleForManualCost(data)) limitedManualCostItemNumbers.add(row.itemNumber);
               // Estimar custo pela margem média: precoVenda / (1 + margem)
               const totalPrice = Number(data.totalPrice ?? 0);
               if (totalPrice > 0 && marginPercent > 0) {
@@ -2048,15 +2064,6 @@ export const appRouter = router({
             }
 
             // ── SEMPRE buscar custo na API pelo SKU (tempo real) ──
-            const revenda = revendaBySku.get(sku);
-            const custoRevenda = Number(revenda?.custo ?? 0);
-            if (custoRevenda > 0) {
-              const subtotal = custoRevenda * qty;
-              totalCusto += subtotal;
-              temCusto = true;
-              itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: custoRevenda, custoDriver: 0, qty, driverQty: 0, subtotal, source: 'api_revenda' });
-              continue;
-            }
             const product = selectApiProductForQuoteItem(products, sku, data.description);
             if (!product) {
               // Tentar buscar como componente pelo código EQ/CP na API de componentes
@@ -2080,6 +2087,7 @@ export const appRouter = router({
                 continue;
               }
               // Não encontrado em nenhuma API — tentar estimar pela margem
+              if (isSpecialOrResaleEligibleForManualCost(data)) limitedManualCostItemNumbers.add(row.itemNumber);
               const totalPrice = Number(data.totalPrice ?? 0);
               if (totalPrice > 0 && marginPercent > 0) {
                 const custoEstimado = totalPrice / (1 + marginPercent);
@@ -2161,6 +2169,7 @@ export const appRouter = router({
               temCusto = true;
               itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: calculatedCost.custoCorpo, custoDriver: calculatedCost.custoDriver, qty, driverQty, subtotal: calculatedCost.subtotal, source: data.category === 'BAGEO' ? 'api_bageo_corpo' : 'api' });
             } else {
+              if (isSpecialOrResaleEligibleForManualCost(data)) limitedManualCostItemNumbers.add(row.itemNumber);
               itemDetails.push({ itemNumber: row.itemNumber, sku, custoCorpo: 0, custoDriver: 0, qty, driverQty: 0, subtotal: 0, source: 'sem_custo_api' });
             }
           } catch {
@@ -2188,14 +2197,26 @@ export const appRouter = router({
             });
           }
         }
-        return { custoProdutos: totalCusto, temCusto, items: itemDetails, transferredCost, inboundTransfers };
+        return {
+          custoProdutos: totalCusto,
+          temCusto,
+          items: itemDetails,
+          limitedManualCostItemNumbers: Array.from(limitedManualCostItemNumbers),
+          transferredCost,
+          inboundTransfers,
+        };
       }),
     setCustoManual: protectedProcedure
       .input(z.object({ quoteId: z.number(), itemNumber: z.number(), custoManual: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        if (!canAccessCommercialQuotes(ctx.user.role)) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'LD Convidado não possui acesso a custos de orçamento.' });
+        const canViewCosts = await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.VER_CUSTOS)
+          || await hasExplicitUserPermission(ctx.user.id, PERMISSIONS.EDITAR_CUSTOS_ESPECIAIS_REVENDA);
+        if (!canAccessCommercialQuotes(ctx.user.role) || !canViewCosts) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Sem permissão para editar custos de orçamento.' });
         }
+        const isLimitedCostEditor = ctx.user.role !== 'admin'
+          && !isCostDepartmentRole(ctx.user.role)
+          && await hasExplicitUserPermission(ctx.user.id, PERMISSIONS.EDITAR_CUSTOS_ESPECIAIS_REVENDA);
         const db = await getDb();
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB unavailable' });
         // Buscar somente o item da revisão ativa — revisões históricas não podem
@@ -2216,6 +2237,9 @@ export const appRouter = router({
         const data = typeof item.itemData === 'string' ? JSON.parse(item.itemData) : (item.itemData ?? {});
         if (isCostDepartmentRole(ctx.user.role) && !isCostDepartmentEligibleForManualCost(data)) {
           throw new TRPCError({ code: 'FORBIDDEN', message: 'O Departamento de Custos só pode informar custo quando não houver custo confirmado pela API.' });
+        }
+        if (isLimitedCostEditor && !isSpecialOrResaleEligibleForManualCost(data)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Este acesso permite editar somente custos ausentes de Produtos Especiais e Revenda.' });
         }
         data.custoManual = input.custoManual;
         await db.update(quoteItems)
@@ -2998,7 +3022,8 @@ export const appRouter = router({
     list: protectedProcedure
       .input(z.object({ quoteId: z.number() }))
       .query(async ({ ctx, input }) => {
-        const isPrivileged = await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.VER_CUSTOS);
+        const isPrivileged = await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.VER_CUSTOS)
+          || await hasExplicitUserPermission(ctx.user.id, PERMISSIONS.EDITAR_CUSTOS_ESPECIAIS_REVENDA);
         if (!isPrivileged) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito" });
         }
@@ -3014,7 +3039,9 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const isPrivileged = await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.VER_CUSTOS);
-        if (!isPrivileged) {
+        const isLimitedCostEditor = ctx.user.role !== 'admin'
+          && await hasExplicitUserPermission(ctx.user.id, PERMISSIONS.EDITAR_CUSTOS_ESPECIAIS_REVENDA);
+        if (!isPrivileged || isLimitedCostEditor) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito" });
         }
         return createQuoteAdditionalCost(input.quoteId, input.descricao, input.valor, ctx.user.id);
@@ -3025,7 +3052,9 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const isPrivileged = await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.VER_CUSTOS);
-        if (!isPrivileged) {
+        const isLimitedCostEditor = ctx.user.role !== 'admin'
+          && await hasExplicitUserPermission(ctx.user.id, PERMISSIONS.EDITAR_CUSTOS_ESPECIAIS_REVENDA);
+        if (!isPrivileged || isLimitedCostEditor) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito" });
         }
         await deleteQuoteAdditionalCost(input.id);

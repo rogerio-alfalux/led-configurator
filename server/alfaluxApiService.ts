@@ -1,5 +1,6 @@
 import { gunzipSync, gzipSync } from "node:zlib";
 import { storageGetSignedUrl, storagePutStable } from "./storage";
+import { ENV } from "./_core/env";
 
 /**
  * alfaluxApiService.ts
@@ -546,6 +547,7 @@ export function invalidateAlfaluxCache(): void {
   revendaCache = null;
   acessoriosCache = null;
   customizadosCache = null;
+  alfaluxProtectedSessionCookie = null;
 }
 
 // ── Revenda ───────────────────────────────────────────────────────────────────────────────────
@@ -559,6 +561,90 @@ export interface RevendaProduct {
   precoVenda: number | null;
   /** Custo real do produto de revenda, quando a API o expõe. */
   custo?: number | null;
+}
+
+type RevendaListResponse = {
+  items?: Array<RevendaProduct & Record<string, unknown>>;
+  total?: number;
+};
+
+let alfaluxProtectedSessionCookie: string | null = null;
+
+function extractTrpcData<T>(payload: unknown): T | null {
+  if (!payload || typeof payload !== "object") return null;
+  const result = (payload as { result?: { data?: { json?: T } | T } }).result;
+  if (!result?.data) return null;
+  if (typeof result.data === "object" && result.data !== null && "json" in result.data) {
+    return (result.data as { json?: T }).json ?? null;
+  }
+  return result.data as T;
+}
+
+function getResponseCookie(response: Response): string | null {
+  const headersWithCookies = response.headers as Headers & { getSetCookie?: () => string[] };
+  const raw = headersWithCookies.getSetCookie?.()[0] ?? response.headers.get("set-cookie");
+  return raw?.split(";")[0]?.trim() || null;
+}
+
+async function loginAlfaluxProtectedCatalog(): Promise<string> {
+  const response = await fetch(`${ALFALUX_BASE}/api/trpc/auth.login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ json: { email: ENV.alfaluxApiEmail, password: ENV.alfaluxApiPassword } }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!response.ok) throw new Error(`Alfalux authenticated login failed: ${response.status}`);
+  const cookie = getResponseCookie(response);
+  if (!cookie) throw new Error("Alfalux authenticated login did not return a session cookie");
+  alfaluxProtectedSessionCookie = cookie;
+  return cookie;
+}
+
+async function fetchProtectedRevendaPage(offset: number, retry = true): Promise<RevendaListResponse> {
+  const cookie = alfaluxProtectedSessionCookie ?? await loginAlfaluxProtectedCatalog();
+  const input = encodeURIComponent(JSON.stringify({ json: { limit: 50, offset } }));
+  const response = await fetch(`${ALFALUX_BASE}/api/trpc/revenda.list?input=${input}`, {
+    headers: { Accept: "application/json", Cookie: cookie },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (response.status === 401 && retry) {
+    alfaluxProtectedSessionCookie = null;
+    return fetchProtectedRevendaPage(offset, false);
+  }
+  if (!response.ok) throw new Error(`Alfalux authenticated Revenda API error: ${response.status}`);
+  const data = extractTrpcData<RevendaListResponse>(await response.json());
+  if (!data?.items) throw new Error("Alfalux authenticated Revenda API returned an invalid payload");
+  return data;
+}
+
+export async function fetchAuthenticatedRevendaProducts(): Promise<RevendaProduct[]> {
+  if (!ENV.alfaluxApiEmail || !ENV.alfaluxApiPassword) return [];
+  const all: RevendaProduct[] = [];
+  let offset = 0;
+  let total = Number.POSITIVE_INFINITY;
+  while (offset < total) {
+    const page = await fetchProtectedRevendaPage(offset);
+    const items = page.items ?? [];
+    all.push(...items.map(product => normalizeRevendaProduct(product)));
+    total = Number(page.total ?? all.length);
+    if (items.length === 0) break;
+    offset += items.length;
+  }
+  return all;
+}
+
+export function mergeRevendaProductsWithOfficialCosts(
+  publicProducts: RevendaProduct[],
+  protectedProducts: RevendaProduct[],
+): RevendaProduct[] {
+  const protectedByCode = new Map(
+    protectedProducts.map(product => [String(product.codigo ?? "").trim().toUpperCase(), product]),
+  );
+  return publicProducts.map(product => {
+    const protectedProduct = protectedByCode.get(String(product.codigo ?? "").trim().toUpperCase());
+    const officialCost = Number(protectedProduct?.custo ?? 0);
+    return officialCost > 0 ? { ...product, custo: officialCost } : product;
+  });
 }
 
 /**
@@ -612,8 +698,18 @@ export async function fetchRevendaProducts(): Promise<RevendaProduct[]> {
     if (!res.ok) throw new Error(`Alfalux Revenda API error: ${res.status}`);
 
     const body = await res.json() as { count?: number; products?: RevendaProduct[] };
-    const all = (body.products ?? (Array.isArray(body) ? body as RevendaProduct[] : []))
+    const publicProducts = (body.products ?? (Array.isArray(body) ? body as RevendaProduct[] : []))
       .map(product => normalizeRevendaProduct(product as RevendaProduct & Record<string, unknown>));
+
+    let all = publicProducts;
+    if (ENV.alfaluxApiEmail && ENV.alfaluxApiPassword) {
+      try {
+        const protectedProducts = await fetchAuthenticatedRevendaProducts();
+        all = mergeRevendaProductsWithOfficialCosts(publicProducts, protectedProducts);
+      } catch (error) {
+        console.warn("[AlfaluxAPI] Custos protegidos de Revenda indisponíveis; mantendo apenas os dados oficiais disponíveis.", error);
+      }
+    }
 
     console.log(`[AlfaluxAPI] ${all.length} produtos de revenda carregados.`);
     revendaCache = { data: all, fetchedAt: Date.now() };

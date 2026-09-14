@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isCostDepartmentEligibleForManualCost, isSpecialItemWithoutRegisteredCost } from "../shared/costDepartmentAccess";
+import { isCostDepartmentEligibleForManualCost, isSpecialItemWithoutRegisteredCost, isSpecialOrResaleEligibleForManualCost } from "../shared/costDepartmentAccess";
 
 describe("acesso do Departamento de Custos", () => {
   it("permite corrigir um custo manual já informado em item sem custo oficial", () => {
@@ -17,5 +17,12 @@ describe("acesso do Departamento de Custos", () => {
   it("continua bloqueando qualquer item com custo confirmado pela API", () => {
     expect(isCostDepartmentEligibleForManualCost({ category: "Revenda", custoApiConfirmado: 340 })).toBe(false);
     expect(isCostDepartmentEligibleForManualCost({ category: "Downlights", custoCorpoBase: 340 })).toBe(false);
+  });
+
+  it("limita o editor comercial nomeado a Produtos Especiais e Revenda sem custo oficial", () => {
+    expect(isSpecialOrResaleEligibleForManualCost({ category: "Revenda", sku: "RV00064" })).toBe(true);
+    expect(isSpecialOrResaleEligibleForManualCost({ category: "Item Especial", isSpecialItem: true })).toBe(true);
+    expect(isSpecialOrResaleEligibleForManualCost({ category: "Downlights" })).toBe(false);
+    expect(isSpecialOrResaleEligibleForManualCost({ category: "Revenda", custoApiConfirmado: 190.46 })).toBe(false);
   });
 });

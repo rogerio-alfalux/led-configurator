@@ -9,6 +9,7 @@ describe("catálogo de permissões granulares", () => {
     expect(keys).toContain(PERMISSIONS.EDITAR_PRECOS);
     expect(keys).toContain(PERMISSIONS.EDITAR_PRECOS_DRIVER);
     expect(keys).toContain(PERMISSIONS.VER_CUSTOS);
+    expect(keys).toContain(PERMISSIONS.EDITAR_CUSTOS_ESPECIAIS_REVENDA);
     expect(keys).toContain(PERMISSIONS.EDITAR_DESCONTOS);
     expect(keys).toContain(PERMISSIONS.EDITAR_COMISSAO);
     expect(keys).toContain(PERMISSIONS.VER_DASHBOARD);
