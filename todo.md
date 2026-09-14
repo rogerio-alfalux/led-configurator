@@ -3696,3 +3696,8 @@
 - [x] Reconciliar indicadores de valor Orçado, Aprovado e Faturado com a mesma receita comercial efetiva
 - [x] Cobrir a hierarquia e os acumuladores por regressão e salvar checkpoint reversível
 - [x] Alinhar os resumos de exportação à hierarquia de Aprovados, incluindo Faturados
+
+## LED BAR U 7,5 W/m
+- [x] Confirmar no catálogo oficial a variante LED BAR U de 7,5 W/m e seu CCT 1700K
+- [x] Exibir 7,5 W/m como potência e restringir essa variante ao CCT 1700K
+- [x] Validar cálculo, carrinho, orçamento e documentos por regressão antes do checkpoint reversível

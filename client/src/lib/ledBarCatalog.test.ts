@@ -39,11 +39,44 @@ const mockProduct: LedBarProduct = {
 
 describe("parsePotenciaFromName", () => {
   it("extrai 5W/m", () => expect(parsePotenciaFromName("LED BAR U DB 5W/M")).toBe(5));
+  it("extrai 7,5W/m com vírgula", () => expect(parsePotenciaFromName("LED BAR U DB 7,5W/M AMBAR")).toBe(7.5));
   it("extrai 10W/m", () => expect(parsePotenciaFromName("LED BAR U DB 10W/M")).toBe(10));
   it("extrai 14,4W/m com vírgula", () => expect(parsePotenciaFromName("LED BAR 45 NEW 14,4W/M")).toBe(14.4));
   it("extrai 25W/m", () => expect(parsePotenciaFromName("LED BAR U DB 25W/M")).toBe(25));
   it("retorna null para nome sem potência", () => expect(parsePotenciaFromName("LED BAR U DB")).toBeNull());
   it("retorna null para potência desconhecida", () => expect(parsePotenciaFromName("LED BAR U DB 15W/M")).toBeNull());
+});
+
+describe("LED BAR U 7,5W/m", () => {
+  const amberProduct: LedBarProduct = {
+    ...mockProduct,
+    name: "LED BAR U DB 7,5W/M AMBAR",
+    potencia: 7.5,
+    ccts: ["1700K"],
+    ledModule: "FITA LED HOPELUMI 24V 10W/M [CCT]",
+    driver220: null,
+    driverBivolt: { model: "FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT", code: "EQ00801" },
+    custoCorpoOnoffBivolt: 72.335,
+    markupPadraoOnoffBivolt: 3,
+    custoDriverBivolt: 29.99,
+  };
+
+  it("preserva o CCT 1700K e calcula pelo custo e markup oficiais", () => {
+    const result = calculateLedBar({
+      product: amberProduct,
+      comprimentoMm: 1000,
+      nCortes: 1,
+      controle: "ON/OFF",
+      voltage: "Bivolt",
+      cct: "1700K",
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.cct).toBe("1700K");
+    expect(result.ledModuleWithCCT).toContain("1700K");
+    expect(result.trechos[0].driver.code).toBe("EQ00801");
+    expect(calcLedBarPrice(7.5, 1000, 1, "LED BAR U", null, 29.99, 3, 72.335, 3)).toBe(306.98);
+  });
 });
 
 describe("parseDifusorFromName", () => {

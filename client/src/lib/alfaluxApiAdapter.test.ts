@@ -295,6 +295,33 @@ describe("adaptAlfaluxProducts - LED BAR", () => {
     });
   });
 
+  it("inclui LED BAR U de 7,5W/m com o único CCT publicado pela API", () => {
+    const product = makeProduct({
+      categoria: "PERFIS",
+      familia: "LED BAR U",
+      sku: "LED BAR U DB",
+      name: "LED BAR U DB 7,5W/M AMBAR",
+      temperaturasCor: ["1700"],
+      driver220: null,
+      driverBivolt: makeDriver("FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT", "EQ00801"),
+      custoCorpoOnoffBivolt: 72.335,
+      markupPadraoOnoffBivolt: 3,
+      custoDriverBivolt: 29.99,
+    });
+
+    const result = adaptAlfaluxProducts([product]);
+
+    expect(result.ledBars).toHaveLength(1);
+    expect(result.ledBars[0]).toMatchObject({
+      familia: "LED BAR U",
+      sku: "LED BAR U DB",
+      potencia: 7.5,
+      difusor: "DB",
+      ccts: ["1700K"],
+      driverBivolt: { code: "EQ00801" },
+    });
+  });
+
   it("inclui SKYLINE FL como perfil linear sem expor difusor comercial", () => {
     const product = makeProduct({
       categoria: "PERFIS",

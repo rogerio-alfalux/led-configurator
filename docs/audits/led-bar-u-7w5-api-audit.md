@@ -1,0 +1,5 @@
+# Catálogo LED BAR U — consulta oficial
+
+Em 14/09/2026, o catálogo do Sistema Luna foi consultado pelo endpoint interno `http://127.0.0.1:3000/api/trpc/alfalux.products`, que fornece exclusivamente o catálogo já validado da API Alfalux (`https://alfaluxprod-c8zmg2fn.manus.space/api/products/all`). A família **LED BAR U** está disponível no catálogo oficial e contém variantes com potências e temperaturas de cor próprias; a implementação deve usar esses campos retornados pela API, sem criar registros comerciais estáticos.
+
+A variante foi confirmada no catálogo oficial com os seguintes dados técnicos: família `LED BAR U`, SKU `LED BAR U DB`, nome `LED BAR U DB 7,5W/M AMBAR` e único CCT publicado `1700`. O registro retorna custo de corpo ON/OFF de `72,335`, markup padrão de `3`, módulo `FITA LED HOPELUMI 24V 10W/M [CCT]`, uma fonte bivolt `EQ00801` e custo de driver de `29,99`. Não há preço por metro direto na resposta; portanto, o cálculo seguirá a regra existente de custo oficial multiplicado pelo markup, sem inventar uma tabela de preços.

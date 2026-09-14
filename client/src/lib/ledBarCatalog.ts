@@ -18,7 +18,7 @@ import type { ProductDocuments } from "./productDocuments";
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 export type LedBarDifusor = "DA" | "DB" | "DC" | "NF";
-export type LedBarPotencia = 5 | 10 | 14.4 | 20 | 25;
+export type LedBarPotencia = 5 | 7.5 | 10 | 14.4 | 20 | 25;
 export type LedBarControle = "ON/OFF" | "DIM 0-10V" | "DIM DALI" | "DIM TRIAC";
 export type LedBarVoltage = "110V" | "220V" | "Bivolt";
 
@@ -489,7 +489,7 @@ export function parsePotenciaFromName(name: string): LedBarPotencia | null {
   const m = name.match(/(\d+(?:[.,]\d+)?)\s*W\s*\/\s*M/i);
   if (!m) return null;
   const v = Number(m[1].replace(",", "."));
-  if (v === 5 || v === 10 || v === 14.4 || v === 20 || v === 25) return v;
+  if (v === 5 || v === 7.5 || v === 10 || v === 14.4 || v === 20 || v === 25) return v;
   return null;
 }
 
