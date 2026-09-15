@@ -46,6 +46,7 @@ import type { InstallType, ProfileVariant } from "@/lib/ledCatalog";
 import { calculateComposition, getStripflexName, getStriplineName } from "@/lib/ledEngine";
 import { profileSupportsLShape, calculateLShape, calculateSquare, calculateRectangle, calculateUShape, type ShapeDriverParams } from "@/lib/lEngine";
 import type { ProfileShape, ShapeResult, ShapePiece } from "@/lib/lCatalog";
+import { getShapeEdgeProgress } from "@/lib/shapeEdgeProgress";
 import { generateProductionTemplate } from "@/lib/productionTemplate";
 import { generateOrderSummary } from "@/lib/orderSummary";
 import { DriverPriceEditor } from "@/components/DriverPriceEditor";
@@ -669,7 +670,6 @@ function ShapeResultCard({
   onOpenAccessoryModal,
   pendingAccessoriesCount,
   globalPavimento,
-  requestedTotalMm,
   technicalDocuments,
 }: {
   shapeResult: ShapeResult;
@@ -680,7 +680,6 @@ function ShapeResultCard({
   onOpenAccessoryModal?: () => void;
   pendingAccessoriesCount?: number;
   globalPavimento?: string;
-  requestedTotalMm?: number;
   technicalDocuments?: ProfileTechnicalDocumentsData;
 }) {
   const [copied, setCopied] = useState(false);
@@ -798,6 +797,11 @@ function ShapeResultCard({
       : shapeResult.shape === "U_SHAPE"
         ? `Base ${shapeResult.dimensions[0]}mm × Prof. ${shapeResult.dimensions[1]}mm`
         : `${shapeResult.dimensions[0]}mm × ${shapeResult.dimensions[1]}mm`;
+  const edgeProgress = getShapeEdgeProgress(
+    shapeResult.shape as Exclude<ProfileShape, "STRAIGHT">,
+    shapeResult.dimensions,
+    shapeResult.requestedDimensions,
+  );
 
   // Consolidar drivers por SKU (agrupando peças com mesmo SKU e mesmo driver)
   const driversBySku: Array<{ sku: string; quantity: number; driver: NonNullable<ShapePiece["driver"]>; bars: number }> = useMemo(() => {
@@ -1137,18 +1141,17 @@ function ShapeResultCard({
                 <p className="text-sm font-bold text-foreground font-display">{dimensionLabel}</p>
                 {shapeResult.totalLengthMm && (
                   <p className="text-xs text-muted-foreground">
-                    Linear: {(shapeResult.totalLengthMm / 1000).toFixed(3).replace(".", ",")}m
+                    Material linear total: {(shapeResult.totalLengthMm / 1000).toFixed(3).replace(".", ",")}m
                   </p>
                 )}
-                {shapeResult.totalLengthMm && requestedTotalMm && requestedTotalMm > 0 && (
-                  <p className={`text-xs font-semibold mt-0.5 ${
-                    (shapeResult.totalLengthMm / requestedTotalMm) >= 0.95
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-yellow-600 dark:text-yellow-400"
+                {edgeProgress.map((edge) => (
+                  <p key={edge.label} className={`text-xs font-semibold mt-0.5 ${edge.withinTolerance
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-yellow-600 dark:text-yellow-400"
                   }`}>
-                    {shapeResult.totalLengthMm}mm de {requestedTotalMm}mm · {Math.round((shapeResult.totalLengthMm / requestedTotalMm) * 100)}%
+                    {edge.label}: {edge.achievedMm}mm de {edge.requestedMm}mm · {edge.percentage}%
                   </p>
-                )}
+                ))}
               </div>
             </div>
           </div>
@@ -1177,18 +1180,17 @@ function ShapeResultCard({
               <p className="text-sm font-bold text-foreground font-display">{dimensionLabel}</p>
               {shapeResult.totalLengthMm && (
                 <p className="text-xs text-muted-foreground">
-                  Linear: {(shapeResult.totalLengthMm / 1000).toFixed(3).replace(".", ",")}m
+                  Material linear total: {(shapeResult.totalLengthMm / 1000).toFixed(3).replace(".", ",")}m
                 </p>
               )}
-              {shapeResult.totalLengthMm && requestedTotalMm && requestedTotalMm > 0 && (
-                <p className={`text-xs font-semibold mt-0.5 ${
-                  (shapeResult.totalLengthMm / requestedTotalMm) >= 0.95
-                    ? "text-green-600 dark:text-green-400"
-                    : "text-yellow-600 dark:text-yellow-400"
+              {edgeProgress.map((edge) => (
+                <p key={edge.label} className={`text-xs font-semibold mt-0.5 ${edge.withinTolerance
+                  ? "text-green-600 dark:text-green-400"
+                  : "text-yellow-600 dark:text-yellow-400"
                 }`}>
-                  {shapeResult.totalLengthMm}mm de {requestedTotalMm}mm · {Math.round((shapeResult.totalLengthMm / requestedTotalMm) * 100)}%
+                  {edge.label}: {edge.achievedMm}mm de {edge.requestedMm}mm · {edge.percentage}%
                 </p>
-              )}
+              ))}
             </div>
           </div>
         )}
@@ -4710,7 +4712,6 @@ export default function Home() {
   const [shapeSideH, setShapeSideH] = useState<string>("2000");
   const [shapeSideV, setShapeSideV] = useState<string>("1200");
   const [shapeResult, setShapeResult] = useState<ShapeResult | null>(null);
-  const [shapeRequestedMm, setShapeRequestedMm] = useState<number>(0);
   // SHIFT module selection state
   interface ShiftModuleSelection {
     sku: string;
@@ -9564,23 +9565,17 @@ export default function Home() {
                     driverDim110v: selectedVariant?.driverDim110v ?? null,
                     correnteDriver: selectedVariant?.correnteDriver ?? null,
                   };
-                  let _reqMm = 0;
                   if (profileShape === "L_SHAPE") {
                     sr = calculateLShape(code, parseInt(shapeSideH) || 2000, parseInt(shapeSideV) || 1200, dp);
-                    _reqMm = (parseInt(shapeSideH) || 2000) + (parseInt(shapeSideV) || 1200);
                   } else if (profileShape === "SQUARE") {
                     sr = calculateSquare(code, parseInt(shapeSide) || 1200, dp);
-                    _reqMm = 4 * (parseInt(shapeSide) || 1200);
                   } else if (profileShape === "RECTANGLE") {
                     sr = calculateRectangle(code, parseInt(shapeWidth) || 2000, parseInt(shapeHeight) || 1200, dp);
-                    _reqMm = 2 * (parseInt(shapeWidth) || 2000) + 2 * (parseInt(shapeHeight) || 1200);
                   } else if (profileShape === "U_SHAPE") {
                     sr = calculateUShape(code, parseInt(shapeHeight) || 1200, parseInt(shapeWidth) || 2000, dp);
-                    _reqMm = 2 * (parseInt(shapeHeight) || 1200) + (parseInt(shapeWidth) || 2000);
                   }
                   if (sr) {
                     setShapeResult(sr);
-                    setShapeRequestedMm(_reqMm);
                     setResult(null);
                     setError(null);
                   } else {
@@ -9713,7 +9708,6 @@ export default function Home() {
                   onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
                   pendingAccessoriesCount={pendingAccessories.length}
                   globalPavimento={globalPavimento}
-                  requestedTotalMm={shapeRequestedMm}
                   technicalDocuments={getProfileTechnicalDocuments(alfaluxApiProducts, shapeResult.pieces.map((piece) => piece.sku), { profileCode: shapeResult.profileCode, familia: shapeResult.profileName, potencia: shapeResult.power })}
                 />
               )

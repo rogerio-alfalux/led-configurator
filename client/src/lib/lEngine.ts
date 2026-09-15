@@ -571,6 +571,7 @@ export function calculateLShape(
     return {
       shape: "L_SHAPE",
       dimensions: [actualH, actualV],
+      requestedDimensions: [sideH, sideV],
       pieces: pieces2,
       summary: summaryLines2.join("\n") + "\n",
       power: driverParams?.power,
@@ -702,6 +703,7 @@ export function calculateLShape(
   return {
     shape: "L_SHAPE",
     dimensions: [actualH, actualV],
+    requestedDimensions: [sideH, sideV],
     pieces,
     summary,
     power: driverParams?.power,
@@ -797,6 +799,7 @@ export function calculateSquare(
   return {
     shape: "SQUARE",
     dimensions: [actualSide, actualSide],
+    requestedDimensions: [side, side],
     pieces,
     summary,
     power: driverParams?.power,
@@ -929,6 +932,7 @@ export function calculateRectangle(
   return {
     shape: "RECTANGLE",
     dimensions: [actualWidth, actualHeight],
+    requestedDimensions: [width, height],
     pieces,
     summary,
     power: driverParams?.power,
@@ -1102,6 +1106,7 @@ export function calculateUShape(
   return {
     shape: "U_SHAPE",
     dimensions: [actualBase, actualDepth],
+    requestedDimensions: [width, depth],
     pieces,
     summary,
     power: driverParams?.power,

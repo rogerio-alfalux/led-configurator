@@ -487,6 +487,8 @@ export type ShapeResult = {
   shape: ProfileShape;
   /** Dimensões externas em mm [largura, altura] */
   dimensions: [number, number];
+  /** Metas solicitadas por aresta, na mesma ordem de `dimensions`. */
+  requestedDimensions?: [number, number];
   /** Lista de peças necessárias */
   pieces: ShapePiece[];
   /** Descrição textual da composição */

@@ -3740,3 +3740,13 @@
 - [x] Corrigir somente a quantidade representativa dos drivers, preservando o cálculo comercial já correto
 - [x] Validar preview, Excel, PDF, listagem e regressões sem criar revisão ou alterar preços
 - [x] Salvar checkpoint reversível e entregar a correção
+
+## Perfis geométricos: otimização independente por aresta
+- [x] Reproduzir o BLAZE H em L de 1175 mm × 2800 mm e comprovar o alvo linear incorreto de 3975 mm
+- [x] Mapear e isolar o algoritmo dos formatos L, U, quadrado e retangular sem alterar perfis retos
+- [x] Selecionar módulos separadamente para cada aresta e medir o atingimento de cada dimensão individual
+- [x] Exibir dimensões-alvo e atingidas por lateral, sem apresentar o perímetro como alvo único
+- [x] Preservar cantos, quantidades de barras, drivers, preços e propagação para carrinho, orçamento e produção
+- [x] Cobrir L, U, quadrado e retangular por regressão, incluindo arestas assimétricas e repetidas
+- [x] Provar por regressão que a lógica e os resultados de perfis retos permaneceram inalterados
+- [x] Validar suíte completa e salvar checkpoint reversível
