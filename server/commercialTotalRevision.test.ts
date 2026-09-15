@@ -6,7 +6,8 @@ describe("valor comercial da revisão efetiva", () => {
   it("usa a versão mais recente, inclusive rascunho, para listagens, dashboards e relatórios", () => {
     const source = readFileSync(resolve(process.cwd(), "server/db.ts"), "utf8");
 
-    expect(source).toContain("commercialTotalFinal: recalculated.totalFinal");
+    expect(source).toContain("commercialTotalFinal: resolveStoredCommercialTotal(");
+    expect(source).toContain("effectiveVersionTotalByQuoteId");
     expect(source).toContain("item.version > effectiveVersion");
     expect(source).toContain("reconciledFinalByQuoteId");
     expect(source).toContain("approvedAmount: totalVendas");

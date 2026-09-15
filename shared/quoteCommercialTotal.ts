@@ -141,6 +141,21 @@ export function calculateCommercialQuoteTotal(
 }
 
 /**
+ * Mantém como soberano o total final já persistido na revisão efetiva.
+ * A recomposição pelos itens é apenas fallback para registros sem total salvo.
+ */
+export function resolveStoredCommercialTotal(
+  storedTotal: unknown,
+  recalculatedTotal: unknown,
+): number {
+  const stored = Number(storedTotal);
+  if (Number.isFinite(stored) && stored > 0) return stored;
+
+  const recalculated = Number(recalculatedTotal);
+  return Number.isFinite(recalculated) && recalculated >= 0 ? recalculated : 0;
+}
+
+/**
  * Recupera a base comercial original de itens a partir do total final já salvo.
  * É a operação inversa de `calculateCommercialQuoteTotal` para os percentuais e
  * adicionais globais. Assim, abrir o editor de um orçamento histórico não usa o

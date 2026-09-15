@@ -21,6 +21,7 @@
 
 import ExcelJS from "exceljs";
 import type { CartItemData, LinkedAccessory, QuoteFormData } from "./cartTypes";
+import { getEffectiveDriverLineQuantity } from "./cartTypes";
 import { resolveCatalogItemPhoto, type CatalogPhotoCandidate } from "./itemPhoto";
 import { toBrasiliaDate } from "./dateUtils";
 import { getStateInfo } from "./difalTable";
@@ -1191,14 +1192,7 @@ async function _generateExcelBuffer(
         // representar outro modelo de driver no mesmo perfil.
         // Para registros legados sem driverQty, preservamos o fallback por
         // unidade de luminária.
-        const _itemQty = item.qty ?? 1;
-        const _storedDrvQty = Number(drv.driverQty ?? 0);
-        const _drvQtyPerUnit = item.driverQtyPerUnit;
-        const _effectiveDrvQty = _storedDrvQty > 0
-          ? _storedDrvQty
-          : _drvQtyPerUnit != null
-          ? _drvQtyPerUnit * _itemQty
-          : _itemQty;
+        const _effectiveDrvQty = getEffectiveDriverLineQuantity(item, drv);
         fillDrv(ws.getCell(`L${drvRowNum}`), _effectiveDrvQty, true);
         if (drv.driverUnitPrice != null && drv.driverUnitPrice > 0) {
           // Aplicar diluição proporcional ao peso do driver neste item

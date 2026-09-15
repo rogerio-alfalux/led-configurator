@@ -419,6 +419,24 @@ export interface DriverLine {
 }
 
 /**
+ * Retorna a quantidade total canônica de uma linha de driver para documentos.
+ * `driverQtyPerUnit` pertence ao item inteiro e não pode sobrescrever cada linha
+ * quando o produto possui modelos de driver distintos.
+ */
+export function getEffectiveDriverLineQuantity(
+  item: Pick<CartItemData, "qty" | "driverQtyPerUnit">,
+  driver: Pick<DriverLine, "driverQty">,
+): number {
+  const storedQty = Number(driver.driverQty);
+  if (Number.isFinite(storedQty) && storedQty > 0) return storedQty;
+
+  const itemQty = Math.max(0, Number(item.qty ?? 1) || 1);
+  const qtyPerUnit = Number(item.driverQtyPerUnit);
+  if (Number.isFinite(qtyPerUnit) && qtyPerUnit > 0) return qtyPerUnit * itemQty;
+  return itemQty;
+}
+
+/**
  * Acessório opcional vinculado a um item do carrinho.
  * Montado na luminária — não é um item independente.
  */

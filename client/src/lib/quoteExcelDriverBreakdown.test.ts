@@ -1,7 +1,7 @@
 import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
 import type { CartItemData, QuoteFormData } from "./cartTypes";
-import { migrateItemDrivers, normalizeSplitCommercialPricing } from "./cartTypes";
+import { getEffectiveDriverLineQuantity, migrateItemDrivers, normalizeSplitCommercialPricing } from "./cartTypes";
 import { generateQuoteExcelBuffer } from "./quoteExcelGenerator";
 import { buildSplitDriverPricePatch } from "./splitItemPricing";
 
@@ -111,6 +111,39 @@ describe("sub-linha comercial de driver de perfil", () => {
     expect(worksheet.getCell(`M${secondDriverRow}`).value).toBe(15);
     expect(worksheet.getCell(`N${secondDriverRow}`).value).toBe(60);
     expect(worksheet.getCell(`E${secondDriverRow}`).fill.fgColor?.argb).toBe("FFFFF3E0");
+  });
+
+  it("não aplica a quantidade agregada do item a cada modelo de driver do P07", async () => {
+    const item: CartItemData = {
+      category: "Perfis",
+      sku: "LLP-6060",
+      description: "BLAZE H Pendente 18W 3000K ON/OFF 220Vac 3960mm",
+      qty: 1,
+      unitPrice: 1_636.31,
+      totalPrice: 1_636.31,
+      priceWithoutDriver: 1_528.31,
+      unitPriceLuminaria: 1_528.31,
+      driverQtyPerUnit: 2,
+      photoUrl: null,
+      driverLines: [
+        { driverCode: "EQ00347", driverModel: "DRIVER 44W", driverQty: 1, driverUnitPrice: 54, driverTotalPrice: 54 },
+        { driverCode: "EQ00346", driverModel: "DRIVER 19W", driverQty: 1, driverUnitPrice: 54, driverTotalPrice: 54 },
+      ],
+    };
+
+    expect(getEffectiveDriverLineQuantity(item, item.driverLines![0])).toBe(1);
+    expect(getEffectiveDriverLineQuantity(item, item.driverLines![1])).toBe(1);
+
+    const buffer = await generateQuoteExcelBuffer([item], form);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const worksheet = workbook.getWorksheet("Alfalux")!;
+    const driverRows = Array.from({ length: worksheet.rowCount }, (_, index) => index + 1)
+      .filter((row) => String(worksheet.getCell(`E${row}`).value ?? "").includes("↳ Driver:"));
+
+    expect(driverRows).toHaveLength(2);
+    expect(driverRows.map((row) => worksheet.getCell(`L${row}`).value)).toEqual([1, 1]);
+    expect(driverRows.map((row) => worksheet.getCell(`N${row}`).value)).toEqual([54, 54]);
   });
 
   it("mantém no Excel o preço manual do driver após a reidratação do catálogo", async () => {

@@ -25,7 +25,7 @@ import { buildDashboardProductAnalytics } from './dashboardProductAnalytics';
 import { buildDashboardEntityAnalytics } from './dashboardEntityAnalytics';
 import { buildQuoteGeneralExpenses } from './quoteGeneralExpenses';
 import { getDuplicateQuoteGroupSizes, getDuplicateQuoteKey } from '../shared/quoteGrouping';
-import { calculateCommercialQuoteTotal } from '../shared/quoteCommercialTotal';
+import { calculateCommercialQuoteTotal, resolveStoredCommercialTotal } from '../shared/quoteCommercialTotal';
 import { getCommercialTotalsToRestore, getNonCommercialQuoteStatus, transfersNonCommercialFinance, transfersNonCommercialRevenue, type NonCommercialQuoteKind, type NonCommercialLinkType } from '../shared/nonCommercialQuoteFinancial';
 import { normalizeQuoteNumberForLookup } from '../shared/quoteNumberLookup';
 import { ADMIN_PENDING_LD_STATUSES } from './ldRequestBadgeStatus';
@@ -1016,6 +1016,7 @@ export async function listQuotes(opts: {
     ? await db.select({
       quoteId: quoteItems.quoteId,
       version: quoteVersions.version,
+      versionTotalFinal: quoteVersions.totalFinal,
       itemData: quoteItems.itemData,
     })
       .from(quoteItems)
@@ -1025,10 +1026,12 @@ export async function listQuotes(opts: {
   const rowById = new Map(rows.map((row) => [row.id, row]));
   const itemDataByQuoteId = new Map<number, string[]>();
   const effectiveVersionByQuoteId = new Map<number, number>();
+  const effectiveVersionTotalByQuoteId = new Map<number, unknown>();
   for (const item of currentItems) {
     const effectiveVersion = effectiveVersionByQuoteId.get(item.quoteId);
     if (effectiveVersion == null || item.version > effectiveVersion) {
       effectiveVersionByQuoteId.set(item.quoteId, item.version);
+      effectiveVersionTotalByQuoteId.set(item.quoteId, item.versionTotalFinal);
     }
   }
   for (const item of currentItems) {
@@ -1056,7 +1059,10 @@ export async function listQuotes(opts: {
     }, itemDataByQuoteId.get(row.id) ?? []);
     return {
       ...row,
-      commercialTotalFinal: recalculated.totalFinal,
+      commercialTotalFinal: resolveStoredCommercialTotal(
+        effectiveVersionTotalByQuoteId.get(row.id) ?? row.totalFinal,
+        recalculated.totalFinal,
+      ),
     };
   });
 

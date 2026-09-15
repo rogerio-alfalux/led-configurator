@@ -3731,3 +3731,12 @@
 - [x] Auditar outros orçamentos potencialmente afetados por reidratação retroativa, sem regravá-los
 - [x] Cobrir total comercial, margem, driver histórico e imutabilidade de revisões por regressão
 - [x] Validar suíte completa, revisar integridade comercial e salvar checkpoint reversível
+
+## DIGICON 04.0403-26: total da listagem e drivers do item 16
+- [x] Preservar em modo somente leitura a revisão efetiva, o total interno de R$ 67.855,23 e os snapshots do item 16/P07
+- [x] Identificar por que Meus Orçamentos exibe R$ 72.171,38 em vez do total interno soberano
+- [x] Fazer o cartão e seus indicadores utilizarem R$ 67.855,23 sem alterar o orçamento aprovado
+- [x] Identificar por que o preview representa duas unidades de cada driver do P07 quando a composição salva contém uma de cada
+- [x] Corrigir somente a quantidade representativa dos drivers, preservando o cálculo comercial já correto
+- [x] Validar preview, Excel, PDF, listagem e regressões sem criar revisão ou alterar preços
+- [x] Salvar checkpoint reversível e entregar a correção

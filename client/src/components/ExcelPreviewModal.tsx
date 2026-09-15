@@ -12,7 +12,7 @@ import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { capturePreviewPagePdf, downloadPdfBlob } from "@/lib/pdfVisualCapture";
 import type { CartItemData, QuoteFormData } from "@/lib/cartTypes";
-import { formatBRL } from "@/lib/cartTypes";
+import { formatBRL, getEffectiveDriverLineQuantity } from "@/lib/cartTypes";
 import { getStateInfo } from "@/lib/difalTable";
 import { toBrasiliaDate } from "@/lib/dateUtils";
 import { getQuotePreviewColumnCount, getQuotePreviewColumnWidths, QUOTE_PREVIEW_SUBITEM_BLANK_COLUMN_COUNT } from "@/lib/quotePreviewLayout";
@@ -1118,15 +1118,10 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                       )}
                       {/* Sub-linhas de drivers (apenas para itens novos com driverLines) */}
                       {item.driverLines && item.driverLines.map((drv, drvIdx) => {
-                        // Calcular qty efetiva do driver:
-                        // Com driverQtyPerUnit salvo: driverQtyPerUnit × itemQty
-                        // Itens antigos sem driverQtyPerUnit: usar driverQty armazenado
-                        const _iqty = item.qty ?? 1;
-                        const _storedDrvQty = drv.driverQty ?? 1;
-                        const _drvQtyPerUnitPreview = item.driverQtyPerUnit;
-                        const _effectiveDrvQty = _drvQtyPerUnitPreview != null
-                          ? _drvQtyPerUnitPreview * _iqty
-                          : (_storedDrvQty <= 1 ? _iqty : _storedDrvQty);
+                        // A quantidade persistida pertence a esta linha/modelo.
+                        // driverQtyPerUnit é agregado do item e serve apenas de
+                        // fallback para registros legados sem quantidade na linha.
+                        const _effectiveDrvQty = getEffectiveDriverLineQuantity(item, drv);
                         // Diluição proporcional ao peso do driver neste item
                         const _itemTotalRealDrv = getItemTotalReal(item);
                         const _drvTotalPrice = drv.driverTotalPrice != null && drv.driverTotalPrice >= 0

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateCommercialQuoteTotal, deriveCommercialItemBaseFromStoredTotal } from "@shared/quoteCommercialTotal";
+import { calculateCommercialQuoteTotal, deriveCommercialItemBaseFromStoredTotal, resolveStoredCommercialTotal } from "@shared/quoteCommercialTotal";
 
 describe("calculateCommercialQuoteTotal", () => {
   it("inclui subitens, RT, margem, desconto, frete e imposto uma única vez", () => {
@@ -73,5 +73,16 @@ describe("deriveCommercialItemBaseFromStoredTotal", () => {
     };
     const final = calculateCommercialQuoteTotal(fields, [{ totalPrice: 10_000 }]).totalFinal;
     expect(deriveCommercialItemBaseFromStoredTotal(fields, final)).toBeCloseTo(10_000, 2);
+  });
+});
+
+describe("resolveStoredCommercialTotal", () => {
+  it("preserva o total soberano da revisão efetiva do DIGICON", () => {
+    expect(resolveStoredCommercialTotal(67_855.23, 72_171.38)).toBe(67_855.23);
+  });
+
+  it("usa a recomposição apenas quando não há total persistido utilizável", () => {
+    expect(resolveStoredCommercialTotal(null, 72_171.38)).toBe(72_171.38);
+    expect(resolveStoredCommercialTotal(0, 72_171.38)).toBe(72_171.38);
   });
 });
