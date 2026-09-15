@@ -4889,7 +4889,7 @@ export default function QuoteDetail() {
                                   {hasBreakdown ? (
                                     <>
                                       <div className="mb-1">
-                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Luminária</p>
+                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Luminária (sem driver)</p>
                                         {lumUnitDisplayWithDil != null && (_discountRate > 0 && lumUnitDiscountedWithDil != null ? (
                                           <>
                                             <p className="text-[10px] text-muted-foreground">Cheio: {formatBRL(lumUnitDisplayWithDil)}/un</p>
@@ -4929,9 +4929,12 @@ export default function QuoteDetail() {
                                       })}
 
                                       <div className="pt-1 border-t border-border/50">
-                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Total item</p>
+                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Total item (luminária + driver)</p>
                                         {correctTotalDisplay != null
-                                          ? <p className="font-bold text-primary text-sm">{formatBRL(correctTotalDisplay)}</p>
+                                          ? <>
+                                              {d.qty > 1 && <p className="text-xs text-muted-foreground">{formatBRL(correctTotalDisplay / d.qty)}/un</p>}
+                                              <p className="font-bold text-primary text-sm">{formatBRL(correctTotalDisplay)}</p>
+                                            </>
                                           : <p className="text-xs italic text-muted-foreground">A consultar</p>}
                                       </div>
                                     </>

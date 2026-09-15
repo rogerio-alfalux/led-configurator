@@ -3750,3 +3750,12 @@
 - [x] Cobrir L, U, quadrado e retangular por regressão, incluindo arestas assimétricas e repetidas
 - [x] Provar por regressão que a lógica e os resultados de perfis retos permaneceram inalterados
 - [x] Validar suíte completa e salvar checkpoint reversível
+
+## 35.0002-26: RT e margem aplicados aos valores comerciais
+- [x] Preservar em modo somente leitura a revisão efetiva, os parâmetros de RT e margem, os itens e os totais atuais
+- [x] Reconciliar item a item a base comercial com RT de 10%, margem de 5%, descontos e total final
+- [x] Identificar a causa de o item 1 partir de R$ 382,55 e chegar a apenas R$ 384,27
+- [x] Corrigir a apresentação para distinguir luminária sem driver do total completo por unidade, sem alterar nenhum outro orçamento
+- [x] Garantir por regressão que novas configurações continuem aplicando RT e margem corretamente
+- [x] Validar resumo, preview, Excel e PDF sem regravar revisões ou alterar valores de outros registros
+- [x] Salvar checkpoint reversível e entregar a auditoria

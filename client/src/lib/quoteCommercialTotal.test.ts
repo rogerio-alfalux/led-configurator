@@ -36,6 +36,24 @@ describe("calculateCommercialQuoteTotal", () => {
     expect(totals.totalFinal).toBe(1540);
   });
 
+  it("aplica RT e margem globais ao conjunto de luminária e driver", () => {
+    const totals = calculateCommercialQuoteTotal({
+      rtPercent: 0.10,
+      marginPercent: 0.05,
+    }, [{
+      category: "Perfis",
+      qty: 2,
+      totalPrice: 765.10,
+      priceWithoutDriver: 657.10,
+      unitPriceLuminaria: 328.55,
+      driverLines: [{ driverQty: 2, driverUnitPrice: 54, driverTotalPrice: 108 }],
+    }]);
+
+    // R$ 765,10 ÷ (1 − 10%) ÷ (1 − 5%) = R$ 894,85; R$ 447,43 por conjunto.
+    expect(totals.totalFinal).toBe(894.85);
+    expect(totals.totalFinal / 2).toBeCloseTo(447.43, 2);
+  });
+
   it("multiplica o preço do driver pela quantidade de luminárias quando a linha legada traz uma unidade", () => {
     const totals = calculateCommercialQuoteTotal({}, [{
       category: "Painéis",
