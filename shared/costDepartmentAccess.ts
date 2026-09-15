@@ -13,6 +13,17 @@ export function isCostDepartmentRole(role?: string | null): boolean {
 export function isCostDepartmentEligibleForManualCost(item: unknown): boolean {
   if (!item || typeof item !== "object") return false;
   const data = item as Record<string, unknown>;
+  const category = String(data.category ?? "").trim().toLocaleLowerCase("pt-BR");
+  const isSpecialItem = data.isSpecialItem === true
+    || category === "item especial"
+    || category === "especial";
+
+  // Produtos Especiais não têm uma composição oficial de custo. Os campos
+  // specialCustoUnitario e custoCorpoBase podem conter somente uma estimativa
+  // ou uma edição manual anterior e, por isso, nunca podem bloquear sua revisão.
+  // A confirmação explícita de origem oficial continua sendo a única trava.
+  if (isSpecialItem) return !(Number(data.custoApiConfirmado) > 0);
+
   const confirmedCostFields = [
     data.custoApiConfirmado,
     data.custoCorpoBase,

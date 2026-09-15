@@ -8,6 +8,26 @@ describe("acesso do Departamento de Custos", () => {
     expect(isSpecialItemWithoutRegisteredCost(item)).toBe(false);
   });
 
+  it("permite reabrir e corrigir estimativas persistidas de Produto Especial", () => {
+    const estimatedSpecial = {
+      category: "Item Especial",
+      isSpecialItem: true,
+      specialCustoUnitario: 340,
+      custoCorpoBase: 340,
+    };
+    expect(isCostDepartmentEligibleForManualCost(estimatedSpecial)).toBe(true);
+    expect(isSpecialOrResaleEligibleForManualCost(estimatedSpecial)).toBe(true);
+  });
+
+  it("mantém bloqueado Produto Especial somente quando o custo tem confirmação oficial", () => {
+    expect(isCostDepartmentEligibleForManualCost({
+      category: "Item Especial",
+      isSpecialItem: true,
+      custoApiConfirmado: 340,
+      specialCustoUnitario: 200,
+    })).toBe(false);
+  });
+
   it("permite revenda, equipamentos e componentes quando a API não confirmou custo", () => {
     expect(isCostDepartmentEligibleForManualCost({ category: "Revenda" })).toBe(true);
     expect(isCostDepartmentEligibleForManualCost({ category: "Equipamentos", custoDriver: 0 })).toBe(true);

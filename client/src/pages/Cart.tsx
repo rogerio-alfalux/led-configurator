@@ -3548,6 +3548,10 @@ function StandardCart() {
                 const custoVal = parseFloat(editFields.specialCustoUnitario.replace(',', '.'));
                 const mkpVal2 = parseFloat(editFields.specialMarkup.replace(',', '.'));
                 patch.specialCustoUnitario = !isNaN(custoVal) && custoVal > 0 ? custoVal : null;
+                // O Dashboard de lucro usa custoManual como fonte canônica.
+                // Espelhá-lo mantém a edição feita no carrinho disponível para
+                // reedição posterior, sem modificar preço de venda ou markup.
+                patch.custoManual = !isNaN(custoVal) && custoVal > 0 ? custoVal : null;
                 patch.specialMarkup = !isNaN(mkpVal2) && mkpVal2 > 0 ? mkpVal2 : null;
               }
               if (item?.data.accessories?.some((accessory) => accessory.familia === "SHIFT MÓDULO")) {

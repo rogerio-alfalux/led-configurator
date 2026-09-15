@@ -10,6 +10,7 @@ describe("acesso do Departamento de Custos", () => {
   it("autoriza qualquer item sem custo confirmado", () => {
     expect(isSpecialItemWithoutRegisteredCost({ isSpecialItem: true, unitPrice: 250 })).toBe(true);
     expect(isSpecialItemWithoutRegisteredCost({ isSpecialItem: true, custoManual: 20 })).toBe(false);
+    expect(isCostDepartmentEligibleForManualCost({ isSpecialItem: true, specialCustoUnitario: 20, custoCorpoBase: 20 })).toBe(true);
     expect(isSpecialItemWithoutRegisteredCost({ category: "Revenda" })).toBe(true);
     expect(isCostDepartmentEligibleForManualCost({ category: "Componentes", custoApiConfirmado: 20 })).toBe(false);
   });

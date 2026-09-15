@@ -3780,3 +3780,12 @@
 - [x] Proteger por regressão a regra de uma fonte por corte e a precificação por custo × markup da API
 - [x] Validar preview, Excel, PDF, ficha e requisição de materiais sem alterar outro orçamento
 - [x] Salvar checkpoint reversível e entregar a correção
+
+## Produtos Especiais: edição contínua de custo estimado
+- [x] Auditar a regra atual de autorização e bloqueio do campo de custo no Dashboard do orçamento
+- [x] Reproduzir a edição inicial, a reedição e o salvamento de custo estimado para admin e Departamento de Custos
+- [x] Permitir que admin e Departamento de Custos alterem a qualquer momento custos estimados ou sem fonte oficial de Produtos Especiais
+- [x] Manter custos oficiais retornados pela API bloqueados contra alteração manual sem permissão de override explícita
+- [x] Persistir o custo manual e refletir a margem no Dashboard do orçamento e no Dashboard geral, sem alterar preço de venda
+- [x] Cobrir permissões, reedição, persistência e proteção de custo oficial por regressão
+- [x] Validar suíte completa e salvar checkpoint reversível

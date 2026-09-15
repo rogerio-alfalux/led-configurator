@@ -5561,7 +5561,7 @@ function QuoteProfitDashboard({ quoteId, quote, user, recalculatedRevenue }: Quo
   const [editingCustoItem, setEditingCustoItem] = useState<number | null>(null);
   const [custoManualInput, setCustoManualInput] = useState("");
   const isCostDepartment = (user as any)?.role === "custos";
-  const isLimitedCostEditor = Array.isArray((user as any)?.permissions)
+  const isLimitedCostEditor = !isAdmin && !isCostDepartment && Array.isArray((user as any)?.permissions)
     && (user as any).permissions.includes(PERMISSIONS.EDITAR_CUSTOS_ESPECIAIS_REVENDA);
 
   const additionalCosts = costsQuery.data ?? [];

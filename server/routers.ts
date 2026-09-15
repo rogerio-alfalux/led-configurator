@@ -1920,7 +1920,10 @@ export const appRouter = router({
 
             // Uma edição manual é deliberada e deve prevalecer sobre qualquer
             // valor calculado, mantendo o dashboard da revisão ativa sincronizado.
-            const custoManual = getManualUnitCost(data.custoManual);
+            const isSpecialItem = data.isSpecialItem || data.category === 'Item Especial' || data.category === 'especial';
+            const custoManual = getManualUnitCost(
+              data.custoManual ?? (isSpecialItem ? data.specialCustoUnitario : null),
+            );
             if (custoManual > 0) {
               if (isSpecialOrResaleEligibleForManualCost(data)) limitedManualCostItemNumbers.add(row.itemNumber);
               const subtotal = custoManual * qty;
@@ -1939,7 +1942,7 @@ export const appRouter = router({
             }
 
             // Item Especial: usar custoManual se preenchido, senão estimar pela margem
-            if (data.isSpecialItem || data.category === 'Item Especial' || data.category === 'especial') {
+            if (isSpecialItem) {
               if (isSpecialOrResaleEligibleForManualCost(data)) limitedManualCostItemNumbers.add(row.itemNumber);
               // Estimar custo pela margem média: precoVenda / (1 + margem)
               const totalPrice = Number(data.totalPrice ?? 0);
@@ -2242,6 +2245,11 @@ export const appRouter = router({
           throw new TRPCError({ code: 'FORBIDDEN', message: 'Este acesso permite editar somente custos ausentes de Produtos Especiais e Revenda.' });
         }
         data.custoManual = input.custoManual;
+        if (data.isSpecialItem || data.category === 'Item Especial' || data.category === 'especial') {
+          // Mantém o editor de carrinho e o Dashboard no mesmo custo manual,
+          // sem recalcular nem modificar qualquer preço de venda.
+          data.specialCustoUnitario = input.custoManual;
+        }
         await db.update(quoteItems)
           .set({ itemData: JSON.stringify(data) })
           .where(and(
