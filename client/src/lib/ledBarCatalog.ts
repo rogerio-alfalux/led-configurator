@@ -245,7 +245,8 @@ export function selectLedBarDriverPrice(
  * Calcula o preço total de um LED BAR:
  *   preço = (precoMetro_da_api ?? tabela_estatica) × comprimento_m + soma(drivers)
  *
- * Para PERFIL FLEXÍVEL: apenas o perfil (sem drivers), usando precoMetro da API.
+ * Para PERFIL FLEXÍVEL: apenas o perfil (sem drivers), usando precoMetro da API
+ * ou custo do corpo × markup oficial quando a API não enviar preço direto.
  * Para LED BAR U e similares: perfil + drivers por trecho.
  *
  * @param potencia  Potência em W/m
@@ -273,11 +274,14 @@ export function calcLedBarPrice(
 ): number | null {
   // Famílias sem tabela de preço estático: retornar null apenas quando a API também não tem dados
   if (familia && LED_BAR_FAMILIES_NO_PRICE.test(familia) && precoMetroApi == null && custoCorpoApi == null && custoDriverApi == null) return null;
-  // PERFIL FLEXÍVEL: apenas o perfil, sem drivers
-  // Fallback: R$157,00/m para 5W/m e 10W/m quando API não retorna precoMetro
+  // PERFIL FLEXÍVEL: apenas o perfil, sem drivers.
+  // Prioridade: preço direto > custo do corpo × markup > fallback legado.
   if (familia && /^PERFIL FLEXIVEL/i.test(familia)) {
     const PERFIL_FLEX_PRECO_METRO_FALLBACK: Partial<Record<LedBarPotencia, number>> = { 5: 157.00, 10: 157.00 };
-    const precoMetroEfetivo = precoMetroApi ?? PERFIL_FLEX_PRECO_METRO_FALLBACK[potencia] ?? null;
+    const precoMetroEfetivo = precoMetroApi
+      ?? (custoCorpoApi != null ? Math.round(custoCorpoApi * (markupCorpo ?? 3) * 100) / 100 : null)
+      ?? PERFIL_FLEX_PRECO_METRO_FALLBACK[potencia]
+      ?? null;
     if (precoMetroEfetivo == null) return null; // sem preço → preencher manualmente
     const comprimentoM = comprimentoTotalMm / 1000;
     return Math.round(precoMetroEfetivo * comprimentoM * 100) / 100;
@@ -345,10 +349,13 @@ export function calcLedBarPriceDetail(
   if (familia && LED_BAR_FAMILIES_NO_PRICE.test(familia) && precoMetroApi == null && custoCorpoApi == null && custoDriverApi == null) return null;
   // PERFIL FLEXÍVEL: mesmo cálculo do LED BAR padrão, mas com corte máximo de 5000mm
   // Drivers são calculados e destacados separadamente, igual ao LED BAR
-  // Fallback: R$157,00/m para 5W/m e 10W/m quando API não retorna precoMetro
+  // Prioridade: preço direto > custo do corpo × markup > fallback legado.
   if (familia && /^PERFIL FLEXIVEL/i.test(familia)) {
     const PERFIL_FLEX_PRECO_METRO_FALLBACK: Partial<Record<LedBarPotencia, number>> = { 5: 157.00, 10: 157.00 };
-    const precoMetroEfetivo = precoMetroApi ?? PERFIL_FLEX_PRECO_METRO_FALLBACK[potencia] ?? null;
+    const precoMetroEfetivo = precoMetroApi
+      ?? (custoCorpoApi != null ? Math.round(custoCorpoApi * (markupCorpo ?? 3) * 100) / 100 : null)
+      ?? PERFIL_FLEX_PRECO_METRO_FALLBACK[potencia]
+      ?? null;
     if (precoMetroEfetivo == null) return null; // sem preço → preencher manualmente
     const comprimentoM = comprimentoTotalMm / 1000;
     const comprimentoTrechoMm = Math.floor(comprimentoTotalMm / Math.max(1, nCortes));
@@ -386,7 +393,7 @@ export function calcLedBarPriceDetail(
       totalDriverQty,
       perfilFlexivel: true,
       driverFromApi,
-      corpoFromApi: precoMetroApi != null,
+      corpoFromApi: precoMetroApi != null || custoCorpoApi != null,
     };
   }
   // Preço por metro: precoMetroApi > custoCorpoApi×markupCorpo > tabela estática

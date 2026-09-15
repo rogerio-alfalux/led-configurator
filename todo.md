@@ -3769,3 +3769,14 @@
 - [x] Validar carrinho, orçamento, preview, Excel, PDF, ficha e requisição de materiais em regressão
 - [x] Provar que famílias lineares não-FL e perfis retos permanecem inalterados
 - [x] Salvar checkpoint reversível e entregar a correção
+
+## 35.0002-26: cortes lineares e preço do Perfil Flexível Silicone Leitoso
+- [x] Preservar os itens 9, 13, 14 e 16 e o Perfil Flexível Silicone Leitoso S 10 W/m em modo somente leitura
+- [x] Conferir o número de cortes e a quantidade oficial de drivers de cada variante diretamente no catálogo da API
+- [x] Restaurar somente as quantidades técnicas comprovadamente zeradas ou subdimensionadas, sem reidratar preços ou outros componentes
+- [x] Confirmar o custo oficial de R$ 107,80 e o markup padrão 3 do Perfil Flexível Silicone Leitoso S 10 W/m
+- [x] Corrigir o preço unitário do perfil de R$ 157,00 para R$ 323,40 quando a composição oficial exigir custo × markup
+- [x] Reconciliar o total comercial desse orçamento após as correções, explicitando quaisquer reflexos inevitáveis de quantidade ou preço
+- [x] Proteger por regressão a regra de uma fonte por corte e a precificação por custo × markup da API
+- [x] Validar preview, Excel, PDF, ficha e requisição de materiais sem alterar outro orçamento
+- [x] Salvar checkpoint reversível e entregar a correção

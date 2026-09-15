@@ -112,6 +112,25 @@ describe("quantidade oficial de driver por corte", () => {
   });
 });
 
+describe("preço do Perfil Flexível pelo custo oficial", () => {
+  it("prioriza custo de R$ 107,80 vezes markup 3 sobre o fallback legado de R$ 157,00/m", () => {
+    expect(calcLedBarPrice(10, 1000, 1, "PERFIL FLEXIVEL", null, null, null, 107.8, 3)).toBe(323.4);
+    const detail = calcLedBarPriceDetail(10, 1000, 1, "PERFIL FLEXIVEL", null, 39.24, 3, 107.8, 3, 1);
+    expect(detail).toMatchObject({
+      precoPerfil: 323.4,
+      precoDriverPorCorte: 117.72,
+      totalDriverQty: 1,
+      total: 441.12,
+      corpoFromApi: true,
+      driverFromApi: true,
+    });
+  });
+
+  it("mantém preço direto por metro acima do custo vezes markup", () => {
+    expect(calcLedBarPrice(10, 1000, 1, "PERFIL FLEXIVEL", 350, null, null, 107.8, 3)).toBe(350);
+  });
+});
+
 describe("parseDifusorFromName", () => {
   it("extrai DA", () => expect(parseDifusorFromName("LED BAR U DA 10W/M")).toBe("DA"));
   it("extrai DB", () => expect(parseDifusorFromName("LED BAR U DB 10W/M")).toBe("DB"));
