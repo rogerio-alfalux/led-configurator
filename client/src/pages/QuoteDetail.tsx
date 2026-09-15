@@ -51,7 +51,7 @@ import { buildSampleCommercialProjection } from "@/lib/sampleCommercialAdjustmen
 import { applyItemDiscount, applyQuoteDiscount, calculateQuoteTotalWithDiscountAndTax, getDisplayedCustomerTotal, getReconciledCustomerTotal, getStoredCustomerTotal } from "@/lib/quoteTotals";
 import { canAccessQuoteAnalysis } from "@/lib/quoteAnalysisAccess";
 import type { ApiProductDriverInfo } from "@/lib/cartTypes";
-import { calculateCommercialQuoteTotal, deriveCommercialItemBaseFromStoredTotal } from "@shared/quoteCommercialTotal";
+import { calculateCommercialProductsBeforeDiscount, calculateCommercialQuoteTotal, deriveCommercialItemBaseFromStoredTotal } from "@shared/quoteCommercialTotal";
 
 /** Aplica margem individual do item (itemMarginPercent em %) sobre um valor base */
 function applyItemMarginQD(base: number, itemMarginPercent?: number | null): number {
@@ -3054,8 +3054,15 @@ export default function QuoteDetail() {
                       }, 0);
                       const rtPct = quote.rtPercent ? parseFloat(String(quote.rtPercent)) : 0;
                       const marginPct = quote.marginPercent ? parseFloat(String(quote.marginPercent)) : 0;
-                      const totalComRT = rtPct > 0 ? totalBase / (1 - rtPct) : totalBase;
-                      const totalComMargem = marginPct > 0 ? totalComRT / (1 - marginPct) : totalComRT;
+                      const totalComMargem = calculateCommercialProductsBeforeDiscount({
+                        status: quote.status,
+                        rtPercent: rtPct,
+                        marginPercent: marginPct,
+                        freteValue: (quote as any).freteValue,
+                        freteIncluded: (quote as any).freteIncluded,
+                        freteIsento: (quote as any).freteIsento,
+                        diluicaoValor: (quote as any).diluicaoValor,
+                      }, totalBase);
                       const discountPct = Math.min(Math.max(Number((quote as any).discountPercent ?? 0), 0), 0.99);
                       const totalFinal = applyQuoteDiscount(totalComMargem, discountPct);
                       // Incluir frete e DIFAL/FCP (alíquota combinada, fórmula por dentro)
@@ -4139,8 +4146,15 @@ export default function QuoteDetail() {
                     if (editForm.quoteNumber.trim() && !isCommercialQuoteNumber(editForm.quoteNumber) && editForm.quoteNumber.trim() !== quote.quoteNumber) { toast.error("O número do orçamento deve seguir o formato xx.xxxx-xx."); return; }
                     const editRtPctVal = Math.min(Math.max(parseFloat(editForm.rtPercent || "0") / 100, 0), 0.99);
                     const editMarginPctVal = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, 0), 0.99);
-                    const totalComRTVal = editRtPctVal > 0 ? editTotalBase / (1 - editRtPctVal) : editTotalBase;
-                    const totalComMargemVal = editMarginPctVal > 0 ? totalComRTVal / (1 - editMarginPctVal) : totalComRTVal;
+                    const totalComMargemVal = calculateCommercialProductsBeforeDiscount({
+                      status: quote.status,
+                      rtPercent: editRtPctVal,
+                      marginPercent: editMarginPctVal,
+                      freteValue: editForm.freteValue ? parseFloat(editForm.freteValue) : 0,
+                      freteIncluded: editForm.freteIncluded,
+                      freteIsento: editForm.freteIsento,
+                      diluicaoValor: editForm.diluicaoValor ? parseFloat(editForm.diluicaoValor) : 0,
+                    }, editTotalBase);
                     const totalFinalVal = applyQuoteDiscount(totalComMargemVal, editDiscountPct);
                     // Calcular frete e DIFAL/FCP (alíquota combinada, fórmula por dentro)
                     // Frete separado (não diluído) entra na base do DIFAL; frete diluído já está no editTotalFinal

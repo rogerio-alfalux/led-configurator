@@ -98,6 +98,7 @@ import { getUserCreationRoleAuthorizationError } from "../shared/userCreationAcc
 import { isCostDepartmentEligibleForManualCost, isCostDepartmentRole, isSpecialOrResaleEligibleForManualCost } from "../shared/costDepartmentAccess";
 import { isCommercialQuoteNumber } from "../shared/quoteNumberFormat";
 import { isFactoryOrderReadOnlyForQuoteStatus } from "../shared/factoryOrderReadOnly";
+import { calculateCommercialQuoteTotal } from "../shared/quoteCommercialTotal";
 
 async function assertFactoryOrderQuoteMutable(quoteId: number) {
   const quoteData = await getQuoteById(quoteId);
@@ -1568,9 +1569,18 @@ export const appRouter = router({
           itemData: it.itemData,
         }));
         const allItems = [...currentItems, ...newItemsNumbered];
-        const totalAmount = allItems.reduce((sum, it) => {
-          try { const d = JSON.parse(it.itemData); return sum + (d.totalPrice ?? 0); } catch { return sum; }
-        }, 0);
+        const commercialTotals = calculateCommercialQuoteTotal({
+          status: quote.status,
+          rtPercent: quote.rtPercent,
+          marginPercent: quote.marginPercent,
+          discountPercent: quote.discountPercent,
+          freteValue: quote.freteValue,
+          freteIncluded: quote.freteIncluded,
+          freteIsento: quote.freteIsento,
+          diluicaoValor: quote.diluicaoValor,
+          difalEnabled: quote.difalEnabled,
+          combinedTaxRate: Number(quote.difalPercent ?? 0) + Number(quote.fcpPercent ?? 0),
+        }, allItems.map((item) => item.itemData));
         const result = await addQuoteRevision(input.quoteId, {
           clientName: quote.clientName,
           clientContact: quote.clientContact ?? undefined,
@@ -1619,7 +1629,8 @@ export const appRouter = router({
           diluicaoDescricao: quote.diluicaoDescricao ?? undefined,
           notes: quote.notes ?? undefined,
           versionNotes: input.versionNotes ?? `+${input.newItems.length} item(s) adicionado(s)`,
-          totalAmount,
+          totalAmount: commercialTotals.productsBeforeDiscount,
+          totalFinal: commercialTotals.totalFinal,
           items: allItems,
           createdByUserId: ctx.user.id,
         }, false /* bumpVersion=false: adicionar itens não gera nova revisão */);
@@ -1662,9 +1673,18 @@ export const appRouter = router({
           }
           return it;
         });
-        const totalAmount = updatedItems.reduce((sum, it) => {
-          try { const d = JSON.parse(it.itemData); return sum + (d.totalPrice ?? 0); } catch { return sum; }
-        }, 0);
+        const commercialTotals = calculateCommercialQuoteTotal({
+          status: quote.status,
+          rtPercent: quote.rtPercent,
+          marginPercent: quote.marginPercent,
+          discountPercent: quote.discountPercent,
+          freteValue: quote.freteValue,
+          freteIncluded: quote.freteIncluded,
+          freteIsento: quote.freteIsento,
+          diluicaoValor: quote.diluicaoValor,
+          difalEnabled: quote.difalEnabled,
+          combinedTaxRate: Number(quote.difalPercent ?? 0) + Number(quote.fcpPercent ?? 0),
+        }, updatedItems.map((item) => item.itemData));
         const result = await addQuoteRevision(input.quoteId, {
           clientName: quote.clientName,
           clientContact: quote.clientContact ?? undefined,
@@ -1713,7 +1733,8 @@ export const appRouter = router({
           diluicaoDescricao: quote.diluicaoDescricao ?? undefined,
           notes: quote.notes ?? undefined,
           versionNotes: input.versionNotes ?? `Item #${input.replaceIndex + 1} substituído`,
-          totalAmount,
+          totalAmount: commercialTotals.productsBeforeDiscount,
+          totalFinal: commercialTotals.totalFinal,
           items: updatedItems,
           createdByUserId: ctx.user.id,
         }, false /* bumpVersion=false */);

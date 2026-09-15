@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateCommercialQuoteTotal, deriveCommercialItemBaseFromStoredTotal, resolveStoredCommercialTotal } from "@shared/quoteCommercialTotal";
+import { calculateCommercialProductsBeforeDiscount, calculateCommercialQuoteTotal, deriveCommercialItemBaseFromStoredTotal, resolveStoredCommercialTotal } from "@shared/quoteCommercialTotal";
 
 describe("calculateCommercialQuoteTotal", () => {
   it("inclui subitens, RT, margem, desconto, frete e imposto uma única vez", () => {
@@ -52,6 +52,22 @@ describe("calculateCommercialQuoteTotal", () => {
     // R$ 765,10 ÷ (1 − 10%) ÷ (1 − 5%) = R$ 894,85; R$ 447,43 por conjunto.
     expect(totals.totalFinal).toBe(894.85);
     expect(totals.totalFinal / 2).toBeCloseTo(447.43, 2);
+  });
+
+  it("inclui frete diluído antes de RT e margem, também ao salvar itens", () => {
+    const productsBeforeDiscount = calculateCommercialProductsBeforeDiscount({
+      rtPercent: 0,
+      marginPercent: 0.07,
+      freteValue: 3857,
+      freteIncluded: true,
+    }, 103_773.55);
+
+    expect(productsBeforeDiscount).toBe(115_731.77);
+    expect(calculateCommercialQuoteTotal({
+      marginPercent: 0.07,
+      freteValue: 3857,
+      freteIncluded: true,
+    }, [{ totalPrice: 103_773.55 }]).totalFinal).toBe(productsBeforeDiscount);
   });
 
   it("multiplica o preço do driver pela quantidade de luminárias quando a linha legada traz uma unidade", () => {

@@ -63,6 +63,29 @@ const parseItem = (item: CommercialQuoteItem | string | null | undefined): Comme
 };
 
 /**
+ * Aplica os adicionais globais que integram o preço dos produtos antes de um
+ * eventual desconto. Frete diluído e diluição interna entram na base antes de
+ * RT e margem, pois são distribuídos nos itens comercializados.
+ */
+export function calculateCommercialProductsBeforeDiscount(
+  fields: CommercialQuoteFields,
+  itemBase: unknown,
+): number {
+  if (fields.status === "sample") return 0;
+
+  const freight = fields.freteIncluded && !fields.freteIsento
+    ? Math.max(0, numberOrZero(fields.freteValue))
+    : 0;
+  const dilution = Math.max(0, numberOrZero(fields.diluicaoValor));
+  const withIncludedCharges = Math.max(0, numberOrZero(itemBase)) + freight + dilution;
+  const rtRate = rate(fields.rtPercent);
+  const withGlobalRt = rtRate > 0 ? withIncludedCharges / (1 - rtRate) : withIncludedCharges;
+  const marginRate = rate(fields.marginPercent);
+  const productsBeforeDiscount = marginRate > 0 ? withGlobalRt / (1 - marginRate) : withGlobalRt;
+  return Math.round(productsBeforeDiscount * 100) / 100;
+}
+
+/**
  * Reconstitui o valor comercial efetivamente cobrado a partir da revisão atual.
  * A ordem é: subitens → margem/desconto por item → RT/margem global → desconto
  * global → frete/diluição → DIFAL/FCP. A fórmula é isomórfica e pode ser usada
@@ -116,15 +139,7 @@ export function calculateCommercialQuoteTotal(
     );
   }, 0);
 
-  const freight = fields.freteIncluded && !fields.freteIsento
-    ? Math.max(0, numberOrZero(fields.freteValue))
-    : 0;
-  const dilution = Math.max(0, numberOrZero(fields.diluicaoValor));
-  const withRt = itemBase + freight + dilution;
-  const rtRate = rate(fields.rtPercent);
-  const withGlobalRt = rtRate > 0 ? withRt / (1 - rtRate) : withRt;
-  const marginRate = rate(fields.marginPercent);
-  const productsBeforeDiscount = marginRate > 0 ? withGlobalRt / (1 - marginRate) : withGlobalRt;
+  const productsBeforeDiscount = calculateCommercialProductsBeforeDiscount(fields, itemBase);
   const productsAfterDiscount = productsBeforeDiscount * (1 - rate(fields.discountPercent));
   const separateFreight = !fields.freteIncluded && !fields.freteIsento
     ? Math.max(0, numberOrZero(fields.freteValue))

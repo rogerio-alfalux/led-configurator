@@ -21,4 +21,15 @@ describe("valor comercial da revisão efetiva", () => {
     expect(source).toContain("status IN ('approved', 'invoiced')");
     expect(source).toContain("totalApproved: sql<number>`sum(case when status IN ('approved', 'invoiced') then 1 else 0 end)`");
   });
+
+  it("reconcilia RT, margem, frete diluído, desconto e imposto ao inserir ou substituir itens", () => {
+    const source = readFileSync(resolve(process.cwd(), "server/routers.ts"), "utf8");
+
+    expect(source).toContain('import { calculateCommercialQuoteTotal } from "../shared/quoteCommercialTotal"');
+    expect(source).toContain("const commercialTotals = calculateCommercialQuoteTotal({");
+    expect(source).toContain("totalAmount: commercialTotals.productsBeforeDiscount");
+    expect(source).toContain("totalFinal: commercialTotals.totalFinal");
+    expect(source).not.toContain("const totalAmount = allItems.reduce((sum, it) => {");
+    expect(source).not.toContain("const totalAmount = updatedItems.reduce((sum, it) => {");
+  });
 });

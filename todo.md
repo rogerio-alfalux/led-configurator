@@ -3789,3 +3789,31 @@
 - [x] Persistir o custo manual e refletir a margem no Dashboard do orçamento e no Dashboard geral, sem alterar preço de venda
 - [x] Cobrir permissões, reedição, persistência e proteção de custo oficial por regressão
 - [x] Validar suíte completa e salvar checkpoint reversível
+
+## Levantamento somente leitura: banco, anexos e evolução estrutural
+- [x] Listar todas as tabelas, contagens de linhas e estruturas completas do banco
+- [x] Identificar tabelas, registros e armazenamento físico de anexos ou arquivos de orçamentos
+- [x] Auditar caminhos, quantidade e tamanho total das fotos de Peças Especiais
+- [x] Confirmar o uso atual de quote_number_sequences no fluxo de criação de orçamento
+- [x] Reconstruir as mudanças estruturais de banco desde 13/08/2026
+- [x] Entregar o levantamento completo em texto, sem nenhuma alteração de dados
+
+## Exportação somente leitura: dump MySQL completo
+- [x] Confirmar as 27 tabelas e abrir uma conexão de leitura consistente
+- [x] Exportar estruturas e dados completos com INSERT INTO para todas as tabelas
+- [x] Validar a contagem de registros exportados por tabela
+- [x] Entregar o arquivo SQL único ou partes numeradas, com resumo de contagens
+
+## Exportação somente leitura: fotos especiais referenciadas
+- [x] Carregar as 833 chaves de fotos especiais atualmente referenciadas em itens de orçamento
+- [x] Baixar cada objeto de armazenamento sem alterar as chaves ou o banco
+- [x] Gerar ZIP preservando a estrutura original special-items/{userId}/{arquivo}
+- [x] Validar número de arquivos, tamanho original agregado e integridade do arquivo ZIP
+- [x] Entregar o ZIP e a conferência final
+
+## 35.0017-26: total final divergente dos subtotais
+- [x] Preservar em leitura os itens, subtotais, frete diluído, revisão efetiva e total atual
+- [x] Reconciliar a soma de luminárias e drivers com o total comercial exibido
+- [x] Identificar e corrigir somente a fonte comprovada da divergência neste orçamento
+- [x] Proteger por regressão a reconciliação de total com frete diluído
+- [x] Validar detalhe, preview, Excel, PDF e ausência de alterações em outros orçamentos
