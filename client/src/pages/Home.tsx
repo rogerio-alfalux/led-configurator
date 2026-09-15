@@ -9795,7 +9795,7 @@ export default function Home() {
                         return (
                           <div className="p-3 rounded-lg bg-muted/50">
                             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fonte</p>
-                            <p className="text-sm font-semibold">{lbResult.nCortes}x {t0.driver.model}</p>
+                            <p className="text-sm font-semibold">{lbResult.driverQtyPerUnit}x {t0.driver.model}</p>
                             {t0.driver.code && (
                               <a
                                 href={`https://alfaluxprod-c8zmg2fn.manus.space/products/${t0.driver.code}`}
@@ -9817,6 +9817,7 @@ export default function Home() {
                     const r = lbResult;
                     const nT = r.nCortes;
                     const mm = r.comprimentoPorTrechoMm;
+                    const driverQtyPerUnit = r.driverQtyPerUnit;
                     const driverLine = `${r.trechos[0]?.driver.model}${r.trechos[0]?.driver.code ? ` (${r.trechos[0].driver.code})` : ""}`;
                     // Preço = (R$/m × comprimento_total_m) + driver selecionado por potência do trecho
                     // Famílias sem tabela de preço retornam null — usuário preenche manualmente no carrinho
@@ -9860,8 +9861,8 @@ export default function Home() {
                       return p.markupPadraoDriverOnoff220v ?? null;
                     })();
                     const lbMarkupDriverEfetivo = lbMarkupDriverPadrao ?? lbMarkupDriver;
-                    const lbPreco = calcLedBarPrice(r.product.potencia, r.comprimentoTotalMm, nT, r.product.familia, r.product.precoMetro, lbCustoDriver, lbMarkupDriverEfetivo, lbCustoCorpo, lbMarkupCorpo);
-                    const lbDetail = calcLedBarPriceDetail(r.product.potencia, r.comprimentoTotalMm, nT, r.product.familia, r.product.precoMetro, lbCustoDriver, lbMarkupDriverEfetivo, lbCustoCorpo, lbMarkupCorpo);
+                    const lbPreco = calcLedBarPrice(r.product.potencia, r.comprimentoTotalMm, nT, r.product.familia, r.product.precoMetro, lbCustoDriver, lbMarkupDriverEfetivo, lbCustoCorpo, lbMarkupCorpo, r.driverQtyPerCut);
+                    const lbDetail = calcLedBarPriceDetail(r.product.potencia, r.comprimentoTotalMm, nT, r.product.familia, r.product.precoMetro, lbCustoDriver, lbMarkupDriverEfetivo, lbCustoCorpo, lbMarkupCorpo, r.driverQtyPerCut);
                     const isPerfilFlex = /^PERFIL FLEXIVEL/i.test(r.product.familia ?? "");
                     const orcamentoLines = [
                       [`${r.product.name} ${r.cct} ${r.voltage}`, nT > 1 ? `${nT} TRECHOS DE ${mm}MM` : `${mm}MM`].join(" "),
@@ -9876,7 +9877,7 @@ export default function Home() {
                     const ledBarEqSuffix = r.ledModuleEqCode ? ` (${r.ledModuleEqCode})` : "";
                     const pedido = [
                       `CÓDIGO: ${r.product.sku}`,
-                      `${r.product.name} ${r.cct} ${r.voltage} ${r.comprimentoTotalMm}MM${cortesInfo}${nT > 1 ? ` (${nT}x ${mm}MM)` : ""} MONTADO COM ${r.ledModuleWithCCT} ${r.cct}${ledBarEqSuffix} + ${nT}x ${driverLine}`,
+                      `${r.product.name} ${r.cct} ${r.voltage} ${r.comprimentoTotalMm}MM${cortesInfo}${nT > 1 ? ` (${nT}x ${mm}MM)` : ""} MONTADO COM ${r.ledModuleWithCCT} ${r.cct}${ledBarEqSuffix} + ${driverQtyPerUnit}x ${driverLine}`,
                     ].join("\n");
                     return (
                       <>
@@ -9900,7 +9901,7 @@ export default function Home() {
                                   </div>
                                   <div className="flex justify-between">
                                     <span>
-                                      Driver {lbDetail.driverFromApi ? '' : `${lbDetail.wattsDriver}W `}× {nT} corte{nT > 1 ? "s" : ""}
+                                      Driver {lbDetail.driverFromApi ? '' : `${lbDetail.wattsDriver}W `}× {lbDetail.totalDriverQty}
                                       {!lbDetail.driverFromApi && lbDetail.wattsDriver === 100 && (
                                         <span className="ml-1 text-amber-500 font-medium">(potência {lbDetail.potenciaTrecho.toFixed(1)}W — driver 60W insuficiente)</span>
                                       )}
@@ -9921,7 +9922,7 @@ export default function Home() {
                                   </div>
                                   <div className="flex justify-between">
                                     <span>
-                                      Driver {lbDetail.driverFromApi ? '' : `${lbDetail.wattsDriver}W `}× {nT} corte{nT > 1 ? "s" : ""}
+                                      Driver {lbDetail.driverFromApi ? '' : `${lbDetail.wattsDriver}W `}× {lbDetail.totalDriverQty}
                                       {!lbDetail.driverFromApi && lbDetail.wattsDriver === 100 && (
                                         <span className="ml-1 text-amber-500 font-medium">(potência {lbDetail.potenciaTrecho.toFixed(1)}W — driver 60W insuficiente)</span>
                                       )}
@@ -9991,15 +9992,15 @@ export default function Home() {
                                   const lbDriverModel = lbDriverInfo?.model ?? "";
                                   const lbDriverCorrente = (lbDriverInfo as { corrente?: string | null } | undefined)?.corrente ?? null;
                                   // Construir driverLines para separar driver no orçamento
-                                  // LED BAR: nCortes drivers por unidade (cada trecho tem 1 driver)
+                                  // LED BAR/FL: quantidade oficial da API por corte × número de cortes.
                                   const lbDrvLines: import("@/lib/cartTypes").DriverLine[] | undefined =
                                     lbDriverModel && lbDetail !== null && lbDetail.precoDriverPorCorte > 0
                                       ? [{
                                           driverModel: lbDriverModel,
                                           driverCode: lbDriverCode,
-                                          driverQty: r.nCortes,
+                                          driverQty: driverQtyPerUnit * globalQty,
                                           driverUnitPrice: lbDetail.precoDriverPorCorte,
-                                          driverTotalPrice: Math.round(lbDetail.precoDriverPorCorte * r.nCortes * 100) / 100,
+                                          driverTotalPrice: Math.round(lbDetail.precoDriverPorCorte * driverQtyPerUnit * globalQty * 100) / 100,
                                           corrente: lbDriverCorrente,
                                         }]
                                       : undefined;
@@ -10036,13 +10037,14 @@ export default function Home() {
                                    quoteSummary: orcamento,
                                    moduloLed: r.ledModuleWithCCT ?? r.product.ledModule ?? "",
                                    moduloLedCode: r.ledModuleEqCode ?? null,
-                                   drivers: lbDriverCode ? `${r.nCortes}x ${lbDriverModel} (${lbDriverCode})` : `${r.nCortes}x ${lbDriverModel}`,
+                                   drivers: lbDriverCode ? `${driverQtyPerUnit}x ${lbDriverModel} (${lbDriverCode})` : `${driverQtyPerUnit}x ${lbDriverModel}`,
                                    ledBarNCortes: r.nCortes,
                                    ledBarComprimentoPorTrechoMm: r.comprimentoPorTrechoMm,
                                    ledBarComprimentoTotalMm: r.comprimentoTotalMm,
                                    ledBarDriverModel: lbDriverModel,
                                    ledBarDriverCode: lbDriverCode,
                                    ledBarDriverCorrente: lbDriverCorrente,
+                                   driverQtyPerUnit,
                                    availableCCTs: r.product.ccts,
                                    itemEmPlanta: globalItemEmPlanta,
                                     // Custo por metro × metros para LED BAR (mesma lógica da BAGEO)

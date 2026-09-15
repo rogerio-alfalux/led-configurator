@@ -3759,3 +3759,13 @@
 - [x] Garantir por regressão que novas configurações continuem aplicando RT e margem corretamente
 - [x] Validar resumo, preview, Excel e PDF sem regravar revisões ou alterar valores de outros registros
 - [x] Salvar checkpoint reversível e entregar a auditoria
+
+## Famílias FL: quantidade de drivers por corte
+- [x] Preservar em modo somente leitura a composição do item 8 do orçamento 35.0002-26 e sua quantidade atual de drivers
+- [x] Consultar a quantidade oficial do driver da variante MINI BLAZE FL na API e confrontá-la com o snapshot salvo
+- [x] Mapear o tratamento comum de MINI BLAZE FL, BLAZE FL e SKYLINE FL no cálculo por corte
+- [x] Corrigir a quantidade de drivers por corte com base exclusiva na API, preservando valores unitários e totais comerciais
+- [x] Corrigir apenas a quantidade técnica do item 8 de referência, sem reidratar preços ou componentes de outros itens históricos
+- [x] Validar carrinho, orçamento, preview, Excel, PDF, ficha e requisição de materiais em regressão
+- [x] Provar que famílias lineares não-FL e perfis retos permanecem inalterados
+- [x] Salvar checkpoint reversível e entregar a correção

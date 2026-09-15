@@ -781,6 +781,13 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
     driverDimDali: dDimDali ? { model: driverModel(dDimDali), code: driverCode(dDimDali) } : null,
     driverDimTriac110v: dDimTriac110v ? { model: driverModel(dDimTriac110v), code: driverCode(dDimTriac110v) } : null,
     driverDimTriac220v: dDimTriac220v ? { model: driverModel(dDimTriac220v), code: driverCode(dDimTriac220v) } : null,
+    // Quantidades por corte retornadas pela API — essenciais para perfis FL.
+    driverQtd220: p.driverQtd220 ?? null,
+    driverQtdBivolt: p.driverQtdBivolt ?? null,
+    driverQtdDim010v: p.driverQtdDim110v ?? null,
+    driverQtdDimDali: p.driverQtdDimDali ?? null,
+    driverQtdDimTriac110v: (p as any).driverQtdDimTriac110v ?? null,
+    driverQtdDimTriac220v: (p as any).driverQtdDimTriac220v ?? null,
     instalacao: p.instalacao ?? null,
     fotoUrl: normalizeFotoUrl(p.fotoUrl),
     documentos: normalizeProductDocuments(p),

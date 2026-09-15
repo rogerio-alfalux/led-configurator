@@ -74,6 +74,18 @@ export interface LedBarProduct {
   driverDimTriac110v?: LedBarDriverInfo | null;
   /** Driver DIM TRIAC 220V */
   driverDimTriac220v?: LedBarDriverInfo | null;
+  /** Quantidade oficial de drivers por corte para ON/OFF 220V. */
+  driverQtd220?: number | null;
+  /** Quantidade oficial de drivers por corte para ON/OFF Bivolt. */
+  driverQtdBivolt?: number | null;
+  /** Quantidade oficial de drivers por corte para DIM 0-10V. */
+  driverQtdDim010v?: number | null;
+  /** Quantidade oficial de drivers por corte para DIM DALI. */
+  driverQtdDimDali?: number | null;
+  /** Quantidade oficial de drivers por corte para DIM TRIAC 110V. */
+  driverQtdDimTriac110v?: number | null;
+  /** Quantidade oficial de drivers por corte para DIM TRIAC 220V. */
+  driverQtdDimTriac220v?: number | null;
   /** Tipo de instalação (EMBUTIR | SOBREPOR | null para outros) */
   instalacao?: string | null;
   /** URL da foto do produto */
@@ -256,7 +268,8 @@ export function calcLedBarPrice(
   custoDriverApi?: number | null,
   markupDriver?: number | null,
   custoCorpoApi?: number | null,
-  markupCorpo?: number | null
+  markupCorpo?: number | null,
+  driverQtyPerCut?: number | null,
 ): number | null {
   // Famílias sem tabela de preço estático: retornar null apenas quando a API também não tem dados
   if (familia && LED_BAR_FAMILIES_NO_PRICE.test(familia) && precoMetroApi == null && custoCorpoApi == null && custoDriverApi == null) return null;
@@ -290,7 +303,7 @@ export function calcLedBarPrice(
   } else {
     precoDriverPorCorte = selectLedBarDriverPrice(potencia, comprimentoTrechoMm).preco;
   }
-  const totalDrivers = Math.round(precoDriverPorCorte * nT * 100) / 100;
+  const totalDrivers = Math.round(precoDriverPorCorte * nT * normalizeDriverQuantityPerCut(driverQtyPerCut) * 100) / 100;
   const total = precoPorMetro * comprimentoM + totalDrivers;
   return Math.round(total * 100) / 100;
 }
@@ -308,7 +321,8 @@ export function calcLedBarPriceDetail(
   custoDriverApi?: number | null,
   markupDriver?: number | null,
   custoCorpoApi?: number | null,
-  markupCorpo?: number | null
+  markupCorpo?: number | null,
+  driverQtyPerCut?: number | null,
 ): {
   precoPerfil: number;
   precoDriverPorCorte: number;
@@ -317,6 +331,10 @@ export function calcLedBarPriceDetail(
   potenciaTrecho: number;
   totalDrivers: number;
   total: number;
+  /** Quantidade oficial de drivers para cada corte. */
+  driverQtyPerCut: number;
+  /** Quantidade total de drivers por luminária, já considerando os cortes. */
+  totalDriverQty: number;
   /** true quando o preço vem da API e não inclui drivers (PERFIL FLEXÍVEL) */
   perfilFlexivel?: boolean;
   /** true quando o preço do driver vem da API (custo × markup) */
@@ -353,7 +371,9 @@ export function calcLedBarPriceDetail(
       wattsDriver = sel.wattsDriver;
       potenciaTrecho = sel.potenciaTrecho;
     }
-    const totalDrivers = Math.round(precoDriverPorCorte * nT * 100) / 100;
+    const qtdDriverPorCorte = normalizeDriverQuantityPerCut(driverQtyPerCut);
+    const totalDriverQty = nT * qtdDriverPorCorte;
+    const totalDrivers = Math.round(precoDriverPorCorte * totalDriverQty * 100) / 100;
     const total = Math.round((precoPerfil + totalDrivers) * 100) / 100;
     return {
       precoPerfil,
@@ -362,6 +382,8 @@ export function calcLedBarPriceDetail(
       potenciaTrecho,
       totalDrivers,
       total,
+      driverQtyPerCut: qtdDriverPorCorte,
+      totalDriverQty,
       perfilFlexivel: true,
       driverFromApi,
       corpoFromApi: precoMetroApi != null,
@@ -400,9 +422,11 @@ export function calcLedBarPriceDetail(
     potenciaTrecho = sel.potenciaTrecho;
   }
   const precoPerfil = Math.round(precoPorMetro * comprimentoM * 100) / 100;
-  const totalDrivers = Math.round(precoDriverPorCorte * nT * 100) / 100;
+  const qtdDriverPorCorte = normalizeDriverQuantityPerCut(driverQtyPerCut);
+  const totalDriverQty = nT * qtdDriverPorCorte;
+  const totalDrivers = Math.round(precoDriverPorCorte * totalDriverQty * 100) / 100;
   const total = Math.round((precoPerfil + totalDrivers) * 100) / 100;
-  return { precoPerfil, precoDriverPorCorte, wattsDriver, potenciaTrecho, totalDrivers, total, driverFromApi, corpoFromApi };
+  return { precoPerfil, precoDriverPorCorte, wattsDriver, potenciaTrecho, totalDrivers, total, driverQtyPerCut: qtdDriverPorCorte, totalDriverQty, driverFromApi, corpoFromApi };
 }
 
 export const LED_BAR_POTENCIA_OPTIONS: { value: LedBarPotencia; label: string }[] = [
@@ -596,6 +620,10 @@ export interface LedBarResult {
   ledModuleWithCCT: string;
   /** Código EQ do módulo LED (fita) para a CCT selecionada */
   ledModuleEqCode: string | null;
+  /** Quantidade oficial de drivers por corte, resolvida da variante da API. */
+  driverQtyPerCut: number;
+  /** Quantidade oficial total de drivers por luminária, considerando os cortes. */
+  driverQtyPerUnit: number;
   /** Erros de validação */
   errors: string[];
 }
@@ -626,6 +654,35 @@ function selectDriver(
     return product.driverDimTriac220v ?? product.driverDim010v ?? null;
   }
   return product.driver220;
+}
+
+/**
+ * A quantidade retornada pela API pertence a cada corte. Na ausência de um
+ * valor positivo, o fallback físico continua sendo uma fonte por corte.
+ */
+function normalizeDriverQuantityPerCut(quantity: number | null | undefined): number {
+  const parsed = Number(quantity);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
+
+/** Retorna a quantidade oficial de drivers por corte para o controle e tensão selecionados. */
+export function getLedBarDriverQuantityPerCut(
+  product: LedBarProduct,
+  controle: LedBarControle,
+  voltage: LedBarVoltage,
+): number {
+  if (controle === "DIM DALI") return normalizeDriverQuantityPerCut(product.driverQtdDimDali);
+  if (controle === "DIM 0-10V") return normalizeDriverQuantityPerCut(product.driverQtdDim010v);
+  if (controle === "DIM TRIAC") {
+    return normalizeDriverQuantityPerCut(
+      voltage === "110V"
+        ? (product.driverQtdDimTriac110v ?? product.driverQtdDim010v)
+        : (product.driverQtdDimTriac220v ?? product.driverQtdDim010v),
+    );
+  }
+  return normalizeDriverQuantityPerCut(
+    voltage === "Bivolt" ? (product.driverQtdBivolt ?? product.driverQtd220) : (product.driverQtd220 ?? product.driverQtdBivolt),
+  );
 }
 
 /**
@@ -661,6 +718,7 @@ export function calculateLedBar(input: LedBarInput): LedBarResult {
 
   // Calcular comprimento por trecho
   const nTrechos = Math.max(1, nCortes);
+  const driverQtyPerCut = driver ? getLedBarDriverQuantityPerCut(product, controle, voltage) : 0;
   const comprimentoPorTrechoMm = Math.floor(comprimentoMm / nTrechos);
 
   // Montar trechos
@@ -695,6 +753,8 @@ export function calculateLedBar(input: LedBarInput): LedBarResult {
     cct,
     ledModuleWithCCT,
     ledModuleEqCode: ledModuleEqCode || null,
+    driverQtyPerCut,
+    driverQtyPerUnit: nTrechos * driverQtyPerCut,
     errors,
   };
 }

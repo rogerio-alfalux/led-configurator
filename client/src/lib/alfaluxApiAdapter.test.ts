@@ -416,6 +416,24 @@ describe("adaptAlfaluxProducts - LED BAR", () => {
     });
   });
 
+  it("preserva a quantidade oficial de driver por corte em MINI BLAZE FL", () => {
+    const result = adaptAlfaluxProducts([makeProduct({
+      categoria: "PERFIS",
+      familia: "MINI BLAZE FL",
+      sku: "LLP-3336",
+      name: "MINI BLAZE P FL 10W/M",
+      driver220: null,
+      driverBivolt: makeDriver("FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT", "EQ00801"),
+      driverQtdBivolt: 2,
+    })]);
+
+    expect(result.ledBars[0]).toMatchObject({
+      familia: "MINI BLAZE FL",
+      driverBivolt: { code: "EQ00801" },
+      driverQtdBivolt: 2,
+    });
+  });
+
   it("inclui futuras famílias FL no fluxo linear sem depender de uma lista estática", () => {
     const product = makeProduct({
       categoria: "PERFIS",

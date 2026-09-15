@@ -13,6 +13,8 @@ import {
   isLedBarFamilyWithoutDifusor,
   getLedBarAvailableInstallations,
   calcLedBarPrice,
+  calcLedBarPriceDetail,
+  getLedBarDriverQuantityPerCut,
   dim010vIsBivolt,
   daliIsBivolt,
   LED_BAR_CATALOG,
@@ -76,6 +78,37 @@ describe("LED BAR U 7,5W/m", () => {
     expect(result.ledModuleWithCCT).toContain("1700K");
     expect(result.trechos[0].driver.code).toBe("EQ00801");
     expect(calcLedBarPrice(7.5, 1000, 1, "LED BAR U", null, 29.99, 3, 72.335, 3)).toBe(306.98);
+  });
+});
+
+describe("quantidade oficial de driver por corte", () => {
+  const flProduct: LedBarProduct = {
+    ...mockProduct,
+    familia: "MINI BLAZE FL",
+    sku: "LLP-3336",
+    name: "MINI BLAZE P FL 10W/M",
+    difusor: "NF",
+    driver220: null,
+    driverBivolt: { model: "FONTE 36W BIVOLT", code: "EQ00801" },
+    driverQtdBivolt: 1,
+    custoCorpoOnoffBivolt: 198.92,
+    markupPadraoOnoffBivolt: 3,
+    custoDriverBivolt: 29.99,
+    markupPadraoDriverOnoffBivolt: 3,
+  };
+
+  it("lê da API uma fonte por corte e nunca gera quantidade zero para driver selecionado", () => {
+    expect(getLedBarDriverQuantityPerCut(flProduct, "ON/OFF", "Bivolt")).toBe(1);
+    const result = calculateLedBar({ product: flProduct, comprimentoMm: 4000, nCortes: 2, controle: "ON/OFF", voltage: "Bivolt", cct: "3000K" });
+    expect(result.driverQtyPerCut).toBe(1);
+    expect(result.driverQtyPerUnit).toBe(2);
+  });
+
+  it("multiplica o preço pela quantidade oficial de driver por corte", () => {
+    const detail = calcLedBarPriceDetail(10, 2000, 1, "MINI BLAZE FL", null, 29.99, 3, 198.92, 3, 2);
+    expect(detail?.driverQtyPerCut).toBe(2);
+    expect(detail?.totalDriverQty).toBe(2);
+    expect(detail?.totalDrivers).toBe(179.94);
   });
 });
 
