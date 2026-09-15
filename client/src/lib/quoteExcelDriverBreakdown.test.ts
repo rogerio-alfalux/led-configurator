@@ -159,4 +159,26 @@ describe("sub-linha comercial de driver de perfil", () => {
     expect(worksheet.getCell(`M${driverRow}`).value).toBe(54);
     expect(worksheet.getCell(`N${driverRow}`).value).toBe(16092);
   });
+
+  it("mantém no rodapé o total final soberano da revisão histórica", async () => {
+    const item: CartItemData = {
+      category: "Painéis",
+      sku: "HIST-001",
+      description: "ITEM HISTÓRICO",
+      qty: 1,
+      unitPrice: 100,
+      totalPrice: 100,
+      photoUrl: null,
+    };
+    const totalFinalOverride = 12_345.67;
+    const buffer = await generateQuoteExcelBuffer([item], { ...form, marginPercent: 0.05, totalFinalOverride });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const worksheet = workbook.getWorksheet("Alfalux")!;
+    const numericValues = Array.from({ length: worksheet.rowCount }, (_, rowIndex) => rowIndex + 1)
+      .flatMap((row) => Array.from({ length: worksheet.columnCount }, (_, columnIndex) => worksheet.getCell(row, columnIndex + 1).value))
+      .filter((value): value is number => typeof value === "number");
+
+    expect(numericValues).toContain(totalFinalOverride);
+  });
 });

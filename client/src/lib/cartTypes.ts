@@ -550,6 +550,8 @@ export interface QuoteFormData {
   diluicaoDescricao?: string;
   /** Percentual de desconto global (0–1, ex: 0.10 = 10%). Aplicado após margem. */
   discountPercent?: number;
+  /** Total final soberano já persistido para uma revisão histórica. */
+  totalFinalOverride?: number;
   /** Se true, exibe a linha de desconto nos documentos (Excel, PDF, Preview) para o cliente ver */
   showDiscount?: boolean;
   /** Se true, exibe Preço unitário sem IPI (C/ IPI ÷ 1,0975) e mantém a coluna C/ IPI com o preço original. */
@@ -1100,6 +1102,15 @@ export function normalizeSplitCommercialPricing(item: CartItemData): CartItemDat
       totalPrice: roundCommercialValue((bodyTotal ?? 0) + driversTotal),
     } : {}),
   };
+}
+
+/**
+ * Normaliza somente números já persistidos em um item de orçamento ou pedido.
+ * Não recebe catálogo por projeto: código, modelo, quantidade e preço salvos são
+ * soberanos e não podem mudar quando a estrutura vigente do produto é alterada.
+ */
+export function normalizeStoredQuoteSnapshot(item: CartItemData): CartItemData {
+  return normalizeSplitCommercialPricing(item);
 }
 
 /**

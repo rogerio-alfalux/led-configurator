@@ -139,3 +139,42 @@ export function calculateCommercialQuoteTotal(
     totalFinal: Math.round(totalFinal * 100) / 100,
   };
 }
+
+/**
+ * Recupera a base comercial original de itens a partir do total final já salvo.
+ * É a operação inversa de `calculateCommercialQuoteTotal` para os percentuais e
+ * adicionais globais. Assim, abrir o editor de um orçamento histórico não usa o
+ * catálogo atual nem reaplica RT/margem que já estejam embutidos no valor entregue.
+ */
+export function deriveCommercialItemBaseFromStoredTotal(
+  fields: CommercialQuoteFields,
+  storedTotal: unknown,
+): number | null {
+  const finalTotal = Number(storedTotal);
+  if (!Number.isFinite(finalTotal) || finalTotal <= 0) return null;
+
+  const taxRate = fields.difalEnabled ? rate(fields.combinedTaxRate, 100) : 0;
+  const taxableBase = taxRate > 0 ? finalTotal * (1 - taxRate) : finalTotal;
+  const separateFreight = !fields.freteIncluded && !fields.freteIsento
+    ? Math.max(0, numberOrZero(fields.freteValue))
+    : 0;
+  const productsAfterDiscount = Math.max(0, taxableBase - separateFreight);
+  const discountRate = rate(fields.discountPercent);
+  const productsBeforeDiscount = discountRate > 0
+    ? productsAfterDiscount / (1 - discountRate)
+    : productsAfterDiscount;
+  const marginRate = rate(fields.marginPercent);
+  const withGlobalRt = marginRate > 0
+    ? productsBeforeDiscount * (1 - marginRate)
+    : productsBeforeDiscount;
+  const rtRate = rate(fields.rtPercent);
+  const withIncludedCharges = rtRate > 0
+    ? withGlobalRt * (1 - rtRate)
+    : withGlobalRt;
+  const includedFreight = fields.freteIncluded && !fields.freteIsento
+    ? Math.max(0, numberOrZero(fields.freteValue))
+    : 0;
+  const dilution = Math.max(0, numberOrZero(fields.diluicaoValor));
+  const itemBase = Math.max(0, withIncludedCharges - includedFreight - dilution);
+  return Math.round(itemBase * 100) / 100;
+}

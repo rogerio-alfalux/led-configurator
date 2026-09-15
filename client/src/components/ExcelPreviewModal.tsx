@@ -562,7 +562,15 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   const totalComDifal = formData.difalEnabled && difalAplicavel
     ? baseParaImpostoPreview / (1 - combinedRatePreview / 100)
     : baseParaImpostoPreview;
-  const combinedAmtPreview = totalComDifal - baseParaImpostoPreview;
+  const storedTotalOverride = Number(formData.totalFinalOverride);
+  const customerTotalFinal = Number.isFinite(storedTotalOverride) && storedTotalOverride > 0
+    ? storedTotalOverride
+    : totalComDifal;
+  const customerTaxableBase = formData.difalEnabled && difalAplicavel
+    ? customerTotalFinal * (1 - combinedRatePreview / 100)
+    : customerTotalFinal;
+  const customerProductsTotal = Math.max(0, customerTaxableBase - _freteParaImpostoPreview);
+  const combinedAmtPreview = customerTotalFinal - customerTaxableBase;
   const difalFcpDiluted = Boolean(formData.difalEnabled && difalAplicavel && formData.difalFcpIncluded && combinedAmtPreview > 0);
   const difalFcpToDilute = difalFcpDiluted ? combinedAmtPreview : 0;
   const getItemPreTaxFinal = (item: CartItemData): number => {
@@ -1215,7 +1223,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                     </td>
                     <td>
                       <span style={{ background: TOTAL_BG, fontWeight: "bold", fontSize: 14, padding: "4px 12px", border: "2px solid #444", display: "inline-block" }}>
-                        {formatBRL(totalFinal + difalFcpToDilute)}
+                        {formatBRL(customerProductsTotal + difalFcpToDilute)}
                       </span>
                     </td>
                   </tr>
@@ -1230,7 +1238,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                       <td style={{ fontWeight: "bold" }}>TOTAL GERAL (com {hasFreteCotadoNoTotalPreview ? "FRETE + " : ""}DIFAL/FCP):</td>
                       <td>
                         <span style={{ background: "#FCE4D6", fontWeight: "bold", fontSize: 14, padding: "4px 12px", border: "2px solid #444", display: "inline-block" }}>
-                          {formatBRL(totalComDifal)}
+                          {formatBRL(customerTotalFinal)}
                         </span>
                       </td>
                     </tr>
@@ -1266,16 +1274,14 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                       <tr>
                         <td style={{ fontWeight: "bold" }}>Frete dedicado:</td>
                         <td style={{ color: formData.freteType === "night" ? RED : undefined, fontWeight: formData.freteType === "night" ? "bold" : undefined }}>
-                          {buildFreteText(formData, totalFinal)}
+                          {buildFreteText(formData, customerProductsTotal)}
                         </td>
                       </tr>
                       {formData.freteValue != null && formData.freteValue > 0 && !formData.freteIsento && (() => {
                         // Quando DIFAL está ativo, totalComDifal já inclui o frete na base de cálculo
                         // (baseParaImpostoPreview = totalFinal + freteValue). Não somar frete novamente.
                         const _difalAtivoComFrete = formData.difalEnabled && difalAplicavel && _freteParaImpostoPreview > 0;
-                        const totalGeralPreview = _difalAtivoComFrete
-                          ? totalComDifal
-                          : (formData.difalEnabled && difalAplicavel ? totalComDifal : totalFinal) + formData.freteValue;
+                        const totalGeralPreview = customerTotalFinal;
                         return (
                           <>
                             <tr>

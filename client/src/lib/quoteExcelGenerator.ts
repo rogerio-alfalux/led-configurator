@@ -1369,7 +1369,15 @@ async function _generateExcelBuffer(
   const totalComDifal = formData.difalEnabled && difalAplicavelExcel
     ? baseParaImposto / (1 - combinedRate / 100)
     : baseParaImposto;
-  const combinedAmt = totalComDifal - baseParaImposto;
+  const storedTotalOverride = Number(formData.totalFinalOverride);
+  const customerTotalFinal = Number.isFinite(storedTotalOverride) && storedTotalOverride > 0
+    ? storedTotalOverride
+    : totalComDifal;
+  const customerTaxableBase = formData.difalEnabled && difalAplicavelExcel
+    ? customerTotalFinal * (1 - combinedRate / 100)
+    : customerTotalFinal;
+  const customerProductsTotal = Math.max(0, customerTaxableBase - _freteParaImpostoBase);
+  const combinedAmt = customerTotalFinal - customerTaxableBase;
   const difalFcpDilutedExcel = Boolean(formData.difalEnabled && difalAplicavelExcel && formData.difalFcpIncluded && combinedAmt > 0);
   // difalAmt e fcpAmt removidos — agora exibimos combinedAmt em linha única
   let nextRow = currentRow + items.length + floorHeaderCount;
@@ -1443,7 +1451,7 @@ async function _generateExcelBuffer(
   ws.mergeCells(`E${nextRow}:${visibleEndCol}${nextRow}`);
   {
     const c = ws.getCell(`E${nextRow}`);
-    c.value = totalFinal + _difalFcpToDilute;
+    c.value = customerProductsTotal + _difalFcpToDilute;
     c.numFmt = '"R$"#,##0.00';
     c.font = { name: "Calibri", size: 14, bold: true };
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: TOTAL_BG } };
@@ -1540,7 +1548,7 @@ async function _generateExcelBuffer(
     ws.mergeCells(`E${nextRow}:${visibleEndCol}${nextRow}`);
     {
       const c = ws.getCell(`E${nextRow}`);
-      c.value = totalComDifal;
+      c.value = customerTotalFinal;
       c.numFmt = '"R$"#,##0.00';
       c.font = { name: "Calibri", size: 14, bold: true };
       c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFCE4D6" } }; // laranja claro
@@ -1586,7 +1594,7 @@ async function _generateExcelBuffer(
     ws.mergeCells(`E${nextRow}:${visibleEndCol}${nextRow}`);
     {
       const c = ws.getCell(`E${nextRow}`);
-      c.value = buildFreteText(formData, totalFinal);
+      c.value = buildFreteText(formData, customerProductsTotal);
       const isNight = formData.freteType === "night";
       c.font = { name: "Calibri", size: 11, bold: isNight, color: isNight ? { argb: "FFCC0000" } : undefined };
       c.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
@@ -1635,7 +1643,7 @@ async function _generateExcelBuffer(
         ws.mergeCells(`E${nextRow}:${visibleEndCol}${nextRow}`);
         {
           const c = ws.getCell(`E${nextRow}`);
-          c.value = difalFcpDilutedExcel ? totalComDifal : totalFinal + _freteValorNum;
+          c.value = customerTotalFinal;
           c.numFmt = '"R$"#,##0.00';
           c.font = { name: "Calibri", size: 14, bold: true };
           c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9EAD3" } }; // verde claro

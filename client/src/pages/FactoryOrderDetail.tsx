@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { trpc } from "@/lib/trpc";
-import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, formatBRL, normalizeDriverModels, ApiProductDriverInfo, extractPowerLabelFromName, enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers } from "@/lib/cartTypes";
+import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, formatBRL, normalizeDriverModels, normalizeStoredQuoteSnapshot, ApiProductDriverInfo, extractPowerLabelFromName, enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { ComponentSearchField } from "@/components/ComponentSearchField";
 import type { ComponentOption } from "@/components/ComponentSearchField";
@@ -248,10 +248,8 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
 
   const parsed = useMemo(() => {
     const raw = parseCartItemData(item.itemData);
-    if (!raw || !priceMap || !productSkuMap) return raw;
-    const withDrivers = migrateItemDrivers(enrichDriverCurrentsFromApi(raw, correnteMap), priceMap, descMap ?? new Map(), productSkuMap, correnteMap, reverseDescMap);
-    return normalizeDriverModels(enrichShiftAccessoryTechnicalComponents(withDrivers, productSkuMap), descMap ?? new Map());
-  }, [item.itemData, priceMap, productSkuMap, descMap, correnteMap, reverseDescMap]);
+    return raw ? normalizeStoredQuoteSnapshot(raw) : raw;
+  }, [item.itemData]);
 
   useEffect(() => {
     setQtyDraft(String(parsed?.qty ?? 1).replace(".", ","));
@@ -1662,7 +1660,7 @@ export default function FactoryOrderDetail() {
       const itemsData = orderToUse.items
         .map(i => parseCartItemData(i.itemData))
         .filter((d): d is CartItemData => d !== null)
-        .map(d => normalizeDriverModels(enrichShiftAccessoryTechnicalComponents(migrateItemDrivers(enrichDriverCurrentsFromApi(d, componenteCorrenteMapFO), componentePriceMapFO, componenteDescMapFO, productSkuMapFO, componenteCorrenteMapFO, componenteReverseDescMapFO), productSkuMapFO), componenteDescMapFO));
+        .map(d => normalizeStoredQuoteSnapshot(d));
       const fileName = `PEDIDO-FABRICA-${orderNum}-${quote.clientName.replace(/\s+/g, "_")}.xlsx`;
       const buffer = await generateOrderExcel(itemsData, {
         clientName: quote.clientName,
@@ -1896,7 +1894,7 @@ export default function FactoryOrderDetail() {
                     const items = orderToPreview.items
                       .map(i => parseCartItemData(i.itemData))
                       .filter((d): d is CartItemData => d !== null)
-                      .map(d => normalizeDriverModels(enrichShiftAccessoryTechnicalComponents(migrateItemDrivers(enrichDriverCurrentsFromApi(d, componenteCorrenteMapFO), componentePriceMapFO, componenteDescMapFO, productSkuMapFO, componenteCorrenteMapFO, componenteReverseDescMapFO), productSkuMapFO), componenteDescMapFO));
+                      .map(d => normalizeStoredQuoteSnapshot(d));
                     setPreviewItems(items);
                     setPreviewForm({
                       clientName: quote.clientName,

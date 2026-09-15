@@ -3720,3 +3720,14 @@
 - [x] Medir a redução de orçamentos dependentes de custo estimado antes e depois da correção
 - [x] Cobrir a varredura histórica, a prioridade do custo oficial e a imutabilidade comercial por regressão
 - [x] Validar a suíte completa e salvar checkpoint reversível
+
+## Auditoria crítica: total do 35.0002-26 e imutabilidade histórica do LUMIGRID E
+- [x] Preservar e inventariar em modo somente leitura o orçamento 35.0002-26, sua RV3, itens, parâmetros comerciais e totais documentados
+- [x] Reconciliar os R$ 151.482,24 de cabeçalho, preview e Excel com a base correta de R$ 143.908,13 e a margem de R$ 7.574,11
+- [x] Identificar a causa raiz da divergência sem alterar o valor final entregue, preços, revisões ou documentos históricos
+- [x] Auditar o LUMIGRID E 36W do orçamento 32.0104-26 e rastrear a troca retroativa de EQ00496 para EQ00351
+- [x] Impedir que componentes, custos ou preços vigentes da API reidratem retroativamente qualquer orçamento já salvo
+- [x] Aplicar mudanças de catálogo somente a novas configurações ou mediante atualização histórica explicitamente solicitada
+- [x] Auditar outros orçamentos potencialmente afetados por reidratação retroativa, sem regravá-los
+- [x] Cobrir total comercial, margem, driver histórico e imutabilidade de revisões por regressão
+- [x] Validar suíte completa, revisar integridade comercial e salvar checkpoint reversível

@@ -40,7 +40,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { CartItemData, formatBRL, parseCartItemData, extractPowerLabelFromName, toPowerLabel, enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers, migrateLegacyGlowCommercialItem, type QuoteFormData } from "@/lib/cartTypes";
+import { CartItemData, formatBRL, parseCartItemData, normalizeStoredQuoteSnapshot, extractPowerLabelFromName, toPowerLabel, enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers, migrateLegacyGlowCommercialItem, type QuoteFormData } from "@/lib/cartTypes";
 import { buildUnambiguousCatalogPhotoMap, resolveCatalogItemPhoto } from "@/lib/itemPhoto";
 import { formatLinkedCommercialQuote } from "@/lib/sampleLinkPresentation";
 import { isLdRequestLinkedToQuote } from "@/lib/ldRequestUtils";
@@ -48,10 +48,10 @@ import { formatCommercialQuoteNumberInput, isCommercialQuoteNumber } from "@shar
 import { handleLdPdfSent } from "@/lib/ldAdminBadgeRefresh";
 import { linkSampleOrderByQuoteNumber } from "@/lib/sampleLinkFlow";
 import { buildSampleCommercialProjection } from "@/lib/sampleCommercialAdjustment";
-import { applyItemDiscount, applyQuoteDiscount, calculateQuoteTotalWithDiscountAndTax, getDisplayedCustomerTotal, getReconciledCustomerTotal } from "@/lib/quoteTotals";
+import { applyItemDiscount, applyQuoteDiscount, calculateQuoteTotalWithDiscountAndTax, getDisplayedCustomerTotal, getReconciledCustomerTotal, getStoredCustomerTotal } from "@/lib/quoteTotals";
 import { canAccessQuoteAnalysis } from "@/lib/quoteAnalysisAccess";
 import type { ApiProductDriverInfo } from "@/lib/cartTypes";
-import { calculateCommercialQuoteTotal } from "@shared/quoteCommercialTotal";
+import { calculateCommercialQuoteTotal, deriveCommercialItemBaseFromStoredTotal } from "@shared/quoteCommercialTotal";
 
 /** Aplica margem individual do item (itemMarginPercent em %) sobre um valor base */
 function applyItemMarginQD(base: number, itemMarginPercent?: number | null): number {
@@ -1545,6 +1545,17 @@ export default function QuoteDetail() {
     const _versions: Array<{ id: string }> = (_data as { versions?: Array<{ id: string }> } | undefined)?.versions ?? [];
     const _currentVersionId = _versions[0]?.id;
     const _currentItems = _items.filter(i => i.quoteVersionId === _currentVersionId);
+    // REGRA COMERCIAL: um orçamento já salvo é um snapshot soberano. Catálogos
+    // vigentes não podem trocar driver, módulo, quantidade ou preço ao reabri-lo.
+    // Mantemos apenas a normalização numérica baseada nos próprios campos salvos.
+    if (_currentVersionId) {
+      return _currentItems.map(item => {
+        const parsed = parseCartItemData(item.itemData as string);
+        if (!parsed) return item;
+        const normalized = normalizeStoredQuoteSnapshot(parsed);
+        return normalized === parsed ? item : { ...item, itemData: JSON.stringify(normalized) };
+      });
+    }
     // Mapa sku -> produto da API (para fallback de driver na Migração 3 e resolução de ledModuleCode na Migração 4)
     const productSkuMap = new Map<string, ApiProductDriverInfo>();
     const productVariantsBySku = new Map<string, ApiProductDriverInfo[]>();
@@ -1966,7 +1977,7 @@ export default function QuoteDetail() {
 
   // RT/Margem calc for edit form
   // Para itens com driverLines, calcular total correto (luminaria + drivers)
-  const editTotalBase = currentItems.reduce((s, i) => {
+  const persistedItemsBase = currentItems.reduce((s, i) => {
     const d = parseCartItemData(i.itemData);
     if (!d) return s;
     if (d.driverLines && d.driverLines.length > 0) {
@@ -1998,6 +2009,19 @@ export default function QuoteDetail() {
     }
     return s + applyItemDiscount(applyItemMarginQD((d.totalPrice ?? 0) + calculateLinkedAccessoriesTotal(d), d.itemMarginPercent), d.itemDiscountPercent);
   }, 0);
+  const editStoredStateInfo = quote.destState ? getStateInfo(quote.destState) : undefined;
+  const editTotalBase = deriveCommercialItemBaseFromStoredTotal({
+    status: quote.status,
+    rtPercent: quote.rtPercent,
+    marginPercent: quote.marginPercent,
+    discountPercent: quote.discountPercent,
+    freteValue: quote.freteValue,
+    freteIncluded: quote.freteIncluded,
+    freteIsento: quote.freteIsento,
+    diluicaoValor: quote.diluicaoValor,
+    difalEnabled: quote.difalEnabled,
+    combinedTaxRate: editStoredStateInfo?.combined,
+  }, getStoredCustomerTotal(quote)) ?? persistedItemsBase;
   const editRtPct = Math.min(Math.max(parseFloat(editForm.rtPercent || "0") / 100, 0), 0.99);
   const editMarginPct = Math.min(Math.max(parseFloat(editForm.marginPercent || "0") / 100, 0), 0.99);
   const editDiscountPct = Math.min(Math.max(parseFloat(editForm.discountPercent || "0") / 100, 0), 0.99);
@@ -2026,8 +2050,10 @@ export default function QuoteDetail() {
     difalEnabled: quote.difalEnabled,
     combinedTaxRate: _hdrStateInfo?.combined,
   }, commercialItemsMigrated.map(item => item.itemData));
-  // Total final reconciliado da revisão vigente: mesma fonte utilizada por lista e dashboards.
-  const totalRecalculado = headerCommercialTotals.totalFinal;
+  // O total final persistido é soberano para orçamento salvo. A recomposição
+  // somente atua como fallback para registros antigos que não tenham total válido.
+  const storedCustomerTotal = getStoredCustomerTotal(quote);
+  const totalRecalculado = storedCustomerTotal > 0 ? storedCustomerTotal : headerCommercialTotals.totalFinal;
 
   const handleGenerateQuote = async (showIpi = false) => {
     setIsGenerating(true);
@@ -2077,6 +2103,7 @@ export default function QuoteDetail() {
           freteIncluded: (quote as any).freteIncluded ?? false,
           diluicaoValor: commercialDiluicaoValor || undefined,
           revisionCount: exportRevisionCount,
+          totalFinalOverride: totalRecalculado,
           showIpi,
           deliveryDays: quote.deliveryDays ?? 20,
           commissionPercent: quote.commissionPercent ? parseFloat(String(quote.commissionPercent)) : undefined,
@@ -5344,16 +5371,17 @@ export default function QuoteDetail() {
          rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) : undefined,
          marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
          discountPercent: (quote as any).discountPercent ? parseFloat(String((quote as any).discountPercent)) : undefined,
-         showDiscount: !!(quote as any).showDiscount,
-         freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
-         freteIsento: quote.freteIsento ?? false,
-         freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
-         freteCity: (quote as any).freteCity ?? undefined,
-         freteState: (quote as any).freteState ?? undefined,
-         freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
-         freteIncluded: (quote as any).freteIncluded ?? false,
-          revisionCount: exportRevisionCount,
-         deliveryDays: quote.deliveryDays ?? 20,
+	         showDiscount: !!(quote as any).showDiscount,
+	         freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
+	         freteIsento: quote.freteIsento ?? false,
+	         freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
+	         freteCity: (quote as any).freteCity ?? undefined,
+	         freteState: (quote as any).freteState ?? undefined,
+	         freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
+	         freteIncluded: (quote as any).freteIncluded ?? false,
+	          revisionCount: exportRevisionCount,
+	         totalFinalOverride: totalRecalculado,
+	         deliveryDays: quote.deliveryDays ?? 20,
           paymentTerm: quote.paymentTerm ?? undefined,
           destState: quote.destState ?? undefined,
           difalEnabled: quote.difalEnabled ?? false,
@@ -5408,6 +5436,7 @@ export default function QuoteDetail() {
           freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
           freteIncluded: (quote as any).freteIncluded ?? false,
           revisionCount: exportRevisionCount,
+          totalFinalOverride: totalRecalculado,
           deliveryDays: quote.deliveryDays ?? 20,
           paymentTerm: quote.paymentTerm ?? undefined,
           destState: quote.destState ?? undefined,

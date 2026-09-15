@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateCommercialQuoteTotal } from "@shared/quoteCommercialTotal";
+import { calculateCommercialQuoteTotal, deriveCommercialItemBaseFromStoredTotal } from "@shared/quoteCommercialTotal";
 
 describe("calculateCommercialQuoteTotal", () => {
   it("inclui subitens, RT, margem, desconto, frete e imposto uma única vez", () => {
@@ -51,5 +51,27 @@ describe("calculateCommercialQuoteTotal", () => {
 
   it("zera receitas de amostra, mesmo com itens históricos preenchidos", () => {
     expect(calculateCommercialQuoteTotal({ status: "sample" }, [{ totalPrice: 50_000 }]).totalFinal).toBe(0);
+  });
+});
+
+describe("deriveCommercialItemBaseFromStoredTotal", () => {
+  it("mantém o total histórico ao reabrir um orçamento com margem já embutida", () => {
+    const base = deriveCommercialItemBaseFromStoredTotal({ marginPercent: 0.05 }, 151_482.24);
+    expect(base).toBe(143_908.13);
+    expect(calculateCommercialQuoteTotal({ marginPercent: 0.05 }, [{ totalPrice: base }]).totalFinal).toBe(151_482.24);
+  });
+
+  it("reverte RT, margem, desconto, frete e imposto na ordem inversa", () => {
+    const fields = {
+      rtPercent: 0.05,
+      marginPercent: 0.1,
+      discountPercent: 0.08,
+      freteValue: 500,
+      freteIncluded: false,
+      difalEnabled: true,
+      combinedTaxRate: 12,
+    };
+    const final = calculateCommercialQuoteTotal(fields, [{ totalPrice: 10_000 }]).totalFinal;
+    expect(deriveCommercialItemBaseFromStoredTotal(fields, final)).toBeCloseTo(10_000, 2);
   });
 });
