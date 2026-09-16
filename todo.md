@@ -3817,3 +3817,10 @@
 - [x] Identificar e corrigir somente a fonte comprovada da divergência neste orçamento
 - [x] Proteger por regressão a reconciliação de total com frete diluído
 - [x] Validar detalhe, preview, Excel, PDF e ausência de alterações em outros orçamentos
+
+## Gerenciar Orçamentos: edição integral autorizada
+- [x] Mapear os bloqueios de interface e servidor que impedem a alteração de equipe em orçamento existente
+- [x] Permitir que usuários com Gerenciar Orçamentos alterem todos os campos não financeiros autorizados de qualquer orçamento
+- [x] Garantir que assistente e vendedor sejam persistidos corretamente sem criar permissões financeiras implícitas
+- [x] Cobrir a autorização e a persistência por regressão
+- [x] Validar a edição pela interface, as permissões e a preservação comercial

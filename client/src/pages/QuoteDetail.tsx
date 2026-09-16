@@ -141,6 +141,7 @@ import { applyCCTChange, applyUnitPriceChange, applyQtyChange } from "@/lib/cctU
 import { calculateLinkedAccessoriesTotal, parseShiftModuleManualPrice } from "@/lib/shiftModulePrices";
 import { buildSplitDriverPricePatch, cloneCartItemData, getEditableBodyUnitPrice } from "@/lib/splitItemPricing";
 import { deriveDriverQuantityPerUnit, selectDriverVariantByDescription } from "@/lib/driverRehydration";
+import { shouldBindCommercialQuoteTeam } from "@shared/quoteOwnership";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   open: { label: "Em Aberto", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: <Clock className="w-3 h-3" /> },
@@ -1038,8 +1039,9 @@ export default function QuoteDetail() {
   const editAssistants = assistantsQuery.data ?? [];
   const quoteUserEmail = ((user as any)?.email ?? "").toLowerCase();
   const quoteUserRole = (user as any)?.role;
-  const isSellerEditing = quoteUserRole === "vendedor";
-  const isAssistantEditing = quoteUserRole === "assistente";
+  const canManageQuoteTeam = hasQuotePermission(PERMISSIONS.GERENCIAR_ORCAMENTOS);
+  const isSellerEditing = quoteUserRole === "vendedor" && shouldBindCommercialQuoteTeam(quoteUserRole, canManageQuoteTeam);
+  const isAssistantEditing = quoteUserRole === "assistente" && shouldBindCommercialQuoteTeam(quoteUserRole, canManageQuoteTeam);
   const ownEditSeller = useMemo(
     () => editSellers.find((seller) => seller.email?.toLowerCase() === quoteUserEmail),
     [editSellers, quoteUserEmail],
