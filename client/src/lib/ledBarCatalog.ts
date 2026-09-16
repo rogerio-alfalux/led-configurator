@@ -465,7 +465,7 @@ export const LED_BAR_CONTROLE_OPTIONS: { value: LedBarControle; label: string }[
  * sentinela interna para compatibilidade com o motor; a interface não o exibe.
  */
 export function isLedBarFitaFamily(familia: string | null | undefined): boolean {
-  return /\bFL(?:\s+RGBW)?\s*$/i.test(familia?.trim() ?? "");
+  return /\bFL(?:\s+(?:\d+(?:[.,]\d+)?\s*W\s*\/\s*M\s+)?RGBW)?\s*$/i.test(familia?.trim() ?? "");
 }
 
 /**

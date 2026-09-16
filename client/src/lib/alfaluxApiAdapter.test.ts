@@ -441,6 +441,32 @@ describe("adaptAlfaluxProducts - LED BAR", () => {
     });
   });
 
+  it("inclui HIT P FL 10W/m RGBW como perfil linear com RGBW como único CCT", () => {
+    const result = adaptAlfaluxProducts([makeProduct({
+      categoria: "PERFIS",
+      familia: "HIT P FL 10W/m RGBW",
+      instalacao: "EMBUTIR",
+      sku: "LLE-HITP-RGBW",
+      name: "HIT P FL 10W/M RGBW",
+      temperaturasCor: [],
+      ledModule: "FITA LED RGBW 24V 10W/M",
+      ledModuleEq: "EQ-HITP-RGBW",
+      driver220: null,
+      driverBivolt: makeDriver("FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT", "EQ-HITP-DRIVER"),
+      driverQtdBivolt: 1,
+    })]);
+
+    expect(result.ledBars).toHaveLength(1);
+    expect(result.ledBars[0]).toMatchObject({
+      familia: "HIT P FL 10W/m RGBW",
+      name: "HIT P FL 10W/M RGBW",
+      difusor: "NF",
+      ccts: ["RGBW"],
+      driverBivolt: { code: "EQ-HITP-DRIVER" },
+      driverQtdBivolt: 1,
+    });
+  });
+
   it("preserva a quantidade oficial de driver por corte em MINI BLAZE FL", () => {
     const result = adaptAlfaluxProducts([makeProduct({
       categoria: "PERFIS",

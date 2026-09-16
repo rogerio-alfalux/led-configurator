@@ -3831,3 +3831,10 @@
 - [x] Restringir a seleção de CCT exclusivamente à opção RGBW
 - [x] Cobrir catálogo, cálculo, carrinho, orçamento e documentos por regressão
 - [x] Validar tipagem e suíte completa, salvando checkpoint reversível
+
+## HIT P FL 10W/m RGBW: nova família linear
+- [x] Confirmar no catálogo oficial a família HIT P FL 10W/m RGBW e suas variantes técnicas
+- [x] Reutilizar o comportamento de BLAZE E FL RGBW para cortes, drivers por corte, preços e documentos
+- [x] Restringir a seleção de CCT exclusivamente à opção RGBW
+- [x] Cobrir catálogo, cálculo, carrinho, orçamento e documentos por regressão
+- [x] Validar tipagem e suíte completa, salvando checkpoint reversível

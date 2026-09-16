@@ -381,6 +381,10 @@ describe("famílias lineares RGBW", () => {
     expect(isLedBarFitaFamily("BLAZE FL RGBW")).toBe(true);
   });
 
+  it("reconhece HIT P FL 10W/m RGBW como perfil com fita", () => {
+    expect(isLedBarFitaFamily("HIT P FL 10W/m RGBW")).toBe(true);
+  });
+
   it("restringe a família RGBW a RGBW, sem permitir A definir", () => {
     expect(getLedBarCctOptions({ ccts: ["RGBW"] })).toEqual(["RGBW"]);
   });
