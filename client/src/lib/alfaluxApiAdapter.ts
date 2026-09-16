@@ -737,7 +737,7 @@ function toArandelaProduct(p: ApiProduct): ArandelaProduct {
 function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
   const potencia = parsePotenciaFromName(p.name);
   // Famílias sem difusor no nome usam "NF" exclusivamente como sentinela interna.
-  const isNoDifusorFamily = isLedBarFamilyWithoutDifusor(p.familia);
+  const isNoDifusorFamily = isLedBarFamilyWithoutDifusor(p.familia) || hasLinearTapeSignal(p);
   const difusor = parseDifusorFromName(p.name) ?? (isNoDifusorFamily ? "NF" as const : null);
   if (!potencia || !difusor) return null; // não conseguiu parsear potência ou difusor
 
@@ -836,11 +836,19 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
   };
 }
 
-/** Verifica se um produto PERFIS usa o fluxo LED BAR (por metro linear com fonte de tensão) */
+/** Reconhece os sinais oficiais de um perfil linear com fita no identificador ou nome. */
+function hasLinearTapeSignal(p: ApiProduct): boolean {
+  const identidade = `${p.familia ?? ""} ${p.name ?? ""}`;
+  return /\b(?:FL|FITA\s+LED|RGBW)\b/i.test(identidade)
+    && /\b(?:\d+(?:[.,]\d+)?\s*W\s*\/\s*M|FITA\s+LED|RGBW)\b/i.test(identidade);
+}
+
+/** Verifica se um produto PERFIS usa o fluxo LED BAR (por metro linear com fonte de tensão). */
 function isLedBarProduct(p: ApiProduct): boolean {
   const familia = p.familia?.trim() ?? "";
   return /^(LED BAR|MILANO|MEIA LUA|PERFIL FLEXIVEL|FLOOR)\b/i.test(familia)
-    || isLedBarFitaFamily(familia);
+    || isLedBarFitaFamily(familia)
+    || hasLinearTapeSignal(p);
 }
 /** Verifica se um produto PERFIS é da família GLOW (excluindo TUBE LIGHT que tem família própria) */
 function isGlowProduct(p: ApiProduct): boolean {

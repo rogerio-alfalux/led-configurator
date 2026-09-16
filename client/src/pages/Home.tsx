@@ -5285,10 +5285,10 @@ export default function Home() {
                 <React.Fragment>
                 {/* Status do catálogo de perfis */}
                 <div>
-                  {alfaluxLoading && !profileCatalogIsFromApi ? (
+                  {alfaluxLoading ? (
                     <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                       <span className="inline-block w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-                      Carregando catálogo da API...
+                      {profileCatalogIsFromApi ? "Atualizando catálogo da API..." : "Carregando catálogo da API..."}
                     </span>
                   ) : profileCatalogIsFromApi ? (
                     <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500">

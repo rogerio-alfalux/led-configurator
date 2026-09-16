@@ -3845,3 +3845,10 @@
 - [x] Restringir a seleção de CCT exclusivamente à opção RGBW
 - [x] Cobrir catálogo, cálculo, carrinho, orçamento e documentos por regressão
 - [x] Validar tipagem e suíte completa, salvando checkpoint reversível
+
+## Sincronização sob demanda do catálogo Alfalux
+- [x] Atualizar o catálogo ao abrir o configurador ou solicitar atualização, usando o refresh oficial da API
+- [x] Reaproveitar classificadores genéricos para famílias e produtos conhecidos, sem alterar orçamentos históricos
+- [x] Expor estado de atualização e evitar falhas silenciosas quando a API estiver indisponível
+- [x] Adicionar regressões para refresh sob demanda, snapshot e preservação histórica
+- [x] Validar tipagem e suíte completa, salvando checkpoint reversível

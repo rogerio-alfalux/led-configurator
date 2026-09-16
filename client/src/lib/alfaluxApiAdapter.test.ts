@@ -537,6 +537,28 @@ describe("adaptAlfaluxProducts - LED BAR", () => {
       potencia: 10,
     });
   });
+
+  it("classifica uma futura família linear RGBW pelos sinais do nome", () => {
+    const result = adaptAlfaluxProducts([makeProduct({
+      categoria: "PERFIS",
+      familia: "NOVA LINHA",
+      sku: "LLE-FUTURA-RGBW",
+      name: "NOVA LINHA FL 10W/M RGBW",
+      temperaturasCor: [],
+      ledModule: "FITA LED RGBW 24V 10W/M",
+      driver220: null,
+      driverBivolt: makeDriver("FONTE 36W 24V BIVOLT", "EQ-FUTURA"),
+      driverQtdBivolt: 1,
+    })]);
+
+    expect(result.ledBars).toHaveLength(1);
+    expect(result.ledBars[0]).toMatchObject({
+      familia: "NOVA LINHA",
+      ccts: ["RGBW"],
+      difusor: "NF",
+      driverBivolt: { code: "EQ-FUTURA" },
+    });
+  });
 });
 
 describe("dados da API usados sem modificação — sem inferência de quantidade", () => {
