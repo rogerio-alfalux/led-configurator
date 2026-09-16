@@ -467,6 +467,38 @@ describe("adaptAlfaluxProducts - LED BAR", () => {
     });
   });
 
+  it("inclui PERFIL FLEXIVEL RGBW com o mesmo fluxo do perfil flexível RGBW de referência", () => {
+    const result = adaptAlfaluxProducts([makeProduct({
+      categoria: "PERFIS",
+      familia: "PERFIL FLEXIVEL RGBW",
+      sku: "LLE-FLEX-RGBW",
+      name: "PERFIL FLEXIVEL 45º RGBW 10W/M",
+      temperaturasCor: [],
+      ledModule: "FITA LED RGBW 24V 10W/M",
+      ledModuleEq: "EQ-FLEX-RGBW",
+      driver220: null,
+      driverBivolt: makeDriver("FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT", "EQ-FLEX-DRIVER"),
+      driverQtdBivolt: 1,
+      custoCorpoOnoffBivolt: 107.8,
+      markupPadraoOnoffBivolt: 3,
+      custoDriverBivolt: 39.24,
+      markupPadraoDriverBivolt: 3,
+    })]);
+
+    expect(result.ledBars).toHaveLength(1);
+    expect(result.ledBars[0]).toMatchObject({
+      familia: "PERFIL FLEXIVEL RGBW",
+      name: "PERFIL FLEXIVEL 45º RGBW 10W/M",
+      difusor: "NF",
+      ccts: ["RGBW"],
+      driverBivolt: { code: "EQ-FLEX-DRIVER" },
+      driverQtdBivolt: 1,
+      custoCorpoOnoffBivolt: 107.8,
+      markupPadraoOnoffBivolt: 3,
+      custoDriverBivolt: 39.24,
+    });
+  });
+
   it("preserva a quantidade oficial de driver por corte em MINI BLAZE FL", () => {
     const result = adaptAlfaluxProducts([makeProduct({
       categoria: "PERFIS",

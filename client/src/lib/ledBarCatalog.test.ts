@@ -127,6 +127,16 @@ describe("preço do Perfil Flexível pelo custo oficial", () => {
     });
   });
 
+  it("aplica o mesmo preço oficial ao PERFIL FLEXIVEL RGBW", () => {
+    const detail = calcLedBarPriceDetail(10, 1000, 1, "PERFIL FLEXIVEL RGBW", null, 39.24, 3, 107.8, 3, 1);
+    expect(detail).toMatchObject({
+      precoPerfil: 323.4,
+      precoDriverPorCorte: 117.72,
+      totalDriverQty: 1,
+      total: 441.12,
+    });
+  });
+
   it("mantém preço direto por metro acima do custo vezes markup", () => {
     expect(calcLedBarPrice(10, 1000, 1, "PERFIL FLEXIVEL", 350, null, null, 107.8, 3)).toBe(350);
   });

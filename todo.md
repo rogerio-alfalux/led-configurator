@@ -3838,3 +3838,10 @@
 - [x] Restringir a seleção de CCT exclusivamente à opção RGBW
 - [x] Cobrir catálogo, cálculo, carrinho, orçamento e documentos por regressão
 - [x] Validar tipagem e suíte completa, salvando checkpoint reversível
+
+## PERFIL FLEXIVEL RGBW: nova família linear
+- [x] Confirmar no catálogo oficial a família PERFIL FLEXIVEL RGBW e o comportamento de PERFIL FLEXIVEL 45º RGBW
+- [x] Reutilizar o fluxo de perfil flexível RGBW para cálculo, preço, componentes, documentos e requisição
+- [x] Restringir a seleção de CCT exclusivamente à opção RGBW
+- [x] Cobrir catálogo, cálculo, carrinho, orçamento e documentos por regressão
+- [x] Validar tipagem e suíte completa, salvando checkpoint reversível
