@@ -750,7 +750,15 @@ function toLedBarProduct(p: ApiProduct): LedBarProduct | null {
   const dDim010v = p.driverDim110v ?? dDimTriac220v ?? dDimTriac110v;
   const dDimDali = p.driverDimDali;
   const productStructure = adaptProductStructure(p);
-  const ccts = withProductLightingCcts(normalizeCCTs(p.temperaturasCor), productStructure);
+  const allLedModulesLinear = [p.ledModule, p.ledModule2700, p.ledModule3000, p.ledModule3500, p.ledModule4000, p.ledModule5000].filter(Boolean);
+  // Algumas variantes lineares RGBW ainda chegam sem temperaturasCor e sem
+  // lightingMode. A identificação oficial continua explícita no nome/família.
+  const isRgbwLinear = productStructure.lightingMode === "RGBW"
+    || /\bRGBW\b/i.test(`${p.familia ?? ""} ${p.name ?? ""}`)
+    || allLedModulesLinear.some(module => /\bRGBW\b/i.test(module ?? ""));
+  const ccts = isRgbwLinear
+    ? ["RGBW"]
+    : withProductLightingCcts(normalizeCCTs(p.temperaturasCor), productStructure);
 
   return {
     familia: p.familia,

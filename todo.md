@@ -3824,3 +3824,10 @@
 - [x] Garantir que assistente e vendedor sejam persistidos corretamente sem criar permissões financeiras implícitas
 - [x] Cobrir a autorização e a persistência por regressão
 - [x] Validar a edição pela interface, as permissões e a preservação comercial
+
+## BLAZE E FL RGBW: nova família linear
+- [x] Confirmar no catálogo oficial a nova família BLAZE E FL RGBW e suas variantes técnicas
+- [x] Reutilizar integralmente o comportamento de BLAZE E FL para cortes, drivers, preços e documentos
+- [x] Restringir a seleção de CCT exclusivamente à opção RGBW
+- [x] Cobrir catálogo, cálculo, carrinho, orçamento e documentos por regressão
+- [x] Validar tipagem e suíte completa, salvando checkpoint reversível

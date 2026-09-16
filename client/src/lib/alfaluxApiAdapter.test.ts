@@ -416,6 +416,31 @@ describe("adaptAlfaluxProducts - LED BAR", () => {
     });
   });
 
+  it("inclui BLAZE E FL RGBW como perfil linear com RGBW como único CCT", () => {
+    const result = adaptAlfaluxProducts([makeProduct({
+      categoria: "PERFIS",
+      familia: "BLAZE FL RGBW",
+      instalacao: "EMBUTIR",
+      sku: "LLE-2810",
+      name: "BLAZE E FL 10W/M RGBW",
+      temperaturasCor: [],
+      ledModule: "FITA LED RGBW 24V 10W/M",
+      ledModuleEq: "EQ00999",
+      driver220: null,
+      driverBivolt: makeDriver("FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT", "EQ00801"),
+      driverQtdBivolt: 1,
+    })]);
+
+    expect(result.ledBars).toHaveLength(1);
+    expect(result.ledBars[0]).toMatchObject({
+      familia: "BLAZE FL RGBW",
+      name: "BLAZE E FL 10W/M RGBW",
+      difusor: "NF",
+      ccts: ["RGBW"],
+      driverBivolt: { code: "EQ00801" },
+    });
+  });
+
   it("preserva a quantidade oficial de driver por corte em MINI BLAZE FL", () => {
     const result = adaptAlfaluxProducts([makeProduct({
       categoria: "PERFIS",

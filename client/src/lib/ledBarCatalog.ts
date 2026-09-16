@@ -465,7 +465,16 @@ export const LED_BAR_CONTROLE_OPTIONS: { value: LedBarControle; label: string }[
  * sentinela interna para compatibilidade com o motor; a interface não o exibe.
  */
 export function isLedBarFitaFamily(familia: string | null | undefined): boolean {
-  return /\bFL\s*$/i.test(familia?.trim() ?? "");
+  return /\bFL(?:\s+RGBW)?\s*$/i.test(familia?.trim() ?? "");
+}
+
+/**
+ * Opções exibidas de CCT para perfis lineares. Produtos RGBW não admitem
+ * CCT alternativo nem "A definir": RGBW é a única configuração oficial.
+ */
+export function getLedBarCctOptions(product: Pick<LedBarProduct, "ccts"> | null | undefined): string[] {
+  const ccts = product?.ccts ?? [];
+  return ccts.length === 1 && ccts[0] === "RGBW" ? ["RGBW"] : [...ccts, "A definir"];
 }
 
 export function isLedBarFamilyWithoutDifusor(familia: string | null | undefined): boolean {

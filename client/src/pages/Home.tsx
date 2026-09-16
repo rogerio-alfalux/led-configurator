@@ -86,6 +86,7 @@ import {
   PERFIL_FLEXIVEL_MAX_LENGTH_MM,
   getLedBarAvailableInstallations,
   getAvailableVoltages,
+  getLedBarCctOptions,
   isLedBarFitaFamily,
   calculateLedBar,
   calcLedBarPrice,
@@ -4215,6 +4216,10 @@ export default function Home() {
   const lbAvailableCCTs = useMemo(() => {
     return lbSelectedProduct?.ccts ?? ["2700K", "3000K", "4000K", "5000K"];
   }, [lbSelectedProduct]);
+  const lbCctOptions = useMemo(
+    () => getLedBarCctOptions(lbSelectedProduct),
+    [lbSelectedProduct],
+  );
 
   // Comprimento em mm (número)
   const lbComprimentoNum = useMemo(() => {
@@ -6454,7 +6459,7 @@ export default function Home() {
                       onChange={(e) => { setLbCCT(e.target.value); setLbResult(null); }}
                       className="h-9 rounded-md border border-border bg-background text-foreground text-sm px-3 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-xs"
                     >
-                      {[...lbAvailableCCTs, "A definir"].map((c) => (
+                      {lbCctOptions.map((c) => (
                         <option key={c} value={c}>{c}</option>
                       ))}
                     </select>

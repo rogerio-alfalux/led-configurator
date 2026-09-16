@@ -20,6 +20,7 @@ import {
   LED_BAR_CATALOG,
   LED_BAR_MAX_LENGTH_MM,
   formatLinearCutDescription,
+  getLedBarCctOptions,
 } from "./ledBarCatalog";
 import type { LedBarProduct } from "./ledBarCatalog";
 
@@ -372,6 +373,20 @@ describe("calculateLedBar", () => {
 
   it("não usa tabela comercial estática para futuras famílias FL sem preço API", () => {
     expect(calcLedBarPrice(10, 1000, 1, "NOVA FAMÍLIA FL")).toBeNull();
+  });
+});
+
+describe("famílias lineares RGBW", () => {
+  it("reconhece uma família FL RGBW no fluxo de perfis com fita", () => {
+    expect(isLedBarFitaFamily("BLAZE FL RGBW")).toBe(true);
+  });
+
+  it("restringe a família RGBW a RGBW, sem permitir A definir", () => {
+    expect(getLedBarCctOptions({ ccts: ["RGBW"] })).toEqual(["RGBW"]);
+  });
+
+  it("mantém A definir nos perfis lineares não RGBW", () => {
+    expect(getLedBarCctOptions({ ccts: ["2700K", "3000K"] })).toEqual(["2700K", "3000K", "A definir"]);
   });
 });
 
