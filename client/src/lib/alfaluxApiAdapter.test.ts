@@ -161,6 +161,22 @@ describe("adaptAlfaluxProducts - Downlights", () => {
   });
 });
 
+describe("adaptAlfaluxProducts - MINI BAGEO", () => {
+  it("classifica MINI BAGEO como perfil fixo no mesmo fluxo de BAGEO", () => {
+    const result = adaptAlfaluxProducts([makeProduct({
+      categoria: "PERFIS",
+      familia: "MINI BAGEO",
+      instalacao: "PENDENTE",
+      sku: "MBG-001",
+      name: "MINI BAGEO P 20W 3000K",
+    })]);
+
+    expect(result.bageosFixos).toHaveLength(1);
+    expect(result.bageosFixos[0]).toMatchObject({ familia: "MINI BAGEO", sku: "MBG-001" });
+    expect(result.bageos).toHaveLength(0);
+  });
+});
+
 describe("adaptAlfaluxProducts - Painéis", () => {
   it("converte produto Painel corretamente", () => {
     const products = [makeProduct({ categoria: "PAINÉIS", familia: "ALE-2103", name: "ALE-2103 36W" })];

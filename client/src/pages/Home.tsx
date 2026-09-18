@@ -3486,7 +3486,7 @@ export default function Home() {
   // ── Estados de BAGEO fixo (tamanhos fixos, fluxo igual a Downlights) ─────────
   const [bfInstalacao, setBfInstalacao] = useState<string | null>(null);
   const [bfFamilia, setBfFamilia] = useState<string | null>(null);
-  const [bfFamilyScope, setBfFamilyScope] = useState<"BAGEO" | "LUME" | null>(null);
+  const [bfFamilyScope, setBfFamilyScope] = useState<"BAGEO" | "MINI BAGEO" | "LUME" | null>(null);
   const [bfProductKey, setBfProductKey] = useState<string | null>(null);
   const [bfVoltage, setBfVoltage] = useState<"220V" | "Bivolt" | null>(null);
   const [bfCCT, setBfCCT] = useState<string>("3000K");
@@ -4369,11 +4369,15 @@ export default function Home() {
     () => activeBageoFixoCatalog.filter((product) => product.familia?.trim().toUpperCase() === "BAGEO"),
     [activeBageoFixoCatalog],
   );
+  const activeMiniBageoFixoProducts = useMemo(
+    () => activeBageoFixoCatalog.filter((product) => product.familia?.trim().toUpperCase() === "MINI BAGEO"),
+    [activeBageoFixoCatalog],
+  );
   const activeLumeProducts = useMemo(
     () => activeBageoFixoCatalog.filter((product) => product.familia?.trim().toUpperCase() === "LUME"),
     [activeBageoFixoCatalog],
   );
-  const bfFlowLabel = bfFamilyScope === "LUME" ? "LUME" : "BAGEO";
+  const bfFlowLabel = bfFamilyScope === "LUME" ? "LUME" : bfFamilyScope === "MINI BAGEO" ? "MINI BAGEO" : "BAGEO";
   // Instalações disponíveis para o perfil fixo selecionado
   const bfInstalacoes = useMemo(() => {
     const set = new Set(bfScopedCatalog.map(p => p.instalacao ?? ""));
@@ -5314,7 +5318,7 @@ export default function Home() {
                 <div>
                   <FieldLabel>Perfil</FieldLabel>
                   <Select
-                    value={bgMode === "sinuosa" ? "__BAGEO_SINUOSA__" : bgMode === "fixo" ? bfFamilyScope === "LUME" ? "__LUME__" : "__BAGEO_FIXO__" : glowMode ? "__GLOW__" : tubeLightMode ? "__TUBE_LIGHT__" : aldaMode ? "__ALDA__" : lbFamilia ? `__LEDBAR__${lbFamilia}` : profileName}
+                    value={bgMode === "sinuosa" ? "__BAGEO_SINUOSA__" : bgMode === "fixo" ? bfFamilyScope === "LUME" ? "__LUME__" : bfFamilyScope === "MINI BAGEO" ? "__MINI_BAGEO__" : "__BAGEO_FIXO__" : glowMode ? "__GLOW__" : tubeLightMode ? "__TUBE_LIGHT__" : aldaMode ? "__ALDA__" : lbFamilia ? `__LEDBAR__${lbFamilia}` : profileName}
                     onValueChange={(v) => {
                       if (v === "__BAGEO_SINUOSA__") {
                         setBgMode("sinuosa");
@@ -5336,6 +5340,14 @@ export default function Home() {
                         setBgMode("fixo");
                         setBgInstalacao(null); setBgProduct(null); setBgResult(null);
                         setBfInstalacao(null); setBfFamilia(null); setBfFamilyScope("LUME"); setBfProductKey(null); setBfResult(null);
+                        setAldaMode(false); setAldaInstalacao(null); setAldaFamilia(null); setAldaProductKey(null); setAldaVoltage(null); setAldaResult(null);
+                        setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
+                        setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
+                        setProfileName(""); setInstallType(""); setResult(null); setError(null);
+                      } else if (v === "__MINI_BAGEO__") {
+                        setBgMode("fixo");
+                        setBgInstalacao(null); setBgProduct(null); setBgResult(null);
+                        setBfInstalacao(null); setBfFamilia(null); setBfFamilyScope("MINI BAGEO"); setBfProductKey(null); setBfResult(null);
                         setAldaMode(false); setAldaInstalacao(null); setAldaFamilia(null); setAldaProductKey(null); setAldaVoltage(null); setAldaResult(null);
                         setLbFamilia(null); setLbPotencia(null); setLbDifusor(null); setLbResult(null);
                         setGlowMode(false); setGlowProductKey(null); setGlowVoltage(null); setGlowResult(null);
@@ -5438,10 +5450,11 @@ export default function Home() {
                           ))}
                         </>
                       )}
-                      {(activeBageoCatalog.length > 0 || activeBageoFixoProducts.length > 0) && (
+                      {(activeBageoCatalog.length > 0 || activeBageoFixoProducts.length > 0 || activeMiniBageoFixoProducts.length > 0) && (
                         <>
                           <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">BAGEO</div>
                           {activeBageoFixoProducts.length > 0 && <SelectItem value="__BAGEO_FIXO__">BAGEO</SelectItem>}
+                          {activeMiniBageoFixoProducts.length > 0 && <SelectItem value="__MINI_BAGEO__">MINI BAGEO</SelectItem>}
                           {activeBageoCatalog.length > 0 && <SelectItem value="__BAGEO_SINUOSA__">BAGEO Sinuosa</SelectItem>}
                         </>
                       )}
