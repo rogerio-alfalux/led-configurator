@@ -2401,7 +2401,7 @@
 - [x] Remover botão "Gerar Pedido de Fábrica" da tela de detalhes do orçamento
 - [x] Botão "Gerenciar Pedido de Fábrica" deve ficar na cor laranja
 - [x] Sistema de subpedidos: permitir dividir pedido em subpedidos (ex: 202539-1, 202539-2) com prazos de entrega diferentes
-- [ ] Subpedidos: usuário escolhe quais itens do orçamento compõem cada subpedido (sem repetição entre subpedidos)
+- [x] Subpedidos: usuário escolhe quais itens do orçamento compõem cada subpedido (sem repetição entre subpedidos)
 - [x] Feature: Campo de margem aceitar valores negativos como desconto geral (ex: -10 = 10% de desconto em todos os itens)
 - [x] Fix: FITA LED duplicada na requisição de materiais para itens LED BAR (contada 2x: no bloco driverLines e no bloco LED BAR)
 - [x] Feature: Botão "Substituir Item"
@@ -2645,7 +2645,7 @@
 - [x] Auto-preenchimento ao criar orçamento da solicitação LD: puxar LD como campo Arquitetura/LD
 - [x] Auto-preenchimento: frete "A Calcular" quando localidade fora de SP
 - [x] Auto-preenchimento: número do orçamento sugerido ao selecionar vendedor
-- [ ] Primeira edição do orçamento criado via solicitação LD não conta como revisão (fica RV0 até enviar ao LD)
+- [x] Primeira edição do orçamento criado via solicitação LD não conta como revisão (fica RV0 até enviar ao LD)
 - [ ] Feature: LD pode solicitar revisão do orçamento após receber o PDF (trocar/inserir/excluir produtos)
 
 ## Correção: Ficha de produção usa drivers do orçamento aprovado

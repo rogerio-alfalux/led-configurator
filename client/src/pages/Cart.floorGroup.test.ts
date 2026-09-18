@@ -68,4 +68,14 @@ describe("FloorGroupBar", () => {
     expect(source).toContain("patch.accessories = (item?.data.accessories ?? []).map");
     expect(source).toContain("parseShiftModuleManualPrice(shiftModulePriceDrafts[draftKey])");
   });
+
+  it("permite editar quantidade de drivers e acessórios e recalcula seus subtotais", () => {
+    const source = readFileSync(resolve(process.cwd(), "client/src/pages/Cart.tsx"), "utf8");
+    expect(source).toContain("driverQuantityDrafts");
+    expect(source).toContain("accessoryQuantityDrafts");
+    expect(source).toContain("driverQty,");
+    expect(source).toContain("driverTotalPrice: line.driverUnitPrice");
+    expect(source).toContain("qty: nextQuantity");
+    expect(source).toContain("className=\"text-right\"");
+  });
 });

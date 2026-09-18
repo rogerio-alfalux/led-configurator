@@ -870,6 +870,8 @@ function StandardCart() {
   const [editItemId, setEditItemId] = useState<number | null>(null);
   const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; driverUnitPriceOverride: string; itemNote: string; itemObs: string; itemObsShowInExcel: boolean; withoutEquipment?: boolean; itemMarginPercent: string; floorId: string; floorName: string; ambiente: string; specialColorTemp: string; specialEquipments: SpecialEquipment[]; mkpCustom: string; specialDescription: string; specialDimensions: string; specialPower: string; specialDim: string; specialVoltage: string; specialColor: string; description: string; itemEmPlanta: string; specialCustoUnitario: string; specialMarkup: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', driverUnitPriceOverride: '', itemNote: '', itemObs: '', itemObsShowInExcel: false, withoutEquipment: false, itemMarginPercent: '', floorId: '', floorName: '', ambiente: '', specialColorTemp: '', specialEquipments: [], mkpCustom: '', specialDescription: '', specialDimensions: '', specialPower: '', specialDim: '', specialVoltage: '', specialColor: '', description: '', itemEmPlanta: '', specialCustoUnitario: '', specialMarkup: '' });
   const [shiftModulePriceDrafts, setShiftModulePriceDrafts] = useState<Record<string, string>>({});
+  const [driverQuantityDrafts, setDriverQuantityDrafts] = useState<Record<string, string>>({});
+  const [accessoryQuantityDrafts, setAccessoryQuantityDrafts] = useState<Record<string, string>>({});
   // Estados para edição de foto de Item Especial
   const [editSpecialPhotoUrl, setEditSpecialPhotoUrl] = useState<string | null>(null);
   const [editSpecialPhotoPreview, setEditSpecialPhotoPreview] = useState<string | null>(null);
@@ -1633,6 +1635,8 @@ function StandardCart() {
                                   onDuplicate={(data) => { const cloned = cloneCartItemData(data); addItem({ ...cloned, itemEmPlanta: cloned.itemEmPlanta ?? '' }); toast.success('Item duplicado no carrinho'); }}
                                   onEditClick={(id, data) => {
                                     setEditItemId(id);
+                                    setDriverQuantityDrafts(Object.fromEntries((data.driverLines ?? []).map((line, lineIndex) => [`${id}:${lineIndex}:${line.driverCode}`, String(line.driverQty ?? 0)])));
+                                    setAccessoryQuantityDrafts(Object.fromEntries((data.accessories ?? []).map((accessory, accessoryIndex) => [`${id}:${accessoryIndex}:${accessory.codigo}`, String(accessory.qty ?? 1)])));
                                     const editableBodyPrice = getEditableBodyUnitPrice(data);
                                     setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: editableBodyPrice != null ? String(editableBodyPrice).replace('.', ',') : '', driverUnitPriceOverride: data.driverLines && data.driverLines.length > 0 && data.driverLines[0].driverUnitPrice != null ? String(data.driverLines[0].driverUnitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: (data.itemMarginPercent != null && data.itemMarginPercent > 0) ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '', description: data.description ?? '', itemEmPlanta: data.itemEmPlanta ?? '', specialCustoUnitario: data.specialCustoUnitario != null ? String(data.specialCustoUnitario).replace('.', ',') : '', specialMarkup: data.specialMarkup != null ? String(data.specialMarkup).replace('.', ',') : '' });
                                     if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
@@ -2984,6 +2988,27 @@ function StandardCart() {
                           {canEditDriverPrice && (
                             <p className="text-xs text-amber-600 dark:text-amber-400">Alterar substituirá o preço da API para este driver. O total do item será recalculado.</p>
                           )}
+                          <div className="space-y-2 pt-2 border-t border-border/60">
+                            <Label className="text-xs">Quantidade de drivers</Label>
+                            {item.data.driverLines.map((line, lineIndex) => {
+                              const quantityKey = `${editItemId}:${lineIndex}:${line.driverCode}`;
+                              return (
+                                <div key={quantityKey} className="grid grid-cols-[minmax(0,1fr)_6rem] items-center gap-2">
+                                  <span className="truncate text-xs text-muted-foreground" title={line.driverModel}>{line.driverCode} · {line.driverModel}</span>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    inputMode="decimal"
+                                    value={driverQuantityDrafts[quantityKey] ?? String(line.driverQty ?? 0)}
+                                    onChange={(event) => setDriverQuantityDrafts(previous => ({ ...previous, [quantityKey]: event.target.value }))}
+                                    className="text-right"
+                                    aria-label={`Quantidade do driver ${line.driverCode}`}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
                     </>
@@ -3020,20 +3045,31 @@ function StandardCart() {
                       {(item?.data.accessories ?? []).map((accessory, accessoryIndex) => {
                         const draftKey = `${editItemId ?? "item"}:${accessoryIndex}:${accessory.codigo}`;
                         const hasDraft = Object.prototype.hasOwnProperty.call(shiftModulePriceDrafts, draftKey);
+                        const hasQuantityDraft = Object.prototype.hasOwnProperty.call(accessoryQuantityDrafts, draftKey);
                         const canEditModulePrice = (user as any)?.role !== "convidado" && (accessory.unitPrice == null || canOverrideApiPrice);
                         return (
-                          <div key={draftKey} className="grid grid-cols-[1fr_7.5rem] gap-2 items-center">
+                          <div key={draftKey} className="grid grid-cols-[minmax(0,1fr)_5rem_7.5rem] gap-2 items-center">
                             <div className="min-w-0">
                               <p className="text-xs font-medium truncate">{accessory.descricao}</p>
-                              <p className="text-[10px] text-muted-foreground font-mono">{accessory.codigo} · {accessory.qty} un.</p>
+                              <p className="text-[10px] text-muted-foreground font-mono">{accessory.codigo}</p>
                             </div>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              inputMode="decimal"
+                              value={hasQuantityDraft ? accessoryQuantityDrafts[draftKey] : String(accessory.qty ?? 1)}
+                              onChange={(event) => setAccessoryQuantityDrafts((previous) => ({ ...previous, [draftKey]: event.target.value }))}
+                              className="text-right"
+                              aria-label={`Quantidade do acessório ${accessory.descricao}`}
+                            />
                             <Input
                               inputMode="decimal"
                               value={hasDraft ? shiftModulePriceDrafts[draftKey] : (accessory.unitPrice != null ? accessory.unitPrice.toFixed(2).replace(".", ",") : "")}
                               onChange={canEditModulePrice ? (event) => setShiftModulePriceDrafts((previous) => ({ ...previous, [draftKey]: event.target.value })) : undefined}
                               readOnly={!canEditModulePrice}
                               placeholder={canEditModulePrice ? "0,00" : "Preço da API"}
-                              className={!canEditModulePrice ? "bg-muted text-muted-foreground cursor-not-allowed" : accessory.unitPrice == null ? "border-amber-500" : ""}
+                              className={`text-right ${!canEditModulePrice ? "bg-muted text-muted-foreground cursor-not-allowed" : accessory.unitPrice == null ? "border-amber-500" : ""}`}
                               aria-label={`Preço do módulo ${accessory.descricao}`}
                             />
                           </div>
@@ -3503,6 +3539,23 @@ function StandardCart() {
                   patch.totalPrice = qty * unitPrice;
                 }
               }
+              if (item?.data.driverLines && item.data.driverLines.length > 0 && !editFields.withoutEquipment) {
+                const savedDriverLines = (patch.driverLines as typeof item.data.driverLines | undefined) ?? item.data.driverLines;
+                patch.driverLines = savedDriverLines.map((line, lineIndex) => {
+                  const quantityKey = `${editItemId}:${lineIndex}:${line.driverCode}`;
+                  const rawQuantity = driverQuantityDrafts[quantityKey];
+                  const driverQty = rawQuantity != null && rawQuantity.trim() !== ''
+                    ? Math.max(0, Number(rawQuantity.replace(',', '.')) || 0)
+                    : (line.driverQty ?? 0);
+                  return {
+                    ...line,
+                    driverQty,
+                    driverTotalPrice: line.driverUnitPrice != null
+                      ? Math.round(line.driverUnitPrice * driverQty * 100) / 100
+                      : line.driverTotalPrice,
+                  };
+                });
+              }
               // Sempre salvar itemNote (pode ser vazio para limpar)
               patch.itemNote = editFields.itemNote.trim() || undefined;
               // itemObs e itemObsShowInExcel
@@ -3556,10 +3609,15 @@ function StandardCart() {
               if ((item?.data.accessories?.length ?? 0) > 0) {
                 patch.accessories = (item?.data.accessories ?? []).map((accessory, accessoryIndex) => {
                   const draftKey = `${editItemId}:${accessoryIndex}:${accessory.codigo}`;
-                  if (!Object.prototype.hasOwnProperty.call(shiftModulePriceDrafts, draftKey)) return accessory;
+                  const quantityDraft = accessoryQuantityDrafts[draftKey];
+                  const nextQuantity = quantityDraft != null && quantityDraft.trim() !== ''
+                    ? Math.max(0, Number(quantityDraft.replace(',', '.')) || 0)
+                    : accessory.qty;
+                  const nextAccessory = { ...accessory, qty: nextQuantity };
+                  if (!Object.prototype.hasOwnProperty.call(shiftModulePriceDrafts, draftKey)) return nextAccessory;
                   const canEditModulePrice = (user as any)?.role !== "convidado" && (accessory.unitPrice == null || canOverrideApiPriceSave);
-                  if (!canEditModulePrice) return accessory;
-                  return { ...accessory, unitPrice: parseShiftModuleManualPrice(shiftModulePriceDrafts[draftKey]) };
+                  if (!canEditModulePrice) return nextAccessory;
+                  return { ...nextAccessory, unitPrice: parseShiftModuleManualPrice(shiftModulePriceDrafts[draftKey]) };
                 });
               }
               const totalForUpdate = isRevenda
