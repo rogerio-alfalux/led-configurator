@@ -8,11 +8,12 @@ describe("botão Atualizar do backup", () => {
     expect(source).toContain("trpc.backup.runNow.useMutation");
     expect(source).toContain("const handleRunBackupNow = async () => {");
     expect(source).toContain("await runBackupNowMutation.mutateAsync()");
-    expect(source).toContain("const [confirmedBackupRows, setConfirmedBackupRows]");
-    expect(source).toContain("setConfirmedBackupRows(current => mergeConfirmedBackupRows(current, result.historyRows))");
-    expect(source).toContain("mergeConfirmedBackupRows(current, result.historyRows)");
-    expect(source).toContain("mergeConfirmedBackupRows(backupListQuery.data, confirmedBackupRows)");
+    expect(source).toContain("const waitForBackupCompletion = async (queuedAt: string) => {");
     expect(source).toContain("await backupListQuery.refetch()");
+    expect(source).toContain("hasSql && hasExcel");
+    expect(source).toContain("const [confirmedBackupRows, setConfirmedBackupRows]");
+    expect(source).toContain("mergeConfirmedBackupRows(current, completedRows)");
+    expect(source).toContain("mergeConfirmedBackupRows(backupListQuery.data, confirmedBackupRows)");
     expect(source).toContain("Gerando o backup completo e salvando no histórico");
     expect(source).toContain("O serviço de backup está temporariamente indisponível");
     expect(source).not.toContain('toast.error(error.message || "Erro ao gerar backup atualizado")');

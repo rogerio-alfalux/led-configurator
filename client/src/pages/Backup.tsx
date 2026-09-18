@@ -34,9 +34,9 @@ function formatDate(dateStr: string | null | undefined): string {
 
 export default function Backup() {
   const { user } = useAuth();
-  const utils = trpc.useUtils();
   const [sqlLoading, setSqlLoading] = useState(false);
   const [excelLoading, setExcelLoading] = useState(false);
+  const [backupWaiting, setBackupWaiting] = useState(false);
 
   const exportExcelQuery = trpc.backup.exportQuotesExcel.useQuery(undefined, { enabled: false });
   const backupListQuery = trpc.backup.list.useQuery(undefined, {
@@ -47,20 +47,33 @@ export default function Backup() {
   // servidor enquanto uma recarga da lista ainda estiver em trânsito.
   const [confirmedBackupRows, setConfirmedBackupRows] = useState<NonNullable<typeof backupListQuery.data>>([]);
   const runBackupNowMutation = trpc.backup.runNow.useMutation({
-    onSuccess: async result => {
-      setConfirmedBackupRows(current => mergeConfirmedBackupRows(current, result.historyRows));
-      utils.backup.list.setData(undefined, current =>
-        mergeConfirmedBackupRows(current, result.historyRows),
-      );
-      await backupListQuery.refetch();
-      toast.success(
-        `Backup atualizado — ${result.counts.totalTables} tabelas · ${result.counts.totalRows} registros`,
-      );
-    },
     onError: () => {
       void backupListQuery.refetch();
     },
   });
+
+  const waitForBackupCompletion = async (queuedAt: string) => {
+    setBackupWaiting(true);
+    try {
+      const queuedTimestamp = Date.parse(queuedAt);
+      for (let attempt = 0; attempt < 90; attempt += 1) {
+        const result = await backupListQuery.refetch();
+        const completedRows = (result.data ?? []).filter(row =>
+          row.status === "success" && Date.parse(String(row.createdAt)) >= queuedTimestamp - 2000,
+        );
+        const hasSql = completedRows.some(row => row.type === "sql");
+        const hasExcel = completedRows.some(row => row.type === "excel");
+        if (hasSql && hasExcel) {
+          setConfirmedBackupRows(current => mergeConfirmedBackupRows(current, completedRows));
+          return completedRows;
+        }
+        await new Promise(resolve => window.setTimeout(resolve, 2000));
+      }
+      throw new Error("O backup foi iniciado, mas ainda não terminou. Atualize o histórico em alguns instantes.");
+    } finally {
+      setBackupWaiting(false);
+    }
+  };
 
   const isAdmin = (user as any)?.role === "admin";
 
@@ -81,13 +94,15 @@ export default function Backup() {
     try {
       // O download manual sempre nasce do mesmo backup que é persistido no histórico.
       // Assim, não existe uma exportação local sem registro verificável de conclusão.
-      const result = await runBackupNowMutation.mutateAsync();
-      const file = result.files.sql;
+      const queued = await runBackupNowMutation.mutateAsync();
+      const completedRows = await waitForBackupCompletion(queued.queuedAt);
+      const file = completedRows.find(row => row.type === "sql");
+      if (!file) throw new Error("O arquivo SQL ainda não está disponível no histórico.");
       const a = document.createElement("a");
-      a.href = file.url;
+      a.href = file.fileUrl;
       a.download = file.fileName;
       a.click();
-      toast.success(`Backup SQL salvo no histórico e baixado — ${result.counts.totalTables} tabelas · ${result.counts.totalRows} registros`);
+      toast.success("Backup SQL concluído, salvo no histórico e baixado.");
     } catch (error) {
       toast.error(getBackupErrorMessage(error));
     } finally {
@@ -97,7 +112,9 @@ export default function Backup() {
 
   const handleRunBackupNow = async () => {
     try {
-      await runBackupNowMutation.mutateAsync();
+      const queued = await runBackupNowMutation.mutateAsync();
+      await waitForBackupCompletion(queued.queuedAt);
+      toast.success("Backup completo concluído e salvo no histórico.");
     } catch (error) {
       toast.error(getBackupErrorMessage(error));
     }
@@ -215,7 +232,7 @@ export default function Backup() {
               size="sm"
               variant="ghost"
               onClick={handleRunBackupNow}
-              disabled={runBackupNowMutation.isPending || sqlLoading}
+              disabled={runBackupNowMutation.isPending || sqlLoading || backupWaiting}
               aria-label="Gerar backup atualizado agora"
               title="Gerar backup atualizado agora"
             >
@@ -245,8 +262,8 @@ export default function Backup() {
                   <Badge key={t} variant="secondary">{t}</Badge>
                 ))}
               </div>
-              <Button className="w-full gap-2" onClick={handleExportSQL} disabled={sqlLoading || runBackupNowMutation.isPending}>
-                {sqlLoading || runBackupNowMutation.isPending
+              <Button className="w-full gap-2" onClick={handleExportSQL} disabled={sqlLoading || runBackupNowMutation.isPending || backupWaiting}>
+                {sqlLoading || runBackupNowMutation.isPending || backupWaiting
                   ? <><RefreshCw className="w-4 h-4 animate-spin" /> Gerando...</>
                   : <><Download className="w-4 h-4" /> Gerar, salvar e baixar .sql</>}
               </Button>
@@ -282,7 +299,7 @@ export default function Backup() {
       {/* Histórico de backups persistidos, automáticos e manuais */}
       <div>
         <h2 className="text-base font-semibold mb-3">Histórico de Backups</h2>
-        {(runBackupNowMutation.isPending || sqlLoading) && (
+        {(runBackupNowMutation.isPending || sqlLoading || backupWaiting) && (
           <div className="mb-3 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
             <RefreshCw className="h-4 w-4 animate-spin" />
             Gerando o backup completo e salvando no histórico...

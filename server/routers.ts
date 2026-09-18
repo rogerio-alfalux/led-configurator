@@ -2763,15 +2763,15 @@ export const appRouter = router({
     }),
 
     runNow: adminProcedure.mutation(async () => {
-      try {
-        return await generateAndStoreCompleteBackup({ trigger: "manual" });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: `Não foi possível gerar o backup: ${message}`,
-        });
-      }
+      // O backup completo pode ultrapassar 110 MB entre SQL e TSV. Aguardar
+      // os dois uploads dentro da requisição faz o proxy responder 503 antes
+      // de a rotina terminar. Iniciamos a tarefa na fila serializada e o
+      // cliente acompanha o histórico até os dois registros aparecerem.
+      const queuedAt = new Date().toISOString();
+      void generateAndStoreCompleteBackup({ trigger: "manual" }).catch(error => {
+        console.error("[Backup] Falha na execução manual assíncrona:", error);
+      });
+      return { ok: true as const, queued: true as const, queuedAt };
     }),
 
     exportSQL: adminProcedure.query(async () => {
