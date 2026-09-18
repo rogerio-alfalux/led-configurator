@@ -1918,10 +1918,10 @@
 
 ## Numeração Automática de Orçamentos por Vendedor (01/07/2026)
 
-- [ ] Criar tabela quote_number_sequences no schema (vendorId, prefix, nextSeq, year)
-- [ ] Aplicar migration SQL e popular com os números iniciais de cada vendedor
-- [ ] Backend: getNextQuoteNumber busca/incrementa sequência por vendedor atomicamente
-- [ ] Backend: createQuote usa getNextQuoteNumber em vez de generateQuoteNumber
+- [x] Criar tabela quote_number_sequences no schema (vendorId, prefix, nextSeq, year)
+- [x] Aplicar migration SQL e popular com os números iniciais de cada vendedor
+- [x] Backend: getNextQuoteNumber busca/incrementa sequência por vendedor atomicamente
+- [x] Backend: createQuote usa getNextQuoteNumber em vez de generateQuoteNumber
 - [ ] Frontend: remover campo de edição manual do número do orçamento no Cart.tsx
 
 ## Correção de Separação de Drivers — LED BAR / Perfil Flexível / Meia Lua / Milano (01/07/2026)

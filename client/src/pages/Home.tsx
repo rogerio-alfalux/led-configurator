@@ -10533,8 +10533,8 @@ export default function Home() {
                               <p className="text-sm font-semibold">{bfResult.tensao}</p>
                             </div>
                             <div className="p-3 rounded-lg bg-muted/50 col-span-2">
-                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
-                              <p className="text-sm font-semibold">{bfResult.driver.model} <span className="font-mono text-primary">({bfResult.driver.code})</span></p>
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Drivers (API)</p>
+                              <p className="text-sm font-semibold">{driverQtyFor(bfResult.product, bfResult.controle, bfResult.tensao)}x {bfResult.driver.model} <span className="font-mono text-primary">({bfResult.driver.code})</span></p>
                             </div>
                           </div>
                         </div>
@@ -10559,8 +10559,8 @@ export default function Home() {
                             <p className="text-sm font-semibold">{bfResult.tensao}</p>
                           </div>
                           <div className="p-3 rounded-lg bg-muted/50 col-span-2">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Driver</p>
-                            <p className="text-sm font-semibold">{bfResult.driver.model} <span className="font-mono text-primary">({bfResult.driver.code})</span></p>
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Drivers (API)</p>
+                            <p className="text-sm font-semibold">{driverQtyFor(bfResult.product, bfResult.controle, bfResult.tensao)}x {bfResult.driver.model} <span className="font-mono text-primary">({bfResult.driver.code})</span></p>
                           </div>
                         </div>
                       );
@@ -10615,8 +10615,16 @@ export default function Home() {
                         className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                         disabled={isAddingToCart}
                         onClick={() => {
-                          const preco = getPrecoForControle(bfResult.product, bfResult.controle, bfResult.tensao);
-                          const item: CartItemData = {
+                            const preco = getPrecoForControle(bfResult.product, bfResult.controle, bfResult.tensao);
+                            const bfDrvLines = buildLumDriverLines(bfResult.product.sku ?? "", bfResult.controle, bfResult.tensao, 1, bfResult.driver.model, bfResult.driver.code, lumPriceMap, bfResult.product.name ?? undefined, bfResult.driver.corrente ?? null);
+                            const bfCommercialPrice = resolveDriverSplitCartPricing({
+                              fallbackUnitPrice: preco,
+                              unitPriceLuminaria: bfDrvLines?.unitPriceLuminaria,
+                              priceWithoutDriver: bfDrvLines?.priceWithoutDriver,
+                              quantity: 1,
+                              hasDriverLines: (bfDrvLines?.driverLines.length ?? 0) > 0,
+                            });
+                            const item: CartItemData = {
                             category: "Perfis",
                             sku: bfResult.product.sku ?? "",
                             description: `${bfResult.product.name} ${bfResult.cct} ${bfResult.controle} ${bfResult.tensao}`,
@@ -10624,18 +10632,18 @@ export default function Home() {
                             cct: bfResult.cct,
                             ...productStructureCartFields(bfResult.product.productStructure),
                             qty: 1,
-                            unitPrice: preco ?? null,
-                            totalPrice: preco ?? null,
-                            priceFromApi: preco != null,
+                            unitPrice: bfCommercialPrice.unitPrice,
+                            totalPrice: bfCommercialPrice.totalPrice,
+                            priceFromApi: bfCommercialPrice.priceFromApi,
                             photoUrl: "",
                             orderSummary: `CÓDIGO: ${bfResult.product.sku}\n${bfResult.product.name.toUpperCase()} ${bfResult.cct} ${bfResult.controle.toUpperCase()} ${bfResult.tensao} COM DRIVER ${bfResult.driver.model.toUpperCase()} (${bfResult.driver.code})`,
                             quoteSummary: `${bfResult.product.name} ${bfResult.cct} ${bfResult.controle} ${bfResult.tensao}`.toUpperCase(),
                             moduloLedCode: bfResult.ledModuleEq ?? null,
                             moduloLed: (() => { const _mod = bfResult.ledModuleWithCCT ?? ""; const _eq = bfResult.ledModuleEq ? ` (${bfResult.ledModuleEq})` : ""; const parts: string[] = []; if (_mod) parts.push(`${_mod.toUpperCase()}${_eq}`); if (bfResult.product.oticaPrimaria) { const oEq1 = bfResult.oticaPrimariaEq ? ` (${bfResult.oticaPrimariaEq})` : ""; parts.push(`${bfResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (bfResult.product.oticaSecundaria) { const oEq2 = bfResult.oticaSecundariaEq ? ` (${bfResult.oticaSecundariaEq})` : ""; parts.push(`${bfResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (bfResult.product.otica) { const oEq = bfResult.oticaEq ? ` (${bfResult.oticaEq})` : ""; parts.push(`${bfResult.product.otica.toUpperCase()}${oEq}`); } if (bfResult.product.holder) { const hEq = bfResult.holderEq ? ` (${bfResult.holderEq})` : ""; parts.push(`${bfResult.product.holder.toUpperCase()}${hEq}`); } if (bfResult.product.dissipador) { const dEq = bfResult.dissipadorEq ? ` (${bfResult.dissipadorEq})` : ""; parts.push(`${bfResult.product.dissipador.toUpperCase()}${dEq}`); } return parts.join(" + ") || (_mod ?? ""); })(),
-                            drivers: `DRIVER ${bfResult.driver.model.toUpperCase()} (${bfResult.driver.code})`,
+                            drivers: `${driverQtyFor(bfResult.product, bfResult.controle, bfResult.tensao)}x DRIVER ${bfResult.driver.model.toUpperCase()} (${bfResult.driver.code})`,
                             availableCCTs: bfResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
-                            ...getCustoForControle(bfResult.product, bfResult.controle, bfResult.tensao),
+                            ...(bfDrvLines ? { driverLines: bfDrvLines.driverLines, priceWithoutDriver: bfDrvLines.priceWithoutDriver, unitPriceLuminaria: bfDrvLines.unitPriceLuminaria, unitPriceDriver: bfDrvLines.unitPriceDriver, luminariaHasApiPrice: bfDrvLines.luminariaHasApiPrice, custoCorpoBase: bfDrvLines.custoCorpoBase, custoDriverBase: bfDrvLines.custoDriverBase, markupPadraoApi: bfDrvLines.markupPadraoApi, markupMinimoApi: bfDrvLines.markupMinimoApi, markupMinimoDriverApi: bfDrvLines.markupMinimoDriverApi, driverQtyPerUnit: bfDrvLines.drvQtyPerUnit } : getCustoForControle(bfResult.product, bfResult.controle, bfResult.tensao)),
                           };
                           if (appendToQuoteId || replaceInQuoteId) {
                             handleAddItemOrToQuote(item);

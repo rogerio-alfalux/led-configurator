@@ -19,4 +19,11 @@ describe("quantidade de drivers LED BAR e famílias FL", () => {
   it("deixa de usar o número de cortes como quantidade fixa de drivers", () => {
     expect(homeSource).not.toContain("driverQty: r.nCortes,");
   });
+
+  it("mostra e persiste a quantidade de drivers da API no fluxo BAGEO fixo", () => {
+    expect(homeSource).toContain("Drivers (API)");
+    expect(homeSource).toContain("driverQtyFor(bfResult.product, bfResult.controle, bfResult.tensao)");
+    expect(homeSource).toContain("driverLines: bfDrvLines.driverLines");
+    expect(homeSource).toContain("driverQtyPerUnit: bfDrvLines.drvQtyPerUnit");
+  });
 });
