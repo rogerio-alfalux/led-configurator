@@ -3639,7 +3639,9 @@ function StandardCart() {
               }
               const totalForUpdate = isRevenda
                 ? (parseInt(editFields.qty) || 1) * (parseFloat(editFields.unitPrice.replace(',', '.')) || 0)
-                : (canEditPriceSave && editFields.unitPrice.trim() ? (item?.data.qty || 1) * (parseFloat(editFields.unitPrice.replace(',', '.')) || 0) : 0);
+                : (!item?.data.driverLines?.length && canEditPriceSave && editFields.unitPrice.trim()
+                  ? (item?.data.qty || 1) * (parseFloat(editFields.unitPrice.replace(',', '.')) || 0)
+                  : 0);
               if (totalForUpdate > 0) patch.totalPrice = totalForUpdate;
               updateItemField(editItemId, patch, 0); // 0ms: envia imediatamente ao salvar
               toast.success('Item atualizado!');

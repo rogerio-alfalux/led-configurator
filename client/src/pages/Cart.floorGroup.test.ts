@@ -77,6 +77,7 @@ describe("FloorGroupBar", () => {
     expect(source).toContain("driverTotalPrice: line.driverUnitPrice");
     expect(source).toContain("qty: nextQuantity");
     expect(source).toContain("patch.totalPrice = Math.round((bodyTotal + driversTotal) * 100) / 100");
+    expect(source).toContain("!item?.data.driverLines?.length && canEditPriceSave");
     expect(source).toContain("className=\"text-right\"");
   });
 });
