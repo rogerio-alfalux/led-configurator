@@ -571,7 +571,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
                   <span className="font-mono text-cyan-700 dark:text-cyan-300">{accessory.codigo}</span>
                   <span className="ml-1 text-foreground/80 truncate">{accessory.descricao}</span>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="ml-auto flex w-64 items-center justify-end gap-2 flex-shrink-0 text-right">
                   <label className="flex items-center gap-1 text-muted-foreground">
                     Qtd:
                     <input
@@ -613,7 +613,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
                       }}
                     />
                   </div>
-                  <span className="font-semibold text-primary">{accessory.unitPrice != null && accessory.unitPrice > 0 ? formatBRL(accessory.unitPrice * totalQty) : "—"}</span>
+                  <span className="min-w-28 text-right font-semibold text-primary">{accessory.unitPrice != null && accessory.unitPrice > 0 ? formatBRL(accessory.unitPrice * totalQty) : "—"}</span>
                 </div>
               </div>
             );
