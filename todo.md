@@ -2364,7 +2364,7 @@
 - [x] Agrupar itens com mesmo EQ: somar quantidades em uma única linha
 - [x] Eliminar duplicatas de Stripflex (mesmo EQ = uma linha com total)
 - [x] Mostrar EQ entre parênteses na coluna DESCRIÇÃO
-- [ ] Ler campos corretos da tela de gerenciamento (quantidade, componente, programação)
+- [x] Ler campos corretos da tela de gerenciamento (quantidade, componente, programação) — campos manuais e programação preservados pela normalização de CartItemData e usados pela requisição
 
 ## Correção Qtd Módulo LED e Driver no Pedido de Fábrica (Jul 2026)
 
