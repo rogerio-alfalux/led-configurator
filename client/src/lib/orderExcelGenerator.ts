@@ -406,7 +406,9 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     { key: "A", width: 8 },   // ITEM
     { key: "B", width: 14 },  // PA
     { key: "C", width: 15 },  // ETIQUETA
-    { key: "D", width: useEnhancedLayout ? 34 : 28 },  // PRODUTO
+    // A descrição de acessórios precisa permanecer legível sem o usuário
+    // redimensionar manualmente a planilha.
+    { key: "D", width: useEnhancedLayout ? 48 : 28 },  // PRODUTO
     { key: "E", width: useEnhancedLayout ? 28 : 26 },  // SKU
     { key: "F", width: useEnhancedLayout ? 44 : 38 },  // FONTE DE LUZ
     { key: "G", width: useEnhancedLayout ? 55 : 48 },  // EQUIPAMENTOS
@@ -651,7 +653,14 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
       (item.accessories as LinkedAccessory[]).forEach((acc, accessoryIndex) => {
         rowNum += 1;
         const accRowNum = rowNum;
-        ws.getRow(accRowNum).height = useEnhancedLayout ? 48 : 20;
+        const accessoryLabel = `↳ Acessório: ${acc.descricao}`;
+        // Excel calcula a quebra com base na largura da coluna em caracteres.
+        // Reservamos uma linha por bloco de aproximadamente 44 caracteres e
+        // deixamos margem vertical para a fonte ampliada de 14 pt.
+        const accessoryLines = Math.max(1, Math.ceil(accessoryLabel.length / (useEnhancedLayout ? 44 : 30)));
+        ws.getRow(accRowNum).height = useEnhancedLayout
+          ? Math.max(48, accessoryLines * 24 + 8)
+          : Math.max(20, accessoryLines * 12 + 4);
         const ACC_BG = "FFE0F7FA";
         const fillAcc = (cell: ExcelJS.Cell, value: string | number | null, bold = false) => {
           cell.value = value ?? "";
@@ -664,7 +673,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
         fillAcc(ws.getCell(`B${accRowNum}`), "");
         fillAcc(ws.getCell(`C${accRowNum}`), "");
         const accDCell = ws.getCell(`D${accRowNum}`);
-        accDCell.value = `↳ Acessório: ${acc.descricao}`;
+        accDCell.value = accessoryLabel;
         accDCell.font = { size: accessoryFontSize, italic: true, color: { argb: "FF006064" } };
         accDCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
         accDCell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };

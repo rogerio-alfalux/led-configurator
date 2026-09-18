@@ -2994,15 +2994,20 @@ export default function Home() {
   // Sempre abre o modal de cor antes de enviar (seja ao carrinho ou ao orçamento),
   // EXCETO para categorias que já têm cor predefinida (Acessórios, Revenda)
   const handleAddItemOrToQuote = useCallback((item: CartItemData) => {
-    if (CATEGORIES_WITH_PRESET_COLOR.includes(item.category ?? "")) {
+    const itemWithPendingAccessories = pendingAccessories.length > 0 && !(item.accessories?.length)
+      ? { ...item, accessories: [...pendingAccessories] }
+      : item;
+    if (CATEGORIES_WITH_PRESET_COLOR.includes(itemWithPendingAccessories.category ?? "")) {
       // Pula o modal de cor — envia diretamente com cor padrão
-      dispatchItemDirect(item, "A Definir");
+      dispatchItemDirect(itemWithPendingAccessories, "A Definir");
+      if (pendingAccessories.length > 0) setPendingAccessories([]);
       return;
     }
     // Abre o modal de seleção de cor — o onConfirm abaixo decide o destino
-    setPendingCartItem(item);
+    setPendingCartItem(itemWithPendingAccessories);
+    if (pendingAccessories.length > 0) setPendingAccessories([]);
     setColorModalOpen(true);
-  }, [dispatchItemDirect]);
+  }, [dispatchItemDirect, pendingAccessories, setPendingAccessories]);
 
   const handleConfirmAddToQuote = useCallback(() => {
     if (!appendToQuoteId || pendingQuoteItems.length === 0) return;
@@ -13762,6 +13767,16 @@ export default function Home() {
                           </div>
                         </div>
                         <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full h-8 text-xs gap-1.5 border-cyan-500/50 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                          onClick={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
+                        >
+                          <Wrench className="w-3 h-3" />
+                          Incluir Acessório
+                          {pendingAccessories.length > 0 && <span className="ml-1 bg-cyan-600 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">{pendingAccessories.length}</span>}
+                        </Button>
+                        <Button
                           className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                           onClick={() => handleAddRevendaItem(rvProduct.sku)}
                         >
@@ -13791,11 +13806,22 @@ export default function Home() {
                 : czSelectedKey.length > 0;
               return (
                 <Card className="shadow-sm border-purple-500/30">
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-3 flex flex-row items-center justify-between">
                     <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
                       <Package2 className="w-4 h-4 text-purple-500" />
                       {czProduct ? "Produto Customizado" : isManualMode ? "Customizados (Manual)" : "Customizados"}
                     </CardTitle>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!canAdd}
+                      className="h-7 text-xs gap-1.5 border-cyan-500/50 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                      onClick={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
+                    >
+                      <Wrench className="w-3 h-3" />
+                      Incluir Acessório
+                      {pendingAccessories.length > 0 && <span className="ml-1 bg-cyan-600 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">{pendingAccessories.length}</span>}
+                    </Button>
                   </CardHeader>
                   <CardContent>
                     {czProduct ? (
@@ -14033,11 +14059,22 @@ export default function Home() {
             {/* ── Item Especial: painel de resultado / pré-visualização ── */}
             {productCategory === "Item Especial" && (
               <Card className="shadow-sm border-amber-500/30">
-                <CardHeader className="pb-3">
+                <CardHeader className="pb-3 flex flex-row items-center justify-between">
                   <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                     <PackagePlus className="w-4 h-4 text-amber-500" />
                     Item Especial
                   </CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!spDescription.trim()}
+                    className="h-7 text-xs gap-1.5 border-cyan-500/50 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                    onClick={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
+                  >
+                    <Wrench className="w-3 h-3" />
+                    Incluir Acessório
+                    {pendingAccessories.length > 0 && <span className="ml-1 bg-cyan-600 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">{pendingAccessories.length}</span>}
+                  </Button>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {spPhotoPreview ? (

@@ -19,4 +19,17 @@ describe("Customizados na Home", () => {
     expect(homeSource).toContain("itemNote:");
     expect(homeSource).toContain('category: "Customizados"');
   });
+
+  it("oferece inclusão de acessórios nos painéis de Revenda, Customizados e Item Especial", () => {
+    expect(homeSource).toContain('productCategory === "Revenda"');
+    expect(homeSource).toContain('productCategory === "Customizados"');
+    expect(homeSource).toContain('productCategory === "Item Especial"');
+    expect(homeSource.match(/Incluir Acessório/g)?.length ?? 0).toBeGreaterThanOrEqual(5);
+  });
+
+  it("anexa acessórios pendentes ao item antes de enviar para carrinho ou orçamento", () => {
+    expect(homeSource).toContain("const itemWithPendingAccessories = pendingAccessories.length > 0");
+    expect(homeSource).toContain("setPendingAccessories([])");
+    expect(homeSource).toContain("dispatchItemDirect(itemWithPendingAccessories, \"A Definir\")");
+  });
 });

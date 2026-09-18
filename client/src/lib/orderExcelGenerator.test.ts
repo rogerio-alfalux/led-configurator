@@ -206,7 +206,7 @@ describe("generateOrderExcel", () => {
         unitPrice: 100,
         totalPrice: 200,
         photoUrl: null,
-        accessories: [{ codigo: "CP001", descricao: "RABICHO 01", qty: 2, unitPrice: 10, quantityScope: "order_total" }],
+        accessories: [{ codigo: "CP001", descricao: "RABICHO CABO PP 3X 0,50 PRETO 500MM COM PLUG MACHO", qty: 2, unitPrice: 10, quantityScope: "order_total" }],
       },
       {
         category: "Downlights",
@@ -231,7 +231,7 @@ describe("generateOrderExcel", () => {
     await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
     const worksheet = workbook.worksheets[0];
 
-    expect(worksheet.getCell("D8").value).toBe("↳ Acessório: RABICHO 01");
+    expect(worksheet.getCell("D8").value).toBe("↳ Acessório: RABICHO CABO PP 3X 0,50 PRETO 500MM COM PLUG MACHO");
     expect(worksheet.getCell("D10").value).toBe("↳ Acessório: RABICHO 02");
     expect(worksheet.getCell("A8").value).toBe("1A");
     expect(worksheet.getCell("A10").value).toBe("2A");
@@ -239,6 +239,8 @@ describe("generateOrderExcel", () => {
     expect(worksheet.getCell("H10").value).toBe(3);
     expect(worksheet.getCell("D7").font?.size).toBe(14);
     expect(worksheet.getCell("D8").font?.size).toBe(14);
+    expect(worksheet.getColumn("D").width).toBe(48);
+    expect(worksheet.getRow(8).height).toBeGreaterThan(48);
     expect(worksheet.getRow(7).height).toBeGreaterThanOrEqual(92);
   });
 
