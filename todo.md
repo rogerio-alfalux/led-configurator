@@ -2205,10 +2205,10 @@
 
 ## Driver destacado em todos os perfis (08/07/2026)
 
-- [ ] Exibir driver sempre separado e destacado no card de resumo (preço da luminária + preço do driver separados)
-- [ ] Exibir driver sempre separado e destacado na tabela de detalhamento (linha própria com código EQ, modelo e preço)
-- [ ] Garantir que o preço do driver apareça em TODOS os perfis que têm driver cadastrado na API
-- [ ] Exibir preço total = luminária + driver de forma clara
+- [x] Exibir driver sempre separado e destacado no card de resumo (preço da luminária + preço do driver separados)
+- [x] Exibir driver sempre separado e destacado na tabela de detalhamento (linha própria com código EQ, modelo e preço)
+- [x] Garantir que o preço do driver apareça em TODOS os perfis que têm driver cadastrado na API
+- [x] Exibir preço total = luminária + driver de forma clara
 
 ## Edição de preço de drivers (2026-07-10)
 - [x] Criar tabela driver_price_overrides no banco de dados
@@ -2238,9 +2238,9 @@
 - [x] Configurar Excel gerado com impressão pronta para caber em 1 página: fitToPage=true, fitToWidth=1, fitToHeight=1, área de impressão dinâmica (C1:N{lastRow}), margens reduzidas (0.5")
 
 ## Download PDF do Orçamento (16/07/2026)
-- [ ] Criar quotePdfGenerator.ts com layout fiel ao Excel (cabeçalho, tabela de itens, rodapé, logo)
-- [ ] Adicionar botão "Baixar PDF" no Cart.tsx (diálogo de geração) com mesmas regras de revisão do Excel
-- [ ] Adicionar botão "Baixar PDF" no QuoteDetail.tsx com mesmas regras de revisão do Excel
+- [x] Criar quotePdfGenerator.ts com layout fiel ao Excel (cabeçalho, tabela de itens, rodapé, logo)
+- [x] Adicionar botão "Baixar PDF" no Cart.tsx (diálogo de geração) com mesmas regras de revisão do Excel
+- [x] Adicionar botão "Baixar PDF" no QuoteDetail.tsx com mesmas regras de revisão do Excel
 - [ ] Incrementar revisão ao baixar PDF (mesma lógica do Excel: conta como revisão oficial)
 
 ## Download PDF do Orçamento (Jul 2026)
@@ -2535,10 +2535,10 @@
 
 ## Fix: Remover Google Sheets e Corrigir Botão 220V
 
-- [ ] Remover dependência da planilha Google Sheets (obsoleta) - drivers agora vêm exclusivamente da API
-- [ ] Garantir que algoritmo de perfis continua funcionando sem Google Sheets
-- [ ] Corrigir botão 220V que ainda aparece habilitado quando API não retorna driver220
-- [ ] Remover botão "Atualizar Drivers" e toda lógica relacionada ao Google Sheets
+- [x] Remover dependência da planilha Google Sheets (obsoleta) - drivers agora vêm exclusivamente da API
+- [x] Garantir que algoritmo de perfis continua funcionando sem Google Sheets
+- [x] Corrigir botão 220V que ainda aparece habilitado quando API não retorna driver220
+- [x] Remover botão "Atualizar Drivers" e toda lógica relacionada ao Google Sheets
 
 ## Feature: Role "LD Convidado" + Painel Gerenciador de Usuários
 
