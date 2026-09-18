@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrpcContext } from "./_core/context";
 
-const { generateBackupMock } = vi.hoisted(() => ({
+const { generateBackupMock, createMarkerMock } = vi.hoisted(() => ({
   generateBackupMock: vi.fn(),
+  createMarkerMock: vi.fn(),
 }));
 
 vi.mock("./backupService", async importOriginal => ({
   ...(await importOriginal<typeof import("./backupService")>()),
   generateAndStoreCompleteBackup: generateBackupMock,
+  createBackupRunMarker: createMarkerMock,
 }));
 
 import { appRouter } from "./routers";
@@ -33,11 +35,14 @@ function createContext(role: "admin" | "user"): TrpcContext {
 describe("backup.runNow", () => {
   beforeEach(() => {
     generateBackupMock.mockReset();
+    createMarkerMock.mockReset();
     generateBackupMock.mockResolvedValue({ ok: true });
+    createMarkerMock.mockResolvedValue(999);
   });
 
   it("inicia o backup assíncrono para não manter a requisição aberta durante uploads grandes", async () => {
     const result = await appRouter.createCaller(createContext("admin")).backup.runNow();
+    expect(createMarkerMock).toHaveBeenCalledWith(expect.stringMatching(/^manual-/));
     expect(generateBackupMock).toHaveBeenCalledWith(expect.objectContaining({
       trigger: "manual",
       cronTaskUid: expect.stringMatching(/^manual-/),

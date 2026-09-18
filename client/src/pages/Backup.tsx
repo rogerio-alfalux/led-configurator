@@ -32,6 +32,14 @@ function formatDate(dateStr: string | null | undefined): string {
   return toBrasiliaDateTimeShort(dateStr);
 }
 
+function isQueuedBackup(row: { recordCounts?: string | null }): boolean {
+  try {
+    return JSON.parse(row.recordCounts ?? "{}").state === "queued";
+  } catch {
+    return false;
+  }
+}
+
 export default function Backup() {
   const { user } = useAuth();
   const [sqlLoading, setSqlLoading] = useState(false);
@@ -41,6 +49,8 @@ export default function Backup() {
   const exportExcelQuery = trpc.backup.exportQuotesExcel.useQuery(undefined, { enabled: false });
   const backupListQuery = trpc.backup.list.useQuery(undefined, {
     refetchOnWindowFocus: false,
+    refetchOnMount: "always",
+    staleTime: 0,
     refetchInterval: 60_000, // atualiza a cada 1 min
   });
   // Mantém visíveis os registros cuja gravação foi confirmada pelo próprio
@@ -60,7 +70,7 @@ export default function Backup() {
         const executionRows = (result.data ?? []).filter(row => row.cronTaskUid === executionId);
         const errorRow = executionRows.find(row => row.status === "error");
         if (errorRow) throw new Error(errorRow.errorMessage || "O backup não pôde ser concluído.");
-        const completedRows = executionRows.filter(row => row.status === "success");
+        const completedRows = executionRows.filter(row => row.status === "success" && !isQueuedBackup(row));
         const hasSql = completedRows.some(row => row.type === "sql");
         const hasExcel = completedRows.some(row => row.type === "excel");
         if (hasSql && hasExcel) {
@@ -190,7 +200,7 @@ export default function Backup() {
     () => mergeConfirmedBackupRows(backupListQuery.data, confirmedBackupRows),
     [backupListQuery.data, confirmedBackupRows],
   );
-  const lastSuccess = backups.find(b => b.status === "success");
+  const lastSuccess = backups.find(b => b.status === "success" && !isQueuedBackup(b));
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
@@ -354,7 +364,12 @@ export default function Backup() {
                       </div>
                     </td>
                     <td className="px-4 py-2.5">
-                      {b.status === "success" ? (
+                      {isQueuedBackup(b) ? (
+                        <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span className="text-xs">Em processamento</span>
+                        </div>
+                      ) : b.status === "success" ? (
                         <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
                           <CheckCircle className="w-3.5 h-3.5" />
                           <span className="text-xs">OK</span>
@@ -367,7 +382,7 @@ export default function Backup() {
                       )}
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      {b.status === "success" && b.fileUrl ? (
+                      {b.status === "success" && !isQueuedBackup(b) && b.fileUrl ? (
                         <a
                           href={b.fileUrl}
                           download={b.fileName}

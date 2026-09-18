@@ -11,6 +11,9 @@ describe("botão Atualizar do backup", () => {
     expect(source).toContain("const waitForBackupCompletion = async (executionId: string) => {");
     expect(source).toContain("row.cronTaskUid === executionId");
     expect(source).toContain("errorRow.errorMessage");
+    expect(source).toContain("function isQueuedBackup");
+    expect(source).toContain("state === \"queued\"");
+    expect(source).toContain('refetchOnMount: "always"');
     expect(source).toContain("await backupListQuery.refetch()");
     expect(source).toContain("hasSql && hasExcel");
     expect(source).toContain("const [confirmedBackupRows, setConfirmedBackupRows]");

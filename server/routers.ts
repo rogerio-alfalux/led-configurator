@@ -2769,7 +2769,9 @@ export const appRouter = router({
       // cliente acompanha o histórico até os dois registros aparecerem.
       const queuedAt = new Date().toISOString();
       const executionId = `manual-${crypto.randomUUID()}`;
-      void generateAndStoreCompleteBackup({ trigger: "manual", cronTaskUid: executionId }).catch(error => {
+      const { createBackupRunMarker } = await import("./backupService");
+      const pendingId = await createBackupRunMarker(executionId);
+      void generateAndStoreCompleteBackup({ trigger: "manual", cronTaskUid: executionId, pendingId }).catch(error => {
         console.error("[Backup] Falha na execução manual assíncrona:", error);
       });
       return { ok: true as const, queued: true as const, queuedAt, executionId };
