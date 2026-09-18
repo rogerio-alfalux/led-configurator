@@ -13,6 +13,14 @@ import * as XLSX from "xlsx";
 import { toBrasiliaDateTime, toBrasiliaDateTimeShort, toBrasiliaFileDate } from "@/lib/dateUtils";
 import { mergeConfirmedBackupRows } from "@/lib/backupHistory";
 
+function getBackupErrorMessage(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  if (/unexpected token|not valid json|service unavailable|database not available|db indisponível/i.test(raw)) {
+    return "O serviço de backup está temporariamente indisponível. O banco não respondeu em formato válido; aguarde alguns segundos e tente novamente.";
+  }
+  return raw || "Não foi possível gerar o backup atualizado.";
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -49,9 +57,8 @@ export default function Backup() {
         `Backup atualizado — ${result.counts.totalTables} tabelas · ${result.counts.totalRows} registros`,
       );
     },
-    onError: error => {
+    onError: () => {
       void backupListQuery.refetch();
-      toast.error(error.message || "Erro ao gerar backup atualizado");
     },
   });
 
@@ -82,9 +89,17 @@ export default function Backup() {
       a.click();
       toast.success(`Backup SQL salvo no histórico e baixado — ${result.counts.totalTables} tabelas · ${result.counts.totalRows} registros`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao gerar backup SQL");
+      toast.error(getBackupErrorMessage(error));
     } finally {
       setSqlLoading(false);
+    }
+  };
+
+  const handleRunBackupNow = async () => {
+    try {
+      await runBackupNowMutation.mutateAsync();
+    } catch (error) {
+      toast.error(getBackupErrorMessage(error));
     }
   };
 
@@ -199,7 +214,7 @@ export default function Backup() {
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => runBackupNowMutation.mutate()}
+              onClick={handleRunBackupNow}
               disabled={runBackupNowMutation.isPending || sqlLoading}
               aria-label="Gerar backup atualizado agora"
               title="Gerar backup atualizado agora"

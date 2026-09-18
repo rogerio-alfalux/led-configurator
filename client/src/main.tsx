@@ -52,11 +52,38 @@ const trpcClient = trpc.createClient({
     httpBatchLink({
       url: "/api/trpc",
       transformer: superjson,
-      fetch(input, init) {
-        return globalThis.fetch(input, {
+      async fetch(input, init) {
+        const response = await globalThis.fetch(input, {
           ...(init ?? {}),
           credentials: "include",
         });
+        // Alguns proxies de borda devolvem texto puro (por exemplo,
+        // "Service Unavailable") em vez do envelope JSON do tRPC. Sem esta
+        // normalização o cliente tenta fazer JSON.parse e mostra
+        // "Unexpected token 'S'" ao usuário.
+        if (!response.ok) {
+          const contentType = response.headers.get("content-type") ?? "";
+          const body = await response.clone().text();
+          const looksLikeJson = contentType.includes("json") || /^[\[{]/.test(body.trim());
+          if (!looksLikeJson) {
+            const message = /service unavailable|database not available|temporarily unavailable/i.test(body)
+              ? "O serviço está temporariamente indisponível. Aguarde alguns segundos e tente novamente."
+              : `O servidor não respondeu corretamente (HTTP ${response.status}).`;
+            return new Response(JSON.stringify({
+              error: {
+                json: {
+                  message,
+                  code: -32603,
+                  data: { code: "INTERNAL_SERVER_ERROR", httpStatus: response.status },
+                },
+              },
+            }), {
+              status: response.status,
+              headers: { "content-type": "application/json" },
+            });
+          }
+        }
+        return response;
       },
     }),
   ],
