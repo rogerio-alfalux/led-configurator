@@ -41,6 +41,12 @@ const itemWithSubitems: CartItemData = {
     descricao: "Acessório teste IPI",
     qty: 1,
     unitPrice: 20,
+  }, {
+    codigo: "CP00526",
+    descricao: "Rabicho teste IPI",
+    familia: "RABICHO",
+    qty: 2,
+    unitPrice: 12.5,
   }],
 };
 
@@ -107,6 +113,12 @@ describe("destaque opcional de IPI", () => {
     expect(worksheet.getCell(`M${accessoryRow}`).value).toBeCloseTo(18.2232346241, 8);
     expect(worksheet.getCell(`N${accessoryRow}`).value).toBeCloseTo(20, 8);
     expect(worksheet.getCell(`O${accessoryRow}`).value).toBeCloseTo(40, 8);
+
+    const rabichoRow = findRowByModelText(worksheet, "Rabicho teste IPI");
+    expect(rabichoRow).toBeGreaterThan(0);
+    expect(worksheet.getCell(`M${rabichoRow}`).value).toBeCloseTo(11.3895216401, 8);
+    expect(worksheet.getCell(`N${rabichoRow}`).value).toBeCloseTo(12.5, 8);
+    expect(worksheet.getCell(`O${rabichoRow}`).value).toBeCloseTo(50, 8);
 
     const driverRow = findRowByModelText(worksheet, "Driver teste IPI");
     expect(driverRow).toBeGreaterThan(0);

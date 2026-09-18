@@ -459,8 +459,8 @@ async function _generatePdfBlob(
     }
 
     // Módulos comerciais vinculados (SHIFT) e demais subitens de produto.
-    const nonRabichoAcc = item.accessories?.filter(acc => !acc.familia?.toLowerCase().includes("rabicho")) ?? [];
-    for (const acc of nonRabichoAcc) {
+    const accessoryLines = item.accessories ?? [];
+    for (const acc of accessoryLines) {
       const accQty = (acc.qty ?? 0) * (item.qty ?? 1);
       const accRaw = (acc.unitPrice ?? 0) * accQty;
       const accWeight = itemRaw > 0 ? accRaw / itemRaw : 0;
@@ -470,7 +470,7 @@ async function _generatePdfBlob(
       const originalAccessoryUnit = accQty > 0 ? accTotal / accQty : 0;
       tableBody.push([
         "", "",
-        `  ↳ ${acc.familia === "SHIFT MÓDULO" ? "Módulo SHIFT" : "Subitem"}: ${acc.codigo} — ${acc.descricao}`,
+        `  ↳ ${acc.familia === "SHIFT MÓDULO" ? "Módulo SHIFT" : acc.familia?.toLowerCase().includes("rabicho") ? "Rabicho" : "Subitem"}: ${acc.codigo} — ${acc.descricao}`,
         "", "", "", "", "", "",
         String(accQty),
         ...(showIpi ? [

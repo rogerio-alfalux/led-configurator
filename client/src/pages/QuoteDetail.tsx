@@ -4886,7 +4886,10 @@ export default function QuoteDetail() {
                                   )}
                                   {d.accessories && (d.accessories as LinkedAccessory[]).length > 0 && (
                                     <div className="mt-1.5 border-l-2 border-cyan-500/40 pl-2 space-y-0.5">
-                                      {(d.accessories as LinkedAccessory[]).map((acc, i) => (
+                                      {(d.accessories as LinkedAccessory[]).map((acc, i) => {
+                                        const accessoryQty = (acc.qty ?? 0) * (d.qty ?? 1);
+                                        const accessoryTotal = (acc.unitPrice ?? 0) * accessoryQty;
+                                        return (
                                         <div key={i} className="flex items-center gap-1.5 text-xs">
                                           {resolveAccPhoto(acc.codigo, acc.fotoUrl) ? (
                                             <img src={resolveAccPhoto(acc.codigo, acc.fotoUrl)!} alt={acc.descricao} className="w-5 h-5 object-contain rounded bg-white border border-border flex-shrink-0" />
@@ -4896,8 +4899,12 @@ export default function QuoteDetail() {
                                           <span className="font-mono text-[10px] text-muted-foreground">{acc.codigo}</span>
                                           <span className="text-cyan-700 dark:text-cyan-400 truncate">{acc.descricao}</span>
                                           {acc.qty > 1 && <span className="text-muted-foreground">x{acc.qty}</span>}
+                                          <span className="ml-auto flex-shrink-0 text-right text-cyan-800 dark:text-cyan-300 font-medium">
+                                            {acc.unitPrice != null ? `${formatBRL(acc.unitPrice)} / un · ${formatBRL(accessoryTotal)}` : "Preço a definir"}
+                                          </span>
                                         </div>
-                                      ))}
+                                        );
+                                      })}
                                     </div>
                                   )}
 

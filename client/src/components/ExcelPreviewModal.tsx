@@ -906,8 +906,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                 {sortedItems.map((item, idx) => {
                   const isService = item.category === "Serviços";
                   const isNaoOrcamos = item.category === "Não Orçamos";
-                  const nonRabichoAcc = item.accessories?.filter(a => !a.familia?.toLowerCase().includes("rabicho")) ?? [];
-                  const rabichoAcc = item.accessories?.find(a => a.familia?.toLowerCase().includes("rabicho"));
+                  const accessoryLines = item.accessories ?? [];
 
                   return (
                     <Fragment key={`row-group-${idx}`}>
@@ -963,11 +962,6 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           <td style={{ ...tdStyle, textAlign: "left" }}>
                             {item.sku && <div style={{ fontFamily: "monospace", fontSize: 10, color: "#666" }}>{item.sku}</div>}
                             <div>{item.description}</div>
-                            {rabichoAcc && (
-                              <div style={{ fontSize: 9, color: "#006064", fontStyle: "italic", marginTop: 4, borderTop: "1px dashed #ccc", paddingTop: 2 }}>
-                                ↳ Rabicho: {rabichoAcc.descricao}{rabichoAcc.dimensao ? ` ${rabichoAcc.dimensao}` : ""}
-                              </div>
-                            )}
                           </td>
                           <td style={tdStyle}>{item.shapeTotalLengthMm ? `${item.shapeTotalLengthMm}mm total` : extractLength(item.description)}</td>
                           <td style={tdStyle}>{item.power?.trim() || extractPower(item.description)}</td>
@@ -1035,15 +1029,10 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                               <span style={{ color: "#aaa", fontSize: 10 }}>—</span>
                             )}
                           </td>
-                          {/* Coluna MODELO — descrição + rabicho abaixo */}
+                          {/* Coluna MODELO — descrição; acessórios aparecem em sublinhas */}
                           <td style={{ ...tdStyle, textAlign: "left" }}>
                             {item.sku && <div style={{ fontFamily: "monospace", fontSize: 10, color: "#666" }}>{item.sku}</div>}
                             <div>{item.description}</div>
-                            {rabichoAcc && (
-                              <div style={{ fontSize: 9, color: "#006064", fontStyle: "italic", marginTop: 4, borderTop: "1px dashed #ccc", paddingTop: 2 }}>
-                                ↳ Rabicho: {rabichoAcc.descricao}{rabichoAcc.dimensao ? ` ${rabichoAcc.dimensao}` : ""}
-                              </div>
-                            )}
                           </td>
                           <td style={tdStyle}>{item.category === "Item Especial" && item.specialDimensions ? item.specialDimensions : item.shapeTotalLengthMm ? `${item.shapeTotalLengthMm}mm total` : extractLength(item.description)}</td>
                           <td style={tdStyle}>{item.category === "Item Especial" && item.specialPower ? item.specialPower : (item.power?.trim() || extractPower(item.description))}</td>
@@ -1076,7 +1065,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                       )}
 
                       {/* Sub-linhas de acessórios não-rabicho */}
-                      {nonRabichoAcc.map((acc, accIdx) => {
+                      {accessoryLines.map((acc, accIdx) => {
                         const accQty = acc.qty * (item.qty ?? 1);
                         const itemRawTotal = getItemTotalReal(item);
                         const accTaxTotal = itemRawTotal > 0

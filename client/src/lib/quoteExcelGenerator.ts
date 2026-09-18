@@ -1039,22 +1039,11 @@ async function _generateExcelBuffer(
     // ── Rabicho inline na coluna E (MODELO ALFALUX) ────────────────────────
     // O rabicho é exibido abaixo da descrição do produto na célula E, com separador tracejado
     // Igual ao ExcelPreviewModal: rabicho NÃO vai para a coluna D (FOTO)
-    const rabichoAcc = item.accessories?.find(a => a.familia?.toLowerCase().includes('rabicho'));
-    const nonRabichoAcc = item.accessories?.filter(a => !a.familia?.toLowerCase().includes('rabicho')) ?? [];
-    if (rabichoAcc) {
-      // Atualizar célula E com rabicho abaixo da descrição
-      const eCell = ws.getCell(`E${rowNum}`);
-      const currentModelText = typeof eCell.value === 'string' ? eCell.value : (item.sku ? `${item.sku}\n${item.description}` : item.description);
-      const rabichoLine = `\n- - - - - - - - - - - - - - - -\n\u21B3 Rabicho: ${rabichoAcc.descricao}${rabichoAcc.dimensao ? ` ${rabichoAcc.dimensao}` : ''}`;
-      eCell.value = currentModelText + rabichoLine;
-      eCell.font = { name: 'Calibri', size: 11, bold: false };
-      eCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-    }
-
-    // ── Sub-linhas de acessórios vinculados (não-rabicho) ──────────────────────
-    if (nonRabichoAcc.length > 0) {
-      for (let accIdx = 0; accIdx < nonRabichoAcc.length; accIdx++) {
-        const acc = nonRabichoAcc[accIdx];
+    // ── Sub-linhas de todos os acessórios vinculados ──────────────────────
+    const accessoryLines = item.accessories ?? [];
+    if (accessoryLines.length > 0) {
+      for (let accIdx = 0; accIdx < accessoryLines.length; accIdx++) {
+        const acc = accessoryLines[accIdx];
         const accRowNum = rowNum + accIdx + 1;
         ws.spliceRows(accRowNum, 0, []);
         const accRow = ws.getRow(accRowNum);
@@ -1117,7 +1106,8 @@ async function _generateExcelBuffer(
           dCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
           dCell.border = accBorder;
         }
-        fillAcc(ws.getCell(`E${accRowNum}`), `↳ ${acc.descricao}\n${acc.codigo ?? ""}`);
+        const accessoryLabel = acc.familia?.toLowerCase().includes("rabicho") ? "Rabicho" : acc.familia === "SHIFT MÓDULO" ? "Módulo SHIFT" : "Acessório";
+        fillAcc(ws.getCell(`E${accRowNum}`), `↳ ${accessoryLabel}: ${acc.descricao}\n${acc.codigo ?? ""}`);
         for (const col of ["F", "G", "H", "I", "J", "K"]) {
           fillAcc(ws.getCell(`${col}${accRowNum}`), "");
         }
@@ -1158,14 +1148,14 @@ async function _generateExcelBuffer(
         }
       }
       // Avançar currentRow para compensar as sub-linhas inseridas
-      currentRow += nonRabichoAcc.length;
+      currentRow += accessoryLines.length;
     }
 
     // ── Sub-linhas de drivers (apenas para itens novos com driverLines) ──────────
     if (item.driverLines && item.driverLines.length > 0) {
       for (let drvIdx = 0; drvIdx < item.driverLines.length; drvIdx++) {
         const drv = item.driverLines[drvIdx];
-        const drvRowNum = rowNum + (nonRabichoAcc?.length ?? 0) + drvIdx + 1;
+        const drvRowNum = rowNum + accessoryLines.length + drvIdx + 1;
         ws.spliceRows(drvRowNum, 0, []);
         const drvRow = ws.getRow(drvRowNum);
         drvRow.height = 36;
@@ -1237,7 +1227,7 @@ async function _generateExcelBuffer(
     if (legacyDrvsExcel && legacyDrvsExcel.length > 0) {
       for (let ldIdx = 0; ldIdx < legacyDrvsExcel.length; ldIdx++) {
         const ldrv = legacyDrvsExcel[ldIdx];
-        const ldRowNum = rowNum + (nonRabichoAcc?.length ?? 0) + ldIdx + 1;
+        const ldRowNum = rowNum + accessoryLines.length + ldIdx + 1;
         ws.spliceRows(ldRowNum, 0, []);
         const ldRow = ws.getRow(ldRowNum);
         ldRow.height = 28;
@@ -1267,7 +1257,7 @@ async function _generateExcelBuffer(
     }
     // ── Sub-linha de observação do item (quando itemObsShowInExcel=true) ──────────────────────────────────────────────────────────────────────────────────────
     if (item.itemObs && item.itemObsShowInExcel) {
-      const obsOffset = (nonRabichoAcc?.length ?? 0) + (item.driverLines?.length ?? 0) + (legacyDrvsExcel?.length ?? 0);
+        const obsOffset = accessoryLines.length + (item.driverLines?.length ?? 0) + (legacyDrvsExcel?.length ?? 0);
       const obsRowNum = rowNum + obsOffset + 1;
       ws.spliceRows(obsRowNum, 0, []);
       const obsRow = ws.getRow(obsRowNum);
