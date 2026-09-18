@@ -8,7 +8,9 @@ describe("botão Atualizar do backup", () => {
     expect(source).toContain("trpc.backup.runNow.useMutation");
     expect(source).toContain("const handleRunBackupNow = async () => {");
     expect(source).toContain("await runBackupNowMutation.mutateAsync()");
-    expect(source).toContain("const waitForBackupCompletion = async (queuedAt: string) => {");
+    expect(source).toContain("const waitForBackupCompletion = async (executionId: string) => {");
+    expect(source).toContain("row.cronTaskUid === executionId");
+    expect(source).toContain("errorRow.errorMessage");
     expect(source).toContain("await backupListQuery.refetch()");
     expect(source).toContain("hasSql && hasExcel");
     expect(source).toContain("const [confirmedBackupRows, setConfirmedBackupRows]");

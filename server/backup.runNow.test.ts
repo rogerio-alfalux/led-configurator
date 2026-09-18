@@ -38,9 +38,13 @@ describe("backup.runNow", () => {
 
   it("inicia o backup assíncrono para não manter a requisição aberta durante uploads grandes", async () => {
     const result = await appRouter.createCaller(createContext("admin")).backup.runNow();
-    expect(generateBackupMock).toHaveBeenCalledWith({ trigger: "manual" });
+    expect(generateBackupMock).toHaveBeenCalledWith(expect.objectContaining({
+      trigger: "manual",
+      cronTaskUid: expect.stringMatching(/^manual-/),
+    }));
     expect(result).toMatchObject({ ok: true, queued: true });
     expect(result.queuedAt).toEqual(expect.any(String));
+    expect(result.executionId).toMatch(/^manual-/);
   });
 
   it("impede usuários não administradores de executar o backup", async () => {

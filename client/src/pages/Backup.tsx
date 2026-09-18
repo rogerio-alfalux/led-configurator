@@ -52,15 +52,15 @@ export default function Backup() {
     },
   });
 
-  const waitForBackupCompletion = async (queuedAt: string) => {
+  const waitForBackupCompletion = async (executionId: string) => {
     setBackupWaiting(true);
     try {
-      const queuedTimestamp = Date.parse(queuedAt);
       for (let attempt = 0; attempt < 90; attempt += 1) {
         const result = await backupListQuery.refetch();
-        const completedRows = (result.data ?? []).filter(row =>
-          row.status === "success" && Date.parse(String(row.createdAt)) >= queuedTimestamp - 2000,
-        );
+        const executionRows = (result.data ?? []).filter(row => row.cronTaskUid === executionId);
+        const errorRow = executionRows.find(row => row.status === "error");
+        if (errorRow) throw new Error(errorRow.errorMessage || "O backup não pôde ser concluído.");
+        const completedRows = executionRows.filter(row => row.status === "success");
         const hasSql = completedRows.some(row => row.type === "sql");
         const hasExcel = completedRows.some(row => row.type === "excel");
         if (hasSql && hasExcel) {
@@ -95,7 +95,7 @@ export default function Backup() {
       // O download manual sempre nasce do mesmo backup que é persistido no histórico.
       // Assim, não existe uma exportação local sem registro verificável de conclusão.
       const queued = await runBackupNowMutation.mutateAsync();
-      const completedRows = await waitForBackupCompletion(queued.queuedAt);
+      const completedRows = await waitForBackupCompletion(queued.executionId);
       const file = completedRows.find(row => row.type === "sql");
       if (!file) throw new Error("O arquivo SQL ainda não está disponível no histórico.");
       const a = document.createElement("a");
@@ -113,7 +113,7 @@ export default function Backup() {
   const handleRunBackupNow = async () => {
     try {
       const queued = await runBackupNowMutation.mutateAsync();
-      await waitForBackupCompletion(queued.queuedAt);
+      await waitForBackupCompletion(queued.executionId);
       toast.success("Backup completo concluído e salvo no histórico.");
     } catch (error) {
       toast.error(getBackupErrorMessage(error));

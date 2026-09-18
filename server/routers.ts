@@ -2768,10 +2768,11 @@ export const appRouter = router({
       // de a rotina terminar. Iniciamos a tarefa na fila serializada e o
       // cliente acompanha o histórico até os dois registros aparecerem.
       const queuedAt = new Date().toISOString();
-      void generateAndStoreCompleteBackup({ trigger: "manual" }).catch(error => {
+      const executionId = `manual-${crypto.randomUUID()}`;
+      void generateAndStoreCompleteBackup({ trigger: "manual", cronTaskUid: executionId }).catch(error => {
         console.error("[Backup] Falha na execução manual assíncrona:", error);
       });
-      return { ok: true as const, queued: true as const, queuedAt };
+      return { ok: true as const, queued: true as const, queuedAt, executionId };
     }),
 
     exportSQL: adminProcedure.query(async () => {
