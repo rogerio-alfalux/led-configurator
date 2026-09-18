@@ -1756,7 +1756,7 @@
 - [x] Perfis: driver não separado no orçamento Excel (linha de driver sem destaque)
 - [x] Pré-visualização Excel: colunas deslocadas na linha de driver (QTD na coluna errada, linha de obra azul ganha coluna extra)
 - [x] Carrinho: não permite renomear pavimento diretamente no carrinho
-- [ ] Markup mínimo e máximo: onde editar no sistema?
+- [x] Markup mínimo e máximo: onde editar no sistema? (editor MKP no painel de edição do item, com limites mínimo e máximo)
 
 ## Histórico completo de revisões (29/06/2026)
 - [x] Endpoint tRPC `quotes.getRevisionItems` para buscar itens de uma revisão específica
@@ -2241,7 +2241,7 @@
 - [x] Criar quotePdfGenerator.ts com layout fiel ao Excel (cabeçalho, tabela de itens, rodapé, logo)
 - [x] Adicionar botão "Baixar PDF" no Cart.tsx (diálogo de geração) com mesmas regras de revisão do Excel
 - [x] Adicionar botão "Baixar PDF" no QuoteDetail.tsx com mesmas regras de revisão do Excel
-- [ ] Incrementar revisão ao baixar PDF (mesma lógica do Excel: conta como revisão oficial)
+- [x] Incrementar revisão ao baixar PDF (mesma lógica do Excel: conta como revisão oficial)
 
 ## Download PDF do Orçamento (Jul 2026)
 - [x] Criar quotePdfGenerator.ts com jsPDF + autoTable replicando o layout do Excel
