@@ -61,3 +61,14 @@ describe("FloorGroupBar", () => {
     expect(source).toContain("renameFloor(displayName, newName)");
   });
 });
+
+describe("numeração automática do orçamento", () => {
+  it("mostra a sugestão como somente leitura e deixa o servidor atribuir o número oficial", () => {
+    const source = readFileSync(resolve(process.cwd(), "client/src/pages/Cart.tsx"), "utf8");
+
+    expect(source).toContain("Gerado automaticamente ao salvar, conforme a sequência oficial do vendedor.");
+    expect(source).not.toContain("quoteNumber: saveForm.quoteNumber");
+    expect(source).not.toContain("formatCommercialQuoteNumberInput");
+    expect(source).not.toContain("isCommercialQuoteNumber");
+  });
+});

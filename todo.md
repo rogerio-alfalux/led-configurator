@@ -1922,7 +1922,7 @@
 - [x] Aplicar migration SQL e popular com os números iniciais de cada vendedor
 - [x] Backend: getNextQuoteNumber busca/incrementa sequência por vendedor atomicamente
 - [x] Backend: createQuote usa getNextQuoteNumber em vez de generateQuoteNumber
-- [ ] Frontend: remover campo de edição manual do número do orçamento no Cart.tsx
+- [x] Frontend: remover campo de edição manual do número do orçamento no Cart.tsx
 
 ## Correção de Separação de Drivers — LED BAR / Perfil Flexível / Meia Lua / Milano (01/07/2026)
 
