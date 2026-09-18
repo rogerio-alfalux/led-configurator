@@ -181,8 +181,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
   const [seqInputVal, setSeqInputVal] = useState<string>("");
   const d = item.parsed;
   const resolvedPhoto = resolvePhoto(d);
-  const shiftModules = (d.accessories ?? []).map((accessory, index) => ({ accessory, index }))
-    .filter(({ accessory }) => accessory.familia === "SHIFT MÓDULO");
+  const linkedAccessories = (d.accessories ?? []).map((accessory, index) => ({ accessory, index }));
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -541,13 +540,13 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
         </div>
       )}
 
-      {shiftModules.length > 0 && (
+      {linkedAccessories.length > 0 && (
         <div className="pt-2 border-t space-y-1.5">
           <div className="flex items-center gap-2">
-            <p className="text-xs font-semibold text-cyan-700 dark:text-cyan-300 uppercase tracking-wide">Módulos SHIFT</p>
-            <span className="text-[10px] text-muted-foreground">subitens comerciais</span>
+            <p className="text-xs font-semibold text-cyan-700 dark:text-cyan-300 uppercase tracking-wide">Acessórios vinculados</p>
+            <span className="text-[10px] text-muted-foreground">preços unitários editáveis</span>
           </div>
-          {shiftModules.map(({ accessory, index }) => {
+          {linkedAccessories.map(({ accessory, index }) => {
             const canEditModulePrice = accessory.unitPrice == null || canOverrideApiPrice;
             const totalQty = (accessory.qty ?? 0) * (d.qty ?? 1);
             return (

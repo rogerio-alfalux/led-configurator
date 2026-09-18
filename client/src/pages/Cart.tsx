@@ -3011,14 +3011,13 @@ function StandardCart() {
                       )}
                     </div>
                   )}
-                  {item?.data.accessories?.some((accessory) => accessory.familia === "SHIFT MÓDULO") && (
+                  {(item?.data.accessories?.length ?? 0) > 0 && (
                     <div className="space-y-2 rounded-lg border border-cyan-500/30 bg-cyan-50/30 dark:bg-cyan-950/10 p-3">
                       <div>
-                        <Label className="text-cyan-800 dark:text-cyan-300">Preços dos módulos SHIFT</Label>
-                        <p className="text-xs text-muted-foreground mt-0.5">Valores da API são preservados. Quando não houver valor cadastrado, informe o preço unitário do módulo.</p>
+                        <Label className="text-cyan-800 dark:text-cyan-300">Preços dos acessórios</Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">Informe ou ajuste o preço unitário de cada acessório. Preços oficiais da API exigem permissão de substituição.</p>
                       </div>
-                      {(item.data.accessories ?? []).map((accessory, accessoryIndex) => {
-                        if (accessory.familia !== "SHIFT MÓDULO") return null;
+                      {(item?.data.accessories ?? []).map((accessory, accessoryIndex) => {
                         const draftKey = `${editItemId ?? "item"}:${accessoryIndex}:${accessory.codigo}`;
                         const hasDraft = Object.prototype.hasOwnProperty.call(shiftModulePriceDrafts, draftKey);
                         const canEditModulePrice = (user as any)?.role !== "convidado" && (accessory.unitPrice == null || canOverrideApiPrice);
@@ -3554,9 +3553,8 @@ function StandardCart() {
                 patch.custoManual = !isNaN(custoVal) && custoVal > 0 ? custoVal : null;
                 patch.specialMarkup = !isNaN(mkpVal2) && mkpVal2 > 0 ? mkpVal2 : null;
               }
-              if (item?.data.accessories?.some((accessory) => accessory.familia === "SHIFT MÓDULO")) {
-                patch.accessories = item.data.accessories.map((accessory, accessoryIndex) => {
-                  if (accessory.familia !== "SHIFT MÓDULO") return accessory;
+              if ((item?.data.accessories?.length ?? 0) > 0) {
+                patch.accessories = (item?.data.accessories ?? []).map((accessory, accessoryIndex) => {
                   const draftKey = `${editItemId}:${accessoryIndex}:${accessory.codigo}`;
                   if (!Object.prototype.hasOwnProperty.call(shiftModulePriceDrafts, draftKey)) return accessory;
                   const canEditModulePrice = (user as any)?.role !== "convidado" && (accessory.unitPrice == null || canOverrideApiPriceSave);

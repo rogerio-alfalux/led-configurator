@@ -60,4 +60,12 @@ describe("FloorGroupBar", () => {
     expect(source).toContain("updateItemField(e.id, { floorName: trimmed, floorId: trimmed }, 0)");
     expect(source).toContain("renameFloor(displayName, newName)");
   });
+
+  it("edita e persiste o preço unitário de qualquer acessório, não apenas módulos SHIFT", () => {
+    const source = readFileSync(resolve(process.cwd(), "client/src/pages/Cart.tsx"), "utf8");
+    expect(source).toContain("Preços dos acessórios");
+    expect(source).toContain("(item?.data.accessories ?? []).map");
+    expect(source).toContain("patch.accessories = (item?.data.accessories ?? []).map");
+    expect(source).toContain("parseShiftModuleManualPrice(shiftModulePriceDrafts[draftKey])");
+  });
 });

@@ -11,4 +11,12 @@ describe("editor de preço manual do orçamento", () => {
     expect(source).toContain('readOnly={!!d.priceFromApi && !canOverrideApiPrice}');
     expect(source).toContain('placeholder={d.priceFromApi ? (canOverrideApiPrice ? "Sobrescrever preço da API" : "Preço da API") : "Definir preço"}');
   });
+
+  it("exibe e salva preço unitário para todos os acessórios vinculados", () => {
+    const source = readFileSync(resolve(process.cwd(), "client/src/pages/QuoteDetail.tsx"), "utf8");
+    expect(source).toContain("const linkedAccessories = (d.accessories ?? []).map");
+    expect(source).toContain("Acessórios vinculados");
+    expect(source).toContain("currentIndex === index ? { ...current, unitPrice: newUnitPrice } : current");
+    expect(source).toContain("onUpdate(item.id, { accessories });");
+  });
 });
