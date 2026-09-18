@@ -62,10 +62,16 @@ const trpcClient = trpc.createClient({
         // normalização o cliente tenta fazer JSON.parse e mostra
         // "Unexpected token 'S'" ao usuário.
         if (!response.ok) {
-          const contentType = response.headers.get("content-type") ?? "";
           const body = await response.clone().text();
-          const looksLikeJson = contentType.includes("json") || /^[\[{]/.test(body.trim());
-          if (!looksLikeJson) {
+          let isValidJson = false;
+          try {
+            JSON.parse(body);
+            isValidJson = true;
+          } catch {
+            // O proxy pode rotular uma resposta de texto como JSON; o corpo é
+            // a fonte de verdade para decidir se o tRPC conseguirá processá-lo.
+          }
+          if (!isValidJson) {
             const message = /service unavailable|database not available|temporarily unavailable/i.test(body)
               ? "O serviço está temporariamente indisponível. Aguarde alguns segundos e tente novamente."
               : `O servidor não respondeu corretamente (HTTP ${response.status}).`;
