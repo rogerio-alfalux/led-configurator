@@ -2637,7 +2637,7 @@
 - [x] Garantir carregamento das fotos das categorias na sessão autenticada por senha de LD Convidado
 
 ## Correção: Rota pública de fotos das categorias
-- [ ] Servir fotos das categorias por rota própria da aplicação, sem depender de /manus-storage no domínio publicado
+- [x] Servir fotos das categorias por rota própria da aplicação, sem depender de /manus-storage no domínio publicado (`/api/assets/:key(*)`)
 
 ## Melhorias no fluxo de Solicitações LD
 - [x] Alterar número sequencial de solicitação LD de #30001 para formato LD-XXXX-26 (4 dígitos + ano)
