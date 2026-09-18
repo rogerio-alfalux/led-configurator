@@ -101,6 +101,36 @@ export function buildSplitDriverPricePatch(
   };
 }
 
+/** Atualiza somente a quantidade de uma linha de driver e recompõe o total. */
+export function buildSplitDriverQuantityPatch(
+  item: CartItemData,
+  driverIndex: number,
+  driverQty: number,
+): Partial<CartItemData> {
+  const normalizedQty = Math.max(0, Number.isFinite(driverQty) ? driverQty : 0);
+  const driverLines = (item.driverLines ?? []).map((line, index) => index === driverIndex
+    ? {
+        ...line,
+        driverQty: normalizedQty,
+        driverTotalPrice: line.driverUnitPrice == null
+          ? line.driverTotalPrice
+          : roundMoney(line.driverUnitPrice * normalizedQty),
+        driverManual: true,
+      }
+    : line,
+  );
+  const bodyUnitPrice = getEditableBodyUnitPrice(item);
+  const bodyTotal = bodyUnitPrice != null
+    ? roundMoney(bodyUnitPrice * Math.max(1, item.qty ?? 1))
+    : Math.max(0, item.priceWithoutDriver ?? item.totalPrice ?? 0);
+  const driversTotal = driverLines.reduce((sum, line) => sum + (line.driverTotalPrice ?? ((line.driverUnitPrice ?? 0) * (line.driverQty ?? 0))), 0);
+  return {
+    driverLines,
+    priceWithoutDriver: bodyTotal,
+    totalPrice: roundMoney(bodyTotal + driversTotal),
+  };
+}
+
 /** Cria uma cópia profunda para que a duplicata não compartilhe arrays ou objetos de preço. */
 export function cloneCartItemData(item: CartItemData): CartItemData {
   return JSON.parse(JSON.stringify(item)) as CartItemData;

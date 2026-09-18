@@ -3,6 +3,7 @@ import type { CartItemData } from "./cartTypes";
 import {
   buildSplitBodyPricePatch,
   buildSplitDriverPricePatch,
+  buildSplitDriverQuantityPatch,
   cloneCartItemData,
   getCommercialBodyTotal,
   getEditableBodyUnitPrice,
@@ -105,6 +106,18 @@ describe("preço desmembrado ao duplicar e editar itens", () => {
     expect(patch.driverLines![0].driverTotalPrice).toBe(2_730.14);
     expect(patch.priceWithoutDriver).toBe(11_200);
     expect(patch.unitPrice).toBeUndefined();
+  });
+
+  it("edita somente a quantidade do driver e recompõe o total", () => {
+    const patch = buildSplitDriverQuantityPatch(itemWithDriver, 0, 20);
+
+    expect(patch.unitPrice).toBeUndefined();
+    expect(patch.driverLines![0].driverQty).toBe(20);
+    expect(patch.driverLines![0].driverUnitPrice).toBe(117.72);
+    expect(patch.driverLines![0].driverTotalPrice).toBe(2354.4);
+    expect(patch.priceWithoutDriver).toBe(11200);
+    expect(patch.totalPrice).toBe(13554.4);
+    expect(patch.driverLines![0].driverManual).toBe(true);
   });
 
   it("isola os dados aninhados da duplicata", () => {

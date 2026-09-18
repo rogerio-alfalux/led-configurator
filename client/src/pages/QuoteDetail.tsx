@@ -140,7 +140,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@shared/permissions";
 import { applyCCTChange, applyUnitPriceChange, applyQtyChange } from "@/lib/cctUtils";
 import { calculateLinkedAccessoriesTotal, parseShiftModuleManualPrice } from "@/lib/shiftModulePrices";
-import { buildSplitDriverPricePatch, cloneCartItemData, getEditableBodyUnitPrice } from "@/lib/splitItemPricing";
+import { buildSplitDriverPricePatch, buildSplitDriverQuantityPatch, cloneCartItemData, getEditableBodyUnitPrice } from "@/lib/splitItemPricing";
 import { deriveDriverQuantityPerUnit, selectDriverVariantByDescription } from "@/lib/driverRehydration";
 import { shouldBindCommercialQuoteTeam } from "@shared/quoteOwnership";
 
@@ -495,7 +495,23 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
                 {dl.driverModel && <span className="ml-1 text-foreground/80 truncate">{dl.driverModel}</span>}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-muted-foreground">Qtd: <span className="font-medium text-foreground">{dl.driverQty ?? 1}</span></span>
+                <label className="flex items-center gap-1 text-muted-foreground">
+                  Qtd:
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    inputMode="decimal"
+                    defaultValue={dl.driverQty ?? 1}
+                    className="h-6 w-16 rounded border border-amber-400/60 bg-background px-1.5 text-right text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-amber-400"
+                    aria-label={`Quantidade do driver ${dl.driverCode ?? ""}`}
+                    onBlur={(event) => {
+                      const value = Number(event.target.value.replace(',', '.'));
+                      if (!Number.isFinite(value) || value < 0 || value === (dl.driverQty ?? 1)) return;
+                      onUpdate(item.id, buildSplitDriverQuantityPatch(d, dIdx, value));
+                    }}
+                  />
+                </label>
                 {canEditDriverPrice ? (
                   <div className="relative flex items-center">
                     <span className="text-muted-foreground mr-1">Unit:</span>
@@ -556,7 +572,27 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
                   <span className="ml-1 text-foreground/80 truncate">{accessory.descricao}</span>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-muted-foreground">Qtd: <span className="font-medium text-foreground">{totalQty}</span></span>
+                  <label className="flex items-center gap-1 text-muted-foreground">
+                    Qtd:
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      inputMode="decimal"
+                      defaultValue={accessory.qty ?? 1}
+                      className="h-6 w-16 rounded border border-cyan-500/60 bg-background px-1.5 text-right text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                      aria-label={`Quantidade do acessório ${accessory.descricao}`}
+                      onBlur={(event) => {
+                        const value = Number(event.target.value.replace(',', '.'));
+                        if (!Number.isFinite(value) || value < 0 || value === (accessory.qty ?? 1)) return;
+                        const accessories = (d.accessories ?? []).map((current, currentIndex) =>
+                          currentIndex === index ? { ...current, qty: value } : current,
+                        );
+                        onUpdate(item.id, { accessories });
+                      }}
+                    />
+                    <span className="sr-only">Total: {totalQty}</span>
+                  </label>
                   <div className="flex items-center gap-1">
                     <span className="text-muted-foreground">Unit:</span>
                     <input
@@ -565,7 +601,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
                       defaultValue={accessory.unitPrice != null ? accessory.unitPrice.toFixed(2).replace(".", ",") : ""}
                       readOnly={!canEditModulePrice}
                       placeholder={canEditModulePrice ? "0,00" : "Preço API"}
-                      className={`h-6 w-20 rounded border px-1.5 text-xs text-foreground focus:outline-none focus:ring-1 ${canEditModulePrice ? "border-cyan-500/60 bg-background focus:ring-cyan-500" : "border-border bg-muted text-muted-foreground cursor-not-allowed"}`}
+                      className={`h-6 w-20 rounded border px-1.5 text-right text-xs text-foreground focus:outline-none focus:ring-1 ${canEditModulePrice ? "border-cyan-500/60 bg-background focus:ring-cyan-500" : "border-border bg-muted text-muted-foreground cursor-not-allowed"}`}
                       onBlur={(event) => {
                         if (!canEditModulePrice) return;
                         const newUnitPrice = parseShiftModuleManualPrice(event.target.value);
