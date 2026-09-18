@@ -54,6 +54,7 @@ import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 import { StateCitySelector, isSaoPauloCapital } from "@/components/StateCitySelector";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@shared/permissions";
+import { formatCommercialQuoteNumberInput, isCommercialQuoteNumber } from "@shared/quoteNumberFormat";
 import { toBrasiliaDate } from "@/lib/dateUtils";
 import { parseShiftModuleManualPrice } from "@/lib/shiftModulePrices";
 import { applyCCTChange } from "@/lib/cctUtils";
@@ -94,6 +95,7 @@ function getEffectiveDrvTotal(item: CartItemData): number {
 }
 
 interface SaveFormData {
+  quoteNumber: string;
   clientName: string;
   clientContact: string;
   clientPhone: string;
@@ -901,6 +903,7 @@ function StandardCart() {
   // Formulário para salvar no banco — persiste no localStorage para sobreviver à navegação
   const SAVE_FORM_STORAGE_KEY = "alfalux_cart_save_form_draft";
   const defaultSaveForm: SaveFormData = {
+    quoteNumber: "",
     clientName: "",
     clientContact: "",
     clientPhone: "",
@@ -1009,6 +1012,23 @@ function StandardCart() {
   const suggestQuery = trpc.quotes.suggestNumber.useQuery(
     { sellerId: seller1IdNum },
     { enabled: saveDialogOpen, staleTime: 0 }
+  );
+  // Flag para saber se o usuário editou manualmente o número de orçamento
+  const [userEditedQuoteNumber, setUserEditedQuoteNumber] = React.useState(false);
+  // Atualiza número automaticamente quando vendedor é selecionado — apenas se o usuário não editou manualmente
+  useEffect(() => {
+    if (saveDialogOpen && suggestQuery.data?.suggested && !userEditedQuoteNumber) {
+      setSaveForm(prev => ({ ...prev, quoteNumber: suggestQuery.data!.suggested }));
+    }
+  }, [saveDialogOpen, suggestQuery.data?.suggested, saveForm.seller1Id, userEditedQuoteNumber]);
+  // Resetar flag quando o diálogo fecha
+  useEffect(() => {
+    if (!saveDialogOpen) setUserEditedQuoteNumber(false);
+  }, [saveDialogOpen]);
+  // Verificar se o número de orçamento já existe
+  const checkNumberQuery = trpc.quotes.checkNumber.useQuery(
+    { quoteNumber: saveForm.quoteNumber.trim() },
+    { enabled: saveDialogOpen && !!saveForm.quoteNumber.trim(), staleTime: 2000 }
   );
 
   // Auto-preenche o estado da aba Frete quando o estado da aba Comercial muda
@@ -1215,8 +1235,8 @@ function StandardCart() {
         discountPercent: discountPct > 0 ? discountPct : undefined,
         showDiscount: saveForm.showDiscount && discountPct > 0,
         showIpi,
-        // Referência visual; o número oficial é atribuído atomicamente pelo servidor ao salvar.
-        numero: suggestQuery.data?.suggested || form.numero,
+        // Usar o número do orçamento do saveForm (não o gerado aleatoriamente no form)
+        numero: saveForm.quoteNumber.trim() || form.numero,
         // Orçamentos gerados diretamente do Cart são sempre novos (a partir de hoje)
         quoteCreatedAt: new Date().toISOString(),
       };
@@ -1257,6 +1277,10 @@ function StandardCart() {
       toast.error("Informe o Número do Projeto ou marque \"Sem Projeto\".");
       return;
     }
+    if (saveForm.quoteNumber.trim() && !isCommercialQuoteNumber(saveForm.quoteNumber)) {
+      toast.error("O número do orçamento deve seguir o formato xx.xxxx-xx.");
+      return;
+    }
     const teamValidationError = getQuoteTeamValidationError({
       role: userRole,
       sellerId: saveForm.seller1Id,
@@ -1271,6 +1295,7 @@ function StandardCart() {
       return;
     }
     saveQuoteMutation.mutate({
+      quoteNumber: saveForm.quoteNumber.trim() || undefined,
       clientName: saveForm.clientName,
       clientContact: saveForm.clientContact || undefined,
       clientPhone: saveForm.clientPhone || undefined,
@@ -1738,12 +1763,28 @@ function StandardCart() {
                           <TabsContent value="cliente" className="space-y-3 pt-3">
                             <div>
                               <Label>Número do Orçamento</Label>
-                              <div className="rounded-md border bg-muted/40 px-3 py-2 font-mono text-sm font-semibold text-primary min-h-10 flex items-center">
-                                {suggestQuery.isLoading
-                                  ? "Calculando..."
-                                  : suggestQuery.data?.suggested ?? "Selecione o Vendedor 1"}
+                              <div className="relative">
+                                <Input
+                                  value={saveForm.quoteNumber}
+                                  placeholder={suggestQuery.isLoading ? "Calculando..." : "Selecione o Vendedor 1"}
+                                  className="font-mono"
+                                  inputMode="numeric"
+                                  maxLength={10}
+                                  onChange={e => {
+                                    setUserEditedQuoteNumber(true);
+                                    updateSaveForm("quoteNumber", formatCommercialQuoteNumberInput(e.target.value));
+                                  }}
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {suggestQuery.isLoading
+                                    ? "Calculando número..."
+                                    : saveForm.quoteNumber && isCommercialQuoteNumber(saveForm.quoteNumber)
+                                    ? "✓ Número no formato xx.xxxx-xx"
+                                    : saveForm.quoteNumber
+                                    ? "Complete o formato xx.xxxx-xx"
+                                    : "Selecione o Vendedor 1 para gerar o número automaticamente"}
+                                </p>
                               </div>
-                              <p className="text-xs text-muted-foreground mt-1">Gerado automaticamente ao salvar, conforme a sequência oficial do vendedor.</p>
                             </div>
                             <div>
                               <Label>Cliente *</Label>
@@ -1878,7 +1919,7 @@ function StandardCart() {
                                   {suggestQuery.isLoading ? (
                                     <span className="text-xs text-muted-foreground animate-pulse">Calculando...</span>
                                   ) : (
-                                    <span className="text-sm font-mono font-bold text-primary">{suggestQuery.data?.suggested ?? "Aguardando sequência"}</span>
+                                    <span className="text-sm font-mono font-bold text-primary">{suggestQuery.data?.suggested ?? saveForm.quoteNumber}</span>
                                   )}
                                 </div>
                               )}
