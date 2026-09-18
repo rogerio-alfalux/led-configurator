@@ -3465,6 +3465,8 @@ function StandardCart() {
                 patch.unitPrice = unitPrice;
                 patch.totalPrice = qty * unitPrice;
               } else {
+                const requestedQty = parseInt(editFields.qty) || item?.data.qty || 1;
+                patch.qty = requestedQty;
                 const newCCT = editFields.cct.trim();
                 if (newCCT) {
                   // Se o CCT mudou, atualizar description, moduloLed, orderSummary, quoteSummary
@@ -3618,7 +3620,22 @@ function StandardCart() {
                   const canEditModulePrice = (user as any)?.role !== "convidado" && (accessory.unitPrice == null || canOverrideApiPriceSave);
                   if (!canEditModulePrice) return nextAccessory;
                   return { ...nextAccessory, unitPrice: parseShiftModuleManualPrice(shiftModulePriceDrafts[draftKey]) };
-                });
+                  });
+              }
+              // Persistir o total comercial da luminária + drivers. Acessórios
+              // permanecem em `accessories` e são somados separadamente pelos
+              // documentos, evitando que a edição seja perdida ao reidratar.
+              if (item?.data && !isRevenda && !isNaoOrcamosSave) {
+                const nextData = { ...item.data, ...patch } as typeof item.data;
+                const bodyUnitPrice = getEditableBodyUnitPrice(nextData);
+                const bodyTotal = bodyUnitPrice != null
+                  ? bodyUnitPrice * Math.max(1, nextData.qty ?? 1)
+                  : Math.max(0, nextData.priceWithoutDriver ?? 0);
+                const driversTotal = (nextData.driverLines ?? []).reduce((sum, line) =>
+                  sum + (line.driverTotalPrice ?? ((line.driverUnitPrice ?? 0) * (line.driverQty ?? 0))), 0);
+                if ((nextData.driverLines?.length ?? 0) > 0) {
+                  patch.totalPrice = Math.round((bodyTotal + driversTotal) * 100) / 100;
+                }
               }
               const totalForUpdate = isRevenda
                 ? (parseInt(editFields.qty) || 1) * (parseFloat(editFields.unitPrice.replace(',', '.')) || 0)
