@@ -27,6 +27,7 @@ import { generateOrderExcel, calcDeliveryDate } from "@/lib/orderExcelGenerator"
 import { OrderPreviewModal } from "@/components/OrderPreviewModal";
 import type { OrderFormData } from "@/lib/orderExcelGenerator";
 import { toBrasiliaDate, toBrasiliaDateTime, toBrasiliaDateTimeShort } from "@/lib/dateUtils";
+import { resolveProductionSheetLayoutVersion } from "@/lib/productionSheetLayout";
 import { formatProfileSkuLines } from "@/lib/profileSkuFormatter";
 import { addStripflexQuantities, isStripflexDescription, multiplyStripflexQuantity, normalizeStripflexQuantity } from "@/lib/ledStripUnits";
 import { createFactoryOrderAutosave } from "@/lib/factoryOrderAutosave";
@@ -1669,6 +1670,7 @@ export default function FactoryOrderDetail() {
         orderNumber: orderNum,
         vendorName: quote.vendorName ?? "",
         date: toBrasiliaDate(new Date()),
+        productionLayoutVersion: resolveProductionSheetLayoutVersion(quote.createdAt),
         empresa: orderToUse.empresa as "ALFALUX" | "LUMINEW",
         deliveryDays,
         approvedAt: approvedAtIso,
@@ -1903,6 +1905,7 @@ export default function FactoryOrderDetail() {
                       orderNumber: orderToPreview.orderNumber ?? "",
                       vendorName: quote.vendorName ?? "",
                       date: toBrasiliaDate(new Date()),
+                      productionLayoutVersion: resolveProductionSheetLayoutVersion(quote.createdAt),
                       empresa: orderToPreview.empresa as "ALFALUX" | "LUMINEW",
                       deliveryDays,
                       approvedAt: approvedAtIso,

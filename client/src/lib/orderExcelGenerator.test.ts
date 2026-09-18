@@ -233,8 +233,13 @@ describe("generateOrderExcel", () => {
 
     expect(worksheet.getCell("D8").value).toBe("↳ Acessório: RABICHO 01");
     expect(worksheet.getCell("D10").value).toBe("↳ Acessório: RABICHO 02");
+    expect(worksheet.getCell("A8").value).toBe("1A");
+    expect(worksheet.getCell("A10").value).toBe("2A");
     expect(worksheet.getCell("H8").value).toBe(2);
     expect(worksheet.getCell("H10").value).toBe(3);
+    expect(worksheet.getCell("D7").font?.size).toBe(14);
+    expect(worksheet.getCell("D8").font?.size).toBe(14);
+    expect(worksheet.getRow(7).height).toBeGreaterThanOrEqual(92);
   });
 
   it("leva observações por item e gerais à ficha de produção", async () => {

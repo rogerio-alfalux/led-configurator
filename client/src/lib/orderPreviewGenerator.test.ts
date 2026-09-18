@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildLedBarEquipamentosText, buildLuminariaEquipamentosText, buildProfileEquipamentosText, buildProfileFonteLuzText, buildProfileSkuText } from "./orderPreviewGenerator";
+import { buildLedBarEquipamentosText, buildLuminariaEquipamentosText, buildProfileEquipamentosText, buildProfileFonteLuzText, buildProfileSkuText, generateOrderPreviewHtml } from "./orderPreviewGenerator";
 
 describe("buildProfileSkuText — prévia de ficha técnica", () => {
   it("mostra a quantidade por SKU também para orçamentos históricos", () => {
@@ -124,5 +124,49 @@ describe("estrutura heterogênea da API — prévia da ficha", () => {
       apiOtherEquipments: [{ description: "PCI CONTATO 500MM REV01 (500X26MM)", code: "MP00064", type: "MODULO_LED", quantity: 3 }],
     } as any);
     expect(text).toContain("3 x PCI CONTATO 500MM REV01 (500X26MM) (MP00064)");
+  });
+});
+
+describe("subitens e legibilidade — prévia da ficha", () => {
+  it("identifica acessórios vinculados como 1A, 1B e usa fonte 14 no layout novo", () => {
+    const html = generateOrderPreviewHtml([{
+      category: "Downlights",
+      sku: "DL-01",
+      description: "DOWNLIGHT DE TESTE COM DESCRIÇÃO LONGA",
+      qty: 1,
+      unitPrice: 100,
+      totalPrice: 100,
+      photoUrl: null,
+      accessories: [
+        { codigo: "CP001", descricao: "ACESSÓRIO UM", qty: 1, unitPrice: 10 },
+        { codigo: "CP002", descricao: "ACESSÓRIO DOIS", qty: 1, unitPrice: 10 },
+      ],
+    }] as any, {
+      clientName: "Cliente",
+      projectName: "Obra",
+      quoteNumber: "01.0001-26",
+      vendorName: "Vendedor",
+      date: "18/09/2026",
+      productionLayoutVersion: "enhanced",
+    });
+
+    expect(html).toContain(">1A</td>");
+    expect(html).toContain(">1B</td>");
+    expect(html).toContain("font-size: 14px;");
+    expect(html).toContain("overflow-wrap: anywhere;");
+  });
+
+  it("mantém a tipografia original ao reimprimir um orçamento histórico", () => {
+    const html = generateOrderPreviewHtml([], {
+      clientName: "Cliente",
+      projectName: "Obra",
+      quoteNumber: "01.0001-26",
+      vendorName: "Vendedor",
+      date: "18/09/2026",
+      productionLayoutVersion: "legacy",
+    });
+
+    expect(html).toContain("font-size: 9px;");
+    expect(html).toContain("font-size: 15px;");
   });
 });

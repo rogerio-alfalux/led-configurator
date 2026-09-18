@@ -25,6 +25,23 @@ interface EtiquetaEntry {
 type GroupedItem = CartItemData & { _groupEntries: EtiquetaEntry[] };
 
 /**
+ * Identifica um acessório vinculado dentro da ficha de produção sem alterar a
+ * numeração do item principal. Exemplos: 1 + índice 0 = "1A"; 1 + índice 1 =
+ * "1B". Após Z, a sequência continua em AA, AB etc.
+ */
+export function formatLinkedAccessoryItemNumber(parentItemNumber: number, accessoryIndex: number): string {
+  let current = Math.max(0, Math.trunc(accessoryIndex));
+  let suffix = "";
+
+  do {
+    suffix = String.fromCharCode(65 + (current % 26)) + suffix;
+    current = Math.floor(current / 26) - 1;
+  } while (current >= 0);
+
+  return `${parentItemNumber}${suffix}`;
+}
+
+/**
  * Normaliza textos técnicos legados que podem ter as mesmas linhas em ordens
  * diferentes. Preserva o conteúdo de cada linha para não misturar composições
  * distintas, mas remove diferenças de espaçamento e de capitalização.

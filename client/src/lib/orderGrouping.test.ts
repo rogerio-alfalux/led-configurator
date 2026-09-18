@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupOrderItems, withDisplayMaterialSourceNumbers } from './orderGrouping';
+import { formatLinkedAccessoryItemNumber, groupOrderItems, withDisplayMaterialSourceNumbers } from './orderGrouping';
 import type { CartItemData } from './cartTypes';
 
 function specialItem(dimensions: string): CartItemData {
@@ -115,5 +115,14 @@ describe('groupOrderItems', () => {
 
     const numbered = withDisplayMaterialSourceNumbers([glow, glow, guga, trilho]);
     expect(numbered.map(item => item.materialSourceItemNumber)).toEqual([1, 1, 2, 3]);
+  });
+});
+
+describe('formatLinkedAccessoryItemNumber', () => {
+  it('identifica acessórios vinculados com a sequência alfabética do item principal', () => {
+    expect(formatLinkedAccessoryItemNumber(1, 0)).toBe('1A');
+    expect(formatLinkedAccessoryItemNumber(1, 1)).toBe('1B');
+    expect(formatLinkedAccessoryItemNumber(7, 25)).toBe('7Z');
+    expect(formatLinkedAccessoryItemNumber(7, 26)).toBe('7AA');
   });
 });

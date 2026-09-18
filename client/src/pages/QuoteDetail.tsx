@@ -52,6 +52,7 @@ import { applyItemDiscount, applyQuoteDiscount, calculateQuoteTotalWithDiscountA
 import { canAccessQuoteAnalysis } from "@/lib/quoteAnalysisAccess";
 import type { ApiProductDriverInfo } from "@/lib/cartTypes";
 import { calculateCommercialProductsBeforeDiscount, calculateCommercialQuoteTotal, deriveCommercialItemBaseFromStoredTotal } from "@shared/quoteCommercialTotal";
+import { resolveProductionSheetLayoutVersion } from "@/lib/productionSheetLayout";
 
 /** Aplica margem individual do item (itemMarginPercent em %) sobre um valor base */
 function applyItemMarginQD(base: number, itemMarginPercent?: number | null): number {
@@ -2198,6 +2199,7 @@ export default function QuoteDetail() {
         orderNumber: (quote as any).orderNumber || undefined,
         vendorName: quote.vendorName ?? "",
         date: toBrasiliaDate(quote.approvedAt ?? quote.createdAt),
+        productionLayoutVersion: resolveProductionSheetLayoutVersion(quote.createdAt),
         empresa,
         deliveryDays,
         approvedAt: approvedAtIso,
@@ -2241,6 +2243,7 @@ export default function QuoteDetail() {
           orderNumber: orderNumberInput || (quote as any).orderNumber || undefined,
           vendorName: quote.vendorName ?? "",
           date: toBrasiliaDate(quote.approvedAt ?? quote.createdAt),
+          productionLayoutVersion: resolveProductionSheetLayoutVersion(quote.createdAt),
           empresa,
           deliveryDays,
           approvedAt: approvedAtIso,

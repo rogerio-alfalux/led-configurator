@@ -7,7 +7,8 @@
 import type { CartItemData, LinkedAccessory } from "./cartTypes";
 import type { OrderFormData } from "./orderExcelGenerator";
 import { toBrasiliaDateTime } from "./dateUtils";
-import { groupOrderItems, withDisplayMaterialSourceNumbers } from "./orderGrouping";
+import { formatLinkedAccessoryItemNumber, groupOrderItems, withDisplayMaterialSourceNumbers } from "./orderGrouping";
+import { isEnhancedProductionSheetLayout } from "./productionSheetLayout";
 import { buildMaterialRequisition, groupByTipo } from "./materialRequisition";
 import { getManualApiComponentQuantity, getManualApiEquipmentQuantity } from "./apiComponentSlots";
 import { formatProfileSkuLines } from "./profileSkuFormatter";
@@ -286,6 +287,12 @@ function escNl(str: string | null | undefined): string {
  */
 export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormData & { prazoStr?: string }, descMap?: Map<string, string>): string {
   const isLuminew = form.empresa === "LUMINEW";
+  const useEnhancedLayout = isEnhancedProductionSheetLayout(form.productionLayoutVersion);
+  const bodyFontSize = useEnhancedLayout ? 14 : 10;
+  const tableFontSize = useEnhancedLayout ? 14 : 9;
+  const titleFontSize = useEnhancedLayout ? 16 : 15;
+  const headerPadding = useEnhancedLayout ? "7px 4px" : "5px 3px";
+  const cellPadding = useEnhancedLayout ? "7px 4px" : "4px 3px";
   // Campo PEDIDO: mostra o número do pedido de fábrica (6 dígitos) se informado,
   // caso contrário mostra "NÃO INFORMADO" para deixar claro que falta o número
   const pedidoDisplay = form.orderNumber && /^\d{6}(-\d+)?$/.test(form.orderNumber)
@@ -341,17 +348,17 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
         <td></td>
         <td style="text-align:center">${esc(item.itemEmPlanta ?? "")}</td>
         <td style="text-align:left">${prodDesc}</td>
-        <td style="text-align:left;font-size:9px">${skuText}</td>
-        <td style="text-align:left;font-size:9px">${fonteText}</td>
-        <td style="text-align:left;font-size:9px">${equipText}</td>
+        <td style="text-align:left">${skuText}</td>
+        <td style="text-align:left">${fonteText}</td>
+        <td style="text-align:left">${equipText}</td>
         <td style="text-align:center;font-weight:bold">${esc(item.qty)}</td>
         <td style="text-align:center">${esc(corPecaValue)}</td>
-        <td style="text-align:left;font-size:9px">${escNl(item.productionObservation?.trim() || (item.category === "Item Especial" ? item.specialInternalNotes : ""))}</td>
+        <td style="text-align:left">${escNl(item.productionObservation?.trim() || (item.category === "Item Especial" ? item.specialInternalNotes : ""))}</td>
       </tr>`;
 
     // Sub-linhas de acessórios
     if (item.accessories && item.accessories.length > 0) {
-      (item.accessories as LinkedAccessory[]).forEach((acc) => {
+      (item.accessories as LinkedAccessory[]).forEach((acc, accessoryIndex) => {
         const accessoryLightText = acc.productLightSource
           ? `${acc.productLightSource.quantity}x ${esc(acc.productLightSource.description)}${acc.productLightSource.code ? ` (${esc(acc.productLightSource.code)})` : ""}`
           : "";
@@ -361,11 +368,11 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
         ].map(component => `${component.quantity}x ${esc(component.description)}${component.code ? ` (${esc(component.code)})` : ""}`).join("<br>");
         dataRows += `
           <tr style="background:#e0f7fa">
-            <td></td><td></td><td></td>
-            <td style="text-align:left;font-size:9px;color:#006064;font-style:italic">↳ Acessório: ${esc(acc.descricao)}</td>
-            <td style="text-align:center;font-size:9px;color:#006064;font-style:italic">${esc(acc.codigo ?? "")}</td>
-            <td style="text-align:left;font-size:9px;color:#006064;font-style:italic">${accessoryLightText}</td>
-            <td style="text-align:left;font-size:9px;color:#006064;font-style:italic">${accessoryEquipmentText}</td>
+            <td style="text-align:center;font-weight:bold;color:#006064;font-style:italic">${formatLinkedAccessoryItemNumber(i + 1, accessoryIndex)}</td><td></td><td></td>
+            <td style="text-align:left;color:#006064;font-style:italic">↳ Acessório: ${esc(acc.descricao)}</td>
+            <td style="text-align:center;color:#006064;font-style:italic">${esc(acc.codigo ?? "")}</td>
+            <td style="text-align:left;color:#006064;font-style:italic">${accessoryLightText}</td>
+            <td style="text-align:left;color:#006064;font-style:italic">${accessoryEquipmentText}</td>
             <td style="text-align:center;font-weight:bold;color:#006064;font-style:italic">${esc(acc.qty)}</td>
             <td></td><td></td>
           </tr>`;
@@ -382,7 +389,7 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: Arial, Helvetica, sans-serif;
-      font-size: 10px;
+      font-size: ${bodyFontSize}px;
       color: #000;
       background: #fff;
       padding: 12px;
@@ -391,7 +398,7 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
       background: #1f3864;
       color: #fff;
       text-align: center;
-      font-size: 15px;
+      font-size: ${titleFontSize}px;
       padding: 8px 0;
       letter-spacing: 1px;
       margin-bottom: 6px;
@@ -414,26 +421,30 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
       padding: 5px 8px;
       border: 1px solid #8ea9c1;
     }
-    .hg-value.bold { font-weight: bold; font-size: 11px; }
-    .hg-value.pedido { font-weight: bold; font-size: 12px; font-family: monospace; }
+    .hg-value.bold { font-weight: bold; font-size: ${useEnhancedLayout ? 14 : 11}px; }
+    .hg-value.pedido { font-weight: bold; font-size: ${useEnhancedLayout ? 14 : 12}px; font-family: monospace; }
     .hg-value.prazo { font-weight: bold; color: #cc0000; }
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 9px;
+      font-size: ${tableFontSize}px;
+      table-layout: ${useEnhancedLayout ? "fixed" : "auto"};
     }
     th {
       background: #1f3864;
       color: #fff;
-      font-size: 9px;
-      padding: 5px 3px;
+      font-size: ${tableFontSize}px;
+      padding: ${headerPadding};
       border: 1.5px solid #8ea9c1;
       text-align: center;
     }
     td {
-      padding: 4px 3px;
+      padding: ${cellPadding};
       border: 1px solid #8ea9c1;
       vertical-align: top;
+      line-height: ${useEnhancedLayout ? "1.28" : "normal"};
+      overflow-wrap: ${useEnhancedLayout ? "anywhere" : "normal"};
+      word-break: ${useEnhancedLayout ? "break-word" : "normal"};
     }
     .obs-row td {
       background: #d9e1f2;
@@ -441,7 +452,7 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
       padding: 5px 8px;
     }
     .brand-row {
-      font-size: 10px;
+      font-size: ${useEnhancedLayout ? 14 : 10}px;
       font-weight: bold;
       padding: 4px 8px;
       border: 1px solid #8ea9c1;
@@ -467,7 +478,7 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
       bottom: 0;
       left: 0;
       right: 0;
-      font-size: 8px;
+      font-size: ${useEnhancedLayout ? 10 : 8}px;
       color: #555;
       background: #fff;
       border-top: 1px solid #bbb;
@@ -489,7 +500,7 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
   <h1>FICHA TÉCNICA DE PRODUÇÃO</h1>
 
   <!-- Cabeçalho -->
-  <table style="margin-bottom:6px;font-size:10px">
+  <table style="margin-bottom:6px;font-size:${bodyFontSize}px">
     <colgroup>
       <col style="width:60px">
       <col style="width:300px">
@@ -502,7 +513,7 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
     </colgroup>
     <tr>
       <td class="hg-label" rowspan="2" style="vertical-align:middle;text-align:center">CLIENTE</td>
-      <td colspan="3" class="hg-value bold" rowspan="2" style="vertical-align:middle;text-align:center;font-size:12px">
+      <td colspan="3" class="hg-value bold" rowspan="2" style="vertical-align:middle;text-align:center;font-size:${useEnhancedLayout ? 14 : 12}px">
         ${esc(form.clientName)}${form.projectName ? " / " + esc(form.projectName) : ""}
       </td>
       <td class="hg-label">PEDIDO:</td>
@@ -582,22 +593,22 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
       const bg = TIPO_COLORS[tipo] ?? '#ffffff';
       for (const entry of entries) {
         rows += `<tr style="background:${bg}">
-          <td style="text-align:left;font-size:9px">${esc(entry.tipo)}</td>
-          <td style="text-align:center;font-weight:bold;font-size:9px;font-family:monospace">${esc(entry.codigo)}</td>
-          <td style="text-align:left;font-size:9px">${esc(entry.descricao)}</td>
-          <td style="text-align:center;font-size:9px">${esc(entry.sourceItems.length > 0 ? entry.sourceItems.join(", ") : "")}</td>
-          <td style="text-align:center;font-size:9px">${esc(entry.unidade.toUpperCase())}</td>
-          <td style="text-align:center;font-weight:bold;font-size:10px">${esc(String(entry.qty))}</td>
+          <td style="text-align:left;font-size:${tableFontSize}px">${esc(entry.tipo)}</td>
+          <td style="text-align:center;font-weight:bold;font-size:${tableFontSize}px;font-family:monospace">${esc(entry.codigo)}</td>
+          <td style="text-align:left;font-size:${tableFontSize}px">${esc(entry.descricao)}</td>
+          <td style="text-align:center;font-size:${tableFontSize}px">${esc(entry.sourceItems.length > 0 ? entry.sourceItems.join(", ") : "")}</td>
+          <td style="text-align:center;font-size:${tableFontSize}px">${esc(entry.unidade.toUpperCase())}</td>
+          <td style="text-align:center;font-weight:bold;font-size:${useEnhancedLayout ? 14 : 10}px">${esc(String(entry.qty))}</td>
         </tr>`;
       }
     }
     return `
   <div style="page-break-before:always;margin-top:20px">
-    <h1 style="background:#1f3864;color:#fff;text-align:center;font-size:15px;padding:8px 0;letter-spacing:1px;margin-bottom:6px">REQUISIÇÃO DE MATERIAIS</h1>
-    <div style="background:#d9e1f2;padding:5px 8px;font-size:10px;margin-bottom:6px;border:1px solid #8ea9c1">
+    <h1 style="background:#1f3864;color:#fff;text-align:center;font-size:${titleFontSize}px;padding:8px 0;letter-spacing:1px;margin-bottom:6px">REQUISIÇÃO DE MATERIAIS</h1>
+    <div style="background:#d9e1f2;padding:5px 8px;font-size:${bodyFontSize}px;margin-bottom:6px;border:1px solid #8ea9c1">
       Pedido: ${esc(form.orderNumber || form.quoteNumber)} &mdash; ${esc(form.clientName)}${form.projectName ? ' / ' + esc(form.projectName) : ''}
     </div>
-    <table style="width:100%;border-collapse:collapse;font-size:9px">
+    <table style="width:100%;border-collapse:collapse;font-size:${tableFontSize}px;table-layout:${useEnhancedLayout ? "fixed" : "auto"}">
       <thead>
         <tr>
           <th style="background:#1f3864;color:#fff;padding:5px 3px;border:1.5px solid #8ea9c1;text-align:center;width:120px">TIPO</th>

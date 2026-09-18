@@ -4,7 +4,8 @@ import type { LinkedAccessory } from "./cartTypes";
 import { formatProfileSkuLines } from "./profileSkuFormatter";
 import { getManualApiComponentQuantity, getManualApiEquipmentQuantity } from "./apiComponentSlots";
 import { toBrasiliaDate, toBrasiliaDateTime, toBrasiliaFileDate } from "./dateUtils";
-import { groupOrderItems, withDisplayMaterialSourceNumbers } from "./orderGrouping";
+import { formatLinkedAccessoryItemNumber, groupOrderItems, withDisplayMaterialSourceNumbers } from "./orderGrouping";
+import { isEnhancedProductionSheetLayout, type ProductionSheetLayoutVersion } from "./productionSheetLayout";
 import { buildMaterialRequisition, groupByTipo } from "./materialRequisition";
 import type { MaterialTipo } from "./materialRequisition";
 import {
@@ -38,6 +39,8 @@ export interface OrderFormData {
   precomputedDisplayDays?: number;
   /** Observação geral persistida no pedido de fábrica. */
   notes?: string;
+  /** Versão visual vinculada à data de criação do orçamento. */
+  productionLayoutVersion?: ProductionSheetLayoutVersion;
 }
 
 /** Cache de feriados nacionais por ano */
@@ -118,17 +121,17 @@ function headerCell(cell: ExcelJS.Cell, value: string, fontSize = 10) {
   applyBorder(cell, "medium");
 }
 
-function labelCell(cell: ExcelJS.Cell, value: string) {
+function labelCell(cell: ExcelJS.Cell, value: string, fontSize = 10) {
   cell.value = value;
-  cell.font = { bold: true, size: 10 };
+  cell.font = { bold: true, size: fontSize };
   cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9E1F2" } };
   cell.alignment = { horizontal: "left", vertical: "middle" };
   applyBorder(cell);
 }
 
-function valueCell(cell: ExcelJS.Cell, value: string | number | null) {
+function valueCell(cell: ExcelJS.Cell, value: string | number | null, fontSize = 10) {
   cell.value = value ?? "";
-  cell.font = { size: 10 };
+  cell.font = { size: fontSize };
   cell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
   applyBorder(cell);
 }
@@ -389,6 +392,10 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   const wb = new ExcelJS.Workbook();
   wb.creator = "Configurador Alfalux";
   wb.created = new Date();
+  const useEnhancedLayout = isEnhancedProductionSheetLayout(form.productionLayoutVersion);
+  const contentFontSize = useEnhancedLayout ? 14 : 10;
+  const accessoryFontSize = useEnhancedLayout ? 14 : 9;
+  const headerFontSize = useEnhancedLayout ? 14 : 10;
 
   const ws = wb.addWorksheet("Pedido", {
     pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1 },
@@ -399,13 +406,13 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     { key: "A", width: 8 },   // ITEM
     { key: "B", width: 14 },  // PA
     { key: "C", width: 15 },  // ETIQUETA
-    { key: "D", width: 28 },  // PRODUTO
-    { key: "E", width: 26 },  // SKU
-    { key: "F", width: 38 },  // FONTE DE LUZ
-    { key: "G", width: 48 },  // EQUIPAMENTOS
+    { key: "D", width: useEnhancedLayout ? 34 : 28 },  // PRODUTO
+    { key: "E", width: useEnhancedLayout ? 28 : 26 },  // SKU
+    { key: "F", width: useEnhancedLayout ? 44 : 38 },  // FONTE DE LUZ
+    { key: "G", width: useEnhancedLayout ? 55 : 48 },  // EQUIPAMENTOS
     { key: "H", width: 8 },   // QTD
-    { key: "I", width: 18 },  // COR DA PEÇA
-    { key: "J", width: 48 },  // OBSERVAÇÕES
+    { key: "I", width: useEnhancedLayout ? 20 : 18 },  // COR DA PEÇA
+    { key: "J", width: useEnhancedLayout ? 55 : 48 },  // OBSERVAÇÕES
   ];
 
   // ─── Linha 1: Título ─────────────────────────────────────────────────────
@@ -421,34 +428,34 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   ws.getRow(2).height = 6;
 
   // ─── Linhas 3-4: Cabeçalho com dados ─────────────────────────────────────
-  ws.getRow(3).height = 28;
-  ws.getRow(4).height = 28;
+  ws.getRow(3).height = useEnhancedLayout ? 42 : 28;
+  ws.getRow(4).height = useEnhancedLayout ? 42 : 28;
 
   // Col A: label CLIENTE (merge A3:A4)
   ws.mergeCells("A3:A4");
-  labelCell(ws.getCell("A3"), "CLIENTE");
+  labelCell(ws.getCell("A3"), "CLIENTE", contentFontSize);
   ws.getCell("A3").alignment = { horizontal: "center", vertical: "middle" };
 
   // Col B-E: valor cliente/obra (merge B3:E4)
   ws.mergeCells("B3:E4");
   const clientCell = ws.getCell("B3");
   clientCell.value = `${form.clientName}${form.projectName ? " / " + form.projectName : ""}`;
-  clientCell.font = { bold: true, size: 11 };
+  clientCell.font = { bold: true, size: useEnhancedLayout ? 14 : 11 };
   clientCell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
   applyBorder(clientCell);
 
   // Col F: label PEDIDO (F3) e VENDEDOR (F4)
-  labelCell(ws.getCell("F3"), "PEDIDO:");
-  labelCell(ws.getCell("F4"), "VENDEDOR:");
+  labelCell(ws.getCell("F3"), "PEDIDO:", contentFontSize);
+  labelCell(ws.getCell("F4"), "VENDEDOR:", contentFontSize);
 
   // Col G: valor pedido (G3) e valor vendedor (G4)
-  valueCell(ws.getCell("G3"), form.orderNumber?.trim() || "NÃO INFORMADO");
-  ws.getCell("G3").font = { bold: true, size: 11 };
-  valueCell(ws.getCell("G4"), form.vendorName);
+  valueCell(ws.getCell("G3"), form.orderNumber?.trim() || "NÃO INFORMADO", contentFontSize);
+  ws.getCell("G3").font = { bold: true, size: useEnhancedLayout ? 14 : 11 };
+  valueCell(ws.getCell("G4"), form.vendorName, contentFontSize);
 
   // Col H-I: label PRAZO (merge H3:I3) e ALFALUX/LUMINEW (merge H4:J4)
   ws.mergeCells("H3:I3");
-  labelCell(ws.getCell("H3"), "PRAZO DE PRODUÇÃO:");
+  labelCell(ws.getCell("H3"), "PRAZO DE PRODUÇÃO:", contentFontSize);
   ws.getCell("H3").alignment = { horizontal: "left", vertical: "middle" };
   // Calcular e exibir data de entrega prevista
   {
@@ -463,7 +470,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     const prazoStr = `${displayDays} dias úteis → ${dateStr}`;
     const prazoCell = ws.getCell("J3");
     prazoCell.value = prazoStr;
-    prazoCell.font = { bold: true, size: 10, color: { argb: "FFCC0000" } };
+    prazoCell.font = { bold: true, size: contentFontSize, color: { argb: "FFCC0000" } };
     prazoCell.alignment = { horizontal: "left", vertical: "middle" };
   }
 
@@ -473,7 +480,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   brandCell.value = isLuminew
     ? "1 - ALFALUX     (    )                    2 - LUMINEW     (  X  )"
     : "1 - ALFALUX     (  X  )                    2 - LUMINEW     (    )";
-  brandCell.font = { bold: true, size: 10 };
+  brandCell.font = { bold: true, size: contentFontSize };
   brandCell.alignment = { horizontal: "left", vertical: "middle" };
   applyBorder(brandCell);
 
@@ -481,11 +488,11 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
   ws.getRow(5).height = 6;
 
   // ─── Linha 6: Cabeçalho da tabela ────────────────────────────────────────
-  ws.getRow(6).height = 36;
+  ws.getRow(6).height = useEnhancedLayout ? 58 : 36;
   const headers = ["ITEM", "PA", "ETIQUETA", "PRODUTO", "SKU", "FONTE DE LUZ", "EQUIPAMENTOS", "QTD", "COR DA PEÇA", "OBSERVAÇÕES"];
   const colLetters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
   headers.forEach((h, i) => {
-    headerCell(ws.getCell(`${colLetters[i]}6`), h, 10);
+    headerCell(ws.getCell(`${colLetters[i]}6`), h, headerFontSize);
   });
 
   // ─── Linhas de dados ─────────────────────────────────────────────────────
@@ -505,14 +512,14 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
 
     // Altura dinâmica: perfis com múltiplos segmentos precisam de mais espaço
     const segCount = item.profileSegments?.length ?? 1;
-    row.height = Math.max(60, segCount * 22);
+    row.height = useEnhancedLayout ? Math.max(92, segCount * 35) : Math.max(60, segCount * 22);
 
     const isOdd = i % 2 === 0;
     const rowBg = isOdd ? ROW_BG_ODD : ROW_BG_EVEN;
 
     const fillRow = (cell: ExcelJS.Cell, value: string | number | null, bold = false) => {
       cell.value = value ?? "";
-      cell.font = { size: 10, bold };
+      cell.font = { size: contentFontSize, bold };
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } };
       cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
       applyBorder(cell);
@@ -534,7 +541,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
       : buildProdutoText(item);
     const dCell = ws.getCell(`D${rowNum}`);
     dCell.value = prodDesc;
-    dCell.font = { size: 10 };
+    dCell.font = { size: contentFontSize };
     dCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } };
     dCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
     applyBorder(dCell);
@@ -546,7 +553,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
       : buildProfileSkuText(item);
     const eCell = ws.getCell(`E${rowNum}`);
     eCell.value = skuText;
-    eCell.font = { size: 10 };
+    eCell.font = { size: contentFontSize };
     eCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } };
     eCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
     applyBorder(eCell);
@@ -590,7 +597,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
       : baseFonteText;
     const fCell = ws.getCell(`F${rowNum}`);
     fCell.value = fonteText;
-    fCell.font = { size: 10 };
+    fCell.font = { size: contentFontSize };
     fCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } };
     fCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
     applyBorder(fCell);
@@ -620,7 +627,7 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
       : baseEquipText;
     const gCell = ws.getCell(`G${rowNum}`);
     gCell.value = equipText;
-    gCell.font = { size: 10 };
+    gCell.font = { size: contentFontSize };
     gCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } };
     gCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
     applyBorder(gCell);
@@ -641,24 +648,24 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
     fillRow(ws.getCell(`J${rowNum}`), obsValue);
     // ── Sub-linhas de acessórios vinculados ──────────────────────────────
     if (item.accessories && item.accessories.length > 0) {
-      (item.accessories as LinkedAccessory[]).forEach((acc) => {
+      (item.accessories as LinkedAccessory[]).forEach((acc, accessoryIndex) => {
         rowNum += 1;
         const accRowNum = rowNum;
-        ws.getRow(accRowNum).height = 20;
+        ws.getRow(accRowNum).height = useEnhancedLayout ? 48 : 20;
         const ACC_BG = "FFE0F7FA";
         const fillAcc = (cell: ExcelJS.Cell, value: string | number | null, bold = false) => {
           cell.value = value ?? "";
-          cell.font = { size: 9, bold, italic: true, color: { argb: "FF006064" } };
+          cell.font = { size: accessoryFontSize, bold, italic: true, color: { argb: "FF006064" } };
           cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
           cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
           applyBorder(cell);
         };
-        fillAcc(ws.getCell(`A${accRowNum}`), "");
+        fillAcc(ws.getCell(`A${accRowNum}`), formatLinkedAccessoryItemNumber(i + 1, accessoryIndex), true);
         fillAcc(ws.getCell(`B${accRowNum}`), "");
         fillAcc(ws.getCell(`C${accRowNum}`), "");
         const accDCell = ws.getCell(`D${accRowNum}`);
         accDCell.value = `↳ Acessório: ${acc.descricao}`;
-        accDCell.font = { size: 9, italic: true, color: { argb: "FF006064" } };
+        accDCell.font = { size: accessoryFontSize, italic: true, color: { argb: "FF006064" } };
         accDCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
         accDCell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
         applyBorder(accDCell);
@@ -684,11 +691,11 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
 
   // ─── Linha de observações gerais ─────────────────────────────────────────
   const obsRow = rowNum + 1;
-  ws.getRow(obsRow).height = 22;
+  ws.getRow(obsRow).height = useEnhancedLayout ? 40 : 22;
   ws.mergeCells(`A${obsRow}:C${obsRow}`);
-  labelCell(ws.getCell(`A${obsRow}`), "OBSERVAÇÕES GERAIS");
+  labelCell(ws.getCell(`A${obsRow}`), "OBSERVAÇÕES GERAIS", contentFontSize);
   ws.mergeCells(`D${obsRow}:J${obsRow}`);
-  valueCell(ws.getCell(`D${obsRow}`), form.notes?.trim() || "");
+  valueCell(ws.getCell(`D${obsRow}`), form.notes?.trim() || "", contentFontSize);
 
   // ─── Rodapé com data/hora/revisão em todas as páginas ──────────────────────────────────────────────────────────────
   const emitidoEm = toBrasiliaDateTime(Date.now());
@@ -727,24 +734,24 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
       let reqRow = obsRow + 2;
 
       // Título da seção
-      ws.getRow(reqRow).height = 28;
+      ws.getRow(reqRow).height = useEnhancedLayout ? 34 : 28;
       ws.mergeCells(`A${reqRow}:J${reqRow}`);
       const reqTitleCell = ws.getCell(`A${reqRow}`);
       reqTitleCell.value = "REQUISIÇÃO DE MATERIAIS";
-      reqTitleCell.font = { bold: true, size: 14, color: { argb: HEADER_FONT_COLOR } };
+      reqTitleCell.font = { bold: true, size: 16, color: { argb: HEADER_FONT_COLOR } };
       reqTitleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_BG } };
       reqTitleCell.alignment = { horizontal: "center", vertical: "middle" };
       reqRow++;
 
       // Cabeçalho: A=TIPO, B=CÓDIGO, C-G=DESCRIÇÃO (mesclado), H=ITENS, I=UN, J=QTD
-      ws.getRow(reqRow).height = 18;
-      headerCell(ws.getCell(`A${reqRow}`), "TIPO", 10);
-      headerCell(ws.getCell(`B${reqRow}`), "CÓDIGO", 10);
+      ws.getRow(reqRow).height = useEnhancedLayout ? 42 : 18;
+      headerCell(ws.getCell(`A${reqRow}`), "TIPO", headerFontSize);
+      headerCell(ws.getCell(`B${reqRow}`), "CÓDIGO", headerFontSize);
       ws.mergeCells(`C${reqRow}:G${reqRow}`);
-      headerCell(ws.getCell(`C${reqRow}`), "DESCRIÇÃO", 10);
-      headerCell(ws.getCell(`H${reqRow}`), "ITENS", 10);
-      headerCell(ws.getCell(`I${reqRow}`), "UN", 10);
-      headerCell(ws.getCell(`J${reqRow}`), "QTD", 10);
+      headerCell(ws.getCell(`C${reqRow}`), "DESCRIÇÃO", headerFontSize);
+      headerCell(ws.getCell(`H${reqRow}`), "ITENS", headerFontSize);
+      headerCell(ws.getCell(`I${reqRow}`), "UN", headerFontSize);
+      headerCell(ws.getCell(`J${reqRow}`), "QTD", headerFontSize);
       reqRow++;
 
       for (const tipo of TIPO_ORDER_LOCAL) {
@@ -752,12 +759,12 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
         if (!entries || entries.length === 0) continue;
         const bgColor = TIPO_COLORS[tipo] ?? "FFFFFFFF";
         for (const entry of entries) {
-          ws.getRow(reqRow).height = 16;
+          ws.getRow(reqRow).height = useEnhancedLayout ? 30 : 16;
           ws.mergeCells(`C${reqRow}:G${reqRow}`);
           const applyReqCell = (col: string, value: string | number, bold = false) => {
             const cell = ws.getCell(`${col}${reqRow}`);
             cell.value = value;
-            cell.font = { size: 10, bold };
+            cell.font = { size: contentFontSize, bold };
             cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bgColor } };
             cell.alignment = { horizontal: (col === "H" || col === "I" || col === "J") ? "center" : "left", vertical: "middle", wrapText: col === "C" };
             applyBorder(cell);
