@@ -110,7 +110,12 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
 
   if (edges.length === 0) return null;
 
-  const handlePrint = () => setPrintPreviewOpen(true);
+  const handlePrint = () => {
+    // Não manter dois Dialogs Radix ativos: a sobreposição do primeiro pode
+    // capturar o ponteiro e tornar o comando de impressão aparentemente inerte.
+    setOpen(false);
+    setPrintPreviewOpen(true);
+  };
   const handleFramePrint = () => {
     const printWindow = printFrameRef.current?.contentWindow;
     if (!printWindow) return;

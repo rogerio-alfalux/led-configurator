@@ -48,5 +48,7 @@ describe("formatos especiais na interface", () => {
     expect(guideSource).toContain("Imprimir agora");
     expect(guideSource).toContain("const autoPrintPendingRef = useRef(false)");
     expect(guideSource).toContain("onLoad={handlePrintFrameLoad}");
+    expect(guideSource).toContain("setOpen(false);");
+    expect(guideSource).toContain("setPrintPreviewOpen(true);");
   });
 });
