@@ -39,11 +39,14 @@ describe("formatos especiais na interface", () => {
     expect(guideSource).toContain("grid grid-cols-2 list-none");
   });
 
-  it("abre uma janela dedicada com impressão automática e botão manual de contingência", () => {
-    expect(guideSource).toContain("openShapeAssemblyPrintWindow(result)");
-    expect(guideSource).toContain('window.open("", "shape-assembly-print", "width=960,height=900")');
-    expect(guideSource).toContain("printWindow.document.write(buildShapeAssemblyPrintDocument(result))");
-    expect(guideSource).toContain('onclick="window.print()"');
-    expect(guideSource).toContain("globalThis.setTimeout(triggerPrint, 150)");
+  it("abre uma pré-visualização imprimível e protege o clique contra o arraste do carrinho", () => {
+    expect(guideSource).toContain("const [printPreviewOpen, setPrintPreviewOpen] = useState(false)");
+    expect(guideSource).toContain("setPrintPreviewOpen(true)");
+    expect(guideSource).toContain('title="Pré-visualização imprimível do guia de montagem"');
+    expect(guideSource).toContain("printWindow.print()");
+    expect(guideSource).toContain("event.stopPropagation()");
+    expect(guideSource).toContain("Imprimir agora");
+    expect(guideSource).toContain("const autoPrintPendingRef = useRef(false)");
+    expect(guideSource).toContain("onLoad={handlePrintFrameLoad}");
   });
 });

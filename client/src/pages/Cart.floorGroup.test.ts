@@ -81,6 +81,14 @@ describe("FloorGroupBar", () => {
     expect(source).toContain("className=\"text-right\"");
   });
 
+  it("exibe o preço comercial já calculado da luminária mesmo quando a origem não é a API", () => {
+    const source = readFileSync(resolve(process.cwd(), "client/src/pages/Cart.tsx"), "utf8");
+    expect(source).toContain("const luminariaUnitPrice = getEditableBodyUnitPrice(entry.data)");
+    expect(source).toContain("luminariaUnitPrice != null && luminariaUnitPrice > 0");
+    expect(source).toContain("Lum: {formatBRL(luminariaUnitPrice)}/un");
+    expect(source).not.toContain("entry.data.luminariaHasApiPrice && entry.data.unitPriceLuminaria != null");
+  });
+
   it("preserva o vínculo com a resposta LD original ao reenviar uma revisão", () => {
     const source = readFileSync(resolve(process.cwd(), "client/src/pages/Cart.tsx"), "utf8");
     expect(source).toContain("alfalux_ld_revision_context");

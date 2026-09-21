@@ -193,6 +193,9 @@ function SortableCartItem({
 }: SortableCartItemProps) {
   const [seqInputVal, setSeqInputVal] = React.useState<string>("");
   const driverDetails = getCartDriverDisplayDetails(entry.data, driverPriceByCode);
+  // O valor comercial já salvo (API ou edição manual) é soberano para exibição.
+  // luminariaHasApiPrice informa a origem, mas não pode ocultar um preço existente.
+  const luminariaUnitPrice = getEditableBodyUnitPrice(entry.data);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: entry.id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -394,13 +397,13 @@ function SortableCartItem({
                   {entry.data.driverLines && entry.data.driverLines.length > 0 ? (
                     <>
                       {/* Luminária: preço unitário + total (qty × unit) */}
-                      {entry.data.luminariaHasApiPrice && entry.data.unitPriceLuminaria != null ? (
+                      {luminariaUnitPrice != null && luminariaUnitPrice > 0 ? (
                         <p className="text-xs text-muted-foreground">
-                          Lum: {formatBRL(entry.data.unitPriceLuminaria)}/un
+                          Lum: {formatBRL(luminariaUnitPrice)}/un
                           {(entry.data.qty ?? 1) > 1 && (() => {
                             // Corrigir itens antigos onde priceWithoutDriver foi salvo como valor unitário
                             const _pwd = entry.data.priceWithoutDriver ?? 0;
-                            const _upl = entry.data.unitPriceLuminaria ?? 0;
+                            const _upl = luminariaUnitPrice;
                             const _qty = entry.data.qty ?? 1;
                             const _isUnit = _upl > 0 && Math.abs(_pwd - _upl) < 0.02 && _qty > 1;
                             const _corrected = _isUnit ? _upl * _qty : _pwd;
