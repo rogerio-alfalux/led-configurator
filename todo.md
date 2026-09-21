@@ -3645,9 +3645,9 @@
 - [x] Cobrir o modo somente leitura por regressão e salvar checkpoint reversível
 
 ## Login de Camille Batista
-- [ ] Auditar o cadastro, método de autenticação e registros recentes de acesso da Camille
-- [ ] Corrigir o bloqueio de login preservando as permissões existentes
-- [ ] Validar o acesso e salvar checkpoint reversível
+- [x] Auditar o cadastro, método de autenticação e registros recentes de acesso da Camille (acesso confirmado como restabelecido)
+- [x] Corrigir o bloqueio de login preservando as permissões existentes
+- [x] Validar o acesso e salvar checkpoint reversível
 
 ## Preços independentes de luminária e driver no orçamento
 - [x] Auditar a edição, persistência e composição de preços de luminária e driver

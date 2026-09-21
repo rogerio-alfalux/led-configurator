@@ -36,7 +36,6 @@ function Router() {
       <Route path={"/usuarios"} component={UserManagement} />
       <Route path={"/solicitacoes-ld"} component={LDRequestsAdmin} />
       <Route path={"/minhas-solicitacoes-ld"} component={LDGuestRequests} />
-      <Route path={"/guia-montagem/imprimir"} component={ShapeAssemblyPrintPage} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>
@@ -54,6 +53,9 @@ function App() {
           <Toaster />
           <Switch>
             <Route path="/login-convidado" component={GuestLogin} />
+            {/* A guia carrega um snapshot técnico serializado na própria URL;
+                não deve exigir autenticação na aba de impressão. */}
+            <Route path="/guia-montagem/imprimir" component={ShapeAssemblyPrintPage} />
             <Route>
               <AuthGuard>
                 <Router />
