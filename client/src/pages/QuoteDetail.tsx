@@ -2502,6 +2502,13 @@ export default function QuoteDetail() {
                 const freteState = (quote as any).freteState ?? '';
                 const freteCity = (quote as any).freteCity ?? '';
                 const discountPct = Number(quote.discountPercent ?? 0);
+                const rtDestinations = [
+                  { value: (quote as any).rtDest1, active: (quote as any).rtDest1Active !== false },
+                  { value: (quote as any).rtDest2, active: (quote as any).rtDest2Active === true },
+                  { value: (quote as any).rtDest3, active: (quote as any).rtDest3Active === true },
+                ]
+                  .filter(destination => destination.active && String(destination.value ?? '').trim())
+                  .map(destination => String(destination.value).trim());
 
                 // Monta label do frete — simplificado
                 let freteLabel = '';
@@ -2532,6 +2539,11 @@ export default function QuoteDetail() {
                     {rtPct > 0 && (
                       <p className="text-xs flex items-center gap-1 text-muted-foreground">
                         <span className="font-medium text-foreground">RT:</span> {(rtPct * 100).toFixed(1)}%
+                        {rtDestinations.length > 0 && (
+                          <span className="ml-1 text-muted-foreground">
+                            — {rtDestinations.join(' · ')}
+                          </span>
+                        )}
                       </p>
                     )}
                     {marginPct > 0 && (

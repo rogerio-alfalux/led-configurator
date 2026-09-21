@@ -31,5 +31,7 @@ describe("ShapeAssemblyGuide", () => {
     expect(link.getAttribute("href")).toMatch(/^\/guia-montagem\/imprimir\?data=/);
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.className).toContain("cursor-pointer");
+    expect(link.className).toContain("w-full");
+    expect(link.textContent).toContain("Imprimir guia em nova aba");
   });
 });

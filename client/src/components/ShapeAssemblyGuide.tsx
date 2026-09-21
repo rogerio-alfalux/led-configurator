@@ -69,22 +69,25 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="h-[94vh] w-[min(96vw,1120px)] max-w-[1120px] overflow-x-hidden overflow-y-auto p-0 sm:rounded-xl">
         <DialogHeader className="border-b bg-background px-5 py-3 shadow-sm sm:px-6 sm:py-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 pr-8">
+          <div className="pr-8">
             <div>
               <DialogTitle className="text-lg">Guia de montagem — {result.profileName ?? result.profileCode}</DialogTitle>
               <p className="mt-1 text-xs text-muted-foreground">Sequência física por aresta, pronta para consulta e impressão.</p>
             </div>
-            <a
-              href={printHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Abrir guia de montagem para impressão"
-              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <Printer className="h-3.5 w-3.5" /> Imprimir guia
-            </a>
           </div>
         </DialogHeader>
+        <div className="border-b bg-muted/20 px-5 py-3 sm:px-6">
+          <a
+            href={printHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Abrir guia de montagem para impressão"
+            data-testid="assembly-print-link"
+            className="inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-primary bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <Printer className="h-4 w-4" /> Imprimir guia em nova aba
+          </a>
+        </div>
         <div className="mx-auto w-full max-w-5xl space-y-5 px-4 py-4 sm:px-6 sm:py-5">
           <section className="rounded-xl border border-border bg-muted/20 p-4 sm:p-5">
             <div className="mx-auto max-w-xl text-center text-slate-800 dark:text-slate-100">
