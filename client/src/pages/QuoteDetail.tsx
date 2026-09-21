@@ -38,6 +38,7 @@ import { toBrasiliaDate, toBrasiliaDateTime, toBrasiliaDateTimeShort, toBrasilia
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ShapeAssemblyGuide } from "@/components/ShapeAssemblyGuide";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { CartItemData, formatBRL, parseCartItemData, normalizeStoredQuoteSnapshot, extractPowerLabelFromName, toPowerLabel, enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers, migrateLegacyGlowCommercialItem, type QuoteFormData } from "@/lib/cartTypes";
@@ -4899,6 +4900,16 @@ export default function QuoteDetail() {
                                         return Array.from(qtyBySku.entries()).map(([sku, qty]) => `${qty}× ${sku}`).join("  +  ");
                                       })()}
                                     </p>
+                                  )}
+                                  {d.profileShape && d.shapeAssemblyEdges && d.shapeAssemblyEdges.length > 0 && (
+                                    <div className="mt-2">
+                                      <ShapeAssemblyGuide result={{
+                                        shape: d.profileShape,
+                                        assemblyEdges: d.shapeAssemblyEdges,
+                                        profileName: d.description,
+                                        profileCode: d.sku,
+                                      }} />
+                                    </div>
                                   )}
                                   {d.driverLines && d.driverLines.length > 0 && (
                                     <div className="mt-1.5 border-l-2 border-violet-500/40 pl-2 space-y-0.5">

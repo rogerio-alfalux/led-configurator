@@ -511,6 +511,23 @@ export type ShapeResult = {
   stripflexName?: string | null;
   /** Código EQ da barra Stripflex/Stripline para a CCT selecionada (ex: "EQ00125") */
   stripflexEq?: string | null;
+  /** Sequência física de montagem por aresta. Não altera a lista comercial agregada de peças. */
+  assemblyEdges?: ShapeAssemblyEdge[];
+};
+
+export type ShapeAssemblyModule = {
+  sku: string;
+  type: "CORNER" | "IF" | "ML";
+  length: number;
+  bars: number;
+};
+
+export type ShapeAssemblyEdge = {
+  id: string;
+  label: string;
+  requestedLength: number;
+  achievedLength: number;
+  modules: ShapeAssemblyModule[];
 };
 
 export type ShapePiece = {

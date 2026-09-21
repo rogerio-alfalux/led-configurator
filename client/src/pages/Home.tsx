@@ -18,6 +18,7 @@ import { LdProfileCartControls } from "@/components/LdProfileCartControls";
 import { LdRequestNotificationButton } from "@/components/LdRequestNotificationButton";
 import { profileCartTechnicalFields } from "@/lib/profileCartTechnicalFields";
 import { ModularOptimizationControls } from "@/components/ModularOptimizationControls";
+import { ShapeAssemblyGuide } from "@/components/ShapeAssemblyGuide";
 import { ResultTechnicalCartControls } from "@/components/ResultTechnicalCartControls";
 import { ProductDocumentDownloads } from "@/components/ProductDocumentDownloads";
 import { ProfileTechnicalDocuments } from "@/components/ProfileTechnicalDocuments";
@@ -1026,6 +1027,8 @@ function ShapeResultCard({
       stripMethod: shapeResult.stripMethod,
       availableCCTs: ["2700K", "3000K", "4000K", "5000K", "A definir"],
       shapeTotalLengthMm: shapeResult.totalLengthMm,
+      profileShape: shapeResult.shape as Exclude<ProfileShape, "STRAIGHT">,
+      shapeAssemblyEdges: shapeResult.assemblyEdges,
       ..._perfilCustoData,
       ...(shapeDrvLines ? {
         driverLines: shapeDrvLines,
@@ -1085,6 +1088,7 @@ function ShapeResultCard({
                 <><Copy className="w-3.5 h-3.5" /> Copiar Resumo</>
               )}
             </Button>
+            <ShapeAssemblyGuide result={shapeResult} />
             <Button
               size="sm"
               className="gap-1.5 text-xs h-7 bg-emerald-600 hover:bg-emerald-700 text-white cart-action-btn"
@@ -6997,7 +7001,13 @@ export default function Home() {
                 {/* 8. Toggles (acendimento independente oculto para embutir) */}
                 {selectedVariant && !isShift && (
                   <div className="space-y-3">
-                    {profileShape === "STRAIGHT" && <ModularOptimizationControls optimizeModuleCount={optimizeModuleCount} allowLongModules={allowLongModules} allowFractional={allowFractional} allowMixedIF={allowMixedIF} onOptimizeModuleCountChange={setOptimizeModuleCount} />}
+                    <ModularOptimizationControls
+                      optimizeModuleCount={optimizeModuleCount}
+                      allowLongModules={allowLongModules}
+                      allowFractional={allowFractional}
+                      allowMixedIF={(profileShape === "L_SHAPE" || profileShape === "U_SHAPE") && allowMixedIF}
+                      onOptimizeModuleCountChange={(value) => { setOptimizeModuleCount(value); setShapeResult(null); }}
+                    />
                     {/* Acendimento Independente — oculto para embutir */}
                     {!isEmbutir && (
                       <div className="flex items-center justify-between">
@@ -7037,7 +7047,7 @@ export default function Home() {
                       <Switch
                         id="longmodules"
                         checked={allowLongModules}
-                        onCheckedChange={setAllowLongModules}
+                        onCheckedChange={(value) => { setAllowLongModules(value); setShapeResult(null); }}
                       />
                     </div>
                     {/* Medidas Quebradas */}
@@ -7053,11 +7063,10 @@ export default function Home() {
                       <Switch
                         id="allowfractional"
                         checked={allowFractional}
-                        onCheckedChange={setAllowFractional}
+                        onCheckedChange={(value) => { setAllowFractional(value); setShapeResult(null); }}
                       />
                     </div>
-                    {/* Ajustar para Medida Maior — apenas para retos */}
-                    {profileShape === "STRAIGHT" && (
+                    {/* Ajustar para Medida Maior */}
                     <div className="flex items-center justify-between">
                       <div>
                         <Label htmlFor="adjusttolarger" className="text-sm font-medium cursor-pointer">
@@ -7070,12 +7079,11 @@ export default function Home() {
                       <Switch
                         id="adjusttolarger"
                         checked={adjustToLarger}
-                        onCheckedChange={setAdjustToLarger}
+                        onCheckedChange={(value) => { setAdjustToLarger(value); setShapeResult(null); }}
                       />
                     </div>
-                    )}
-                    {/* Otimizar com IFs Diferentes — apenas para retos */}
-                    {profileShape === "STRAIGHT" && (
+                    {/* IFs diferentes só fazem sentido nas pontas abertas de L e U. */}
+                    {(profileShape === "STRAIGHT" || profileShape === "L_SHAPE" || profileShape === "U_SHAPE") && (
                     <div className="flex items-center justify-between">
                       <div>
                         <Label htmlFor="allowmixedif" className="text-sm font-medium cursor-pointer">
@@ -7093,7 +7101,7 @@ export default function Home() {
                       <Switch
                         id="allowmixedif"
                         checked={allowMixedIF}
-                        onCheckedChange={setAllowMixedIF}
+                        onCheckedChange={(value) => { setAllowMixedIF(value); setShapeResult(null); }}
                       />
                     </div>
                     )}
@@ -9577,6 +9585,9 @@ export default function Home() {
                     stripMethod: effectiveStripMethod,
                     allowLongModules,
                     allowFractionalBars: allowFractional,
+                    optimizeModuleCount,
+                    adjustToLarger,
+                    allowMixedIF: profileShape === "L_SHAPE" || profileShape === "U_SHAPE" ? allowMixedIF : false,
                     cct,
                     profileName,
                     stripflexName: shapeStripflexName,

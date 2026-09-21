@@ -18,6 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { trpc } from "@/lib/trpc";
 import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, formatBRL, normalizeDriverModels, normalizeStoredQuoteSnapshot, ApiProductDriverInfo, extractPowerLabelFromName, enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
+import { ShapeAssemblyGuide } from "@/components/ShapeAssemblyGuide";
 import { ComponentSearchField } from "@/components/ComponentSearchField";
 import type { ComponentOption } from "@/components/ComponentSearchField";
 import { formatApiComponentSlot, getApiModuleComponentSlots, getManualApiComponentQuantity, getManualApiEquipmentQuantity, replaceApiModuleComponentSlot } from "@/lib/apiComponentSlots";
@@ -565,6 +566,21 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
               className="mt-1 text-sm"
             />
           </div>
+
+          {parsed.profileShape && parsed.shapeAssemblyEdges && parsed.shapeAssemblyEdges.length > 0 && (
+            <div className="rounded-lg border border-blue-500/25 bg-blue-500/5 p-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">Montagem física da composição</p>
+                <p className="text-xs text-muted-foreground">Consulte a posição de cada canto, módulo ML e acabamento IF por aresta.</p>
+              </div>
+              <ShapeAssemblyGuide result={{
+                shape: parsed.profileShape,
+                assemblyEdges: parsed.shapeAssemblyEdges,
+                profileName: parsed.description,
+                profileCode: parsed.sku,
+              }} />
+            </div>
+          )}
 
           {/* Módulo LED / Fonte de Luz e Equipamentos (apenas para itens não-especiais) */}
           {!isSpecial && (() => {

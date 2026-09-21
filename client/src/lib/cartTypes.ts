@@ -1,4 +1,5 @@
 import type { ProductLightingMode, ProductStructureComponent } from "./productStructure";
+import type { ProfileShape, ShapeAssemblyEdge } from "./lCatalog";
 import { formatLinearCutDescription } from "./ledBarCatalog";
 
 /**
@@ -316,6 +317,10 @@ export interface CartItemData {
    * Soma de todos os lados realizados. Usado na coluna COMPRIMENTO do Excel/Preview.
    */
   shapeTotalLengthMm?: number;
+  /** Formato geométrico calculado no momento da criação do item. */
+  profileShape?: Exclude<ProfileShape, "STRAIGHT">;
+  /** Sequência física por aresta; ausente em orçamentos anteriores a esta versão. */
+  shapeAssemblyEdges?: ShapeAssemblyEdge[];
 
   // ─── Campos de desmembramento de driver (a partir da versão que introduziu este campo) ─
   /**

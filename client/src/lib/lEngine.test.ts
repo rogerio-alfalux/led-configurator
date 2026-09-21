@@ -4,10 +4,10 @@
  * Foco: lógica de cabeceira para perfis embutir (LLE-*).
  *
  * Regras testadas:
- * 1. Perfis embutir com canto SOZINHO (sem módulos retos): soma 2× cabeceira a cada lado sem retos.
- * 2. Perfis embutir com módulos retos: cabeceira NÃO é somada (já está no IF).
- * 3. Perfis não-embutir: cabeceira nunca é somada (cabeceiraMm = 0).
- * 4. Formato Quadrado/Retangular: cabeceira nunca é somada (apenas EM L).
+ * 1. Formato L só é válido com exatamente duas pontas IF.
+ * 2. Perfis embutir com módulos retos não somam cabeceira extra (já está no IF).
+ * 3. Perfis não-embutir nunca somam cabeceira.
+ * 4. Formato Quadrado/Retangular usa apenas canto 1L1 + ML.
  */
 
 import { afterEach, describe, it, expect } from "vitest";
@@ -56,69 +56,46 @@ describe("calculateLShape — cabeceira para perfis embutir", () => {
     allowLongModules: false,
   };
 
-  // LLE-2580 EASY PRIME: canto 1x1 = 595×595mm, cabeceira = 7mm
-  // Quando canto sozinho (sem módulos retos): cada lado = 595 + 2×7 = 609mm
-  it("LLE-2580 canto 1x1 sozinho: cada lado = 595 + 14 = 609mm", () => {
-    // Solicitar exatamente o comprimento do canto (595mm) — sem espaço para retos
-    const result = calculateLShape("LLE-2580", 595, 595, baseParams);
-    expect(result).not.toBeNull();
-    expect(result!.dimensions[0]).toBe(609); // 595 + 14
-    expect(result!.dimensions[1]).toBe(609); // 595 + 14
-    expect(result!.totalLengthMm).toBe(609 + 609); // ambos os lados com cabeceira
+  it("LLE-2580 canto sozinho é inválido: faltariam os dois acabamentos IF", () => {
+    expect(calculateLShape("LLE-2580", 595, 595, baseParams)).toBeNull();
   });
 
   // LLE-2810 BLAZE embutir: canto 1x1 = 615×615mm, cabeceira = 10mm
   // Quando canto sozinho: cada lado = 615 + 2×10 = 635mm
-  it("LLE-2810 canto 1x1 sozinho: cada lado = 615 + 20 = 635mm", () => {
-    const result = calculateLShape("LLE-2810", 615, 615, baseParams);
-    expect(result).not.toBeNull();
-    expect(result!.dimensions[0]).toBe(635); // 615 + 20
-    expect(result!.dimensions[1]).toBe(635); // 615 + 20
+  it("LLE-2810 canto sozinho é inválido: faltariam os dois acabamentos IF", () => {
+    expect(calculateLShape("LLE-2810", 615, 615, baseParams)).toBeNull();
   });
 
   // LLE-2052 SKYLINE embutir: canto 1x1 = 590×590mm, cabeceira = 7mm
   // Quando canto sozinho: cada lado = 590 + 2×7 = 604mm
-  it("LLE-2052 canto 1x1 sozinho: cada lado = 590 + 14 = 604mm", () => {
-    const result = calculateLShape("LLE-2052", 590, 590, baseParams);
-    expect(result).not.toBeNull();
-    expect(result!.dimensions[0]).toBe(604); // 590 + 14
-    expect(result!.dimensions[1]).toBe(604); // 590 + 14
+  it("LLE-2052 canto sozinho é inválido: faltariam os dois acabamentos IF", () => {
+    expect(calculateLShape("LLE-2052", 590, 590, baseParams)).toBeNull();
   });
 
   // LLE-2580 com módulos retos no lado horizontal: cabeceira NÃO somada no lado com retos
   // Canto = 595mm; IF de 2 barras = 1142mm
   // Lado H deve ter pelo menos 595 + 1142 = 1737mm para caber 1 IF de 2 barras
   // Lado V = 595mm (sozinho) → 595 + 14 = 609mm
-  it("LLE-2580 com IF de 2 barras no lado H: H sem cabeceira, V com cabeceira", () => {
+  it("LLE-2580 com IF apenas no lado H é inválido porque o L exige duas pontas IF", () => {
     // Pedir lado H grande o suficiente para ter 1 módulo IF de 2 barras (1142mm)
     // availH = 1800 - 595 = 1205mm >= 1142mm → IF de 2 barras cabe
     const result = calculateLShape("LLE-2580", 1800, 595, baseParams);
-    expect(result).not.toBeNull();
-    // Lado H: tem módulo reto (IF de 2 barras) → sem cabeceira adicional
-    expect(result!.dimensions[0]).toBeGreaterThan(595); // tem módulo reto
-    // Lado V: sem módulo reto → com cabeceira
-    expect(result!.dimensions[1]).toBe(609); // 595 + 14
+    expect(result).toBeNull();
   });
 
   // Perfil não-embutir (LLP-4536 SKYLINE pendente): sem cabeceira
-  it("LLP-4536 (pendente) canto 1x1 sozinho: sem cabeceira, lado = 590mm", () => {
-    const result = calculateLShape("LLP-4536", 590, 590, baseParams);
-    expect(result).not.toBeNull();
-    expect(result!.dimensions[0]).toBe(590); // sem cabeceira
-    expect(result!.dimensions[1]).toBe(590); // sem cabeceira
+  it("LLP-4536 canto sozinho também é inválido sem os dois IFs", () => {
+    expect(calculateLShape("LLP-4536", 590, 590, baseParams)).toBeNull();
   });
 
   // LLP-4450 EASY H PLUS (pendente): sem cabeceira
-  it("LLP-4450 (pendente) canto 1x1 sozinho: sem cabeceira, lado = 610mm", () => {
-    const result = calculateLShape("LLP-4450", 610, 610, baseParams);
-    expect(result).not.toBeNull();
-    expect(result!.dimensions[0]).toBe(610); // sem cabeceira
-    expect(result!.dimensions[1]).toBe(610); // sem cabeceira
+  it("LLP-4450 canto sozinho também é inválido sem os dois IFs", () => {
+    expect(calculateLShape("LLP-4450", 610, 610, baseParams)).toBeNull();
   });
 });
 
 describe("calculateLShape — SKU do canto vindo exclusivamente da API", () => {
-  it("mantém LLS-3945 no detalhamento do formato L do BLAZE S", () => {
+  it("não inventa IF quando a API retornou somente o canto do BLAZE S", () => {
     const catalog = adaptProfileProducts([
       {
         sku: "LLS-3945.1L1.38F",
@@ -138,11 +115,7 @@ describe("calculateLShape — SKU do canto vindo exclusivamente da API", () => {
       allowLongModules: false,
     });
 
-    expect(result).not.toBeNull();
-    expect(result!.pieces).toHaveLength(1);
-    expect(result!.pieces[0].sku).toBe("LLS-3945.1L1.38F");
-    expect(result!.summary).toContain("LLS-3945.1L1.38F");
-    expect(result!.summary).not.toContain("LLP-4945");
+    expect(result).toBeNull();
   });
 });
 
@@ -178,29 +151,26 @@ describe("calculateSquare/calculateRectangle — sem ajuste de cabeceira e módu
 
   // ─── Testes: quadrado/retangular usam ML (nunca IF) ───
 
-  it("calculateSquare LLP-6060 (BLAZE H): módulos retos devem ser ML ou IF (otimização de proximidade)", () => {
+  it("calculateSquare LLP-6060 (BLAZE H): módulos retos devem ser exclusivamente ML", () => {
     // cornerLen LLP-6060 = 565mm (canto 1x1)
     // Quadrado 3000mm: availPerSide = 3000 - 2*565 = 1870mm
-    // Quadrado usa ML e/ou IF + cantos para melhor proximidade
+    // Quadrado fechado usa exclusivamente ML entre os cantos.
     const result = calculateSquare("LLP-6060", 3000, baseParams);
     expect(result).not.toBeNull();
     const straightPieces = result!.pieces.filter(p => p.type !== "CORNER");
     expect(straightPieces.length).toBeGreaterThan(0);
-    straightPieces.forEach(p => {
-      expect(["STRAIGHT_ML", "STRAIGHT_IF"]).toContain(p.type);
-    });
+    straightPieces.forEach(p => expect(p.type).toBe("STRAIGHT_ML"));
   });
 
   it("calculateSquare LLP-6060 (BLAZE H) 8000mm: otimização usa módulos ML maiores primeiro", () => {
     // cornerLen = 565mm; availPerSide = 8000 - 2*565 = 6870mm
-    // DP otimiza com ML+IF para melhor proximidade da medida solicitada
+    // DP otimiza apenas com ML para melhor proximidade da medida solicitada.
     const result = calculateSquare("LLP-6060", 8000, baseParams);
     expect(result).not.toBeNull();
     const straightPieces = result!.pieces.filter(p => p.type !== "CORNER");
     // Deve ter pelo menos 1 tipo de módulo reto
     expect(straightPieces.length).toBeGreaterThanOrEqual(1);
-    // Módulos podem ser ML ou IF (ambos permitidos para otimizar proximidade)
-    straightPieces.forEach(p => expect(["STRAIGHT_ML", "STRAIGHT_IF"]).toContain(p.type));
+    straightPieces.forEach(p => expect(p.type).toBe("STRAIGHT_ML"));
     // Número total de peças deve ser menor que 24 (antigo: 6×4=24 peças de 2 barras)
     const totalQty = straightPieces.reduce((s, p) => s + p.quantity, 0);
     expect(totalQty).toBeLessThan(24);

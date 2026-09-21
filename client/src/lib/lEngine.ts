@@ -5,28 +5,25 @@
  *
  * FORMATO L (2 lados):
  *   - 1 canto 1L1 no vértice
- *   - Lado horizontal: canto + módulos retos (ML e/ou IF)
- *   - Lado vertical: canto + módulos retos (ML e/ou IF)
+ *   - Cada lado: canto + módulos ML + exatamente 1 acabamento IF
  *
  * FORMATO QUADRADO (4 lados iguais):
  *   - 4 cantos 1L1 nos vértices
- *   - Cada lado: canto + módulos retos + canto
+ *   - Cada lado: canto + módulos ML + canto; IF é proibido
  *   - Lado = 2 × cornerLength + módulos retos
  *
  * FORMATO RETANGULAR (4 lados, 2 pares diferentes):
  *   - 4 cantos 1L1 nos vértices
- *   - Lado largo: canto + módulos retos + canto
- *   - Lado curto: canto + módulos retos + canto
+ *   - Lados largos/curtos: canto + módulos ML + canto; IF é proibido
  *
  * FORMATO U (3 lados):
  *   - 2 cantos 1L1 nos vértices fechados
- *   - 2 lados de profundidade: canto + módulos retos (abertura livre)
- *   - 1 base: canto + módulos retos + canto
+ *   - Cada profundidade: canto + módulos ML + exatamente 1 IF na abertura
+ *   - Base: canto + módulos ML + canto; IF é proibido
  *
- * Algoritmo de preenchimento (v5 — busca ótima ML+IF combinados):
- *   Para cada segmento reto, usa programação dinâmica (DP) sobre o conjunto
- *   unificado de módulos ML e IF disponíveis para o perfil. O objetivo é
- *   maximizar o comprimento realizado sem ultrapassar o disponível.
+ * Algoritmo de preenchimento (v6 — busca ótima por aresta):
+ *   Usa programação dinâmica (DP) sobre os ML e escolhe IF separadamente apenas
+ *   para as pontas abertas de L/U. Pode priorizar proximidade ou menos módulos.
  *   Inclui módulos de 1 barra (minBars=1) para minimizar o desvio.
  *
  * Drivers:
@@ -35,7 +32,7 @@
  *   - Módulo reto ML/IF: totalBars = bars do módulo
  */
 
-import { getLConfig, getCorner1x1, getCabeceiraMm, type LCornerModule, type ShapeResult, type ShapePiece, type ShapePieceDriver } from "./lCatalog";
+import { getLConfig, getCorner1x1, type LCornerModule, type ShapeResult, type ShapePiece, type ShapePieceDriver, type ShapeAssemblyModule } from "./lCatalog";
 import { getActiveCatalog, type ProfileVariant } from "./ledCatalog";
 import { selectDriverFallback } from "./driverSelector";
 import type { Power, Voltage, StripMethod } from "./ledEngine";
@@ -103,6 +100,12 @@ export interface ShapeDriverParams {
   driverDim110v?: { model: string; code: string | null } | null;
   /** Corrente de programação do driver (ex: "programar em 350mA"). Campo direto da API. */
   correnteDriver?: string | null;
+  /** Prioriza menor quantidade de módulos dentro da tolerância, como no formato reto. */
+  optimizeModuleCount?: boolean;
+  /** Permite escolher o primeiro conjunto acima da medida quando não há encaixe exato. */
+  adjustToLarger?: boolean;
+  /** Em L/U, permite acabamentos IF de tamanhos distintos nas extremidades. */
+  allowMixedIF?: boolean;
 }
 
 /** Uma peça dentro de um segmento reto (pode haver múltiplas peças diferentes) */
@@ -237,7 +240,9 @@ function findBestSegmentOptimal(
   allowFractionalBars: boolean,
   moduleTypeFilter: "ML" | "IF" | "both" = "both",
   allowSmallModules = true,
-  prioritizeCloseness = false
+  prioritizeCloseness = false,
+  optimizeModuleCount = false,
+  adjustToLarger = false,
 ): StraightSegment {
   const empty: StraightSegment = {
     availableLength,
@@ -278,7 +283,9 @@ function findBestSegmentOptimal(
   // encontrar a combinação de N peças que maximiza o comprimento sem ultrapassar availableLength
   const MAX_N = 8; // máximo de peças grandes por segmento
   const GRAN = 5;
-  const maxSlots = Math.floor(availableLength / GRAN);
+  const longestModule = allMods[0]?.length ?? 0;
+  const searchLength = adjustToLarger ? availableLength + longestModule : availableLength;
+  const maxSlots = Math.floor(searchLength / GRAN);
   const MAX_SLOTS = Math.min(maxSlots, 50000);
 
   // DP com estado (slots, numPecas) → comprimento máximo
@@ -322,9 +329,26 @@ function findBestSegmentOptimal(
     const l = dpLen[i];
     const p = dpPcs[i];
     if (l < 0) continue;
-    const desvio = availableLength - l;
-    if (desvio < 0) continue; // não pode ultrapassar
-    if (prioritizeCloseness) {
+    const signedDeviation = availableLength - l;
+    if (!adjustToLarger && signedDeviation < 0) continue;
+    if (adjustToLarger && l < availableLength) continue;
+    const desvio = Math.abs(signedDeviation);
+    if (optimizeModuleCount) {
+      if (
+        desvio <= MAX_DESVIO &&
+        (p < bestPcs || (p === bestPcs && desvio < bestDesvio))
+      ) {
+        bestDesvio = desvio;
+        bestPcs = p;
+        bestLen = l;
+        bestSlots = i;
+      } else if (bestSlots < 0 && desvio < bestDesvio) {
+        bestDesvio = desvio;
+        bestPcs = p;
+        bestLen = l;
+        bestSlots = i;
+      }
+    } else if (prioritizeCloseness || adjustToLarger) {
       // Modo formatos geométricos: priorizar menor desvio absoluto, depois menos peças
       if (desvio < bestDesvio || (desvio === bestDesvio && p < bestPcs)) {
         bestDesvio = desvio;
@@ -415,11 +439,39 @@ function countSegmentPieces(segment: StraightSegment): number {
   return segment.pieces.reduce((sum, piece) => sum + piece.qty, 0);
 }
 
+function expandSegmentModules(segment: StraightSegment, type: "ML" | "IF" = "ML"): ShapeAssemblyModule[] {
+  return segment.pieces.flatMap(piece => Array.from({ length: piece.qty }, () => ({
+    sku: piece.sku,
+    type,
+    length: piece.length,
+    bars: piece.bars,
+  })));
+}
+
+function cornerAssemblyModule(corner: ResolvedShapeCorner): ShapeAssemblyModule {
+  return {
+    sku: corner.sku,
+    type: "CORNER",
+    length: corner.lengthLong,
+    bars: corner.barsLong + corner.barsShort,
+  };
+}
+
+function endCappedModules(segment: EndCappedSegment, corner: ResolvedShapeCorner, reverse = false): ShapeAssemblyModule[] {
+  const modules: ShapeAssemblyModule[] = [
+    cornerAssemblyModule(corner),
+    ...expandSegmentModules(segment.mlSegment),
+    { sku: segment.ifModule.sku, type: "IF", length: segment.ifModule.length, bars: segment.ifModule.bars },
+  ];
+  return reverse ? modules.reverse() : modules;
+}
+
 function findBestEndCappedSegment(
   profileEntry: ProfileVariant,
   availableLength: number,
   allowLongModules: boolean,
-  allowFractionalBars: boolean
+  allowFractionalBars: boolean,
+  options: { optimizeModuleCount?: boolean; adjustToLarger?: boolean; requiredIfSku?: string } = {},
 ): EndCappedSegment | null {
   // When allowFractionalBars is true, we allow small (1-bar) modules in the ML segment
   const allowSmallInMl = allowFractionalBars;
@@ -427,7 +479,7 @@ function findBestEndCappedSegment(
 
   // Preferir IFs de 2+ barras; usar IF de 1 barra como fallback quando é a única opção disponível
   const allIfMods = collectAllModules(profileEntry, allowLongModules, allowFractionalBars, "IF")
-    .filter(m => m.length <= availableLength);
+    .filter(m => (options.adjustToLarger || m.length <= availableLength) && (!options.requiredIfSku || m.sku === options.requiredIfSku));
   if (allIfMods.length === 0) return null;
   const ifMods2Plus = allIfMods.filter(m => m.bars >= 2);
   const ifMods = ifMods2Plus.length > 0 ? ifMods2Plus : allIfMods;
@@ -442,7 +494,7 @@ function findBestEndCappedSegment(
   let bestFallback: EndCappedSegment | null = null;
 
   for (const ifMod of ifMods) {
-    if (ifMod.length > availableLength) continue;
+    if (!options.adjustToLarger && ifMod.length > availableLength) continue;
 
     const remainingForMl = availableLength - ifMod.length;
     const mlSegment = findBestSegmentOptimal(
@@ -452,11 +504,15 @@ function findBestEndCappedSegment(
       allowFractionalBars,
       "ML",
       allowSmallInMl, // permitir módulos de 1 barra quando medidas quebradas está ativo
-      true // priorizar proximidade da medida solicitada
+      true, // priorizar proximidade da medida solicitada
+      options.optimizeModuleCount ?? false,
+      options.adjustToLarger ?? false,
     );
     const actualLength = ifMod.length + mlSegment.actualLength;
-    const deviation = availableLength - actualLength;
-    if (deviation < 0) continue;
+    const signedDeviation = availableLength - actualLength;
+    if (!options.adjustToLarger && signedDeviation < 0) continue;
+    if (options.adjustToLarger && actualLength < availableLength) continue;
+    const deviation = Math.abs(signedDeviation);
 
     const candidate: EndCappedSegment = {
       ifModule: { ...ifMod, type: "IF" },
@@ -467,24 +523,55 @@ function findBestEndCappedSegment(
     };
 
     if (deviation <= maxDesvio) {
-      // Prioridade: 1) menor desvio (maior comprimento), 2) menos peças
+      // Modo por quantidade: menos peças dentro da tolerância. Padrão: menor desvio.
       if (
         !bestAcceptable ||
-        candidate.actualLength > bestAcceptable.actualLength ||
-        (candidate.actualLength === bestAcceptable.actualLength && candidate.totalPieces < bestAcceptable.totalPieces)
+        (options.optimizeModuleCount
+          ? candidate.totalPieces < bestAcceptable.totalPieces ||
+            (candidate.totalPieces === bestAcceptable.totalPieces && candidate.deviation < bestAcceptable.deviation)
+          : candidate.deviation < bestAcceptable.deviation ||
+            (candidate.deviation === bestAcceptable.deviation && candidate.totalPieces < bestAcceptable.totalPieces))
       ) {
         bestAcceptable = candidate;
       }
     } else if (
       !bestFallback ||
-      candidate.actualLength > bestFallback.actualLength ||
-      (candidate.actualLength === bestFallback.actualLength && candidate.totalPieces < bestFallback.totalPieces)
+      candidate.deviation < bestFallback.deviation ||
+      (candidate.deviation === bestFallback.deviation && candidate.totalPieces < bestFallback.totalPieces)
     ) {
       bestFallback = candidate;
     }
   }
 
   return bestAcceptable ?? bestFallback;
+}
+
+function findBestMatchedEndCaps(
+  profileEntry: ProfileVariant,
+  firstLength: number,
+  secondLength: number,
+  allowLongModules: boolean,
+  allowFractionalBars: boolean,
+  options: { optimizeModuleCount?: boolean; adjustToLarger?: boolean },
+): [EndCappedSegment, EndCappedSegment] | null {
+  const ifSkus = collectAllModules(profileEntry, allowLongModules, allowFractionalBars, "IF").map(module => module.sku);
+  let best: { pair: [EndCappedSegment, EndCappedSegment]; deviation: number; pieces: number } | null = null;
+  for (const sku of ifSkus) {
+    const first = findBestEndCappedSegment(profileEntry, firstLength, allowLongModules, allowFractionalBars, { ...options, requiredIfSku: sku });
+    const second = findBestEndCappedSegment(profileEntry, secondLength, allowLongModules, allowFractionalBars, { ...options, requiredIfSku: sku });
+    if (!first || !second) continue;
+    const candidate = {
+      pair: [first, second] as [EndCappedSegment, EndCappedSegment],
+      deviation: first.deviation + second.deviation,
+      pieces: first.totalPieces + second.totalPieces,
+    };
+    if (!best || (options.optimizeModuleCount
+      ? candidate.pieces < best.pieces || (candidate.pieces === best.pieces && candidate.deviation < best.deviation)
+      : candidate.deviation < best.deviation || (candidate.deviation === best.deviation && candidate.pieces < best.pieces))) {
+      best = candidate;
+    }
+  }
+  return best?.pair ?? null;
 }
 
 /**
@@ -511,83 +598,33 @@ export function calculateLShape(
 
   const allowLongModules = driverParams?.allowLongModules ?? false;
   const allowFractionalBars = driverParams?.allowFractionalBars ?? false;
+  const optimizeModuleCount = driverParams?.optimizeModuleCount ?? false;
+  const adjustToLarger = driverParams?.adjustToLarger ?? false;
+  const allowMixedIF = driverParams?.allowMixedIF ?? false;
   const cornerLen = corner.lengthLong; // 1x1 é quadrado, ambos os lados iguais
-
-  // Cabeceira para perfis embutir (LLE-*): só aplicada quando o canto é instalado
-  // SOZINHO em um lado (sem módulos retos naquele lado).
-  // Quando há módulos retos (IF/ML), a cabeceira já está incluída no IF.
-  const cabeceiraMm = getCabeceiraMm(profileCode);
 
   // Comprimento disponível para módulos retos em cada lado
   const availH = sideH - cornerLen;
   const availV = sideV - cornerLen;
 
-  const segH = findBestEndCappedSegment(
-    profileEntry as unknown as ProfileVariant,
-    availH,
-    allowLongModules,
-    allowFractionalBars
-  );
-  const segV = findBestEndCappedSegment(
-    profileEntry as unknown as ProfileVariant,
-    availV,
-    allowLongModules,
-    allowFractionalBars
-  );
-
-  // Fallback: quando não há espaço para IF (canto sozinho), aplicar cabeceira
-  // como no comportamento anterior (perfis embutir com canto isolado).
-  // Caso misto: um lado tem IF, o outro não — usa apenas o canto naquele lado.
-  // Nota: não retornamos null aqui — lado sem IF válido usa apenas o canto + cabeceira.
-
-  // Calcular comprimentos reais de cada lado
-  // Lado com IF: cornerLen + segX.actualLength
-  // Lado sem IF (canto sozinho): cornerLen + 2*cabeceira (se embutir)
-  const cabH = (!segH) ? (cabeceiraMm > 0 ? 2 * cabeceiraMm : 0) : 0;
-  const cabV = (!segV) ? (cabeceiraMm > 0 ? 2 * cabeceiraMm : 0) : 0;
-
-  const actualH = cornerLen + (segH ? segH.actualLength : 0) + cabH;
-  const actualV = cornerLen + (segV ? segV.actualLength : 0) + cabV;
-
-  // Se ambos os lados são canto sozinho (sem IF), retornar resultado simples
-  if (!segH && !segV) {
-    const pieces2: ShapePiece[] = [];
-    const cornerBars2 = corner.barsLong + corner.barsShort;
-    const cornerDriver2 = driverParams ? calcPieceDriver(cornerBars2, driverParams) : undefined;
-    pieces2.push({
-      sku: corner.sku,
-      quantity: 1,
-      description: `Canto EM L 1×1 (${cornerLen}×${cornerLen}mm)`,
-      type: "CORNER",
-      bars: cornerBars2,
-      driver: cornerDriver2,
-    });
-    const summaryLines2 = [
-      `Formato L: ${actualH}mm × ${actualV}mm`,
-      `1× canto ${corner.sku} (${cornerLen}mm)`,
-    ];
-    if (cabH > 0) summaryLines2.push(`+ ${cabH}mm cabeceira (lado horizontal, canto isolado)`);
-    if (cabV > 0) summaryLines2.push(`+ ${cabV}mm cabeceira (lado vertical, canto isolado)`);
-    return {
-      shape: "L_SHAPE",
-      dimensions: [actualH, actualV],
-      requestedDimensions: [sideH, sideV],
-      pieces: pieces2,
-      summary: summaryLines2.join("\n") + "\n",
-      power: driverParams?.power,
-      voltage: driverParams?.voltage,
-      stripMethod: driverParams?.stripMethod,
-      cct: driverParams?.cct,
-      profileName: driverParams?.profileName,
-      profileCode,
-      totalLengthMm: actualH + actualV,
-      stripflexName: driverParams?.stripflexName,
-      stripflexEq: driverParams?.stripflexEq,
-    };
+  let segH: EndCappedSegment | null;
+  let segV: EndCappedSegment | null;
+  const optimizationOptions = { optimizeModuleCount, adjustToLarger };
+  if (allowMixedIF) {
+    segH = findBestEndCappedSegment(profileEntry, availH, allowLongModules, allowFractionalBars, optimizationOptions);
+    segV = findBestEndCappedSegment(profileEntry, availV, allowLongModules, allowFractionalBars, optimizationOptions);
+  } else {
+    const matched = findBestMatchedEndCaps(profileEntry, availH, availV, allowLongModules, allowFractionalBars, optimizationOptions);
+    segH = matched?.[0] ?? null;
+    segV = matched?.[1] ?? null;
   }
+  // Formato L sempre possui duas pontas abertas e, portanto, exatamente dois IFs.
+  if (!segH || !segV) return null;
 
-  // Composição em L: exatamente 1 IF na extremidade de cada lado com IF.
-  // Quando há IF, a cabeceira já está incorporada ao acabamento final.
+  const actualH = cornerLen + segH.actualLength;
+  const actualV = cornerLen + segV.actualLength;
+
+  // Composição em L: exatamente 1 IF na extremidade de cada lado.
 
   const pieces: ShapePiece[] = [];
 
@@ -650,8 +687,6 @@ export function calculateLShape(
       summaryLines.push(`${sp.qty}× ML ${sp.sku} (${sp.length}mm) — horizontal`);
     }
   }
-  if (cabH > 0) summaryLines.push(`+ ${cabH}mm cabeceira (lado horizontal, canto isolado)`);
-
   if (segV) {
     const vIfDriver = driverParams ? calcPieceDriver(segV.ifModule.bars, driverParams) : undefined;
     const existingVerticalIf = pieces.find(p => p.sku === segV!.ifModule.sku && p.type === "STRAIGHT_IF");
@@ -693,8 +728,6 @@ export function calculateLShape(
       summaryLines.push(`${sp.qty}× ML ${sp.sku} (${sp.length}mm) — vertical`);
     }
   }
-  if (cabV > 0) summaryLines.push(`+ ${cabV}mm cabeceira (lado vertical, canto isolado)`);
-
   const summary = summaryLines.join("\n") + "\n";
 
   // Comprimento total = soma dos dois lados realizados (já incluem canto + retos + cabeceira)
@@ -715,6 +748,10 @@ export function calculateLShape(
     totalLengthMm,
     stripflexName: driverParams?.stripflexName,
     stripflexEq: driverParams?.stripflexEq,
+    assemblyEdges: [
+      { id: "horizontal", label: "Horizontal", requestedLength: sideH, achievedLength: actualH, modules: endCappedModules(segH, corner) },
+      { id: "vertical", label: "Vertical", requestedLength: sideV, achievedLength: actualV, modules: endCappedModules(segV, corner) },
+    ],
   };
 }
 
@@ -740,13 +777,15 @@ export function calculateSquare(
 
   const allowLongModules = driverParams?.allowLongModules ?? false;
   const allowFractionalBars = driverParams?.allowFractionalBars ?? false;
+  const optimizeModuleCount = driverParams?.optimizeModuleCount ?? false;
+  const adjustToLarger = driverParams?.adjustToLarger ?? false;
   const cornerLen = corner.lengthLong;
 
   // Comprimento disponível para módulos retos entre os dois cantos opostos
   // Cada lado = canto + reto(s) + canto → disponível = side - 2 × cornerLen
   const availPerSide = side - 2 * cornerLen;
 
-  const seg = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availPerSide, allowLongModules, allowFractionalBars, "both", allowFractionalBars, true);
+  const seg = findBestSegmentOptimal(profileEntry, availPerSide, allowLongModules, allowFractionalBars, "ML", allowFractionalBars, true, optimizeModuleCount, adjustToLarger);
 
   const actualSide = 2 * cornerLen + seg.actualLength;
 
@@ -795,6 +834,7 @@ export function calculateSquare(
   // Comprimento total = 4 lados completos (cada lado = 2 cantos + retos)
   // actualSide = 2 * cornerLen + seg.actualLength
   const totalLengthMm = 4 * actualSide;
+  const squareEdgeModules = [cornerAssemblyModule(corner), ...expandSegmentModules(seg), cornerAssemblyModule(corner)];
 
   return {
     shape: "SQUARE",
@@ -811,6 +851,13 @@ export function calculateSquare(
     totalLengthMm,
     stripflexName: driverParams?.stripflexName,
     stripflexEq: driverParams?.stripflexEq,
+    assemblyEdges: ["Superior", "Direita", "Inferior", "Esquerda"].map((label, index) => ({
+      id: `side-${index + 1}`,
+      label,
+      requestedLength: side,
+      achievedLength: actualSide,
+      modules: squareEdgeModules.map(module => ({ ...module })),
+    })),
   };
 }
 
@@ -838,6 +885,8 @@ export function calculateRectangle(
 
   const allowLongModules = driverParams?.allowLongModules ?? false;
   const allowFractionalBars = driverParams?.allowFractionalBars ?? false;
+  const optimizeModuleCount = driverParams?.optimizeModuleCount ?? false;
+  const adjustToLarger = driverParams?.adjustToLarger ?? false;
   const cornerLen = corner.lengthLong;
 
   // Lado curto (altura): canto + reto(s) + canto
@@ -845,8 +894,8 @@ export function calculateRectangle(
   const availWidth = width - 2 * cornerLen;
   const availHeight = height - 2 * cornerLen;
 
-  const segWidth = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availWidth, allowLongModules, allowFractionalBars, "both", allowFractionalBars, true);
-  const segHeight = findBestSegmentOptimal(profileEntry as unknown as ProfileVariant, availHeight, allowLongModules, allowFractionalBars, "both", allowFractionalBars, true);
+  const segWidth = findBestSegmentOptimal(profileEntry, availWidth, allowLongModules, allowFractionalBars, "ML", allowFractionalBars, true, optimizeModuleCount, adjustToLarger);
+  const segHeight = findBestSegmentOptimal(profileEntry, availHeight, allowLongModules, allowFractionalBars, "ML", allowFractionalBars, true, optimizeModuleCount, adjustToLarger);
 
   const actualWidth = 2 * cornerLen + segWidth.actualLength;
   const actualHeight = 2 * cornerLen + segHeight.actualLength;
@@ -928,6 +977,8 @@ export function calculateRectangle(
 
   // Comprimento total = 2 lados largos + 2 lados curtos
   const totalLengthMm = 2 * actualWidth + 2 * actualHeight;
+  const widthModules = [cornerAssemblyModule(corner), ...expandSegmentModules(segWidth), cornerAssemblyModule(corner)];
+  const heightModules = [cornerAssemblyModule(corner), ...expandSegmentModules(segHeight), cornerAssemblyModule(corner)];
 
   return {
     shape: "RECTANGLE",
@@ -944,6 +995,12 @@ export function calculateRectangle(
     totalLengthMm,
     stripflexName: driverParams?.stripflexName,
     stripflexEq: driverParams?.stripflexEq,
+    assemblyEdges: [
+      { id: "top", label: "Superior", requestedLength: width, achievedLength: actualWidth, modules: widthModules.map(module => ({ ...module })) },
+      { id: "right", label: "Direita", requestedLength: height, achievedLength: actualHeight, modules: heightModules.map(module => ({ ...module })) },
+      { id: "bottom", label: "Inferior", requestedLength: width, achievedLength: actualWidth, modules: widthModules.map(module => ({ ...module })) },
+      { id: "left", label: "Esquerda", requestedLength: height, achievedLength: actualHeight, modules: heightModules.map(module => ({ ...module })) },
+    ],
   };
 }
 
@@ -984,6 +1041,8 @@ export function calculateUShape(
 
   const allowLongModules = driverParams?.allowLongModules ?? false;
   const allowFractionalBars = driverParams?.allowFractionalBars ?? false;
+  const optimizeModuleCount = driverParams?.optimizeModuleCount ?? false;
+  const adjustToLarger = driverParams?.adjustToLarger ?? false;
   const cornerLen = corner.lengthLong;
 
   // Comprimento disponível para ML em cada segmento:
@@ -995,19 +1054,22 @@ export function calculateUShape(
   const availBase = width - 2 * cornerLen;
 
   const segDepth = findBestEndCappedSegment(
-    profileEntry as unknown as ProfileVariant,
+    profileEntry,
     availDepth,
     allowLongModules,
-    allowFractionalBars
+    allowFractionalBars,
+    { optimizeModuleCount, adjustToLarger },
   );
   const segBase = findBestSegmentOptimal(
-    profileEntry as unknown as ProfileVariant,
+    profileEntry,
     availBase,
     allowLongModules,
     allowFractionalBars,
-    "both",
+    "ML",
     allowFractionalBars, // permitir módulos de 1 barra quando medidas quebradas está ativo
-    true // priorizar proximidade da medida solicitada
+    true, // priorizar proximidade da medida solicitada
+    optimizeModuleCount,
+    adjustToLarger,
   );
   if (!segDepth) return null;
 
@@ -1102,6 +1164,7 @@ export function calculateUShape(
 
   // Comprimento total = 2 lados de profundidade + 1 base
   const totalLengthMm = 2 * actualDepth + actualBase;
+  const baseModules = [cornerAssemblyModule(corner), ...expandSegmentModules(segBase), cornerAssemblyModule(corner)];
 
   return {
     shape: "U_SHAPE",
@@ -1118,6 +1181,11 @@ export function calculateUShape(
     totalLengthMm,
     stripflexName: driverParams?.stripflexName,
     stripflexEq: driverParams?.stripflexEq,
+    assemblyEdges: [
+      { id: "left-depth", label: "Profundidade esquerda", requestedLength: depth, achievedLength: actualDepth, modules: endCappedModules(segDepth, corner, true) },
+      { id: "base", label: "Base", requestedLength: width, achievedLength: actualBase, modules: baseModules },
+      { id: "right-depth", label: "Profundidade direita", requestedLength: depth, achievedLength: actualDepth, modules: endCappedModules(segDepth, corner) },
+    ],
   };
 }
 
