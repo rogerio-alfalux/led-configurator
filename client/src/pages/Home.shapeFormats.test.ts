@@ -44,6 +44,9 @@ describe("formatos especiais na interface", () => {
     expect(guideSource).toContain("srcDoc={buildShapeAssemblyPrintDocument(result)}");
     expect(guideSource).toContain("printShapeAssemblyGuideFrame(frame)");
     expect(guideSource).toContain("printWindow.print()");
-    expect(guideSource).toContain("disabled={!printFrameReady}");
+    expect(guideSource).toContain("const pendingPrintRef = useRef(false)");
+    expect(guideSource).toContain("pendingPrintRef.current = true");
+    expect(guideSource).toContain("onLoad={handlePrintFrameLoad}");
+    expect(guideSource).not.toContain("disabled={!printFrameReady}");
   });
 });
