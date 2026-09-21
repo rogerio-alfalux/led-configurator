@@ -191,6 +191,31 @@ function buildEquipamentosText(item: CartItemData): string {
   return linhas.join("\n");
 }
 
+/** Preenche a programação oficial do componente sem substituir uma edição manual já salva. */
+function enrichItemProgramming(item: CartItemData, correnteMap: Map<string, string | null>): CartItemData {
+  const driverLines = item.driverLines?.map(line => {
+    if (line.corrente || !line.driverCode) return line;
+    const corrente = correnteMap.get(line.driverCode);
+    return corrente ? { ...line, corrente } : line;
+  });
+  const profileSegments = item.profileSegments?.map(segment => {
+    if (segment.corrente || !segment.driverCode) return segment;
+    const corrente = correnteMap.get(segment.driverCode);
+    return corrente ? { ...segment, corrente } : segment;
+  });
+  const next: CartItemData = { ...item };
+  if (driverLines) next.driverLines = driverLines;
+  if (profileSegments) next.profileSegments = profileSegments;
+  if ((!driverLines || driverLines.length === 0) && item.drivers) {
+    const code = item.drivers.match(/\(([A-Z]{2}\d+)\)/)?.[1];
+    const corrente = code ? correnteMap.get(code) : null;
+    if (corrente && !item.drivers.toUpperCase().includes("PROGRAMAÇÃO:")) {
+      next.drivers = `${item.drivers}\nPROGRAMAÇÃO: ${corrente}`;
+    }
+  }
+  return next;
+}
+
 /**
  * Verifica se um item tem equipamentos/drivers definidos (para warnings).
  * Considera driverLines, profileSegments, ledBarDriverModel e drivers.
@@ -584,7 +609,7 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                     existing.qty += seg.qty;
                     existing.segIdxs.push(i);
                   } else {
-                    driverGroups.set(key, { qty: seg.qty, code: "", model: seg.driverModel, corrente: seg.corrente, segIdxs: [i] });
+                    driverGroups.set(key, { qty: seg.qty, code: "", model: seg.driverModel, corrente: seg.corrente ?? correnteMap?.get(seg.driverCode) ?? null, segIdxs: [i] });
                   }
                 } else {
                   const key = `${seg.driverModel}|${seg.driverCode}`;
@@ -593,7 +618,7 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                     existing.qty += seg.qty * seg.driverQtyPerPiece;
                     existing.segIdxs.push(i);
                   } else {
-                    driverGroups.set(key, { qty: seg.qty * seg.driverQtyPerPiece, code: seg.driverCode, model: seg.driverModel, corrente: seg.corrente, segIdxs: [i] });
+                    driverGroups.set(key, { qty: seg.qty * seg.driverQtyPerPiece, code: seg.driverCode, model: seg.driverModel, corrente: seg.corrente ?? correnteMap?.get(seg.driverCode) ?? null, segIdxs: [i] });
                   }
                 }
               }
@@ -858,7 +883,7 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                             <div className="flex items-center gap-2 pl-22">
                               <Label className="text-xs text-muted-foreground">Programação</Label>
                               <Input
-                                value={dl.corrente ?? ""}
+                                value={dl.corrente ?? correnteMap?.get(dl.driverCode) ?? ""}
                                 onChange={e => update({ driverLines: updateDriverLineProgramming(parsed.driverLines!, li, e.target.value) })}
                                 className="h-8 text-xs font-mono w-28"
                                 placeholder="Ex: 350mA"
@@ -892,6 +917,8 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
             const driverSimplePrefixMatch = driverSimpleRaw.match(/^(\d+(?:[.,]\d+)?)[xX]\s+(.+)$/);
             const driverSimpleQty = driverSimplePrefixMatch ? Number(driverSimplePrefixMatch[1].replace(",", ".")) : 1;
             const driverSimpleDesc = driverSimplePrefixMatch ? driverSimplePrefixMatch[2] : driverSimpleRaw;
+            const driverSimpleCode = extractCode(driverSimpleRaw);
+            const driverSimpleProgramming = parsed.driverLines?.[0]?.corrente ?? correnteMap?.get(driverSimpleCode) ?? "";
 
             return (
               <div className="space-y-4">
@@ -957,6 +984,23 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                       isLoading={componentesLoading}
                       placeholder="Buscar driver..."
                     />
+                    <div className="flex items-center gap-2 pl-22 mt-1">
+                      <Label className="text-xs text-muted-foreground">Programação</Label>
+                      <Input
+                        value={driverSimpleProgramming}
+                        onChange={e => update({
+                          driverLines: buildManualDriverLines(
+                            driverSimpleDesc,
+                            driverSimpleCode,
+                            driverSimpleQty,
+                            itemQty,
+                            { driverUnitPrice: parsed.driverLines?.[0]?.driverUnitPrice ?? null },
+                          ).map(line => ({ ...line, corrente: e.target.value })),
+                        })}
+                        className="h-8 text-xs font-mono w-28"
+                        placeholder="Ex: 350mA"
+                      />
+                    </div>
                   </div>
                 </div>}
               </div>
@@ -1661,7 +1705,7 @@ export default function FactoryOrderDetail() {
       const itemsData = orderToUse.items
         .map(i => parseCartItemData(i.itemData))
         .filter((d): d is CartItemData => d !== null)
-        .map(d => normalizeStoredQuoteSnapshot(d));
+        .map(d => enrichItemProgramming(normalizeStoredQuoteSnapshot(d), componenteCorrenteMapFO));
       const fileName = `PEDIDO-FABRICA-${orderNum}-${quote.clientName.replace(/\s+/g, "_")}.xlsx`;
       const buffer = await generateOrderExcel(itemsData, {
         clientName: quote.clientName,
@@ -1896,7 +1940,7 @@ export default function FactoryOrderDetail() {
                     const items = orderToPreview.items
                       .map(i => parseCartItemData(i.itemData))
                       .filter((d): d is CartItemData => d !== null)
-                      .map(d => normalizeStoredQuoteSnapshot(d));
+                      .map(d => enrichItemProgramming(normalizeStoredQuoteSnapshot(d), componenteCorrenteMapFO));
                     setPreviewItems(items);
                     setPreviewForm({
                       clientName: quote.clientName,
