@@ -169,4 +169,23 @@ describe("subitens e legibilidade — prévia da ficha", () => {
     expect(html).toContain("font-size: 9px;");
     expect(html).toContain("font-size: 15px;");
   });
+
+  it("acrescenta uma folha separada e imprimível de guia para o formato especial salvo", () => {
+    const html = generateOrderPreviewHtml([{
+      category: "Perfis", sku: "LLP-6060", description: "BLAZE H RETANGULAR", qty: 1,
+      unitPrice: 100, totalPrice: 100, photoUrl: null, itemEmPlanta: "L1", profileShape: "RECTANGLE",
+      shapeAssemblyEdges: [{
+        id: "superior", label: "Superior", requestedLength: 4500, achievedLength: 4500,
+        modules: [{ type: "ML", sku: "LLP-6060.5ML.48F", length: 3300, bars: 11 }],
+      }],
+    }] as any, {
+      clientName: "Cliente", projectName: "Obra", quoteNumber: "01.0001-26",
+      vendorName: "Vendedor", date: "21/09/2026", productionLayoutVersion: "enhanced",
+    });
+
+    expect(html).toContain("INSTRUÇÃO DE MONTAGEM");
+    expect(html).toContain("BLAZE H RETANGULAR");
+    expect(html).toContain("LLP-6060.5ML.48F");
+    expect(html).toContain("page-break-before: always");
+  });
 });

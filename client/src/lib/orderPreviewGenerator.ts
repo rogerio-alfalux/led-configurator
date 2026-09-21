@@ -12,6 +12,7 @@ import { isEnhancedProductionSheetLayout } from "./productionSheetLayout";
 import { buildMaterialRequisition, groupByTipo } from "./materialRequisition";
 import { getManualApiComponentQuantity, getManualApiEquipmentQuantity } from "./apiComponentSlots";
 import { formatProfileSkuLines } from "./profileSkuFormatter";
+import { buildShapeAssemblyGuideHtml } from "./shapeAssemblyGuideData";
 import type { MaterialTipo } from "./materialRequisition";
 import {
   addStripflexQuantities,
@@ -288,6 +289,7 @@ function escNl(str: string | null | undefined): string {
 export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormData & { prazoStr?: string }, descMap?: Map<string, string>): string {
   const isLuminew = form.empresa === "LUMINEW";
   const useEnhancedLayout = isEnhancedProductionSheetLayout(form.productionLayoutVersion);
+  const assemblyGuidePages = buildShapeAssemblyGuideHtml(items);
   const bodyFontSize = useEnhancedLayout ? 14 : 10;
   const tableFontSize = useEnhancedLayout ? 14 : 9;
   const titleFontSize = useEnhancedLayout ? 16 : 15;
@@ -487,6 +489,39 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
       justify-content: space-between;
       align-items: center;
     }
+    .assembly-sheet {
+      page-break-before: always;
+      margin-top: 20px;
+      break-inside: avoid;
+    }
+    .assembly-header {
+      background: #1f3864;
+      color: #fff;
+      padding: 14px 16px;
+      border-radius: 7px 7px 0 0;
+    }
+    .assembly-header p { margin: 0 0 3px; font-size: 11px; font-weight: bold; letter-spacing: .8px; }
+    .assembly-header h2 { margin: 0; font-size: ${titleFontSize}px; }
+    .assembly-product { margin-top: 6px; font-size: ${bodyFontSize}px; }
+    .assembly-layout { border: 1px solid #8ea9c1; border-top: none; padding: 14px; }
+    .assembly-topology { border-bottom: 1px solid #d4dbe5; padding-bottom: 12px; text-align: center; }
+    .assembly-topology svg { width: 100%; height: 175px; max-width: 540px; color: #1f3864; }
+    .assembly-topology p { margin: 4px 0 0; text-align: left; font-size: ${tableFontSize}px; line-height: 1.4; }
+    .assembly-legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .assembly-legend span { border: 1px solid #8ea9c1; border-radius: 12px; padding: 4px 8px; font-size: ${useEnhancedLayout ? 12 : 10}px; font-weight: bold; }
+    .assembly-edges { padding-top: 12px; }
+    .assembly-edge { border: 1px solid #b9c5d4; border-radius: 6px; margin-bottom: 10px; break-inside: avoid; }
+    .assembly-edge-title { display: flex; justify-content: space-between; gap: 10px; background: #edf2f7; padding: 8px 10px; font-size: ${tableFontSize}px; }
+    .assembly-edge-title strong { font-size: ${bodyFontSize}px; }
+    .assembly-edge-title span { color: #506176; }
+    .assembly-modules { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; list-style: none; padding: 10px; margin: 0; }
+    .assembly-module { border: 1px solid #cbd5e1; border-radius: 5px; padding: 8px; display: grid; gap: 3px; font-size: ${tableFontSize}px; overflow-wrap: anywhere; }
+    .assembly-position { font-weight: bold; color: #1f3864; }
+    .assembly-type { font-size: ${useEnhancedLayout ? 11 : 9}px; font-weight: bold; text-transform: uppercase; }
+    .assembly-corner { border-color: #b796e8; background: #faf7ff; }
+    .assembly-if { border-color: #7dd3fc; background: #f0f9ff; }
+    .assembly-ml { border-color: #6ee7b7; background: #f0fdf4; }
+    .assembly-note { border: 1px solid #8ea9c1; border-top: none; padding: 8px 12px; font-size: ${useEnhancedLayout ? 12 : 10}px; color: #506176; border-radius: 0 0 7px 7px; }
     @media print {
       body { padding: 4px; padding-bottom: 18px; }
       @page { size: A4 landscape; margin: 10mm 10mm 16mm 10mm; }
@@ -623,6 +658,7 @@ export function generateOrderPreviewHtml(items: CartItemData[], form: OrderFormD
     </table>
   </div>`;
   })()}
+  ${assemblyGuidePages}
 </body>
 </html>`;
 }

@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { Map, MoveRight } from "lucide-react";
+import { Map, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { ShapeAssemblyModule, ShapeResult } from "@/lib/lCatalog";
-
-const typeLabel: Record<ShapeAssemblyModule["type"], string> = {
-  CORNER: "Canto 1L1",
-  IF: "Acabamento IF",
-  ML: "Módulo ML",
-};
+import {
+  ASSEMBLY_TYPE_LABELS,
+  buildShapeAssemblyGuideHtml,
+  getShapeAssemblyDirection,
+  SHAPE_LABELS,
+} from "@/lib/shapeAssemblyGuideData";
 
 const typeClass: Record<ShapeAssemblyModule["type"], string> = {
   CORNER: "border-violet-400/70 bg-violet-500/10 text-violet-800 dark:text-violet-200",
@@ -18,75 +18,105 @@ const typeClass: Record<ShapeAssemblyModule["type"], string> = {
 
 function ShapeTopology({ shape }: { shape: ShapeResult["shape"] }) {
   if (shape === "L_SHAPE") {
-    return <svg viewBox="0 0 280 150" className="h-36 w-full" role="img" aria-label="Esquema do formato L">
-      <path d="M45 25 V120 H245" fill="none" stroke="currentColor" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round" className="text-slate-700 dark:text-slate-200" />
-      <text x="8" y="76" className="fill-current text-[12px] font-semibold">Vertical</text>
-      <text x="132" y="145" className="fill-current text-[12px] font-semibold">Horizontal</text>
+    return <svg viewBox="0 0 420 190" className="h-48 w-full max-w-md" role="img" aria-label="Esquema do formato L">
+      <path d="M72 30 V150 H352" fill="none" stroke="currentColor" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" className="text-slate-700 dark:text-slate-200" />
+      <text x="8" y="92" className="fill-current text-[13px] font-semibold">Vertical</text>
+      <text x="210" y="182" className="fill-current text-[13px] font-semibold">Horizontal</text>
     </svg>;
   }
   if (shape === "U_SHAPE") {
-    return <svg viewBox="0 0 280 170" className="h-40 w-full" role="img" aria-label="Esquema do formato U">
-      <path d="M35 25 V135 H245 V25" fill="none" stroke="currentColor" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round" className="text-slate-700 dark:text-slate-200" />
-      <text x="4" y="80" className="fill-current text-[11px] font-semibold">Esquerda</text>
-      <text x="116" y="162" className="fill-current text-[12px] font-semibold">Base</text>
-      <text x="221" y="80" className="fill-current text-[11px] font-semibold">Direita</text>
+    return <svg viewBox="0 0 420 205" className="h-52 w-full max-w-md" role="img" aria-label="Esquema do formato U">
+      <path d="M58 30 V164 H362 V30" fill="none" stroke="currentColor" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" className="text-slate-700 dark:text-slate-200" />
+      <text x="2" y="98" className="fill-current text-[12px] font-semibold">Esquerda</text>
+      <text x="188" y="197" className="fill-current text-[13px] font-semibold">Base</text>
+      <text x="342" y="98" className="fill-current text-[12px] font-semibold">Direita</text>
     </svg>;
   }
-  return <svg viewBox="0 0 300 175" className="h-40 w-full" role="img" aria-label={`Esquema do formato ${shape === "SQUARE" ? "quadrado" : "retangular"}`}>
-    <rect x="45" y="25" width="210" height={shape === "SQUARE" ? 125 : 100} rx="4" fill="none" stroke="currentColor" strokeWidth="12" className="text-slate-700 dark:text-slate-200" />
-    <text x="124" y="17" className="fill-current text-[12px] font-semibold">Superior</text>
-    <text x="126" y={shape === "SQUARE" ? 172 : 150} className="fill-current text-[12px] font-semibold">Inferior</text>
-    <text x="4" y="90" className="fill-current text-[11px] font-semibold">Esquerda</text>
-    <text x="254" y="90" className="fill-current text-[11px] font-semibold">Direita</text>
+  return <svg viewBox="0 0 440 220" className="h-56 w-full max-w-lg" role="img" aria-label={`Esquema do formato ${shape === "SQUARE" ? "quadrado" : "retangular"}`}>
+    <rect x="90" y="36" width="260" height={shape === "SQUARE" ? 145 : 112} rx="5" fill="none" stroke="currentColor" strokeWidth="14" className="text-slate-700 dark:text-slate-200" />
+    <text x="192" y="22" className="fill-current text-[13px] font-semibold">Superior</text>
+    <text x="192" y={shape === "SQUARE" ? 202 : 170} className="fill-current text-[13px] font-semibold">Inferior</text>
+    <text x="4" y="108" className="fill-current text-[12px] font-semibold">Esquerda</text>
+    <text x="354" y="108" className="fill-current text-[12px] font-semibold">Direita</text>
   </svg>;
 }
 
 type ShapeAssemblyGuideResult = Pick<ShapeResult, "shape" | "assemblyEdges" | "profileName" | "profileCode">;
+
+function buildPrintDocument(result: ShapeAssemblyGuideResult): string {
+  const item = {
+    profileShape: result.shape === "STRAIGHT" ? undefined : result.shape,
+    shapeAssemblyEdges: result.assemblyEdges,
+    description: result.profileName,
+    sku: result.profileCode,
+    itemEmPlanta: "Guia de montagem",
+  };
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/><title>Guia de montagem</title><style>
+    *{box-sizing:border-box} @page{size:A4 portrait;margin:12mm} body{font-family:Arial,Helvetica,sans-serif;color:#172033;margin:0}
+    .assembly-sheet{page-break-after:always}.assembly-header{background:#1f3864;color:#fff;padding:16px 18px;border-radius:7px 7px 0 0}.assembly-header p{font-size:11px;font-weight:700;letter-spacing:.8px;margin:0 0 4px}.assembly-header h2{font-size:19px;margin:0}.assembly-product{font-size:12px;margin-top:7px;opacity:.95}
+    .assembly-layout{border:1px solid #8ea9c1;border-top:0;padding:16px}.assembly-topology{border-bottom:1px solid #d4dbe5;padding:0 4px 14px;text-align:center}.assembly-topology svg{width:100%;height:205px;color:#1f3864}.assembly-topology p{font-size:12px;line-height:1.45;text-align:left;margin:0}.assembly-legend{display:flex;justify-content:center;gap:7px;flex-wrap:wrap;margin-top:10px}.assembly-legend span{border:1px solid #8ea9c1;border-radius:12px;padding:4px 8px;font-size:10px;font-weight:700}.assembly-edges{padding-top:14px}.assembly-edge{border:1px solid #b9c5d4;border-radius:6px;margin:0 0 10px;break-inside:avoid}.assembly-edge-title{display:flex;justify-content:space-between;gap:10px;background:#edf2f7;padding:8px 10px;font-size:12px}.assembly-edge-title strong{font-size:14px}.assembly-edge-title span{color:#506176}.assembly-modules{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:8px;list-style:none;padding:10px;margin:0}.assembly-module{border:1px solid #cbd5e1;border-radius:5px;padding:8px;display:grid;gap:3px;font-size:11px}.assembly-position{font-weight:800;color:#1f3864}.assembly-type{font-size:10px;font-weight:700;text-transform:uppercase}.assembly-corner{border-color:#b796e8;background:#faf7ff}.assembly-if{border-color:#7dd3fc;background:#f0f9ff}.assembly-ml{border-color:#6ee7b7;background:#f0fdf4}.assembly-note{border:1px solid #8ea9c1;border-top:0;padding:9px 13px;font-size:10px;color:#506176;border-radius:0 0 7px 7px}
+  </style></head><body>${buildShapeAssemblyGuideHtml([item as never])}</body></html>`;
+}
 
 export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResult }) {
   const [open, setOpen] = useState(false);
   const edges = result.assemblyEdges ?? [];
   if (edges.length === 0) return null;
 
+  const handlePrint = () => {
+    const printWindow = window.open("", "_blank", "width=960,height=900");
+    if (!printWindow) return;
+    printWindow.document.open();
+    printWindow.document.write(buildPrintDocument(result));
+    printWindow.document.close();
+    printWindow.addEventListener("load", () => printWindow.print(), { once: true });
+  };
+
   return <>
-    <Button type="button" size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => setOpen(true)}>
+    <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => setOpen(true)}>
       <Map className="h-3.5 w-3.5" />
       Guia de Montagem
     </Button>
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Guia de montagem — {result.profileName ?? result.profileCode}</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
-          <div className="rounded-xl border border-border bg-muted/20 p-4">
-            <ShapeTopology shape={result.shape} />
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              As arestas abaixo seguem os rótulos deste esquema. Nos formatos fechados, o mesmo canto 1L1 é compartilhado pelas duas arestas vizinhas; a quantidade comercial permanece a consolidada no resumo.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2 text-[11px]">
-              {(Object.keys(typeLabel) as ShapeAssemblyModule["type"][]).map(type => <span key={type} className={`rounded-md border px-2 py-1 font-semibold ${typeClass[type]}`}>{typeLabel[type]}</span>)}
+      <DialogContent className="h-[94vh] w-[min(96vw,1120px)] max-w-[1120px] overflow-y-auto p-0 sm:rounded-xl">
+        <DialogHeader className="sticky top-0 z-10 border-b bg-background px-6 py-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 pr-8">
+            <div>
+              <DialogTitle className="text-lg">Guia de montagem — {result.profileName ?? result.profileCode}</DialogTitle>
+              <p className="mt-1 text-xs text-muted-foreground">Sequência física por aresta, pronta para consulta e impressão.</p>
             </div>
+            <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={handlePrint}>
+              <Printer className="h-3.5 w-3.5" /> Imprimir guia
+            </Button>
           </div>
+        </DialogHeader>
+        <div className="mx-auto w-full max-w-5xl space-y-6 px-5 py-6 sm:px-8">
+          <section className="rounded-xl border border-border bg-muted/20 p-5 sm:p-7">
+            <div className="mx-auto max-w-xl text-center text-slate-800 dark:text-slate-100">
+              <ShapeTopology shape={result.shape} />
+            </div>
+            <p className="mx-auto mt-2 max-w-3xl text-center text-sm leading-relaxed text-muted-foreground">
+              {getShapeAssemblyDirection(result.shape === "STRAIGHT" ? "L_SHAPE" : result.shape)}
+              {result.shape === "SQUARE" || result.shape === "RECTANGLE" ? " Nos formatos fechados, cada canto 1L1 é compartilhado pelas duas arestas vizinhas; a quantidade comercial consolidada permanece no resumo." : ""}
+            </p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs">
+              {(Object.keys(ASSEMBLY_TYPE_LABELS) as ShapeAssemblyModule["type"][]).map(type => <span key={type} className={`rounded-md border px-3 py-1.5 font-semibold ${typeClass[type]}`}>{ASSEMBLY_TYPE_LABELS[type]}</span>)}
+            </div>
+          </section>
+
           <div className="space-y-4">
-            {edges.map((edge, edgeIndex) => <section key={edge.id} className="rounded-xl border border-border bg-card p-4 shadow-sm">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="text-sm font-bold text-foreground">{edgeIndex + 1}. {edge.label}</p>
-                  <p className="text-xs text-muted-foreground">Meta {edge.requestedLength}mm · atingido {edge.achievedLength}mm</p>
-                </div>
-                <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold">{edge.modules.length} peças na sequência</span>
+            {edges.map((edge, edgeIndex) => <section key={edge.id} className="rounded-xl border border-border bg-card shadow-sm">
+              <div className="flex flex-col gap-1 border-b bg-muted/30 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-base font-bold text-foreground">{edgeIndex + 1}. {edge.label}</p>
+                <p className="text-sm text-muted-foreground">Meta <strong>{edge.requestedLength} mm</strong> · Atingido <strong>{edge.achievedLength} mm</strong></p>
               </div>
-              <div className="flex items-stretch gap-2 overflow-x-auto pb-2">
-                {edge.modules.map((module, moduleIndex) => <div key={`${edge.id}-${moduleIndex}-${module.sku}`} className="flex shrink-0 items-center gap-2">
-                  <div className={`min-w-36 rounded-lg border p-3 ${typeClass[module.type]}`}>
-                    <p className="text-[10px] font-bold uppercase tracking-wide opacity-75">{typeLabel[module.type]}</p>
-                    <p className="mt-1 font-mono text-xs font-bold">{module.sku}</p>
-                    <p className="mt-1 text-[11px]">{module.length}mm · {Number.isInteger(module.bars) ? module.bars : module.bars.toFixed(1)} barras</p>
-                  </div>
-                  {moduleIndex < edge.modules.length - 1 && <MoveRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
-                </div>)}
-              </div>
+              <ol className="grid list-none gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+                {edge.modules.map((module, moduleIndex) => <li key={`${edge.id}-${moduleIndex}-${module.sku}`} className={`rounded-lg border p-4 ${typeClass[module.type]}`}>
+                  <p className="text-xs font-bold uppercase tracking-wide opacity-75">{moduleIndex + 1}. {ASSEMBLY_TYPE_LABELS[module.type]}</p>
+                  <p className="mt-1 break-all font-mono text-sm font-bold">{module.sku}</p>
+                  <p className="mt-2 text-sm">{module.length} mm · {Number.isInteger(module.bars) ? module.bars : module.bars.toFixed(1)} barra{module.bars === 1 ? "" : "s"}</p>
+                </li>)}
+              </ol>
             </section>)}
           </div>
         </div>

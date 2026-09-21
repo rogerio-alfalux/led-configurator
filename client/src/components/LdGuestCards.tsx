@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { CartItemData } from "@/lib/cartTypes";
 import { getPersistedItemPhotoUrl } from "@/lib/itemPhoto";
+import { ShapeAssemblyGuide } from "@/components/ShapeAssemblyGuide";
 
 export function LdGuestCartItemCard({
   item,
@@ -38,6 +39,16 @@ export function LdGuestCartItemCard({
       <p className="font-semibold leading-snug">{item.description}</p>
       {configuration.length > 0 && <p className="text-sm text-muted-foreground mt-1">{configuration.join(" · ")}</p>}
       {moduleComposition && <p className="text-xs text-muted-foreground mt-1 break-words">{moduleComposition}</p>}
+      {item.profileShape && item.shapeAssemblyEdges && item.shapeAssemblyEdges.length > 0 && (
+        <div className="mt-2">
+          <ShapeAssemblyGuide result={{
+            shape: item.profileShape,
+            assemblyEdges: item.shapeAssemblyEdges,
+            profileName: item.description,
+            profileCode: item.sku,
+          }} />
+        </div>
+      )}
       <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
         <label className="space-y-1">
           <span className="text-xs text-muted-foreground flex items-center gap-1"><Tag className="w-3 h-3" /> Item em planta</span>

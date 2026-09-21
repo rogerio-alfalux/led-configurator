@@ -280,4 +280,31 @@ describe("generateOrderExcel", () => {
 
     expect(String(worksheet.getCell("F7").value)).toContain("DISSIPADOR TESTE");
   });
+
+  it("inclui guia de montagem em aba separada para itens com mapa físico salvo", async () => {
+    const buffer = await generateOrderExcel([{
+      category: "Perfis", sku: "LLP-6060", description: "BLAZE H RETANGULAR", qty: 1,
+      unitPrice: 100, totalPrice: 100, photoUrl: null, itemEmPlanta: "L1", profileShape: "RECTANGLE",
+      shapeAssemblyEdges: [{
+        id: "superior", label: "Superior", requestedLength: 4500, achievedLength: 4500,
+        modules: [
+          { type: "CORNER", sku: "LLP-6060.1L1.48F", length: 600, bars: 2 },
+          { type: "ML", sku: "LLP-6060.5ML.48F", length: 3300, bars: 11 },
+        ],
+      }],
+    }] as any, {
+      clientName: "Cliente Teste", projectName: "Obra Teste", quoteNumber: "20.0000-26",
+      vendorName: "Vendedor Teste", date: "21/09/2026", productionLayoutVersion: "enhanced",
+      precomputedDisplayDays: 20, precomputedDeliveryDate: "19/10/2026",
+    });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
+    const guide = workbook.getWorksheet("Guia de Montagem");
+
+    expect(guide).toBeDefined();
+    expect(guide!.getCell("A1").value).toBe("GUIA DE MONTAGEM — PRODUÇÃO");
+    expect(String(guide!.getCell("A4").value)).toContain("Formato retangular");
+    expect(guide!.getCell("C8").value).toBe("LLP-6060.1L1.48F");
+    expect(guide!.getCell("C9").value).toBe("LLP-6060.5ML.48F");
+  });
 });

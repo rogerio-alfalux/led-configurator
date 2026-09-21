@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 const homeSource = readFileSync(fileURLToPath(new URL("./Home.tsx", import.meta.url)), "utf8");
 const quoteDetailSource = readFileSync(fileURLToPath(new URL("./QuoteDetail.tsx", import.meta.url)), "utf8");
 const factorySource = readFileSync(fileURLToPath(new URL("./FactoryOrderDetail.tsx", import.meta.url)), "utf8");
+const cartSource = readFileSync(fileURLToPath(new URL("./Cart.tsx", import.meta.url)), "utf8");
+const ldGuestCardsSource = readFileSync(fileURLToPath(new URL("../components/LdGuestCards.tsx", import.meta.url)), "utf8");
 
 describe("formatos especiais na interface", () => {
   it("repassa os controles de otimização ao motor especial", () => {
@@ -23,5 +25,10 @@ describe("formatos especiais na interface", () => {
     expect(homeSource).toContain("<ShapeAssemblyGuide result={shapeResult} />");
     expect(quoteDetailSource).toContain("d.shapeAssemblyEdges");
     expect(factorySource).toContain("parsed.shapeAssemblyEdges");
+  });
+
+  it("oferece o guia também nos carrinhos interno e de solicitação LD", () => {
+    expect(cartSource).toContain("entry.data.shapeAssemblyEdges");
+    expect(ldGuestCardsSource).toContain("item.shapeAssemblyEdges");
   });
 });

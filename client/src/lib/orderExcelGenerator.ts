@@ -6,6 +6,7 @@ import { getManualApiComponentQuantity, getManualApiEquipmentQuantity } from "./
 import { toBrasiliaDate, toBrasiliaDateTime, toBrasiliaFileDate } from "./dateUtils";
 import { formatLinkedAccessoryItemNumber, groupOrderItems, withDisplayMaterialSourceNumbers } from "./orderGrouping";
 import { isEnhancedProductionSheetLayout, type ProductionSheetLayoutVersion } from "./productionSheetLayout";
+import { ASSEMBLY_TYPE_LABELS, getShapeAssemblyDocumentEntries, SHAPE_LABELS } from "./shapeAssemblyGuideData";
 import { buildMaterialRequisition, groupByTipo } from "./materialRequisition";
 import type { MaterialTipo } from "./materialRequisition";
 import {
@@ -788,6 +789,105 @@ export async function generateOrderExcel(items: CartItemData[], form: OrderFormD
         }
       }
     }
+  }
+
+  // ─── Guia de Montagem (aba própria para a produção) ─────────────────────
+  // Somente itens novos que já persistiram o mapa físico recebem a guia.
+  // Nenhum orçamento histórico é recalculado ou enriquecido artificialmente.
+  const assemblyEntries = getShapeAssemblyDocumentEntries(items);
+  if (assemblyEntries.length > 0) {
+    const guideWs = wb.addWorksheet("Guia de Montagem", {
+      pageSetup: { paperSize: 9, orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+    });
+    guideWs.columns = [
+      { key: "A", width: 7 }, { key: "B", width: 22 }, { key: "C", width: 35 },
+      { key: "D", width: 27 }, { key: "E", width: 16 }, { key: "F", width: 14 },
+    ];
+
+    guideWs.mergeCells("A1:F1");
+    const guideTitle = guideWs.getCell("A1");
+    guideTitle.value = "GUIA DE MONTAGEM — PRODUÇÃO";
+    guideTitle.font = { bold: true, size: 16, color: { argb: HEADER_FONT_COLOR } };
+    guideTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_BG } };
+    guideTitle.alignment = { horizontal: "center", vertical: "middle" };
+    guideWs.getRow(1).height = 30;
+
+    guideWs.mergeCells("A2:F2");
+    const guideIntro = guideWs.getCell("A2");
+    guideIntro.value = `Pedido: ${form.orderNumber?.trim() || form.quoteNumber} — ${form.clientName}${form.projectName ? ` / ${form.projectName}` : ""}`;
+    guideIntro.font = { bold: true, size: contentFontSize };
+    guideIntro.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9E1F2" } };
+    guideIntro.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+    applyBorder(guideIntro);
+    guideWs.getRow(2).height = useEnhancedLayout ? 34 : 24;
+
+    let guideRow = 4;
+    for (const entry of assemblyEntries) {
+      guideWs.mergeCells(`A${guideRow}:F${guideRow}`);
+      const itemTitle = guideWs.getCell(`A${guideRow}`);
+      itemTitle.value = `ITEM ${entry.itemNumber}${entry.item.itemEmPlanta ? ` — ${entry.item.itemEmPlanta}` : ""} · ${SHAPE_LABELS[entry.shape]}`;
+      itemTitle.font = { bold: true, size: useEnhancedLayout ? 15 : 12, color: { argb: HEADER_FONT_COLOR } };
+      itemTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_BG } };
+      itemTitle.alignment = { horizontal: "left", vertical: "middle" };
+      applyBorder(itemTitle, "medium");
+      guideWs.getRow(guideRow).height = useEnhancedLayout ? 32 : 24;
+      guideRow += 1;
+
+      guideWs.mergeCells(`A${guideRow}:F${guideRow}`);
+      const productCell = guideWs.getCell(`A${guideRow}`);
+      productCell.value = entry.title;
+      productCell.font = { bold: true, size: contentFontSize };
+      productCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3F6FA" } };
+      productCell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+      applyBorder(productCell);
+      guideWs.getRow(guideRow).height = useEnhancedLayout ? 38 : 26;
+      guideRow += 1;
+
+      ["ORDEM", "TIPO", "SKU", "COMPRIMENTO", "BARRAS", "ARESTA"].forEach((label, colIndex) => {
+        headerCell(guideWs.getCell(guideRow, colIndex + 1), label, headerFontSize);
+      });
+      guideWs.getRow(guideRow).height = useEnhancedLayout ? 30 : 22;
+      guideRow += 1;
+
+      for (const edge of entry.edges) {
+        guideWs.mergeCells(`A${guideRow}:F${guideRow}`);
+        const edgeCell = guideWs.getCell(`A${guideRow}`);
+        edgeCell.value = `${edge.label.toUpperCase()} — Meta: ${edge.requestedLength} mm · Atingido: ${edge.achievedLength} mm`;
+        edgeCell.font = { bold: true, size: contentFontSize, color: { argb: "FF1F3864" } };
+        edgeCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEDF2F7" } };
+        edgeCell.alignment = { horizontal: "left", vertical: "middle" };
+        applyBorder(edgeCell);
+        guideWs.getRow(guideRow).height = useEnhancedLayout ? 28 : 20;
+        guideRow += 1;
+
+        edge.modules.forEach((module, moduleIndex) => {
+          const colors = module.type === "CORNER" ? "FFFAF7FF" : module.type === "IF" ? "FFF0F9FF" : "FFF0FDF4";
+          const values = [moduleIndex + 1, ASSEMBLY_TYPE_LABELS[module.type], module.sku, `${module.length} mm`, module.bars, edge.label];
+          values.forEach((value, colIndex) => {
+            const cell = guideWs.getCell(guideRow, colIndex + 1);
+            cell.value = value;
+            cell.font = { size: contentFontSize, bold: colIndex === 0 || colIndex === 2 };
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: colors } };
+            cell.alignment = { horizontal: colIndex === 0 || colIndex === 4 ? "center" : "left", vertical: "middle", wrapText: true };
+            applyBorder(cell);
+          });
+          guideWs.getRow(guideRow).height = useEnhancedLayout ? 30 : 22;
+          guideRow += 1;
+        });
+      }
+      guideWs.mergeCells(`A${guideRow}:F${guideRow}`);
+      const noteCell = guideWs.getCell(`A${guideRow}`);
+      noteCell.value = "Instrução: monte cada aresta na sequência numerada. A quantidade comercial consolidada de cantos, módulos ML e acabamentos IF permanece na ficha técnica e na requisição de materiais.";
+      noteCell.font = { italic: true, size: useEnhancedLayout ? 12 : 10, color: { argb: "FF506176" } };
+      noteCell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+      noteCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } };
+      applyBorder(noteCell);
+      guideWs.getRow(guideRow).height = useEnhancedLayout ? 42 : 30;
+      guideRow += 2;
+    }
+    guideWs.headerFooter = {
+      oddFooter: `&L&8Guia de Montagem — ${form.orderNumber?.trim() || form.quoteNumber}&R&8Emitido em: ${toBrasiliaDateTime(Date.now())} (Horário de Brasília)`,
+    };
   }
   // ─── Gerar, baixar e retornar buffer ──────────────────────────────────────────────────────────────
   const buffer = await wb.xlsx.writeBuffer();

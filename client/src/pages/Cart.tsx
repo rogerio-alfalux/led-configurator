@@ -60,6 +60,7 @@ import { parseShiftModuleManualPrice } from "@/lib/shiftModulePrices";
 import { applyCCTChange } from "@/lib/cctUtils";
 import { getQuoteTeamValidationError, isSellerRequiredForQuote } from "@/lib/quoteTeamValidation";
 import { LdGuestCartItemCard } from "@/components/LdGuestCards";
+import { ShapeAssemblyGuide } from "@/components/ShapeAssemblyGuide";
 import { buildLdRequestPayload } from "@/lib/ldRequestForm";
 import { buildSplitBodyPricePatch, cloneCartItemData, getEditableBodyUnitPrice } from "@/lib/splitItemPricing";
 import { getLdRequestDeadlineLimits, getLdRequestDeadlineValidationError } from "@shared/ldRequestDeadlines";
@@ -272,6 +273,16 @@ function SortableCartItem({
                     {entry.data.corPeca && <span className="flex items-center gap-0.5"><Palette className="w-3 h-3" />{entry.data.corPeca}</span>}
                     {entry.data.category !== "LED BAR" && <span className="text-muted-foreground/60">{entry.data.category}</span>}
                   </div>
+                  {entry.data.profileShape && entry.data.shapeAssemblyEdges && entry.data.shapeAssemblyEdges.length > 0 && (
+                    <div className="mt-2">
+                      <ShapeAssemblyGuide result={{
+                        shape: entry.data.profileShape,
+                        assemblyEdges: entry.data.shapeAssemblyEdges,
+                        profileName: entry.data.description,
+                        profileCode: entry.data.sku,
+                      }} />
+                    </div>
+                  )}
                   {driverDetails.length > 0 && (
                     <div className="mt-1.5 border-l-2 border-violet-500/40 pl-2 space-y-0.5">
                       {driverDetails.map((driver, index) => (
