@@ -7,6 +7,7 @@ const quoteDetailSource = readFileSync(fileURLToPath(new URL("./QuoteDetail.tsx"
 const factorySource = readFileSync(fileURLToPath(new URL("./FactoryOrderDetail.tsx", import.meta.url)), "utf8");
 const cartSource = readFileSync(fileURLToPath(new URL("./Cart.tsx", import.meta.url)), "utf8");
 const ldGuestCardsSource = readFileSync(fileURLToPath(new URL("../components/LdGuestCards.tsx", import.meta.url)), "utf8");
+const guideSource = readFileSync(fileURLToPath(new URL("../components/ShapeAssemblyGuide.tsx", import.meta.url)), "utf8");
 
 describe("formatos especiais na interface", () => {
   it("repassa os controles de otimização ao motor especial", () => {
@@ -30,5 +31,11 @@ describe("formatos especiais na interface", () => {
   it("oferece o guia também nos carrinhos interno e de solicitação LD", () => {
     expect(cartSource).toContain("entry.data.shapeAssemblyEdges");
     expect(ldGuestCardsSource).toContain("item.shapeAssemblyEdges");
+  });
+
+  it("mantém o guia rolável sem sobreposição e organiza os módulos em duas colunas", () => {
+    expect(guideSource).toContain("overflow-x-hidden overflow-y-auto");
+    expect(guideSource).not.toContain('DialogHeader className="sticky top-0');
+    expect(guideSource).toContain("grid grid-cols-2 list-none");
   });
 });

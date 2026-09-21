@@ -79,8 +79,8 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
       Guia de Montagem
     </Button>
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="h-[94vh] w-[min(96vw,1120px)] max-w-[1120px] overflow-y-auto p-0 sm:rounded-xl">
-        <DialogHeader className="sticky top-0 z-10 border-b bg-background px-6 py-4 shadow-sm">
+      <DialogContent className="h-[94vh] w-[min(96vw,1120px)] max-w-[1120px] overflow-x-hidden overflow-y-auto p-0 sm:rounded-xl">
+        <DialogHeader className="border-b bg-background px-5 py-3 shadow-sm sm:px-6 sm:py-4">
           <div className="flex flex-wrap items-center justify-between gap-3 pr-8">
             <div>
               <DialogTitle className="text-lg">Guia de montagem — {result.profileName ?? result.profileCode}</DialogTitle>
@@ -91,8 +91,8 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
             </Button>
           </div>
         </DialogHeader>
-        <div className="mx-auto w-full max-w-5xl space-y-6 px-5 py-6 sm:px-8">
-          <section className="rounded-xl border border-border bg-muted/20 p-5 sm:p-7">
+        <div className="mx-auto w-full max-w-5xl space-y-5 px-4 py-4 sm:px-6 sm:py-5">
+          <section className="rounded-xl border border-border bg-muted/20 p-4 sm:p-5">
             <div className="mx-auto max-w-xl text-center text-slate-800 dark:text-slate-100">
               <ShapeTopology shape={result.shape} />
             </div>
@@ -107,12 +107,12 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
 
           <div className="space-y-4">
             {edges.map((edge, edgeIndex) => <section key={edge.id} className="rounded-xl border border-border bg-card shadow-sm">
-              <div className="flex flex-col gap-1 border-b bg-muted/30 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1 border-b bg-muted/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                 <p className="text-base font-bold text-foreground">{edgeIndex + 1}. {edge.label}</p>
                 <p className="text-sm text-muted-foreground">Meta <strong>{edge.requestedLength} mm</strong> · Atingido <strong>{edge.achievedLength} mm</strong></p>
               </div>
-              <ol className="grid list-none gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
-                {edge.modules.map((module, moduleIndex) => <li key={`${edge.id}-${moduleIndex}-${module.sku}`} className={`rounded-lg border p-4 ${typeClass[module.type]}`}>
+              <ol className="grid grid-cols-2 list-none gap-3 p-4">
+                {edge.modules.map((module, moduleIndex) => <li key={`${edge.id}-${moduleIndex}-${module.sku}`} className={`min-w-0 rounded-lg border p-3 ${typeClass[module.type]}`}>
                   <p className="text-xs font-bold uppercase tracking-wide opacity-75">{moduleIndex + 1}. {ASSEMBLY_TYPE_LABELS[module.type]}</p>
                   <p className="mt-1 break-all font-mono text-sm font-bold">{module.sku}</p>
                   <p className="mt-2 text-sm">{module.length} mm · {Number.isInteger(module.bars) ? module.bars : module.bars.toFixed(1)} barra{module.bars === 1 ? "" : "s"}</p>
