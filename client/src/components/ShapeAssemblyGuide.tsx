@@ -67,10 +67,19 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
   const handlePrint = () => {
     const printWindow = window.open("", "_blank", "width=960,height=900");
     if (!printWindow) return;
+    let hasPrinted = false;
+    const print = () => {
+      if (hasPrinted || printWindow.closed) return;
+      hasPrinted = true;
+      printWindow.focus();
+      printWindow.print();
+    };
     printWindow.document.open();
     printWindow.document.write(buildShapeAssemblyPrintDocument(result));
     printWindow.document.close();
-    printWindow.addEventListener("load", () => printWindow.print(), { once: true });
+    // about:blank + document.write nem sempre dispara `load` em todos os navegadores.
+    printWindow.addEventListener("load", print, { once: true });
+    window.setTimeout(print, 250);
   };
 
   return <>

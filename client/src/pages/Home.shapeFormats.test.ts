@@ -38,4 +38,9 @@ describe("formatos especiais na interface", () => {
     expect(guideSource).not.toContain('DialogHeader className="sticky top-0');
     expect(guideSource).toContain("grid grid-cols-2 list-none");
   });
+
+  it("dispara a impressão mesmo quando about:blank não emite load", () => {
+    expect(guideSource).toContain("window.setTimeout(print, 250)");
+    expect(guideSource).toContain("printWindow.focus()");
+  });
 });
