@@ -21,17 +21,17 @@ describe("ShapeAssemblyGuide", () => {
     }],
   };
 
-  it("expõe um link físico e nativo para a página de impressão em nova aba", () => {
+  it("abre a prévia de impressão dentro do mesmo diálogo, preservando a configuração", () => {
     render(<ShapeAssemblyGuide result={result} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Guia de Montagem" }));
     expect(screen.getByText("Guia de montagem — BLAZE H")).toBeTruthy();
 
-    const link = screen.getByRole("link", { name: "Abrir guia de montagem para impressão" });
-    expect(link.getAttribute("href")).toMatch(/^\/guia-montagem\/imprimir\?data=/);
-    expect(link.getAttribute("target")).toBeNull();
-    expect(link.className).toContain("cursor-pointer");
-    expect(link.className).toContain("min-w-52");
-    expect(link.textContent).toContain("Imprimir guia");
+    const printButton = screen.getByRole("button", { name: "Abrir guia de montagem para impressão" });
+    expect(printButton.className).toContain("min-w-52");
+    fireEvent.click(printButton);
+    expect(screen.getByText("Prévia de impressão")).toBeTruthy();
+    expect(screen.getByText("Voltar")).toBeTruthy();
+    expect(screen.getByText("INSTRUÇÃO DE MONTAGEM")).toBeTruthy();
   });
 });

@@ -39,12 +39,12 @@ describe("formatos especiais na interface", () => {
     expect(guideSource).toContain("grid grid-cols-2 list-none");
   });
 
-  it("expõe um link físico de impressão, sem pop-up programático ou handlers que cancelam a navegação", () => {
-    expect(guideSource).toContain("const printHref = createShapeAssemblyPrintHref(result)");
-    expect(guideSource).toContain('href={printHref}');
-    expect(guideSource).not.toContain('target="_blank"');
+  it("abre a prévia de impressão dentro do diálogo, sem navegação ou pop-up", () => {
+    expect(guideSource).toContain("const [printOpen, setPrintOpen] = useState(false)");
+    expect(guideSource).toContain("setPrintOpen(true)");
+    expect(guideSource).toContain("data-inline-print-content");
     expect(guideSource).toContain("cursor-pointer");
     expect(guideSource).not.toContain("window.open(");
-    expect(guideSource).not.toContain("printPreviewOpen");
+    expect(guideSource).toContain("setPrintOpen(false)");
   });
 });
