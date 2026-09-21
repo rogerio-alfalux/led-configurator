@@ -42,7 +42,7 @@ describe("formatos especiais na interface", () => {
   it("expõe um link físico de impressão, sem pop-up programático ou handlers que cancelam a navegação", () => {
     expect(guideSource).toContain("const printHref = createShapeAssemblyPrintHref(result)");
     expect(guideSource).toContain('href={printHref}');
-    expect(guideSource).toContain('target="_blank"');
+    expect(guideSource).not.toContain('target="_blank"');
     expect(guideSource).toContain("cursor-pointer");
     expect(guideSource).not.toContain("window.open(");
     expect(guideSource).not.toContain("printPreviewOpen");

@@ -71,21 +71,20 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
         <DialogHeader className="border-b bg-background px-5 py-3 shadow-sm sm:px-6 sm:py-4">
           <div className="pr-8">
             <div>
-              <DialogTitle className="text-lg">Guia de montagem — {result.profileName ?? result.profileCode}</DialogTitle>
-              <p className="mt-1 text-xs text-muted-foreground">Sequência física por aresta, pronta para consulta e impressão.</p>
+              <DialogTitle className="text-lg leading-6">Guia de montagem — {result.profileName ?? result.profileCode}</DialogTitle>
+              <p className="mt-1 leading-4 text-xs text-muted-foreground">Sequência física por aresta, pronta para consulta e impressão.</p>
             </div>
           </div>
         </DialogHeader>
-        <div className="border-b bg-muted/20 px-5 py-3 sm:px-6">
+        <div className="border-b bg-muted/20 px-5 py-2.5 sm:px-6">
           <a
             href={printHref}
-            target="_blank"
             rel="noopener noreferrer"
             aria-label="Abrir guia de montagem para impressão"
             data-testid="assembly-print-link"
-            className="inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-primary bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="mx-auto inline-flex h-9 min-w-52 cursor-pointer items-center justify-center gap-2 rounded-md border border-primary bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <Printer className="h-4 w-4" /> Imprimir guia em nova aba
+            <Printer className="h-4 w-4" /> Imprimir guia
           </a>
         </div>
         <div className="mx-auto w-full max-w-5xl space-y-5 px-4 py-4 sm:px-6 sm:py-5">

@@ -29,9 +29,9 @@ describe("ShapeAssemblyGuide", () => {
 
     const link = screen.getByRole("link", { name: "Abrir guia de montagem para impressão" });
     expect(link.getAttribute("href")).toMatch(/^\/guia-montagem\/imprimir\?data=/);
-    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("target")).toBeNull();
     expect(link.className).toContain("cursor-pointer");
-    expect(link.className).toContain("w-full");
-    expect(link.textContent).toContain("Imprimir guia em nova aba");
+    expect(link.className).toContain("min-w-52");
+    expect(link.textContent).toContain("Imprimir guia");
   });
 });

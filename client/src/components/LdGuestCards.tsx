@@ -44,7 +44,7 @@ export function LdGuestCartItemCard({
           <ShapeAssemblyGuide result={{
             shape: item.profileShape,
             assemblyEdges: item.shapeAssemblyEdges,
-            profileName: item.description,
+            profileName: item.quoteSummary || item.description,
             profileCode: item.sku,
           }} />
         </div>

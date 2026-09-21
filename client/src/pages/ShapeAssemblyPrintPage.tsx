@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Printer, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { buildShapeAssemblyGuideHtml } from "@/lib/shapeAssemblyGuideData";
@@ -38,12 +37,6 @@ export default function ShapeAssemblyPrintPage() {
   const search = useSearch();
   const payload = parseShapeAssemblyPrintPayload(search);
 
-  useEffect(() => {
-    if (!payload) return;
-    const timer = window.setTimeout(() => window.print(), 150);
-    return () => window.clearTimeout(timer);
-  }, [payload]);
-
   if (!payload) {
     return <main className="mx-auto flex min-h-screen max-w-xl items-center p-6">
       <section className="w-full rounded-lg border bg-card p-6 text-center shadow-sm">
@@ -68,9 +61,9 @@ export default function ShapeAssemblyPrintPage() {
     <section className="print-actions mx-auto mb-4 flex max-w-[210mm] items-center justify-between gap-3 rounded-lg border bg-white p-3 shadow-sm">
       <div>
         <p className="font-semibold">Guia de montagem pronto para impressão</p>
-        <p className="text-xs text-muted-foreground">O diálogo de impressão deve abrir automaticamente. Se necessário, clique no botão ao lado ou use Ctrl+P.</p>
+        <p className="text-xs text-muted-foreground">Confira a folha abaixo e clique no botão para imprimir, ou use Ctrl+P.</p>
       </div>
-      <Button type="button" className="shrink-0 gap-2" onClick={() => window.print()}>
+      <Button type="button" size="sm" className="shrink-0 gap-2" onClick={() => window.print()}>
         <Printer className="h-4 w-4" /> Imprimir guia
       </Button>
     </section>

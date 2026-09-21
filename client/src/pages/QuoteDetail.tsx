@@ -4918,7 +4918,7 @@ export default function QuoteDetail() {
                                       <ShapeAssemblyGuide result={{
                                         shape: d.profileShape,
                                         assemblyEdges: d.shapeAssemblyEdges,
-                                        profileName: d.description,
+                                        profileName: d.quoteSummary || d.description,
                                         profileCode: d.sku,
                                       }} />
                                     </div>

@@ -281,7 +281,7 @@ function SortableCartItem({
                       <ShapeAssemblyGuide result={{
                         shape: entry.data.profileShape,
                         assemblyEdges: entry.data.shapeAssemblyEdges,
-                        profileName: entry.data.description,
+                        profileName: entry.data.quoteSummary || entry.data.description,
                         profileCode: entry.data.sku,
                       }} />
                     </div>
