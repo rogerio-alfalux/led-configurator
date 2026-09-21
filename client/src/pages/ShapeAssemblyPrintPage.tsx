@@ -30,7 +30,14 @@ const pageStyles = `
   .assembly-position { font-weight:800; color:#1f3864; }.assembly-type { font-size:7px; font-weight:700; text-transform:uppercase; }.assembly-module strong { font-size:8px; overflow-wrap:anywhere; }
   .assembly-corner { border-color:#b796e8; background:#faf7ff; }.assembly-if { border-color:#7dd3fc; background:#f0f9ff; }.assembly-ml { border-color:#6ee7b7; background:#f0fdf4; }
   .assembly-note { border:1px solid #8ea9c1; border-top:0; padding:6px 8px; font-size:8px; line-height:1.25; color:#506176; border-radius:0 0 6px 6px; }
-  @media print { body { background:#fff; }.print-actions { display:none !important; }.assembly-print-page { max-width:none; margin:0; } }
+  @media print {
+    body { background:#fff !important; }
+    /* O CSS global do sistema oculta o root para imprimir o modal de orçamento.
+       Esta rota é uma folha independente e precisa continuar visível. */
+    body > #root { display:block !important; }
+    .print-actions { display:none !important; }
+    .assembly-print-page { max-width:none; margin:0; }
+  }
 `;
 
 export default function ShapeAssemblyPrintPage() {
