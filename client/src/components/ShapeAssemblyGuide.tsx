@@ -97,31 +97,18 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
 
   if (edges.length === 0) return null;
 
-  const handlePrint = () => window.print();
+  // Fluxo restaurado do checkpoint de 16:26: nova janela dedicada, seguida de
+  // impressão quando o documento do guia concluir o carregamento.
+  const handlePrint = () => {
+    const printWindow = window.open("", "_blank", "width=960,height=900");
+    if (!printWindow) return;
+    printWindow.document.open();
+    printWindow.document.write(buildShapeAssemblyPrintDocument(result));
+    printWindow.document.close();
+    printWindow.addEventListener("load", () => printWindow.print(), { once: true });
+  };
 
   return <>
-    <style>{`
-      @media print {
-        body * { visibility: hidden !important; }
-        .shape-assembly-printable,
-        .shape-assembly-printable * { visibility: visible !important; }
-        .shape-assembly-printable {
-          position: fixed !important;
-          inset: 0 !important;
-          width: 100% !important;
-          height: auto !important;
-          max-width: none !important;
-          max-height: none !important;
-          overflow: visible !important;
-          border: 0 !important;
-          box-shadow: none !important;
-          transform: none !important;
-        }
-        .shape-assembly-print-controls { display: none !important; }
-        .shape-assembly-printable .space-y-4 { gap: 10px !important; }
-        .shape-assembly-printable .rounded-xl { border-radius: 0 !important; }
-      }
-    `}</style>
     <Button
       type="button"
       size="sm"
@@ -138,7 +125,7 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
       Guia de Montagem
     </Button>
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="shape-assembly-printable h-[94vh] w-[min(96vw,1120px)] max-w-[1120px] overflow-x-hidden overflow-y-auto p-0 sm:rounded-xl">
+      <DialogContent className="h-[94vh] w-[min(96vw,1120px)] max-w-[1120px] overflow-x-hidden overflow-y-auto p-0 sm:rounded-xl">
         <DialogHeader className="border-b bg-background px-5 py-3 shadow-sm sm:px-6 sm:py-4">
           <div className="flex flex-wrap items-center justify-between gap-3 pr-8">
             <div>
@@ -149,7 +136,7 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
               type="button"
               size="sm"
               variant="outline"
-              className="shape-assembly-print-controls gap-1.5"
+              className="gap-1.5"
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.preventDefault();
