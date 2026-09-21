@@ -1,4 +1,4 @@
-import { Printer, AlertCircle } from "lucide-react";
+import { ArrowLeft, Printer, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { buildShapeAssemblyGuideHtml } from "@/lib/shapeAssemblyGuideData";
 import { parseShapeAssemblyPrintPayload } from "@/lib/shapeAssemblyPrintRoute";
@@ -70,9 +70,20 @@ export default function ShapeAssemblyPrintPage() {
         <p className="font-semibold">Guia de montagem pronto para impressão</p>
         <p className="text-xs text-muted-foreground">Confira a folha abaixo e clique no botão para imprimir, ou use Ctrl+P.</p>
       </div>
-      <Button type="button" size="sm" className="shrink-0 gap-2" onClick={() => window.print()}>
-        <Printer className="h-4 w-4" /> Imprimir guia
-      </Button>
+      <div className="flex shrink-0 items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="gap-1.5"
+          onClick={() => window.history.back()}
+        >
+          <ArrowLeft className="h-4 w-4" /> Voltar
+        </Button>
+        <Button type="button" size="sm" className="gap-2" onClick={() => window.print()}>
+          <Printer className="h-4 w-4" /> Imprimir guia
+        </Button>
+      </div>
     </section>
     <section className="assembly-print-page" dangerouslySetInnerHTML={{ __html: buildShapeAssemblyGuideHtml([item]) }} />
   </main>;
