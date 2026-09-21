@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { buildShapeAssemblyGuideHtml, getShapeAssemblyDocumentEntries } from "./shapeAssemblyGuideData";
-import { buildShapeAssemblyPrintDocument, printShapeAssemblyGuideFrame } from "@/components/ShapeAssemblyGuide";
+import { buildShapeAssemblyPrintDocument, openShapeAssemblyPrintWindow } from "@/components/ShapeAssemblyGuide";
 
 describe("guia de montagem da produção", () => {
   const specialShapeItem = {
@@ -47,13 +47,33 @@ describe("guia de montagem da produção", () => {
     expect(html).toContain(".assembly-sheet:last-child{page-break-after:auto}");
   });
 
-  it("dispara foco e impressão pelo iframe carregado", () => {
+  it("abre, escreve e imprime a janela dedicada sem disparar duas vezes", () => {
+    vi.useFakeTimers();
     const focus = vi.fn();
     const print = vi.fn();
-    const frame = { contentWindow: { focus, print } } as unknown as HTMLIFrameElement;
-    expect(printShapeAssemblyGuideFrame(frame)).toBe(true);
+    const write = vi.fn();
+    const close = vi.fn();
+    const open = vi.fn();
+    const addEventListener = vi.fn((_type: string, handler: EventListener) => handler(new Event("load")));
+    const printWindow = {
+      document: { open, write, close },
+      focus,
+      print,
+      closed: false,
+      addEventListener,
+    } as unknown as Window;
+    expect(openShapeAssemblyPrintWindow({
+      shape: specialShapeItem.profileShape,
+      assemblyEdges: specialShapeItem.shapeAssemblyEdges,
+      profileName: specialShapeItem.description,
+      profileCode: specialShapeItem.sku,
+    }, () => printWindow)).toBe(true);
+    vi.runAllTimers();
+    expect(open).toHaveBeenCalledOnce();
+    expect(write.mock.calls[0]?.[0]).toContain("Imprimir guia");
+    expect(close).toHaveBeenCalledOnce();
     expect(focus).toHaveBeenCalledOnce();
     expect(print).toHaveBeenCalledOnce();
-    expect(printShapeAssemblyGuideFrame(null)).toBe(false);
+    vi.useRealTimers();
   });
 });

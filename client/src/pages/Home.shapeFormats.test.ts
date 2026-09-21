@@ -39,14 +39,11 @@ describe("formatos especiais na interface", () => {
     expect(guideSource).toContain("grid grid-cols-2 list-none");
   });
 
-  it("imprime pelo iframe carregado, sem depender de pop-up ou CSS global", () => {
-    expect(guideSource).toContain("const printFrameRef = useRef<HTMLIFrameElement>(null)");
-    expect(guideSource).toContain("srcDoc={buildShapeAssemblyPrintDocument(result)}");
-    expect(guideSource).toContain("printShapeAssemblyGuideFrame(frame)");
-    expect(guideSource).toContain("printWindow.print()");
-    expect(guideSource).toContain("const pendingPrintRef = useRef(false)");
-    expect(guideSource).toContain("pendingPrintRef.current = true");
-    expect(guideSource).toContain("onLoad={handlePrintFrameLoad}");
-    expect(guideSource).not.toContain("disabled={!printFrameReady}");
+  it("abre uma janela dedicada com impressão automática e botão manual de contingência", () => {
+    expect(guideSource).toContain("openShapeAssemblyPrintWindow(result)");
+    expect(guideSource).toContain('window.open("", "shape-assembly-print", "width=960,height=900")');
+    expect(guideSource).toContain("printWindow.document.write(buildShapeAssemblyPrintDocument(result))");
+    expect(guideSource).toContain('onclick="window.print()"');
+    expect(guideSource).toContain("globalThis.setTimeout(triggerPrint, 150)");
   });
 });

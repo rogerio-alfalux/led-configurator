@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Map, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -60,15 +60,31 @@ export function buildShapeAssemblyPrintDocument(result: ShapeAssemblyGuideResult
   };
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/><title>Guia de montagem</title><style>
     ${SHAPE_ASSEMBLY_PRINT_CSS}
-  </style></head><body>${buildShapeAssemblyGuideHtml([item as never])}</body></html>`;
+    .print-toolbar{position:sticky;top:0;z-index:10;display:flex;justify-content:flex-end;padding:8px;background:#fff;border-bottom:1px solid #d4dbe5}.print-toolbar button{cursor:pointer;border:1px solid #94a3b8;border-radius:5px;background:#fff;padding:7px 12px;font:600 12px Arial;color:#172033}@media print{.print-toolbar{display:none!important}}
+  </style></head><body><div class="print-toolbar"><button type="button" onclick="window.print()">Imprimir guia</button></div>${buildShapeAssemblyGuideHtml([item as never])}</body></html>`;
 }
 
-export function printShapeAssemblyGuideFrame(frame: HTMLIFrameElement | null): boolean {
-  const printWindow = frame?.contentWindow;
+type PrintableWindow = Pick<Window, "document" | "focus" | "print" | "closed" | "addEventListener">;
+
+export function openShapeAssemblyPrintWindow(
+  result: ShapeAssemblyGuideResult,
+  openWindow: () => PrintableWindow | null = () => window.open("", "shape-assembly-print", "width=960,height=900") as PrintableWindow | null,
+): boolean {
+  const printWindow = openWindow();
   if (!printWindow) return false;
-  try {
+  let hasPrinted = false;
+  const triggerPrint = () => {
+    if (hasPrinted || printWindow.closed) return;
+    hasPrinted = true;
     printWindow.focus();
     printWindow.print();
+  };
+  try {
+    printWindow.document.open();
+    printWindow.document.write(buildShapeAssemblyPrintDocument(result));
+    printWindow.document.close();
+    printWindow.addEventListener("load", triggerPrint, { once: true });
+    globalThis.setTimeout(triggerPrint, 150);
     return true;
   } catch {
     return false;
@@ -77,28 +93,11 @@ export function printShapeAssemblyGuideFrame(frame: HTMLIFrameElement | null): b
 
 export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResult }) {
   const [open, setOpen] = useState(false);
-  const [printFrameReady, setPrintFrameReady] = useState(false);
-  const printFrameRef = useRef<HTMLIFrameElement>(null);
-  const pendingPrintRef = useRef(false);
   const edges = result.assemblyEdges ?? [];
   if (edges.length === 0) return null;
 
   const handlePrint = () => {
-    const frame = printFrameRef.current;
-    if (!frame?.contentWindow) return;
-    if (!printFrameReady) {
-      pendingPrintRef.current = true;
-      return;
-    }
-    printShapeAssemblyGuideFrame(frame);
-  };
-
-  const handlePrintFrameLoad = () => {
-    setPrintFrameReady(true);
-    if (!pendingPrintRef.current) return;
-    pendingPrintRef.current = false;
-    // O documento acabou de carregar; agenda após o ciclo do navegador para garantir conteúdo completo.
-    window.setTimeout(() => printShapeAssemblyGuideFrame(printFrameRef.current), 0);
+    openShapeAssemblyPrintWindow(result);
   };
 
   return <>
@@ -106,16 +105,6 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
       <Map className="h-3.5 w-3.5" />
       Guia de Montagem
     </Button>
-    <iframe
-      ref={printFrameRef}
-      title="Documento imprimível do guia de montagem"
-      srcDoc={buildShapeAssemblyPrintDocument(result)}
-      sandbox="allow-same-origin allow-scripts allow-modals allow-popups"
-      onLoad={handlePrintFrameLoad}
-      aria-hidden="true"
-      tabIndex={-1}
-      className="pointer-events-none fixed -left-[10000px] top-0 h-px w-px border-0 opacity-0"
-    />
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="h-[94vh] w-[min(96vw,1120px)] max-w-[1120px] overflow-x-hidden overflow-y-auto p-0 sm:rounded-xl">
         <DialogHeader className="border-b bg-background px-5 py-3 shadow-sm sm:px-6 sm:py-4">
