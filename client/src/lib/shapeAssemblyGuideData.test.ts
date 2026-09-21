@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildShapeAssemblyGuideHtml, getShapeAssemblyDocumentEntries } from "./shapeAssemblyGuideData";
-import { buildShapeAssemblyPrintDocument } from "@/components/ShapeAssemblyGuide";
+import { buildShapeAssemblyPrintDocument, printShapeAssemblyGuideFrame } from "@/components/ShapeAssemblyGuide";
 
 describe("guia de montagem da produção", () => {
   const specialShapeItem = {
@@ -45,5 +45,15 @@ describe("guia de montagem da produção", () => {
     expect(html).toContain("@page{size:A4 portrait;margin:6mm}");
     expect(html).toContain("grid-template-columns:repeat(2,minmax(0,1fr))");
     expect(html).toContain(".assembly-sheet:last-child{page-break-after:auto}");
+  });
+
+  it("dispara foco e impressão pelo iframe carregado", () => {
+    const focus = vi.fn();
+    const print = vi.fn();
+    const frame = { contentWindow: { focus, print } } as unknown as HTMLIFrameElement;
+    expect(printShapeAssemblyGuideFrame(frame)).toBe(true);
+    expect(focus).toHaveBeenCalledOnce();
+    expect(print).toHaveBeenCalledOnce();
+    expect(printShapeAssemblyGuideFrame(null)).toBe(false);
   });
 });

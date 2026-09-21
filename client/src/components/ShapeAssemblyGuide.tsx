@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Map, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -63,43 +63,29 @@ export function buildShapeAssemblyPrintDocument(result: ShapeAssemblyGuideResult
   </style></head><body>${buildShapeAssemblyGuideHtml([item as never])}</body></html>`;
 }
 
+export function printShapeAssemblyGuideFrame(frame: HTMLIFrameElement | null): boolean {
+  const printWindow = frame?.contentWindow;
+  if (!printWindow) return false;
+  try {
+    printWindow.focus();
+    printWindow.print();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResult }) {
   const [open, setOpen] = useState(false);
+  const [printFrameReady, setPrintFrameReady] = useState(false);
+  const printFrameRef = useRef<HTMLIFrameElement>(null);
   const edges = result.assemblyEdges ?? [];
   if (edges.length === 0) return null;
 
   const handlePrint = () => {
-    const existing = document.getElementById("shape-assembly-print-root");
-    const existingStyle = document.getElementById("shape-assembly-print-style");
-    existing?.remove();
-    existingStyle?.remove();
-
-    const item = {
-      profileShape: result.shape === "STRAIGHT" ? undefined : result.shape,
-      shapeAssemblyEdges: result.assemblyEdges,
-      description: result.profileName,
-      sku: result.profileCode,
-      itemEmPlanta: "Guia de montagem",
-    };
-    const printRoot = document.createElement("main");
-    printRoot.id = "shape-assembly-print-root";
-    printRoot.innerHTML = buildShapeAssemblyGuideHtml([item as never]);
-    const printStyle = document.createElement("style");
-    printStyle.id = "shape-assembly-print-style";
-    printStyle.textContent = `${SHAPE_ASSEMBLY_PRINT_CSS}
-      @media screen { #shape-assembly-print-root { display:none; } }
-      @media print {
-        body > *:not(#shape-assembly-print-root):not(#shape-assembly-print-style) { display:none !important; }
-        #shape-assembly-print-root { display:block !important; width:100%; }
-      }`;
-    document.body.append(printStyle, printRoot);
-
-    const cleanup = () => {
-      printRoot.remove();
-      printStyle.remove();
-    };
-    window.addEventListener("afterprint", cleanup, { once: true });
-    window.print();
+    const frame = printFrameRef.current;
+    if (!frame?.contentWindow || !printFrameReady) return;
+    printShapeAssemblyGuideFrame(frame);
   };
 
   return <>
@@ -107,6 +93,16 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
       <Map className="h-3.5 w-3.5" />
       Guia de Montagem
     </Button>
+    <iframe
+      ref={printFrameRef}
+      title="Documento imprimível do guia de montagem"
+      srcDoc={buildShapeAssemblyPrintDocument(result)}
+      sandbox="allow-same-origin allow-scripts allow-modals allow-popups"
+      onLoad={() => setPrintFrameReady(true)}
+      aria-hidden="true"
+      tabIndex={-1}
+      className="pointer-events-none fixed -left-[10000px] top-0 h-px w-px border-0 opacity-0"
+    />
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="h-[94vh] w-[min(96vw,1120px)] max-w-[1120px] overflow-x-hidden overflow-y-auto p-0 sm:rounded-xl">
         <DialogHeader className="border-b bg-background px-5 py-3 shadow-sm sm:px-6 sm:py-4">
@@ -115,7 +111,7 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
               <DialogTitle className="text-lg">Guia de montagem — {result.profileName ?? result.profileCode}</DialogTitle>
               <p className="mt-1 text-xs text-muted-foreground">Sequência física por aresta, pronta para consulta e impressão.</p>
             </div>
-            <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={handlePrint}>
+            <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={handlePrint} disabled={!printFrameReady}>
               <Printer className="h-3.5 w-3.5" /> Imprimir guia
             </Button>
           </div>
