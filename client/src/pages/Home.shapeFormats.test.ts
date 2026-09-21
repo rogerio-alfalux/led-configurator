@@ -39,8 +39,10 @@ describe("formatos especiais na interface", () => {
     expect(guideSource).toContain("grid grid-cols-2 list-none");
   });
 
-  it("dispara a impressão mesmo quando about:blank não emite load", () => {
-    expect(guideSource).toContain("window.setTimeout(print, 250)");
-    expect(guideSource).toContain("printWindow.focus()");
+  it("imprime diretamente na página sem depender de janela pop-up", () => {
+    expect(guideSource).toContain('id = "shape-assembly-print-root"');
+    expect(guideSource).toContain("document.body.append(printStyle, printRoot)");
+    expect(guideSource).toContain("window.print()");
+    expect(guideSource).toContain("window.addEventListener(\"afterprint\", cleanup, { once: true })");
   });
 });

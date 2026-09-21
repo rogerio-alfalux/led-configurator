@@ -43,6 +43,13 @@ function ShapeTopology({ shape }: { shape: ShapeResult["shape"] }) {
 
 type ShapeAssemblyGuideResult = Pick<ShapeResult, "shape" | "assemblyEdges" | "profileName" | "profileCode">;
 
+const SHAPE_ASSEMBLY_PRINT_CSS = `
+  *{box-sizing:border-box} @page{size:A4 portrait;margin:6mm} body{font-family:Arial,Helvetica,sans-serif;color:#172033;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  /* Impressão compacta: cada guia especial ocupa uma única folha A4. */
+  .assembly-sheet{page-break-after:always;break-inside:avoid}.assembly-sheet:last-child{page-break-after:auto}.assembly-header{background:#1f3864;color:#fff;padding:8px 11px;border-radius:5px 5px 0 0}.assembly-header p{font-size:8px;font-weight:700;letter-spacing:.6px;margin:0 0 2px}.assembly-header h2{font-size:14px;margin:0}.assembly-product{font-size:9px;margin-top:3px;opacity:.95}
+  .assembly-layout{border:1px solid #8ea9c1;border-top:0;padding:7px}.assembly-topology{display:grid;grid-template-columns:180px minmax(0,1fr);align-items:center;border-bottom:1px solid #d4dbe5;padding:0 3px 6px;text-align:center}.assembly-topology svg{width:180px;height:96px;color:#1f3864}.assembly-topology p{font-size:8px;line-height:1.25;text-align:left;margin:0 0 0 8px}.assembly-legend{display:flex;justify-content:flex-start;gap:4px;flex-wrap:wrap;margin:4px 0 0 8px}.assembly-legend span{border:1px solid #8ea9c1;border-radius:8px;padding:2px 5px;font-size:7px;font-weight:700}.assembly-edges{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;padding-top:6px}.assembly-edge{border:1px solid #b9c5d4;border-radius:4px;margin:0;break-inside:avoid}.assembly-edge-title{display:flex;justify-content:space-between;gap:4px;background:#edf2f7;padding:4px 5px;font-size:8px}.assembly-edge-title strong{font-size:9px}.assembly-edge-title span{color:#506176;white-space:nowrap}.assembly-modules{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;list-style:none;padding:4px;margin:0}.assembly-module{border:1px solid #cbd5e1;border-radius:3px;padding:4px;display:grid;gap:1px;font-size:7px;line-height:1.15;min-width:0}.assembly-position{font-weight:800;color:#1f3864}.assembly-type{font-size:6px;font-weight:700;text-transform:uppercase}.assembly-module strong{font-size:7px;overflow-wrap:anywhere}.assembly-corner{border-color:#b796e8;background:#faf7ff}.assembly-if{border-color:#7dd3fc;background:#f0f9ff}.assembly-ml{border-color:#6ee7b7;background:#f0fdf4}.assembly-note{border:1px solid #8ea9c1;border-top:0;padding:5px 7px;font-size:7px;line-height:1.2;color:#506176;border-radius:0 0 5px 5px}
+`;
+
 export function buildShapeAssemblyPrintDocument(result: ShapeAssemblyGuideResult): string {
   const item = {
     profileShape: result.shape === "STRAIGHT" ? undefined : result.shape,
@@ -52,10 +59,7 @@ export function buildShapeAssemblyPrintDocument(result: ShapeAssemblyGuideResult
     itemEmPlanta: "Guia de montagem",
   };
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/><title>Guia de montagem</title><style>
-    *{box-sizing:border-box} @page{size:A4 portrait;margin:6mm} body{font-family:Arial,Helvetica,sans-serif;color:#172033;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    /* Impressão compacta: cada guia especial ocupa uma única folha A4. */
-    .assembly-sheet{page-break-after:always;break-inside:avoid}.assembly-sheet:last-child{page-break-after:auto}.assembly-header{background:#1f3864;color:#fff;padding:8px 11px;border-radius:5px 5px 0 0}.assembly-header p{font-size:8px;font-weight:700;letter-spacing:.6px;margin:0 0 2px}.assembly-header h2{font-size:14px;margin:0}.assembly-product{font-size:9px;margin-top:3px;opacity:.95}
-    .assembly-layout{border:1px solid #8ea9c1;border-top:0;padding:7px}.assembly-topology{display:grid;grid-template-columns:180px minmax(0,1fr);align-items:center;border-bottom:1px solid #d4dbe5;padding:0 3px 6px;text-align:center}.assembly-topology svg{width:180px;height:96px;color:#1f3864}.assembly-topology p{font-size:8px;line-height:1.25;text-align:left;margin:0 0 0 8px}.assembly-legend{display:flex;justify-content:flex-start;gap:4px;flex-wrap:wrap;margin:4px 0 0 8px}.assembly-legend span{border:1px solid #8ea9c1;border-radius:8px;padding:2px 5px;font-size:7px;font-weight:700}.assembly-edges{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;padding-top:6px}.assembly-edge{border:1px solid #b9c5d4;border-radius:4px;margin:0;break-inside:avoid}.assembly-edge-title{display:flex;justify-content:space-between;gap:4px;background:#edf2f7;padding:4px 5px;font-size:8px}.assembly-edge-title strong{font-size:9px}.assembly-edge-title span{color:#506176;white-space:nowrap}.assembly-modules{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;list-style:none;padding:4px;margin:0}.assembly-module{border:1px solid #cbd5e1;border-radius:3px;padding:4px;display:grid;gap:1px;font-size:7px;line-height:1.15;min-width:0}.assembly-position{font-weight:800;color:#1f3864}.assembly-type{font-size:6px;font-weight:700;text-transform:uppercase}.assembly-module strong{font-size:7px;overflow-wrap:anywhere}.assembly-corner{border-color:#b796e8;background:#faf7ff}.assembly-if{border-color:#7dd3fc;background:#f0f9ff}.assembly-ml{border-color:#6ee7b7;background:#f0fdf4}.assembly-note{border:1px solid #8ea9c1;border-top:0;padding:5px 7px;font-size:7px;line-height:1.2;color:#506176;border-radius:0 0 5px 5px}
+    ${SHAPE_ASSEMBLY_PRINT_CSS}
   </style></head><body>${buildShapeAssemblyGuideHtml([item as never])}</body></html>`;
 }
 
@@ -65,21 +69,37 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
   if (edges.length === 0) return null;
 
   const handlePrint = () => {
-    const printWindow = window.open("", "_blank", "width=960,height=900");
-    if (!printWindow) return;
-    let hasPrinted = false;
-    const print = () => {
-      if (hasPrinted || printWindow.closed) return;
-      hasPrinted = true;
-      printWindow.focus();
-      printWindow.print();
+    const existing = document.getElementById("shape-assembly-print-root");
+    const existingStyle = document.getElementById("shape-assembly-print-style");
+    existing?.remove();
+    existingStyle?.remove();
+
+    const item = {
+      profileShape: result.shape === "STRAIGHT" ? undefined : result.shape,
+      shapeAssemblyEdges: result.assemblyEdges,
+      description: result.profileName,
+      sku: result.profileCode,
+      itemEmPlanta: "Guia de montagem",
     };
-    printWindow.document.open();
-    printWindow.document.write(buildShapeAssemblyPrintDocument(result));
-    printWindow.document.close();
-    // about:blank + document.write nem sempre dispara `load` em todos os navegadores.
-    printWindow.addEventListener("load", print, { once: true });
-    window.setTimeout(print, 250);
+    const printRoot = document.createElement("main");
+    printRoot.id = "shape-assembly-print-root";
+    printRoot.innerHTML = buildShapeAssemblyGuideHtml([item as never]);
+    const printStyle = document.createElement("style");
+    printStyle.id = "shape-assembly-print-style";
+    printStyle.textContent = `${SHAPE_ASSEMBLY_PRINT_CSS}
+      @media screen { #shape-assembly-print-root { display:none; } }
+      @media print {
+        body > *:not(#shape-assembly-print-root):not(#shape-assembly-print-style) { display:none !important; }
+        #shape-assembly-print-root { display:block !important; width:100%; }
+      }`;
+    document.body.append(printStyle, printRoot);
+
+    const cleanup = () => {
+      printRoot.remove();
+      printStyle.remove();
+    };
+    window.addEventListener("afterprint", cleanup, { once: true });
+    window.print();
   };
 
   return <>
