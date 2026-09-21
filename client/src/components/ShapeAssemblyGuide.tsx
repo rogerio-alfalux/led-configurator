@@ -38,7 +38,15 @@ const inlinePrintStyles = `
   .inline-assembly-print .assembly-position { font-weight:800; color:#1f3864; }.inline-assembly-print .assembly-type { font-size:7px; font-weight:700; text-transform:uppercase; }.inline-assembly-print .assembly-module strong { font-size:8px; overflow-wrap:anywhere; }
   .inline-assembly-print .assembly-corner { border-color:#b796e8; background:#faf7ff; }.inline-assembly-print .assembly-if { border-color:#7dd3fc; background:#f0f9ff; }.inline-assembly-print .assembly-ml { border-color:#6ee7b7; background:#f0fdf4; }
   .inline-assembly-print .assembly-note { border:1px solid #8ea9c1; border-top:0; padding:6px 8px; font-size:8px; line-height:1.25; color:#506176; border-radius:0 0 6px 6px; }
-  @media print { body > #root { display:block !important; } [data-inline-print-modal] { position:static !important; display:block !important; max-width:none !important; width:100% !important; height:auto !important; overflow:visible !important; transform:none !important; } [data-inline-print-modal] > *:not([data-inline-print-content]) { display:none !important; } [data-inline-print-content] { display:block !important; } .inline-print-actions { display:none !important; } }
+  @media print {
+    /* A página do configurador não faz parte do documento impresso. */
+    body > #root { display:none !important; }
+    body > *:not([data-inline-print-modal]) { display:none !important; }
+    [data-inline-print-modal] { position:static !important; display:block !important; max-width:none !important; width:100% !important; height:auto !important; overflow:visible !important; transform:none !important; }
+    [data-inline-print-modal] > *:not([data-inline-print-content]) { display:none !important; }
+    [data-inline-print-content] { display:block !important; }
+    .inline-print-actions { display:none !important; }
+  }
 `;
 
 function ShapeTopology({ shape }: { shape: ShapeResult["shape"] }) {
