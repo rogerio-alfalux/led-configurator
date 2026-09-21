@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildShapeAssemblyGuideHtml, getShapeAssemblyDocumentEntries } from "./shapeAssemblyGuideData";
+import { buildShapeAssemblyPrintDocument } from "@/components/ShapeAssemblyGuide";
 
 describe("guia de montagem da produção", () => {
   const specialShapeItem = {
@@ -32,5 +33,17 @@ describe("guia de montagem da produção", () => {
     expect(html).toContain("LLP-6060.5ML.48F");
     expect(html).toContain("Monte as peças na ordem numerada");
     expect(html).toContain("assembly-sheet");
+  });
+
+  it("mantém a folha de impressão compacta em A4, sem rolagem horizontal", () => {
+    const html = buildShapeAssemblyPrintDocument({
+      shape: specialShapeItem.profileShape,
+      assemblyEdges: specialShapeItem.shapeAssemblyEdges,
+      profileName: specialShapeItem.description,
+      profileCode: specialShapeItem.sku,
+    });
+    expect(html).toContain("@page{size:A4 portrait;margin:6mm}");
+    expect(html).toContain("grid-template-columns:repeat(2,minmax(0,1fr))");
+    expect(html).toContain(".assembly-sheet:last-child{page-break-after:auto}");
   });
 });
