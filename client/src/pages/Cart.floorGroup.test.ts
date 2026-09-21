@@ -87,4 +87,9 @@ describe("FloorGroupBar", () => {
     expect(source).toContain("parentRequestId: revisionContext?.requestId");
     expect(source).toContain("Revisão enviada para análise da equipe Alfalux.");
   });
+
+  it("abre o formulário de pedido depois de fechar o alerta ao clicar em Continuar", () => {
+    const source = readFileSync(resolve(process.cwd(), "client/src/pages/Cart.tsx"), "utf8");
+    expect(source).toContain("window.setTimeout(() => setOrderFormOpen(true), 0)");
+  });
 });

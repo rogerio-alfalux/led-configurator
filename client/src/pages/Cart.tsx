@@ -2676,7 +2676,9 @@ function StandardCart() {
               className="bg-orange-600 hover:bg-orange-700 text-white gap-2"
               onClick={() => {
                 setOrderConfirmOpen(false);
-                setOrderFormOpen(true);
+                // Aguarda o fechamento do AlertDialog antes de abrir o Dialog seguinte;
+                // dois modais Radix na mesma interação podem bloquear o foco do formulário.
+                window.setTimeout(() => setOrderFormOpen(true), 0);
               }}
             >
               <ChevronRight className="w-4 h-4" />
