@@ -39,12 +39,12 @@ describe("formatos especiais na interface", () => {
     expect(guideSource).toContain("grid grid-cols-2 list-none");
   });
 
-  it("restaura a janela dedicada de impressão do checkpoint de 16:26", () => {
-    expect(guideSource).toContain('window.open("", "_blank", "width=960,height=900")');
-    expect(guideSource).toContain("printWindow.document.write(buildShapeAssemblyPrintDocument(result))");
-    expect(guideSource).toContain('printWindow.addEventListener("load", () => printWindow.print(), { once: true })');
-    expect(guideSource).toContain("event.stopPropagation()");
-    expect(guideSource).not.toContain("shape-assembly-printable");
+  it("expõe um link físico de impressão, sem pop-up programático ou handlers que cancelam a navegação", () => {
+    expect(guideSource).toContain("const printHref = createShapeAssemblyPrintHref(result)");
+    expect(guideSource).toContain('href={printHref}');
+    expect(guideSource).toContain('target="_blank"');
+    expect(guideSource).toContain("cursor-pointer");
+    expect(guideSource).not.toContain("window.open(");
     expect(guideSource).not.toContain("printPreviewOpen");
   });
 });

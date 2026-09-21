@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { ShapeAssemblyGuide } from "./ShapeAssemblyGuide";
 
 describe("ShapeAssemblyGuide", () => {
@@ -21,30 +21,15 @@ describe("ShapeAssemblyGuide", () => {
     }],
   };
 
-  it("abre a janela dedicada e imprime quando o documento restaurado carrega", () => {
-    const print = vi.fn();
-    const documentOpen = vi.fn();
-    const documentWrite = vi.fn();
-    const documentClose = vi.fn();
-    const addEventListener = vi.fn((_event: string, handler: EventListener) => handler(new Event("load")));
-    const printWindow = {
-      document: { open: documentOpen, write: documentWrite, close: documentClose },
-      print,
-      addEventListener,
-    } as unknown as Window;
-    const open = vi.spyOn(window, "open").mockReturnValue(printWindow);
+  it("expõe um link físico e nativo para a página de impressão em nova aba", () => {
     render(<ShapeAssemblyGuide result={result} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Guia de Montagem" }));
     expect(screen.getByText("Guia de montagem — BLAZE H")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Imprimir guia" }));
-    expect(open).toHaveBeenCalledWith("", "_blank", "width=960,height=900");
-    expect(documentOpen).toHaveBeenCalledOnce();
-    expect(documentWrite.mock.calls[0]?.[0]).toContain("Guia de montagem");
-    expect(documentClose).toHaveBeenCalledOnce();
-    expect(print).toHaveBeenCalledOnce();
-    expect(screen.getByText("Guia de montagem — BLAZE H")).toBeTruthy();
-    open.mockRestore();
+    const link = screen.getByRole("link", { name: "Abrir guia de montagem para impressão" });
+    expect(link.getAttribute("href")).toMatch(/^\/guia-montagem\/imprimir\?data=/);
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.className).toContain("cursor-pointer");
   });
 });

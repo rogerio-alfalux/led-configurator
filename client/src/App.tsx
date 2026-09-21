@@ -18,6 +18,7 @@ import Backup from "./pages/Backup";
 import GuestLogin from "./pages/GuestLogin";
 import UserManagement from "./pages/UserManagement";
 import { LDGuestRequests, LDRequestsAdmin } from "./pages/LDRequests";
+import ShapeAssemblyPrintPage from "./pages/ShapeAssemblyPrintPage";
 
 function Router() {
   return (
@@ -35,6 +36,7 @@ function Router() {
       <Route path={"/usuarios"} component={UserManagement} />
       <Route path={"/solicitacoes-ld"} component={LDRequestsAdmin} />
       <Route path={"/minhas-solicitacoes-ld"} component={LDGuestRequests} />
+      <Route path={"/guia-montagem/imprimir"} component={ShapeAssemblyPrintPage} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

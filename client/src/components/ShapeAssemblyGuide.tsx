@@ -5,10 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import type { ShapeAssemblyModule, ShapeResult } from "@/lib/lCatalog";
 import {
   ASSEMBLY_TYPE_LABELS,
-  buildShapeAssemblyGuideHtml,
   getShapeAssemblyDirection,
-  SHAPE_LABELS,
 } from "@/lib/shapeAssemblyGuideData";
+import { createShapeAssemblyPrintHref } from "@/lib/shapeAssemblyPrintRoute";
 
 const typeClass: Record<ShapeAssemblyModule["type"], string> = {
   CORNER: "border-violet-400/70 bg-violet-500/10 text-violet-800 dark:text-violet-200",
@@ -43,70 +42,13 @@ function ShapeTopology({ shape }: { shape: ShapeResult["shape"] }) {
 
 type ShapeAssemblyGuideResult = Pick<ShapeResult, "shape" | "assemblyEdges" | "profileName" | "profileCode">;
 
-const SHAPE_ASSEMBLY_PRINT_CSS = `
-  *{box-sizing:border-box} @page{size:A4 portrait;margin:6mm} body{font-family:Arial,Helvetica,sans-serif;color:#172033;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  /* Impressão compacta: cada guia especial ocupa uma única folha A4. */
-  .assembly-sheet{page-break-after:always;break-inside:avoid}.assembly-sheet:last-child{page-break-after:auto}.assembly-header{background:#1f3864;color:#fff;padding:8px 11px;border-radius:5px 5px 0 0}.assembly-header p{font-size:8px;font-weight:700;letter-spacing:.6px;margin:0 0 2px}.assembly-header h2{font-size:14px;margin:0}.assembly-product{font-size:9px;margin-top:3px;opacity:.95}
-  .assembly-layout{border:1px solid #8ea9c1;border-top:0;padding:7px}.assembly-topology{display:grid;grid-template-columns:180px minmax(0,1fr);align-items:center;border-bottom:1px solid #d4dbe5;padding:0 3px 6px;text-align:center}.assembly-topology svg{width:180px;height:96px;color:#1f3864}.assembly-topology p{font-size:8px;line-height:1.25;text-align:left;margin:0 0 0 8px}.assembly-legend{display:flex;justify-content:flex-start;gap:4px;flex-wrap:wrap;margin:4px 0 0 8px}.assembly-legend span{border:1px solid #8ea9c1;border-radius:8px;padding:2px 5px;font-size:7px;font-weight:700}.assembly-edges{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;padding-top:6px}.assembly-edge{border:1px solid #b9c5d4;border-radius:4px;margin:0;break-inside:avoid}.assembly-edge-title{display:flex;justify-content:space-between;gap:4px;background:#edf2f7;padding:4px 5px;font-size:8px}.assembly-edge-title strong{font-size:9px}.assembly-edge-title span{color:#506176;white-space:nowrap}.assembly-modules{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;list-style:none;padding:4px;margin:0}.assembly-module{border:1px solid #cbd5e1;border-radius:3px;padding:4px;display:grid;gap:1px;font-size:7px;line-height:1.15;min-width:0}.assembly-position{font-weight:800;color:#1f3864}.assembly-type{font-size:6px;font-weight:700;text-transform:uppercase}.assembly-module strong{font-size:7px;overflow-wrap:anywhere}.assembly-corner{border-color:#b796e8;background:#faf7ff}.assembly-if{border-color:#7dd3fc;background:#f0f9ff}.assembly-ml{border-color:#6ee7b7;background:#f0fdf4}.assembly-note{border:1px solid #8ea9c1;border-top:0;padding:5px 7px;font-size:7px;line-height:1.2;color:#506176;border-radius:0 0 5px 5px}
-`;
-
-export function buildShapeAssemblyPrintDocument(result: ShapeAssemblyGuideResult): string {
-  const item = {
-    profileShape: result.shape === "STRAIGHT" ? undefined : result.shape,
-    shapeAssemblyEdges: result.assemblyEdges,
-    description: result.profileName,
-    sku: result.profileCode,
-    itemEmPlanta: "Guia de montagem",
-  };
-  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/><title>Guia de montagem</title><style>
-    ${SHAPE_ASSEMBLY_PRINT_CSS}
-    .print-toolbar{position:sticky;top:0;z-index:10;display:flex;justify-content:flex-end;padding:8px;background:#fff;border-bottom:1px solid #d4dbe5}.print-toolbar button{cursor:pointer;border:1px solid #94a3b8;border-radius:5px;background:#fff;padding:7px 12px;font:600 12px Arial;color:#172033}@media print{.print-toolbar{display:none!important}}
-  </style></head><body><div class="print-toolbar"><button type="button" onclick="window.print()">Imprimir guia</button></div>${buildShapeAssemblyGuideHtml([item as never])}</body></html>`;
-}
-
-type PrintableWindow = Pick<Window, "document" | "focus" | "print" | "closed" | "addEventListener">;
-
-export function openShapeAssemblyPrintWindow(
-  result: ShapeAssemblyGuideResult,
-  openWindow: () => PrintableWindow | null = () => window.open("", "shape-assembly-print", "width=960,height=900") as PrintableWindow | null,
-): boolean {
-  const printWindow = openWindow();
-  if (!printWindow) return false;
-  let hasPrinted = false;
-  const triggerPrint = () => {
-    if (hasPrinted || printWindow.closed) return;
-    hasPrinted = true;
-    printWindow.focus();
-    printWindow.print();
-  };
-  try {
-    printWindow.document.open();
-    printWindow.document.write(buildShapeAssemblyPrintDocument(result));
-    printWindow.document.close();
-    printWindow.addEventListener("load", triggerPrint, { once: true });
-    globalThis.setTimeout(triggerPrint, 150);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResult }) {
   const [open, setOpen] = useState(false);
   const edges = result.assemblyEdges ?? [];
 
   if (edges.length === 0) return null;
 
-  // Fluxo restaurado do checkpoint de 16:26: nova janela dedicada, seguida de
-  // impressão quando o documento do guia concluir o carregamento.
-  const handlePrint = () => {
-    const printWindow = window.open("", "_blank", "width=960,height=900");
-    if (!printWindow) return;
-    printWindow.document.open();
-    printWindow.document.write(buildShapeAssemblyPrintDocument(result));
-    printWindow.document.close();
-    printWindow.addEventListener("load", () => printWindow.print(), { once: true });
-  };
+  const printHref = createShapeAssemblyPrintHref(result);
 
   return <>
     <Button
@@ -132,20 +74,15 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
               <DialogTitle className="text-lg">Guia de montagem — {result.profileName ?? result.profileCode}</DialogTitle>
               <p className="mt-1 text-xs text-muted-foreground">Sequência física por aresta, pronta para consulta e impressão.</p>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="gap-1.5"
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                handlePrint();
-              }}
+            <a
+              href={printHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Abrir guia de montagem para impressão"
+              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <Printer className="h-3.5 w-3.5" /> Imprimir guia
-            </Button>
+            </a>
           </div>
         </DialogHeader>
         <div className="mx-auto w-full max-w-5xl space-y-5 px-4 py-4 sm:px-6 sm:py-5">
